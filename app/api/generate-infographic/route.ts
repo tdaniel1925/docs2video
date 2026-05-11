@@ -176,6 +176,16 @@ ${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
   }
   console.log(`[generate-infographic] Deducted 1 credit for infographic`)
 
+  // Log to unified creations table (non-blocking)
+  Promise.resolve(admin.from('creations').insert({
+    user_id: user.id,
+    type: 'infographic',
+    title: title,
+    thumbnail_url: urlData.publicUrl,
+    file_url: urlData.publicUrl,
+    credits_used: 1,
+  })).catch(() => {})
+
   return NextResponse.json({
     imageUrl: urlData.publicUrl,
     width: config.width,

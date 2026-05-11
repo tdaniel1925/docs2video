@@ -205,6 +205,17 @@ export async function POST(request: Request) {
       console.log(`[video ${videoId}] Warning: insufficient credits but video already generated`)
     }
 
+    // Log to unified creations table (non-blocking)
+    const videoTitle = scenes[0]?.slidePrompt ?? (policyData as any)?.policyType ?? 'Untitled Video'
+    Promise.resolve(admin.from('creations').insert({
+      user_id: user.id,
+      type: 'video',
+      title: videoTitle,
+      thumbnail_url: thumbUrl.publicUrl,
+      file_url: videoUrl.publicUrl,
+      credits_used: creditCost,
+    })).catch(() => {})
+
     console.log(`[video ${videoId}] Complete!`)
     return NextResponse.json({ success: true })
   } catch (err) {

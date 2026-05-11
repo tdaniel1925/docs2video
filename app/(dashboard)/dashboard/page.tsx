@@ -3,6 +3,15 @@ import { createClient } from '../../_lib/supabase/server'
 
 // Feature flags — now driven by user's subscription plan
 
+const TYPE_BADGE: Record<string, { label: string; color: string }> = {
+  video: { label: 'Video', color: 'mint' },
+  flyer: { label: 'Flyer', color: 'peach' },
+  'business-card': { label: 'Card', color: 'lilac' },
+  infographic: { label: 'Infographic', color: 'sky' },
+  ad: { label: 'Ad', color: 'sun' },
+  'brand-deck': { label: 'Deck', color: 'rose' },
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -13,38 +22,20 @@ export default async function DashboardPage() {
     .eq('id', user!.id)
     .single()
 
-  const { data: infographics } = await supabase
-    .from('infographics')
-    .select('*, brand:brands(*)')
-    .eq('user_id', user!.id)
-    .order('created_at', { ascending: false })
-    .limit(6)
-
-  const { data: videos } = await supabase
-    .from('videos')
+  // Fetch recent creations from the unified creations table
+  const { data: creations } = await supabase
+    .from('creations')
     .select('*')
     .eq('user_id', user!.id)
     .order('created_at', { ascending: false })
-    .limit(6)
+    .limit(10)
 
-  // Only show videos (explainers) in the recent list
-  const recentItems = [
-    ...(videos ?? []).map((v: any) => ({ ...v, _type: 'video' as const })),
-  ]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 6)
+  const recentItems = (creations ?? []) as any[]
 
-  const { count: infographicCount } = await supabase
-    .from('infographics')
+  const { count: totalCount } = await supabase
+    .from('creations')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user!.id)
-
-  const { count: videoCount } = await supabase
-    .from('videos')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user!.id)
-
-  const totalCount = (infographicCount ?? 0) + (videoCount ?? 0)
 
   // Pending follow-ups
   const { data: pendingFollowUps } = await supabase
@@ -84,8 +75,8 @@ export default async function DashboardPage() {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Explainers</div>
-          <div className="stat-value">{videoCount ?? 0}</div>
+          <div className="stat-label">Total Creations</div>
+          <div className="stat-value">{totalCount ?? 0}</div>
           <div className="stat-foot">
             <Link href="/videos" style={{ color: 'inherit', textDecoration: 'underline' }}>
               View all
@@ -106,7 +97,7 @@ export default async function DashboardPage() {
       {/* Recent Activity */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <h2 style={{ fontSize: 24, fontWeight: 700 }}>Recent creations</h2>
-        {totalCount > 6 && (
+        {(totalCount ?? 0) > 10 && (
           <Link href="/videos" className="btn btn-soft btn-sm">View all &rarr;</Link>
         )}
       </div>
@@ -123,12 +114,17 @@ export default async function DashboardPage() {
       ) : (
         <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
           {recentItems.map((item: any, i: number) => {
-            const isVideo = item._type === 'video'
-            const href = isVideo ? `/videos/${item.id}` : `/infographics/${item.id}`
+            const isVideo = item.type === 'video'
+            const href = isVideo ? `/videos/${item.id}` : item.file_url
+            const badge = TYPE_BADGE[item.type] ?? { label: item.type, color: 'sky' }
+            const TagEl = isVideo ? Link : 'a'
+            const linkProps = isVideo
+              ? { href }
+              : { href, target: '_blank' as const, rel: 'noopener noreferrer' }
             return (
-              <Link
+              <TagEl
                 key={item.id}
-                href={href}
+                {...linkProps}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -141,15 +137,15 @@ export default async function DashboardPage() {
                 }}
                 className="activity-row"
               >
-                {/* Icon */}
+                {/* Thumbnail */}
                 <div style={{
                   width: 44, height: 44, borderRadius: 10, flexShrink: 0,
-                  background: item.image_url || item.thumbnail_url ? 'var(--bg)' : ['var(--mint)', 'var(--peach)', 'var(--lilac)', 'var(--sky)', 'var(--sun)', 'var(--rose)'][i % 6],
+                  background: item.thumbnail_url ? 'var(--bg)' : `var(--${badge.color})`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   overflow: 'hidden',
                 }}>
-                  {item.image_url || item.thumbnail_url ? (
-                    <img src={item.image_url ?? item.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  {item.thumbnail_url ? (
+                    <img src={item.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : isVideo ? (
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
                   ) : (
@@ -160,17 +156,17 @@ export default async function DashboardPage() {
                 {/* Title + type */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {item.title ?? item.source_pdf_name ?? 'Untitled'}
+                    {item.title ?? 'Untitled'}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2 }}>
-                    {isVideo ? 'Video' : 'Infographic'}
-                    {item.source_pdf_name && item.title ? ` \u00B7 From ${item.source_pdf_name}` : ''}
+                    {badge.label}
+                    {item.credits_used ? ` \u00B7 ${item.credits_used} credit${item.credits_used > 1 ? 's' : ''}` : ''}
                   </div>
                 </div>
 
-                {/* Status */}
-                <span className={`tag ${item.status === 'completed' ? 'mint' : item.status === 'failed' ? 'rose' : 'peach'}`} style={{ flexShrink: 0 }}>
-                  {item.status === 'completed' ? 'Done' : item.status === 'failed' ? 'Failed' : 'Processing'}
+                {/* Type badge */}
+                <span className={`tag ${badge.color}`} style={{ flexShrink: 0 }}>
+                  {badge.label}
                 </span>
 
                 {/* Date */}
@@ -180,7 +176,7 @@ export default async function DashboardPage() {
 
                 {/* Arrow */}
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-light)" strokeWidth="2" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6"/></svg>
-              </Link>
+              </TagEl>
             )
           })}
         </div>

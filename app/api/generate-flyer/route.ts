@@ -209,5 +209,17 @@ ${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
     console.log(`[generate-flyer] Deducted ${results.length} credits for ${results.length} flyer(s)`)
   }
 
+  // Log each flyer to unified creations table (non-blocking)
+  for (const r of results) {
+    Promise.resolve(admin.from('creations').insert({
+      user_id: user.id,
+      type: 'flyer',
+      title: eventName + ' - ' + r.label,
+      thumbnail_url: r.imageUrl,
+      file_url: r.imageUrl,
+      credits_used: 1,
+    })).catch(() => {})
+  }
+
   return NextResponse.json({ flyers: results })
 }
