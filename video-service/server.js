@@ -142,9 +142,12 @@ app.post('/assemble', authCheck, async (req, res) => {
     let finalPath = outputPath
     if (musicUrl) {
       try {
-        console.log(`[${videoId}] Downloading background music...`)
+        console.log(`[${videoId}] Downloading background music from: ${musicUrl}`)
         const fetch = (await import('node-fetch')).default
-        const musicRes = await fetch(musicUrl, { timeout: 15000 })
+        const controller = new AbortController()
+        const fetchTimeout = setTimeout(() => controller.abort(), 20000)
+        const musicRes = await fetch(musicUrl, { signal: controller.signal })
+        clearTimeout(fetchTimeout)
         if (musicRes.ok) {
           const musicPath = join(workDir, 'bgmusic.mp3')
           const musicBuf = Buffer.from(await musicRes.arrayBuffer())

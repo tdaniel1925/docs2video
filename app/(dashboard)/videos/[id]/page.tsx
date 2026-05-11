@@ -267,6 +267,8 @@ export default function VideoDetailPage() {
                 approvedSlides: input.approvedSlides,
                 preGeneratedScenes: input.scenes,
                 preGeneratedAudioId: input.preGeneratedAudioId,
+                detailed: input.detailed,
+                musicUrl: input.musicUrl,
               }),
             }).catch((err) => console.error('[video] Pipeline error:', err))
           }
