@@ -18,16 +18,24 @@ const TYPE_LABELS: Record<string, string> = {
   video: 'Video',
   flyer: 'Flyer',
   logo: 'Logo',
+  'business-card': 'Business Card',
   card: 'Card',
   infographic: 'Infographic',
+  remix: 'Remix',
+  'social-kit': 'Social Kit',
+  template: 'Template',
 }
 
 const TYPE_COLORS: Record<string, string> = {
   video: 'mint',
   flyer: 'peach',
   logo: 'lilac',
+  'business-card': 'sky',
   card: 'sky',
   infographic: 'mint',
+  remix: 'rose',
+  'social-kit': 'sun',
+  template: 'peach',
 }
 
 export default async function VideosPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
@@ -80,8 +88,16 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
         <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
           {(creations as Creation[]).map((item, i) => {
             const isVideo = item.type === 'video'
-            const href = isVideo ? `/videos/${item.id}` : (item.file_url ?? '#')
-            const linkProps = isVideo ? {} : { target: '_blank' as const, rel: 'noopener noreferrer' }
+            // For videos, extract the video ID from the file_url pattern: .../userId/videoId.mp4
+            let href = item.file_url ?? '#'
+            let linkProps: { target?: '_blank'; rel?: string } = { target: '_blank', rel: 'noopener noreferrer' }
+            if (isVideo && item.file_url) {
+              const match = item.file_url.match(/\/([0-9a-f-]{36})\.mp4/)
+              if (match) {
+                href = `/videos/${match[1]}`
+                linkProps = {}
+              }
+            }
 
             return (
               <Link

@@ -9,6 +9,9 @@ const TYPE_BADGE: Record<string, { label: string; color: string }> = {
   ad: { label: 'Ad', color: 'sun' },
   'brand-deck': { label: 'Deck', color: 'rose' },
   logo: { label: 'Logo', color: 'sun' },
+  remix: { label: 'Remix', color: 'rose' },
+  'social-kit': { label: 'Social Kit', color: 'mint' },
+  template: { label: 'Template', color: 'peach' },
 }
 
 const QUICK_CREATE = [
@@ -162,7 +165,13 @@ export default async function DashboardPage() {
         <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
           {recentItems.map((item: any, i: number) => {
             const isVideo = item.type === 'video'
-            const href = isVideo ? `/videos/${item.id}` : item.file_url
+            // For videos, extract video ID from file_url pattern: .../userId/videoId.mp4
+            let videoHref = item.file_url ?? '#'
+            if (isVideo && item.file_url) {
+              const match = item.file_url.match(/\/([0-9a-f-]{36})\.mp4/)
+              if (match) videoHref = `/videos/${match[1]}`
+            }
+            const href = isVideo ? videoHref : (item.file_url ?? '#')
             const badge = TYPE_BADGE[item.type] ?? { label: item.type, color: 'sky' }
             const TagEl = isVideo ? Link : 'a'
             const linkProps = isVideo
