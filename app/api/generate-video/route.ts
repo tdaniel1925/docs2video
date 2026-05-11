@@ -207,14 +207,14 @@ export async function POST(request: Request) {
 
     // Log to unified creations table (non-blocking)
     const videoTitle = scenes[0]?.slidePrompt ?? (policyData as any)?.policyType ?? 'Untitled Video'
-    Promise.resolve(admin.from('creations').insert({
+    await admin.from('creations').insert({
       user_id: user.id,
       type: 'video',
       title: videoTitle,
       thumbnail_url: thumbUrl.publicUrl,
       file_url: videoUrl.publicUrl,
       credits_used: creditCost,
-    })).catch(() => {})
+    })
 
     console.log(`[video ${videoId}] Complete!`)
     return NextResponse.json({ success: true })

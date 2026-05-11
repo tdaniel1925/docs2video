@@ -243,14 +243,14 @@ ${hasLogo ? '- Feature the provided logo prominently' : ''}
   console.log(`[generate-business-card] Deducted 1 credit for business card pair`)
 
   // Log to unified creations table (non-blocking)
-  Promise.resolve(admin.from('creations').insert({
+  await admin.from('creations').insert({
     user_id: user.id,
     type: 'business-card',
     title: fullName + ' Business Card',
     thumbnail_url: frontUrlData.publicUrl,
     file_url: frontUrlData.publicUrl,
     credits_used: 1,
-  })).catch(() => {})
+  })
 
   return NextResponse.json({
     front: { imageUrl: frontUrlData.publicUrl, width: 1050, height: 600 },

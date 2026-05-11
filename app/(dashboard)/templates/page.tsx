@@ -6,6 +6,54 @@ import type { CustomTemplate } from '../../_lib/types'
 
 type View = 'gallery' | 'create'
 type CreateStep = 'describe' | 'choose' | 'save'
+type CreatorTab = 'quickpick' | 'upload' | 'describe'
+
+const MOOD_OPTIONS = {
+  mood: [
+    { id: 'dark', label: 'Dark', prompt: 'dark background, light text, subtle glow effects' },
+    { id: 'light', label: 'Light', prompt: 'white/cream background, dark text, clean and airy' },
+    { id: 'colorful', label: 'Colorful', prompt: 'vibrant multi-color palette, bold color blocks' },
+    { id: 'minimal', label: 'Minimal', prompt: 'maximum whitespace, hairline rules, sparse elements' },
+    { id: 'elegant', label: 'Elegant', prompt: 'refined typography, thin borders, ornamental details, premium spacing' },
+  ],
+  feel: [
+    { id: 'corporate', label: 'Corporate', prompt: 'structured grid, serif headings, authoritative, boardroom-ready' },
+    { id: 'playful', label: 'Playful', prompt: 'rounded shapes, fun icons, casual fonts, friendly' },
+    { id: 'luxury', label: 'Luxury', prompt: 'gold/champagne accents, marble textures, exclusive feel' },
+    { id: 'tech', label: 'Tech', prompt: 'gradient accents, glass-morphism, modern sans-serif, futuristic' },
+    { id: 'organic', label: 'Organic', prompt: 'earth tones, natural textures, botanical accents, warm' },
+  ],
+  colors: [
+    { id: 'blues', label: 'Blues', prompt: 'navy, teal, sky blue palette' },
+    { id: 'greens', label: 'Greens', prompt: 'forest green, mint, sage palette' },
+    { id: 'warm', label: 'Warm', prompt: 'terracotta, amber, gold, cream palette' },
+    { id: 'mono', label: 'Monochrome', prompt: 'black, white, grays only' },
+    { id: 'pastels', label: 'Pastels', prompt: 'soft mint, lavender, peach, sky blue pastels' },
+    { id: 'bold', label: 'Bold', prompt: 'vibrant red, electric blue, bright yellow, high contrast' },
+  ],
+  layout: [
+    { id: 'data', label: 'Data-heavy', prompt: 'large numbers, charts, stat cards, data visualization' },
+    { id: 'visual', label: 'Visual', prompt: 'illustrations, icons, imagery-focused, less text' },
+    { id: 'clean', label: 'Clean', prompt: 'minimal elements, generous spacing, focused content' },
+    { id: 'grid', label: 'Grid', prompt: 'structured multi-column grid, organized sections' },
+    { id: 'timeline', label: 'Timeline', prompt: 'horizontal or vertical timeline flow, step-by-step' },
+  ],
+} as const
+
+type MoodCategory = keyof typeof MOOD_OPTIONS
+
+function buildMoodPrompt(selections: Record<string, string>): string {
+  const parts: string[] = []
+  for (const category of Object.keys(MOOD_OPTIONS) as MoodCategory[]) {
+    const selectedId = selections[category]
+    if (selectedId) {
+      const option = MOOD_OPTIONS[category].find(o => o.id === selectedId)
+      if (option) parts.push(option.prompt)
+    }
+  }
+  if (parts.length === 0) return ''
+  return parts.join('. ') + '. Professional presentation slide, 1920x1080, 16:9.'
+}
 
 function TemplateGeneratingProgress() {
   const [elapsed, setElapsed] = useState(0)
@@ -43,6 +91,9 @@ export default function TemplatesPage() {
 
   // Create state
   const [createStep, setCreateStep] = useState<CreateStep>('describe')
+  const [creatorTab, setCreatorTab] = useState<CreatorTab>('quickpick')
+  const [moodSelections, setMoodSelections] = useState<Record<string, string>>({})
+  const [inspirationImage, setInspirationImage] = useState<string | null>(null)
   const [description, setDescription] = useState('')
   const [refImage, setRefImage] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
@@ -190,6 +241,9 @@ export default function TemplatesPage() {
 
   function resetCreate() {
     setCreateStep('describe')
+    setCreatorTab('quickpick')
+    setMoodSelections({})
+    setInspirationImage(null)
     setDescription('')
     setRefImage(null)
     setStylePrompt('')
@@ -203,6 +257,76 @@ export default function TemplatesPage() {
     setChatInput('')
     setChatLoading(false)
     setDetectedStylePrompt(null)
+  }
+
+  function handleMoodToggle(category: string, id: string) {
+    setMoodSelections(prev => {
+      if (prev[category] === id) {
+        const next = { ...prev }
+        delete next[category]
+        return next
+      }
+      return { ...prev, [category]: id }
+    })
+  }
+
+  async function handleGenerateFromMood() {
+    const prompt = buildMoodPrompt(moodSelections)
+    if (!prompt) return
+    setDescription(prompt)
+    setGenerating(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/templates/generate-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: prompt }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setStylePrompt(data.prompt)
+      setPreviews(data.previews)
+      setSelectedPreview(0)
+      setCreateStep('choose')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generation failed')
+    }
+    setGenerating(false)
+  }
+
+  function handleInspirationUpload(file: File) {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      const base64 = result.replace(/^data:image\/\w+;base64,/, '')
+      setInspirationImage(base64)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  async function handleGenerateFromInspiration() {
+    if (!inspirationImage) return
+    setGenerating(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/templates/generate-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: 'Match the visual style, colors, typography, layout, and mood of the provided reference image. Create a professional presentation template inspired by this design.',
+          referenceImageBase64: inspirationImage,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setStylePrompt(data.prompt)
+      setPreviews(data.previews)
+      setSelectedPreview(0)
+      setCreateStep('choose')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generation failed')
+    }
+    setGenerating(false)
   }
 
   function handleRefImageUpload(file: File) {
@@ -273,171 +397,349 @@ export default function TemplatesPage() {
       {createStep === 'describe' && (
         <div className="wizard-card">
           <h2>Describe your <em>template</em></h2>
-          <p className="wizard-sub">Chat with AI to refine your vision, or describe it directly below.</p>
+          <p className="wizard-sub">Pick a mood, upload inspiration, or describe it yourself.</p>
 
-          {/* AI Chat Section */}
-          <div style={{ marginBottom: 24 }}>
-            <label className="input-label" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              Chat with AI designer
-            </label>
-            <div style={{
-              border: '1px solid var(--border)',
-              borderRadius: 10,
-              overflow: 'hidden',
-              background: 'var(--bg-soft)',
-            }}>
-              {/* Messages area */}
-              <div style={{
-                maxHeight: 320,
-                overflowY: 'auto',
-                padding: 16,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 10,
-              }}>
-                {chatMessages.map((msg, i) => (
-                  <div key={i} style={{
-                    display: 'flex',
-                    justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+          {/* Tab pills */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 24 }}>
+            {([
+              { key: 'quickpick' as CreatorTab, label: 'Quick Pick' },
+              { key: 'upload' as CreatorTab, label: 'Upload Inspiration' },
+              { key: 'describe' as CreatorTab, label: 'Describe It' },
+            ]).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setCreatorTab(tab.key)}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: 10,
+                  border: 'none',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  background: creatorTab === tab.key ? 'var(--mint)' : 'var(--bg-soft)',
+                  color: creatorTab === tab.key ? 'var(--ink)' : 'var(--ink-soft)',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* === Quick Pick Tab === */}
+          {creatorTab === 'quickpick' && (
+            <div>
+              <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 20, color: 'var(--ink)' }}>How should it look?</p>
+
+              {(Object.keys(MOOD_OPTIONS) as MoodCategory[]).map(category => (
+                <div key={category} style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
+                  <span style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: 'var(--ink-soft)',
+                    textTransform: 'capitalize',
+                    minWidth: 60,
+                    paddingTop: 7,
                   }}>
-                    <div style={{
-                      maxWidth: '80%',
-                      padding: '10px 14px',
-                      borderRadius: 10,
-                      fontSize: 14,
-                      lineHeight: 1.5,
-                      background: msg.role === 'user' ? 'var(--mint)' : 'white',
-                      color: 'var(--ink)',
-                      border: msg.role === 'user' ? 'none' : '1px solid var(--border-light)',
-                      whiteSpace: 'pre-wrap',
-                    }}>
-                      {msg.content}
-                    </div>
+                    {category === 'colors' ? 'Colors' : category.charAt(0).toUpperCase() + category.slice(1)}
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {MOOD_OPTIONS[category].map(option => {
+                      const isSelected = moodSelections[category] === option.id
+                      return (
+                        <button
+                          key={option.id}
+                          onClick={() => handleMoodToggle(category, option.id)}
+                          style={{
+                            padding: '6px 16px',
+                            borderRadius: 10,
+                            border: isSelected ? '1.5px solid var(--ink)' : '1.5px solid var(--border)',
+                            fontSize: 13,
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            background: isSelected ? 'var(--ink)' : 'white',
+                            color: isSelected ? 'var(--mint)' : 'var(--ink)',
+                          }}
+                        >
+                          {option.label}
+                        </button>
+                      )
+                    })}
                   </div>
-                ))}
-                {chatLoading && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                    <div style={{
-                      padding: '10px 14px',
-                      borderRadius: 10,
-                      fontSize: 14,
-                      background: 'white',
-                      border: '1px solid var(--border-light)',
-                      color: 'var(--ink-light)',
-                    }}>
-                      Thinking...
-                    </div>
+                </div>
+              ))}
+
+              {error && <div style={{ color: '#C03A1F', fontSize: 14, marginBottom: 16, marginTop: 16 }}>{error}</div>}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 24 }}>
+                <button
+                  onClick={handleGenerateFromMood}
+                  disabled={generating || Object.keys(moodSelections).length === 0}
+                  className="btn btn-primary btn-lg"
+                >
+                  {generating ? 'Generating 4 variations...' : 'Generate previews \u2192'}
+                </button>
+                <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>Uses 1 credit</span>
+              </div>
+
+              {generating && <TemplateGeneratingProgress />}
+            </div>
+          )}
+
+          {/* === Upload Inspiration Tab === */}
+          {creatorTab === 'upload' && (
+            <div>
+              {inspirationImage ? (
+                <div style={{ marginBottom: 24 }}>
+                  <div style={{
+                    borderRadius: 10,
+                    overflow: 'hidden',
+                    border: '1px solid var(--border-light)',
+                    marginBottom: 16,
+                  }}>
+                    <img
+                      src={`data:image/png;base64,${inspirationImage}`}
+                      alt="Inspiration"
+                      style={{ width: '100%', display: 'block' }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      onClick={handleGenerateFromInspiration}
+                      disabled={generating}
+                      className="btn btn-primary btn-lg"
+                    >
+                      {generating ? 'Generating 4 variations...' : 'Generate from this \u2192'}
+                    </button>
+                    <button
+                      onClick={() => setInspirationImage(null)}
+                      className="btn btn-soft"
+                    >
+                      Remove
+                    </button>
+                    <span style={{ fontSize: 12, color: 'var(--ink-light)', alignSelf: 'center' }}>Uses 1 credit</span>
+                  </div>
+                </div>
+              ) : (
+                <label
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '56px 20px',
+                    border: '2px dashed var(--border)',
+                    borderRadius: 10,
+                    background: 'var(--bg-soft)',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.15s ease',
+                    textAlign: 'center',
+                    marginBottom: 24,
+                  }}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const f = e.dataTransfer.files?.[0]
+                    if (f && f.type.startsWith('image/')) handleInspirationUpload(f)
+                  }}
+                >
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--ink-light)" strokeWidth="1.5" style={{ marginBottom: 12 }}>
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                  <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
+                    Drop a screenshot of a design you like
+                  </p>
+                  <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>
+                    We&apos;ll match the style
+                  </p>
+                  <span className="btn btn-soft" style={{ pointerEvents: 'none' }}>Browse files</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      if (f) handleInspirationUpload(f)
+                    }}
+                  />
+                </label>
+              )}
+
+              {error && <div style={{ color: '#C03A1F', fontSize: 14, marginBottom: 16 }}>{error}</div>}
+              {generating && <TemplateGeneratingProgress />}
+            </div>
+          )}
+
+          {/* === Describe It Tab === */}
+          {creatorTab === 'describe' && (
+            <div>
+              {/* AI Chat Section */}
+              <div style={{ marginBottom: 24 }}>
+                <label className="input-label" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  Chat with AI designer
+                </label>
+                <div style={{
+                  border: '1px solid var(--border)',
+                  borderRadius: 10,
+                  overflow: 'hidden',
+                  background: 'var(--bg-soft)',
+                }}>
+                  {/* Messages area */}
+                  <div style={{
+                    maxHeight: 320,
+                    overflowY: 'auto',
+                    padding: 16,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                  }}>
+                    {chatMessages.map((msg, i) => (
+                      <div key={i} style={{
+                        display: 'flex',
+                        justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                      }}>
+                        <div style={{
+                          maxWidth: '80%',
+                          padding: '10px 14px',
+                          borderRadius: 10,
+                          fontSize: 14,
+                          lineHeight: 1.5,
+                          background: msg.role === 'user' ? 'var(--mint)' : 'white',
+                          color: 'var(--ink)',
+                          border: msg.role === 'user' ? 'none' : '1px solid var(--border-light)',
+                          whiteSpace: 'pre-wrap',
+                        }}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    ))}
+                    {chatLoading && (
+                      <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                        <div style={{
+                          padding: '10px 14px',
+                          borderRadius: 10,
+                          fontSize: 14,
+                          background: 'white',
+                          border: '1px solid var(--border-light)',
+                          color: 'var(--ink-light)',
+                        }}>
+                          Thinking...
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+
+                  {/* Chat input */}
+                  <div style={{
+                    display: 'flex',
+                    gap: 8,
+                    padding: '10px 12px',
+                    borderTop: '1px solid var(--border-light)',
+                    background: 'white',
+                  }}>
+                    <input
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage() } }}
+                      className="input"
+                      style={{ flex: 1, borderRadius: 8, fontSize: 14 }}
+                      placeholder="e.g., Dark blue professional with gold accents..."
+                      disabled={chatLoading}
+                    />
+                    <button
+                      onClick={sendChatMessage}
+                      disabled={chatLoading || !chatInput.trim()}
+                      className="btn btn-primary"
+                      style={{ flexShrink: 0, borderRadius: 8, padding: '8px 16px' }}
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
+
+                {detectedStylePrompt && (
+                  <div style={{
+                    marginTop: 10,
+                    padding: '10px 14px',
+                    background: 'rgba(166,216,124,0.15)',
+                    border: '1px solid var(--mint-deep)',
+                    borderRadius: 10,
+                    fontSize: 13,
+                    color: 'var(--ink-soft)',
+                  }}>
+                    AI has prepared a style description. Click <strong>Generate previews</strong> when ready.
                   </div>
                 )}
-                <div ref={chatEndRef} />
               </div>
 
-              {/* Chat input */}
-              <div style={{
-                display: 'flex',
-                gap: 8,
-                padding: '10px 12px',
-                borderTop: '1px solid var(--border-light)',
-                background: 'white',
-              }}>
-                <input
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage() } }}
+              {/* Divider */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '8px 0 20px', color: 'var(--ink-light)', fontSize: 13 }}>
+                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                or describe it manually
+                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+              </div>
+
+              <div className="form-group">
+                <label className="input-label">Describe the look you want</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => { setDescription(e.target.value); if (detectedStylePrompt) setDetectedStylePrompt(null) }}
                   className="input"
-                  style={{ flex: 1, borderRadius: 8, fontSize: 14 }}
-                  placeholder="e.g., Dark blue professional with gold accents..."
-                  disabled={chatLoading}
+                  style={{ borderRadius: 10, minHeight: 100, resize: 'vertical' }}
+                  placeholder="e.g., Dark blue professional with gold accents, like a luxury financial report. Clean typography, generous spacing, subtle gradients..."
                 />
-                <button
-                  onClick={sendChatMessage}
-                  disabled={chatLoading || !chatInput.trim()}
-                  className="btn btn-primary"
-                  style={{ flexShrink: 0, borderRadius: 8, padding: '8px 16px' }}
-                >
-                  Send
+              </div>
+
+              <div className="form-group">
+                <label className="input-label">Reference image <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
+                {refImage ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 16, background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border-light)' }}>
+                    <img src={`data:image/png;base64,${refImage}`} alt="Reference" style={{ height: 80, borderRadius: 10, border: '1px solid var(--border)' }} />
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Reference uploaded</p>
+                      <button type="button" onClick={() => setRefImage(null)} className="btn btn-danger btn-sm">Remove</button>
+                    </div>
+                  </div>
+                ) : (
+                  <label style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '32px 20px',
+                    border: '2px dashed var(--border)',
+                    borderRadius: 10,
+                    background: 'var(--bg-soft)',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.15s ease',
+                    textAlign: 'center',
+                  }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ink-light)" strokeWidth="2" style={{ marginBottom: 8 }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 4 }}>Upload a reference image</p>
+                    <p style={{ fontSize: 12, color: 'var(--ink-light)' }}>Drop an image or click to browse — we&apos;ll match the style</p>
+                    <input type="file" accept="image/*" style={{ display: 'none' }}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleRefImageUpload(f) }} />
+                  </label>
+                )}
+              </div>
+
+              {error && <div style={{ color: '#C03A1F', fontSize: 14, marginBottom: 16 }}>{error}</div>}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button onClick={handleGenerate} disabled={generating || (!description.trim() && !detectedStylePrompt)} className="btn btn-primary btn-lg">
+                  {generating ? 'Generating 4 variations...' : 'Generate previews \u2192'}
                 </button>
+                <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>Uses 1 credit</span>
               </div>
+
+              {generating && <TemplateGeneratingProgress />}
             </div>
-
-            {detectedStylePrompt && (
-              <div style={{
-                marginTop: 10,
-                padding: '10px 14px',
-                background: 'rgba(166,216,124,0.15)',
-                border: '1px solid var(--mint-deep)',
-                borderRadius: 10,
-                fontSize: 13,
-                color: 'var(--ink-soft)',
-              }}>
-                AI has prepared a style description. Click <strong>Generate previews</strong> when ready.
-              </div>
-            )}
-          </div>
-
-          {/* Divider */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '8px 0 20px', color: 'var(--ink-light)', fontSize: 13 }}>
-            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-            or describe it manually
-            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-          </div>
-
-          <div className="form-group">
-            <label className="input-label">Describe the look you want</label>
-            <textarea
-              value={description}
-              onChange={(e) => { setDescription(e.target.value); if (detectedStylePrompt) setDetectedStylePrompt(null) }}
-              className="input"
-              style={{ borderRadius: 10, minHeight: 100, resize: 'vertical' }}
-              placeholder="e.g., Dark blue professional with gold accents, like a luxury financial report. Clean typography, generous spacing, subtle gradients..."
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="input-label">Reference image <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
-            {refImage ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 16, background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border-light)' }}>
-                <img src={`data:image/png;base64,${refImage}`} alt="Reference" style={{ height: 80, borderRadius: 10, border: '1px solid var(--border)' }} />
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Reference uploaded</p>
-                  <button type="button" onClick={() => setRefImage(null)} className="btn btn-danger btn-sm">Remove</button>
-                </div>
-              </div>
-            ) : (
-              <label style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '32px 20px',
-                border: '2px dashed var(--border)',
-                borderRadius: 10,
-                background: 'var(--bg-soft)',
-                cursor: 'pointer',
-                transition: 'border-color 0.15s ease',
-                textAlign: 'center',
-              }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ink-light)" strokeWidth="2" style={{ marginBottom: 8 }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 4 }}>Upload a reference image</p>
-                <p style={{ fontSize: 12, color: 'var(--ink-light)' }}>Drop an image or click to browse — we&apos;ll match the style</p>
-                <input type="file" accept="image/*" style={{ display: 'none' }}
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleRefImageUpload(f) }} />
-              </label>
-            )}
-          </div>
-
-          {error && <div style={{ color: '#C03A1F', fontSize: 14, marginBottom: 16 }}>{error}</div>}
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button onClick={handleGenerate} disabled={generating || (!description.trim() && !detectedStylePrompt)} className="btn btn-primary btn-lg">
-              {generating ? 'Generating 4 variations...' : 'Generate previews \u2192'}
-            </button>
-            <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>Uses 1 credit</span>
-          </div>
-
-          {generating && (
-            <TemplateGeneratingProgress />
           )}
         </div>
       )}

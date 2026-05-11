@@ -16,6 +16,7 @@ const baseNavLinks = [
   { href: '/flyers', label: 'Flyers' },
   { href: '/business-cards', label: 'Cards' },
   { href: '/infographic-creator', label: 'Infographics' },
+  { href: '/logo-creator', label: 'Logos' },
   { href: '/settings', label: 'Settings' },
 ]
 

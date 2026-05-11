@@ -7,7 +7,7 @@ import type { Brand, ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { VOICE_OPTIONS, SLIDE_STYLES } from '../../_lib/types'
 
-type InputTab = 'upload' | 'text' | 'idea' | 'proposal'
+type InputTab = 'upload' | 'text' | 'idea' | 'url' | 'proposal'
 
 type Step = 'upload' | 'extracting' | 'review' | 'choose-brand' | 'choose-style' | 'approve-slides' | 'choose-voice' | 'generating' | 'done'
 
@@ -155,6 +155,7 @@ export default function CreatePage() {
   const [ideaTone, setIdeaTone] = useState('Professional')
   const [ideaKeyPoints, setIdeaKeyPoints] = useState('')
   const [textExtracting, setTextExtracting] = useState(false)
+  const [urlInput, setUrlInput] = useState('')
 
   // Proposal chat state
   const [proposalMessages, setProposalMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([
@@ -583,6 +584,7 @@ export default function CreatePage() {
             {([
               { key: 'upload' as InputTab, label: 'Upload PDF', accent: false },
               { key: 'text' as InputTab, label: 'Type or Paste', accent: false },
+              { key: 'url' as InputTab, label: 'From URL', accent: false },
               { key: 'idea' as InputTab, label: 'Start from Idea', accent: false },
               ...(['professional', 'active', 'agency'].includes(userPlan.toLowerCase())
                 ? [{ key: 'proposal' as InputTab, label: 'AI Proposal', accent: true }]
@@ -666,6 +668,56 @@ export default function CreatePage() {
                 <button
                   onClick={handleExtractText}
                   disabled={!rawText.trim() || textExtracting}
+                  className="btn btn-primary"
+                >
+                  {textExtracting ? 'Extracting...' : 'Extract & Continue \u2192'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Tab: From URL */}
+          {inputTab === 'url' && (
+            <div>
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label className="input-label">Page URL</label>
+                <input
+                  type="url"
+                  className="input"
+                  placeholder="https://..."
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                />
+                <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 6 }}>
+                  We&apos;ll extract the page content and structure it for your video.
+                </div>
+              </div>
+              <div className="wizard-actions" style={{ marginTop: 16 }}>
+                <button
+                  onClick={async () => {
+                    if (!urlInput.trim()) return
+                    setTextExtracting(true)
+                    setStep('extracting')
+                    setError(null)
+                    try {
+                      const res = await fetch('/api/extract-url', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: urlInput }),
+                      })
+                      const data = await res.json()
+                      if (!res.ok) throw new Error(data.error || 'Extraction failed')
+                      setGeneralData(data)
+                      setExtractedData(null)
+                      setStep('review')
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'URL extraction failed')
+                      setStep('upload')
+                    } finally {
+                      setTextExtracting(false)
+                    }
+                  }}
+                  disabled={!urlInput.trim() || textExtracting}
                   className="btn btn-primary"
                 >
                   {textExtracting ? 'Extracting...' : 'Extract & Continue \u2192'}

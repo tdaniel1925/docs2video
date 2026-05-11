@@ -18,10 +18,10 @@ export const stripe = new Proxy({} as Stripe, {
 })
 
 export const PLANS = {
-  free: { name: 'Demo', priceId: null, credits: 3, price: 0, brands: 1, features: ['basic'] },
-  starter: { name: 'Starter', priceId: process.env.STRIPE_STARTER_PRICE_ID!, credits: 30, price: 4900, brands: 2, features: ['basic', 'custom_templates'] },
-  professional: { name: 'Professional', priceId: process.env.STRIPE_PRO_PRICE_ID!, credits: 75, price: 9900, brands: -1, features: ['basic', 'custom_templates', 'proposals', 'quotes', 'payments', 'followups', 'calendar'] },
-  agency: { name: 'Agency', priceId: process.env.STRIPE_AGENCY_PRICE_ID!, credits: 200, price: 24900, brands: -1, features: ['basic', 'custom_templates', 'proposals', 'quotes', 'payments', 'followups', 'calendar', 'whitelabel', 'api', 'team'] },
+  free: { name: 'Demo', priceId: null, credits: 5, price: 0, brands: 1, features: ['basic'] },
+  starter: { name: 'Starter', priceId: process.env.STRIPE_STARTER_PRICE_ID!, credits: 50, price: 4900, brands: 2, features: ['basic', 'custom_templates'] },
+  professional: { name: 'Professional', priceId: process.env.STRIPE_PRO_PRICE_ID!, credits: 150, price: 9900, brands: -1, features: ['basic', 'custom_templates', 'proposals', 'quotes', 'payments', 'followups', 'calendar'] },
+  agency: { name: 'Agency', priceId: process.env.STRIPE_AGENCY_PRICE_ID!, credits: 500, price: 24900, brands: -1, features: ['basic', 'custom_templates', 'proposals', 'quotes', 'payments', 'followups', 'calendar', 'whitelabel', 'api', 'team'] },
 } as const
 
 export type PlanId = keyof typeof PLANS

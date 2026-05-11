@@ -1,6 +1,29 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
+ * Credit costs per action type.
+ */
+export const CREDIT_COSTS = {
+  video: 3,
+  infographic: 1,
+  logo: 2,
+  'logo-refine': 1,
+  'business-card': 1,
+  flyer: 1,
+  template: 2,
+  'template-refine': 1,
+} as const
+
+export type CreditAction = keyof typeof CREDIT_COSTS
+
+/**
+ * Get the credit cost for a given action.
+ */
+export function getCreditCost(action: CreditAction): number {
+  return CREDIT_COSTS[action]
+}
+
+/**
  * Deduct credits from a user's account.
  * Deducts from monthly credits (credits_remaining) first,
  * then falls back to pack_credits if monthly are exhausted.
