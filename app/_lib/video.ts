@@ -4,37 +4,57 @@ import { writeFile, mkdir, rm, readFile } from 'fs/promises'
 import { randomUUID } from 'crypto'
 import { execFile } from 'child_process'
 
+let _ffmpegPath: string | null = null
+
 function getFfmpegPath(): string {
-  // Try multiple methods to find ffmpeg binary
-  // Method 1: require('ffmpeg-static') returns the correct path on all platforms
+  if (_ffmpegPath) return _ffmpegPath
+
+  const fs = require('fs')
+  const ext = process.platform === 'win32' ? '.exe' : ''
+
+  // Method 1: Dynamic require at runtime (avoid Turbopack static analysis)
   try {
-    const staticPath = require('ffmpeg-static')
+    const modName = 'ffmpeg-static'
+    const resolved = require.resolve(modName)
+    // ffmpeg-static's main export IS the path string
+    const staticPath = require(modName)
     if (staticPath && typeof staticPath === 'string') {
-      console.log(`[ffmpeg] Found via ffmpeg-static: ${staticPath}`)
-      return staticPath
+      // Verify the file exists
+      try { fs.accessSync(staticPath); _ffmpegPath = staticPath; console.log(`[ffmpeg] Found via package: ${staticPath}`); return staticPath } catch {}
     }
+    // Sometimes the binary is next to the package's index.js
+    const pkgDir = require('path').dirname(resolved)
+    const nearPkg = join(pkgDir, `ffmpeg${ext}`)
+    try { fs.accessSync(nearPkg); _ffmpegPath = nearPkg; console.log(`[ffmpeg] Found near package: ${nearPkg}`); return nearPkg } catch {}
   } catch {}
 
-  // Method 2: Check common paths
-  const ext = process.platform === 'win32' ? '.exe' : ''
+  // Method 2: Search common locations
   const candidates = [
     join(process.cwd(), 'node_modules', 'ffmpeg-static', `ffmpeg${ext}`),
-    join(process.cwd(), 'node_modules', '.cache', 'ffmpeg-static', `ffmpeg${ext}`),
-    `/var/task/node_modules/ffmpeg-static/ffmpeg${ext}`, // Vercel serverless
-    `/tmp/ffmpeg${ext}`,
+    join(process.cwd(), 'node_modules', '@ffmpeg-installer', 'ffmpeg', `ffmpeg${ext}`),
+    `/var/task/node_modules/ffmpeg-static/ffmpeg`,
+    `/var/task/node_modules/.pnpm/ffmpeg-static@5.2.0/node_modules/ffmpeg-static/ffmpeg`,
+    `/vercel/path0/node_modules/ffmpeg-static/ffmpeg`,
+    `/tmp/ffmpeg`,
   ]
 
   for (const p of candidates) {
-    try {
-      require('fs').accessSync(p, require('fs').constants.X_OK)
-      console.log(`[ffmpeg] Found at: ${p}`)
-      return p
-    } catch {}
+    try { fs.accessSync(p); _ffmpegPath = p; console.log(`[ffmpeg] Found at: ${p}`); return p } catch {}
   }
 
-  // Fallback
+  // Method 3: Try 'which ffmpeg' on the system
+  try {
+    const { execSync } = require('child_process')
+    const systemPath = execSync('which ffmpeg 2>/dev/null || where ffmpeg 2>nul').toString().trim().split('\n')[0]
+    if (systemPath) {
+      try { fs.accessSync(systemPath); _ffmpegPath = systemPath; console.log(`[ffmpeg] Found via system: ${systemPath}`); return systemPath } catch {}
+    }
+  } catch {}
+
+  // Last resort
   const fallback = join(process.cwd(), 'node_modules', 'ffmpeg-static', `ffmpeg${ext}`)
-  console.log(`[ffmpeg] Using fallback path: ${fallback}`)
+  console.log(`[ffmpeg] WARNING: Using unverified fallback: ${fallback}`)
+  _ffmpegPath = fallback
   return fallback
 }
 
