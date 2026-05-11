@@ -33,29 +33,36 @@ export default async function DashboardPage() {
     .eq('id', user!.id)
     .single()
 
-  // Fetch recent creations from the unified creations table
-  const { data: creations } = await supabase
-    .from('creations')
-    .select('*')
-    .eq('user_id', user!.id)
-    .order('created_at', { ascending: false })
-    .limit(8)
-
-  const recentItems = (creations ?? []) as any[]
-
-  const { count: totalCount } = await supabase
-    .from('creations')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user!.id)
-
-  // Count creations this month
+  // Fetch from BOTH videos and creations tables, merge for accurate counts
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-  const { count: monthCount } = await supabase
-    .from('creations')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user!.id)
-    .gte('created_at', monthStart)
+
+  const [{ data: videos }, { data: otherCreations }, { count: videoCount }, { count: videoMonthCount }] = await Promise.all([
+    supabase.from('videos').select('id, title, thumbnail_url, video_url, status, created_at')
+      .eq('user_id', user!.id).order('created_at', { ascending: false }).limit(8),
+    supabase.from('creations').select('*')
+      .eq('user_id', user!.id).neq('type', 'video').order('created_at', { ascending: false }).limit(8),
+    supabase.from('videos').select('*', { count: 'exact', head: true }).eq('user_id', user!.id),
+    supabase.from('videos').select('*', { count: 'exact', head: true }).eq('user_id', user!.id).gte('created_at', monthStart),
+  ])
+
+  const [{ count: creationCount }, { count: creationMonthCount }] = await Promise.all([
+    supabase.from('creations').select('*', { count: 'exact', head: true }).eq('user_id', user!.id).neq('type', 'video'),
+    supabase.from('creations').select('*', { count: 'exact', head: true }).eq('user_id', user!.id).neq('type', 'video').gte('created_at', monthStart),
+  ])
+
+  // Merge and sort by date
+  const allItems = [
+    ...(videos ?? []).map((v: any) => ({
+      id: v.id, type: 'video', title: v.title, thumbnail_url: v.thumbnail_url,
+      file_url: v.video_url, credits_used: 3, created_at: v.created_at, _videoId: v.id,
+    })),
+    ...(otherCreations ?? []).map((c: any) => ({ ...c, _videoId: null })),
+  ].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+  const recentItems = allItems.slice(0, 8)
+  const totalCount = (videoCount ?? 0) + (creationCount ?? 0)
+  const monthCount = (videoMonthCount ?? 0) + (creationMonthCount ?? 0)
 
   // Pending follow-ups
   const { data: pendingFollowUps } = await supabase
@@ -165,13 +172,7 @@ export default async function DashboardPage() {
         <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
           {recentItems.map((item: any, i: number) => {
             const isVideo = item.type === 'video'
-            // For videos, extract video ID from file_url pattern: .../userId/videoId.mp4
-            let videoHref = item.file_url ?? '#'
-            if (isVideo && item.file_url) {
-              const match = item.file_url.match(/\/([0-9a-f-]{36})\.mp4/)
-              if (match) videoHref = `/videos/${match[1]}`
-            }
-            const href = isVideo ? videoHref : (item.file_url ?? '#')
+            const href = isVideo ? `/videos/${item._videoId ?? item.id}` : (item.file_url ?? '#')
             const badge = TYPE_BADGE[item.type] ?? { label: item.type, color: 'sky' }
             const TagEl = isVideo ? Link : 'a'
             const linkProps = isVideo
