@@ -166,6 +166,14 @@ STRICT RULES (MUST FOLLOW):
 - DO NOT draw, generate, or include any human faces, portraits, headshots, or photographs of people
 - All text must be large enough to read on a phone screen (minimum 36pt equivalent)
 - The image must look sharp and high resolution at 1920x1080
+
+ABSOLUTE LOGO BAN (CRITICAL — NEVER VIOLATE):
+- NEVER generate, draw, design, or include ANY logo, brand mark, monogram, lettermark, emblem, icon, or symbol that represents the company.
+- NEVER use a single letter, initials, or abbreviation of the company name as a graphical element or icon (e.g., no "G" in a circle, no "GCA" badge, no stylized first letter).
+- NEVER create any circular, square, or shield-shaped graphic containing letters that could be interpreted as a logo.
+- NEVER place any brand identifier in the top-left corner — that area will have the real logo composited on top.
+- The company name may appear as PLAIN TEXT in headings or the branded bar, but NEVER as a designed graphical mark.
+- If you feel tempted to add a logo-like element, replace it with a relevant TOPICAL icon instead (e.g., a gear, globe, chart, or industry-relevant symbol).
 ${logoInstruction}
 ${brandBarInstruction}
 ${isFirstSlide && hasPhoto ? `\n- Reserve a clean circular area (~200x200px) in the BOTTOM-RIGHT corner (ABOVE the branded bar) for the agent's professional photo. Design a styled circular frame or container that matches the slide's aesthetic — the photo will be placed inside later.` : ''}`
