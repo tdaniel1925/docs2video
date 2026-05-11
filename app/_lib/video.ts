@@ -5,8 +5,37 @@ import { randomUUID } from 'crypto'
 import { execFile } from 'child_process'
 
 function getFfmpegPath(): string {
+  // Try multiple methods to find ffmpeg binary
+  // Method 1: require('ffmpeg-static') returns the correct path on all platforms
+  try {
+    const staticPath = require('ffmpeg-static')
+    if (staticPath && typeof staticPath === 'string') {
+      console.log(`[ffmpeg] Found via ffmpeg-static: ${staticPath}`)
+      return staticPath
+    }
+  } catch {}
+
+  // Method 2: Check common paths
   const ext = process.platform === 'win32' ? '.exe' : ''
-  return join(process.cwd(), 'node_modules', 'ffmpeg-static', `ffmpeg${ext}`)
+  const candidates = [
+    join(process.cwd(), 'node_modules', 'ffmpeg-static', `ffmpeg${ext}`),
+    join(process.cwd(), 'node_modules', '.cache', 'ffmpeg-static', `ffmpeg${ext}`),
+    `/var/task/node_modules/ffmpeg-static/ffmpeg${ext}`, // Vercel serverless
+    `/tmp/ffmpeg${ext}`,
+  ]
+
+  for (const p of candidates) {
+    try {
+      require('fs').accessSync(p, require('fs').constants.X_OK)
+      console.log(`[ffmpeg] Found at: ${p}`)
+      return p
+    } catch {}
+  }
+
+  // Fallback
+  const fallback = join(process.cwd(), 'node_modules', 'ffmpeg-static', `ffmpeg${ext}`)
+  console.log(`[ffmpeg] Using fallback path: ${fallback}`)
+  return fallback
 }
 
 // Run ffmpeg directly via execFile (handles spaces in paths correctly)

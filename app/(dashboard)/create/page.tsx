@@ -527,7 +527,7 @@ export default function CreatePage() {
             voiceId: selectedVoice,
             styleId: selectedStyle,
             detailed: detailedMode,
-            musicUrl: selectedMusic ?? undefined,
+            musicUrl: selectedMusic ? `${window.location.origin}${selectedMusic}` : undefined,
             approvedSlides: approvedSlides.length >= 4 ? approvedSlides : undefined,
             scenes: generatedScenes,
             preGeneratedAudioId: sessionStorage.getItem('pregenerated_audio_id') ?? undefined,
