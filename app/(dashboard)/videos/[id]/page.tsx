@@ -10,59 +10,184 @@ import type { Video, Brand } from '../../../_lib/types'
 // Feature flags — now driven by user's subscription plan
 
 const PROGRESS_STEPS = [
-  { key: 'scripting', label: 'Writing Script', desc: 'AI is writing the narration script...' },
-  { key: 'generating_audio', label: 'Generating Audio', desc: 'Creating voice narration for each scene...' },
-  { key: 'generating_slides', label: 'Creating Slides', desc: 'Generating branded visuals for each scene...' },
-  { key: 'assembling', label: 'Assembling Video', desc: 'Stitching slides and audio into final video...' },
+  { key: 'starting', label: 'Starting', desc: 'Initializing your video pipeline...', sub: 'Setting up generation environment', icon: '🚀' },
+  { key: 'scripting', label: 'Writing Script', desc: 'AI is crafting your narration script...', sub: 'Analyzing content and creating scenes', icon: '✍️' },
+  { key: 'generating_audio', label: 'Generating Audio', desc: 'Professional voiceover being recorded...', sub: 'Converting script to natural speech', icon: '🎙️' },
+  { key: 'generating_slides', label: 'Creating Slides', desc: 'Designing branded visuals for each scene...', sub: 'Generating and compositing graphics', icon: '🎨' },
+  { key: 'assembling', label: 'Assembling Video', desc: 'Stitching everything into your final video...', sub: 'Encoding video, mixing audio, adding music', icon: '🎬' },
 ]
 
-function VideoProgress({ status }: { status: string }) {
+const FUN_FACTS = [
+  'Your video will have professional narration with natural-sounding AI voice.',
+  'Each slide is custom-designed with your brand colors and logo.',
+  'You can share this video with clients via a branded link when it\'s done.',
+  'Videos can be downloaded as MP4, PDF slides, or PPTX presentations.',
+  'The AI chatbot on your share page will know everything about this video.',
+  'Tip: You can leave this page — your video will continue generating in the background.',
+]
+
+function VideoProgress({ status, createdAt }: { status: string; createdAt: string }) {
+  const [elapsed, setElapsed] = useState(0)
+  const [factIndex, setFactIndex] = useState(0)
+
+  useEffect(() => {
+    const start = new Date(createdAt).getTime()
+    const timer = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - start) / 1000))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [createdAt])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFactIndex(prev => (prev + 1) % FUN_FACTS.length)
+    }, 8000)
+    return () => clearInterval(timer)
+  }, [])
+
   const currentIdx = PROGRESS_STEPS.findIndex(s => s.key === status)
-  const pct = currentIdx < 0 ? 5 : Math.round(((currentIdx + 0.5) / PROGRESS_STEPS.length) * 100)
-  const currentStep = PROGRESS_STEPS[currentIdx] ?? PROGRESS_STEPS[0]
+  const effectiveIdx = currentIdx < 0 ? 0 : currentIdx
+  const pct = Math.min(95, Math.round(((effectiveIdx + 0.5) / PROGRESS_STEPS.length) * 100))
+  const currentStep = PROGRESS_STEPS[effectiveIdx] ?? PROGRESS_STEPS[0]
+
+  const estimatedTotal = 300 // ~5 minutes
+  const timeRemaining = Math.max(0, estimatedTotal - elapsed)
+  const minutes = Math.floor(timeRemaining / 60)
+  const seconds = timeRemaining % 60
+  const elapsedMin = Math.floor(elapsed / 60)
+  const elapsedSec = elapsed % 60
 
   return (
-    <div>
-      <div className="section-eyebrow">Generating</div>
+    <div style={{ maxWidth: 640, margin: '0 auto' }}>
+      <style>{`
+        @keyframes progressShimmer {
+          0% { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+        @keyframes pulseGlow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(168,240,212,0.4); }
+          50% { box-shadow: 0 0 0 12px rgba(168,240,212,0); }
+        }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .fact-rotate { animation: fadeInUp 0.5s ease; }
+      `}</style>
 
-      <div className="progress-card">
-        {/* Progress bar */}
-        <div className="progress-bar-wrap">
-          <div className="progress-bar-track">
-            <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
-          </div>
-          <div className="progress-percent">{pct}%</div>
+      {/* Hero progress card */}
+      <div style={{
+        background: 'white', borderRadius: 16, padding: '36px 32px',
+        border: '1px solid var(--border-light)', boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
+        textAlign: 'center', marginBottom: 20,
+      }}>
+        {/* Big percentage */}
+        <div style={{ fontSize: 56, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+          {pct}%
+        </div>
+        <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginTop: 4, marginBottom: 20 }}>
+          {elapsedMin}:{elapsedSec.toString().padStart(2, '0')} elapsed
+          {timeRemaining > 0 && ` · ~${minutes}:${seconds.toString().padStart(2, '0')} remaining`}
         </div>
 
-        {/* Current step highlight */}
-        <div className="current-step-card">
-          <span className="spinner" />
-          <div className="info">
-            <div className="name">{currentStep.label}</div>
-            <div className="desc">{currentStep.desc}</div>
-          </div>
+        {/* Animated gradient progress bar */}
+        <div style={{ height: 10, background: 'var(--border)', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
+          <div style={{
+            height: '100%', borderRadius: 10,
+            width: `${pct}%`,
+            background: 'linear-gradient(90deg, var(--mint), #34d399, var(--mint), #34d399)',
+            backgroundSize: '200% 100%',
+            animation: 'progressShimmer 2s linear infinite',
+            transition: 'width 1s ease',
+          }} />
         </div>
 
-        {/* Step list */}
-        <ul className="step-list">
+        {/* Current stage highlight */}
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 12,
+          background: 'rgba(168,240,212,0.12)', border: '1px solid var(--mint)',
+          borderRadius: 12, padding: '12px 24px',
+        }}>
+          <span style={{ fontSize: 24 }}>{currentStep.icon}</span>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>{currentStep.label}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{currentStep.sub}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stage pipeline */}
+      <div style={{
+        background: 'white', borderRadius: 16, padding: '24px 28px',
+        border: '1px solid var(--border-light)', marginBottom: 20,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
           {PROGRESS_STEPS.map((step, i) => {
-            const isDone = i < currentIdx
-            const isActive = i === currentIdx
-            const stepClass = isDone ? 'step-item done' : isActive ? 'step-item active' : 'step-item pending'
+            const isDone = i < effectiveIdx
+            const isActive = i === effectiveIdx
+            const isPending = i > effectiveIdx
             return (
-              <li key={step.key} className={stepClass}>
-                <div className="step-num">
-                  {isDone ? '\u2713' : i + 1}
+              <div key={step.key} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+                {/* Connector line */}
+                {i > 0 && (
+                  <div style={{
+                    position: 'absolute', top: 16, right: '50%', width: '100%', height: 3,
+                    background: isDone ? 'var(--mint)' : 'var(--border)',
+                    transition: 'background 0.5s ease',
+                    zIndex: 0,
+                  }} />
+                )}
+                {/* Circle */}
+                <div style={{
+                  width: 34, height: 34, borderRadius: '50%', zIndex: 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: isDone ? 14 : 13, fontWeight: 700,
+                  background: isDone ? 'var(--mint)' : isActive ? 'var(--ink)' : 'var(--border)',
+                  color: isDone ? 'var(--ink)' : isActive ? 'white' : 'var(--ink-light)',
+                  transition: 'all 0.5s ease',
+                  ...(isActive ? { animation: 'pulseGlow 2s ease-in-out infinite' } : {}),
+                }}>
+                  {isDone ? '✓' : isActive ? (
+                    <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2, borderTopColor: 'white' }} />
+                  ) : i + 1}
                 </div>
-                <div className="step-name">{step.label}</div>
-              </li>
+                {/* Label */}
+                <div style={{
+                  fontSize: 11, fontWeight: isActive ? 700 : 500, marginTop: 8,
+                  color: isDone ? 'var(--mint-darker, #2d7a4f)' : isActive ? 'var(--ink)' : 'var(--ink-light)',
+                  textAlign: 'center', lineHeight: 1.3, transition: 'all 0.3s ease',
+                }}>
+                  {step.label}
+                </div>
+                {/* Active description */}
+                {isActive && (
+                  <div style={{ fontSize: 10, color: 'var(--ink-soft)', marginTop: 4, textAlign: 'center', maxWidth: 90 }}>
+                    {step.desc.replace('...', '')}
+                  </div>
+                )}
+              </div>
             )
           })}
-        </ul>
-
-        <div className="progress-foot">
-          Typically takes 45-90 seconds. This page updates automatically.
         </div>
+      </div>
+
+      {/* Fun facts / tips */}
+      <div style={{
+        background: 'rgba(168,240,212,0.08)', border: '1px solid rgba(168,240,212,0.2)',
+        borderRadius: 12, padding: '14px 20px', marginBottom: 20,
+        display: 'flex', alignItems: 'center', gap: 12,
+      }}>
+        <span style={{ fontSize: 18, flexShrink: 0 }}>💡</span>
+        <div key={factIndex} className="fact-rotate" style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+          {FUN_FACTS[factIndex]}
+        </div>
+      </div>
+
+      {/* Safety message */}
+      <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--ink-light)' }}>
+        You can safely leave this page — your video continues generating in the background.
+        <br />
+        This page updates automatically every 3 seconds.
       </div>
     </div>
   )
@@ -657,7 +782,7 @@ export default function VideoDetailPage() {
 
       {/* Processing states */}
       {video.status !== 'completed' && video.status !== 'failed' && (
-        <VideoProgress status={video.status} />
+        <VideoProgress status={video.status} createdAt={video.created_at} />
       )}
 
       {video.status === 'failed' && (
