@@ -68,7 +68,7 @@ export default async function DashboardPage() {
   const firstName = profile?.full_name?.split(' ')[0] ?? 'there'
   const creditsRemaining = profile?.credits_remaining ?? 0
 
-  // Derive plan credit cap from subscription status
+  // Derive plan monthly allocation from subscription status
   const PLAN_CREDITS: Record<string, number> = {
     free: 5, trial: 5, demo: 5,
     starter: 50,
@@ -76,10 +76,8 @@ export default async function DashboardPage() {
     agency: 500,
   }
   const planKey = (profile?.subscription_status ?? 'free').toLowerCase()
-  const totalCredits = PLAN_CREDITS[planKey] ?? 5
-  // If user has more credits than plan cap (from packs), show actual balance
-  const displayTotal = Math.max(totalCredits, creditsRemaining)
-  const creditPercent = displayTotal > 0 ? Math.min(100, Math.round((creditsRemaining / displayTotal) * 100)) : 0
+  const monthlyAllocation = PLAN_CREDITS[planKey] ?? 5
+  const creditPercent = monthlyAllocation > 0 ? Math.min(100, Math.round((creditsRemaining / monthlyAllocation) * 100)) : 0
 
   const planName = profile?.subscription_status
     ? profile.subscription_status.charAt(0).toUpperCase() + profile.subscription_status.slice(1)
@@ -99,7 +97,7 @@ export default async function DashboardPage() {
       <div className="stats-row">
         <div className="stat-card mint">
           <div className="stat-label">Credits Remaining</div>
-          <div className="stat-value">{creditsRemaining} <span style={{ fontSize: 20, fontWeight: 500, color: 'var(--ink-soft)' }}>/ {displayTotal}</span></div>
+          <div className="stat-value">{creditsRemaining} <span style={{ fontSize: 20, fontWeight: 500, color: 'var(--ink-soft)' }}>/ {monthlyAllocation} mo</span></div>
           <div className="credit-progress">
             <div className="credit-progress-fill" style={{ width: `${creditPercent}%` }} />
           </div>
