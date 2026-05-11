@@ -28,7 +28,7 @@ export default function ClickToPlayVideo({ src, poster, style }: ClickToPlayVide
         playsInline
         controls={playing}
         onEnded={() => setPlaying(false)}
-        style={{ width: '100%', borderRadius: 10, display: 'block' }}
+        style={{ width: '100%', borderRadius: 10, display: 'block', aspectRatio: '16/9', background: '#0a1628' }}
       />
       {!playing && (
         <div style={{

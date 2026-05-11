@@ -39,7 +39,6 @@ yarn-error.log*
 # large media files (generated, can be recreated)
 public/industry-demos/
 public/music/
-public/hero-video.mp4
 public/test-*.mp4
 public/test-*.png
 music/
@@ -50,3 +49,5 @@ refs/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel
