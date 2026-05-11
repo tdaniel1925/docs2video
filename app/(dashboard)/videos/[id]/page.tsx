@@ -189,6 +189,33 @@ function VideoProgress({ status, createdAt }: { status: string; createdAt: strin
         <br />
         This page updates automatically every 3 seconds.
       </div>
+
+      {/* Stuck? retry option — shows after 10 minutes */}
+      {elapsed > 600 && (
+        <div style={{
+          marginTop: 20, padding: '16px 20px', borderRadius: 12,
+          background: 'rgba(255,199,194,0.1)', border: '1px solid rgba(192,58,31,0.2)',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#C03A1F', marginBottom: 6 }}>
+            Taking longer than expected?
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 12 }}>
+            Your video may still be processing. If it seems stuck, you can retry.
+          </div>
+          <button
+            onClick={async () => {
+              const supabase = (await import('../../_lib/supabase/client')).createClient()
+              await supabase.from('videos').update({ status: 'pending' }).eq('id', (window.location.pathname.split('/').pop()))
+              window.location.reload()
+            }}
+            className="btn btn-soft btn-sm"
+            style={{ color: '#C03A1F' }}
+          >
+            Retry Generation
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -402,19 +429,8 @@ export default function VideoDetailPage() {
         if (data.status === 'completed' || data.status === 'failed') {
           clearInterval(interval)
         }
-        // Auto-detect stuck videos (processing for more than 15 minutes)
-        const createdAt = new Date(data.created_at).getTime()
-        const elapsed = Date.now() - createdAt
-        const STUCK_THRESHOLD = 15 * 60 * 1000 // 15 minutes
-        if (elapsed > STUCK_THRESHOLD && data.status !== 'completed' && data.status !== 'failed' && data.status !== 'pending' && data.status !== 'starting') {
-          // Mark as failed
-          await supabase.from('videos').update({
-            status: 'failed',
-            error_message: 'Generation timed out. Please try again with fewer slides or a simpler document.'
-          }).eq('id', data.id)
-          setVideo({ ...data, status: 'failed', error_message: 'Generation timed out. Please try again with fewer slides or a simpler document.' } as Video)
-          clearInterval(interval)
-        }
+        // Note: we do NOT auto-kill videos. The server-side pipeline handles
+        // its own timeouts. The UI shows a "seems stuck?" retry option instead.
       }
     }, 3000)
 
