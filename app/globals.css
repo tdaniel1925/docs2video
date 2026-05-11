@@ -466,6 +466,173 @@ body {
   color: var(--ink);
 }
 
+/* Create nav button (styled like nav links) */
+.app-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+.app-nav-btn:hover { color: var(--ink); background: var(--bg); }
+.app-nav-btn.active { color: var(--ink); background: var(--mint); font-weight: 600; }
+
+/* Create dropdown */
+.create-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 8px;
+  width: 280px;
+  background: white;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.1);
+  z-index: 200;
+  padding: 6px;
+}
+.create-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--ink);
+  transition: background 0.1s;
+}
+.create-dropdown-item:hover {
+  background: var(--bg-soft);
+}
+.create-dropdown-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.create-dropdown-text {
+  font-size: 14px;
+  font-weight: 600;
+}
+.create-dropdown-desc {
+  font-size: 12px;
+  color: var(--ink-light);
+  margin-top: 1px;
+}
+
+/* Mobile hamburger */
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+}
+/* Mobile menu */
+.mobile-menu {
+  display: none;
+  flex-direction: column;
+  padding: 8px 16px 16px;
+  border-top: 1px solid var(--border-light);
+}
+.mobile-menu a {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: background 0.1s;
+}
+.mobile-menu a:hover { background: var(--bg); color: var(--ink); }
+.mobile-menu a.active { background: var(--mint); color: var(--ink); font-weight: 600; }
+
+@media (max-width: 768px) {
+  .app-nav { display: none !important; }
+  .mobile-menu-btn { display: block; }
+  .mobile-menu { display: flex; }
+}
+
+/* Quick Create Grid (dashboard) */
+.quick-create-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 14px;
+  margin-bottom: 48px;
+}
+.quick-create-card {
+  background: white;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 20px 16px;
+  text-align: center;
+  text-decoration: none;
+  color: var(--ink);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.quick-create-card:hover {
+  border-color: var(--border);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+}
+.quick-create-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+.quick-create-icon.mint { background: var(--mint); }
+.quick-create-icon.peach { background: var(--peach); }
+.quick-create-icon.lilac { background: var(--lilac); }
+.quick-create-icon.sky { background: var(--sky); }
+.quick-create-icon.sun { background: var(--sun); }
+.quick-create-icon.rose { background: var(--rose); }
+.quick-create-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+@media (max-width: 900px) {
+  .quick-create-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 480px) {
+  .quick-create-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Credit progress bar */
+.credit-progress {
+  height: 8px;
+  border-radius: 10px;
+  background: rgba(27, 58, 92, 0.15);
+  overflow: hidden;
+  margin-top: 10px;
+}
+.credit-progress-fill {
+  height: 100%;
+  border-radius: 10px;
+  background: var(--ink);
+  transition: width 0.5s ease;
+}
+
 /* ============= UPLOAD ZONE ============= */
 .upload-zone {
   border: 2px dashed var(--border);

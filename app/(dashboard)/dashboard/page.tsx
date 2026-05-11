@@ -1,8 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/server'
 
-// Feature flags — now driven by user's subscription plan
-
 const TYPE_BADGE: Record<string, { label: string; color: string }> = {
   video: { label: 'Video', color: 'mint' },
   flyer: { label: 'Flyer', color: 'peach' },
@@ -10,7 +8,17 @@ const TYPE_BADGE: Record<string, { label: string; color: string }> = {
   infographic: { label: 'Infographic', color: 'sky' },
   ad: { label: 'Ad', color: 'sun' },
   'brand-deck': { label: 'Deck', color: 'rose' },
+  logo: { label: 'Logo', color: 'sun' },
 }
+
+const QUICK_CREATE = [
+  { href: '/create', icon: '\uD83D\uDCF9', label: 'Explainer', color: 'mint' },
+  { href: '/infographic-creator', icon: '\uD83D\uDCCA', label: 'Infographic', color: 'sky' },
+  { href: '/flyers', icon: '\uD83D\uDCCB', label: 'Flyer', color: 'peach' },
+  { href: '/business-cards', icon: '\uD83D\uDCB3', label: 'Card', color: 'lilac' },
+  { href: '/logo-creator', icon: '\uD83C\uDFA8', label: 'Logo', color: 'sun' },
+  { href: '/templates', icon: '\uD83C\uDFAF', label: 'Template', color: 'rose' },
+]
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -18,7 +26,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('credits_remaining, pack_credits, subscription_status')
+    .select('full_name, credits_remaining, subscription_status')
     .eq('id', user!.id)
     .single()
 
@@ -28,7 +36,7 @@ export default async function DashboardPage() {
     .select('*')
     .eq('user_id', user!.id)
     .order('created_at', { ascending: false })
-    .limit(10)
+    .limit(8)
 
   const recentItems = (creations ?? []) as any[]
 
@@ -36,6 +44,15 @@ export default async function DashboardPage() {
     .from('creations')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user!.id)
+
+  // Count creations this month
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  const { count: monthCount } = await supabase
+    .from('creations')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user!.id)
+    .gte('created_at', monthStart)
 
   // Pending follow-ups
   const { data: pendingFollowUps } = await supabase
@@ -48,19 +65,22 @@ export default async function DashboardPage() {
 
   const pendingCount = pendingFollowUps?.length ?? 0
 
+  const firstName = profile?.full_name?.split(' ')[0] ?? 'there'
+  const creditsRemaining = profile?.credits_remaining ?? 0
+  const totalCredits = 150 // default plan cap
+  const creditPercent = Math.min(100, Math.round((creditsRemaining / totalCredits) * 100))
+
+  const planName = profile?.subscription_status
+    ? profile.subscription_status.charAt(0).toUpperCase() + profile.subscription_status.slice(1)
+    : 'Free'
+
   return (
     <div>
+      {/* Header Section */}
       <div className="page-head">
         <div>
-          <h1>Dashboard</h1>
-          <p>Welcome back. Here's your overview.</p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Link href="/create" className="btn btn-primary">+ Explainer</Link>
-          <Link href="/flyers" className="btn btn-soft">+ Flyer</Link>
-          <Link href="/business-cards" className="btn btn-soft">+ Business Card</Link>
-          <Link href="/infographic-creator" className="btn btn-soft">+ Infographic</Link>
-          <Link href="/logo-creator" className="btn btn-soft">+ Logo</Link>
+          <h1>Welcome back, {firstName}</h1>
+          <p>Here&apos;s what&apos;s happening</p>
         </div>
       </div>
 
@@ -68,7 +88,10 @@ export default async function DashboardPage() {
       <div className="stats-row">
         <div className="stat-card mint">
           <div className="stat-label">Credits Remaining</div>
-          <div className="stat-value">{profile?.credits_remaining ?? 0}</div>
+          <div className="stat-value">{creditsRemaining} <span style={{ fontSize: 20, fontWeight: 500, color: 'var(--ink-soft)' }}>/ {totalCredits}</span></div>
+          <div className="credit-progress">
+            <div className="credit-progress-fill" style={{ width: `${creditPercent}%` }} />
+          </div>
           <div className="stat-foot">
             <Link href="/settings" style={{ color: 'inherit', textDecoration: 'underline' }}>
               Manage plan
@@ -79,26 +102,37 @@ export default async function DashboardPage() {
           <div className="stat-label">Total Creations</div>
           <div className="stat-value">{totalCount ?? 0}</div>
           <div className="stat-foot">
-            <Link href="/videos" style={{ color: 'inherit', textDecoration: 'underline' }}>
-              View all
-            </Link>
+            {monthCount ?? 0} this month
           </div>
         </div>
         <div className="stat-card peach">
-          <div className="stat-label">Pack Credits</div>
-          <div className="stat-value">{(profile as any)?.pack_credits ?? 0}</div>
+          <div className="stat-label">Plan</div>
+          <div className="stat-value" style={{ fontSize: 32 }}>{planName}</div>
           <div className="stat-foot">
             <Link href="/settings" style={{ color: 'inherit', textDecoration: 'underline' }}>
-              Buy more
+              Upgrade
             </Link>
           </div>
         </div>
       </div>
 
-      {/* Recent Activity */}
+      {/* Quick Create */}
+      <div style={{ marginBottom: 16 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Quick Create</h2>
+      </div>
+      <div className="quick-create-grid">
+        {QUICK_CREATE.map((item) => (
+          <Link key={item.href} href={item.href} className="quick-create-card">
+            <div className={`quick-create-icon ${item.color}`}>{item.icon}</div>
+            <div className="quick-create-label">{item.label}</div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Recent Creations */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <h2 style={{ fontSize: 24, fontWeight: 700 }}>Recent creations</h2>
-        {(totalCount ?? 0) > 10 && (
+        <h2 style={{ fontSize: 20, fontWeight: 700 }}>Recent Creations</h2>
+        {(totalCount ?? 0) > 0 && (
           <Link href="/videos" className="btn btn-soft btn-sm">View all &rarr;</Link>
         )}
       </div>
@@ -182,11 +216,12 @@ export default async function DashboardPage() {
           })}
         </div>
       )}
-      {/* Pending Follow-Ups — hidden for explainers-only mode */}
+
+      {/* Pending Follow-Ups */}
       {profile?.subscription_status && ['professional', 'active', 'agency'].includes(profile.subscription_status.toLowerCase()) && pendingCount > 0 && (
         <div style={{ marginTop: 40 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <h2 style={{ fontSize: 24, fontWeight: 700 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700 }}>
               Pending Follow-Ups
               <span className="tag peach" style={{ marginLeft: 10, fontSize: 12, verticalAlign: 'middle' }}>
                 {pendingCount}
