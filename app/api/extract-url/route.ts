@@ -91,15 +91,35 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Fetch the page with browser-like headers
-    const fetchRes = await fetch(parsedUrl.toString(), {
+    // Fetch the page with comprehensive browser-like headers
+    let fetchRes = await fetch(parsedUrl.toString(), {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
       },
+      redirect: 'follow',
       signal: AbortSignal.timeout(15000),
     })
+
+    // Retry with simpler headers if blocked
+    if (!fetchRes.ok && (fetchRes.status === 403 || fetchRes.status === 406)) {
+      fetchRes = await fetch(parsedUrl.toString(), {
+        headers: {
+          'User-Agent': 'Googlebot/2.1 (+http://www.google.com/bot.html)',
+          'Accept': 'text/html',
+        },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(15000),
+      })
+    }
 
     if (!fetchRes.ok) {
       return NextResponse.json({ error: `Failed to fetch URL (status ${fetchRes.status})` }, { status: 400 })
