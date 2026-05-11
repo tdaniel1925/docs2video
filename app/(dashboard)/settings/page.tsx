@@ -676,6 +676,17 @@ export default function SettingsPage() {
               ))}
             </div>
           </div>
+
+          {/* Affiliate program link */}
+          <div className="settings-card">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h3 style={{ marginBottom: 4 }}>Affiliate Program</h3>
+                <p className="ssub" style={{ margin: 0 }}>Earn 20% commission + free credits by referring others.</p>
+              </div>
+              <Link href="/affiliates" className="btn btn-primary">Join &rarr;</Link>
+            </div>
+          </div>
         </div>
       )}
 
