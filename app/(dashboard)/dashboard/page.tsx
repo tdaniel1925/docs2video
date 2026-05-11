@@ -60,6 +60,7 @@ export default async function DashboardPage() {
           <Link href="/flyers" className="btn btn-soft">+ Flyer</Link>
           <Link href="/business-cards" className="btn btn-soft">+ Business Card</Link>
           <Link href="/infographic-creator" className="btn btn-soft">+ Infographic</Link>
+          <Link href="/logo-creator" className="btn btn-soft">+ Logo</Link>
         </div>
       </div>
 
