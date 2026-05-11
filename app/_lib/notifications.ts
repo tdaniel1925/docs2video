@@ -1,7 +1,11 @@
 import { Resend } from 'resend'
 import twilio from 'twilio'
 
-const resend = new Resend(process.env.RESEND_API_KEY!)
+let _resend: Resend | null = null
+function getResend() {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY!)
+  return _resend
+}
 
 function getTwilioClient() {
   return twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!)
@@ -14,7 +18,7 @@ export async function sendDemoReadyEmail(
   signupUrl: string
 ) {
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: 'Docs2Video <support@docs2video.com>',
       to,
       subject: `Your ${companyName} demo video is ready`,
