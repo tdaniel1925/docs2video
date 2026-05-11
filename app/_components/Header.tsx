@@ -16,6 +16,9 @@ const CREATE_ITEMS = [
   { href: '/logo-creator', icon: '\uD83C\uDFA8', title: 'Logo', desc: 'AI-powered logo design' },
   { href: '/templates', icon: '\uD83C\uDFAF', title: 'Custom Template', desc: 'Build your own slide style' },
   { href: '/course-builder', icon: '\uD83C\uDF93', title: 'Course Builder', desc: 'Multi-episode video series' },
+  { href: '/social-kit', icon: '\uD83D\uDCF1', title: 'Social Media Kit', desc: 'Banners & profiles for all platforms' },
+  { href: '/image-remix', icon: '\u2728', title: 'Image Remix', desc: 'Redesign any image with AI' },
+  { href: '/social-campaigns', icon: '\uD83D\uDCC5', title: 'Social Campaign', desc: 'AI content calendar + auto-post' },
 ]
 
 const NAV_LINKS = [
