@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     website,
     address,
     tagline,
+    withBleeds,
   } = body as {
     brandId?: string
     styleId: string
@@ -41,7 +42,18 @@ export async function POST(request: Request) {
     website?: string
     address?: string
     tagline?: string
+    withBleeds?: boolean
   }
+
+  // Print-ready dimensions at 300 DPI
+  // With bleeds: 3.625 x 2.125 inches = 1088 x 638 pixels
+  // Without bleeds: 3.5 x 2.0 inches = 1050 x 600 pixels
+  const cardWidth = withBleeds ? 1088 : 1050
+  const cardHeight = withBleeds ? 638 : 600
+  const cardInches = withBleeds ? '3.625 x 2.125' : '3.5 x 2.0'
+  const bleedNote = withBleeds
+    ? 'This card includes 0.0625 inch (1/16") bleeds on all sides. Keep important content 0.125 inches from the trim edge.'
+    : ''
 
   if (!styleId || !fullName?.trim()) {
     return NextResponse.json({ error: 'Please provide a name and select a style' }, { status: 400 })
@@ -101,14 +113,15 @@ export async function POST(request: Request) {
   if (tagline) contactLines.push(`- TAGLINE: "${tagline}"`)
 
   // --- FRONT ---
-  const frontPrompt = `Create a professional BUSINESS CARD FRONT. This is a real business card for print at 300 DPI. The person's name should be the largest text. Job title below. Company name prominent. Clean, elegant, premium. NOT a flyer or poster — this is a small 3.5x2 inch card. Less is more. Generous white space.
+  const frontPrompt = `Create a professional BUSINESS CARD FRONT for high-quality print at 300 DPI. The person's name should be the largest text. Job title below. Company name prominent. Clean, elegant, premium. NOT a flyer or poster — this is a small ${cardInches} inch card. Less is more. Generous white space.
+${bleedNote}
 
 DESIGN STYLE (follow the layout, typography, visual approach, and aesthetic ONLY — colors come from the brand/logo, not the style):
 ${style.prompt}
 
 ${colorInstruction}
 
-Design for Business Card Front (1050x600 pixels, landscape 3.5x2 inches).
+Design for Business Card Front (${cardWidth}x${cardHeight} pixels, landscape ${cardInches} inches at 300 DPI).
 
 CARD CONTENT:
 - FULL NAME (display as the LARGEST, most prominent text element): "${fullName}"
@@ -121,11 +134,11 @@ STRICT RULES:
 - NO human faces, NO photos of people, NO realistic human figures
 - NO placeholder text — use ONLY the provided details
 - The person's name MUST be the largest and most prominent text element
-- All text must be crisp, legible, and correctly spelled
+- All text must be crisp, legible, and correctly spelled at 300 DPI print resolution
 - Clean, minimal, premium feel — this is a SMALL card, not a poster
 - Professional, polished, ready to print
 ${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
-- Design dimensions: 1050x600 pixels (Business Card Front)`
+- Design dimensions: ${cardWidth}x${cardHeight} pixels (Business Card Front at 300 DPI)`
 
   const frontParts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
     { text: frontPrompt },
@@ -162,20 +175,30 @@ ${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
     return NextResponse.json({ error: 'Failed to generate business card front' }, { status: 500 })
   }
 
+  // Resize to exact print dimensions at 300 DPI using Sharp
+  const sharpMod = await import('sharp')
+  const sharp = sharpMod.default ?? sharpMod
+  frontBuffer = await sharp(frontBuffer)
+    .resize(cardWidth, cardHeight, { fit: 'cover' })
+    .withMetadata({ density: 300 })
+    .png({ quality: 100 })
+    .toBuffer()
+
   // Upload front
   const frontPath = `${user.id}/business-cards/${timestamp}/front.png`
   await admin.storage.from('videos').upload(frontPath, frontBuffer, { contentType: 'image/png', upsert: true })
   const { data: frontUrlData } = admin.storage.from('videos').getPublicUrl(frontPath)
 
   // --- BACK ---
-  const backPrompt = `Create a professional BUSINESS CARD BACK. This is the reverse side of a business card. Display all contact information in a clean, organized layout: phone, email, website, address. Company logo should be featured. Include tagline if provided. Clean, readable, organized. NOT a flyer — this is a small 3.5x2 inch card.
+  const backPrompt = `Create a professional BUSINESS CARD BACK for high-quality print at 300 DPI. This is the reverse side of a business card. Display all contact information in a clean, organized layout: phone, email, website, address. Company logo should be featured. Include tagline if provided. Clean, readable, organized. NOT a flyer — this is a small ${cardInches} inch card.
+${bleedNote}
 
 DESIGN STYLE (follow the layout, typography, visual approach, and aesthetic ONLY — colors come from the brand/logo, not the style):
 ${style.prompt}
 
 ${colorInstruction}
 
-Design for Business Card Back (1050x600 pixels, landscape 3.5x2 inches).
+Design for Business Card Back (${cardWidth}x${cardHeight} pixels, landscape ${cardInches} inches at 300 DPI).
 
 CARD CONTENT:
 - NAME: "${fullName}"
@@ -189,11 +212,11 @@ STRICT RULES:
 - NO human faces, NO photos of people, NO realistic human figures
 - NO placeholder text — use ONLY the provided details
 - Contact information must be clearly readable and well-organized
-- All text must be crisp, legible, and correctly spelled
+- All text must be crisp, legible, and correctly spelled at 300 DPI print resolution
 - Clean, minimal, premium feel — this is a SMALL card, not a poster
 - Professional, polished, ready to print
 ${hasLogo ? '- Feature the provided logo prominently' : ''}
-- Design dimensions: 1050x600 pixels (Business Card Back)`
+- Design dimensions: ${cardWidth}x${cardHeight} pixels (Business Card Back at 300 DPI)`
 
   const backParts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
     { text: backPrompt },
@@ -230,6 +253,13 @@ ${hasLogo ? '- Feature the provided logo prominently' : ''}
     return NextResponse.json({ error: 'Failed to generate business card back' }, { status: 500 })
   }
 
+  // Resize to exact print dimensions at 300 DPI
+  backBuffer = await sharp(backBuffer)
+    .resize(cardWidth, cardHeight, { fit: 'cover' })
+    .withMetadata({ density: 300 })
+    .png({ quality: 100 })
+    .toBuffer()
+
   // Upload back
   const backPath = `${user.id}/business-cards/${timestamp}/back.png`
   await admin.storage.from('videos').upload(backPath, backBuffer, { contentType: 'image/png', upsert: true })
@@ -253,7 +283,10 @@ ${hasLogo ? '- Feature the provided logo prominently' : ''}
   })
 
   return NextResponse.json({
-    front: { imageUrl: frontUrlData.publicUrl, width: 1050, height: 600 },
-    back: { imageUrl: backUrlData.publicUrl, width: 1050, height: 600 },
+    front: { imageUrl: frontUrlData.publicUrl, width: cardWidth, height: cardHeight },
+    back: { imageUrl: backUrlData.publicUrl, width: cardWidth, height: cardHeight },
+    withBleeds: !!withBleeds,
+    dpi: 300,
+    dimensions: cardInches,
   })
 }

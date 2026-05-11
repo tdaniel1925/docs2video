@@ -68,6 +68,7 @@ export default function BusinessCardsPage() {
   const [brands, setBrands] = useState<Brand[]>([])
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null)
   const [selectedStyle, setSelectedStyle] = useState<string>('executive')
+  const [withBleeds, setWithBleeds] = useState(false)
 
   // Step 3 state
   const [generating, setGenerating] = useState(false)
@@ -119,6 +120,7 @@ export default function BusinessCardsPage() {
           website,
           address,
           tagline,
+          withBleeds,
         }),
       })
 
@@ -409,6 +411,43 @@ export default function BusinessCardsPage() {
             ))}
           </div>
 
+          {/* Bleed option */}
+          <div style={{
+            marginBottom: 24,
+            padding: '16px 20px',
+            background: 'var(--bg-soft, #f8fafc)',
+            borderRadius: 10,
+            border: '1px solid var(--border)',
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
+              Print Size
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setWithBleeds(false)}
+                className={`btn ${!withBleeds ? 'btn-primary' : 'btn-soft'}`}
+                type="button"
+                style={{ flex: 1, padding: '10px 14px', fontSize: 13 }}
+              >
+                <div style={{ fontWeight: 700 }}>Standard</div>
+                <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>3.5 x 2 in &middot; No bleeds</div>
+              </button>
+              <button
+                onClick={() => setWithBleeds(true)}
+                className={`btn ${withBleeds ? 'btn-primary' : 'btn-soft'}`}
+                type="button"
+                style={{ flex: 1, padding: '10px 14px', fontSize: 13 }}
+              >
+                <div style={{ fontWeight: 700 }}>With Bleeds</div>
+                <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>3.625 x 2.125 in &middot; Print-ready</div>
+              </button>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 8 }}>
+              All cards are generated at 300 DPI for professional printing.
+              {withBleeds && ' Includes 1/16" bleed on all sides.'}
+            </div>
+          </div>
+
           <div style={{ display: 'flex', gap: 12 }}>
             <button
               className="btn btn-soft"
@@ -454,7 +493,7 @@ export default function BusinessCardsPage() {
           {!generating && front && back && (
             <>
               <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 16 }}>
-                Your business card has been generated successfully.
+                Your business card has been generated at 300 DPI ({withBleeds ? '3.625 x 2.125"' : '3.5 x 2"'}{withBleeds ? ' with bleeds' : ''}).
               </p>
 
               <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
