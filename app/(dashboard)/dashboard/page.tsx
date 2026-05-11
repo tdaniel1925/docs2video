@@ -12,12 +12,12 @@ const TYPE_BADGE: Record<string, { label: string; color: string }> = {
 }
 
 const QUICK_CREATE = [
-  { href: '/create', icon: '\uD83D\uDCF9', label: 'Explainer', color: 'mint' },
-  { href: '/infographic-creator', icon: '\uD83D\uDCCA', label: 'Infographic', color: 'sky' },
-  { href: '/flyers', icon: '\uD83D\uDCCB', label: 'Flyer', color: 'peach' },
-  { href: '/business-cards', icon: '\uD83D\uDCB3', label: 'Card', color: 'lilac' },
-  { href: '/logo-creator', icon: '\uD83C\uDFA8', label: 'Logo', color: 'sun' },
-  { href: '/templates', icon: '\uD83C\uDFAF', label: 'Template', color: 'rose' },
+  { href: '/create', icon: '\uD83D\uDCF9', label: 'Explainer', color: 'mint', credits: 3 },
+  { href: '/infographic-creator', icon: '\uD83D\uDCCA', label: 'Infographic', color: 'sky', credits: 1 },
+  { href: '/flyers', icon: '\uD83D\uDCCB', label: 'Flyer', color: 'peach', credits: 1 },
+  { href: '/business-cards', icon: '\uD83D\uDCB3', label: 'Card', color: 'lilac', credits: 1 },
+  { href: '/logo-creator', icon: '\uD83C\uDFA8', label: 'Logo', color: 'sun', credits: 2 },
+  { href: '/templates', icon: '\uD83C\uDFAF', label: 'Template', color: 'rose', credits: 2 },
 ]
 
 export default async function DashboardPage() {
@@ -125,6 +125,7 @@ export default async function DashboardPage() {
           <Link key={item.href} href={item.href} className="quick-create-card">
             <div className={`quick-create-icon ${item.color}`}>{item.icon}</div>
             <div className="quick-create-label">{item.label}</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 2 }}>{item.credits} credit{item.credits > 1 ? 's' : ''}</div>
           </Link>
         ))}
       </div>
