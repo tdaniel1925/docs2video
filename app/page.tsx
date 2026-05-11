@@ -2,7 +2,7 @@ import Link from 'next/link'
 import TemplateGallery from './_components/TemplateGallery'
 import MobileNav from './_components/MobileNav'
 import FaqSection from './_components/FaqSection'
-import DemoButton from './_components/DemoButton'
+// DemoButton removed — using Get Started only
 import SharePagePreview from './_components/SharePagePreview'
 import RotatingWords from './_components/RotatingWords'
 import ClickToPlayVideo from './_components/ClickToPlayVideo'
@@ -40,8 +40,7 @@ export default function HomePage() {
             <h1 className="hero-title">The best explainer videos ever<br/>for <RotatingWords /></h1>
             <p className="hero-sub">Nobody reads a 40-page PDF. Docs2Video turns any document into a branded, narrated explainer video your clients will actually watch &mdash; in under 90 seconds.</p>
             <div style={{display:'flex',gap:12,alignItems:'center',marginTop:28,flexWrap:'wrap'}}>
-              <DemoButton />
-              <a href="#how-it-works" className="btn btn-outlined btn-lg">See how it works</a>
+              <Link href="/signup" className="btn btn-primary btn-lg">Get Started Free</Link>
             </div>
             <div className="hero-trust" style={{marginTop:20}}>Trusted by 2,500+ professionals across 12 industries</div>
           </div>
@@ -644,13 +643,12 @@ export default function HomePage() {
           <h2>Stop sending documents <em>nobody reads</em></h2>
           <p className="final-cta-sub">Join 2,500+ professionals who use Docs2Video to turn complex documents into explainer videos their clients actually watch. Your first video is free.</p>
           <div className="final-cta-buttons">
-            <DemoButton />
-            <Link href="/signup" className="btn btn-outlined btn-lg">Sign up free</Link>
+            <Link href="/signup" className="btn btn-primary btn-lg">Get Started Free</Link>
           </div>
           <div className="final-cta-perks">
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-              Free branded demo
+              5 free credits
             </span>
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
