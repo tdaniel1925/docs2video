@@ -148,11 +148,10 @@ function getStrictRules(hasLogo: boolean, brandName: string | null, hasPhoto: bo
 
   const logoInstruction = hasLogo
     ? `\nLOGO HANDLING:
-- DO NOT draw, render, or include ANY logo, emblem, or brand mark on the slide.
-- Leave a clean rectangular space (approximately 200x70px) in the TOP-LEFT corner for the real logo — it will be composited on top later.
-- Make sure the top-left area has a simple, uncluttered background so the logo is readable when placed.
-- Extract the color palette from the provided logo image and use those EXACT colors consistently across the entire slide.
-- The same colors must be used on EVERY slide — no variation between slides.`
+- DO NOT draw, render, place, or include ANY logo, emblem, brand mark, placeholder, reserved space, or text saying "logo" anywhere on the slide.
+- DO NOT leave any blank reserved area or box for a logo. Design the slide fully — every corner should have content or background.
+- The logo will be added as a separate overlay after generation. You do not need to account for it at all.
+- Extract the color palette from the provided logo image and use those EXACT colors consistently across the entire slide.`
     : brandName
     ? `\nBRANDING:
 - Display "${brandName}" as elegantly styled text that matches the slide's design style and typography.
@@ -441,7 +440,7 @@ ${brandName ? `- Brand: ${brandName}` : ''}`
 
   const promptText = `Create a professional presentation slide for ${getDocumentTypeLabel(data)} explainer video.
 
-${logoBuffer ? 'A company logo image is provided as a color reference ONLY. Extract its colors for the slide palette. DO NOT draw or place the logo on the slide — it will be composited separately.' : ''}
+${logoBuffer ? 'A company logo image is provided as a COLOR REFERENCE ONLY. Extract its dominant colors and use them throughout. DO NOT draw, place, or reference the logo in any way on the slide. No placeholder boxes, no "logo here" text, no reserved space.' : ''}
 
 DESIGN STYLE (follow the layout, typography, visual approach, and aesthetic ONLY — colors come from the brand/logo, not the style):
 ${style.prompt}

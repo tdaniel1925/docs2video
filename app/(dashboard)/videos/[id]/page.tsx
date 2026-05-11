@@ -100,12 +100,12 @@ interface ChatMsg {
 }
 
 const QUICK_ACTIONS = [
-  { label: 'Change Style', message: "I'd like to change the visual style" },
-  { label: 'Change Voice', message: "I'd like to change the narration voice" },
-  { label: 'Edit Script', message: "I'd like to edit the narration script" },
-  { label: 'Fix Data', message: "I need to correct some data" },
-  { label: 'Make Shorter', message: "Please make this video shorter and more concise" },
-  { label: 'Make Longer', message: "Please make this video more detailed and longer" },
+  { label: 'Regenerate', message: "Please regenerate this video with the same content but fresh slides and narration" },
+  { label: 'Change Style', message: "I'd like to regenerate the slides in a different visual style. What styles are available?" },
+  { label: 'Edit Script', message: "I'd like to edit the narration script. Can you show me the current script for each slide?" },
+  { label: 'Fix Data', message: "Some of the data shown in the slides is incorrect. I need to make corrections." },
+  { label: 'Make Shorter', message: "Please make this video shorter — cut it down to the most essential points only." },
+  { label: 'Make Longer', message: "Please make this video more detailed with additional slides and deeper explanations." },
 ]
 
 function toneLabel(offset: number): string {
@@ -866,6 +866,15 @@ export default function VideoDetailPage() {
                 gap: 12,
               }}
             >
+              {/* Welcome message when chat is empty */}
+              {chatMessages.length === 0 && (
+                <div style={{
+                  padding: '12px 14px', borderRadius: 10, fontSize: 13, lineHeight: 1.5,
+                  background: 'white', border: '1px solid var(--border-light)', color: 'var(--ink)',
+                }}>
+                  I can help you refine this video. Use the buttons above or tell me what you&apos;d like to change.
+                </div>
+              )}
               {chatMessages.map((msg, i) => (
                 <div
                   key={i}
