@@ -12,6 +12,8 @@ type Creation = {
   file_url: string | null
   credits_used: number | null
   created_at: string
+  _videoId?: string | null
+  _status?: string | null
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -47,19 +49,46 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Get total count
-  const { count: totalCount } = await supabase
-    .from('creations')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user!.id)
+  // Query BOTH tables and merge — videos table is authoritative for videos,
+  // creations table has everything else (flyers, logos, cards, etc.)
+  const [{ data: videos }, { data: otherCreations }] = await Promise.all([
+    supabase
+      .from('videos')
+      .select('id, user_id, title, thumbnail_url, video_url, status, created_at')
+      .eq('user_id', user!.id)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('creations')
+      .select('*')
+      .eq('user_id', user!.id)
+      .neq('type', 'video') // Exclude videos since we get them from videos table
+      .order('created_at', { ascending: false }),
+  ])
 
-  // Get paginated creations
-  const { data: creations } = await supabase
-    .from('creations')
-    .select('*')
-    .eq('user_id', user!.id)
-    .order('created_at', { ascending: false })
-    .range(from, to)
+  // Merge and sort by date
+  const allItems: Creation[] = [
+    ...(videos ?? []).map(v => ({
+      id: v.id,
+      user_id: v.user_id,
+      type: 'video' as string,
+      title: v.title,
+      thumbnail_url: v.thumbnail_url,
+      file_url: v.video_url,
+      credits_used: 3,
+      created_at: v.created_at,
+      _videoId: v.id, // Keep the real video ID
+      _status: v.status,
+    })),
+    ...(otherCreations ?? []).map(c => ({
+      ...c,
+      _videoId: null as string | null,
+      _status: null as string | null,
+    })),
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+  const total = allItems.length
+  const totalCount = total
+  const creations = allItems.slice(from, to + 1)
 
   const total = totalCount ?? 0
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -88,15 +117,12 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
         <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
           {(creations as Creation[]).map((item, i) => {
             const isVideo = item.type === 'video'
-            // For videos, extract the video ID from the file_url pattern: .../userId/videoId.mp4
             let href = item.file_url ?? '#'
             let linkProps: { target?: '_blank'; rel?: string } = { target: '_blank', rel: 'noopener noreferrer' }
-            if (isVideo && item.file_url) {
-              const match = item.file_url.match(/\/([0-9a-f-]{36})\.mp4/)
-              if (match) {
-                href = `/videos/${match[1]}`
-                linkProps = {}
-              }
+            if (isVideo) {
+              // Use the real video ID from the videos table
+              href = `/videos/${item._videoId ?? item.id}`
+              linkProps = {}
             }
 
             return (
@@ -155,6 +181,12 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
                 <span className={`tag ${TYPE_COLORS[item.type] ?? 'peach'}`} style={{ flexShrink: 0 }}>
                   {TYPE_LABELS[item.type] ?? item.type}
                 </span>
+                {/* Video status badge */}
+                {isVideo && item._status && item._status !== 'completed' && (
+                  <span className={`tag ${item._status === 'failed' ? 'rose' : 'peach'}`} style={{ flexShrink: 0, fontSize: 11 }}>
+                    {item._status === 'failed' ? 'Failed' : 'Processing'}
+                  </span>
+                )}
 
                 {/* Date */}
                 <div style={{ fontSize: 13, color: 'var(--ink-light)', flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
