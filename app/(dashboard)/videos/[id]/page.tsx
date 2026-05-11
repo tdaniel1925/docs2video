@@ -205,8 +205,8 @@ function VideoProgress({ status, createdAt }: { status: string; createdAt: strin
           </div>
           <button
             onClick={async () => {
-              const supabase = (await import('../../_lib/supabase/client')).createClient()
-              await supabase.from('videos').update({ status: 'pending' }).eq('id', (window.location.pathname.split('/').pop()))
+              const sb = createClient()
+              await sb.from('videos').update({ status: 'pending' }).eq('id', window.location.pathname.split('/').pop()!)
               window.location.reload()
             }}
             className="btn btn-soft btn-sm"
