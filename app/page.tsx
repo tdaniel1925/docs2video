@@ -47,7 +47,6 @@ export default function HomePage() {
           <div className="hero-right">
             <ClickToPlayVideo
               src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/site-assets/hero-video.mp4"
-              poster="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/site-assets/hero-poster.png"
               style={{ boxShadow: '0 20px 60px rgba(27,58,92,0.25)' }}
             />
           </div>
