@@ -182,7 +182,10 @@ app.post('/assemble', authCheck, async (req, res) => {
 
     // Upload to Supabase Storage
     if (SUPABASE_URL && SUPABASE_KEY) {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+      const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: { persistSession: false },
+        realtime: { enabled: false },
+      })
 
       const videoStoragePath = `${userId}/${videoId}.mp4`
       const { error: uploadError } = await supabase.storage
