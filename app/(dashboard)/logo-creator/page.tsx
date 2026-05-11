@@ -20,7 +20,7 @@ type DesignBrief = {
 
 const INITIAL_MESSAGE: ChatMessage = {
   role: 'assistant',
-  content: "Let's design your logo. What's the company name and what do you do?",
+  content: "Hey! I'm Marcus, your logo designer. I've designed hundreds of brand identities and I'm excited to work on yours. What's the name of the company or brand we're creating a logo for?",
 }
 
 export default function LogoCreatorPage() {
@@ -40,6 +40,14 @@ export default function LogoCreatorPage() {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, chatLoading])
 
+  // Process any image file/blob into a pending image
+  const processImageFile = useCallback((file: File | Blob) => {
+    if (!file.type.startsWith('image/')) return
+    const reader = new FileReader()
+    reader.onload = () => setPendingImage(reader.result as string)
+    reader.readAsDataURL(file)
+  }, [])
+
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -47,15 +55,34 @@ export default function LogoCreatorPage() {
       alert('Please upload an image file.')
       return
     }
-    const reader = new FileReader()
-    reader.onload = () => {
-      const dataUrl = reader.result as string
-      setPendingImage(dataUrl)
-    }
-    reader.readAsDataURL(file)
-    // Reset so same file can be re-selected
+    processImageFile(file)
     e.target.value = ''
-  }, [])
+  }, [processImageFile])
+
+  // Paste images from clipboard
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const blob = item.getAsFile()
+        if (blob) processImageFile(blob)
+        return
+      }
+    }
+  }, [processImageFile])
+
+  // Drag and drop images
+  const [dragOver, setDragOver] = useState(false)
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file?.type.startsWith('image/')) {
+      processImageFile(file)
+    }
+  }, [processImageFile])
 
   function removePendingImage() {
     setPendingImage(null)
@@ -306,7 +333,15 @@ export default function LogoCreatorPage() {
       )}
 
       {/* Input bar */}
-      <div style={{ display: 'flex', gap: 8, padding: '12px 0 20px', borderTop: hasLogos && !pendingImage ? 'none' : '1px solid var(--border-light, #e2e8f0)' }}>
+      <div
+        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        style={{
+          display: 'flex', gap: 8, padding: '12px 0 20px',
+          borderTop: hasLogos && !pendingImage ? 'none' : '1px solid var(--border-light, #e2e8f0)',
+          ...(dragOver ? { background: 'rgba(168,240,212,0.1)', borderRadius: 10, outline: '2px dashed var(--mint)' } : {}),
+        }}>
         {/* Hidden file input */}
         <input
           ref={fileInputRef}
@@ -339,8 +374,9 @@ export default function LogoCreatorPage() {
           onKeyDown={e => {
             if (e.key === 'Enter') handleSend()
           }}
+          onPaste={handlePaste}
           className="input"
-          placeholder={hasLogos ? 'Describe changes: "make it bolder", "try blue"...' : 'Type your answer...'}
+          placeholder={hasLogos ? 'Describe changes or paste an image...' : 'Type your answer or paste a reference image...'}
           style={{ flex: 1 }}
           disabled={chatLoading || generating}
         />
