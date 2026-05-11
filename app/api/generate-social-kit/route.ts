@@ -82,12 +82,13 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { companyName, tagline, description, primaryColor, referenceImage } = body as {
+  const { companyName, tagline, description, primaryColor, referenceImage, styleId } = body as {
     companyName: string
     tagline?: string
     description?: string
     primaryColor?: string
     referenceImage?: string // base64 data URL or raw base64
+    styleId?: string
   }
 
   if (!companyName?.trim()) {
@@ -142,31 +143,68 @@ export async function POST(request: Request) {
     const config = MASTER_CONFIG[masterType]
 
     const colorInstruction = primaryColor
-      ? `Use ${primaryColor} as the primary brand color. Build a professional color palette around it.`
-      : 'Use a professional, modern color palette suitable for corporate branding.'
+      ? `Use ${primaryColor} as the primary brand color. Build a rich, trendy color palette around it — gradients, tints, complementary accents.`
+      : 'Use a modern, trendy color palette. Think 2025 design trends — rich gradients, bold accents, layered depth.'
 
-    const promptText = `Create a ${config.description} branded graphic for social media.
+    // Style-specific instructions
+    const STYLE_PROMPTS: Record<string, string> = {
+      executive: 'Clean corporate with data visualization elements, structured grids, and metric callouts.',
+      luxury: 'Premium dark theme with gold/metallic accents, elegant typography, sophisticated layering.',
+      modern: 'Bold geometric shapes, vibrant gradients, dynamic asymmetric layouts.',
+      editorial: 'Magazine-style with editorial typography, layered photos/textures, creative compositions.',
+      minimal: 'Ultra-clean whitespace, single accent color, precise typography, breathing room.',
+      creative: 'Playful, colorful, unexpected layouts with overlapping elements and creative type.',
+    }
+    const stylePrompt = STYLE_PROMPTS[styleId ?? ''] ?? STYLE_PROMPTS.modern
 
-BRAND INFORMATION:
-- Company Name: "${companyName}"
+    // Safe area instructions per master type
+    const SAFE_AREA_RULES: Record<MasterType, string> = {
+      landscape: `SAFE AREA (CRITICAL for banners/covers):
+- YouTube banners: only the center 1546x423px is visible on ALL devices. Keep ALL important text and logos in the center 60% of the image.
+- Facebook covers: profile picture overlaps the bottom-left on desktop. Keep text away from bottom-left quarter.
+- LinkedIn banners: very thin — keep text large (min 48pt equivalent) and vertically centered with generous padding.
+- Twitter headers: profile pic overlaps bottom-left. Center all key content.
+- GENERAL: Keep all text and logos at least 10% inset from ALL edges. Nothing important in the outer 10% margin.`,
+      square: `SAFE AREA:
+- Profile pictures get cropped to circles on most platforms. Keep the logo/icon in the center 70% of the canvas.
+- Square posts: keep text away from edges — at least 8% margin on all sides.
+- Instagram may crop to 4:5 in feed — keep critical elements in the center.`,
+      vertical: `SAFE AREA:
+- Stories: top 14% is covered by username/camera UI, bottom 20% covered by reply bar. Keep all text in the middle 66% vertically.
+- TikTok: username and buttons overlay the right side and bottom. Keep text left-aligned and in the upper 60%.
+- Pinterest pins: keep critical text in the top 60% since feed previews crop the bottom.`,
+    }
+
+    const promptText = `Create a TRENDY, INFOGRAPHIC-STYLE ${config.description} social media graphic.
+
+BRAND:
+- Company: "${companyName}"
 ${tagline ? `- Tagline: "${tagline}"` : ''}
-${description ? `- About: "${description}"` : ''}
+${description ? `- About: ${description}` : ''}
 
 ${colorInstruction}
 
-DESIGN REQUIREMENTS:
-- This is a BRANDED social media graphic, not an advertisement
-- Feature the company name prominently
-${tagline ? '- Include the tagline in a complementary style' : ''}
-- Use clean, modern, professional design
-- Include abstract geometric shapes, gradients, or patterns for visual interest
-- NO human faces, NO photos of people, NO realistic human figures
-- NO placeholder text - use ONLY the provided company name and tagline
+DESIGN STYLE: ${stylePrompt}
+
+INFOGRAPHIC APPROACH:
+- Design this like a professional infographic — NOT a plain banner or generic graphic
+- Include visual data elements: stat callouts, icon grids, metric badges, comparison layouts, timeline elements
+- Use the company info to create compelling visual content (e.g., "Est. 2020", key services as icon badges, value props as callout cards)
+- Layer elements with depth: overlapping cards, subtle shadows, glassmorphism, gradient overlays
+- Typography should be BOLD and trendy — mix large display text with clean body text
+- Include decorative elements: abstract blobs, geometric patterns, subtle grain textures, mesh gradients
+- This should look like something a top creative agency would post — not a template from Canva
+
+${SAFE_AREA_RULES[masterType]}
+
+STRICT RULES:
+- NO human faces, NO photos of people
+- NO placeholder text — use ONLY the provided company name and info
 - All text must be crisp, legible, and correctly spelled
-- The design should work well when resized to different dimensions
-- Make it visually striking and brand-consistent
-${refImageBuffer ? '- Use the provided reference image as style/brand inspiration' : ''}
-- Professional, polished, ready to publish`
+- The company name MUST be prominently featured
+${tagline ? '- Include the tagline in a complementary style' : ''}
+${refImageBuffer ? '- Use the provided reference image as STYLE and AESTHETIC inspiration — match its color feel, typography approach, and visual energy' : ''}
+- Make it TRENDY: think 2025 design trends, not 2018 corporate clip art`
 
     const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
       { text: promptText },

@@ -8,18 +8,41 @@ import type { Profile } from '../_lib/types'
 
 const ADMIN_EMAIL = 'trenttdaniel@gmail.com'
 
-const CREATE_ITEMS = [
-  { href: '/create', icon: '\uD83D\uDCF9', title: 'Video Explainer', desc: 'Create a narrated video' },
-  { href: '/infographic-creator', icon: '\uD83D\uDCCA', title: 'Infographic', desc: 'Generate a visual summary' },
-  { href: '/flyers', icon: '\uD83D\uDCCB', title: 'Flyer', desc: 'Design a professional flyer' },
-  { href: '/business-cards', icon: '\uD83D\uDCB3', title: 'Business Card', desc: 'Create branded cards' },
-  { href: '/logo-creator', icon: '\uD83C\uDFA8', title: 'Logo', desc: 'AI-powered logo design' },
-  { href: '/templates', icon: '\uD83C\uDFAF', title: 'Custom Template', desc: 'Build your own slide style' },
-  { href: '/course-builder', icon: '\uD83C\uDF93', title: 'Course Builder', desc: 'Multi-episode video series' },
-  { href: '/social-kit', icon: '\uD83D\uDCF1', title: 'Social Media Kit', desc: 'Banners & profiles for all platforms' },
-  { href: '/image-remix', icon: '\u2728', title: 'Image Remix', desc: 'Redesign any image with AI' },
-  { href: '/social-campaigns', icon: '\uD83D\uDCC5', title: 'Social Campaign', desc: 'AI content calendar + auto-post' },
+const CREATE_SECTIONS = [
+  {
+    label: 'Content',
+    items: [
+      { href: '/create', icon: '\uD83D\uDCF9', title: 'Video Explainer', desc: 'Narrated video from any content' },
+      { href: '/course-builder', icon: '\uD83C\uDF93', title: 'Course Builder', desc: 'Multi-episode video series' },
+      { href: '/infographic-creator', icon: '\uD83D\uDCCA', title: 'Infographic', desc: 'Visual data summary' },
+    ],
+  },
+  {
+    label: 'Design',
+    items: [
+      { href: '/flyers', icon: '\uD83D\uDCCB', title: 'Flyer', desc: 'Professional flyer design' },
+      { href: '/business-cards', icon: '\uD83D\uDCB3', title: 'Business Card', desc: '300 DPI print-ready cards' },
+      { href: '/logo-creator', icon: '\uD83C\uDFA8', title: 'Logo', desc: 'AI designer chatbot' },
+      { href: '/image-remix', icon: '\u2728', title: 'Image Remix', desc: 'Redesign any image with AI' },
+    ],
+  },
+  {
+    label: 'Social Media',
+    items: [
+      { href: '/social-kit', icon: '\uD83D\uDCF1', title: 'Social Media Kit', desc: 'Banners & profiles for all platforms' },
+      { href: '/social-campaigns', icon: '\uD83D\uDCC5', title: 'Campaign Manager', desc: 'AI content calendar + auto-post' },
+    ],
+  },
+  {
+    label: 'Tools',
+    items: [
+      { href: '/templates', icon: '\uD83C\uDFAF', title: 'Custom Template', desc: 'Build your own slide style' },
+    ],
+  },
 ]
+
+// Flat list for route matching
+const CREATE_ITEMS = CREATE_SECTIONS.flatMap(s => s.items)
 
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -91,20 +114,27 @@ export default function Header({ profile }: { profile: Profile }) {
               </button>
               {createOpen && (
                 <div className="create-dropdown">
-                  {CREATE_ITEMS.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="create-dropdown-item"
-                      onClick={() => setCreateOpen(false)}
-                    >
-                      <div className="create-dropdown-icon">{item.icon}</div>
-                      <div>
-                        <div className="create-dropdown-text">{item.title}</div>
-                        <div className="create-dropdown-desc">{item.desc}</div>
+                  <div className="create-dropdown-grid">
+                    {CREATE_SECTIONS.map((section) => (
+                      <div key={section.label}>
+                        <div className="create-dropdown-section">{section.label}</div>
+                        {section.items.map((item) => (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className="create-dropdown-item"
+                            onClick={() => setCreateOpen(false)}
+                          >
+                            <div className="create-dropdown-icon">{item.icon}</div>
+                            <div>
+                              <div className="create-dropdown-text">{item.title}</div>
+                              <div className="create-dropdown-desc">{item.desc}</div>
+                            </div>
+                          </Link>
+                        ))}
                       </div>
-                    </Link>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
