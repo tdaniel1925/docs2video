@@ -239,7 +239,7 @@ export async function POST(request: Request) {
     // Scrape company website for chatbot context (non-blocking)
     try {
       const brandGuide = brand?.brand_guide_data as Record<string, string> | null
-      const companyWebsite = brandGuide?.website ?? brand?.website ?? null
+      const companyWebsite = brandGuide?.website ?? null
       if (companyWebsite) {
         console.log(`[video ${videoId}] Scraping company website for chatbot context...`)
         const scrapeUrl = companyWebsite.startsWith('http') ? companyWebsite : `https://${companyWebsite}`
