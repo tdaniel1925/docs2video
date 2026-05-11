@@ -1,0 +1,46 @@
+import { NextResponse } from 'next/server'
+import { createClient } from '../../_lib/supabase/server'
+import { generateScript } from '../../_lib/script-generator'
+import type { ExtractedPolicyData } from '../../_lib/types'
+import type { ExtractedData } from '../../_lib/extract-types'
+
+export const runtime = 'nodejs'
+export const maxDuration = 60
+
+export async function POST(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+  const body = await request.json()
+  const { policyData, brandId, detailed } = body as {
+    policyData: ExtractedPolicyData | ExtractedData
+    brandId: string | null
+    detailed?: boolean
+  }
+
+  let brandName: string | null = null
+  let colors = { primary: '#1B365D', secondary: '#4A90D9', accent: '#FFB347', background: '#0a1628', text: '#FFFFFF' }
+
+  if (brandId) {
+    const { data: brand } = await supabase.from('brands').select('*').eq('id', brandId).single()
+    if (brand) {
+      brandName = brand.name
+      colors = {
+        primary: brand.primary_color,
+        secondary: brand.secondary_color,
+        accent: brand.accent_color,
+        background: brand.background_color,
+        text: brand.text_color,
+      }
+    }
+  }
+
+  try {
+    const scenes = await generateScript(policyData, brandName, colors, detailed ?? false)
+    return NextResponse.json({ scenes })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Script generation failed'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}

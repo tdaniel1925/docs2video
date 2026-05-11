@@ -1,0 +1,547 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { createBrand } from '../../../_actions/brands'
+
+const COLOR_LABELS: Record<string, string> = {
+  primary_color: 'Primary',
+  secondary_color: 'Secondary',
+  accent_color: 'Accent',
+  background_color: 'Background',
+  text_color: 'Text',
+}
+
+const COLOR_ROLES: Record<string, string> = {
+  primary_color: 'Headers \u00b7 CTAs',
+  secondary_color: 'Highlights',
+  accent_color: 'Tags \u00b7 Badges',
+  background_color: 'Canvas',
+  text_color: 'Body copy',
+}
+
+interface BrandGuideData {
+  companyName?: string
+  tagline?: string
+  description?: string
+  industry?: string
+  tone?: string
+  targetAudience?: string
+  primaryColor?: string
+  secondaryColor?: string
+  accentColor?: string
+  backgroundColor?: string
+  textColor?: string
+  logoUrl?: string
+  fonts?: string[]
+  brandValues?: string[]
+  services?: string[]
+  uniqueSellingPoints?: string[]
+  contentThemes?: string[]
+  socialMediaBio?: string
+  hashtagSuggestions?: string[]
+  toneGuide?: {
+    doSay?: string[]
+    dontSay?: string[]
+    samplePosts?: string[]
+  }
+  competitorNotes?: string
+  colorPsychology?: string
+  socialLinks?: Record<string, string>
+}
+
+function BrandScrapingProgress() {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setElapsed(prev => prev + 1), 1000)
+    return () => clearInterval(t)
+  }, [])
+  return (
+    <div style={{ marginTop: 16, padding: '20px 0' }}>
+      <div style={{ maxWidth: 340, height: 5, background: 'var(--border)', borderRadius: 10, overflow: 'hidden', marginBottom: 14 }}>
+        <div style={{
+          height: '100%', borderRadius: 10, background: 'var(--mint)',
+          transition: 'width 1s ease',
+          width: elapsed < 3 ? '10%' : elapsed < 8 ? '30%' : elapsed < 15 ? '55%' : elapsed < 25 ? '78%' : elapsed < 40 ? '90%' : '95%',
+        }} />
+      </div>
+      <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>
+        {elapsed < 3 ? 'Scanning website...' :
+         elapsed < 8 ? 'Analyzing brand identity...' :
+         elapsed < 15 ? 'Extracting colors and visual elements...' :
+         elapsed < 25 ? 'Detecting voice and tone...' :
+         elapsed < 40 ? 'Compiling brand guide...' :
+         'Almost done \u2014 finishing up...'}
+      </p>
+      <p style={{ marginTop: 6, fontSize: 12, color: 'var(--ink-light)' }}>
+        {elapsed}s elapsed
+      </p>
+    </div>
+  )
+}
+
+export default function NewBrandPage() {
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [brandName, setBrandName] = useState('')
+  const [logoUrl, setLogoUrl] = useState('')
+  const [colors, setColors] = useState({
+    primary_color: '#1B365D',
+    secondary_color: '#4A90D9',
+    accent_color: '#FFB347',
+    background_color: '#0a1628',
+    text_color: '#FFFFFF',
+  })
+
+  // Website scraper state
+  const [websiteUrl, setWebsiteUrl] = useState('')
+  const [scraping, setScraping] = useState(false)
+  const [scraped, setScraped] = useState(false)
+  const [brandGuide, setBrandGuide] = useState<BrandGuideData | null>(null)
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
+
+  function toggleSection(key: string) {
+    setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  async function handleScrape() {
+    if (!websiteUrl.trim()) return
+    setScraping(true)
+    setError(null)
+    setScraped(false)
+
+    try {
+      const res = await fetch('/api/scrape-brand', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: websiteUrl }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Scraping failed')
+
+      // Auto-fill form fields
+      setBrandName(data.companyName ?? '')
+      if (data.logoUrl) setLogoUrl(data.logoUrl)
+      setColors({
+        primary_color: data.primaryColor ?? '#1B365D',
+        secondary_color: data.secondaryColor ?? '#4A90D9',
+        accent_color: data.accentColor ?? '#FFB347',
+        background_color: data.backgroundColor ?? '#0a1628',
+        text_color: data.textColor ?? '#FFFFFF',
+      })
+      setBrandGuide(data)
+      setScraped(true)
+      // Expand first section by default
+      setExpandedSections({ identity: true })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to analyze website')
+    }
+    setScraping(false)
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    const formData = new FormData(e.currentTarget)
+    const result = await createBrand(formData)
+    if (result?.error) {
+      setError(result.error)
+      setLoading(false)
+    }
+  }
+
+  const SectionHeader = ({ id, title, icon }: { id: string; title: string; icon: string }) => (
+    <button
+      type="button"
+      onClick={() => toggleSection(id)}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '14px 0', border: 'none', background: 'none', cursor: 'pointer',
+        borderBottom: expandedSections[id] ? '1px solid var(--border)' : 'none',
+      }}
+    >
+      <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>
+        <span style={{ fontSize: 18 }}>{icon}</span> {title}
+      </span>
+      <span style={{ fontSize: 18, color: 'var(--ink-light)', transition: 'transform 0.2s', transform: expandedSections[id] ? 'rotate(180deg)' : 'rotate(0)' }}>
+        &#9662;
+      </span>
+    </button>
+  )
+
+  const Pill = ({ text }: { text: string }) => (
+    <span style={{
+      display: 'inline-block', padding: '5px 12px', borderRadius: 8,
+      background: 'var(--bg-soft)', fontSize: 13, fontWeight: 500, color: 'var(--ink)',
+    }}>
+      {text}
+    </span>
+  )
+
+  return (
+    <div>
+      <Link href="/brands" className="back-link">&larr; Back to brands</Link>
+
+      {/* Website Scraper */}
+      <div className="wizard-card" style={{ marginBottom: 20 }}>
+        <h2 style={{ marginBottom: 4 }}>Import from <em>website</em></h2>
+        <p className="wizard-sub">Enter your website URL and we&apos;ll create a comprehensive brand guide with colors, voice, content strategy, and more.</p>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <input
+            value={websiteUrl}
+            onChange={(e) => setWebsiteUrl(e.target.value)}
+            className="input"
+            placeholder="www.youragency.com"
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleScrape() } }}
+            style={{ flex: 1 }}
+          />
+          <button
+            type="button"
+            onClick={handleScrape}
+            disabled={scraping || !websiteUrl.trim()}
+            className="btn btn-primary"
+            style={{ flexShrink: 0 }}
+          >
+            {scraping ? 'Analyzing...' : 'Analyze brand'}
+          </button>
+        </div>
+
+        {scraping && (
+          <BrandScrapingProgress />
+        )}
+
+        {scraped && brandGuide && (
+          <div style={{ marginTop: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker)" strokeWidth="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--mint-darker)' }}>Brand guide generated!</span>
+            </div>
+
+            {/* Brand Guide Preview */}
+            <div style={{ borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden' }}>
+
+              {/* Identity */}
+              <div style={{ padding: '0 16px', borderBottom: '1px solid var(--border)' }}>
+                <SectionHeader id="identity" title="Brand Identity" icon="&#127919;" />
+                {expandedSections.identity && (
+                  <div style={{ padding: '12px 0 16px' }}>
+                    {brandGuide.tagline && (
+                      <p style={{ fontSize: 16, fontStyle: 'italic', color: 'var(--ink)', marginBottom: 10, fontWeight: 500 }}>
+                        &ldquo;{brandGuide.tagline}&rdquo;
+                      </p>
+                    )}
+                    {brandGuide.description && (
+                      <p style={{ fontSize: 13.5, color: 'var(--ink-soft)', marginBottom: 12, lineHeight: 1.6 }}>{brandGuide.description}</p>
+                    )}
+                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13 }}>
+                      {brandGuide.industry && <span>Industry: <strong>{brandGuide.industry}</strong></span>}
+                      {brandGuide.targetAudience && <span>Audience: <strong>{brandGuide.targetAudience}</strong></span>}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Brand Voice */}
+              <div style={{ padding: '0 16px', borderBottom: '1px solid var(--border)' }}>
+                <SectionHeader id="voice" title="Brand Voice & Tone" icon="&#128172;" />
+                {expandedSections.voice && (
+                  <div style={{ padding: '12px 0 16px' }}>
+                    {brandGuide.tone && (
+                      <p style={{ fontSize: 14, marginBottom: 12 }}>Tone: <strong style={{ textTransform: 'capitalize' }}>{brandGuide.tone}</strong></p>
+                    )}
+                    {brandGuide.toneGuide && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                        {brandGuide.toneGuide.doSay?.length ? (
+                          <div style={{ padding: 12, borderRadius: 10, background: 'rgba(52,211,153,0.08)' }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--mint-darker)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Do Say</div>
+                            {brandGuide.toneGuide.doSay.map((s, i) => (
+                              <div key={i} style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 4, paddingLeft: 12, position: 'relative' }}>
+                                <span style={{ position: 'absolute', left: 0, color: 'var(--mint-darker)' }}>+</span> {s}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                        {brandGuide.toneGuide.dontSay?.length ? (
+                          <div style={{ padding: 12, borderRadius: 10, background: 'rgba(239,68,68,0.06)' }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Don&apos;t Say</div>
+                            {brandGuide.toneGuide.dontSay.map((s, i) => (
+                              <div key={i} style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 4, paddingLeft: 12, position: 'relative' }}>
+                                <span style={{ position: 'absolute', left: 0, color: '#dc2626' }}>-</span> {s}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                    {brandGuide.toneGuide?.samplePosts?.length ? (
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Sample Posts</div>
+                        {brandGuide.toneGuide.samplePosts.map((post, i) => (
+                          <div key={i} style={{
+                            padding: 12, borderRadius: 10, background: 'var(--bg-soft)', marginBottom: 8,
+                            fontSize: 13, color: 'var(--ink)', lineHeight: 1.5, fontStyle: 'italic',
+                          }}>
+                            {post}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+
+              {/* Colors & Psychology */}
+              <div style={{ padding: '0 16px', borderBottom: '1px solid var(--border)' }}>
+                <SectionHeader id="colors" title="Color Psychology" icon="&#127912;" />
+                {expandedSections.colors && brandGuide.colorPsychology && (
+                  <div style={{ padding: '12px 0 16px' }}>
+                    <p style={{ fontSize: 13.5, color: 'var(--ink-soft)', lineHeight: 1.6 }}>{brandGuide.colorPsychology}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Fonts */}
+              {brandGuide.fonts?.length ? (
+                <div style={{ padding: '0 16px', borderBottom: '1px solid var(--border)' }}>
+                  <SectionHeader id="fonts" title="Typography" icon="&#128221;" />
+                  {expandedSections.fonts && (
+                    <div style={{ padding: '12px 0 16px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {brandGuide.fonts.map((f, i) => <Pill key={i} text={f} />)}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {/* Core Values */}
+              {brandGuide.brandValues?.length ? (
+                <div style={{ padding: '0 16px', borderBottom: '1px solid var(--border)' }}>
+                  <SectionHeader id="values" title="Core Values" icon="&#11088;" />
+                  {expandedSections.values && (
+                    <div style={{ padding: '12px 0 16px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {brandGuide.brandValues.map((v, i) => <Pill key={i} text={v} />)}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {/* Services */}
+              {brandGuide.services?.length ? (
+                <div style={{ padding: '0 16px', borderBottom: '1px solid var(--border)' }}>
+                  <SectionHeader id="services" title="Services / Products" icon="&#128188;" />
+                  {expandedSections.services && (
+                    <div style={{ padding: '12px 0 16px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {brandGuide.services.map((s, i) => <Pill key={i} text={s} />)}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {/* USPs */}
+              {brandGuide.uniqueSellingPoints?.length ? (
+                <div style={{ padding: '0 16px', borderBottom: '1px solid var(--border)' }}>
+                  <SectionHeader id="usps" title="Unique Selling Points" icon="&#128161;" />
+                  {expandedSections.usps && (
+                    <div style={{ padding: '12px 0 16px' }}>
+                      {brandGuide.uniqueSellingPoints.map((u, i) => (
+                        <div key={i} style={{ fontSize: 13.5, color: 'var(--ink-soft)', marginBottom: 6, paddingLeft: 16, position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>{i + 1}.</span> {u}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {/* Content Themes */}
+              {brandGuide.contentThemes?.length ? (
+                <div style={{ padding: '0 16px', borderBottom: '1px solid var(--border)' }}>
+                  <SectionHeader id="themes" title="Content Themes" icon="&#128196;" />
+                  {expandedSections.themes && (
+                    <div style={{ padding: '12px 0 16px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {brandGuide.contentThemes.map((t, i) => <Pill key={i} text={t} />)}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {/* Hashtags */}
+              {brandGuide.hashtagSuggestions?.length ? (
+                <div style={{ padding: '0 16px', borderBottom: '1px solid var(--border)' }}>
+                  <SectionHeader id="hashtags" title="Suggested Hashtags" icon="#" />
+                  {expandedSections.hashtags && (
+                    <div style={{ padding: '12px 0 16px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {brandGuide.hashtagSuggestions.map((h, i) => (
+                        <span key={i} style={{
+                          display: 'inline-block', padding: '4px 10px', borderRadius: 8,
+                          background: 'var(--bg-soft)', fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)',
+                        }}>
+                          {h.startsWith('#') ? h : `#${h}`}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {/* Social Links */}
+              {brandGuide.socialLinks && Object.keys(brandGuide.socialLinks).length > 0 && (
+                <div style={{ padding: '0 16px', borderBottom: '1px solid var(--border)' }}>
+                  <SectionHeader id="social" title="Social Links Found" icon="&#128279;" />
+                  {expandedSections.social && (
+                    <div style={{ padding: '12px 0 16px' }}>
+                      {Object.entries(brandGuide.socialLinks).map(([platform, url]) => (
+                        <div key={platform} style={{ fontSize: 13, marginBottom: 4 }}>
+                          <strong style={{ textTransform: 'capitalize' }}>{platform}:</strong>{' '}
+                          <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{url}</a>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Competitor Notes */}
+              {brandGuide.competitorNotes && (
+                <div style={{ padding: '0 16px' }}>
+                  <SectionHeader id="competitor" title="Positioning Notes" icon="&#128202;" />
+                  {expandedSections.competitor && (
+                    <div style={{ padding: '12px 0 16px' }}>
+                      <p style={{ fontSize: 13.5, color: 'var(--ink-soft)', lineHeight: 1.6 }}>{brandGuide.competitorNotes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Brand Form */}
+      <div className="wizard-card brand-form">
+        <h2 style={{ marginBottom: 4 }}>Brand details</h2>
+        <p className="wizard-sub">{scraped ? 'We pre-filled everything -- review and adjust as needed.' : 'Or fill in your brand details manually.'}</p>
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="input-label">Brand Name</label>
+            <input
+              name="name"
+              required
+              className="input"
+              placeholder="e.g., My Agency"
+              value={brandName}
+              onChange={(e) => setBrandName(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="input-label">Logo URL <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <input
+                name="logo_url"
+                type="url"
+                className="input"
+                placeholder="https://..."
+                value={logoUrl}
+                onChange={(e) => setLogoUrl(e.target.value)}
+                style={{ flex: 1 }}
+              />
+              {logoUrl && (
+                <img
+                  src={logoUrl}
+                  alt="Logo preview"
+                  style={{ height: 40, width: 'auto', maxWidth: 120, borderRadius: 6, border: '1px solid var(--border)', objectFit: 'contain', padding: 4, background: 'white' }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                />
+              )}
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 8, marginBottom: 0 }}>
+              You can upload a logo file after creating the brand.
+            </p>
+          </div>
+
+          <div style={{ fontSize: 18, fontWeight: 700, marginTop: 24, marginBottom: 16 }}>Brand Colors</div>
+          <div className="color-pickers">
+            {Object.entries(colors).map(([key, value]) => (
+              <div key={key} className="color-picker">
+                <div className="lbl">{COLOR_LABELS[key]}</div>
+                <label style={{ display: 'block', position: 'relative', cursor: 'pointer' }}>
+                  <div
+                    className="color-input"
+                    style={{
+                      background: value,
+                      borderRadius: 10,
+                      ...(value.toLowerCase() === '#ffffff' ? { boxShadow: 'inset 0 0 0 3px white, 0 0 0 1px var(--border)' } : {}),
+                    }}
+                  />
+                  <input
+                    type="color"
+                    name={key}
+                    value={value}
+                    onChange={(e) => setColors((prev) => ({ ...prev, [key]: e.target.value }))}
+                    style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                  />
+                </label>
+                <div className="color-hex">{value.toUpperCase()}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Preview */}
+          <div className="brand-preview">
+            <div className="brand-preview-label">Live Preview</div>
+            <div className="preview-card-mini" style={{ borderRadius: 10, overflow: 'hidden' }}>
+              {Object.entries(colors).filter(([k]) => k !== 'text_color').map(([key, value]) => (
+                <div key={key} className="pcm-row" style={{ background: value }}>
+                  <span>{COLOR_LABELS[key]}</span>
+                  <span style={{ opacity: 0.85, fontSize: 12, fontWeight: 500 }}>{COLOR_ROLES[key]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="check-row">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+              <input type="checkbox" name="is_default" value="true" style={{ width: 18, height: 18, accentColor: 'var(--ink)' }} />
+              <span style={{ fontSize: 14.5, fontWeight: 500 }}>Set as default brand</span>
+            </label>
+          </div>
+
+          {/* Hidden fields for brand guide data */}
+          {brandGuide && (
+            <>
+              <input type="hidden" name="tagline" value={brandGuide.tagline ?? ''} />
+              <input type="hidden" name="description" value={brandGuide.description ?? ''} />
+              <input type="hidden" name="industry" value={brandGuide.industry ?? ''} />
+              <input type="hidden" name="tone" value={brandGuide.tone ?? ''} />
+              <input type="hidden" name="target_audience" value={brandGuide.targetAudience ?? ''} />
+              <input type="hidden" name="fonts" value={JSON.stringify(brandGuide.fonts ?? [])} />
+              <input type="hidden" name="brand_values" value={JSON.stringify(brandGuide.brandValues ?? [])} />
+              <input type="hidden" name="services" value={JSON.stringify(brandGuide.services ?? [])} />
+              <input type="hidden" name="social_links" value={JSON.stringify(brandGuide.socialLinks ?? {})} />
+              <input type="hidden" name="content_themes" value={JSON.stringify(brandGuide.contentThemes ?? [])} />
+              <input type="hidden" name="competitor_notes" value={brandGuide.competitorNotes ?? ''} />
+              <input type="hidden" name="unique_selling_points" value={JSON.stringify(brandGuide.uniqueSellingPoints ?? [])} />
+              <input type="hidden" name="brand_guide_data" value={JSON.stringify(brandGuide)} />
+            </>
+          )}
+
+          {error && (
+            <div style={{ borderRadius: 10, background: '#fde8e8', padding: '10px 16px', fontSize: 13, marginBottom: 16, color: 'var(--ink)', fontWeight: 600 }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Link href="/brands" className="btn btn-soft">Cancel</Link>
+            <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={loading}>
+              {loading ? 'Creating...' : 'Create brand \u2192'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}

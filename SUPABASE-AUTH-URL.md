@@ -1,0 +1,3 @@
+# Supabase Auth - Open this URL in your browser
+
+https://api.supabase.com/v1/oauth/authorize?response_type=code&client_id=73ff0dbd-cc02-4174-9a33-c9a9678f98a8&code_challenge=47QUU_iHExLxqGgW2cQCy8bidDzjrgTd8RjWFgmzuG8&code_challenge_method=S256&redirect_uri=http%3A%2F%2Flocalhost%3A39288%2Fcallback&state=y-OT2eGAi5KcdHzsi5peF_3mJbijva7nEBe2hCifcxE&scope=organizations%3Aread+projects%3Aread+projects%3Awrite+database%3Awrite+database%3Aread+analytics%3Aread+secrets%3Aread+edge_functions%3Aread+edge_functions%3Awrite+environment%3Aread+environment%3Awrite+storage%3Aread&resource=https%3A%2F%2Fmcp.supabase.com%2Fmcp

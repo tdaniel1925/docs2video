@@ -1,0 +1,513 @@
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
+import { useParams, useRouter } from 'next/navigation'
+import { updateBrand, deleteBrand } from '../../../_actions/brands'
+import { createClient } from '../../../_lib/supabase/client'
+import type { Brand } from '../../../_lib/types'
+import { SLIDE_STYLES } from '../../../_lib/types'
+
+const COLOR_LABELS: Record<string, string> = {
+  primary_color: 'Primary',
+  secondary_color: 'Secondary',
+  accent_color: 'Accent',
+  background_color: 'Background',
+  text_color: 'Text',
+}
+
+const COLOR_ROLES: Record<string, string> = {
+  primary_color: 'Headers · CTAs',
+  secondary_color: 'Highlights',
+  accent_color: 'Tags · Badges',
+  background_color: 'Canvas',
+  text_color: 'Body copy',
+}
+
+const SLIDE_LABELS = [
+  'Title / Cover',
+  'Data / Metrics',
+  'Chart / Comparison',
+  'Closing / CTA',
+]
+
+export default function EditBrandPage() {
+  const params = useParams()
+  const router = useRouter()
+  const [brand, setBrand] = useState<Brand | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [colors, setColors] = useState({
+    primary_color: '#1B365D',
+    secondary_color: '#4A90D9',
+    accent_color: '#FFB347',
+    background_color: '#0a1628',
+    text_color: '#FFFFFF',
+  })
+
+  // Logo upload state
+  const [logoFileUrl, setLogoFileUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [dragOver, setDragOver] = useState(false)
+
+  // Deck builder state
+  const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [generatingSlide, setGeneratingSlide] = useState(0)
+
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('brands')
+        .select('*')
+        .eq('id', params.id as string)
+        .single()
+
+      if (data) {
+        setBrand(data as Brand)
+        setColors({
+          primary_color: data.primary_color,
+          secondary_color: data.secondary_color,
+          accent_color: data.accent_color,
+          background_color: data.background_color,
+          text_color: data.text_color,
+        })
+        setLogoFileUrl(data.logo_file_url ?? null)
+        if (data.deck_style_id) {
+          setSelectedStyleId(data.deck_style_id)
+        }
+      }
+    }
+    load()
+  }, [params.id])
+
+  async function handleLogoUpload(file: File) {
+    setUploading(true)
+    setUploadError(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload-logo', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      setLogoFileUrl(data.url)
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) handleLogoUpload(file)
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file && file.type.startsWith('image/')) handleLogoUpload(file)
+  }
+
+  function handleRemoveLogo() {
+    setLogoFileUrl(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    const formData = new FormData(e.currentTarget)
+    formData.set('id', params.id as string)
+    const result = await updateBrand(formData)
+    if (result?.error) {
+      setError(result.error)
+      setLoading(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm('Delete this brand? Infographics using it will keep their current style.')) return
+    setDeleting(true)
+    const result = await deleteBrand(params.id as string)
+    if (result?.error) {
+      setError(result.error)
+      setDeleting(false)
+    }
+  }
+
+  async function handleGenerateDeck() {
+    if (!selectedStyleId || !brand) return
+    setGenerating(true)
+    setGeneratingSlide(1)
+
+    const interval = setInterval(() => {
+      setGeneratingSlide((prev) => (prev < 4 ? prev + 1 : prev))
+    }, 3000)
+
+    try {
+      const res = await fetch('/api/generate-brand-deck', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brandId: brand.id, styleId: selectedStyleId }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to generate brand deck')
+      }
+
+      const data = await res.json()
+      setBrand((prev) =>
+        prev
+          ? {
+              ...prev,
+              reference_slides: data.reference_slides ?? data.referenceSlides ?? prev.reference_slides,
+              deck_style_id: selectedStyleId,
+            }
+          : prev
+      )
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to generate brand deck')
+    } finally {
+      clearInterval(interval)
+      setGenerating(false)
+      setGeneratingSlide(0)
+    }
+  }
+
+  const selectedStyle = SLIDE_STYLES.find((s) => s.id === selectedStyleId)
+  const hasExistingDeck = brand?.reference_slides && brand.reference_slides.length > 0
+
+  if (!brand) {
+    return <div style={{ color: 'var(--ink-light)' }}>Loading...</div>
+  }
+
+  return (
+    <div>
+      <Link href="/brands" className="back-link">&larr; Back to brands</Link>
+
+      <div className="wizard-card brand-form">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+          <h2 style={{ marginBottom: 0 }}>Edit {brand.name}</h2>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Link href={`/brands/${params.id}/guide`} className="btn btn-soft" style={{ fontSize: 13 }}>
+              View Brand Guide
+            </Link>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="btn btn-danger"
+              style={{ fontSize: 13 }}
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="input-label">Brand Name</label>
+            <input
+              name="name"
+              required
+              defaultValue={brand.name}
+              className="input"
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="input-label">Logo URL <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
+            <input
+              name="logo_url"
+              type="url"
+              defaultValue={brand.logo_url ?? ''}
+              className="input"
+            />
+          </div>
+
+          {/* Logo Upload */}
+          <div className="form-group">
+            <label className="input-label">Upload Logo <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
+            <input type="hidden" name="logo_file_url" value={logoFileUrl ?? ''} />
+
+            {/* Preview */}
+            {(logoFileUrl) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <img
+                  src={logoFileUrl}
+                  alt="Brand logo"
+                  style={{ maxHeight: 120, width: 'auto', borderRadius: 8, border: '1px solid var(--border)', objectFit: 'contain', padding: 6, background: 'white' }}
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveLogo}
+                  style={{ background: 'none', border: 'none', color: 'var(--ink-light)', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
+                >
+                  Remove logo
+                </button>
+              </div>
+            )}
+
+            {/* Drop zone */}
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                border: `2px dashed ${dragOver ? 'var(--accent, #4A90D9)' : 'var(--border)'}`,
+                borderRadius: 10,
+                padding: '24px 16px',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'border-color 0.15s, background 0.15s',
+                background: dragOver ? 'rgba(74,144,217,0.05)' : 'transparent',
+              }}
+            >
+              {uploading ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                  <span className="spinner" />
+                  <span style={{ fontSize: 14, color: 'var(--ink-soft)' }}>Uploading...</span>
+                </div>
+              ) : (
+                <span style={{ fontSize: 14, color: 'var(--ink-light)' }}>
+                  Drop your logo here or click to upload
+                </span>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+              />
+            </div>
+            {uploadError && (
+              <div style={{ marginTop: 8, fontSize: 13, color: '#dc2626', fontWeight: 500 }}>{uploadError}</div>
+            )}
+          </div>
+
+          <div className="section-title" style={{ marginTop: 18 }}>Brand Colors</div>
+          <div className="color-pickers">
+            {Object.entries(colors).map(([key, value]) => (
+              <div key={key} className="color-picker">
+                <div className="lbl">{COLOR_LABELS[key]}</div>
+                <label style={{ display: 'block', position: 'relative', cursor: 'pointer' }}>
+                  <div
+                    className="color-input"
+                    style={{
+                      background: value,
+                      ...(value.toLowerCase() === '#ffffff' ? { boxShadow: 'inset 0 0 0 3px white, 0 0 0 1px var(--border)' } : {}),
+                    }}
+                  />
+                  <input
+                    type="color"
+                    name={key}
+                    value={value}
+                    onChange={(e) => setColors((prev) => ({ ...prev, [key]: e.target.value }))}
+                    style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                  />
+                </label>
+                <div className="color-hex">{value.toUpperCase()}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Preview */}
+          <div className="brand-preview">
+            <div className="brand-preview-label">Live Preview</div>
+            <div className="preview-card-mini">
+              {Object.entries(colors).filter(([k]) => k !== 'text_color').map(([key, value]) => (
+                <div key={key} className="pcm-row" style={{ background: value }}>
+                  <span>{COLOR_LABELS[key]}</span>
+                  <span style={{ opacity: 0.85, fontSize: 12, fontWeight: 500 }}>{COLOR_ROLES[key]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="check-row">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+              <input type="checkbox" name="is_default" value="true" defaultChecked={brand.is_default} style={{ width: 18, height: 18, accentColor: 'var(--ink)' }} />
+              <span style={{ fontSize: 14.5, fontWeight: 500 }}>Set as default brand</span>
+            </label>
+          </div>
+
+          {error && (
+            <div style={{ borderRadius: 10, background: 'var(--rose-light, #fde8e8)', padding: '10px 16px', fontSize: 13, marginBottom: 16, color: 'var(--ink)', fontWeight: 600 }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Link href="/brands" className="btn btn-soft">Cancel</Link>
+            <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={loading}>
+              {loading ? 'Saving...' : 'Save changes \u2192'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* ───────── Brand Deck Builder ───────── */}
+      <div className="wizard-card" style={{ marginTop: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+          <div>
+            <h2 style={{ marginBottom: 4 }}>Brand Deck</h2>
+            <p style={{ color: 'var(--ink-light)', fontSize: 14, margin: 0 }}>
+              Generate a custom branded slide template. Your logo's colors will be matched across all slides.
+            </p>
+          </div>
+          {hasExistingDeck && selectedStyle && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'rgba(52, 211, 153, 0.15)',
+                color: '#34d399',
+                fontSize: 12,
+                fontWeight: 600,
+                padding: '5px 12px',
+                borderRadius: 20,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34d399', display: 'inline-block' }} />
+              Brand deck active &mdash; {selectedStyle.name}
+            </span>
+          )}
+        </div>
+
+        {/* Style Picker */}
+        <div className="section-title" style={{ marginTop: 18, marginBottom: 10 }}>Choose a style</div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+            gap: 12,
+            marginBottom: 20,
+          }}
+        >
+          {SLIDE_STYLES.map((style) => (
+            <button
+              key={style.id}
+              type="button"
+              onClick={() => setSelectedStyleId(style.id)}
+              style={{
+                background: 'var(--surface, #111)',
+                border: selectedStyleId === style.id ? '2px solid var(--accent, #4A90D9)' : '1px solid var(--border)',
+                borderRadius: 10,
+                padding: 0,
+                cursor: 'pointer',
+                textAlign: 'left',
+                overflow: 'hidden',
+                transition: 'border-color 0.15s, box-shadow 0.15s',
+                boxShadow: selectedStyleId === style.id ? '0 0 0 2px rgba(74,144,217,0.25)' : 'none',
+              }}
+            >
+              <img
+                src={`/style-previews/${style.id}.png`}
+                alt={style.name}
+                style={{
+                  width: '100%',
+                  height: 100,
+                  objectFit: 'cover',
+                  display: 'block',
+                  borderBottom: '1px solid var(--border)',
+                }}
+              />
+              <div style={{ padding: '8px 10px' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>{style.name}</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-light)', lineHeight: 1.3 }}>{style.description}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Generate / Regenerate Button */}
+        {generating && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ height: 5, background: 'var(--border)', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
+              <div style={{
+                height: '100%', borderRadius: 10, background: 'var(--mint)',
+                transition: 'width 0.5s ease',
+                width: `${Math.max(10, (generatingSlide / 4) * 100)}%`,
+              }} />
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--ink-light)', margin: 0, textAlign: 'center' }}>
+              Slide {generatingSlide} of 4 &mdash; {generatingSlide <= 1 ? 'Designing title slide...' : generatingSlide === 2 ? 'Creating data layout...' : generatingSlide === 3 ? 'Building comparison chart...' : 'Finishing CTA slide...'}
+            </p>
+          </div>
+        )}
+        <button
+          type="button"
+          className="btn btn-mint"
+          disabled={!selectedStyleId || generating}
+          onClick={handleGenerateDeck}
+          style={{ width: '100%', marginBottom: 20 }}
+        >
+          {generating
+            ? `Generating slide ${generatingSlide} of 4...`
+            : hasExistingDeck
+              ? 'Regenerate Brand Deck'
+              : 'Generate Brand Deck'}
+        </button>
+
+        {/* Reference Slides Preview */}
+        {brand.reference_slides && brand.reference_slides.length > 0 && (
+          <div>
+            <div className="section-title" style={{ marginBottom: 10 }}>Reference Slides</div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: 12,
+              }}
+            >
+              {brand.reference_slides.map((slideUrl, i) => (
+                <div
+                  key={i}
+                  style={{
+                    border: '1px solid var(--border)',
+                    borderRadius: 10,
+                    overflow: 'hidden',
+                    background: 'var(--surface, #111)',
+                  }}
+                >
+                  <img
+                    src={slideUrl}
+                    alt={SLIDE_LABELS[i] ?? `Slide ${i + 1}`}
+                    style={{
+                      width: '100%',
+                      aspectRatio: '16/9',
+                      objectFit: 'cover',
+                      display: 'block',
+                    }}
+                  />
+                  <div
+                    style={{
+                      padding: '8px 12px',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'var(--ink-light)',
+                      borderTop: '1px solid var(--border)',
+                    }}
+                  >
+                    {SLIDE_LABELS[i] ?? `Slide ${i + 1}`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
