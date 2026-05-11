@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
+import NotificationBell from './NotificationBell'
 import { logout } from '../_actions/auth'
 import type { Profile } from '../_lib/types'
 
@@ -184,6 +185,8 @@ export default function Header({ profile }: { profile: Profile }) {
             )}
           </svg>
         </button>
+
+        <NotificationBell />
 
         <div style={{ position: 'relative' }}>
           <button

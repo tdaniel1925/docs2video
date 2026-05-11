@@ -9,6 +9,7 @@ import { synthesizeSpeech } from '../../_lib/tts'
 const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
 const VIDEO_ASSEMBLY_SECRET = process.env.VIDEO_ASSEMBLY_SECRET || 'docs2video-assembly-secret-2026'
 import { deductCredits } from '../../_lib/credits'
+import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
 import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 
@@ -59,7 +60,16 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
 
+  // Create a job tracker for this video
+  const jobId = await createJob(admin, user.id, {
+    type: 'video',
+    title: `Video: ${videoId.slice(0, 8)}...`,
+    metadata: { videoId },
+  })
+
   try {
+    if (jobId) await updateJobProgress(admin, jobId, 5, 'running')
+
     // STAGE 1: Generate script (or reuse pre-generated scenes)
     let scenes
     if (preGeneratedScenes && preGeneratedScenes.length > 0) {
@@ -100,6 +110,7 @@ export async function POST(request: Request) {
       console.log(`[video ${videoId}] Audio done.`)
     }
     await admin.from('videos').update({ status: 'generating_slides' }).eq('id', videoId)
+    if (jobId) await updateJobProgress(admin, jobId, 40, 'running')
 
     // Get agent photo for compositing
     const { data: agentProfile } = await admin.from('profiles').select('photo_url, photo_standing_url').eq('id', user.id).single()
@@ -174,6 +185,7 @@ export async function POST(request: Request) {
     }
     console.log(`[video ${videoId}] Slides done.`)
     await admin.from('videos').update({ status: 'assembling' }).eq('id', videoId)
+    if (jobId) await updateJobProgress(admin, jobId, 75, 'running')
 
     // STAGE 4: Assemble video via VPS
     console.log(`[video ${videoId}] Sending to VPS for assembly...`)
@@ -277,12 +289,28 @@ export async function POST(request: Request) {
       console.log(`[video ${videoId}] Company scrape skipped:`, err instanceof Error ? err.message : 'failed')
     }
 
+    // Mark job complete and send notification
+    if (jobId) await updateJobProgress(admin, jobId, 100, 'completed', { result_url: `/videos/${videoId}` })
+    await sendNotification(admin, user.id, {
+      type: 'video_complete',
+      title: 'Video ready!',
+      message: `Your video "${videoTitle}" has been generated successfully.`,
+      link: `/videos/${videoId}`,
+    })
+
     console.log(`[video ${videoId}] Complete!`)
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error(`[video ${videoId}] Error:`, err)
     const message = err instanceof Error ? err.message : 'Video generation failed'
     await admin.from('videos').update({ status: 'failed', error_message: message }).eq('id', videoId)
+    if (jobId) await updateJobProgress(admin, jobId, 0, 'failed', { error_message: message })
+    await sendNotification(admin, user.id, {
+      type: 'video_failed',
+      title: 'Video generation failed',
+      message,
+      link: `/videos/${videoId}`,
+    })
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
