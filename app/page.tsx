@@ -178,26 +178,44 @@ export default function HomePage() {
               <p className="section-sub">Upload any PDF, proposal, or report. Our AI extracts every data point, chart, and key finding &mdash; then structures it into a clear, narrated storyline. No copy-pasting. No manual slides.</p>
             </div>
             <div className="content-visual">
-              <div className="content-mockup">
-                <div className="mockup-chrome">
-                  <div className="mockup-dots"><span/><span/><span/></div>
-                  <div className="mockup-url">app.docs2video.com/upload</div>
+              <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 20px 60px rgba(27,58,92,0.12)', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                {/* Browser chrome */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#fc5c65' }} />
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#fed330' }} />
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#26de81' }} />
+                  </div>
+                  <div style={{ flex: 1, background: '#e2e8f0', borderRadius: 6, padding: '4px 12px', fontSize: 11, color: '#94a3b8' }}>docs2video.com/create</div>
                 </div>
-                <div className="mockup-body">
-                  <div className="mockup-sidebar">
-                    <div className="mockup-sidebar-item active">Upload</div>
-                    <div className="mockup-sidebar-item">Style</div>
-                    <div className="mockup-sidebar-item">Voice</div>
-                    <div className="mockup-sidebar-item">Brand</div>
+                {/* App mockup */}
+                <div style={{ padding: 20 }}>
+                  {/* Upload zone */}
+                  <div style={{ border: '2px dashed #cbd5e1', borderRadius: 12, padding: '28px 24px', textAlign: 'center', marginBottom: 16, background: '#f8fafc' }}>
+                    <div style={{ fontSize: 28, marginBottom: 8 }}>&#128196;</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a2e' }}>Q4-Financial-Report.pdf</div>
+                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>34 pages &middot; 2.4 MB</div>
                   </div>
-                  <div className="mockup-main">
-                    <div className="mockup-field"><span className="mockup-label">Document</span><span className="mockup-value">Q4-Financial-Report.pdf</span></div>
-                    <div className="mockup-field"><span className="mockup-label">Pages detected</span><span className="mockup-value">34</span></div>
-                    <div className="mockup-field"><span className="mockup-label">Key findings</span><span className="mockup-value">12 extracted</span></div>
-                    <div className="mockup-field"><span className="mockup-label">Charts</span><span className="mockup-value">8 detected</span></div>
-                    <div className="mockup-progress"><div className="mockup-progress-bar" style={{width:'85%'}}/></div>
-                    <div className="mockup-status">Extracting data&hellip;</div>
+                  {/* Extracted data cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
+                    <div style={{ background: '#f0fdf4', borderRadius: 10, padding: '12px 14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: '#166534' }}>12</div>
+                      <div style={{ fontSize: 10, color: '#4ade80', fontWeight: 600 }}>Key Findings</div>
+                    </div>
+                    <div style={{ background: '#eff6ff', borderRadius: 10, padding: '12px 14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: '#1e40af' }}>8</div>
+                      <div style={{ fontSize: 10, color: '#60a5fa', fontWeight: 600 }}>Charts Found</div>
+                    </div>
+                    <div style={{ background: '#fef3c7', borderRadius: 10, padding: '12px 14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: '#92400e' }}>5</div>
+                      <div style={{ fontSize: 10, color: '#f59e0b', fontWeight: 600 }}>Slides Ready</div>
+                    </div>
                   </div>
+                  {/* Progress */}
+                  <div style={{ height: 8, background: '#e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
+                    <div style={{ width: '85%', height: '100%', background: 'linear-gradient(90deg, #A8F0D4, #34d399)', borderRadius: 10 }} />
+                  </div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8, textAlign: 'center' }}>Extracting data&hellip; 85% complete</div>
                 </div>
               </div>
             </div>
@@ -213,23 +231,50 @@ export default function HomePage() {
               <p className="section-sub">Choose from 6 professional AI voices. The narration adapts to your document &mdash; financial reports sound authoritative, insurance illustrations sound reassuring, proposals sound confident.</p>
             </div>
             <div className="content-visual">
-              <div className="content-mockup">
-                <div className="mockup-chrome">
-                  <div className="mockup-dots"><span/><span/><span/></div>
-                  <div className="mockup-url">app.docs2video.com/voice</div>
-                </div>
-                <div className="mockup-body">
-                  <div className="mockup-sidebar">
-                    <div className="mockup-sidebar-item">Upload</div>
-                    <div className="mockup-sidebar-item">Style</div>
-                    <div className="mockup-sidebar-item active">Voice</div>
-                    <div className="mockup-sidebar-item">Brand</div>
+              <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 20px 60px rgba(27,58,92,0.12)', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#fc5c65' }} />
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#fed330' }} />
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#26de81' }} />
                   </div>
-                  <div className="mockup-main">
-                    <div className="mockup-field"><span className="mockup-label">Voice</span><span className="mockup-value">James &mdash; Professional</span></div>
-                    <div className="mockup-field"><span className="mockup-label">Tone</span><span className="mockup-value">Authoritative</span></div>
-                    <div className="mockup-field"><span className="mockup-label">Speed</span><span className="mockup-value">1.0x</span></div>
-                    <div className="mockup-field"><span className="mockup-label">Script preview</span><span className="mockup-value">Generated from document</span></div>
+                  <div style={{ flex: 1, background: '#e2e8f0', borderRadius: 6, padding: '4px 12px', fontSize: 11, color: '#94a3b8' }}>docs2video.com/create</div>
+                </div>
+                <div style={{ padding: 20 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#1a1a2e', marginBottom: 14 }}>Choose a voice</div>
+                  {/* Voice cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+                    {[
+                      { name: 'James', desc: 'Professional, authoritative', color: '#1B3A5C', active: true },
+                      { name: 'Sarah', desc: 'Warm, conversational', color: '#C4B5FD' },
+                      { name: 'Marcus', desc: 'Dynamic, engaging', color: '#A8F0D4' },
+                      { name: 'Elena', desc: 'Clear, reassuring', color: '#FFDAB9' },
+                    ].map(v => (
+                      <div key={v.name} style={{ padding: '12px 14px', borderRadius: 10, border: v.active ? '2px solid #A8F0D4' : '1px solid #e2e8f0', background: v.active ? 'rgba(168,240,212,0.08)' : 'white', display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: v.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, color: v.active ? 'white' : '#1a1a2e', flexShrink: 0 }}>
+                          {v.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a2e' }}>{v.name}</div>
+                          <div style={{ fontSize: 10, color: '#94a3b8' }}>{v.desc}</div>
+                        </div>
+                        {v.active && <div style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, color: '#166534', background: '#dcfce7', padding: '2px 8px', borderRadius: 6 }}>Selected</div>}
+                      </div>
+                    ))}
+                  </div>
+                  {/* Waveform preview */}
+                  <div style={{ background: '#f8fafc', borderRadius: 10, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#1B3A5C', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="#A8F0D4"><polygon points="8 4 20 12 8 20" /></svg>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', gap: 2, alignItems: 'end', height: 24 }}>
+                        {[12,18,8,22,14,20,10,24,16,12,20,8,18,14,22,10,16,20,12,18,8,14,22,16,10,20,14,18].map((h, i) => (
+                          <div key={i} style={{ width: 3, height: h, background: i < 16 ? '#A8F0D4' : '#e2e8f0', borderRadius: 2 }} />
+                        ))}
+                      </div>
+                      <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>0:47 / 2:34</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -246,17 +291,55 @@ export default function HomePage() {
               <p className="section-sub">Send your client a single branded link. They watch the video, ask the AI chatbot questions about the document, book a meeting on your calendar, and accept a quote &mdash; all without leaving the page. You get notified the second they open it.</p>
             </div>
             <div className="content-visual">
-              <div className="content-mockup">
-                <div className="mockup-chrome">
-                  <div className="mockup-dots"><span/><span/><span/></div>
-                  <div className="mockup-url">share.docs2video.com/abc123</div>
+              <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 20px 60px rgba(27,58,92,0.12)', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#fc5c65' }} />
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#fed330' }} />
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#26de81' }} />
+                  </div>
+                  <div style={{ flex: 1, background: '#e2e8f0', borderRadius: 6, padding: '4px 12px', fontSize: 11, color: '#94a3b8' }}>docs2video.com/watch/abc123</div>
                 </div>
-                <div className="mockup-body">
-                  <div className="mockup-main" style={{padding:16}}>
-                    <div className="mockup-field"><span className="mockup-label">Video</span><span className="mockup-value">Playing&hellip;</span></div>
-                    <div className="mockup-field"><span className="mockup-label">AI Chat</span><span className="mockup-value">Ask a question&hellip;</span></div>
-                    <div className="mockup-field"><span className="mockup-label">Calendar</span><span className="mockup-value">Book a meeting</span></div>
-                    <div className="mockup-field"><span className="mockup-label">Quote</span><span className="mockup-value">$4,200 &mdash; Accept &amp; pay</span></div>
+                <div style={{ padding: 20 }}>
+                  {/* Mini video player */}
+                  <div style={{ background: '#0a1628', borderRadius: 10, aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, position: 'relative' }}>
+                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(168,240,212,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="#0a1628"><polygon points="8 4 20 12 8 20" /></svg>
+                    </div>
+                    <div style={{ position: 'absolute', bottom: 8, left: 12, right: 12, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 4 }}>
+                      <div style={{ width: '35%', height: '100%', background: '#A8F0D4', borderRadius: 4 }} />
+                    </div>
+                  </div>
+                  {/* Action buttons grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div style={{ background: '#f0fdf4', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 18 }}>&#128172;</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>AI Assistant</div>
+                        <div style={{ fontSize: 10, color: '#4ade80' }}>Ask anything</div>
+                      </div>
+                    </div>
+                    <div style={{ background: '#eff6ff', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 18 }}>&#128197;</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#1e40af' }}>Book Meeting</div>
+                        <div style={{ fontSize: 10, color: '#60a5fa' }}>Pick a time</div>
+                      </div>
+                    </div>
+                    <div style={{ background: '#fef3c7', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 18 }}>&#128179;</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Accept Quote</div>
+                        <div style={{ fontSize: 10, color: '#f59e0b' }}>$4,200</div>
+                      </div>
+                    </div>
+                    <div style={{ background: '#f5f3ff', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 18 }}>&#128229;</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#5b21b6' }}>Download</div>
+                        <div style={{ fontSize: 10, color: '#a78bfa' }}>MP4, PDF, PPTX</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
