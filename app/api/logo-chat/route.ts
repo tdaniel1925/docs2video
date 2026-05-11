@@ -3,6 +3,7 @@ import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { GoogleGenAI } from '@google/genai'
 import { deductCredits } from '../../_lib/credits'
+import { getTopGoogleFonts } from '../../_lib/google-fonts'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -59,13 +60,26 @@ COLOR PSYCHOLOGY (use this reasoning):
 - Yellow/gold: optimism, warmth (used by: Bumble, McDonald's)
 - Teal/mint: modern, fresh, trustworthy (used by: Tiffany, Canva)
 
-FONT RECOMMENDATIONS (pick from these — they're all on Google Fonts):
-- Clean modern: Inter, Plus Jakarta Sans, DM Sans, Outfit, Space Grotesk
-- Bold statement: Sora, Lexend, Urbanist, Manrope
-- Elegant: Playfair Display, Cormorant, Libre Baskerville
-- Friendly: Nunito, Quicksand, Poppins
-- Industrial/strong: Oswald, Barlow Condensed, Bebas Neue
-- Unique character: Clash Display, Satoshi, Cabinet Grotesk (note: suggest closest Google Fonts alternatives if needed)
+TYPOGRAPHY KNOWLEDGE FOR LOGOS (this is critical — fonts make or break a logo):
+
+WHEN TO USE EACH CATEGORY:
+- GEOMETRIC SANS-SERIF (Montserrat, Poppins, Outfit, Urbanist): Perfect circles and clean geometry. Use for: tech, modern brands, startups. Creates a feeling of precision and innovation. Google, Spotify, Airbnb all use geometric sans.
+- GROTESQUE/NEO-GROTESQUE (Inter, DM Sans, Plus Jakarta Sans, Manrope): Subtle personality in terminals and curves. Use for: SaaS, professional services, fintech. Feels authoritative without being cold. Stripe uses a grotesque.
+- HUMANIST SANS-SERIF (Nunito, Quicksand, Cabin, Figtree): Warm, friendly, approachable — derived from calligraphic forms. Use for: health, education, food, community brands. Feels human and trustworthy.
+- MODERN SERIF (Playfair Display, DM Serif Display, Fraunces): High contrast thick/thin strokes. Use for: luxury, fashion, editorial, premium brands. Creates instant sophistication. Vogue, Harper's Bazaar vibes.
+- TRANSITIONAL/OLD-STYLE SERIF (Libre Baskerville, EB Garamond, Cormorant): Classic, literary, established. Use for: law firms, publishers, heritage brands, universities. Says "we've been here, we're credible."
+- SLAB SERIF (Roboto Slab, Bitter, Zilla Slab): Bold, structural, confident. Use for: construction, industrial, bold startups. Has physical weight and presence.
+- DISPLAY/CONDENSED (Oswald, Bebas Neue, Barlow Condensed, Sora): High impact, space efficient. Use for: sports, events, bold statements. Not for body text — logo headlines only.
+
+LOGO TYPOGRAPHY RULES:
+- WEIGHT: Medium to Bold for wordmarks (400-700). Never thin for logos — it breaks at small sizes. Never ultra-black — it looks amateurish.
+- TRACKING (letter-spacing): Slightly increased tracking (+2-5%) makes logos feel premium and modern. Tight tracking feels urgent/editorial.
+- CASE: Lowercase = friendly, approachable (google, spotify). Uppercase = authority, strength (IBM, NASA). Title Case = traditional, proper (Goldman Sachs). Pick based on brand personality.
+- MODIFICATION: The best logo wordmarks modify 1-2 letters subtly — a custom 'a', a connected ligature, a slightly extended ascender. This makes it ownable.
+- PAIRING: If using icon + text, the font must complement the icon's geometry. Round icon = round font terminals. Angular icon = straight-cut font.
+
+ONLY suggest fonts that are available on Google Fonts. Here is the verified list of available fonts:
+%%GOOGLE_FONTS_LIST%%
 
 WHEN USER UPLOADS A REFERENCE IMAGE:
 - Analyze it like a designer: "I see a geometric sans-serif with generous tracking and a teal accent — very Pentagram-era Mastercard vibes. I'll channel that confidence."
@@ -103,12 +117,16 @@ export async function POST(request: Request) {
   // ── CHAT ──────────────────────────────────────────────────────
   if (action === 'chat') {
     try {
+      // Fetch real Google Fonts list and inject into prompt
+      const googleFonts = await getTopGoogleFonts(300)
+      const systemPromptWithFonts = CHAT_SYSTEM_PROMPT.replace('%%GOOGLE_FONTS_LIST%%', googleFonts.join(', '))
+
       const contents: { role: string; parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] }[] = []
 
       // System prompt as first user message (Gemini doesn't have a system role in multi-turn)
       contents.push({
         role: 'user',
-        parts: [{ text: CHAT_SYSTEM_PROMPT + (designBrief ? `\n\nCurrent design brief so far: ${JSON.stringify(designBrief)}` : '') }],
+        parts: [{ text: systemPromptWithFonts + (designBrief ? `\n\nCurrent design brief so far: ${JSON.stringify(designBrief)}` : '') }],
       })
       contents.push({
         role: 'model',
