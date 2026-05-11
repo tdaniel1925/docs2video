@@ -236,6 +236,40 @@ export async function POST(request: Request) {
       credits_used: creditCost,
     })
 
+    // Scrape company website for chatbot context (non-blocking)
+    try {
+      const brandGuide = brand?.brand_guide_data as Record<string, string> | null
+      const companyWebsite = brandGuide?.website ?? brand?.website ?? null
+      if (companyWebsite) {
+        console.log(`[video ${videoId}] Scraping company website for chatbot context...`)
+        const scrapeUrl = companyWebsite.startsWith('http') ? companyWebsite : `https://${companyWebsite}`
+        const webRes = await fetch(scrapeUrl, { signal: AbortSignal.timeout(10000) })
+        if (webRes.ok) {
+          const html = await webRes.text()
+          // Strip HTML tags, scripts, styles — keep text content
+          const textContent = html
+            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+            .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+            .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+            .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 8000) // Cap at 8KB
+
+          if (textContent.length > 100) {
+            await admin.from('videos').update({
+              company_context: textContent,
+            }).eq('id', videoId)
+            console.log(`[video ${videoId}] Company context saved (${textContent.length} chars)`)
+          }
+        }
+      }
+    } catch (err) {
+      console.log(`[video ${videoId}] Company scrape skipped:`, err instanceof Error ? err.message : 'failed')
+    }
+
     console.log(`[video ${videoId}] Complete!`)
     return NextResponse.json({ success: true })
   } catch (err) {
