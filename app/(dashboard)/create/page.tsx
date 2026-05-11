@@ -535,7 +535,14 @@ export default function CreatePage() {
         },
       }).eq('id', createData.id)
 
-      // 2. Navigate to the video detail page
+      // 2. Start the pipeline server-side (fire-and-forget)
+      await fetch('/api/videos/start-pipeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId: createData.id }),
+      }).catch(() => {}) // OK if this fails — video detail page will retry
+
+      // 3. Navigate to the video detail page
       router.push(`/videos/${createData.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generation failed')
