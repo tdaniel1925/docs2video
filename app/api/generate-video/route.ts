@@ -136,24 +136,31 @@ export async function POST(request: Request) {
         return Buffer.from(base64, 'base64')
       })
     } else {
-      console.log(`[video ${videoId}] Generating ${scenes.length} slides${logoBuffer ? ' (with logo)' : ''}${referenceSlides ? ' (with brand deck references)' : ''}...`)
+      console.log(`[video ${videoId}] Generating ${scenes.length} slides in parallel batches${logoBuffer ? ' (with logo)' : ''}...`)
       slideBuffers = []
-      for (let i = 0; i < scenes.length; i++) {
-        console.log(`[video ${videoId}] Slide ${i + 1} of ${scenes.length}...`)
-        const guideData = brand?.brand_guide_data as Record<string, string> | null
-        const contactInfo = {
-          phone: guideData?.phone ?? undefined,
-          website: guideData?.website ?? undefined,
-        }
-        let buf = await generateSlide(
-          policyData, i, effectiveStyleId as any,
-          brand?.name ?? null, logoUrl, colors,
-          scenes[i].slidePrompt, !!photoUrl, contactInfo,
-          logoBuffer, referenceSlides
+      const guideData = brand?.brand_guide_data as Record<string, string> | null
+      const contactInfo = {
+        phone: guideData?.phone ?? undefined,
+        website: guideData?.website ?? undefined,
+      }
+      // Generate slides 3 at a time to stay within rate limits but be fast
+      for (let i = 0; i < scenes.length; i += 3) {
+        const batch = scenes.slice(i, i + 3)
+        console.log(`[video ${videoId}] Slide batch ${Math.floor(i / 3) + 1} (${batch.length} slides)...`)
+        const batchResults = await Promise.all(
+          batch.map(async (scene: any, j: number) => {
+            const idx = i + j
+            let buf = await generateSlide(
+              policyData, idx, effectiveStyleId as any,
+              brand?.name ?? null, logoUrl, colors,
+              scene.slidePrompt, !!photoUrl, contactInfo,
+              logoBuffer, referenceSlides
+            )
+            buf = await compositeSlide(buf, photoUrl, null, idx === 0, idx === scenes.length - 1, standingPhotoUrl)
+            return buf
+          })
         )
-        // Composite real photo onto slide
-        buf = await compositeSlide(buf, photoUrl, null, i === 0, i === scenes.length - 1, standingPhotoUrl)
-        slideBuffers.push(buf)
+        slideBuffers.push(...batchResults)
       }
     }
     console.log(`[video ${videoId}] Slides done.`)

@@ -27,7 +27,7 @@ function buildInsuranceScriptPrompt(data: ExtractedPolicyData, brandName: string
 - DO NOT create more than 12 scenes`
     : `- Total video should be approximately 2-3 minutes
 - Each scene's narration should be 20-40 seconds (roughly 50-100 words)
-- DO NOT create more than 8 scenes`
+- DO NOT create more than 5 scenes`
 
   return `You are a professional scriptwriter creating a life insurance policy explainer video narration.
 
@@ -90,7 +90,7 @@ function buildGenericScriptPrompt(data: ExtractedData, brandName: string | null,
 - DO NOT create more than 12 scenes`
     : `- Total video should be approximately 2-3 minutes
 - Each scene's narration should be 20-40 seconds (roughly 50-100 words)
-- DO NOT create more than 8 scenes`
+- DO NOT create more than 5 scenes`
 
   return `You are a professional scriptwriter creating an explainer video narration about the following document/content.
 
