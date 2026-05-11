@@ -169,21 +169,48 @@ export async function scrapeBrand(url: string): Promise<BrandAnalysis> {
   const trimmedAbout = aboutHtml ? aboutHtml.slice(0, 8000) : ''
   const trimmedServices = servicesHtml ? servicesHtml.slice(0, 8000) : ''
 
+  // Try to fetch the logo image for visual analysis
+  let logoBuffer: Buffer | null = null
+  let logoMime = 'image/png'
+  if (logoUrl) {
+    try {
+      const logoRes = await fetch(logoUrl, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(5000) })
+      if (logoRes.ok) {
+        const ct = logoRes.headers.get('content-type') ?? 'image/png'
+        if (ct.startsWith('image/')) {
+          logoBuffer = Buffer.from(await logoRes.arrayBuffer())
+          logoMime = ct.split(';')[0]
+        }
+      }
+    } catch { /* skip */ }
+  }
+
   const prompt = `You are a professional brand strategist. Analyze this website thoroughly and create a complete brand guide.
 
 Website: ${fullUrl}
-Main page HTML (first 20k chars):
-${trimmedMain}
+${titleMatch?.[1] ? `Page title: ${titleMatch[1].trim()}` : ''}
+${descMatch?.[1] ? `Meta description: ${descMatch[1]}` : ''}
 
-${trimmedAbout ? `About page HTML (first 8k chars):\n${trimmedAbout}\n` : '(About page not available)'}
+Main page text content (extracted from HTML):
+${mainHtml.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 8000)}
 
-${trimmedServices ? `Services page HTML (first 8k chars):\n${trimmedServices}\n` : '(Services page not available)'}
+${trimmedAbout ? `About page text:\n${aboutHtml!.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 4000)}\n` : ''}
+
+${trimmedServices ? `Services page text:\n${servicesHtml!.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 4000)}\n` : ''}
 
 ${jsonLd ? `Structured data (JSON-LD):\n${jsonLd}\n` : ''}
 
-Colors found in CSS: ${allColors.join(', ')}
+CSS colors found on the website: ${allColors.join(', ')}
 Fonts found: ${fonts.join(', ')}
 Social links found: ${JSON.stringify(socialLinks)}
+${logoBuffer ? '\nA logo image from the website is attached below. Analyze it for colors and style.' : ''}
+
+CRITICAL COLOR INSTRUCTIONS:
+- Do NOT just pick random CSS hex codes from the list above. Many of those are framework defaults (like #000, #fff, #f8f9fa, #e2e8f0).
+- Instead, identify the ACTUAL BRAND COLORS — the colors used for the company logo, main headings, buttons, accent elements, and hero sections.
+- The primary color should be the brand's main identifier (usually the logo color or the dominant color on buttons/headers).
+- If a logo image is attached, extract the primary color DIRECTLY from the logo.
+${logoBuffer ? '- Look at the attached logo image carefully — the main color in the logo IS the primary brand color.' : ''}
 
 Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no code fences):
 {
@@ -193,7 +220,7 @@ Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no c
   "industry": "string (what industry/niche)",
   "tone": "string (brand voice - professional, friendly, luxury, playful, authoritative, etc.)",
   "targetAudience": "string (who they serve - be specific)",
-  "primaryColor": "#hex",
+  "primaryColor": "#hex (THE MAIN BRAND COLOR — from the logo or dominant UI elements, NOT a framework default)",
   "secondaryColor": "#hex",
   "accentColor": "#hex",
   "backgroundColor": "#hex",
@@ -212,13 +239,19 @@ Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no c
   },
   "competitorNotes": "string (observations about positioning based on the website)",
   "colorPsychology": "string (why these colors work for this brand)"
-}
+}`
 
-Pick the most prominent colors actually used on the site. Be thorough and specific in your analysis.`
+  // Build content parts — include logo image if available for visual color analysis
+  const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
+    { text: prompt },
+  ]
+  if (logoBuffer && !logoMime.includes('svg')) {
+    parts.push({ inlineData: { mimeType: logoMime, data: logoBuffer.toString('base64') } })
+  }
 
   const response = await genai.models.generateContent({
     model: 'gemini-2.5-pro',
-    contents: prompt,
+    contents: [{ role: 'user', parts }],
   })
 
   const text = response.text?.trim() ?? ''
@@ -255,6 +288,40 @@ Pick the most prominent colors actually used on the site. Be thorough and specif
     }
   }
 
+  // Upscale the logo if we found one
+  let upscaledLogoUrl = logoUrl
+  if (logoBuffer && !logoMime.includes('svg')) {
+    try {
+      console.log('[brand-scraper] Upscaling logo...')
+      const upscaleResponse = await genai.models.generateContent({
+        model: 'gemini-3-pro-image-preview',
+        contents: [{
+          role: 'user',
+          parts: [
+            { text: `Recreate this logo in HIGH RESOLUTION. Exact same design, colors, text, and layout. Output on pure white background, crisp clean edges, centered, square format. Do NOT modify or redesign — recreate exactly as shown.` },
+            { inlineData: { mimeType: logoMime, data: logoBuffer.toString('base64') } },
+          ],
+        }],
+        config: {
+          responseFormat: {
+            image: { aspectRatio: '1:1', imageSize: '1024' },
+          },
+        } as any,
+      })
+      const upParts = upscaleResponse.candidates?.[0]?.content?.parts ?? []
+      for (const rp of upParts) {
+        if (rp.inlineData) {
+          // Return as data URL — the brand creation page will upload it
+          upscaledLogoUrl = `data:image/png;base64,${rp.inlineData.data}`
+          console.log('[brand-scraper] Logo upscaled successfully')
+          break
+        }
+      }
+    } catch (err) {
+      console.log('[brand-scraper] Logo upscale failed, using original:', err instanceof Error ? err.message : 'unknown')
+    }
+  }
+
   return {
     companyName: (brandData.companyName as string) ?? titleMatch?.[1] ?? parsedUrl.hostname.replace('www.', ''),
     tagline: (brandData.tagline as string) ?? null,
@@ -267,7 +334,7 @@ Pick the most prominent colors actually used on the site. Be thorough and specif
     accentColor: (brandData.accentColor as string) ?? '#FFB347',
     backgroundColor: (brandData.backgroundColor as string) ?? '#FFFFFF',
     textColor: (brandData.textColor as string) ?? '#1A1A1A',
-    logoUrl,
+    logoUrl: upscaledLogoUrl,
     fonts: (brandData.fonts as string[]) ?? fonts,
     brandValues: (brandData.brandValues as string[]) ?? [],
     services: (brandData.services as string[]) ?? [],
