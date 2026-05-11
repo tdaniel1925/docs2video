@@ -38,12 +38,10 @@ export async function POST(request: Request) {
       status: 'clicked',
     })
     // Increment total referrals
-    await admin.rpc('increment_affiliate_referrals', { aff_id: affiliate.id }).catch(() => {
-      // Fallback if RPC doesn't exist
-      admin.from('affiliates').update({
-        total_referrals: (affiliate as any).total_referrals + 1,
-      }).eq('id', affiliate.id)
-    })
+    const { data: aff } = await admin.from('affiliates').select('total_referrals').eq('id', affiliate.id).single()
+    await admin.from('affiliates').update({
+      total_referrals: ((aff?.total_referrals as number) ?? 0) + 1,
+    }).eq('id', affiliate.id)
   }
 
   if (event === 'signup' && userId) {
