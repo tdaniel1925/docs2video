@@ -25,8 +25,6 @@ export function getCreditCost(action: CreditAction): number {
 
 /**
  * Deduct credits from a user's account.
- * Deducts from monthly credits (credits_remaining) first,
- * then falls back to pack_credits if monthly are exhausted.
  * Returns true on success, false if insufficient credits.
  */
 export async function deductCredits(
@@ -36,45 +34,26 @@ export async function deductCredits(
 ): Promise<boolean> {
   const { data: profile } = await admin
     .from('profiles')
-    .select('credits_remaining, pack_credits')
+    .select('credits_remaining')
     .eq('id', userId)
     .single()
 
   if (!profile) return false
 
-  const monthly = profile.credits_remaining ?? 0
-  const packs = profile.pack_credits ?? 0
-  const totalAvailable = monthly + packs
+  const credits = profile.credits_remaining ?? 0
 
-  if (totalAvailable < amount) {
-    console.log(`[credits] Insufficient credits for user ${userId}: need ${amount}, have ${monthly} monthly + ${packs} pack = ${totalAvailable}`)
+  if (credits < amount) {
+    console.log(`[credits] Insufficient credits for user ${userId}: need ${amount}, have ${credits}`)
     return false
   }
 
-  let newMonthly = monthly
-  let newPacks = packs
-  let remaining = amount
-
-  // Deduct from monthly first
-  if (newMonthly >= remaining) {
-    newMonthly -= remaining
-    remaining = 0
-  } else {
-    remaining -= newMonthly
-    newMonthly = 0
-  }
-
-  // Deduct remainder from pack credits
-  if (remaining > 0) {
-    newPacks -= remaining
-    remaining = 0
-  }
+  const newCredits = credits - amount
 
   await admin
     .from('profiles')
-    .update({ credits_remaining: newMonthly, pack_credits: newPacks })
+    .update({ credits_remaining: newCredits })
     .eq('id', userId)
 
-  console.log(`[credits] Deducted ${amount} credits from user ${userId}: monthly ${monthly}->${newMonthly}, packs ${packs}->${newPacks}`)
+  console.log(`[credits] Deducted ${amount} credits from user ${userId}: ${credits} -> ${newCredits}`)
   return true
 }
