@@ -355,7 +355,7 @@ export default function CreatePage() {
     return () => {
       if (extractingTimerRef.current) clearInterval(extractingTimerRef.current)
     }
-  }, [step === 'extracting'])
+  }, [step])
 
   // Track generating elapsed time
   useEffect(() => {
@@ -373,7 +373,7 @@ export default function CreatePage() {
     return () => {
       if (generatingTimerRef.current) clearInterval(generatingTimerRef.current)
     }
-  }, [step === 'generating'])
+  }, [step])
 
   // Determine which data format we're working with
   const activeData = extractedData || generalData
@@ -1156,6 +1156,22 @@ export default function CreatePage() {
 
           <div className="wizard-actions">
             <button onClick={() => setStep('choose-style')} className="btn btn-soft">&larr; Back</button>
+            {slides.some(s => s === null) && !slidesLoading.some(Boolean) && !allSlidesReady && (
+              <button
+                onClick={() => {
+                  const keepIndices = slides.map((s, i) => s !== null ? i : -1).filter(i => i !== -1)
+                  if (keepIndices.length > 0) {
+                    setSlides(keepIndices.map(i => slides[i]!))
+                    setSlidesLoading(keepIndices.map(() => false))
+                    setSlideLabels(keepIndices.map(i => slideLabels[i] ?? { title: `Slide ${i + 1}`, content: '' }))
+                  }
+                }}
+                className="btn btn-soft"
+                style={{ color: 'var(--rose, #c0392b)' }}
+              >
+                Skip failed slides
+              </button>
+            )}
             <button onClick={() => setStep('choose-voice')} disabled={!allSlidesReady}
               className="btn btn-primary">
               {allSlidesReady ? 'Next: pick a voice \u2192' : 'Waiting for slides...'}

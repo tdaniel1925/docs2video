@@ -38,7 +38,7 @@ export default function SignupPage() {
   return (
     <>
       <h1>Create your account</h1>
-      <p className="auth-sub">Get 10 free infographics. No card required.</p>
+      <p className="auth-sub">Get 5 free credits. No card required.</p>
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">

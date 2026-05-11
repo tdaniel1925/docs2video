@@ -1,8 +1,34 @@
 import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/server'
-import type { Video } from '../../_lib/types'
 
 const PAGE_SIZE = 20
+
+type Creation = {
+  id: string
+  user_id: string
+  type: string
+  title: string | null
+  thumbnail_url: string | null
+  file_url: string | null
+  credits_used: number | null
+  created_at: string
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  video: 'Video',
+  flyer: 'Flyer',
+  logo: 'Logo',
+  card: 'Card',
+  infographic: 'Infographic',
+}
+
+const TYPE_COLORS: Record<string, string> = {
+  video: 'mint',
+  flyer: 'peach',
+  logo: 'lilac',
+  card: 'sky',
+  infographic: 'mint',
+}
 
 export default async function VideosPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const { page: pageParam } = await searchParams
@@ -15,14 +41,14 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
 
   // Get total count
   const { count: totalCount } = await supabase
-    .from('videos')
+    .from('creations')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user!.id)
 
-  // Get paginated videos
-  const { data: videos } = await supabase
-    .from('videos')
-    .select('*, brand:brands(*)')
+  // Get paginated creations
+  const { data: creations } = await supabase
+    .from('creations')
+    .select('*')
     .eq('user_id', user!.id)
     .order('created_at', { ascending: false })
     .range(from, to)
@@ -36,89 +62,94 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
     <div>
       <div className="page-head">
         <div>
-          <h1>Your explainers</h1>
-          <p>All your generated explainers.</p>
+          <h1>Your Library</h1>
+          <p>All your creations.</p>
         </div>
         <Link href="/create" className="btn btn-primary btn-lg">
-          + New Explainer
+          + New Creation
         </Link>
       </div>
 
-      {!videos?.length ? (
+      {!creations?.length ? (
         <div style={{ background: 'white', border: '1px dashed var(--border)', borderRadius: 10, padding: '64px 32px', textAlign: 'center' }}>
-          <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>No videos yet</p>
-          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 18 }}>Create content first, then generate a video explainer from it</p>
+          <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>No creations yet</p>
+          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 18 }}>Create content first -- videos, flyers, logos, and more</p>
           <Link href="/create" className="btn btn-primary">Create content &rarr;</Link>
         </div>
       ) : (
         <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
-          {(videos as Video[]).map((vid, i) => (
-            <Link
-              key={vid.id}
-              href={`/videos/${vid.id}`}
-              className="activity-row"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16,
-                padding: '16px 24px',
-                textDecoration: 'none',
-                color: 'var(--ink)',
-                borderBottom: i < (videos as Video[]).length - 1 ? '1px solid var(--border-light)' : 'none',
-                transition: 'background 0.1s ease',
-              }}
-            >
-              {/* Video icon */}
-              <div style={{
-                width: 44, height: 44, borderRadius: 10, flexShrink: 0,
-                background: vid.thumbnail_url ? 'var(--bg)' : ['var(--mint)', 'var(--peach)', 'var(--lilac)', 'var(--sky)'][i % 4],
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                overflow: 'hidden', position: 'relative',
-              }}>
-                {vid.thumbnail_url ? (
-                  <>
-                    <img src={vid.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="8 4 20 12 8 20" /></svg>
-                    </div>
-                  </>
-                ) : (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" /></svg>
-                )}
-              </div>
+          {(creations as Creation[]).map((item, i) => {
+            const isVideo = item.type === 'video'
+            const href = isVideo ? `/videos/${item.id}` : (item.file_url ?? '#')
+            const linkProps = isVideo ? {} : { target: '_blank' as const, rel: 'noopener noreferrer' }
 
-              {/* Title */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {vid.title ?? 'Untitled'}
+            return (
+              <Link
+                key={item.id}
+                href={href}
+                {...linkProps}
+                className="activity-row"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 16,
+                  padding: '16px 24px',
+                  textDecoration: 'none',
+                  color: 'var(--ink)',
+                  borderBottom: i < (creations as Creation[]).length - 1 ? '1px solid var(--border-light)' : 'none',
+                  transition: 'background 0.1s ease',
+                }}
+              >
+                {/* Thumbnail / icon */}
+                <div style={{
+                  width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+                  background: item.thumbnail_url ? 'var(--bg)' : ['var(--mint)', 'var(--peach)', 'var(--lilac)', 'var(--sky)'][i % 4],
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  overflow: 'hidden', position: 'relative',
+                }}>
+                  {item.thumbnail_url ? (
+                    <>
+                      <img src={item.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      {isVideo && (
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)' }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="8 4 20 12 8 20" /></svg>
+                        </div>
+                      )}
+                    </>
+                  ) : isVideo ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" /></svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                  )}
                 </div>
-                {vid.duration && (
-                  <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2 }}>
-                    {Math.floor(vid.duration / 60)}:{(vid.duration % 60).toString().padStart(2, '0')} duration
+
+                {/* Title */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.title ?? 'Untitled'}
                   </div>
-                )}
-              </div>
+                  {item.credits_used != null && (
+                    <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2 }}>
+                      {item.credits_used} credit{item.credits_used !== 1 ? 's' : ''} used
+                    </div>
+                  )}
+                </div>
 
-              {/* Status */}
-              <span className={`tag ${
-                vid.status === 'completed' ? 'mint' :
-                vid.status === 'failed' ? 'rose' :
-                'peach'
-              }`} style={{ flexShrink: 0 }}>
-                {vid.status === 'completed' ? 'Done' :
-                 vid.status === 'failed' ? 'Failed' :
-                 vid.status.replace(/_/g, ' ')}
-              </span>
+                {/* Type badge */}
+                <span className={`tag ${TYPE_COLORS[item.type] ?? 'peach'}`} style={{ flexShrink: 0 }}>
+                  {TYPE_LABELS[item.type] ?? item.type}
+                </span>
 
-              {/* Date */}
-              <div style={{ fontSize: 13, color: 'var(--ink-light)', flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
-                {new Date(vid.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </div>
+                {/* Date */}
+                <div style={{ fontSize: 13, color: 'var(--ink-light)', flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
+                  {new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </div>
 
-              {/* Arrow */}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-light)" strokeWidth="2" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6" /></svg>
-            </Link>
-          ))}
+                {/* Arrow */}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-light)" strokeWidth="2" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6" /></svg>
+              </Link>
+            )
+          })}
         </div>
       )}
 
