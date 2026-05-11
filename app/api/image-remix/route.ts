@@ -76,7 +76,7 @@ CRITICAL RULES:
 
     for (const rp of responseParts) {
       if (rp.inlineData) {
-        imageData = rp.inlineData.data
+        imageData = rp.inlineData.data ?? null
         break
       }
     }
