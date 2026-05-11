@@ -151,16 +151,18 @@ RULES:
       return NextResponse.json({ error: 'Failed to create any episodes' }, { status: 500 })
     }
 
-    // Trigger pipelines for all episodes (fire-and-forget, sequential)
+    // Trigger pipelines for ALL episodes (fire-and-forget)
     const origin = request.headers.get('origin') ?? `https://${request.headers.get('x-forwarded-host') ?? 'docs2video.com'}`
     const cookieHeader = request.headers.get('cookie') ?? ''
 
-    // Start first video immediately, rest will be triggered by polling
-    fetch(`${origin}/api/videos/start-pipeline`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Cookie': cookieHeader },
-      body: JSON.stringify({ videoId: videoIds[0] }),
-    }).catch(err => console.error('[course-builder] Failed to start first episode:', err))
+    // Start all videos — each runs independently on Vercel serverless
+    for (const vid of videoIds) {
+      fetch(`${origin}/api/videos/start-pipeline`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Cookie': cookieHeader },
+        body: JSON.stringify({ videoId: vid }),
+      }).catch(err => console.error(`[course-builder] Failed to start episode ${vid}:`, err))
+    }
 
     return NextResponse.json({
       success: true,
