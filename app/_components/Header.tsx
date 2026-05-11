@@ -190,6 +190,13 @@ export default function Header({ profile }: { profile: Profile }) {
               >
                 Settings
               </Link>
+              <Link
+                href="/help"
+                onClick={() => setMenuOpen(false)}
+                style={{ display: 'block', padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none' }}
+              >
+                Help Center
+              </Link>
               <form action={logout}>
                 <button
                   type="submit"

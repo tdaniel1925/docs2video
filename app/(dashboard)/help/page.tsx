@@ -1,0 +1,445 @@
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+
+interface HelpArticle {
+  id: string
+  title: string
+  category: string
+  icon: string
+  content: string[]
+}
+
+const CATEGORIES = [
+  { id: 'getting-started', label: 'Getting Started', icon: '🚀' },
+  { id: 'creators', label: 'Creators', icon: '🎨' },
+  { id: 'management', label: 'Management', icon: '📁' },
+  { id: 'billing', label: 'Billing & Credits', icon: '💳' },
+  { id: 'sharing', label: 'Sharing & Collaboration', icon: '🔗' },
+]
+
+const ARTICLES: HelpArticle[] = [
+  // Getting Started
+  {
+    id: 'onboarding',
+    title: 'Setting Up Your Account',
+    category: 'getting-started',
+    icon: '👤',
+    content: [
+      'When you first sign up, the Setup Wizard will guide you through 4 steps:',
+      '**Step 1 — Profile:** Enter your name, company, phone, and role. This info appears on your share pages and video slides.',
+      '**Step 2 — Photos:** Upload a headshot (used on title slides), mid-level photo, and standing photo (used on closing slides). Only the headshot is required.',
+      '**Step 3 — Brand:** Enter your brand name, upload your logo, and set your primary color. Secondary and accent colors are auto-generated. Click "Advanced" to customize all colors.',
+      '**Step 4 — Style:** Choose a default slide template. This is pre-selected when you create new videos, but you can always change it per project.',
+      'You can re-run the setup wizard anytime from **Settings > Re-run Setup Wizard**.',
+    ],
+  },
+  {
+    id: 'dashboard',
+    title: 'Understanding Your Dashboard',
+    category: 'getting-started',
+    icon: '📊',
+    content: [
+      'Your dashboard shows everything at a glance:',
+      '**Credits Remaining** — How many credits you have left this month. The number after the "/" shows your plan\'s monthly allocation. If you\'ve purchased credit packs, it shows your total balance.',
+      '**Total Creations** — All items you\'ve ever created (videos, infographics, flyers, cards, logos).',
+      '**Plan** — Your current subscription tier. Click "Upgrade" to see all plans.',
+      '**Quick Create** — One-click shortcuts to each creator. The credit cost is shown below each item.',
+      '**Recent Creations** — Your latest 8 items with type badges. Click any item to open it. Click "View all" to go to your full library.',
+    ],
+  },
+
+  // Creators
+  {
+    id: 'explainer-video',
+    title: 'Creating an Explainer Video',
+    category: 'creators',
+    icon: '🎬',
+    content: [
+      'Explainer videos cost **3 credits** and take about 2-3 minutes to generate.',
+      '**Step 1 — Content Input.** Choose how to provide your content:',
+      '• **Upload PDF** — Drop a PDF document. AI extracts the key data automatically.',
+      '• **Type or Paste** — Paste text, meeting notes, or bullet points directly.',
+      '• **From URL** — Enter a webpage URL. AI scrapes and structures the content.',
+      '• **AI Research** — Enter any topic. AI researches it with real data and statistics, then structures the findings for your video.',
+      '• **Start from Idea** — Describe a topic, audience, and tone. AI generates the content from scratch.',
+      '• **AI Proposal** (Pro/Agency only) — Chat with AI to build a complete proposal through an interview process.',
+      '**Step 2 — Review.** Check the extracted data. Edit anything that\'s wrong before proceeding.',
+      '**Step 3 — Brand.** Select which brand to apply (logo, colors, contact info).',
+      '**Step 4 — Style.** Pick a visual template. Your brand colors override the template\'s default colors. You can also use custom templates you\'ve created.',
+      '**Step 5 — Preview.** AI generates all slides. Review each one — click "Redo" on any slide you don\'t like to regenerate just that slide.',
+      '**Step 6 — Voice & Music.** Choose a narration voice (click to preview). Optionally select background music. Choose Standard (2-3 min) or Detailed (5-7 min) length.',
+      '**Step 7 — Generate.** Click "Create my video." You can leave the page — your video will continue generating in the background.',
+      'Once complete, you can download as MP4, PDF, or PPTX, share with clients, or refine with the AI editor.',
+    ],
+  },
+  {
+    id: 'course-builder',
+    title: 'Course Builder (Multi-Episode Series)',
+    category: 'creators',
+    icon: '🎓',
+    content: [
+      'The Course Builder creates an entire multi-episode video series from a single topic. Find it under **Create > Course Builder** in the nav.',
+      '**Step 1 — Describe Your Course.** Enter the course topic (e.g., "Complete Guide to Life Insurance Sales"), target audience, tone, and number of episodes (3-20).',
+      '**Step 2 — Review Curriculum.** AI generates a full curriculum with episode titles, descriptions, and key points for each. You can:',
+      '• Edit episode titles by clicking on them',
+      '• Reorder episodes with the up/down arrows',
+      '• Remove episodes with the X button',
+      '• Regenerate the entire outline if you want a fresh take',
+      '**Step 3 — Generate.** Click "Generate X Videos" to start batch creation. Each episode costs 3 credits. Videos generate sequentially — you can leave the page and come back later.',
+      'All episodes appear in your Library. Each is a standalone video you can share individually or as part of a series.',
+    ],
+  },
+  {
+    id: 'infographic',
+    title: 'Creating an Infographic',
+    category: 'creators',
+    icon: '📊',
+    content: [
+      'Infographics cost **1 credit**.',
+      '**Step 1 — Content.** Enter a title, paste content or key data points.',
+      '**Step 2 — Dimensions.** Choose from presets: Standard (1080x1920), Square (1080x1080), Landscape (1920x1080), A4 Portrait, Letter, or enter custom dimensions (200-5000px).',
+      '**Step 3 — Style.** Select a visual style and optionally a brand.',
+      'Click "Generate" and your infographic is created. Download as PNG.',
+    ],
+  },
+  {
+    id: 'flyer',
+    title: 'Creating a Flyer',
+    category: 'creators',
+    icon: '📋',
+    content: [
+      'Flyers cost **1 credit** per size.',
+      '**Step 1 — Content.** Enter your headline, body text, event date/time, and call-to-action.',
+      '**Step 2 — Sizes.** Select one or more size presets: US Letter, A4, Square, Half Page, Instagram, or enter custom dimensions.',
+      '**Step 3 — Style.** Choose a visual style and brand.',
+      'Click "Generate" to create your flyer. Download individual sizes or all at once.',
+    ],
+  },
+  {
+    id: 'business-card',
+    title: 'Creating a Business Card',
+    category: 'creators',
+    icon: '💳',
+    content: [
+      'Business cards cost **1 credit** for a front + back pair.',
+      '**Step 1 — Info.** Enter your name (required), job title, company, phone, email, website, address, and tagline.',
+      '**Step 2 — Style & Print Options.** Choose a visual style. Select print size:',
+      '• **Standard** — 3.5 x 2 inches (no bleeds)',
+      '• **With Bleeds** — 3.625 x 2.125 inches (includes 1/16" bleed for professional printing)',
+      'All cards are generated at **300 DPI** for high-quality printing.',
+      '**Step 3 — Results.** Download front and back individually, or both together.',
+    ],
+  },
+  {
+    id: 'logo',
+    title: 'Designing a Logo',
+    category: 'creators',
+    icon: '🎨',
+    content: [
+      'Logo design costs **2 credits** for 4 concepts. Refinements cost **1 credit** each.',
+      'The logo creator is a chat-based experience with Marcus, your AI logo designer.',
+      '**The Process:**',
+      '1. Marcus asks for your company name',
+      '2. He asks about your industry and audience',
+      '3. He asks about your brand personality',
+      '4. He shares his creative direction and generates 4 concepts',
+      '**Tips for best results:**',
+      '• Paste reference images directly into the chat (Ctrl+V) or drag-and-drop them',
+      '• Describe the vibe you want: "modern and minimal" or "bold and energetic"',
+      '• Marcus chooses fonts, colors, and layout — trust his expertise',
+      '• After generation, click any concept to select it, then describe changes to refine',
+      '• Download your selected logo when satisfied',
+    ],
+  },
+  {
+    id: 'templates',
+    title: 'Custom Templates',
+    category: 'creators',
+    icon: '🎯',
+    content: [
+      'Custom templates cost **2 credits** to create, **1 credit** to refine.',
+      'Templates define the visual style for your video slides. Once created, they appear in the style picker when making videos.',
+      '**Creating a Template:**',
+      '1. Go to Create > Custom Template',
+      '2. Describe the style you want (e.g., "modern corporate with large data callouts")',
+      '3. Optionally upload a reference image for visual inspiration',
+      '4. AI generates a preview slide in your style',
+      '5. Refine if needed, then save',
+      'Your custom templates appear at the top of the style picker in the video creation flow.',
+    ],
+  },
+
+  // Management
+  {
+    id: 'library',
+    title: 'Your Library',
+    category: 'management',
+    icon: '📁',
+    content: [
+      'The Library shows all your creations across all types (videos, infographics, flyers, cards, logos).',
+      'Each item shows a thumbnail, title, type badge, credits used, and date created.',
+      '• **Videos** link to the video detail page with player, editor, and share options',
+      '• **Other types** (flyers, infographics, etc.) open the file directly',
+      'The library is paginated at 20 items per page. Use Previous/Next to navigate.',
+    ],
+  },
+  {
+    id: 'brands',
+    title: 'Managing Brands',
+    category: 'management',
+    icon: '🏷️',
+    content: [
+      'Brands store your logo, colors, and contact info. They\'re applied automatically to all creations.',
+      '**Creating a Brand:**',
+      '1. Go to Brands > New Brand',
+      '2. Enter a brand name (required)',
+      '3. Upload your logo (recommended)',
+      '4. Pick a primary color — secondary and accent colors are auto-generated',
+      '5. Optionally expand "Advanced" to customize all 5 colors',
+      '6. Optionally enter a website URL to auto-scrape brand colors',
+      '**Setting a Default Brand:** Check "Set as default" when creating. The default brand is pre-selected in all creators.',
+      '**Plan Limits:** Free = 1 brand, Starter = 2, Professional/Agency = unlimited.',
+    ],
+  },
+
+  // Billing & Credits
+  {
+    id: 'credits',
+    title: 'Understanding Credits',
+    category: 'billing',
+    icon: '🪙',
+    content: [
+      'Credits are the currency for creating content. Each creation type has a fixed cost:',
+      '• **Explainer Video** — 3 credits',
+      '• **Logo Design** (4 concepts) — 2 credits',
+      '• **Logo Refinement** — 1 credit',
+      '• **Custom Template** — 2 credits',
+      '• **Infographic** — 1 credit',
+      '• **Business Card** (front + back) — 1 credit',
+      '• **Flyer** — 1 credit',
+      '• **Template Refinement** — 1 credit',
+      'Monthly credits refresh at the start of each billing cycle. Purchased credit packs never expire.',
+    ],
+  },
+  {
+    id: 'plans',
+    title: 'Plans & Pricing',
+    category: 'billing',
+    icon: '💰',
+    content: [
+      '**Free** — 5 credits/month, 1 brand. Great for trying the platform.',
+      '**Starter ($49/mo)** — 50 credits/month, 2 brands, custom templates.',
+      '**Professional ($99/mo)** — 150 credits/month, unlimited brands, AI proposals, quotes & payments, follow-up emails, calendar booking.',
+      '**Agency ($249/mo)** — 500 credits/month, everything in Pro plus white-label, API access, and team members.',
+      'Upgrade or downgrade anytime from **Settings > Subscription**.',
+      '**Credit Packs** — Need extra credits? Buy one-time packs: 1 ($5), 5 ($19), 10 ($35), or 25 ($79). Packs never expire.',
+    ],
+  },
+  {
+    id: 'earn-credits',
+    title: 'Earning Free Credits',
+    category: 'billing',
+    icon: '🎁',
+    content: [
+      '**Social Sharing** — Share any creation to Twitter, Facebook, LinkedIn, or Instagram and earn **2 free credits** per share. Maximum 5 free credits per month from sharing.',
+      '**Affiliate Program** — Refer new users and earn **5 free credits** per signup plus **20% commission** on their first payment. Go to **Settings > Subscription > Affiliate Program** to get your referral link.',
+    ],
+  },
+
+  // Sharing
+  {
+    id: 'share-video',
+    title: 'Sharing Videos with Clients',
+    category: 'sharing',
+    icon: '🔗',
+    content: [
+      'Every completed video gets a public share page at docs2video.com/watch/[id].',
+      '**Share Page Features:**',
+      '• Video player with slide thumbnails',
+      '• AI chatbot that knows the video content AND your company (from your website)',
+      '• Quote section with accept & pay (if you\'ve attached a quote)',
+      '• Calendly booking embed (if configured in Settings)',
+      '• Download links (video, slides, PDF)',
+      '**How to Share:**',
+      '1. Open a completed video from your Library',
+      '2. Click "Share with Client" to send via email',
+      '3. Or click "Copy Link" to share the URL directly',
+      'The share page is branded with your logo, colors, and contact info.',
+    ],
+  },
+  {
+    id: 'social-sharing',
+    title: 'Sharing to Social Media',
+    category: 'sharing',
+    icon: '📱',
+    content: [
+      'Share your creations to social media and earn free credits.',
+      '**How it works:**',
+      '1. On any creation, click the "Share" button',
+      '2. Choose a platform: Twitter, Facebook, LinkedIn, or Instagram',
+      '3. We post on your behalf via AyrShare',
+      '4. You earn 2 free credits per share (max 5/month)',
+      'Your post includes a link back to Docs2Video and a brief message about your creation.',
+    ],
+  },
+  {
+    id: 'affiliates',
+    title: 'Affiliate Program',
+    category: 'sharing',
+    icon: '🤝',
+    content: [
+      'Earn money and credits by referring others to Docs2Video.',
+      '**How to Join:**',
+      '1. Go to Settings > Subscription > Affiliate Program, or visit /affiliates',
+      '2. Click "Join Affiliate Program"',
+      '3. Copy your unique referral link',
+      '**What You Earn:**',
+      '• **5 free credits** for every person who signs up through your link',
+      '• **20% commission** on their first payment',
+      '• Payouts processed monthly for balances over $50',
+      'Track your clicks, signups, conversions, and earnings on the Affiliate Dashboard.',
+    ],
+  },
+]
+
+export default function HelpPage() {
+  const [activeCategory, setActiveCategory] = useState<string | null>(null)
+  const [expandedArticle, setExpandedArticle] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+
+  const filteredArticles = ARTICLES.filter(a => {
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      return a.title.toLowerCase().includes(q) || a.content.some(c => c.toLowerCase().includes(q))
+    }
+    if (activeCategory) return a.category === activeCategory
+    return true
+  })
+
+  return (
+    <div style={{ maxWidth: 800, margin: '0 auto' }}>
+      <div className="page-head">
+        <div>
+          <h1>Help Center</h1>
+          <p>Everything you need to know about Docs2Video.</p>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div style={{ marginBottom: 24 }}>
+        <input
+          type="text"
+          className="input"
+          placeholder="Search help articles..."
+          value={search}
+          onChange={e => { setSearch(e.target.value); if (e.target.value) setActiveCategory(null) }}
+          style={{ fontSize: 15 }}
+        />
+      </div>
+
+      {/* Category pills */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+        <button
+          onClick={() => { setActiveCategory(null); setSearch('') }}
+          className={`btn btn-sm ${!activeCategory && !search ? 'btn-primary' : 'btn-soft'}`}
+        >
+          All
+        </button>
+        {CATEGORIES.map(cat => (
+          <button
+            key={cat.id}
+            onClick={() => { setActiveCategory(cat.id); setSearch('') }}
+            className={`btn btn-sm ${activeCategory === cat.id ? 'btn-primary' : 'btn-soft'}`}
+          >
+            {cat.icon} {cat.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Articles */}
+      {filteredArticles.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--ink-soft)' }}>
+          <p style={{ fontSize: 16, fontWeight: 600 }}>No articles found</p>
+          <p style={{ fontSize: 14 }}>Try a different search term or category.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {filteredArticles.map(article => {
+            const isExpanded = expandedArticle === article.id
+            return (
+              <div
+                key={article.id}
+                style={{
+                  background: 'white',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: 10,
+                  overflow: 'hidden',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <button
+                  onClick={() => setExpandedArticle(isExpanded ? null : article.id)}
+                  style={{
+                    width: '100%',
+                    padding: '16px 20px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    textAlign: 'left',
+                  }}
+                >
+                  <span style={{ fontSize: 20, flexShrink: 0 }}>{article.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>{article.title}</div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2 }}>
+                      {CATEGORIES.find(c => c.id === article.category)?.label}
+                    </div>
+                  </div>
+                  <svg
+                    width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-light)" strokeWidth="2"
+                    style={{ flexShrink: 0, transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }}
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+
+                {isExpanded && (
+                  <div style={{ padding: '0 20px 20px 52px', fontSize: 14, lineHeight: 1.7, color: 'var(--ink-soft)' }}>
+                    {article.content.map((paragraph, i) => (
+                      <p key={i} style={{ margin: '8px 0' }} dangerouslySetInnerHTML={{
+                        __html: paragraph
+                          .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--ink)">$1</strong>')
+                          .replace(/^• /gm, '<span style="color:var(--mint-darker,#2d7a4f)">&#8226;</span> ')
+                      }} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Still need help? */}
+      <div style={{
+        marginTop: 32, padding: '24px 28px', borderRadius: 12,
+        background: 'rgba(168,240,212,0.1)', border: '1px solid var(--mint)',
+        textAlign: 'center',
+      }}>
+        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Still need help?</div>
+        <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '0 0 12px' }}>
+          Click the help button in the bottom-right corner to chat with our AI assistant. It knows everything about Docs2Video.
+        </p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+          <a href="mailto:support@docs2video.com" className="btn btn-soft">Email Support</a>
+          <Link href="/settings" className="btn btn-soft">Settings</Link>
+        </div>
+      </div>
+    </div>
+  )
+}

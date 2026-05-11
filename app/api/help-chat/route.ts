@@ -19,15 +19,21 @@ Docs2Video is a SaaS platform that creates professional marketing materials usin
 - Custom Templates (2 credits) — Describe a slide style and AI creates it. Can be reused for all video creations.
 
 FEATURES:
-- Brands: Save brand colors, logo, and contact info. Applied automatically to all creations. Create at Dashboard > Brands > New Brand.
-- Library: View all creations with pagination (20/page). Filter by type.
-- Share Pages: Each video gets a public share link (/watch/[id]) with 2-panel layout — video player + AI chat assistant.
+- Brands: Save brand colors, logo, and contact info. Applied automatically to all creations. Create at Dashboard > Brands > New Brand. Simplified: just name + logo + primary color. Advanced colors are auto-derived.
+- Library: View ALL creations (videos, flyers, logos, cards, infographics) with pagination (20/page) and type badges.
+- Share Pages: Each video gets a public share link (/watch/[id]) with 2-panel layout — video player + smart AI chat that knows both the video content and company website.
 - Social Sharing: Share creations to Twitter, Facebook, LinkedIn, Instagram via AyrShare. Earn 2 free credits per share (max 5 credits/month).
-- AI Chat on Share Pages: Clients can ask AI about the video content.
+- AI Chat on Share Pages: Clients can ask AI about the video content AND the company (scraped from website).
 - Quotes & Payments: Attach quotes to videos, clients pay via Stripe on the share page.
 - Calendar Booking: Embed Calendly on share pages.
 - Follow-Up Emails: Automated email sequences after sharing (Pro/Agency plans).
 - AI Proposals: Chat-based proposal builder (Pro/Agency plans).
+- Course Builder: Create multi-episode video series. Describe a topic, AI designs the curriculum, review/edit episodes, then batch generate all videos. Find it at Create > Course Builder.
+- AI Research Tab: On the video creation page, use the "AI Research" tab to enter any topic. AI researches it with real data, stats, and metrics, then structures findings for your video.
+- Help Center: Browse articles at /help or use the help chatbot (bottom-right button on every page).
+- Affiliate Program: Earn 20% commission + 5 free credits per referral signup. Join at /affiliates or Settings > Subscription.
+- Custom Dimensions: Infographics and flyers support custom pixel dimensions (200-5000px) in addition to preset sizes.
+- Print-Ready Business Cards: 300 DPI output with optional bleeds (3.625 x 2.125") for professional printing.
 
 PLANS & PRICING:
 - Free: 5 credits/month, 1 brand
