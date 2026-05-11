@@ -288,8 +288,21 @@ export default function VideoDetailPage() {
         if (data.status === 'completed' || data.status === 'failed') {
           clearInterval(interval)
         }
+        // Auto-detect stuck videos (processing for more than 5 minutes)
+        const createdAt = new Date(data.created_at).getTime()
+        const elapsed = Date.now() - createdAt
+        const STUCK_THRESHOLD = 5 * 60 * 1000 // 5 minutes
+        if (elapsed > STUCK_THRESHOLD && data.status !== 'completed' && data.status !== 'failed' && data.status !== 'pending') {
+          // Mark as failed
+          await supabase.from('videos').update({
+            status: 'failed',
+            error_message: 'Generation timed out. Please try again with fewer slides or a simpler document.'
+          }).eq('id', data.id)
+          setVideo({ ...data, status: 'failed', error_message: 'Generation timed out. Please try again with fewer slides or a simpler document.' } as Video)
+          clearInterval(interval)
+        }
       }
-    }, 2000)
+    }, 3000)
 
     return () => clearInterval(interval)
   }, [params.id])
@@ -670,8 +683,23 @@ export default function VideoDetailPage() {
             Video Generation Failed
           </p>
           {video.error_message && (
-            <p style={{ fontSize: '14px', color: 'var(--ink-soft)' }}>{video.error_message}</p>
+            <p style={{ fontSize: '14px', color: 'var(--ink-soft)', marginBottom: '16px' }}>{video.error_message}</p>
           )}
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16 }}>
+            <button
+              onClick={async () => {
+                // Reset video to pending so pipeline restarts
+                const supabase = createClient()
+                await supabase.from('videos').update({ status: 'pending', error_message: null }).eq('id', video.id)
+                pipelineStarted.current = false
+                setVideo({ ...video, status: 'pending', error_message: null } as Video)
+              }}
+              className="btn btn-primary"
+            >
+              Retry Generation
+            </button>
+            <a href="/create" className="btn btn-soft">Create New</a>
+          </div>
         </div>
       )}
 
