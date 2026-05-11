@@ -22,6 +22,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
+  // Pre-check credits before generation (video costs 3 credits)
+  const adminForCheck = createAdminClient()
+  const { data: profile } = await adminForCheck.from('profiles').select('credits_remaining').eq('id', user.id).single()
+  if (!profile || profile.credits_remaining < 3) {
+    return NextResponse.json({ error: 'Insufficient credits. You need at least 3 credits to generate a video.' }, { status: 403 })
+  }
+
   const body = await request.json()
   const { videoId, policyData, brandId, voiceId, styleId, approvedSlides, preGeneratedScenes, preGeneratedAudioId, detailed, musicUrl } = body as {
     videoId: string

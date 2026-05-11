@@ -31,13 +31,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
+  // Pre-check credits before generation
+  const adminForCheck = createAdminClient()
+  const { data: profile } = await adminForCheck.from('profiles').select('credits_remaining').eq('id', user.id).single()
+  if (!profile || profile.credits_remaining < 1) {
+    return NextResponse.json({ error: 'Insufficient credits. You need at least 1 credit to generate a flyer.' }, { status: 403 })
+  }
+
   const body = await request.json()
   const {
     brandId,
     styleId,
     eventName,
-    date,
-    time,
+    eventDate: date,
+    eventTime: time,
     venue,
     address,
     details,
@@ -49,8 +56,8 @@ export async function POST(request: Request) {
     brandId?: string
     styleId: string
     eventName: string
-    date?: string
-    time?: string
+    eventDate?: string
+    eventTime?: string
     venue?: string
     address?: string
     details?: string

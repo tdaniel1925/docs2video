@@ -28,6 +28,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
+  // Pre-check credits before generation
+  const adminForCheck = createAdminClient()
+  const { data: profile } = await adminForCheck.from('profiles').select('credits_remaining').eq('id', user.id).single()
+  if (!profile || profile.credits_remaining < 1) {
+    return NextResponse.json({ error: 'Insufficient credits. You need at least 1 credit to generate an infographic.' }, { status: 403 })
+  }
+
   const body = await request.json()
   const {
     brandId,
