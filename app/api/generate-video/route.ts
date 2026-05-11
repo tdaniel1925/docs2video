@@ -11,7 +11,7 @@ import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 
 export const runtime = 'nodejs'
-export const maxDuration = 300
+export const maxDuration = 900
 
 export async function POST(request: Request) {
   const supabase = await createClient()
