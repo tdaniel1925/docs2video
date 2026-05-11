@@ -424,6 +424,12 @@ export const SLIDE_STYLES = [
     description: 'Dark red neon glow, gold script, grunge nightlife',
     prompt: 'Red neon nightlife event style. Deep black background with red and crimson neon glow effects — light streaks, lens flares, and flowing wave lines in red. Massive bold block headline text with neon red outer glow and white/yellow stroke outlines. Elegant gold cursive script text for accent words and dates. Halftone dot pattern overlay in dark red. Distressed grunge border frame — scratched white edges like an aged photo. Corner date badges in bold white condensed type. Side text rotated vertically for age restrictions and pricing. Bottom info bar with venue details and contact in clean sans-serif. Abstract red silk wave and sparkle effects in the background. Everything feels premium nightlife, seductive, and exclusive. Deep black, neon red, crimson, gold script, white palette.',
   },
+  {
+    id: 'editorial',
+    name: 'Editorial',
+    description: 'Bold angles, CMYK accents, Swiss-Japanese design',
+    prompt: 'Modern Swiss-Japanese editorial design. Light silver-gray (#E8E8EC) background. Bold black text at dramatic angles — some text rotated 90 degrees vertically, some at 15-30 degree angles. Use CMYK-inspired accent colors: cyan (#00AEEF), magenta (#EC008C), yellow (#FFF200), and black. Text blocks overlap and intersect at angles. Mix of very large bold condensed sans-serif headings with small body text. Some text runs vertically along edges. Clean horizontal layout for data. Overall feels like a high-end design exhibition poster — asymmetric, dynamic, intentionally breaking grid rules.',
+  },
 ] as const
 
 export type SlideStyleId = typeof SLIDE_STYLES[number]['id']
