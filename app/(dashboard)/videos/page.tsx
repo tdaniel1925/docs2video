@@ -87,10 +87,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   const total = allItems.length
-  const totalCount = total
   const creations = allItems.slice(from, to + 1)
-
-  const total = totalCount ?? 0
   const totalPages = Math.ceil(total / PAGE_SIZE)
   const showingFrom = total === 0 ? 0 : from + 1
   const showingTo = Math.min(to + 1, total)
