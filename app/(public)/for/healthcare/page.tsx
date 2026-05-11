@@ -26,7 +26,7 @@ export default function HealthcarePage() {
             <div className="hero-trust" style={{ marginTop: 20 }}>Trusted by 300+ health systems, hospitals, and benefits teams</div>
           </div>
           <div className="hero-right">
-            <ClickToPlayVideo src="/industry-demos/healthcare.mp4" style={{ boxShadow: '0 12px 40px rgba(0,0,0,0.15)' }} />
+            <ClickToPlayVideo src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/site-assets/industry-demos/healthcare.mp4" style={{ boxShadow: '0 12px 40px rgba(0,0,0,0.15)' }} />
           </div>
         </section>
       </div>

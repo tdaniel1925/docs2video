@@ -26,7 +26,7 @@ export default function InsurancePage() {
             <div className="hero-trust" style={{ marginTop: 20 }}>Trusted by 1,200+ insurance professionals nationwide</div>
           </div>
           <div className="hero-right">
-            <ClickToPlayVideo src="/industry-demos/insurance.mp4" style={{ boxShadow: '0 12px 40px rgba(0,0,0,0.15)' }} />
+            <ClickToPlayVideo src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/site-assets/industry-demos/insurance.mp4" style={{ boxShadow: '0 12px 40px rgba(0,0,0,0.15)' }} />
           </div>
         </section>
       </div>
