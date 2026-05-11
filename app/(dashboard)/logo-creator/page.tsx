@@ -212,7 +212,7 @@ export default function LogoCreatorPage() {
   const hasLogos = logoResults.length > 0
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', maxWidth: 900, margin: '0 auto', padding: '0 16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 152px)', maxWidth: 900, margin: '-40px auto 0', padding: '0 16px', overflow: 'hidden' }}>
       {/* Messages area */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px 0' }}>
         {messages.map((msg, i) => (
