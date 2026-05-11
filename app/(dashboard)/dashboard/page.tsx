@@ -134,7 +134,9 @@ export default async function DashboardPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700 }}>Recent Creations</h2>
         {(totalCount ?? 0) > 0 && (
-          <Link href="/videos" className="btn btn-soft btn-sm">View all &rarr;</Link>
+          <Link href="/videos" className="btn btn-soft btn-sm">
+            View all {totalCount! > 8 ? `${totalCount} creations` : 'creations'} &rarr;
+          </Link>
         )}
       </div>
 
@@ -168,7 +170,7 @@ export default async function DashboardPage() {
                   padding: '16px 24px',
                   textDecoration: 'none',
                   color: 'var(--ink)',
-                  borderBottom: i < recentItems.length - 1 ? '1px solid var(--border-light)' : 'none',
+                  borderBottom: i < recentItems.length - 1 && !((totalCount ?? 0) > 8 && i === recentItems.length - 1) ? '1px solid var(--border-light)' : 'none',
                   transition: 'background 0.1s ease',
                 }}
                 className="activity-row"
@@ -215,6 +217,27 @@ export default async function DashboardPage() {
               </TagEl>
             )
           })}
+          {(totalCount ?? 0) > 8 && (
+            <Link
+              href="/videos"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '14px 24px',
+                textDecoration: 'none',
+                color: 'var(--ink-soft)',
+                fontSize: 14,
+                fontWeight: 600,
+                borderTop: '1px solid var(--border-light)',
+                transition: 'background 0.1s ease',
+              }}
+              className="activity-row"
+            >
+              View all {totalCount} creations &rarr;
+            </Link>
+          )}
         </div>
       )}
 

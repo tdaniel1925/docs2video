@@ -2,15 +2,35 @@ import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/server'
 import type { Video } from '../../_lib/types'
 
-export default async function VideosPage() {
+const PAGE_SIZE = 20
+
+export default async function VideosPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const { page: pageParam } = await searchParams
+  const currentPage = Math.max(1, parseInt(pageParam ?? '1', 10) || 1)
+  const from = (currentPage - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  // Get total count
+  const { count: totalCount } = await supabase
+    .from('videos')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user!.id)
+
+  // Get paginated videos
   const { data: videos } = await supabase
     .from('videos')
     .select('*, brand:brands(*)')
     .eq('user_id', user!.id)
     .order('created_at', { ascending: false })
+    .range(from, to)
+
+  const total = totalCount ?? 0
+  const totalPages = Math.ceil(total / PAGE_SIZE)
+  const showingFrom = total === 0 ? 0 : from + 1
+  const showingTo = Math.min(to + 1, total)
 
   return (
     <div>
@@ -99,6 +119,56 @@ export default async function VideosPage() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-light)" strokeWidth="2" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6" /></svg>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {total > 0 && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginTop: 24,
+          padding: '16px 24px',
+          background: 'white',
+          border: '1px solid var(--border-light)',
+          borderRadius: 10,
+        }}>
+          <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>
+            Showing {showingFrom}&ndash;{showingTo} of {total}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {currentPage > 1 ? (
+              <Link
+                href={`/videos?page=${currentPage - 1}`}
+                className="btn btn-soft btn-sm"
+              >
+                &larr; Previous
+              </Link>
+            ) : (
+              <span
+                className="btn btn-soft btn-sm"
+                style={{ opacity: 0.4, pointerEvents: 'none' }}
+              >
+                &larr; Previous
+              </span>
+            )}
+            {currentPage < totalPages ? (
+              <Link
+                href={`/videos?page=${currentPage + 1}`}
+                className="btn btn-soft btn-sm"
+              >
+                Next &rarr;
+              </Link>
+            ) : (
+              <span
+                className="btn btn-soft btn-sm"
+                style={{ opacity: 0.4, pointerEvents: 'none' }}
+              >
+                Next &rarr;
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>
