@@ -12,13 +12,13 @@ type InputTab = 'upload' | 'text' | 'idea' | 'url' | 'proposal'
 type Step = 'upload' | 'extracting' | 'review' | 'choose-brand' | 'choose-style' | 'approve-slides' | 'choose-voice' | 'generating' | 'done'
 
 const STEP_LABELS = [
-  { key: 'upload', label: '1. Your Content' },
-  { key: 'review', label: '2. Confirm Data' },
-  { key: 'choose-brand', label: '3. Brand' },
-  { key: 'choose-style', label: '4. Pick a Look' },
-  { key: 'approve-slides', label: '5. Preview' },
-  { key: 'choose-voice', label: '6. Voice & Tone' },
-  { key: 'generating', label: '7. Create Video' },
+  { key: 'upload', label: 'Content' },
+  { key: 'review', label: 'Review' },
+  { key: 'choose-brand', label: 'Brand' },
+  { key: 'choose-style', label: 'Style' },
+  { key: 'approve-slides', label: 'Preview' },
+  { key: 'choose-voice', label: 'Voice' },
+  { key: 'generating', label: 'Create' },
 ]
 
 function getStepIndex(step: Step): number {

@@ -408,8 +408,19 @@ ${genData.source ? `- Source: ${genData.source}` : ''}
 ${brandName ? `- Brand: ${brandName}` : ''}`
   }
 
-  // Use the AI-generated slidePrompt if provided, otherwise fall back to hardcoded content
-  const content = slidePrompt ?? slideContents[slideIndex] ?? slideContents[0]
+  // Always force cover page for slide 0 and closing page for last slide
+  // The AI script's slidePrompt is used for middle slides only
+  let content: string
+  if (slideIndex === 0) {
+    // Always a branded cover/title page
+    content = slideContents[0] + (slidePrompt ? `\n\nAdditional context from script: ${slidePrompt}` : '')
+  } else if (slideContents[slideIndex] && !slidePrompt) {
+    // Use hardcoded content if no AI prompt
+    content = slideContents[slideIndex]
+  } else {
+    // Use AI-generated slidePrompt for middle slides
+    content = slidePrompt ?? slideContents[slideIndex] ?? slideContents[0]
+  }
 
   const hasLogo = !!(logoBuffer || logoUrl)
 
