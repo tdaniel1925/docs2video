@@ -1114,7 +1114,7 @@ export default function CreatePage() {
 
           <div className="wizard-actions">
             <button onClick={() => { setStep('upload') }} className="btn btn-soft">&larr; Back</button>
-            <button onClick={() => setStep(brands.length > 0 ? 'choose-brand' : 'choose-style')} className="btn btn-primary">Looks good, next &rarr;</button>
+            <button onClick={() => setStep('choose-brand')} className="btn btn-primary">Looks good, next &rarr;</button>
           </div>
         </div>
       )}
@@ -1124,25 +1124,35 @@ export default function CreatePage() {
         <div className="wizard-card">
           <h2>Which brand is this for?</h2>
           <p className="wizard-sub">Select a brand to apply its logo, colors, and contact info to your video.</p>
-          {brands.length === 0 ? (
-            <p style={{ color: 'var(--ink-soft)', fontSize: 14 }}>No brands yet. <a href="/brands/new" style={{ color: 'var(--mint-darker)', fontWeight: 600 }}>Create one</a></p>
-          ) : (
-            <div className="brand-grid-wiz">
-              {brands.map((brand) => (
-                <div key={brand.id}
-                  className={`brand-option${selectedBrand === brand.id ? ' selected' : ''}`}
-                  onClick={() => setSelectedBrand(brand.id)}
-                >
-                  <div className="name">{brand.name}</div>
-                  <div className="swatches">
-                    {[brand.primary_color, brand.secondary_color, brand.accent_color].map((c, i) => (
-                      <div key={i} className="swatch" style={{ backgroundColor: c }} />
-                    ))}
-                  </div>
-                </div>
-              ))}
+          <div className="brand-grid-wiz">
+            {/* No brand option */}
+            <div
+              className={`brand-option${selectedBrand === null ? ' selected' : ''}`}
+              onClick={() => setSelectedBrand(null)}
+            >
+              <div className="name">No Brand</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 4 }}>Use default colors</div>
             </div>
-          )}
+            {brands.map((brand) => (
+              <div key={brand.id}
+                className={`brand-option${selectedBrand === brand.id ? ' selected' : ''}`}
+                onClick={() => setSelectedBrand(brand.id)}
+              >
+                <div className="name">{brand.name}</div>
+                <div className="swatches">
+                  {[brand.primary_color, brand.secondary_color, brand.accent_color].map((c, i) => (
+                    <div key={i} className="swatch" style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {brands.length === 0 && (
+              <a href="/brands/new" className="brand-option" style={{ textDecoration: 'none', color: 'var(--ink)' }}>
+                <div className="name">+ Create Brand</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 4 }}>Add logo & colors</div>
+              </a>
+            )}
+          </div>
 
           <div className="wizard-actions">
             <button onClick={() => setStep('review')} className="btn btn-soft">&larr; Back</button>
@@ -1156,13 +1166,10 @@ export default function CreatePage() {
         <StylePicker
           selectedStyle={selectedStyle}
           onSelect={setSelectedStyle}
-          onBack={() => setStep(brands.length > 0 ? 'choose-brand' : 'review')}
+          onBack={() => setStep('choose-brand')}
           onNext={handleGenerateSlides}
           customStylePrompt={customStylePrompt}
           onCustomStylePrompt={setCustomStylePrompt}
-          brands={brands}
-          selectedBrand={selectedBrand}
-          onBrandSelect={setSelectedBrand}
         />
       )}
 
