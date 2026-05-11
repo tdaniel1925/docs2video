@@ -5,7 +5,9 @@ import { generateScript } from '../../_lib/script-generator'
 import { generateSlide } from '../../_lib/gemini'
 import { compositeSlide } from '../../_lib/composite'
 import { synthesizeSpeech } from '../../_lib/tts'
-import { assembleVideo } from '../../_lib/video'
+// Video assembly is offloaded to the Hetzner VPS (video-service)
+const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
+const VIDEO_ASSEMBLY_SECRET = process.env.VIDEO_ASSEMBLY_SECRET || 'docs2video-assembly-secret-2026'
 import { deductCredits } from '../../_lib/credits'
 import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
@@ -166,27 +168,40 @@ export async function POST(request: Request) {
     console.log(`[video ${videoId}] Slides done.`)
     await admin.from('videos').update({ status: 'assembling' }).eq('id', videoId)
 
-    // STAGE 4: Assemble video
-    console.log(`[video ${videoId}] Assembling video...`)
-    const { videoBuffer, durations } = await assembleVideo(slideBuffers, audioBuffers, undefined, musicUrl)
+    // STAGE 4: Assemble video via VPS
+    console.log(`[video ${videoId}] Sending to VPS for assembly...`)
+    const assemblyRes = await fetch(`${VIDEO_ASSEMBLY_URL}/assemble`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-secret': VIDEO_ASSEMBLY_SECRET,
+      },
+      body: JSON.stringify({
+        slides: slideBuffers.map(b => b.toString('base64')),
+        audios: audioBuffers.map(b => b.toString('base64')),
+        videoId,
+        userId: user.id,
+        musicUrl: musicUrl || undefined,
+      }),
+      signal: AbortSignal.timeout(600000), // 10 min timeout
+    })
 
-    // Upload video
-    const videoPath = `${user.id}/${videoId}.mp4`
-    const { error: uploadError } = await admin.storage
-      .from('videos')
-      .upload(videoPath, videoBuffer, { contentType: 'video/mp4', upsert: true })
-    if (uploadError) throw uploadError
+    if (!assemblyRes.ok) {
+      const errBody = await assemblyRes.json().catch(() => ({ error: 'VPS assembly failed' }))
+      throw new Error(errBody.error || `VPS returned ${assemblyRes.status}`)
+    }
 
-    const { data: videoUrl } = admin.storage.from('videos').getPublicUrl(videoPath)
+    const assemblyResult = await assemblyRes.json() as {
+      success: boolean
+      videoUrl: string
+      thumbnailUrl: string
+      durations: number[]
+      totalDuration: number
+    }
 
-    // Upload thumbnail
-    const thumbPath = `${user.id}/${videoId}_thumb.png`
-    await admin.storage
-      .from('videos')
-      .upload(thumbPath, slideBuffers[0], { contentType: 'image/png', upsert: true })
-    const { data: thumbUrl } = admin.storage.from('videos').getPublicUrl(thumbPath)
+    console.log(`[video ${videoId}] VPS assembly complete.`)
 
-    // Upload all individual slides for PDF/PPTX download
+    // Upload individual slides for PDF/PPTX download
     const slideUrls: string[] = []
     for (let i = 0; i < slideBuffers.length; i++) {
       const slidePath = `${user.id}/${videoId}/slide_${i}.png`
@@ -195,12 +210,10 @@ export async function POST(request: Request) {
       slideUrls.push(slideUrl.publicUrl)
     }
 
-    const totalDuration = durations.reduce((sum, d) => sum + d, 0)
-
     await admin.from('videos').update({
-      video_url: videoUrl.publicUrl,
-      thumbnail_url: thumbUrl.publicUrl,
-      duration: totalDuration,
+      video_url: assemblyResult.videoUrl,
+      thumbnail_url: assemblyResult.thumbnailUrl,
+      duration: assemblyResult.totalDuration,
       status: 'completed',
       slide_urls: slideUrls,
     }).eq('id', videoId)
@@ -218,8 +231,8 @@ export async function POST(request: Request) {
       user_id: user.id,
       type: 'video',
       title: videoTitle,
-      thumbnail_url: thumbUrl.publicUrl,
-      file_url: videoUrl.publicUrl,
+      thumbnail_url: assemblyResult.thumbnailUrl,
+      file_url: assemblyResult.videoUrl,
       credits_used: creditCost,
     })
 
