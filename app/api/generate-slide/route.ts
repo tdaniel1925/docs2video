@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     )
 
     // Composite real photo onto the slide (logo now handled by Gemini)
-    imageBuffer = await compositeSlide(imageBuffer, photoUrl, null, slideIndex === 0, isLastSlide ?? false, standingPhotoUrl)
+    imageBuffer = await compositeSlide(imageBuffer, photoUrl, logoUrl, slideIndex === 0, isLastSlide ?? false, standingPhotoUrl)
 
     const base64 = `data:image/png;base64,${imageBuffer.toString('base64')}`
     return NextResponse.json({ image: base64 })

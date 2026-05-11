@@ -147,16 +147,17 @@ function getStrictRules(hasLogo: boolean, brandName: string | null, hasPhoto: bo
     : ''
 
   const logoInstruction = hasLogo
-    ? `\nLOGO INTEGRATION:
-- The company logo has been provided as an image. Integrate it prominently into the slide design.
-- Place the logo in the top-left or top-center area where it feels natural for the layout.
-- The logo should be clearly visible, properly sized, and feel like part of the design — not pasted on top.
-- Extract the color palette from the logo and use those colors throughout the entire slide.
-- DO NOT modify, redraw, or recreate the logo — use it exactly as provided.`
+    ? `\nLOGO HANDLING:
+- DO NOT draw, render, or include ANY logo, emblem, or brand mark on the slide.
+- Leave a clean rectangular space (approximately 200x70px) in the TOP-LEFT corner for the real logo — it will be composited on top later.
+- Make sure the top-left area has a simple, uncluttered background so the logo is readable when placed.
+- Extract the color palette from the provided logo image and use those EXACT colors consistently across the entire slide.
+- The same colors must be used on EVERY slide — no variation between slides.`
     : brandName
     ? `\nBRANDING:
 - Display "${brandName}" as elegantly styled text that matches the slide's design style and typography.
-- Place it where it fits best for this layout (header, top-left, or corner).`
+- Place it where it fits best for this layout (header, top-left, or corner).
+- DO NOT create any logo graphic — text only.`
     : ''
 
   return `

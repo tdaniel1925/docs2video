@@ -156,7 +156,7 @@ export async function POST(request: Request) {
               scene.slidePrompt, !!photoUrl, contactInfo,
               logoBuffer, referenceSlides
             )
-            buf = await compositeSlide(buf, photoUrl, null, idx === 0, idx === scenes.length - 1, standingPhotoUrl)
+            buf = await compositeSlide(buf, photoUrl, logoUrl, idx === 0, idx === scenes.length - 1, standingPhotoUrl)
             return buf
           })
         )
