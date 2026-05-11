@@ -40,13 +40,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No pipeline input found' }, { status: 400 })
   }
 
-  // Mark as starting so it doesn't get triggered again
-  await admin.from('videos').update({ status: 'scripting' }).eq('id', videoId)
+  // Mark as starting so it doesn't get triggered again by the fallback on video detail page
+  await admin.from('videos').update({ status: 'starting' }).eq('id', videoId)
 
   // Fire-and-forget: call generate-video internally
-  // We use the origin from the request to build the URL
-  const origin = request.headers.get('origin') ?? request.headers.get('x-forwarded-host')
-    ? `https://${request.headers.get('x-forwarded-host')}`
+  const xHost = request.headers.get('x-forwarded-host')
+  const reqOrigin = request.headers.get('origin')
+  const origin = reqOrigin
+    ? reqOrigin
+    : xHost
+    ? `https://${xHost}`
     : 'https://docs2video.com'
 
   // Get auth cookies to forward

@@ -277,11 +277,11 @@ export default function VideoDetailPage() {
         if (data.status === 'completed' || data.status === 'failed') {
           clearInterval(interval)
         }
-        // Auto-detect stuck videos (processing for more than 5 minutes)
+        // Auto-detect stuck videos (processing for more than 15 minutes)
         const createdAt = new Date(data.created_at).getTime()
         const elapsed = Date.now() - createdAt
-        const STUCK_THRESHOLD = 5 * 60 * 1000 // 5 minutes
-        if (elapsed > STUCK_THRESHOLD && data.status !== 'completed' && data.status !== 'failed' && data.status !== 'pending') {
+        const STUCK_THRESHOLD = 15 * 60 * 1000 // 15 minutes
+        if (elapsed > STUCK_THRESHOLD && data.status !== 'completed' && data.status !== 'failed' && data.status !== 'pending' && data.status !== 'starting') {
           // Mark as failed
           await supabase.from('videos').update({
             status: 'failed',
