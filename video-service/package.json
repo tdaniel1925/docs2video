@@ -1,0 +1,11 @@
+{
+  "name": "docs2video-assembler",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "@supabase/supabase-js": "^2.105.4"
+  }
+}
