@@ -5,6 +5,7 @@ const { join } = require('path')
 const { randomUUID } = require('crypto')
 const { tmpdir } = require('os')
 const { createClient } = require('@supabase/supabase-js')
+const WebSocket = require('ws')
 
 const app = express()
 app.use(express.json({ limit: '200mb' }))
@@ -184,7 +185,7 @@ app.post('/assemble', authCheck, async (req, res) => {
     if (SUPABASE_URL && SUPABASE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
         auth: { persistSession: false },
-        realtime: { enabled: false },
+        realtime: { transport: WebSocket },
       })
 
       const videoStoragePath = `${userId}/${videoId}.mp4`
