@@ -13,11 +13,11 @@ function formatCurrency(n: number): string {
 }
 
 function buildInsuranceScriptPrompt(data: ExtractedPolicyData, brandName: string | null, detailed: boolean = false): string {
-  const cvSummary = data.cashValueProjections
+  const cvSummary = (data.cashValueProjections ?? [])
     .map(p => `Year ${p.year}: Guaranteed ${formatCurrency(p.guaranteed)}, Illustrated ${formatCurrency(p.current)}`)
     .join('\n  ')
 
-  const svSummary = data.surrenderValueProjections
+  const svSummary = (data.surrenderValueProjections ?? [])
     .map(p => `Year ${p.year}: Guaranteed ${formatCurrency(p.guaranteed)}, Current ${formatCurrency(p.current)}`)
     .join('\n  ')
 
@@ -42,8 +42,8 @@ ${data.loanRate ? `- Loan Rate: ${data.loanRate}%` : ''}
 - Cash Value Projections:
   ${cvSummary}
 ${svSummary ? `- Surrender Value Projections:\n  ${svSummary}` : ''}
-- Riders: ${data.riders.join(', ') || 'None'}
-- Additional Notes: ${data.additionalNotes.join(', ') || 'None'}
+- Riders: ${(data.riders ?? []).join(', ') || 'None'}
+- Additional Notes: ${(data.additionalNotes ?? []).join(', ') || 'None'}
 ${brandName ? `- Agent/Agency: ${brandName}` : ''}
 
 VOICE RULES (CRITICAL):
@@ -80,9 +80,9 @@ TONE: Professional but warm, like a trusted financial advisor explaining to a cl
 }
 
 function buildGenericScriptPrompt(data: ExtractedData, brandName: string | null, detailed: boolean = false): string {
-  const metricsText = data.keyMetrics.map(m => `- ${m.label}: ${m.value}`).join('\n')
-  const sectionsText = data.sections.map(s => `- ${s.title}: ${s.content}`).join('\n')
-  const bulletText = data.bulletPoints.map(b => `- ${b}`).join('\n')
+  const metricsText = (data.keyMetrics ?? []).map(m => `- ${m.label}: ${m.value}`).join('\n')
+  const sectionsText = (data.sections ?? []).map(s => `- ${s.title}: ${s.content}`).join('\n')
+  const bulletText = (data.bulletPoints ?? []).map(b => `- ${b}`).join('\n')
 
   const durationBlock = detailed
     ? `- Total video should be approximately 5-7 minutes
@@ -109,7 +109,7 @@ ${sectionsText || '(none)'}
 Key Points:
 ${bulletText || '(none)'}
 
-Additional Notes: ${data.additionalNotes.join(', ') || 'None'}
+Additional Notes: ${(data as any).additionalNotes?.join(', ') || 'None'}
 
 VOICE RULES (CRITICAL):
 - The narrator must NEVER introduce themselves, say their name, or say who they are. They are just a voice.
@@ -151,8 +151,8 @@ export async function generateDemoScript(
   },
   colors: { primary: string; secondary: string; accent: string; background: string; text: string }
 ): Promise<VideoScene[]> {
-  const servicesText = brandData.services.length > 0 ? brandData.services.join(', ') : 'various services'
-  const uspsText = brandData.uniqueSellingPoints.length > 0 ? brandData.uniqueSellingPoints.join(', ') : ''
+  const servicesText = (brandData.services ?? []).length > 0 ? brandData.services.join(', ') : 'various services'
+  const uspsText = (brandData.uniqueSellingPoints ?? []).length > 0 ? brandData.uniqueSellingPoints.join(', ') : ''
 
   const prompt = `You are a professional scriptwriter creating a SHORT demo explainer video about a company.
 
