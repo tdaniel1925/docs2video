@@ -13,9 +13,9 @@ const COLOR_LABELS: Record<string, string> = {
 }
 
 const COLOR_ROLES: Record<string, string> = {
-  primary_color: 'Headers \u00b7 CTAs',
+  primary_color: 'Headers · CTAs',
   secondary_color: 'Highlights',
-  accent_color: 'Tags \u00b7 Badges',
+  accent_color: 'Tags · Badges',
   background_color: 'Canvas',
   text_color: 'Body copy',
 }
@@ -48,6 +48,56 @@ interface BrandGuideData {
   competitorNotes?: string
   colorPsychology?: string
   socialLinks?: Record<string, string>
+}
+
+/**
+ * Convert a hex color to HSL components.
+ */
+function hexToHsl(hex: string): [number, number, number] {
+  const r = parseInt(hex.slice(1, 3), 16) / 255
+  const g = parseInt(hex.slice(3, 5), 16) / 255
+  const b = parseInt(hex.slice(5, 7), 16) / 255
+  const max = Math.max(r, g, b), min = Math.min(r, g, b)
+  let h = 0, s = 0
+  const l = (max + min) / 2
+  if (max !== min) {
+    const d = max - min
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break
+      case g: h = ((b - r) / d + 2) / 6; break
+      case b: h = ((r - g) / d + 4) / 6; break
+    }
+  }
+  return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)]
+}
+
+/**
+ * Convert HSL to hex color.
+ */
+function hslToHex(h: number, s: number, l: number): string {
+  h = ((h % 360) + 360) % 360
+  s = Math.max(0, Math.min(100, s)) / 100
+  l = Math.max(0, Math.min(100, l)) / 100
+  const a = s * Math.min(l, 1 - l)
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1)
+    return Math.round(255 * Math.max(0, Math.min(1, color))).toString(16).padStart(2, '0')
+  }
+  return `#${f(0)}${f(8)}${f(4)}`
+}
+
+/**
+ * Derive secondary and accent colors from a primary color.
+ * Secondary: analogous (shifted hue +30), slightly lighter.
+ * Accent: complementary-adjacent (shifted hue +150), boosted saturation.
+ */
+function deriveColors(primary: string): { secondary: string; accent: string } {
+  const [h, s, l] = hexToHsl(primary)
+  const secondary = hslToHex(h + 30, Math.min(s + 10, 100), Math.min(l + 15, 85))
+  const accent = hslToHex(h + 150, Math.min(s + 20, 100), Math.max(Math.min(l + 5, 70), 40))
+  return { secondary, accent }
 }
 
 function BrandScrapingProgress() {
@@ -85,6 +135,7 @@ export default function NewBrandPage() {
   const [loading, setLoading] = useState(false)
   const [brandName, setBrandName] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
+  const [primaryColor, setPrimaryColor] = useState('#1B365D')
   const [colors, setColors] = useState({
     primary_color: '#1B365D',
     secondary_color: '#4A90D9',
@@ -92,6 +143,8 @@ export default function NewBrandPage() {
     background_color: '#0a1628',
     text_color: '#FFFFFF',
   })
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [userEditedAdvancedColors, setUserEditedAdvancedColors] = useState(false)
 
   // Website scraper state
   const [websiteUrl, setWebsiteUrl] = useState('')
@@ -99,6 +152,21 @@ export default function NewBrandPage() {
   const [scraped, setScraped] = useState(false)
   const [brandGuide, setBrandGuide] = useState<BrandGuideData | null>(null)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
+
+  // Auto-derive secondary and accent colors when primary changes (unless user manually edited)
+  useEffect(() => {
+    if (!userEditedAdvancedColors) {
+      const derived = deriveColors(primaryColor)
+      setColors(prev => ({
+        ...prev,
+        primary_color: primaryColor,
+        secondary_color: derived.secondary,
+        accent_color: derived.accent,
+      }))
+    } else {
+      setColors(prev => ({ ...prev, primary_color: primaryColor }))
+    }
+  }, [primaryColor, userEditedAdvancedColors])
 
   function toggleSection(key: string) {
     setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }))
@@ -122,8 +190,11 @@ export default function NewBrandPage() {
       // Auto-fill form fields
       setBrandName(data.companyName ?? '')
       if (data.logoUrl) setLogoUrl(data.logoUrl)
+      const newPrimary = data.primaryColor ?? '#1B365D'
+      setPrimaryColor(newPrimary)
+      setUserEditedAdvancedColors(true) // Scraper provides its own palette
       setColors({
-        primary_color: data.primaryColor ?? '#1B365D',
+        primary_color: newPrimary,
         secondary_color: data.secondaryColor ?? '#4A90D9',
         accent_color: data.accentColor ?? '#FFB347',
         background_color: data.backgroundColor ?? '#0a1628',
@@ -131,7 +202,6 @@ export default function NewBrandPage() {
       })
       setBrandGuide(data)
       setScraped(true)
-      // Expand first section by default
       setExpandedSections({ identity: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to analyze website')
@@ -178,6 +248,8 @@ export default function NewBrandPage() {
       {text}
     </span>
   )
+
+  const advancedColorKeys = ['secondary_color', 'accent_color', 'background_color', 'text_color'] as const
 
   return (
     <div>
@@ -421,11 +493,16 @@ export default function NewBrandPage() {
       {/* Brand Form */}
       <div className="wizard-card brand-form">
         <h2 style={{ marginBottom: 4 }}>Brand details</h2>
-        <p className="wizard-sub">{scraped ? 'We pre-filled everything -- review and adjust as needed.' : 'Or fill in your brand details manually.'}</p>
+        <p className="wizard-sub" style={{ marginBottom: 20 }}>
+          {scraped
+            ? 'We pre-filled everything -- review and adjust as needed.'
+            : 'Create a brand to apply your logo and colors across all your creations. Just a name and logo is enough to get started.'}
+        </p>
 
         <form onSubmit={handleSubmit}>
+          {/* === Essential Fields === */}
           <div className="form-group">
-            <label className="input-label">Brand Name</label>
+            <label className="input-label">Brand Name <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               name="name"
               required
@@ -462,44 +539,114 @@ export default function NewBrandPage() {
             </p>
           </div>
 
-          <div style={{ fontSize: 18, fontWeight: 700, marginTop: 24, marginBottom: 16 }}>Brand Colors</div>
-          <div className="color-pickers">
-            {Object.entries(colors).map(([key, value]) => (
-              <div key={key} className="color-picker">
-                <div className="lbl">{COLOR_LABELS[key]}</div>
-                <label style={{ display: 'block', position: 'relative', cursor: 'pointer' }}>
-                  <div
-                    className="color-input"
-                    style={{
-                      background: value,
-                      borderRadius: 10,
-                      ...(value.toLowerCase() === '#ffffff' ? { boxShadow: 'inset 0 0 0 3px white, 0 0 0 1px var(--border)' } : {}),
-                    }}
-                  />
-                  <input
-                    type="color"
-                    name={key}
-                    value={value}
-                    onChange={(e) => setColors((prev) => ({ ...prev, [key]: e.target.value }))}
-                    style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
-                  />
-                </label>
-                <div className="color-hex">{value.toUpperCase()}</div>
-              </div>
-            ))}
+          <div className="form-group">
+            <label className="input-label">Primary Color</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <label style={{ display: 'block', position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
+                <div
+                  style={{
+                    width: 44, height: 44, borderRadius: 10, background: primaryColor,
+                    border: '2px solid var(--border)',
+                  }}
+                />
+                <input
+                  type="color"
+                  name="primary_color"
+                  value={primaryColor}
+                  onChange={(e) => {
+                    setPrimaryColor(e.target.value)
+                    setUserEditedAdvancedColors(false) // re-derive secondary/accent from new primary
+                  }}
+                  style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                />
+              </label>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', fontFamily: 'monospace' }}>{primaryColor.toUpperCase()}</span>
+              <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>Used for headers and buttons</span>
+            </div>
           </div>
 
-          {/* Preview */}
-          <div className="brand-preview">
-            <div className="brand-preview-label">Live Preview</div>
-            <div className="preview-card-mini" style={{ borderRadius: 10, overflow: 'hidden' }}>
-              {Object.entries(colors).filter(([k]) => k !== 'text_color').map(([key, value]) => (
-                <div key={key} className="pcm-row" style={{ background: value }}>
-                  <span>{COLOR_LABELS[key]}</span>
-                  <span style={{ opacity: 0.85, fontSize: 12, fontWeight: 500 }}>{COLOR_ROLES[key]}</span>
+          {/* === Advanced Section (collapsed by default) === */}
+          <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 4 }}>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '14px 0', border: 'none', background: 'none', cursor: 'pointer',
+              }}
+            >
+              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>
+                Advanced color settings
+              </span>
+              <span style={{
+                fontSize: 12, color: 'var(--ink-light)', display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                {!showAdvanced && (
+                  <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    {advancedColorKeys.map((key) => (
+                      <span key={key} style={{
+                        display: 'inline-block', width: 16, height: 16, borderRadius: 4,
+                        background: colors[key],
+                        border: colors[key].toLowerCase() === '#ffffff' ? '1px solid var(--border)' : 'none',
+                      }} />
+                    ))}
+                  </span>
+                )}
+                <span style={{ fontSize: 18, transition: 'transform 0.2s', transform: showAdvanced ? 'rotate(180deg)' : 'rotate(0)' }}>
+                  &#9662;
+                </span>
+              </span>
+            </button>
+
+            {showAdvanced && (
+              <div style={{ paddingBottom: 8 }}>
+                <p style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 0, marginBottom: 16 }}>
+                  Secondary and accent colors are auto-suggested from your primary color. Feel free to adjust them.
+                </p>
+                <div className="color-pickers">
+                  {advancedColorKeys.map((key) => (
+                    <div key={key} className="color-picker">
+                      <div className="lbl">{COLOR_LABELS[key]}</div>
+                      <label style={{ display: 'block', position: 'relative', cursor: 'pointer' }}>
+                        <div
+                          className="color-input"
+                          style={{
+                            background: colors[key],
+                            borderRadius: 10,
+                            ...(colors[key].toLowerCase() === '#ffffff' ? { boxShadow: 'inset 0 0 0 3px white, 0 0 0 1px var(--border)' } : {}),
+                          }}
+                        />
+                        <input
+                          type="color"
+                          name={key}
+                          value={colors[key]}
+                          onChange={(e) => {
+                            setUserEditedAdvancedColors(true)
+                            setColors((prev) => ({ ...prev, [key]: e.target.value }))
+                          }}
+                          style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                        />
+                      </label>
+                      <div className="color-hex">{colors[key].toUpperCase()}</div>
+                      <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 2 }}>{COLOR_ROLES[key]}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+
+                {/* Preview */}
+                <div className="brand-preview">
+                  <div className="brand-preview-label">Live Preview</div>
+                  <div className="preview-card-mini" style={{ borderRadius: 10, overflow: 'hidden' }}>
+                    {Object.entries(colors).filter(([k]) => k !== 'text_color').map(([key, value]) => (
+                      <div key={key} className="pcm-row" style={{ background: value }}>
+                        <span>{COLOR_LABELS[key]}</span>
+                        <span style={{ opacity: 0.85, fontSize: 12, fontWeight: 500 }}>{COLOR_ROLES[key]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="check-row">
@@ -525,6 +672,16 @@ export default function NewBrandPage() {
               <input type="hidden" name="competitor_notes" value={brandGuide.competitorNotes ?? ''} />
               <input type="hidden" name="unique_selling_points" value={JSON.stringify(brandGuide.uniqueSellingPoints ?? [])} />
               <input type="hidden" name="brand_guide_data" value={JSON.stringify(brandGuide)} />
+            </>
+          )}
+
+          {/* Hidden fields for advanced colors when section is collapsed (so they still submit) */}
+          {!showAdvanced && (
+            <>
+              <input type="hidden" name="secondary_color" value={colors.secondary_color} />
+              <input type="hidden" name="accent_color" value={colors.accent_color} />
+              <input type="hidden" name="background_color" value={colors.background_color} />
+              <input type="hidden" name="text_color" value={colors.text_color} />
             </>
           )}
 

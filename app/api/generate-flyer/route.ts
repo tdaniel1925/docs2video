@@ -43,6 +43,8 @@ export async function POST(request: Request) {
     details,
     contactInfo,
     sizes,
+    overrideWidth,
+    overrideHeight,
   } = body as {
     brandId?: string
     styleId: string
@@ -54,7 +56,15 @@ export async function POST(request: Request) {
     details?: string
     contactInfo?: string
     sizes: FlyerSize[]
+    overrideWidth?: number
+    overrideHeight?: number
   }
+
+  // Clamp custom dimensions if provided
+  const clampDim = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
+  const hasOverride = typeof overrideWidth === 'number' && typeof overrideHeight === 'number'
+  const oWidth = hasOverride ? clampDim(overrideWidth, 200, 5000) : null
+  const oHeight = hasOverride ? clampDim(overrideHeight, 200, 5000) : null
 
   if (!styleId || !eventName || !sizes?.length) {
     return NextResponse.json({ error: 'Please provide an event name, select a style, and at least one size' }, { status: 400 })
@@ -95,8 +105,13 @@ export async function POST(request: Request) {
 
   // Generate flyer for each selected size
   for (const size of sizes) {
-    const config = SIZE_CONFIG[size]
-    if (!config) continue
+    const baseConfig = SIZE_CONFIG[size]
+    if (!baseConfig) continue
+
+    // Apply dimension overrides if provided
+    const config = hasOverride
+      ? { ...baseConfig, width: oWidth!, height: oHeight! }
+      : baseConfig
 
     const hasLogo = !!(logoBuffer || logoUrl)
 
@@ -159,13 +174,29 @@ ${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
       })
     }
 
+    // Compute aspect ratio — use base config's preset ratio, or approximate for overrides
+    let aspectRatio = baseConfig.aspectRatio
+    if (hasOverride) {
+      const w = oWidth!
+      const h = oHeight!
+      const ratio = w / h
+      // Map to nearest supported Gemini aspect ratio
+      if (ratio > 1.6) aspectRatio = '16:9'
+      else if (ratio > 1.3) aspectRatio = '3:2'
+      else if (ratio > 1.1) aspectRatio = '4:3'
+      else if (ratio > 0.9) aspectRatio = '1:1'
+      else if (ratio > 0.7) aspectRatio = '3:4'
+      else if (ratio > 0.55) aspectRatio = '2:3'
+      else aspectRatio = '9:16'
+    }
+
     const response = await genai.models.generateContent({
       model: 'gemini-3-pro-image-preview',
       contents: [{ role: 'user', parts }],
       config: {
         responseFormat: {
           image: {
-            aspectRatio: config.aspectRatio,
+            aspectRatio,
             imageSize: '4K',
           },
         },

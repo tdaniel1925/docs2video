@@ -11,14 +11,14 @@ export const maxDuration = 300
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
-type InfographicSize = 'landscape' | 'portrait' | 'square' | 'poster' | 'wide'
+type InfographicSize = 'landscape' | 'portrait' | 'square' | 'a4' | 'letter' | 'custom'
 
-const SIZE_CONFIG: Record<InfographicSize, { label: string; width: number; height: number; aspectRatio: string }> = {
-  'landscape': { label: 'Landscape (16:9)',    width: 1920, height: 1080, aspectRatio: '16:9' },
-  'portrait':  { label: 'Portrait (9:16)',     width: 1080, height: 1920, aspectRatio: '9:16' },
-  'square':    { label: 'Square (1:1)',        width: 1080, height: 1080, aspectRatio: '1:1' },
-  'poster':    { label: 'Poster (8.5x11")',    width: 2550, height: 3300, aspectRatio: '3:4' },
-  'wide':      { label: 'Wide Banner (2:1)',   width: 2400, height: 1200, aspectRatio: '2:1' },
+const SIZE_CONFIG: Record<Exclude<InfographicSize, 'custom'>, { label: string; width: number; height: number; aspectRatio: string }> = {
+  'portrait':  { label: 'Standard (1080x1920)',    width: 1080, height: 1920, aspectRatio: '9:16' },
+  'square':    { label: 'Square (1080x1080)',       width: 1080, height: 1080, aspectRatio: '1:1' },
+  'landscape': { label: 'Landscape (1920x1080)',   width: 1920, height: 1080, aspectRatio: '16:9' },
+  'a4':        { label: 'A4 Portrait (2480x3508)', width: 2480, height: 3508, aspectRatio: '3:4' },
+  'letter':    { label: 'Letter (2550x3300)',       width: 2550, height: 3300, aspectRatio: '3:4' },
 }
 
 export async function POST(request: Request) {
@@ -36,6 +36,8 @@ export async function POST(request: Request) {
     subtitle,
     content,
     size,
+    width: customWidth,
+    height: customHeight,
   } = body as {
     brandId?: string
     styleId: string
@@ -43,15 +45,28 @@ export async function POST(request: Request) {
     subtitle?: string
     content: string
     size: InfographicSize
+    width?: number
+    height?: number
   }
 
   if (!styleId || !title || !content || !size) {
     return NextResponse.json({ error: 'Please provide a title, content, style, and size' }, { status: 400 })
   }
 
-  const config = SIZE_CONFIG[size]
-  if (!config) {
-    return NextResponse.json({ error: 'Invalid size selected' }, { status: 400 })
+  let config: { label: string; width: number; height: number; aspectRatio: string }
+
+  if (size === 'custom') {
+    const w = Math.max(200, Math.min(5000, customWidth || 1080))
+    const h = Math.max(200, Math.min(5000, customHeight || 1080))
+    const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b)
+    const d = gcd(w, h)
+    config = { label: `Custom (${w}x${h})`, width: w, height: h, aspectRatio: `${w / d}:${h / d}` }
+  } else {
+    const presetConfig = SIZE_CONFIG[size]
+    if (!presetConfig) {
+      return NextResponse.json({ error: 'Invalid size selected' }, { status: 400 })
+    }
+    config = presetConfig
   }
 
   // Load brand (optional)
@@ -165,7 +180,8 @@ ${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
   }
 
   // Upload to Supabase storage
-  const storagePath = `${user.id}/infographics/${timestamp}/${size}.png`
+  const sizeLabel = size === 'custom' ? `custom-${config.width}x${config.height}` : size
+  const storagePath = `${user.id}/infographics/${timestamp}/${sizeLabel}.png`
   await admin.storage.from('videos').upload(storagePath, imageBuffer, { contentType: 'image/png', upsert: true })
   const { data: urlData } = admin.storage.from('videos').getPublicUrl(storagePath)
 

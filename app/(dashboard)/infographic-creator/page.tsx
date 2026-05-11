@@ -18,11 +18,12 @@ interface InfographicSize {
 }
 
 const INFOGRAPHIC_SIZES: InfographicSize[] = [
-  { id: 'landscape', label: 'Landscape (16:9)',  aspectRatio: '16:9', width: 1920, height: 1080, previewW: 72, previewH: 40 },
-  { id: 'portrait',  label: 'Portrait (9:16)',   aspectRatio: '9:16', width: 1080, height: 1920, previewW: 40, previewH: 72 },
-  { id: 'square',    label: 'Square (1:1)',       aspectRatio: '1:1',  width: 1080, height: 1080, previewW: 56, previewH: 56 },
-  { id: 'poster',    label: 'Poster (8.5x11")',  aspectRatio: '3:4',  width: 2550, height: 3300, previewW: 50, previewH: 66 },
-  { id: 'wide',      label: 'Wide Banner (2:1)', aspectRatio: '2:1',  width: 2400, height: 1200, previewW: 72, previewH: 36 },
+  { id: 'portrait',  label: 'Standard (1080x1920)',   aspectRatio: '9:16', width: 1080, height: 1920, previewW: 40, previewH: 72 },
+  { id: 'square',    label: 'Square (1080x1080)',      aspectRatio: '1:1',  width: 1080, height: 1080, previewW: 56, previewH: 56 },
+  { id: 'landscape', label: 'Landscape (1920x1080)',  aspectRatio: '16:9', width: 1920, height: 1080, previewW: 72, previewH: 40 },
+  { id: 'a4',        label: 'A4 Portrait (2480x3508)', aspectRatio: '3:4', width: 2480, height: 3508, previewW: 46, previewH: 66 },
+  { id: 'letter',    label: 'Letter (2550x3300)',      aspectRatio: '3:4', width: 2550, height: 3300, previewW: 50, previewH: 66 },
+  { id: 'custom',    label: 'Custom',                  aspectRatio: '1:1', width: 1080, height: 1080, previewW: 56, previewH: 56 },
 ]
 
 const STEP_LABELS = [
@@ -71,6 +72,9 @@ export default function InfographicCreatorPage() {
   const [content, setContent] = useState('')
   const [selectedSize, setSelectedSize] = useState<string>('portrait')
 
+  const [customWidth, setCustomWidth] = useState(1080)
+  const [customHeight, setCustomHeight] = useState(1080)
+
   // Step 2 state
   const [brands, setBrands] = useState<Brand[]>([])
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null)
@@ -118,6 +122,7 @@ export default function InfographicCreatorPage() {
           subtitle,
           content,
           size: selectedSize,
+          ...(selectedSize === 'custom' ? { width: customWidth, height: customHeight } : {}),
         }),
       })
 
@@ -152,6 +157,8 @@ export default function InfographicCreatorPage() {
     setSubtitle('')
     setContent('')
     setSelectedSize('portrait')
+    setCustomWidth(1080)
+    setCustomHeight(1080)
   }
 
   const currentStepIndex = getStepIndex(step)
@@ -292,6 +299,39 @@ export default function InfographicCreatorPage() {
                 )
               })}
             </div>
+
+            {selectedSize === 'custom' && (
+              <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <label className="input-label" style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                    Width (px)
+                  </label>
+                  <input
+                    type="number"
+                    className="input-text"
+                    min={200}
+                    max={5000}
+                    value={customWidth}
+                    onChange={e => setCustomWidth(Math.max(200, Math.min(5000, parseInt(e.target.value) || 200)))}
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label className="input-label" style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                    Height (px)
+                  </label>
+                  <input
+                    type="number"
+                    className="input-text"
+                    min={200}
+                    max={5000}
+                    value={customHeight}
+                    onChange={e => setCustomHeight(Math.max(200, Math.min(5000, parseInt(e.target.value) || 200)))}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <button

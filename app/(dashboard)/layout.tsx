@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '../_lib/supabase/server'
 import { createAdminClient } from '../_lib/supabase/admin'
 import Header from '../_components/Header'
+import HelpChatWidget from '../_components/HelpChatWidget'
 import type { Profile } from '../_lib/types'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -50,6 +51,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <main className="container" style={{ paddingTop: 40, paddingBottom: 40 }}>
         {children}
       </main>
+      <HelpChatWidget />
     </div>
   )
 }

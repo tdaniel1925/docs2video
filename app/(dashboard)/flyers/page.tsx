@@ -26,6 +26,22 @@ const FLYER_SIZES: FlyerSize[] = [
   { id: 'social-story', label: 'Social Media Story', dimensions: '1080 x 1920', width: 1080, height: 1920, previewW: 40, previewH: 72 },
 ]
 
+interface DimensionPreset {
+  id: string
+  label: string
+  width: number
+  height: number
+}
+
+const DIMENSION_PRESETS: DimensionPreset[] = [
+  { id: 'us-letter', label: 'US Letter (2550x3300)', width: 2550, height: 3300 },
+  { id: 'a4', label: 'A4 (2480x3508)', width: 2480, height: 3508 },
+  { id: 'square', label: 'Square (2400x2400)', width: 2400, height: 2400 },
+  { id: 'half-page', label: 'Half Page (2550x1650)', width: 2550, height: 1650 },
+  { id: 'instagram', label: 'Instagram (1080x1080)', width: 1080, height: 1080 },
+  { id: 'custom', label: 'Custom', width: 2550, height: 3300 },
+]
+
 interface GeneratedFlyer {
   size: string
   label: string
@@ -94,6 +110,11 @@ export default function FlyersPage() {
   // Step 3 state
   const [selectedSizes, setSelectedSizes] = useState<string[]>([])
 
+  // Dimension picker state
+  const [dimensionPreset, setDimensionPreset] = useState<string>('us-letter')
+  const [customWidth, setCustomWidth] = useState<number>(2550)
+  const [customHeight, setCustomHeight] = useState<number>(3300)
+
   // Step 4 state
   const [generating, setGenerating] = useState(false)
   const [currentSize, setCurrentSize] = useState('')
@@ -120,6 +141,25 @@ export default function FlyersPage() {
     })
   }, [])
 
+  const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val))
+
+  const getSelectedDimensions = () => {
+    if (dimensionPreset === 'custom') {
+      return { width: clamp(customWidth, 200, 5000), height: clamp(customHeight, 200, 5000) }
+    }
+    const preset = DIMENSION_PRESETS.find(p => p.id === dimensionPreset)
+    return { width: preset?.width ?? 2550, height: preset?.height ?? 3300 }
+  }
+
+  const handleDimensionPresetChange = (presetId: string) => {
+    setDimensionPreset(presetId)
+    const preset = DIMENSION_PRESETS.find(p => p.id === presetId)
+    if (preset && presetId !== 'custom') {
+      setCustomWidth(preset.width)
+      setCustomHeight(preset.height)
+    }
+  }
+
   const toggleSize = (id: string) => {
     setSelectedSizes(prev =>
       prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
@@ -142,6 +182,7 @@ export default function FlyersPage() {
         setCurrentSize(size?.label ?? sizeId)
       }
 
+      const dims = getSelectedDimensions()
       const res = await fetch('/api/generate-flyer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -156,6 +197,8 @@ export default function FlyersPage() {
           details,
           contactInfo,
           sizes: selectedSizes,
+          overrideWidth: dims.width,
+          overrideHeight: dims.height,
         }),
       })
 
@@ -198,6 +241,9 @@ export default function FlyersPage() {
     setDetails('')
     setContactInfo('')
     setSelectedSizes([])
+    setDimensionPreset('us-letter')
+    setCustomWidth(2550)
+    setCustomHeight(3300)
   }
 
   const currentStepIndex = getStepIndex(step)
@@ -454,6 +500,81 @@ export default function FlyersPage() {
           <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 16 }}>
             Select the flyer sizes you need.
           </p>
+
+          {/* Dimension picker */}
+          <div style={{ marginBottom: 24, padding: '16px 20px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg-card, #fff)' }}>
+            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+              Output Dimensions
+            </label>
+            <select
+              value={dimensionPreset}
+              onChange={e => handleDimensionPresetChange(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: 10,
+                border: '1px solid var(--border)',
+                fontSize: 15,
+                background: 'var(--bg-card, #fff)',
+                color: 'var(--ink)',
+                boxSizing: 'border-box',
+                marginBottom: dimensionPreset === 'custom' ? 12 : 0,
+              }}
+            >
+              {DIMENSION_PRESETS.map(p => (
+                <option key={p.id} value={p.id}>{p.label}</option>
+              ))}
+            </select>
+
+            {dimensionPreset === 'custom' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--muted)' }}>Width (px)</label>
+                  <input
+                    type="number"
+                    min={200}
+                    max={5000}
+                    value={customWidth}
+                    onChange={e => setCustomWidth(clamp(Number(e.target.value) || 200, 200, 5000))}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      border: '1px solid var(--border)',
+                      fontSize: 15,
+                      background: 'var(--bg-card, #fff)',
+                      color: 'var(--ink)',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--muted)' }}>Height (px)</label>
+                  <input
+                    type="number"
+                    min={200}
+                    max={5000}
+                    value={customHeight}
+                    onChange={e => setCustomHeight(clamp(Number(e.target.value) || 200, 200, 5000))}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      border: '1px solid var(--border)',
+                      fontSize: 15,
+                      background: 'var(--bg-card, #fff)',
+                      color: 'var(--ink)',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
+              All selected sizes below will be generated at {dimensionPreset === 'custom' ? `${clamp(customWidth, 200, 5000)}x${clamp(customHeight, 200, 5000)}` : `${DIMENSION_PRESETS.find(p => p.id === dimensionPreset)?.width}x${DIMENSION_PRESETS.find(p => p.id === dimensionPreset)?.height}`} pixels.
+            </div>
+          </div>
 
           <button
             className="btn btn-soft"
