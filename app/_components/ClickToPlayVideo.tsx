@@ -10,11 +10,12 @@ interface ClickToPlayVideoProps {
 
 export default function ClickToPlayVideo({ src, poster, style }: ClickToPlayVideoProps) {
   const [playing, setPlaying] = useState(false)
+  const [error, setError] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
 
   function handlePlay() {
     if (videoRef.current) {
-      videoRef.current.play()
+      videoRef.current.play().catch(() => setError(true))
       setPlaying(true)
     }
   }
@@ -25,17 +26,19 @@ export default function ClickToPlayVideo({ src, poster, style }: ClickToPlayVide
         ref={videoRef}
         src={src}
         poster={poster}
+        preload="metadata"
         playsInline
         controls={playing}
         onEnded={() => setPlaying(false)}
+        onError={() => setError(true)}
         style={{ width: '100%', borderRadius: 10, display: 'block', aspectRatio: '16/9', background: '#0a1628' }}
       />
-      {!playing && (
+      {!playing && !error && (
         <div style={{
           position: 'absolute', inset: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           borderRadius: 10,
-          background: 'rgba(0,0,0,0.15)',
+          background: poster ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.15)',
         }}>
           <div style={{
             width: 72, height: 72, borderRadius: '50%',
@@ -48,6 +51,16 @@ export default function ClickToPlayVideo({ src, poster, style }: ClickToPlayVide
               <polygon points="8 4 20 12 8 20" />
             </svg>
           </div>
+        </div>
+      )}
+      {error && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          borderRadius: 10, background: '#0a1628', color: 'white',
+          fontSize: 14,
+        }}>
+          Video unavailable
         </div>
       )}
     </div>
