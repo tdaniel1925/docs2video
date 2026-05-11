@@ -20,8 +20,9 @@ export async function compositeSlide(
 
   const composites: any[] = []
 
-  // Add logo to top-left area (all slides) with a subtle backdrop for readability
-  if (logoUrl) {
+  // Add logo to top-left area — ONLY on first slide (cover) and last slide (CTA)
+  // Content slides in between are logo-free (info bar at bottom has brand details)
+  if (logoUrl && (isFirstSlide || isLastSlide)) {
     try {
       const logoRes = await fetch(logoUrl)
       if (logoRes.ok) {
