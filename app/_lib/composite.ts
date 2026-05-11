@@ -26,8 +26,8 @@ export async function compositeSlide(
       const logoRes = await fetch(logoUrl)
       if (logoRes.ok) {
         const logoBuffer = Buffer.from(await logoRes.arrayBuffer())
-        const logoWidth = 180
-        const logoHeight = 60
+        const logoWidth = 240
+        const logoHeight = 80
         const logoImage = await sharp(logoBuffer)
           .resize({ width: logoWidth, height: logoHeight, fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
           .png()

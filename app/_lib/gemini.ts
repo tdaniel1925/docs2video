@@ -441,7 +441,7 @@ ${brandName ? `- Brand: ${brandName}` : ''}`
 
   const promptText = `Create a professional presentation slide for ${getDocumentTypeLabel(data)} explainer video.
 
-${logoBuffer ? 'A company logo image is provided. Integrate it into the slide and match its colors throughout the design.' : ''}
+${logoBuffer ? 'A company logo image is provided as a color reference ONLY. Extract its colors for the slide palette. DO NOT draw or place the logo on the slide — it will be composited separately.' : ''}
 
 DESIGN STYLE (follow the layout, typography, visual approach, and aesthetic ONLY — colors come from the brand/logo, not the style):
 ${style.prompt}
