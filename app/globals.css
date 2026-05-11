@@ -1093,32 +1093,23 @@ h1.hero-title em {
 }
 .content-row.reverse .content-text { order: 2; }
 .content-visual {
-  background: var(--mint);
-  border-radius: 10px;
-  padding: 48px;
-  aspect-ratio: 1/1;
+  position: relative;
+  overflow: visible;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  overflow: visible;
+  transform: scale(1.15);
+  transform-origin: center center;
 }
-.content-visual.peach { background: var(--peach); }
-.content-visual.lilac { background: var(--lilac); }
+/* Offset mockups: odd rows push right, even rows (reverse) push left */
+.content-row .content-visual { transform: scale(1.15) translateX(30px); }
+.content-row.reverse .content-visual { transform: scale(1.15) translateX(-30px); }
+.content-visual.peach, .content-visual.lilac, .content-visual.mint { background: none; }
 .content-visual::before {
-  content: '';
-  position: absolute;
-  top: -40px; right: -40px;
-  width: 160px; height: 160px;
-  background: rgba(255,255,255,0.4);
-  border-radius: 50%;
+  display: none;
 }
 .content-visual::after {
-  content: '';
-  position: absolute;
-  bottom: -60px; left: -60px;
-  width: 200px; height: 200px;
-  background: rgba(255,255,255,0.3);
+  display: none;
   border-radius: 50%;
 }
 .content-mockup {
@@ -1456,6 +1447,8 @@ h1.hero-title em {
   .float-shape { display: none; }
   .content-row { grid-template-columns: 1fr; gap: 40px; }
   .content-row.reverse .content-text { order: 0; }
+  .content-row .content-visual,
+  .content-row.reverse .content-visual { transform: none; }
   .testimonial-grid { grid-template-columns: 1fr; }
   .faq-section { grid-template-columns: 1fr; }
   .footer-grid { grid-template-columns: 1fr 1fr; }
