@@ -1,9 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '../../_lib/supabase/client'
-import type { Brand } from '../../_lib/types'
-import { SLIDE_STYLES } from '../../_lib/types'
+import BrandStylePicker from '../../_components/BrandStylePicker'
 
 type Step = 'content' | 'style' | 'sizes' | 'results'
 
@@ -103,9 +101,9 @@ export default function FlyersPage() {
   const [contactInfo, setContactInfo] = useState('')
 
   // Step 2 state
-  const [brands, setBrands] = useState<Brand[]>([])
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null)
   const [selectedStyle, setSelectedStyle] = useState<string>('executive')
+  const [customStylePrompt, setCustomStylePrompt] = useState('')
 
   // Step 3 state
   const [selectedSizes, setSelectedSizes] = useState<string[]>([])
@@ -120,26 +118,6 @@ export default function FlyersPage() {
   const [currentSize, setCurrentSize] = useState('')
   const [generatedFlyers, setGeneratedFlyers] = useState<GeneratedFlyer[]>([])
   const [error, setError] = useState<string | null>(null)
-
-  // Load brands
-  useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) return
-      supabase
-        .from('brands')
-        .select('*')
-        .eq('user_id', data.user.id)
-        .order('is_default', { ascending: false })
-        .then(({ data: brandData }) => {
-          if (brandData && brandData.length > 0) {
-            setBrands(brandData)
-            const defaultBrand = brandData.find(b => b.is_default) ?? brandData[0]
-            setSelectedBrand(defaultBrand.id)
-          }
-        })
-    })
-  }, [])
 
   const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val))
 
@@ -189,6 +167,7 @@ export default function FlyersPage() {
         body: JSON.stringify({
           brandId: selectedBrand,
           styleId: selectedStyle,
+          customStylePrompt: customStylePrompt || undefined,
           eventName,
           eventDate,
           eventTime,
@@ -413,66 +392,13 @@ export default function FlyersPage() {
             Choose a visual style for your flyers. Your brand colors will be applied automatically.
           </p>
 
-          {brands.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <label className="input-label" style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
-                Brand
-              </label>
-              <select
-                className="input-select"
-                value={selectedBrand ?? ''}
-                onChange={e => setSelectedBrand(e.target.value || null)}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 10,
-                  border: '1px solid var(--border)',
-                  fontSize: 15,
-                  background: 'var(--bg-card, #fff)',
-                  color: 'var(--ink)',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <option value="">No brand</option>
-                {brands.map(b => (
-                  <option key={b.id} value={b.id}>{b.name}{b.is_default ? ' (default)' : ''}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-            gap: 12,
-            marginBottom: 24,
-          }}>
-            {SLIDE_STYLES.map(style => (
-              <div
-                key={style.id}
-                onClick={() => setSelectedStyle(style.id)}
-                style={{
-                  border: selectedStyle === style.id ? '2px solid var(--mint)' : '2px solid var(--border)',
-                  borderRadius: 10,
-                  padding: 0,
-                  cursor: 'pointer',
-                  overflow: 'hidden',
-                  transition: 'border-color 0.2s',
-                  background: 'var(--bg-card, #fff)',
-                }}
-              >
-                <img
-                  src={`/style-previews/${style.id}.png`}
-                  alt={style.name}
-                  style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
-                />
-                <div style={{ padding: '8px 10px' }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{style.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{style.description}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <BrandStylePicker
+            onSelect={({ brandId: b, styleId: s, customStylePrompt: p }) => {
+              setSelectedBrand(b)
+              setSelectedStyle(s)
+              if (p) setCustomStylePrompt(p)
+            }}
+          />
 
           <div style={{ display: 'flex', gap: 12 }}>
             <button

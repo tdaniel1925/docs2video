@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import BrandStylePicker from '../../_components/BrandStylePicker'
 
 type ChatMessage = {
   role: 'user' | 'assistant'
@@ -10,6 +11,7 @@ type ChatMessage = {
 
 export default function ImageRemixPage() {
   const [referenceImage, setReferenceImage] = useState<string | null>(null)
+  const [brandId, setBrandId] = useState<string | null>(null)
   const [remixResult, setRemixResult] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -86,6 +88,7 @@ export default function ImageRemixPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           referenceImage,
+          brandId,
           instructions: userText,
         }),
       })
@@ -178,6 +181,17 @@ export default function ImageRemixPage() {
                 </button>
               </div>
               <img src={referenceImage} alt="Reference" style={{ width: '100%', borderRadius: 10, display: 'block' }} />
+            </div>
+
+            {/* Brand Picker */}
+            <div className="wizard-card" style={{ padding: 16, borderRadius: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-soft, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Brand</div>
+              <BrandStylePicker
+                showStyle={false}
+                onSelect={({ brandId: b }) => {
+                  setBrandId(b)
+                }}
+              />
             </div>
 
             {/* Remix Result */}

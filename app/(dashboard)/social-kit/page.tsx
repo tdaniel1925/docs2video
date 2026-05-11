@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import BrandStylePicker from '../../_components/BrandStylePicker'
 
 type Step = 'input' | 'generating' | 'results'
 
@@ -43,7 +44,9 @@ export default function SocialKitPage() {
   const [tagline, setTagline] = useState('')
   const [description, setDescription] = useState('')
   const [primaryColor, setPrimaryColor] = useState('#1B3A5C')
+  const [brandId, setBrandId] = useState<string | null>(null)
   const [styleId, setStyleId] = useState('modern')
+  const [customStylePrompt, setCustomStylePrompt] = useState('')
   const [referenceImage, setReferenceImage] = useState<string | null>(null)
   const [imageName, setImageName] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -97,7 +100,9 @@ export default function SocialKitPage() {
           tagline: tagline || undefined,
           description: description || undefined,
           primaryColor,
+          brandId,
           styleId,
+          customStylePrompt: customStylePrompt || undefined,
           referenceImage: referenceImage || undefined,
         }),
       })
@@ -307,36 +312,16 @@ export default function SocialKitPage() {
             </div>
           </div>
 
-          {/* Style picker */}
+          {/* Brand & Style picker */}
           <div style={{ marginBottom: 20 }}>
-            <label className="input-label" style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
-              Design Style
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {[
-                { id: 'modern', label: 'Modern', desc: 'Bold shapes, vibrant gradients' },
-                { id: 'luxury', label: 'Luxury', desc: 'Dark theme, gold accents' },
-                { id: 'editorial', label: 'Editorial', desc: 'Magazine-style typography' },
-                { id: 'minimal', label: 'Minimal', desc: 'Clean whitespace, simple' },
-                { id: 'creative', label: 'Creative', desc: 'Playful, colorful, dynamic' },
-                { id: 'executive', label: 'Corporate', desc: 'Structured, data-driven' },
-              ].map(s => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setStyleId(s.id)}
-                  style={{
-                    padding: '12px 14px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
-                    border: styleId === s.id ? '2px solid var(--mint)' : '1px solid var(--border)',
-                    background: styleId === s.id ? 'rgba(168,240,212,0.1)' : 'white',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{s.label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 2 }}>{s.desc}</div>
-                </button>
-              ))}
-            </div>
+            <BrandStylePicker
+              onSelect={({ brandId: b, styleId: s, customStylePrompt: p }) => {
+                setBrandId(b)
+                setStyleId(s)
+                if (p) setCustomStylePrompt(p)
+              }}
+              initialStyleId="modern"
+            />
           </div>
 
           <div style={{ marginBottom: 24 }}>
