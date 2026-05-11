@@ -15,6 +15,7 @@ const CREATE_ITEMS = [
   { href: '/business-cards', icon: '\uD83D\uDCB3', title: 'Business Card', desc: 'Create branded cards' },
   { href: '/logo-creator', icon: '\uD83C\uDFA8', title: 'Logo', desc: 'AI-powered logo design' },
   { href: '/templates', icon: '\uD83C\uDFAF', title: 'Custom Template', desc: 'Build your own slide style' },
+  { href: '/course-builder', icon: '\uD83C\uDF93', title: 'Course Builder', desc: 'Multi-episode video series' },
 ]
 
 const NAV_LINKS = [

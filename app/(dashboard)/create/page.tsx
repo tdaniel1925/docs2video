@@ -7,7 +7,7 @@ import type { Brand, ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { VOICE_OPTIONS, SLIDE_STYLES } from '../../_lib/types'
 
-type InputTab = 'upload' | 'text' | 'idea' | 'url' | 'proposal'
+type InputTab = 'upload' | 'text' | 'idea' | 'url' | 'research' | 'proposal'
 
 type Step = 'upload' | 'extracting' | 'review' | 'choose-brand' | 'choose-style' | 'approve-slides' | 'choose-voice' | 'generating' | 'done'
 
@@ -156,6 +156,9 @@ export default function CreatePage() {
   const [ideaKeyPoints, setIdeaKeyPoints] = useState('')
   const [textExtracting, setTextExtracting] = useState(false)
   const [urlInput, setUrlInput] = useState('')
+  const [researchTopic, setResearchTopic] = useState('')
+  const [researchLoading, setResearchLoading] = useState(false)
+  const [researchDepth, setResearchDepth] = useState<'quick' | 'detailed'>('quick')
 
   // Proposal chat state
   const [proposalMessages, setProposalMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([
@@ -592,6 +595,7 @@ export default function CreatePage() {
               { key: 'upload' as InputTab, label: 'Upload PDF', accent: false },
               { key: 'text' as InputTab, label: 'Type or Paste', accent: false },
               { key: 'url' as InputTab, label: 'From URL', accent: false },
+              { key: 'research' as InputTab, label: 'AI Research', accent: true },
               { key: 'idea' as InputTab, label: 'Start from Idea', accent: false },
               ...(['professional', 'active', 'agency'].includes(userPlan.toLowerCase())
                 ? [{ key: 'proposal' as InputTab, label: 'AI Proposal', accent: true }]
@@ -728,6 +732,77 @@ export default function CreatePage() {
                   className="btn btn-primary"
                 >
                   {textExtracting ? 'Extracting...' : 'Extract & Continue \u2192'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Tab: AI Research */}
+          {inputTab === 'research' && (
+            <div>
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label className="input-label">What should we research?</label>
+                <textarea
+                  className="input"
+                  style={{ minHeight: 80, resize: 'vertical', fontFamily: 'inherit', fontSize: 14, lineHeight: 1.6 }}
+                  placeholder="e.g., Benefits of whole life insurance vs term life&#10;or: Solar energy market trends 2025&#10;or: How AI is transforming healthcare"
+                  value={researchTopic}
+                  onChange={(e) => setResearchTopic(e.target.value)}
+                />
+                <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 6 }}>
+                  AI will research this topic, find real data and statistics, and structure it for your video.
+                </div>
+              </div>
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label className="input-label">Research Depth</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => setResearchDepth('quick')}
+                    className={`btn ${researchDepth === 'quick' ? 'btn-primary' : 'btn-soft'}`}
+                    type="button"
+                    style={{ flex: 1 }}
+                  >
+                    Quick (4-6 data points)
+                  </button>
+                  <button
+                    onClick={() => setResearchDepth('detailed')}
+                    className={`btn ${researchDepth === 'detailed' ? 'btn-primary' : 'btn-soft'}`}
+                    type="button"
+                    style={{ flex: 1 }}
+                  >
+                    Detailed (8-12 data points)
+                  </button>
+                </div>
+              </div>
+              <div className="wizard-actions" style={{ marginTop: 16 }}>
+                <button
+                  onClick={async () => {
+                    if (!researchTopic.trim()) return
+                    setResearchLoading(true)
+                    setStep('extracting')
+                    setError(null)
+                    try {
+                      const res = await fetch('/api/ai-research', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ topic: researchTopic, depth: researchDepth }),
+                      })
+                      const data = await res.json()
+                      if (!res.ok) throw new Error(data.error || 'Research failed')
+                      setGeneralData(data.research)
+                      setExtractedData(null)
+                      setStep('review')
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Research failed')
+                      setStep('upload')
+                    } finally {
+                      setResearchLoading(false)
+                    }
+                  }}
+                  disabled={!researchTopic.trim() || researchLoading}
+                  className="btn btn-primary"
+                >
+                  {researchLoading ? 'Researching...' : 'Research & Continue \u2192'}
                 </button>
               </div>
             </div>
