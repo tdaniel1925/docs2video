@@ -745,7 +745,10 @@ export default function VideoDetailPage() {
             min-height: auto !important;
           }
           .editor-right {
-            max-height: 50vh !important;
+            max-height: 60vh !important;
+          }
+          .action-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
           }
         }
         .chat-input-wrap:focus-within {
@@ -797,15 +800,27 @@ export default function VideoDetailPage() {
           background: var(--bg);
           border-color: var(--mint);
         }
+        .action-grid button {
+          padding: 10px 8px;
+          font-size: 13px;
+          font-weight: 600;
+          border-radius: 8px;
+          cursor: pointer;
+          text-align: center;
+          white-space: nowrap;
+        }
       `}</style>
 
+      {/* Page Header */}
       <Link href="/videos" className="back-link">
-        &larr; Back to explainers
+        &larr; Back to Library
       </Link>
 
       <div style={{ marginBottom: 24 }}>
-        <h1 className="page-title">{video.title ?? 'Untitled'}</h1>
-        <div className="page-meta">
+        <h1 className="page-title" style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4 }}>
+          {video.title ?? 'Untitled'}
+        </h1>
+        <div style={{ fontSize: 14, color: 'var(--ink-light)' }}>
           {new Date(video.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           {video.duration && ` \u00b7 ${Math.floor(video.duration / 60)}:${(video.duration % 60).toString().padStart(2, '0')}`}
         </div>
@@ -820,7 +835,7 @@ export default function VideoDetailPage() {
         <div style={{
           background: 'white',
           border: '1px solid var(--rose)',
-          borderRadius: '10px',
+          borderRadius: 10,
           padding: '48px',
           textAlign: 'center',
         }}>
@@ -833,7 +848,6 @@ export default function VideoDetailPage() {
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16 }}>
             <button
               onClick={async () => {
-                // Reset video to pending so pipeline restarts
                 const supabase = createClient()
                 await supabase.from('videos').update({ status: 'pending', error_message: null }).eq('id', video.id)
                 pipelineStarted.current = false
@@ -861,27 +875,27 @@ export default function VideoDetailPage() {
         </div>
       )}
 
-      {/* Side-by-side editor layout — only when completed */}
+      {/* Two-column editor layout -- only when completed */}
       {video.status === 'completed' && video.video_url && (
         <div
           className="editor-layout"
           style={{
             display: 'flex',
-            gap: 20,
-            minHeight: 'calc(100vh - 220px)',
+            gap: 24,
+            alignItems: 'stretch',
           }}
         >
-          {/* LEFT SIDE — Video Player + Thumbnails */}
+          {/* LEFT COLUMN -- 60% -- Video + Thumbnails + Actions */}
           <div
             className="editor-left"
             style={{
               width: '60%',
               display: 'flex',
               flexDirection: 'column',
-              gap: 12,
+              gap: 16,
             }}
           >
-            {/* HTML5 Video Player */}
+            {/* Video Player */}
             <div style={{
               background: '#000',
               borderRadius: 10,
@@ -919,7 +933,7 @@ export default function VideoDetailPage() {
               </div>
             )}
 
-            {/* Thumbnail timeline strip */}
+            {/* Horizontal scrollable thumbnail strip */}
             {slideCount > 0 && (
               <div style={{
                 display: 'flex',
@@ -961,9 +975,54 @@ export default function VideoDetailPage() {
                 ))}
               </div>
             )}
+
+            {/* Action buttons row -- all same size, evenly spaced */}
+            <div
+              className="action-grid"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(6, 1fr)',
+                gap: 10,
+                marginTop: 8,
+              }}
+            >
+              <button onClick={() => setShowShareModal(true)} className="btn btn-mint" style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}>
+                Share with Client
+              </button>
+              <button onClick={copyShareLink} className="btn btn-soft" style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}>
+                Copy Link
+              </button>
+              <button onClick={handleDownload} className="btn btn-soft" style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}>
+                MP4
+              </button>
+              <button
+                onClick={handleDownloadPDF}
+                disabled={downloadingPDF}
+                className="btn btn-soft"
+                style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8, ...(downloadingPDF ? { opacity: 0.5 } : {}) }}
+              >
+                {downloadingPDF ? 'PDF...' : 'PDF'}
+              </button>
+              <button
+                onClick={handleDownloadPPTX}
+                disabled={downloadingPPTX}
+                className="btn btn-soft"
+                style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8, ...(downloadingPPTX ? { opacity: 0.5 } : {}) }}
+              >
+                {downloadingPPTX ? 'PPTX...' : 'PPTX'}
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="btn btn-danger"
+                style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8, ...(deleting ? { opacity: 0.5 } : {}) }}
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
           </div>
 
-          {/* RIGHT SIDE — AI Editor Panel */}
+          {/* RIGHT COLUMN -- 40% -- Quick Actions + Chat */}
           <div
             className="editor-right"
             style={{
@@ -974,13 +1033,16 @@ export default function VideoDetailPage() {
               border: '1px solid var(--border-light)',
               borderRadius: 10,
               overflow: 'hidden',
+              minHeight: 480,
+              maxHeight: 'calc(100vh - 200px)',
             }}
           >
-            {/* Quick action buttons */}
+            {/* Quick Actions header + 2x3 grid */}
             <div style={{
               padding: '14px 16px',
               borderBottom: '1px solid var(--border-light)',
               background: 'white',
+              flexShrink: 0,
             }}>
               <div style={{
                 fontSize: 11,
@@ -1010,19 +1072,19 @@ export default function VideoDetailPage() {
               </div>
             </div>
 
-            {/* Chat messages */}
+            {/* Chat messages area -- fills available space */}
             <div
               ref={chatListRef}
               style={{
                 flex: 1,
                 overflowY: 'auto',
-                padding: '16px',
+                padding: 16,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 12,
+                minHeight: 0,
               }}
             >
-              {/* Welcome message when chat is empty */}
               {chatMessages.length === 0 && (
                 <div style={{
                   padding: '12px 14px', borderRadius: 10, fontSize: 13, lineHeight: 1.5,
@@ -1068,11 +1130,12 @@ export default function VideoDetailPage() {
               )}
             </div>
 
-            {/* Chat input */}
+            {/* Chat input at bottom */}
             <div style={{
               padding: '12px 16px',
               borderTop: '1px solid var(--border-light)',
               background: 'white',
+              flexShrink: 0,
             }}>
               <div
                 className="chat-input-wrap"
@@ -1126,33 +1189,10 @@ export default function VideoDetailPage() {
         </div>
       )}
 
-      {/* Action buttons — below the editor */}
-      {video.status === 'completed' && (
-        <div style={{ marginTop: 24 }}>
-          <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
-            <button onClick={() => setShowShareModal(true)} className="btn btn-mint">Share with Client</button>
-            <button onClick={copyShareLink} className="btn btn-soft">Copy Link</button>
-            <button onClick={handleDownload} className="btn btn-soft">MP4</button>
-            <button onClick={handleDownloadPDF} disabled={downloadingPDF} className="btn btn-soft"
-              style={downloadingPDF ? {opacity:0.5} : undefined}>
-              {downloadingPDF ? 'PDF...' : 'PDF'}
-            </button>
-            <button onClick={handleDownloadPPTX} disabled={downloadingPPTX} className="btn btn-soft"
-              style={downloadingPPTX ? {opacity:0.5} : undefined}>
-              {downloadingPPTX ? 'PPTX...' : 'PPTX'}
-            </button>
-            <button onClick={handleDelete} disabled={deleting} className="btn btn-danger"
-              style={{marginLeft:'auto',...(deleting ? {opacity:0.5} : {})}}>
-              {deleting ? 'Deleting...' : 'Delete'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Follow-Up Plan Section */}
+      {/* Follow-Up Plan Section -- below columns, full width */}
       {PRO_PLANS.includes(userPlan.toLowerCase()) && video.status === 'completed' && (
-        <div className="detail-section section-gap-lg">
-          <h2>Follow-Up Plan</h2>
+        <div style={{ marginTop: 24 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Follow-Up Plan</h2>
 
           {!followUpPlan && !showFollowUpForm && (
             <div style={{
@@ -1172,7 +1212,7 @@ export default function VideoDetailPage() {
           )}
 
           {!followUpPlan && showFollowUpForm && (
-            <div className="settings-card" style={{ padding: 24, borderRadius: 10 }}>
+            <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 24 }}>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Client Name</label>
                 <input
@@ -1292,15 +1332,22 @@ export default function VideoDetailPage() {
         </div>
       )}
 
-      {/* Quote / Invoice Section */}
+      {/* Quote / Invoice Section -- below columns, full width */}
       {PRO_PLANS.includes(userPlan.toLowerCase()) && video.status === 'completed' && (
-        <div className="detail-section section-gap-lg">
-          <h2>Quote / Invoice</h2>
+        <div style={{ marginTop: 24 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Quote / Invoice</h2>
 
           {!existingQuote && !showQuoteBuilder && (
-            <div className="settings-card" style={{ marginTop: 0 }}>
-              <h3>Quote / Invoice</h3>
-              <p className="ssub">Attach pricing to this presentation. Your client will see a payment button on the share page.</p>
+            <div style={{
+              background: 'white',
+              border: '1px dashed var(--border)',
+              borderRadius: 10,
+              padding: '32px',
+              textAlign: 'center',
+            }}>
+              <p style={{ fontSize: 15, color: 'var(--ink-soft)', marginBottom: 14 }}>
+                Attach pricing to this presentation. Your client will see a payment button on the share page.
+              </p>
               <button onClick={() => setShowQuoteBuilder(true)} className="btn btn-primary">
                 Add Quote &rarr;
               </button>
@@ -1362,7 +1409,7 @@ export default function VideoDetailPage() {
           )}
 
           {showQuoteBuilder && (
-            <div className="settings-card" style={{ padding: 24, borderRadius: 10 }}>
+            <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 24 }}>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Client Name</label>
                 <input
