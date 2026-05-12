@@ -7,7 +7,7 @@ import { compositeSlide } from '../../_lib/composite'
 import { synthesizeSpeech } from '../../_lib/tts'
 // Video assembly is offloaded to the Hetzner VPS (video-service)
 const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
-const VIDEO_ASSEMBLY_SECRET = process.env.VIDEO_ASSEMBLY_SECRET || 'docs2video-assembly-secret-2026'
+const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || 'docs2video-assembly-secret-2026').trim().replace(/[\r\n]/g, '')
 import { deductCredits } from '../../_lib/credits'
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
 import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
