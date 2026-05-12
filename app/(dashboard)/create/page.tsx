@@ -145,6 +145,9 @@ export default function CreatePage() {
   const router = useRouter()
   const [step, setStep] = useState<Step>('upload')
   const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
+  const [multiDocData, setMultiDocData] = useState<ExtractedData[]>([])
+  const [comparisonNotes, setComparisonNotes] = useState('')
   const [brands, setBrands] = useState<Brand[]>([])
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null)
   const [extractedData, setExtractedData] = useState<ExtractedPolicyData | null>(null)
@@ -230,7 +233,61 @@ export default function CreatePage() {
     setError(null)
   }, [])
 
+  const handleMultiFileSelect = useCallback((selectedFiles: FileList | File[]) => {
+    const newFiles: File[] = []
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const f = selectedFiles[i]
+      if (f.type !== 'application/pdf') { setError('Please upload PDF files only'); return }
+      if (f.size > 20 * 1024 * 1024) { setError('Each file must be under 20MB'); return }
+      newFiles.push(f)
+    }
+    setFiles(prev => [...prev, ...newFiles])
+    // Also set the first file as the single file for backward compat
+    if (newFiles.length === 1 && files.length === 0) {
+      setFile(newFiles[0])
+    }
+    setError(null)
+  }, [files.length])
+
+  function handleRemoveFile(index: number) {
+    setFiles(prev => {
+      const updated = prev.filter((_, i) => i !== index)
+      // Keep single file in sync
+      if (updated.length === 1) setFile(updated[0])
+      else if (updated.length === 0) setFile(null)
+      return updated
+    })
+  }
+
   async function handleExtract() {
+    // Multi-doc extraction
+    if (files.length > 1) {
+      setStep('extracting')
+      setError(null)
+      try {
+        const results = await Promise.all(
+          files.map(async (f) => {
+            const formData = new FormData()
+            formData.append('file', f)
+            const res = await fetch('/api/extract', { method: 'POST', body: formData })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error || `Extraction failed for ${f.name}`)
+            return data.general as ExtractedData
+          })
+        )
+        setMultiDocData(results)
+        // Set the first doc as the active general data for backward compat
+        setGeneralData(results[0])
+        setExtractedData(null)
+        setStep('review')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Extraction failed')
+        setStep('upload')
+      }
+      return
+    }
+
+    // Single file extraction (original flow)
     if (!file) return
     setStep('extracting')
     setError(null)
@@ -249,6 +306,7 @@ export default function CreatePage() {
         setGeneralData(data.general)
         setExtractedData(null)
       }
+      setMultiDocData([])
       setStep('review')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Extraction failed')
@@ -394,7 +452,13 @@ export default function CreatePage() {
       const res = await fetch('/api/generate-script', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ policyData: activeData, brandId: selectedBrand, detailed: detailedMode }),
+        body: JSON.stringify({
+          policyData: multiDocData.length > 1 ? multiDocData : activeData,
+          brandId: selectedBrand,
+          detailed: detailedMode,
+          comparisonMode: multiDocData.length > 1,
+          comparisonNotes: comparisonNotes || undefined,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Script generation failed')
@@ -639,37 +703,71 @@ export default function CreatePage() {
 
           {/* Tab: Upload PDF */}
           {inputTab === 'upload' && (
-            <div
-              className={`upload-zone${dragOver ? ' dragover' : ''}`}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFileSelect(f) }}
-            >
-              {file ? (
-                <>
-                  <div className="upload-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  </div>
-                  <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{file.name}</div>
-                  <div style={{ fontSize: 14, color: 'var(--ink-light)', marginBottom: 18 }}>{(file.size / 1024 / 1024).toFixed(1)} MB</div>
-                  <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                    <button onClick={() => { setFile(null); setError(null) }} className="btn btn-soft btn-sm">Change</button>
-                    <button onClick={handleExtract} className="btn btn-primary btn-sm">Extract Data</button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="upload-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  </div>
-                  <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 6 }}>Drop your document here</div>
-                  <div style={{ fontSize: 14, color: 'var(--ink-light)', marginBottom: 18 }}>PDF up to 20 MB</div>
-                  <label className="btn btn-mint btn-sm" style={{ cursor: 'pointer' }}>
-                    Choose File
-                    <input type="file" accept=".pdf" className="hidden" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f) }} />
-                  </label>
-                </>
-              )}
+            <div>
+              <div
+                className={`upload-zone${dragOver ? ' dragover' : ''}`}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault(); setDragOver(false)
+                  const droppedFiles = e.dataTransfer.files
+                  if (droppedFiles.length > 0) handleMultiFileSelect(droppedFiles)
+                }}
+              >
+                {files.length > 0 ? (
+                  <>
+                    {/* File list */}
+                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                      {files.map((f, i) => (
+                        <div key={i} style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          background: 'var(--surface-raised, #f8fafc)', borderRadius: 8,
+                          padding: '10px 14px', border: '1px solid var(--border, #e2e8f0)',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: 14 }}>{f.name}</div>
+                              <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>{(f.size / 1024 / 1024).toFixed(1)} MB</div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleRemoveFile(i) }}
+                            className="btn btn-soft btn-sm"
+                            style={{ padding: '4px 10px', fontSize: 12, minWidth: 'auto' }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Actions */}
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <label className="btn btn-soft btn-sm" style={{ cursor: 'pointer' }}>
+                        + Add more files
+                        <input type="file" accept=".pdf" multiple className="hidden" style={{ display: 'none' }} onChange={(e) => { if (e.target.files) handleMultiFileSelect(e.target.files); e.target.value = '' }} />
+                      </label>
+                      <button onClick={() => { setFiles([]); setFile(null); setError(null) }} className="btn btn-soft btn-sm">Clear all</button>
+                      <button onClick={handleExtract} className="btn btn-primary btn-sm">
+                        {files.length > 1 ? 'Extract & Compare' : 'Extract Data'} &rarr;
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="upload-icon">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 6 }}>Drop your documents here</div>
+                    <div style={{ fontSize: 14, color: 'var(--ink-light)', marginBottom: 18 }}>PDF up to 20 MB each. Upload multiple to compare.</div>
+                    <label className="btn btn-mint btn-sm" style={{ cursor: 'pointer' }}>
+                      Choose Files
+                      <input type="file" accept=".pdf" multiple className="hidden" style={{ display: 'none' }} onChange={(e) => { if (e.target.files) handleMultiFileSelect(e.target.files); e.target.value = '' }} />
+                    </label>
+                  </>
+                )}
+              </div>
             </div>
           )}
 
@@ -1006,15 +1104,134 @@ export default function CreatePage() {
       {/* Step: Review extracted data */}
       {step === 'review' && activeData && (
         <div className="wizard-card">
-          <h2>Does this look right?</h2>
-          <p className="wizard-sub">
-            {isGeneralData
-              ? 'Here\'s what we put together. Make sure everything looks correct before we design your slides.'
-              : 'Here\'s what we found in your document. Review and correct anything that\'s off — this data will appear in your video.'}
-          </p>
+          {multiDocData.length > 1 ? (
+            <>
+              <h2>Comparing {multiDocData.length} documents</h2>
+              <p className="wizard-sub">Review the extracted data from each document. Key differences are highlighted below.</p>
+            </>
+          ) : (
+            <>
+              <h2>Does this look right?</h2>
+              <p className="wizard-sub">
+                {isGeneralData
+                  ? 'Here\'s what we put together. Make sure everything looks correct before we design your slides.'
+                  : 'Here\'s what we found in your document. Review and correct anything that\'s off — this data will appear in your video.'}
+              </p>
+            </>
+          )}
 
-          {/* Insurance-specific (ExtractedPolicyData) review */}
-          {extractedData && !isGeneralData && (
+          {/* Multi-document comparison view */}
+          {multiDocData.length > 1 && (
+            <>
+              {/* Comparison summary card */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(168,240,212,0.12), rgba(196,181,253,0.12))',
+                border: '1px solid var(--border, #e2e8f0)',
+                borderRadius: 12, padding: '18px 22px', marginBottom: 20,
+              }}>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker, #4a7c59)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  Comparison Summary
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.7 }}>
+                  {(() => {
+                    const titles = multiDocData.map(d => d.title).filter(Boolean)
+                    const allMetricLabels = [...new Set(multiDocData.flatMap(d => d.keyMetrics.map(m => m.label)))]
+                    const diffs: string[] = []
+                    allMetricLabels.forEach(label => {
+                      const values = multiDocData.map(d => {
+                        const m = d.keyMetrics.find(km => km.label === label)
+                        return m ? m.value : 'N/A'
+                      })
+                      const unique = [...new Set(values)]
+                      if (unique.length > 1) {
+                        diffs.push(`${label}: ${values.join(' vs ')}`)
+                      }
+                    })
+                    return (
+                      <>
+                        <div style={{ marginBottom: 6 }}><strong>Documents:</strong> {titles.join(', ') || `${multiDocData.length} documents`}</div>
+                        {diffs.length > 0 ? (
+                          <>
+                            <div style={{ fontWeight: 600, marginBottom: 4 }}>Key differences:</div>
+                            <ul style={{ margin: 0, paddingLeft: 18 }}>
+                              {diffs.slice(0, 8).map((d, i) => <li key={i}>{d}</li>)}
+                            </ul>
+                          </>
+                        ) : (
+                          <div>No major metric differences detected between documents.</div>
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
+              </div>
+
+              {/* Each document as a collapsible card */}
+              {multiDocData.map((doc, docIdx) => (
+                <details key={docIdx} style={{
+                  marginBottom: 12, border: '1px solid var(--border, #e2e8f0)',
+                  borderRadius: 10, overflow: 'hidden',
+                }} open={docIdx === 0}>
+                  <summary style={{
+                    padding: '14px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 15,
+                    background: 'var(--surface-raised, #f8fafc)',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    listStyle: 'none',
+                  }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    {doc.title || `Document ${docIdx + 1}`}
+                    {doc.source && <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--ink-light)', marginLeft: 8 }}>({doc.source})</span>}
+                  </summary>
+                  <div style={{ padding: '16px 18px' }}>
+                    {doc.subtitle && <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '0 0 12px' }}>{doc.subtitle}</p>}
+                    {doc.keyMetrics.length > 0 && (
+                      <div className="extracted-grid" style={{ marginBottom: 12 }}>
+                        {doc.keyMetrics.map((m, i) => (
+                          <div key={i} className="data-card">
+                            <div className="data-label">{m.label}</div>
+                            <div className={`data-value${m.highlight ? ' mint' : ''}`}>{m.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {doc.sections.length > 0 && (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {doc.sections.map((s, i) => (
+                          <div key={i} style={{ background: 'var(--surface-raised, #f8fafc)', borderRadius: 8, padding: '12px 16px', border: '1px solid var(--border, #e2e8f0)' }}>
+                            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{s.title}</div>
+                            <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>{s.content}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {doc.bulletPoints.length > 0 && (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {doc.bulletPoints.map((bp, i) => <span key={i} className="tag">{bp}</span>)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </details>
+              ))}
+
+              {/* Comparison instructions textarea */}
+              <div style={{ marginTop: 20, marginBottom: 8 }}>
+                <label className="input-label">Add instructions for the comparison (optional)</label>
+                <textarea
+                  className="input"
+                  style={{ minHeight: 80, resize: 'vertical', fontFamily: 'inherit', fontSize: 14, lineHeight: 1.6 }}
+                  placeholder="e.g., Focus on premium differences, highlight Plan A's better cash value, mention the client is 45 years old..."
+                  value={comparisonNotes}
+                  onChange={(e) => setComparisonNotes(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Single-document review (only when not in multi-doc comparison mode) */}
+          {multiDocData.length <= 1 && extractedData && !isGeneralData && (
             <>
               <div className="extracted-grid">
                 <div className="data-card">
@@ -1056,8 +1273,8 @@ export default function CreatePage() {
             </>
           )}
 
-          {/* Generalized (ExtractedData) review */}
-          {isGeneralData && generalData && (
+          {/* Generalized (ExtractedData) review -- single doc only */}
+          {multiDocData.length <= 1 && isGeneralData && generalData && (
             <>
               {/* Title */}
               <div style={{ marginBottom: 20 }}>
