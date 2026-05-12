@@ -401,16 +401,29 @@ export default function VideoDetailPage() {
       if (data) {
         setVideo(data as Video)
 
-        // If status is still pending, trigger pipeline as fallback
-        // (normally start-pipeline is called from create page, this is a safety net)
-        if (data.status === 'pending' && !pipelineStarted.current) {
+        // If status is pending or starting, trigger pipeline directly (proven to work)
+        if ((data.status === 'pending' || data.status === 'starting') && !pipelineStarted.current) {
           pipelineStarted.current = true
-          console.log('[video] Status still pending, triggering pipeline as fallback...')
-          fetch('/api/videos/start-pipeline', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ videoId: data.id }),
-          }).catch((err) => console.error('[video] Pipeline trigger error:', err))
+          const input = (data.script as any)?._pipeline_input
+          if (input) {
+            console.log('[video] Triggering generate-video directly...')
+            fetch('/api/generate-video', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                videoId: data.id,
+                policyData: input.policyData,
+                brandId: input.brandId,
+                voiceId: input.voiceId,
+                styleId: input.styleId,
+                approvedSlides: input.approvedSlides,
+                preGeneratedScenes: input.scenes,
+                preGeneratedAudioId: input.preGeneratedAudioId,
+                detailed: input.detailed,
+                musicUrl: input.musicUrl,
+              }),
+            }).catch((err) => console.error('[video] Pipeline error:', err))
+          }
         }
       }
     }
