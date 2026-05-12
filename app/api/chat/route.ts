@@ -159,16 +159,22 @@ RULES:
 
     const aiResponse = response.text?.trim() ?? 'I apologize, I was unable to generate a response.'
 
-    // Save both messages
-    await supabase.from('chat_messages').insert([
+    // Save both messages (non-blocking — don't let DB errors kill the response)
+    supabase.from('chat_messages').insert([
       { video_id: videoId, role: 'client', message },
       { video_id: videoId, role: 'assistant', message: aiResponse },
-    ])
+    ]).then(({ error }) => {
+      if (error) console.error('[chat] Failed to save messages:', error.message)
+    })
 
     return NextResponse.json({ response: aiResponse })
   } catch (err: unknown) {
     console.error('[chat] Error:', err)
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    const errMsg = err instanceof Error ? err.message : 'Unknown error'
+    console.error('[chat] Full error details:', JSON.stringify({
+      message: errMsg,
+      stack: err instanceof Error ? err.stack?.slice(0, 500) : undefined,
+    }))
+    return NextResponse.json({ error: errMsg }, { status: 500 })
   }
 }

@@ -1137,13 +1137,12 @@ export default function PublicWatchPage() {
                   onClick={() => window.open(video.infographic!.source_pdf_url!, '_blank')}
                 >
                   <IconDownload />
-                  Download Source
+                  Download PDF
                 </button>
               ) : (
                 <button
                   className="wp-action-btn"
                   onClick={() => {
-                    // Download the video script as a text file
                     const scriptData = video.script as any
                     let scriptText = ''
                     if (Array.isArray(scriptData)) {
