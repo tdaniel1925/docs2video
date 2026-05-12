@@ -417,9 +417,16 @@ ${brandName ? `- Brand: ${brandName}` : ''}`
     }
   }
 
+  // Derive company name from brand or document data
+  const derivedCompanyName = brandName
+    ?? (isInsurance ? (data as ExtractedPolicyData).carrier : null)
+    ?? (data as ExtractedData).source
+    ?? (data as ExtractedData).title?.split(/[-–—:|]/)[0]?.trim()
+    ?? ''
+
   // Build brand context for the prompt templates
   const brandCtx = {
-    companyName: brandName ?? 'Company',
+    companyName: derivedCompanyName,
     primaryHex: colors.primary,
     secondaryHex: colors.secondary,
     accentHex: colors.accent,
