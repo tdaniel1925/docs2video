@@ -400,14 +400,24 @@ ${brandName ? `- Brand: ${brandName}` : ''}`
 
   // Parse content into structured slide data
   // Extract "Headline:" and "Subheadline:" fields, plus bullet points starting with "-"
+  // Clean function: strip trailing periods, quotes, field labels, instruction text
+  function cleanHeadline(text: string): string {
+    return text
+      .replace(/^["']|["']$/g, '')           // strip surrounding quotes
+      .replace(/\.$/, '')                     // strip trailing period
+      .replace(/^(Headline|Title|Slide \d+)[:\s—-]*/i, '')  // strip labels
+      .replace(/^(TITLE CARD|COVER|CLOSING)[:\s—-]*/i, '')
+      .trim()
+  }
+
   const headlineMatch = content.match(/^Headline:\s*"?([^"\n]+)"?\s*$/m)
   const subheadlineMatch = content.match(/^Subheadline:\s*"?([^"\n]+)"?\s*$/m)
   const bulletLines = content.split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim())
 
   const slideContent = {
     slideType,
-    headline: headlineMatch?.[1]?.trim() || 'Key Information',
-    subheadline: subheadlineMatch?.[1]?.trim() as string | undefined,
+    headline: cleanHeadline(headlineMatch?.[1]?.trim() || 'Key Information'),
+    subheadline: subheadlineMatch?.[1]?.trim() ? cleanHeadline(subheadlineMatch[1].trim()) : undefined as string | undefined,
     bodyBlocks: bulletLines.slice(0, 5),
     stats: undefined as { value: string; label: string }[] | undefined,
   }
@@ -425,10 +435,10 @@ ${brandName ? `- Brand: ${brandName}` : ''}`
     // Try to find the actual topic/title from the content
     const topicMatch = stripped.match(/'([^']+)'/g) || stripped.match(/"([^"]+)"/g)
     if (topicMatch && topicMatch.length > 0) {
-      slideContent.headline = topicMatch[0].replace(/['"]/g, '')
-      slideContent.bodyBlocks = topicMatch.slice(1).map(t => t.replace(/['"]/g, ''))
+      slideContent.headline = cleanHeadline(topicMatch[0])
+      slideContent.bodyBlocks = topicMatch.slice(1).map(t => cleanHeadline(t))
     } else if (stripped.length > 5) {
-      slideContent.headline = stripped.split(/[.!]/)[0]?.trim().slice(0, 80) || 'Key Information'
+      slideContent.headline = cleanHeadline(stripped.split(/[.!]/)[0]?.trim().slice(0, 80) || 'Key Information')
     }
   }
 

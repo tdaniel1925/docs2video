@@ -16,258 +16,153 @@ export type SlideContent = {
   stats?: { value: string; label: string }[]
 }
 
+// Contact bar text — consistent across all slides
+function contactBarText(brand: BrandContext): string {
+  const parts: string[] = []
+  if (brand.website) parts.push(brand.website)
+  if (brand.phone) parts.push(brand.phone)
+  return parts.join('  |  ')
+}
+
+// Content block — only actual displayable text, no labels
+function contentBlock(slide: SlideContent): string {
+  const lines: string[] = []
+  lines.push(`The main headline to display: "${slide.headline}"`)
+  if (slide.subheadline) lines.push(`A smaller subheadline below: "${slide.subheadline}"`)
+  if (slide.bodyBlocks.length > 0) {
+    lines.push('Display these points as a list or cards:')
+    slide.bodyBlocks.forEach(b => lines.push(`  • ${b}`))
+  }
+  if (slide.stats && slide.stats.length > 0) {
+    lines.push('Display these key statistics prominently with large numbers:')
+    slide.stats.forEach(s => lines.push(`  ${s.value} — ${s.label}`))
+  }
+  return lines.join('\n')
+}
+
 // =============================================================
 // LOGO-INTEGRATED PROMPTS
 // =============================================================
 
-export const LOGO_LOOK_ANCHORED_PANEL = (
-  brand: BrandContext,
-  slide: SlideContent
-) => `
-Create a 1920x1080 editorial infographic illustration, 16:9 aspect ratio.
+export const LOGO_LOOK_ANCHORED_PANEL = (brand: BrandContext, slide: SlideContent) => `
+Create a 1920x1080 editorial infographic illustration.
 
-The attached image is the company's official logo. Use it EXACTLY as
-provided — original colors, original proportions, no modifications, no
-restyling, no recoloring. Place it as the centerpiece of a vertical
-anchor panel on the left side of the composition.
+The attached image is the company's official logo. Place it EXACTLY as provided in the upper portion of a solid ${brand.primaryHex} vertical panel on the left side (roughly the left quarter of the canvas). Do not modify, redraw, or restyle the logo in any way.
 
-LAYOUT:
-- Left anchor panel (0 to 480px wide, full height): solid ${brand.primaryHex}
-  background with the logo centered in the upper third
-- Below the logo within the panel: tagline space and supporting brand
-  text in white
-- Main content area (480px to 1920px): white or light background hosting
-  the infographic content
-- Smooth curved transition between panel and content area
-- Bottom contact bar (1840px to 1920px y-coordinate): solid ${brand.primaryHex}
-  band, full width, with white text reading exactly:
-  "${brand.website}  |  ${brand.phone}"
+The main content area fills the remaining right portion with a white or light background. A smooth curved or angular transition separates the panel from the content.
 
-CONTENT TO RENDER:
-Headline: "${slide.headline}"
-${slide.subheadline ? `Subheadline: "${slide.subheadline}"` : ''}
-${slide.bodyBlocks.map((b, i) => `Block ${i + 1}: "${b}"`).join('\n')}
-${slide.stats ? `Stats row: ${slide.stats.map(s => `${s.value} ${s.label}`).join(' | ')}` : ''}
+At the very bottom of the entire image, draw a narrow horizontal band in ${brand.primaryHex} spanning the full width. Inside this band, center the text "${contactBarText(brand)}" in small white letters.
 
-STYLE:
-- Editorial infographic, flat illustration aesthetic
-- Color palette: ${brand.primaryHex} (60%), ${brand.secondaryHex} (30%),
-  ${brand.accentHex} (10%)
-- Geometric icon set, consistent stroke weight
-- Bold sans-serif typography for headlines
-- Clean grid layout, generous whitespace
-- Professional, confident, modern
+${contentBlock(slide)}
 
-CRITICAL EXCLUSIONS:
-- Do NOT redraw, modify, recolor, or restyle the logo
-- Do NOT invent additional logos, lettermarks, monograms, or brand badges
-- Do NOT add placeholder text like "Logo here" or reserved boxes
-- Do NOT add company name as separate text element (the logo carries it)
-- Do NOT add taglines beyond what is specified in the content
-- Do NOT use stock photo aesthetics; this is flat editorial illustration
+Use an editorial infographic style with flat illustration, geometric icons, bold sans-serif headlines, and generous whitespace. Colors: ${brand.primaryHex} dominant, ${brand.secondaryHex} supporting, ${brand.accentHex} for accents.
+
+Do NOT redraw or modify the logo. Do NOT invent additional logos, lettermarks, or brand badges. Do NOT add the company name as separate text — the logo carries it.
 `.trim()
 
-export const LOGO_LOOK_CORNER_MARK = (
-  brand: BrandContext,
-  slide: SlideContent
-) => `
-Create a 1920x1080 editorial infographic illustration, 16:9 aspect ratio.
+export const LOGO_LOOK_CORNER_MARK = (brand: BrandContext, slide: SlideContent) => `
+Create a 1920x1080 editorial infographic illustration.
 
-The attached image is the company's official logo. Use it EXACTLY as
-provided — original colors, original proportions, no modifications.
-Place it in the top-left corner at approximately 200px wide, with
-40px margin from edges.
+The attached image is the company's official logo. Place it EXACTLY as provided in the upper-left corner of the image, small enough to not dominate but clearly visible. Do not modify, redraw, or restyle the logo.
 
-LAYOUT:
-- Logo: top-left corner, 200px wide, 40px margin
-- Headline area: top-center, large bold typography
-- Main content: distributed grid across the canvas
-- Bottom contact bar: solid ${brand.primaryHex} band, 80px tall,
-  full width, white text: "${brand.website}  |  ${brand.phone}"
-- Generous whitespace, content-forward composition
+The headline should appear prominently in the upper area. The main content fills the center of the canvas in a clean grid layout. Generous whitespace throughout.
 
-CONTENT TO RENDER:
-Headline: "${slide.headline}"
-${slide.subheadline ? `Subheadline: "${slide.subheadline}"` : ''}
-${slide.bodyBlocks.map((b, i) => `Block ${i + 1}: "${b}"`).join('\n')}
-${slide.stats ? `Stats: ${slide.stats.map(s => `${s.value} ${s.label}`).join(' | ')}` : ''}
+At the very bottom, draw a narrow horizontal band in ${brand.primaryHex} spanning the full width with centered white text: "${contactBarText(brand)}"
 
-STYLE:
-- Minimalist editorial infographic
-- Color palette: ${brand.primaryHex} (50%), ${brand.secondaryHex} (40%),
-  ${brand.accentHex} (10%)
-- Refined geometric icons
-- Modern sans-serif typography
-- Lots of breathing room, magazine-quality layout
+${contentBlock(slide)}
 
-CRITICAL EXCLUSIONS:
-- Do NOT redraw, modify, recolor, or restyle the logo
-- Do NOT invent additional logos or brand marks anywhere on the slide
-- Do NOT add the company name as separate text
-- Do NOT add placeholder boxes or reserved space markers
-- Do NOT clutter the composition; restraint is the goal
+Minimalist editorial infographic style. Colors: ${brand.primaryHex} primary, ${brand.secondaryHex} supporting, ${brand.accentHex} highlights. Refined geometric icons, modern sans-serif typography, magazine-quality layout.
+
+Do NOT redraw or modify the logo. Do NOT invent additional logos or brand marks. Do NOT add the company name as separate text.
 `.trim()
 
-export const LOGO_LOOK_SCENE_INTEGRATED = (
-  brand: BrandContext,
-  slide: SlideContent
-) => `
-Create a 1920x1080 editorial infographic illustration, 16:9 aspect ratio.
+export const LOGO_LOOK_SCENE_INTEGRATED = (brand: BrandContext, slide: SlideContent) => `
+Create a 1920x1080 editorial infographic illustration.
 
-The attached image is the company's official logo. Use it EXACTLY as
-provided — original colors, original proportions, no modifications.
-Integrate it as a visual anchor within an abstract geometric composition
-in the upper-left quadrant, treated as if part of the design system
-rather than an overlay.
+The attached image is the company's official logo. Integrate it EXACTLY as provided into an abstract geometric composition in the upper-left area. The logo should feel like part of the design system — surrounded by geometric shapes in brand colors that guide the eye into the main content.
 
-LAYOUT:
-- Logo integrated into upper-left geometric composition, approximately
-  220px wide
-- Abstract geometric shapes in brand colors fan out from the logo area,
-  guiding the eye into the content
-- Main infographic content occupies the right two-thirds of the canvas
-- Bottom contact bar: solid ${brand.primaryHex} band, 80px tall,
-  white text: "${brand.website}  |  ${brand.phone}"
+The main infographic content fills the right two-thirds of the canvas.
 
-CONTENT TO RENDER:
-Headline: "${slide.headline}"
-${slide.subheadline ? `Subheadline: "${slide.subheadline}"` : ''}
-${slide.bodyBlocks.map((b, i) => `Block ${i + 1}: "${b}"`).join('\n')}
-${slide.stats ? `Stats: ${slide.stats.map(s => `${s.value} ${s.label}`).join(' | ')}` : ''}
+At the very bottom, draw a narrow horizontal band in ${brand.primaryHex} spanning the full width with centered white text: "${contactBarText(brand)}"
 
-STYLE:
-- Bold editorial infographic with geometric flair
-- Color palette: ${brand.primaryHex} (50%), ${brand.secondaryHex} (35%),
-  ${brand.accentHex} (15%)
-- Sharp geometric shapes, layered composition
-- Strong typographic hierarchy
-- Confident, modern, design-forward
+${contentBlock(slide)}
 
-CRITICAL EXCLUSIONS:
-- Do NOT redraw or modify the logo in any way
-- Do NOT invent additional logos, monograms, or lettermarks
-- Do NOT add placeholder content
-- Do NOT add company name as separate text
+Bold editorial infographic with geometric flair. Colors: ${brand.primaryHex} dominant, ${brand.secondaryHex} supporting, ${brand.accentHex} accents. Sharp geometric shapes, strong typographic hierarchy, design-forward.
+
+Do NOT redraw or modify the logo. Do NOT invent additional logos, monograms, or lettermarks.
 `.trim()
 
 // =============================================================
 // CONTACT-BAR-ONLY PROMPTS (no logo)
 // =============================================================
 
-export const FALLBACK_LOOK_BAR_HEADER = (
-  brand: BrandContext,
-  slide: SlideContent
-) => `
-Create a 1920x1080 editorial infographic illustration, 16:9 aspect ratio.
+export const FALLBACK_LOOK_BAR_HEADER = (brand: BrandContext, slide: SlideContent) => `
+Create a 1920x1080 editorial infographic illustration.
 
-LAYOUT:
-- Top header bar: solid ${brand.primaryHex} band, 100px tall, full width
-  - Inside the header, left-aligned with 40px margin, render the text
-    "${brand.companyName}" in clean white sans-serif, bold weight,
-    approximately 36pt
-- Main content area: white background, occupies 100px to 1840px y-coordinate
-- Bottom contact bar: solid ${brand.primaryHex} band, 80px tall, full width
-  - White text centered: "${brand.website}  |  ${brand.phone}"
+At the very top, draw a solid ${brand.primaryHex} horizontal band spanning the full width. Inside this band, left-aligned, display "${brand.companyName}" in clean white bold sans-serif text.
 
-CONTENT TO RENDER:
-Headline: "${slide.headline}"
-${slide.subheadline ? `Subheadline: "${slide.subheadline}"` : ''}
-${slide.bodyBlocks.map((b, i) => `Block ${i + 1}: "${b}"`).join('\n')}
-${slide.stats ? `Stats: ${slide.stats.map(s => `${s.value} ${s.label}`).join(' | ')}` : ''}
+The main content area below has a white background filling most of the canvas.
 
-STYLE:
-- Editorial infographic, flat illustration aesthetic
-- Color palette: ${brand.primaryHex} (50%), ${brand.secondaryHex} (35%),
-  ${brand.accentHex} (15%)
-- Geometric icon set with consistent stroke weight
-- Bold sans-serif typography
-- Clean grid, generous whitespace
-- Professional and modern
+At the very bottom, draw a narrow horizontal band in ${brand.primaryHex} spanning the full width with centered white text: "${contactBarText(brand)}"
 
-CRITICAL EXCLUSIONS:
-- Do NOT invent or draw any logos, lettermarks, monograms, brand badges,
-  shields, or initials in circles anywhere on the slide
-- Do NOT add a logo placeholder or "logo here" text
-- The company name appears ONLY in the top header bar as text — nowhere else
-- Do NOT add additional taglines or marketing copy beyond what is specified
-- Do NOT use stock photo aesthetics
+${contentBlock(slide)}
+
+Editorial infographic style with flat illustration, geometric icons, bold sans-serif typography, clean grid layout, generous whitespace. Colors: ${brand.primaryHex} dominant, ${brand.secondaryHex} supporting, ${brand.accentHex} accents.
+
+Do NOT invent or draw any logos, lettermarks, monograms, brand badges, shields, or initials. The company name appears ONLY in the top header band as plain text — nowhere else on the slide.
 `.trim()
 
-export const FALLBACK_LOOK_MINIMAL_FOOTER = (
-  brand: BrandContext,
-  slide: SlideContent
-) => `
-Create a 1920x1080 editorial infographic illustration, 16:9 aspect ratio.
+export const FALLBACK_LOOK_MINIMAL_FOOTER = (brand: BrandContext, slide: SlideContent) => `
+Create a 1920x1080 editorial infographic illustration.
 
-LAYOUT:
-- Top of canvas: company name "${brand.companyName}" rendered as clean
-  text in ${brand.primaryHex}, top-left corner, 40px margin, 32pt bold
-  sans-serif. No box, no decoration, just typography.
-- Main content area: occupies the bulk of the canvas
-- Bottom contact bar: solid ${brand.primaryHex} band, 80px tall, full
-  width, white text centered: "${brand.website}  |  ${brand.phone}"
+In the upper-left corner, display "${brand.companyName}" as clean text in ${brand.primaryHex}, bold sans-serif. No box, no decoration, just typography.
 
-CONTENT TO RENDER:
-Headline: "${slide.headline}"
-${slide.subheadline ? `Subheadline: "${slide.subheadline}"` : ''}
-${slide.bodyBlocks.map((b, i) => `Block ${i + 1}: "${b}"`).join('\n')}
-${slide.stats ? `Stats: ${slide.stats.map(s => `${s.value} ${s.label}`).join(' | ')}` : ''}
+The main content fills the bulk of the canvas.
 
-STYLE:
-- Minimalist editorial infographic
-- Color palette: ${brand.primaryHex} (60%), ${brand.secondaryHex} (30%),
-  ${brand.accentHex} (10%)
-- Refined geometric icons, thin stroke weight
-- Modern sans-serif typography with strong hierarchy
-- Significant whitespace, restrained composition
+At the very bottom, draw a narrow horizontal band in ${brand.primaryHex} spanning the full width with centered white text: "${contactBarText(brand)}"
 
-CRITICAL EXCLUSIONS:
-- Do NOT invent or draw ANY logos, lettermarks, monograms, brand badges,
-  shields, or initials in circles
-- Do NOT add a logo placeholder or reserved space
-- The company name appears ONLY as the top-left text — nowhere else
-- Do NOT add taglines or additional marketing copy
-- Do NOT use stock photo aesthetics
+${contentBlock(slide)}
+
+Minimalist editorial infographic. Colors: ${brand.primaryHex} dominant, ${brand.secondaryHex} supporting, ${brand.accentHex} accents. Refined geometric icons, modern sans-serif typography, significant whitespace, restrained composition.
+
+Do NOT invent or draw ANY logos, lettermarks, monograms, brand badges, or initials. The company name appears ONLY as the upper-left text — nowhere else.
 `.trim()
 
-export const FALLBACK_LOOK_GEOMETRIC_HERO = (
-  brand: BrandContext,
-  slide: SlideContent
-) => `
-Create a 1920x1080 editorial infographic illustration, 16:9 aspect ratio.
+export const FALLBACK_LOOK_GEOMETRIC_HERO = (brand: BrandContext, slide: SlideContent) => `
+Create a 1920x1080 editorial infographic illustration.
 
-LAYOUT:
-- Left side (0 to 480px wide, full height): solid ${brand.primaryHex}
-  panel with "${brand.companyName}" rendered vertically or in stacked
-  bold typography in white, occupying the upper portion of the panel
-- Curved or angular transition into the main content area
-- Main content area (480px to 1920px): white or light background
-- Bottom contact bar (1840px to 1920px y-coordinate): solid
-  ${brand.primaryHex} band extending full width, white text:
-  "${brand.website}  |  ${brand.phone}"
+On the left side (roughly the left quarter), draw a solid ${brand.primaryHex} panel with "${brand.companyName}" rendered as bold white typography in the upper portion. A curved or angular transition leads into the main content area on the right with a white or light background.
 
-CONTENT TO RENDER:
-Headline: "${slide.headline}"
-${slide.subheadline ? `Subheadline: "${slide.subheadline}"` : ''}
-${slide.bodyBlocks.map((b, i) => `Block ${i + 1}: "${b}"`).join('\n')}
-${slide.stats ? `Stats: ${slide.stats.map(s => `${s.value} ${s.label}`).join(' | ')}` : ''}
+At the very bottom, draw a narrow horizontal band in ${brand.primaryHex} spanning the full width with centered white text: "${contactBarText(brand)}"
 
-STYLE:
-- Bold editorial infographic with geometric structure
-- Color palette: ${brand.primaryHex} (55%), ${brand.secondaryHex} (35%),
-  ${brand.accentHex} (10%)
-- Sharp geometric shapes, confident layout
-- Strong typographic hierarchy
-- Design-forward, magazine-quality
+${contentBlock(slide)}
 
-CRITICAL EXCLUSIONS:
-- Do NOT invent or draw ANY logos, lettermarks, monograms, brand badges,
-  shields, or initials in circles anywhere on the slide
-- The company name appears ONLY as styled typography in the left panel
-- Do NOT add a separate logo or brand mark
-- Do NOT add placeholder boxes or reserved space markers
-- Do NOT add taglines beyond what is specified
+Bold editorial infographic with geometric structure. Colors: ${brand.primaryHex} dominant, ${brand.secondaryHex} supporting, ${brand.accentHex} accents. Sharp geometric shapes, confident layout, strong typographic hierarchy.
+
+Do NOT invent or draw ANY logos, lettermarks, monograms, brand badges, or initials. The company name appears ONLY in the left panel typography — nowhere else.
 `.trim()
+
+// =============================================================
+// RENDERING RULES — appended to EVERY prompt
+// =============================================================
+
+const RENDERING_RULES = `
+
+WHAT MUST BE VISIBLE on the final image:
+- The headline text
+- The list items or statistics
+- The contact bar text at the bottom
+- The company name (where specified above)
+
+WHAT MUST NOT appear on the final image:
+- No pixel measurements, dimensions, or coordinates
+- No instruction labels like "Headline:", "Block:", "Subheadline:", "Stats:"
+- No color hex codes
+- No percentage breakdowns
+- No layout descriptions or design instructions
+- No periods at the end of headline text
+- No quotation marks around displayed text
+- Just render the actual content text naturally as part of the design`
 
 // =============================================================
 // VARIANT REGISTRY
@@ -289,28 +184,15 @@ export function getLookVariants(hasLogo: boolean) {
   return hasLogo ? LOGO_VARIANTS : FALLBACK_VARIANTS
 }
 
-// Critical rendering rules appended to EVERY prompt
-const RENDERING_RULES = `
-
-RENDERING RULES (CRITICAL — read carefully):
-- The pixel measurements above (e.g., "480px wide", "80px tall", "1840px y-coordinate") are LAYOUT INSTRUCTIONS for you to follow. Do NOT render these numbers as visible text on the image.
-- The ONLY text that should be VISIBLE on the final image is: the headline, the body content blocks, the stats, the company name (where specified), and the contact bar text.
-- Do NOT render any of the following as visible text: "LAYOUT:", "STYLE:", "CONTENT TO RENDER:", "Block 1:", "Headline:", "Subheadline:", "Stats:", pixel measurements, color hex codes, percentage breakdowns, or any other instruction text.
-- The content fields (headline, blocks, stats) contain the ACTUAL TEXT to display. Everything else is an instruction for how to arrange and style that text.
-- Do NOT display the word "Headline" or "Subheadline" — just display the text itself.`
-
-// Get a specific variant by ID, with rendering rules appended
 export function getLookPrompt(hasLogo: boolean, variantId: string) {
   const variants = getLookVariants(hasLogo)
   const variant = variants.find(v => v.id === variantId) ?? variants[0]
-  // Wrap the original fn to append rendering rules
   return {
     ...variant,
     fn: (brand: BrandContext, slide: SlideContent) => variant.fn(brand, slide) + RENDERING_RULES,
   }
 }
 
-// Default variant per mode
 export function getDefaultLookId(hasLogo: boolean): string {
   return hasLogo ? 'corner_mark' : 'bar_header'
 }
