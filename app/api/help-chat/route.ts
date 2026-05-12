@@ -17,6 +17,7 @@ Docs2Video is a SaaS platform that creates professional marketing materials usin
 - Flyers (1 credit) — Professional flyers in various sizes: US Letter, A4, Square, Half Page, Instagram, or custom dimensions.
 - Logos (2 credits) — AI chatbot logo designer. Describe your brand, get 4 logo concepts. Refine for 1 credit each.
 - Custom Templates (2 credits) — Describe a slide style and AI creates it. Can be reused for all video creations.
+- Deck Builder (2 credits) — Create editable PowerPoint presentations with AI-generated backgrounds. Beautiful Gemini visuals as slide backgrounds + real editable text boxes on top. Upload reference templates for style inspiration. Output is a downloadable PPTX file that can be edited in PowerPoint, Google Slides, or Keynote.
 
 FEATURES:
 - Brands: Save brand colors, logo, and contact info. Applied automatically to all creations. Create at Dashboard > Brands > New Brand. Simplified: just name + logo + primary color. Advanced colors are auto-derived.

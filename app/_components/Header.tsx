@@ -16,6 +16,7 @@ const CREATE_SECTIONS = [
       { href: '/create', icon: '\uD83D\uDCF9', title: 'Video Explainer', desc: 'Narrated video from any content' },
       { href: '/course-builder', icon: '\uD83C\uDF93', title: 'Course Builder', desc: 'Multi-episode video series' },
       { href: '/infographic-creator', icon: '\uD83D\uDCCA', title: 'Infographic', desc: 'Visual data summary' },
+      { href: '/deck-builder', icon: '\uD83D\uDCDD', title: 'Deck Builder', desc: 'Editable PPTX with AI backgrounds' },
     ],
   },
   {
