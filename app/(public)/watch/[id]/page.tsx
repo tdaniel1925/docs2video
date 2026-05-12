@@ -1003,7 +1003,8 @@ export default function PublicWatchPage() {
   /* ================================================================ */
   /*  Derived data                                                     */
   /* ================================================================ */
-  const agentName = agent?.full_name ?? agent?.company_name ?? 'Your Agent'
+  // On client-facing share page, show company name first, then personal name
+  const agentName = agent?.company_name ?? agent?.full_name ?? 'Your Agent'
   const agentEmail = agent?.email ?? ''
   const agentPhone = agent?.phone ?? ''
   const agentInitials = getInitials(agentName)
@@ -1130,13 +1131,38 @@ export default function PublicWatchPage() {
                 </button>
               )}
 
-              {hasPdf && (
+              {hasPdf ? (
                 <button
                   className="wp-action-btn"
                   onClick={() => window.open(video.infographic!.source_pdf_url!, '_blank')}
                 >
                   <IconDownload />
-                  Download Source PDF
+                  Download Source
+                </button>
+              ) : (
+                <button
+                  className="wp-action-btn"
+                  onClick={() => {
+                    // Download the video script as a text file
+                    const scriptData = video.script as any
+                    let scriptText = ''
+                    if (Array.isArray(scriptData)) {
+                      scriptText = scriptData.map((s: any, i: number) =>
+                        `Slide ${i + 1}: ${s.title || s.scene || ''}\n${s.narration || ''}\n`
+                      ).join('\n---\n\n')
+                    }
+                    if (!scriptText) scriptText = 'No script available.'
+                    const blob = new Blob([scriptText], { type: 'text/plain' })
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `${video.title || 'script'}.txt`
+                    a.click()
+                    URL.revokeObjectURL(url)
+                  }}
+                >
+                  <IconDownload />
+                  Download Script
                 </button>
               )}
 
