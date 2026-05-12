@@ -77,7 +77,7 @@ export async function generatePptx(
         y: 0.3,
         w: 2.0,
         h: 0.7,
-        sizing: { type: 'contain' },
+        sizing: { type: 'contain', w: 2.0, h: 0.7 },
       })
     }
 
