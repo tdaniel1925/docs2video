@@ -9,11 +9,12 @@ import { VOICE_OPTIONS, SLIDE_STYLES } from '../../_lib/types'
 
 type InputTab = 'upload' | 'text' | 'idea' | 'url' | 'research' | 'proposal'
 
-type Step = 'upload' | 'extracting' | 'review' | 'choose-brand' | 'choose-style' | 'approve-slides' | 'choose-voice' | 'generating' | 'done'
+type Step = 'upload' | 'extracting' | 'review' | 'review-script' | 'choose-brand' | 'choose-style' | 'approve-slides' | 'choose-voice' | 'generating' | 'done'
 
 const STEP_LABELS = [
   { key: 'upload', label: 'Content' },
   { key: 'review', label: 'Review' },
+  { key: 'review-script', label: 'Script' },
   { key: 'choose-brand', label: 'Brand' },
   { key: 'choose-style', label: 'Style' },
   { key: 'approve-slides', label: 'Preview' },
@@ -186,6 +187,9 @@ export default function CreatePage() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [audioReady, setAudioReady] = useState(false)
   const [audioGenerating, setAudioGenerating] = useState(false)
+
+  const [editableScenes, setEditableScenes] = useState<{scene: number, title: string, slidePrompt: string, narration: string}[]>([])
+  const [scriptGenerating, setScriptGenerating] = useState(false)
 
   const [userPlan, setUserPlan] = useState<string>('trial')
   const [error, setError] = useState<string | null>(null)
@@ -382,6 +386,28 @@ export default function CreatePage() {
   const activeData = extractedData || generalData
   const isGeneralData = !extractedData && !!generalData
 
+  async function handleGenerateScript() {
+    setStep('review-script')
+    setScriptGenerating(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/generate-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ policyData: activeData, brandId: selectedBrand, detailed: detailedMode }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Script generation failed')
+      const scenes = data.scenes as { scene: number; title: string; slidePrompt: string; narration: string }[]
+      setEditableScenes(scenes)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate script')
+      setStep('review')
+    } finally {
+      setScriptGenerating(false)
+    }
+  }
+
   async function handleGenerateSlides() {
     setStep('approve-slides')
     setError(null)
@@ -390,15 +416,8 @@ export default function CreatePage() {
     setAudioReady(false)
 
     try {
-      const scriptRes = await fetch('/api/generate-script', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ policyData: activeData, brandId: selectedBrand, detailed: detailedMode }),
-      })
-      const scriptData = await scriptRes.json()
-      if (!scriptRes.ok) throw new Error(scriptData.error || 'Script generation failed')
-
-      const scenes = scriptData.scenes as { scene: number; title: string; slidePrompt: string; narration: string }[]
+      const scenes = editableScenes.length > 0 ? editableScenes : []
+      if (scenes.length === 0) throw new Error('No script scenes available. Please go back and generate a script first.')
       const count = scenes.length
       setSlideCount(count)
       setGeneratedScenes(scenes)
@@ -1108,7 +1127,7 @@ export default function CreatePage() {
 
           <div className="wizard-actions">
             <button onClick={() => { setStep('upload') }} className="btn btn-soft">&larr; Back</button>
-            <button onClick={() => setStep('choose-brand')} className="btn btn-primary">Looks good, next &rarr;</button>
+            <button onClick={handleGenerateScript} className="btn btn-primary">Generate Script &rarr;</button>
           </div>
         </div>
       )}
