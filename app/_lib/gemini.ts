@@ -403,39 +403,67 @@ ${brandName ? `- Brand: ${brandName}` : ''}`
 
   const hasLogo = !!(logoBuffer || logoUrl)
 
-  // Build the color instruction based on whether we have a logo
-  const colorInstruction = logoBuffer
-    ? `COLOR PALETTE:
-- Extract the dominant colors from the provided logo image and use them as the PRIMARY brand colors.
-- Build a FULL, RICH color palette around the logo colors — don't limit yourself to just those 2-3 colors.
-- Derive complementary, analogous, and accent colors that harmonize with the logo. For example, if the logo is red and blue, add warm golds, soft grays, or deep teals as supporting colors.
-- Use the logo's main color for headings and key elements, complementary colors for backgrounds and cards, and accent colors for highlights, chart bars, badges, and callouts.
-- Create visual depth and variety — use lighter and darker tints/shades of the palette for layering.
-- The slide should feel colorful, vibrant, and professional — NOT monotone or flat. Every section should have visual interest.
-- The logo colors are the ANCHOR, but the full palette should make the slide feel like a professionally designed brand presentation.`
-    : `BRAND COLORS (use these exact colors for the entire slide):
-- Primary: ${colors.primary}, Secondary: ${colors.secondary}, Accent: ${colors.accent}
-- Background: ${colors.background}, Text: ${colors.text}`
+  // Use the new look-variant prompt system
+  const { getLookPrompt, getDefaultLookId } = await import('./prompts/look-variants')
+  const { assessLogoQuality, shouldUseFallback } = await import('./logo-quality')
 
-  const promptText = `Create a professional presentation slide for an explainer video.
+  // Check logo quality to decide prompt family
+  let useLogoPrompts = hasLogo
+  if (logoBuffer) {
+    const quality = await assessLogoQuality(logoBuffer)
+    if (shouldUseFallback(quality)) {
+      console.log(`[gemini] Logo failed quality check: ${quality.reasons.join(', ')}. Using fallback prompts.`)
+      useLogoPrompts = false
+    }
+  }
 
-${logoBuffer ? 'An image is provided as a COLOR REFERENCE ONLY. Extract its dominant colors and use them as the slide palette. Do NOT reproduce this image on the slide in any way.' : ''}
+  // Build brand context for the prompt templates
+  const brandCtx = {
+    companyName: brandName ?? 'Company',
+    primaryHex: colors.primary,
+    secondaryHex: colors.secondary,
+    accentHex: colors.accent,
+    phone: contactInfo?.phone ?? '',
+    website: contactInfo?.website ?? '',
+    hasLogo: useLogoPrompts,
+  }
 
-DESIGN STYLE:
+  // Determine slide type
+  const totalSlides = 5 // default deck size
+  let slideType: 'cover' | 'content' | 'data' | 'quote' | 'closing' = 'content'
+  if (slideIndex === 0) slideType = 'cover'
+  else if (slideIndex >= totalSlides - 1) slideType = 'closing'
+
+  // Build slide content for the template
+  const slideContent = {
+    slideType,
+    headline: content.split('\n')[0]?.replace(/^SLIDE \d+ —\s*/i, '').replace(/^[A-Z ]+\n/m, '').trim().slice(0, 100) || 'Key Information',
+    subheadline: undefined as string | undefined,
+    bodyBlocks: content.split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim()).slice(0, 5),
+    stats: undefined as { value: string; label: string }[] | undefined,
+  }
+
+  // If no body blocks found, split content into chunks
+  if (slideContent.bodyBlocks.length === 0) {
+    slideContent.bodyBlocks = content.split('\n').filter(l => l.trim().length > 10).slice(0, 5).map(l => l.trim())
+  }
+
+  // Get the look variant prompt
+  const lookId = getDefaultLookId(useLogoPrompts)
+  const lookVariant = getLookPrompt(useLogoPrompts, lookId)
+  const lookPromptText = lookVariant.fn(brandCtx, slideContent)
+
+  // Add style and consistency instructions
+  const promptText = `${lookPromptText}
+
+ADDITIONAL DESIGN GUIDANCE:
 ${style.prompt}
-
-${colorInstruction}
-
-SLIDE CONTENT:
-${content}
 
 ${contextBlock}
 
-${getStrictRules(hasPhoto, slideIndex === 0, contactInfo)}
-
 ${referenceSlides && referenceSlides.length > 0 ? 'VISUAL REFERENCE: Reference slides have been provided. Match their exact visual style, layout patterns, color usage, and typography. The new slide must look like it belongs in the same deck.' : ''}
 
-CONSISTENCY: This slide is part of a series. Maintain the SAME visual style, layout grid, color usage, and typography across all slides. They must look like they belong to the same presentation deck.`
+CONSISTENCY: This slide is part of a series. Maintain the SAME visual style, layout grid, color usage, and typography across all slides.`
 
   // Build the content parts — text first, then logo image, then reference slides
   const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
