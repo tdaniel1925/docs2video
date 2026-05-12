@@ -422,7 +422,9 @@ export default function VideoDetailPage() {
                 detailed: input.detailed,
                 musicUrl: input.musicUrl,
               }),
-            }).catch((err) => console.error('[video] Pipeline error:', err))
+            }).then(res => {
+              if (!res.ok) res.json().then(d => console.error('[video] Pipeline failed:', d.error)).catch(() => {})
+            }).catch((err) => console.error('[video] Pipeline fetch error:', err))
           }
         }
       }

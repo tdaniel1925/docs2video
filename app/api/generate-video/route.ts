@@ -188,22 +188,28 @@ export async function POST(request: Request) {
     if (jobId) await updateJobProgress(admin, jobId, 75, 'running')
 
     // STAGE 4: Assemble video via VPS
-    console.log(`[video ${videoId}] Sending to VPS for assembly...`)
-    const assemblyRes = await fetch(`${VIDEO_ASSEMBLY_URL}/assemble`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-secret': VIDEO_ASSEMBLY_SECRET,
-      },
-      body: JSON.stringify({
-        slides: slideBuffers.map(b => b.toString('base64')),
-        audios: audioBuffers.map(b => b.toString('base64')),
-        videoId,
-        userId: user.id,
-        musicUrl: musicUrl || undefined,
-      }),
-      signal: AbortSignal.timeout(600000), // 10 min timeout
-    })
+    console.log(`[video ${videoId}] Sending to VPS for assembly at ${VIDEO_ASSEMBLY_URL}...`)
+    let assemblyRes: Response
+    try {
+      assemblyRes = await fetch(`${VIDEO_ASSEMBLY_URL}/assemble`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-secret': VIDEO_ASSEMBLY_SECRET,
+        },
+        body: JSON.stringify({
+          slides: slideBuffers.map(b => b.toString('base64')),
+          audios: audioBuffers.map(b => b.toString('base64')),
+          videoId,
+          userId: user.id,
+          musicUrl: musicUrl || undefined,
+        }),
+        signal: AbortSignal.timeout(600000), // 10 min timeout
+      })
+    } catch (fetchErr) {
+      console.error(`[video ${videoId}] VPS fetch failed:`, fetchErr)
+      throw new Error(`Could not reach video assembly server. Please try again. (${fetchErr instanceof Error ? fetchErr.message : 'connection failed'})`)
+    }
 
     if (!assemblyRes.ok) {
       const errBody = await assemblyRes.json().catch(() => ({ error: 'VPS assembly failed' }))
