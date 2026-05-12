@@ -43,16 +43,15 @@ export async function POST(request: Request) {
   // Mark as starting so it doesn't get triggered again by the fallback on video detail page
   await admin.from('videos').update({ status: 'starting' }).eq('id', videoId)
 
-  // Fire-and-forget: call generate-video internally
+  // Build the origin URL reliably for Vercel
   const xHost = request.headers.get('x-forwarded-host')
   const reqOrigin = request.headers.get('origin')
-  const origin = reqOrigin
-    ? reqOrigin
-    : xHost
-    ? `https://${xHost}`
-    : 'https://docs2video.com'
+  const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
+  const origin = reqOrigin || (xHost ? `https://${xHost}` : null) || vercelUrl || 'https://docs2video.com'
 
-  // Get auth cookies to forward
+  console.log(`[start-pipeline] Using origin: ${origin}`)
+
+  // Forward auth cookies
   const cookieHeader = request.headers.get('cookie') ?? ''
 
   fetch(`${origin}/api/generate-video`, {
@@ -73,6 +72,7 @@ export async function POST(request: Request) {
       detailed: input.detailed,
       musicUrl: input.musicUrl,
     }),
+    signal: AbortSignal.timeout(780000), // 13 min timeout (under Vercel's 800s max)
   }).catch(err => {
     console.error(`[start-pipeline] Failed to trigger for ${videoId}:`, err)
     // Reset status so it can be retried
