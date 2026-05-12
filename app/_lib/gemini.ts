@@ -128,37 +128,10 @@ function formatCurrency(n: number): string {
   }).format(n)
 }
 
-// Strict rules that go into EVERY image prompt
-function getStrictRules(hasLogo: boolean, brandName: string | null, hasPhoto: boolean = false, isFirstSlide: boolean = false, contactInfo?: { phone?: string; website?: string }): string {
-  const barItems: string[] = []
-  if (brandName) barItems.push(brandName)
-  if (contactInfo?.phone) barItems.push(contactInfo.phone)
-  if (contactInfo?.website) barItems.push(contactInfo.website)
-
-  const brandBarInstruction = barItems.length > 0
-    ? `\nBRANDED BOTTOM BAR (REQUIRED on every slide):
-- Add a slim, elegant horizontal bar across the FULL bottom of the slide (~50-60px tall)
-- Background: use the PRIMARY color from the brand palette
-- Text color: use white or the lightest contrasting color
-- Content: "${barItems.join('  |  ')}"
-- The text should be clean, small (18-22pt), and evenly spaced
-- The bar must span the full width of the slide with no gaps on the sides
-- Style it to match the slide's overall design aesthetic`
-    : ''
-
-  const logoInstruction = hasLogo
-    ? `\nLOGO HANDLING:
-- DO NOT draw, render, place, or include ANY logo, emblem, brand mark, placeholder, reserved space, or text saying "logo" anywhere on the slide.
-- DO NOT leave any blank reserved area or box for a logo. Design the slide fully — every corner should have content or background.
-- The logo will be added as a separate overlay after generation. You do not need to account for it at all.
-- Extract the color palette from the provided logo image and use those EXACT colors consistently across the entire slide.`
-    : brandName
-    ? `\nBRANDING:
-- Display "${brandName}" as elegantly styled text that matches the slide's design style and typography.
-- Place it where it fits best for this layout (header, top-left, or corner).
-- DO NOT create any logo graphic — text only.`
-    : ''
-
+// NUCLEAR MODE: Gemini knows NOTHING about the brand.
+// All branding (logo, company name, bottom bar, contact info) is handled by Sharp after generation.
+// Gemini only gets COLOR PALETTE hex values for visual consistency.
+function getStrictRules(hasPhoto: boolean = false, isFirstSlide: boolean = false, contactInfo?: { phone?: string; website?: string }): string {
   return `
 STRICT RULES (MUST FOLLOW):
 - Output EXACTLY 1920x1080 pixels, landscape orientation, 16:9 aspect ratio
@@ -167,16 +140,14 @@ STRICT RULES (MUST FOLLOW):
 - All text must be large enough to read on a phone screen (minimum 36pt equivalent)
 - The image must look sharp and high resolution at 1920x1080
 
-ABSOLUTE LOGO BAN (CRITICAL — NEVER VIOLATE):
-- NEVER generate, draw, design, or include ANY logo, brand mark, monogram, lettermark, emblem, icon, or symbol that represents the company.
-- NEVER use a single letter, initials, or abbreviation of the company name as a graphical element or icon (e.g., no "G" in a circle, no "GCA" badge, no stylized first letter).
-- NEVER create any circular, square, or shield-shaped graphic containing letters that could be interpreted as a logo.
-- NEVER place any brand identifier in the top-left corner — that area will have the real logo composited on top.
-- The company name may appear as PLAIN TEXT in headings or the branded bar, but NEVER as a designed graphical mark.
-- If you feel tempted to add a logo-like element, replace it with a relevant TOPICAL icon instead (e.g., a gear, globe, chart, or industry-relevant symbol).
-${logoInstruction}
-${brandBarInstruction}
-${isFirstSlide && hasPhoto ? `\n- Reserve a clean circular area (~200x200px) in the BOTTOM-RIGHT corner (ABOVE the branded bar) for the agent's professional photo. Design a styled circular frame or container that matches the slide's aesthetic — the photo will be placed inside later.` : ''}`
+BRAND-FREE ZONE (CRITICAL):
+- DO NOT include ANY company name, brand name, logo, lettermark, monogram, emblem, or brand mark ANYWHERE
+- DO NOT write any company name as text on the slide — not in headers, corners, or anywhere
+- The TOP-LEFT 300x100px area must be EMPTY or have simple background — a logo overlay goes there
+- The BOTTOM 60px must be EMPTY or have simple background — a branded info bar goes there
+- Focus ONLY on the CONTENT: data, metrics, charts, icons, section headings, and visual storytelling
+- Use TOPICAL icons (gears, globes, charts, industry symbols) for visual interest — never brand marks
+${isFirstSlide && hasPhoto ? `\n- Reserve a clean area (~200x200px) in the BOTTOM-RIGHT corner for a photo overlay. Keep it clear of important content.` : ''}`
 }
 
 // Helper to build content summary from either data format
@@ -228,7 +199,7 @@ ${summary.subline ? `- ${summary.subline}` : ''}
 ${summary.metrics}
 ${brandName ? `- "${brandName}" as agent/agency name in styled text` : ''}
 
-${getStrictRules(!!logoUrl, brandName)}`
+${getStrictRules()}`
 
     try {
       const response = await genai.models.generateContent({
@@ -446,11 +417,11 @@ ${brandName ? `- Brand: ${brandName}` : ''}`
 - Primary: ${colors.primary}, Secondary: ${colors.secondary}, Accent: ${colors.accent}
 - Background: ${colors.background}, Text: ${colors.text}`
 
-  const promptText = `Create a professional presentation slide for ${getDocumentTypeLabel(data)} explainer video.
+  const promptText = `Create a professional presentation slide for an explainer video.
 
-${logoBuffer ? 'A company logo image is provided as a COLOR REFERENCE ONLY. Extract its dominant colors and use them throughout. DO NOT draw, place, or reference the logo in any way on the slide. No placeholder boxes, no "logo here" text, no reserved space.' : ''}
+${logoBuffer ? 'An image is provided as a COLOR REFERENCE ONLY. Extract its dominant colors and use them as the slide palette. Do NOT reproduce this image on the slide in any way.' : ''}
 
-DESIGN STYLE (follow the layout, typography, visual approach, and aesthetic ONLY — colors come from the brand/logo, not the style):
+DESIGN STYLE:
 ${style.prompt}
 
 ${colorInstruction}
@@ -460,7 +431,7 @@ ${content}
 
 ${contextBlock}
 
-${getStrictRules(hasLogo, brandName, hasPhoto, slideIndex === 0, contactInfo)}
+${getStrictRules(hasPhoto, slideIndex === 0, contactInfo)}
 
 ${referenceSlides && referenceSlides.length > 0 ? 'VISUAL REFERENCE: Reference slides have been provided. Match their exact visual style, layout patterns, color usage, and typography. The new slide must look like it belongs in the same deck.' : ''}
 
@@ -568,9 +539,7 @@ ${brandName ? `- Display "${brandName}" as plain styled text — DO NOT create a
 ${dataBlock}
 
 FOOTER: "Generated by Docs2Video"
-${brandName ? `"Prepared by ${brandName}"` : ''}
-
-${getStrictRules(false, brandName)}
+${getStrictRules()}
 
 Make it ${orientation}. High-end magazine quality, clean sections, bar charts, icons, professional typography.`
 

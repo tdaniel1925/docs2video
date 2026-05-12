@@ -1,6 +1,9 @@
 /**
- * Composites real agent photo and logo onto a Gemini-generated slide.
- * This ensures no fake logos or faces ever appear — only real uploaded assets.
+ * Composites branding onto Gemini-generated slides.
+ * Gemini generates brand-free content slides. This function adds:
+ * - Logo (cover + closing slides only, top-left)
+ * - Branded bottom bar with company name + contact info (all slides)
+ * - Agent photo (cover = headshot circle, closing = standing photo)
  */
 export async function compositeSlide(
   slideBuffer: Buffer,
@@ -8,7 +11,10 @@ export async function compositeSlide(
   logoUrl: string | null,
   isFirstSlide: boolean,
   isLastSlide: boolean = false,
-  standingPhotoUrl: string | null = null
+  standingPhotoUrl: string | null = null,
+  brandName: string | null = null,
+  primaryColor: string | null = null,
+  contactInfo?: { phone?: string; website?: string }
 ): Promise<Buffer> {
   const sharpMod = await import('sharp')
   const sharp = sharpMod.default ?? sharpMod
@@ -20,8 +26,40 @@ export async function compositeSlide(
 
   const composites: any[] = []
 
-  // Add logo to top-left area — ONLY on first slide (cover) and last slide (CTA)
-  // Content slides in between are logo-free (info bar at bottom has brand details)
+  // ═══ BRANDED BOTTOM BAR (all slides) ═══
+  // Draw a colored bar with company name and contact info
+  const barHeight = 52
+  const barColor = primaryColor ?? '#1B365D'
+  const barY = height - barHeight
+
+  // Build bar text
+  const barParts: string[] = []
+  if (brandName) barParts.push(brandName)
+  if (contactInfo?.phone) barParts.push(contactInfo.phone)
+  if (contactInfo?.website) barParts.push(contactInfo.website)
+  const barText = barParts.join('  |  ')
+
+  if (barText) {
+    // Create the bar background
+    const barBg = Buffer.from(
+      `<svg width="${width}" height="${barHeight}">
+        <rect x="0" y="0" width="${width}" height="${barHeight}" fill="${barColor}"/>
+      </svg>`
+    )
+    composites.push({ input: barBg, left: 0, top: barY })
+
+    // Create the bar text
+    // Escape XML entities in text
+    const safeText = barText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    const textSvg = Buffer.from(
+      `<svg width="${width}" height="${barHeight}">
+        <text x="${width / 2}" y="${barHeight / 2 + 5}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="500" fill="white" letter-spacing="1">${safeText}</text>
+      </svg>`
+    )
+    composites.push({ input: textSvg, left: 0, top: barY })
+  }
+
+  // ═══ LOGO (cover + closing only, top-left) ═══
   if (logoUrl && (isFirstSlide || isLastSlide)) {
     try {
       const logoRes = await fetch(logoUrl)
@@ -62,10 +100,7 @@ export async function compositeSlide(
     }
   }
 
-  // Determine which photo to use based on slide position
-  // First slide (title): headshot in circular crop, bottom-right
-  // Last slide (CTA): standing photo if available, otherwise headshot
-  // Other slides: logo only, no photo
+  // ═══ AGENT PHOTO ═══
   const shouldShowPhoto = isFirstSlide || isLastSlide
   const photoToUse = isLastSlide
     ? (standingPhotoUrl ?? photoUrl)
@@ -96,7 +131,6 @@ export async function compositeSlide(
             .png()
             .toBuffer()
 
-          // Create border circle with subtle shadow/glow for blending
           const shadowPadding = 8
           const shadowTotal = totalSize + shadowPadding * 2
           const borderCircle = Buffer.from(
@@ -122,10 +156,10 @@ export async function compositeSlide(
           composites.push({
             input: photoWithBorder,
             left: width - shadowTotal - 42,
-            top: height - shadowTotal - 42,
+            top: height - shadowTotal - barHeight - 20,
           })
         } else {
-          // Rectangular photo (CTA/last slide) — standing or fallback headshot
+          // Rectangular photo (CTA/last slide)
           const photoHeight = 400
           const photoWidth = 280
 
@@ -134,7 +168,6 @@ export async function compositeSlide(
             .png()
             .toBuffer()
 
-          // Add a subtle rounded-corner mask
           const roundedMask = Buffer.from(
             `<svg width="${photoWidth}" height="${photoHeight}">
               <rect x="0" y="0" width="${photoWidth}" height="${photoHeight}" rx="16" ry="16" fill="white"/>
@@ -146,7 +179,6 @@ export async function compositeSlide(
             .png()
             .toBuffer()
 
-          // Create a shadow backdrop for the rectangular photo
           const rectShadowPad = 10
           const shadowW = photoWidth + rectShadowPad * 2
           const shadowH = photoHeight + rectShadowPad * 2
@@ -169,7 +201,7 @@ export async function compositeSlide(
           composites.push({
             input: photoWithShadow,
             left: width - shadowW - 50,
-            top: height - shadowH - 30,
+            top: height - shadowH - barHeight - 10,
           })
         }
       }
