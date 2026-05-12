@@ -473,68 +473,19 @@ export default function CreatePage() {
   }
 
   async function handleGenerateSlides() {
+    // Content preview only — no Gemini image generation
+    // Slides are generated during final video creation
     setStep('approve-slides')
     setError(null)
-    // Clear any stale pre-generated audio from previous sessions
-    sessionStorage.removeItem('pregenerated_audio_id')
-    setAudioReady(false)
 
     try {
       const scenes = editableScenes.length > 0 ? editableScenes : []
       if (scenes.length === 0) throw new Error('No script scenes available. Please go back and generate a script first.')
-      const count = scenes.length
-      setSlideCount(count)
+      setSlideCount(scenes.length)
       setGeneratedScenes(scenes)
-      setSlideLabels(scenes.map(s => ({ title: s.title, content: s.slidePrompt.slice(0, 80) })))
-
-      // Pre-generate audio in background while user reviews slides
-      setAudioGenerating(true)
-      setAudioReady(false)
-      fetch('/api/pre-generate-audio', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenes, voiceId: selectedVoice }),
-      }).then(async (res) => {
-        if (res.ok) {
-          const data = await res.json()
-          // Clear any old audio ID first, then set new one
-          sessionStorage.removeItem('pregenerated_audio_id')
-          sessionStorage.setItem('pregenerated_audio_id', data.audioId)
-          setAudioReady(true)
-        }
-        setAudioGenerating(false)
-      }).catch(() => setAudioGenerating(false))
-
-      const newSlides: (string | null)[] = Array(count).fill(null)
-      const loading = Array(count).fill(true)
-      setSlidesLoading([...loading])
-      setSlides([...newSlides])
-
-      for (let i = 0; i < count; i++) {
-        try {
-          const res = await fetch('/api/generate-slide', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              policyData: activeData,
-              slideIndex: i,
-              styleId: selectedStyle,
-              brandId: selectedBrand,
-              slidePrompt: scenes[i].slidePrompt,
-            }),
-          })
-          const data = await res.json()
-          if (!res.ok) throw new Error(data.error)
-          newSlides[i] = data.image
-          setSlides([...newSlides])
-        } catch (err) {
-          console.error(`Slide ${i + 1} failed:`, err)
-        }
-        loading[i] = false
-        setSlidesLoading([...loading])
-      }
+      setSlideLabels(scenes.map(s => ({ title: s.title, content: s.slidePrompt?.slice(0, 80) ?? '' })))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate slides')
+      setError(err instanceof Error ? err.message : 'Failed to prepare slides')
       setStep('choose-style')
     }
   }
@@ -1471,87 +1422,95 @@ export default function CreatePage() {
       {/* Step: Approve slides */}
       {step === 'approve-slides' && (
         <div className="wizard-card">
-          <h2>Here&apos;s what we designed</h2>
-          <p className="wizard-sub">Preview your slides below. Don&apos;t love one? Hit Redo to regenerate it.</p>
-
-          <div className="slides-info">
-            <span style={{ width: 8, height: 8, background: 'var(--ink)', borderRadius: '50%', display: 'inline-block' }} />
-            {slides.filter(Boolean).length} of {slideCount} slides generated
-            {allSlidesReady ? ' \u00B7 ready to continue' : ''}
-            {audioGenerating && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--mint-darker)', marginLeft: 12 }}>
-                <span className="pulse-dot" />
-                Pre-generating audio...
-              </span>
-            )}
-            {audioReady && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--mint-darker)', marginLeft: 12 }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M5 13l4 4L19 7"/></svg>
-                Audio ready
-              </span>
-            )}
+          <h2>Preview your slides</h2>
+          <div style={{
+            background: 'rgba(168,240,212,0.1)', border: '1px solid var(--mint)',
+            borderRadius: 10, padding: '12px 18px', marginBottom: 20,
+            fontSize: 13, color: 'var(--ink-soft)', display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker, #2d7a4f)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            These are content drafts — not final designs. The actual slides will have professional styling, brand colors, and AI-generated visuals. Click any text to edit it.
           </div>
 
-          <div className="slides-grid">
-            {slides.map((slide, i) => {
-              const label = slideLabels[i] ?? { title: `Slide ${i + 1}`, content: '' }
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {(editableScenes.length > 0 ? editableScenes : generatedScenes).map((scene: any, i: number) => {
+              const isFirst = i === 0
+              const isLast = i === (editableScenes.length > 0 ? editableScenes : generatedScenes).length - 1
+              const slideType = isFirst ? 'Cover' : isLast ? 'Closing' : 'Content'
               return (
-                <div key={i} className="slide-card">
-                  <div className={`slide-thumb${slidesLoading[i] ? ' loading' : ''}${!slidesLoading[i] && !slide ? ' error' : ''}`}>
-                    {slidesLoading[i] ? (
-                      <>
-                        <div className="spinner" style={{ marginBottom: 8 }} />
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>Slide {i + 1} of {slides.length} generating...</div>
-                        <div style={{ maxWidth: 80, margin: '8px auto 0', height: 3, background: 'var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', borderRadius: 10, background: 'var(--mint)', animation: 'slideProgress 2s ease-in-out infinite', width: '60%' }} />
-                        </div>
-                        <style>{`@keyframes slideProgress { 0%,100% { width: 30% } 50% { width: 80% } }`}</style>
-                      </>
-                    ) : slide ? (
-                      <img src={slide} alt={label.title} />
-                    ) : (
-                      <div style={{ fontSize: 14 }}>Failed -- click Redo</div>
-                    )}
+                <div key={i} style={{
+                  background: 'white', border: '1px solid var(--border-light)',
+                  borderRadius: 10, overflow: 'hidden',
+                }}>
+                  {/* Slide header bar */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 16px', background: 'var(--bg-soft)',
+                    borderBottom: '1px solid var(--border-light)',
+                  }}>
+                    <span style={{
+                      width: 28, height: 28, borderRadius: '50%',
+                      background: 'var(--mint)', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', fontWeight: 800, fontSize: 12, flexShrink: 0,
+                    }}>{i + 1}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{slideType} Slide</span>
+                    <span style={{ fontSize: 11, color: 'var(--ink-light)', marginLeft: 'auto' }}>
+                      ~{Math.round((scene.narration?.split(/\s+/).length ?? 0) / 2.5)}s
+                    </span>
                   </div>
-                  <div className="ctrl-row">
-                    <div className="titles">
-                      <div className="t">{label.title}</div>
-                      <div className="d">{label.content}</div>
-                    </div>
-                    <button
-                      onClick={() => handleRegenerateSlide(i)}
-                      disabled={slidesLoading[i]}
-                      className="btn btn-soft btn-sm"
-                    >
-                      {slidesLoading[i] ? '...' : 'Redo'}
-                    </button>
+
+                  {/* Slide content preview */}
+                  <div style={{ padding: 20, aspectRatio: '16/9', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', background: '#f8fafc' }}>
+                    {/* Editable headline */}
+                    <input
+                      type="text"
+                      value={scene.title ?? ''}
+                      onChange={e => {
+                        const updated = [...(editableScenes.length > 0 ? editableScenes : generatedScenes)]
+                        updated[i] = { ...updated[i], title: e.target.value }
+                        if (editableScenes.length > 0) setEditableScenes(updated)
+                        else setGeneratedScenes(updated)
+                      }}
+                      style={{
+                        border: 'none', background: 'transparent', outline: 'none',
+                        fontSize: isFirst ? 22 : 18, fontWeight: 800,
+                        color: 'var(--ink)', textAlign: isFirst ? 'center' : 'left',
+                        marginBottom: 8, width: '100%',
+                      }}
+                    />
+
+                    {/* Body content from slidePrompt */}
+                    {scene.slidePrompt && (
+                      <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
+                        {scene.slidePrompt.split('\n').filter((l: string) => l.trim()).slice(0, 4).map((line: string, j: number) => (
+                          <div key={j} style={{ marginBottom: 4 }}>
+                            {line.trim().startsWith('-') ? `• ${line.trim().slice(1).trim()}` : line.trim()}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Draft overlay badge */}
+                    <div style={{
+                      position: 'absolute', top: 8, right: 8,
+                      fontSize: 9, fontWeight: 700, textTransform: 'uppercase',
+                      letterSpacing: '0.08em', color: 'var(--ink-light)',
+                      background: 'rgba(255,255,255,0.8)', padding: '2px 8px', borderRadius: 6,
+                    }}>Draft</div>
                   </div>
                 </div>
               )
             })}
           </div>
 
+          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 16, textAlign: 'center' }}>
+            {(editableScenes.length > 0 ? editableScenes : generatedScenes).length} slides &middot; Final video will include professional styling, brand colors, voiceover, and background music
+          </div>
+
           <div className="wizard-actions">
             <button onClick={() => setStep('choose-style')} className="btn btn-soft">&larr; Back</button>
-            {slides.some(s => s === null) && !slidesLoading.some(Boolean) && !allSlidesReady && (
-              <button
-                onClick={() => {
-                  const keepIndices = slides.map((s, i) => s !== null ? i : -1).filter(i => i !== -1)
-                  if (keepIndices.length > 0) {
-                    setSlides(keepIndices.map(i => slides[i]!))
-                    setSlidesLoading(keepIndices.map(() => false))
-                    setSlideLabels(keepIndices.map(i => slideLabels[i] ?? { title: `Slide ${i + 1}`, content: '' }))
-                  }
-                }}
-                className="btn btn-soft"
-                style={{ color: 'var(--rose, #c0392b)' }}
-              >
-                Skip failed slides
-              </button>
-            )}
-            <button onClick={() => setStep('choose-voice')} disabled={!allSlidesReady}
-              className="btn btn-primary">
-              {allSlidesReady ? 'Next: pick a voice \u2192' : 'Waiting for slides...'}
+            <button onClick={() => setStep('choose-voice')} className="btn btn-primary">
+              Approve &amp; Choose Voice &rarr;
             </button>
           </div>
         </div>
