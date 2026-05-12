@@ -371,7 +371,7 @@ export default function VideoDetailPage() {
       })
       if (res.ok) {
         const data = await res.json()
-        setChatMessages(prev => [...prev, { role: 'assistant', text: data.reply ?? data.message ?? 'I received your request. Let me work on that.' }])
+        setChatMessages(prev => [...prev, { role: 'assistant', text: data.response ?? data.reply ?? data.message ?? 'I received your request. Let me work on that.' }])
       } else {
         setChatMessages(prev => [...prev, { role: 'assistant', text: 'Sorry, something went wrong. Please try again.' }])
       }
