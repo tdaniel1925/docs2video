@@ -191,41 +191,60 @@ export async function POST(request: Request) {
     console.log(`[video ${videoId}] Sending to VPS for assembly at ${VIDEO_ASSEMBLY_URL}...`)
     let assemblyRes: Response
     try {
-      // Use undici directly for longer header timeout (default is 300s which is too short for FFmpeg)
-      const { fetch: undiciFetch } = await import('undici')
-      assemblyRes = await undiciFetch(`${VIDEO_ASSEMBLY_URL}/assemble`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-secret': VIDEO_ASSEMBLY_SECRET,
-        },
-        body: JSON.stringify({
-          slides: slideBuffers.map(b => b.toString('base64')),
-          audios: audioBuffers.map(b => b.toString('base64')),
-          videoId,
-          userId: user.id,
-          musicUrl: musicUrl || undefined,
-        }),
-        headersTimeout: 600000, // 10 min for headers (FFmpeg takes time)
-        bodyTimeout: 600000,
-        signal: AbortSignal.timeout(660000), // 11 min overall
-      } as any) as unknown as Response
+      // Use http module for the VPS call to avoid undici's 300s headers timeout
+      const http = await import('http')
+      const vpsUrl = new URL(`${VIDEO_ASSEMBLY_URL}/assemble`)
+      const bodyStr = JSON.stringify({
+        slides: slideBuffers.map(b => b.toString('base64')),
+        audios: audioBuffers.map(b => b.toString('base64')),
+        videoId,
+        userId: user.id,
+        musicUrl: musicUrl || undefined,
+      })
+
+      const vpsResult = await new Promise<{ ok: boolean; status: number; data: any }>((resolve, reject) => {
+        const req = http.request({
+          hostname: vpsUrl.hostname,
+          port: parseInt(vpsUrl.port || '4000'),
+          path: vpsUrl.pathname,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-secret': VIDEO_ASSEMBLY_SECRET,
+            'Content-Length': Buffer.byteLength(bodyStr),
+          },
+          timeout: 660000, // 11 minutes
+        }, (res) => {
+          let data = ''
+          res.on('data', chunk => { data += chunk })
+          res.on('end', () => {
+            try {
+              resolve({ ok: res.statusCode === 200, status: res.statusCode ?? 500, data: JSON.parse(data) })
+            } catch {
+              resolve({ ok: false, status: res.statusCode ?? 500, data: { error: data } })
+            }
+          })
+        })
+        req.on('error', reject)
+        req.on('timeout', () => { req.destroy(); reject(new Error('VPS request timed out after 11 minutes')) })
+        req.write(bodyStr)
+        req.end()
+      })
+
+      if (!vpsResult.ok) {
+        throw new Error(vpsResult.data?.error || `VPS returned ${vpsResult.status}`)
+      }
+
+      const assemblyResult = vpsResult.data as {
+        success: boolean
+        videoUrl: string
+        thumbnailUrl: string
+        durations: number[]
+        totalDuration: number
+      }
     } catch (fetchErr) {
       console.error(`[video ${videoId}] VPS fetch failed:`, fetchErr)
       throw new Error(`Could not reach video assembly server. Please try again. (${fetchErr instanceof Error ? fetchErr.message : 'connection failed'})`)
-    }
-
-    if (!assemblyRes.ok) {
-      const errBody = await assemblyRes.json().catch(() => ({ error: 'VPS assembly failed' }))
-      throw new Error(errBody.error || `VPS returned ${assemblyRes.status}`)
-    }
-
-    const assemblyResult = await assemblyRes.json() as {
-      success: boolean
-      videoUrl: string
-      thumbnailUrl: string
-      durations: number[]
-      totalDuration: number
     }
 
     console.log(`[video ${videoId}] VPS assembly complete.`)
