@@ -191,7 +191,9 @@ export async function POST(request: Request) {
     console.log(`[video ${videoId}] Sending to VPS for assembly at ${VIDEO_ASSEMBLY_URL}...`)
     let assemblyRes: Response
     try {
-      assemblyRes = await fetch(`${VIDEO_ASSEMBLY_URL}/assemble`, {
+      // Use undici directly for longer header timeout (default is 300s which is too short for FFmpeg)
+      const { fetch: undiciFetch } = await import('undici')
+      assemblyRes = await undiciFetch(`${VIDEO_ASSEMBLY_URL}/assemble`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -204,8 +206,10 @@ export async function POST(request: Request) {
           userId: user.id,
           musicUrl: musicUrl || undefined,
         }),
-        signal: AbortSignal.timeout(600000), // 10 min timeout
-      })
+        headersTimeout: 600000, // 10 min for headers (FFmpeg takes time)
+        bodyTimeout: 600000,
+        signal: AbortSignal.timeout(660000), // 11 min overall
+      } as any) as unknown as Response
     } catch (fetchErr) {
       console.error(`[video ${videoId}] VPS fetch failed:`, fetchErr)
       throw new Error(`Could not reach video assembly server. Please try again. (${fetchErr instanceof Error ? fetchErr.message : 'connection failed'})`)
