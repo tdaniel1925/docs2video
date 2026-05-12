@@ -4,7 +4,11 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 
 export const runtime = 'nodejs'
 
-const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+function getGenAI() {
+  const key = process.env.GEMINI_API_KEY
+  if (!key) throw new Error('GEMINI_API_KEY not configured')
+  return new GoogleGenAI({ apiKey: key })
+}
 
 export async function POST(request: Request) {
   try {
@@ -147,6 +151,7 @@ RULES:
       parts: [{ text: m.message }],
     }))
 
+    const genai = getGenAI()
     const response = await genai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [
