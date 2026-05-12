@@ -398,18 +398,38 @@ ${brandName ? `- Brand: ${brandName}` : ''}`
   if (slideIndex === 0) slideType = 'cover'
   else if (slideIndex >= totalSlides - 1) slideType = 'closing'
 
-  // Build slide content for the template
+  // Parse content into structured slide data
+  // Extract "Headline:" and "Subheadline:" fields, plus bullet points starting with "-"
+  const headlineMatch = content.match(/^Headline:\s*"?([^"\n]+)"?\s*$/m)
+  const subheadlineMatch = content.match(/^Subheadline:\s*"?([^"\n]+)"?\s*$/m)
+  const bulletLines = content.split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim())
+
   const slideContent = {
     slideType,
-    headline: content.split('\n')[0]?.replace(/^SLIDE \d+ —\s*/i, '').replace(/^[A-Z ]+\n/m, '').trim().slice(0, 100) || 'Key Information',
-    subheadline: undefined as string | undefined,
-    bodyBlocks: content.split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim()).slice(0, 5),
+    headline: headlineMatch?.[1]?.trim() || 'Key Information',
+    subheadline: subheadlineMatch?.[1]?.trim() as string | undefined,
+    bodyBlocks: bulletLines.slice(0, 5),
     stats: undefined as { value: string; label: string }[] | undefined,
   }
 
-  // If no body blocks found, split content into chunks
-  if (slideContent.bodyBlocks.length === 0) {
-    slideContent.bodyBlocks = content.split('\n').filter(l => l.trim().length > 10).slice(0, 5).map(l => l.trim())
+  // If content is an AI slidePrompt (visual description), DON'T use it as headline/body text
+  // Instead extract just the topic and let the look-variant template handle the visual layout
+  if (!headlineMatch && content.length > 0) {
+    // This is likely an AI-generated slidePrompt — extract the topic, not the layout instructions
+    // Strip visual descriptions like "A split-screen animation", "Create a bar chart", etc.
+    const stripped = content
+      .replace(/^(A |An |Create |Show |Display |Design |Make |Use |Build |Add |Draw |Render |Include )[^.]*\.\s*/gi, '')
+      .replace(/\b(split-screen|animation|bar chart|line chart|grid|layout|visualization|visual|card|section|panel)\b/gi, '')
+      .trim()
+
+    // Try to find the actual topic/title from the content
+    const topicMatch = stripped.match(/'([^']+)'/g) || stripped.match(/"([^"]+)"/g)
+    if (topicMatch && topicMatch.length > 0) {
+      slideContent.headline = topicMatch[0].replace(/['"]/g, '')
+      slideContent.bodyBlocks = topicMatch.slice(1).map(t => t.replace(/['"]/g, ''))
+    } else if (stripped.length > 5) {
+      slideContent.headline = stripped.split(/[.!]/)[0]?.trim().slice(0, 80) || 'Key Information'
+    }
   }
 
   // Get the look variant prompt

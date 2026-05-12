@@ -289,10 +289,25 @@ export function getLookVariants(hasLogo: boolean) {
   return hasLogo ? LOGO_VARIANTS : FALLBACK_VARIANTS
 }
 
-// Get a specific variant by ID
+// Critical rendering rules appended to EVERY prompt
+const RENDERING_RULES = `
+
+RENDERING RULES (CRITICAL — read carefully):
+- The pixel measurements above (e.g., "480px wide", "80px tall", "1840px y-coordinate") are LAYOUT INSTRUCTIONS for you to follow. Do NOT render these numbers as visible text on the image.
+- The ONLY text that should be VISIBLE on the final image is: the headline, the body content blocks, the stats, the company name (where specified), and the contact bar text.
+- Do NOT render any of the following as visible text: "LAYOUT:", "STYLE:", "CONTENT TO RENDER:", "Block 1:", "Headline:", "Subheadline:", "Stats:", pixel measurements, color hex codes, percentage breakdowns, or any other instruction text.
+- The content fields (headline, blocks, stats) contain the ACTUAL TEXT to display. Everything else is an instruction for how to arrange and style that text.
+- Do NOT display the word "Headline" or "Subheadline" — just display the text itself.`
+
+// Get a specific variant by ID, with rendering rules appended
 export function getLookPrompt(hasLogo: boolean, variantId: string) {
   const variants = getLookVariants(hasLogo)
-  return variants.find(v => v.id === variantId) ?? variants[0]
+  const variant = variants.find(v => v.id === variantId) ?? variants[0]
+  // Wrap the original fn to append rendering rules
+  return {
+    ...variant,
+    fn: (brand: BrandContext, slide: SlideContent) => variant.fn(brand, slide) + RENDERING_RULES,
+  }
 }
 
 // Default variant per mode
