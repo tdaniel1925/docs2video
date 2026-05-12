@@ -189,7 +189,7 @@ export async function POST(request: Request) {
 
     // STAGE 4: Assemble video via VPS
     console.log(`[video ${videoId}] Sending to VPS for assembly at ${VIDEO_ASSEMBLY_URL}...`)
-    let assemblyRes: Response
+    let assemblyResult: { success: boolean; videoUrl: string; thumbnailUrl: string; durations: number[]; totalDuration: number }
     try {
       // Use http module for the VPS call to avoid undici's 300s headers timeout
       const http = await import('http')
@@ -235,13 +235,7 @@ export async function POST(request: Request) {
         throw new Error(vpsResult.data?.error || `VPS returned ${vpsResult.status}`)
       }
 
-      const assemblyResult = vpsResult.data as {
-        success: boolean
-        videoUrl: string
-        thumbnailUrl: string
-        durations: number[]
-        totalDuration: number
-      }
+      assemblyResult = vpsResult.data as typeof assemblyResult
     } catch (fetchErr) {
       console.error(`[video ${videoId}] VPS fetch failed:`, fetchErr)
       throw new Error(`Could not reach video assembly server. Please try again. (${fetchErr instanceof Error ? fetchErr.message : 'connection failed'})`)
