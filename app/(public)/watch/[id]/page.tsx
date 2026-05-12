@@ -922,7 +922,16 @@ export default function PublicWatchPage() {
           ])
         }
       } catch {
-        setChatInput(text)
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: `err-${Date.now()}`,
+            video_id: video.id,
+            role: 'assistant',
+            message: 'Sorry, I couldn\'t process that. Please try again.',
+            created_at: new Date().toISOString(),
+          },
+        ])
       } finally {
         setChatLoading(false)
       }

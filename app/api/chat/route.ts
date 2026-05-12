@@ -16,11 +16,27 @@ export async function POST(request: Request) {
     const supabase = createAdminClient()
 
     // Load video with brand, company context, and agent profile
-    const { data: video } = await supabase
+    // Note: company_context may not exist if migration wasn't run — handle gracefully
+    let video: any = null
+    const { data: videoData } = await supabase
       .from('videos')
-      .select('title, script, status, company_context, user_id, brand:brands(name, primary_color, secondary_color, brand_guide_data)')
+      .select('title, script, status, user_id, brand:brands(name, primary_color, secondary_color, brand_guide_data)')
       .eq('id', videoId)
       .single()
+    video = videoData
+
+    // Try to get company_context separately (column may not exist)
+    let companyContext = ''
+    if (video) {
+      try {
+        const { data: ctxData } = await supabase
+          .from('videos')
+          .select('company_context')
+          .eq('id', videoId)
+          .single()
+        companyContext = (ctxData as any)?.company_context ?? ''
+      } catch { /* column may not exist */ }
+    }
 
     if (!video) {
       return NextResponse.json({ error: 'Video not found' }, { status: 404 })
@@ -97,7 +113,7 @@ export async function POST(request: Request) {
     if (brandGuide?.phone) contactLines.push(`Company phone: ${brandGuide.phone}`)
 
     // Company context from web scraping
-    const companyContext = (video.company_context as string) ?? ''
+    // companyContext already loaded above
 
     const systemPrompt = `You are a knowledgeable AI assistant on a client share page for ${brandName}. You represent ${agentName} and their company.
 
