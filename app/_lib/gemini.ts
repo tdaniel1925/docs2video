@@ -271,66 +271,38 @@ export async function generateSlide(
       .join('\n')
 
     slideContents = {
-      0: `SLIDE 1 — TITLE CARD
-Show prominently:
-- "${insuranceData.carrier}" as carrier name (PLAIN TEXT ONLY — no logo)
-- "${insuranceData.policyType}" as policy type
-- "Prepared for ${insuranceData.insuredName}"
-${brandName ? `- Display "${brandName}" prominently as part of the title card design — it should be the presenting company/agent name, styled elegantly to match the slide aesthetic` : ''}
-Make this feel like a premium title card / cover slide. Elegant and inviting.`,
+      0: `Headline: "${insuranceData.carrier} — ${insuranceData.policyType}"
+Subheadline: "Prepared for ${insuranceData.insuredName}"`,
 
-      1: `SLIDE 2 — CLIENT OVERVIEW
-Show the client's information in a clear, organized layout:
+      1: `Headline: "Client Overview"
 - Insured: ${insuranceData.insuredName}
 - Age: ${insuranceData.insuredAge ?? 'N/A'}
 - Policy Type: ${insuranceData.policyType}
 - Carrier: ${insuranceData.carrier}
+- Payment Mode: ${insuranceData.paymentMode}`,
+
+      2: `Headline: "Total Protection for Your Family"
+- Death Benefit: ${formatCurrency(insuranceData.deathBenefit)}`,
+
+      3: `Headline: "Premium Breakdown"
+- Annual Premium: ${formatCurrency(insuranceData.annualPremium)}
 - Payment Mode: ${insuranceData.paymentMode}
-Use a clean card or profile-style layout. Professional and personal.`,
+${insuranceData.loanRate ? `- Policy Loan Rate: ${insuranceData.loanRate}%` : ''}`,
 
-      2: `SLIDE 3 — DEATH BENEFIT
-Make the death benefit the hero of this slide:
-- Death Benefit: ${formatCurrency(insuranceData.deathBenefit)} — display this very large and prominent
-- Add a brief visual element suggesting family protection (use icons or abstract shapes, NOT photos)
-- Subtitle: "Total Protection for Your Family"
-This should feel impactful and reassuring.`,
+      4: `Headline: "Your Cash Value Over Time"
+${cvRows}`,
 
-      3: `SLIDE 4 — PREMIUM BREAKDOWN
-Show the cost details clearly:
-- Annual Premium: ${formatCurrency(insuranceData.annualPremium)} — large and prominent
-- Payment Mode: ${insuranceData.paymentMode}
-${insuranceData.loanRate ? `- Policy Loan Rate: ${insuranceData.loanRate}%` : ''}
-- Show a simple cost-to-benefit visual comparison
-Make it feel transparent and straightforward.`,
+      5: `Headline: "Guaranteed vs. Illustrated Values"
+${cvRowsDetailed}`,
 
-      4: `SLIDE 5 — CASH VALUE GROWTH
-Create a clear bar chart or growth visualization:
-${cvRows}
-Show the growth trajectory over time. Use bars or a line chart.
-Label each data point clearly. Make the upward trend obvious.
-Title: "Your Cash Value Over Time"`,
+      6: `Headline: "Your Policy Features"
+${(insuranceData.riders ?? []).map(r => `- ${r}`).join('\n')}
+${(insuranceData.additionalNotes ?? []).length > 0 ? (insuranceData.additionalNotes ?? []).map(n => `- ${n}`).join('\n') : ''}`,
 
-      5: `SLIDE 6 — GUARANTEED VS ILLUSTRATED
-Create a comparison visual showing guaranteed vs illustrated values side by side:
-${cvRowsDetailed}
-Use a dual-bar chart, split comparison, or table format.
-Title: "Guaranteed vs. Illustrated Values"
-Make clear which is guaranteed and which is projected.`,
-
-      6: `SLIDE 7 — RIDERS & FEATURES
-List the policy riders and features in an organized, easy-to-scan layout:
-${insuranceData.riders.map(r => `- ${r}`).join('\n')}
-${insuranceData.additionalNotes.length > 0 ? `\nAdditional notes:\n${insuranceData.additionalNotes.map(n => `- ${n}`).join('\n')}` : ''}
-Use checkmarks, icons, or cards for each feature. Make it scannable.
-Title: "Your Policy Features"`,
-
-      7: `SLIDE 8 — SUMMARY & CONTACT
-Create a closing slide with:
-- 3-4 key takeaways from the policy (death benefit, cash value growth, key riders)
-- A clear call-to-action section
-${brandName ? `- Feature "${brandName}" prominently in the call-to-action area as the contact/presenter name` : '- "Contact your agent" in prominent text'}
-- "Powered by Docs2Video" in small footer text
-Make it feel like a warm, confident closing. Inviting the client to take the next step.`,
+      7: `Headline: "Next Steps"
+- Death Benefit: ${formatCurrency(insuranceData.deathBenefit)}
+- Annual Premium: ${formatCurrency(insuranceData.annualPremium)}
+- Key Features: ${(insuranceData.riders ?? []).slice(0, 3).join(', ') || 'Standard coverage'}`,
     }
 
     contextBlock = `DOCUMENT CONTEXT (use for data accuracy):
@@ -347,36 +319,21 @@ ${brandName ? `- Agent/Agency: ${brandName}` : ''}`
     const bulletText = genData.bulletPoints.map(b => `- ${b}`).join('\n')
 
     slideContents = {
-      0: `SLIDE 1 — TITLE CARD
-Show prominently:
-- "${genData.title}" as the main title
-${genData.subtitle ? `- "${genData.subtitle}" as subtitle` : ''}
-${genData.source ? `- "Source: ${genData.source}"` : ''}
-${brandName ? `- Display "${brandName}" prominently as part of the title card design — it should be the presenting company/agent name, styled elegantly to match the slide aesthetic` : ''}
-Make this feel like a premium title card / cover slide. Elegant and inviting.`,
+      0: `Headline: "${genData.title}"
+${genData.subtitle ? `Subheadline: "${genData.subtitle}"` : ''}
+${genData.source ? `Source: ${genData.source}` : ''}`,
 
-      1: `SLIDE 2 — KEY METRICS OVERVIEW
-Show the most important metrics in a clear, organized grid or card layout:
-${metricsText}
-Use large, prominent numbers for highlighted values. Professional and data-forward.`,
+      1: `Headline: "Key Metrics"
+${metricsText}`,
 
-      2: `SLIDE 3 — DETAILED SECTIONS
-Present the key sections of the document:
-${sectionsText}
-Use clear headings and concise text. Make it scannable and informative.`,
+      2: `Headline: "Key Sections"
+${sectionsText}`,
 
-      3: `SLIDE 4 — KEY TAKEAWAYS
-List the most important findings or conclusions:
-${bulletText}
-Use checkmarks, icons, or numbered items. Make each point stand out clearly.`,
+      3: `Headline: "Key Takeaways"
+${bulletText}`,
 
-      4: `SLIDE 5 — SUMMARY & CONTACT
-Create a closing slide with:
-- 3-4 key takeaways from the document
-- A clear call-to-action section
-${brandName ? `- Feature "${brandName}" prominently in the call-to-action area as the contact/presenter name` : '- "Contact us" in prominent text'}
-- "Powered by Docs2Video" in small footer text
-Make it feel like a warm, confident closing.`,
+      4: `Headline: "Summary"
+${(genData.bulletPoints ?? []).slice(0, 4).map(b => `- ${b}`).join('\n')}`,
     }
 
     contextBlock = `DOCUMENT CONTEXT (use for data accuracy):
