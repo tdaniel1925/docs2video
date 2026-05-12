@@ -10,6 +10,7 @@
     "generate-demos": "tsx -r dotenv/config scripts/generate-industry-demos.ts dotenv_config_path=.env.local"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.2",
     "@google/genai": "^2.0.0",
     "@stripe/stripe-js": "^9.4.0",
     "@supabase/ssr": "^0.10.3",

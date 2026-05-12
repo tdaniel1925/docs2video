@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
-import { GoogleGenAI } from '@google/genai'
+import Anthropic from '@anthropic-ai/sdk'
 import { createAdminClient } from '../../_lib/supabase/admin'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
-function getGenAI() {
-  const key = process.env.GEMINI_API_KEY
-  if (!key) throw new Error('GEMINI_API_KEY not configured')
-  return new GoogleGenAI({ apiKey: key })
+function getClient() {
+  const key = process.env.ANTHROPIC_API_KEY
+  if (!key) throw new Error('ANTHROPIC_API_KEY not configured')
+  return new Anthropic({ apiKey: key })
 }
 
 export async function POST(request: Request) {
@@ -19,28 +20,12 @@ export async function POST(request: Request) {
 
     const supabase = createAdminClient()
 
-    // Load video with brand, company context, and agent profile
-    // Note: company_context may not exist if migration wasn't run — handle gracefully
-    let video: any = null
-    const { data: videoData } = await supabase
+    // Load video with brand
+    const { data: video } = await supabase
       .from('videos')
       .select('title, script, status, user_id, brand:brands(name, primary_color, secondary_color, brand_guide_data)')
       .eq('id', videoId)
       .single()
-    video = videoData
-
-    // Try to get company_context separately (column may not exist)
-    let companyContext = ''
-    if (video) {
-      try {
-        const { data: ctxData } = await supabase
-          .from('videos')
-          .select('company_context')
-          .eq('id', videoId)
-          .single()
-        companyContext = (ctxData as any)?.company_context ?? ''
-      } catch { /* column may not exist */ }
-    }
 
     if (!video) {
       return NextResponse.json({ error: 'Video not found' }, { status: 404 })
@@ -49,6 +34,17 @@ export async function POST(request: Request) {
     if (video.status !== 'completed') {
       return NextResponse.json({ error: 'Video is not yet available' }, { status: 400 })
     }
+
+    // Try to get company_context (column may not exist)
+    let companyContext = ''
+    try {
+      const { data: ctxData } = await supabase
+        .from('videos')
+        .select('company_context')
+        .eq('id', videoId)
+        .single()
+      companyContext = (ctxData as any)?.company_context ?? ''
+    } catch { /* column may not exist */ }
 
     // Load agent profile
     const { data: agent } = await supabase
@@ -83,7 +79,6 @@ export async function POST(request: Request) {
         .map((s: any) => `${s.title || s.scene}: ${s.narration}`)
         .join('\n\n')
     } else if (scriptData?._pipeline_input) {
-      // Script hasn't been replaced yet — use pipeline input data
       const input = scriptData._pipeline_input
       if (input.policyData) {
         const pd = input.policyData
@@ -107,17 +102,12 @@ export async function POST(request: Request) {
     const agentPhone = agent?.phone ?? ''
     const calendlyUrl = agent?.calendly_url ?? ''
 
-    // Build contact info block
     const contactLines: string[] = []
     if (agentName) contactLines.push(`Agent: ${agentName}`)
     if (agentEmail) contactLines.push(`Email: ${agentEmail}`)
     if (agentPhone) contactLines.push(`Phone: ${agentPhone}`)
     if (calendlyUrl) contactLines.push(`Book a meeting: ${calendlyUrl}`)
     if (brandGuide?.website) contactLines.push(`Website: ${brandGuide.website}`)
-    if (brandGuide?.phone) contactLines.push(`Company phone: ${brandGuide.phone}`)
-
-    // Company context from web scraping
-    // companyContext already loaded above
 
     const systemPrompt = `You are a knowledgeable AI assistant on a client share page for ${brandName}. You represent ${agentName} and their company.
 
@@ -130,7 +120,7 @@ YOUR ROLE:
 VIDEO CONTENT (from the presentation the client is watching):
 ${scriptContext}
 
-${companyContext ? `COMPANY INFORMATION (from ${brandName}'s website — use this to answer general company questions):
+${companyContext ? `COMPANY INFORMATION (from ${brandName}'s website):
 ${companyContext}` : ''}
 
 CONTACT INFORMATION:
@@ -146,25 +136,29 @@ RULES:
 - If a meeting can be booked, proactively suggest it when appropriate
 - Format responses clearly — use short paragraphs, not walls of text`
 
-    const chatHistory = (history ?? []).map((m) => ({
-      role: m.role === 'client' ? 'user' as const : 'model' as const,
-      parts: [{ text: m.message }],
-    }))
+    // Build messages for Claude
+    const messages: { role: 'user' | 'assistant'; content: string }[] = []
+    for (const m of (history ?? [])) {
+      messages.push({
+        role: m.role === 'client' ? 'user' : 'assistant',
+        content: m.message,
+      })
+    }
+    messages.push({ role: 'user', content: message })
 
-    const genai = getGenAI()
-    const response = await genai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        { role: 'user', parts: [{ text: systemPrompt }] },
-        { role: 'model', parts: [{ text: `I understand. I'm the AI assistant for ${brandName}, ready to help clients with questions about the video and the company's services.` }] },
-        ...chatHistory,
-        { role: 'user', parts: [{ text: message }] },
-      ],
+    const client = getClient()
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages,
     })
 
-    const aiResponse = response.text?.trim() ?? 'I apologize, I was unable to generate a response.'
+    const aiResponse = response.content[0]?.type === 'text'
+      ? response.content[0].text.trim()
+      : 'I apologize, I was unable to generate a response.'
 
-    // Save both messages (non-blocking — don't let DB errors kill the response)
+    // Save both messages (non-blocking)
     supabase.from('chat_messages').insert([
       { video_id: videoId, role: 'client', message },
       { video_id: videoId, role: 'assistant', message: aiResponse },
@@ -176,10 +170,7 @@ RULES:
   } catch (err: unknown) {
     console.error('[chat] Error:', err)
     const errMsg = err instanceof Error ? err.message : 'Unknown error'
-    console.error('[chat] Full error details:', JSON.stringify({
-      message: errMsg,
-      stack: err instanceof Error ? err.stack?.slice(0, 500) : undefined,
-    }))
+    console.error('[chat] Details:', JSON.stringify({ message: errMsg, stack: err instanceof Error ? err.stack?.slice(0, 500) : undefined }))
     return NextResponse.json({ error: errMsg }, { status: 500 })
   }
 }
