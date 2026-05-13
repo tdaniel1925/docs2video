@@ -253,7 +253,8 @@ export async function generateSlide(
   hasPhoto: boolean = false,
   contactInfo?: { phone?: string; website?: string },
   logoBuffer?: Buffer | null,
-  referenceSlides?: Buffer[]
+  referenceSlides?: Buffer[],
+  totalSlides: number = 5
 ): Promise<Buffer> {
   const style = SLIDE_STYLES.find(s => s.id === styleId) ?? SLIDE_STYLES[0]
   const isInsurance = 'deathBenefit' in data
@@ -306,12 +307,12 @@ ${(insuranceData.additionalNotes ?? []).length > 0 ? (insuranceData.additionalNo
     }
 
     contextBlock = `DOCUMENT CONTEXT (use for data accuracy):
-- Carrier: ${insuranceData.carrier}
 - Policy Type: ${insuranceData.policyType}
 - Insured: ${insuranceData.insuredName}, Age ${insuranceData.insuredAge ?? 'N/A'}
 - Death Benefit: ${formatCurrency(insuranceData.deathBenefit)}
 - Annual Premium: ${formatCurrency(insuranceData.annualPremium)}
-${brandName ? `- Agent/Agency: ${brandName}` : ''}`
+${brandName ? `- Agent/Agency: ${brandName}` : ''}
+NOTE: Do NOT display any insurance carrier/company name on the slide. This is a legal requirement.`
   } else {
     const genData = data as ExtractedData
     const metricsText = genData.keyMetrics.map(m => `- ${m.label}: ${m.value}`).join('\n')
@@ -393,7 +394,6 @@ ${brandName ? `- Brand: ${brandName}` : ''}`
   }
 
   // Determine slide type
-  const totalSlides = 5 // default deck size
   let slideType: 'cover' | 'content' | 'data' | 'quote' | 'closing' = 'content'
   if (slideIndex === 0) slideType = 'cover'
   else if (slideIndex >= totalSlides - 1) slideType = 'closing'
@@ -442,22 +442,24 @@ ${brandName ? `- Brand: ${brandName}` : ''}`
     }
   }
 
-  // Get the look variant prompt
+  // Get the look variant prompt for layout structure
   const lookId = getDefaultLookId(useLogoPrompts)
   const lookVariant = getLookPrompt(useLogoPrompts, lookId)
   const lookPromptText = lookVariant.fn(brandCtx, slideContent)
 
-  // Add style and consistency instructions
-  const promptText = `${lookPromptText}
-
-ADDITIONAL DESIGN GUIDANCE:
+  // Style prompt is PRIMARY — it defines the visual identity of the entire deck
+  // Look variant provides layout structure but must NOT override the style's colors, textures, or visual treatment
+  const promptText = `VISUAL STYLE (THIS IS THE #1 PRIORITY — EVERY SLIDE MUST MATCH THIS STYLE):
 ${style.prompt}
+
+LAYOUT STRUCTURE (use this for content placement, but the visual style above MUST dominate):
+${lookPromptText}
 
 ${contextBlock}
 
-${referenceSlides && referenceSlides.length > 0 ? 'VISUAL REFERENCE: Reference slides have been provided. Match their exact visual style, layout patterns, color usage, and typography. The new slide must look like it belongs in the same deck.' : ''}
+${referenceSlides && referenceSlides.length > 0 ? 'VISUAL REFERENCE: Reference slides have been provided. You MUST match their exact visual style — same colors, textures, backgrounds, effects, and typography. The new slide must be visually indistinguishable in style from the reference. Layout can vary but the visual identity must be identical.' : ''}
 
-CONSISTENCY: This slide is part of a series. Maintain the SAME visual style, layout grid, color usage, and typography across all slides.`
+CONSISTENCY (CRITICAL): This slide is part of a deck. ALL slides must share the SAME visual style: same background treatment, same color palette, same text styling, same effects. Do NOT switch to a generic or different style.`
 
   // Build the content parts — text first, then logo image, then reference slides
   const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [

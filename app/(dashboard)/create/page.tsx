@@ -128,13 +128,15 @@ function StylePicker({ selectedStyle, onSelect, onBack, onNext, customStylePromp
   )
 }
 
+const SUPABASE_STORAGE = 'https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos'
+
 const DEFAULT_MUSIC = [
-  { id: 'corporate-1', name: 'Business Agreement', mood: 'Corporate', url: '/music/grand_project-business-agreement-329277.mp3' },
-  { id: 'corporate-2', name: 'Business Professional', mood: 'Corporate', url: '/music/nastelbom-business-291626.mp3' },
-  { id: 'warm-1', name: 'Business Warm', mood: 'Warm', url: '/music/nastelbom-business-443091.mp3' },
-  { id: 'upbeat-1', name: 'Business Upbeat', mood: 'Upbeat', url: '/music/nastelbom-business-454615.mp3' },
-  { id: 'cinematic-1', name: 'Business Cinematic', mood: 'Cinematic', url: '/music/the_mountain-business-business-music-489995.mp3' },
-  { id: 'inspirational-1', name: 'Online Business', mood: 'Inspirational', url: '/music/the_mountain-online-business-144097.mp3' },
+  { id: 'corporate-1', name: 'Business Agreement', mood: 'Corporate', url: `${SUPABASE_STORAGE}/music/grand_project-business-agreement-329277.mp3` },
+  { id: 'corporate-2', name: 'Business Professional', mood: 'Corporate', url: `${SUPABASE_STORAGE}/music/nastelbom-business-291626.mp3` },
+  { id: 'warm-1', name: 'Business Warm', mood: 'Warm', url: `${SUPABASE_STORAGE}/music/nastelbom-business-443091.mp3` },
+  { id: 'upbeat-1', name: 'Business Upbeat', mood: 'Upbeat', url: `${SUPABASE_STORAGE}/music/nastelbom-business-454615.mp3` },
+  { id: 'cinematic-1', name: 'Business Cinematic', mood: 'Cinematic', url: `${SUPABASE_STORAGE}/music/the_mountain-business-business-music-489995.mp3` },
+  { id: 'inspirational-1', name: 'Online Business', mood: 'Inspirational', url: `${SUPABASE_STORAGE}/music/the_mountain-online-business-144097.mp3` },
 ]
 
 export default function CreatePage() {
@@ -182,6 +184,7 @@ export default function CreatePage() {
   const [selectedMusic, setSelectedMusic] = useState<string | null>(null)
   const [uploadedLogo, setUploadedLogo] = useState<string | null>(null)
   const [hoveredStyle, setHoveredStyle] = useState<string | null>(null)
+  const [customTheme, setCustomTheme] = useState(false)
   const [uploadedSlides, setUploadedSlides] = useState<string[]>([]) // base64 data URLs
   const [slidesMode, setSlidesMode] = useState(false) // true = user uploaded their own slides
   const [previewingMusic, setPreviewingMusic] = useState<string | null>(null)
@@ -575,7 +578,7 @@ export default function CreatePage() {
             voiceId: selectedVoice,
             styleId: selectedStyle,
             detailed: detailedMode,
-            musicUrl: selectedMusic ? `${window.location.origin}${selectedMusic}` : undefined,
+            musicUrl: selectedMusic || undefined,
             approvedSlides: slidesMode ? uploadedSlides : (approvedSlides.length >= 4 ? approvedSlides : undefined),
             scenes: editableScenes.length > 0 ? editableScenes : generatedScenes,
             preGeneratedAudioId: sessionStorage.getItem('pregenerated_audio_id') ?? undefined,
@@ -2072,52 +2075,49 @@ export default function CreatePage() {
             </div>
           )}
 
-          {/* Style/Template selector */}
+          {/* Custom Theme toggle (premium $5 add-on) */}
           {!slidesMode && (
             <div style={{ marginBottom: 24 }}>
-              <label className="input-label">Slide Style</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8, position: 'relative' }}>
-                {SLIDE_STYLES.map(style => (
-                  <div
-                    key={style.id}
-                    onClick={() => setSelectedStyle(style.id)}
-                    onMouseEnter={() => setHoveredStyle(style.id)}
-                    onMouseLeave={() => setHoveredStyle(null)}
-                    style={{
-                      borderRadius: 10, overflow: 'hidden', cursor: 'pointer',
-                      border: selectedStyle === style.id ? '2px solid var(--mint)' : '1px solid var(--border-light)',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <img src={`/style-previews/${style.id}.png`} alt={style.name} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} loading="lazy" />
-                    <div style={{ padding: '5px 8px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 11, fontWeight: selectedStyle === style.id ? 700 : 500 }}>{style.name}</div>
-                    </div>
-                  </div>
-                ))}
-                {/* Hover preview popup */}
-                {hoveredStyle && (
-                  <div style={{
-                    position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                    zIndex: 1000, pointerEvents: 'none',
-                    background: 'white', borderRadius: 14, padding: 8,
-                    boxShadow: '0 20px 60px rgba(0,0,0,0.25)', border: '1px solid var(--border-light)',
-                    maxWidth: 600,
-                  }}>
-                    <img
-                      src={`/style-previews/${hoveredStyle}.png`}
-                      alt="Preview"
-                      style={{ width: '100%', borderRadius: 10, display: 'block' }}
-                    />
-                    <div style={{ textAlign: 'center', padding: '8px 0 4px', fontWeight: 700, fontSize: 14 }}>
-                      {SLIDE_STYLES.find(s => s.id === hoveredStyle)?.name}
-                    </div>
-                    <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--ink-light)', paddingBottom: 4 }}>
-                      {SLIDE_STYLES.find(s => s.id === hoveredStyle)?.description}
-                    </div>
-                  </div>
-                )}
+              <label className="input-label">Slide Theme</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: customTheme ? 16 : 0 }}>
+                <button
+                  type="button"
+                  onClick={() => { setCustomTheme(false); setSelectedStyle('executive') }}
+                  className={`btn btn-sm ${!customTheme ? 'btn-primary' : 'btn-soft'}`}
+                >
+                  AI picks theme (free)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCustomTheme(true)}
+                  className={`btn btn-sm ${customTheme ? 'btn-primary' : 'btn-soft'}`}
+                >
+                  Choose custom theme (+$5)
+                </button>
               </div>
+              {!customTheme && (
+                <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 8 }}>AI will select the best visual style based on your content and industry.</div>
+              )}
+              {customTheme && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
+                  {SLIDE_STYLES.map(style => (
+                    <div
+                      key={style.id}
+                      onClick={() => setSelectedStyle(style.id)}
+                      style={{
+                        borderRadius: 10, overflow: 'hidden', cursor: 'pointer',
+                        border: selectedStyle === style.id ? '2px solid var(--mint)' : '1px solid var(--border-light)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <img src={`/style-previews/${style.id}.png`} alt={style.name} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} loading="lazy" />
+                      <div style={{ padding: '6px 8px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 11, fontWeight: selectedStyle === style.id ? 700 : 500 }}>{style.name}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -2154,18 +2154,7 @@ export default function CreatePage() {
             </div>
           </div>
 
-          {/* Video Length */}
-          <div style={{ marginBottom: 24 }}>
-            <label className="input-label">Video Length</label>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setDetailedMode(false)} className={`btn ${!detailedMode ? 'btn-primary' : 'btn-soft'}`} type="button">
-                Standard (2-3 min)
-              </button>
-              <button onClick={() => setDetailedMode(true)} className={`btn ${detailedMode ? 'btn-primary' : 'btn-soft'}`} type="button">
-                Detailed (5-7 min)
-              </button>
-            </div>
-          </div>
+          {/* Video Length — AI decides based on content, no toggle needed */}
 
           {/* Background Music */}
           <div style={{ marginBottom: 24 }}>
@@ -2221,6 +2210,7 @@ export default function CreatePage() {
           {projectPrice && (
             <div style={{ textAlign: 'center', marginTop: 12, padding: '10px 16px', background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border)', fontSize: 13, color: 'var(--ink-soft)' }}>
               Video Explainer — <strong style={{ color: 'var(--ink)' }}>{projectPrice?.priceFormatted}</strong>
+              {customTheme && <span style={{ marginLeft: 4 }}>+ <strong>$5</strong> custom theme</span>}
               {projectPrice?.isPro && <span style={{ marginLeft: 6, color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>Pro price</span>}
             </div>
           )}

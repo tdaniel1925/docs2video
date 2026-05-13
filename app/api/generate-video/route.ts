@@ -168,7 +168,7 @@ export async function POST(request: Request) {
         policyData, 0, effectiveStyleId as any,
         brand?.name ?? null, logoUrl, colors,
         scenes[0].slidePrompt, !!photoUrl, contactInfo,
-        logoBuffer, referenceSlides
+        logoBuffer, referenceSlides, scenes.length
       )
       buf0 = await compositeSlide(buf0, photoUrl, logoUrl, true, scenes.length === 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo)
       slideBuffers.push(buf0)
@@ -188,7 +188,7 @@ export async function POST(request: Request) {
                 policyData, idx, effectiveStyleId as any,
                 brand?.name ?? null, logoUrl, colors,
                 scene.slidePrompt, !!photoUrl, contactInfo,
-                logoBuffer, masterRef
+                logoBuffer, masterRef, scenes.length
               )
               buf = await compositeSlide(buf, photoUrl, logoUrl, false, idx === scenes.length - 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo)
               return buf

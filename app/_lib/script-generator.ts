@@ -21,18 +21,9 @@ function buildInsuranceScriptPrompt(data: ExtractedPolicyData, brandName: string
     .map(p => `Year ${p.year}: Guaranteed ${formatCurrency(p.guaranteed)}, Current ${formatCurrency(p.current)}`)
     .join('\n  ')
 
-  const durationBlock = detailed
-    ? `- Total video should be approximately 5-7 minutes
-- Each scene's narration should be 30-60 seconds (roughly 70-140 words)
-- DO NOT create more than 12 scenes`
-    : `- Total video should be approximately 2-3 minutes
-- Each scene's narration should be 20-40 seconds (roughly 50-100 words)
-- DO NOT create more than 5 scenes`
-
   return `You are a professional scriptwriter creating a life insurance policy explainer video narration.
 
 POLICY DATA:
-- Carrier: ${data.carrier}
 - Policy Type: ${data.policyType}
 - Insured: ${data.insuredName}, Age ${data.insuredAge ?? 'N/A'}
 - Death Benefit: ${formatCurrency(data.deathBenefit)}
@@ -46,6 +37,12 @@ ${svSummary ? `- Surrender Value Projections:\n  ${svSummary}` : ''}
 - Additional Notes: ${(data.additionalNotes ?? []).join(', ') || 'None'}
 ${brandName ? `- Agent/Agency: ${brandName}` : ''}
 
+CARRIER NAME RULE (CRITICAL — LEGAL REQUIREMENT):
+- NEVER mention the insurance carrier name anywhere in the narration.
+- Do NOT say "${data.carrier}" or any carrier/company name.
+- Instead of "your policy from [Carrier]", say "your ${data.policyType} policy".
+- This is a legal requirement to avoid the appearance of carrier endorsement.
+
 VOICE RULES (CRITICAL):
 - The narrator must NEVER introduce themselves, say their name, or say who they are. They are just a voice.
 - The narrator must NEVER say "I'm [name]" or "My name is" or "I'm your agent/advisor"
@@ -55,25 +52,29 @@ VOICE RULES (CRITICAL):
 - The LAST scene should end with: "Thank you for your time. If you have any questions, please don't hesitate to reach out."
 
 INSTRUCTIONS:
-- Create as many scenes as needed to fully cover the material
-${durationBlock}
+- Analyze the document content carefully. Create as many scenes as needed to thoroughly cover ALL the material.
+- Use your best judgment on scene count: simple documents may need 5-8 scenes, complex ones may need 12-20 scenes.
+- Maximum 20 scenes. Each scene's narration should be 20-40 seconds (roughly 50-100 words).
+- Break complex topics into multiple focused slides rather than cramming too much into one.
+- Each scene should cover ONE clear concept or data point.
 - The FIRST scene MUST be a title/cover scene that:
   - Opens with the greeting per VOICE RULES above
-  - States what this presentation is about ("Today we're going to walk through your ${data.policyType} policy from ${data.carrier}")
+  - States what this presentation is about (without naming the carrier)
   - Sets a warm, professional tone
   ${brandName ? `- Mentions that this presentation is brought to them by ${brandName}` : ''}
+- The SECOND scene MUST be a disclaimer slide with this EXACT narration: "Before we begin, please note: this video is intended for educational and informational purposes only. It explains general concepts related to life insurance illustrations. It is not legal, tax, or financial advice. Policy guarantees are based on the claims-paying ability of the issuing insurance company. Any non-guaranteed values shown are subject to change. Please review all policy materials and consult with your licensed insurance professional before making any decisions."
 - The LAST scene MUST be a closing/contact scene that:
   - Summarizes the key takeaways
   - Ends with the closing per VOICE RULES above
   ${brandName ? `- Directs them to contact ${brandName}` : '- Directs them to contact their agent'}
-- Between the first and last scene, create enough scenes to cover:
+- Between the disclaimer and closing, create enough scenes to thoroughly cover:
   - Client overview and policy summary
   - Death benefit explanation (what it means for the family)
   - Premium breakdown (how much, how often, value received)
-  - Cash value growth (walk through projections, explain guaranteed vs illustrated)
-  ${data.surrenderValueProjections.length > 0 ? '- Surrender values and what they mean' : ''}
+  - Cash value growth (walk through projections year by year, explain guaranteed vs illustrated — use MULTIPLE slides if there are many projection years)
+  ${data.surrenderValueProjections.length > 0 ? '- Surrender values and what they mean (separate slide for each key milestone)' : ''}
   ${data.loanRate ? `- Policy loans and the ${data.loanRate}% loan rate` : ''}
-  ${data.riders.length > 0 ? '- Each rider and what protection it provides' : ''}
+  ${data.riders.length > 0 ? '- Each rider and what protection it provides (one slide per rider if multiple)' : ''}
   - Any additional important features
 
 TONE: Professional but warm, like a trusted financial advisor explaining to a client over coffee. Use plain language — no insurance jargon. Make the client feel informed and confident.`
@@ -83,14 +84,6 @@ function buildGenericScriptPrompt(data: ExtractedData, brandName: string | null,
   const metricsText = (data.keyMetrics ?? []).map(m => `- ${m.label}: ${m.value}`).join('\n')
   const sectionsText = (data.sections ?? []).map(s => `- ${s.title}: ${s.content}`).join('\n')
   const bulletText = (data.bulletPoints ?? []).map(b => `- ${b}`).join('\n')
-
-  const durationBlock = detailed
-    ? `- Total video should be approximately 5-7 minutes
-- Each scene's narration should be 30-60 seconds (roughly 70-140 words)
-- DO NOT create more than 12 scenes`
-    : `- Total video should be approximately 2-3 minutes
-- Each scene's narration should be 20-40 seconds (roughly 50-100 words)
-- DO NOT create more than 5 scenes`
 
   return `You are a professional scriptwriter creating an explainer video narration about the following document/content.
 
@@ -119,8 +112,11 @@ VOICE RULES (CRITICAL):
 - The LAST scene should end with: "Thank you for your time. If you have any questions, please don't hesitate to reach out."
 
 INSTRUCTIONS:
-- Create as many scenes as needed to fully cover the material
-${durationBlock}
+- Analyze the document content carefully. Create as many scenes as needed to thoroughly cover ALL the material.
+- Use your best judgment on scene count: simple documents may need 5-8 scenes, complex ones may need 12-20 scenes.
+- Maximum 20 scenes. Each scene's narration should be 20-40 seconds (roughly 50-100 words).
+- Break complex topics into multiple focused slides rather than cramming too much into one.
+- Each scene should cover ONE clear concept or data point.
 - The FIRST scene MUST be a title/cover scene that:
   - Opens with the greeting per VOICE RULES above
   - Introduces the topic ("${data.title}")
@@ -134,8 +130,9 @@ ${durationBlock}
   - Ends with the closing per VOICE RULES above
 - Between the first and last scene, create enough scenes to cover:
   - Overview of the key metrics and data
-  - Each major section or topic area
+  - Each major section or topic area (give each section its own slide)
   - Key takeaways and findings
+  - Any important data tables or charts (break into multiple slides if needed)
   - Any important caveats or additional context
 
 TONE: Professional but warm, like a knowledgeable presenter explaining to an engaged audience. Use plain language. Make the viewer feel informed and confident.`
