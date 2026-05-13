@@ -3,15 +3,10 @@
 import { useState, useEffect } from 'react'
 
 const WORDS = [
-  'Insurance',
-  'Corporate',
-  'Entertainment',
-  'Sales Teams',
-  'Real Estate',
-  'Healthcare',
-  'Legal',
-  'Education',
-  'Consulting',
+  'Explainer Videos',
+  'Slide Decks',
+  'Video Courses',
+  'Infographics',
 ]
 
 export default function RotatingWords() {

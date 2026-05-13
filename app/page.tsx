@@ -27,7 +27,7 @@ export default function HomePage() {
             </div>
             <div className="top-nav-right">
               <Link href="/login" style={{color:'rgba(255,255,255,0.85)',textDecoration:'none',fontSize:'14px',fontWeight:500}}>Login</Link>
-              <Link href="/signup" className="btn btn-mint">Try for free</Link>
+              <Link href="/signup" className="btn btn-mint">Get Started</Link>
             </div>
             <MobileNav />
           </div>
@@ -36,11 +36,11 @@ export default function HomePage() {
         {/* ───── Hero (side-by-side) ───── */}
         <section className="hero hero-split">
           <div className="hero-left">
-            <div className="hero-eyebrow"><span className="star">&#10022;</span>The #1 AI explainer video platform</div>
-            <h1 className="hero-title">The best explainer videos ever<br/>for <RotatingWords /></h1>
-            <p className="hero-sub">Nobody reads a 40-page PDF. Docs2Video turns any document into a branded, narrated explainer video your clients will actually watch &mdash; in under 90 seconds.</p>
+            <div className="hero-eyebrow"><span className="star">&#10022;</span>AI-powered content creation platform</div>
+            <h1 className="hero-title">Turn documents into<br/><RotatingWords /></h1>
+            <p className="hero-sub">Nobody reads a 40-page PDF. Docs2Video transforms any document into narrated videos, slide decks, multi-episode courses, and data infographics &mdash; all branded, all AI-generated, all in minutes.</p>
             <div style={{display:'flex',gap:12,alignItems:'center',marginTop:28,flexWrap:'wrap'}}>
-              <Link href="/signup" className="btn btn-primary btn-lg">Get Started Free</Link>
+              <Link href="/signup" className="btn btn-primary btn-lg">Get Started</Link>
             </div>
             <div className="hero-trust" style={{marginTop:20}}>Trusted by 2,500+ professionals across 12 industries</div>
           </div>
@@ -79,8 +79,8 @@ export default function HomePage() {
         <section className="section" id="how-it-works">
           <div style={{textAlign:'center',marginBottom:60}}>
             <div className="section-eyebrow">How it works</div>
-            <h2 className="section-title">Upload. Generate. <em>Close.</em></h2>
-            <p className="section-sub" style={{maxWidth:500,margin:'12px auto 0'}}>Three steps. Under 90 seconds. No design skills required.</p>
+            <h2 className="section-title">Upload. Pick a format. <em>Done.</em></h2>
+            <p className="section-sub" style={{maxWidth:500,margin:'12px auto 0'}}>Three steps. No design skills required.</p>
           </div>
           <div className="steps-row">
             <div className="step-card">
@@ -89,16 +89,16 @@ export default function HomePage() {
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               </div>
               <h3>Drop in any document</h3>
-              <p>Upload a PDF, proposal, report, or any document. Our AI reads every page instantly.</p>
+              <p>Upload a PDF, proposal, report, or any document. Our AI reads every page and extracts the key information.</p>
             </div>
             <div className="step-connector"><svg width="40" height="2"><line x1="0" y1="1" x2="40" y2="1" stroke="var(--border)" strokeWidth="2" strokeDasharray="6,4"/></svg></div>
             <div className="step-card">
               <div className="step-num-circle">2</div>
               <div className="step-icon peach">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 6v6l4 2"/></svg>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
               </div>
-              <h3>AI builds your video</h3>
-              <p>Pick a style, choose a voice, and watch as AI generates a branded explainer video in under 90 seconds.</p>
+              <h3>Choose your format</h3>
+              <p>Narrated explainer video, editable slide deck, multi-episode course, or data infographic &mdash; AI builds it in minutes.</p>
             </div>
             <div className="step-connector"><svg width="40" height="2"><line x1="0" y1="1" x2="40" y2="1" stroke="var(--border)" strokeWidth="2" strokeDasharray="6,4"/></svg></div>
             <div className="step-card">
@@ -107,13 +107,52 @@ export default function HomePage() {
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
               </div>
               <h3>Share &amp; close faster</h3>
-              <p>Send a branded share page where clients watch, ask questions, book meetings, and pay &mdash; all in one link.</p>
+              <p>Send a branded share page, download an editable PPTX, or embed your infographic &mdash; whatever works for your client.</p>
             </div>
           </div>
         </section>
 
-        {/* ───── Features Grid ───── */}
+        {/* ───── 4 Services ───── */}
         <section className="section" id="features">
+          <div style={{textAlign:'center',marginBottom:50}}>
+            <div className="section-eyebrow">Four formats, one platform</div>
+            <h2 className="section-title">One document. <em>Four ways to share it.</em></h2>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))',gap:24,maxWidth:1100,margin:'0 auto'}}>
+            <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
+              <div style={{fontSize:40,marginBottom:16}}>&#128249;</div>
+              <h3>Video Explainer</h3>
+              <p>AI-narrated video with branded slides, professional voiceover, and a shareable watch page with built-in chat, calendar booking, and payments.</p>
+              <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$29</div>
+            </div>
+            <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
+              <div style={{fontSize:40,marginBottom:16}}>&#128221;</div>
+              <h3>Slide Deck</h3>
+              <p>Editable PPTX with AI-generated backgrounds and structured text. Download it, customize it, present it &mdash; no design skills needed.</p>
+              <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$19</div>
+            </div>
+            <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
+              <div style={{fontSize:40,marginBottom:16}}>&#127891;</div>
+              <h3>Video Course</h3>
+              <p>Multi-episode narrated series. Turn training manuals, onboarding docs, or educational content into a binge-worthy course.</p>
+              <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$249</div>
+            </div>
+            <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
+              <div style={{fontSize:40,marginBottom:16}}>&#128202;</div>
+              <h3>Infographic</h3>
+              <p>Turn data-heavy reports into beautiful visual summaries. AI extracts charts, stats, and key findings into a single shareable graphic.</p>
+              <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$19</div>
+            </div>
+          </div>
+        </section>
+
+        {/* ───── CTA ───── */}
+        <div style={{textAlign:'center',margin:'60px 0'}}>
+          <Link href="/signup" className="btn btn-mint btn-lg">Get Started &rarr;</Link>
+        </div>
+
+        {/* ───── Why Docs2Video ───── */}
+        <section className="section">
           <div style={{textAlign:'center',marginBottom:50}}>
             <div className="section-eyebrow">Why Docs2Video</div>
             <h2 className="section-title">Everything other tools <em>can&apos;t do</em></h2>
@@ -124,28 +163,28 @@ export default function HomePage() {
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
               </div>
               <h3>Reads any document</h3>
-              <p>Upload a PDF, paste text, or drop in any file. Our AI reads every page and extracts the key information automatically.</p>
+              <p>Upload a PDF, proposal, report, or any file. AI extracts every data point, chart, and finding &mdash; no manual work.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon" style={{background:'var(--peach)'}}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
               </div>
-              <h3>AI narrated video</h3>
-              <p>Choose from 6 professional voices. AI writes the script and narrates a polished explainer video for you.</p>
+              <h3>Four output formats</h3>
+              <p>Narrated video, editable PPTX, multi-episode course, or data infographic. Same document, four ways to present it.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon" style={{background:'var(--lilac)'}}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
               </div>
               <h3>Your brand, every frame</h3>
-              <p>Auto-detects your brand colors, logo, and fonts from your website. Every video looks like it came from your design team.</p>
+              <p>Auto-detects your brand colors and logo. Every slide, video, and infographic looks like your design team made it.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon" style={{background:'var(--sky)'}}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
               </div>
-              <h3>39 visual styles</h3>
-              <p>From executive boardroom to watercolor. Pick a preset or let AI match your brand automatically.</p>
+              <h3>AI narration</h3>
+              <p>Choose from 6 professional voices. AI writes the script and narrates your videos with tone matched to your content.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon" style={{background:'var(--sun)'}}>
@@ -158,191 +197,8 @@ export default function HomePage() {
               <div className="feature-icon" style={{background:'var(--rose)'}}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               </div>
-              <h3>90 seconds flat</h3>
-              <p>Upload your document, pick a style, and have a finished, branded explainer video in under 90 seconds. No design skills needed.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* ───── CTA ───── */}
-        <div style={{textAlign:'center',margin:'60px 0'}}>
-          <Link href="/signup" className="btn btn-mint btn-lg">Start for free &rarr;</Link>
-        </div>
-
-        {/* ───── Content Row 1: Document Intelligence ───── */}
-        <section className="section">
-          <div className="content-row">
-            <div style={{flex:1}}>
-              <div className="section-eyebrow">Document intelligence</div>
-              <h2 className="section-title">AI that actually <em>reads</em> your documents</h2>
-              <p className="section-sub">Upload any PDF, proposal, or report. Our AI extracts every data point, chart, and key finding &mdash; then structures it into a clear, narrated storyline. No copy-pasting. No manual slides.</p>
-            </div>
-            <div className="content-visual">
-              <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 20px 60px rgba(27,58,92,0.12)', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-                {/* Browser chrome */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#fc5c65' }} />
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#fed330' }} />
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#26de81' }} />
-                  </div>
-                  <div style={{ flex: 1, background: '#e2e8f0', borderRadius: 6, padding: '4px 12px', fontSize: 11, color: '#94a3b8' }}>docs2video.com/create</div>
-                </div>
-                {/* App mockup */}
-                <div style={{ padding: 20 }}>
-                  {/* Upload zone */}
-                  <div style={{ border: '2px dashed #cbd5e1', borderRadius: 12, padding: '28px 24px', textAlign: 'center', marginBottom: 16, background: '#f8fafc' }}>
-                    <div style={{ fontSize: 28, marginBottom: 8 }}>&#128196;</div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a2e' }}>Q4-Financial-Report.pdf</div>
-                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>34 pages &middot; 2.4 MB</div>
-                  </div>
-                  {/* Extracted data cards */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
-                    <div style={{ background: '#f0fdf4', borderRadius: 10, padding: '12px 14px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: '#166534' }}>12</div>
-                      <div style={{ fontSize: 10, color: '#4ade80', fontWeight: 600 }}>Key Findings</div>
-                    </div>
-                    <div style={{ background: '#eff6ff', borderRadius: 10, padding: '12px 14px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: '#1e40af' }}>8</div>
-                      <div style={{ fontSize: 10, color: '#60a5fa', fontWeight: 600 }}>Charts Found</div>
-                    </div>
-                    <div style={{ background: '#fef3c7', borderRadius: 10, padding: '12px 14px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: '#92400e' }}>5</div>
-                      <div style={{ fontSize: 10, color: '#f59e0b', fontWeight: 600 }}>Slides Ready</div>
-                    </div>
-                  </div>
-                  {/* Progress */}
-                  <div style={{ height: 8, background: '#e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
-                    <div style={{ width: '85%', height: '100%', background: 'linear-gradient(90deg, #A8F0D4, #34d399)', borderRadius: 10 }} />
-                  </div>
-                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8, textAlign: 'center' }}>Extracting data&hellip; 85% complete</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ───── Content Row 2: Professional Narration (reverse) ───── */}
-        <section className="section">
-          <div className="content-row reverse">
-            <div style={{flex:1}}>
-              <div className="section-eyebrow">Professional narration</div>
-              <h2 className="section-title">A 3-minute video replaces <em>a 40-page PDF</em></h2>
-              <p className="section-sub">Choose from 6 professional AI voices. The narration adapts to your document &mdash; financial reports sound authoritative, insurance illustrations sound reassuring, proposals sound confident.</p>
-            </div>
-            <div className="content-visual">
-              <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 20px 60px rgba(27,58,92,0.12)', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#fc5c65' }} />
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#fed330' }} />
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#26de81' }} />
-                  </div>
-                  <div style={{ flex: 1, background: '#e2e8f0', borderRadius: 6, padding: '4px 12px', fontSize: 11, color: '#94a3b8' }}>docs2video.com/create</div>
-                </div>
-                <div style={{ padding: 20 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#1a1a2e', marginBottom: 14 }}>Choose a voice</div>
-                  {/* Voice cards */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-                    {[
-                      { name: 'James', desc: 'Professional, authoritative', color: '#1B3A5C', active: true },
-                      { name: 'Sarah', desc: 'Warm, conversational', color: '#C4B5FD' },
-                      { name: 'Marcus', desc: 'Dynamic, engaging', color: '#A8F0D4' },
-                      { name: 'Elena', desc: 'Clear, reassuring', color: '#FFDAB9' },
-                    ].map(v => (
-                      <div key={v.name} style={{ padding: '12px 14px', borderRadius: 10, border: v.active ? '2px solid #A8F0D4' : '1px solid #e2e8f0', background: v.active ? 'rgba(168,240,212,0.08)' : 'white', display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: v.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, color: v.active ? 'white' : '#1a1a2e', flexShrink: 0 }}>
-                          {v.name.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a2e' }}>{v.name}</div>
-                          <div style={{ fontSize: 10, color: '#94a3b8' }}>{v.desc}</div>
-                        </div>
-                        {v.active && <div style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, color: '#166534', background: '#dcfce7', padding: '2px 8px', borderRadius: 6 }}>Selected</div>}
-                      </div>
-                    ))}
-                  </div>
-                  {/* Waveform preview */}
-                  <div style={{ background: '#f8fafc', borderRadius: 10, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#1B3A5C', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="#A8F0D4"><polygon points="8 4 20 12 8 20" /></svg>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', gap: 2, alignItems: 'end', height: 24 }}>
-                        {[12,18,8,22,14,20,10,24,16,12,20,8,18,14,22,10,16,20,12,18,8,14,22,16,10,20,14,18].map((h, i) => (
-                          <div key={i} style={{ width: 3, height: h, background: i < 16 ? '#A8F0D4' : '#e2e8f0', borderRadius: 2 }} />
-                        ))}
-                      </div>
-                      <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>0:47 / 2:34</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ───── Content Row 3: Client Engagement ───── */}
-        <section className="section">
-          <div className="content-row">
-            <div style={{flex:1}}>
-              <div className="section-eyebrow">Client engagement</div>
-              <h2 className="section-title">One link does <em>everything</em></h2>
-              <p className="section-sub">Send your client a single branded link. They watch the video, ask the AI chatbot questions about the document, book a meeting on your calendar, and accept a quote &mdash; all without leaving the page. You get notified the second they open it.</p>
-            </div>
-            <div className="content-visual">
-              <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 20px 60px rgba(27,58,92,0.12)', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#fc5c65' }} />
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#fed330' }} />
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#26de81' }} />
-                  </div>
-                  <div style={{ flex: 1, background: '#e2e8f0', borderRadius: 6, padding: '4px 12px', fontSize: 11, color: '#94a3b8' }}>docs2video.com/watch/abc123</div>
-                </div>
-                <div style={{ padding: 20 }}>
-                  {/* Mini video player */}
-                  <div style={{ background: '#0a1628', borderRadius: 10, aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, position: 'relative' }}>
-                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(168,240,212,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="#0a1628"><polygon points="8 4 20 12 8 20" /></svg>
-                    </div>
-                    <div style={{ position: 'absolute', bottom: 8, left: 12, right: 12, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 4 }}>
-                      <div style={{ width: '35%', height: '100%', background: '#A8F0D4', borderRadius: 4 }} />
-                    </div>
-                  </div>
-                  {/* Action buttons grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <div style={{ background: '#f0fdf4', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 18 }}>&#128172;</span>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>AI Assistant</div>
-                        <div style={{ fontSize: 10, color: '#4ade80' }}>Ask anything</div>
-                      </div>
-                    </div>
-                    <div style={{ background: '#eff6ff', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 18 }}>&#128197;</span>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#1e40af' }}>Book Meeting</div>
-                        <div style={{ fontSize: 10, color: '#60a5fa' }}>Pick a time</div>
-                      </div>
-                    </div>
-                    <div style={{ background: '#fef3c7', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 18 }}>&#128179;</span>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Accept Quote</div>
-                        <div style={{ fontSize: 10, color: '#f59e0b' }}>$4,200</div>
-                      </div>
-                    </div>
-                    <div style={{ background: '#f5f3ff', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 18 }}>&#128229;</span>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#5b21b6' }}>Download</div>
-                        <div style={{ fontSize: 10, color: '#a78bfa' }}>MP4, PDF, PPTX</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <h3>Minutes, not hours</h3>
+              <p>Upload your document, pick a format, and have a finished, branded deliverable in minutes. No design skills needed.</p>
             </div>
           </div>
         </section>
@@ -410,11 +266,11 @@ export default function HomePage() {
               <div className="comp-old">&#10007; Manual</div>
             </div>
             <div className="comp-row">
-              <div className="comp-label">Auto-generates slides</div>
-              <div className="comp-new highlight">&#10003; 39 AI styles</div>
-              <div className="comp-old">&#10007; Screen record only</div>
-              <div className="comp-old">&#10007; Template-based</div>
-              <div className="comp-old">~  DIY templates</div>
+              <div className="comp-label">Output formats</div>
+              <div className="comp-new highlight">&#10003; Video, Deck, Course, Infographic</div>
+              <div className="comp-old">Video only</div>
+              <div className="comp-old">Video only</div>
+              <div className="comp-old">~  Slides &amp; graphics</div>
             </div>
             <div className="comp-row">
               <div className="comp-label">AI narration</div>
@@ -422,6 +278,13 @@ export default function HomePage() {
               <div className="comp-old">&#10007; Your own voice</div>
               <div className="comp-old">&#10003; Avatar-based</div>
               <div className="comp-old">&#10007; None</div>
+            </div>
+            <div className="comp-row">
+              <div className="comp-label">Editable slide decks</div>
+              <div className="comp-new highlight">&#10003; PPTX download</div>
+              <div className="comp-old">&#10007; No</div>
+              <div className="comp-old">&#10007; No</div>
+              <div className="comp-old">~  Canva format only</div>
             </div>
             <div className="comp-row">
               <div className="comp-label">Brand integration</div>
@@ -432,7 +295,7 @@ export default function HomePage() {
             </div>
             <div className="comp-row">
               <div className="comp-label">Time to create</div>
-              <div className="comp-new highlight">90 seconds</div>
+              <div className="comp-new highlight">Minutes</div>
               <div className="comp-old">10-30 min</div>
               <div className="comp-old">15-60 min</div>
               <div className="comp-old">1-4 hours</div>
@@ -450,13 +313,6 @@ export default function HomePage() {
               <div className="comp-old">Presentation skills</div>
               <div className="comp-old">Script writing</div>
               <div className="comp-old">Design skills</div>
-            </div>
-            <div className="comp-row">
-              <div className="comp-label">Best for</div>
-              <div className="comp-new highlight">Professionals sending complex docs</div>
-              <div className="comp-old">Internal comms</div>
-              <div className="comp-old">Marketing videos</div>
-              <div className="comp-old">Social media graphics</div>
             </div>
           </div>
         </section>
@@ -572,7 +428,7 @@ export default function HomePage() {
 
         {/* ───── CTA ───── */}
         <div style={{textAlign:'center',margin:'60px 0'}}>
-          <Link href="/signup" className="btn btn-mint btn-lg">Start for free &rarr;</Link>
+          <Link href="/signup" className="btn btn-mint btn-lg">Get Started &rarr;</Link>
         </div>
 
         {/* ───── Before / After Comparison ───── */}
@@ -620,7 +476,7 @@ export default function HomePage() {
           <div style={{textAlign:'center',marginBottom:50}}>
             <div className="section-eyebrow">Pricing</div>
             <h2 className="section-title">Simple, transparent <em>pricing</em></h2>
-            <p className="section-sub" style={{maxWidth:500,margin:'0 auto'}}>Pay per project. No subscriptions required.</p>
+            <p className="section-sub" style={{maxWidth:500,margin:'0 auto'}}>Pay per project. No subscriptions required. Go Pro to save 40% on everything.</p>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:32,maxWidth:900,margin:'0 auto'}}>
             {/* Pay Per Project */}
@@ -628,25 +484,21 @@ export default function HomePage() {
               <div className="pricing-name">Pay Per Project</div>
               <div style={{marginTop:20}}>
                 {[
-                  { name: 'Video Explainer', price: '$29' },
-                  { name: 'Slide Deck', price: '$19' },
-                  { name: 'Video Course (10 episodes)', price: '$249' },
-                  { name: 'Brand Kit', price: '$149' },
-                  { name: 'Logo Design', price: '$49' },
-                  { name: 'Social Media Kit', price: '$39' },
-                  { name: 'AI Headshot (20 variations)', price: '$19' },
-                  { name: 'Infographic', price: '$19' },
-                  { name: 'Business Card', price: '$19' },
-                  { name: 'Flyer', price: '$15' },
-                  { name: 'Email Signature', price: '$9' },
+                  { name: 'Video Explainer', price: '$29', desc: 'Narrated video + share page' },
+                  { name: 'Slide Deck', price: '$19', desc: 'Editable PPTX, no audio' },
+                  { name: 'Video Course', price: '$249', desc: 'Multi-episode series' },
+                  { name: 'Infographic', price: '$19', desc: 'Data visualization' },
                 ].map(item => (
-                  <div key={item.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
-                    <span style={{fontSize:14,color:'var(--ink)'}}>{item.name}</span>
-                    <span style={{fontSize:14,fontWeight:700,color:'var(--ink)'}}>{item.price}</span>
+                  <div key={item.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 0',borderBottom:'1px solid var(--border)'}}>
+                    <div>
+                      <div style={{fontSize:14,fontWeight:600,color:'var(--ink)'}}>{item.name}</div>
+                      <div style={{fontSize:12,color:'var(--ink-soft)',marginTop:2}}>{item.desc}</div>
+                    </div>
+                    <span style={{fontSize:16,fontWeight:800,color:'var(--ink)'}}>{item.price}</span>
                   </div>
                 ))}
               </div>
-              <Link href="/signup" className="btn btn-mint btn-full" style={{marginTop:24}}>Get Started Free &rarr;</Link>
+              <Link href="/signup" className="btn btn-mint btn-full" style={{marginTop:24}}>Get Started &rarr;</Link>
             </div>
             {/* Pro Membership */}
             <div className="pricing-card popular" style={{padding:32}}>
@@ -661,7 +513,20 @@ export default function HomePage() {
                 <li>HD quality, no watermark</li>
               </ul>
               <div style={{background:'var(--surface)',borderRadius:10,padding:16,margin:'16px 0',border:'1px solid var(--border)'}}>
-                <p style={{fontSize:13,color:'var(--ink-soft)',lineHeight:1.6,margin:0}}>A Pro member creating 2 videos/month saves $24 &mdash; the membership pays for itself.</p>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                  {[
+                    { name: 'Video Explainer', base: '$29', pro: '$17' },
+                    { name: 'Slide Deck', base: '$19', pro: '$11' },
+                    { name: 'Video Course', base: '$249', pro: '$149' },
+                    { name: 'Infographic', base: '$19', pro: '$11' },
+                  ].map(item => (
+                    <div key={item.name} style={{textAlign:'center'}}>
+                      <div style={{fontSize:11,color:'var(--ink-soft)'}}>{item.name}</div>
+                      <div style={{fontSize:11,color:'var(--ink-soft)',textDecoration:'line-through'}}>{item.base}</div>
+                      <div style={{fontSize:16,fontWeight:800,color:'var(--mint-darker, #0d9488)'}}>{item.pro}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
               <Link href="/signup" className="btn btn-primary btn-full">Go Pro &rarr;</Link>
             </div>
@@ -696,22 +561,22 @@ export default function HomePage() {
         {/* ───── Final CTA ───── */}
         <section className="final-cta">
           <h2>Stop sending documents <em>nobody reads</em></h2>
-          <p className="final-cta-sub">Join 2,500+ professionals who use Docs2Video to turn complex documents into explainer videos their clients actually watch. Your first video is free.</p>
+          <p className="final-cta-sub">Join 2,500+ professionals who use Docs2Video to turn complex documents into videos, decks, courses, and infographics their clients actually engage with.</p>
           <div className="final-cta-buttons">
-            <Link href="/signup" className="btn btn-primary btn-lg">Get Started Free</Link>
+            <Link href="/signup" className="btn btn-primary btn-lg">Get Started</Link>
           </div>
           <div className="final-cta-perks">
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-              First project free
+              No subscription required
             </span>
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-              Ready in 90 seconds
+              Ready in minutes
             </span>
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-              Cancel anytime
+              No design skills needed
             </span>
           </div>
         </section>
