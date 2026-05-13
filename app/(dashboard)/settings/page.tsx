@@ -491,10 +491,10 @@ export default function SettingsPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: 24, fontWeight: 800, textTransform: 'capitalize' }}>
-                  {profile.subscription_status === 'pro' ? 'Pro Member' : 'Free Account'}
+                  {['pro', 'professional', 'active', 'agency'].includes(profile.subscription_status?.toLowerCase() ?? '') ? 'Pro Member' : 'Free Account'}
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginTop: 4 }}>
-                  {profile.subscription_status === 'pro' ? '40% off all projects' : 'Pay per project at full price'}
+                  {['pro', 'professional', 'active', 'agency'].includes(profile.subscription_status?.toLowerCase() ?? '') ? '40% off all projects' : 'Pay per project at full price'}
                 </div>
               </div>
               {(profile as any).stripe_customer_id && (
@@ -513,11 +513,11 @@ export default function SettingsPage() {
             <p className="ssub">Save 40% on every project with a Pro membership.</p>
             <div style={{
               padding: '24px 20px', borderRadius: 12, marginTop: 16,
-              background: profile.subscription_status === 'pro' ? 'rgba(168,240,212,0.1)' : 'white',
-              border: profile.subscription_status === 'pro' ? '2px solid var(--mint)' : '2px solid var(--ink)',
+              background: ['pro', 'professional', 'active', 'agency'].includes(profile.subscription_status?.toLowerCase() ?? '') ? 'rgba(168,240,212,0.1)' : 'white',
+              border: ['pro', 'professional', 'active', 'agency'].includes(profile.subscription_status?.toLowerCase() ?? '') ? '2px solid var(--mint)' : '2px solid var(--ink)',
               textAlign: 'center', position: 'relative',
             }}>
-              {profile.subscription_status === 'pro' && (
+              {['pro', 'professional', 'active', 'agency'].includes(profile.subscription_status?.toLowerCase() ?? '') && (
                 <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 10px', borderRadius: 10 }}>
                   ACTIVE
                 </div>
@@ -530,7 +530,7 @@ export default function SettingsPage() {
               <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
                 Save on every project you create. Cancel anytime.
               </div>
-              {profile.subscription_status === 'pro' ? (
+              {['pro', 'professional', 'active', 'agency'].includes(profile.subscription_status?.toLowerCase() ?? '') ? (
                 <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--bg-soft)', fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)' }}>
                   Current Plan
                 </div>

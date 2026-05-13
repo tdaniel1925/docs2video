@@ -213,7 +213,7 @@ export default function Header({ profile }: { profile: Profile }) {
               }}
             >
               <div style={{ padding: '8px 14px', fontSize: 13, color: 'var(--muted)' }}>
-                {profile.subscription_status === 'pro' ? 'Pro Member' : 'Free Account'}
+                {['pro', 'professional', 'active', 'agency'].includes(profile.subscription_status?.toLowerCase() ?? '') ? 'Pro Member' : 'Free Account'}
               </div>
               <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: 0 }} />
               <Link

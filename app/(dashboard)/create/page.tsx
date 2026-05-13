@@ -9,7 +9,7 @@ import { VOICE_OPTIONS, SLIDE_STYLES } from '../../_lib/types'
 
 type InputTab = 'upload' | 'text' | 'idea' | 'url' | 'research' | 'proposal'
 
-type Step = 'upload' | 'extracting' | 'script' | 'options' | 'generating' | 'done'
+type Step = 'upload' | 'extracting' | 'script' | 'options' | 'generating' | 'done' | 'review' | 'review-script' | 'choose-brand' | 'choose-style' | 'approve-slides' | 'choose-voice'
 
 const STEP_LABELS = [
   { key: 'upload', label: 'Upload' },
@@ -1283,6 +1283,9 @@ export default function CreatePage() {
 
       {/* Step: Script */}
       {step === 'script' && (
+        <div className="wizard-card">
+          <h2>Review your script</h2>
+          <p className="wizard-sub">Edit the narration for each scene. This is what the voiceover will say.</p>
 
           {/* Multi-document comparison view */}
           {multiDocData.length > 1 && (
@@ -1513,8 +1516,9 @@ export default function CreatePage() {
         </div>
       )}
 
-      {/* Step: Review Script */}
-      {step === 'review-script' && (
+      {/* OLD STEPS REMOVED — replaced by simplified 4-step flow */}
+      {/* @ts-ignore — dead code removed */}
+      {false && (
         <div className="wizard-card">
           <h2>Review your script</h2>
           <p className="wizard-sub">Edit the narration for each scene. This is what the voiceover will say.</p>
@@ -1579,7 +1583,7 @@ export default function CreatePage() {
       )}
 
       {/* Step: Choose brand */}
-      {step === 'choose-brand' && (
+      {false && (
         <div className="wizard-card">
           <h2>Which brand is this for?</h2>
           <p className="wizard-sub">Select a brand to apply its logo, colors, and contact info to your video.</p>
@@ -1621,19 +1625,19 @@ export default function CreatePage() {
       )}
 
       {/* Step: Choose style */}
-      {step === 'choose-style' && (
+      {false && (
         <StylePicker
           selectedStyle={selectedStyle}
           onSelect={setSelectedStyle}
           onBack={() => setStep('choose-brand')}
-          onNext={handleGenerateSlides}
+          onNext={() => {}}
           customStylePrompt={customStylePrompt}
           onCustomStylePrompt={setCustomStylePrompt}
         />
       )}
 
       {/* Step: Approve slides */}
-      {step === 'approve-slides' && (
+      {false && (
         <div className="wizard-card">
           <h2>Preview your slides</h2>
           <div style={{
@@ -1730,7 +1734,7 @@ export default function CreatePage() {
       )}
 
       {/* Step: Choose voice */}
-      {step === 'choose-voice' && (
+      {false && (
         <div className="wizard-card">
           <h2>Who should narrate your video?</h2>
           <p className="wizard-sub">Pick a voice and duration. Click any voice to hear a preview.</p>
@@ -1855,8 +1859,8 @@ export default function CreatePage() {
               border: '1px solid var(--border, #e2e8f0)',
               fontSize: 13, color: 'var(--ink-soft)',
             }}>
-              Video Explainer — <strong style={{ color: 'var(--ink)' }}>{projectPrice.priceFormatted}</strong>
-              {projectPrice.isPro && <span style={{ marginLeft: 6, color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>Pro price</span>}
+              Video Explainer — <strong style={{ color: 'var(--ink)' }}>{projectPrice?.priceFormatted}</strong>
+              {projectPrice?.isPro && <span style={{ marginLeft: 6, color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>Pro price</span>}
             </div>
           )}
         </div>

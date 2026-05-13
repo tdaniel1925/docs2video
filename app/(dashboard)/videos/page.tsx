@@ -52,7 +52,7 @@ const FILTER_TABS = [
   { key: 'other', label: 'Other' },
 ] as const
 
-const KNOWN_TYPES = new Set(FILTER_TABS.map(t => t.key).filter(Boolean))
+const KNOWN_TYPES = new Set<string>(FILTER_TABS.map(t => t.key).filter(Boolean))
 
 const FILTER_TITLES: Record<string, string> = {
   video: 'Your Videos',
