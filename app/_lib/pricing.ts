@@ -16,16 +16,19 @@ export interface ProjectPrice {
 }
 
 export const PROJECT_PRICES: ProjectPrice[] = [
-  { type: 'video', label: 'Video Explainer', description: 'Narrated video + branded slides + share page + AI chatbot', basePrice: 2500, proPrice: 1500, costEstimate: 200 },
-  { type: 'video-detailed', label: 'Video (Detailed)', description: '5-7 minute deep dive explainer', basePrice: 3500, proPrice: 2100, costEstimate: 300 },
-  { type: 'deck', label: 'Slide Deck', description: 'Editable PPTX with AI backgrounds (no audio)', basePrice: 1500, proPrice: 900, costEstimate: 250 },
-  { type: 'course', label: 'Video Course (10 episodes)', description: 'Complete multi-episode training series', basePrice: 19900, proPrice: 11900, costEstimate: 2000 },
-  { type: 'logo', label: 'Logo Design (4 concepts)', description: 'AI designer creates 4 logo options', basePrice: 1500, proPrice: 900, costEstimate: 75 },
-  { type: 'social-kit', label: 'Social Media Kit', description: '20+ images for all platforms', basePrice: 1500, proPrice: 900, costEstimate: 100 },
-  { type: 'infographic', label: 'Infographic', description: 'Professional data visualization', basePrice: 500, proPrice: 300, costEstimate: 30 },
-  { type: 'business-card', label: 'Business Card', description: 'Front + back at 300 DPI', basePrice: 500, proPrice: 300, costEstimate: 40 },
-  { type: 'flyer', label: 'Flyer', description: 'Professional flyer design', basePrice: 500, proPrice: 300, costEstimate: 30 },
-  { type: 'image-remix', label: 'Image Remix', description: 'AI redesign of any image', basePrice: 300, proPrice: 200, costEstimate: 20 },
+  { type: 'video', label: 'Video Explainer', description: 'Narrated video + branded slides + share page + AI chatbot', basePrice: 2900, proPrice: 1700, costEstimate: 200 },
+  { type: 'video-detailed', label: 'Video (Detailed)', description: '5-7 minute deep dive explainer', basePrice: 3900, proPrice: 2300, costEstimate: 300 },
+  { type: 'deck', label: 'Slide Deck', description: 'Editable PPTX with AI backgrounds (no audio)', basePrice: 1900, proPrice: 1100, costEstimate: 250 },
+  { type: 'course', label: 'Video Course (10 episodes)', description: 'Complete multi-episode training series', basePrice: 24900, proPrice: 14900, costEstimate: 2000 },
+  { type: 'brand-kit', label: 'Brand Kit', description: 'Logo + business cards + social kit + landing page + brand guide', basePrice: 14900, proPrice: 8900, costEstimate: 500 },
+  { type: 'logo', label: 'Logo Design (4 concepts)', description: 'AI designer creates 4 logo options + SVG vector files', basePrice: 4900, proPrice: 2900, costEstimate: 100 },
+  { type: 'social-kit', label: 'Social Media Kit', description: '20+ images for all platforms', basePrice: 3900, proPrice: 2300, costEstimate: 100 },
+  { type: 'infographic', label: 'Infographic', description: 'Professional data visualization', basePrice: 1900, proPrice: 1100, costEstimate: 30 },
+  { type: 'business-card', label: 'Business Card', description: 'Front + back at 300 DPI, print-ready', basePrice: 1900, proPrice: 1100, costEstimate: 40 },
+  { type: 'flyer', label: 'Flyer', description: 'Professional flyer design', basePrice: 1500, proPrice: 900, costEstimate: 30 },
+  { type: 'email-signature', label: 'Email Signature', description: 'Professional HTML email signature', basePrice: 900, proPrice: 500, costEstimate: 10 },
+  { type: 'image-remix', label: 'Image Remix', description: 'AI redesign of any image', basePrice: 500, proPrice: 300, costEstimate: 20 },
+  { type: 'style-upgrade', label: 'Style Upgrade', description: 'Choose from premium style gallery', basePrice: 500, proPrice: 0, costEstimate: 0 },
 ]
 
 export function getProjectPrice(type: string): ProjectPrice | undefined {

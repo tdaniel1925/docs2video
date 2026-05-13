@@ -156,31 +156,52 @@ export async function POST(request: Request) {
         return Buffer.from(base64, 'base64')
       })
     } else {
-      console.log(`[video ${videoId}] Generating ${scenes.length} slides in parallel batches${logoBuffer ? ' (with logo)' : ''}...`)
+      console.log(`[video ${videoId}] Generating ${scenes.length} slides with brand consistency${logoBuffer ? ' (with logo)' : ''}...`)
       slideBuffers = []
       const guideData = brand?.brand_guide_data as Record<string, string> | null
       const contactInfo = {
         phone: guideData?.phone ?? undefined,
         website: guideData?.website ?? undefined,
       }
-      // Generate slides 3 at a time to stay within rate limits but be fast
-      for (let i = 0; i < scenes.length; i += 3) {
-        const batch = scenes.slice(i, i + 3)
-        console.log(`[video ${videoId}] Slide batch ${Math.floor(i / 3) + 1} (${batch.length} slides)...`)
-        const batchResults = await Promise.all(
-          batch.map(async (scene: any, j: number) => {
-            const idx = i + j
-            let buf = await generateSlide(
-              policyData, idx, effectiveStyleId as any,
-              brand?.name ?? null, logoUrl, colors,
-              scene.slidePrompt, !!photoUrl, contactInfo,
-              logoBuffer, referenceSlides
-            )
-            buf = await compositeSlide(buf, photoUrl, logoUrl, idx === 0, idx === scenes.length - 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo)
-            return buf
-          })
-        )
-        slideBuffers.push(...batchResults)
+
+      // BRAND CONSISTENCY: Generate slide 1 first, then use it as reference for all others
+      // This ensures all slides share the same visual identity
+      console.log(`[video ${videoId}] Generating slide 1 (master style)...`)
+      let masterSlideBuffer: Buffer | null = null
+
+      // Generate slide 1 (cover) — establishes the visual identity
+      let buf0 = await generateSlide(
+        policyData, 0, effectiveStyleId as any,
+        brand?.name ?? null, logoUrl, colors,
+        scenes[0].slidePrompt, !!photoUrl, contactInfo,
+        logoBuffer, referenceSlides
+      )
+      buf0 = await compositeSlide(buf0, photoUrl, logoUrl, true, scenes.length === 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo)
+      slideBuffers.push(buf0)
+      masterSlideBuffer = buf0
+      console.log(`[video ${videoId}] Slide 1 done — using as style reference for remaining slides`)
+
+      // Generate slides 2-N using slide 1 as reference for visual consistency
+      if (scenes.length > 1) {
+        const masterRef = masterSlideBuffer ? [masterSlideBuffer] : referenceSlides
+        for (let i = 1; i < scenes.length; i += 3) {
+          const batch = scenes.slice(i, Math.min(i + 3, scenes.length))
+          console.log(`[video ${videoId}] Slide batch ${Math.floor(i / 3) + 1} (slides ${i + 1}-${Math.min(i + 3, scenes.length)})...`)
+          const batchResults = await Promise.all(
+            batch.map(async (scene: any, j: number) => {
+              const idx = i + j
+              let buf = await generateSlide(
+                policyData, idx, effectiveStyleId as any,
+                brand?.name ?? null, logoUrl, colors,
+                scene.slidePrompt, !!photoUrl, contactInfo,
+                logoBuffer, masterRef
+              )
+              buf = await compositeSlide(buf, photoUrl, logoUrl, false, idx === scenes.length - 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo)
+              return buf
+            })
+          )
+          slideBuffers.push(...batchResults)
+        }
       }
     }
     console.log(`[video ${videoId}] Slides done.`)
