@@ -1930,6 +1930,133 @@ export default function CreatePage() {
         </div>
       )}
 
+      {/* Step: Options (brand + voice + music) */}
+      {step === 'options' && (
+        <div className="wizard-card">
+          <h2>Final options</h2>
+          <p className="wizard-sub">Choose a brand, voice, and optional background music.</p>
+
+          {/* Brand selector */}
+          {brands.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <label className="input-label">Brand</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button type="button" onClick={() => setSelectedBrand(null)} className={`btn btn-sm ${selectedBrand === null ? 'btn-primary' : 'btn-soft'}`}>No Brand</button>
+                {brands.map(b => (
+                  <button key={b.id} type="button" onClick={() => setSelectedBrand(b.id)} className={`btn btn-sm ${selectedBrand === b.id ? 'btn-primary' : 'btn-soft'}`}>
+                    {b.name}{b.is_default ? ' (default)' : ''}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Voice selector */}
+          <div style={{ marginBottom: 24 }}>
+            <label className="input-label">Narration Voice</label>
+            <div className="voice-grid">
+              {VOICE_OPTIONS.map((voice) => (
+                <div
+                  key={voice.id}
+                  className={`voice-card${selectedVoice === voice.id ? ' selected' : ''}${playingVoice === voice.id ? ' playing' : ''}`}
+                  onClick={() => setSelectedVoice(voice.id)}
+                >
+                  <div className="head">
+                    <div className={`v-avatar${VOICE_COLORS[voice.id] ? ` ${VOICE_COLORS[voice.id]}` : ''}`}>
+                      {voice.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <span className="v-tag">{voice.gender}</span>
+                  </div>
+                  <div className="v-name">{voice.name}</div>
+                  <p className="v-desc">{voice.description}</p>
+                  <button
+                    className="v-play"
+                    onClick={(e) => { e.stopPropagation(); handlePreviewVoice(voice.id) }}
+                  >
+                    {playingVoice === voice.id ? (
+                      <><span className="pulse-dot" /> Playing...</>
+                    ) : (
+                      <>{'\u25B6'} Preview</>
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Video Length */}
+          <div style={{ marginBottom: 24 }}>
+            <label className="input-label">Video Length</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setDetailedMode(false)} className={`btn ${!detailedMode ? 'btn-primary' : 'btn-soft'}`} type="button">
+                Standard (2-3 min)
+              </button>
+              <button onClick={() => setDetailedMode(true)} className={`btn ${detailedMode ? 'btn-primary' : 'btn-soft'}`} type="button">
+                Detailed (5-7 min)
+              </button>
+            </div>
+          </div>
+
+          {/* Background Music */}
+          <div style={{ marginBottom: 24 }}>
+            <label className="input-label">Background Music <span style={{ fontWeight: 400, color: 'var(--ink-light)' }}>(optional)</span></label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
+              <div
+                onClick={() => { setSelectedMusic(null); if (musicAudioRef.current) { musicAudioRef.current.pause(); setPreviewingMusic(null) } }}
+                style={{ padding: '12px 14px', borderRadius: 10, cursor: 'pointer', border: selectedMusic === null ? '2px solid var(--mint)' : '1px solid var(--border)', background: selectedMusic === null ? 'rgba(59,181,200,0.06)' : 'white', display: 'flex', alignItems: 'center', gap: 8 }}
+              >
+                <span style={{ fontSize: 13, fontWeight: 600 }}>No music</span>
+              </div>
+              {DEFAULT_MUSIC.map(track => (
+                <div
+                  key={track.id}
+                  onClick={() => setSelectedMusic(track.url)}
+                  style={{ padding: '12px 14px', borderRadius: 10, cursor: 'pointer', border: selectedMusic === track.url ? '2px solid var(--mint)' : '1px solid var(--border)', background: selectedMusic === track.url ? 'rgba(59,181,200,0.06)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
+                >
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{track.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>{track.mood}</div>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (previewingMusic === track.id) {
+                        musicAudioRef.current?.pause()
+                        setPreviewingMusic(null)
+                      } else {
+                        if (musicAudioRef.current) musicAudioRef.current.pause()
+                        const audio = new Audio(track.url)
+                        audio.volume = 0.3
+                        audio.play()
+                        audio.onended = () => setPreviewingMusic(null)
+                        musicAudioRef.current = audio
+                        setPreviewingMusic(track.id)
+                      }
+                    }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--mint-darker, var(--mint))', fontWeight: 600 }}
+                  >
+                    {previewingMusic === track.id ? '■ Stop' : '▶ Play'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Price + Generate */}
+          <div className="wizard-actions">
+            <button onClick={() => setStep('script')} className="btn btn-soft">&larr; Back</button>
+            <button onClick={handleGenerate} className="btn btn-primary btn-lg">Create my video &rarr;</button>
+          </div>
+
+          {projectPrice && (
+            <div style={{ textAlign: 'center', marginTop: 12, padding: '10px 16px', background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border)', fontSize: 13, color: 'var(--ink-soft)' }}>
+              Video Explainer — <strong style={{ color: 'var(--ink)' }}>{projectPrice?.priceFormatted}</strong>
+              {projectPrice?.isPro && <span style={{ marginLeft: 6, color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>Pro price</span>}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Step: Generating */}
       {step === 'generating' && (
         <div className="wizard-card" style={{ textAlign: 'center', padding: '48px 32px' }}>
