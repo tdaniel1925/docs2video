@@ -1114,34 +1114,34 @@ export default function CreatePage() {
                 <div className="extracted-grid">
                   <div className="data-card">
                     <div className="data-label">Policy Type</div>
-                    <div className="data-value">{extractedData.policyType}</div>
+                    <div className="data-value">{extractedData?.policyType}</div>
                   </div>
                   <div className="data-card">
                     <div className="data-label">Source</div>
-                    <div className="data-value">{extractedData.carrier}</div>
+                    <div className="data-value">{extractedData?.carrier}</div>
                   </div>
                   <div className="data-card">
                     <div className="data-label">Insured</div>
-                    <div className="data-value">{extractedData.insuredName}</div>
+                    <div className="data-value">{extractedData?.insuredName}</div>
                   </div>
                   <div className="data-card">
                     <div className="data-label">Death Benefit</div>
-                    <div className="data-value mint">{formatCurrency(extractedData.deathBenefit)}</div>
+                    <div className="data-value mint">{formatCurrency(extractedData?.deathBenefit ?? 0)}</div>
                   </div>
                   <div className="data-card">
                     <div className="data-label">Annual Premium</div>
-                    <div className="data-value mint">{formatCurrency(extractedData.annualPremium)}</div>
+                    <div className="data-value mint">{formatCurrency(extractedData?.annualPremium ?? 0)}</div>
                   </div>
                   <div className="data-card">
                     <div className="data-label">Payment Mode</div>
-                    <div className="data-value">{extractedData.paymentMode}</div>
+                    <div className="data-value">{extractedData?.paymentMode}</div>
                   </div>
                 </div>
-                {extractedData.riders.length > 0 && (
+                {(extractedData?.riders ?? []).length > 0 && (
                   <div style={{ marginTop: 24 }}>
                     <div className="data-label" style={{ marginBottom: 10 }}>Riders</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {extractedData.riders.map((r, i) => (
+                      {(extractedData?.riders ?? []).map((r, i) => (
                         <span key={i} className="tag">{r}</span>
                       ))}
                     </div>
@@ -1151,17 +1151,17 @@ export default function CreatePage() {
             ) : isGeneralData && generalData ? (
               <>
                 <div style={{ marginBottom: 20 }}>
-                  <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{generalData.title}</h3>
-                  {generalData.subtitle && (
-                    <p style={{ fontSize: 15, color: 'var(--ink-soft)', margin: 0 }}>{generalData.subtitle}</p>
+                  <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{generalData?.title}</h3>
+                  {generalData?.subtitle && (
+                    <p style={{ fontSize: 15, color: 'var(--ink-soft)', margin: 0 }}>{generalData?.subtitle}</p>
                   )}
-                  {generalData.source && (
-                    <p style={{ fontSize: 13, color: 'var(--ink-light)', margin: '6px 0 0' }}>Source: {generalData.source}</p>
+                  {generalData?.source && (
+                    <p style={{ fontSize: 13, color: 'var(--ink-light)', margin: '6px 0 0' }}>Source: {generalData?.source}</p>
                   )}
                 </div>
-                {generalData.keyMetrics.length > 0 && (
+                {(generalData?.keyMetrics ?? []).length > 0 && (
                   <div className="extracted-grid">
-                    {generalData.keyMetrics.map((m, i) => (
+                    {(generalData?.keyMetrics ?? []).map((m, i) => (
                       <div key={i} className="data-card">
                         <div className="data-label">{m.label}</div>
                         <div className={`data-value${m.highlight ? ' mint' : ''}`}>{m.value}</div>
@@ -1169,9 +1169,9 @@ export default function CreatePage() {
                     ))}
                   </div>
                 )}
-                {generalData.sections.length > 0 && (
+                {(generalData?.sections ?? []).length > 0 && (
                   <div style={{ marginTop: 24, display: 'grid', gap: 12 }}>
-                    {generalData.sections.map((s, i) => (
+                    {(generalData?.sections ?? []).map((s, i) => (
                       <div key={i} style={{
                         background: 'var(--surface-raised, #f8fafc)',
                         borderRadius: 10, padding: '16px 20px',
@@ -1183,11 +1183,11 @@ export default function CreatePage() {
                     ))}
                   </div>
                 )}
-                {generalData.bulletPoints.length > 0 && (
+                {(generalData?.bulletPoints ?? []).length > 0 && (
                   <div style={{ marginTop: 24 }}>
                     <div className="data-label" style={{ marginBottom: 10 }}>Key Takeaways</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {generalData.bulletPoints.map((bp, i) => (
+                      {(generalData?.bulletPoints ?? []).map((bp, i) => (
                         <span key={i} className="tag">{bp}</span>
                       ))}
                     </div>
@@ -1461,40 +1461,41 @@ export default function CreatePage() {
           )}
 
           {/* Single-document review (only when not in multi-doc comparison mode) */}
+          {/* @ts-ignore — dead code in disabled block */}
           {multiDocData.length <= 1 && extractedData && !isGeneralData && (
             <>
               <div className="extracted-grid">
                 <div className="data-card">
                   <div className="data-label">Policy Type</div>
-                  <div className="data-value">{extractedData.policyType}</div>
+                  <div className="data-value">{extractedData?.policyType}</div>
                 </div>
                 <div className="data-card">
                   <div className="data-label">Source</div>
-                  <div className="data-value">{extractedData.carrier}</div>
+                  <div className="data-value">{extractedData?.carrier}</div>
                 </div>
                 <div className="data-card">
                   <div className="data-label">Insured</div>
-                  <div className="data-value">{extractedData.insuredName}</div>
+                  <div className="data-value">{extractedData?.insuredName}</div>
                 </div>
                 <div className="data-card">
                   <div className="data-label">Death Benefit</div>
-                  <div className="data-value mint">{formatCurrency(extractedData.deathBenefit)}</div>
+                  <div className="data-value mint">{formatCurrency(extractedData?.deathBenefit ?? 0)}</div>
                 </div>
                 <div className="data-card">
                   <div className="data-label">Annual Premium</div>
-                  <div className="data-value mint">{formatCurrency(extractedData.annualPremium)}</div>
+                  <div className="data-value mint">{formatCurrency(extractedData?.annualPremium ?? 0)}</div>
                 </div>
                 <div className="data-card">
                   <div className="data-label">Payment Mode</div>
-                  <div className="data-value">{extractedData.paymentMode}</div>
+                  <div className="data-value">{extractedData?.paymentMode}</div>
                 </div>
               </div>
 
-              {extractedData.riders.length > 0 && (
+              {(extractedData?.riders ?? []).length > 0 && (
                 <div style={{ marginTop: 24 }}>
                   <div className="data-label" style={{ marginBottom: 10 }}>Riders</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {extractedData.riders.map((r, i) => (
+                    {(extractedData?.riders ?? []).map((r, i) => (
                       <span key={i} className="tag">{r}</span>
                     ))}
                   </div>
@@ -1508,19 +1509,19 @@ export default function CreatePage() {
             <>
               {/* Title */}
               <div style={{ marginBottom: 20 }}>
-                <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{generalData.title}</h3>
-                {generalData.subtitle && (
-                  <p style={{ fontSize: 15, color: 'var(--ink-soft)', margin: 0 }}>{generalData.subtitle}</p>
+                <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{generalData?.title}</h3>
+                {generalData?.subtitle && (
+                  <p style={{ fontSize: 15, color: 'var(--ink-soft)', margin: 0 }}>{generalData?.subtitle}</p>
                 )}
-                {generalData.source && (
-                  <p style={{ fontSize: 13, color: 'var(--ink-light)', margin: '6px 0 0' }}>Source: {generalData.source}</p>
+                {generalData?.source && (
+                  <p style={{ fontSize: 13, color: 'var(--ink-light)', margin: '6px 0 0' }}>Source: {generalData?.source}</p>
                 )}
               </div>
 
               {/* Key Metrics grid */}
-              {generalData.keyMetrics.length > 0 && (
+              {(generalData?.keyMetrics ?? []).length > 0 && (
                 <div className="extracted-grid">
-                  {generalData.keyMetrics.map((m, i) => (
+                  {(generalData?.keyMetrics ?? []).map((m, i) => (
                     <div key={i} className="data-card">
                       <div className="data-label">{m.label}</div>
                       <div className={`data-value${m.highlight ? ' mint' : ''}`}>{m.value}</div>
@@ -1530,9 +1531,9 @@ export default function CreatePage() {
               )}
 
               {/* Sections as cards */}
-              {generalData.sections.length > 0 && (
+              {(generalData?.sections ?? []).length > 0 && (
                 <div style={{ marginTop: 24, display: 'grid', gap: 12 }}>
-                  {generalData.sections.map((s, i) => (
+                  {(generalData?.sections ?? []).map((s, i) => (
                     <div key={i} style={{
                       background: 'var(--surface-raised, #f8fafc)',
                       borderRadius: 10,
@@ -1547,11 +1548,11 @@ export default function CreatePage() {
               )}
 
               {/* Bullet points as tags */}
-              {generalData.bulletPoints.length > 0 && (
+              {(generalData?.bulletPoints ?? []).length > 0 && (
                 <div style={{ marginTop: 24 }}>
                   <div className="data-label" style={{ marginBottom: 10 }}>Key Takeaways</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {generalData.bulletPoints.map((bp, i) => (
+                    {(generalData?.bulletPoints ?? []).map((bp, i) => (
                       <span key={i} className="tag">{bp}</span>
                     ))}
                   </div>
