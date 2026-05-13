@@ -4,7 +4,7 @@ import OpenAI from 'openai'
 import { GoogleGenAI } from '@google/genai'
 
 export const runtime = 'nodejs'
-export const maxDuration = 120
+export const maxDuration = 300
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -41,12 +41,12 @@ export async function POST(request: Request) {
             ],
       }]
 
-      console.log(`[demo] OpenAI generating (gpt-image-2)...`)
+      console.log(`[demo] OpenAI generating with Responses API + gpt-image-1...`)
 
       const response = await openai.responses.create({
-        model: 'gpt-4.1',
+        model: 'gpt-4.1-mini',
         input,
-        tools: [{ type: 'image_generation', model: 'gpt-image-2', size: '1536x1024', quality: 'high' } as any],
+        tools: [{ type: 'image_generation', model: 'gpt-image-1', size: '1536x1024', quality: 'medium' } as any],
       })
 
       let imageBase64: string | null = null
