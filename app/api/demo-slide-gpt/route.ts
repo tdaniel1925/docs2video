@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const { logoImage, prompt, companyName } = await request.json() as {
-    logoImage?: string // base64 data URL
+    logoImage?: string
     prompt: string
     companyName?: string
   }
@@ -21,31 +21,26 @@ export async function POST(request: Request) {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
 
   try {
-    // Build the input array for OpenAI Responses API
     const input: any[] = []
 
     if (logoImage) {
+      // Simple prompt — just like talking to ChatGPT
+      const fullPrompt = companyName
+        ? `Take this logo for "${companyName}" and ${prompt}`
+        : `Take this logo and ${prompt}`
+
       input.push({
         role: 'user',
         content: [
-          {
-            type: 'input_image',
-            image_url: logoImage,
-          },
-          {
-            type: 'input_text',
-            text: `This is the company logo${companyName ? ` for "${companyName}"` : ''}. Use this logo in the image you create.\n\n${prompt}`,
-          },
+          { type: 'input_text', text: fullPrompt },
+          { type: 'input_image', image_url: logoImage },
         ],
       })
     } else {
       input.push({
         role: 'user',
         content: [
-          {
-            type: 'input_text',
-            text: prompt,
-          },
+          { type: 'input_text', text: prompt },
         ],
       })
     }
@@ -55,7 +50,7 @@ export async function POST(request: Request) {
     const response = await openai.responses.create({
       model: 'gpt-4o',
       input,
-      tools: [{ type: 'image_generation', size: '1536x1024', quality: 'high' }],
+      tools: [{ type: 'image_generation', size: '1536x1024', quality: 'high' } as any],
     })
 
     // Extract the generated image
@@ -68,7 +63,16 @@ export async function POST(request: Request) {
     }
 
     if (!imageBase64) {
-      return NextResponse.json({ error: 'No image generated' }, { status: 500 })
+      // Check if there's text output explaining why
+      let textOutput = ''
+      for (const output of response.output) {
+        if (output.type === 'message') {
+          for (const c of (output as any).content ?? []) {
+            if (c.type === 'output_text') textOutput += c.text
+          }
+        }
+      }
+      return NextResponse.json({ error: textOutput || 'No image generated. Try a different prompt.' }, { status: 500 })
     }
 
     return NextResponse.json({

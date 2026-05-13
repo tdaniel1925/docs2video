@@ -6,7 +6,7 @@ export default function DemoSlidePage() {
   const [logo, setLogo] = useState<string | null>(null)
   const [logoName, setLogoName] = useState<string | null>(null)
   const [companyName, setCompanyName] = useState('')
-  const [prompt, setPrompt] = useState('Create a professional 1920x1080 infographic slide about this company. Include the logo prominently. Add a contact bar at the bottom. Make it look like a premium presentation slide with data visualizations and clean typography.')
+  const [prompt, setPrompt] = useState('make an infographic using this logo')
   const [result, setResult] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
