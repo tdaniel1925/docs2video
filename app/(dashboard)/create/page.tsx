@@ -7,7 +7,7 @@ import type { Brand, ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { VOICE_OPTIONS, SLIDE_STYLES } from '../../_lib/types'
 
-type InputTab = 'upload' | 'text' | 'idea' | 'url' | 'research' | 'proposal'
+type InputTab = 'upload' | 'slides' | 'text' | 'idea' | 'url' | 'research' | 'proposal'
 
 type Step = 'upload' | 'extracting' | 'script' | 'options' | 'generating' | 'done' | 'review' | 'review-script' | 'choose-brand' | 'choose-style' | 'approve-slides' | 'choose-voice'
 
@@ -181,6 +181,8 @@ export default function CreatePage() {
   const [detailedMode, setDetailedMode] = useState(false)
   const [selectedMusic, setSelectedMusic] = useState<string | null>(null)
   const [uploadedLogo, setUploadedLogo] = useState<string | null>(null)
+  const [uploadedSlides, setUploadedSlides] = useState<string[]>([]) // base64 data URLs
+  const [slidesMode, setSlidesMode] = useState(false) // true = user uploaded their own slides
   const [previewingMusic, setPreviewingMusic] = useState<string | null>(null)
   const musicAudioRef = useRef<HTMLAudioElement | null>(null)
   const [playingVoice, setPlayingVoice] = useState<string | null>(null)
@@ -572,7 +574,7 @@ export default function CreatePage() {
             styleId: selectedStyle,
             detailed: detailedMode,
             musicUrl: selectedMusic ? `${window.location.origin}${selectedMusic}` : undefined,
-            approvedSlides: approvedSlides.length >= 4 ? approvedSlides : undefined,
+            approvedSlides: slidesMode ? uploadedSlides : (approvedSlides.length >= 4 ? approvedSlides : undefined),
             scenes: editableScenes.length > 0 ? editableScenes : generatedScenes,
             preGeneratedAudioId: sessionStorage.getItem('pregenerated_audio_id') ?? undefined,
           },
@@ -629,6 +631,7 @@ export default function CreatePage() {
           <div style={{ display: 'flex', gap: 6, marginBottom: 24, background: 'var(--surface-raised, #f1f5f9)', borderRadius: 10, padding: 4, width: 'fit-content' }}>
             {([
               { key: 'upload' as InputTab, label: 'Upload PDF', accent: false },
+              { key: 'slides' as InputTab, label: 'Narrate Slides', accent: true },
               { key: 'text' as InputTab, label: 'Type or Paste', accent: false },
               { key: 'url' as InputTab, label: 'From URL', accent: false },
               { key: 'research' as InputTab, label: 'AI Research', accent: true },
@@ -803,6 +806,98 @@ export default function CreatePage() {
                   className="btn btn-primary"
                 >
                   {textExtracting ? 'Extracting...' : 'Extract & Continue \u2192'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Tab: Narrate Slides */}
+          {inputTab === 'slides' && (
+            <div>
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label className="input-label">Upload your presentation slides</label>
+                <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 12 }}>
+                  Upload images of your slides (PNG, JPG) or a PowerPoint file. We&apos;ll add AI narration and turn them into a video — no new slides generated.
+                </div>
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault(); setDragOver(false)
+                    const droppedFiles = Array.from(e.dataTransfer.files)
+                    droppedFiles.forEach(f => {
+                      if (f.type.startsWith('image/')) {
+                        const reader = new FileReader()
+                        reader.onload = () => setUploadedSlides(prev => [...prev, reader.result as string])
+                        reader.readAsDataURL(f)
+                      }
+                    })
+                  }}
+                  style={{
+                    border: dragOver ? '2px solid var(--mint)' : '2px dashed var(--border)',
+                    borderRadius: 10, padding: '32px 24px', textAlign: 'center',
+                    background: dragOver ? 'rgba(168,240,212,0.1)' : 'var(--bg-soft)',
+                    cursor: 'pointer', marginBottom: 16,
+                  }}
+                  onClick={() => {
+                    const input = document.createElement('input')
+                    input.type = 'file'
+                    input.accept = 'image/*'
+                    input.multiple = true
+                    input.onchange = (e) => {
+                      const selectedFiles = Array.from((e.target as HTMLInputElement).files ?? [])
+                      selectedFiles.forEach(f => {
+                        const reader = new FileReader()
+                        reader.onload = () => setUploadedSlides(prev => [...prev, reader.result as string])
+                        reader.readAsDataURL(f)
+                      })
+                    }
+                    input.click()
+                  }}
+                >
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>+</div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>Drop slide images here or click to upload</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 4 }}>PNG, JPG — upload in order (slide 1 first)</div>
+                </div>
+
+                {/* Uploaded slides preview */}
+                {uploadedSlides.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+                    {uploadedSlides.map((slide, i) => (
+                      <div key={i} style={{ position: 'relative', width: 120, height: 68, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-light)' }}>
+                        <img src={slide} alt={`Slide ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div style={{ position: 'absolute', bottom: 2, left: 2, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4 }}>{i + 1}</div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setUploadedSlides(prev => prev.filter((_, j) => j !== i)) }}
+                          style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >x</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="wizard-actions" style={{ marginTop: 16 }}>
+                <button
+                  onClick={async () => {
+                    if (uploadedSlides.length < 2) { setError('Please upload at least 2 slides'); return }
+                    setSlidesMode(true)
+                    // Create a general data structure from the slides for script generation
+                    setGeneralData({
+                      title: 'Presentation Voiceover',
+                      subtitle: `${uploadedSlides.length} slides uploaded`,
+                      source: 'User uploaded slides',
+                      keyMetrics: [],
+                      sections: uploadedSlides.map((_, i) => ({ title: `Slide ${i + 1}`, content: `Content for slide ${i + 1}` })),
+                      bulletPoints: [],
+                    } as any)
+                    setExtractedData(null)
+                    setReviewReady(true)
+                  }}
+                  disabled={uploadedSlides.length < 2}
+                  className="btn btn-primary"
+                >
+                  {uploadedSlides.length < 2 ? 'Upload at least 2 slides' : `Continue with ${uploadedSlides.length} slides →`}
                 </button>
               </div>
             </div>
