@@ -11,12 +11,35 @@ export const maxDuration = 600
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
-const BRAND_STRATEGIST_PROMPT = `You are a brand strategist with 20 years of experience building iconic brand identities for companies ranging from startups to Fortune 500s. Your job is to interview the client to build a complete brand identity — logo, business cards, social media kit, and brand guide.
+// ── Types ──────────────────────────────────────────────────────────
+type ChatMessage = { role: 'user' | 'assistant'; content: string }
+
+type BrandBrief = {
+  companyName: string
+  industry: string
+  audience: string
+  personality: string
+  colorPrefs: string
+  notes: string
+}
+
+type Palette = {
+  name: string
+  primary: string
+  secondary: string
+  accent: string
+  background: string
+  text: string
+}
+
+// ── Sofia System Prompt ────────────────────────────────────────────
+const SOFIA_PROMPT = `You are Sofia, a world-class brand director with 20 years of experience building iconic brand identities for companies ranging from startups to Fortune 500s. You have a warm, confident, and creative personality.
 
 YOUR PERSONALITY:
-- Warm, confident, and strategic. You make the client feel like they're in expert hands.
+- Warm but sharp. You make the client feel like they're in expert hands.
 - You ask ONE question at a time. Keep it conversational and natural.
 - You give brief, insightful reactions to their answers before moving on.
+- You reference real-world design trends and brands when relevant.
 
 YOUR PROCESS (follow this exact flow):
 1. FIRST: Ask the company/brand name.
@@ -31,38 +54,59 @@ RESPONSE FORMAT — respond with ONLY valid JSON, no markdown, no code fences:
 {"reply":"your conversational message","readyToBuild":false,"brandBrief":null}
 
 When ready to build (after 4-5 exchanges):
-{"reply":"your ready message — summarize the direction and express excitement","readyToBuild":true,"brandBrief":{"companyName":"...","industry":"...","audience":"...","personality":"...","colorPrefs":"...","notes":"any other relevant details gathered"}}
+{"reply":"your ready message — summarize the direction and express excitement about the palette exploration coming next","readyToBuild":true,"brandBrief":{"companyName":"...","industry":"...","audience":"...","personality":"...","colorPrefs":"...","notes":"any other relevant details gathered"}}
 
 CRITICAL: The "reply" field is the ONLY thing shown to the user. Keep it natural and conversational. Never include JSON or technical details in the reply text.`
 
-type ChatMessage = {
-  role: 'user' | 'assistant'
-  content: string
+// ── Helper: extract image from Gemini response ────────────────────
+function extractImageBuffer(response: any): Buffer | null {
+  const parts = response.candidates?.[0]?.content?.parts ?? []
+  for (const rp of parts) {
+    if (rp.inlineData?.data) {
+      return Buffer.from(rp.inlineData.data, 'base64')
+    }
+  }
+  return null
 }
 
-type BrandBrief = {
-  companyName: string
-  industry: string
-  audience: string
-  personality: string
-  colorPrefs: string
-  notes: string
+// ── Helper: upload buffer to Supabase ─────────────────────────────
+async function uploadToStorage(
+  admin: ReturnType<typeof createAdminClient>,
+  path: string,
+  buffer: Buffer,
+  contentType = 'image/png'
+): Promise<string> {
+  await admin.storage.from('videos').upload(path, buffer, { contentType, upsert: true })
+  const { data } = admin.storage.from('videos').getPublicUrl(path)
+  return data.publicUrl
 }
 
+// ── Helper: download image as buffer ──────────────────────────────
+async function downloadImage(url: string): Promise<Buffer | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) })
+    if (!res.ok) return null
+    return Buffer.from(await res.arrayBuffer())
+  } catch {
+    return null
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// POST handler
+// ═══════════════════════════════════════════════════════════════════
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const body = await request.json()
-  const { action, messages, brandBrief } = body as {
-    action: 'chat' | 'generate'
-    messages?: ChatMessage[]
-    brandBrief?: BrandBrief
-  }
+  const { action } = body as { action: string }
 
-  // ── CHAT ──────────────────────────────────────────────────────
+  // ── CHAT ─────────────────────────────────────────────────────────
   if (action === 'chat') {
+    const { messages } = body as { messages: ChatMessage[] }
+
     try {
       const anthropicMessages = (messages ?? []).map(m => ({
         role: m.role as 'user' | 'assistant',
@@ -72,7 +116,7 @@ export async function POST(request: Request) {
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1024,
-        system: BRAND_STRATEGIST_PROMPT,
+        system: SOFIA_PROMPT,
         messages: anthropicMessages,
       })
 
@@ -92,50 +136,96 @@ export async function POST(request: Request) {
           brandBrief: parsed.brandBrief || null,
         })
       } catch {
-        // If JSON parsing fails, return the raw text as the reply
         let cleanReply = text
           .replace(/\{[\s\S]*\}/g, '')
           .replace(/```[\s\S]*```/g, '')
           .trim()
         if (!cleanReply) cleanReply = "Tell me more about your brand — what's the company name?"
-        return NextResponse.json({
-          reply: cleanReply,
-          readyToBuild: false,
-          brandBrief: null,
-        })
+        return NextResponse.json({ reply: cleanReply, readyToBuild: false, brandBrief: null })
       }
     } catch (err) {
       console.error('[brand-kit] Chat error:', err)
-      return NextResponse.json({ error: err instanceof Error ? err.message : 'Chat failed' }, { status: 500 })
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : 'Chat failed' },
+        { status: 500 }
+      )
     }
   }
 
-  // ── GENERATE ──────────────────────────────────────────────────
-  if (action === 'generate') {
-    if (!brandBrief) {
-      return NextResponse.json({ error: 'Brand brief is required' }, { status: 400 })
+  // ── GENERATE PALETTES ────────────────────────────────────────────
+  if (action === 'generate-palettes') {
+    const { brandBrief } = body as { brandBrief: BrandBrief }
+    if (!brandBrief) return NextResponse.json({ error: 'Brand brief required' }, { status: 400 })
+
+    try {
+      const prompt = `You are an expert brand color strategist. Based on the following brand brief, generate exactly 3 distinct color palette options. Each palette should evoke a different mood/personality while staying true to the brand.
+
+BRAND BRIEF:
+- Company: "${brandBrief.companyName}"
+- Industry: ${brandBrief.industry}
+- Audience: ${brandBrief.audience}
+- Personality: ${brandBrief.personality}
+- Color Preferences: ${brandBrief.colorPrefs || 'No specific preferences — surprise me'}
+- Notes: ${brandBrief.notes || 'None'}
+
+For each palette, provide:
+1. A short evocative name (2-3 words, like "Bold & Confident" or "Soft & Refined")
+2. Five hex colors: primary, secondary, accent, background, text
+
+Return ONLY valid JSON, no markdown:
+{"palettes":[{"name":"...","primary":"#hex","secondary":"#hex","accent":"#hex","background":"#hex","text":"#hex"},{"name":"...","primary":"#hex","secondary":"#hex","accent":"#hex","background":"#hex","text":"#hex"},{"name":"...","primary":"#hex","secondary":"#hex","accent":"#hex","background":"#hex","text":"#hex"}]}
+
+RULES:
+- Colors must be visually harmonious and professional
+- Each palette must feel distinctly different
+- Background should be light/neutral, text should be dark and readable
+- Primary and accent should be bold enough for buttons and CTAs
+- Think like a top agency — these must be production-ready brand colors`
+
+      const response = await genai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      })
+
+      const raw = response.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+      const jsonStr = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim()
+      const parsed = JSON.parse(jsonStr)
+
+      return NextResponse.json({ palettes: parsed.palettes })
+    } catch (err) {
+      console.error('[brand-kit] Palette generation error:', err)
+      // Fallback palettes
+      return NextResponse.json({
+        palettes: [
+          { name: 'Bold & Modern', primary: '#2563EB', secondary: '#1E40AF', accent: '#F59E0B', background: '#F8FAFC', text: '#1E293B' },
+          { name: 'Warm & Inviting', primary: '#DC2626', secondary: '#7C2D12', accent: '#FCD34D', background: '#FFFBEB', text: '#1C1917' },
+          { name: 'Clean & Minimal', primary: '#0F172A', secondary: '#334155', accent: '#A8F0D4', background: '#FFFFFF', text: '#0F172A' },
+        ],
+      })
     }
+  }
+
+  // ── GENERATE LOGOS ───────────────────────────────────────────────
+  if (action === 'generate') {
+    const { brandBrief, palette } = body as { brandBrief: BrandBrief; palette?: Palette }
+    if (!brandBrief) return NextResponse.json({ error: 'Brand brief required' }, { status: 400 })
 
     const admin = createAdminClient()
-
-    // TODO: Verify Stripe payment before generation
-
-    // Create job tracker
     const jobId = await createJob(admin, user.id, {
       type: 'brand-kit',
-      title: `Brand Kit: ${brandBrief.companyName}`,
+      title: `Logo Concepts: ${brandBrief.companyName}`,
       metadata: { brandBrief },
     })
-
     if (jobId) await updateJobProgress(admin, jobId, 5, 'running')
 
     const timestamp = Date.now()
     const basePath = `${user.id}/brand-kit/${timestamp}`
-    const sharpMod = await import('sharp')
-    const sharp = sharpMod.default ?? sharpMod
+    const images: string[] = []
 
-    // ─── 1. LOGOS (4 concepts) ─────────────────────────────────
-    const logoImages: string[] = []
+    const colorInstruction = palette
+      ? `PRIMARY COLOR: ${palette.primary}\nSECONDARY COLOR: ${palette.secondary}\nACCENT COLOR: ${palette.accent}\nUse these exact brand colors in the logo design.`
+      : `COLOR PREFERENCES: ${brandBrief.colorPrefs}`
+
     const variations = [
       'Clean, minimal wordmark — think Stripe or Notion. Radical simplicity, perfect typography.',
       'Bold iconic mark with wordmark — think Airbnb or Spotify. A distinctive symbol that works at any size.',
@@ -150,7 +240,7 @@ export async function POST(request: Request) {
 INDUSTRY: ${brandBrief.industry}
 TARGET AUDIENCE: ${brandBrief.audience}
 BRAND PERSONALITY: ${brandBrief.personality}
-COLOR PREFERENCES: ${brandBrief.colorPrefs}
+${colorInstruction}
 
 VARIATION: ${variations[i]}
 
@@ -180,56 +270,128 @@ OUTPUT: Pure white background (#FFFFFF), centered composition, high resolution, 
           model: 'gemini-3-pro-image-preview',
           contents: [{ role: 'user', parts: [{ text: logoPrompt }] }],
           config: {
-            responseFormat: {
-              image: { aspectRatio: '1:1', imageSize: '1024' },
-            },
+            responseFormat: { image: { aspectRatio: '1:1', imageSize: '1024' } },
           } as any,
         })
 
-        const parts = response.candidates?.[0]?.content?.parts ?? []
-        for (const rp of parts) {
-          if (rp.inlineData) {
-            const buffer = Buffer.from(rp.inlineData.data!, 'base64')
-            const storagePath = `${basePath}/logo-${i + 1}.png`
-            await admin.storage.from('videos').upload(storagePath, buffer, { contentType: 'image/png', upsert: true })
-            const { data: urlData } = admin.storage.from('videos').getPublicUrl(storagePath)
-            logoImages.push(urlData.publicUrl)
-            break
-          }
+        const buffer = extractImageBuffer(response)
+        if (buffer) {
+          const url = await uploadToStorage(admin, `${basePath}/logo-${i + 1}.png`, buffer)
+          images.push(url)
         }
       } catch (err) {
-        console.error(`[brand-kit] Logo ${i + 1} generation failed:`, err)
+        console.error(`[brand-kit] Logo ${i + 1} failed:`, err)
       }
-
-      if (jobId) await updateJobProgress(admin, jobId, 10 + i * 10, 'running')
+      if (jobId) await updateJobProgress(admin, jobId, 10 + i * 20, 'running')
     }
 
-    if (jobId) await updateJobProgress(admin, jobId, 50, 'running')
+    if (jobId) await updateJobProgress(admin, jobId, 100, 'completed')
 
-    // ─── 2. BUSINESS CARDS (front + back) ──────────────────────
-    let cardFront = ''
-    let cardBack = ''
+    return NextResponse.json({ images })
+  }
+
+  // ── REFINE LOGO ──────────────────────────────────────────────────
+  if (action === 'refine') {
+    const { brandBrief, palette, logoUrl, feedback } = body as {
+      brandBrief: BrandBrief
+      palette?: Palette
+      logoUrl: string
+      feedback: string
+    }
+    if (!brandBrief || !logoUrl || !feedback) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    const admin = createAdminClient()
+    const timestamp = Date.now()
+    const basePath = `${user.id}/brand-kit/${timestamp}`
+
+    const logoBuffer = await downloadImage(logoUrl)
+    const colorInstruction = palette
+      ? `Use these brand colors: primary ${palette.primary}, secondary ${palette.secondary}, accent ${palette.accent}.`
+      : `Color preferences: ${brandBrief.colorPrefs}`
+
+    try {
+      const refinePrompt = `Refine this logo for "${brandBrief.companyName}" based on this feedback: "${feedback}"
+
+BRAND: ${brandBrief.companyName} | ${brandBrief.industry}
+PERSONALITY: ${brandBrief.personality}
+${colorInstruction}
+
+Keep the overall concept but apply the requested changes. Maintain professional quality.
+OUTPUT: Pure white background (#FFFFFF), centered, high resolution, square format.`
+
+      const parts: any[] = [{ text: refinePrompt }]
+      if (logoBuffer) {
+        parts.push({ inlineData: { mimeType: 'image/png', data: logoBuffer.toString('base64') } })
+      }
+
+      const response = await genai.models.generateContent({
+        model: 'gemini-3-pro-image-preview',
+        contents: [{ role: 'user', parts }],
+        config: {
+          responseFormat: { image: { aspectRatio: '1:1', imageSize: '1024' } },
+        } as any,
+      })
+
+      const buffer = extractImageBuffer(response)
+      if (buffer) {
+        const url = await uploadToStorage(admin, `${basePath}/logo-refined.png`, buffer)
+        return NextResponse.json({ images: [url] })
+      }
+
+      return NextResponse.json({ error: 'No image generated' }, { status: 500 })
+    } catch (err) {
+      console.error('[brand-kit] Refine error:', err)
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : 'Refine failed' },
+        { status: 500 }
+      )
+    }
+  }
+
+  // ── GENERATE ASSETS ──────────────────────────────────────────────
+  if (action === 'generate-assets') {
+    const { brandBrief, palette, logoUrl } = body as {
+      brandBrief: BrandBrief
+      palette: Palette
+      logoUrl: string
+    }
+    if (!brandBrief || !palette || !logoUrl) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    const admin = createAdminClient()
+    const jobId = await createJob(admin, user.id, {
+      type: 'brand-kit',
+      title: `Brand Kit: ${brandBrief.companyName}`,
+      metadata: { brandBrief },
+    })
+    if (jobId) await updateJobProgress(admin, jobId, 5, 'running')
+
+    const timestamp = Date.now()
+    const basePath = `${user.id}/brand-kit/${timestamp}`
+    const sharpMod = await import('sharp')
+    const sharp = sharpMod.default ?? sharpMod
+
+    // Download logo for embedding
+    const logoBuffer = await downloadImage(logoUrl)
+
+    const colorInstruction = `Use these exact brand colors throughout:
+PRIMARY: ${palette.primary}
+SECONDARY: ${palette.secondary}
+ACCENT: ${palette.accent}
+BACKGROUND: ${palette.background}
+TEXT: ${palette.text}`
 
     const cardWidth = 1050
     const cardHeight = 600
 
-    // Download the first logo for use on cards
-    let logoBuffer: Buffer | null = null
-    if (logoImages.length > 0) {
-      try {
-        const logoRes = await fetch(logoImages[0], { signal: AbortSignal.timeout(8000) })
-        if (logoRes.ok) logoBuffer = Buffer.from(await logoRes.arrayBuffer())
-      } catch {
-        console.log('[brand-kit] Could not download logo for cards, proceeding without')
-      }
-    }
-
-    const cardColorInstruction = logoBuffer
-      ? `Extract the dominant colors from the provided logo image and use them as the PRIMARY brand colors. Build a rich palette around the logo colors.`
-      : `Use colors inspired by the brand preferences: ${brandBrief.colorPrefs}. Build a professional, cohesive palette.`
+    // ─── 1. BUSINESS CARDS ─────────────────────────────────────
+    let cardFront = ''
+    let cardBack = ''
 
     try {
-      // Front
       const frontPrompt = `Create a professional BUSINESS CARD FRONT for high-quality print at 300 DPI.
 
 COMPANY: "${brandBrief.companyName}"
@@ -238,11 +400,11 @@ BRAND PERSONALITY: ${brandBrief.personality}
 
 CARD CONTENT:
 - COMPANY NAME (prominent): "${brandBrief.companyName}"
-- Display "Your Name" as the person's name placeholder — largest text
+- Display "Your Name" as the person's name — largest text
 - Display "Your Title" as the job title
 ${logoBuffer ? '- The brand logo is provided — integrate it prominently.' : ''}
 
-${cardColorInstruction}
+${colorInstruction}
 
 STRICT RULES:
 - NO human faces, NO photos of people
@@ -251,9 +413,7 @@ STRICT RULES:
 - Professional, polished, ready to print
 - Design dimensions: ${cardWidth}x${cardHeight} pixels (300 DPI)`
 
-      const frontParts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
-        { text: frontPrompt },
-      ]
+      const frontParts: any[] = [{ text: frontPrompt }]
       if (logoBuffer) {
         frontParts.push({ inlineData: { mimeType: 'image/png', data: logoBuffer.toString('base64') } })
       }
@@ -264,24 +424,20 @@ STRICT RULES:
         config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '4K' } } } as any,
       })
 
-      const frontPts = frontResponse.candidates?.[0]?.content?.parts ?? []
-      for (const rp of frontPts) {
-        if (rp.inlineData) {
-          const rawBuf = Buffer.from(rp.inlineData.data!, 'base64')
-          const buf = await sharp(rawBuf).resize(cardWidth, cardHeight, { fit: 'cover' }).withMetadata({ density: 300 }).png({ quality: 100 }).toBuffer() as Buffer<ArrayBuffer>
-          const path = `${basePath}/card-front.png`
-          await admin.storage.from('videos').upload(path, buf, { contentType: 'image/png', upsert: true })
-          const { data: urlData } = admin.storage.from('videos').getPublicUrl(path)
-          cardFront = urlData.publicUrl
-          break
-        }
+      const frontBuf = extractImageBuffer(frontResponse)
+      if (frontBuf) {
+        const resized = await sharp(frontBuf)
+          .resize(cardWidth, cardHeight, { fit: 'cover' })
+          .withMetadata({ density: 300 })
+          .png({ quality: 100 })
+          .toBuffer() as Buffer<ArrayBuffer>
+        cardFront = await uploadToStorage(admin, `${basePath}/card-front.png`, resized)
       }
     } catch (err) {
-      console.error('[brand-kit] Card front generation failed:', err)
+      console.error('[brand-kit] Card front failed:', err)
     }
 
     try {
-      // Back
       const backPrompt = `Create a professional BUSINESS CARD BACK for high-quality print at 300 DPI. This is the reverse side.
 
 COMPANY: "${brandBrief.companyName}"
@@ -294,7 +450,7 @@ CARD CONTENT:
 - PHONE: "(555) 000-0000"
 ${logoBuffer ? '- Feature the brand logo prominently.' : ''}
 
-${cardColorInstruction}
+${colorInstruction}
 
 STRICT RULES:
 - NO human faces, NO photos of people
@@ -303,9 +459,7 @@ STRICT RULES:
 - Clean, minimal, premium feel — SMALL 3.5 x 2.0 inch card
 - Design dimensions: ${cardWidth}x${cardHeight} pixels (300 DPI)`
 
-      const backParts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
-        { text: backPrompt },
-      ]
+      const backParts: any[] = [{ text: backPrompt }]
       if (logoBuffer) {
         backParts.push({ inlineData: { mimeType: 'image/png', data: logoBuffer.toString('base64') } })
       }
@@ -316,27 +470,24 @@ STRICT RULES:
         config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '4K' } } } as any,
       })
 
-      const backPts = backResponse.candidates?.[0]?.content?.parts ?? []
-      for (const rp of backPts) {
-        if (rp.inlineData) {
-          const rawBuf = Buffer.from(rp.inlineData.data!, 'base64')
-          const buf = await sharp(rawBuf).resize(cardWidth, cardHeight, { fit: 'cover' }).withMetadata({ density: 300 }).png({ quality: 100 }).toBuffer() as Buffer<ArrayBuffer>
-          const path = `${basePath}/card-back.png`
-          await admin.storage.from('videos').upload(path, buf, { contentType: 'image/png', upsert: true })
-          const { data: urlData } = admin.storage.from('videos').getPublicUrl(path)
-          cardBack = urlData.publicUrl
-          break
-        }
+      const backBuf = extractImageBuffer(backResponse)
+      if (backBuf) {
+        const resized = await sharp(backBuf)
+          .resize(cardWidth, cardHeight, { fit: 'cover' })
+          .withMetadata({ density: 300 })
+          .png({ quality: 100 })
+          .toBuffer() as Buffer<ArrayBuffer>
+        cardBack = await uploadToStorage(admin, `${basePath}/card-back.png`, resized)
       }
     } catch (err) {
-      console.error('[brand-kit] Card back generation failed:', err)
+      console.error('[brand-kit] Card back failed:', err)
     }
 
-    if (jobId) await updateJobProgress(admin, jobId, 65, 'running')
+    if (jobId) await updateJobProgress(admin, jobId, 35, 'running')
 
-    // ─── 3. SOCIAL MEDIA KIT (3 master images) ────────────────
+    // ─── 2. SOCIAL MEDIA KIT ──────────────────────────────────
     const socialImages: { type: string; url: string }[] = []
-    const socialSpecs: { type: string; aspect: string; desc: string }[] = [
+    const socialSpecs = [
       { type: 'landscape', aspect: '16:9', desc: 'wide landscape banner for Facebook/LinkedIn/YouTube covers' },
       { type: 'square', aspect: '1:1', desc: 'square post for Instagram/Facebook/Twitter posts' },
       { type: 'vertical', aspect: '9:16', desc: 'vertical story for Instagram/TikTok/Snapchat stories' },
@@ -352,7 +503,7 @@ BRAND:
 - Audience: ${brandBrief.audience}
 - Personality: ${brandBrief.personality}
 
-COLOR DIRECTION: ${brandBrief.colorPrefs || 'Modern, trendy palette — think 2025 design trends.'}
+${colorInstruction}
 
 DESIGN APPROACH:
 - Professional infographic style — NOT a plain banner
@@ -369,9 +520,7 @@ STRICT RULES:
 - All text must be crisp, legible, and correctly spelled
 - Make it TRENDY: 2025 design standards`
 
-        const socialParts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
-          { text: socialPrompt },
-        ]
+        const socialParts: any[] = [{ text: socialPrompt }]
         if (logoBuffer) {
           socialParts.push({ inlineData: { mimeType: 'image/png', data: logoBuffer.toString('base64') } })
         }
@@ -382,25 +531,59 @@ STRICT RULES:
           config: { responseFormat: { image: { aspectRatio: spec.aspect, imageSize: '4K' } } } as any,
         })
 
-        const socialPts = socialResponse.candidates?.[0]?.content?.parts ?? []
-        for (const rp of socialPts) {
-          if (rp.inlineData) {
-            const buf = Buffer.from(rp.inlineData.data!, 'base64')
-            const path = `${basePath}/social-${spec.type}.png`
-            await admin.storage.from('videos').upload(path, buf, { contentType: 'image/png', upsert: true })
-            const { data: urlData } = admin.storage.from('videos').getPublicUrl(path)
-            socialImages.push({ type: spec.type, url: urlData.publicUrl })
-            break
-          }
+        const buf = extractImageBuffer(socialResponse)
+        if (buf) {
+          const url = await uploadToStorage(admin, `${basePath}/social-${spec.type}.png`, buf)
+          socialImages.push({ type: spec.type, url })
         }
       } catch (err) {
-        console.error(`[brand-kit] Social ${spec.type} generation failed:`, err)
+        console.error(`[brand-kit] Social ${spec.type} failed:`, err)
       }
     }
 
-    if (jobId) await updateJobProgress(admin, jobId, 85, 'running')
+    if (jobId) await updateJobProgress(admin, jobId, 65, 'running')
 
-    // ─── 4. BRAND GUIDE (summary image) ───────────────────────
+    // ─── 3. EMAIL SIGNATURE (HTML — no Gemini needed) ─────────
+    const domain = brandBrief.companyName.toLowerCase().replace(/\s+/g, '')
+    const emailSignatureHtml = `<table cellpadding="0" cellspacing="0" border="0" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: ${palette.text}; font-size: 14px; line-height: 1.5;">
+  <tr>
+    <td style="padding-right: 20px; vertical-align: top; border-right: 3px solid ${palette.primary};">
+      ${logoUrl ? `<img src="${logoUrl}" alt="${brandBrief.companyName}" width="80" height="80" style="border-radius: 8px; display: block;" />` : ''}
+    </td>
+    <td style="padding-left: 20px; vertical-align: top;">
+      <div style="font-size: 18px; font-weight: 700; color: ${palette.text}; margin-bottom: 2px;">Your Name</div>
+      <div style="font-size: 13px; color: ${palette.secondary}; margin-bottom: 10px;">Your Title</div>
+      <div style="font-size: 16px; font-weight: 600; color: ${palette.primary}; margin-bottom: 8px;">${brandBrief.companyName}</div>
+      <div style="font-size: 12px; color: #666;">
+        <span>hello@${domain}.com</span>
+        <span style="margin: 0 8px; color: #ccc;">|</span>
+        <span>(555) 000-0000</span>
+      </div>
+      <div style="font-size: 12px; color: #666; margin-top: 2px;">
+        <a href="https://www.${domain}.com" style="color: ${palette.primary}; text-decoration: none;">www.${domain}.com</a>
+      </div>
+      <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #eee;">
+        <table cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td style="padding-right: 6px;">
+              <div style="width: 10px; height: 10px; border-radius: 50%; background: ${palette.primary}; display: inline-block;"></div>
+            </td>
+            <td style="padding-right: 6px;">
+              <div style="width: 10px; height: 10px; border-radius: 50%; background: ${palette.secondary}; display: inline-block;"></div>
+            </td>
+            <td style="padding-right: 6px;">
+              <div style="width: 10px; height: 10px; border-radius: 50%; background: ${palette.accent}; display: inline-block;"></div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </td>
+  </tr>
+</table>`
+
+    if (jobId) await updateJobProgress(admin, jobId, 75, 'running')
+
+    // ─── 4. BRAND GUIDE ───────────────────────────────────────
     let guideUrl = ''
 
     try {
@@ -411,14 +594,15 @@ BRAND:
 - Industry: ${brandBrief.industry}
 - Audience: ${brandBrief.audience}
 - Personality: ${brandBrief.personality}
-- Color Direction: ${brandBrief.colorPrefs}
+
+${colorInstruction}
 
 INCLUDE THESE SECTIONS (laid out like a professional brand guidelines page):
 
 1. LOGO USAGE: Show the logo (or company name in brand typography) with clear space guidelines, "Do" and "Don't" examples
-2. COLOR PALETTE: 4-6 brand colors displayed as large swatches with hex codes labeled beneath each
+2. COLOR PALETTE: Display the 5 brand colors as large swatches with hex codes: ${palette.primary}, ${palette.secondary}, ${palette.accent}, ${palette.background}, ${palette.text}
 3. TYPOGRAPHY: Show the primary heading font and body font with sample text, font name, and weight
-4. BRAND VOICE: 3-4 keywords that capture the brand personality (e.g., "Bold / Modern / Trustworthy / Human")
+4. BRAND VOICE: 3-4 keywords that capture the brand personality
 5. VISUAL STYLE: A brief note on imagery style, icon style, and overall aesthetic direction
 
 LAYOUT:
@@ -436,9 +620,7 @@ STRICT RULES:
 - All text must be crisp, legible, and correctly spelled
 - Professional, polished, authoritative design`
 
-      const guideParts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
-        { text: guidePrompt },
-      ]
+      const guideParts: any[] = [{ text: guidePrompt }]
       if (logoBuffer) {
         guideParts.push({ inlineData: { mimeType: 'image/png', data: logoBuffer.toString('base64') } })
       }
@@ -449,48 +631,42 @@ STRICT RULES:
         config: { responseFormat: { image: { aspectRatio: '3:4', imageSize: '4K' } } } as any,
       })
 
-      const guidePts = guideResponse.candidates?.[0]?.content?.parts ?? []
-      for (const rp of guidePts) {
-        if (rp.inlineData) {
-          const buf = Buffer.from(rp.inlineData.data!, 'base64')
-          const path = `${basePath}/brand-guide.png`
-          await admin.storage.from('videos').upload(path, buf, { contentType: 'image/png', upsert: true })
-          const { data: urlData } = admin.storage.from('videos').getPublicUrl(path)
-          guideUrl = urlData.publicUrl
-          break
-        }
+      const guideBuf = extractImageBuffer(guideResponse)
+      if (guideBuf) {
+        guideUrl = await uploadToStorage(admin, `${basePath}/brand-guide.png`, guideBuf)
       }
     } catch (err) {
-      console.error('[brand-kit] Brand guide generation failed:', err)
+      console.error('[brand-kit] Brand guide failed:', err)
     }
 
-    // Log to creations table
+    if (jobId) await updateJobProgress(admin, jobId, 95, 'running')
+
+    // ─── Log to creations ─────────────────────────────────────
     try {
       await admin.from('creations').insert({
         user_id: user.id,
         type: 'brand-kit',
         title: `Brand Kit: ${brandBrief.companyName}`,
-        thumbnail_url: logoImages[0] || cardFront || '',
-        file_url: logoImages[0] || cardFront || '',
+        thumbnail_url: logoUrl || cardFront || '',
+        file_url: logoUrl || cardFront || '',
       })
     } catch { /* ignore */ }
 
-    // Complete job
+    // Complete job & notify
     if (jobId) await updateJobProgress(admin, jobId, 100, 'completed')
 
-    // Send notification
     await sendNotification(admin, user.id, {
       type: 'brand-kit',
       title: `Brand Kit Ready: ${brandBrief.companyName}`,
-      message: `Your complete brand kit with ${logoImages.length} logo concepts, business cards, social media kit, and brand guide is ready.`,
+      message: `Your complete brand kit with business cards, social media kit, email signature, and brand guide is ready.`,
       link: '/brand-kit',
     })
 
     return NextResponse.json({
-      logoImages,
       cardFront,
       cardBack,
       socialImages,
+      emailSignatureHtml,
       guideUrl,
     })
   }
