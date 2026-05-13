@@ -9,16 +9,12 @@ import { VOICE_OPTIONS, SLIDE_STYLES } from '../../_lib/types'
 
 type InputTab = 'upload' | 'text' | 'idea' | 'url' | 'research' | 'proposal'
 
-type Step = 'upload' | 'extracting' | 'review' | 'review-script' | 'choose-brand' | 'choose-style' | 'approve-slides' | 'choose-voice' | 'generating' | 'done'
+type Step = 'upload' | 'extracting' | 'script' | 'options' | 'generating' | 'done'
 
 const STEP_LABELS = [
-  { key: 'upload', label: 'Content' },
-  { key: 'review', label: 'Review' },
-  { key: 'review-script', label: 'Script' },
-  { key: 'choose-brand', label: 'Brand' },
-  { key: 'choose-style', label: 'Style' },
-  { key: 'approve-slides', label: 'Preview' },
-  { key: 'choose-voice', label: 'Voice' },
+  { key: 'upload', label: 'Upload' },
+  { key: 'script', label: 'Script' },
+  { key: 'options', label: 'Options' },
   { key: 'generating', label: 'Create' },
 ]
 
@@ -193,6 +189,8 @@ export default function CreatePage() {
 
   const [editableScenes, setEditableScenes] = useState<{scene: number, title: string, slidePrompt: string, narration: string}[]>([])
   const [scriptGenerating, setScriptGenerating] = useState(false)
+  const [reviewReady, setReviewReady] = useState(false)
+  const [reviewEditing, setReviewEditing] = useState(false)
 
   const [userPlan, setUserPlan] = useState<string>('trial')
   const [projectPrice, setProjectPrice] = useState<{ price: number; priceFormatted: string; isPro: boolean } | null>(null)
@@ -288,7 +286,8 @@ export default function CreatePage() {
         // Set the first doc as the active general data for backward compat
         setGeneralData(results[0])
         setExtractedData(null)
-        setStep('review')
+        setReviewReady(true)
+        setStep('upload')
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Extraction failed')
         setStep('upload')
@@ -316,7 +315,8 @@ export default function CreatePage() {
         setExtractedData(null)
       }
       setMultiDocData([])
-      setStep('review')
+      setReviewReady(true)
+      setStep('upload')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Extraction failed')
       setStep('upload')
@@ -338,7 +338,8 @@ export default function CreatePage() {
       if (!res.ok) throw new Error(data.error || 'Extraction failed')
       setGeneralData(data)
       setExtractedData(null)
-      setStep('review')
+      setReviewReady(true)
+      setStep('upload')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Text extraction failed')
       setStep('upload')
@@ -370,7 +371,8 @@ export default function CreatePage() {
       if (!res.ok) throw new Error(data.error || 'Generation failed')
       setGeneralData(data)
       setExtractedData(null)
-      setStep('review')
+      setReviewReady(true)
+      setStep('upload')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Idea generation failed')
       setStep('upload')
@@ -454,7 +456,7 @@ export default function CreatePage() {
   const isGeneralData = !extractedData && !!generalData
 
   async function handleGenerateScript() {
-    setStep('review-script')
+    setStep('script')
     setScriptGenerating(true)
     setError(null)
     try {
@@ -475,27 +477,20 @@ export default function CreatePage() {
       setEditableScenes(scenes)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate script')
-      setStep('review')
+      setStep('upload')
     } finally {
       setScriptGenerating(false)
     }
   }
 
-  async function handleGenerateSlides() {
+  function prepareSlidePreview() {
     // Content preview only — no Gemini image generation
     // Slides are generated during final video creation
-    setStep('approve-slides')
-    setError(null)
-
-    try {
-      const scenes = editableScenes.length > 0 ? editableScenes : []
-      if (scenes.length === 0) throw new Error('No script scenes available. Please go back and generate a script first.')
+    const scenes = editableScenes.length > 0 ? editableScenes : []
+    if (scenes.length > 0) {
       setSlideCount(scenes.length)
       setGeneratedScenes(scenes)
       setSlideLabels(scenes.map(s => ({ title: s.title, content: s.slidePrompt?.slice(0, 80) ?? '' })))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to prepare slides')
-      setStep('choose-style')
     }
   }
 
@@ -593,7 +588,7 @@ export default function CreatePage() {
       router.push(`/videos/${createData.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generation failed')
-      setStep('choose-voice')
+      setStep('options')
     }
   }
 
@@ -798,7 +793,8 @@ export default function CreatePage() {
                       if (!res.ok) throw new Error(data.error || 'Extraction failed')
                       setGeneralData(data)
                       setExtractedData(null)
-                      setStep('review')
+                      setReviewReady(true)
+                      setStep('upload')
                     } catch (err) {
                       setError(err instanceof Error ? err.message : 'URL extraction failed')
                       setStep('upload')
@@ -869,7 +865,8 @@ export default function CreatePage() {
                       if (!res.ok) throw new Error(data.error || 'Research failed')
                       setGeneralData(data.research)
                       setExtractedData(null)
-                      setStep('review')
+                      setReviewReady(true)
+                      setStep('upload')
                     } catch (err) {
                       setError(err instanceof Error ? err.message : 'Research failed')
                       setStep('upload')
@@ -993,7 +990,7 @@ export default function CreatePage() {
                   <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>
                     Your proposal has been generated. Continue to review and create your explainer.
                   </p>
-                  <button onClick={() => setStep('review')} className="btn btn-primary btn-lg">
+                  <button onClick={() => { setReviewReady(true) }} className="btn btn-primary btn-lg">
                     Continue to explainer &rarr;
                   </button>
                 </div>
@@ -1001,8 +998,220 @@ export default function CreatePage() {
             </div>
           )}
         </div>
-      )}
 
+        {/* Inline review after extraction */}
+        {reviewReady && activeData && (
+          <div className="wizard-card" style={{ marginTop: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h2 style={{ margin: 0 }}>Extracted Content</h2>
+              <button onClick={() => setReviewEditing(!reviewEditing)} className="btn btn-soft btn-sm">
+                {reviewEditing ? 'Done Editing' : 'Edit'}
+              </button>
+            </div>
+
+            {multiDocData.length > 1 ? (
+              <>
+                <p className="wizard-sub">Comparing {multiDocData.length} documents. Key differences highlighted below.</p>
+                {/* Comparison summary card */}
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(168,240,212,0.12), rgba(196,181,253,0.12))',
+                  border: '1px solid var(--border, #e2e8f0)',
+                  borderRadius: 12, padding: '18px 22px', marginBottom: 20,
+                }}>
+                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker, #4a7c59)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    Comparison Summary
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.7 }}>
+                    {(() => {
+                      const titles = multiDocData.map(d => d.title).filter(Boolean)
+                      const allMetricLabels = [...new Set(multiDocData.flatMap(d => d.keyMetrics.map(m => m.label)))]
+                      const diffs: string[] = []
+                      allMetricLabels.forEach(label => {
+                        const values = multiDocData.map(d => {
+                          const m = d.keyMetrics.find(km => km.label === label)
+                          return m ? m.value : 'N/A'
+                        })
+                        const unique = [...new Set(values)]
+                        if (unique.length > 1) {
+                          diffs.push(`${label}: ${values.join(' vs ')}`)
+                        }
+                      })
+                      return (
+                        <>
+                          <div style={{ marginBottom: 6 }}><strong>Documents:</strong> {titles.join(', ') || `${multiDocData.length} documents`}</div>
+                          {diffs.length > 0 ? (
+                            <>
+                              <div style={{ fontWeight: 600, marginBottom: 4 }}>Key differences:</div>
+                              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                                {diffs.slice(0, 8).map((d, i) => <li key={i}>{d}</li>)}
+                              </ul>
+                            </>
+                          ) : (
+                            <div>No major metric differences detected between documents.</div>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </div>
+                </div>
+
+                {/* Each document as collapsible */}
+                {multiDocData.map((doc, docIdx) => (
+                  <details key={docIdx} style={{
+                    marginBottom: 12, border: '1px solid var(--border, #e2e8f0)',
+                    borderRadius: 10, overflow: 'hidden',
+                  }} open={docIdx === 0}>
+                    <summary style={{
+                      padding: '14px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 15,
+                      background: 'var(--surface-raised, #f8fafc)',
+                      display: 'flex', alignItems: 'center', gap: 10, listStyle: 'none',
+                    }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      {doc.title || `Document ${docIdx + 1}`}
+                    </summary>
+                    <div style={{ padding: '16px 18px' }}>
+                      {doc.keyMetrics.length > 0 && (
+                        <div className="extracted-grid" style={{ marginBottom: 12 }}>
+                          {doc.keyMetrics.map((m, i) => (
+                            <div key={i} className="data-card">
+                              <div className="data-label">{m.label}</div>
+                              <div className={`data-value${m.highlight ? ' mint' : ''}`}>{m.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {doc.sections.length > 0 && (
+                        <div style={{ display: 'grid', gap: 8 }}>
+                          {doc.sections.map((s, i) => (
+                            <div key={i} style={{ background: 'var(--surface-raised, #f8fafc)', borderRadius: 8, padding: '12px 16px', border: '1px solid var(--border, #e2e8f0)' }}>
+                              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{s.title}</div>
+                              <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>{s.content}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                ))}
+
+                {/* Comparison notes */}
+                <div style={{ marginTop: 20, marginBottom: 8 }}>
+                  <label className="input-label">Add instructions for the comparison (optional)</label>
+                  <textarea
+                    className="input"
+                    style={{ minHeight: 80, resize: 'vertical', fontFamily: 'inherit', fontSize: 14, lineHeight: 1.6 }}
+                    placeholder="e.g., Focus on premium differences, highlight Plan A's better cash value..."
+                    value={comparisonNotes}
+                    onChange={(e) => setComparisonNotes(e.target.value)}
+                  />
+                </div>
+              </>
+            ) : extractedData && !isGeneralData ? (
+              <>
+                <div className="extracted-grid">
+                  <div className="data-card">
+                    <div className="data-label">Policy Type</div>
+                    <div className="data-value">{extractedData.policyType}</div>
+                  </div>
+                  <div className="data-card">
+                    <div className="data-label">Source</div>
+                    <div className="data-value">{extractedData.carrier}</div>
+                  </div>
+                  <div className="data-card">
+                    <div className="data-label">Insured</div>
+                    <div className="data-value">{extractedData.insuredName}</div>
+                  </div>
+                  <div className="data-card">
+                    <div className="data-label">Death Benefit</div>
+                    <div className="data-value mint">{formatCurrency(extractedData.deathBenefit)}</div>
+                  </div>
+                  <div className="data-card">
+                    <div className="data-label">Annual Premium</div>
+                    <div className="data-value mint">{formatCurrency(extractedData.annualPremium)}</div>
+                  </div>
+                  <div className="data-card">
+                    <div className="data-label">Payment Mode</div>
+                    <div className="data-value">{extractedData.paymentMode}</div>
+                  </div>
+                </div>
+                {extractedData.riders.length > 0 && (
+                  <div style={{ marginTop: 24 }}>
+                    <div className="data-label" style={{ marginBottom: 10 }}>Riders</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {extractedData.riders.map((r, i) => (
+                        <span key={i} className="tag">{r}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : isGeneralData && generalData ? (
+              <>
+                <div style={{ marginBottom: 20 }}>
+                  <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{generalData.title}</h3>
+                  {generalData.subtitle && (
+                    <p style={{ fontSize: 15, color: 'var(--ink-soft)', margin: 0 }}>{generalData.subtitle}</p>
+                  )}
+                  {generalData.source && (
+                    <p style={{ fontSize: 13, color: 'var(--ink-light)', margin: '6px 0 0' }}>Source: {generalData.source}</p>
+                  )}
+                </div>
+                {generalData.keyMetrics.length > 0 && (
+                  <div className="extracted-grid">
+                    {generalData.keyMetrics.map((m, i) => (
+                      <div key={i} className="data-card">
+                        <div className="data-label">{m.label}</div>
+                        <div className={`data-value${m.highlight ? ' mint' : ''}`}>{m.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {generalData.sections.length > 0 && (
+                  <div style={{ marginTop: 24, display: 'grid', gap: 12 }}>
+                    {generalData.sections.map((s, i) => (
+                      <div key={i} style={{
+                        background: 'var(--surface-raised, #f8fafc)',
+                        borderRadius: 10, padding: '16px 20px',
+                        border: '1px solid var(--border, #e2e8f0)',
+                      }}>
+                        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{s.title}</div>
+                        <div style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.6 }}>{s.content}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {generalData.bulletPoints.length > 0 && (
+                  <div style={{ marginTop: 24 }}>
+                    <div className="data-label" style={{ marginBottom: 10 }}>Key Takeaways</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {generalData.bulletPoints.map((bp, i) => (
+                        <span key={i} className="tag">{bp}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : null}
+
+            {/* Brand nudge */}
+            {brands.length === 0 && (
+              <div style={{
+                padding: '14px 18px', borderRadius: 10, marginTop: 16, marginBottom: 16,
+                background: 'rgba(109,211,161,0.08)', border: '1px solid rgba(109,211,161,0.2)',
+                display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--ink-soft)',
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker, #4a7c59)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>Want your logo and brand colors on the video? <a href="/brands/new" style={{color:'var(--ink)',fontWeight:700,textDecoration:'underline'}}>Set up a brand</a> first for the best results.</span>
+              </div>
+            )}
+
+            <div className="wizard-actions">
+              <button onClick={() => { setReviewReady(false); setExtractedData(null); setGeneralData(null); setMultiDocData([]) }} className="btn btn-soft">&larr; Start Over</button>
+              <button onClick={handleGenerateScript} className="btn btn-primary">Generate Script &rarr;</button>
+            </div>
+          </div>
+        )}
       {/* Step: Extracting */}
       {step === 'extracting' && (
         <div className="wizard-card" style={{ textAlign: 'center', padding: '48px 32px' }}>

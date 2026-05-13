@@ -73,246 +73,206 @@ export default async function DashboardPage() {
   const pendingCount = pendingFollowUps?.length ?? 0
 
   const firstName = profile?.full_name?.split(' ')[0] ?? 'there'
-  const creditsRemaining = profile?.credits_remaining ?? 0
-
-  // Derive plan monthly allocation from subscription status
-  const PLAN_CREDITS: Record<string, number> = {
-    free: 5, trial: 5, demo: 5,
-    starter: 50,
-    professional: 150, active: 150,
-    agency: 500,
-  }
-  const planKey = (profile?.subscription_status ?? 'free').toLowerCase()
-  const monthlyAllocation = PLAN_CREDITS[planKey] ?? 5
-  const creditPercent = monthlyAllocation > 0 ? Math.min(100, Math.round((creditsRemaining / monthlyAllocation) * 100)) : 0
-
+  const isPro = profile?.subscription_status && ['professional', 'active', 'agency', 'starter'].includes((profile.subscription_status ?? '').toLowerCase())
   const planName = profile?.subscription_status
     ? profile.subscription_status.charAt(0).toUpperCase() + profile.subscription_status.slice(1)
     : 'Free'
+  const isFirstTime = totalCount === 0
 
   return (
     <div>
-      {/* Header Section */}
-      <div className="page-head">
-        <div>
+      {/* Header */}
+      <div className="page-head" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ flex: 1 }}>
           <h1>Welcome back, {firstName}</h1>
-          <p>Here&apos;s what&apos;s happening</p>
         </div>
-      </div>
-
-      {/* Stats Row */}
-      <div className="stats-row">
-        <div className="stat-card mint">
-          <div className="stat-label">Credits Remaining</div>
-          <div className="stat-value">{creditsRemaining} <span style={{ fontSize: 20, fontWeight: 500, color: 'var(--ink-soft)' }}>/ {monthlyAllocation} mo</span></div>
-          <div className="credit-progress">
-            <div className="credit-progress-fill" style={{ width: `${creditPercent}%` }} />
-          </div>
-          <div className="stat-foot">
-            <Link href="/settings" style={{ color: 'inherit', textDecoration: 'underline' }}>
-              Manage plan
-            </Link>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Total Creations</div>
-          <div className="stat-value">{totalCount ?? 0}</div>
-          <div className="stat-foot">
-            {monthCount ?? 0} this month
-          </div>
-        </div>
-        <div className="stat-card peach">
-          <div className="stat-label">Plan</div>
-          <div className="stat-value" style={{ fontSize: 32 }}>{planName}</div>
-          <div className="stat-foot">
-            <Link href="/settings" style={{ color: 'inherit', textDecoration: 'underline' }}>
-              Upgrade
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Create */}
-      <div style={{ marginBottom: 16 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Quick Create</h2>
-      </div>
-      <div className="quick-create-grid">
-        {QUICK_CREATE.map((item) => (
-          <Link key={item.href} href={item.href} className="quick-create-card">
-            <div className={`quick-create-icon ${item.color}`}>{item.icon}</div>
-            <div className="quick-create-label">{item.label}</div>
-            <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 2 }}>{item.credits} credit{item.credits > 1 ? 's' : ''}</div>
-          </Link>
-        ))}
-      </div>
-
-      {/* Recent Creations */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700 }}>Recent Creations</h2>
-        {(totalCount ?? 0) > 0 && (
-          <Link href="/videos" className="btn btn-soft btn-sm">
-            View all {totalCount! > 8 ? `${totalCount} creations` : 'creations'} &rarr;
-          </Link>
+        {isPro && (
+          <span className="tag mint" style={{ fontSize: 13, fontWeight: 700, padding: '6px 14px' }}>
+            Pro
+          </span>
         )}
       </div>
 
-      {!recentItems.length ? (
-        <div style={{ background: 'white', border: '1px dashed var(--border)', borderRadius: 10, padding: '64px 32px', textAlign: 'center' }}>
-          <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Nothing created yet</p>
-          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 18 }}>Create an explainer video, flyer, or business card to get started</p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-            <Link href="/create" className="btn btn-primary">+ Explainer Video</Link>
-            <Link href="/flyers" className="btn btn-soft">+ Flyer or Card</Link>
-          </div>
-        </div>
-      ) : (
-        <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
-          {recentItems.map((item: any, i: number) => {
-            const isVideo = item.type === 'video'
-            const href = isVideo ? `/videos/${item._videoId ?? item.id}` : (item.file_url ?? '#')
-            const badge = TYPE_BADGE[item.type] ?? { label: item.type, color: 'sky' }
-            const TagEl = isVideo ? Link : 'a'
-            const linkProps = isVideo
-              ? { href }
-              : { href, target: '_blank' as const, rel: 'noopener noreferrer' }
-            return (
-              <TagEl
-                key={item.id}
-                {...linkProps}
+      {isFirstTime ? (
+        /* ── First-time user: welcome hero ── */
+        <div style={{ marginTop: 8 }}>
+          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24, textAlign: 'center' }}>
+            What would you like to create?
+          </h2>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 32 }}>
+            {HERO_PRODUCTS.map((p) => (
+              <Link
+                key={p.href}
+                href={p.href}
                 style={{
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  gap: 16,
-                  padding: '16px 24px',
+                  textAlign: 'center',
+                  background: 'white',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: 16,
+                  padding: '40px 24px 32px',
                   textDecoration: 'none',
                   color: 'var(--ink)',
-                  borderBottom: i < recentItems.length - 1 && !((totalCount ?? 0) > 8 && i === recentItems.length - 1) ? '1px solid var(--border-light)' : 'none',
-                  transition: 'background 0.1s ease',
+                  transition: 'box-shadow 0.15s ease, transform 0.15s ease',
                 }}
                 className="activity-row"
               >
-                {/* Thumbnail */}
-                <div style={{
-                  width: 44, height: 44, borderRadius: 10, flexShrink: 0,
-                  background: item.thumbnail_url ? 'var(--bg)' : `var(--${badge.color})`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  overflow: 'hidden',
-                }}>
-                  {item.thumbnail_url ? (
-                    <img src={item.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : isVideo ? (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                  ) : (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                  )}
+                <div style={{ fontSize: 48, marginBottom: 16 }}>{p.icon}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{p.label}</div>
+                <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20, lineHeight: 1.5 }}>
+                  {p.desc}
                 </div>
-
-                {/* Title + type */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {item.title ?? 'Untitled'}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2 }}>
-                    {badge.label}
-                    {item.credits_used ? ` \u00B7 ${item.credits_used} credit${item.credits_used > 1 ? 's' : ''}` : ''}
-                  </div>
+                <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 16, color: 'var(--ink)' }}>
+                  {p.price}
                 </div>
-
-                {/* Type badge */}
-                <span className={`tag ${badge.color}`} style={{ flexShrink: 0 }}>
-                  {badge.label}
+                <span className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+                  {p.cta} &rarr;
                 </span>
-
-                {/* Date */}
-                <div style={{ fontSize: 13, color: 'var(--ink-light)', flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
-                  {new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </div>
-
-                {/* Arrow */}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-light)" strokeWidth="2" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6"/></svg>
-              </TagEl>
-            )
-          })}
-          {(totalCount ?? 0) > 8 && (
-            <Link
-              href="/videos"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                padding: '14px 24px',
-                textDecoration: 'none',
-                color: 'var(--ink-soft)',
-                fontSize: 14,
-                fontWeight: 600,
-                borderTop: '1px solid var(--border-light)',
-                transition: 'background 0.1s ease',
-              }}
-              className="activity-row"
-            >
-              View all {totalCount} creations &rarr;
-            </Link>
-          )}
-        </div>
-      )}
-
-      {/* Pending Follow-Ups */}
-      {profile?.subscription_status && ['professional', 'active', 'agency'].includes(profile.subscription_status.toLowerCase()) && pendingCount > 0 && (
-        <div style={{ marginTop: 40 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700 }}>
-              Pending Follow-Ups
-              <span className="tag peach" style={{ marginLeft: 10, fontSize: 12, verticalAlign: 'middle' }}>
-                {pendingCount}
-              </span>
-            </h2>
+              </Link>
+            ))}
           </div>
+
+          <div style={{ textAlign: 'center' }}>
+            <Link href="/create" style={{ fontSize: 14, color: 'var(--ink-soft)', textDecoration: 'underline' }}>
+              Or explore all products &rarr;
+            </Link>
+          </div>
+        </div>
+      ) : (
+        /* ── Returning user ── */
+        <div>
+          {/* Big Create button */}
+          <div style={{ marginBottom: 32 }}>
+            <Link
+              href="/create"
+              className="btn btn-primary"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 10,
+                fontSize: 18,
+                fontWeight: 700,
+                padding: '16px 36px',
+                borderRadius: 12,
+              }}
+            >
+              + Create
+              <span style={{ fontSize: 13, fontWeight: 500, opacity: 0.8 }}>&mdash; from $5</span>
+            </Link>
+          </div>
+
+          {/* Stats bar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 14,
+            color: 'var(--ink-soft)',
+            marginBottom: 28,
+          }}>
+            <span>{totalCount} project{totalCount !== 1 ? 's' : ''} created</span>
+            <span>&middot;</span>
+            <span>{planName} member</span>
+          </div>
+
+          {/* Recent Creations */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700 }}>Recent Creations</h2>
+            <Link href="/videos" className="btn btn-soft btn-sm">
+              View all &rarr;
+            </Link>
+          </div>
+
           <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
-            {(pendingFollowUps ?? []).map((fu: any, i: number) => {
-              const clientName = fu.plan?.client_name ?? 'Client'
-              const videoTitle = fu.plan?.video?.title ?? 'Untitled'
-              const videoId = fu.plan?.video_id
+            {recentItems.map((item: any, i: number) => {
+              const isVideo = item.type === 'video'
+              const href = isVideo ? `/videos/${item._videoId ?? item.id}` : (item.file_url ?? '#')
+              const badge = TYPE_BADGE[item.type] ?? { label: item.type, color: 'sky' }
+              const TagEl = isVideo ? Link : 'a'
+              const linkProps = isVideo
+                ? { href }
+                : { href, target: '_blank' as const, rel: 'noopener noreferrer' }
               return (
-                <Link
-                  key={fu.id}
-                  href={videoId ? `/videos/${videoId}` : '#'}
+                <TagEl
+                  key={item.id}
+                  {...linkProps}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 16,
-                    padding: '14px 24px',
+                    padding: '16px 24px',
                     textDecoration: 'none',
                     color: 'var(--ink)',
-                    borderBottom: i < (pendingFollowUps?.length ?? 0) - 1 ? '1px solid var(--border-light)' : 'none',
+                    borderBottom: i < recentItems.length - 1 ? '1px solid var(--border-light)' : 'none',
+                    transition: 'background 0.1s ease',
                   }}
                   className="activity-row"
                 >
+                  {/* Thumbnail */}
                   <div style={{
-                    width: 36, height: 36, borderRadius: 8, flexShrink: 0,
-                    background: 'var(--peach)',
+                    width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+                    background: item.thumbnail_url ? 'var(--bg)' : `var(--${badge.color})`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 13, fontWeight: 700,
+                    overflow: 'hidden',
                   }}>
-                    D{fu.day_offset}
+                    {item.thumbnail_url ? (
+                      <img src={item.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : isVideo ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    )}
                   </div>
+
+                  {/* Title + type */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {fu.subject}
+                      {item.title ?? 'Untitled'}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2 }}>
-                      {clientName} &middot; {videoTitle}
+                      {badge.label}
                     </div>
                   </div>
-                  {fu.scheduled_date && (
-                    <div style={{ fontSize: 12, color: 'var(--ink-light)', flexShrink: 0 }}>
-                      {new Date(fu.scheduled_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </div>
-                  )}
+
+                  {/* Type badge */}
+                  <span className={`tag ${badge.color}`} style={{ flexShrink: 0 }}>
+                    {badge.label}
+                  </span>
+
+                  {/* Date */}
+                  <div style={{ fontSize: 13, color: 'var(--ink-light)', flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
+                    {new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
+
+                  {/* Arrow */}
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-light)" strokeWidth="2" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6"/></svg>
-                </Link>
+                </TagEl>
               )
             })}
+            {(totalCount ?? 0) > 8 && (
+              <Link
+                href="/videos"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '14px 24px',
+                  textDecoration: 'none',
+                  color: 'var(--ink-soft)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  borderTop: '1px solid var(--border-light)',
+                  transition: 'background 0.1s ease',
+                }}
+                className="activity-row"
+              >
+                View all {totalCount} creations &rarr;
+              </Link>
+            )}
           </div>
         </div>
       )}
