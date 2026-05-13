@@ -219,7 +219,7 @@ export default function BrandKitPage() {
           border: '1px solid var(--border, #e2e8f0)',
           fontSize: 12, color: 'var(--ink-soft)',
         }}>
-          Complete Brand Kit (logo + cards + social + guide) — <strong style={{ color: 'var(--ink)' }}>8 credits</strong>
+          Complete Brand Kit (logo + cards + social + guide) — <strong style={{ color: 'var(--ink)' }}>$149</strong>
         </div>
 
         {/* Input bar */}

@@ -120,7 +120,7 @@ export default function CourseBuilderPage() {
     }
   }
 
-  const creditsNeeded = (outline?.episodes.length ?? episodeCount) * 3
+  const estimatedPrice = '$249'
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
@@ -202,7 +202,7 @@ export default function CourseBuilderPage() {
               </div>
             </div>
             <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 6 }}>
-              {creditsNeeded} credits required ({episodeCount} episodes x 3 credits each)
+              {estimatedPrice} for up to {episodeCount} episodes
             </div>
           </div>
 
@@ -234,7 +234,7 @@ export default function CourseBuilderPage() {
               <span>Audience: <strong>{outline.targetAudience}</strong></span>
               <span>Duration: <strong>{outline.estimatedTotalDuration}</strong></span>
               <span>Episodes: <strong>{outline.episodes.length}</strong></span>
-              <span>Credits: <strong>{outline.episodes.length * 3}</strong></span>
+              <span>Price: <strong>{estimatedPrice}</strong></span>
             </div>
           </div>
 
@@ -325,7 +325,7 @@ export default function CourseBuilderPage() {
               className="btn btn-primary"
               style={{ flex: 2 }}
             >
-              {batchStarting ? 'Starting...' : `Generate ${outline.episodes.length} Videos (${outline.episodes.length * 3} credits)`}
+              {batchStarting ? 'Starting...' : `Generate ${outline.episodes.length} Videos (${estimatedPrice})`}
             </button>
           </div>
         </div>

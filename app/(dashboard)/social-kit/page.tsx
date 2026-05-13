@@ -176,7 +176,7 @@ export default function SocialKitPage() {
         Social Media Kit
       </h1>
       <p style={{ color: 'var(--muted)', fontSize: 15, marginBottom: 32 }}>
-        Generate branded graphics for every social platform in one go. 3 credits per kit.
+        Generate branded graphics for every social platform in one go. $39 per kit.
       </p>
 
       {/* Step indicator */}
@@ -386,7 +386,7 @@ export default function SocialKitPage() {
             onClick={handleGenerate}
             style={{ width: '100%', padding: '12px 24px', borderRadius: 10, fontSize: 15, fontWeight: 600 }}
           >
-            Generate Social Media Kit (3 credits)
+            Generate Social Media Kit ($39)
           </button>
         </div>
       )}

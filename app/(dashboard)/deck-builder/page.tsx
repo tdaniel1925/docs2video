@@ -325,7 +325,7 @@ export default function DeckBuilderPage() {
           borderRadius: 10, padding: '10px 16px', fontSize: 13, fontWeight: 600,
           whiteSpace: 'nowrap', flexShrink: 0,
         }}>
-          5 credits per deck
+          $19 per deck
         </div>
       </div>
 
@@ -1001,7 +1001,7 @@ export default function DeckBuilderPage() {
                   className="btn btn-primary"
                   style={{ flex: 2 }}
                 >
-                  Generate Deck ({plan.length} slides, 5 credits)
+                  Generate Deck ({plan.length} slides, $19)
                 </button>
               </div>
             </div>

@@ -162,7 +162,7 @@ RULES:
       success: true,
       videoIds,
       totalEpisodes: videoIds.length,
-      creditsRequired: videoIds.length * 3,
+      estimatedCost: '$249',
       message: `Creating ${videoIds.length} episodes. First episode starting now — the rest will generate sequentially.`,
     })
   }

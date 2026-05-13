@@ -490,9 +490,11 @@ export default function SettingsPage() {
             <h3>Your Plan</h3>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div>
-                <div style={{ fontSize: 24, fontWeight: 800, textTransform: 'capitalize' }}>{profile.subscription_status || 'Free'}</div>
+                <div style={{ fontSize: 24, fontWeight: 800, textTransform: 'capitalize' }}>
+                  {profile.subscription_status === 'pro' ? 'Pro Member' : 'Free Account'}
+                </div>
                 <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginTop: 4 }}>
-                  {profile.credits_remaining} credits remaining this month
+                  {profile.subscription_status === 'pro' ? '40% off all projects' : 'Pay per project at full price'}
                 </div>
               </div>
               {(profile as any).stripe_customer_id && (
@@ -503,167 +505,71 @@ export default function SettingsPage() {
                 }} className="btn btn-soft">Manage Billing</button>
               )}
             </div>
-
-            {/* Credit bar */}
-            <div style={{ marginBottom: 8 }}>
-              <div style={{ height: 8, background: 'var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-                <div style={{
-                  height: '100%', borderRadius: 10, background: 'var(--mint)',
-                  width: `${Math.min(100, Math.round(((profile.credits_remaining ?? 0) / Math.max(1, (() => {
-                    const plans: Record<string, number> = { free: 5, starter: 50, professional: 150, agency: 500 }
-                    return plans[profile.subscription_status?.toLowerCase() ?? 'free'] ?? 5
-                  })())) * 100))}%`,
-                  transition: 'width 0.3s ease',
-                }} />
-              </div>
-            </div>
           </div>
 
-          {/* Plan cards */}
+          {/* Pro Membership */}
           <div className="settings-card">
-            <h3>Plans</h3>
-            <p className="ssub">Choose the plan that fits your needs. Changes take effect immediately.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 16 }}>
-              {([
-                { id: 'free', name: 'Free', price: '$0', credits: 5, features: ['5 credits/month', '1 brand', 'Basic templates'] },
-                { id: 'starter', name: 'Starter', price: '$49', credits: 50, features: ['50 credits/month', '2 brands', 'Custom templates', 'All creators'] },
-                { id: 'professional', name: 'Professional', price: '$99', credits: 150, popular: true, features: ['150 credits/month', 'Unlimited brands', 'AI proposals', 'Quotes & payments', 'Follow-up emails', 'Calendar booking'] },
-                { id: 'agency', name: 'Agency', price: '$249', credits: 500, features: ['500 credits/month', 'Unlimited brands', 'Everything in Pro', 'White-label', 'API access', 'Team members'] },
-              ] as const).map(plan => {
-                const isCurrent = (profile.subscription_status?.toLowerCase() ?? 'free') === plan.id
-                const currentPlanOrder = ['free', 'starter', 'professional', 'agency'].indexOf(profile.subscription_status?.toLowerCase() ?? 'free')
-                const thisPlanOrder = ['free', 'starter', 'professional', 'agency'].indexOf(plan.id)
-                const isUpgrade = thisPlanOrder > currentPlanOrder
-                const isDowngrade = thisPlanOrder < currentPlanOrder
-
-                return (
-                  <div key={plan.id} style={{
-                    padding: '20px 16px',
-                    borderRadius: 12,
-                    background: isCurrent ? 'rgba(168,240,212,0.1)' : 'white',
-                    border: isCurrent ? '2px solid var(--mint)' : (plan as any).popular ? '2px solid var(--ink)' : '1px solid var(--border-light)',
-                    textAlign: 'center',
-                    position: 'relative',
-                    display: 'flex',
-                    flexDirection: 'column',
-                  }}>
-                    {(plan as any).popular && !isCurrent && (
-                      <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--ink)', color: 'white', fontSize: 10, fontWeight: 700, padding: '2px 10px', borderRadius: 10 }}>
-                        POPULAR
-                      </div>
-                    )}
-                    {isCurrent && (
-                      <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 10px', borderRadius: 10 }}>
-                        CURRENT
-                      </div>
-                    )}
-                    <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4, marginTop: 4 }}>{plan.name}</div>
-                    <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 2 }}>{plan.price}</div>
-                    <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 16 }}>/month</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--mint-darker, #2d7a4f)', marginBottom: 12 }}>
-                      {plan.credits} credits/mo
-                    </div>
-                    <div style={{ flex: 1, marginBottom: 16 }}>
-                      {plan.features.map((f, i) => (
-                        <div key={i} style={{ fontSize: 12, color: 'var(--ink-soft)', padding: '3px 0', display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                          <span style={{ color: 'var(--mint-darker, #2d7a4f)' }}>&#10003;</span> {f}
-                        </div>
-                      ))}
-                    </div>
-                    {isCurrent ? (
-                      <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--bg-soft)', fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)' }}>
-                        Current Plan
-                      </div>
-                    ) : plan.id === 'free' ? (
-                      isDowngrade ? (
-                        <button onClick={async () => {
-                          if (!confirm('Downgrade to Free? You will lose access to premium features at the end of your billing period.')) return
-                          const res = await fetch('/api/stripe/portal', { method: 'POST' })
-                          const data = await res.json()
-                          if (data.url) window.location.href = data.url
-                        }} className="btn btn-soft" style={{ width: '100%', fontSize: 13 }}>
-                          Downgrade
-                        </button>
-                      ) : null
-                    ) : (
-                      <button onClick={async () => {
-                        if (isDowngrade && !confirm(`Switch to ${plan.name}? Your plan will change at the end of your billing period.`)) return
-                        const res = await fetch('/api/stripe/checkout', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ planId: plan.id }),
-                        })
-                        const data = await res.json()
-                        if (data.url) window.location.href = data.url
-                      }} className={isUpgrade ? 'btn btn-primary' : 'btn btn-soft'} style={{ width: '100%', fontSize: 13 }}>
-                        {isUpgrade ? 'Upgrade' : 'Switch'}
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Credit packs */}
-          <div className="settings-card">
-            <h3>Buy More Credits</h3>
-            <p className="ssub">Need extra credits? Purchase a one-time credit pack. Credits never expire.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 16 }}>
-              {([
-                { id: 'single', name: '1 Credit', count: 1, price: '$5' },
-                { id: 'pack5', name: '5 Credits', count: 5, price: '$19', save: '24%' },
-                { id: 'pack10', name: '10 Credits', count: 10, price: '$35', save: '30%' },
-                { id: 'pack25', name: '25 Credits', count: 25, price: '$79', save: '37%' },
-              ]).map(pack => (
-                <div key={pack.id} style={{
-                  padding: '20px 16px',
-                  borderRadius: 12,
-                  border: '1px solid var(--border-light)',
-                  background: 'white',
-                  textAlign: 'center',
-                  position: 'relative',
-                }}>
-                  {pack.save && (
-                    <div style={{ position: 'absolute', top: -8, right: 8, background: 'var(--peach, #FFDAB9)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 8 }}>
-                      SAVE {pack.save}
-                    </div>
-                  )}
-                  <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 2, marginTop: 4 }}>{pack.price}</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{pack.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-light)', marginBottom: 14 }}>
-                    ${(parseInt(pack.price.replace('$', '')) / pack.count).toFixed(2)}/credit
-                  </div>
-                  <button onClick={async () => {
-                    const res = await fetch('/api/stripe/checkout', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ packId: pack.id }),
-                    })
-                    const data = await res.json()
-                    if (data.url) window.location.href = data.url
-                  }} className="btn btn-soft" style={{ width: '100%', fontSize: 13 }}>
-                    Buy
-                  </button>
+            <h3>Pro Membership</h3>
+            <p className="ssub">Save 40% on every project with a Pro membership.</p>
+            <div style={{
+              padding: '24px 20px', borderRadius: 12, marginTop: 16,
+              background: profile.subscription_status === 'pro' ? 'rgba(168,240,212,0.1)' : 'white',
+              border: profile.subscription_status === 'pro' ? '2px solid var(--mint)' : '2px solid var(--ink)',
+              textAlign: 'center', position: 'relative',
+            }}>
+              {profile.subscription_status === 'pro' && (
+                <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 10px', borderRadius: 10 }}>
+                  ACTIVE
                 </div>
-              ))}
+              )}
+              <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 2, marginTop: 4 }}>$25</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 12 }}>/month</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--mint-darker, #2d7a4f)', marginBottom: 16 }}>
+                40% off everything
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
+                Save on every project you create. Cancel anytime.
+              </div>
+              {profile.subscription_status === 'pro' ? (
+                <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--bg-soft)', fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)' }}>
+                  Current Plan
+                </div>
+              ) : (
+                <button onClick={async () => {
+                  const res = await fetch('/api/stripe/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ planId: 'pro' }),
+                  })
+                  const data = await res.json()
+                  if (data.url) window.location.href = data.url
+                }} className="btn btn-primary" style={{ width: '100%', fontSize: 14 }}>
+                  Subscribe to Pro
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Credit costs reference */}
+          {/* Project prices */}
           <div className="settings-card">
-            <h3>Credit Costs</h3>
-            <p className="ssub">How many credits each creation type uses.</p>
+            <h3>Project Prices</h3>
+            <p className="ssub">What each project costs. Pro members pay 40% less.</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
               {([
-                { label: 'Explainer Video', cost: 3 },
-                { label: 'Logo Design (4 concepts)', cost: 2 },
-                { label: 'Logo Refinement', cost: 1 },
-                { label: 'Custom Template', cost: 2 },
-                { label: 'Infographic', cost: 1 },
-                { label: 'Business Card (pair)', cost: 1 },
-                { label: 'Flyer', cost: 1 },
-                { label: 'Template Refinement', cost: 1 },
+                { label: 'Video Explainer', price: '$29' },
+                { label: 'Video (Detailed)', price: '$39' },
+                { label: 'Logo Design (4 concepts)', price: '$49' },
+                { label: 'Logo Refinement', price: 'included' },
+                { label: 'Custom Template', price: '$5 upgrade' },
+                { label: 'Infographic', price: '$19' },
+                { label: 'Business Card (pair)', price: '$19' },
+                { label: 'Flyer', price: '$15' },
+                { label: 'Social Media Kit', price: '$39' },
+                { label: 'Course (up to 10 eps)', price: '$249' },
+                { label: 'Brand Kit', price: '$149' },
+                { label: 'AI Headshot', price: '$19' },
+                { label: 'Email Signature', price: '$9' },
+                { label: 'Image Remix', price: '$5' },
               ]).map(item => (
                 <div key={item.label} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -671,7 +577,7 @@ export default function SettingsPage() {
                   background: 'var(--bg-soft)', fontSize: 13,
                 }}>
                   <span>{item.label}</span>
-                  <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{item.cost} credit{item.cost > 1 ? 's' : ''}</span>
+                  <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{item.price}</span>
                 </div>
               ))}
             </div>
@@ -682,7 +588,7 @@ export default function SettingsPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <h3 style={{ marginBottom: 4 }}>Affiliate Program</h3>
-                <p className="ssub" style={{ margin: 0 }}>Earn 20% commission + free credits by referring others.</p>
+                <p className="ssub" style={{ margin: 0 }}>Earn 20% commission by referring others.</p>
               </div>
               <Link href="/affiliates" className="btn btn-primary">Join &rarr;</Link>
             </div>

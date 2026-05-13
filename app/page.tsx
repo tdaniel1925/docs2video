@@ -619,79 +619,52 @@ export default function HomePage() {
         <section className="section" id="pricing">
           <div style={{textAlign:'center',marginBottom:50}}>
             <div className="section-eyebrow">Pricing</div>
-            <h2 className="section-title">Simple pricing. <em>No surprises.</em></h2>
-            <p className="section-sub" style={{maxWidth:500,margin:'0 auto'}}>Start free. Upgrade when you&apos;re ready. Cancel anytime.</p>
+            <h2 className="section-title">Simple, transparent <em>pricing</em></h2>
+            <p className="section-sub" style={{maxWidth:500,margin:'0 auto'}}>Pay per project. No subscriptions required.</p>
           </div>
-          <div className="pricing-grid">
-            <div className="pricing-card">
-              <div className="pricing-name">Free</div>
-              <div className="pricing-price">$0</div>
-              <div className="pricing-period">forever</div>
-              <ul className="pricing-features">
-                <li>3 credits / month</li>
-                <li>1 brand profile</li>
-                <li>Basic share page</li>
-              </ul>
-              <Link href="/signup" className="btn btn-outlined btn-full">Try it free</Link>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:32,maxWidth:900,margin:'0 auto'}}>
+            {/* Pay Per Project */}
+            <div className="pricing-card" style={{padding:32}}>
+              <div className="pricing-name">Pay Per Project</div>
+              <div style={{marginTop:20}}>
+                {[
+                  { name: 'Video Explainer', price: '$29' },
+                  { name: 'Slide Deck', price: '$19' },
+                  { name: 'Video Course (10 episodes)', price: '$249' },
+                  { name: 'Brand Kit', price: '$149' },
+                  { name: 'Logo Design', price: '$49' },
+                  { name: 'Social Media Kit', price: '$39' },
+                  { name: 'AI Headshot (20 variations)', price: '$19' },
+                  { name: 'Infographic', price: '$19' },
+                  { name: 'Business Card', price: '$19' },
+                  { name: 'Flyer', price: '$15' },
+                  { name: 'Email Signature', price: '$9' },
+                ].map(item => (
+                  <div key={item.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
+                    <span style={{fontSize:14,color:'var(--ink)'}}>{item.name}</span>
+                    <span style={{fontSize:14,fontWeight:700,color:'var(--ink)'}}>{item.price}</span>
+                  </div>
+                ))}
+              </div>
+              <Link href="/signup" className="btn btn-mint btn-full" style={{marginTop:24}}>Get Started Free &rarr;</Link>
             </div>
-            <div className="pricing-card">
-              <div className="pricing-name">Starter</div>
-              <div className="pricing-price">$49</div>
+            {/* Pro Membership */}
+            <div className="pricing-card popular" style={{padding:32}}>
+              <div className="pricing-badge">Best value</div>
+              <div className="pricing-name">Pro Membership</div>
+              <div className="pricing-price">$25</div>
               <div className="pricing-period">per month</div>
               <ul className="pricing-features">
-                <li>30 credits / month</li>
-                <li>2 brand profiles</li>
-                <li>Custom templates</li>
-                <li>HD quality, no watermark</li>
-                <li>Email support</li>
-              </ul>
-              <Link href="/signup" className="btn btn-mint btn-full">Start free trial &rarr;</Link>
-            </div>
-            <div className="pricing-card popular">
-              <div className="pricing-badge">Most popular</div>
-              <div className="pricing-name">Professional</div>
-              <div className="pricing-price">$99</div>
-              <div className="pricing-period">per month</div>
-              <ul className="pricing-features">
-                <li>75 credits / month</li>
-                <li>Unlimited brands</li>
-                <li>AI proposals &amp; quotes</li>
-                <li>Payment collection</li>
-                <li>Follow-up suggestions</li>
-                <li>Calendar booking</li>
+                <li>40% off every project</li>
                 <li>Priority support</li>
+                <li>Unlimited brands</li>
+                <li>HD quality, no watermark</li>
               </ul>
-              <Link href="/signup" className="btn btn-primary btn-full">Start free trial &rarr;</Link>
+              <div style={{background:'var(--surface)',borderRadius:10,padding:16,margin:'16px 0',border:'1px solid var(--border)'}}>
+                <p style={{fontSize:13,color:'var(--ink-soft)',lineHeight:1.6,margin:0}}>A Pro member creating 2 videos/month saves $24 &mdash; the membership pays for itself.</p>
+              </div>
+              <Link href="/signup" className="btn btn-primary btn-full">Go Pro &rarr;</Link>
             </div>
-            <div className="pricing-card">
-              <div className="pricing-name">Agency</div>
-              <div className="pricing-price">$249</div>
-              <div className="pricing-period">per month</div>
-              <ul className="pricing-features">
-                <li>200 credits / month</li>
-                <li>5 team seats</li>
-                <li>White-label share pages</li>
-                <li>API access</li>
-                <li>Dedicated support</li>
-              </ul>
-              <Link href="/signup" className="btn btn-mint btn-full">Start free trial &rarr;</Link>
-            </div>
-          </div>
-
-          {/* Pay-Per-Use Packs */}
-          <div style={{ maxWidth: 800, margin: '40px auto 0', textAlign: 'center' }}>
-            <p style={{ fontSize: 15, color: 'var(--ink-soft)', marginBottom: 8 }}>
-              Need more? Buy credit packs that never expire.
-            </p>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <div className="pack-card">1 Credit &mdash; $5</div>
-              <div className="pack-card">5-Pack &mdash; $19 <span>($3.80 ea)</span></div>
-              <div className="pack-card">10-Pack &mdash; $35 <span>($3.50 ea)</span></div>
-              <div className="pack-card">25-Pack &mdash; $79 <span>($3.16 ea)</span></div>
-            </div>
-            <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 12, opacity: 0.7 }}>
-              1 credit = 1 explainer video
-            </p>
           </div>
         </section>
 
@@ -730,7 +703,7 @@ export default function HomePage() {
           <div className="final-cta-perks">
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-              5 free credits
+              First project free
             </span>
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
