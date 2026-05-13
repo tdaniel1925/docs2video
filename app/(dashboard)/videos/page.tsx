@@ -40,8 +40,33 @@ const TYPE_COLORS: Record<string, string> = {
   template: 'peach',
 }
 
-export default async function VideosPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
-  const { page: pageParam } = await searchParams
+const FILTER_TABS = [
+  { key: '', label: 'All' },
+  { key: 'video', label: 'Videos' },
+  { key: 'deck', label: 'Decks' },
+  { key: 'logo', label: 'Logos' },
+  { key: 'business-card', label: 'Cards' },
+  { key: 'flyer', label: 'Flyers' },
+  { key: 'infographic', label: 'Infographics' },
+  { key: 'social-kit', label: 'Social' },
+  { key: 'other', label: 'Other' },
+] as const
+
+const KNOWN_TYPES = new Set(FILTER_TABS.map(t => t.key).filter(Boolean))
+
+const FILTER_TITLES: Record<string, string> = {
+  video: 'Your Videos',
+  deck: 'Your Decks',
+  logo: 'Your Logos',
+  'business-card': 'Your Cards',
+  flyer: 'Your Flyers',
+  infographic: 'Your Infographics',
+  'social-kit': 'Your Social Kits',
+  other: 'Your Other Creations',
+}
+
+export default async function VideosPage({ searchParams }: { searchParams: Promise<{ page?: string; type?: string }> }) {
+  const { page: pageParam, type: typeFilter } = await searchParams
   const currentPage = Math.max(1, parseInt(pageParam ?? '1', 10) || 1)
   const from = (currentPage - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
@@ -86,8 +111,15 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
     })),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
-  const total = allItems.length
-  const creations = allItems.slice(from, to + 1)
+  // Apply type filter
+  const filteredItems = typeFilter
+    ? typeFilter === 'other'
+      ? allItems.filter(item => !KNOWN_TYPES.has(item.type))
+      : allItems.filter(item => item.type === typeFilter)
+    : allItems
+
+  const total = filteredItems.length
+  const creations = filteredItems.slice(from, to + 1)
   const totalPages = Math.ceil(total / PAGE_SIZE)
   const showingFrom = total === 0 ? 0 : from + 1
   const showingTo = Math.min(to + 1, total)
@@ -96,12 +128,24 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
     <div>
       <div className="page-head">
         <div>
-          <h1>Your Library</h1>
-          <p>All your creations.</p>
+          <h1>{typeFilter ? (FILTER_TITLES[typeFilter] ?? 'Your Library') : 'Your Library'}</h1>
+          <p>{typeFilter ? `Filtered by ${FILTER_TABS.find(t => t.key === typeFilter)?.label?.toLowerCase() ?? typeFilter}.` : 'All your creations.'}</p>
         </div>
         <Link href="/create" className="btn btn-primary btn-lg">
           + New Creation
         </Link>
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
+        {FILTER_TABS.map(tab => (
+          <Link
+            key={tab.key}
+            href={tab.key ? `/videos?type=${tab.key}` : '/videos'}
+            className={`btn btn-sm ${typeFilter === tab.key || (!typeFilter && !tab.key) ? 'btn-primary' : 'btn-soft'}`}
+          >
+            {tab.label}
+          </Link>
+        ))}
       </div>
 
       {!creations?.length ? (
@@ -216,7 +260,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
           <div style={{ display: 'flex', gap: 8 }}>
             {currentPage > 1 ? (
               <Link
-                href={`/videos?page=${currentPage - 1}`}
+                href={`/videos?page=${currentPage - 1}${typeFilter ? `&type=${typeFilter}` : ''}`}
                 className="btn btn-soft btn-sm"
               >
                 &larr; Previous
@@ -231,7 +275,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
             )}
             {currentPage < totalPages ? (
               <Link
-                href={`/videos?page=${currentPage + 1}`}
+                href={`/videos?page=${currentPage + 1}${typeFilter ? `&type=${typeFilter}` : ''}`}
                 className="btn btn-soft btn-sm"
               >
                 Next &rarr;
