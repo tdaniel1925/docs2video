@@ -23,6 +23,57 @@ const INITIAL_MESSAGE: ChatMessage = {
   content: "Hey! I'm Marcus, your logo designer. I've designed hundreds of brand identities and I'm excited to work on yours. What's the name of the company or brand we're creating a logo for?",
 }
 
+function VoiceInputButton({ onResult, disabled }: { onResult: (text: string) => void, disabled?: boolean }) {
+  const [listening, setListening] = useState(false)
+
+  function startListening() {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) return
+
+    const recognition = new SpeechRecognition()
+    recognition.continuous = false
+    recognition.interimResults = false
+    recognition.lang = 'en-US'
+
+    recognition.onstart = () => setListening(true)
+    recognition.onend = () => setListening(false)
+    recognition.onresult = (event: any) => {
+      const text = event.results[0][0].transcript
+      onResult(text)
+    }
+    recognition.onerror = () => setListening(false)
+
+    recognition.start()
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={startListening}
+      disabled={disabled || listening}
+      title={listening ? 'Listening...' : 'Voice input'}
+      style={{
+        background: listening ? 'var(--mint)' : 'none',
+        border: listening ? 'none' : '1px solid var(--border)',
+        borderRadius: 8,
+        padding: '6px 10px',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 0.15s',
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={listening ? 'white' : 'var(--ink-light)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+    </button>
+  )
+}
+
 export default function LogoCreatorPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE])
   const [input, setInput] = useState('')
@@ -35,6 +86,7 @@ export default function LogoCreatorPage() {
   const [pendingImage, setPendingImage] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const chatInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -142,6 +194,7 @@ export default function LogoCreatorPage() {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }])
     }
     setChatLoading(false)
+    chatInputRef.current?.focus()
   }
 
   async function generateLogos(brief: DesignBrief, refs: string[]) {
@@ -218,6 +271,7 @@ export default function LogoCreatorPage() {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Refinement failed. Please try again.' }])
     }
     setGenerating(false)
+    chatInputRef.current?.focus()
   }
 
   function handleDownload() {
@@ -379,6 +433,7 @@ export default function LogoCreatorPage() {
         </button>
 
         <input
+          ref={chatInputRef}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => {
@@ -388,6 +443,17 @@ export default function LogoCreatorPage() {
           className="input"
           placeholder={hasLogos ? 'Describe changes or paste an image...' : 'Type your answer or paste a reference image...'}
           style={{ flex: 1 }}
+          disabled={chatLoading || generating}
+        />
+        <VoiceInputButton
+          onResult={(text) => {
+            setInput(text)
+            if (hasLogos) {
+              handleRefine(text)
+            } else {
+              sendMessage(text)
+            }
+          }}
           disabled={chatLoading || generating}
         />
         <button

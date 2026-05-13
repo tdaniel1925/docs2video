@@ -779,6 +779,57 @@ const SUGGESTED_QUESTIONS = [
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
+function VoiceInputButton({ onResult, disabled }: { onResult: (text: string) => void, disabled?: boolean }) {
+  const [listening, setListening] = useState(false)
+
+  function startListening() {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) return
+
+    const recognition = new SpeechRecognition()
+    recognition.continuous = false
+    recognition.interimResults = false
+    recognition.lang = 'en-US'
+
+    recognition.onstart = () => setListening(true)
+    recognition.onend = () => setListening(false)
+    recognition.onresult = (event: any) => {
+      const text = event.results[0][0].transcript
+      onResult(text)
+    }
+    recognition.onerror = () => setListening(false)
+
+    recognition.start()
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={startListening}
+      disabled={disabled || listening}
+      title={listening ? 'Listening...' : 'Voice input'}
+      style={{
+        background: listening ? 'var(--mint)' : 'none',
+        border: listening ? 'none' : '1px solid var(--border)',
+        borderRadius: 8,
+        padding: '6px 10px',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 0.15s',
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={listening ? 'white' : 'var(--ink-light)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+    </button>
+  )
+}
+
 export default function PublicWatchPage() {
   const params = useParams()
   const searchParams = useSearchParams()
@@ -795,6 +846,7 @@ export default function PublicWatchPage() {
   const [copied, setCopied] = useState(false)
 
   const chatEndRef = useRef<HTMLDivElement>(null)
+  const chatInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const viewTracked = useRef(false)
 
@@ -934,6 +986,7 @@ export default function PublicWatchPage() {
         ])
       } finally {
         setChatLoading(false)
+        chatInputRef.current?.focus()
       }
     },
     [chatInput, video, chatLoading],
@@ -1229,6 +1282,7 @@ export default function PublicWatchPage() {
             <div className="wp-chat-input-wrap">
               <div className="wp-chat-input-row">
                 <input
+                  ref={chatInputRef}
                   type="text"
                   placeholder="Ask about this video..."
                   value={chatInput}
@@ -1238,6 +1292,13 @@ export default function PublicWatchPage() {
                       e.preventDefault()
                       sendChat()
                     }
+                  }}
+                  disabled={chatLoading}
+                />
+                <VoiceInputButton
+                  onResult={(text) => {
+                    setChatInput(text)
+                    sendChat(text)
                   }}
                   disabled={chatLoading}
                 />
