@@ -26,6 +26,16 @@ interface SlidePlan {
   body: string
   imagePrompt?: string
   rationale?: string
+  // API may return nested content structure
+  content?: {
+    headline: string
+    subheadline?: string
+    bodyBlocks: string[]
+    stats?: { value: string; label: string }[]
+    imagePrompt?: string
+  }
+  templateLayoutIndex?: number
+  layoutType?: string
 }
 
 interface TemplateLayout {
@@ -225,7 +235,19 @@ export default function DeckBuilderPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Planning failed')
-      setPlan(data.plan || data.slides || [])
+      // Normalize: API may return nested content structure or flat structure
+      const rawSlides = data.slides ?? data.plan ?? []
+      const normalized = rawSlides.map((s: any, i: number) => ({
+        slideNumber: s.slideNumber ?? i + 1,
+        layout: s.layoutType ?? s.layout ?? 'content',
+        headline: s.content?.headline ?? s.headline ?? '',
+        body: Array.isArray(s.content?.bodyBlocks) ? s.content.bodyBlocks.join('\n') : (s.body ?? ''),
+        imagePrompt: s.content?.imagePrompt ?? s.imagePrompt,
+        rationale: s.rationale ?? '',
+        content: s.content,
+        templateLayoutIndex: s.templateLayoutIndex,
+      }))
+      setPlan(normalized)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Plan generation failed')
     } finally {
@@ -960,7 +982,7 @@ export default function DeckBuilderPage() {
                     <input
                       type="text"
                       className="input"
-                      value={slide.headline}
+                      value={slide.headline ?? ''}
                       onChange={e => updatePlanSlide(i, { headline: e.target.value })}
                       style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}
                     />
