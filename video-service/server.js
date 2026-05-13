@@ -145,9 +145,10 @@ app.post('/assemble', authCheck, async (req, res) => {
         console.log(`[${videoId}] Downloading background music from: ${musicUrl}`)
         const fetch = (await import('node-fetch')).default
         const controller = new AbortController()
-        const fetchTimeout = setTimeout(() => controller.abort(), 20000)
-        const musicRes = await fetch(musicUrl, { signal: controller.signal })
+        const fetchTimeout = setTimeout(() => controller.abort(), 30000)
+        const musicRes = await fetch(musicUrl, { signal: controller.signal, redirect: 'follow' })
         clearTimeout(fetchTimeout)
+        console.log(`[${videoId}] Music fetch status: ${musicRes.status} ${musicRes.statusText}`)
         if (musicRes.ok) {
           const musicPath = join(workDir, 'bgmusic.mp3')
           const musicBuf = Buffer.from(await musicRes.arrayBuffer())
@@ -174,6 +175,8 @@ app.post('/assemble', authCheck, async (req, res) => {
           ])
           finalPath = mixedPath
           console.log(`[${videoId}] Music mixed`)
+        } else {
+          console.error(`[${videoId}] Music download failed: ${musicRes.status} ${musicRes.statusText}`)
         }
       } catch (err) {
         console.error(`[${videoId}] Music mixing failed, using video without music:`, err.message)

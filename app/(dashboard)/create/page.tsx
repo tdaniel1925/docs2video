@@ -214,8 +214,9 @@ export default function CreatePage() {
         .order('is_default', { ascending: false })
       if (data) {
         setBrands(data as Brand[])
-        const defaultBrand = data.find((b: Brand) => b.is_default)
-        if (defaultBrand) setSelectedBrand(defaultBrand.id)
+        // Don't auto-select default brand — let user choose on Options page
+        // const defaultBrand = data.find((b: Brand) => b.is_default)
+        // if (defaultBrand) setSelectedBrand(defaultBrand.id)
       }
       // Load user's default style and plan
       const { data: { user } } = await supabase.auth.getUser()
@@ -2067,6 +2068,31 @@ export default function CreatePage() {
                   }} />
                 </label>
               )}
+            </div>
+          )}
+
+          {/* Style/Template selector */}
+          {!slidesMode && (
+            <div style={{ marginBottom: 24 }}>
+              <label className="input-label">Slide Style</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
+                {SLIDE_STYLES.map(style => (
+                  <div
+                    key={style.id}
+                    onClick={() => setSelectedStyle(style.id)}
+                    style={{
+                      borderRadius: 10, overflow: 'hidden', cursor: 'pointer',
+                      border: selectedStyle === style.id ? '2px solid var(--mint)' : '1px solid var(--border-light)',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <img src={`/style-previews/${style.id}.png`} alt={style.name} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} loading="lazy" />
+                    <div style={{ padding: '5px 8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, fontWeight: selectedStyle === style.id ? 700 : 500 }}>{style.name}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
