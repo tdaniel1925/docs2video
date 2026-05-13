@@ -1400,36 +1400,52 @@ export default function CreatePage() {
             </div>
           ) : (
             <>
-              {editableScenes.map((scene, i) => (
-                <div key={i} style={{ marginBottom: 16, background: 'var(--bg-soft)', borderRadius: 10, padding: 16, border: '1px solid var(--border-light)' }}>
+              {/* Insurance disclaimer notice */}
+              {extractedData && editableScenes.some(s => s.narration.toLowerCase().includes('before we begin, please note')) && (
+                <div style={{ marginBottom: 16, padding: '12px 16px', background: '#fef3c7', borderRadius: 10, border: '1px solid #fbbf24', fontSize: 13, color: '#92400e', lineHeight: 1.5 }}>
+                  This document was identified as an insurance carrier illustration. A required legal disclaimer slide has been added automatically and cannot be edited. Carrier names have been removed from the narration.
+                </div>
+              )}
+              {editableScenes.map((scene, i) => {
+                const isDisclaimer = scene.narration.toLowerCase().includes('before we begin, please note')
+                return (
+                <div key={i} style={{ marginBottom: 16, background: isDisclaimer ? '#fffbeb' : 'var(--bg-soft)', borderRadius: 10, padding: 16, border: isDisclaimer ? '1px solid #fbbf24' : '1px solid var(--border-light)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <span style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--mint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, flexShrink: 0 }}>{i + 1}</span>
-                    <input
-                      type="text"
-                      value={scene.title}
-                      onChange={e => {
-                        const updated = [...editableScenes]
-                        updated[i] = { ...updated[i], title: e.target.value }
-                        setEditableScenes(updated)
-                      }}
-                      style={{ border: 'none', background: 'transparent', fontWeight: 700, fontSize: 15, flex: 1, outline: 'none', color: 'var(--ink)' }}
-                    />
+                    <span style={{ width: 28, height: 28, borderRadius: '50%', background: isDisclaimer ? '#fbbf24' : 'var(--mint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, flexShrink: 0 }}>{i + 1}</span>
+                    {isDisclaimer ? (
+                      <div style={{ fontWeight: 700, fontSize: 15, color: '#92400e' }}>Legal Disclaimer (required)</div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={scene.title}
+                        onChange={e => {
+                          const updated = [...editableScenes]
+                          updated[i] = { ...updated[i], title: e.target.value }
+                          setEditableScenes(updated)
+                        }}
+                        style={{ border: 'none', background: 'transparent', fontWeight: 700, fontSize: 15, flex: 1, outline: 'none', color: 'var(--ink)' }}
+                      />
+                    )}
                   </div>
                   <textarea
                     value={scene.narration}
-                    onChange={e => {
+                    onChange={isDisclaimer ? undefined : (e => {
                       const updated = [...editableScenes]
                       updated[i] = { ...updated[i], narration: e.target.value }
                       setEditableScenes(updated)
-                    }}
+                    })}
+                    readOnly={isDisclaimer}
                     className="input"
-                    style={{ minHeight: 100, resize: 'vertical', fontFamily: 'inherit', fontSize: 14, lineHeight: 1.6 }}
+                    style={{ minHeight: isDisclaimer ? 80 : 100, resize: isDisclaimer ? 'none' : 'vertical', fontFamily: 'inherit', fontSize: isDisclaimer ? 12 : 14, lineHeight: 1.6, background: isDisclaimer ? '#fef9e7' : undefined, color: isDisclaimer ? '#78590a' : undefined, cursor: isDisclaimer ? 'not-allowed' : undefined }}
                   />
-                  <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 4 }}>
-                    ~{Math.round(scene.narration.split(/\s+/).length / 2.5)}s narration &middot; {scene.narration.split(/\s+/).length} words
-                  </div>
+                  {!isDisclaimer && (
+                    <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 4 }}>
+                      ~{Math.round(scene.narration.split(/\s+/).length / 2.5)}s narration &middot; {scene.narration.split(/\s+/).length} words
+                    </div>
+                  )}
                 </div>
-              ))}
+                )
+              })}
               <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16, textAlign: 'center' }}>
                 Total: {editableScenes.length} scenes &middot; ~{Math.round(editableScenes.reduce((sum, s) => sum + s.narration.split(/\s+/).length, 0) / 2.5)}s estimated duration
               </div>
