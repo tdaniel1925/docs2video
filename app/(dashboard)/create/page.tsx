@@ -624,6 +624,7 @@ export default function CreatePage() {
 
       {/* Step: Upload / Text / Idea */}
       {step === 'upload' && (
+        <>
         <div className="wizard-card">
           <h2>What would you like to explain?</h2>
           <p className="wizard-sub">Drop in your document and we&apos;ll handle the rest. Your video will be ready in about 2 minutes.</p>
@@ -1212,6 +1213,9 @@ export default function CreatePage() {
             </div>
           </div>
         )}
+        </>
+      )}
+
       {/* Step: Extracting */}
       {step === 'extracting' && (
         <div className="wizard-card" style={{ textAlign: 'center', padding: '48px 32px' }}>
@@ -1277,24 +1281,8 @@ export default function CreatePage() {
         </div>
       )}
 
-      {/* Step: Review extracted data */}
-      {step === 'review' && activeData && (
-        <div className="wizard-card">
-          {multiDocData.length > 1 ? (
-            <>
-              <h2>Comparing {multiDocData.length} documents</h2>
-              <p className="wizard-sub">Review the extracted data from each document. Key differences are highlighted below.</p>
-            </>
-          ) : (
-            <>
-              <h2>Does this look right?</h2>
-              <p className="wizard-sub">
-                {isGeneralData
-                  ? 'Here\'s what we put together. Make sure everything looks correct before we design your slides.'
-                  : 'Here\'s what we found in your document. Review and correct anything that\'s off — this data will appear in your video.'}
-              </p>
-            </>
-          )}
+      {/* Step: Script */}
+      {step === 'script' && (
 
           {/* Multi-document comparison view */}
           {multiDocData.length > 1 && (
