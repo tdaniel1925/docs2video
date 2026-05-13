@@ -6,7 +6,7 @@ export default function DemoSlidePage() {
   const [logo, setLogo] = useState<string | null>(null)
   const [logoName, setLogoName] = useState<string | null>(null)
   const [companyName, setCompanyName] = useState('')
-  const [prompt, setPrompt] = useState('make an infographic using this logo')
+  const [prompt, setPrompt] = useState('make a stunning, modern, high-quality infographic presentation slide using this logo. Use a bold design with a real photo background, strong typography, and icon grid. Make it look like a premium agency designed it. 1920x1080 landscape.')
   const [result, setResult] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     const response = await openai.responses.create({
       model: 'gpt-4.1',
       input,
-      tools: [{ type: 'image_generation', model: 'gpt-image-1', size: '1536x1024', quality: 'high' } as any],
+      tools: [{ type: 'image_generation', model: 'gpt-image-1', size: '2048x1536', quality: 'high' } as any],
     })
 
     // Extract the generated image
