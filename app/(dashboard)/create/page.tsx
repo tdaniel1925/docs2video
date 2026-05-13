@@ -1287,6 +1287,68 @@ export default function CreatePage() {
           <h2>Review your script</h2>
           <p className="wizard-sub">Edit the narration for each scene. This is what the voiceover will say.</p>
 
+          {scriptGenerating ? (
+            <div style={{ textAlign: 'center', padding: '48px 0' }}>
+              <div className="spinner" style={{ marginBottom: 16 }} />
+              <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>Generating your script...</p>
+              <p style={{ fontSize: 13, color: 'var(--ink-light)' }}>This usually takes 10-20 seconds</p>
+            </div>
+          ) : editableScenes.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>Script generation failed</p>
+              <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20 }}>Please try again or go back to edit your content.</p>
+              <div className="wizard-actions" style={{ justifyContent: 'center' }}>
+                <button onClick={() => setStep('upload')} className="btn btn-soft">&larr; Back</button>
+                <button onClick={handleGenerateScript} className="btn btn-primary">Try Again</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {editableScenes.map((scene, i) => (
+                <div key={i} style={{ marginBottom: 16, background: 'var(--bg-soft)', borderRadius: 10, padding: 16, border: '1px solid var(--border-light)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--mint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, flexShrink: 0 }}>{i + 1}</span>
+                    <input
+                      type="text"
+                      value={scene.title}
+                      onChange={e => {
+                        const updated = [...editableScenes]
+                        updated[i] = { ...updated[i], title: e.target.value }
+                        setEditableScenes(updated)
+                      }}
+                      style={{ border: 'none', background: 'transparent', fontWeight: 700, fontSize: 15, flex: 1, outline: 'none', color: 'var(--ink)' }}
+                    />
+                  </div>
+                  <textarea
+                    value={scene.narration}
+                    onChange={e => {
+                      const updated = [...editableScenes]
+                      updated[i] = { ...updated[i], narration: e.target.value }
+                      setEditableScenes(updated)
+                    }}
+                    className="input"
+                    style={{ minHeight: 100, resize: 'vertical', fontFamily: 'inherit', fontSize: 14, lineHeight: 1.6 }}
+                  />
+                  <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 4 }}>
+                    ~{Math.round(scene.narration.split(/\s+/).length / 2.5)}s narration &middot; {scene.narration.split(/\s+/).length} words
+                  </div>
+                </div>
+              ))}
+              <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16, textAlign: 'center' }}>
+                Total: {editableScenes.length} scenes &middot; ~{Math.round(editableScenes.reduce((sum, s) => sum + s.narration.split(/\s+/).length, 0) / 2.5)}s estimated duration
+              </div>
+              <div className="wizard-actions">
+                <button onClick={() => setStep('upload')} className="btn btn-soft">&larr; Back</button>
+                <button onClick={() => setStep('options')} className="btn btn-primary">Next: Choose Voice &rarr;</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* LEGACY: Old review data in script step — disabled */}
+      {false && step === 'script' && (
+        <div>
           {/* Multi-document comparison view */}
           {multiDocData.length > 1 && (
             <>
