@@ -113,13 +113,7 @@ RULES:
       return NextResponse.json({ error: 'No posts to schedule' }, { status: 400 })
     }
 
-    // Credit check: 1 credit per post
-    const { data: profile } = await admin.from('profiles').select('credits_remaining').eq('id', user.id).single()
-    if (!profile || profile.credits_remaining < posts.length) {
-      return NextResponse.json({
-        error: `Insufficient credits. Need ${posts.length} credits (1 per post), you have ${profile?.credits_remaining ?? 0}.`
-      }, { status: 403 })
-    }
+    // TODO: Verify Stripe payment before generation
 
     // Save campaign
     const { data: campaign, error: campError } = await admin
@@ -261,18 +255,13 @@ RULES:
       }
     }
 
-    // Deduct credits for generated posts
+    // Check counts
     const { count: readyCount } = await admin
       .from('social_campaign_posts')
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', campaignId)
       .eq('status', 'ready')
 
-    if (readyCount && readyCount > 0) {
-      await deductCredits(admin, (await admin.from('social_campaigns').select('user_id').eq('id', campaignId).single()).data!.user_id, readyCount)
-    }
-
-    // Check if more posts need generating
     const { count: pendingCount } = await admin
       .from('social_campaign_posts')
       .select('*', { count: 'exact', head: true })
@@ -358,13 +347,6 @@ RULES:
   }
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
-}
-
-function deductCredits(admin: any, userId: string, amount: number) {
-  return admin.from('profiles').select('credits_remaining').eq('id', userId).single().then(({ data }: any) => {
-    if (!data) return
-    return admin.from('profiles').update({ credits_remaining: Math.max(0, (data.credits_remaining ?? 0) - amount) }).eq('id', userId)
-  })
 }
 
 function parseTime(time: string): number {

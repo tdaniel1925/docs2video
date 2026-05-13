@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { deductCredits } from '../../_lib/credits'
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
 import { analyzeTemplate } from '../../_lib/template-analyzer'
 import { planDeck } from '../../_lib/deck-planner'
@@ -68,11 +67,7 @@ export async function POST(request: Request) {
 
     if (!plan?.slides?.length) return NextResponse.json({ error: 'No slides in plan' }, { status: 400 })
 
-    // Credit check
-    const { data: profile } = await admin.from('profiles').select('credits_remaining').eq('id', user.id).single()
-    if (!profile || profile.credits_remaining < 5) {
-      return NextResponse.json({ error: 'Insufficient credits. Need 5 credits for a deck.' }, { status: 403 })
-    }
+    // TODO: Verify Stripe payment before generation
 
     // Load brand
     let brand: any = null
@@ -135,14 +130,12 @@ export async function POST(request: Request) {
       })
       const { data: urlData } = admin.storage.from('videos').getPublicUrl(path)
 
-      // Deduct credits + log
-      await deductCredits(admin, user.id, 5)
+      // Log creation
       await admin.from('creations').insert({
         user_id: user.id,
         type: 'deck',
         title: `Deck: ${plan.deckTitle}`,
         file_url: urlData.publicUrl,
-        credits_used: 5,
       })
 
       if (jobId) await updateJobProgress(admin, jobId, 100, 'completed', { result_url: urlData.publicUrl })

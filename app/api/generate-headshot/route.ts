@@ -156,6 +156,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'All headshot generations failed. Please try again.' }, { status: 500 })
     }
 
+    // TODO: Verify Stripe payment before generation
+
     // Log to creations table
     try {
       await admin.from('creations').insert({
@@ -164,7 +166,6 @@ export async function POST(request: Request) {
         title: name ? `${name} — AI Headshots` : 'AI Headshots',
         thumbnail_url: images[0].url,
         file_url: images[0].url,
-        credits_used: 1,
       })
     } catch { /* ignore logging errors */ }
 

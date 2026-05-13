@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { GoogleGenAI } from '@google/genai'
-import { deductCredits } from '../../_lib/credits'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -95,21 +94,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Company name is required' }, { status: 400 })
   }
 
-  // Credit pre-check (3 credits for a full kit)
-  const admin = createAdminClient()
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('credits_remaining')
-    .eq('id', user.id)
-    .single()
+  // TODO: Verify Stripe payment before generation
 
-  const credits = profile?.credits_remaining ?? 0
-  if (credits < 3) {
-    return NextResponse.json(
-      { error: `Insufficient credits. You need 3 credits but have ${credits}.` },
-      { status: 402 }
-    )
-  }
+  const admin = createAdminClient()
 
   // Parse reference image if provided
   let refImageBuffer: Buffer | null = null
@@ -318,13 +305,6 @@ ${refImageBuffer ? '- Use the provided reference image as STYLE and AESTHETIC in
     }
   }
 
-  // Deduct 3 credits for the full kit
-  const deducted = await deductCredits(admin, user.id, 3)
-  if (!deducted) {
-    console.log(`[generate-social-kit] Warning: credit deduction failed for user ${user.id}`)
-  }
-  console.log(`[generate-social-kit] Deducted 3 credits for social media kit`)
-
   // Log to creations table
   const allImages = results.flatMap(r => r.images)
   const firstImage = allImages[0]
@@ -335,13 +315,11 @@ ${refImageBuffer ? '- Use the provided reference image as STYLE and AESTHETIC in
       title: `${companyName} - Social Media Kit`,
       thumbnail_url: firstImage.imageUrl,
       file_url: firstImage.imageUrl,
-      credits_used: 3,
     })
   }
 
   return NextResponse.json({
     platforms: results,
     totalImages: allImages.length,
-    creditsUsed: 3,
   })
 }

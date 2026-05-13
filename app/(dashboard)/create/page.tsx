@@ -1744,14 +1744,14 @@ export default function CreatePage() {
                 className={`btn ${!detailedMode ? 'btn-primary' : 'btn-soft'}`}
                 type="button"
               >
-                Standard (2-3 min) — 1 credit
+                Standard (2-3 min)
               </button>
               <button
                 onClick={() => setDetailedMode(true)}
                 className={`btn ${detailedMode ? 'btn-primary' : 'btn-soft'}`}
                 type="button"
               >
-                Detailed (5-7 min) — 2 credits
+                Detailed (5-7 min)
               </button>
             </div>
           </div>

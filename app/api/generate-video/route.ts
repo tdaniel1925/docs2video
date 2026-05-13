@@ -8,7 +8,6 @@ import { synthesizeSpeech } from '../../_lib/tts'
 // Video assembly is offloaded to the Hetzner VPS (video-service)
 const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || 'docs2video-assembly-secret-2026').trim().replace(/[\r\n]/g, '')
-import { deductCredits } from '../../_lib/credits'
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
 import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
@@ -23,12 +22,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  // Pre-check credits before generation (video costs 3 credits)
-  const adminForCheck = createAdminClient()
-  const { data: profile } = await adminForCheck.from('profiles').select('credits_remaining').eq('id', user.id).single()
-  if (!profile || profile.credits_remaining < 3) {
-    return NextResponse.json({ error: 'Insufficient credits. You need at least 3 credits to generate a video.' }, { status: 403 })
-  }
+  // TODO: Verify Stripe payment before generation
 
   const body = await request.json()
   const { videoId, policyData, brandId, voiceId, styleId, approvedSlides, preGeneratedScenes, preGeneratedAudioId, detailed, musicUrl } = body as {
@@ -281,13 +275,6 @@ export async function POST(request: Request) {
       slide_urls: slideUrls,
     }).eq('id', videoId)
 
-    // Decrement credits (standard = 1, detailed = 2)
-    const creditCost = detailed ? 2 : 1
-    const deducted = await deductCredits(admin, user.id, creditCost)
-    if (!deducted) {
-      console.log(`[video ${videoId}] Warning: insufficient credits but video already generated`)
-    }
-
     // Log to unified creations table (non-blocking)
     const videoTitle = scenes[0]?.slidePrompt ?? (policyData as any)?.policyType ?? 'Untitled Video'
     await admin.from('creations').insert({
@@ -296,7 +283,6 @@ export async function POST(request: Request) {
       title: videoTitle,
       thumbnail_url: assemblyResult.thumbnailUrl,
       file_url: assemblyResult.videoUrl,
-      credits_used: creditCost,
     })
 
     // Scrape company website for chatbot context (non-blocking)

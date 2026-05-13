@@ -93,13 +93,7 @@ RULES:
       return NextResponse.json({ error: 'No episodes in outline' }, { status: 400 })
     }
 
-    const creditsNeeded = outline.length * 3
-    const { data: profile } = await supabase.from('profiles').select('credits_remaining').eq('id', user.id).single()
-    if (!profile || profile.credits_remaining < creditsNeeded) {
-      return NextResponse.json({
-        error: `Insufficient credits. This ${outline.length}-episode course needs ${creditsNeeded} credits (3 per episode). You have ${profile?.credits_remaining ?? 0}.`,
-      }, { status: 403 })
-    }
+    // TODO: Verify Stripe payment before generation
 
     // Create video records for each episode
     const videoIds: string[] = []

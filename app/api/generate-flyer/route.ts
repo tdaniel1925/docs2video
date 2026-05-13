@@ -3,7 +3,6 @@ import { GoogleGenAI } from '@google/genai'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { SLIDE_STYLES } from '../../_lib/types'
-import { deductCredits } from '../../_lib/credits'
 import type { Brand } from '../../_lib/types'
 
 export const runtime = 'nodejs'
@@ -31,12 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  // Pre-check credits before generation
-  const adminForCheck = createAdminClient()
-  const { data: profile } = await adminForCheck.from('profiles').select('credits_remaining').eq('id', user.id).single()
-  if (!profile || profile.credits_remaining < 1) {
-    return NextResponse.json({ error: 'Insufficient credits. You need at least 1 credit to generate a flyer.' }, { status: 403 })
-  }
+  // TODO: Verify Stripe payment before generation
 
   const body = await request.json()
   const {
@@ -238,15 +232,6 @@ ${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
     })
   }
 
-  // Deduct 1 credit per size generated
-  if (results.length > 0) {
-    const deducted = await deductCredits(admin, user.id, results.length)
-    if (!deducted) {
-      console.log(`[generate-flyer] Warning: insufficient credits for user ${user.id}`)
-    }
-    console.log(`[generate-flyer] Deducted ${results.length} credits for ${results.length} flyer(s)`)
-  }
-
   // Log each flyer to unified creations table (non-blocking)
   for (const r of results) {
     await admin.from('creations').insert({
@@ -255,7 +240,6 @@ ${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
       title: eventName + ' - ' + r.label,
       thumbnail_url: r.imageUrl,
       file_url: r.imageUrl,
-      credits_used: 1,
     })
   }
 

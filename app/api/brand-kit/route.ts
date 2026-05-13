@@ -4,7 +4,6 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import Anthropic from '@anthropic-ai/sdk'
 import { GoogleGenAI } from '@google/genai'
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
-import { deductCredits } from '../../_lib/credits'
 
 export const runtime = 'nodejs'
 export const maxDuration = 600
@@ -119,20 +118,7 @@ export async function POST(request: Request) {
 
     const admin = createAdminClient()
 
-    // Credit check — brand kit costs 8 credits total (2 logo + 1 card + 3 social + 2 guide)
-    const TOTAL_CREDITS = 8
-    const { data: profile } = await admin
-      .from('profiles')
-      .select('credits_remaining')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile || profile.credits_remaining < TOTAL_CREDITS) {
-      return NextResponse.json(
-        { error: `Insufficient credits. You need ${TOTAL_CREDITS} credits but have ${profile?.credits_remaining ?? 0}.` },
-        { status: 402 }
-      )
-    }
+    // TODO: Verify Stripe payment before generation
 
     // Create job tracker
     const jobId = await createJob(admin, user.id, {
@@ -217,9 +203,6 @@ OUTPUT: Pure white background (#FFFFFF), centered composition, high resolution, 
 
       if (jobId) await updateJobProgress(admin, jobId, 10 + i * 10, 'running')
     }
-
-    // Deduct logo credits (2)
-    await deductCredits(admin, user.id, 2)
 
     if (jobId) await updateJobProgress(admin, jobId, 50, 'running')
 
@@ -349,9 +332,6 @@ STRICT RULES:
       console.error('[brand-kit] Card back generation failed:', err)
     }
 
-    // Deduct card credits (1)
-    await deductCredits(admin, user.id, 1)
-
     if (jobId) await updateJobProgress(admin, jobId, 65, 'running')
 
     // ─── 3. SOCIAL MEDIA KIT (3 master images) ────────────────
@@ -417,9 +397,6 @@ STRICT RULES:
         console.error(`[brand-kit] Social ${spec.type} generation failed:`, err)
       }
     }
-
-    // Deduct social credits (3)
-    await deductCredits(admin, user.id, 3)
 
     if (jobId) await updateJobProgress(admin, jobId, 85, 'running')
 
@@ -487,9 +464,6 @@ STRICT RULES:
       console.error('[brand-kit] Brand guide generation failed:', err)
     }
 
-    // Deduct guide credits (2)
-    await deductCredits(admin, user.id, 2)
-
     // Log to creations table
     try {
       await admin.from('creations').insert({
@@ -498,7 +472,6 @@ STRICT RULES:
         title: `Brand Kit: ${brandBrief.companyName}`,
         thumbnail_url: logoImages[0] || cardFront || '',
         file_url: logoImages[0] || cardFront || '',
-        credits_used: TOTAL_CREDITS,
       })
     } catch { /* ignore */ }
 

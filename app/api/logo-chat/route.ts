@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { GoogleGenAI } from '@google/genai'
-import { deductCredits } from '../../_lib/credits'
 import { getTopGoogleFonts } from '../../_lib/google-fonts'
 
 export const runtime = 'nodejs'
@@ -197,9 +196,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Design brief is required' }, { status: 400 })
     }
 
+    // TODO: Verify Stripe payment before generation
     const admin = createAdminClient()
-    const ok = await deductCredits(admin, user.id, 2)
-    if (!ok) return NextResponse.json({ error: 'Insufficient credits (need 2)' }, { status: 403 })
 
     // Analyze reference images if any
     let referenceDescription = ''
@@ -309,7 +307,6 @@ OUTPUT: Pure white background (#FFFFFF), centered composition, high resolution, 
         user_id: user.id,
         type: 'logo',
         title: `Logo: ${designBrief.name}`,
-        credits_used: 2,
       })
     } catch { /* ignore */ }
 
@@ -322,9 +319,8 @@ OUTPUT: Pure white background (#FFFFFF), centered composition, high resolution, 
       return NextResponse.json({ error: 'Current logo and feedback required' }, { status: 400 })
     }
 
+    // TODO: Verify Stripe payment before generation
     const admin = createAdminClient()
-    const ok = await deductCredits(admin, user.id, 1)
-    if (!ok) return NextResponse.json({ error: 'Insufficient credits (need 1)' }, { status: 403 })
 
     // Generate a conversational reply about the refinement
     let refinementReply = ''
@@ -402,7 +398,6 @@ STRICT RULES:
               user_id: user.id,
               type: 'logo',
               title: `Logo refine: ${designBrief?.name ?? 'logo'}`,
-              credits_used: 1,
             })
           } catch { /* ignore */ }
 

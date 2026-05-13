@@ -3,7 +3,6 @@ import { GoogleGenAI } from '@google/genai'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { SLIDE_STYLES } from '../../_lib/types'
-import { deductCredits } from '../../_lib/credits'
 import type { Brand } from '../../_lib/types'
 
 export const runtime = 'nodejs'
@@ -28,12 +27,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  // Pre-check credits before generation
-  const adminForCheck = createAdminClient()
-  const { data: profile } = await adminForCheck.from('profiles').select('credits_remaining').eq('id', user.id).single()
-  if (!profile || profile.credits_remaining < 1) {
-    return NextResponse.json({ error: 'Insufficient credits. You need at least 1 credit to generate an infographic.' }, { status: 403 })
-  }
+  // TODO: Verify Stripe payment before generation
 
   const body = await request.json()
   const {
@@ -192,13 +186,6 @@ ${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
   await admin.storage.from('videos').upload(storagePath, imageBuffer, { contentType: 'image/png', upsert: true })
   const { data: urlData } = admin.storage.from('videos').getPublicUrl(storagePath)
 
-  // Deduct 1 credit
-  const deducted = await deductCredits(admin, user.id, 1)
-  if (!deducted) {
-    console.log(`[generate-infographic] Warning: insufficient credits for user ${user.id}`)
-  }
-  console.log(`[generate-infographic] Deducted 1 credit for infographic`)
-
   // Log to unified creations table (non-blocking)
   await admin.from('creations').insert({
     user_id: user.id,
@@ -206,7 +193,6 @@ ${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
     title: title,
     thumbnail_url: urlData.publicUrl,
     file_url: urlData.publicUrl,
-    credits_used: 1,
   })
 
   return NextResponse.json({

@@ -3,7 +3,6 @@ import { GoogleGenAI } from '@google/genai'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { SLIDE_STYLES } from '../../_lib/types'
-import { deductCredits } from '../../_lib/credits'
 import type { Brand } from '../../_lib/types'
 
 export const runtime = 'nodejs'
@@ -18,12 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  // Pre-check credits before generation
-  const adminForCheck = createAdminClient()
-  const { data: profile } = await adminForCheck.from('profiles').select('credits_remaining').eq('id', user.id).single()
-  if (!profile || profile.credits_remaining < 1) {
-    return NextResponse.json({ error: 'Insufficient credits. You need at least 1 credit to generate a business card.' }, { status: 403 })
-  }
+  // TODO: Verify Stripe payment before generation
 
   const body = await request.json()
   const {
@@ -272,13 +266,6 @@ ${hasLogo ? '- Feature the provided logo prominently' : ''}
   await admin.storage.from('videos').upload(backPath, backBuffer, { contentType: 'image/png', upsert: true })
   const { data: backUrlData } = admin.storage.from('videos').getPublicUrl(backPath)
 
-  // Deduct 1 credit for the pair
-  const deducted = await deductCredits(admin, user.id, 1)
-  if (!deducted) {
-    console.log(`[generate-business-card] Warning: insufficient credits for user ${user.id}`)
-  }
-  console.log(`[generate-business-card] Deducted 1 credit for business card pair`)
-
   // Log to unified creations table (non-blocking)
   await admin.from('creations').insert({
     user_id: user.id,
@@ -286,7 +273,6 @@ ${hasLogo ? '- Feature the provided logo prominently' : ''}
     title: fullName + ' Business Card',
     thumbnail_url: frontUrlData.publicUrl,
     file_url: frontUrlData.publicUrl,
-    credits_used: 1,
   })
 
   return NextResponse.json({

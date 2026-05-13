@@ -18,6 +18,10 @@ function extractDomain(url: string): string {
 }
 
 export async function POST(request: Request) {
+  // DISABLED: This route has no auth and uses local FFmpeg which doesn't work on Vercel.
+  // Will be rebuilt to use the VPS assembly pipeline with proper auth.
+  return NextResponse.json({ error: 'Demo video generation is temporarily disabled. Please sign up to create videos.' }, { status: 503 })
+
   const body = await request.json()
   const { url, email, phone, companyName } = body as { url: string; email?: string; phone?: string; companyName?: string }
 
