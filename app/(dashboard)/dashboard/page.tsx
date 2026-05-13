@@ -14,13 +14,10 @@ const TYPE_BADGE: Record<string, { label: string; color: string }> = {
   template: { label: 'Template', color: 'peach' },
 }
 
-const QUICK_CREATE = [
-  { href: '/create', icon: '\uD83D\uDCF9', label: 'Explainer', color: 'mint', credits: 3 },
-  { href: '/infographic-creator', icon: '\uD83D\uDCCA', label: 'Infographic', color: 'sky', credits: 1 },
-  { href: '/flyers', icon: '\uD83D\uDCCB', label: 'Flyer', color: 'peach', credits: 1 },
-  { href: '/business-cards', icon: '\uD83D\uDCB3', label: 'Card', color: 'lilac', credits: 1 },
-  { href: '/logo-creator', icon: '\uD83C\uDFA8', label: 'Logo', color: 'sun', credits: 2 },
-  { href: '/templates', icon: '\uD83C\uDFAF', label: 'Template', color: 'rose', credits: 2 },
+const HERO_PRODUCTS = [
+  { href: '/create', icon: '\uD83C\uDFAC', label: 'Video Explainer', desc: 'Turn any document into a narrated video', price: '$29', cta: 'Create' },
+  { href: '/brand-kit', icon: '\uD83C\uDFAF', label: 'Brand Kit', desc: 'Logo, cards, social media \u2014 everything', price: '$149', cta: 'Build' },
+  { href: '/logo-creator', icon: '\uD83C\uDFA8', label: 'Logo Design', desc: '4 AI-designed logo concepts', price: '$49', cta: 'Design' },
 ]
 
 export default async function DashboardPage() {
