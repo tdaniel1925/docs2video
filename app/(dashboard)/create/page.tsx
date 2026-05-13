@@ -181,6 +181,7 @@ export default function CreatePage() {
   const [detailedMode, setDetailedMode] = useState(false)
   const [selectedMusic, setSelectedMusic] = useState<string | null>(null)
   const [uploadedLogo, setUploadedLogo] = useState<string | null>(null)
+  const [hoveredStyle, setHoveredStyle] = useState<string | null>(null)
   const [uploadedSlides, setUploadedSlides] = useState<string[]>([]) // base64 data URLs
   const [slidesMode, setSlidesMode] = useState(false) // true = user uploaded their own slides
   const [previewingMusic, setPreviewingMusic] = useState<string | null>(null)
@@ -2075,11 +2076,13 @@ export default function CreatePage() {
           {!slidesMode && (
             <div style={{ marginBottom: 24 }}>
               <label className="input-label">Slide Style</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8, position: 'relative' }}>
                 {SLIDE_STYLES.map(style => (
                   <div
                     key={style.id}
                     onClick={() => setSelectedStyle(style.id)}
+                    onMouseEnter={() => setHoveredStyle(style.id)}
+                    onMouseLeave={() => setHoveredStyle(null)}
                     style={{
                       borderRadius: 10, overflow: 'hidden', cursor: 'pointer',
                       border: selectedStyle === style.id ? '2px solid var(--mint)' : '1px solid var(--border-light)',
@@ -2092,6 +2095,28 @@ export default function CreatePage() {
                     </div>
                   </div>
                 ))}
+                {/* Hover preview popup */}
+                {hoveredStyle && (
+                  <div style={{
+                    position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                    zIndex: 1000, pointerEvents: 'none',
+                    background: 'white', borderRadius: 14, padding: 8,
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.25)', border: '1px solid var(--border-light)',
+                    maxWidth: 600,
+                  }}>
+                    <img
+                      src={`/style-previews/${hoveredStyle}.png`}
+                      alt="Preview"
+                      style={{ width: '100%', borderRadius: 10, display: 'block' }}
+                    />
+                    <div style={{ textAlign: 'center', padding: '8px 0 4px', fontWeight: 700, fontSize: 14 }}>
+                      {SLIDE_STYLES.find(s => s.id === hoveredStyle)?.name}
+                    </div>
+                    <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--ink-light)', paddingBottom: 4 }}>
+                      {SLIDE_STYLES.find(s => s.id === hoveredStyle)?.description}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
