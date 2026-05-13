@@ -476,8 +476,9 @@ export default function CreatePage() {
       const scenes = data.scenes as { scene: number; title: string; slidePrompt: string; narration: string }[]
       setEditableScenes(scenes)
     } catch (err) {
+      console.error('[create] Script generation failed:', err)
       setError(err instanceof Error ? err.message : 'Failed to generate script')
-      setStep('upload')
+      // Stay on script step so user sees the error + retry button
     } finally {
       setScriptGenerating(false)
     }
