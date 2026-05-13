@@ -584,6 +584,14 @@ export default function FlyersPage() {
               Generate Flyers
             </button>
           </div>
+          <div style={{
+            textAlign: 'center', marginTop: 12, padding: '10px 16px',
+            background: 'var(--bg-soft, #f8fafc)', borderRadius: 10,
+            border: '1px solid var(--border, #e2e8f0)',
+            fontSize: 13, color: 'var(--ink-soft)',
+          }}>
+            Flyer — <strong style={{ color: 'var(--ink)' }}>$15</strong>
+          </div>
         </div>
       )}
 

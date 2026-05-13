@@ -195,6 +195,7 @@ export default function CreatePage() {
   const [scriptGenerating, setScriptGenerating] = useState(false)
 
   const [userPlan, setUserPlan] = useState<string>('trial')
+  const [projectPrice, setProjectPrice] = useState<{ price: number; priceFormatted: string; isPro: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [extractingElapsed, setExtractingElapsed] = useState(0)
@@ -222,6 +223,14 @@ export default function CreatePage() {
         if (profile?.default_style) setSelectedStyle(profile.default_style)
         if (profile?.subscription_status) setUserPlan(profile.subscription_status)
       }
+      // Fetch project pricing
+      try {
+        const priceRes = await fetch('/api/pay-project?type=video')
+        if (priceRes.ok) {
+          const priceData = await priceRes.json()
+          setProjectPrice(priceData)
+        }
+      } catch {}
     }
     loadData()
   }, [])
@@ -536,6 +545,13 @@ export default function CreatePage() {
 
   async function handleGenerate() {
     if (!activeData) return
+
+    // Show price confirmation before proceeding
+    const priceLabel = projectPrice
+      ? `This video will cost ${projectPrice.priceFormatted}${projectPrice.isPro ? ' (Pro price)' : ''}. Generate?`
+      : 'Generate your video?'
+    if (!window.confirm(priceLabel)) return
+
     setStep('generating')
     setError(null)
 
@@ -1633,6 +1649,19 @@ export default function CreatePage() {
             <button onClick={() => setStep('approve-slides')} className="btn btn-soft">&larr; Back</button>
             <button onClick={handleGenerate} className="btn btn-primary btn-lg">Create my video &rarr;</button>
           </div>
+
+          {/* Price summary */}
+          {projectPrice && (
+            <div style={{
+              textAlign: 'center', marginTop: 12, padding: '10px 16px',
+              background: 'var(--bg-soft, #f8fafc)', borderRadius: 10,
+              border: '1px solid var(--border, #e2e8f0)',
+              fontSize: 13, color: 'var(--ink-soft)',
+            }}>
+              Video Explainer — <strong style={{ color: 'var(--ink)' }}>{projectPrice.priceFormatted}</strong>
+              {projectPrice.isPro && <span style={{ marginLeft: 6, color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>Pro price</span>}
+            </div>
+          )}
         </div>
       )}
 

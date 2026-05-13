@@ -11,34 +11,30 @@ const ADMIN_EMAIL = 'trenttdaniel@gmail.com'
 
 const CREATE_SECTIONS = [
   {
-    label: 'Content',
+    label: 'Video & Decks',
     items: [
-      { href: '/create', icon: '\uD83D\uDCF9', title: 'Video Explainer', desc: 'Narrated video from any content' },
-      { href: '/course-builder', icon: '\uD83C\uDF93', title: 'Course Builder', desc: 'Multi-episode video series' },
-      { href: '/infographic-creator', icon: '\uD83D\uDCCA', title: 'Infographic', desc: 'Visual data summary' },
-      { href: '/deck-builder', icon: '\uD83D\uDCDD', title: 'Deck Builder', desc: 'Editable PPTX with AI backgrounds' },
+      { href: '/create', icon: '\uD83D\uDCF9', title: 'Video Explainer', desc: '$29 — Narrated video + share page' },
+      { href: '/deck-builder', icon: '\uD83D\uDCDD', title: 'Slide Deck', desc: '$19 — Editable PPTX, no audio' },
+      { href: '/course-builder', icon: '\uD83C\uDF93', title: 'Video Course', desc: '$249 — Multi-episode series' },
     ],
   },
   {
-    label: 'Design',
+    label: 'Brand & Design',
     items: [
-      { href: '/flyers', icon: '\uD83D\uDCCB', title: 'Flyer', desc: 'Professional flyer design' },
-      { href: '/business-cards', icon: '\uD83D\uDCB3', title: 'Business Card', desc: '300 DPI print-ready cards' },
-      { href: '/logo-creator', icon: '\uD83C\uDFA8', title: 'Logo', desc: 'AI designer chatbot' },
-      { href: '/image-remix', icon: '\u2728', title: 'Image Remix', desc: 'Redesign any image with AI' },
+      { href: '/brand-kit', icon: '\uD83C\uDFAF', title: 'Brand Kit', desc: '$149 — Logo + cards + social + guide' },
+      { href: '/logo-creator', icon: '\uD83C\uDFA8', title: 'Logo Design', desc: '$49 — 4 concepts + SVG vectors' },
+      { href: '/business-cards', icon: '\uD83D\uDCB3', title: 'Business Card', desc: '$19 — Front + back, 300 DPI' },
+      { href: '/flyers', icon: '\uD83D\uDCCB', title: 'Flyer', desc: '$15 — Professional design' },
     ],
   },
   {
-    label: 'Social Media',
+    label: 'Social & More',
     items: [
-      { href: '/social-kit', icon: '\uD83D\uDCF1', title: 'Social Media Kit', desc: 'Banners & profiles for all platforms' },
+      { href: '/social-kit', icon: '\uD83D\uDCF1', title: 'Social Media Kit', desc: '$39 — All platforms, 20+ images' },
       { href: '/social-campaigns', icon: '\uD83D\uDCC5', title: 'Campaign Manager', desc: 'AI content calendar + auto-post' },
-    ],
-  },
-  {
-    label: 'Tools',
-    items: [
-      { href: '/templates', icon: '\uD83C\uDFAF', title: 'Custom Template', desc: 'Build your own slide style' },
+      { href: '/infographic-creator', icon: '\uD83D\uDCCA', title: 'Infographic', desc: '$19 — Data visualization' },
+      { href: '/headshot', icon: '\uD83D\uDCF7', title: 'AI Headshot', desc: '$19 — Professional headshot from photo' },
+      { href: '/email-signature', icon: '\u2709\uFE0F', title: 'Email Signature', desc: '$9 — HTML email signature' },
     ],
   },
 ]

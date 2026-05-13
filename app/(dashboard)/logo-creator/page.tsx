@@ -317,6 +317,16 @@ export default function LogoCreatorPage() {
         </div>
       )}
 
+      {/* Price display */}
+      <div style={{
+        textAlign: 'center', padding: '6px 12px',
+        background: 'var(--bg-soft, #f8fafc)', borderRadius: 8,
+        border: '1px solid var(--border, #e2e8f0)',
+        fontSize: 12, color: 'var(--ink-soft)',
+      }}>
+        Logo Design (4 concepts) — <strong style={{ color: 'var(--ink)' }}>$49</strong>
+      </div>
+
       {/* Pending image preview */}
       {pendingImage && (
         <div style={{ padding: '8px 0', display: 'flex', alignItems: 'center', gap: 8 }}>

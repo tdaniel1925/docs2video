@@ -27,6 +27,7 @@ export const PROJECT_PRICES: ProjectPrice[] = [
   { type: 'business-card', label: 'Business Card', description: 'Front + back at 300 DPI, print-ready', basePrice: 1900, proPrice: 1100, costEstimate: 40 },
   { type: 'flyer', label: 'Flyer', description: 'Professional flyer design', basePrice: 1500, proPrice: 900, costEstimate: 30 },
   { type: 'email-signature', label: 'Email Signature', description: 'Professional HTML email signature', basePrice: 900, proPrice: 500, costEstimate: 10 },
+  { type: 'headshot', label: 'AI Headshot', description: 'Professional headshot from casual photo', basePrice: 1900, proPrice: 1100, costEstimate: 30 },
   { type: 'image-remix', label: 'Image Remix', description: 'AI redesign of any image', basePrice: 500, proPrice: 300, costEstimate: 20 },
   { type: 'style-upgrade', label: 'Style Upgrade', description: 'Choose from premium style gallery', basePrice: 500, proPrice: 0, costEstimate: 0 },
 ]
