@@ -38,7 +38,9 @@ export default function DemoSlidePage() {
           companyName: companyName || undefined,
         }),
       })
-      const data = await res.json()
+      const text = await res.text()
+      let data: any
+      try { data = JSON.parse(text) } catch { throw new Error(text.slice(0, 200) || 'Server error') }
       if (!res.ok) throw new Error(data.error || 'Generation failed')
       setResult(data.image)
     } catch (err) {

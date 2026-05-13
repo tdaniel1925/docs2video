@@ -78,8 +78,15 @@ export async function POST(request: Request) {
     return NextResponse.json({
       image: `data:image/png;base64,${imageBase64}`,
     })
-  } catch (err) {
+  } catch (err: any) {
     console.error('[demo-slide-gpt] Error:', err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Generation failed' }, { status: 500 })
+    const errMsg = err?.message ?? err?.error?.message ?? 'Generation failed'
+    console.error('[demo-slide-gpt] Details:', JSON.stringify({ message: errMsg, status: err?.status, code: err?.code, type: err?.type }))
+
+    // If gpt-image-2 not available, try falling back
+    if (errMsg.includes('model') || errMsg.includes('not found') || errMsg.includes('not available')) {
+      return NextResponse.json({ error: `Model error: ${errMsg}. Try refreshing.` }, { status: 500 })
+    }
+    return NextResponse.json({ error: errMsg }, { status: 500 })
   }
 }
