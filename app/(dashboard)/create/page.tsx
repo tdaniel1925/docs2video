@@ -180,6 +180,7 @@ export default function CreatePage() {
   const [selectedVoice, setSelectedVoice] = useState<string>(VOICE_OPTIONS[0].id)
   const [detailedMode, setDetailedMode] = useState(false)
   const [selectedMusic, setSelectedMusic] = useState<string | null>(null)
+  const [uploadedLogo, setUploadedLogo] = useState<string | null>(null)
   const [previewingMusic, setPreviewingMusic] = useState<string | null>(null)
   const musicAudioRef = useRef<HTMLAudioElement | null>(null)
   const [playingVoice, setPlayingVoice] = useState<string | null>(null)
@@ -1942,6 +1943,35 @@ export default function CreatePage() {
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Logo upload when no brand selected */}
+          {!selectedBrand && (
+            <div style={{ marginBottom: 24 }}>
+              <label className="input-label">Logo <span style={{ fontWeight: 400, color: 'var(--ink-light)' }}>(optional — or select a brand above)</span></label>
+              {uploadedLogo ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border-light)' }}>
+                  <img src={uploadedLogo} alt="Logo" style={{ width: 48, height: 48, objectFit: 'contain', borderRadius: 8, background: 'white', padding: 2 }} />
+                  <div style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>Logo uploaded</div>
+                  <button onClick={() => setUploadedLogo(null)} className="btn btn-soft btn-sm">Remove</button>
+                </div>
+              ) : (
+                <label style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px',
+                  borderRadius: 10, border: '2px dashed var(--border)', cursor: 'pointer',
+                  background: 'var(--bg-soft)', fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)',
+                }}>
+                  + Upload logo
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (!f) return
+                    const reader = new FileReader()
+                    reader.onload = () => setUploadedLogo(reader.result as string)
+                    reader.readAsDataURL(f)
+                  }} />
+                </label>
+              )}
             </div>
           )}
 
