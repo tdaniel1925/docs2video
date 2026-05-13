@@ -39,8 +39,10 @@ ${brandName ? `- Agent/Agency: ${brandName}` : ''}
 
 CARRIER NAME RULE (CRITICAL — LEGAL REQUIREMENT):
 - NEVER mention the insurance carrier name anywhere in the narration.
-- Do NOT say "${data.carrier}" or any carrier/company name.
-- Instead of "your policy from [Carrier]", say "your ${data.policyType} policy".
+- Do NOT say "${data.carrier}" or any specific carrier/company name.
+- Instead, use natural phrases like "this carrier", "your carrier", "the issuing carrier", or "this particular carrier".
+- Example: Instead of "your policy from Prudential", say "your ${data.policyType} policy from this carrier".
+- This must sound natural and conversational — not awkward or evasive.
 - This is a legal requirement to avoid the appearance of carrier endorsement.
 
 VOICE RULES (CRITICAL):
