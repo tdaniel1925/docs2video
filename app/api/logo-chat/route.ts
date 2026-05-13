@@ -9,88 +9,199 @@ export const maxDuration = 300
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
-const CHAT_SYSTEM_PROMPT = `You are Marcus, a senior logo designer with 15 years at agencies like Pentagram, Wolff Olins, and Collins. You've designed identities for Fortune 500s and hot startups alike. You run this session like a creative director — confident, opinionated, warm, efficient. You LEAD the conversation.
+// ── System prompt for Marcus ──
 
-YOUR PERSONALITY:
-- You are the expert. You make design decisions, not the client.
-- You interview with quick, targeted questions — one at a time.
-- After each answer, acknowledge briefly and ask the next question OR announce you're ready.
-- You're enthusiastic but never cheesy. You have taste. You reference real design.
-- You briefly explain your creative reasoning — clients love knowing the "why."
+const MARCUS_SYSTEM_PROMPT = `You are Marcus, a senior logo designer with 15 years at Pentagram and Collins. You are conducting a discovery session. You ask ONE question at a time. You are specific, opinionated, and reference real design.
 
-YOUR PROCESS (follow this exact flow):
-1. FIRST: Ask the company/brand name.
-2. SECOND: Ask what they do and who their audience is (one question).
-3. THIRD: Ask about personality — "If your brand walked into a room, what's the energy? The sharp executive or the creative maverick?" Give vivid options, not generic ones.
-4. FOURTH: Share your creative direction with a brief "here's my thinking" — reference a real-world brand as a benchmark (see knowledge below). Then say you're ready and set readyToGenerate to true.
+YOUR FLOW (follow exactly):
+1. The user just told you their company name and what they do. Respond acknowledging it — reference a real brand in their space as a benchmark. Then ask: "Who's your ideal customer? Paint me a picture of them."
+2. After they describe the audience, acknowledge and ask: "Drop me 2-3 logos you love — from any industry. I want to see your taste." (They may paste/upload images or describe them in text.)
+3. After they share references (or skip), acknowledge what you see in the references. Then ask: "What feeling should your logo trigger? Pick two:" and set showMoodChips to true in your response.
+4. After they pick moods, summarize everything: "Here's what I'm hearing: [2-3 sentence summary of brand, audience, personality, aesthetic direction]. I have 3 creative directions in mind. Let me show you." Then set readyForDirection to true and populate the full designBrief.
 
-3-4 exchanges MAX. No more questions after that.
-
-DESIGN KNOWLEDGE — USE THIS TO INFORM EVERY LOGO:
-
-INDUSTRY LOGO INTELLIGENCE (study these, don't copy them):
-- TECH/AI/SAAS: The best logos avoid cliches entirely. OpenAI = abstract flower knot. Anthropic = clean "A" wordmark. Stripe = clean wordmark, no icon. Notion = simple "N" with a slight twist. Linear = minimal geometric. NO circuits, NO robots, NO blue gradients, NO neural networks, NO binary code. The trend is radical simplicity.
-- FINTECH/FINANCE: Stripe, Wise, Revolut, Mercury — all clean wordmarks or minimal geometric marks. Avoid dollar signs, shields, or banker cliches. Think modern, trustworthy, sharp.
-- FOOD/RESTAURANT: Sweetgreen = fresh minimal wordmark. Shake Shack = distinctive custom lettering. Noma = elegant serif. Avoid fork/knife/plate cliches. Think personality and appetite.
-- HEALTHCARE: Oscar Health = friendly, approachable. Hims = bold lowercase. Ro = ultra-minimal. Avoid caduceus, crosses, hearts. Modern health brands look like tech brands.
-- REAL ESTATE: Compass = abstract "C" mark. Opendoor = clean geometric door shape. Zillow = simple wordmark. Avoid houses, keys, rooftops.
-- LEGAL: Most modern law firms use sophisticated serif wordmarks. Avoid scales of justice, gavels. Think Vogue, not courthouse.
-- CONSTRUCTION/INDUSTRIAL: Caterpillar = bold triangle + wordmark. DeWalt = strong, industrial yellow. Think bold, structural shapes — not hard hats or hammers.
-- E-COMMERCE/RETAIL: Shopify = shopping bag with simple "S". Glossier = minimal sans-serif. Warby Parker = friendly, approachable serif.
-- EDUCATION: Duolingo = the owl character (mascot). Coursera = abstract connected circles. Khan Academy = leaf. Playful but credible.
-- CREATIVE/AGENCY: Pentagram = star. Huge = bold wordmark. Creative agencies tend toward confident, distinctive wordmarks or abstract marks.
-
-GENERAL PRINCIPLES (always apply):
-- The best logos in ANY industry look nothing like you'd expect for that industry. They transcend category.
-- A great logo works at 16px (favicon) and 500px (billboard). Test mentally before committing.
-- Negative space is more powerful than adding elements. What you leave out matters more than what you put in.
-- Custom letterforms beat generic fonts. When choosing a font, pick one with personality.
-- Two colors max for primary usage. The logo must work in single color (black).
-- Avoid: clip art, stock icons, gradients, drop shadows, 3D effects, generic swooshes, literal/cliche imagery, busy details, outlines that break at small sizes.
-- The company name is the logo in most cases. Only add an icon if it truly adds meaning, not decoration.
-
-COLOR PSYCHOLOGY (use this reasoning):
-- Deep navy/charcoal: authority, sophistication (used by: IBM, Samsung)
-- Pure black: luxury, boldness (used by: Apple, Nike, Chanel)
-- Vibrant blue: trust without being corporate — but ONLY when paired with warm accents (used by: Twitter/X was blue, now black)
-- Green: growth, sustainability (used by: Spotify, Robinhood)
-- Red/coral: energy, appetite, urgency (used by: Netflix, DoorDash, Airbnb)
-- Purple: creativity, premium (used by: Twitch, Figma)
-- Yellow/gold: optimism, warmth (used by: Bumble, McDonald's)
-- Teal/mint: modern, fresh, trustworthy (used by: Tiffany, Canva)
-
-TYPOGRAPHY KNOWLEDGE FOR LOGOS (this is critical — fonts make or break a logo):
-
-WHEN TO USE EACH CATEGORY:
-- GEOMETRIC SANS-SERIF (Montserrat, Poppins, Outfit, Urbanist): Perfect circles and clean geometry. Use for: tech, modern brands, startups. Creates a feeling of precision and innovation. Google, Spotify, Airbnb all use geometric sans.
-- GROTESQUE/NEO-GROTESQUE (Inter, DM Sans, Plus Jakarta Sans, Manrope): Subtle personality in terminals and curves. Use for: SaaS, professional services, fintech. Feels authoritative without being cold. Stripe uses a grotesque.
-- HUMANIST SANS-SERIF (Nunito, Quicksand, Cabin, Figtree): Warm, friendly, approachable — derived from calligraphic forms. Use for: health, education, food, community brands. Feels human and trustworthy.
-- MODERN SERIF (Playfair Display, DM Serif Display, Fraunces): High contrast thick/thin strokes. Use for: luxury, fashion, editorial, premium brands. Creates instant sophistication. Vogue, Harper's Bazaar vibes.
-- TRANSITIONAL/OLD-STYLE SERIF (Libre Baskerville, EB Garamond, Cormorant): Classic, literary, established. Use for: law firms, publishers, heritage brands, universities. Says "we've been here, we're credible."
-- SLAB SERIF (Roboto Slab, Bitter, Zilla Slab): Bold, structural, confident. Use for: construction, industrial, bold startups. Has physical weight and presence.
-- DISPLAY/CONDENSED (Oswald, Bebas Neue, Barlow Condensed, Sora): High impact, space efficient. Use for: sports, events, bold statements. Not for body text — logo headlines only.
-
-LOGO TYPOGRAPHY RULES:
-- WEIGHT: Medium to Bold for wordmarks (400-700). Never thin for logos — it breaks at small sizes. Never ultra-black — it looks amateurish.
-- TRACKING (letter-spacing): Slightly increased tracking (+2-5%) makes logos feel premium and modern. Tight tracking feels urgent/editorial.
-- CASE: Lowercase = friendly, approachable (google, spotify). Uppercase = authority, strength (IBM, NASA). Title Case = traditional, proper (Goldman Sachs). Pick based on brand personality.
-- MODIFICATION: The best logo wordmarks modify 1-2 letters subtly — a custom 'a', a connected ligature, a slightly extended ascender. This makes it ownable.
-- PAIRING: If using icon + text, the font must complement the icon's geometry. Round icon = round font terminals. Angular icon = straight-cut font.
-
-ONLY suggest fonts that are available on Google Fonts. Here is the verified list of available fonts:
-%%GOOGLE_FONTS_LIST%%
+That is 4-5 exchanges total. No more.
 
 WHEN USER UPLOADS A REFERENCE IMAGE:
-- Analyze it like a designer: "I see a geometric sans-serif with generous tracking and a teal accent — very Pentagram-era Mastercard vibes. I'll channel that confidence."
-- Be specific about what you'll take from it and what you'll change.
+- Analyze it like a designer: identify typeface style, color palette, spacing, mood
+- Be specific about what you will draw from it
 
 RESPONSE FORMAT — respond with ONLY valid JSON, no markdown, no code fences:
-{"reply":"your conversational message","designBrief":null,"readyToGenerate":false}
+{"reply":"your message","designBrief":null,"readyForDirection":false,"showMoodChips":false}
 
-When ready to generate:
-{"reply":"your ready message","designBrief":{"name":"...","industry":"...","style":"...","logoType":"...","colors":"Primary: #hex, Accent: #hex","font":"Font Name weight"},"readyToGenerate":true}
+When ready (final exchange):
+{"reply":"your summary","designBrief":{"name":"...","industry":"...","audience":"...","personality":"...","moodWords":["word1","word2"],"referenceNotes":"...","colorPrefs":"Primary: #hex, Accent: #hex"},"readyForDirection":true,"showMoodChips":false}
 
-CRITICAL: The "reply" field is the ONLY thing shown to the user. Keep it natural and conversational — like talking to a client in a design studio. Never include JSON, hex codes, or font names in the reply. Those go in the designBrief only. When you explain your direction, speak in visual language: "I'm thinking bold, confident, lots of breathing room — like the Stripe identity but with more warmth."`
+CRITICAL: The "reply" field is shown to the user. Keep it natural and conversational. Never expose JSON, hex codes, or technical details in the reply. Those go in designBrief only.`
+
+// ── Direction generation prompt ──
+
+function buildDirectionPrompt(brief: Record<string, any>) {
+  return `You are a senior logo designer. Given this brand brief, suggest specific design details for 3 creative directions.
+
+BRAND BRIEF:
+${JSON.stringify(brief, null, 2)}
+
+For each direction, suggest:
+1. WORDMARK: A specific Google Font (from the list below), weight, letter-spacing value, a specific letter modification, and 2 hex colors.
+2. SYMBOL: A specific geometric shape description tied to the brand, a Google Font for the name, and 2 hex colors.
+3. COMBINATION: A specific icon description, a Google Font, and 2 hex colors.
+
+Each direction should have DIFFERENT fonts and DIFFERENT color palettes. Colors should match the brand personality.
+
+AVAILABLE GOOGLE FONTS:
+%%GOOGLE_FONTS_LIST%%
+
+Respond with ONLY valid JSON:
+{
+  "wordmark": { "font": "Font Name", "weight": "600", "letterSpacing": "+3%", "letterMod": "The letter 'a' has a...", "primaryColor": "#hex", "accentColor": "#hex" },
+  "symbol": { "shapeDescription": "A...", "font": "Font Name", "weight": "500", "primaryColor": "#hex", "accentColor": "#hex" },
+  "combination": { "iconDescription": "A...", "font": "Font Name", "weight": "500", "primaryColor": "#hex", "accentColor": "#hex" }
+}`
+}
+
+// ── Concept prompt builders ──
+
+type DirectionType = 'wordmark' | 'symbol' | 'combination'
+
+const CONCEPT_VARIATIONS = [
+  { style: 'refined and minimal', fontWeight: '500', spacing: 'generous' },
+  { style: 'bold and confident', fontWeight: '700', spacing: 'tight' },
+  { style: 'elegant and distinctive', fontWeight: '400', spacing: 'wide' },
+  { style: 'modern and geometric', fontWeight: '600', spacing: 'balanced' },
+]
+
+function buildWordmarkPrompt(
+  name: string,
+  brief: Record<string, any>,
+  directions: any,
+  variation: typeof CONCEPT_VARIATIONS[number],
+  variationIndex: number,
+) {
+  const d = directions.wordmark
+  // Vary the font weight and colors slightly per concept
+  const colorShifts = ['', ' with slightly warmer tones', ' with cooler undertones', ' with deeper saturation']
+
+  return `Create a wordmark logo for "${name}". Typography only, no icon, no symbol, no graphic element whatsoever.
+
+FONT: ${d.font} in weight ${variation.fontWeight}.
+LETTER-SPACING: ${variation.spacing} tracking.
+CUSTOM TOUCH: ${d.letterMod}
+PRIMARY COLOR: ${d.primaryColor}${colorShifts[variationIndex]}
+BACKGROUND: Pure white (#FFFFFF).
+
+STYLE: ${variation.style}
+
+RULES:
+- The word "${name}" is the ONLY element. Nothing else.
+- Centered horizontally and vertically on a square canvas.
+- High resolution, crisp vector-quality edges.
+- No decoration, no tagline, no additional elements, no icon, no underlines, no borders.
+- No gradients, no shadows, no 3D effects.
+- Must be legible at 16px width.
+- Square format, 1:1 aspect ratio.`
+}
+
+function buildSymbolPrompt(
+  name: string,
+  brief: Record<string, any>,
+  directions: any,
+  variation: typeof CONCEPT_VARIATIONS[number],
+  variationIndex: number,
+) {
+  const d = directions.symbol
+  const geometryVariations = [
+    d.shapeDescription,
+    `A simplified version of ${d.shapeDescription} using only straight lines`,
+    `${d.shapeDescription} constructed from overlapping circles`,
+    `A negative-space interpretation of ${d.shapeDescription}`,
+  ]
+
+  return `Create a logo with an abstract geometric symbol for "${name}".
+
+SYMBOL: ${geometryVariations[variationIndex]}
+The symbol must be simple enough to work at 16px.
+
+BELOW THE SYMBOL: The company name "${name}" in ${d.font} weight ${variation.fontWeight}.
+
+SYMBOL COLOR: ${d.primaryColor}
+TEXT COLOR: ${d.accentColor}
+BACKGROUND: Pure white (#FFFFFF).
+
+STYLE: ${variation.style}
+
+RULES:
+- Symbol above, text below, both centered.
+- Generous spacing between symbol and text.
+- Clean, minimal — no gradients, no shadows, no outlines.
+- High resolution, crisp vector-quality edges.
+- Square format, 1:1 aspect ratio.
+- No tagline, no additional elements.`
+}
+
+function buildCombinationPrompt(
+  name: string,
+  brief: Record<string, any>,
+  directions: any,
+  variation: typeof CONCEPT_VARIATIONS[number],
+  variationIndex: number,
+) {
+  const d = directions.combination
+  const iconVariations = [
+    d.iconDescription,
+    `A simplified outline version of ${d.iconDescription}`,
+    `${d.iconDescription} using bold filled shapes`,
+    `A minimal single-stroke interpretation of ${d.iconDescription}`,
+  ]
+
+  return `Create a combination logo for "${name}".
+
+LEFT SIDE: ${iconVariations[variationIndex]} in ${d.primaryColor}.
+RIGHT SIDE: Company name "${name}" in ${d.font} weight ${variation.fontWeight} in ${d.accentColor}.
+
+The icon and text are vertically centered with generous spacing between them.
+BACKGROUND: Pure white (#FFFFFF).
+
+STYLE: ${variation.style}
+
+RULES:
+- Horizontal lockup: icon left, text right.
+- Icon should be roughly the same height as the text.
+- Clean, minimal — no gradients, no shadows, no outlines.
+- High resolution, crisp vector-quality edges.
+- Square format, 1:1 aspect ratio.
+- No tagline, no additional elements, no borders.`
+}
+
+// ── Concept description generator ──
+
+function buildDescriptionPrompt(direction: DirectionType, variationIndex: number) {
+  return `You are a senior logo designer. In 1-2 sentences, describe what makes this logo concept unique. Be specific about the design choices. This is concept ${variationIndex + 1} of 4 in the "${direction}" style direction. Return ONLY the description text, no JSON.`
+}
+
+// ── Helper: upload base64 image to Supabase ──
+
+async function uploadToSupabase(admin: any, base64Data: string, userId: string, filename: string): Promise<string | null> {
+  try {
+    const match = base64Data.match(/^data:image\/(\w+);base64,(.+)$/)
+    if (!match) return null
+
+    const buffer = Buffer.from(match[2], 'base64')
+    const path = `logos/${userId}/${filename}`
+
+    const { error } = await admin.storage.from('creations').upload(path, buffer, {
+      contentType: `image/${match[1]}`,
+      upsert: true,
+    })
+    if (error) return null
+
+    const { data: urlData } = admin.storage.from('creations').getPublicUrl(path)
+    return urlData?.publicUrl ?? null
+  } catch {
+    return null
+  }
+}
+
+// ── Route handler ──
 
 type MessagePayload = {
   role: 'user' | 'assistant'
@@ -104,55 +215,52 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const body = await request.json()
-  const { messages, designBrief, action, feedback, currentLogo, referenceImages } = body as {
-    messages: MessagePayload[]
-    designBrief: Record<string, string> | null
-    action: 'chat' | 'generate' | 'refine'
-    feedback?: string
-    currentLogo?: string
-    referenceImages?: string[]
-  }
+  const { action } = body as { action: string }
 
-  // ── CHAT ──────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════
+  // ACTION: chat
+  // ═══════════════════════════════════════════════════════════════
   if (action === 'chat') {
+    const { messages, designBrief, referenceImages, selectedMoods } = body as {
+      messages: MessagePayload[]
+      designBrief: Record<string, any> | null
+      referenceImages?: string[]
+      selectedMoods?: string[]
+    }
+
     try {
-      // Fetch real Google Fonts list and inject into prompt
       const googleFonts = await getTopGoogleFonts(300)
-      const systemPromptWithFonts = CHAT_SYSTEM_PROMPT.replace('%%GOOGLE_FONTS_LIST%%', googleFonts.join(', '))
+      const systemPrompt = MARCUS_SYSTEM_PROMPT + `\n\nAvailable Google Fonts: ${googleFonts.join(', ')}`
 
-      const contents: { role: string; parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] }[] = []
+      const contents: any[] = []
 
-      // System prompt as first user message (Gemini doesn't have a system role in multi-turn)
+      // System as first user turn
       contents.push({
         role: 'user',
-        parts: [{ text: systemPromptWithFonts + (designBrief ? `\n\nCurrent design brief so far: ${JSON.stringify(designBrief)}` : '') }],
+        parts: [{
+          text: systemPrompt
+            + (designBrief ? `\n\nCurrent design brief so far: ${JSON.stringify(designBrief)}` : '')
+            + (selectedMoods?.length ? `\n\nUser selected mood words: ${selectedMoods.join(', ')}` : ''),
+        }],
       })
       contents.push({
         role: 'model',
-        parts: [{ text: '{"reply": "Understood. I\'m ready to design.", "designBrief": null, "readyToGenerate": false}' }],
+        parts: [{ text: '{"reply":"Understood. Ready to design.","designBrief":null,"readyForDirection":false,"showMoodChips":false}' }],
       })
 
-      // Add conversation history
+      // Conversation history
       for (const msg of messages) {
-        const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = []
+        const parts: any[] = []
         if (msg.content) parts.push({ text: msg.content })
         if (msg.referenceImage) {
           const base64Match = msg.referenceImage.match(/^data:image\/(\w+);base64,(.+)$/)
           if (base64Match) {
-            parts.push({
-              inlineData: {
-                mimeType: `image/${base64Match[1]}`,
-                data: base64Match[2],
-              },
-            })
-            parts.push({ text: '(The user uploaded a reference image above. Analyze it and describe what you see — style, colors, typography feel, mood — and explain how you will incorporate this into the logo design.)' })
+            parts.push({ inlineData: { mimeType: `image/${base64Match[1]}`, data: base64Match[2] } })
+            parts.push({ text: '(User uploaded a reference image. Analyze its style, colors, typography, mood — and explain what you will draw from it.)' })
           }
         }
         if (parts.length > 0) {
-          contents.push({
-            role: msg.role === 'assistant' ? 'model' : 'user',
-            parts,
-          })
+          contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts })
         }
       }
 
@@ -169,19 +277,17 @@ export async function POST(request: Request) {
         return NextResponse.json({
           reply: parsed.reply,
           designBrief: parsed.designBrief || designBrief,
-          readyToGenerate: parsed.readyToGenerate || false,
+          readyForDirection: parsed.readyForDirection || false,
+          showMoodChips: parsed.showMoodChips || false,
         })
       } catch {
-        // Strip any JSON from the response so user never sees raw JSON
-        let cleanReply = text
-          .replace(/\{[\s\S]*\}/g, '') // remove JSON objects
-          .replace(/```[\s\S]*```/g, '') // remove code blocks
-          .trim()
-        if (!cleanReply) cleanReply = "Let me think about that — what's the name of the brand we're designing for?"
+        let cleanReply = text.replace(/\{[\s\S]*\}/g, '').replace(/```[\s\S]*```/g, '').trim()
+        if (!cleanReply) cleanReply = "Let me think about that — tell me more about your brand."
         return NextResponse.json({
           reply: cleanReply,
-          designBrief: designBrief,
-          readyToGenerate: false,
+          designBrief,
+          readyForDirection: false,
+          showMoodChips: false,
         })
       }
     } catch (err) {
@@ -190,187 +296,114 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── GENERATE ──────────────────────────────────────────────────
-  if (action === 'generate') {
-    if (!designBrief) {
-      return NextResponse.json({ error: 'Design brief is required' }, { status: 400 })
+  // ═══════════════════════════════════════════════════════════════
+  // ACTION: generate-directions
+  // ═══════════════════════════════════════════════════════════════
+  if (action === 'generate-directions') {
+    const { designBrief } = body as { designBrief: Record<string, any> }
+    if (!designBrief) return NextResponse.json({ error: 'Design brief required' }, { status: 400 })
+
+    try {
+      const googleFonts = await getTopGoogleFonts(300)
+      const prompt = buildDirectionPrompt(designBrief).replace('%%GOOGLE_FONTS_LIST%%', googleFonts.join(', '))
+
+      const response = await genai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      })
+
+      const text = response.text?.trim() ?? ''
+      const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
+      const directions = JSON.parse(cleaned)
+
+      return NextResponse.json({ directions })
+    } catch (err) {
+      console.error('[logo-chat] Direction generation error:', err)
+      return NextResponse.json({ error: 'Failed to generate directions' }, { status: 500 })
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ACTION: generate-concepts (one at a time)
+  // ═══════════════════════════════════════════════════════════════
+  if (action === 'generate-concepts') {
+    const { designBrief, direction, conceptIndex, referenceImages } = body as {
+      designBrief: Record<string, any>
+      direction: DirectionType
+      conceptIndex: number
+      referenceImages?: string[]
     }
 
-    // TODO: Verify Stripe payment before generation
-    const admin = createAdminClient()
+    if (!designBrief || !direction || conceptIndex === undefined) {
+      return NextResponse.json({ error: 'designBrief, direction, and conceptIndex required' }, { status: 400 })
+    }
 
-    // Analyze reference images if any
-    let referenceDescription = ''
+    const admin = createAdminClient()
+    const name = designBrief.name || 'Brand'
+    const variation = CONCEPT_VARIATIONS[conceptIndex] || CONCEPT_VARIATIONS[0]
+
+    // First, get direction-specific details from Gemini
+    let directions: any
+    try {
+      const googleFonts = await getTopGoogleFonts(300)
+      const dirPrompt = buildDirectionPrompt(designBrief).replace('%%GOOGLE_FONTS_LIST%%', googleFonts.join(', '))
+
+      const dirResponse = await genai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: [{ text: dirPrompt }] }],
+      })
+
+      const dirText = dirResponse.text?.trim() ?? ''
+      const dirCleaned = dirText.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
+      directions = JSON.parse(dirCleaned)
+    } catch {
+      // Fallback directions
+      directions = {
+        wordmark: { font: 'Inter', weight: '600', letterSpacing: '+3%', letterMod: "The letter 'a' has an open counter", primaryColor: '#1a1a2e', accentColor: '#4a7c59' },
+        symbol: { shapeDescription: 'An abstract geometric form', font: 'DM Sans', weight: '500', primaryColor: '#2563eb', accentColor: '#1a1a2e' },
+        combination: { iconDescription: 'A minimal abstract shape', font: 'Plus Jakarta Sans', weight: '500', primaryColor: '#2563eb', accentColor: '#1a1a2e' },
+      }
+    }
+
+    // Build the prompt based on direction type
+    let prompt: string
+    if (direction === 'wordmark') {
+      prompt = buildWordmarkPrompt(name, designBrief, directions, variation, conceptIndex)
+    } else if (direction === 'symbol') {
+      prompt = buildSymbolPrompt(name, designBrief, directions, variation, conceptIndex)
+    } else {
+      prompt = buildCombinationPrompt(name, designBrief, directions, variation, conceptIndex)
+    }
+
+    // Analyze references if available
     if (referenceImages && referenceImages.length > 0) {
       try {
-        const refParts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
-          { text: 'Briefly describe the visual style, colors, typography feel, and mood of these reference images in 2-3 sentences. Focus on design elements that could inform a logo design.' },
+        const refParts: any[] = [
+          { text: 'Briefly describe the visual style, colors, typography, and mood of these reference images in 2 sentences.' },
         ]
         for (const ref of referenceImages) {
           const match = ref.match(/^data:image\/(\w+);base64,(.+)$/)
-          if (match) {
-            refParts.push({ inlineData: { mimeType: `image/${match[1]}`, data: match[2] } })
-          }
+          if (match) refParts.push({ inlineData: { mimeType: `image/${match[1]}`, data: match[2] } })
         }
-        const refResponse = await genai.models.generateContent({
+        const refRes = await genai.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: [{ role: 'user', parts: refParts }],
         })
-        referenceDescription = refResponse.text?.trim() ?? ''
+        const refDesc = refRes.text?.trim() ?? ''
+        if (refDesc) {
+          prompt += `\n\nThe client provided reference images showing: ${refDesc}\nIncorporate the aesthetic but create an ORIGINAL logo.`
+        }
       } catch {
-        console.log('[logo-chat] Could not analyze reference images, proceeding without')
+        // Continue without reference analysis
       }
     }
 
-    const images: string[] = []
-    const variations = ['clean and minimal', 'bold and dynamic', 'elegant and refined', 'playful and modern']
-
-    for (let i = 0; i < 4; i++) {
-      const promptText = `Create a professional logo for "${designBrief.name}", a ${designBrief.industry} company.
-
-LOGO TYPE: ${designBrief.logoType}
-STYLE: ${designBrief.style}
-TYPOGRAPHY: ${designBrief.font}
-COLORS: ${designBrief.colors}
-
-VARIATION: Make this version ${variations[i]}.
-
-${referenceDescription ? `The client provided reference images showing: ${referenceDescription}\nIncorporate the aesthetic elements from their references, but create an ORIGINAL logo — do not copy the reference.` : ''}
-
-MARK DESIGN:
-- The design must be instantly recognizable and memorable
-- Use negative space creatively where possible
-- Must work perfectly at both 16px favicon size and 500px+ display size
-- Lines and shapes must be crisp and precise with vector-quality edges
-
-TYPOGRAPHY:
-- Company name "${designBrief.name}" rendered in ${designBrief.font} typeface
-- Medium to semibold weight for maximum legibility
-- Slightly increased letter-spacing for an open, modern feel
-
-COMPOSITION:
-- Horizontal lockup preferred — icon (if any) on the left, text on the right, vertically centered
-- Generous padding around all elements
-- Perfect visual balance between mark and text
-
-AVOID: clip art, stock icons, gradients, drop shadows, 3D effects, generic swooshes, literal/cliche imagery, busy details, outlines that break at small sizes.
-
-OUTPUT: Pure white background (#FFFFFF), centered composition, high resolution, crisp vector-quality edges. Square format.`
-
-      const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
-        { text: promptText },
-      ]
-
-      // Include reference images inline
-      if (referenceImages) {
-        for (const ref of referenceImages) {
-          const match = ref.match(/^data:image\/(\w+);base64,(.+)$/)
-          if (match) {
-            parts.push({ inlineData: { mimeType: `image/${match[1]}`, data: match[2] } })
-          }
-        }
-      }
-
-      try {
-        const response = await genai.models.generateContent({
-          model: 'gemini-3-pro-image-preview',
-          contents: [{ role: 'user', parts }],
-          config: {
-            responseFormat: {
-              image: {
-                aspectRatio: '1:1',
-                imageSize: '1024',
-              },
-            },
-          } as any,
-        })
-
-        const responseParts = response.candidates?.[0]?.content?.parts ?? []
-        for (const rp of responseParts) {
-          if (rp.inlineData) {
-            images.push(`data:image/png;base64,${rp.inlineData.data}`)
-            break
-          }
-        }
-      } catch (err) {
-        console.error(`[logo-chat] Logo generation ${i + 1} failed:`, err)
-      }
-    }
-
-    if (images.length === 0) {
-      return NextResponse.json({ error: 'All logo generations failed. Please try again.' }, { status: 500 })
-    }
-
-    // Log creation
-    try {
-      await admin.from('creations').insert({
-        user_id: user.id,
-        type: 'logo',
-        title: `Logo: ${designBrief.name}`,
-      })
-    } catch { /* ignore */ }
-
-    return NextResponse.json({ images })
-  }
-
-  // ── REFINE ────────────────────────────────────────────────────
-  if (action === 'refine') {
-    if (!currentLogo || !feedback) {
-      return NextResponse.json({ error: 'Current logo and feedback required' }, { status: 400 })
-    }
-
-    // TODO: Verify Stripe payment before generation
-    const admin = createAdminClient()
-
-    // Generate a conversational reply about the refinement
-    let refinementReply = ''
-    try {
-      const chatRes = await genai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [{
-          role: 'user',
-          parts: [
-            { text: `You are a senior logo designer. The client wants this change to their logo: "${feedback}". Respond in 1-2 sentences acknowledging the change and what you'll do. Be conversational and confident. Return ONLY the reply text, no JSON.` },
-          ],
-        }],
-      })
-      refinementReply = chatRes.text?.trim() ?? "Making those adjustments now."
-    } catch {
-      refinementReply = "Making those adjustments now."
-    }
-
-    const logoMatch = currentLogo.match(/^data:image\/(\w+);base64,(.+)$/)
-    if (!logoMatch) {
-      return NextResponse.json({ error: 'Invalid logo data' }, { status: 400 })
-    }
-
-    const promptText = `Refine this logo based on the client's feedback.
-
-FEEDBACK: "${feedback}"
-${designBrief ? `COMPANY: ${designBrief.name}\nINDUSTRY: ${designBrief.industry}\nTYPOGRAPHY: ${designBrief.font}\nCOLORS: ${designBrief.colors}` : ''}
-
-Apply the requested changes while maintaining the overall brand identity and composition.
-
-STRICT RULES:
-- Output a LOGO on a clean white background (#FFFFFF)
-- The logo should be centered with generous padding
-- Text must be crisp, perfectly spelled, and legible
-- Professional, vector-quality appearance
-- NO mockups, NO business cards, NO background scenes — JUST the logo
-- Square format, 1:1 aspect ratio`
-
-    const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
-      { text: promptText },
-      { inlineData: { mimeType: `image/${logoMatch[1]}`, data: logoMatch[2] } },
-    ]
-
-    // Include reference images if available
+    // Generate the logo image
+    const parts: any[] = [{ text: prompt }]
     if (referenceImages) {
       for (const ref of referenceImages) {
         const match = ref.match(/^data:image\/(\w+);base64,(.+)$/)
-        if (match) {
-          parts.push({ inlineData: { mimeType: `image/${match[1]}`, data: match[2] } })
-        }
+        if (match) parts.push({ inlineData: { mimeType: `image/${match[1]}`, data: match[2] } })
       }
     }
 
@@ -380,10 +413,134 @@ STRICT RULES:
         contents: [{ role: 'user', parts }],
         config: {
           responseFormat: {
-            image: {
-              aspectRatio: '1:1',
-              imageSize: '1024',
-            },
+            image: { aspectRatio: '1:1', imageSize: '1024' },
+          },
+        } as any,
+      })
+
+      const responseParts = response.candidates?.[0]?.content?.parts ?? []
+      let imageData: string | null = null
+
+      for (const rp of responseParts) {
+        if (rp.inlineData) {
+          imageData = `data:image/png;base64,${rp.inlineData.data}`
+          break
+        }
+      }
+
+      if (!imageData) throw new Error('No image returned')
+
+      // Generate description
+      let description = `Concept ${conceptIndex + 1}: ${variation.style} approach.`
+      try {
+        const descRes = await genai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: [{
+            role: 'user',
+            parts: [
+              { text: buildDescriptionPrompt(direction, conceptIndex) },
+              { inlineData: { mimeType: 'image/png', data: imageData.replace(/^data:image\/\w+;base64,/, '') } },
+            ],
+          }],
+        })
+        description = descRes.text?.trim() ?? description
+      } catch {
+        // Use fallback description
+      }
+
+      // Upload to Supabase
+      const timestamp = Date.now()
+      await uploadToSupabase(admin, imageData, user.id, `concept-${conceptIndex}-${timestamp}.png`)
+
+      // Log creation on first concept
+      if (conceptIndex === 0) {
+        try {
+          await admin.from('creations').insert({
+            user_id: user.id,
+            type: 'logo',
+            title: `Logo: ${name}`,
+          })
+        } catch { /* ignore */ }
+      }
+
+      return NextResponse.json({ image: imageData, description })
+    } catch (err) {
+      console.error(`[logo-chat] Concept ${conceptIndex + 1} generation failed:`, err)
+      return NextResponse.json({ error: `Concept generation failed: ${err instanceof Error ? err.message : 'Unknown error'}` }, { status: 500 })
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ACTION: refine
+  // ═══════════════════════════════════════════════════════════════
+  if (action === 'refine') {
+    const { designBrief, direction, feedback, currentLogo, referenceImages } = body as {
+      designBrief: Record<string, any>
+      direction: string
+      feedback: string
+      currentLogo: string
+      referenceImages?: string[]
+    }
+
+    if (!currentLogo || !feedback) {
+      return NextResponse.json({ error: 'Current logo and feedback required' }, { status: 400 })
+    }
+
+    const admin = createAdminClient()
+
+    // Generate conversational reply
+    let refinementReply = 'Making those adjustments now.'
+    try {
+      const chatRes = await genai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{
+          role: 'user',
+          parts: [{ text: `You are Marcus, a senior logo designer. The client wants this change: "${feedback}". Respond in 1-2 sentences acknowledging the change and what you did. Be conversational and confident. Return ONLY the reply text, no JSON.` }],
+        }],
+      })
+      refinementReply = chatRes.text?.trim() ?? refinementReply
+    } catch {
+      // Use fallback
+    }
+
+    const logoMatch = currentLogo.match(/^data:image\/(\w+);base64,(.+)$/)
+    if (!logoMatch) {
+      return NextResponse.json({ error: 'Invalid logo data' }, { status: 400 })
+    }
+
+    const promptText = `This is the current logo. The client wants this change: "${feedback}".
+
+Modify ONLY what was requested. Keep everything else identical. Same composition, same style, same colors unless specifically asked to change them.
+
+${designBrief ? `COMPANY: ${designBrief.name}\nINDUSTRY: ${designBrief.industry}` : ''}
+
+STRICT RULES:
+- Output the modified logo on a clean white background (#FFFFFF).
+- Centered with generous padding.
+- Text must be crisp, perfectly spelled, and legible.
+- Professional vector-quality appearance.
+- NO mockups, NO business cards, NO background scenes — JUST the logo.
+- Square format, 1:1 aspect ratio.`
+
+    const parts: any[] = [
+      { text: promptText },
+      { inlineData: { mimeType: `image/${logoMatch[1]}`, data: logoMatch[2] } },
+    ]
+
+    if (referenceImages) {
+      for (const ref of referenceImages) {
+        const match = ref.match(/^data:image\/(\w+);base64,(.+)$/)
+        if (match) parts.push({ inlineData: { mimeType: `image/${match[1]}`, data: match[2] } })
+      }
+    }
+
+    try {
+      const response = await genai.models.generateContent({
+        model: 'gemini-3-pro-image-preview',
+        contents: [{ role: 'user', parts }],
+        config: {
+          responseFormat: {
+            image: { aspectRatio: '1:1', imageSize: '1024' },
           },
         } as any,
       })
@@ -392,6 +549,10 @@ STRICT RULES:
       for (const rp of responseParts) {
         if (rp.inlineData) {
           const image = `data:image/png;base64,${rp.inlineData.data}`
+
+          // Upload to Supabase
+          const timestamp = Date.now()
+          await uploadToSupabase(admin, image, user.id, `refine-${timestamp}.png`)
 
           try {
             await admin.from('creations').insert({
@@ -409,6 +570,78 @@ STRICT RULES:
     } catch (err) {
       console.error('[logo-chat] Refinement failed:', err)
       return NextResponse.json({ error: err instanceof Error ? err.message : 'Refinement failed' }, { status: 500 })
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ACTION: generate-dark-version
+  // ═══════════════════════════════════════════════════════════════
+  if (action === 'generate-dark-version') {
+    const { currentLogo, designBrief } = body as {
+      currentLogo: string
+      designBrief: Record<string, any>
+    }
+
+    if (!currentLogo) {
+      return NextResponse.json({ error: 'Current logo required' }, { status: 400 })
+    }
+
+    const admin = createAdminClient()
+    const logoMatch = currentLogo.match(/^data:image\/(\w+);base64,(.+)$/)
+    if (!logoMatch) {
+      return NextResponse.json({ error: 'Invalid logo data' }, { status: 400 })
+    }
+
+    const promptText = `This is a logo on a white background. Generate the EXACT same logo but on a dark background (#1a1a2e).
+
+Adjust the logo colors so it is clearly visible on the dark background:
+- If the logo has dark text, make the text white or light.
+- If the logo has dark-colored elements, lighten them appropriately.
+- Keep the same composition, same layout, same proportions.
+- The logo should look just as polished on dark as on white.
+
+${designBrief ? `COMPANY: ${designBrief.name}` : ''}
+
+RULES:
+- Background: dark navy (#1a1a2e)
+- Centered with generous padding
+- Square format, 1:1 aspect ratio
+- Same size and position as the original
+- Crisp, vector-quality`
+
+    try {
+      const response = await genai.models.generateContent({
+        model: 'gemini-3-pro-image-preview',
+        contents: [{
+          role: 'user',
+          parts: [
+            { text: promptText },
+            { inlineData: { mimeType: `image/${logoMatch[1]}`, data: logoMatch[2] } },
+          ],
+        }],
+        config: {
+          responseFormat: {
+            image: { aspectRatio: '1:1', imageSize: '1024' },
+          },
+        } as any,
+      })
+
+      const responseParts = response.candidates?.[0]?.content?.parts ?? []
+      for (const rp of responseParts) {
+        if (rp.inlineData) {
+          const image = `data:image/png;base64,${rp.inlineData.data}`
+
+          const timestamp = Date.now()
+          await uploadToSupabase(admin, image, user.id, `dark-${timestamp}.png`)
+
+          return NextResponse.json({ image })
+        }
+      }
+
+      throw new Error('No image returned for dark version')
+    } catch (err) {
+      console.error('[logo-chat] Dark version failed:', err)
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Dark version failed' }, { status: 500 })
     }
   }
 
