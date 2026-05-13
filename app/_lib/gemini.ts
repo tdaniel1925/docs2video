@@ -153,17 +153,17 @@ ${isFirstSlide && hasPhoto ? `\n- Reserve a clean area (~200x200px) in the BOTTO
 // Helper to build content summary from either data format
 function buildContentSummary(data: ExtractedPolicyData | ExtractedData): { headline: string; subline: string; metrics: string } {
   if ('deathBenefit' in data) {
-    // Insurance data
+    // Insurance data — never include carrier name
     return {
-      headline: `"${data.carrier}" as the carrier name (plain text, no logo)`,
-      subline: `"${data.policyType}" as the policy type`,
+      headline: `"${data.policyType} Policy Overview"`,
+      subline: `"Prepared for ${data.insuredName}"`,
       metrics: `- Death Benefit: ${formatCurrency(data.deathBenefit)}\n- Annual Premium: ${formatCurrency(data.annualPremium)}`,
     }
   }
   // General data
   const topMetrics = data.keyMetrics.slice(0, 4).map(m => `- ${m.label}: ${m.value}`).join('\n')
   return {
-    headline: `"${data.title}" as the document title`,
+    headline: `"${data.title}"`,
     subline: data.subtitle ? `"${data.subtitle}"` : '',
     metrics: topMetrics || '- Key information from the document',
   }
@@ -259,207 +259,95 @@ export async function generateSlide(
   const style = SLIDE_STYLES.find(s => s.id === styleId) ?? SLIDE_STYLES[0]
   const isInsurance = 'deathBenefit' in data
 
-  let slideContents: Record<number, string>
-  let contextBlock: string
+  // Determine slide position
+  const isFirst = slideIndex === 0
+  const isLast = slideIndex >= totalSlides - 1
+  const isDisclaimer = slidePrompt?.toLowerCase().includes('before we begin, please note') ||
+    slidePrompt?.toLowerCase().includes('educational and informational purposes')
 
-  if (isInsurance) {
-    const insuranceData = data as ExtractedPolicyData
-    const cvRows = insuranceData.cashValueProjections
-      .map(p => `Year ${p.year}: ${formatCurrency(p.current)}`)
-      .join(', ')
-    const cvRowsDetailed = insuranceData.cashValueProjections
-      .map(p => `Year ${p.year}: Guaranteed ${formatCurrency(p.guaranteed)}, Illustrated ${formatCurrency(p.current)}`)
-      .join('\n')
+  // Build the visual content description for this specific slide
+  // This tells Gemini WHAT to show — not HOW (that's the style prompt's job)
+  let visualContent: string
 
-    slideContents = {
-      0: `Headline: "${insuranceData.carrier} — ${insuranceData.policyType}"
-Subheadline: "Prepared for ${insuranceData.insuredName}"`,
-
-      1: `Headline: "Client Overview"
-- Insured: ${insuranceData.insuredName}
-- Age: ${insuranceData.insuredAge ?? 'N/A'}
-- Policy Type: ${insuranceData.policyType}
-- Carrier: ${insuranceData.carrier}
-- Payment Mode: ${insuranceData.paymentMode}`,
-
-      2: `Headline: "Total Protection for Your Family"
-- Death Benefit: ${formatCurrency(insuranceData.deathBenefit)}`,
-
-      3: `Headline: "Premium Breakdown"
-- Annual Premium: ${formatCurrency(insuranceData.annualPremium)}
-- Payment Mode: ${insuranceData.paymentMode}
-${insuranceData.loanRate ? `- Policy Loan Rate: ${insuranceData.loanRate}%` : ''}`,
-
-      4: `Headline: "Your Cash Value Over Time"
-${cvRows}`,
-
-      5: `Headline: "Guaranteed vs. Illustrated Values"
-${cvRowsDetailed}`,
-
-      6: `Headline: "Your Policy Features"
-${(insuranceData.riders ?? []).map(r => `- ${r}`).join('\n')}
-${(insuranceData.additionalNotes ?? []).length > 0 ? (insuranceData.additionalNotes ?? []).map(n => `- ${n}`).join('\n') : ''}`,
-
-      7: `Headline: "Next Steps"
-- Death Benefit: ${formatCurrency(insuranceData.deathBenefit)}
-- Annual Premium: ${formatCurrency(insuranceData.annualPremium)}
-- Key Features: ${(insuranceData.riders ?? []).slice(0, 3).join(', ') || 'Standard coverage'}`,
+  if (isDisclaimer) {
+    visualContent = `Create a clean, professional DISCLAIMER slide.
+Display this text prominently and legibly on the slide:
+"Important Disclosure"
+Then in smaller but readable text:
+"This video is for educational and informational purposes only. It is not legal, tax, or financial advice. Policy guarantees are based on the claims-paying ability of the issuing insurance company. Non-guaranteed values are subject to change. Please consult with your licensed professional before making decisions."
+Use a subtle icon like a shield or document seal for visual interest.`
+  } else if (isFirst) {
+    if (isInsurance) {
+      const ins = data as ExtractedPolicyData
+      visualContent = `Create an elegant TITLE/COVER slide for a life insurance policy overview.
+Show this text on the slide:
+Title: "${ins.policyType} Policy Overview"
+Subtitle: "Prepared for ${ins.insuredName}"
+${brandName ? `Small text: "Presented by ${brandName}"` : ''}
+Make it feel premium and trustworthy. Use appropriate icons like a shield or family silhouette.`
+    } else {
+      const gen = data as ExtractedData
+      visualContent = `Create an elegant TITLE/COVER slide.
+Show this text on the slide:
+Title: "${gen.title}"
+${gen.subtitle ? `Subtitle: "${gen.subtitle}"` : ''}
+${brandName ? `Small text: "Presented by ${brandName}"` : ''}
+Make it feel professional and polished.`
     }
-
-    contextBlock = `DOCUMENT CONTEXT (use for data accuracy):
-- Policy Type: ${insuranceData.policyType}
-- Insured: ${insuranceData.insuredName}, Age ${insuranceData.insuredAge ?? 'N/A'}
-- Death Benefit: ${formatCurrency(insuranceData.deathBenefit)}
-- Annual Premium: ${formatCurrency(insuranceData.annualPremium)}
-${brandName ? `- Agent/Agency: ${brandName}` : ''}
-NOTE: Do NOT display any insurance carrier/company name on the slide. This is a legal requirement.`
+  } else if (isLast) {
+    visualContent = `Create a professional CLOSING slide.
+Show this text on the slide:
+Title: "Thank You"
+${brandName ? `Subtitle: "Presented by ${brandName}"` : 'Subtitle: "Questions? Let\'s connect."'}
+${contactInfo?.phone ? `Phone: ${contactInfo.phone}` : ''}
+${contactInfo?.website ? `Website: ${contactInfo.website}` : ''}
+Include a subtle call-to-action feel.`
+  } else if (slidePrompt) {
+    // AI-generated scene — extract the TOPIC from the slidePrompt, not visual instructions
+    // The slidePrompt describes what the slide should show conceptually
+    visualContent = `Create a professional CONTENT slide about the following topic.
+The narration for this slide discusses: ${slidePrompt}
+Design a visually engaging slide that illustrates this topic.
+Use icons, shapes, or abstract graphics to represent the concept — NOT photographs of people.
+Include a clear headline and 2-4 key data points or bullet points as readable text on the slide.
+The text on the slide should be the KEY FACTS only — short phrases, not full sentences.`
   } else {
-    const genData = data as ExtractedData
-    const metricsText = genData.keyMetrics.map(m => `- ${m.label}: ${m.value}`).join('\n')
-    const sectionsText = genData.sections.map(s => `- ${s.title}: ${s.content}`).join('\n')
-    const bulletText = genData.bulletPoints.map(b => `- ${b}`).join('\n')
-
-    slideContents = {
-      0: `Headline: "${genData.title}"
-${genData.subtitle ? `Subheadline: "${genData.subtitle}"` : ''}
-${genData.source ? `Source: ${genData.source}` : ''}`,
-
-      1: `Headline: "Key Metrics"
-${metricsText}`,
-
-      2: `Headline: "Key Sections"
-${sectionsText}`,
-
-      3: `Headline: "Key Takeaways"
-${bulletText}`,
-
-      4: `Headline: "Summary"
-${(genData.bulletPoints ?? []).slice(0, 4).map(b => `- ${b}`).join('\n')}`,
-    }
-
-    contextBlock = `DOCUMENT CONTEXT (use for data accuracy):
-- Title: ${genData.title}
-${genData.subtitle ? `- Subtitle: ${genData.subtitle}` : ''}
-${genData.source ? `- Source: ${genData.source}` : ''}
-- Key Metrics: ${genData.keyMetrics.slice(0, 4).map(m => `${m.label}: ${m.value}`).join(', ')}
-${brandName ? `- Brand: ${brandName}` : ''}`
+    visualContent = `Create a professional content slide. Use placeholder content about the document topic.`
   }
 
-  // Always force cover page for slide 0 and closing page for last slide
-  // The AI script's slidePrompt is used for middle slides only
-  let content: string
-  if (slideIndex === 0) {
-    // Always a branded cover/title page
-    content = slideContents[0] + (slidePrompt ? `\n\nAdditional context from script: ${slidePrompt}` : '')
-  } else if (slideContents[slideIndex] && !slidePrompt) {
-    // Use hardcoded content if no AI prompt
-    content = slideContents[slideIndex]
-  } else {
-    // Use AI-generated slidePrompt for middle slides
-    content = slidePrompt ?? slideContents[slideIndex] ?? slideContents[0]
-  }
+  // Build the complete prompt — clean separation of concerns
+  const promptText = `You are generating a presentation slide image. Follow these instructions precisely.
 
-  const hasLogo = !!(logoBuffer || logoUrl)
-
-  // Use the new look-variant prompt system
-  const { getLookPrompt, getDefaultLookId } = await import('./prompts/look-variants')
-  const { assessLogoQuality, shouldUseFallback } = await import('./logo-quality')
-
-  // Check logo quality to decide prompt family
-  let useLogoPrompts = hasLogo
-  if (logoBuffer) {
-    const quality = await assessLogoQuality(logoBuffer)
-    if (shouldUseFallback(quality)) {
-      console.log(`[gemini] Logo failed quality check: ${quality.reasons.join(', ')}. Using fallback prompts.`)
-      useLogoPrompts = false
-    }
-  }
-
-  // Derive company name from brand or document data
-  const derivedCompanyName = brandName
-    ?? (isInsurance ? (data as ExtractedPolicyData).carrier : null)
-    ?? (data as ExtractedData).source
-    ?? (data as ExtractedData).title?.split(/[-–—:|]/)[0]?.trim()
-    ?? ''
-
-  // Build brand context for the prompt templates
-  const brandCtx = {
-    companyName: derivedCompanyName,
-    primaryHex: colors.primary,
-    secondaryHex: colors.secondary,
-    accentHex: colors.accent,
-    phone: contactInfo?.phone ?? '',
-    website: contactInfo?.website ?? '',
-    hasLogo: useLogoPrompts,
-  }
-
-  // Determine slide type
-  let slideType: 'cover' | 'content' | 'data' | 'quote' | 'closing' = 'content'
-  if (slideIndex === 0) slideType = 'cover'
-  else if (slideIndex >= totalSlides - 1) slideType = 'closing'
-
-  // Parse content into structured slide data
-  // Extract "Headline:" and "Subheadline:" fields, plus bullet points starting with "-"
-  // Clean function: strip trailing periods, quotes, field labels, instruction text
-  function cleanHeadline(text: string): string {
-    return text
-      .replace(/^["']|["']$/g, '')           // strip surrounding quotes
-      .replace(/\.$/, '')                     // strip trailing period
-      .replace(/^(Headline|Title|Slide \d+)[:\s—-]*/i, '')  // strip labels
-      .replace(/^(TITLE CARD|COVER|CLOSING)[:\s—-]*/i, '')
-      .trim()
-  }
-
-  const headlineMatch = content.match(/^Headline:\s*"?([^"\n]+)"?\s*$/m)
-  const subheadlineMatch = content.match(/^Subheadline:\s*"?([^"\n]+)"?\s*$/m)
-  const bulletLines = content.split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim())
-
-  const slideContent = {
-    slideType,
-    headline: cleanHeadline(headlineMatch?.[1]?.trim() || 'Key Information'),
-    subheadline: subheadlineMatch?.[1]?.trim() ? cleanHeadline(subheadlineMatch[1].trim()) : undefined as string | undefined,
-    bodyBlocks: bulletLines.slice(0, 5),
-    stats: undefined as { value: string; label: string }[] | undefined,
-  }
-
-  // If content is an AI slidePrompt (visual description), DON'T use it as headline/body text
-  // Instead extract just the topic and let the look-variant template handle the visual layout
-  if (!headlineMatch && content.length > 0) {
-    // This is likely an AI-generated slidePrompt — extract the topic, not the layout instructions
-    // Strip visual descriptions like "A split-screen animation", "Create a bar chart", etc.
-    const stripped = content
-      .replace(/^(A |An |Create |Show |Display |Design |Make |Use |Build |Add |Draw |Render |Include )[^.]*\.\s*/gi, '')
-      .replace(/\b(split-screen|animation|bar chart|line chart|grid|layout|visualization|visual|card|section|panel)\b/gi, '')
-      .trim()
-
-    // Try to find the actual topic/title from the content
-    const topicMatch = stripped.match(/'([^']+)'/g) || stripped.match(/"([^"]+)"/g)
-    if (topicMatch && topicMatch.length > 0) {
-      slideContent.headline = cleanHeadline(topicMatch[0])
-      slideContent.bodyBlocks = topicMatch.slice(1).map(t => cleanHeadline(t))
-    } else if (stripped.length > 5) {
-      slideContent.headline = cleanHeadline(stripped.split(/[.!]/)[0]?.trim().slice(0, 80) || 'Key Information')
-    }
-  }
-
-  // Get the look variant prompt for layout structure
-  const lookId = getDefaultLookId(useLogoPrompts)
-  const lookVariant = getLookPrompt(useLogoPrompts, lookId)
-  const lookPromptText = lookVariant.fn(brandCtx, slideContent)
-
-  // Style prompt is PRIMARY — it defines the visual identity of the entire deck
-  // Look variant provides layout structure but must NOT override the style's colors, textures, or visual treatment
-  const promptText = `VISUAL STYLE (THIS IS THE #1 PRIORITY — EVERY SLIDE MUST MATCH THIS STYLE):
+=== DESIGN STYLE (HIGHEST PRIORITY) ===
 ${style.prompt}
 
-LAYOUT STRUCTURE (use this for content placement, but the visual style above MUST dominate):
-${lookPromptText}
+=== COLORS ===
+Primary: ${colors.primary}, Secondary: ${colors.secondary}, Accent: ${colors.accent}
 
-${contextBlock}
+=== WHAT TO SHOW ON THIS SLIDE ===
+${visualContent}
 
-${referenceSlides && referenceSlides.length > 0 ? 'VISUAL REFERENCE: Reference slides have been provided. You MUST match their exact visual style — same colors, textures, backgrounds, effects, and typography. The new slide must be visually indistinguishable in style from the reference. Layout can vary but the visual identity must be identical.' : ''}
+=== RULES ===
+- Output exactly 1920x1080 pixels, landscape, 16:9
+- Fill the ENTIRE canvas — no black bars or empty borders
+- All text must be large enough to read on a phone (minimum 36pt equivalent)
+- Use ONLY the design style described above — do not switch to a generic corporate look
+- TOP-LEFT 300x100px must be empty (logo overlay goes there later)
+- BOTTOM 60px must be empty (info bar overlay goes there later)
+${isInsurance ? '- LEGAL: Do NOT display any insurance carrier or company name anywhere on the slide. This is a legal requirement.' : ''}
+${isFirst && hasPhoto ? '- Reserve a clean 200x200px area in the bottom-right for a photo overlay.' : ''}
 
-CONSISTENCY (CRITICAL): This slide is part of a deck. ALL slides must share the SAME visual style: same background treatment, same color palette, same text styling, same effects. Do NOT switch to a generic or different style.`
+=== FORBIDDEN (DO NOT DO ANY OF THESE) ===
+- Do NOT render raw field labels like "Headline:", "Subheadline:", "slidePrompt:", "narration:" etc.
+- Do NOT render any prompt instructions, JSON, or metadata as visible text
+- Do NOT include any company logos, lettermarks, or brand marks
+- Do NOT generate photographs of human faces
+${isInsurance ? '- Do NOT write any insurance carrier name, company name, or brand name on the slide' : ''}
+
+${referenceSlides && referenceSlides.length > 0 ? '=== VISUAL REFERENCE ===\nReference slides are attached. Match their EXACT visual style — same background, colors, textures, typography, and effects. The new slide must look like it belongs in the same deck.' : ''}
+
+=== CONSISTENCY ===
+This is slide ${slideIndex + 1} of ${totalSlides}. ALL slides must share identical visual treatment.`
 
   // Build the content parts — text first, then logo image, then reference slides
   const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
