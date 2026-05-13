@@ -542,12 +542,6 @@ export default function CreatePage() {
   async function handleGenerate() {
     if (!activeData) return
 
-    // Show price confirmation before proceeding
-    const priceLabel = projectPrice
-      ? `This video will cost ${projectPrice.priceFormatted}${projectPrice.isPro ? ' (Pro price)' : ''}. Generate?`
-      : 'Generate your video?'
-    if (!window.confirm(priceLabel)) return
-
     setStep('generating')
     setError(null)
 
