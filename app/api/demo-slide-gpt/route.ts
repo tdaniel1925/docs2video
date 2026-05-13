@@ -21,28 +21,32 @@ export async function POST(request: Request) {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
 
   try {
-    // Build the messages array
-    const messages: any[] = []
+    // Build the input array for OpenAI Responses API
+    const input: any[] = []
 
-    // If logo provided, include it as an image
     if (logoImage) {
-      messages.push({
+      input.push({
         role: 'user',
         content: [
           {
-            type: 'image_url',
-            image_url: { url: logoImage },
+            type: 'input_image',
+            image_url: logoImage,
           },
           {
-            type: 'text',
+            type: 'input_text',
             text: `This is the company logo${companyName ? ` for "${companyName}"` : ''}. Use this logo in the image you create.\n\n${prompt}`,
           },
         ],
       })
     } else {
-      messages.push({
+      input.push({
         role: 'user',
-        content: prompt,
+        content: [
+          {
+            type: 'input_text',
+            text: prompt,
+          },
+        ],
       })
     }
 
@@ -50,7 +54,7 @@ export async function POST(request: Request) {
 
     const response = await openai.responses.create({
       model: 'gpt-4o',
-      input: messages,
+      input,
       tools: [{ type: 'image_generation', size: '1536x1024', quality: 'high' }],
     })
 
@@ -58,7 +62,7 @@ export async function POST(request: Request) {
     let imageBase64: string | null = null
     for (const output of response.output) {
       if (output.type === 'image_generation_call') {
-        imageBase64 = output.result
+        imageBase64 = (output as any).result
         break
       }
     }
