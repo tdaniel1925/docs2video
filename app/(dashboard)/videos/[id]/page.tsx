@@ -26,7 +26,7 @@ const FUN_FACTS = [
   'Tip: You can leave this page — your video will continue generating in the background.',
 ]
 
-function VideoProgress({ status, createdAt }: { status: string; createdAt: string }) {
+function VideoProgress({ status, createdAt, progressDetail, progressPct }: { status: string; createdAt: string; progressDetail: string | null; progressPct: number | null }) {
   const [elapsed, setElapsed] = useState(0)
   const [factIndex, setFactIndex] = useState(0)
 
@@ -47,7 +47,8 @@ function VideoProgress({ status, createdAt }: { status: string; createdAt: strin
 
   const currentIdx = PROGRESS_STEPS.findIndex(s => s.key === status)
   const effectiveIdx = currentIdx < 0 ? 0 : currentIdx
-  const pct = Math.min(95, Math.round(((effectiveIdx + 0.5) / PROGRESS_STEPS.length) * 100))
+  const fallbackPct = Math.min(95, Math.round(((effectiveIdx + 0.5) / PROGRESS_STEPS.length) * 100))
+  const pct = progressPct != null ? Math.min(95, progressPct) : fallbackPct
   const currentStep = PROGRESS_STEPS[effectiveIdx] ?? PROGRESS_STEPS[0]
 
   const estimatedTotal = 300 // ~5 minutes
@@ -111,7 +112,7 @@ function VideoProgress({ status, createdAt }: { status: string; createdAt: strin
           <span style={{ fontSize: 24 }}>{currentStep.icon}</span>
           <div style={{ textAlign: 'left' }}>
             <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>{currentStep.label}</div>
-            <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{currentStep.sub}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{progressDetail ?? currentStep.sub}</div>
           </div>
         </div>
       </div>
@@ -162,7 +163,7 @@ function VideoProgress({ status, createdAt }: { status: string; createdAt: strin
                 {/* Active description */}
                 {isActive && (
                   <div style={{ fontSize: 10, color: 'var(--ink-soft)', marginTop: 4, textAlign: 'center', maxWidth: 90 }}>
-                    {step.desc.replace('...', '')}
+                    {progressDetail ?? step.desc.replace('...', '')}
                   </div>
                 )}
               </div>
@@ -308,6 +309,9 @@ export default function VideoDetailPage() {
   const [followUpClientName, setFollowUpClientName] = useState('')
   const [followUpClientEmail, setFollowUpClientEmail] = useState('')
   const [generatingPlan, setGeneratingPlan] = useState(false)
+
+  // Analytics state
+  const [analytics, setAnalytics] = useState<{ views: number; plays: number; chats: number } | null>(null)
 
   // Quote state
   const [showQuoteBuilder, setShowQuoteBuilder] = useState(false)
@@ -518,6 +522,19 @@ export default function VideoDetailPage() {
         .limit(1)
         .single()
       if (quoteData) setExistingQuote(quoteData)
+
+      // Load analytics
+      const { data: viewsData } = await supabase
+        .from('video_analytics')
+        .select('event_type')
+        .eq('video_id', params.id as string)
+      if (viewsData) {
+        setAnalytics({
+          views: viewsData.filter(r => r.event_type === 'view').length,
+          plays: viewsData.filter(r => r.event_type === 'play').length,
+          chats: viewsData.filter(r => r.event_type === 'chat_message').length,
+        })
+      }
     }
     loadPlan()
   }, [params.id])
@@ -873,9 +890,40 @@ export default function VideoDetailPage() {
         </div>
       </div>
 
+      {/* Analytics Stats */}
+      {analytics && video.status === 'completed' && (
+        <div style={{
+          display: 'flex',
+          gap: 16,
+          marginBottom: 24,
+        }}>
+          {[
+            { label: 'Views', value: analytics.views },
+            { label: 'Plays', value: analytics.plays },
+            { label: 'Chat Messages', value: analytics.chats },
+          ].map(stat => (
+            <div key={stat.label} style={{
+              flex: 1,
+              background: 'white',
+              border: '1px solid var(--border-light)',
+              borderRadius: 10,
+              padding: '16px 20px',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--ink)', lineHeight: 1 }}>
+                {stat.value}
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {stat.label}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Processing states */}
       {video.status !== 'completed' && video.status !== 'failed' && (
-        <VideoProgress status={video.status} createdAt={video.created_at} />
+        <VideoProgress status={video.status} createdAt={video.created_at} progressDetail={video.progress_detail ?? null} progressPct={video.progress_pct ?? null} />
       )}
 
       {video.status === 'failed' && (

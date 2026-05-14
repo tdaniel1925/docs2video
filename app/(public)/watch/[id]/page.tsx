@@ -849,11 +849,21 @@ export default function PublicWatchPage() {
   const chatInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const viewTracked = useRef(false)
+  const playTracked = useRef(false)
 
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
   const [videoDuration, setVideoDuration] = useState(0)
 
   const paid = searchParams.get('paid') === 'true'
+
+  /* ---- Analytics helper ---- */
+  const trackEvent = useCallback((videoId: string, event: string, metadata?: Record<string, unknown>) => {
+    fetch('/api/track-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoId, event, metadata }),
+    }).catch(() => {})
+  }, [])
 
   /* ---- Data loading ---- */
   useEffect(() => {
@@ -899,12 +909,14 @@ export default function PublicWatchPage() {
       if (messages) setChatMessages(messages as ChatMessage[])
 
       if (!viewTracked.current) {
-        viewTracked.current = true
-        fetch('/api/track-view', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId: v.id }),
-        }).catch(() => {})
+        const sessionKey = `viewed_${v.id}`
+        if (!sessionStorage.getItem(sessionKey)) {
+          sessionStorage.setItem(sessionKey, '1')
+          viewTracked.current = true
+          trackEvent(v.id, 'view')
+        } else {
+          viewTracked.current = true
+        }
       }
     }
     load()
@@ -952,6 +964,7 @@ export default function PublicWatchPage() {
         created_at: new Date().toISOString(),
       }
       setChatMessages((prev) => [...prev, clientMsg])
+      trackEvent(video.id, 'chat_message')
 
       try {
         const res = await fetch('/api/chat', {
@@ -1135,6 +1148,12 @@ export default function PublicWatchPage() {
                 onLoadedMetadata={() => {
                   if (videoRef.current) setVideoDuration(videoRef.current.duration)
                 }}
+                onPlay={() => {
+                  if (!playTracked.current && video) {
+                    playTracked.current = true
+                    trackEvent(video.id, 'play')
+                  }
+                }}
                 playsInline
               />
             </div>
@@ -1167,7 +1186,10 @@ export default function PublicWatchPage() {
               {video.video_url && (
                 <button
                   className="wp-action-btn"
-                  onClick={() => window.open(video.video_url!, '_blank')}
+                  onClick={() => {
+                    trackEvent(video.id, 'download', { type: 'video' })
+                    window.open(video.video_url!, '_blank')
+                  }}
                 >
                   <IconDownload />
                   Download Video
@@ -1177,7 +1199,10 @@ export default function PublicWatchPage() {
               {slideCount > 0 && (
                 <button
                   className="wp-action-btn"
-                  onClick={() => window.open(slideUrls[0], '_blank')}
+                  onClick={() => {
+                    trackEvent(video.id, 'download', { type: 'slides' })
+                    window.open(slideUrls[0], '_blank')
+                  }}
                 >
                   <IconDownload />
                   Download Slides
@@ -1187,7 +1212,10 @@ export default function PublicWatchPage() {
               {hasPdf ? (
                 <button
                   className="wp-action-btn"
-                  onClick={() => window.open(video.infographic!.source_pdf_url!, '_blank')}
+                  onClick={() => {
+                    trackEvent(video.id, 'download', { type: 'pdf' })
+                    window.open(video.infographic!.source_pdf_url!, '_blank')
+                  }}
                 >
                   <IconDownload />
                   Download PDF
@@ -1196,6 +1224,7 @@ export default function PublicWatchPage() {
                 <button
                   className="wp-action-btn"
                   onClick={() => {
+                    trackEvent(video.id, 'download', { type: 'script' })
                     const scriptData = video.script as any
                     let scriptText = ''
                     if (Array.isArray(scriptData)) {

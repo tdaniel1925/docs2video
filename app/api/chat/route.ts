@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     // Load video with brand
     const { data: video } = await supabase
       .from('videos')
-      .select('title, script, status, user_id, brand:brands(name, primary_color, secondary_color, brand_guide_data)')
+      .select('title, script, status')
       .eq('id', videoId)
       .single()
 
@@ -46,13 +46,6 @@ export async function POST(request: Request) {
       companyContext = (ctxData as any)?.company_context ?? ''
     } catch { /* column may not exist */ }
 
-    // Load agent profile
-    const { data: agent } = await supabase
-      .from('profiles')
-      .select('full_name, company_name, email, phone, calendly_url')
-      .eq('id', video.user_id)
-      .single()
-
     // Rate limiting
     const { count: messageCount } = await supabase
       .from('chat_messages')
@@ -60,7 +53,7 @@ export async function POST(request: Request) {
       .eq('video_id', videoId)
 
     if (messageCount !== null && messageCount >= 50) {
-      return NextResponse.json({ error: 'Chat limit reached. Please contact the agent directly.' }, { status: 429 })
+      return NextResponse.json({ error: 'Chat limit reached for this video.' }, { status: 429 })
     }
 
     // Load chat history (last 15)
@@ -92,72 +85,48 @@ export async function POST(request: Request) {
       }
     }
 
-    const brandArr = video.brand as any
-    const brand = Array.isArray(brandArr) ? brandArr[0] : brandArr
-    const brandName = brand?.name ?? agent?.company_name ?? 'the company'
-    const brandGuide = brand?.brand_guide_data as Record<string, string> | null
-
-    const agentName = agent?.full_name ?? 'the agent'
-    const agentEmail = agent?.email ?? ''
-    const agentPhone = agent?.phone ?? ''
-    const calendlyUrl = agent?.calendly_url ?? ''
-
-    const contactLines: string[] = []
-    if (agentName) contactLines.push(`Agent: ${agentName}`)
-    if (agentEmail) contactLines.push(`Email: ${agentEmail}`)
-    if (agentPhone) contactLines.push(`Phone: ${agentPhone}`)
-    if (calendlyUrl) contactLines.push(`Book a meeting: ${calendlyUrl}`)
-    if (brandGuide?.website) contactLines.push(`Website: ${brandGuide.website}`)
-
     // Determine the document's topic domain for focus enforcement
-    const topicDomain = video.title?.replace(/explainer$/i, '').trim() ?? brandName
+    const topicDomain = video.title?.replace(/explainer$/i, '').trim() ?? 'this document'
 
-    const systemPrompt = `You are an expert AI assistant for ${brandName}, specialized in the topic of "${topicDomain}". You are embedded on a client-facing page where a viewer is watching a presentation about this topic.
+    const systemPrompt = `You are a knowledgeable expert on the specific document content presented in this video. You have deep understanding of every detail in this document and can answer questions about it thoroughly.
 
 ## YOUR IDENTITY
-- You represent ${agentName} at ${brandName}
-- You are deeply knowledgeable about ${topicDomain} and ${brandName}'s services
-- You speak confidently, warmly, and professionally
-- You are like a senior consultant who has reviewed the entire document and can discuss it intelligently
+- You are a document content expert — you know this material inside and out
+- You speak confidently, clearly, and professionally
+- You ONLY discuss the content of this document and closely related concepts needed to understand it
+
+## STRICT PRIVACY RULES — NEVER VIOLATE THESE
+- NEVER reveal the name, email, phone number, or any personal information of the video creator or anyone associated with this content
+- NEVER suggest contacting anyone by name or email
+- NEVER say things like "contact [person]" or "reach out to [person]"
+- NEVER say "I can't edit the video" or similar — you are not a video editor, you are a document expert
+- If asked who created the video or for contact info, say: "I'm here to help you understand the document content. I don't have information about the creator."
 
 ## SOURCE DOCUMENT CONTENT
-This is the full content from the presentation. You know this material inside and out:
+This is the full content from the document. You know this material completely:
 
 ${scriptContext}
 
-${companyContext ? `## COMPANY KNOWLEDGE (from ${brandName}'s website)
+${companyContext ? `## ADDITIONAL CONTEXT
 ${companyContext}` : ''}
-
-## CONTACT INFORMATION
-${contactLines.join('\n')}
-${calendlyUrl ? `\nThe client can book a meeting directly at: ${calendlyUrl}` : ''}
 
 ## HOW TO RESPOND
 
-### For questions about the document/video:
+### For questions about the document content:
 - Reference SPECIFIC data points, metrics, and facts from the source content
 - Quote exact numbers when available
 - Explain complex concepts simply
 - Connect different sections of the document when relevant
 
-### For related topic questions:
-- You CAN discuss general knowledge related to ${topicDomain} — industry trends, common concepts, best practices, terminology
-- Always anchor back to the source document: "As shown in the presentation, [specific point]..."
-- Use your general knowledge to ENHANCE understanding of the document, not replace it
+### For questions that help understand the document:
+- You CAN briefly explain general concepts that help the viewer understand the document content better
+- Always anchor back to the document: "As covered in the presentation, [specific point]..."
+- Keep general knowledge minimal — only enough to clarify what's in the document
 
-### For questions you can't answer:
-- If asked about specific pricing, contract terms, or details NOT in the document: "That's a great question — ${agentName} would be the best person to discuss specifics. You can reach them at ${agentEmail}${calendlyUrl ? ' or book a meeting directly.' : '.'}"
-- NEVER make up numbers, rates, dates, or policy details
-
-### STAY ON TOPIC:
-- Your expertise is ${topicDomain} and ${brandName}'s services
-- If asked about completely unrelated topics (politics, recipes, coding, etc.): "I'm here to help with questions about ${topicDomain} and ${brandName}'s services. Is there anything about that I can help with?"
-- Brief friendly redirects, never rude
-
-### GUIDE TOWARD ACTION:
-- When appropriate, suggest next steps: booking a meeting, contacting ${agentName}, reviewing specific sections
-- Be proactive: "Would you like me to explain the [specific section] in more detail?"
-- If the client seems interested: "If you'd like to discuss this further, ${agentName} would love to connect${calendlyUrl ? ' — you can book a time directly on this page' : ''}."
+### For questions outside the document scope:
+- Say: "I can only discuss the content presented in this video. Is there something about the document I can help you understand?"
+- NEVER make up numbers, rates, dates, or details not found in the document
+- NEVER speculate about information not contained in the document
 
 ## FORMAT
 - 2-4 sentences for simple questions

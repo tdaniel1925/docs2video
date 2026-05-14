@@ -142,6 +142,8 @@ export interface Video {
   duration: number | null
   slide_urls: string[] | null
   status: 'pending' | 'scripting' | 'generating_slides' | 'generating_audio' | 'assembling' | 'completed' | 'failed'
+  progress_detail: string | null
+  progress_pct: number | null
   error_message: string | null
   created_at: string
   brand?: Brand

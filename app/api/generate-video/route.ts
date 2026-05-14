@@ -9,6 +9,7 @@ import { synthesizeSpeech } from '../../_lib/tts'
 const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || 'docs2video-assembly-secret-2026').trim().replace(/[\r\n]/g, '')
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
+import { sendVideoReadyEmail } from '../../_lib/notifications'
 import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 
@@ -69,25 +70,26 @@ export async function POST(request: Request) {
     if (preGeneratedScenes && preGeneratedScenes.length > 0) {
       console.log(`[video ${videoId}] Using ${preGeneratedScenes.length} pre-generated scenes.`)
       scenes = preGeneratedScenes
-      await admin.from('videos').update({ script: scenes, status: 'generating_audio' }).eq('id', videoId)
+      await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script ready', progress_pct: 15 }).eq('id', videoId)
     } else {
       console.log(`[video ${videoId}] Generating script...`)
-      await admin.from('videos').update({ status: 'scripting' }).eq('id', videoId)
+      await admin.from('videos').update({ status: 'scripting', progress_detail: 'Writing your script...', progress_pct: 5 }).eq('id', videoId)
       scenes = await generateScript(policyData, brand?.name ?? null, colors, detailed ?? false)
-      await admin.from('videos').update({ script: scenes, status: 'generating_audio' }).eq('id', videoId)
+      await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15 }).eq('id', videoId)
     }
 
     // STAGE 2: Generate audio for each scene (sequential to avoid rate limits)
     console.log(`[video ${videoId}] Generating audio for ${scenes.length} scenes...`)
-    await admin.from('videos').update({ status: 'generating_audio' }).eq('id', videoId)
+    await admin.from('videos').update({ status: 'generating_audio', progress_detail: `Generating narration audio... (0 of ${scenes.length})`, progress_pct: 15 }).eq('id', videoId)
     const audioBuffers: Buffer[] = []
     for (let i = 0; i < scenes.length; i++) {
       console.log(`[video ${videoId}] Audio ${i + 1}/${scenes.length}...`)
+      await admin.from('videos').update({ progress_detail: `Generating narration audio... (${i + 1} of ${scenes.length})`, progress_pct: 15 + Math.round((i + 1) / scenes.length * 20) }).eq('id', videoId)
       const buf = await synthesizeSpeech(scenes[i].narration, voiceId)
       audioBuffers.push(buf)
     }
     console.log(`[video ${videoId}] Audio done — ${audioBuffers.length} clips.`)
-    await admin.from('videos').update({ status: 'generating_slides' }).eq('id', videoId)
+    await admin.from('videos').update({ status: 'generating_slides', progress_detail: `Creating slides... (0 of ${scenes.length})`, progress_pct: 35 }).eq('id', videoId)
     if (jobId) await updateJobProgress(admin, jobId, 40, 'running')
 
     // Get agent photo for compositing
@@ -136,6 +138,7 @@ export async function POST(request: Request) {
       // BRAND CONSISTENCY: Generate slide 1 first, then use it as reference for all others
       // This ensures all slides share the same visual identity
       console.log(`[video ${videoId}] Generating slide 1 (master style)...`)
+      await admin.from('videos').update({ progress_detail: `Creating slides... (1 of ${scenes.length})`, progress_pct: 38 }).eq('id', videoId)
       let masterSlideBuffer: Buffer | null = null
 
       // Generate slide 1 (cover) — establishes the visual identity
@@ -157,6 +160,8 @@ export async function POST(request: Request) {
         for (let i = 1; i < scenes.length; i += 3) {
           const batch = scenes.slice(i, Math.min(i + 3, scenes.length))
           console.log(`[video ${videoId}] Slide batch ${Math.floor(i / 3) + 1} (slides ${i + 1}-${Math.min(i + 3, scenes.length)})...`)
+          const slidePct = 38 + Math.round((i / scenes.length) * 35)
+          await admin.from('videos').update({ progress_detail: `Creating slides... (${i} of ${scenes.length})`, progress_pct: slidePct }).eq('id', videoId)
           const batchResults = await Promise.all(
             batch.map(async (scene: any, j: number) => {
               const idx = i + j
@@ -172,11 +177,14 @@ export async function POST(request: Request) {
             })
           )
           slideBuffers.push(...batchResults)
+          const doneCount = Math.min(i + 3, scenes.length)
+          const donePct = 38 + Math.round((doneCount / scenes.length) * 35)
+          await admin.from('videos').update({ progress_detail: `Creating slides... (${doneCount} of ${scenes.length})`, progress_pct: donePct }).eq('id', videoId)
         }
       }
     }
     console.log(`[video ${videoId}] Slides done.`)
-    await admin.from('videos').update({ status: 'assembling' }).eq('id', videoId)
+    await admin.from('videos').update({ status: 'assembling', progress_detail: 'Assembling your video...', progress_pct: 75 }).eq('id', videoId)
     if (jobId) await updateJobProgress(admin, jobId, 75, 'running')
 
     // STAGE 4: Assemble video via VPS
@@ -234,6 +242,7 @@ export async function POST(request: Request) {
     }
 
     console.log(`[video ${videoId}] VPS assembly complete.`)
+    await admin.from('videos').update({ progress_detail: 'Uploading final video...', progress_pct: 90 }).eq('id', videoId)
 
     // Upload individual slides for PDF/PPTX download
     const slideUrls: string[] = []
@@ -250,6 +259,8 @@ export async function POST(request: Request) {
       duration: assemblyResult.totalDuration,
       status: 'completed',
       slide_urls: slideUrls,
+      progress_detail: null,
+      progress_pct: 100,
     }).eq('id', videoId)
 
     // Log to unified creations table (non-blocking)
@@ -304,6 +315,17 @@ export async function POST(request: Request) {
       message: `Your video "${videoTitle}" has been generated successfully.`,
       link: `/videos/${videoId}`,
     })
+
+    // Send email notification that video is ready
+    try {
+      const { data: creatorProfile } = await admin.from('profiles').select('email').eq('id', user.id).single()
+      if (creatorProfile?.email) {
+        const videoPageUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://docs2video.com'}/videos/${videoId}`
+        await sendVideoReadyEmail(creatorProfile.email, videoTitle, videoPageUrl)
+      }
+    } catch (emailErr) {
+      console.error(`[video ${videoId}] Video ready email failed:`, emailErr)
+    }
 
     console.log(`[video ${videoId}] Complete!`)
     return NextResponse.json({ success: true })
