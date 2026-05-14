@@ -1,52 +1,142 @@
 /**
- * Pay-per-project pricing with optional Pro membership discount.
- * No credits system — users pay per project.
+ * 4-tier pricing: Pay Per Project, Pro ($25/mo), Business ($99/mo), Agency ($249/mo)
+ *
+ * Pay Per Project: $10 per video, deck, or infographic. Courses $249 each.
+ * Pro ($25/mo): 40% off per-project ($6 each). Courses $149 each.
+ * Business ($99/mo): Unlimited videos, decks, infographics. No courses.
+ * Agency ($249/mo): Everything unlimited + 5 courses/month.
  */
 
-export const PRO_MONTHLY_PRICE = 2500 // $25.00 in cents
-export const PRO_DISCOUNT = 0.40 // 40% off for Pro members
+export type PlanTier = 'free' | 'pro' | 'business' | 'agency'
+
+export interface PlanInfo {
+  tier: PlanTier
+  label: string
+  monthlyPrice: number // cents
+  description: string
+  features: string[]
+  coursesPerMonth: number // 0 = pay per project, -1 = not available
+  unlimitedProjects: boolean
+}
+
+export const PLANS: PlanInfo[] = [
+  {
+    tier: 'free',
+    label: 'Pay Per Project',
+    monthlyPrice: 0,
+    description: 'No subscription required',
+    features: [
+      '$10 per video, deck, or infographic',
+      'Full quality, no watermark',
+      'Share pages with AI chat',
+      'Download MP4, PDF, PPTX',
+    ],
+    coursesPerMonth: 0, // pay per course
+    unlimitedProjects: false,
+  },
+  {
+    tier: 'pro',
+    label: 'Pro',
+    monthlyPrice: 2500, // $25
+    description: '40% off every project',
+    features: [
+      '$6 per video, deck, or infographic',
+      '$149 per video course',
+      'Priority generation',
+      'Unlimited brands',
+    ],
+    coursesPerMonth: 0, // pay per course at discount
+    unlimitedProjects: false,
+  },
+  {
+    tier: 'business',
+    label: 'Business',
+    monthlyPrice: 9900, // $99
+    description: 'Unlimited creation',
+    features: [
+      'Unlimited videos, decks, infographics',
+      'Everything in Pro',
+      'No per-project fees',
+      'Priority support',
+    ],
+    coursesPerMonth: -1, // courses not included
+    unlimitedProjects: true,
+  },
+  {
+    tier: 'agency',
+    label: 'Agency',
+    monthlyPrice: 24900, // $249
+    description: 'Everything unlimited',
+    features: [
+      'Everything in Business',
+      '5 video courses per month',
+      'Team sharing (coming soon)',
+      'White-label options (coming soon)',
+    ],
+    coursesPerMonth: 5,
+    unlimitedProjects: true,
+  },
+]
 
 export interface ProjectPrice {
   type: string
   label: string
   description: string
-  basePrice: number // cents
-  proPrice: number // cents
-  costEstimate: number // our estimated API cost in cents
+  basePrice: number // cents — pay-per-project price
+  proPrice: number // cents — Pro member price
 }
 
 export const PROJECT_PRICES: ProjectPrice[] = [
-  { type: 'video', label: 'Video Explainer', description: 'Narrated video + branded slides + share page + AI chatbot', basePrice: 2900, proPrice: 1700, costEstimate: 200 },
-  { type: 'video-detailed', label: 'Video (Detailed)', description: '5-7 minute deep dive explainer', basePrice: 3900, proPrice: 2300, costEstimate: 300 },
-  { type: 'deck', label: 'Slide Deck', description: 'Editable PPTX with AI backgrounds (no audio)', basePrice: 1900, proPrice: 1100, costEstimate: 250 },
-  { type: 'course', label: 'Video Course (10 episodes)', description: 'Complete multi-episode training series', basePrice: 24900, proPrice: 14900, costEstimate: 2000 },
-  { type: 'brand-kit', label: 'Brand Kit', description: 'Logo + business cards + social kit + landing page + brand guide', basePrice: 14900, proPrice: 8900, costEstimate: 500 },
-  { type: 'logo', label: 'Logo Design (4 concepts)', description: 'AI designer creates 4 logo options + SVG vector files', basePrice: 4900, proPrice: 2900, costEstimate: 100 },
-  { type: 'social-kit', label: 'Social Media Kit', description: '20+ images for all platforms', basePrice: 3900, proPrice: 2300, costEstimate: 100 },
-  { type: 'infographic', label: 'Infographic', description: 'Professional data visualization', basePrice: 1900, proPrice: 1100, costEstimate: 30 },
-  { type: 'business-card', label: 'Business Card', description: 'Front + back at 300 DPI, print-ready', basePrice: 1900, proPrice: 1100, costEstimate: 40 },
-  { type: 'flyer', label: 'Flyer', description: 'Professional flyer design', basePrice: 1500, proPrice: 900, costEstimate: 30 },
-  { type: 'email-signature', label: 'Email Signature', description: 'Professional HTML email signature', basePrice: 900, proPrice: 500, costEstimate: 10 },
-  { type: 'headshot', label: 'AI Headshot', description: 'Professional headshot from casual photo', basePrice: 1900, proPrice: 1100, costEstimate: 30 },
-  { type: 'image-remix', label: 'Image Remix', description: 'AI redesign of any image', basePrice: 500, proPrice: 300, costEstimate: 20 },
-  { type: 'style-upgrade', label: 'Style Upgrade', description: 'Choose from premium style gallery', basePrice: 500, proPrice: 0, costEstimate: 0 },
+  { type: 'video', label: 'Video Explainer', description: 'Narrated video + share page', basePrice: 1000, proPrice: 600 },
+  { type: 'deck', label: 'Slide Deck', description: 'Editable PPTX, no audio', basePrice: 1000, proPrice: 600 },
+  { type: 'infographic', label: 'Infographic', description: 'Data visualization', basePrice: 1000, proPrice: 600 },
+  { type: 'course', label: 'Video Course', description: 'Multi-episode series', basePrice: 24900, proPrice: 14900 },
 ]
 
 export function getProjectPrice(type: string): ProjectPrice | undefined {
   return PROJECT_PRICES.find(p => p.type === type)
 }
 
-export function getUserPrice(type: string, isPro: boolean): number {
+export function getPlan(tier: PlanTier): PlanInfo {
+  return PLANS.find(p => p.tier === tier) ?? PLANS[0]
+}
+
+export function getUserTier(subscriptionStatus: string | null): PlanTier {
+  const status = (subscriptionStatus ?? '').toLowerCase()
+  if (['agency'].includes(status)) return 'agency'
+  if (['business', 'unlimited'].includes(status)) return 'business'
+  if (['pro', 'professional', 'active'].includes(status)) return 'pro'
+  return 'free'
+}
+
+export function getUserPrice(type: string, subscriptionStatus: string | null): number {
+  const tier = getUserTier(subscriptionStatus)
   const price = getProjectPrice(type)
   if (!price) return 0
-  return isPro ? price.proPrice : price.basePrice
+
+  // Business and Agency get unlimited videos/decks/infographics (not courses)
+  if ((tier === 'business' || tier === 'agency') && type !== 'course') return 0
+
+  // Agency gets courses included (up to 5/mo — enforcement elsewhere)
+  if (tier === 'agency' && type === 'course') return 0
+
+  // Pro gets discounted price
+  if (tier === 'pro') return price.proPrice
+
+  return price.basePrice
 }
 
 export function formatPrice(cents: number): string {
+  if (cents === 0) return 'Free'
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100)
 }
 
 export function isProMember(subscriptionStatus: string | null): boolean {
-  const proStatuses = ['pro', 'professional', 'active', 'agency']
-  return proStatuses.includes((subscriptionStatus ?? '').toLowerCase())
+  const tier = getUserTier(subscriptionStatus)
+  return tier !== 'free'
+}
+
+export function isUnlimited(subscriptionStatus: string | null): boolean {
+  const tier = getUserTier(subscriptionStatus)
+  return tier === 'business' || tier === 'agency'
 }

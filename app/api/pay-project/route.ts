@@ -31,8 +31,9 @@ export async function POST(request: Request) {
     .eq('id', user.id)
     .single()
 
-  const isPro = isProMember(profile?.subscription_status ?? null)
-  const price = getUserPrice(projectType, isPro)
+  const subStatus = profile?.subscription_status ?? null
+  const isPro = isProMember(subStatus)
+  const price = getUserPrice(projectType, subStatus)
 
   const origin = request.headers.get('origin') ?? 'https://docs2video.com'
 
@@ -118,8 +119,9 @@ export async function GET(request: Request) {
     .eq('id', user.id)
     .single()
 
-  const isPro = isProMember(profile?.subscription_status ?? null)
-  const price = getUserPrice(projectType, isPro)
+  const subStatus = profile?.subscription_status ?? null
+  const isPro = isProMember(subStatus)
+  const price = getUserPrice(projectType, subStatus)
   const projectInfo = getProjectPrice(projectType)
 
   return NextResponse.json({

@@ -476,59 +476,65 @@ export default function HomePage() {
           <div style={{textAlign:'center',marginBottom:50}}>
             <div className="section-eyebrow">Pricing</div>
             <h2 className="section-title">Simple, transparent <em>pricing</em></h2>
-            <p className="section-sub" style={{maxWidth:500,margin:'0 auto'}}>Pay per project. No subscriptions required. Go Pro to save 40% on everything.</p>
+            <p className="section-sub" style={{maxWidth:600,margin:'0 auto'}}>Start with 2 free projects. Then pay per project or go unlimited.</p>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:32,maxWidth:900,margin:'0 auto'}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4, 1fr)',gap:20,maxWidth:1100,margin:'0 auto'}}>
             {/* Pay Per Project */}
-            <div className="pricing-card" style={{padding:32}}>
+            <div className="pricing-card" style={{padding:24}}>
               <div className="pricing-name">Pay Per Project</div>
-              <div style={{marginTop:20}}>
-                {[
-                  { name: 'Video Explainer', price: '$29', desc: 'Narrated video + share page' },
-                  { name: 'Slide Deck', price: '$19', desc: 'Editable PPTX, no audio' },
-                  { name: 'Video Course', price: '$249', desc: 'Multi-episode series' },
-                  { name: 'Infographic', price: '$19', desc: 'Data visualization' },
-                ].map(item => (
-                  <div key={item.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 0',borderBottom:'1px solid var(--border)'}}>
-                    <div>
-                      <div style={{fontSize:14,fontWeight:600,color:'var(--ink)'}}>{item.name}</div>
-                      <div style={{fontSize:12,color:'var(--ink-soft)',marginTop:2}}>{item.desc}</div>
-                    </div>
-                    <span style={{fontSize:16,fontWeight:800,color:'var(--ink)'}}>{item.price}</span>
-                  </div>
-                ))}
-              </div>
-              <Link href="/signup" className="btn btn-mint btn-full" style={{marginTop:24}}>Get Started &rarr;</Link>
+              <div className="pricing-price">$10</div>
+              <div className="pricing-period">per project</div>
+              <ul className="pricing-features">
+                <li>Videos, decks, infographics</li>
+                <li>Full quality, no watermark</li>
+                <li>Share pages with AI chat</li>
+                <li>Download MP4, PDF, PPTX</li>
+              </ul>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:16}}>Video courses: $249 each</div>
+              <Link href="/signup" className="btn btn-mint btn-full">Get Started &rarr;</Link>
             </div>
-            {/* Pro Membership */}
-            <div className="pricing-card popular" style={{padding:32}}>
-              <div className="pricing-badge">Best value</div>
-              <div className="pricing-name">Pro Membership</div>
+            {/* Pro */}
+            <div className="pricing-card" style={{padding:24}}>
+              <div className="pricing-name">Pro</div>
               <div className="pricing-price">$25</div>
               <div className="pricing-period">per month</div>
               <ul className="pricing-features">
-                <li>40% off every project</li>
-                <li>Priority support</li>
+                <li>$6 per video, deck, or infographic</li>
+                <li>$149 per video course</li>
+                <li>Priority generation</li>
                 <li>Unlimited brands</li>
-                <li>HD quality, no watermark</li>
               </ul>
-              <div style={{background:'var(--surface)',borderRadius:10,padding:16,margin:'16px 0',border:'1px solid var(--border)'}}>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                  {[
-                    { name: 'Video Explainer', base: '$29', pro: '$17' },
-                    { name: 'Slide Deck', base: '$19', pro: '$11' },
-                    { name: 'Video Course', base: '$249', pro: '$149' },
-                    { name: 'Infographic', base: '$19', pro: '$11' },
-                  ].map(item => (
-                    <div key={item.name} style={{textAlign:'center'}}>
-                      <div style={{fontSize:11,color:'var(--ink-soft)'}}>{item.name}</div>
-                      <div style={{fontSize:11,color:'var(--ink-soft)',textDecoration:'line-through'}}>{item.base}</div>
-                      <div style={{fontSize:16,fontWeight:800,color:'var(--mint-darker, #0d9488)'}}>{item.pro}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:16}}>Save 40% on every project</div>
               <Link href="/signup" className="btn btn-primary btn-full">Go Pro &rarr;</Link>
+            </div>
+            {/* Business */}
+            <div className="pricing-card popular" style={{padding:24}}>
+              <div className="pricing-badge">Most popular</div>
+              <div className="pricing-name">Business</div>
+              <div className="pricing-price">$99</div>
+              <div className="pricing-period">per month</div>
+              <ul className="pricing-features">
+                <li>Unlimited videos, decks, infographics</li>
+                <li>No per-project fees</li>
+                <li>Priority support</li>
+                <li>Everything in Pro</li>
+              </ul>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:16}}>Courses available at $149 each</div>
+              <Link href="/signup" className="btn btn-primary btn-full">Go Unlimited &rarr;</Link>
+            </div>
+            {/* Agency */}
+            <div className="pricing-card" style={{padding:24}}>
+              <div className="pricing-name">Agency</div>
+              <div className="pricing-price">$249</div>
+              <div className="pricing-period">per month</div>
+              <ul className="pricing-features">
+                <li>Everything in Business</li>
+                <li>5 video courses per month</li>
+                <li>Team sharing (coming soon)</li>
+                <li>White-label (coming soon)</li>
+              </ul>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:16}}>Everything unlimited</div>
+              <Link href="/signup" className="btn btn-primary btn-full">Go Agency &rarr;</Link>
             </div>
           </div>
         </section>
