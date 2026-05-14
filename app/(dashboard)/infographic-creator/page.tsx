@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import BrandStylePicker from '../../_components/BrandStylePicker'
 
 type Step = 'content' | 'style' | 'results'
@@ -155,6 +156,16 @@ export default function InfographicCreatorPage() {
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '32px 16px' }}>
+      {/* Coming Soon gate */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '32px 24px', textAlign: 'center', marginBottom: 32 }}>
+        <h2 style={{ marginBottom: 8 }}>Coming Soon</h2>
+        <p style={{ color: 'var(--ink-soft)', fontSize: 15, marginBottom: 16 }}>
+          This feature is coming soon. You&apos;ll be notified when it&apos;s available.
+        </p>
+        <Link href="/dashboard" className="btn btn-soft">Back to Dashboard</Link>
+      </div>
+
+      <div style={{ display: 'none' }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
         Infographic Creator
       </h1>
@@ -436,6 +447,7 @@ export default function InfographicCreatorPage() {
           )}
         </div>
       )}
+      </div>{/* end hidden div */}
     </div>
   )
 }

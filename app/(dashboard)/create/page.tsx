@@ -1297,87 +1297,166 @@ export default function CreatePage() {
             ) : extractedData && !isGeneralData ? (
               <>
                 <div className="extracted-grid">
-                  <div className="data-card">
-                    <div className="data-label">Policy Type</div>
-                    <div className="data-value">{extractedData?.policyType}</div>
-                  </div>
-                  <div className="data-card">
-                    <div className="data-label">Source</div>
-                    <div className="data-value">{extractedData?.carrier}</div>
-                  </div>
-                  <div className="data-card">
-                    <div className="data-label">Insured</div>
-                    <div className="data-value">{extractedData?.insuredName}</div>
-                  </div>
-                  <div className="data-card">
-                    <div className="data-label">Death Benefit</div>
-                    <div className="data-value mint">{formatCurrency(extractedData?.deathBenefit ?? 0)}</div>
-                  </div>
-                  <div className="data-card">
-                    <div className="data-label">Annual Premium</div>
-                    <div className="data-value mint">{formatCurrency(extractedData?.annualPremium ?? 0)}</div>
-                  </div>
-                  <div className="data-card">
-                    <div className="data-label">Payment Mode</div>
-                    <div className="data-value">{extractedData?.paymentMode}</div>
-                  </div>
+                  {[
+                    { label: 'Policy Type', key: 'policyType', value: extractedData.policyType },
+                    { label: 'Source', key: 'carrier', value: extractedData.carrier },
+                    { label: 'Insured', key: 'insuredName', value: extractedData.insuredName },
+                    { label: 'Death Benefit', key: 'deathBenefit', value: String(extractedData.deathBenefit), isCurrency: true },
+                    { label: 'Annual Premium', key: 'annualPremium', value: String(extractedData.annualPremium), isCurrency: true },
+                    { label: 'Payment Mode', key: 'paymentMode', value: extractedData.paymentMode },
+                  ].map(field => (
+                    <div key={field.key} className="data-card">
+                      <div className="data-label">{field.label}</div>
+                      {reviewEditing ? (
+                        <input
+                          className="input"
+                          style={{ fontSize: 14, fontWeight: 600, padding: '6px 10px' }}
+                          value={field.value}
+                          onChange={e => {
+                            const val = field.isCurrency ? Number(e.target.value.replace(/[^0-9.]/g, '')) : e.target.value
+                            setExtractedData(prev => prev ? { ...prev, [field.key]: val } : prev)
+                          }}
+                        />
+                      ) : (
+                        <div className={`data-value${field.isCurrency ? ' mint' : ''}`}>
+                          {field.isCurrency ? formatCurrency(Number(field.value) || 0) : field.value}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                {(extractedData?.riders ?? []).length > 0 && (
-                  <div style={{ marginTop: 24 }}>
-                    <div className="data-label" style={{ marginBottom: 10 }}>Riders</div>
+                {/* Riders */}
+                <div style={{ marginTop: 24 }}>
+                  <div className="data-label" style={{ marginBottom: 10 }}>Riders</div>
+                  {reviewEditing ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {(extractedData.riders ?? []).map((r, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 6 }}>
+                          <input
+                            className="input"
+                            style={{ flex: 1, fontSize: 13, padding: '6px 10px' }}
+                            value={r}
+                            onChange={e => {
+                              const updated = [...(extractedData.riders ?? [])]
+                              updated[i] = e.target.value
+                              setExtractedData(prev => prev ? { ...prev, riders: updated } : prev)
+                            }}
+                          />
+                          <button className="btn btn-soft btn-sm" onClick={() => {
+                            const updated = (extractedData.riders ?? []).filter((_, j) => j !== i)
+                            setExtractedData(prev => prev ? { ...prev, riders: updated } : prev)
+                          }}>x</button>
+                        </div>
+                      ))}
+                      <button className="btn btn-soft btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => {
+                        setExtractedData(prev => prev ? { ...prev, riders: [...(prev.riders ?? []), ''] } : prev)
+                      }}>+ Add rider</button>
+                    </div>
+                  ) : (extractedData.riders ?? []).length > 0 ? (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {(extractedData?.riders ?? []).map((r, i) => (
+                      {(extractedData.riders ?? []).map((r, i) => (
                         <span key={i} className="tag">{r}</span>
                       ))}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div style={{ fontSize: 13, color: 'var(--ink-light)' }}>None detected</div>
+                  )}
+                </div>
               </>
             ) : isGeneralData && generalData ? (
               <>
                 <div style={{ marginBottom: 20 }}>
-                  <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{generalData?.title}</h3>
-                  {generalData?.subtitle && (
-                    <p style={{ fontSize: 15, color: 'var(--ink-soft)', margin: 0 }}>{generalData?.subtitle}</p>
-                  )}
-                  {generalData?.source && (
-                    <p style={{ fontSize: 13, color: 'var(--ink-light)', margin: '6px 0 0' }}>Source: {generalData?.source}</p>
+                  {reviewEditing ? (
+                    <>
+                      <input className="input" style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }} value={generalData.title} onChange={e => setGeneralData(prev => prev ? { ...prev, title: e.target.value } : prev)} placeholder="Title" />
+                      <input className="input" style={{ fontSize: 14, marginBottom: 6 }} value={generalData.subtitle ?? ''} onChange={e => setGeneralData(prev => prev ? { ...prev, subtitle: e.target.value || null } : prev)} placeholder="Subtitle (optional)" />
+                      <input className="input" style={{ fontSize: 13 }} value={generalData.source ?? ''} onChange={e => setGeneralData(prev => prev ? { ...prev, source: e.target.value || null } : prev)} placeholder="Source (optional)" />
+                    </>
+                  ) : (
+                    <>
+                      <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{generalData.title}</h3>
+                      {generalData.subtitle && <p style={{ fontSize: 15, color: 'var(--ink-soft)', margin: 0 }}>{generalData.subtitle}</p>}
+                      {generalData.source && <p style={{ fontSize: 13, color: 'var(--ink-light)', margin: '6px 0 0' }}>Source: {generalData.source}</p>}
+                    </>
                   )}
                 </div>
-                {(generalData?.keyMetrics ?? []).length > 0 && (
+                {/* Key Metrics */}
+                {(generalData.keyMetrics ?? []).length > 0 && (
                   <div className="extracted-grid">
-                    {(generalData?.keyMetrics ?? []).map((m, i) => (
+                    {(generalData.keyMetrics ?? []).map((m, i) => (
                       <div key={i} className="data-card">
-                        <div className="data-label">{m.label}</div>
-                        <div className={`data-value${m.highlight ? ' mint' : ''}`}>{m.value}</div>
+                        {reviewEditing ? (
+                          <>
+                            <input className="input" style={{ fontSize: 12, fontWeight: 600, padding: '4px 8px', marginBottom: 4 }} value={m.label} onChange={e => {
+                              const updated = [...generalData.keyMetrics]; updated[i] = { ...m, label: e.target.value }; setGeneralData(prev => prev ? { ...prev, keyMetrics: updated } : prev)
+                            }} />
+                            <input className="input" style={{ fontSize: 14, fontWeight: 700, padding: '4px 8px' }} value={m.value} onChange={e => {
+                              const updated = [...generalData.keyMetrics]; updated[i] = { ...m, value: e.target.value }; setGeneralData(prev => prev ? { ...prev, keyMetrics: updated } : prev)
+                            }} />
+                          </>
+                        ) : (
+                          <>
+                            <div className="data-label">{m.label}</div>
+                            <div className={`data-value${m.highlight ? ' mint' : ''}`}>{m.value}</div>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
                 )}
-                {(generalData?.sections ?? []).length > 0 && (
+                {/* Sections */}
+                {(generalData.sections ?? []).length > 0 && (
                   <div style={{ marginTop: 24, display: 'grid', gap: 12 }}>
-                    {(generalData?.sections ?? []).map((s, i) => (
-                      <div key={i} style={{
-                        background: 'var(--surface-raised, #f8fafc)',
-                        borderRadius: 10, padding: '16px 20px',
-                        border: '1px solid var(--border, #e2e8f0)',
-                      }}>
-                        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{s.title}</div>
-                        <div style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.6 }}>{s.content}</div>
+                    {(generalData.sections ?? []).map((s, i) => (
+                      <div key={i} style={{ background: 'var(--surface-raised, #f8fafc)', borderRadius: 10, padding: '16px 20px', border: '1px solid var(--border, #e2e8f0)' }}>
+                        {reviewEditing ? (
+                          <>
+                            <input className="input" style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, padding: '4px 8px' }} value={s.title} onChange={e => {
+                              const updated = [...generalData.sections]; updated[i] = { ...s, title: e.target.value }; setGeneralData(prev => prev ? { ...prev, sections: updated } : prev)
+                            }} />
+                            <textarea className="input" style={{ fontSize: 14, lineHeight: 1.6, minHeight: 60, resize: 'vertical', padding: '6px 8px' }} value={s.content} onChange={e => {
+                              const updated = [...generalData.sections]; updated[i] = { ...s, content: e.target.value }; setGeneralData(prev => prev ? { ...prev, sections: updated } : prev)
+                            }} />
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{s.title}</div>
+                            <div style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.6 }}>{s.content}</div>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
                 )}
-                {(generalData?.bulletPoints ?? []).length > 0 && (
-                  <div style={{ marginTop: 24 }}>
-                    <div className="data-label" style={{ marginBottom: 10 }}>Key Takeaways</div>
+                {/* Bullet Points */}
+                <div style={{ marginTop: 24 }}>
+                  <div className="data-label" style={{ marginBottom: 10 }}>Key Takeaways</div>
+                  {reviewEditing ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {(generalData.bulletPoints ?? []).map((bp, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 6 }}>
+                          <input className="input" style={{ flex: 1, fontSize: 13, padding: '6px 10px' }} value={bp} onChange={e => {
+                            const updated = [...(generalData.bulletPoints ?? [])]; updated[i] = e.target.value; setGeneralData(prev => prev ? { ...prev, bulletPoints: updated } : prev)
+                          }} />
+                          <button className="btn btn-soft btn-sm" onClick={() => {
+                            const updated = (generalData.bulletPoints ?? []).filter((_, j) => j !== i); setGeneralData(prev => prev ? { ...prev, bulletPoints: updated } : prev)
+                          }}>x</button>
+                        </div>
+                      ))}
+                      <button className="btn btn-soft btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => {
+                        setGeneralData(prev => prev ? { ...prev, bulletPoints: [...(prev.bulletPoints ?? []), ''] } : prev)
+                      }}>+ Add takeaway</button>
+                    </div>
+                  ) : (generalData.bulletPoints ?? []).length > 0 ? (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {(generalData?.bulletPoints ?? []).map((bp, i) => (
+                      {(generalData.bulletPoints ?? []).map((bp, i) => (
                         <span key={i} className="tag">{bp}</span>
                       ))}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div style={{ fontSize: 13, color: 'var(--ink-light)' }}>None detected</div>
+                  )}
+                </div>
               </>
             ) : null}
 

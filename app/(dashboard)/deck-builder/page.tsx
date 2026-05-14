@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import Link from 'next/link'
 import BrandStylePicker from '../../_components/BrandStylePicker'
 
 /* ------------------------------------------------------------------ */
@@ -336,6 +337,17 @@ export default function DeckBuilderPage() {
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
+      {/* Coming Soon gate */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '32px 24px', textAlign: 'center', marginBottom: 32 }}>
+        <h2 style={{ marginBottom: 8 }}>Coming Soon</h2>
+        <p style={{ color: 'var(--ink-soft)', fontSize: 15, marginBottom: 16 }}>
+          This feature is coming soon. You&apos;ll be notified when it&apos;s available.
+        </p>
+        <Link href="/dashboard" className="btn btn-soft">Back to Dashboard</Link>
+      </div>
+
+      {/* Original page content hidden */}
+      <div style={{ display: 'none' }}>
       {/* Page header */}
       <div className="page-head">
         <div>
@@ -1104,6 +1116,7 @@ export default function DeckBuilderPage() {
           </div>
         </div>
       )}
+      </div>{/* end hidden div */}
     </div>
   )
 }

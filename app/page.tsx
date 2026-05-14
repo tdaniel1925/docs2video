@@ -11,6 +11,18 @@ import IndustryMegaMenu from './_components/IndustryMegaMenu'
 export default function HomePage() {
   return (
     <>
+      {/* ───── Coming Soon Banner ───── */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 1000,
+        background: 'var(--mint)', textAlign: 'center',
+        padding: '10px 16px', fontSize: 14, fontWeight: 600,
+        color: 'var(--ink)',
+      }}>
+        <Link href="/signup" style={{ color: 'var(--ink)', textDecoration: 'none' }}>
+          Coming Soon — Sign up for early access and get 2 free explainer videos
+        </Link>
+      </div>
+
       <div id="top" className="container">
 
         {/* ───── Nav ───── */}

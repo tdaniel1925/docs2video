@@ -11,9 +11,6 @@ const ADMIN_EMAIL = 'trenttdaniel@gmail.com'
 
 const CREATE_ITEMS_LIST = [
   { href: '/create', icon: '\uD83D\uDCF9', title: 'Video Explainer', desc: '$29 — Narrated video + share page' },
-  { href: '/deck-builder', icon: '\uD83D\uDCDD', title: 'Slide Deck', desc: '$19 — Editable PPTX, no audio' },
-  { href: '/course-builder', icon: '\uD83C\uDF93', title: 'Video Course', desc: '$249 — Multi-episode series' },
-  { href: '/infographic-creator', icon: '\uD83D\uDCCA', title: 'Infographic', desc: '$19 — Data visualization' },
 ]
 
 // Flat list for route matching
@@ -75,37 +72,13 @@ export default function Header({ profile }: { profile: Profile }) {
               Dashboard
             </Link>
 
-            {/* Create dropdown */}
-            <div ref={createRef} style={{ position: 'relative' }}>
-              <button
-                onClick={() => setCreateOpen(!createOpen)}
-                className={`app-nav-btn${isCreateActive ? ' active' : ''}`}
-                type="button"
-              >
-                Create
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginLeft: 2 }}>
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              {createOpen && (
-                <div className="create-dropdown">
-                  {CREATE_ITEMS_LIST.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="create-dropdown-item"
-                      onClick={() => setCreateOpen(false)}
-                    >
-                      <div className="create-dropdown-icon">{item.icon}</div>
-                      <div>
-                        <div className="create-dropdown-text">{item.title}</div>
-                        <div className="create-dropdown-desc">{item.desc}</div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Create — direct link (single product) */}
+            <Link
+              href="/create"
+              className={isCreateActive ? 'active' : ''}
+            >
+              Create Explainer
+            </Link>
 
             {/* Other nav links */}
             {NAV_LINKS.slice(1).map((link) => (
@@ -226,12 +199,9 @@ export default function Header({ profile }: { profile: Profile }) {
       {mobileOpen && (
         <div className="mobile-menu">
           <Link href="/dashboard" className={pathname === '/dashboard' ? 'active' : ''}>Dashboard</Link>
-          {CREATE_ITEMS.map((item) => (
-            <Link key={item.href} href={item.href} className={pathname === item.href ? 'active' : ''}>
-              <span style={{ marginRight: 8 }}>{item.icon}</span>
-              {item.title}
-            </Link>
-          ))}
+          <Link href="/create" className={pathname === '/create' || pathname.startsWith('/create/') ? 'active' : ''}>
+            Create Explainer
+          </Link>
           <Link href="/videos" className={pathname === '/videos' ? 'active' : ''}>Library</Link>
           <Link href="/brands" className={pathname === '/brands' ? 'active' : ''}>Brands</Link>
           <Link href="/settings" className={pathname === '/settings' ? 'active' : ''}>Settings</Link>
