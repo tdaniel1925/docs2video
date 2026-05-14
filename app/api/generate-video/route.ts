@@ -91,18 +91,9 @@ export async function POST(request: Request) {
     const { data: agentProfile } = await admin.from('profiles').select('photo_url, photo_standing_url').eq('id', user.id).single()
     const photoUrl = agentProfile?.photo_url ?? null
     const standingPhotoUrl = agentProfile?.photo_standing_url ?? null
-    const logoUrl = brand?.logo_file_url ?? brand?.logo_url ?? null
-
-    // Download logo image for Gemini integration
-    let logoBuffer: Buffer | null = null
-    if (logoUrl) {
-      try {
-        const logoRes = await fetch(logoUrl, { signal: AbortSignal.timeout(8000) })
-        if (logoRes.ok) logoBuffer = Buffer.from(await logoRes.arrayBuffer())
-      } catch {
-        console.log(`[video ${videoId}] Could not download logo, proceeding without it`)
-      }
-    }
+    // No logos on slides — company info goes in bottom bar text only
+    const logoUrl: string | null = null
+    const logoBuffer: Buffer | null = null
 
     // Download brand reference slides if available (for visual consistency)
     const refSlideUrls = brand?.reference_slides ?? null

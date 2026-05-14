@@ -143,8 +143,7 @@ STRICT RULES (MUST FOLLOW):
 BRAND-FREE ZONE (CRITICAL):
 - DO NOT include ANY company name, brand name, logo, lettermark, monogram, emblem, or brand mark ANYWHERE
 - DO NOT write any company name as text on the slide — not in headers, corners, or anywhere
-- The TOP-LEFT 300x100px area must be EMPTY or have simple background — a logo overlay goes there
-- The BOTTOM 60px must be EMPTY or have simple background — a branded info bar goes there
+- Use the FULL canvas for your design — do not leave any empty areas, reserved zones, or placeholder spaces
 - Focus ONLY on the CONTENT: data, metrics, charts, icons, section headings, and visual storytelling
 - Use TOPICAL icons (gears, globes, charts, industry symbols) for visual interest — never brand marks
 ${isFirstSlide && hasPhoto ? `\n- Reserve a clean area (~200x200px) in the BOTTOM-RIGHT corner for a photo overlay. Keep it clear of important content.` : ''}`
@@ -335,8 +334,7 @@ ${visualContent}
 - Fill the ENTIRE canvas — no black bars or empty borders
 - All text must be large enough to read on a phone (minimum 36pt equivalent)
 - Use ONLY the design style described above — do not switch to a generic corporate look
-- TOP-LEFT 300x100px must be empty (logo overlay goes there later)
-- BOTTOM 60px must be empty (info bar overlay goes there later)
+- Use the FULL canvas — do not leave empty areas, reserved zones, or placeholder boxes
 ${isInsurance ? '- LEGAL: Do NOT display any insurance carrier or company name anywhere on the slide. This is a legal requirement.' : ''}
 ${isFirst && hasPhoto ? '- Reserve a clean 200x200px area in the bottom-right for a photo overlay.' : ''}
 
@@ -345,6 +343,8 @@ ${isFirst && hasPhoto ? '- Reserve a clean 200x200px area in the bottom-right fo
 - Do NOT render any prompt instructions, JSON, or metadata as visible text
 - Do NOT include any company logos, lettermarks, or brand marks
 - Do NOT generate photographs of human faces
+- Do NOT leave empty reserved areas, placeholder boxes, or transparent zones on the slide
+- Do NOT render "300x100px" or any pixel dimension text on the slide
 ${isInsurance ? '- Do NOT write any insurance carrier name, company name, or brand name on the slide' : ''}
 
 ${referenceSlides && referenceSlides.length > 0 ? '=== VISUAL REFERENCE ===\nReference slides are attached. Match their EXACT visual style — same background, colors, textures, typography, and effects. The new slide must look like it belongs in the same deck.' : ''}
