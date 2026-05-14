@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/app/_lib/supabase/client'
 import type { Profile, Video, Brand } from '@/app/_lib/types'
+import { isAdmin } from '@/app/_lib/admin'
 
 type Tab = 'overview' | 'users' | 'videos' | 'commerce' | 'usage' | 'music' | 'referrals'
 
@@ -16,8 +17,6 @@ type MusicTrack = {
 }
 
 const MOOD_OPTIONS = ['corporate', 'warm', 'upbeat', 'calm', 'cinematic', 'minimal', 'energetic', 'inspirational'] as const
-
-const ADMIN_EMAIL = 'trenttdaniel@gmail.com'
 
 // ── Styles ──────────────────────────────────────────────────────────────────
 
@@ -183,7 +182,7 @@ export default function AdminPage() {
 
     // Check auth
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user || user.email !== ADMIN_EMAIL) {
+    if (!user || !isAdmin(user.email)) {
       setAuthState('denied')
       return
     }

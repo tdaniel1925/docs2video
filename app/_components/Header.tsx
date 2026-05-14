@@ -6,8 +6,7 @@ import { useState, useEffect, useRef } from 'react'
 import NotificationBell from './NotificationBell'
 import { logout } from '../_actions/auth'
 import type { Profile } from '../_lib/types'
-
-const ADMIN_EMAIL = 'trenttdaniel@gmail.com'
+import { isAdmin } from '../_lib/admin'
 
 const CREATE_ITEMS_LIST = [
   { href: '/create', icon: '\uD83D\uDCF9', title: 'Video Explainer', desc: '$29 — Narrated video + share page' },
@@ -30,7 +29,7 @@ export default function Header({ profile }: { profile: Profile }) {
   const pathname = usePathname()
   const createRef = useRef<HTMLDivElement>(null)
 
-  const showAdmin = profile.email === ADMIN_EMAIL
+  const showAdmin = isAdmin(profile.email)
 
   // Close create dropdown on click outside
   useEffect(() => {

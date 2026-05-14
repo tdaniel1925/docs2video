@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/app/_lib/supabase/client'
-
-const ADMIN_EMAIL = 'trenttdaniel@gmail.com'
+import { isAdmin } from '@/app/_lib/admin'
 
 type Campaign = {
   id: string
@@ -188,7 +187,7 @@ export default function CampaignsPage() {
     async function checkAuth() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user || user.email !== ADMIN_EMAIL) {
+      if (!user || !isAdmin(user.email)) {
         setAuthState('denied')
         return
       }

@@ -6,18 +6,18 @@ import { generateSlide } from '../../../../../_lib/gemini'
 import { compositeSlide } from '../../../../../_lib/composite'
 import { synthesizeSpeech } from '../../../../../_lib/tts'
 import type { ExtractedData } from '../../../../../_lib/extract-types'
+import { isAdmin } from '../../../../../_lib/admin'
 
 export const runtime = 'nodejs'
 export const maxDuration = 800
 
-const ADMIN_EMAILS = ['trenttdaniel@gmail.com']
 const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || 'docs2video-assembly-secret-2026').trim().replace(/[\r\n]/g, '')
 
 async function verifyAdmin() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !ADMIN_EMAILS.includes(user.email ?? '')) return null
+  if (!user || !isAdmin(user.email)) return null
   return user
 }
 

@@ -12,6 +12,7 @@ import { sendNotification, createJob, updateJobProgress } from '../../_lib/notif
 import { sendVideoReadyEmail } from '../../_lib/notifications'
 import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
+import { isAdmin } from '../../_lib/admin'
 
 export const runtime = 'nodejs'
 export const maxDuration = 800
@@ -36,20 +37,23 @@ export async function POST(request: Request) {
   const cardOnFile = profile?.card_on_file ?? false
   const freeRemaining = profile?.free_videos_remaining ?? 0
 
-  if (!isPaidUser && !hasReferralDiscount) {
-    if (freeRemaining > 0) {
-      // Decrement free video counter
-      const admin2 = createAdminClient()
-      await admin2.from('profiles').update({
-        free_videos_remaining: freeRemaining - 1,
-      }).eq('id', user.id)
-    } else if (!cardOnFile) {
-      return NextResponse.json(
-        { error: 'Free videos used. Please add a payment method to continue.' },
-        { status: 403 }
-      )
+  // Admins generate unlimited with no charges
+  if (!isAdmin(user.email)) {
+    if (!isPaidUser && !hasReferralDiscount) {
+      if (freeRemaining > 0) {
+        // Decrement free video counter
+        const admin2 = createAdminClient()
+        await admin2.from('profiles').update({
+          free_videos_remaining: freeRemaining - 1,
+        }).eq('id', user.id)
+      } else if (!cardOnFile) {
+        return NextResponse.json(
+          { error: 'Free videos used. Please add a payment method to continue.' },
+          { status: 403 }
+        )
+      }
+      // If card on file + no free videos remaining, charge was already handled in /api/videos POST
     }
-    // If card on file + no free videos remaining, charge was already handled in /api/videos POST
   }
 
   const body = await request.json()

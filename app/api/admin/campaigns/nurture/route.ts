@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '../../../../_lib/supabase/server'
 import { createAdminClient } from '../../../../_lib/supabase/admin'
+import { isAdmin } from '../../../../_lib/admin'
 
-const ADMIN_EMAILS = ['trenttdaniel@gmail.com']
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://docs2video.com'
 
 async function verifyAdmin() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !ADMIN_EMAILS.includes(user.email ?? '')) return null
+  if (!user || !isAdmin(user.email)) return null
   return user
 }
 
