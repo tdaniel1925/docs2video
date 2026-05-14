@@ -53,33 +53,36 @@ VOICE RULES (CRITICAL):
 - After the greeting, go straight into the content. No introductions about who is presenting.
 - The LAST scene should end with: "Thank you for your time. If you have any questions, please don't hesitate to reach out."
 
-INSTRUCTIONS:
-- Analyze the document content carefully. Create as many scenes as needed to thoroughly cover ALL the material.
-- Use your best judgment on scene count: simple documents may need 5-8 scenes, complex ones may need 12-20 scenes.
-- Maximum 20 scenes. Each scene's narration should be 20-40 seconds (roughly 50-100 words).
-- Break complex topics into multiple focused slides rather than cramming too much into one.
-- Each scene should cover ONE clear concept or data point.
-- The FIRST scene MUST be a title/cover scene that:
-  - Opens with the greeting per VOICE RULES above
-  - States what this presentation is about (without naming the carrier)
-  - Sets a warm, professional tone
-  ${brandName ? `- Mentions that this presentation is brought to them by ${brandName}` : ''}
-- The SECOND scene MUST be a disclaimer slide with this EXACT narration: "Before we begin, please note: this video is intended for educational and informational purposes only. It explains general concepts related to life insurance illustrations. It is not legal, tax, or financial advice. Policy guarantees are based on the claims-paying ability of the issuing insurance company. Any non-guaranteed values shown are subject to change. Please review all policy materials and consult with your licensed insurance professional before making any decisions."
-- The LAST scene MUST be a closing/contact scene that:
-  - Summarizes the key takeaways
-  - Ends with the closing per VOICE RULES above
-  ${brandName ? `- Directs them to contact ${brandName}` : '- Directs them to contact their agent'}
-- Between the disclaimer and closing, create enough scenes to thoroughly cover:
-  - Client overview and policy summary
-  - Death benefit explanation (what it means for the family)
-  - Premium breakdown (how much, how often, value received)
-  - Cash value growth (walk through projections year by year, explain guaranteed vs illustrated — use MULTIPLE slides if there are many projection years)
-  ${data.surrenderValueProjections.length > 0 ? '- Surrender values and what they mean (separate slide for each key milestone)' : ''}
-  ${data.loanRate ? `- Policy loans and the ${data.loanRate}% loan rate` : ''}
-  ${data.riders.length > 0 ? '- Each rider and what protection it provides (one slide per rider if multiple)' : ''}
-  - Any additional important features
+BEAT STRUCTURE (follow this storytelling framework — each scene has a PURPOSE):
+Every scene must have a "beat" field indicating its storytelling role. Use this exact structure:
 
-TONE: Professional but warm, like a trusted financial advisor explaining to a client over coffee. Use plain language — no insurance jargon. Make the client feel informed and confident.`
+1. HOOK (1 scene) — Open with the greeting per VOICE RULES, then immediately state something compelling: a key benefit, a surprising number, or a thought-provoking question about the policy. Make the viewer want to keep watching.
+   ${brandName ? `Mention that this presentation is brought by ${brandName}.` : ''}
+
+2. DISCLAIMER (1 scene) — EXACT narration: "Before we begin, please note: this video is intended for educational and informational purposes only. It explains general concepts related to life insurance illustrations. It is not legal, tax, or financial advice. Policy guarantees are based on the claims-paying ability of the issuing insurance company. Any non-guaranteed values shown are subject to change. Please review all policy materials and consult with your licensed insurance professional before making any decisions."
+
+3. CONTEXT (1-2 scenes) — Set the stage: who is this policy for, what type of policy, the big picture of what it provides. Client overview and policy summary.
+
+4. STAKES (1-2 scenes) — Why this matters. What the death benefit means for the family. The real-world impact of this coverage. Make it emotional but factual.
+
+5. EVIDENCE (3-8 scenes) — The deep dive. This is the bulk of the video. Walk through:
+   - Premium breakdown (how much, how often, value received)
+   - Cash value growth year by year (guaranteed vs illustrated)
+   ${data.surrenderValueProjections.length > 0 ? '- Surrender values and what they mean' : ''}
+   ${data.loanRate ? `- Policy loans and the ${data.loanRate}% loan rate` : ''}
+   ${data.riders.length > 0 ? '- Each rider and what protection it provides' : ''}
+   Break complex data across MULTIPLE scenes. One concept per scene. Use specific numbers.
+
+6. IMPLICATION (1-2 scenes) — What this all means for the viewer. Connect the data back to their life. "By year 20, your cash value exceeds your total premiums paid — your policy is essentially paying for itself."
+
+7. ACTION (1 scene) — Clear next step. What should the viewer do now? End with the closing per VOICE RULES.
+   ${brandName ? `Direct them to contact ${brandName}.` : 'Direct them to contact their agent.'}
+
+SCENE COUNT: Use 8-16 scenes total. The EVIDENCE section should expand based on how much data is in the document. Simple policies = fewer evidence scenes. Complex ones with many riders and projections = more.
+
+Each scene's narration should be 20-40 seconds (roughly 50-100 words). Each scene must cover ONE clear concept.
+
+TONE: Professional but warm, like a trusted financial advisor explaining to a client over coffee. Use plain language — no insurance jargon. Make the client feel informed and confident. Write like a storyteller, not a summarizer.`
 }
 
 function buildGenericScriptPrompt(data: ExtractedData, brandName: string | null, detailed: boolean = false): string {
@@ -113,31 +116,33 @@ VOICE RULES (CRITICAL):
 - After the greeting, go straight into the content. No introductions about who is presenting.
 - The LAST scene should end with: "Thank you for your time. If you have any questions, please don't hesitate to reach out."
 
-INSTRUCTIONS:
-- Analyze the document content carefully. Create as many scenes as needed to thoroughly cover ALL the material.
-- Use your best judgment on scene count: simple documents may need 5-8 scenes, complex ones may need 12-20 scenes.
-- Maximum 20 scenes. Each scene's narration should be 20-40 seconds (roughly 50-100 words).
-- Break complex topics into multiple focused slides rather than cramming too much into one.
-- Each scene should cover ONE clear concept or data point.
-- The FIRST scene MUST be a title/cover scene that:
-  - Opens with the greeting per VOICE RULES above
-  - Introduces the topic ("${data.title}")
-  - Sets the context for the viewer
-  - Sets a warm, professional tone
-  ${brandName ? `- Mentions that this presentation is brought to them by ${brandName}` : ''}
-- The LAST scene MUST be a closing/contact scene that:
-  - Summarizes the key takeaways
-  - Provides a clear call-to-action
-  ${brandName ? `- Directs them to contact ${brandName}` : '- Encourages the viewer to take the next step'}
-  - Ends with the closing per VOICE RULES above
-- Between the first and last scene, create enough scenes to cover:
-  - Overview of the key metrics and data
-  - Each major section or topic area (give each section its own slide)
-  - Key takeaways and findings
-  - Any important data tables or charts (break into multiple slides if needed)
-  - Any important caveats or additional context
+BEAT STRUCTURE (follow this storytelling framework — each scene has a PURPOSE):
+Every scene must have a "beat" field indicating its storytelling role. Use this exact structure:
 
-TONE: Professional but warm, like a knowledgeable presenter explaining to an engaged audience. Use plain language. Make the viewer feel informed and confident.`
+1. HOOK (1 scene) — Open with the greeting per VOICE RULES, then grab attention: a surprising fact, a compelling question, or the single most important takeaway from the document. Make the viewer want to keep watching.
+   ${brandName ? `Mention that this presentation is brought by ${brandName}.` : ''}
+   Introduce the topic: "${data.title}"
+
+2. CONTEXT (1-2 scenes) — Set the stage. What is this document about? Who is it for? What problem does it address? Give the viewer the big picture before diving into details.
+
+3. STAKES (1-2 scenes) — Why this matters. What's at risk, what's the opportunity, what changes if the viewer understands this content? Make it relevant and urgent.
+
+4. EVIDENCE (3-8 scenes) — The deep dive. Walk through:
+   - Key metrics and data points (one per scene, with specific numbers)
+   - Each major section or topic area
+   - Important findings, charts, or comparisons
+   Break complex topics across MULTIPLE scenes. One concept per scene. Use specific numbers from the document.
+
+5. IMPLICATION (1-2 scenes) — Connect the evidence back to the viewer. What does all this data mean in practical terms? What conclusions should they draw?
+
+6. ACTION (1 scene) — Clear next step. What should the viewer do with this information? Summarize the key takeaways. End with the closing per VOICE RULES.
+   ${brandName ? `Direct them to contact ${brandName}.` : 'Encourage the viewer to take the next step.'}
+
+SCENE COUNT: Use 8-16 scenes total. The EVIDENCE section should expand based on how much content is in the document. Simple documents = fewer evidence scenes. Complex ones with many sections = more.
+
+Each scene's narration should be 20-40 seconds (roughly 50-100 words). Each scene must cover ONE clear concept.
+
+TONE: Professional but warm, like a knowledgeable presenter explaining to an engaged audience. Use plain language. Write like a storyteller, not a summarizer — each scene should flow naturally into the next.`
 }
 
 export async function generateDemoScript(
@@ -224,12 +229,16 @@ Return ONLY valid JSON array (no markdown, no code fences):
 [
   {
     "scene": 1,
+    "beat": "hook",
     "title": "scene title",
     "narration": "full narration text the voice will read",
-    "slidePrompt": "brief description of what this slide should show visually",
+    "slidePrompt": "brief visual description — what should this slide LOOK like? Describe the visual concept, icons, or imagery. Do NOT include narration text here.",
     "duration": estimated seconds
   }
-]`
+]
+
+The "beat" field must be one of: "hook", "disclaimer", "context", "stakes", "evidence", "implication", "action"
+The "slidePrompt" should describe the VISUAL CONCEPT for the slide image — NOT repeat the narration. Example: "A family protected under a shield icon with a large dollar amount" NOT "The death benefit is $500,000."`
 
   const response = await genai.models.generateContent({
     model: 'gemini-2.5-pro',

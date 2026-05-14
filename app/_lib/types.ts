@@ -122,6 +122,7 @@ export interface ExtractedPolicyData {
 
 export interface VideoScene {
   scene: number
+  beat: 'hook' | 'disclaimer' | 'context' | 'stakes' | 'evidence' | 'implication' | 'action'
   title: string
   narration: string
   slidePrompt: string
