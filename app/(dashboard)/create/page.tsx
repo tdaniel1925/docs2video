@@ -172,7 +172,7 @@ export default function CreatePage() {
   const chatEndRef = useRef<HTMLDivElement | null>(null)
 
   // Video-specific state
-  const [selectedStyle, setSelectedStyle] = useState<string>('blue-step')
+  const [selectedStyle, setSelectedStyle] = useState<string>('luxury')
   const [customStylePrompt, setCustomStylePrompt] = useState<string>('')
   const [slideCount, setSlideCount] = useState(0)
   const [slides, setSlides] = useState<(string | null)[]>([])
