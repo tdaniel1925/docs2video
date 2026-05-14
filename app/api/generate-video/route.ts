@@ -77,13 +77,16 @@ export async function POST(request: Request) {
       await admin.from('videos').update({ script: scenes, status: 'generating_audio' }).eq('id', videoId)
     }
 
-    // STAGE 2: Generate audio for each scene
+    // STAGE 2: Generate audio for each scene (sequential to avoid rate limits)
     console.log(`[video ${videoId}] Generating audio for ${scenes.length} scenes...`)
     await admin.from('videos').update({ status: 'generating_audio' }).eq('id', videoId)
-    const audioBuffers = await Promise.all(
-      scenes.map((scene) => synthesizeSpeech(scene.narration, voiceId))
-    )
-    console.log(`[video ${videoId}] Audio done.`)
+    const audioBuffers: Buffer[] = []
+    for (let i = 0; i < scenes.length; i++) {
+      console.log(`[video ${videoId}] Audio ${i + 1}/${scenes.length}...`)
+      const buf = await synthesizeSpeech(scenes[i].narration, voiceId)
+      audioBuffers.push(buf)
+    }
+    console.log(`[video ${videoId}] Audio done — ${audioBuffers.length} clips.`)
     await admin.from('videos').update({ status: 'generating_slides' }).eq('id', videoId)
     if (jobId) await updateJobProgress(admin, jobId, 40, 'running')
 
