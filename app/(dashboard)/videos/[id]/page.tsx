@@ -251,14 +251,7 @@ interface ChatMsg {
   text: string
 }
 
-const QUICK_ACTIONS = [
-  { label: 'Regenerate', message: "Please regenerate this video with the same content but fresh slides and narration" },
-  { label: 'Change Style', message: "I'd like to regenerate the slides in a different visual style. What styles are available?" },
-  { label: 'Edit Script', message: "I'd like to edit the narration script. Can you show me the current script for each slide?" },
-  { label: 'Fix Data', message: "Some of the data shown in the slides is incorrect. I need to make corrections." },
-  { label: 'Make Shorter', message: "Please make this video shorter — cut it down to the most essential points only." },
-  { label: 'Make Longer', message: "Please make this video more detailed with additional slides and deeper explanations." },
-]
+const QUICK_ACTIONS: { label: string; message: string }[] = []
 
 function toneLabel(offset: number): string {
   if (offset <= 3) return 'Reminder'

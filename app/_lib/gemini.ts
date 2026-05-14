@@ -345,6 +345,8 @@ ${isFirst && hasPhoto ? '- Reserve a clean 200x200px area in the bottom-right fo
 - Do NOT generate photographs of human faces
 - Do NOT leave empty reserved areas, placeholder boxes, or transparent zones on the slide
 - Do NOT render "300x100px" or any pixel dimension text on the slide
+- Do NOT include any dates, times, event dates, or calendar references on the slide
+- Do NOT include placeholder dates like "March 2025" or "Friday Night" from the template style
 ${isInsurance ? '- Do NOT write any insurance carrier name, company name, or brand name on the slide' : ''}
 
 ${referenceSlides && referenceSlides.length > 0 ? '=== VISUAL REFERENCE ===\nReference slides are attached. Match their EXACT visual style — same background, colors, textures, typography, and effects. The new slide must look like it belongs in the same deck.' : ''}

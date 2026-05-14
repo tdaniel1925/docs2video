@@ -48,25 +48,36 @@ export async function POST(request: Request) {
     pdfDoc.setProducer('Docs2Video')
 
     for (const url of imageUrls) {
-      const imgRes = await fetch(url)
-      if (!imgRes.ok) continue
-      const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
+      try {
+        const imgRes = await fetch(url)
+        if (!imgRes.ok) continue
+        const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
 
-      const pngImage = await pdfDoc.embedPng(imgBuffer)
-      const imgWidth = pngImage.width
-      const imgHeight = pngImage.height
+        // Detect format and embed accordingly
+        let embeddedImage
+        if (imgBuffer[0] === 0xFF && imgBuffer[1] === 0xD8) {
+          embeddedImage = await pdfDoc.embedJpg(imgBuffer)
+        } else {
+          embeddedImage = await pdfDoc.embedPng(imgBuffer)
+        }
+        const imgWidth = embeddedImage.width
+        const imgHeight = embeddedImage.height
 
-      // Page size matches image exactly (pixels * 0.75 = points at 96dpi)
-      const pageWidth = imgWidth * 0.75
-      const pageHeight = imgHeight * 0.75
+        // Page size matches image exactly (pixels * 0.75 = points at 96dpi)
+        const pageWidth = imgWidth * 0.75
+        const pageHeight = imgHeight * 0.75
 
-      const page = pdfDoc.addPage([pageWidth, pageHeight])
-      page.drawImage(pngImage, {
-        x: 0,
-        y: 0,
-        width: pageWidth,
-        height: pageHeight,
-      })
+        const page = pdfDoc.addPage([pageWidth, pageHeight])
+        page.drawImage(embeddedImage, {
+          x: 0,
+          y: 0,
+          width: pageWidth,
+          height: pageHeight,
+        })
+      } catch (imgErr) {
+        console.error(`[download-pdf] Failed to embed image: ${url}`, imgErr)
+        continue
+      }
     }
 
     const pdfBytes = await pdfDoc.save()

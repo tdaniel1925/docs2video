@@ -53,23 +53,29 @@ export async function POST(request: Request) {
     pptx.title = title ?? 'Docs2Video Export'
 
     for (let i = 0; i < imageUrls.length; i++) {
-      const slide = pptx.addSlide()
-      const res = await fetch(imageUrls[i])
-      if (!res.ok) continue
-      const buffer = Buffer.from(await res.arrayBuffer())
-      const base64 = buffer.toString('base64')
+      try {
+        const slide = pptx.addSlide()
+        const res = await fetch(imageUrls[i])
+        if (!res.ok) continue
+        const buffer = Buffer.from(await res.arrayBuffer())
+        const base64 = buffer.toString('base64')
+        const mimeType = (buffer[0] === 0xFF && buffer[1] === 0xD8) ? 'image/jpeg' : 'image/png'
 
-      slide.addImage({
-        data: `image/png;base64,${base64}`,
-        x: 0,
-        y: 0,
-        w: '100%',
-        h: '100%',
-      })
+        slide.addImage({
+          data: `${mimeType};base64,${base64}`,
+          x: 0,
+          y: 0,
+          w: '100%',
+          h: '100%',
+        })
 
-      // Add narration as speaker notes
-      if (speakerNotes[i]) {
-        slide.addNotes(speakerNotes[i])
+        // Add narration as speaker notes
+        if (speakerNotes[i]) {
+          slide.addNotes(speakerNotes[i])
+        }
+      } catch (imgErr) {
+        console.error(`[download-pptx] Failed to add slide ${i}:`, imgErr)
+        continue
       }
     }
 
