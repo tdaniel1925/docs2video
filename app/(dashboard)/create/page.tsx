@@ -787,6 +787,9 @@ export default function CreatePage() {
                 <button
                   onClick={async () => {
                     if (!urlInput.trim()) return
+                    let url = urlInput.trim()
+                    if (!/^https?:\/\//i.test(url)) url = `https://${url}`
+                    setUrlInput(url)
                     setTextExtracting(true)
                     setStep('extracting')
                     setError(null)
@@ -794,7 +797,7 @@ export default function CreatePage() {
                       const res = await fetch('/api/extract-url', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: urlInput }),
+                        body: JSON.stringify({ url }),
                       })
                       const data = await res.json()
                       if (!res.ok) throw new Error(data.error || 'Extraction failed')
