@@ -577,11 +577,9 @@ export default function CreatePage() {
             brandId: selectedBrand,
             voiceId: selectedVoice,
             styleId: selectedStyle,
-            detailed: detailedMode,
             musicUrl: selectedMusic || undefined,
             approvedSlides: slidesMode ? uploadedSlides : (approvedSlides.length >= 4 ? approvedSlides : undefined),
             scenes: editableScenes.length > 0 ? editableScenes : generatedScenes,
-            preGeneratedAudioId: sessionStorage.getItem('pregenerated_audio_id') ?? undefined,
           },
         },
       }).eq('id', createData.id)

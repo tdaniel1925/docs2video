@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   // TODO: Verify Stripe payment before generation
 
   const body = await request.json()
-  const { videoId, policyData, brandId, voiceId, styleId, approvedSlides, preGeneratedScenes, preGeneratedAudioId, detailed, musicUrl } = body as {
+  const { videoId, policyData, brandId, voiceId, styleId, approvedSlides, preGeneratedScenes, detailed, musicUrl } = body as {
     videoId: string
     policyData: ExtractedPolicyData | ExtractedData
     brandId: string | null
@@ -33,7 +33,6 @@ export async function POST(request: Request) {
     styleId?: SlideStyleId
     approvedSlides?: string[]
     preGeneratedScenes?: any[]
-    preGeneratedAudioId?: string
     detailed?: boolean
     musicUrl?: string
   }
@@ -77,32 +76,13 @@ export async function POST(request: Request) {
       await admin.from('videos').update({ script: scenes, status: 'generating_audio' }).eq('id', videoId)
     }
 
-    // STAGE 2: Get audio (use pre-generated if available, otherwise generate)
-    let audioBuffers: Buffer[]
-    if (preGeneratedAudioId) {
-      console.log(`[video ${videoId}] Using pre-generated audio: ${preGeneratedAudioId}`)
-      await admin.from('videos').update({ status: 'generating_audio' }).eq('id', videoId)
-      audioBuffers = []
-      for (let i = 0; i < scenes.length; i++) {
-        const path = `${user.id}/pre-audio/${preGeneratedAudioId}/clip_${i}.mp3`
-        const { data } = await admin.storage.from('videos').download(path)
-        if (data) {
-          audioBuffers.push(Buffer.from(await data.arrayBuffer()))
-        } else {
-          // Fallback: regenerate this clip
-          console.log(`[video ${videoId}] Pre-gen clip ${i} not found, regenerating...`)
-          audioBuffers.push(await synthesizeSpeech(scenes[i].narration, voiceId))
-        }
-      }
-      console.log(`[video ${videoId}] Audio loaded from cache.`)
-    } else {
-      console.log(`[video ${videoId}] Generating audio for ${scenes.length} scenes...`)
-      await admin.from('videos').update({ status: 'generating_audio' }).eq('id', videoId)
-      audioBuffers = await Promise.all(
-        scenes.map((scene) => synthesizeSpeech(scene.narration, voiceId))
-      )
-      console.log(`[video ${videoId}] Audio done.`)
-    }
+    // STAGE 2: Generate audio for each scene
+    console.log(`[video ${videoId}] Generating audio for ${scenes.length} scenes...`)
+    await admin.from('videos').update({ status: 'generating_audio' }).eq('id', videoId)
+    const audioBuffers = await Promise.all(
+      scenes.map((scene) => synthesizeSpeech(scene.narration, voiceId))
+    )
+    console.log(`[video ${videoId}] Audio done.`)
     await admin.from('videos').update({ status: 'generating_slides' }).eq('id', videoId)
     if (jobId) await updateJobProgress(admin, jobId, 40, 'running')
 
