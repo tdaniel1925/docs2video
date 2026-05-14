@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
-import { getStripe } from '../../../_lib/stripe'
+import { createClient } from '../../_lib/supabase/server'
+import { getStripe } from '../../_lib/stripe'
 
 export const runtime = 'nodejs'
 
+/**
+ * POST /api/stripe-portal
+ * Creates a Stripe Billing Portal session so the user can manage their subscription.
+ */
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -18,14 +22,16 @@ export async function POST(request: Request) {
     .single()
 
   if (!profile?.stripe_customer_id) {
-    return NextResponse.json({ error: 'No active subscription found' }, { status: 400 })
+    return NextResponse.json({ error: 'No Stripe customer found. Subscribe to a plan first.' }, { status: 400 })
   }
 
   try {
     const stripe = getStripe()
+    const origin = request.headers.get('origin') ?? 'https://prismgraphs.com'
+
     const session = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
-      return_url: `${request.headers.get('origin') ?? 'https://prismgraphs.com'}/settings?tab=subscription`,
+      return_url: `${origin}/settings?tab=subscription`,
     })
 
     return NextResponse.json({ url: session.url })

@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server'
-import { stripe, PLANS } from '../../../_lib/stripe'
+import { getStripe, tierFromPriceId } from '../../../_lib/stripe'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import type Stripe from 'stripe'
 
 export const runtime = 'nodejs'
 
+/**
+ * POST /api/stripe/webhook
+ * Legacy webhook endpoint — forwards to the same logic as /api/webhooks/stripe.
+ * Keep both endpoints active so existing Stripe dashboard configs still work.
+ */
 export async function POST(request: Request) {
   const body = await request.text()
   const sig = request.headers.get('stripe-signature')
@@ -13,7 +18,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing signature' }, { status: 400 })
   }
 
+  const stripe = getStripe()
   let event: Stripe.Event
+
   try {
     event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!)
   } catch (err: unknown) {
@@ -29,78 +36,45 @@ export async function POST(request: Request) {
       const userId = session.metadata?.supabase_user_id
       if (!userId) break
 
-      // Credit pack purchase
-      if (session.metadata?.type === 'credit_pack') {
-        const creditCount = parseInt(session.metadata.credit_count ?? '0', 10)
-        if (creditCount > 0) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('credits_remaining')
-            .eq('id', userId)
-            .single()
-          const current = profile?.credits_remaining ?? 0
-          await supabase.from('profiles').update({
-            credits_remaining: current + creditCount,
-          }).eq('id', userId)
-          console.log(`[webhook] Added ${creditCount} credits to user ${userId}`)
+      if (session.metadata?.type === 'project_payment') {
+        if (session.metadata.project_id) {
+          await supabase.from('projects').update({
+            payment_status: 'paid',
+            stripe_session_id: session.id,
+          }).eq('id', session.metadata.project_id)
         }
+        console.log(`[webhook] Project payment for user ${userId}`)
         break
       }
 
-      // Subscription purchase — determine plan from price ID
-      const subscriptionId = session.subscription as string
-      let planName = 'active'
-      if (subscriptionId) {
-        try {
-          const sub = await stripe.subscriptions.retrieve(subscriptionId)
-          const priceId = sub.items.data[0]?.price?.id
-          if (priceId) {
-            const matchedPlan = Object.entries(PLANS).find(([, p]) => p.priceId === priceId)
-            if (matchedPlan) planName = matchedPlan[1].name.toLowerCase()
-          }
-        } catch { /* use default */ }
+      if (session.metadata?.type === 'subscription') {
+        const tier = session.metadata.tier ?? 'pro'
+        await supabase.from('profiles').update({
+          subscription_status: tier,
+          stripe_customer_id: session.customer as string,
+          stripe_subscription_id: session.subscription as string,
+        }).eq('id', userId)
+        console.log(`[webhook] User ${userId} subscribed to ${tier}`)
       }
-
-      // Also look at metadata for plan
-      if (session.metadata?.plan_id && session.metadata.plan_id in PLANS) {
-        planName = PLANS[session.metadata.plan_id as keyof typeof PLANS].name.toLowerCase()
-      }
-
-      // Set credits for the plan
-      const planEntry = Object.values(PLANS).find(p => p.name.toLowerCase() === planName)
-      const planCredits = planEntry?.credits ?? 0
-
-      await supabase.from('profiles').update({
-        subscription_status: planName,
-        stripe_customer_id: session.customer as string,
-        stripe_subscription_id: subscriptionId,
-        credits_remaining: planCredits,
-      }).eq('id', userId)
-
-      console.log(`[webhook] User ${userId} subscribed to ${planName} with ${planCredits} credits`)
       break
     }
 
+    case 'customer.subscription.created':
     case 'customer.subscription.updated': {
       const subscription = event.data.object as Stripe.Subscription
       const customerId = subscription.customer as string
+      const priceId = subscription.items.data[0]?.price?.id
 
       if (subscription.status === 'active') {
-        // Determine plan from price
-        const priceId = subscription.items.data[0]?.price?.id
-        let planName = 'active'
-        if (priceId) {
-          const matchedPlan = Object.entries(PLANS).find(([, p]) => p.priceId === priceId)
-          if (matchedPlan) planName = matchedPlan[1].name.toLowerCase()
-        }
-        const planEntry = Object.values(PLANS).find(p => p.name.toLowerCase() === planName)
+        const tier = priceId ? tierFromPriceId(priceId) : 'pro'
         await supabase.from('profiles').update({
-          subscription_status: planName,
-          credits_remaining: planEntry?.credits ?? 0,
+          subscription_status: tier,
+          stripe_subscription_id: subscription.id,
         }).eq('stripe_customer_id', customerId)
-      } else {
+      } else if (['canceled', 'unpaid', 'past_due'].includes(subscription.status)) {
         await supabase.from('profiles').update({
-          subscription_status: 'cancelled',
+          subscription_status: null,
+          stripe_subscription_id: null,
         }).eq('stripe_customer_id', customerId)
       }
       break
@@ -110,18 +84,15 @@ export async function POST(request: Request) {
       const subscription = event.data.object as Stripe.Subscription
       const customerId = subscription.customer as string
       await supabase.from('profiles').update({
-        subscription_status: 'free',
-        credits_remaining: PLANS.free.credits,
+        subscription_status: null,
+        stripe_subscription_id: null,
       }).eq('stripe_customer_id', customerId)
       break
     }
 
     case 'invoice.payment_failed': {
       const invoice = event.data.object as Stripe.Invoice
-      const customerId = invoice.customer as string
-      await supabase.from('profiles').update({
-        subscription_status: 'expired',
-      }).eq('stripe_customer_id', customerId)
+      console.error(`[webhook] Payment failed for customer ${invoice.customer}`)
       break
     }
   }

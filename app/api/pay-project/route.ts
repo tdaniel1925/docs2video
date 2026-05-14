@@ -1,13 +1,27 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
-import { getStripe } from '../../_lib/stripe'
-import { getUserPrice, getProjectPrice, isProMember, formatPrice } from '../../_lib/pricing'
+import { getStripe, PROJECT_PRICE_IDS } from '../../_lib/stripe'
+import { getUserPrice, getProjectPrice, getUserTier, isProMember, isUnlimited, formatPrice } from '../../_lib/pricing'
 
 export const runtime = 'nodejs'
 
 /**
+ * Resolve the correct Stripe Price ID for a project type + user tier.
+ */
+function resolveStripePriceId(projectType: string, tier: string): string | null {
+  if (projectType === 'course') {
+    if (tier === 'business') return PROJECT_PRICE_IDS.course_biz
+    if (tier === 'pro') return PROJECT_PRICE_IDS.course_pro
+    return PROJECT_PRICE_IDS.course
+  }
+  // video, deck, infographic
+  if (tier === 'pro') return PROJECT_PRICE_IDS.project_pro
+  return PROJECT_PRICE_IDS.project
+}
+
+/**
  * Creates a Stripe Checkout session for a single project purchase.
- * User pays per project — no credits involved.
+ * Business/Agency users get projects included in their plan (except courses for Business).
  */
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -24,46 +38,60 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid project type' }, { status: 400 })
   }
 
-  // Check if user is Pro for discount
+  // Look up user tier
   const { data: profile } = await supabase
     .from('profiles')
-    .select('subscription_status')
+    .select('subscription_status, stripe_customer_id')
     .eq('id', user.id)
     .single()
 
   const subStatus = profile?.subscription_status ?? null
+  const tier = getUserTier(subStatus)
   const isPro = isProMember(subStatus)
   const price = getUserPrice(projectType, subStatus)
 
-  const origin = request.headers.get('origin') ?? 'https://docs2video.com'
+  // Business/Agency: non-course projects are included in the plan
+  if (price === 0) {
+    return NextResponse.json({
+      url: null,
+      price: 'Free',
+      isPro: true,
+      savings: null,
+      included: true,
+    })
+  }
+
+  const origin = request.headers.get('origin') ?? 'https://prismgraphs.com'
+  const stripePriceId = resolveStripePriceId(projectType, tier)
 
   try {
     const stripe = getStripe()
-    const session = await stripe.checkout.sessions.create({
+
+    const sessionParams: Record<string, unknown> = {
       mode: 'payment',
       payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: {
-            name: projectPrice.label,
-            description: projectPrice.description,
-          },
-          unit_amount: price,
-        },
-        quantity: 1,
-      }],
+      line_items: [{ price: stripePriceId!, quantity: 1 }],
       success_url: `${origin}/dashboard?project_paid=${projectType}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/create`,
       metadata: {
         supabase_user_id: user.id,
         type: 'project_payment',
         project_type: projectType,
-        is_pro: isPro ? 'true' : 'false',
+        tier,
         ...(metadata ?? {}),
       },
-      customer_email: user.email,
-    })
+    }
+
+    // Reuse existing Stripe customer if available
+    if (profile?.stripe_customer_id) {
+      sessionParams.customer = profile.stripe_customer_id
+    } else {
+      sessionParams.customer_email = user.email
+    }
+
+    const session = await stripe.checkout.sessions.create(
+      sessionParams as Parameters<typeof stripe.checkout.sessions.create>[0]
+    )
 
     return NextResponse.json({
       url: session.url,
