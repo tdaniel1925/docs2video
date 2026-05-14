@@ -38,9 +38,9 @@ export async function signup(formData: FormData) {
     return { error: error.message }
   }
 
-  // If session exists, email confirmation is disabled — go straight to dashboard
+  // If session exists, email confirmation is disabled — go to card collection
   if (data.session) {
-    redirect('/dashboard')
+    redirect('/setup-payment')
   }
 
   return { success: 'Check your email to confirm your account.' }

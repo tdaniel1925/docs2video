@@ -8,38 +8,34 @@ export async function GET() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('subscription_status, referred_by')
+    .select('subscription_status, referred_by, card_on_file, free_videos_remaining')
     .eq('id', user.id)
     .single()
 
   const subStatus = (profile?.subscription_status ?? '').toLowerCase()
   const isPaid = ['active', 'professional', 'pro', 'business', 'agency', 'starter'].includes(subStatus)
   const hasReferral = !!profile?.referred_by
+  const cardOnFile = profile?.card_on_file ?? false
+  const freeVideosRemaining = profile?.free_videos_remaining ?? 5
 
   if (isPaid) {
-    return NextResponse.json({ isTrial: false, isPaid: true, hasReferral, videosUsed: 0, videosRemaining: 0 })
+    return NextResponse.json({ isTrial: false, isPaid: true, hasReferral, cardOnFile, freeVideosRemaining: 0, videosUsed: 0, videosRemaining: 0 })
   }
 
   if (hasReferral) {
-    return NextResponse.json({ isTrial: false, isPaid: false, hasReferral: true, videosUsed: 0, videosRemaining: 0 })
+    return NextResponse.json({ isTrial: false, isPaid: false, hasReferral: true, cardOnFile, freeVideosRemaining, videosUsed: 0, videosRemaining: 0 })
   }
 
-  // Count non-failed videos
-  const { count } = await supabase
-    .from('videos')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .neq('status', 'failed')
-
-  const videosUsed = count ?? 0
-  const videosRemaining = Math.max(0, 2 - videosUsed)
+  const videosUsed = 5 - freeVideosRemaining
 
   return NextResponse.json({
-    isTrial: true,
+    isTrial: freeVideosRemaining > 0,
     isPaid: false,
     hasReferral: false,
+    cardOnFile,
+    freeVideosRemaining,
     videosUsed,
-    videosRemaining,
-    trialExhausted: videosUsed >= 2,
+    videosRemaining: freeVideosRemaining,
+    trialExhausted: freeVideosRemaining <= 0 && !cardOnFile,
   })
 }

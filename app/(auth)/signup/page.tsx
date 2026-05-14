@@ -50,7 +50,7 @@ function SignupForm() {
   return (
     <>
       <h1>Create your account</h1>
-      <p className="auth-sub">Get 2 free explainer videos. No card required.</p>
+      <p className="auth-sub">Get 5 free explainer videos. Add a card to get started.</p>
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">

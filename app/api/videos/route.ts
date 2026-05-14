@@ -30,33 +30,71 @@ export async function POST(request: Request) {
     voiceId: string
   }
 
-  // --- Free trial gate ---
+  // --- Free trial / pay-per-video gate ---
   const { data: profile } = await supabase
     .from('profiles')
-    .select('subscription_status, referred_by')
+    .select('subscription_status, referred_by, card_on_file, free_videos_remaining, stripe_customer_id')
     .eq('id', user.id)
     .single()
 
   const subStatus = (profile?.subscription_status ?? '').toLowerCase()
   const isPaid = ['active', 'professional', 'pro', 'business', 'agency', 'starter'].includes(subStatus)
   const hasReferral = !!profile?.referred_by
+  const cardOnFile = profile?.card_on_file ?? false
+  const freeVideosRemaining = profile?.free_videos_remaining ?? 0
 
   let isTrial = false
   if (!isPaid && !hasReferral) {
-    // Count completed + in-progress videos (anything not failed)
-    const { count } = await supabase
-      .from('videos')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .neq('status', 'failed')
+    if (freeVideosRemaining > 0) {
+      // Free video — will be decremented after creation in generate-video
+      isTrial = false // card on file = no watermark
+    } else if (cardOnFile && profile?.stripe_customer_id) {
+      // Auto-charge $10 per video
+      const { stripe } = await import('../../_lib/stripe')
 
-    if ((count ?? 0) >= 2) {
+      // Get the customer's default payment method
+      const customer = await stripe.customers.retrieve(profile.stripe_customer_id) as import('stripe').Stripe.Customer
+      const defaultPm = customer.invoice_settings?.default_payment_method
+        ?? (await stripe.paymentMethods.list({ customer: profile.stripe_customer_id, type: 'card', limit: 1 })).data[0]?.id
+
+      if (!defaultPm) {
+        return NextResponse.json(
+          { error: 'No payment method on file. Please update your card.', code: 'NO_PAYMENT_METHOD' },
+          { status: 402 }
+        )
+      }
+
+      try {
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: 1000, // $10.00
+          currency: 'usd',
+          customer: profile.stripe_customer_id,
+          payment_method: typeof defaultPm === 'string' ? defaultPm : defaultPm.id,
+          off_session: true,
+          confirm: true,
+          description: 'Docs2Video — Per-video charge',
+          metadata: { user_id: user.id },
+        })
+
+        if (paymentIntent.status !== 'succeeded') {
+          return NextResponse.json(
+            { error: 'Payment failed. Please update your card.', code: 'PAYMENT_FAILED' },
+            { status: 402 }
+          )
+        }
+      } catch {
+        return NextResponse.json(
+          { error: 'Payment failed. Please update your card.', code: 'PAYMENT_FAILED' },
+          { status: 402 }
+        )
+      }
+    } else {
+      // No card, no free videos
       return NextResponse.json(
-        { error: 'Free trial used. You have used your 2 free videos. Please choose a plan to continue.', code: 'TRIAL_EXHAUSTED' },
+        { error: 'Free videos used. Please add a payment method to continue.', code: 'TRIAL_EXHAUSTED' },
         { status: 403 }
       )
     }
-    isTrial = true
   }
 
   // Build a title from whichever data format we received

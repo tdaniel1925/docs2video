@@ -59,6 +59,13 @@ export default function SetupPage() {
       if (!user) { router.push('/login'); return }
 
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+
+      // Redirect to card collection if no card on file
+      if (profile && !profile.card_on_file) {
+        router.push('/setup-payment')
+        return
+      }
+
       if (profile) {
         setFullName(profile.full_name ?? '')
         setCompanyName(profile.company_name ?? '')
@@ -540,7 +547,7 @@ export default function SetupPage() {
 
           {/* Pre-launch welcome note */}
           <div style={{ marginTop: 24, padding: '20px 24px', background: 'var(--bg-soft)', borderRadius: 12, border: '1px solid var(--border)', fontSize: 14, lineHeight: 1.6, color: 'var(--ink-soft)' }}>
-            Welcome to Docs2Video! We&apos;re putting the finishing touches on your experience. You have 2 free explainer videos to try right now. Full service launches soon &mdash; we&apos;ll email you when everything is ready.
+            Welcome to Docs2Video! You have 5 free explainer videos to create. After that, each video is just $10 charged to your card on file.
           </div>
         </div>
       )}

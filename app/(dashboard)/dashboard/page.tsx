@@ -26,7 +26,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, credits_remaining, subscription_status, referred_by')
+    .select('full_name, credits_remaining, subscription_status, referred_by, card_on_file, free_videos_remaining')
     .eq('id', user!.id)
     .single()
 
@@ -82,10 +82,12 @@ export default async function DashboardPage() {
 
   // Free trial status
   const hasReferral = !!profile?.referred_by
+  const cardOnFile = profile?.card_on_file ?? false
+  const freeVideosRemaining = profile?.free_videos_remaining ?? 0
   const isTrialUser = !isPro && !hasReferral
-  const trialVideosUsed = nonFailedVideoCount ?? 0
-  const trialVideosRemaining = Math.max(0, 2 - trialVideosUsed)
-  const trialExhausted = isTrialUser && trialVideosUsed >= 2
+  const trialVideosUsed = 5 - freeVideosRemaining
+  const trialVideosRemaining = freeVideosRemaining
+  const trialExhausted = isTrialUser && freeVideosRemaining <= 0 && !cardOnFile
 
   return (
     <div>
@@ -115,16 +117,30 @@ export default async function DashboardPage() {
           <div style={{ flex: 1 }}>
             {trialExhausted ? (
               <>
-                <strong style={{ color: '#991b1b' }}>Free trial used</strong>
+                <strong style={{ color: '#991b1b' }}>Free videos used</strong>
                 <span style={{ color: '#b91c1c', marginLeft: 8 }}>
-                  Subscribe to keep creating watermark-free projects.
+                  Add a payment method or subscribe to keep creating.
+                </span>
+              </>
+            ) : freeVideosRemaining > 0 ? (
+              <>
+                <strong style={{ color: '#166534' }}>Free videos</strong>
+                <span style={{ color: '#15803d', marginLeft: 8 }}>
+                  {freeVideosRemaining} of 5 free videos remaining
+                </span>
+              </>
+            ) : cardOnFile ? (
+              <>
+                <strong style={{ color: '#166534' }}>Pay per video</strong>
+                <span style={{ color: '#15803d', marginLeft: 8 }}>
+                  $10 per video — charged to your card on file
                 </span>
               </>
             ) : (
               <>
-                <strong style={{ color: '#166534' }}>Free trial</strong>
+                <strong style={{ color: '#166534' }}>Free videos</strong>
                 <span style={{ color: '#15803d', marginLeft: 8 }}>
-                  {trialVideosUsed} of 2 free videos used ({trialVideosRemaining} remaining)
+                  {freeVideosRemaining} of 5 free videos remaining
                 </span>
               </>
             )}

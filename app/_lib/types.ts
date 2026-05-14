@@ -16,6 +16,8 @@ export interface Profile {
   stripe_user_id: string | null
   stripe_access_token: string | null
   calendly_url: string | null
+  card_on_file: boolean
+  free_videos_remaining: number
   credits_remaining: number
   pack_credits: number
   credits_reset_at: string | null

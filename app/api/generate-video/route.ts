@@ -23,30 +23,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  // --- Free trial gate (defense in depth — primary check is in /api/videos POST) ---
+  // --- Free trial / pay-per-video gate (defense in depth — primary check is in /api/videos POST) ---
   const { data: profile } = await supabase
     .from('profiles')
-    .select('subscription_status, referred_by')
+    .select('subscription_status, referred_by, card_on_file, free_videos_remaining')
     .eq('id', user.id)
     .single()
 
   const subStatus = (profile?.subscription_status ?? '').toLowerCase()
   const isPaidUser = ['active', 'professional', 'pro', 'business', 'agency', 'starter'].includes(subStatus)
   const hasReferralDiscount = !!profile?.referred_by
+  const cardOnFile = profile?.card_on_file ?? false
+  const freeRemaining = profile?.free_videos_remaining ?? 0
 
   if (!isPaidUser && !hasReferralDiscount) {
-    const { count } = await supabase
-      .from('videos')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .neq('status', 'failed')
-
-    if ((count ?? 0) > 2) {
+    if (freeRemaining > 0) {
+      // Decrement free video counter
+      const admin2 = createAdminClient()
+      await admin2.from('profiles').update({
+        free_videos_remaining: freeRemaining - 1,
+      }).eq('id', user.id)
+    } else if (!cardOnFile) {
       return NextResponse.json(
-        { error: 'Free trial used. Please choose a plan to continue.' },
+        { error: 'Free videos used. Please add a payment method to continue.' },
         { status: 403 }
       )
     }
+    // If card on file + no free videos remaining, charge was already handled in /api/videos POST
   }
 
   const body = await request.json()
@@ -224,7 +227,7 @@ export async function POST(request: Request) {
         videoId,
         userId: user.id,
         musicUrl: musicUrl || undefined,
-        isTrial: body.isTrial || false,
+        isTrial: (!cardOnFile && !isPaidUser && !hasReferralDiscount),
       })
 
       const vpsResult = await new Promise<{ ok: boolean; status: number; data: any }>((resolve, reject) => {

@@ -204,7 +204,7 @@ export default function CreatePage() {
 
   const [userPlan, setUserPlan] = useState<string>('trial')
   const [projectPrice, setProjectPrice] = useState<{ price: number; priceFormatted: string; isPro: boolean } | null>(null)
-  const [trialStatus, setTrialStatus] = useState<{ isTrial: boolean; isPaid: boolean; hasReferral: boolean; videosUsed: number; videosRemaining: number; trialExhausted?: boolean } | null>(null)
+  const [trialStatus, setTrialStatus] = useState<{ isTrial: boolean; isPaid: boolean; hasReferral: boolean; cardOnFile: boolean; freeVideosRemaining: number; videosUsed: number; videosRemaining: number; trialExhausted?: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [extractingElapsed, setExtractingElapsed] = useState(0)
@@ -579,8 +579,8 @@ export default function CreatePage() {
       const createData = await createRes.json()
       if (!createRes.ok) {
         // If trial exhausted, refresh trial status and show paywall
-        if (createData.code === 'TRIAL_EXHAUSTED') {
-          setTrialStatus(prev => prev ? { ...prev, trialExhausted: true, videosRemaining: 0, videosUsed: 2 } : prev)
+        if (createData.code === 'TRIAL_EXHAUSTED' || createData.code === 'PAYMENT_FAILED' || createData.code === 'NO_PAYMENT_METHOD') {
+          setTrialStatus(prev => prev ? { ...prev, trialExhausted: true, videosRemaining: 0, freeVideosRemaining: 0, videosUsed: 5 } : prev)
         }
         throw new Error(createData.error || 'Failed to create video')
       }
@@ -2402,15 +2402,28 @@ export default function CreatePage() {
           </div>
 
           {/* Trial status banner */}
-          {trialStatus?.isTrial && !trialStatus.trialExhausted && (
+          {trialStatus && !trialStatus.isPaid && !trialStatus.hasReferral && trialStatus.freeVideosRemaining > 0 && (
             <div style={{
               padding: '14px 18px', marginBottom: 16, borderRadius: 10,
               background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
               border: '1px solid #bbf7d0', fontSize: 13,
             }}>
-              <strong style={{ color: '#166534' }}>Free trial</strong>
+              <strong style={{ color: '#166534' }}>Free videos</strong>
               <span style={{ color: '#15803d', marginLeft: 8 }}>
-                {trialStatus.videosRemaining} of 2 free video{trialStatus.videosRemaining !== 1 ? 's' : ''} remaining (watermarked)
+                {trialStatus.freeVideosRemaining} of 5 free video{trialStatus.freeVideosRemaining !== 1 ? 's' : ''} remaining
+              </span>
+            </div>
+          )}
+
+          {trialStatus && !trialStatus.isPaid && !trialStatus.hasReferral && trialStatus.freeVideosRemaining <= 0 && trialStatus.cardOnFile && (
+            <div style={{
+              padding: '14px 18px', marginBottom: 16, borderRadius: 10,
+              background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+              border: '1px solid #93c5fd', fontSize: 13,
+            }}>
+              <strong style={{ color: '#1e40af' }}>Pay per video</strong>
+              <span style={{ color: '#1d4ed8', marginLeft: 8 }}>
+                $10 per video &mdash; your card on file will be charged
               </span>
             </div>
           )}
@@ -2421,8 +2434,8 @@ export default function CreatePage() {
               background: 'linear-gradient(135deg, #fef2f2, #fff1f2)',
               border: '1px solid #fecaca', fontSize: 14, textAlign: 'center',
             }}>
-              <div style={{ fontWeight: 700, color: '#991b1b', marginBottom: 6 }}>Free trial used</div>
-              <div style={{ color: '#b91c1c', marginBottom: 12 }}>You have used your 2 free videos. Subscribe to keep creating.</div>
+              <div style={{ fontWeight: 700, color: '#991b1b', marginBottom: 6 }}>Free videos used</div>
+              <div style={{ color: '#b91c1c', marginBottom: 12 }}>You have used your 5 free videos. Add a card or subscribe to keep creating.</div>
               <a href="/pricing" className="btn btn-primary" style={{ fontSize: 14 }}>View plans &rarr;</a>
             </div>
           )}
@@ -2436,13 +2449,17 @@ export default function CreatePage() {
               disabled={trialStatus?.trialExhausted}
               style={trialStatus?.trialExhausted ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
             >
-              {trialStatus?.isTrial && !trialStatus.trialExhausted ? 'Create free video' : 'Create my video'} &rarr;
+              {trialStatus && !trialStatus.isPaid && trialStatus.freeVideosRemaining > 0 ? 'Create free video' : trialStatus && !trialStatus.isPaid && trialStatus.freeVideosRemaining <= 0 && trialStatus.cardOnFile ? 'Create video ($10)' : 'Create my video'} &rarr;
             </button>
           </div>
 
-          {trialStatus?.isTrial && !trialStatus.trialExhausted ? (
+          {trialStatus && !trialStatus.isPaid && !trialStatus.hasReferral && trialStatus.freeVideosRemaining > 0 ? (
             <div style={{ textAlign: 'center', marginTop: 12, padding: '10px 16px', background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border)', fontSize: 13, color: 'var(--ink-soft)' }}>
-              Free trial video (watermarked) — <a href="/pricing" style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>upgrade for watermark-free</a>
+              Free video ({trialStatus.freeVideosRemaining} remaining) — <a href="/pricing" style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>upgrade for a subscription</a>
+            </div>
+          ) : trialStatus && !trialStatus.isPaid && trialStatus.freeVideosRemaining <= 0 && trialStatus.cardOnFile ? (
+            <div style={{ textAlign: 'center', marginTop: 12, padding: '10px 16px', background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border)', fontSize: 13, color: 'var(--ink-soft)' }}>
+              $10 per video — your card on file will be charged. <a href="/pricing" style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>Save with a subscription</a>
             </div>
           ) : projectPrice && !trialStatus?.trialExhausted ? (
             <div style={{ textAlign: 'center', marginTop: 12, padding: '10px 16px', background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border)', fontSize: 13, color: 'var(--ink-soft)' }}>
