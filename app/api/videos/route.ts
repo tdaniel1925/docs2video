@@ -30,6 +30,35 @@ export async function POST(request: Request) {
     voiceId: string
   }
 
+  // --- Free trial gate ---
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('subscription_status, referred_by')
+    .eq('id', user.id)
+    .single()
+
+  const subStatus = (profile?.subscription_status ?? '').toLowerCase()
+  const isPaid = ['active', 'professional', 'pro', 'business', 'agency', 'starter'].includes(subStatus)
+  const hasReferral = !!profile?.referred_by
+
+  let isTrial = false
+  if (!isPaid && !hasReferral) {
+    // Count completed + in-progress videos (anything not failed)
+    const { count } = await supabase
+      .from('videos')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .neq('status', 'failed')
+
+    if ((count ?? 0) >= 2) {
+      return NextResponse.json(
+        { error: 'Free trial used. You have used your 2 free videos. Please choose a plan to continue.', code: 'TRIAL_EXHAUSTED' },
+        { status: 403 }
+      )
+    }
+    isTrial = true
+  }
+
   // Build a title from whichever data format we received
   const title = 'deathBenefit' in policyData
     ? `${(policyData as ExtractedPolicyData).carrier} - ${(policyData as ExtractedPolicyData).policyType} Explainer`
@@ -43,6 +72,7 @@ export async function POST(request: Request) {
       title,
       voice_id: voiceId,
       status: 'pending',
+      is_trial: isTrial,
       script: { _pipeline_input: { policyData, brandId, voiceId } },
     })
     .select()

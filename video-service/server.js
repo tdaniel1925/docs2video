@@ -46,7 +46,7 @@ function runFfmpeg(args) {
 
 // Main assembly endpoint
 app.post('/assemble', authCheck, async (req, res) => {
-  const { slides, audios, videoId, userId, musicUrl, watermarkText } = req.body
+  const { slides, audios, videoId, userId, musicUrl, watermarkText, isTrial } = req.body
   // slides: array of base64 PNG strings
   // audios: array of base64 MP3 strings
   // videoId: string
@@ -81,9 +81,13 @@ app.post('/assemble', authCheck, async (req, res) => {
       const audioPath = join(workDir, `audio_${i}.mp3`)
 
       const baseVf = 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2'
-      const vf = watermarkText
-        ? `${baseVf},drawtext=text='${watermarkText.replace(/'/g, "\\'")}':fontsize=32:fontcolor=white@0.4:x=w-tw-40:y=h-th-30`
-        : baseVf
+      let vf = baseVf
+      if (isTrial) {
+        // Large diagonal watermark for free trial videos
+        vf = `${baseVf},drawtext=text='DOCS2VIDEO TRIAL':fontsize=120:fontcolor=white@0.25:x=(w-tw)/2:y=(h-th)/2:borderw=2:bordercolor=black@0.15`
+      } else if (watermarkText) {
+        vf = `${baseVf},drawtext=text='${watermarkText.replace(/'/g, "\\'")}':fontsize=32:fontcolor=white@0.4:x=w-tw-40:y=h-th-30`
+      }
 
       if (audios[i]) {
         await runFfmpeg([

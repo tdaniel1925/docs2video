@@ -204,6 +204,7 @@ export default function CreatePage() {
 
   const [userPlan, setUserPlan] = useState<string>('trial')
   const [projectPrice, setProjectPrice] = useState<{ price: number; priceFormatted: string; isPro: boolean } | null>(null)
+  const [trialStatus, setTrialStatus] = useState<{ isTrial: boolean; isPaid: boolean; hasReferral: boolean; videosUsed: number; videosRemaining: number; trialExhausted?: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [extractingElapsed, setExtractingElapsed] = useState(0)
@@ -238,6 +239,14 @@ export default function CreatePage() {
         if (priceRes.ok) {
           const priceData = await priceRes.json()
           setProjectPrice(priceData)
+        }
+      } catch {}
+      // Fetch trial status
+      try {
+        const trialRes = await fetch('/api/trial-status')
+        if (trialRes.ok) {
+          const trialData = await trialRes.json()
+          setTrialStatus(trialData)
         }
       } catch {}
     }
@@ -568,7 +577,13 @@ export default function CreatePage() {
         }),
       })
       const createData = await createRes.json()
-      if (!createRes.ok) throw new Error(createData.error || 'Failed to create video')
+      if (!createRes.ok) {
+        // If trial exhausted, refresh trial status and show paywall
+        if (createData.code === 'TRIAL_EXHAUSTED') {
+          setTrialStatus(prev => prev ? { ...prev, trialExhausted: true, videosRemaining: 0, videosUsed: 2 } : prev)
+        }
+        throw new Error(createData.error || 'Failed to create video')
+      }
 
       const approvedSlides = slides.filter(Boolean) as string[]
 
@@ -2386,19 +2401,56 @@ export default function CreatePage() {
             </div>
           </div>
 
+          {/* Trial status banner */}
+          {trialStatus?.isTrial && !trialStatus.trialExhausted && (
+            <div style={{
+              padding: '14px 18px', marginBottom: 16, borderRadius: 10,
+              background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
+              border: '1px solid #bbf7d0', fontSize: 13,
+            }}>
+              <strong style={{ color: '#166534' }}>Free trial</strong>
+              <span style={{ color: '#15803d', marginLeft: 8 }}>
+                {trialStatus.videosRemaining} of 2 free video{trialStatus.videosRemaining !== 1 ? 's' : ''} remaining (watermarked)
+              </span>
+            </div>
+          )}
+
+          {trialStatus?.trialExhausted && (
+            <div style={{
+              padding: '18px 20px', marginBottom: 16, borderRadius: 10,
+              background: 'linear-gradient(135deg, #fef2f2, #fff1f2)',
+              border: '1px solid #fecaca', fontSize: 14, textAlign: 'center',
+            }}>
+              <div style={{ fontWeight: 700, color: '#991b1b', marginBottom: 6 }}>Free trial used</div>
+              <div style={{ color: '#b91c1c', marginBottom: 12 }}>You have used your 2 free videos. Subscribe to keep creating.</div>
+              <a href="/pricing" className="btn btn-primary" style={{ fontSize: 14 }}>View plans &rarr;</a>
+            </div>
+          )}
+
           {/* Price + Generate */}
           <div className="wizard-actions">
             <button onClick={() => setStep('script')} className="btn btn-soft">&larr; Back</button>
-            <button onClick={handleGenerate} className="btn btn-primary btn-lg">Create my video &rarr;</button>
+            <button
+              onClick={handleGenerate}
+              className="btn btn-primary btn-lg"
+              disabled={trialStatus?.trialExhausted}
+              style={trialStatus?.trialExhausted ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+            >
+              {trialStatus?.isTrial && !trialStatus.trialExhausted ? 'Create free video' : 'Create my video'} &rarr;
+            </button>
           </div>
 
-          {projectPrice && (
+          {trialStatus?.isTrial && !trialStatus.trialExhausted ? (
+            <div style={{ textAlign: 'center', marginTop: 12, padding: '10px 16px', background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border)', fontSize: 13, color: 'var(--ink-soft)' }}>
+              Free trial video (watermarked) — <a href="/pricing" style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>upgrade for watermark-free</a>
+            </div>
+          ) : projectPrice && !trialStatus?.trialExhausted ? (
             <div style={{ textAlign: 'center', marginTop: 12, padding: '10px 16px', background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border)', fontSize: 13, color: 'var(--ink-soft)' }}>
               Video Explainer — <strong style={{ color: 'var(--ink)' }}>{projectPrice?.priceFormatted}</strong>
               {customTheme && <span style={{ marginLeft: 4 }}>+ <strong>$5</strong> custom theme</span>}
               {projectPrice?.isPro && <span style={{ marginLeft: 6, color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>Pro price</span>}
             </div>
-          )}
+          ) : null}
         </div>
       )}
 

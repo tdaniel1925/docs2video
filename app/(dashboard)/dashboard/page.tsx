@@ -26,7 +26,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, credits_remaining, subscription_status')
+    .select('full_name, credits_remaining, subscription_status, referred_by')
     .eq('id', user!.id)
     .single()
 
@@ -43,9 +43,10 @@ export default async function DashboardPage() {
     supabase.from('videos').select('*', { count: 'exact', head: true }).eq('user_id', user!.id).gte('created_at', monthStart),
   ])
 
-  const [{ count: creationCount }, { count: creationMonthCount }] = await Promise.all([
+  const [{ count: creationCount }, { count: creationMonthCount }, { count: nonFailedVideoCount }] = await Promise.all([
     supabase.from('creations').select('*', { count: 'exact', head: true }).eq('user_id', user!.id).neq('type', 'video'),
     supabase.from('creations').select('*', { count: 'exact', head: true }).eq('user_id', user!.id).neq('type', 'video').gte('created_at', monthStart),
+    supabase.from('videos').select('*', { count: 'exact', head: true }).eq('user_id', user!.id).neq('status', 'failed'),
   ])
 
   // Merge and sort by date
@@ -79,6 +80,13 @@ export default async function DashboardPage() {
     : 'Free'
   const isFirstTime = totalCount === 0
 
+  // Free trial status
+  const hasReferral = !!profile?.referred_by
+  const isTrialUser = !isPro && !hasReferral
+  const trialVideosUsed = nonFailedVideoCount ?? 0
+  const trialVideosRemaining = Math.max(0, 2 - trialVideosUsed)
+  const trialExhausted = isTrialUser && trialVideosUsed >= 2
+
   return (
     <div>
       {/* Header */}
@@ -92,6 +100,48 @@ export default async function DashboardPage() {
           </span>
         )}
       </div>
+
+      {/* Free trial banner */}
+      {isTrialUser && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '12px 18px', marginBottom: 20, borderRadius: 10,
+          background: trialExhausted
+            ? 'linear-gradient(135deg, #fef2f2, #fff1f2)'
+            : 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
+          border: `1px solid ${trialExhausted ? '#fecaca' : '#bbf7d0'}`,
+          fontSize: 13,
+        }}>
+          <div style={{ flex: 1 }}>
+            {trialExhausted ? (
+              <>
+                <strong style={{ color: '#991b1b' }}>Free trial used</strong>
+                <span style={{ color: '#b91c1c', marginLeft: 8 }}>
+                  Subscribe to keep creating watermark-free projects.
+                </span>
+              </>
+            ) : (
+              <>
+                <strong style={{ color: '#166534' }}>Free trial</strong>
+                <span style={{ color: '#15803d', marginLeft: 8 }}>
+                  {trialVideosUsed} of 2 free videos used ({trialVideosRemaining} remaining)
+                </span>
+              </>
+            )}
+          </div>
+          <Link
+            href="/pricing"
+            className="btn btn-sm"
+            style={{
+              background: trialExhausted ? '#dc2626' : 'var(--mint)',
+              color: 'white', fontWeight: 600, fontSize: 12, padding: '6px 14px', borderRadius: 8,
+              textDecoration: 'none', whiteSpace: 'nowrap',
+            }}
+          >
+            {trialExhausted ? 'Choose a plan' : 'Upgrade'}
+          </Link>
+        </div>
+      )}
 
       {isFirstTime ? (
         /* ── First-time user: welcome hero ── */

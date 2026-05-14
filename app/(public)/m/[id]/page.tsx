@@ -1,0 +1,285 @@
+'use client'
+
+import { useEffect, useState, useRef } from 'react'
+import { useParams } from 'next/navigation'
+import { createClient } from '../../../_lib/supabase/client'
+
+interface CampaignContact {
+  id: string
+  campaign_id: string
+  name: string
+  email: string
+  company: string | null
+  industry: string | null
+  video_id: string | null
+  video_watched_at: string | null
+  unsubscribed: boolean
+}
+
+interface Campaign {
+  discount_code: string
+  discount_pct: number
+  discount_months: number
+}
+
+interface Video {
+  id: string
+  video_url: string | null
+  thumbnail_url: string | null
+  slide_urls: string[] | null
+  title: string | null
+}
+
+const BASE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://docs2video.com'
+
+export default function MarketingWatchPage() {
+  const params = useParams()
+  const [contact, setContact] = useState<CampaignContact | null>(null)
+  const [campaign, setCampaign] = useState<Campaign | null>(null)
+  const [video, setVideo] = useState<Video | null>(null)
+  const [notFound, setNotFound] = useState(false)
+  const viewTracked = useRef(false)
+
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient()
+      const contactId = params.id as string
+
+      // Fetch contact
+      const { data: contactData, error: contactErr } = await supabase
+        .from('campaign_contacts')
+        .select('*')
+        .eq('id', contactId)
+        .single()
+
+      if (contactErr || !contactData) {
+        setNotFound(true)
+        return
+      }
+      setContact(contactData)
+
+      // Fetch campaign
+      const { data: campaignData } = await supabase
+        .from('campaigns')
+        .select('discount_code, discount_pct, discount_months')
+        .eq('id', contactData.campaign_id)
+        .single()
+
+      if (campaignData) setCampaign(campaignData)
+
+      // Fetch video
+      if (contactData.video_id) {
+        const { data: videoData } = await supabase
+          .from('videos')
+          .select('id, video_url, thumbnail_url, slide_urls, title')
+          .eq('id', contactData.video_id)
+          .eq('status', 'completed')
+          .single()
+
+        if (videoData) setVideo(videoData)
+      }
+
+      // Track view — update video_watched_at
+      if (!viewTracked.current) {
+        viewTracked.current = true
+
+        // Update watched timestamp
+        if (!contactData.video_watched_at) {
+          await supabase
+            .from('campaign_contacts')
+            .update({ video_watched_at: new Date().toISOString() })
+            .eq('id', contactId)
+        }
+
+        // Track analytics
+        if (contactData.video_id) {
+          fetch('/api/track-view', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ videoId: contactData.video_id, event: 'view', metadata: { source: 'campaign', contactId } }),
+          }).catch(() => {})
+        }
+      }
+    }
+    load()
+  }, [params.id])
+
+  if (notFound) {
+    return (
+      <div style={rootStyle}>
+        <style>{pageCSS}</style>
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 10 }}>Video Not Found</h1>
+            <p style={{ fontSize: 15, color: '#666' }}>This video may have been removed or the link is invalid.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!contact || !video) {
+    return (
+      <div style={rootStyle}>
+        <style>{pageCSS}</style>
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="spinner" />
+        </div>
+      </div>
+    )
+  }
+
+  const signupUrl = `/signup?email=${encodeURIComponent(contact.email)}&ref=${encodeURIComponent(campaign?.discount_code ?? '')}`
+
+  return (
+    <div style={rootStyle}>
+      <style>{pageCSS}</style>
+
+      {/* Header */}
+      <header style={headerStyle}>
+        <h1 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: '#1a1a1a' }}>Docs2Video</h1>
+        <span style={{ fontSize: 12, color: '#888' }}>Personalized for {contact.name}</span>
+      </header>
+
+      {/* Video Section */}
+      <div style={contentStyle}>
+        <div style={videoWrapStyle}>
+          <video
+            src={video.video_url!}
+            poster={video.thumbnail_url ?? undefined}
+            controls
+            autoPlay
+            playsInline
+            style={{ width: '100%', display: 'block', borderRadius: 12 }}
+          />
+        </div>
+
+        {/* CTA Section */}
+        {campaign && (
+          <div style={ctaSectionStyle}>
+            <h2 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 8px', color: '#1a1a1a' }}>
+              Ready to try it?
+            </h2>
+            <p style={{ fontSize: 16, color: '#444', margin: '0 0 20px', lineHeight: 1.5 }}>
+              Get {campaign.discount_pct}% off for {campaign.discount_months} months
+            </p>
+
+            {/* Discount Code */}
+            <div style={discountBoxStyle}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#166534', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Your exclusive code</p>
+              <div style={codeBoxStyle}>
+                <span style={{ fontSize: 28, fontWeight: 800, letterSpacing: 3, color: '#1a1a1a' }}>{campaign.discount_code}</span>
+              </div>
+            </div>
+
+            {/* CTA Button */}
+            <a href={signupUrl} style={ctaButtonStyle}>
+              Start Free
+            </a>
+            <p style={{ fontSize: 13, color: '#888', marginTop: 8 }}>
+              Your first 2 videos are free. No credit card required.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <footer style={footerStyle}>
+        <p style={{ fontSize: 11, color: '#999', margin: 0 }}>
+          Docs2Video -- Turn any document into a professional video explainer.
+          <br />
+          <a href="/privacy" style={{ color: '#999' }}>Privacy Policy</a>
+          {!contact.unsubscribed && (
+            <>
+              {' | '}
+              <a href={`/unsubscribe/${contact.id}`} style={{ color: '#999' }}>Unsubscribe</a>
+            </>
+          )}
+        </p>
+      </footer>
+    </div>
+  )
+}
+
+// Styles
+const rootStyle: React.CSSProperties = {
+  minHeight: '100vh',
+  background: '#f8fafb',
+  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+}
+
+const headerStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '16px 32px',
+  borderBottom: '1px solid #e8edf2',
+  background: '#fff',
+}
+
+const contentStyle: React.CSSProperties = {
+  maxWidth: 800,
+  margin: '0 auto',
+  padding: '32px 24px',
+}
+
+const videoWrapStyle: React.CSSProperties = {
+  background: '#000',
+  borderRadius: 12,
+  overflow: 'hidden',
+  marginBottom: 32,
+  border: '1px solid #e2e2e2',
+}
+
+const ctaSectionStyle: React.CSSProperties = {
+  textAlign: 'center',
+  padding: '32px 0',
+}
+
+const discountBoxStyle: React.CSSProperties = {
+  background: '#f0fdf4',
+  border: '1px solid #bbf7d0',
+  borderRadius: 12,
+  padding: 24,
+  textAlign: 'center',
+  marginBottom: 24,
+}
+
+const codeBoxStyle: React.CSSProperties = {
+  display: 'inline-block',
+  background: '#fff',
+  border: '2px dashed #4ade80',
+  borderRadius: 8,
+  padding: '12px 28px',
+}
+
+const ctaButtonStyle: React.CSSProperties = {
+  display: 'inline-block',
+  background: '#C7E8A8',
+  color: '#1a1a1a',
+  padding: '16px 48px',
+  borderRadius: 10,
+  textDecoration: 'none',
+  fontWeight: 700,
+  fontSize: 17,
+}
+
+const footerStyle: React.CSSProperties = {
+  textAlign: 'center',
+  padding: '24px 0',
+  borderTop: '1px solid #e8edf2',
+}
+
+const pageCSS = `
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid #e2e2e2;
+    border-top-color: #1a1a1a;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`

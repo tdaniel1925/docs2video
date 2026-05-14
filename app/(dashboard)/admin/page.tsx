@@ -923,6 +923,29 @@ export default function AdminPage() {
         </div>
       </div>
 
+      {/* Quick Links */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+        <a
+          href="/admin/campaigns"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '8px 18px',
+            borderRadius: 8,
+            border: '1px solid var(--border, #e2e2e2)',
+            background: 'var(--surface, #fff)',
+            color: 'var(--ink, #111)',
+            fontWeight: 700,
+            fontSize: 13,
+            textDecoration: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          Campaigns
+        </a>
+      </div>
+
       {/* Tab bar */}
       <div style={tabBarStyle}>
         {tabs.map(t => (

@@ -23,7 +23,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  // TODO: Verify Stripe payment before generation
+  // --- Free trial gate (defense in depth — primary check is in /api/videos POST) ---
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('subscription_status, referred_by')
+    .eq('id', user.id)
+    .single()
+
+  const subStatus = (profile?.subscription_status ?? '').toLowerCase()
+  const isPaidUser = ['active', 'professional', 'pro', 'business', 'agency', 'starter'].includes(subStatus)
+  const hasReferralDiscount = !!profile?.referred_by
+
+  if (!isPaidUser && !hasReferralDiscount) {
+    const { count } = await supabase
+      .from('videos')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .neq('status', 'failed')
+
+    if ((count ?? 0) > 2) {
+      return NextResponse.json(
+        { error: 'Free trial used. Please choose a plan to continue.' },
+        { status: 403 }
+      )
+    }
+  }
 
   const body = await request.json()
   const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, approvedSlides, preGeneratedScenes, detailed, musicUrl } = body as {
@@ -200,6 +224,7 @@ export async function POST(request: Request) {
         videoId,
         userId: user.id,
         musicUrl: musicUrl || undefined,
+        isTrial: body.isTrial || false,
       })
 
       const vpsResult = await new Promise<{ ok: boolean; status: number; data: any }>((resolve, reject) => {
