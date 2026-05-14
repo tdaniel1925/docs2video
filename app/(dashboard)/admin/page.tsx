@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/app/_lib/supabase/client'
 import type { Profile, Video, Brand } from '@/app/_lib/types'
 
-type Tab = 'overview' | 'users' | 'videos' | 'commerce' | 'usage' | 'music'
+type Tab = 'overview' | 'users' | 'videos' | 'commerce' | 'usage' | 'music' | 'referrals'
 
 type MusicTrack = {
   id: string
@@ -130,7 +130,7 @@ function tag(color: 'mint' | 'peach' | 'rose' | 'gray'): React.CSSProperties {
 }
 
 function statusTag(status: string) {
-  if (status === 'completed' || status === 'active') return tag('mint')
+  if (status === 'completed' || status === 'active' || status === 'agency') return tag('mint')
   if (status === 'failed' || status === 'cancelled' || status === 'expired') return tag('rose')
   if (status === 'trial' || status === 'processing' || status === 'pending' || status === 'scripting' || status === 'generating_slides' || status === 'generating_audio' || status === 'assembling') return tag('peach')
   return tag('gray')
@@ -166,6 +166,17 @@ export default function AdminPage() {
   const [musicError, setMusicError] = useState<string | null>(null)
   const musicFileRef = useRef<HTMLInputElement | null>(null)
 
+  // Referrals tab state
+  type ReferrerRow = { email: string; referral_code: string; subscription_status: string; total_signups: number; latest_signup: string | null }
+  type ReferredRow = { email: string; full_name: string | null; referred_by: string; created_at: string }
+  const [referrers, setReferrers] = useState<ReferrerRow[]>([])
+  const [referredUsers, setReferredUsers] = useState<ReferredRow[]>([])
+  const [refEmail, setRefEmail] = useState('')
+  const [refCode, setRefCode] = useState('')
+  const [refSaving, setRefSaving] = useState(false)
+  const [refError, setRefError] = useState<string | null>(null)
+  const [refSuccess, setRefSuccess] = useState<string | null>(null)
+
   const loadData = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
@@ -198,14 +209,22 @@ export default function AdminPage() {
     const profileMap = new Map(loadedProfiles.map(p => [p.id, p.email]))
     setVideos(loadedVideos.map(v => ({ ...v, user_email: profileMap.get(v.user_id) ?? 'Unknown' })))
 
-    // Load music tracks
-    try {
-      const musicRes = await fetch('/api/admin/music')
-      if (musicRes.ok) {
-        const tracks = await musicRes.json()
-        setMusicTracks(tracks)
-      }
-    } catch { /* ignore */ }
+    // Load music tracks and referral data in parallel
+    const [musicRes, referralRes] = await Promise.all([
+      fetch('/api/admin/music').catch(() => null),
+      fetch('/api/admin/referrals').catch(() => null),
+    ])
+
+    if (musicRes?.ok) {
+      const tracks = await musicRes.json()
+      setMusicTracks(tracks)
+    }
+
+    if (referralRes?.ok) {
+      const refData = await referralRes.json()
+      setReferrers(refData.referrers ?? [])
+      setReferredUsers(refData.referredUsers ?? [])
+    }
 
     setLoading(false)
   }, [])
@@ -741,6 +760,149 @@ export default function AdminPage() {
     )
   }
 
+  // ── Referral handlers ──────────────────────────────────────────────────
+
+  async function handleAssignReferralCode(e: React.FormEvent) {
+    e.preventDefault()
+    if (!refEmail.trim() || !refCode.trim()) return
+    setRefSaving(true)
+    setRefError(null)
+    setRefSuccess(null)
+    try {
+      const res = await fetch('/api/admin/referrals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: refEmail.trim(), referral_code: refCode.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to assign code')
+      setRefSuccess(`Referral code "${refCode.trim()}" assigned to ${refEmail.trim()}`)
+      setRefEmail('')
+      setRefCode('')
+      // Reload referral data
+      const refreshRes = await fetch('/api/admin/referrals')
+      if (refreshRes.ok) {
+        const refData = await refreshRes.json()
+        setReferrers(refData.referrers ?? [])
+        setReferredUsers(refData.referredUsers ?? [])
+      }
+    } catch (err) {
+      setRefError(err instanceof Error ? err.message : 'Failed to assign code')
+    } finally {
+      setRefSaving(false)
+    }
+  }
+
+  // ── Tab: Referrals ───────────────────────────────────────────────────
+
+  function renderReferrals() {
+    return (
+      <>
+        {/* Assign referral code form */}
+        <div style={cardStyle}>
+          <h3 style={{ margin: '0 0 12px' }}>Assign Referral Code</h3>
+          <form onSubmit={handleAssignReferralCode} style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4, color: 'var(--ink-soft, #888)' }}>User Email</label>
+              <input
+                type="email"
+                value={refEmail}
+                onChange={e => setRefEmail(e.target.value)}
+                placeholder="user@example.com"
+                required
+                style={{ padding: '8px 12px', border: '1px solid var(--border, #e2e2e2)', borderRadius: 6, fontSize: 14, width: 260 }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4, color: 'var(--ink-soft, #888)' }}>Referral Code</label>
+              <input
+                type="text"
+                value={refCode}
+                onChange={e => setRefCode(e.target.value)}
+                placeholder="e.g. vfs"
+                required
+                style={{ padding: '8px 12px', border: '1px solid var(--border, #e2e2e2)', borderRadius: 6, fontSize: 14, width: 160 }}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={refSaving}
+              style={{ padding: '8px 20px', borderRadius: 6, border: 'none', background: 'var(--mint, #4ade80)', color: '#111', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: refSaving ? 0.6 : 1 }}
+            >
+              {refSaving ? 'Saving...' : 'Assign Code'}
+            </button>
+          </form>
+          {refError && <p style={{ color: '#c0392b', fontSize: 13, marginTop: 8, marginBottom: 0 }}>{refError}</p>}
+          {refSuccess && <p style={{ color: '#166534', fontSize: 13, marginTop: 8, marginBottom: 0 }}>{refSuccess}</p>}
+        </div>
+
+        {/* Referral codes table */}
+        <div style={cardStyle}>
+          <h3 style={{ margin: '0 0 4px' }}>Referral Codes ({referrers.length})</h3>
+          <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 16px' }}>Users who have a referral code assigned.</p>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Code</th>
+                  <th style={thStyle}>Owner (Email)</th>
+                  <th style={thStyle}>Plan</th>
+                  <th style={thStyle}>Total Signups</th>
+                  <th style={thStyle}>Latest Signup</th>
+                </tr>
+              </thead>
+              <tbody>
+                {referrers.map((r, i) => (
+                  <tr key={i}>
+                    <td style={{ ...tdStyle, fontWeight: 700, fontFamily: 'monospace' }}>{r.referral_code}</td>
+                    <td style={{ ...tdStyle, fontWeight: 600 }}>{r.email}</td>
+                    <td style={tdStyle}><span style={statusTag(r.subscription_status)}>{r.subscription_status}</span></td>
+                    <td style={{ ...tdStyle, fontWeight: 700 }}>{r.total_signups}</td>
+                    <td style={{ ...tdStyle, color: 'var(--ink-soft)' }}>{r.latest_signup ? fmtDate(r.latest_signup) : '—'}</td>
+                  </tr>
+                ))}
+                {referrers.length === 0 && (
+                  <tr><td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: 'var(--ink-light)' }}>No referral codes assigned yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Referred users table */}
+        <div style={cardStyle}>
+          <h3 style={{ margin: '0 0 4px' }}>Referred Users ({referredUsers.length})</h3>
+          <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 16px' }}>Users who signed up via a referral link.</p>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Email</th>
+                  <th style={thStyle}>Name</th>
+                  <th style={thStyle}>Referred By Code</th>
+                  <th style={thStyle}>Signup Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {referredUsers.map((u, i) => (
+                  <tr key={i}>
+                    <td style={{ ...tdStyle, fontWeight: 600 }}>{u.email}</td>
+                    <td style={tdStyle}>{u.full_name ?? '—'}</td>
+                    <td style={{ ...tdStyle, fontFamily: 'monospace', fontWeight: 600 }}>{u.referred_by}</td>
+                    <td style={{ ...tdStyle, color: 'var(--ink-soft)' }}>{fmtDate(u.created_at)}</td>
+                  </tr>
+                ))}
+                {referredUsers.length === 0 && (
+                  <tr><td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: 'var(--ink-light)' }}>No referred users yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </>
+    )
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────
 
   const tabs: { key: Tab; label: string }[] = [
@@ -749,6 +911,7 @@ export default function AdminPage() {
     { key: 'videos', label: 'Videos' },
     { key: 'commerce', label: 'Commerce' },
     { key: 'usage', label: 'Usage' },
+    { key: 'referrals', label: 'Referrals' },
   ]
 
   return (
@@ -781,6 +944,7 @@ export default function AdminPage() {
           {activeTab === 'videos' && renderVideos()}
           {activeTab === 'commerce' && renderCommerce()}
           {activeTab === 'usage' && renderUsage()}
+          {activeTab === 'referrals' && renderReferrals()}
         </>
       )}
     </div>

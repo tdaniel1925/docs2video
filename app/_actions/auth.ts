@@ -21,12 +21,15 @@ export async function login(formData: FormData) {
 export async function signup(formData: FormData) {
   const supabase = await createClient()
 
+  const referredBy = formData.get('referred_by') as string | null
+
   const { data, error } = await supabase.auth.signUp({
     email: formData.get('email') as string,
     password: formData.get('password') as string,
     options: {
       data: {
         full_name: formData.get('full_name') as string,
+        ...(referredBy ? { referred_by: referredBy } : {}),
       },
     },
   })

@@ -10,7 +10,7 @@ export interface Profile {
   photo_standing_url: string | null
   onboarding_completed: boolean
   default_style: string
-  subscription_status: 'trial' | 'active' | 'cancelled' | 'expired'
+  subscription_status: 'trial' | 'active' | 'cancelled' | 'expired' | 'agency'
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
   stripe_user_id: string | null
@@ -19,6 +19,8 @@ export interface Profile {
   credits_remaining: number
   pack_credits: number
   credits_reset_at: string | null
+  referral_code: string | null
+  referred_by: string | null
   created_at: string
   updated_at: string
 }

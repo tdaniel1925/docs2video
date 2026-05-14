@@ -1,10 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { signup } from '../../_actions/auth'
 
 export default function SignupPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh' }} />}>
+      <SignupForm />
+    </Suspense>
+  )
+}
+
+function SignupForm() {
+  const searchParams = useSearchParams()
+  const refCode = searchParams.get('ref') ?? ''
+
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -41,6 +53,7 @@ export default function SignupPage() {
       <p className="auth-sub">Get 5 free credits. No card required.</p>
 
       <form onSubmit={handleSubmit}>
+        {refCode && <input type="hidden" name="referred_by" value={refCode} />}
         <div className="form-group">
           <label className="input-label" htmlFor="full_name">Full Name</label>
           <input
