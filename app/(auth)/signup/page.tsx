@@ -50,10 +50,9 @@ function SignupForm() {
   return (
     <>
       <h1>Create your account</h1>
-      <p className="auth-sub">Get 5 free credits. No card required.</p>
+      <p className="auth-sub">Get 2 free explainer videos. No card required.</p>
 
       <form onSubmit={handleSubmit}>
-        {refCode && <input type="hidden" name="referred_by" value={refCode} />}
         <div className="form-group">
           <label className="input-label" htmlFor="full_name">Full Name</label>
           <input
@@ -77,6 +76,16 @@ function SignupForm() {
           />
         </div>
         <div className="form-group">
+          <label className="input-label" htmlFor="phone">Phone <span style={{ fontWeight: 400, color: 'var(--ink-light)' }}>(optional)</span></label>
+          <input
+            id="phone"
+            name="phone"
+            type="tel"
+            className="input"
+            placeholder="+1 (555) 123-4567"
+          />
+        </div>
+        <div className="form-group">
           <label className="input-label" htmlFor="password">Password*</label>
           <input
             id="password"
@@ -86,6 +95,17 @@ function SignupForm() {
             minLength={6}
             className="input"
             placeholder="At least 6 characters"
+          />
+        </div>
+        <div className="form-group">
+          <label className="input-label" htmlFor="referral_code">Referral Code <span style={{ fontWeight: 400, color: 'var(--ink-light)' }}>(optional)</span></label>
+          <input
+            id="referral_code"
+            name="referred_by"
+            type="text"
+            className="input"
+            placeholder="Enter referral code"
+            defaultValue={refCode}
           />
         </div>
 

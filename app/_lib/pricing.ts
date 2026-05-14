@@ -38,12 +38,12 @@ export const PLANS: PlanInfo[] = [
     tier: 'pro',
     label: 'Pro',
     monthlyPrice: 2500, // $25
-    description: '40% off every project',
+    description: '$25/mo + discounted projects',
     features: [
-      '$6 per video, deck, or infographic',
+      '$25/mo membership fee',
+      'Then $6 per video, deck, or infographic',
       '$149 per video course',
-      'Priority generation',
-      'Unlimited brands',
+      'Priority generation + unlimited brands',
     ],
     coursesPerMonth: 0, // pay per course at discount
     unlimitedProjects: false,
@@ -52,24 +52,24 @@ export const PLANS: PlanInfo[] = [
     tier: 'business',
     label: 'Business',
     monthlyPrice: 9900, // $99
-    description: 'Unlimited creation',
+    description: '50 projects per month',
     features: [
-      'Unlimited videos, decks, infographics',
-      'Everything in Pro',
+      'Up to 50 videos, decks, or infographics/mo',
       'No per-project fees',
+      'Courses at $99 each',
       'Priority support',
     ],
-    coursesPerMonth: -1, // courses not included
+    coursesPerMonth: 0, // pay per course at $99
     unlimitedProjects: true,
   },
   {
     tier: 'agency',
     label: 'Agency',
     monthlyPrice: 24900, // $249
-    description: 'Everything unlimited',
+    description: '150 projects + 5 courses',
     features: [
-      'Everything in Business',
-      '5 video courses per month',
+      'Up to 150 videos, decks, or infographics/mo',
+      '5 video courses per month included',
       'Team sharing (coming soon)',
       'White-label options (coming soon)',
     ],
@@ -114,11 +114,14 @@ export function getUserPrice(type: string, subscriptionStatus: string | null): n
   const price = getProjectPrice(type)
   if (!price) return 0
 
-  // Business and Agency get unlimited videos/decks/infographics (not courses)
+  // Business and Agency: included projects (not courses for Business)
   if ((tier === 'business' || tier === 'agency') && type !== 'course') return 0
 
-  // Agency gets courses included (up to 5/mo — enforcement elsewhere)
+  // Agency: courses included (up to 5/mo — enforcement elsewhere)
   if (tier === 'agency' && type === 'course') return 0
+
+  // Business: courses at $99 each
+  if (tier === 'business' && type === 'course') return 9900
 
   // Pro gets discounted price
   if (tier === 'pro') return price.proPrice

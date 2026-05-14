@@ -509,14 +509,14 @@ export default function HomePage() {
             <div className="pricing-card" style={{padding:24}}>
               <div className="pricing-name">Pro</div>
               <div className="pricing-price">$25</div>
-              <div className="pricing-period">per month</div>
+              <div className="pricing-period">per month + per project</div>
               <ul className="pricing-features">
-                <li>$6 per video, deck, or infographic</li>
-                <li>$149 per video course</li>
+                <li>$25/mo membership</li>
+                <li>Then just $6 per project</li>
+                <li>Video courses: $149 each</li>
                 <li>Priority generation</li>
-                <li>Unlimited brands</li>
               </ul>
-              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:16}}>Save 40% on every project</div>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:16}}>Save 40% vs pay-per-project</div>
               <Link href="/signup" className="btn btn-primary btn-full">Go Pro &rarr;</Link>
             </div>
             {/* Business */}
@@ -526,13 +526,13 @@ export default function HomePage() {
               <div className="pricing-price">$99</div>
               <div className="pricing-period">per month</div>
               <ul className="pricing-features">
-                <li>Unlimited videos, decks, infographics</li>
+                <li>50 videos, decks, or infographics/mo</li>
                 <li>No per-project fees</li>
+                <li>Video courses: $99 each</li>
                 <li>Priority support</li>
-                <li>Everything in Pro</li>
               </ul>
-              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:16}}>Courses available at $149 each</div>
-              <Link href="/signup" className="btn btn-primary btn-full">Go Unlimited &rarr;</Link>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:16}}>Best value for regular creators</div>
+              <Link href="/signup" className="btn btn-primary btn-full">Go Business &rarr;</Link>
             </div>
             {/* Agency */}
             <div className="pricing-card" style={{padding:24}}>
@@ -540,12 +540,12 @@ export default function HomePage() {
               <div className="pricing-price">$249</div>
               <div className="pricing-period">per month</div>
               <ul className="pricing-features">
-                <li>Everything in Business</li>
-                <li>5 video courses per month</li>
+                <li>150 projects per month</li>
+                <li>5 video courses included</li>
                 <li>Team sharing (coming soon)</li>
                 <li>White-label (coming soon)</li>
               </ul>
-              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:16}}>Everything unlimited</div>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:16}}>For teams and agencies</div>
               <Link href="/signup" className="btn btn-primary btn-full">Go Agency &rarr;</Link>
             </div>
           </div>
