@@ -473,6 +473,7 @@ export default function VideoDetailPage() {
                 preGeneratedScenes: input.scenes,
                 preGeneratedAudioId: input.preGeneratedAudioId,
                 detailed: input.detailed,
+                customStylePrompt: input.customStylePrompt,
                 musicUrl: input.musicUrl,
               }),
             }).then(res => {

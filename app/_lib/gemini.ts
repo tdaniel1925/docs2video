@@ -254,9 +254,12 @@ export async function generateSlide(
   contactInfo?: { phone?: string; website?: string },
   logoBuffer?: Buffer | null,
   referenceSlides?: Buffer[],
-  totalSlides: number = 5
+  totalSlides: number = 5,
+  customStylePrompt?: string
 ): Promise<Buffer> {
   const style = SLIDE_STYLES.find(s => s.id === styleId) ?? SLIDE_STYLES[0]
+  // Custom style prompt overrides the built-in style
+  const stylePromptText = customStylePrompt || style.prompt
   const isInsurance = 'deathBenefit' in data
 
   // Determine slide position
@@ -319,7 +322,7 @@ The text on the slide should be the KEY FACTS only — short phrases, not full s
   const promptText = `You are generating a presentation slide image. Follow these instructions precisely.
 
 === DESIGN STYLE (HIGHEST PRIORITY) ===
-${style.prompt}
+${stylePromptText}
 
 === COLORS ===
 Primary: ${colors.primary}, Secondary: ${colors.secondary}, Accent: ${colors.accent}

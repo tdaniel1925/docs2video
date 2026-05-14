@@ -172,7 +172,7 @@ export default function CreatePage() {
   const chatEndRef = useRef<HTMLDivElement | null>(null)
 
   // Video-specific state
-  const [selectedStyle, setSelectedStyle] = useState<string>('luxury')
+  const [selectedStyle, setSelectedStyle] = useState<string>('blue-step')
   const [customStylePrompt, setCustomStylePrompt] = useState<string>('')
   const [slideCount, setSlideCount] = useState(0)
   const [slides, setSlides] = useState<(string | null)[]>([])
@@ -185,6 +185,9 @@ export default function CreatePage() {
   const [uploadedLogo, setUploadedLogo] = useState<string | null>(null)
   const [hoveredStyle, setHoveredStyle] = useState<string | null>(null)
   const [customTheme, setCustomTheme] = useState(false)
+  const [suggestedTheme, setSuggestedTheme] = useState<{ name: string; description: string; prompt: string; colors: any; previewUrl?: string } | null>(null)
+  const [themeAccepted, setThemeAccepted] = useState(false)
+  const [generatingThemePreview, setGeneratingThemePreview] = useState(false)
   const [uploadedSlides, setUploadedSlides] = useState<string[]>([]) // base64 data URLs
   const [slidesMode, setSlidesMode] = useState(false) // true = user uploaded their own slides
   const [previewingMusic, setPreviewingMusic] = useState<string | null>(null)
@@ -577,6 +580,7 @@ export default function CreatePage() {
             brandId: selectedBrand,
             voiceId: selectedVoice,
             styleId: selectedStyle,
+            customStylePrompt: customStylePrompt || undefined,
             musicUrl: selectedMusic || undefined,
             approvedSlides: slidesMode ? uploadedSlides : (approvedSlides.length >= 4 ? approvedSlides : undefined),
             scenes: editableScenes.length > 0 ? editableScenes : generatedScenes,
@@ -794,9 +798,27 @@ export default function CreatePage() {
                       })
                       const data = await res.json()
                       if (!res.ok) throw new Error(data.error || 'Extraction failed')
-                      setGeneralData(data)
+                      // Separate suggestedTheme from content data
+                      const { suggestedTheme: theme, ...contentData } = data
+                      setGeneralData(contentData)
                       setExtractedData(null)
                       setReviewReady(true)
+                      // If theme was generated, store it and generate a preview
+                      if (theme?.prompt) {
+                        setSuggestedTheme(theme)
+                        setThemeAccepted(false)
+                        // Generate a preview slide in the background
+                        setGeneratingThemePreview(true)
+                        fetch('/api/style-previews', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ prompt: theme.prompt, name: theme.name }),
+                        }).then(r => r.json()).then(preview => {
+                          if (preview.previewUrl) {
+                            setSuggestedTheme(prev => prev ? { ...prev, previewUrl: preview.previewUrl } : null)
+                          }
+                        }).catch(() => {}).finally(() => setGeneratingThemePreview(false))
+                      }
                       setStep('upload')
                     } catch (err) {
                       setError(err instanceof Error ? err.message : 'URL extraction failed')
@@ -1095,6 +1117,73 @@ export default function CreatePage() {
         </div>
 
         {/* Inline review after extraction */}
+        {/* Suggested Theme from URL */}
+        {reviewReady && suggestedTheme && !themeAccepted && (
+          <div className="wizard-card" style={{ marginTop: 20, border: '2px solid var(--mint)', background: 'rgba(168,240,212,0.04)' }}>
+            <h2 style={{ margin: '0 0 4px' }}>We designed a theme from this website</h2>
+            <p className="wizard-sub">Based on the site&apos;s colors and design, we created a custom slide theme. Want to use it?</p>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginTop: 16 }}>
+              <div style={{ flex: 1 }}>
+                {generatingThemePreview ? (
+                  <div style={{ width: '100%', aspectRatio: '16/9', borderRadius: 10, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-light)' }}>
+                    <div className="spinner" style={{ marginRight: 8 }} /> Generating preview...
+                  </div>
+                ) : suggestedTheme.previewUrl ? (
+                  <img src={suggestedTheme.previewUrl} alt={suggestedTheme.name} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border-light)' }} />
+                ) : (
+                  <div style={{ width: '100%', aspectRatio: '16/9', borderRadius: 10, background: suggestedTheme.colors?.background || '#1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: suggestedTheme.colors?.text || '#fff', fontWeight: 700, fontSize: 18, border: '1px solid var(--border-light)' }}>
+                    {suggestedTheme.name}
+                  </div>
+                )}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{suggestedTheme.name}</div>
+                <div style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 12, lineHeight: 1.5 }}>{suggestedTheme.description}</div>
+                {suggestedTheme.colors && (
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+                    {Object.entries(suggestedTheme.colors).map(([key, hex]) => (
+                      <div key={key} style={{ width: 28, height: 28, borderRadius: 6, background: hex as string, border: '1px solid var(--border-light)' }} title={`${key}: ${hex}`} />
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={async () => {
+                      setThemeAccepted(true)
+                      setSelectedStyle(`custom-url-theme`)
+                      setCustomStylePrompt(suggestedTheme.prompt)
+                      // Save to template library
+                      try {
+                        await fetch('/api/templates', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            name: suggestedTheme.name,
+                            description: suggestedTheme.description,
+                            prompt: suggestedTheme.prompt,
+                            previewUrl: suggestedTheme.previewUrl || null,
+                          }),
+                        })
+                      } catch {}
+                    }}
+                    className="btn btn-primary"
+                  >
+                    Use this theme
+                  </button>
+                  <button onClick={() => setSuggestedTheme(null)} className="btn btn-soft">
+                    No thanks
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {themeAccepted && suggestedTheme && (
+          <div style={{ marginTop: 12, padding: '10px 16px', background: 'rgba(168,240,212,0.1)', borderRadius: 10, border: '1px solid var(--mint)', fontSize: 13, color: 'var(--ink)' }}>
+            Theme &ldquo;{suggestedTheme.name}&rdquo; selected and saved to your template library.
+          </div>
+        )}
+
         {reviewReady && activeData && (
           <div className="wizard-card" style={{ marginTop: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>

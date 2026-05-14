@@ -25,12 +25,13 @@ export async function POST(request: Request) {
   // TODO: Verify Stripe payment before generation
 
   const body = await request.json()
-  const { videoId, policyData, brandId, voiceId, styleId, approvedSlides, preGeneratedScenes, detailed, musicUrl } = body as {
+  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, approvedSlides, preGeneratedScenes, detailed, musicUrl } = body as {
     videoId: string
     policyData: ExtractedPolicyData | ExtractedData
     brandId: string | null
     voiceId: string
     styleId?: SlideStyleId
+    customStylePrompt?: string
     approvedSlides?: string[]
     preGeneratedScenes?: any[]
     detailed?: boolean
@@ -148,7 +149,8 @@ export async function POST(request: Request) {
         policyData, 0, effectiveStyleId as any,
         brand?.name ?? null, logoUrl, colors,
         scenes[0].slidePrompt, !!photoUrl, contactInfo,
-        logoBuffer, referenceSlides, scenes.length
+        logoBuffer, referenceSlides, scenes.length,
+        customStylePrompt
       )
       buf0 = await compositeSlide(buf0, photoUrl, logoUrl, true, scenes.length === 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo)
       slideBuffers.push(buf0)
@@ -168,7 +170,8 @@ export async function POST(request: Request) {
                 policyData, idx, effectiveStyleId as any,
                 brand?.name ?? null, logoUrl, colors,
                 scene.slidePrompt, !!photoUrl, contactInfo,
-                logoBuffer, masterRef, scenes.length
+                logoBuffer, masterRef, scenes.length,
+                customStylePrompt
               )
               buf = await compositeSlide(buf, photoUrl, logoUrl, false, idx === scenes.length - 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo)
               return buf

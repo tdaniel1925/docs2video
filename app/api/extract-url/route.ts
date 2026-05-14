@@ -7,6 +7,28 @@ export const runtime = 'nodejs'
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
+const THEME_PROMPT = `You are an expert web designer analyzing a website's visual identity. Based on the HTML/CSS below, create a slide presentation style prompt that captures this website's look and feel.
+
+Return ONLY valid JSON (no markdown, no code fences):
+{
+  "name": "string — a short creative name for this style (2-3 words)",
+  "description": "string — one sentence describing the visual style",
+  "colors": {
+    "primary": "hex color",
+    "secondary": "hex color",
+    "accent": "hex color",
+    "background": "hex color",
+    "text": "hex color"
+  },
+  "prompt": "string — A detailed visual style prompt for generating presentation slides that match this website's aesthetic. Describe: background treatment, color palette, typography style, layout approach, visual effects, mood/tone. Be specific about colors, gradients, textures, and spacing. This prompt will be used by an image generation AI to create branded slides."
+}
+
+Rules:
+- Extract ACTUAL colors from the CSS/HTML — don't guess
+- The prompt should be 2-4 sentences, highly specific and visual
+- Focus on what makes this site's design unique
+- The style should work on a 16:9 presentation slide`
+
 const EXTRACTION_PROMPT = `You are an expert content analyst. You will receive raw text extracted from a web page.
 
 Your job is to analyze the text and extract the most important information into a structured format.
@@ -132,32 +154,58 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Could not extract meaningful content from this URL' }, { status: 400 })
     }
 
-    // Truncate to 50k characters
+    // Truncate text for content extraction
     const truncated = textContent.slice(0, 50000)
+    // Extract a chunk of HTML with CSS for theme analysis (first 30k chars has most styling)
+    const htmlForTheme = html.slice(0, 30000)
 
-    // Send to Gemini for structuring
-    const response = await genai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: EXTRACTION_PROMPT },
-            { text: `\n\nHere is the text extracted from ${parsedUrl.hostname}:\n\n${truncated}` },
-          ],
-        },
-      ],
-    })
+    // Run content extraction and theme analysis in parallel
+    const [contentResponse, themeResponse] = await Promise.all([
+      genai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: EXTRACTION_PROMPT },
+              { text: `\n\nHere is the text extracted from ${parsedUrl.hostname}:\n\n${truncated}` },
+            ],
+          },
+        ],
+      }),
+      genai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: THEME_PROMPT },
+              { text: `\n\nHere is the HTML/CSS from ${parsedUrl.hostname}:\n\n${htmlForTheme}` },
+            ],
+          },
+        ],
+      }),
+    ])
 
-    const raw = response.text?.trim() ?? ''
+    const raw = contentResponse.text?.trim() ?? ''
     const cleaned = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
 
     const data: ExtractedData = JSON.parse(cleaned)
-    // Set source to the URL if not already set
     if (!data.source) {
       data.source = parsedUrl.hostname
     }
-    return NextResponse.json(data)
+
+    // Parse theme suggestion
+    let suggestedTheme = null
+    try {
+      const themeRaw = themeResponse.text?.trim() ?? ''
+      const themeCleaned = themeRaw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
+      suggestedTheme = JSON.parse(themeCleaned)
+    } catch {
+      console.error('[extract-url] Failed to parse theme suggestion')
+    }
+
+    return NextResponse.json({ ...data, suggestedTheme })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'URL extraction failed'
     return NextResponse.json({ error: message }, { status: 500 })
