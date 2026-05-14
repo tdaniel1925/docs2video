@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '../../_lib/supabase/server'
 import { synthesizeSpeech } from '../../_lib/tts'
 
 export const runtime = 'nodejs'
@@ -6,6 +7,10 @@ export const runtime = 'nodejs'
 const PREVIEW_TEXT = 'Hi there. I\'m here to walk you through your life insurance policy, so you can feel confident about the protection you have in place for your family.'
 
 export async function GET(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
   const { searchParams } = new URL(request.url)
   const voiceId = searchParams.get('voice')
   const customText = searchParams.get('text')
