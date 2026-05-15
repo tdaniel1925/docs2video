@@ -1508,7 +1508,7 @@ export default function CreatePage() {
             ) : null}
 
             <div className="wizard-actions">
-              <button onClick={() => { setReviewReady(false); setExtractedData(null); setGeneralData(null); setMultiDocData([]) }} className="btn btn-soft">&larr; Start Over</button>
+              <button onClick={() => { if (confirm('Start over? This will clear all your extracted data and edits.')) { setReviewReady(false); setExtractedData(null); setGeneralData(null); setMultiDocData([]); setEditableScenes([]) } }} className="btn btn-soft">&larr; Start Over</button>
               <button onClick={handleGenerateScript} className="btn btn-primary">Generate Script &rarr;</button>
             </div>
           </div>
@@ -1598,7 +1598,7 @@ export default function CreatePage() {
               <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>Script generation failed</p>
               <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20 }}>Please try again or go back to edit your content.</p>
               <div className="wizard-actions" style={{ justifyContent: 'center' }}>
-                <button onClick={() => setStep('upload')} className="btn btn-soft">&larr; Back</button>
+                <button onClick={() => setStep('upload')} className="btn btn-soft">&larr; Back to Review</button>
                 <button onClick={handleGenerateScript} className="btn btn-primary">Try Again</button>
               </div>
             </div>
@@ -1654,8 +1654,8 @@ export default function CreatePage() {
                 Total: {editableScenes.length} scenes &middot; ~{Math.round(editableScenes.reduce((sum, s) => sum + s.narration.split(/\s+/).length, 0) / 2.5)}s estimated duration
               </div>
               <div className="wizard-actions">
-                <button onClick={() => setStep('upload')} className="btn btn-soft">&larr; Back</button>
-                <button onClick={() => setStep('options')} className="btn btn-primary">Next: Choose Voice &rarr;</button>
+                <button onClick={() => setStep('upload')} className="btn btn-soft">&larr; Back to Review</button>
+                <button onClick={() => setStep('options')} className="btn btn-primary">Next: Final Options &rarr;</button>
               </div>
             </>
           )}
