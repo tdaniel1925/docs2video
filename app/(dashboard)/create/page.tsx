@@ -53,7 +53,7 @@ function StylePicker({ selectedStyle, onSelect, onBack, onNext, customStylePromp
   return (
     <div className="wizard-card">
       <h2>Pick a visual style</h2>
-      <p className="wizard-sub">Choose how your slides will look. Your brand colors and logo will be applied automatically.</p>
+      <p className="wizard-sub">Choose how your slides will look.</p>
 
       {/* Brand selector */}
       {brands && brands.length > 0 && (
@@ -492,7 +492,7 @@ export default function CreatePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           policyData: multiDocData.length > 1 ? multiDocData : activeData,
-          brandId: selectedBrand,
+          brandId: null,
           detailed: detailedMode,
           comparisonMode: multiDocData.length > 1,
           comparisonNotes: comparisonNotes || undefined,
@@ -535,7 +535,7 @@ export default function CreatePage() {
           policyData: activeData,
           slideIndex: index,
           styleId: selectedStyle,
-          brandId: selectedBrand,
+          brandId: null,
           slidePrompt: generatedScenes[index]?.slidePrompt,
         }),
       })
@@ -578,7 +578,7 @@ export default function CreatePage() {
           policyData: activeData,
           styleId: selectedStyle,
           customStylePrompt: customStylePrompt || undefined,
-          brandId: selectedBrand,
+          brandId: null,
         }),
       })
       const data = await res.json()
@@ -604,7 +604,7 @@ export default function CreatePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           policyData: activeData,
-          brandId: selectedBrand,
+          brandId: null,
           voiceId: selectedVoice,
         }),
       })
@@ -624,7 +624,7 @@ export default function CreatePage() {
         script: {
           _pipeline_input: {
             policyData: activeData,
-            brandId: selectedBrand,
+            brandId: null,
             voiceId: selectedVoice,
             styleId: selectedStyle,
             customStylePrompt: customStylePrompt || undefined,
@@ -1507,18 +1507,6 @@ export default function CreatePage() {
               </>
             ) : null}
 
-            {/* Brand nudge */}
-            {brands.length === 0 && (
-              <div style={{
-                padding: '14px 18px', borderRadius: 10, marginTop: 16, marginBottom: 16,
-                background: 'rgba(109,211,161,0.08)', border: '1px solid rgba(109,211,161,0.2)',
-                display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--ink-soft)',
-              }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker, #4a7c59)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <span>Want your logo and brand colors on the video? <a href="/brands/new" style={{color:'var(--ink)',fontWeight:700,textDecoration:'underline'}}>Set up a brand</a> first for the best results.</span>
-              </div>
-            )}
-
             <div className="wizard-actions">
               <button onClick={() => { setReviewReady(false); setExtractedData(null); setGeneralData(null); setMultiDocData([]) }} className="btn btn-soft">&larr; Start Over</button>
               <button onClick={handleGenerateScript} className="btn btn-primary">Generate Script &rarr;</button>
@@ -1888,18 +1876,6 @@ export default function CreatePage() {
             </>
           )}
 
-          {/* Brand nudge */}
-          {brands.length === 0 && (
-            <div style={{
-              padding: '14px 18px', borderRadius: 10, marginBottom: 16,
-              background: 'rgba(109,211,161,0.08)', border: '1px solid rgba(109,211,161,0.2)',
-              display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--ink-soft)',
-            }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker, #4a7c59)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              <span>Want your logo and brand colors on the video? <a href="/brands/new" style={{color:'var(--ink)',fontWeight:700,textDecoration:'underline'}}>Set up a brand</a> first for the best results.</span>
-            </div>
-          )}
-
           <div className="wizard-actions">
             <button onClick={() => { setStep('upload') }} className="btn btn-soft">&larr; Back</button>
             <button onClick={handleGenerateScript} className="btn btn-primary">Generate Script &rarr;</button>
@@ -1966,7 +1942,7 @@ export default function CreatePage() {
               </div>
               <div className="wizard-actions">
                 <button onClick={() => setStep('review')} className="btn btn-soft">&larr; Back</button>
-                <button onClick={() => setStep('choose-brand')} className="btn btn-primary">Approve Script &rarr;</button>
+                <button onClick={() => setStep('options')} className="btn btn-primary">Approve Script &rarr;</button>
               </div>
             </>
           )}
@@ -2334,51 +2310,7 @@ export default function CreatePage() {
       {step === 'options' && (
         <div className="wizard-card">
           <h2>Final options</h2>
-          <p className="wizard-sub">Choose a brand and voice. AI will compose custom background music automatically.</p>
-
-          {/* Brand selector */}
-          {brands.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <label className="input-label">Brand</label>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button type="button" onClick={() => setSelectedBrand(null)} className={`btn btn-sm ${selectedBrand === null ? 'btn-primary' : 'btn-soft'}`}>No Brand</button>
-                {brands.map(b => (
-                  <button key={b.id} type="button" onClick={() => setSelectedBrand(b.id)} className={`btn btn-sm ${selectedBrand === b.id ? 'btn-primary' : 'btn-soft'}`}>
-                    {b.name}{b.is_default ? ' (default)' : ''}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Logo upload when no brand selected */}
-          {!selectedBrand && (
-            <div style={{ marginBottom: 24 }}>
-              <label className="input-label">Logo <span style={{ fontWeight: 400, color: 'var(--ink-light)' }}>(optional — or select a brand above)</span></label>
-              {uploadedLogo ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border-light)' }}>
-                  <img src={uploadedLogo} alt="Logo" style={{ width: 48, height: 48, objectFit: 'contain', borderRadius: 8, background: 'white', padding: 2 }} />
-                  <div style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>Logo uploaded</div>
-                  <button onClick={() => setUploadedLogo(null)} className="btn btn-soft btn-sm">Remove</button>
-                </div>
-              ) : (
-                <label style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px',
-                  borderRadius: 10, border: '2px dashed var(--border)', cursor: 'pointer',
-                  background: 'var(--bg-soft)', fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)',
-                }}>
-                  + Upload logo
-                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
-                    const f = e.target.files?.[0]
-                    if (!f) return
-                    const reader = new FileReader()
-                    reader.onload = () => setUploadedLogo(reader.result as string)
-                    reader.readAsDataURL(f)
-                  }} />
-                </label>
-              )}
-            </div>
-          )}
+          <p className="wizard-sub">Choose a voice and theme. AI will compose custom background music automatically.</p>
 
           {/* Custom Theme toggle (premium $5 add-on) */}
           {!slidesMode && (

@@ -18,7 +18,6 @@ const CREATE_ITEMS = CREATE_ITEMS_LIST
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/videos', label: 'Library' },
-  { href: '/brands', label: 'Brands' },
   { href: '/settings', label: 'Settings' },
 ]
 
@@ -202,7 +201,6 @@ export default function Header({ profile }: { profile: Profile }) {
             Create Explainer
           </Link>
           <Link href="/videos" className={pathname === '/videos' ? 'active' : ''}>Library</Link>
-          <Link href="/brands" className={pathname === '/brands' ? 'active' : ''}>Brands</Link>
           <Link href="/settings" className={pathname === '/settings' ? 'active' : ''}>Settings</Link>
           {showAdmin && (
             <Link href="/admin" className={pathname.startsWith('/admin') ? 'active' : ''}>Admin</Link>

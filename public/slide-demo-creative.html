@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Playfair+Display:ital,wght@0,700;1,700&family=JetBrains+Mono:wght@400;700&family=Syne:wght@700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; display: flex; flex-direction: column; align-items: center; gap: 50px; padding: 40px; font-family: 'Space Grotesk', sans-serif; }
+  h2 { color: #fff; font-size: 13px; text-transform: uppercase; letter-spacing: 0.15em; opacity: 0.4; margin-bottom: -24px; font-family: monospace; }
+  .slide { width: 960px; height: 540px; position: relative; overflow: hidden; border-radius: 0; }
+
+  /* ═══════ 1. NEON CYBER ═══════ */
+  .slide.cyber .bg {
+    position: absolute; inset: 0;
+    background: #0a0a0f;
+  }
+  .slide.cyber .bg::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      linear-gradient(180deg, transparent 0%, rgba(0,255,136,0.03) 50%, transparent 100%),
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,255,136,0.05) 39px, rgba(0,255,136,0.05) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,255,136,0.05) 39px, rgba(0,255,136,0.05) 40px);
+  }
+  .slide.cyber .bg::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 200px;
+    background: linear-gradient(0deg, rgba(0,255,136,0.08), transparent);
+  }
+  .slide.cyber .glow {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 600px; height: 600px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,255,136,0.06), transparent 60%);
+  }
+  .slide.cyber .content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; padding: 40px 50px; }
+  .slide.cyber .tag { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #00ff88; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 12px; }
+  .slide.cyber .tag::before { content: '> '; }
+  .slide.cyber .title { font-family: 'Syne', sans-serif; font-size: 52px; font-weight: 800; color: #fff; line-height: 1.05; margin-bottom: 16px; }
+  .slide.cyber .title span { color: #00ff88; }
+  .slide.cyber .sub { font-size: 16px; color: rgba(255,255,255,0.4); max-width: 500px; line-height: 1.6; }
+  .slide.cyber .data-row { display: flex; gap: 24px; margin-top: auto; }
+  .slide.cyber .data-box { border: 1px solid rgba(0,255,136,0.2); padding: 16px 24px; flex: 1; }
+  .slide.cyber .data-box .val { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; color: #00ff88; }
+  .slide.cyber .data-box .lbl { font-size: 10px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
+  .slide.cyber .corner { position: absolute; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: rgba(0,255,136,0.3); }
+  .slide.cyber .corner.tl { top: 12px; left: 16px; }
+  .slide.cyber .corner.br { bottom: 12px; right: 16px; }
+  .slide.cyber .logo-area { position: absolute; top: 16px; right: 20px; height: 32px; z-index: 3; }
+  .slide.cyber .logo-area img { height: 100%; filter: brightness(0) invert(1); opacity: 0.6; }
+
+  /* ═══════ 2. BRUTALIST ═══════ */
+  .slide.brutalist .bg {
+    position: absolute; inset: 0;
+    background: #f2f0eb;
+  }
+  .slide.brutalist .stripe {
+    position: absolute; top: 0; right: 0; width: 35%; height: 100%;
+    background: #111;
+  }
+  .slide.brutalist .content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; padding: 40px 50px; }
+  .slide.brutalist .tag { font-size: 10px; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: #999; margin-bottom: 8px; }
+  .slide.brutalist .title { font-family: 'Syne', sans-serif; font-size: 56px; font-weight: 800; color: #111; line-height: 1; text-transform: uppercase; max-width: 55%; }
+  .slide.brutalist .title span { display: block; color: #e74c3c; }
+  .slide.brutalist .divider { width: 80px; height: 6px; background: #e74c3c; margin: 16px 0; }
+  .slide.brutalist .body { font-size: 14px; color: #666; line-height: 1.7; max-width: 50%; margin-top: 8px; }
+  .slide.brutalist .right-content { position: absolute; right: 50px; top: 50%; transform: translateY(-50%); width: 28%; color: #fff; }
+  .slide.brutalist .right-content .big-num { font-family: 'Syne', sans-serif; font-size: 72px; font-weight: 800; line-height: 1; }
+  .slide.brutalist .right-content .label { font-size: 12px; letter-spacing: 0.15em; text-transform: uppercase; opacity: 0.5; margin-top: 8px; }
+  .slide.brutalist .footer { margin-top: auto; display: flex; gap: 20px; font-size: 11px; color: #999; }
+  .slide.brutalist .logo-area { position: absolute; bottom: 20px; right: 20px; height: 28px; z-index: 3; }
+  .slide.brutalist .logo-area img { height: 100%; filter: brightness(0) invert(1); opacity: 0.4; }
+
+  /* ═══════ 3. GRADIENT DREAM ═══════ */
+  .slide.gradient .bg {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  }
+  .slide.gradient .bg::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.15), transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(0,0,0,0.15), transparent 50%);
+  }
+  .slide.gradient .orb {
+    position: absolute; border-radius: 50%; filter: blur(60px);
+  }
+  .slide.gradient .orb.a { width: 300px; height: 300px; top: -50px; right: -50px; background: rgba(240,147,251,0.3); }
+  .slide.gradient .orb.b { width: 200px; height: 200px; bottom: -30px; left: 100px; background: rgba(102,126,234,0.3); }
+  .slide.gradient .content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; padding: 44px 54px; }
+  .slide.gradient .tag { font-size: 12px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(255,255,255,0.6); margin-bottom: 12px; }
+  .slide.gradient .title { font-family: 'Playfair Display', serif; font-size: 48px; font-weight: 700; color: #fff; line-height: 1.1; margin-bottom: 12px; }
+  .slide.gradient .title em { font-style: italic; color: rgba(255,255,255,0.7); }
+  .slide.gradient .sub { font-size: 16px; color: rgba(255,255,255,0.6); line-height: 1.6; max-width: 500px; }
+  .slide.gradient .cards { display: flex; gap: 16px; margin-top: auto; }
+  .slide.gradient .card { flex: 1; background: rgba(255,255,255,0.12); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.15); border-radius: 14px; padding: 20px; }
+  .slide.gradient .card .val { font-size: 30px; font-weight: 700; color: #fff; }
+  .slide.gradient .card .lbl { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .slide.gradient .logo-area { position: absolute; top: 20px; right: 24px; height: 32px; z-index: 3; }
+  .slide.gradient .logo-area img { height: 100%; filter: brightness(0) invert(1); opacity: 0.7; }
+
+  /* ═══════ 4. DARK LUXURY ═══════ */
+  .slide.luxury .bg {
+    position: absolute; inset: 0;
+    background: #111;
+  }
+  .slide.luxury .bg::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, transparent 40%, rgba(212,162,58,0.06) 60%, transparent 80%);
+  }
+  .slide.luxury .gold-line {
+    position: absolute; top: 30px; bottom: 30px; left: 48px; width: 2px;
+    background: linear-gradient(180deg, transparent, #D4A23A, transparent);
+  }
+  .slide.luxury .content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; padding: 44px 50px 44px 70px; }
+  .slide.luxury .tag { font-size: 10px; font-weight: 700; letter-spacing: 0.3em; text-transform: uppercase; color: #D4A23A; margin-bottom: 12px; }
+  .slide.luxury .title { font-family: 'Playfair Display', serif; font-size: 46px; font-weight: 700; color: #fff; line-height: 1.1; margin-bottom: 8px; }
+  .slide.luxury .sub { font-size: 15px; color: rgba(255,255,255,0.35); line-height: 1.6; max-width: 500px; }
+  .slide.luxury .metrics { display: flex; gap: 32px; margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(212,162,58,0.15); }
+  .slide.luxury .metric .val { font-family: 'Playfair Display', serif; font-size: 36px; font-weight: 700; color: #D4A23A; }
+  .slide.luxury .metric .lbl { font-size: 10px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.12em; margin-top: 4px; }
+  .slide.luxury .logo-area { position: absolute; top: 20px; right: 24px; height: 32px; z-index: 3; }
+  .slide.luxury .logo-area img { height: 100%; filter: brightness(0) invert(1) sepia(1) saturate(3) hue-rotate(10deg); opacity: 0.5; }
+
+  /* ═══════ 5. NEWSPAPER ═══════ */
+  .slide.newspaper .bg {
+    position: absolute; inset: 0;
+    background: #faf8f3;
+  }
+  .slide.newspaper .bg::before {
+    content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(0,0,0,0.03) 19px, rgba(0,0,0,0.03) 20px);
+  }
+  .slide.newspaper .red-bar { position: absolute; top: 0; left: 0; right: 0; height: 6px; background: #c0392b; }
+  .slide.newspaper .content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; padding: 30px 50px; }
+  .slide.newspaper .masthead { text-align: center; padding-bottom: 12px; border-bottom: 3px double #222; margin-bottom: 16px; }
+  .slide.newspaper .masthead .name { font-family: 'Playfair Display', serif; font-size: 14px; font-weight: 700; color: #222; letter-spacing: 0.3em; text-transform: uppercase; }
+  .slide.newspaper .masthead .date { font-size: 10px; color: #999; margin-top: 2px; }
+  .slide.newspaper .headline { font-family: 'Playfair Display', serif; font-size: 42px; font-weight: 700; color: #111; line-height: 1.05; text-align: center; margin-bottom: 12px; }
+  .slide.newspaper .deck { font-size: 15px; color: #555; text-align: center; font-style: italic; margin-bottom: 16px; }
+  .slide.newspaper .columns { display: flex; gap: 24px; flex: 1; }
+  .slide.newspaper .col { flex: 1; font-size: 11px; color: #444; line-height: 1.7; column-count: 1; border-right: 1px solid rgba(0,0,0,0.08); padding-right: 24px; }
+  .slide.newspaper .col:last-child { border-right: none; padding-right: 0; }
+  .slide.newspaper .col .stat { font-family: 'Playfair Display', serif; font-size: 36px; font-weight: 700; color: #c0392b; margin: 8px 0; }
+  .slide.newspaper .col .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #999; }
+  .slide.newspaper .footer { text-align: center; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.1); font-size: 10px; color: #999; }
+  .slide.newspaper .logo-area { position: absolute; top: 14px; left: 20px; height: 24px; z-index: 3; }
+  .slide.newspaper .logo-area img { height: 100%; opacity: 0.4; }
+
+  /* ═══════ 6. NEON SPLIT ═══════ */
+  .slide.neonsplit .bg {
+    position: absolute; inset: 0;
+    background: #0a0a0a;
+  }
+  .slide.neonsplit .left-panel {
+    position: absolute; top: 0; left: 0; width: 45%; height: 100%;
+    background: linear-gradient(180deg, #ff006e, #ff4d94);
+    clip-path: polygon(0 0, 100% 0, 85% 100%, 0 100%);
+  }
+  .slide.neonsplit .content { position: relative; z-index: 2; height: 100%; display: flex; padding: 40px 50px; }
+  .slide.neonsplit .left { width: 40%; display: flex; flex-direction: column; justify-content: center; }
+  .slide.neonsplit .right { width: 60%; display: flex; flex-direction: column; justify-content: center; padding-left: 60px; }
+  .slide.neonsplit .tag { font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.7); margin-bottom: 10px; }
+  .slide.neonsplit .title { font-family: 'Syne', sans-serif; font-size: 38px; font-weight: 800; color: #fff; line-height: 1.05; text-transform: uppercase; }
+  .slide.neonsplit .right .title { font-size: 32px; margin-bottom: 12px; }
+  .slide.neonsplit .right .sub { font-size: 14px; color: rgba(255,255,255,0.4); line-height: 1.6; }
+  .slide.neonsplit .right .data-row { display: flex; gap: 20px; margin-top: 20px; }
+  .slide.neonsplit .right .data-item .val { font-size: 28px; font-weight: 700; color: #ff006e; }
+  .slide.neonsplit .right .data-item .lbl { font-size: 10px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.08em; }
+  .slide.neonsplit .logo-area { position: absolute; bottom: 16px; left: 20px; height: 28px; z-index: 3; }
+  .slide.neonsplit .logo-area img { height: 100%; filter: brightness(0) invert(1); opacity: 0.6; }
+</style>
+</head>
+<body>
+
+<h2>1. Neon Cyber — Hacker Terminal</h2>
+<div class="slide cyber">
+  <div class="bg"></div>
+  <div class="glow"></div>
+  <div class="corner tl">SYS.POLICY.v2.4 // ACTIVE</div>
+  <div class="corner br">NODE_0x4F2A :: ENCRYPTED</div>
+  <div class="logo-area"><img src="apex-logo.png" alt="Logo"></div>
+  <div class="content">
+    <div class="tag">policy.overview.init</div>
+    <div class="title">Universal Life<br><span>Policy Overview</span></div>
+    <div class="sub">Comprehensive coverage analysis prepared for John Smith. All values current as of 2026.</div>
+    <div class="data-row">
+      <div class="data-box"><div class="val">$500K</div><div class="lbl">Death Benefit</div></div>
+      <div class="data-box"><div class="val">$4,200</div><div class="lbl">Annual Premium</div></div>
+      <div class="data-box"><div class="val">$128K</div><div class="lbl">Cash Value (Yr 20)</div></div>
+    </div>
+  </div>
+</div>
+
+<h2>2. Brutalist — Bold Split</h2>
+<div class="slide brutalist">
+  <div class="bg"></div>
+  <div class="stripe"></div>
+  <div class="content">
+    <div class="tag">Policy Overview</div>
+    <div class="title">YOUR<br>FAMILY'S<br><span>SAFETY NET</span></div>
+    <div class="divider"></div>
+    <div class="body">A comprehensive life insurance policy designed to protect what matters most. Guaranteed death benefit with cash value growth potential.</div>
+    <div class="footer">
+      <span>Apex Affinity Group</span>
+      <span>|</span>
+      <span>(555) 123-4567</span>
+      <span>|</span>
+      <span>apex-insurance.com</span>
+    </div>
+  </div>
+  <div class="right-content">
+    <div class="big-num">$500K</div>
+    <div class="label">Guaranteed Death Benefit</div>
+    <div style="margin-top: 32px;">
+      <div class="big-num" style="font-size: 48px;">$4,200</div>
+      <div class="label">Annual Premium</div>
+    </div>
+  </div>
+  <div class="logo-area"><img src="apex-logo.png" alt="Logo"></div>
+</div>
+
+<h2>3. Gradient Dream — Glass Cards</h2>
+<div class="slide gradient">
+  <div class="bg"></div>
+  <div class="orb a"></div>
+  <div class="orb b"></div>
+  <div class="logo-area"><img src="apex-logo.png" alt="Logo"></div>
+  <div class="content">
+    <div class="tag">Policy Overview</div>
+    <div class="title">Your Coverage,<br><em>Visualized</em></div>
+    <div class="sub">A complete overview of your universal life policy — protection, growth, and long-term value at a glance.</div>
+    <div class="cards">
+      <div class="card"><div class="val">$500K</div><div class="lbl">Death Benefit</div></div>
+      <div class="card"><div class="val">$4,200</div><div class="lbl">Annual Premium</div></div>
+      <div class="card"><div class="val">$128K</div><div class="lbl">Cash Value Yr 20</div></div>
+      <div class="card"><div class="val">30yr</div><div class="lbl">Coverage Term</div></div>
+    </div>
+  </div>
+</div>
+
+<h2>4. Dark Luxury — Gold Accent</h2>
+<div class="slide luxury">
+  <div class="bg"></div>
+  <div class="gold-line"></div>
+  <div class="logo-area"><img src="apex-logo.png" alt="Logo"></div>
+  <div class="content">
+    <div class="tag">Prepared for John Smith</div>
+    <div class="title">Universal Life<br>Policy Overview</div>
+    <div class="sub">A personalized analysis of your coverage, cash value projections, and long-term financial protection strategy.</div>
+    <div class="metrics">
+      <div class="metric"><div class="val">$500K</div><div class="lbl">Death Benefit</div></div>
+      <div class="metric"><div class="val">$4,200</div><div class="lbl">Annual Premium</div></div>
+      <div class="metric"><div class="val">$128K</div><div class="lbl">Cash Value (Year 20)</div></div>
+      <div class="metric"><div class="val">4.5%</div><div class="lbl">Illustrated Rate</div></div>
+    </div>
+  </div>
+</div>
+
+<h2>5. Newspaper — Editorial</h2>
+<div class="slide newspaper">
+  <div class="bg"></div>
+  <div class="red-bar"></div>
+  <div class="logo-area"><img src="apex-logo.png" alt="Logo"></div>
+  <div class="content">
+    <div class="masthead">
+      <div class="name">The Policy Report</div>
+      <div class="date">Apex Affinity Group &mdash; May 2026 Edition</div>
+    </div>
+    <div class="headline">Universal Life Policy<br>Shows Strong Growth Potential</div>
+    <div class="deck">A comprehensive analysis reveals cash value exceeding premiums paid by year 20</div>
+    <div class="columns">
+      <div class="col">
+        <div class="stat">$500K</div>
+        <div class="stat-label">Death Benefit</div>
+        <p style="margin-top: 8px;">The guaranteed death benefit provides your family with financial security regardless of market conditions or policy performance.</p>
+      </div>
+      <div class="col">
+        <div class="stat">$128K</div>
+        <div class="stat-label">Cash Value at Year 20</div>
+        <p style="margin-top: 8px;">Illustrated cash value growth shows your policy building significant value over time, exceeding total premiums paid.</p>
+      </div>
+      <div class="col">
+        <div class="stat">$4,200</div>
+        <div class="stat-label">Annual Premium</div>
+        <p style="margin-top: 8px;">Your annual investment of $4,200 funds both the death benefit protection and the growing cash value component.</p>
+      </div>
+    </div>
+    <div class="footer">For educational purposes only. Non-guaranteed values subject to change. Consult your licensed professional.</div>
+  </div>
+</div>
+
+<h2>6. Neon Split — Hot Pink</h2>
+<div class="slide neonsplit">
+  <div class="bg"></div>
+  <div class="left-panel"></div>
+  <div class="logo-area"><img src="apex-logo.png" alt="Logo"></div>
+  <div class="content">
+    <div class="left">
+      <div class="tag">John Smith</div>
+      <div class="title">UNIVERSAL<br>LIFE<br>POLICY</div>
+    </div>
+    <div class="right">
+      <div class="title">YOUR PROTECTION<br>AT A GLANCE</div>
+      <div class="sub">Comprehensive life insurance coverage designed to protect your family and build long-term value.</div>
+      <div class="data-row">
+        <div class="data-item"><div class="val">$500K</div><div class="lbl">Death Benefit</div></div>
+        <div class="data-item"><div class="val">$4,200</div><div class="lbl">Premium/Year</div></div>
+        <div class="data-item"><div class="val">$128K</div><div class="lbl">Value Yr 20</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

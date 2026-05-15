@@ -188,8 +188,8 @@ export default function HomePage() {
               <div className="feature-icon" style={{background:'var(--lilac)'}}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
               </div>
-              <h3>Your brand, every frame</h3>
-              <p>Auto-detects your brand colors and logo. Every slide, video, and infographic looks like your design team made it.</p>
+              <h3>Polished, every frame</h3>
+              <p>Professional styling and visuals on every slide. Every video and infographic looks like your design team made it.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon" style={{background:'var(--sky)'}}>
@@ -299,8 +299,8 @@ export default function HomePage() {
               <div className="comp-old">~  Canva format only</div>
             </div>
             <div className="comp-row">
-              <div className="comp-label">Brand integration</div>
-              <div className="comp-new highlight">&#10003; Auto from website</div>
+              <div className="comp-label">Professional styling</div>
+              <div className="comp-new highlight">&#10003; AI-designed slides</div>
               <div className="comp-old">~  Brand kit</div>
               <div className="comp-old">~  Manual setup</div>
               <div className="comp-old">~  Brand kit</div>
@@ -334,7 +334,7 @@ export default function HomePage() {
           <div style={{textAlign:'center',marginBottom:40}}>
             <div className="section-eyebrow">39 styles</div>
             <h2 className="section-title">Every video looks like you hired <em>a design team</em></h2>
-            <p className="section-sub" style={{maxWidth:600,margin:'0 auto'}}>From executive boardroom to watercolor to hand-drawn doodles. Pick a style that matches your brand, or create your own with AI.</p>
+            <p className="section-sub" style={{maxWidth:600,margin:'0 auto'}}>From executive boardroom to watercolor to hand-drawn doodles. Pick a style that matches your message, or create your own with AI.</p>
           </div>
           <TemplateGallery />
         </section>
