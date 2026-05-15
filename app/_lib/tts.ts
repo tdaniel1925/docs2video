@@ -15,49 +15,86 @@ export async function synthesizeSpeech(
 ): Promise<Buffer> {
   const openai = getClient()
 
-  // Retry up to 3 times with backoff
+  // Retry up to 3 times with backoff + 30s timeout per attempt
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const response = await openai.audio.speech.create({
-        model: 'tts-1-hd',
-        voice: voiceId as 'alloy' | 'echo' | 'fable' | 'nova' | 'onyx' | 'shimmer',
-        input: text,
-        response_format: 'mp3',
-        speed: 0.95,
-      })
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 30000) // 30s timeout
+
+      const response = await openai.audio.speech.create(
+        {
+          model: 'tts-1-hd',
+          voice: voiceId as 'alloy' | 'echo' | 'fable' | 'nova' | 'onyx' | 'shimmer',
+          input: text.slice(0, 4096), // OpenAI limit
+          response_format: 'mp3',
+          speed: 0.95,
+        },
+        { signal: controller.signal as any }
+      )
+
+      clearTimeout(timeout)
 
       const arrayBuffer = await response.arrayBuffer()
       const buffer = Buffer.from(arrayBuffer)
 
-      // Verify we got actual audio (MP3 files start with ID3 or 0xFF 0xFB)
+      // Verify we got actual audio
       if (buffer.length < 100) {
         throw new Error(`TTS returned suspiciously small audio: ${buffer.length} bytes`)
       }
 
       return buffer
     } catch (err) {
-      console.error(`[tts] Attempt ${attempt}/3 failed for text "${text.slice(0, 50)}...":`, err instanceof Error ? err.message : err)
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error(`[tts] Attempt ${attempt}/3 failed for text "${text.slice(0, 50)}...": ${msg}`)
       if (attempt < 3) {
-        await new Promise(r => setTimeout(r, 1000 * attempt)) // 1s, 2s backoff
+        await new Promise(r => setTimeout(r, 1000 * attempt))
       } else {
-        // Generate a short silence as fallback so video assembly doesn't break
-        console.error(`[tts] All 3 attempts failed, generating silence for this scene`)
-        // 1 second of silence as MP3 (minimal valid MP3 frame)
-        return generateSilence()
+        console.error(`[tts] All 3 attempts failed, generating silence`)
+        return generateSilence(text)
       }
     }
   }
 
-  return generateSilence() // TypeScript safety
+  return generateSilence(text)
 }
 
-// Generate a minimal silent MP3 buffer (~1 second)
-function generateSilence(): Buffer {
-  // Minimal MP3 frame: MPEG1 Layer3 128kbps 44100Hz stereo
-  // This is a valid but silent MP3 frame repeated a few times
-  const frame = Buffer.from('fffb9004000000000000000000000000000000000000000000000000000000000000000000000000', 'hex')
+/**
+ * Generate a valid silent MP3 using OpenAI TTS with a pause.
+ * Falls back to a minimal valid MP3 if that also fails.
+ */
+async function generateSilence(originalText: string): Promise<Buffer> {
+  // Try generating a very short TTS clip with just "..." as a pause
+  try {
+    const openai = getClient()
+    const response = await openai.audio.speech.create({
+      model: 'tts-1',
+      voice: 'alloy',
+      input: '...',
+      response_format: 'mp3',
+      speed: 1.0,
+    })
+    const buf = Buffer.from(await response.arrayBuffer())
+    if (buf.length > 100) {
+      console.log(`[tts] Generated pause audio as fallback (${buf.length} bytes)`)
+      return buf
+    }
+  } catch {
+    console.error('[tts] Fallback pause generation also failed')
+  }
+
+  // Last resort: return a minimal valid MP3 file header
+  // This is an actual minimal MP3 with a valid frame header
+  const header = Buffer.from([
+    0xFF, 0xFB, 0x90, 0x00, // MPEG1 Layer3 frame sync + header
+  ])
+  const silence = Buffer.alloc(417) // One valid frame of silence at 128kbps
+  silence[0] = 0xFF
+  silence[1] = 0xFB
+  silence[2] = 0x90
+  silence[3] = 0x00
+  // Repeat for ~2 seconds
   const frames: Buffer[] = []
-  for (let i = 0; i < 38; i++) frames.push(frame) // ~1 second
+  for (let i = 0; i < 76; i++) frames.push(Buffer.from(silence))
   return Buffer.concat(frames)
 }
 

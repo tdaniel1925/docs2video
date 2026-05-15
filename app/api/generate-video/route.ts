@@ -16,6 +16,14 @@ import type { ExtractedData } from '../../_lib/extract-types'
 import { isAdmin } from '../../_lib/admin'
 
 export const runtime = 'nodejs'
+
+// Timeout wrapper — prevents hanging on Gemini/TTS calls
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms)),
+  ])
+}
 export const maxDuration = 800
 
 export async function POST(request: Request) {
@@ -134,16 +142,23 @@ export async function POST(request: Request) {
     }
     console.log(`[video ${videoId}] Audio done — ${audioBuffers.length} clips.`)
 
-    // Resolve AI music if it was started
+    // Resolve AI music if it was started (max 90s wait, then give up)
     let finalMusicUrl = musicUrl
     if (aiMusicPromise) {
-      console.log(`[video ${videoId}] Waiting for AI music to complete...`)
-      const aiMusicUrl = await aiMusicPromise
-      if (aiMusicUrl) {
-        console.log(`[video ${videoId}] AI music ready: ${aiMusicUrl}`)
-        finalMusicUrl = aiMusicUrl
-      } else {
-        console.log(`[video ${videoId}] AI music failed — falling back to ${musicUrl ? 'stock music' : 'no music'}`)
+      console.log(`[video ${videoId}] Waiting for AI music (max 90s)...`)
+      try {
+        const aiMusicUrl = await Promise.race([
+          aiMusicPromise,
+          new Promise<null>(resolve => setTimeout(() => resolve(null), 90000)),
+        ])
+        if (aiMusicUrl) {
+          console.log(`[video ${videoId}] AI music ready: ${aiMusicUrl}`)
+          finalMusicUrl = aiMusicUrl
+        } else {
+          console.log(`[video ${videoId}] AI music timed out or failed — proceeding without`)
+        }
+      } catch {
+        console.log(`[video ${videoId}] AI music error — proceeding without`)
       }
     }
     await admin.from('videos').update({ status: 'generating_slides', progress_detail: `Creating slides... (0 of ${scenes.length})`, progress_pct: 35 }).eq('id', videoId)
@@ -198,13 +213,15 @@ export async function POST(request: Request) {
       await admin.from('videos').update({ progress_detail: `Creating slides... (1 of ${scenes.length})`, progress_pct: 38 }).eq('id', videoId)
       let masterSlideBuffer: Buffer | null = null
 
-      // Generate slide 1 (cover) — establishes the visual identity
-      let buf0 = await generateSlide(
-        policyData, 0, effectiveStyleId as any,
-        brand?.name ?? null, logoUrl, colors,
-        scenes[0].slidePrompt, !!photoUrl, contactInfo,
-        logoBuffer, referenceSlides, scenes.length,
-        customStylePrompt
+      // Generate slide 1 (cover) — establishes the visual identity (60s timeout)
+      let buf0 = await withTimeout(
+        generateSlide(
+          policyData, 0, effectiveStyleId as any,
+          brand?.name ?? null, logoUrl, colors,
+          scenes[0].slidePrompt, !!photoUrl, contactInfo,
+          logoBuffer, referenceSlides, scenes.length,
+          customStylePrompt
+        ), 60000, 'Slide 1'
       )
       buf0 = await compositeSlide(buf0, photoUrl, logoUrl, true, scenes.length === 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo)
       slideBuffers.push(buf0)
@@ -222,13 +239,13 @@ export async function POST(request: Request) {
           const batchResults = await Promise.all(
             batch.map(async (scene: any, j: number) => {
               const idx = i + j
-              let buf = await generateSlide(
+              let buf = await withTimeout(generateSlide(
                 policyData, idx, effectiveStyleId as any,
                 brand?.name ?? null, logoUrl, colors,
                 scene.slidePrompt, !!photoUrl, contactInfo,
                 logoBuffer, masterRef, scenes.length,
                 customStylePrompt
-              )
+              ), 60000, `Slide ${idx + 1}`)
               buf = await compositeSlide(buf, photoUrl, logoUrl, false, idx === scenes.length - 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo)
               return buf
             })
