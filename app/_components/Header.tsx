@@ -76,11 +76,11 @@ export default function Header({ profile }: { profile: Profile }) {
             </Link>
 
             {/* Create dropdown */}
-            <div ref={createRef} style={{ position: 'relative' }}>
+            <div ref={createRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
               <button
                 onClick={() => setCreateOpen(!createOpen)}
                 className={isCreateActive ? 'active' : ''}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '8px 16px', borderRadius: 10, fontSize: 14, fontWeight: 500, color: 'var(--ink-soft)' }}
               >
                 + Create
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.5 }}>
