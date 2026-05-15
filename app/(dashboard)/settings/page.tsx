@@ -258,6 +258,9 @@ export default function SettingsPage() {
           <div className="settings-card">
             <h3>Profile Photos</h3>
             <p className="ssub">These photos appear on your presentation slides and share pages.</p>
+            <Link href="/fix" style={{ display: 'inline-block', fontSize: 13, fontWeight: 600, color: 'var(--mint-darker, #2d7a4f)', marginBottom: 8 }}>
+              Need to fix a photo? Try AI Photo Fixer &rarr;
+            </Link>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 16 }}>
               {photoSlots.map(slot => (
                 <div key={slot.type} style={{ textAlign: 'center' }}>

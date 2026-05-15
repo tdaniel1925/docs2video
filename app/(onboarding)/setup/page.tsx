@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/client'
 import { SLIDE_STYLES } from '../../_lib/types'
 import type { Profile } from '../../_lib/types'
@@ -401,6 +402,11 @@ export default function SetupPage() {
                 <p style={{ fontSize: 10, color: 'var(--ink-light)' }}>(optional)</p>
               </div>
             </div>
+          </div>
+          <div style={{ textAlign: 'center', marginBottom: 12 }}>
+            <Link href="/fix" style={{ fontSize: 13, fontWeight: 600, color: 'var(--mint-darker, #2d7a4f)' }}>
+              Need a better headshot? Try our AI Photo Fixer &rarr;
+            </Link>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={() => setStep(1)} className="btn btn-soft" style={{ flex: 1 }}>Back</button>
