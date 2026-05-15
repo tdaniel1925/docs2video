@@ -472,6 +472,8 @@ export default function VideoDetailPage() {
                 detailed: input.detailed,
                 customStylePrompt: input.customStylePrompt,
                 musicUrl: input.musicUrl,
+                aiMusic: input.aiMusic,
+                musicPrompt: input.musicPrompt,
               }),
             }).then(res => {
               if (!res.ok) res.json().then(d => console.error('[video] Pipeline failed:', d.error)).catch(() => {})

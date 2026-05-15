@@ -10,6 +10,7 @@ const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.1
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || 'docs2video-assembly-secret-2026').trim().replace(/[\r\n]/g, '')
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
 import { sendVideoReadyEmail } from '../../_lib/notifications'
+import { generateCustomMusic, buildMusicPrompt } from '../../_lib/music-generator'
 import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { isAdmin } from '../../_lib/admin'
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, approvedSlides, preGeneratedScenes, detailed, musicUrl } = body as {
+  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt } = body as {
     videoId: string
     policyData: ExtractedPolicyData | ExtractedData
     brandId: string | null
@@ -68,6 +69,8 @@ export async function POST(request: Request) {
     preGeneratedScenes?: any[]
     detailed?: boolean
     musicUrl?: string
+    aiMusic?: boolean
+    musicPrompt?: string
   }
 
   let brand: Brand | null = null
@@ -109,9 +112,19 @@ export async function POST(request: Request) {
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15 }).eq('id', videoId)
     }
 
-    // STAGE 2: Generate audio for each scene (sequential to avoid rate limits)
+    // STAGE 2: Generate audio + AI music in parallel
     console.log(`[video ${videoId}] Generating audio for ${scenes.length} scenes...`)
     await admin.from('videos').update({ status: 'generating_audio', progress_detail: `Generating narration audio... (0 of ${scenes.length})`, progress_pct: 15 }).eq('id', videoId)
+
+    // Start AI music generation in parallel if requested (runs alongside TTS)
+    let aiMusicPromise: Promise<string | null> | null = null
+    if (aiMusic) {
+      const prompt = musicPrompt || buildMusicPrompt(policyData, scenes)
+      const title = (policyData as any)?.policyType ?? (policyData as any)?.title ?? 'Background Music'
+      console.log(`[video ${videoId}] Starting AI music generation in parallel...`)
+      aiMusicPromise = generateCustomMusic(prompt, title)
+    }
+
     const audioBuffers: Buffer[] = []
     for (let i = 0; i < scenes.length; i++) {
       console.log(`[video ${videoId}] Audio ${i + 1}/${scenes.length}...`)
@@ -120,6 +133,19 @@ export async function POST(request: Request) {
       audioBuffers.push(buf)
     }
     console.log(`[video ${videoId}] Audio done — ${audioBuffers.length} clips.`)
+
+    // Resolve AI music if it was started
+    let finalMusicUrl = musicUrl
+    if (aiMusicPromise) {
+      console.log(`[video ${videoId}] Waiting for AI music to complete...`)
+      const aiMusicUrl = await aiMusicPromise
+      if (aiMusicUrl) {
+        console.log(`[video ${videoId}] AI music ready: ${aiMusicUrl}`)
+        finalMusicUrl = aiMusicUrl
+      } else {
+        console.log(`[video ${videoId}] AI music failed — falling back to ${musicUrl ? 'stock music' : 'no music'}`)
+      }
+    }
     await admin.from('videos').update({ status: 'generating_slides', progress_detail: `Creating slides... (0 of ${scenes.length})`, progress_pct: 35 }).eq('id', videoId)
     if (jobId) await updateJobProgress(admin, jobId, 40, 'running')
 
@@ -230,7 +256,7 @@ export async function POST(request: Request) {
         audios: audioBuffers.map(b => b.toString('base64')),
         videoId,
         userId: user.id,
-        musicUrl: musicUrl || undefined,
+        musicUrl: finalMusicUrl || undefined,
         isTrial: (!cardOnFile && !isPaidUser && !hasReferralDiscount),
       })
 
