@@ -202,6 +202,11 @@ export default function CreatePage() {
   const [reviewReady, setReviewReady] = useState(false)
   const [reviewEditing, setReviewEditing] = useState(false)
 
+  // Preview slide state
+  const [previewSlide, setPreviewSlide] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const carouselRef = useRef<HTMLDivElement | null>(null)
+
   const [userPlan, setUserPlan] = useState<string>('trial')
   const [projectPrice, setProjectPrice] = useState<{ price: number; priceFormatted: string; isPro: boolean } | null>(null)
   const [trialStatus, setTrialStatus] = useState<{ isTrial: boolean; isPaid: boolean; hasReferral: boolean; cardOnFile: boolean; freeVideosRemaining: number; videosUsed: number; videosRemaining: number; trialExhausted?: boolean } | null>(null)
@@ -557,6 +562,31 @@ export default function CreatePage() {
     audio.play()
     audioRef.current = audio
     setPlayingVoice(voiceId)
+  }
+
+  async function handlePreviewSlide() {
+    if (!activeData) return
+    setPreviewLoading(true)
+    setPreviewSlide(null)
+    try {
+      const res = await fetch('/api/preview-slide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          policyData: activeData,
+          styleId: selectedStyle,
+          customStylePrompt: customStylePrompt || undefined,
+          brandId: selectedBrand,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Preview failed')
+      setPreviewSlide(data.image)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate preview')
+    } finally {
+      setPreviewLoading(false)
+    }
   }
 
   async function handleGenerate() {
@@ -2282,7 +2312,7 @@ export default function CreatePage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: customTheme ? 16 : 0 }}>
                 <button
                   type="button"
-                  onClick={() => { setCustomTheme(false); setSelectedStyle('executive') }}
+                  onClick={() => { setCustomTheme(false); setSelectedStyle('executive'); setPreviewSlide(null) }}
                   className={`btn btn-sm ${!customTheme ? 'btn-primary' : 'btn-soft'}`}
                 >
                   AI picks theme (free)
@@ -2299,23 +2329,71 @@ export default function CreatePage() {
                 <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 8 }}>AI will select the best visual style based on your content and industry.</div>
               )}
               {customTheme && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
-                  {SLIDE_STYLES.map(style => (
-                    <div
-                      key={style.id}
-                      onClick={() => setSelectedStyle(style.id)}
-                      style={{
-                        borderRadius: 10, overflow: 'hidden', cursor: 'pointer',
-                        border: selectedStyle === style.id ? '2px solid var(--mint)' : '1px solid var(--border-light)',
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      <img src={`/style-previews/${style.id}.png`} alt={style.name} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} loading="lazy" />
-                      <div style={{ padding: '6px 8px', textAlign: 'center' }}>
-                        <div style={{ fontSize: 11, fontWeight: selectedStyle === style.id ? 700 : 500 }}>{style.name}</div>
-                      </div>
-                    </div>
-                  ))}
+                <div style={{ position: 'relative' }}>
+                  {/* Left arrow */}
+                  <button
+                    onClick={() => carouselRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                    style={{
+                      position: 'absolute', left: -12, top: '50%', transform: 'translateY(-50%)', zIndex: 2,
+                      width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--border)',
+                      background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)', fontSize: 16, color: 'var(--ink)',
+                    }}
+                    aria-label="Scroll left"
+                  >&#8249;</button>
+                  {/* Right arrow */}
+                  <button
+                    onClick={() => carouselRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                    style={{
+                      position: 'absolute', right: -12, top: '50%', transform: 'translateY(-50%)', zIndex: 2,
+                      width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--border)',
+                      background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)', fontSize: 16, color: 'var(--ink)',
+                    }}
+                    aria-label="Scroll right"
+                  >&#8250;</button>
+                  <div
+                    ref={carouselRef}
+                    style={{
+                      display: 'flex', gap: 14, overflowX: 'auto', scrollSnapType: 'x mandatory',
+                      scrollBehavior: 'smooth', padding: '4px 2px 8px', msOverflowStyle: 'none',
+                      scrollbarWidth: 'thin',
+                    }}
+                  >
+                    {SLIDE_STYLES.map(style => {
+                      const isSelected = selectedStyle === style.id
+                      return (
+                        <div
+                          key={style.id}
+                          onClick={() => {
+                            setSelectedStyle(style.id)
+                            setPreviewSlide(null)
+                          }}
+                          style={{
+                            minWidth: 240, maxWidth: 240, scrollSnapAlign: 'start',
+                            borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
+                            border: isSelected ? '2px solid var(--mint)' : '1px solid var(--border-light)',
+                            transform: isSelected ? 'scale(1.03)' : 'scale(1)',
+                            transition: 'all 0.2s ease',
+                            background: isSelected ? 'rgba(59,181,200,0.04)' : 'white',
+                            boxShadow: isSelected ? '0 4px 16px rgba(59,181,200,0.15)' : '0 1px 4px rgba(0,0,0,0.06)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <img
+                            src={`/style-previews/${style.id}.png`}
+                            alt={style.name}
+                            style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }}
+                            loading="lazy"
+                          />
+                          <div style={{ padding: '10px 12px' }}>
+                            <div style={{ fontSize: 13, fontWeight: isSelected ? 700 : 600, marginBottom: 2 }}>{style.name}</div>
+                            <div style={{ fontSize: 11, color: 'var(--ink-light)', lineHeight: 1.3 }}>{style.description}</div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -2439,6 +2517,55 @@ export default function CreatePage() {
               <a href="/pricing" className="btn btn-primary" style={{ fontSize: 14 }}>View plans &rarr;</a>
             </div>
           )}
+
+          {/* Preview Slide Section */}
+          <div style={{
+            marginBottom: 24, padding: '20px 24px', borderRadius: 14,
+            background: 'var(--bg-soft)', border: '1px solid var(--border-light)',
+          }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 6px' }}>See what your video will look like</h3>
+            <p style={{ fontSize: 13, color: 'var(--ink-light)', margin: '0 0 16px' }}>
+              Generate a sample cover slide using your content and selected style.
+            </p>
+
+            {previewLoading && (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                padding: '32px 16px', borderRadius: 10, background: 'white', border: '1px solid var(--border-light)',
+                marginBottom: 12,
+              }}>
+                <div className="spinner" style={{ width: 20, height: 20, border: '2.5px solid var(--border)', borderTopColor: 'var(--mint)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)' }}>Creating preview slide...</span>
+              </div>
+            )}
+
+            {previewSlide && !previewLoading && (
+              <div style={{ marginBottom: 12 }}>
+                <img
+                  src={previewSlide}
+                  alt="Preview slide"
+                  style={{ width: '100%', borderRadius: 10, display: 'block', border: '1px solid var(--border-light)' }}
+                />
+                <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '10px 0 0', textAlign: 'center' }}>
+                  Happy with this? Click Create below. Want a different look? Change the style above and preview again.
+                </p>
+              </div>
+            )}
+
+            {!previewLoading && (
+              <button
+                onClick={handlePreviewSlide}
+                className="btn"
+                style={{
+                  background: 'var(--mint)', color: 'var(--ink)', fontWeight: 700,
+                  border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 13,
+                  cursor: 'pointer', width: '100%',
+                }}
+              >
+                {previewSlide ? 'Regenerate Preview' : 'Generate Preview'}
+              </button>
+            )}
+          </div>
 
           {/* Price + Generate */}
           <div className="wizard-actions">
