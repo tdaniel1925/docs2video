@@ -129,9 +129,10 @@ function tag(color: 'mint' | 'peach' | 'rose' | 'gray'): React.CSSProperties {
 }
 
 function statusTag(status: string | null) {
-  if (status === 'completed' || status === 'active' || status === 'agency') return tag('mint')
-  if (status === 'failed' || status === 'cancelled' || status === 'expired') return tag('rose')
-  if (status === 'trial' || status === 'processing' || status === 'pending' || status === 'scripting' || status === 'generating_slides' || status === 'generating_audio' || status === 'assembling') return tag('peach')
+  if (!status) return tag('gray')
+  if (['completed', 'active', 'agency', 'pro', 'business', 'enterprise', 'enterprise-plus', 'enterprise_plus', 'professional'].includes(status)) return tag('mint')
+  if (['failed', 'cancelled', 'expired'].includes(status)) return tag('rose')
+  if (['trial', 'processing', 'pending', 'scripting', 'generating_slides', 'generating_audio', 'assembling', 'starter'].includes(status)) return tag('peach')
   return tag('gray')
 }
 
@@ -178,12 +179,14 @@ export default function AdminPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true)
+    try {
     const supabase = createClient()
 
     // Check auth
     const { data: { user } } = await supabase.auth.getUser()
     if (!user || !isAdmin(user.email)) {
       setAuthState('denied')
+      setLoading(false)
       return
     }
     setAuthState('ok')
@@ -191,7 +194,9 @@ export default function AdminPage() {
     // Load all data via admin API (bypasses RLS)
     const dataRes = await fetch('/api/admin/data')
     if (!dataRes.ok) {
+      console.error('[admin] Data API failed:', dataRes.status)
       setAuthState('denied')
+      setLoading(false)
       return
     }
     const adminData = await dataRes.json()
@@ -225,6 +230,10 @@ export default function AdminPage() {
     }
 
     setLoading(false)
+    } catch (err) {
+      console.error('[admin] Load failed:', err)
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { loadData() }, [loadData])
