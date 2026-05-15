@@ -7,7 +7,7 @@
  * Agency ($249/mo): Everything unlimited + 5 courses/month.
  */
 
-export type PlanTier = 'free' | 'pro' | 'business' | 'agency'
+export type PlanTier = 'free' | 'pro' | 'business' | 'agency' | 'enterprise' | 'enterprise-plus'
 
 export interface PlanInfo {
   tier: PlanTier
@@ -76,6 +76,42 @@ export const PLANS: PlanInfo[] = [
     coursesPerMonth: 5,
     unlimitedProjects: true,
   },
+  {
+    tier: 'enterprise',
+    label: 'Enterprise',
+    monthlyPrice: 49900, // $499
+    description: 'For mid-size agencies',
+    features: [
+      'Unlimited videos, decks, infographics',
+      '20 video courses per month',
+      'Bulk creation (50 at a time)',
+      'White-label share pages',
+      'Client CRM dashboard',
+      '5 team seats',
+      'Priority email support',
+    ],
+    coursesPerMonth: 20,
+    unlimitedProjects: true,
+  },
+  {
+    tier: 'enterprise-plus',
+    label: 'Enterprise Plus',
+    monthlyPrice: 79900, // $799
+    description: 'For large agencies & enterprises',
+    features: [
+      'Everything in Enterprise',
+      'Unlimited courses',
+      'Bulk creation (200 at a time)',
+      'Custom domain share pages',
+      'API access',
+      '20 team seats',
+      'Dedicated phone + Slack support',
+      '1-on-1 onboarding call',
+      '99.9% SLA guarantee',
+    ],
+    coursesPerMonth: -1, // unlimited
+    unlimitedProjects: true,
+  },
 ]
 
 export interface ProjectPrice {
@@ -103,6 +139,8 @@ export function getPlan(tier: PlanTier): PlanInfo {
 
 export function getUserTier(subscriptionStatus: string | null): PlanTier {
   const status = (subscriptionStatus ?? '').toLowerCase()
+  if (['enterprise-plus', 'enterprise_plus'].includes(status)) return 'enterprise-plus'
+  if (['enterprise'].includes(status)) return 'enterprise'
   if (['agency'].includes(status)) return 'agency'
   if (['business', 'unlimited'].includes(status)) return 'business'
   if (['pro', 'professional', 'active'].includes(status)) return 'pro'
@@ -113,6 +151,12 @@ export function getUserPrice(type: string, subscriptionStatus: string | null): n
   const tier = getUserTier(subscriptionStatus)
   const price = getProjectPrice(type)
   if (!price) return 0
+
+  // Enterprise Plus: everything unlimited
+  if (tier === 'enterprise-plus') return 0
+
+  // Enterprise: projects included, courses included (up to 20/mo)
+  if (tier === 'enterprise') return 0
 
   // Business and Agency: included projects (not courses for Business)
   if ((tier === 'business' || tier === 'agency') && type !== 'course') return 0
@@ -141,5 +185,10 @@ export function isProMember(subscriptionStatus: string | null): boolean {
 
 export function isUnlimited(subscriptionStatus: string | null): boolean {
   const tier = getUserTier(subscriptionStatus)
-  return tier === 'business' || tier === 'agency'
+  return ['business', 'agency', 'enterprise', 'enterprise-plus'].includes(tier)
+}
+
+export function isEnterprise(subscriptionStatus: string | null): boolean {
+  const tier = getUserTier(subscriptionStatus)
+  return tier === 'enterprise' || tier === 'enterprise-plus'
 }

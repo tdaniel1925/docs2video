@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/client'
 import type { Brand, ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
@@ -139,8 +139,13 @@ const DEFAULT_MUSIC = [
   { id: 'inspirational-1', name: 'Online Business', mood: 'Inspirational', url: `${SUPABASE_STORAGE}/music/the_mountain-online-business-144097.mp3` },
 ]
 
+const DRAFT_KEY = 'docs2video_draft'
+
 export default function CreatePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const [draftBanner, setDraftBanner] = useState<string | null>(null)
+  const draftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [step, setStep] = useState<Step>('upload')
   const [file, setFile] = useState<File | null>(null)
   const [files, setFiles] = useState<File[]>([])
@@ -257,7 +262,111 @@ export default function CreatePage() {
       } catch {}
     }
     loadData()
+
+    // --- Duplicate: load video data from ?duplicate= param ---
+    const duplicateId = new URLSearchParams(window.location.search).get('duplicate')
+    if (duplicateId) {
+      ;(async () => {
+        const supabase = createClient()
+        const { data: vid } = await supabase
+          .from('videos')
+          .select('script, title')
+          .eq('id', duplicateId)
+          .single()
+        if (vid?.script) {
+          const script = vid.script as any
+          const input = script._pipeline_input
+          if (input) {
+            if (input.policyData) {
+              if (input.policyData.deathBenefit) {
+                setExtractedData(input.policyData)
+              } else {
+                setGeneralData(input.policyData)
+              }
+            }
+            if (input.voiceId) setSelectedVoice(input.voiceId)
+            if (input.styleId) setSelectedStyle(input.styleId)
+            if (input.customStylePrompt) setCustomStylePrompt(input.customStylePrompt)
+            if (input.scenes && Array.isArray(input.scenes)) {
+              setEditableScenes(input.scenes)
+            }
+            setReviewReady(true)
+          } else if (Array.isArray(script)) {
+            setEditableScenes(script.map((s: any, i: number) => ({
+              scene: i + 1,
+              title: s.title || '',
+              slidePrompt: s.slidePrompt || '',
+              narration: s.narration || '',
+            })))
+          }
+        }
+      })()
+      // Clear the URL param without reload
+      window.history.replaceState({}, '', '/create')
+    }
+
+    // --- Draft restore: check localStorage ---
+    if (!duplicateId) {
+      try {
+        const saved = localStorage.getItem(DRAFT_KEY)
+        if (saved) {
+          const draft = JSON.parse(saved)
+          if (draft.savedAt) {
+            setDraftBanner(new Date(draft.savedAt).toLocaleString())
+          }
+        }
+      } catch {}
+    }
   }, [])
+
+  // --- Auto-save draft (debounced 1s after last change) ---
+  useEffect(() => {
+    // Don't save during generation or if on the done step
+    if (step === 'generating' || step === 'done') return
+    // Only save if there is meaningful data
+    if (!extractedData && !generalData && editableScenes.length === 0) return
+
+    if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current)
+    draftSaveTimer.current = setTimeout(() => {
+      try {
+        const draft = {
+          extractedData,
+          generalData,
+          editableScenes,
+          selectedVoice,
+          selectedStyle,
+          step,
+          savedAt: new Date().toISOString(),
+        }
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+      } catch {}
+    }, 1000)
+
+    return () => {
+      if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current)
+    }
+  }, [extractedData, generalData, editableScenes, selectedVoice, selectedStyle, step])
+
+  function restoreDraft() {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY)
+      if (!saved) return
+      const draft = JSON.parse(saved)
+      if (draft.extractedData) setExtractedData(draft.extractedData)
+      if (draft.generalData) setGeneralData(draft.generalData)
+      if (draft.editableScenes) setEditableScenes(draft.editableScenes)
+      if (draft.selectedVoice) setSelectedVoice(draft.selectedVoice)
+      if (draft.selectedStyle) setSelectedStyle(draft.selectedStyle)
+      if (draft.step) setStep(draft.step)
+      if (draft.extractedData || draft.generalData) setReviewReady(true)
+    } catch {}
+    setDraftBanner(null)
+  }
+
+  function discardDraft() {
+    try { localStorage.removeItem(DRAFT_KEY) } catch {}
+    setDraftBanner(null)
+  }
 
   const handleFileSelect = useCallback((selectedFile: File) => {
     if (selectedFile.type !== 'application/pdf') { setError('Please upload a PDF file'); return }
@@ -551,13 +660,42 @@ export default function CreatePage() {
     setSlidesLoading([...loading])
   }
 
-  function handlePreviewVoice(voiceId: string) {
+  async function handlePreviewVoice(voiceId: string) {
     if (playingVoice === voiceId) {
       audioRef.current?.pause()
       setPlayingVoice(null)
       return
     }
     if (audioRef.current) audioRef.current.pause()
+
+    // Try to use the first sentence of the user's actual script
+    const firstNarration = editableScenes?.[0]?.narration ?? ''
+    const firstSentence = firstNarration.match(/^[^.!?]+[.!?]?/)?.[0]?.trim() ?? ''
+
+    if (firstSentence && firstSentence.length > 10) {
+      // Use the API to generate a preview with their actual script
+      setPlayingVoice(voiceId)
+      try {
+        const res = await fetch('/api/voice-preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ voiceId, text: firstSentence }),
+        })
+        if (res.ok) {
+          const blob = await res.blob()
+          const url = URL.createObjectURL(blob)
+          const audio = new Audio(url)
+          audio.onended = () => { setPlayingVoice(null); URL.revokeObjectURL(url) }
+          audio.play()
+          audioRef.current = audio
+          return
+        }
+      } catch {}
+      // Fall through to generic preview on error
+      setPlayingVoice(null)
+    }
+
+    // Fallback: generic preview clip
     const audio = new Audio(`/voice-previews/${voiceId}.mp3`)
     audio.onended = () => setPlayingVoice(null)
     audio.play()
@@ -592,6 +730,9 @@ export default function CreatePage() {
 
   async function handleGenerate() {
     if (!activeData) return
+
+    // Clear draft when generation starts
+    try { localStorage.removeItem(DRAFT_KEY) } catch {}
 
     setStep('generating')
     setError(null)
@@ -672,6 +813,22 @@ export default function CreatePage() {
           )
         })}
       </div>
+
+      {/* Draft restore banner */}
+      {draftBanner && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 20px', marginBottom: 16, borderRadius: 10,
+          background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+          border: '1px solid #93c5fd', fontSize: 13,
+        }}>
+          <span>You have an unsaved draft from {draftBanner}.</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={restoreDraft} className="btn btn-primary btn-sm">Resume</button>
+            <button onClick={discardDraft} className="btn btn-soft btn-sm">Discard</button>
+          </div>
+        </div>
+      )}
 
       {/* Step: Upload / Text / Idea */}
       {step === 'upload' && (

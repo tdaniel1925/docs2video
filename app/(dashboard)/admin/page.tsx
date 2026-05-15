@@ -1050,6 +1050,25 @@ export default function AdminPage() {
         >
           Campaigns
         </a>
+        <a
+          href="/admin/bulk"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '8px 18px',
+            borderRadius: 8,
+            border: '1px solid var(--border, #e2e2e2)',
+            background: 'var(--surface, #fff)',
+            color: 'var(--ink, #111)',
+            fontWeight: 700,
+            fontSize: 13,
+            textDecoration: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          Bulk Generate
+        </a>
       </div>
 
       {/* Tab bar */}

@@ -19,6 +19,7 @@ interface AgentProfile {
   phone?: string | null
   calendly_url: string | null
   stripe_user_id: string | null
+  subscription_status: string | null
 }
 
 interface VideoWithRelations extends Video {
@@ -931,7 +932,7 @@ export default function PublicWatchPage() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id, full_name, company_name, photo_url, email, phone, calendly_url, stripe_user_id')
+        .select('id, full_name, company_name, photo_url, email, phone, calendly_url, stripe_user_id, subscription_status')
         .eq('id', v.user_id)
         .single()
       if (profile) setAgent(profile as AgentProfile)
@@ -1128,6 +1129,10 @@ export default function PublicWatchPage() {
   const slideCount = slideUrls.length
   const hasPdf = !!video.infographic?.source_pdf_url
 
+  // White-label: hide Docs2Video branding for enterprise/agency/business subscribers
+  const WHITELABEL_PLANS = ['enterprise', 'agency', 'business']
+  const isWhiteLabel = !!(agent?.subscription_status && WHITELABEL_PLANS.includes(agent.subscription_status.toLowerCase()))
+
   // Insurance detection and disclaimers
   const pipelineInput = (video.script as any)?._pipeline_input
   const policyData = pipelineInput?.policyData
@@ -1163,7 +1168,9 @@ export default function PublicWatchPage() {
             )}
           </div>
         </div>
-        <div className="wp-powered-header">Powered by Docs2Video</div>
+        {!isWhiteLabel && (
+          <div className="wp-powered-header">Powered by Docs2Video</div>
+        )}
       </header>
 
       {/* ============================================================ */}
@@ -1231,6 +1238,44 @@ export default function PublicWatchPage() {
                 ))}
               </div>
             )}
+
+            {/* Chapter markers */}
+            {(() => {
+              const scriptData = video.script as any
+              const chapters: any[] = scriptData?._pipeline_input?.scenes ?? (Array.isArray(scriptData) ? scriptData : [])
+              if (chapters.length === 0 || videoDuration === 0 || slideCount === 0) return null
+              const segDuration = videoDuration / slideCount
+              return (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 0' }}>
+                  {chapters.map((ch: any, i: number) => {
+                    const timestamp = segDuration * i
+                    const mins = Math.floor(timestamp / 60)
+                    const secs = Math.floor(timestamp % 60)
+                    const isActive = i === currentSlideIndex
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => jumpToSlide(i)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 6,
+                          padding: '6px 12px', borderRadius: 20,
+                          border: isActive ? '1.5px solid var(--mint, #3BB5C8)' : '1px solid var(--border-light, #E8EDF2)',
+                          background: isActive ? 'rgba(59,181,200,0.08)' : '#fff',
+                          cursor: 'pointer', fontSize: 12, fontWeight: isActive ? 700 : 500,
+                          color: isActive ? 'var(--ink, #1B3A5C)' : 'var(--ink-soft, #3D5A7A)',
+                          transition: 'all 0.15s', fontFamily: 'inherit',
+                        }}
+                      >
+                        <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--ink-light, #7A8FA3)' }}>
+                          {mins}:{secs.toString().padStart(2, '0')}
+                        </span>
+                        <span>{ch.title || `Scene ${i + 1}`}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )
+            })()}
 
             {/* Action buttons */}
             <div className="wp-actions">
@@ -1556,7 +1601,13 @@ export default function PublicWatchPage() {
       {/*  FOOTER                                                       */}
       {/* ============================================================ */}
       <footer className="wp-footer">
-        <a href="/">Powered by Docs2Video</a>
+        {isWhiteLabel ? (
+          <span style={{ fontSize: 11, color: 'var(--ink-light, #7A8FA3)', fontWeight: 600, letterSpacing: '0.04em' }}>
+            {agent?.company_name ?? agentName}
+          </span>
+        ) : (
+          <a href="/">Powered by Docs2Video</a>
+        )}
       </footer>
     </div>
   )

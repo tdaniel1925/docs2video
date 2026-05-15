@@ -286,6 +286,7 @@ export default function VideoDetailPage() {
   const [shareName, setShareName] = useState('')
   const pipelineStarted = useRef(false)
   const [userPlan, setUserPlan] = useState<string>('trial')
+  const [regeneratingSlide, setRegeneratingSlide] = useState<number | null>(null)
 
   // Video player state
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -343,6 +344,35 @@ export default function VideoDetailPage() {
     if (!videoRef.current || slideDuration === 0) return
     videoRef.current.currentTime = index * slideDuration
     setCurrentSlideIndex(index)
+  }
+
+  async function handleRegenerateSlide(index: number) {
+    if (regeneratingSlide !== null || !video) return
+    setRegeneratingSlide(index)
+    try {
+      const res = await fetch('/api/regenerate-slide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId: video.id, slideIndex: index }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error ?? 'Failed to regenerate slide')
+        return
+      }
+      const { slideUrl } = await res.json()
+      // Update the slide URL locally
+      setVideo(prev => {
+        if (!prev) return prev
+        const updatedUrls = [...(prev.slide_urls ?? [])]
+        updatedUrls[index] = slideUrl
+        return { ...prev, slide_urls: updatedUrls }
+      })
+    } catch {
+      alert('Failed to regenerate slide')
+    } finally {
+      setRegeneratingSlide(null)
+    }
   }
 
   // Scroll chat to bottom
@@ -1081,8 +1111,75 @@ export default function VideoDetailPage() {
                     }}>
                       {i + 1}
                     </div>
+                    {/* Regenerate slide button */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleRegenerateSlide(i) }}
+                      disabled={regeneratingSlide !== null}
+                      title={`Regenerate slide ${i + 1}`}
+                      style={{
+                        position: 'absolute',
+                        top: 2,
+                        right: 2,
+                        width: 22,
+                        height: 22,
+                        borderRadius: '50%',
+                        background: regeneratingSlide === i ? 'var(--mint)' : 'rgba(0,0,0,0.6)',
+                        border: 'none',
+                        cursor: regeneratingSlide !== null ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0,
+                        opacity: regeneratingSlide !== null && regeneratingSlide !== i ? 0.4 : 1,
+                        transition: 'opacity 0.15s, background 0.15s',
+                      }}
+                    >
+                      {regeneratingSlide === i ? (
+                        <span className="spinner" style={{ width: 12, height: 12, borderWidth: 2, borderTopColor: 'white' }} />
+                      ) : (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="23 4 23 10 17 10" />
+                          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                        </svg>
+                      )}
+                    </button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Chapter markers */}
+            {scenes.length > 0 && videoDuration > 0 && (
+              <div style={{
+                display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 0',
+              }}>
+                {scenes.map((scene: any, i: number) => {
+                  const segDuration = videoDuration / slideCount
+                  const timestamp = segDuration * i
+                  const mins = Math.floor(timestamp / 60)
+                  const secs = Math.floor(timestamp % 60)
+                  const isActive = i === currentSlideIndex
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => jumpToSlide(i)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '6px 12px', borderRadius: 20,
+                        border: isActive ? '1.5px solid var(--mint)' : '1px solid var(--border-light)',
+                        background: isActive ? 'rgba(168,240,212,0.12)' : 'white',
+                        cursor: 'pointer', fontSize: 12, fontWeight: isActive ? 700 : 500,
+                        color: isActive ? 'var(--ink)' : 'var(--ink-soft)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--ink-light)' }}>
+                        {mins}:{secs.toString().padStart(2, '0')}
+                      </span>
+                      <span>{scene.title || `Scene ${i + 1}`}</span>
+                    </button>
+                  )
+                })}
               </div>
             )}
 
@@ -1091,7 +1188,7 @@ export default function VideoDetailPage() {
               className="action-grid"
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(6, 1fr)',
+                gridTemplateColumns: 'repeat(4, 1fr)',
                 gap: 10,
                 marginTop: 8,
               }}
@@ -1120,6 +1217,20 @@ export default function VideoDetailPage() {
                 style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8, ...(downloadingPPTX ? { opacity: 0.5 } : {}) }}
               >
                 {downloadingPPTX ? 'PPTX...' : 'PPTX'}
+              </button>
+              <button
+                onClick={() => router.push(`/create?duplicate=${video.id}`)}
+                className="btn btn-soft"
+                style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}
+              >
+                Duplicate
+              </button>
+              <button
+                onClick={() => setShowEmailModal(true)}
+                className="btn btn-soft"
+                style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}
+              >
+                Email to Client
               </button>
               <button
                 onClick={handleDelete}

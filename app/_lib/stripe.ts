@@ -23,6 +23,8 @@ export const SUBSCRIPTION_PRICES: Record<Exclude<PlanTier, 'free'>, string> = {
   pro: process.env.STRIPE_PRICE_PRO!,
   business: process.env.STRIPE_PRICE_BUSINESS!,
   agency: process.env.STRIPE_PRICE_AGENCY!,
+  enterprise: process.env.STRIPE_PRICE_ENTERPRISE!,
+  'enterprise-plus': process.env.STRIPE_PRICE_ENTERPRISE_PLUS!,
 }
 
 /* ── Per-project price IDs from env ── */
