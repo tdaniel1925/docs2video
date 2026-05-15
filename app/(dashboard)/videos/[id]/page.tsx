@@ -523,17 +523,18 @@ export default function VideoDetailPage() {
         .single()
       if (quoteData) setExistingQuote(quoteData)
 
-      // Load analytics
-      const { data: viewsData } = await supabase
-        .from('video_analytics')
-        .select('event_type')
-        .eq('video_id', params.id as string)
-      if (viewsData) {
-        setAnalytics({
-          views: viewsData.filter(r => r.event_type === 'view').length,
-          plays: viewsData.filter(r => r.event_type === 'play').length,
-          chats: viewsData.filter(r => r.event_type === 'chat_message').length,
-        })
+      // Load analytics via API (bypasses RLS issues)
+      try {
+        const analyticsRes = await fetch(`/api/video-analytics?videoId=${params.id}`)
+        if (analyticsRes.ok) {
+          const analyticsData = await analyticsRes.json()
+          setAnalytics(analyticsData)
+        } else {
+          // Default to zeros if analytics table doesn't exist or query fails
+          setAnalytics({ views: 0, plays: 0, chats: 0 })
+        }
+      } catch {
+        setAnalytics({ views: 0, plays: 0, chats: 0 })
       }
     }
     loadPlan()
@@ -903,16 +904,16 @@ export default function VideoDetailPage() {
       </div>
 
       {/* Analytics Stats */}
-      {analytics && video.status === 'completed' && (
+      {video.status === 'completed' && (
         <div style={{
           display: 'flex',
           gap: 16,
           marginBottom: 24,
         }}>
           {[
-            { label: 'Views', value: analytics.views },
-            { label: 'Plays', value: analytics.plays },
-            { label: 'Chat Messages', value: analytics.chats },
+            { label: 'Views', value: analytics?.views ?? 0 },
+            { label: 'Plays', value: analytics?.plays ?? 0 },
+            { label: 'Chat Messages', value: analytics?.chats ?? 0 },
           ].map(stat => (
             <div key={stat.label} style={{
               flex: 1,
