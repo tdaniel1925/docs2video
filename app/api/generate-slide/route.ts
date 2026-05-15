@@ -4,6 +4,7 @@ import { generateSlide } from '../../_lib/gemini'
 import { compositeSlide } from '../../_lib/composite'
 import type { ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
+import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -13,14 +14,20 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
+  const rl = rateLimit(getRateLimitKey(user.id, 'generation'), LIMITS.generation.limit, LIMITS.generation.windowMs)
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
+  }
+
   const body = await request.json()
-  const { policyData, slideIndex, styleId, brandId, slidePrompt, isLastSlide } = body as {
+  const { policyData, slideIndex, styleId, brandId, slidePrompt, isLastSlide, assetUrl } = body as {
     policyData: ExtractedPolicyData | ExtractedData
     slideIndex: number
     styleId: SlideStyleId
     brandId: string | null
     slidePrompt?: string
     isLastSlide?: boolean
+    assetUrl?: string
   }
 
   let brandName: string | null = null
@@ -61,9 +68,27 @@ export async function POST(request: Request) {
       } catch { /* proceed without logo */ }
     }
 
+    // Load template reference image for visual consistency
+    const fs = await import('fs/promises')
+    const path = await import('path')
+    let templateRefBuffer: Buffer | null = null
+    try {
+      const refPath = path.join(process.cwd(), 'public', 'style-previews', `${styleId}.png`)
+      templateRefBuffer = await fs.readFile(refPath)
+    } catch { /* template preview not found, skip */ }
+
+    // Download asset image if provided
+    let assetBuffer: Buffer | null = null
+    if (assetUrl) {
+      try {
+        const assetRes = await fetch(assetUrl, { signal: AbortSignal.timeout(8000) })
+        if (assetRes.ok) assetBuffer = Buffer.from(await assetRes.arrayBuffer())
+      } catch { /* proceed without asset */ }
+    }
+
     let imageBuffer = await generateSlide(
       policyData, slideIndex, styleId, brandName, logoUrl, colors, slidePrompt, !!photoUrl, undefined,
-      logoBuffer
+      logoBuffer, undefined, undefined, undefined, undefined, undefined, templateRefBuffer, assetBuffer
     )
 
     // Composite real photo onto the slide (logo now handled by Gemini)

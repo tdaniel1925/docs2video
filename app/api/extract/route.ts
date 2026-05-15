@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { extractDocumentData } from '../../_lib/gemini'
+import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
+  const rl = rateLimit(getRateLimitKey(user.id, 'extraction'), LIMITS.extraction.limit, LIMITS.extraction.windowMs)
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
   }
 
   // Check credits
@@ -29,6 +35,10 @@ export async function POST(request: Request) {
 
   if (file.type !== 'application/pdf') {
     return NextResponse.json({ error: 'File must be a PDF' }, { status: 400 })
+  }
+
+  if (file.size > 50 * 1024 * 1024) {
+    return NextResponse.json({ error: 'File must be under 50MB' }, { status: 400 })
   }
 
   try {

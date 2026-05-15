@@ -222,6 +222,15 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
                 <span className={`tag ${TYPE_COLORS[item.type] ?? 'peach'}`} style={{ flexShrink: 0 }}>
                   {TYPE_LABELS[item.type] ?? item.type}
                 </span>
+                {/* Language badge — show if title has a language suffix like (Spanish) */}
+                {(() => {
+                  const langMatch = (item.title ?? '').match(/\((Spanish|French|Portuguese|German|Korean|Japanese|Chinese \(Simplified\)|Arabic|Hindi|Italian)\)\s*$/)
+                  return langMatch ? (
+                    <span className="tag lilac" style={{ flexShrink: 0, fontSize: 11 }}>
+                      {langMatch[1]}
+                    </span>
+                  ) : null
+                })()}
                 {/* Video status badge */}
                 {isVideo && item._status && item._status !== 'completed' && (
                   <span className={`tag ${item._status === 'failed' ? 'rose' : 'peach'}`} style={{ flexShrink: 0, fontSize: 11 }}>

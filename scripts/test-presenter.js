@@ -93,14 +93,17 @@ async function main() {
   for (let i = 0; i < 40; i++) {
     await new Promise(r => setTimeout(r, 10000))
 
-    const statusRes = await fetch(`https://api.kie.ai/api/v1/jobs/getTaskDetail?taskId=${taskId}`, {
+    const statusRes = await fetch(`https://api.kie.ai/api/v1/jobs/recordInfo?taskId=${taskId}`, {
       headers: { 'Authorization': `Bearer ${KIE_KEY}` },
     })
+    if (!statusRes.ok) { console.log(`  Poll ${i + 1}: ${statusRes.status}`); continue }
     const statusData = await statusRes.json()
-    const status = statusData.data?.status ?? statusData.status
-    console.log(`  Poll ${i + 1}: ${status}`)
+    if (i === 0) console.log('  Full response:', JSON.stringify(statusData).slice(0, 500))
 
-    if (status === 'completed') {
+    const state = statusData.data?.state ?? statusData.data?.status ?? statusData.status
+    console.log(`  Poll ${i + 1}: ${state}`)
+
+    if (state === 'completed' || state === 'success') {
       // Try to find the video URL in various response formats
       const videoUrl = statusData.data?.video_url
         ?? statusData.data?.output?.video_url
@@ -120,7 +123,7 @@ async function main() {
       break
     }
 
-    if (status === 'failed') {
+    if (state === 'failed' || state === 'fail') {
       console.error('  Generation failed:', JSON.stringify(statusData).slice(0, 500))
       break
     }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { createClient } from '../../../_lib/supabase/server'
+import { rateLimit, getRateLimitKey, LIMITS } from '../../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -11,6 +12,11 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+  const rl = rateLimit(getRateLimitKey(user.id, 'generation'), LIMITS.generation.limit, LIMITS.generation.windowMs)
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
+  }
 
   const body = await request.json()
   const { description, referenceImageBase64 } = body as {

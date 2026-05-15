@@ -276,6 +276,31 @@ const ARTICLES: HelpArticle[] = [
 
   // Sharing
   {
+    id: 'translate-video',
+    title: 'Translating a Presentation',
+    category: 'creators',
+    icon: '🌐',
+    content: [
+      'You can translate any completed video into another language with one click. The translated version is a new video with translated narration and slides.',
+      '**How to translate:**',
+      '1. Open a completed video from your Library',
+      '2. Click the **Translate** button in the action bar below the video',
+      '3. A modal appears with 10 supported languages: Spanish, French, Portuguese, German, Korean, Japanese, Chinese (Simplified), Arabic, Hindi, and Italian',
+      '4. Click a language to select it, then click **Translate to [Language]**',
+      '5. AI translates all narration and slide text naturally (not word-for-word)',
+      '6. A new video is created and you are redirected to its detail page, where generation begins automatically',
+      '**What gets translated:**',
+      '• All narration text (the voiceover)',
+      '• Slide text and descriptions',
+      '• Numbers, currency amounts, and proper names are kept as-is',
+      '**Good to know:**',
+      '• Each translation uses 1 additional credit',
+      '• The translated video appears in your Library with a language badge (e.g., "Spanish")',
+      '• The AI voice automatically speaks in the target language — no voice change needed',
+      '• You can translate a video into multiple languages to reach different audiences',
+    ],
+  },
+  {
     id: 'share-video',
     title: 'Sharing Videos with Clients',
     category: 'sharing',

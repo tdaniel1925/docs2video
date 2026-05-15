@@ -187,7 +187,8 @@ export interface SentEmail {
   created_at: string
 }
 
-// OpenAI TTS voices with common human names
+// OpenAI TTS voices — these voices support automatic language detection
+// They will speak in whatever language the text is written in
 export const VOICE_OPTIONS = [
   { id: 'nova', name: 'Sarah', gender: 'Female', description: 'Friendly and warm — most popular' },
   { id: 'shimmer', name: 'Emily', gender: 'Female', description: 'Gentle and reassuring' },
@@ -450,6 +451,126 @@ export const SLIDE_STYLES = [
     name: 'Street Grunge',
     description: 'Torn paper, teal & cream, urban street art energy',
     prompt: 'Urban street art flyer style. Teal/dark cyan (#0d7377) background with cream/off-white (#f5f0e1) torn paper shapes layered on top — ripped edges, overlapping paper scraps at angles. Bold graffiti-style mixed typography — some words in massive bold condensed sans-serif, others in handwritten script italics. Hand-drawn crown doodles and star scribbles as decorations. Dark brush stroke text effects. White torn tape strips with text. Badge elements with dates/numbers. Scattered diagonal text elements. Everything feels like a hand-assembled urban collage — layered, energetic, raw. Mix of dark teal, cream, white, and black.',
+  },
+  {
+    id: 'stock-certificate',
+    name: 'Stock Certificate',
+    description: 'Ornate parchment, engraved borders, old-world finance',
+    prompt: 'Ornate stock certificate design. Cream/ivory parchment background, elaborate engraved border patterns in dark green and gold, classical serif typography, embossed seal effects, fine line engravings of allegorical figures in corners, guilloché patterns, old-world financial document aesthetic. Feels prestigious, official, valuable.',
+  },
+  {
+    id: 'vintage-bond',
+    name: 'Vintage Bond',
+    description: 'Aged antique paper, copper-plate engravings, historical',
+    prompt: 'Aged government bond document style. Yellowed antique paper texture, intricate copper-plate engraving illustrations, classical Roman typography, wax seal marks, decorative rosette patterns, aged ink effects. Feels historical, authoritative, collectible.',
+  },
+  {
+    id: 'art-deco',
+    name: 'Art Deco',
+    description: 'Black & gold geometric, 1920s Gatsby glamour',
+    prompt: 'Art Deco poster design from 1920s. Black background with bold geometric gold patterns, symmetrical sunburst motifs, tall elegant typefaces, chrome and gold metallic accents, Gatsby-era luxury. Sharp angles, chevrons, and fan shapes. Feels glamorous, sophisticated, timeless.',
+  },
+  {
+    id: 'marble-gold',
+    name: 'Marble & Gold',
+    description: 'White Carrara marble, gold veins, luxury brochure',
+    prompt: 'White Carrara marble texture background with thin gold vein lines running through. Elegant gold leaf accents, premium serif typography, generous whitespace, subtle embossed effects. Luxury real estate brochure aesthetic. Feels opulent, refined, high-end.',
+  },
+  {
+    id: 'nightclub-flyer',
+    name: 'Nightclub Flyer',
+    description: 'Neon pink & cyan glow, dark DJ energy',
+    prompt: 'Nightclub event flyer design. Pure black background with electric neon pink, cyan, and purple glow effects. Bold condensed sans-serif typography, lens flare effects, smoke/fog atmosphere, DJ booth silhouette elements. High energy, high contrast. Feels exciting, vibrant, party-ready.',
+  },
+  {
+    id: 'concert-poster',
+    name: 'Concert Poster',
+    description: 'Grungy dark texture, punk rock, halftone dots',
+    prompt: 'Rock concert poster design. Dark grungy textured background with distressed effects, bold blocky typography in red and white, torn paper edges, halftone dot patterns, vintage microphone and guitar silhouettes. Punk/indie rock aesthetic. Feels raw, energetic, underground.',
+  },
+  {
+    id: 'movie-poster',
+    name: 'Movie Poster',
+    description: 'Cinematic blue-black, orange/teal grading, blockbuster',
+    prompt: 'Cinematic movie poster design. Deep blue-black background with dramatic orange/teal color grading, large cinematic title treatment, film grain texture, dramatic spotlight lighting from below, silhouetted figures, aspect ratio bars. Hollywood blockbuster feel. Feels epic, dramatic, premium.',
+  },
+  {
+    id: 'festival',
+    name: 'Festival',
+    description: 'Psychedelic sunset gradients, retro 70s, dreamy',
+    prompt: 'Music festival poster design. Psychedelic flowing gradients in sunset colors (pink, orange, purple, gold), wavy organic typography, fluid blob shapes, retro 70s psychedelic patterns, peace symbols, flower motifs. Feels free-spirited, colorful, dreamy.',
+  },
+  {
+    id: 'medical-journal',
+    name: 'Medical Journal',
+    description: 'Clinical white, teal accents, scientific precision',
+    prompt: 'Medical journal article layout. Clean white background, clinical teal/green accent color, anatomical line drawings, precise data tables, clean sans-serif body text with serif headings, subtle grid lines, pill capsule and DNA helix decorative elements. Feels scientific, trustworthy, precise.',
+  },
+  {
+    id: 'legal-brief',
+    name: 'Legal Brief',
+    description: 'Formal cream paper, navy serif text, institutional',
+    prompt: 'Legal document style. Off-white/cream paper background, dark navy text, thin formal borders, section numbering (I, II, III), serif fonts throughout (like Times New Roman but elegant), paragraph indentation, footnote markers, scales of justice watermark at 5% opacity. Feels authoritative, formal, institutional.',
+  },
+  {
+    id: 'scientific-paper',
+    name: 'Scientific Paper',
+    description: 'Academic poster, navy headers, scatter plots, scholarly',
+    prompt: 'Scientific research poster design. White background with navy/dark blue headers, multi-column layout, embedded scatter plots and bar charts in muted colors, citation numbers, Greek letter symbols (α, β, Σ), molecular structure diagrams as decorative elements. Academic conference poster aesthetic. Feels rigorous, scholarly, data-driven.',
+  },
+  {
+    id: 'collage-scrapbook',
+    name: 'Collage Scrapbook',
+    description: 'Kraft paper, washi tape, polaroids, handmade',
+    prompt: 'Mixed media scrapbook collage style. Kraft paper background, torn paper edges revealing layers underneath, washi tape strips in pastel colors, polaroid-style photo frames, hand-written annotations, sticker effects, pushpin graphics, string connecting elements. Feels creative, personal, handmade.',
+  },
+  {
+    id: 'comic-book',
+    name: 'Comic Book',
+    description: 'Bold outlines, Ben-Day dots, POW bursts, pop-art',
+    prompt: 'Comic book page design. Bold black outlines, halftone Ben-Day dots pattern, speech bubble shapes for data callouts, action lines radiating from key numbers, POW/BAM style burst shapes for highlights, primary colors (red, blue, yellow) on white. Panel grid layout. Feels fun, dynamic, pop-art.',
+  },
+  {
+    id: 'chalkboard-v2',
+    name: 'Chalkboard V2',
+    description: 'Green chalkboard, colored chalk, wooden frame',
+    prompt: 'Classroom chalkboard design. Dark green/black chalkboard texture background, chalk-style hand-drawn text in white and colored chalk (yellow, pink, blue), chalk dust effects, sketchy arrows and underlines, eraser smudge marks, wooden frame border at edges. Feels educational, nostalgic, approachable.',
+  },
+  {
+    id: 'glassmorphism',
+    name: 'Glassmorphism',
+    description: 'Frosted glass cards, vibrant gradient, Apple-inspired',
+    prompt: 'Glassmorphism UI design. Vibrant gradient background (purple to blue to pink), frosted glass cards with 40% transparency and blur backdrop, thin white 1px borders on cards, subtle shadow beneath each card, rounded corners, modern SF Pro style typography in white. Feels futuristic, clean, Apple-inspired.',
+  },
+  {
+    id: 'neubrutalism',
+    name: 'Neubrutalism',
+    description: 'Thick black borders, harsh shadows, raw primary colors',
+    prompt: 'Neubrutalist web design. Off-white background, thick 3-4px black borders on every element, harsh drop shadows offset to bottom-right, raw primary colors (bright yellow, electric blue, hot pink), deliberately clunky typography mixing serif and sans-serif, no rounded corners — all sharp edges. Feels bold, raw, anti-corporate.',
+  },
+  {
+    id: 'gradient-mesh',
+    name: 'Gradient Mesh',
+    description: 'Black with flowing color blobs, Apple marketing style',
+    prompt: 'Flowing gradient mesh design inspired by Apple marketing. Deep black background with flowing colorful gradient blobs — vibrant purple, blue, teal, green transitioning smoothly. Clean white sans-serif typography floating over the gradients. Minimal layout, maximum visual impact. Feels premium, modern, Silicon Valley.',
+  },
+  {
+    id: 'terminal',
+    name: 'Terminal',
+    description: 'Black CLI, green monospace text, hacker aesthetic',
+    prompt: 'Hacker terminal / CLI aesthetic. Pure black background (#000000), monospace green text (#00FF00) like a Linux terminal, command prompt characters ($ > _), matrix-style falling characters faintly in background, scan line effects, slight CRT monitor curvature, terminal window chrome at top. Feels technical, hacker, cybersecurity.',
+  },
+  {
+    id: 'newspaper',
+    name: 'Newspaper',
+    description: 'Vintage newsprint, multi-column, classic masthead',
+    prompt: 'Vintage newspaper front page design. Cream/newsprint texture background, multi-column layout with thin vertical rules between columns, large bold serif headline (like The New York Times), smaller serif body text, dateline, article bylines, halftone photo placeholder areas, classic newspaper masthead style. Feels journalistic, classic, informative.',
+  },
+  {
+    id: 'travel-magazine',
+    name: 'Travel Magazine',
+    description: 'Exotic landscape, elegant white text, glossy editorial',
+    prompt: 'Luxury travel magazine spread design. Large background photography of an exotic beach/mountain landscape (slightly blurred), white text overlays with elegant thin sans-serif typography, magazine-style pull quotes, thin gold accent lines, page number in corner, glossy premium feel. Feels aspirational, wanderlust, premium editorial.',
   },
 ] as const
 

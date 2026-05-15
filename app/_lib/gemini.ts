@@ -2,8 +2,12 @@ import { GoogleGenAI } from '@google/genai'
 import type { ExtractedPolicyData, SlideStyleId } from './types'
 import type { ExtractedData } from './extract-types'
 import { SLIDE_STYLES } from './types'
+import { buildStructuredPrompt } from './prompt-builder'
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+
+// Image generation model — switch between models via env var without code changes
+const IMAGE_MODEL = process.env.IMAGE_MODEL || 'gemini-3-pro-image-preview'
 
 const GENERIC_EXTRACTION_PROMPT = `You are an expert document analyzer. Analyze this document and extract ALL key information.
 
@@ -206,7 +210,7 @@ ${getStrictRules()}`
 
     try {
       const response = await genai.models.generateContent({
-        model: 'gemini-3-pro-image-preview',
+        model: IMAGE_MODEL,
         contents: prompt,
         config: {
           responseFormat: {
@@ -258,7 +262,11 @@ export async function generateSlide(
   logoBuffer?: Buffer | null,
   referenceSlides?: Buffer[],
   totalSlides: number = 5,
-  customStylePrompt?: string
+  customStylePrompt?: string,
+  colorSwatchBuffer?: Buffer | null,
+  previousSlideBuffer?: Buffer | null,
+  templateRefBuffer?: Buffer | null,
+  assetBuffer?: Buffer | null
 ): Promise<Buffer> {
   const style = SLIDE_STYLES.find(s => s.id === styleId) ?? SLIDE_STYLES[0]
   // Custom style prompt overrides the built-in style
@@ -321,17 +329,26 @@ The text on the slide should be the KEY FACTS only — short phrases, not full s
     visualContent = `Create a professional content slide. Use placeholder content about the document topic.`
   }
 
+  // Build the structured prompt using the 6-component formula
+  const structuredPrompt = buildStructuredPrompt({
+    subject: visualContent,
+    action: isFirst ? 'Elegant title card with premium typography and visual hierarchy'
+      : isLast ? 'Professional closing card with call-to-action feel'
+      : isDisclaimer ? 'Clean legal disclaimer with prominent readable text'
+      : 'Data-driven content slide with clear headline, key data points, and supporting icons',
+    environment: isFirst && hasPhoto
+      ? 'Professional presentation canvas with a reserved clean 200x200px area in the bottom-right for a photo overlay'
+      : 'Full-bleed professional presentation canvas, no empty reserved areas',
+    artStyle: stylePromptText,
+    brandName: brandName,
+    brandColors: colors,
+  })
+
   // Build the complete prompt — clean separation of concerns
   const promptText = `You are generating a presentation slide image. Follow these instructions precisely.
 
-=== DESIGN STYLE (HIGHEST PRIORITY) ===
-${stylePromptText}
-
-=== COLORS ===
-Primary: ${colors.primary}, Secondary: ${colors.secondary}, Accent: ${colors.accent}
-
-=== WHAT TO SHOW ON THIS SLIDE ===
-${visualContent}
+=== STRUCTURED IMAGE DESCRIPTION ===
+${structuredPrompt}
 
 === RULES ===
 - Output exactly 1920x1080 pixels, landscape, 16:9
@@ -340,7 +357,6 @@ ${visualContent}
 - Use ONLY the design style described above — do not switch to a generic corporate look
 - Use the FULL canvas — do not leave empty areas, reserved zones, or placeholder boxes
 ${isInsurance ? '- LEGAL: Do NOT display any insurance carrier or company name anywhere on the slide. This is a legal requirement.' : ''}
-${isFirst && hasPhoto ? '- Reserve a clean 200x200px area in the bottom-right for a photo overlay.' : ''}
 
 === FORBIDDEN (DO NOT DO ANY OF THESE) ===
 - Do NOT render raw field labels like "Headline:", "Subheadline:", "slidePrompt:", "narration:" etc.
@@ -353,21 +369,58 @@ ${isFirst && hasPhoto ? '- Reserve a clean 200x200px area in the bottom-right fo
 - Do NOT include placeholder dates like "March 2025" or "Friday Night" from the template style
 ${isInsurance ? '- Do NOT write any insurance carrier name, company name, or brand name on the slide' : ''}
 
-${referenceSlides && referenceSlides.length > 0 ? '=== VISUAL REFERENCE ===\nReference slides are attached. Match their EXACT visual style — same background, colors, textures, typography, and effects. The new slide must look like it belongs in the same deck.' : ''}
+${templateRefBuffer ? '=== TEMPLATE REFERENCE DESIGN ===\nREFERENCE DESIGN (match this EXACTLY): A reference image is attached showing the visual style to follow. Replicate the same textures, borders, decorative elements, background treatment, icon style, and overall mood. Match the EXACT visual style, textures, decorative elements, and mood of this reference slide. Use the same design DNA — borders, patterns, backgrounds, icon style. Only change the DATA content.' : ''}
+${referenceSlides && referenceSlides.length > 0 ? '\n=== VISUAL REFERENCE ===\nReference slides are attached. Match their EXACT visual style — same background, colors, textures, typography, and effects. The new slide must look like it belongs in the same deck.' : ''}
+${colorSwatchBuffer ? '\n=== COLOR PALETTE REFERENCE ===\nA color swatch image is attached showing the exact brand colors. Match these exact brand colors in your design.' : ''}
+${previousSlideBuffer ? '\n=== PREVIOUS SLIDE REFERENCE ===\nThe previous slide image is attached. Maintain the same visual style as this previous slide for consistency.' : ''}
+${assetBuffer ? '\n=== PRODUCT/BRAND ASSET ===\nPRODUCT/BRAND ASSET: Feature this product image prominently in the slide. Show the EXACT product as-is — do not modify, redesign, or recreate it. Integrate it naturally into the slide layout within the template\'s design style.' : ''}
 
 === CONSISTENCY ===
 This is slide ${slideIndex + 1} of ${totalSlides}. ALL slides must share identical visual treatment.`
 
-  // Build the content parts — text first, then logo image, then reference slides
-  const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
-    { text: promptText },
-  ]
+  // Build the content parts — template reference first (so model sees style before content), then text, then logo
+  const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = []
+
+  // Add template reference image FIRST so the model sees the target style before the content prompt
+  if (templateRefBuffer) {
+    parts.push(
+      { text: 'REFERENCE DESIGN (match this EXACTLY): This image shows the visual style to follow. Replicate the same textures, borders, decorative elements, background treatment, icon style, and overall mood. The data/text content will be different, but the DESIGN must match this reference.' },
+      { inlineData: { mimeType: 'image/png', data: templateRefBuffer.toString('base64') } },
+    )
+  }
+
+  parts.push({ text: promptText })
 
   // Add logo image if available
   if (logoBuffer) {
-    parts.push({
-      inlineData: { mimeType: 'image/png', data: logoBuffer.toString('base64') },
-    })
+    parts.push(
+      { text: 'Use this logo exactly as shown — do not modify or recreate it:' },
+      { inlineData: { mimeType: 'image/png', data: logoBuffer.toString('base64') } },
+    )
+  }
+
+  // Add color swatch reference if available
+  if (colorSwatchBuffer) {
+    parts.push(
+      { text: 'Match these exact brand colors in your design:' },
+      { inlineData: { mimeType: 'image/png', data: colorSwatchBuffer.toString('base64') } },
+    )
+  }
+
+  // Add previous slide for style consistency
+  if (previousSlideBuffer) {
+    parts.push(
+      { text: 'Maintain the same visual style as this previous slide for consistency:' },
+      { inlineData: { mimeType: 'image/png', data: previousSlideBuffer.toString('base64') } },
+    )
+  }
+
+  // Add product/brand asset if available
+  if (assetBuffer) {
+    parts.push(
+      { text: 'PRODUCT/BRAND ASSET: Feature this product image prominently in the slide. Show the EXACT product as-is — do not modify, redesign, or recreate it. Integrate it naturally into the slide layout within the template\'s design style.' },
+      { inlineData: { mimeType: 'image/png', data: assetBuffer.toString('base64') } },
+    )
   }
 
   // Add reference slides if available
@@ -380,7 +433,7 @@ This is slide ${slideIndex + 1} of ${totalSlides}. ALL slides must share identic
   }
 
   const response = await genai.models.generateContent({
-    model: 'gemini-3-pro-image-preview',
+    model: IMAGE_MODEL,
     contents: [{ role: 'user', parts }],
     config: {
       responseFormat: {
@@ -450,22 +503,27 @@ Key Points:
 ${bulletText}`
   }
 
-  const prompt = `Create a professional, visually stunning infographic for ${getDocumentTypeLabel(data)}.
+  const structuredInfographic = buildStructuredPrompt({
+    subject: `Professional infographic for ${getDocumentTypeLabel(data)}.\n${dataBlock}\nFOOTER: "Generated by Docs2Video"`,
+    action: 'Presented as a data-rich infographic with bar charts, icons, and clear sections',
+    environment: `${orientation} canvas, high-end magazine quality layout`,
+    artStyle: 'Clean modern infographic design with professional typography, structured data sections, and visual hierarchy',
+    lighting: 'Flat design lighting with subtle gradients and drop shadows for depth',
+    details: `${orientation} orientation, crisp vector-style icons, readable data labels`,
+    brandName: brandName,
+    brandColors: colors,
+  })
 
-BRAND COLORS:
-- Primary: ${colors.primary}, Secondary: ${colors.secondary}, Accent: ${colors.accent}
-- Background: ${colors.background}, Text: ${colors.text}
-${brandName ? `- Display "${brandName}" as plain styled text — DO NOT create a logo graphic` : ''}
+  const prompt = `Create a professional, visually stunning infographic image. Follow these instructions precisely.
 
-${dataBlock}
+${structuredInfographic}
 
-FOOTER: "Generated by Docs2Video"
 ${getStrictRules()}
 
-Make it ${orientation}. High-end magazine quality, clean sections, bar charts, icons, professional typography.`
+Make it ${orientation}.`
 
   const response = await genai.models.generateContent({
-    model: 'gemini-3-pro-image-preview',
+    model: IMAGE_MODEL,
     contents: prompt,
     config: {
       responseFormat: {

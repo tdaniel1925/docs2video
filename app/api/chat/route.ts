@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createAdminClient } from '../../_lib/supabase/admin'
+import { rateLimit, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -11,24 +12,13 @@ function getClient() {
   return new Anthropic({ apiKey: key })
 }
 
-// Simple in-memory IP rate limiter (resets on redeploy)
-const ipCounts = new Map<string, { count: number; resetAt: number }>()
-const IP_LIMIT = 30 // max messages per IP per hour
-const IP_WINDOW = 60 * 60 * 1000 // 1 hour
-
 export async function POST(request: Request) {
   try {
-    // IP-based rate limiting
+    // IP-based rate limiting (public route — no auth required)
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-    const now = Date.now()
-    const ipData = ipCounts.get(ip)
-    if (ipData && ipData.resetAt > now) {
-      if (ipData.count >= IP_LIMIT) {
-        return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
-      }
-      ipData.count++
-    } else {
-      ipCounts.set(ip, { count: 1, resetAt: now + IP_WINDOW })
+    const rl = rateLimit(`ip:${ip}:chat`, LIMITS.chat.limit, LIMITS.chat.windowMs)
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
     }
 
     const { videoId, message } = (await request.json()) as { videoId: string; message: string }

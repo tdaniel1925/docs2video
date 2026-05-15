@@ -3,6 +3,7 @@ import { createClient } from '../../_lib/supabase/server'
 import { generateScript } from '../../_lib/script-generator'
 import type { ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
+import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -11,6 +12,11 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+  const rl = rateLimit(getRateLimitKey(user.id, 'generation'), LIMITS.generation.limit, LIMITS.generation.windowMs)
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
+  }
 
   const body = await request.json()
   const { policyData, brandId, detailed } = body as {

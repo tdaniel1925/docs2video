@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/client'
 import type { Brand, ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
@@ -202,6 +203,11 @@ export default function CreatePage() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [audioReady, setAudioReady] = useState(false)
   const [audioGenerating, setAudioGenerating] = useState(false)
+
+  // Asset upload state
+  const [assets, setAssets] = useState<{url: string, tag: string, name: string}[]>([])
+  const [assetUploading, setAssetUploading] = useState(false)
+  const assetInputRef = useRef<HTMLInputElement>(null)
 
   const [editableScenes, setEditableScenes] = useState<{scene: number, title: string, slidePrompt: string, narration: string}[]>([])
   const [scriptGenerating, setScriptGenerating] = useState(false)
@@ -728,6 +734,39 @@ export default function CreatePage() {
     }
   }
 
+  async function handleAssetUpload(files: FileList | null) {
+    if (!files || files.length === 0) return
+    const remaining = 5 - assets.length
+    const toUpload = Array.from(files).slice(0, remaining)
+    if (toUpload.length === 0) return
+
+    setAssetUploading(true)
+    for (const f of toUpload) {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(f.type)) continue
+      if (f.size > 10 * 1024 * 1024) continue
+
+      const formData = new FormData()
+      formData.append('file', f)
+      formData.append('tag', 'product')
+      try {
+        const res = await fetch('/api/upload-asset', { method: 'POST', body: formData })
+        if (res.ok) {
+          const data = await res.json()
+          setAssets(prev => [...prev, { url: data.url, tag: 'product', name: f.name }])
+        }
+      } catch { /* skip failed uploads */ }
+    }
+    setAssetUploading(false)
+  }
+
+  function removeAsset(index: number) {
+    setAssets(prev => prev.filter((_, i) => i !== index))
+  }
+
+  function updateAssetTag(index: number, tag: string) {
+    setAssets(prev => prev.map((a, i) => i === index ? { ...a, tag } : a))
+  }
+
   async function handleGenerate() {
     if (!activeData) return
 
@@ -739,6 +778,7 @@ export default function CreatePage() {
 
     try {
       // 1. Create the video record
+      const assetPayload = assets.length > 0 ? assets.map(a => ({ url: a.url, tag: a.tag })) : undefined
       const createRes = await fetch('/api/videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -746,6 +786,7 @@ export default function CreatePage() {
           policyData: activeData,
           brandId: null,
           voiceId: selectedVoice,
+          assets: assetPayload,
         }),
       })
       const createData = await createRes.json()
@@ -771,6 +812,7 @@ export default function CreatePage() {
             aiMusic: true,
             approvedSlides: slidesMode ? uploadedSlides : (approvedSlides.length >= 4 ? approvedSlides : undefined),
             scenes: editableScenes.length > 0 ? editableScenes : generatedScenes,
+            assets: assetPayload,
           },
         },
       }).eq('id', createData.id)
@@ -793,6 +835,43 @@ export default function CreatePage() {
 
   return (
     <div className="wizard-container">
+      {/* Quick/Pro Mode Toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 24 }}>
+        <div style={{
+          display: 'inline-flex',
+          background: 'var(--surface-raised, #f1f5f9)',
+          borderRadius: 10,
+          padding: 4,
+        }}>
+          <Link
+            href="/quick"
+            style={{
+              padding: '8px 20px',
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 500,
+              color: 'var(--muted)',
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            Quick Mode
+          </Link>
+          <div style={{
+            padding: '8px 20px',
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 600,
+            background: 'var(--bg-card)',
+            color: 'var(--ink)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          }}>
+            Pro Mode
+          </div>
+        </div>
+      </div>
+
       {/* Progress Pill */}
       <div className="progress-pill">
         {STEP_LABELS.map((s, i) => {
@@ -2442,6 +2521,72 @@ export default function CreatePage() {
             )}
           </div>
 
+          {/* Product & Brand Assets (optional) */}
+          <div style={{ marginBottom: 24 }}>
+            <label className="input-label">Product & Brand Images (optional)</label>
+            <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '0 0 12px' }}>
+              Upload photos, product shots, packaging, or lifestyle images to feature in your slides.
+            </p>
+            <input
+              ref={assetInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={(e) => handleAssetUpload(e.target.files)}
+              style={{ display: 'none' }}
+            />
+
+            {assets.length > 0 && (
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                {assets.map((asset, i) => (
+                  <div key={i} style={{ position: 'relative', width: 100, textAlign: 'center' }}>
+                    <div style={{ position: 'relative', width: 100, height: 75, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                      <img src={asset.url} alt={asset.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <button
+                        onClick={() => removeAsset(i)}
+                        style={{
+                          position: 'absolute', top: 3, right: 3, width: 20, height: 20,
+                          borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.6)',
+                          color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex',
+                          alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                        }}
+                      >x</button>
+                    </div>
+                    <select
+                      value={asset.tag}
+                      onChange={(e) => updateAssetTag(i, e.target.value)}
+                      style={{
+                        marginTop: 4, width: '100%', fontSize: 11, padding: '3px 4px',
+                        borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-card)',
+                        color: 'var(--ink)', cursor: 'pointer',
+                      }}
+                    >
+                      <option value="product">product</option>
+                      <option value="logo">logo</option>
+                      <option value="lifestyle">lifestyle</option>
+                      <option value="background">background</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {assets.length < 5 && (
+              <button
+                type="button"
+                onClick={() => assetInputRef.current?.click()}
+                disabled={assetUploading}
+                style={{
+                  padding: '10px 16px', fontSize: 13, fontWeight: 500, border: '1px dashed var(--border)',
+                  borderRadius: 10, background: 'transparent', cursor: 'pointer', color: 'var(--muted)',
+                  opacity: assetUploading ? 0.5 : 1, width: '100%',
+                }}
+              >
+                {assetUploading ? 'Uploading...' : `+ Add photos, logos, or product shots (${5 - assets.length} slots available)`}
+              </button>
+            )}
+          </div>
+
           <div className="wizard-actions">
             <button onClick={() => setStep('approve-slides')} className="btn btn-soft">&larr; Back</button>
             <button onClick={handleGenerate} className="btn btn-primary btn-lg">Create my video &rarr;</button>
@@ -2690,6 +2835,72 @@ export default function CreatePage() {
                 }}
               >
                 {previewSlide ? 'Regenerate Preview' : 'Generate Preview'}
+              </button>
+            )}
+          </div>
+
+          {/* Product & Brand Assets (optional) */}
+          <div style={{ marginBottom: 24 }}>
+            <label className="input-label">Product & Brand Images (optional)</label>
+            <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '0 0 12px' }}>
+              Upload photos, product shots, packaging, or lifestyle images to feature in your slides.
+            </p>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={(e) => handleAssetUpload(e.target.files)}
+              style={{ display: 'none' }}
+              id="asset-input-options"
+            />
+
+            {assets.length > 0 && (
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                {assets.map((asset, i) => (
+                  <div key={i} style={{ position: 'relative', width: 100, textAlign: 'center' }}>
+                    <div style={{ position: 'relative', width: 100, height: 75, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                      <img src={asset.url} alt={asset.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <button
+                        onClick={() => removeAsset(i)}
+                        style={{
+                          position: 'absolute', top: 3, right: 3, width: 20, height: 20,
+                          borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.6)',
+                          color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex',
+                          alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                        }}
+                      >x</button>
+                    </div>
+                    <select
+                      value={asset.tag}
+                      onChange={(e) => updateAssetTag(i, e.target.value)}
+                      style={{
+                        marginTop: 4, width: '100%', fontSize: 11, padding: '3px 4px',
+                        borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-card)',
+                        color: 'var(--ink)', cursor: 'pointer',
+                      }}
+                    >
+                      <option value="product">product</option>
+                      <option value="logo">logo</option>
+                      <option value="lifestyle">lifestyle</option>
+                      <option value="background">background</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {assets.length < 5 && (
+              <button
+                type="button"
+                onClick={() => document.getElementById('asset-input-options')?.click()}
+                disabled={assetUploading}
+                style={{
+                  padding: '10px 16px', fontSize: 13, fontWeight: 500, border: '1px dashed var(--border)',
+                  borderRadius: 10, background: 'transparent', cursor: 'pointer', color: 'var(--muted)',
+                  opacity: assetUploading ? 0.5 : 1, width: '100%',
+                }}
+              >
+                {assetUploading ? 'Uploading...' : `+ Add photos, logos, or product shots (${5 - assets.length} slots available)`}
               </button>
             )}
           </div>

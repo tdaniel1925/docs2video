@@ -8,7 +8,7 @@ export async function GET() {
 
   const { data } = await supabase
     .from('email_connections')
-    .select('id, provider, email_address, is_default, created_at, last_tested_at, last_test_success')
+    .select('id, provider, email_address, is_default, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 

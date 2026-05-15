@@ -12,7 +12,7 @@ function formatCurrency(n: number): string {
   }).format(n)
 }
 
-function buildInsuranceScriptPrompt(data: ExtractedPolicyData, brandName: string | null, detailed: boolean = false): string {
+function buildInsuranceScriptPrompt(data: ExtractedPolicyData, brandName: string | null, detailed: boolean = false, assetCount: number = 0): string {
   const cvSummary = (data.cashValueProjections ?? [])
     .map(p => `Year ${p.year}: Guaranteed ${formatCurrency(p.guaranteed)}, Illustrated ${formatCurrency(p.current)}`)
     .join('\n  ')
@@ -84,10 +84,17 @@ SCENE COUNT: Use 8-16 scenes total. The EVIDENCE section should expand based on 
 
 Each scene's narration should be 20-40 seconds (roughly 50-100 words). Each scene must cover ONE clear concept.
 
-TONE: Professional but warm, like a trusted financial advisor explaining to a client over coffee. Use plain language — no insurance jargon. Make the client feel informed and confident. Write like a storyteller, not a summarizer.`
+TONE: Professional but warm, like a trusted financial advisor explaining to a client over coffee. Use plain language — no insurance jargon. Make the client feel informed and confident. Write like a storyteller, not a summarizer.${assetCount > 0 ? `
+
+PRODUCT IMAGES AVAILABLE:
+You have ${assetCount} product/brand images that will be placed on slides.
+- For slides that showcase specific products or features, include the tag [ASSET:1], [ASSET:2], etc. in the slidePrompt to indicate which image should be featured on that slide.
+- The title slide should feature [ASSET:1] (the primary product/logo).
+- Distribute other assets across relevant slides.
+- Not every slide needs a product image — data/chart slides can skip assets.` : ''}`
 }
 
-function buildGenericScriptPrompt(data: ExtractedData, brandName: string | null, detailed: boolean = false): string {
+function buildGenericScriptPrompt(data: ExtractedData, brandName: string | null, detailed: boolean = false, assetCount: number = 0): string {
   const metricsText = (data.keyMetrics ?? []).map(m => `- ${m.label}: ${m.value}`).join('\n')
   const sectionsText = (data.sections ?? []).map(s => `- ${s.title}: ${s.content}`).join('\n')
   const bulletText = (data.bulletPoints ?? []).map(b => `- ${b}`).join('\n')
@@ -144,7 +151,14 @@ SCENE COUNT: Use 8-16 scenes total. The EVIDENCE section should expand based on 
 
 Each scene's narration should be 20-40 seconds (roughly 50-100 words). Each scene must cover ONE clear concept.
 
-TONE: Professional but warm, like a knowledgeable presenter explaining to an engaged audience. Use plain language. Write like a storyteller, not a summarizer — each scene should flow naturally into the next.`
+TONE: Professional but warm, like a knowledgeable presenter explaining to an engaged audience. Use plain language. Write like a storyteller, not a summarizer — each scene should flow naturally into the next.${assetCount > 0 ? `
+
+PRODUCT IMAGES AVAILABLE:
+You have ${assetCount} product/brand images that will be placed on slides.
+- For slides that showcase specific products or features, include the tag [ASSET:1], [ASSET:2], etc. in the slidePrompt to indicate which image should be featured on that slide.
+- The title slide should feature [ASSET:1] (the primary product/logo).
+- Distribute other assets across relevant slides.
+- Not every slide needs a product image — data/chart slides can skip assets.` : ''}`
 }
 
 export async function generateDemoScript(
@@ -218,12 +232,13 @@ export async function generateScript(
   data: ExtractedPolicyData | ExtractedData,
   brandName: string | null,
   colors: { primary: string; secondary: string; accent: string; background: string; text: string },
-  detailed: boolean = false
+  detailed: boolean = false,
+  assetCount?: number
 ): Promise<VideoScene[]> {
   const isInsurance = 'deathBenefit' in data
   const promptBody = isInsurance
-    ? buildInsuranceScriptPrompt(data as ExtractedPolicyData, brandName, detailed)
-    : buildGenericScriptPrompt(data as ExtractedData, brandName, detailed)
+    ? buildInsuranceScriptPrompt(data as ExtractedPolicyData, brandName, detailed, assetCount ?? 0)
+    : buildGenericScriptPrompt(data as ExtractedData, brandName, detailed, assetCount ?? 0)
 
   const prompt = `${promptBody}
 

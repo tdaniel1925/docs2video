@@ -288,6 +288,11 @@ export default function VideoDetailPage() {
   const [userPlan, setUserPlan] = useState<string>('trial')
   const [regeneratingSlide, setRegeneratingSlide] = useState<number | null>(null)
 
+  // Translate state
+  const [showTranslateModal, setShowTranslateModal] = useState(false)
+  const [translateLang, setTranslateLang] = useState('')
+  const [translating, setTranslating] = useState(false)
+
   // Video player state
   const videoRef = useRef<HTMLVideoElement>(null)
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
@@ -504,6 +509,7 @@ export default function VideoDetailPage() {
                 musicUrl: input.musicUrl,
                 aiMusic: input.aiMusic,
                 musicPrompt: input.musicPrompt,
+                assetUrls: input.assets,
               }),
             }).then(res => {
               if (!res.ok) res.json().then(d => console.error('[video] Pipeline failed:', d.error)).catch(() => {})
@@ -811,6 +817,31 @@ export default function VideoDetailPage() {
       URL.revokeObjectURL(url)
     } finally {
       setDownloadingPPTX(false)
+    }
+  }
+
+  async function handleTranslate() {
+    if (!video || !translateLang || translating) return
+    setTranslating(true)
+    try {
+      const res = await fetch('/api/translate-presentation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId: video.id, targetLanguage: translateLang }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error ?? 'Translation failed')
+        return
+      }
+      const { videoId: newVideoId } = await res.json()
+      setShowTranslateModal(false)
+      setTranslateLang('')
+      router.push(`/videos/${newVideoId}`)
+    } catch {
+      alert('Translation failed. Please try again.')
+    } finally {
+      setTranslating(false)
     }
   }
 
@@ -1231,6 +1262,13 @@ export default function VideoDetailPage() {
                 style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}
               >
                 Email to Client
+              </button>
+              <button
+                onClick={() => setShowTranslateModal(true)}
+                className="btn btn-soft"
+                style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}
+              >
+                Translate
               </button>
               <button
                 onClick={handleDelete}
@@ -1819,6 +1857,70 @@ export default function VideoDetailPage() {
 
             <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 16, fontSize: 12, color: 'var(--ink-light)', textAlign: 'center' }}>
               Your client will see your branded explainer video with an option to book a meeting.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Translate Modal */}
+      {showTranslateModal && video && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(8px)' }}>
+          <div style={{ width: '100%', maxWidth: 420, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 32 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>Translate Presentation</h2>
+              <button onClick={() => { setShowTranslateModal(false); setTranslateLang('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-light)' }}>&times;</button>
+            </div>
+
+            <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20, lineHeight: 1.5 }}>
+              Create a translated copy of this presentation. A new video will be generated with translated narration and slides.
+            </p>
+
+            <label className="input-label" style={{ marginBottom: 6, display: 'block' }}>Select language</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 20 }}>
+              {[
+                'Spanish', 'French', 'Portuguese', 'German', 'Korean',
+                'Japanese', 'Chinese (Simplified)', 'Arabic', 'Hindi', 'Italian',
+              ].map(lang => (
+                <button
+                  key={lang}
+                  onClick={() => setTranslateLang(lang)}
+                  style={{
+                    padding: '10px 12px',
+                    fontSize: 13,
+                    fontWeight: translateLang === lang ? 700 : 500,
+                    borderRadius: 8,
+                    border: translateLang === lang ? '2px solid var(--mint)' : '1px solid var(--border)',
+                    background: translateLang === lang ? 'rgba(168,240,212,0.12)' : 'white',
+                    color: 'var(--ink)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {lang}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 20, padding: '10px 12px', background: 'var(--bg)', borderRadius: 8 }}>
+              Translated presentations use 1 additional credit.
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={handleTranslate}
+                disabled={!translateLang || translating}
+                className="btn btn-primary"
+                style={{ flex: 1, opacity: !translateLang || translating ? 0.5 : 1 }}
+              >
+                {translating ? 'Translating...' : `Translate to ${translateLang || '...'}`}
+              </button>
+              <button
+                onClick={() => { setShowTranslateModal(false); setTranslateLang('') }}
+                className="btn btn-soft"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

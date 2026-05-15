@@ -7,13 +7,14 @@ import { compositeSlide } from '../../_lib/composite'
 import { synthesizeSpeech } from '../../_lib/tts'
 // Video assembly is offloaded to the Hetzner VPS (video-service)
 const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
-const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || 'docs2video-assembly-secret-2026').trim().replace(/[\r\n]/g, '')
+const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
 import { sendVideoReadyEmail } from '../../_lib/notifications'
 import { generateCustomMusic, buildMusicPrompt } from '../../_lib/music-generator'
 import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { isAdmin } from '../../_lib/admin'
+import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -31,6 +32,11 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
+  const rl = rateLimit(getRateLimitKey(user.id, 'generation'), LIMITS.generation.limit, LIMITS.generation.windowMs)
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
   }
 
   // --- Free trial / pay-per-video gate (defense in depth — primary check is in /api/videos POST) ---
@@ -66,7 +72,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt } = body as {
+  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, assetUrls } = body as {
     videoId: string
     policyData: ExtractedPolicyData | ExtractedData
     brandId: string | null
@@ -79,6 +85,7 @@ export async function POST(request: Request) {
     musicUrl?: string
     aiMusic?: boolean
     musicPrompt?: string
+    assetUrls?: { url: string; tag: string }[]
   }
 
   let brand: Brand | null = null
@@ -104,6 +111,25 @@ export async function POST(request: Request) {
     metadata: { videoId },
   })
 
+  // Download all asset images into buffers
+  const assetBuffers: (Buffer | null)[] = []
+  if (assetUrls && assetUrls.length > 0) {
+    console.log(`[video ${videoId}] Downloading ${assetUrls.length} asset images...`)
+    for (const asset of assetUrls) {
+      try {
+        const res = await fetch(asset.url, { signal: AbortSignal.timeout(8000) })
+        if (res.ok) {
+          assetBuffers.push(Buffer.from(await res.arrayBuffer()))
+        } else {
+          assetBuffers.push(null)
+        }
+      } catch {
+        assetBuffers.push(null)
+      }
+    }
+    console.log(`[video ${videoId}] Downloaded ${assetBuffers.filter(Boolean).length}/${assetUrls.length} assets`)
+  }
+
   try {
     if (jobId) await updateJobProgress(admin, jobId, 5, 'running')
 
@@ -116,7 +142,7 @@ export async function POST(request: Request) {
     } else {
       console.log(`[video ${videoId}] Generating script...`)
       await admin.from('videos').update({ status: 'scripting', progress_detail: 'Writing your script...', progress_pct: 5 }).eq('id', videoId)
-      scenes = await generateScript(policyData, brand?.name ?? null, colors, detailed ?? false)
+      scenes = await generateScript(policyData, brand?.name ?? null, colors, detailed ?? false, assetBuffers.filter(Boolean).length)
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15 }).eq('id', videoId)
     }
 
@@ -190,6 +216,16 @@ export async function POST(request: Request) {
     // Use brand's saved deck style if no style explicitly chosen
     const effectiveStyleId = styleId ?? brand?.deck_style_id ?? 'executive'
 
+    // Load template reference image for visual consistency
+    const fs = await import('fs/promises')
+    const pathMod = await import('path')
+    let templateRefBuffer: Buffer | null = null
+    try {
+      const refPath = pathMod.join(process.cwd(), 'public', 'style-previews', `${effectiveStyleId}.png`)
+      templateRefBuffer = await fs.readFile(refPath)
+      console.log(`[video ${videoId}] Loaded template reference image for style "${effectiveStyleId}"`)
+    } catch { /* template preview not found, skip */ }
+
     // STAGE 3: Generate slides (or use pre-approved ones)
     let slideBuffers: Buffer[]
     if (approvedSlides && approvedSlides.length >= 4) {
@@ -207,6 +243,16 @@ export async function POST(request: Request) {
         website: guideData?.website ?? undefined,
       }
 
+      // Parse [ASSET:N] tags from scene slidePrompts and map to asset buffers
+      const sceneAssetMap: (Buffer | null)[] = scenes.map((scene: any) => {
+        const match = scene.slidePrompt?.match(/\[ASSET:(\d+)\]/)
+        if (match) {
+          const idx = parseInt(match[1], 10) - 1 // 1-based to 0-based
+          return assetBuffers[idx] ?? null
+        }
+        return null
+      })
+
       // BRAND CONSISTENCY: Generate slide 1 first, then use it as reference for all others
       // This ensures all slides share the same visual identity
       console.log(`[video ${videoId}] Generating slide 1 (master style)...`)
@@ -220,7 +266,8 @@ export async function POST(request: Request) {
           brand?.name ?? null, logoUrl, colors,
           scenes[0].slidePrompt, !!photoUrl, contactInfo,
           logoBuffer, referenceSlides, scenes.length,
-          customStylePrompt
+          customStylePrompt, undefined, undefined, templateRefBuffer,
+          sceneAssetMap[0]
         ), 60000, 'Slide 1'
       )
       buf0 = await compositeSlide(buf0, photoUrl, logoUrl, true, scenes.length === 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo)
@@ -244,7 +291,8 @@ export async function POST(request: Request) {
                 brand?.name ?? null, logoUrl, colors,
                 scene.slidePrompt, !!photoUrl, contactInfo,
                 logoBuffer, masterRef, scenes.length,
-                customStylePrompt
+                customStylePrompt, undefined, undefined, templateRefBuffer,
+                sceneAssetMap[idx]
               ), 60000, `Slide ${idx + 1}`)
               buf = await compositeSlide(buf, photoUrl, logoUrl, false, idx === scenes.length - 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo)
               return buf
@@ -343,7 +391,7 @@ export async function POST(request: Request) {
     }).eq('id', videoId)
 
     // Log to unified creations table (non-blocking)
-    const videoTitle = scenes[0]?.slidePrompt ?? (policyData as any)?.policyType ?? 'Untitled Video'
+    const videoTitle = scenes[0]?.title ?? (policyData as any)?.title ?? (policyData as any)?.policyType ?? 'Untitled Video'
     await admin.from('creations').insert({
       user_id: user.id,
       type: 'video',

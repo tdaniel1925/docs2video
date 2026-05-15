@@ -9,7 +9,7 @@ import type { Profile } from '../_lib/types'
 import { isAdmin } from '../_lib/admin'
 
 const CREATE_ITEMS_LIST = [
-  { href: '/create', icon: '\uD83D\uDCF9', title: 'Video Explainer', desc: '$29 — Narrated video + share page' },
+  { href: '/quick', icon: '\uD83D\uDCF9', title: 'Video Explainer', desc: '$29 — Narrated video + share page' },
 ]
 
 // Flat list for route matching
@@ -53,7 +53,7 @@ export default function Header({ profile }: { profile: Profile }) {
 
   const isCreateActive = CREATE_ITEMS.some(
     (item) => pathname === item.href || pathname.startsWith(item.href + '/')
-  )
+  ) || pathname === '/create' || pathname.startsWith('/create/')
 
   return (
     <header className="app-header">
@@ -71,9 +71,9 @@ export default function Header({ profile }: { profile: Profile }) {
               Dashboard
             </Link>
 
-            {/* Create — direct link (single product) */}
+            {/* Create — direct link to Quick Mode */}
             <Link
-              href="/create"
+              href="/quick"
               className={isCreateActive ? 'active' : ''}
             >
               Create Explainer
@@ -198,7 +198,7 @@ export default function Header({ profile }: { profile: Profile }) {
       {mobileOpen && (
         <div className="mobile-menu">
           <Link href="/dashboard" className={pathname === '/dashboard' ? 'active' : ''}>Dashboard</Link>
-          <Link href="/create" className={pathname === '/create' || pathname.startsWith('/create/') ? 'active' : ''}>
+          <Link href="/quick" className={pathname === '/quick' || pathname === '/create' || pathname.startsWith('/create/') ? 'active' : ''}>
             Create Explainer
           </Link>
           <Link href="/videos" className={pathname === '/videos' ? 'active' : ''}>Library</Link>
