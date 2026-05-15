@@ -628,9 +628,7 @@ export default function CreatePage() {
             voiceId: selectedVoice,
             styleId: selectedStyle,
             customStylePrompt: customStylePrompt || undefined,
-            musicUrl: aiMusic ? undefined : (selectedMusic || undefined),
-            aiMusic: aiMusic || undefined,
-            musicPrompt: aiMusic ? (musicPrompt || undefined) : undefined,
+            aiMusic: true,
             approvedSlides: slidesMode ? uploadedSlides : (approvedSlides.length >= 4 ? approvedSlides : undefined),
             scenes: editableScenes.length > 0 ? editableScenes : generatedScenes,
           },
@@ -2336,7 +2334,7 @@ export default function CreatePage() {
       {step === 'options' && (
         <div className="wizard-card">
           <h2>Final options</h2>
-          <p className="wizard-sub">Choose a brand, voice, and optional background music.</p>
+          <p className="wizard-sub">Choose a brand and voice. AI will compose custom background music automatically.</p>
 
           {/* Brand selector */}
           {brands.length > 0 && (
@@ -2511,120 +2509,13 @@ export default function CreatePage() {
 
           {/* Video Length — AI decides based on content, no toggle needed */}
 
-          {/* Background Music */}
-          <div style={{ marginBottom: 24 }}>
-            <label className="input-label">Background Music <span style={{ fontWeight: 400, color: 'var(--ink-light)' }}>(optional)</span></label>
-
-            {/* Music type toggle */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-              <button
-                onClick={() => { setAiMusic(false) }}
-                style={{
-                  padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                  border: !aiMusic ? '2px solid var(--mint)' : '1px solid var(--border)',
-                  background: !aiMusic ? 'rgba(59,181,200,0.06)' : 'white',
-                  color: 'var(--ink)',
-                }}
-              >
-                Stock Music
-              </button>
-              <button
-                onClick={() => {
-                  setAiMusic(true)
-                  setSelectedMusic(null)
-                  if (musicAudioRef.current) { musicAudioRef.current.pause(); setPreviewingMusic(null) }
-                  if (!musicPrompt) {
-                    const activeData = extractedData || generalData
-                    const titleText = (activeData as any)?.title || (activeData as any)?.policyType || ''
-                    const sourceText = (activeData as any)?.source || (activeData as any)?.carrier || ''
-                    const allText = `${titleText} ${sourceText}`.toLowerCase()
-                    let defaultPrompt = 'Gentle ambient piano with subtle pads, professional and warm, medium tempo'
-                    if (allText.includes('insurance') || allText.includes('policy') || allText.includes('life')) {
-                      defaultPrompt = 'Gentle piano with soft strings, warm and reassuring, professional corporate tone, slow tempo'
-                    } else if (allText.includes('financ') || allText.includes('business') || allText.includes('invest')) {
-                      defaultPrompt = 'Modern ambient corporate, subtle synth pads, confident and sophisticated'
-                    } else if (allText.includes('educat') || allText.includes('learn') || allText.includes('school')) {
-                      defaultPrompt = 'Light acoustic guitar, friendly and approachable, medium tempo'
-                    } else if (allText.includes('tech') || allText.includes('software') || allText.includes('digital')) {
-                      defaultPrompt = 'Clean electronic ambient, modern and innovative, medium-upbeat tempo'
-                    }
-                    defaultPrompt += '. Instrumental only, no vocals, background music suitable for narration overlay'
-                    setMusicPrompt(defaultPrompt)
-                  }
-                }}
-                style={{
-                  padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                  border: aiMusic ? '2px solid var(--mint)' : '1px solid var(--border)',
-                  background: aiMusic ? 'rgba(59,181,200,0.06)' : 'white',
-                  color: 'var(--ink)',
-                }}
-              >
-                AI Custom Music
-              </button>
+          {/* Background Music — fully automatic */}
+          <div style={{ marginBottom: 24, padding: '14px 18px', borderRadius: 10, background: 'rgba(168,240,212,0.06)', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 22 }}>&#127925;</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>AI Background Music</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>A custom instrumental track will be composed to match your content.</div>
             </div>
-
-            {!aiMusic ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
-                <div
-                  onClick={() => { setSelectedMusic(null); if (musicAudioRef.current) { musicAudioRef.current.pause(); setPreviewingMusic(null) } }}
-                  style={{ padding: '12px 14px', borderRadius: 10, cursor: 'pointer', border: selectedMusic === null ? '2px solid var(--mint)' : '1px solid var(--border)', background: selectedMusic === null ? 'rgba(59,181,200,0.06)' : 'white', display: 'flex', alignItems: 'center', gap: 8 }}
-                >
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>No music</span>
-                </div>
-                {DEFAULT_MUSIC.map(track => (
-                  <div
-                    key={track.id}
-                    onClick={() => setSelectedMusic(track.url)}
-                    style={{ padding: '12px 14px', borderRadius: 10, cursor: 'pointer', border: selectedMusic === track.url ? '2px solid var(--mint)' : '1px solid var(--border)', background: selectedMusic === track.url ? 'rgba(59,181,200,0.06)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
-                  >
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{track.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>{track.mood}</div>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (previewingMusic === track.id) {
-                          musicAudioRef.current?.pause()
-                          setPreviewingMusic(null)
-                        } else {
-                          if (musicAudioRef.current) musicAudioRef.current.pause()
-                          const audio = new Audio(track.url)
-                          audio.volume = 0.3
-                          audio.play()
-                          audio.onended = () => setPreviewingMusic(null)
-                          musicAudioRef.current = audio
-                          setPreviewingMusic(track.id)
-                        }
-                      }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--mint-darker, var(--mint))', fontWeight: 600 }}
-                    >
-                      {previewingMusic === track.id ? '■ Stop' : '▶ Play'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{
-                padding: '16px', borderRadius: 10, border: '1px solid var(--border)',
-                background: 'rgba(59,181,200,0.04)',
-              }}>
-                <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 10 }}>
-                  AI will compose a custom instrumental track matched to your content.
-                </div>
-                <textarea
-                  value={musicPrompt}
-                  onChange={e => setMusicPrompt(e.target.value)}
-                  rows={3}
-                  className="input"
-                  style={{ width: '100%', fontSize: 13, resize: 'vertical', minHeight: 70 }}
-                  placeholder="Describe the music style..."
-                />
-                <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 6 }}>
-                  Generation takes 30-60 seconds and runs in parallel with narration.
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Trial status banner */}
