@@ -57,7 +57,7 @@ export default function HelpChatWidget() {
         onClick={() => setOpen(o => !o)}
         style={{
           position: 'fixed', bottom: 24, right: 24,
-          width: 52, height: 52, borderRadius: 14,
+          width: 56, height: 56, borderRadius: '50%',
           background: 'var(--ink, #1a1a2e)', color: 'white',
           border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -65,6 +65,8 @@ export default function HelpChatWidget() {
           zIndex: 100, transition: 'transform 0.2s ease',
         }}
         aria-label="Help"
+        onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.1)')}
+        onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
       >
         {open ? (
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -83,7 +85,10 @@ export default function HelpChatWidget() {
           borderRadius: 14, display: 'flex', flexDirection: 'column',
           boxShadow: '0 12px 48px rgba(0,0,0,0.15)',
           zIndex: 99, overflow: 'hidden',
+          animation: 'helpSlideUp 0.25s ease-out',
+          transformOrigin: 'bottom right',
         }}>
+          <style>{`@keyframes helpSlideUp { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }`}</style>
           {/* Header */}
           <div style={{
             padding: '14px 18px', borderBottom: '1px solid var(--border-light, #e2e8f0)',

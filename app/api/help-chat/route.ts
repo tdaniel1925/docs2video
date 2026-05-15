@@ -1,11 +1,20 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
-import { GoogleGenAI } from '@google/genai'
+import Anthropic from '@anthropic-ai/sdk'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+function getClient() {
+  const key = process.env.ANTHROPIC_API_KEY
+  if (!key) throw new Error('ANTHROPIC_API_KEY not configured')
+  return new Anthropic({ apiKey: key })
+}
+
+// Per-user rate limiter: 20 messages per hour
+const userCounts = new Map<string, { count: number; resetAt: number }>()
+const USER_LIMIT = 20
+const USER_WINDOW = 60 * 60 * 1000
 
 const SYSTEM_KNOWLEDGE = `You are the Docs2Video help assistant. You know everything about the platform and help users with any questions.
 
@@ -72,15 +81,28 @@ SETTINGS:
 - Subscription: View/change plan, buy credit packs, see credit costs
 
 RULES:
-- Be concise and helpful. 2-3 sentences max per response.
+- Be concise, friendly, and direct. 2-3 sentences max per response.
 - If you don't know something, say so honestly.
 - Guide users step-by-step when they ask how to do something.
-- Never make up features that don't exist.`
+- Never make up features that don't exist.
+- Help with: creating videos, sharing with clients, downloading (MP4/PDF/PPTX), setting up brands, pricing, credits, technical issues.`
 
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+  // Rate limiting per user
+  const now = Date.now()
+  const userData = userCounts.get(user.id)
+  if (userData && userData.resetAt > now) {
+    if (userData.count >= USER_LIMIT) {
+      return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
+    }
+    userData.count++
+  } else {
+    userCounts.set(user.id, { count: 1, resetAt: now + USER_WINDOW })
+  }
 
   const { messages } = await request.json() as {
     messages: { role: 'user' | 'assistant'; content: string }[]
@@ -91,24 +113,23 @@ export async function POST(request: Request) {
   }
 
   try {
-    const contents: { role: string; parts: { text: string }[] }[] = [
-      { role: 'user', parts: [{ text: SYSTEM_KNOWLEDGE }] },
-      { role: 'model', parts: [{ text: 'Understood. I\'m ready to help with any Docs2Video questions.' }] },
-    ]
+    const client = getClient()
 
-    for (const msg of messages) {
-      contents.push({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }],
-      })
-    }
+    const claudeMessages = messages.map(msg => ({
+      role: msg.role as 'user' | 'assistant',
+      content: msg.content,
+    }))
 
-    const response = await genai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents,
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 512,
+      system: SYSTEM_KNOWLEDGE,
+      messages: claudeMessages,
     })
 
-    const reply = response.text?.trim() ?? 'Sorry, I couldn\'t generate a response. Please try again.'
+    const reply = response.content[0]?.type === 'text'
+      ? response.content[0].text.trim()
+      : 'Sorry, I couldn\'t generate a response. Please try again.'
 
     return NextResponse.json({ reply })
   } catch (err) {

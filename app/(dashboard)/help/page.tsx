@@ -11,6 +11,58 @@ interface HelpArticle {
   content: string[]
 }
 
+interface HelpGuide {
+  href: string
+  title: string
+  description: string
+  icon: string
+}
+
+const GUIDES: HelpGuide[] = [
+  {
+    href: '/help/getting-started',
+    title: 'Getting Started',
+    description: 'Create your account, add a payment card, understand your free videos, and navigate the dashboard.',
+    icon: '🚀',
+  },
+  {
+    href: '/help/creating-videos',
+    title: 'Creating Explainer Videos',
+    description: 'Step-by-step walkthrough of uploading content, editing scripts, choosing options, and generating your video.',
+    icon: '🎬',
+  },
+  {
+    href: '/help/sharing-videos',
+    title: 'Sharing Videos with Clients',
+    description: 'Share pages, copy links, download options, and how clients interact with your videos.',
+    icon: '🔗',
+  },
+  {
+    href: '/help/brands',
+    title: 'Setting Up Brands',
+    description: 'Create brands from a URL or manually, manage multiple brands, and control how they affect your videos.',
+    icon: '🏷️',
+  },
+  {
+    href: '/help/insurance',
+    title: 'Insurance Illustrations',
+    description: 'How compliance works: automatic disclaimers, carrier redaction, and the 8 layers of protection.',
+    icon: '🛡️',
+  },
+  {
+    href: '/help/pricing',
+    title: 'Pricing & Plans',
+    description: 'Free trial, Pay Per Project, Pro, Business, and Agency plans explained.',
+    icon: '💰',
+  },
+  {
+    href: '/help/faq',
+    title: 'FAQ & Troubleshooting',
+    description: 'Common questions, troubleshooting tips for stuck videos, missing audio, and more.',
+    icon: '❓',
+  },
+]
+
 const CATEGORIES = [
   { id: 'getting-started', label: 'Getting Started', icon: '🚀' },
   { id: 'creators', label: 'Creators', icon: '🎨' },
@@ -318,13 +370,67 @@ export default function HelpPage() {
   })
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto' }}>
+    <div style={{ maxWidth: 900, margin: '0 auto' }}>
       <div className="page-head">
         <div>
           <h1>Help Center</h1>
           <p>Everything you need to know about Docs2Video.</p>
         </div>
       </div>
+
+      {/* User Guides — card grid */}
+      <div style={{ marginBottom: 36 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
+          User Guides
+        </h2>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+          gap: 14,
+        }}>
+          {GUIDES.map(guide => (
+            <Link
+              key={guide.href}
+              href={guide.href}
+              style={{
+                display: 'block',
+                background: 'white',
+                border: '1px solid var(--border-light)',
+                borderRadius: 12,
+                padding: '20px 22px',
+                textDecoration: 'none',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.borderColor = 'var(--mint)'
+                ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
+                ;(e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-light)'
+                ;(e.currentTarget as HTMLElement).style.transform = 'none'
+                ;(e.currentTarget as HTMLElement).style.boxShadow = 'none'
+              }}
+            >
+              <div style={{ fontSize: 28, marginBottom: 10 }}>{guide.icon}</div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 6 }}>
+                {guide.title}
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+                {guide.description}
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Divider */}
+      <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: '32px 0' }} />
+
+      {/* Quick Reference — existing accordion */}
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
+        Quick Reference
+      </h2>
 
       {/* Search */}
       <div style={{ marginBottom: 24 }}>
