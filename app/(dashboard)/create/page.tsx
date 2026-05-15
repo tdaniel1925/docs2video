@@ -183,7 +183,6 @@ export default function CreatePage() {
   const [detailedMode, setDetailedMode] = useState(false)
   const [selectedMusic, setSelectedMusic] = useState<string | null>(null)
   const [uploadedLogo, setUploadedLogo] = useState<string | null>(null)
-  const [hoveredStyle, setHoveredStyle] = useState<string | null>(null)
   const [customTheme, setCustomTheme] = useState(false)
   const [suggestedTheme, setSuggestedTheme] = useState<{ name: string; description: string; prompt: string; colors: any; previewUrl?: string } | null>(null)
   const [themeAccepted, setThemeAccepted] = useState(false)
@@ -2485,7 +2484,7 @@ export default function CreatePage() {
             }}>
               <div style={{ fontWeight: 700, color: '#991b1b', marginBottom: 6 }}>Free videos used</div>
               <div style={{ color: '#b91c1c', marginBottom: 12 }}>You have used your 5 free videos. Add a card or subscribe to keep creating.</div>
-              <a href="/pricing" className="btn btn-primary" style={{ fontSize: 14 }}>View plans &rarr;</a>
+              <a href="/settings?tab=subscription" className="btn btn-primary" style={{ fontSize: 14 }}>View plans &rarr;</a>
             </div>
           )}
 
@@ -2553,11 +2552,11 @@ export default function CreatePage() {
 
           {trialStatus && !trialStatus.isPaid && !trialStatus.hasReferral && trialStatus.freeVideosRemaining > 0 ? (
             <div style={{ textAlign: 'center', marginTop: 12, padding: '10px 16px', background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border)', fontSize: 13, color: 'var(--ink-soft)' }}>
-              Free video ({trialStatus.freeVideosRemaining} remaining) — <a href="/pricing" style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>upgrade for a subscription</a>
+              Free video ({trialStatus.freeVideosRemaining} remaining) — <a href="/settings?tab=subscription" style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>upgrade for a subscription</a>
             </div>
           ) : trialStatus && !trialStatus.isPaid && trialStatus.freeVideosRemaining <= 0 && trialStatus.cardOnFile ? (
             <div style={{ textAlign: 'center', marginTop: 12, padding: '10px 16px', background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border)', fontSize: 13, color: 'var(--ink-soft)' }}>
-              $10 per video — your card on file will be charged. <a href="/pricing" style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>Save with a subscription</a>
+              $10 per video — your card on file will be charged. <a href="/settings?tab=subscription" style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>Save with a subscription</a>
             </div>
           ) : projectPrice && !trialStatus?.trialExhausted ? (
             <div style={{ textAlign: 'center', marginTop: 12, padding: '10px 16px', background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border)', fontSize: 13, color: 'var(--ink-soft)' }}>
