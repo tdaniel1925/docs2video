@@ -122,11 +122,12 @@ export interface ExtractedPolicyData {
   riders: string[]
   loanRate: number | null
   additionalNotes: string[]
+  disclaimers?: string[]
 }
 
 export interface VideoScene {
   scene: number
-  beat: 'hook' | 'disclaimer' | 'context' | 'stakes' | 'evidence' | 'implication' | 'action'
+  beat: 'hook' | 'disclaimer' | 'disclaimer-close' | 'context' | 'stakes' | 'evidence' | 'implication' | 'action'
   title: string
   narration: string
   slidePrompt: string

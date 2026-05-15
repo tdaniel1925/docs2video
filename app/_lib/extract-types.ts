@@ -7,4 +7,5 @@ export interface ExtractedData {
   sections: { title: string; content: string }[]
   bulletPoints: string[]
   additionalNotes: string[]
+  disclaimers?: string[]
 }

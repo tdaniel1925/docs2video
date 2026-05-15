@@ -5,6 +5,8 @@ export const ADMIN_EMAILS = [
   'trenttdaniel@gmail.com',
   'tdaniel@botmakers.ai',
   'phil@valorfs.com',
+  'darrell.wolfe@3mark.com',
+  'Johnathon.Bunch@3mark.com',
 ]
 
 export function isAdmin(email: string | null | undefined): boolean {

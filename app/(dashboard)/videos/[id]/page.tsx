@@ -783,8 +783,20 @@ export default function VideoDetailPage() {
 
   function copyShareLink() {
     const url = `${window.location.origin}/watch/${params.id}`
-    navigator.clipboard.writeText(url)
-    alert('Share link copied!')
+
+    // Check if this is an insurance video
+    const pipelineInput = (video?.script as any)?._pipeline_input
+    const pd = pipelineInput?.policyData
+    const isInsuranceVideo = !!(pd?.deathBenefit)
+
+    if (isInsuranceVideo) {
+      const textWithDisclaimer = `I've prepared a video overview of your policy illustration. Click below to watch:\n\n${url}\n\nImportant Disclosure: This video is for educational and informational purposes only and is not intended as legal, tax, or financial advice. Policy guarantees are based on the claims-paying ability of the issuing insurance company. Non-guaranteed values are subject to change. The policy contract and official carrier-issued illustration govern all policy values and guarantees. This video is not endorsed by or affiliated with any insurance carrier and is not a solicitation to purchase insurance. Please review all official policy materials and consult with your licensed professional before making any decisions.`
+      navigator.clipboard.writeText(textWithDisclaimer)
+      alert('Link and disclaimers copied to clipboard')
+    } else {
+      navigator.clipboard.writeText(url)
+      alert('Share link copied!')
+    }
   }
 
   if (!video) {

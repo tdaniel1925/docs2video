@@ -5,7 +5,7 @@ import { createClient } from '@/app/_lib/supabase/client'
 import type { Profile, Video, Brand } from '@/app/_lib/types'
 import { isAdmin } from '@/app/_lib/admin'
 
-type Tab = 'overview' | 'users' | 'videos' | 'commerce' | 'usage' | 'music' | 'referrals'
+type Tab = 'overview' | 'users' | 'videos' | 'commerce' | 'usage' | 'music' | 'referrals' | 'promo'
 
 type MusicTrack = {
   id: string
@@ -902,6 +902,113 @@ export default function AdminPage() {
     )
   }
 
+  // ── Promo Users ────────────────────────────────────────────────────────
+  const [promoEmail, setPromoEmail] = useState('')
+  const [promoName, setPromoName] = useState('')
+  const [promoMsg, setPromoMsg] = useState('')
+  const [promoLoading, setPromoLoading] = useState(false)
+
+  async function handleAddPromoUser(e: React.FormEvent) {
+    e.preventDefault()
+    if (!promoEmail.trim()) return
+    setPromoLoading(true)
+    setPromoMsg('')
+    try {
+      const res = await fetch('/api/admin/promo-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: promoEmail.trim(), name: promoName.trim() || null }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed')
+      setPromoMsg(`${promoEmail} set to unlimited (agency). ${data.created ? 'Account created — welcome email sent.' : 'Existing account upgraded.'}`)
+      setPromoEmail('')
+      setPromoName('')
+      // Refresh profiles
+      const supabase = createClient()
+      const { data: p } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
+      if (p) setProfiles(p as Profile[])
+    } catch (err) {
+      setPromoMsg(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
+    setPromoLoading(false)
+  }
+
+  function renderPromo() {
+    const promoUsers = profiles.filter(p => p.subscription_status === 'agency' || p.subscription_status === 'pro' || p.subscription_status === 'business')
+    return (
+      <div>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Promo Users — Unlimited Access</h2>
+        <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20 }}>Add users who get unlimited access (agency tier). Enter their email — if they don&apos;t have an account, one will be created and a welcome email sent with login credentials.</p>
+
+        <form onSubmit={handleAddPromoUser} style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
+          <input
+            type="email"
+            placeholder="Email address"
+            value={promoEmail}
+            onChange={e => setPromoEmail(e.target.value)}
+            required
+            className="input"
+            style={{ flex: 2, minWidth: 200 }}
+          />
+          <input
+            type="text"
+            placeholder="Full name (optional)"
+            value={promoName}
+            onChange={e => setPromoName(e.target.value)}
+            className="input"
+            style={{ flex: 1, minWidth: 150 }}
+          />
+          <button type="submit" disabled={promoLoading} className="btn btn-primary">
+            {promoLoading ? 'Adding...' : 'Add Promo User'}
+          </button>
+        </form>
+        {promoMsg && (
+          <div style={{ padding: '10px 16px', borderRadius: 8, marginBottom: 20, fontSize: 13, background: promoMsg.startsWith('Error') ? '#fef2f2' : '#f0fdf4', color: promoMsg.startsWith('Error') ? '#991b1b' : '#166534', border: `1px solid ${promoMsg.startsWith('Error') ? '#fecaca' : '#bbf7d0'}` }}>
+            {promoMsg}
+          </div>
+        )}
+
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Current Premium Users</h3>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                <th style={{ textAlign: 'left', padding: '8px 12px' }}>Email</th>
+                <th style={{ textAlign: 'left', padding: '8px 12px' }}>Name</th>
+                <th style={{ textAlign: 'left', padding: '8px 12px' }}>Plan</th>
+                <th style={{ textAlign: 'left', padding: '8px 12px' }}>Joined</th>
+                <th style={{ textAlign: 'left', padding: '8px 12px' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {promoUsers.map(p => (
+                <tr key={p.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                  <td style={{ padding: '8px 12px' }}>{p.email}</td>
+                  <td style={{ padding: '8px 12px' }}>{p.full_name ?? '—'}</td>
+                  <td style={{ padding: '8px 12px' }}><span style={statusTag(p.subscription_status)}>{p.subscription_status}</span></td>
+                  <td style={{ padding: '8px 12px', color: 'var(--ink-soft)' }}>{new Date(p.created_at).toLocaleDateString()}</td>
+                  <td style={{ padding: '8px 12px' }}>
+                    <button className="btn btn-soft btn-sm" onClick={async () => {
+                      if (!confirm(`Remove premium access for ${p.email}?`)) return
+                      await fetch('/api/admin/promo-user', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: p.email }) })
+                      const supabase = createClient()
+                      const { data: updated } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
+                      if (updated) setProfiles(updated as Profile[])
+                    }}>Remove</button>
+                  </td>
+                </tr>
+              ))}
+              {promoUsers.length === 0 && (
+                <tr><td colSpan={5} style={{ padding: 20, textAlign: 'center', color: 'var(--ink-light)' }}>No premium users yet</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────
 
   const tabs: { key: Tab; label: string }[] = [
@@ -911,6 +1018,7 @@ export default function AdminPage() {
     { key: 'commerce', label: 'Commerce' },
     { key: 'usage', label: 'Usage' },
     { key: 'referrals', label: 'Referrals' },
+    { key: 'promo', label: 'Promo Users' },
   ]
 
   return (
@@ -967,6 +1075,7 @@ export default function AdminPage() {
           {activeTab === 'commerce' && renderCommerce()}
           {activeTab === 'usage' && renderUsage()}
           {activeTab === 'referrals' && renderReferrals()}
+          {activeTab === 'promo' && renderPromo()}
         </>
       )}
     </div>

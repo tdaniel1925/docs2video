@@ -285,12 +285,16 @@ export async function POST(request: Request) {
       slideUrls.push(slideUrl.publicUrl)
     }
 
+    // Extract disclaimers from policy data if available
+    const disclaimers = (policyData as any)?.disclaimers ?? null
+
     await admin.from('videos').update({
       video_url: assemblyResult.videoUrl,
       thumbnail_url: assemblyResult.thumbnailUrl,
       duration: assemblyResult.totalDuration,
       status: 'completed',
       slide_urls: slideUrls,
+      disclaimers: disclaimers,
       progress_detail: null,
       progress_pct: 100,
     }).eq('id', videoId)

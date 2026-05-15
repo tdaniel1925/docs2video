@@ -75,7 +75,9 @@ Every scene must have a "beat" field indicating its storytelling role. Use this 
 
 6. IMPLICATION (1-2 scenes) — What this all means for the viewer. Connect the data back to their life. "By year 20, your cash value exceeds your total premiums paid — your policy is essentially paying for itself."
 
-7. ACTION (1 scene) — Clear next step. What should the viewer do now? End with the closing per VOICE RULES.
+7. DISCLAIMER-CLOSE (1 scene) — Closing legal disclaimer. EXACT narration: "As a reminder, this video is for educational purposes only and does not constitute financial advice. Policy guarantees depend on the issuing carrier's claims-paying ability, and non-guaranteed values may change. Please review your official policy documents and consult with your licensed professional."
+
+8. ACTION (1 scene) — Clear next step. What should the viewer do now? End with the closing per VOICE RULES.
    ${brandName ? `Direct them to contact ${brandName}.` : 'Direct them to contact their agent.'}
 
 SCENE COUNT: Use 8-16 scenes total. The EVIDENCE section should expand based on how much data is in the document. Simple policies = fewer evidence scenes. Complex ones with many riders and projections = more.
@@ -237,7 +239,7 @@ Return ONLY valid JSON array (no markdown, no code fences):
   }
 ]
 
-The "beat" field must be one of: "hook", "disclaimer", "context", "stakes", "evidence", "implication", "action"
+The "beat" field must be one of: "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"
 The "slidePrompt" should describe the VISUAL CONCEPT for the slide image — NOT repeat the narration. Example: "A family protected under a shield icon with a large dollar amount" NOT "The death benefit is $500,000."`
 
   const response = await genai.models.generateContent({

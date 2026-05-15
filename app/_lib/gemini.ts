@@ -23,7 +23,8 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code fence
       { "title": "string - section heading", "content": "string - section summary" }
     ],
     "bulletPoints": ["string - key takeaway or finding"],
-    "additionalNotes": ["string - any other important information"]
+    "additionalNotes": ["string - any other important information"],
+    "disclaimers": ["string - full text of any disclaimer, disclosure, legal notice, or compliance text"]
   },
   "insurance": null
 }
@@ -45,7 +46,8 @@ IMPORTANT: If this is a life insurance illustration, ALSO populate the "insuranc
   ],
   "riders": ["string"],
   "loanRate": number or null,
-  "additionalNotes": ["string"]
+  "additionalNotes": ["string"],
+  "disclaimers": ["string - full text of any disclaimer, disclosure, legal notice, or compliance text"]
 }
 
 Rules for the general format:
@@ -54,13 +56,15 @@ Rules for the general format:
 - sections should summarize the main content areas of the document
 - bulletPoints should list key findings, conclusions, or actionable items
 - additionalNotes for any caveats, disclaimers, or other important context
+- disclaimers: Extract ALL disclaimer, disclosure, legal notice, and compliance text found anywhere in the document. Include the full text of each disclaimer exactly as written. If none found, use an empty array.
 
 Rules for insurance (if applicable):
 - For cashValueProjections, include years 1, 5, 10, 15, 20, 25, 30 (or as many as available)
 - For surrenderValueProjections, include the same years
 - All monetary values should be plain numbers (no dollar signs, no commas)
 - If a field is not found in the document, use null for optional fields or 0 for numbers
-- Include any important riders or features in the riders array`
+- Include any important riders or features in the riders array
+- disclaimers: Extract ALL disclaimer, disclosure, legal notice, and compliance text found anywhere in the document. Include the full text of each disclaimer exactly as written. If none found, use an empty array.`
 
 export async function extractDocumentData(pdfBase64: string): Promise<{ general: ExtractedData; insurance?: ExtractedPolicyData }> {
   const response = await genai.models.generateContent({

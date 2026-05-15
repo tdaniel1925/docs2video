@@ -738,6 +738,50 @@ const pageStyles = `
     color: var(--ink-soft, #3D5A7A);
   }
 
+  /* Legal Disclosures */
+  .wp-disclosures-toggle {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft, #3D5A7A);
+    cursor: pointer;
+    padding: 8px 0;
+    border: none;
+    background: none;
+    text-decoration: underline;
+    font-family: inherit;
+    transition: color 0.15s;
+  }
+  .wp-disclosures-toggle:hover {
+    color: var(--ink, #1B3A5C);
+  }
+  .wp-disclosures-panel {
+    background: #F7F8FA;
+    border: 1px solid var(--border-light, #E8EDF2);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-top: 8px;
+  }
+  .wp-disclosures-heading {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink, #1B3A5C);
+    margin: 0 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .wp-disclosures-text {
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--ink-soft, #3D5A7A);
+    margin: 0 0 6px;
+  }
+  .wp-disclosures-divider {
+    border: none;
+    border-top: 1px solid var(--border-light, #E8EDF2);
+    margin: 16px 0;
+  }
+
   /* Mobile responsive */
   @media (max-width: 768px) {
     .wp-header { padding: 0 16px; }
@@ -844,6 +888,7 @@ export default function PublicWatchPage() {
   const [payLoading, setPayLoading] = useState(false)
   const [payError, setPayError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [disclaimersOpen, setDisclaimersOpen] = useState(false)
 
   const chatEndRef = useRef<HTMLDivElement>(null)
   const chatInputRef = useRef<HTMLInputElement>(null)
@@ -1082,6 +1127,12 @@ export default function PublicWatchPage() {
   const slideUrls = (video.slide_urls ?? []) as string[]
   const slideCount = slideUrls.length
   const hasPdf = !!video.infographic?.source_pdf_url
+
+  // Insurance detection and disclaimers
+  const pipelineInput = (video.script as any)?._pipeline_input
+  const policyData = pipelineInput?.policyData
+  const isInsurance = !!(policyData?.deathBenefit)
+  const carrierDisclaimers: string[] = (video as any).disclaimers ?? policyData?.disclaimers ?? []
   const createdDate = new Date(video.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -1344,6 +1395,44 @@ export default function PublicWatchPage() {
           </div>
         </div>
       </div>
+
+      {/* ============================================================ */}
+      {/*  BELOW MAIN — Legal Disclosures (insurance only)              */}
+      {/* ============================================================ */}
+      {isInsurance && (
+        <div className="wp-center wp-section">
+          <button
+            className="wp-disclosures-toggle"
+            onClick={() => setDisclaimersOpen(!disclaimersOpen)}
+          >
+            {disclaimersOpen ? 'Hide Legal Disclosures' : 'View Legal Disclosures'}
+          </button>
+
+          {disclaimersOpen && (
+            <div className="wp-disclosures-panel">
+              {carrierDisclaimers.length > 0 && (
+                <>
+                  <h3 className="wp-disclosures-heading">Carrier Disclosures</h3>
+                  {carrierDisclaimers.map((d, i) => (
+                    <p key={i} className="wp-disclosures-text">{d}</p>
+                  ))}
+                  <hr className="wp-disclosures-divider" />
+                </>
+              )}
+
+              <h3 className="wp-disclosures-heading">Platform Disclosures</h3>
+              <p className="wp-disclosures-text">This video is for educational and informational purposes only. It is not intended as legal, tax, accounting, investment, or financial advice.</p>
+              <p className="wp-disclosures-text">Any values shown that are not guaranteed — including credited interest rates, dividends, index performance, policy charges, or loans — are subject to change and may vary over time. Actual policy performance may be more or less favorable than illustrated.</p>
+              <p className="wp-disclosures-text">Policy guarantees are based solely on the claims-paying ability of the issuing insurance company.</p>
+              <p className="wp-disclosures-text">This video was produced by a third party and is not endorsed by, affiliated with, or authorized by any insurance carrier.</p>
+              <p className="wp-disclosures-text">The policy contract and the official carrier-issued illustration govern all policy values, benefits, features, charges, and guarantees.</p>
+              <p className="wp-disclosures-text">This video is not a solicitation or offer to purchase insurance.</p>
+              <p className="wp-disclosures-text">This presentation assumes that currently illustrated non-guaranteed elements will continue unchanged for all years shown. This is not likely to occur, and actual results may be more or less favorable.</p>
+              <p className="wp-disclosures-text">Clients should review all policy materials and consult with their licensed insurance professional before making decisions.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ============================================================ */}
       {/*  BELOW MAIN — Quote section                                   */}
