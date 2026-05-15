@@ -188,18 +188,17 @@ export default function AdminPage() {
     }
     setAuthState('ok')
 
-    // Load all data in parallel
-    // NOTE: If RLS prevents reading all users' data, this should be moved to
-    // an admin API route using the service role key instead of the anon client.
-    const [profilesRes, videosRes, brandsRes] = await Promise.all([
-      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-      supabase.from('videos').select('*').order('created_at', { ascending: false }),
-      supabase.from('brands').select('*').order('created_at', { ascending: false }),
-    ])
+    // Load all data via admin API (bypasses RLS)
+    const dataRes = await fetch('/api/admin/data')
+    if (!dataRes.ok) {
+      setAuthState('denied')
+      return
+    }
+    const adminData = await dataRes.json()
 
-    const loadedProfiles = (profilesRes.data ?? []) as Profile[]
-    const loadedVideos = (videosRes.data ?? []) as Video[]
-    const loadedBrands = (brandsRes.data ?? []) as Brand[]
+    const loadedProfiles = (adminData.profiles ?? []) as Profile[]
+    const loadedVideos = (adminData.videos ?? []) as Video[]
+    const loadedBrands = (adminData.brands ?? []) as Brand[]
 
     setProfiles(loadedProfiles)
     setBrands(loadedBrands)
