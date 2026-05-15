@@ -60,7 +60,7 @@ export const PLANS: PlanInfo[] = [
       'Priority support',
     ],
     coursesPerMonth: 0, // pay per course at $99
-    unlimitedProjects: true,
+    unlimitedProjects: false,
   },
   {
     tier: 'agency',

@@ -19,7 +19,7 @@ export default function HomePage() {
         color: 'var(--ink)',
       }}>
         <Link href="/signup" style={{ color: 'var(--ink)', textDecoration: 'none' }}>
-          Coming Soon — Sign up for early access and get 2 free explainer videos
+          Coming Soon — Sign up for early access and get 5 free explainer videos
         </Link>
       </div>
 
@@ -50,7 +50,7 @@ export default function HomePage() {
           <div className="hero-left">
             <div className="hero-eyebrow"><span className="star">&#10022;</span>AI-powered content creation platform</div>
             <h1 className="hero-title">Turn documents into<br/><RotatingWords /></h1>
-            <p className="hero-sub">Nobody reads a 40-page PDF. Docs2Video transforms any document into narrated videos, slide decks, multi-episode courses, and data infographics &mdash; all branded, all AI-generated, all in minutes.</p>
+            <p className="hero-sub">Nobody reads a 40-page PDF. Docs2Video transforms any document into narrated explainer videos &mdash; branded, AI-generated, and ready in minutes. Slide decks, courses, and infographics coming soon.</p>
             <div style={{display:'flex',gap:12,alignItems:'center',marginTop:28,flexWrap:'wrap'}}>
               <Link href="/signup" className="btn btn-primary btn-lg">Get Started</Link>
             </div>
@@ -139,19 +139,19 @@ export default function HomePage() {
             </div>
             <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
               <div style={{fontSize:40,marginBottom:16}}>&#128221;</div>
-              <h3>Slide Deck</h3>
+              <h3>Slide Deck <span style={{fontSize:13,fontWeight:500,color:'var(--ink-soft)'}}>(Coming Soon)</span></h3>
               <p>Editable PPTX with AI-generated backgrounds and structured text. Download it, customize it, present it &mdash; no design skills needed.</p>
               <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$19</div>
             </div>
             <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
               <div style={{fontSize:40,marginBottom:16}}>&#127891;</div>
-              <h3>Video Course</h3>
+              <h3>Video Course <span style={{fontSize:13,fontWeight:500,color:'var(--ink-soft)'}}>(Coming Soon)</span></h3>
               <p>Multi-episode narrated series. Turn training manuals, onboarding docs, or educational content into a binge-worthy course.</p>
               <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$249</div>
             </div>
             <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
               <div style={{fontSize:40,marginBottom:16}}>&#128202;</div>
-              <h3>Infographic</h3>
+              <h3>Infographic <span style={{fontSize:13,fontWeight:500,color:'var(--ink-soft)'}}>(Coming Soon)</span></h3>
               <p>Turn data-heavy reports into beautiful visual summaries. AI extracts charts, stats, and key findings into a single shareable graphic.</p>
               <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$19</div>
             </div>
@@ -639,7 +639,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="footer-bottom">
-            <div>&copy; 2025 Docs2Video. All rights reserved.</div>
+            <div>&copy; 2026 Docs2Video. All rights reserved.</div>
             <div className="footer-socials">
               <a href="#">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M22 5.8a8.5 8.5 0 0 1-2.4.7 4.2 4.2 0 0 0 1.8-2.3 8.4 8.4 0 0 1-2.7 1A4.2 4.2 0 0 0 11.5 9c0 .3 0 .6.1.9A12 12 0 0 1 3 4.6a4.2 4.2 0 0 0 1.3 5.6 4.2 4.2 0 0 1-1.9-.5v.1a4.2 4.2 0 0 0 3.4 4.1 4.2 4.2 0 0 1-1.9.1 4.2 4.2 0 0 0 3.9 2.9A8.4 8.4 0 0 1 2 18.5a12 12 0 0 0 6.5 1.9c7.8 0 12.1-6.5 12.1-12.1v-.6A8.6 8.6 0 0 0 22 5.8z"/></svg>

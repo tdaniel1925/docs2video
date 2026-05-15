@@ -10,7 +10,7 @@ export interface Profile {
   photo_standing_url: string | null
   onboarding_completed: boolean
   default_style: string
-  subscription_status: 'trial' | 'active' | 'cancelled' | 'expired' | 'agency'
+  subscription_status: 'trial' | 'active' | 'cancelled' | 'expired' | 'agency' | 'pro' | 'business' | 'professional' | 'starter' | null
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
   stripe_user_id: string | null

@@ -128,7 +128,7 @@ function tag(color: 'mint' | 'peach' | 'rose' | 'gray'): React.CSSProperties {
   }
 }
 
-function statusTag(status: string) {
+function statusTag(status: string | null) {
   if (status === 'completed' || status === 'active' || status === 'agency') return tag('mint')
   if (status === 'failed' || status === 'cancelled' || status === 'expired') return tag('rose')
   if (status === 'trial' || status === 'processing' || status === 'pending' || status === 'scripting' || status === 'generating_slides' || status === 'generating_audio' || status === 'assembling') return tag('peach')

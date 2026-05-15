@@ -74,7 +74,7 @@ export default async function DashboardPage() {
   const pendingCount = pendingFollowUps?.length ?? 0
 
   const firstName = profile?.full_name?.split(' ')[0] ?? 'there'
-  const isPro = profile?.subscription_status && ['professional', 'active', 'agency', 'starter'].includes((profile.subscription_status ?? '').toLowerCase())
+  const isPro = profile?.subscription_status && ['professional', 'active', 'agency', 'starter', 'pro', 'business'].includes((profile.subscription_status ?? '').toLowerCase())
   const planName = profile?.subscription_status
     ? profile.subscription_status.charAt(0).toUpperCase() + profile.subscription_status.slice(1)
     : 'Free'
@@ -146,7 +146,7 @@ export default async function DashboardPage() {
             )}
           </div>
           <Link
-            href="/pricing"
+            href="/settings"
             className="btn btn-sm"
             style={{
               background: trialExhausted ? '#dc2626' : 'var(--mint)',
@@ -226,7 +226,7 @@ export default async function DashboardPage() {
               }}
             >
               + Create
-              <span style={{ fontSize: 13, fontWeight: 500, opacity: 0.8 }}>&mdash; from $5</span>
+              <span style={{ fontSize: 13, fontWeight: 500, opacity: 0.8 }}>&mdash; $10 per video</span>
             </Link>
           </div>
 
