@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #111; display: flex; flex-direction: column; align-items: center; gap: 40px; padding: 40px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  h2 { color: #fff; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.5; margin-bottom: -20px; }
+  .slide { width: 960px; height: 540px; position: relative; overflow: hidden; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+
+  /* Logo sizing */
+  .slide.cover .logo-box { width: 160px; height: 48px; border-radius: 8px; background: none; border: none; overflow: hidden; }
+  .slide.cover .logo-box .logo-img { height: 44px; width: auto; max-width: 160px; object-fit: contain; }
+  .slide.closing .logo-box { width: 180px; height: 56px; border-radius: 10px; background: none; border: none; overflow: hidden; }
+  .slide.closing .logo-box .logo-img { height: 52px; width: auto; max-width: 180px; object-fit: contain; }
+  .logo-sm { width: 120px !important; height: 36px !important; background: none !important; border: none !important; overflow: hidden; }
+  .logo-sm .logo-img { height: 32px; width: auto; max-width: 120px; object-fit: contain; }
+
+  /* ===== COVER SLIDE ===== */
+  .slide.cover .bg {
+    position: absolute; inset: 0;
+    background: url('ai-bg-1.png') center/cover no-repeat;
+  }
+  .slide.cover .bg::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(10,22,40,0.4) 0%, rgba(10,22,40,0.2) 50%, rgba(10,22,40,0.6) 100%);
+  }
+  .slide.cover .content {
+    position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column; padding: 40px 50px;
+  }
+  .slide.cover .logo-row { display: flex; align-items: center; gap: 14px; margin-bottom: auto; }
+  .slide.cover .logo-box {
+    width: 48px; height: 48px; border-radius: 10px; background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 18px; color: #A8F0D4;
+  }
+  .slide.cover .company { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.7); letter-spacing: 0.03em; }
+  .slide.cover .title-block { margin: auto 0; }
+  .slide.cover .title { font-size: 38px; font-weight: 800; color: #fff; line-height: 1.15; margin-bottom: 12px; }
+  .slide.cover .subtitle { font-size: 18px; color: rgba(255,255,255,0.6); font-weight: 400; }
+  .slide.cover .accent-line { width: 60px; height: 3px; background: #A8F0D4; border-radius: 2px; margin-bottom: 14px; }
+  .slide.cover .footer {
+    display: flex; align-items: center; gap: 20px; padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.1); font-size: 12px; color: rgba(255,255,255,0.4);
+  }
+
+  /* ===== DATA SLIDE ===== */
+  .slide.data .bg {
+    position: absolute; inset: 0;
+    background: linear-gradient(160deg, #0d1b2e 0%, #162d4a 50%, #0d1b2e 100%);
+  }
+  .slide.data .bg::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 80% 20%, rgba(168,240,212,0.08), transparent 50%);
+  }
+  .slide.data .content {
+    position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column; padding: 36px 50px;
+  }
+  .slide.data .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; }
+  .slide.data .logo-sm { width: 36px; height: 36px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; color: #A8F0D4; }
+  .slide.data .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #A8F0D4; background: rgba(168,240,212,0.1); padding: 4px 12px; border-radius: 20px; }
+  .slide.data .headline { font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 24px; }
+  .slide.data .big-number { font-size: 64px; font-weight: 900; color: #A8F0D4; letter-spacing: -0.03em; line-height: 1; margin-bottom: 8px; }
+  .slide.data .big-label { font-size: 16px; color: rgba(255,255,255,0.5); margin-bottom: 20px; }
+  .slide.data .desc { font-size: 15px; color: rgba(255,255,255,0.6); line-height: 1.6; max-width: 500px; }
+  .slide.data .footer {
+    margin-top: auto; display: flex; align-items: center; gap: 20px; padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.08); font-size: 11px; color: rgba(255,255,255,0.3);
+  }
+
+  /* ===== EVIDENCE SLIDE ===== */
+  .slide.evidence .bg {
+    position: absolute; inset: 0;
+    background: linear-gradient(145deg, #0f2137 0%, #1a3a5c 60%, #0f2137 100%);
+  }
+  .slide.evidence .content {
+    position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column; padding: 36px 50px;
+  }
+  .slide.evidence .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .slide.evidence .logo-sm { width: 36px; height: 36px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; color: #A8F0D4; }
+  .slide.evidence .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #A8F0D4; }
+  .slide.evidence .headline { font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 20px; }
+  .slide.evidence .table { flex: 1; display: flex; flex-direction: column; gap: 0; }
+  .slide.evidence .row {
+    display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .slide.evidence .row:nth-child(odd) { background: rgba(255,255,255,0.03); border-radius: 6px; }
+  .slide.evidence .row .year { width: 80px; font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.5); }
+  .slide.evidence .row .guaranteed { flex: 1; font-size: 16px; font-weight: 600; color: rgba(255,255,255,0.8); }
+  .slide.evidence .row .illustrated { flex: 1; font-size: 16px; font-weight: 700; color: #A8F0D4; }
+  .slide.evidence .row.header { border-bottom: 2px solid rgba(168,240,212,0.2); }
+  .slide.evidence .row.header span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.4); }
+  .slide.evidence .footer {
+    margin-top: auto; display: flex; align-items: center; gap: 20px; padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.08); font-size: 11px; color: rgba(255,255,255,0.3);
+  }
+
+  /* ===== CLOSING SLIDE ===== */
+  .slide.closing .bg {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #0a1628 0%, #1B365D 50%, #0a1628 100%);
+  }
+  .slide.closing .bg::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 50%, rgba(168,240,212,0.1), transparent 60%);
+  }
+  .slide.closing .content {
+    position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 60px;
+  }
+  .slide.closing .logo-box {
+    width: 64px; height: 64px; border-radius: 14px; background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 24px; color: #A8F0D4; margin-bottom: 20px;
+  }
+  .slide.closing .title { font-size: 36px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+  .slide.closing .subtitle { font-size: 18px; color: rgba(255,255,255,0.5); margin-bottom: 28px; }
+  .slide.closing .contact-grid { display: flex; gap: 32px; }
+  .slide.closing .contact-item { display: flex; align-items: center; gap: 8px; font-size: 14px; color: rgba(255,255,255,0.6); }
+  .slide.closing .contact-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(168,240,212,0.12); display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .slide.closing .cta {
+    margin-top: 28px; padding: 12px 32px; background: #A8F0D4; color: #0a1628;
+    font-weight: 700; font-size: 14px; border-radius: 8px; letter-spacing: 0.02em;
+  }
+</style>
+</head>
+<body>
+
+<h2>Cover Slide</h2>
+<div class="slide cover">
+  <div class="bg"></div>
+  <div class="content">
+    <div class="logo-row">
+      <img src="apex-logo.png" alt="Apex" class="logo-img">
+      <div class="company">APEX INSURANCE AGENCY</div>
+    </div>
+    <div class="title-block">
+      <div class="accent-line"></div>
+      <div class="title">Universal Life Policy<br>Overview</div>
+      <div class="subtitle">Prepared for John Smith</div>
+    </div>
+    <div class="footer">
+      <span>apex-insurance.com</span>
+      <span>|</span>
+      <span>(555) 123-4567</span>
+      <span>|</span>
+      <span>agent@apex-insurance.com</span>
+    </div>
+  </div>
+</div>
+
+<h2>Data Slide — Death Benefit</h2>
+<div class="slide data">
+  <div class="bg"></div>
+  <div class="content">
+    <div class="top-bar">
+      <div class="logo-sm"><img src="apex-logo.png" alt="Apex" class="logo-img"></div>
+      <div class="section-label">Protection</div>
+    </div>
+    <div class="headline">Your Family's Safety Net</div>
+    <div class="big-number">$500,000</div>
+    <div class="big-label">Guaranteed Death Benefit</div>
+    <div class="desc">This is the amount your beneficiaries will receive, guaranteed by the issuing carrier's claims-paying ability. This protection remains in effect as long as premiums are paid.</div>
+    <div class="footer">
+      <span>Apex Insurance Agency</span>
+      <span>|</span>
+      <span>apex-insurance.com</span>
+      <span>|</span>
+      <span>(555) 123-4567</span>
+    </div>
+  </div>
+</div>
+
+<h2>Evidence Slide — Cash Value Projections</h2>
+<div class="slide evidence">
+  <div class="bg"></div>
+  <div class="content">
+    <div class="top-bar">
+      <div class="logo-sm"><img src="apex-logo.png" alt="Apex" class="logo-img"></div>
+      <div class="section-label">Cash Value Growth</div>
+    </div>
+    <div class="headline">Your Policy's Cash Value Over Time</div>
+    <div class="table">
+      <div class="row header">
+        <span class="year">Year</span>
+        <span class="guaranteed">Guaranteed</span>
+        <span class="illustrated">Illustrated</span>
+      </div>
+      <div class="row"><span class="year">Year 5</span><span class="guaranteed">$8,200</span><span class="illustrated">$12,400</span></div>
+      <div class="row"><span class="year">Year 10</span><span class="guaranteed">$22,100</span><span class="illustrated">$38,200</span></div>
+      <div class="row"><span class="year">Year 15</span><span class="guaranteed">$41,600</span><span class="illustrated">$74,500</span></div>
+      <div class="row"><span class="year">Year 20</span><span class="guaranteed">$68,300</span><span class="illustrated">$128,000</span></div>
+      <div class="row"><span class="year">Year 25</span><span class="guaranteed">$102,700</span><span class="illustrated">$198,400</span></div>
+      <div class="row"><span class="year">Year 30</span><span class="guaranteed">$145,200</span><span class="illustrated">$289,600</span></div>
+    </div>
+    <div class="footer">
+      <span>Apex Insurance Agency</span>
+      <span>|</span>
+      <span>Non-guaranteed values are subject to change</span>
+    </div>
+  </div>
+</div>
+
+<h2>Closing Slide</h2>
+<div class="slide closing">
+  <div class="bg"></div>
+  <div class="content">
+    <img src="apex-logo.png" alt="Apex" class="logo-img">
+    <div class="title">Thank You</div>
+    <div class="subtitle">We're here to help with any questions</div>
+    <div class="contact-grid">
+      <div class="contact-item">
+        <div class="contact-icon">&#128222;</div>
+        <span>(555) 123-4567</span>
+      </div>
+      <div class="contact-item">
+        <div class="contact-icon">&#127760;</div>
+        <span>apex-insurance.com</span>
+      </div>
+      <div class="contact-item">
+        <div class="contact-icon">&#9993;</div>
+        <span>agent@apex-insurance.com</span>
+      </div>
+    </div>
+    <div class="cta">Schedule a Consultation</div>
+  </div>
+</div>
+
+</body>
+</html>

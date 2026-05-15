@@ -439,6 +439,18 @@ export const SLIDE_STYLES = [
     description: 'Bold angles, CMYK accents, Swiss-Japanese design',
     prompt: 'Modern Swiss-Japanese editorial design. Light silver-gray (#E8E8EC) background. Bold black text at dramatic angles — some text rotated 90 degrees vertically, some at 15-30 degree angles. Use CMYK-inspired accent colors: cyan (#00AEEF), magenta (#EC008C), yellow (#FFF200), and black. Text blocks overlap and intersect at angles. Mix of very large bold condensed sans-serif headings with small body text. Some text runs vertically along edges. Clean horizontal layout for data. Overall feels like a high-end design exhibition poster — asymmetric, dynamic, intentionally breaking grid rules.',
   },
+  {
+    id: 'rock-poster',
+    name: 'Rock Poster',
+    description: 'Grunge texture, bold block type, vintage poster feel',
+    prompt: 'Vintage rock concert poster style presentation. Bold solid color background (red, blue, or green) with distressed grunge paper texture overlay. Massive bold condensed block uppercase headline text with hard drop shadows. White star decorations between sections. Scratched distressed white border frame around the edges. Secondary text in white condensed sans-serif on dark semi-transparent bars. Halftone dot pattern visible in the background. Faded duotone photo silhouette blended into the background. Footer bar with bold white text badges. Everything feels like a vintage letterpress-printed gig poster — raw, bold, high contrast.',
+  },
+  {
+    id: 'street-grunge',
+    name: 'Street Grunge',
+    description: 'Torn paper, teal & cream, urban street art energy',
+    prompt: 'Urban street art flyer style. Teal/dark cyan (#0d7377) background with cream/off-white (#f5f0e1) torn paper shapes layered on top — ripped edges, overlapping paper scraps at angles. Bold graffiti-style mixed typography — some words in massive bold condensed sans-serif, others in handwritten script italics. Hand-drawn crown doodles and star scribbles as decorations. Dark brush stroke text effects. White torn tape strips with text. Badge elements with dates/numbers. Scattered diagonal text elements. Everything feels like a hand-assembled urban collage — layered, energetic, raw. Mix of dark teal, cream, white, and black.',
+  },
 ] as const
 
 export type SlideStyleId = typeof SLIDE_STYLES[number]['id']
