@@ -9,7 +9,11 @@ import type { Profile } from '../_lib/types'
 import { isAdmin } from '../_lib/admin'
 
 const CREATE_ITEMS_LIST = [
-  { href: '/quick', icon: '\uD83D\uDCF9', title: 'Video Explainer', desc: '$29 — Narrated video + share page' },
+  { href: '/quick', icon: '\uD83D\uDCF9', title: 'Video Explainer', desc: 'Narrated video + share page' },
+  { href: '/create', icon: '\uD83C\uDFA8', title: 'Pro Mode', desc: 'Full control — choose style, slides, voice' },
+  { href: '/fix', icon: '\u2728', title: 'Photo Fixer', desc: 'Enhance, fix background, pro headshot' },
+  { href: '/templates', icon: '\uD83D\uDDBC\uFE0F', title: 'Templates', desc: 'Browse or create custom styles' },
+  { href: '/brands/new', icon: '\uD83C\uDFA8', title: 'New Brand', desc: 'Colors, logo, brand guide from URL' },
 ]
 
 // Flat list for route matching
@@ -71,13 +75,47 @@ export default function Header({ profile }: { profile: Profile }) {
               Dashboard
             </Link>
 
-            {/* Create — direct link to Quick Mode */}
-            <Link
-              href="/quick"
-              className={isCreateActive ? 'active' : ''}
-            >
-              Create Explainer
-            </Link>
+            {/* Create dropdown */}
+            <div ref={createRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => setCreateOpen(!createOpen)}
+                className={isCreateActive ? 'active' : ''}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
+              >
+                + Create
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.5 }}>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              {createOpen && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, marginTop: 8,
+                  width: 280, background: 'var(--bg-card)', border: '1px solid var(--border-light)',
+                  borderRadius: 10, padding: 6, boxShadow: '0 8px 30px rgba(0,0,0,0.12)', zIndex: 200,
+                }}>
+                  {CREATE_ITEMS.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setCreateOpen(false)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
+                        borderRadius: 8, textDecoration: 'none', color: 'var(--ink)',
+                        transition: 'background 0.1s',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-soft)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <span style={{ fontSize: 20, width: 32, textAlign: 'center' }}>{item.icon}</span>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{item.title}</div>
+                        <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>{item.desc}</div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Other nav links */}
             {NAV_LINKS.slice(1).map((link) => (
@@ -198,9 +236,13 @@ export default function Header({ profile }: { profile: Profile }) {
       {mobileOpen && (
         <div className="mobile-menu">
           <Link href="/dashboard" className={pathname === '/dashboard' ? 'active' : ''}>Dashboard</Link>
-          <Link href="/quick" className={pathname === '/quick' || pathname === '/create' || pathname.startsWith('/create/') ? 'active' : ''}>
-            Create Explainer
-          </Link>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-light)', padding: '12px 0 4px' }}>Create</div>
+          {CREATE_ITEMS.map((item) => (
+            <Link key={item.href} href={item.href} className={pathname === item.href ? 'active' : ''}>
+              {item.icon} {item.title}
+            </Link>
+          ))}
+          <div style={{ height: 8 }} />
           <Link href="/videos" className={pathname === '/videos' ? 'active' : ''}>Library</Link>
           <Link href="/clients" className={pathname === '/clients' ? 'active' : ''}>Clients</Link>
           <Link href="/settings" className={pathname === '/settings' ? 'active' : ''}>Settings</Link>
