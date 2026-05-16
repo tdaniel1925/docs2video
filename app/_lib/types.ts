@@ -155,6 +155,7 @@ export interface Video {
   progress_pct: number | null
   error_message: string | null
   created_at: string
+  updated_at: string
   brand?: Brand
 }
 
