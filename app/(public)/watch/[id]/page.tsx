@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { createClient } from '../../../_lib/supabase/client'
-import type { Video, Brand, ChatMessage } from '../../../_lib/types'
+import type { Video, Brand } from '../../../_lib/types'
 import type { ExtractedData } from '../../../_lib/extract-types'
 
 /* ------------------------------------------------------------------ */
@@ -83,12 +83,6 @@ const IconShare = () => (
   </svg>
 )
 
-const IconSend = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="22" y1="2" x2="11" y2="13" />
-    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-  </svg>
-)
 
 const IconCheck = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -224,30 +218,20 @@ const pageStyles = `
     color: #fff;
   }
 
-  /* Main 2-col layout */
+  /* Main layout */
   .wp-main {
     display: flex;
+    flex-direction: column;
     gap: 24px;
     padding: 24px 0 32px;
-    align-items: flex-start;
+    max-width: 800px;
+    margin: 0 auto;
   }
   .wp-col-left {
-    width: 60%;
+    width: 100%;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    min-width: 0;
-  }
-  .wp-col-right {
-    width: 40%;
-    display: flex;
-    flex-direction: column;
-    background: #fff;
-    border: 1px solid var(--border-light, #E8EDF2);
-    border-radius: 10px;
-    overflow: hidden;
-    min-height: 520px;
-    max-height: calc(100vh - 200px);
     min-width: 0;
   }
 
@@ -348,177 +332,6 @@ const pageStyles = `
     color: var(--mint-darker, #1E7A8A);
   }
 
-  /* Chat panel */
-  .wp-chat-header {
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border-light, #E8EDF2);
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--ink-light, #7A8FA3);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .wp-chat-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  .wp-chat-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    padding: 32px 20px;
-    flex: 1;
-  }
-  .wp-chat-empty-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--ink, #1B3A5C);
-    text-align: center;
-  }
-  .wp-chat-empty-sub {
-    font-size: 12px;
-    color: var(--ink-light, #7A8FA3);
-    text-align: center;
-    line-height: 1.5;
-  }
-  .wp-suggested-btns {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 100%;
-    max-width: 280px;
-  }
-  .wp-suggested-btn {
-    padding: 10px 14px;
-    border: 1px solid var(--border-light, #E8EDF2);
-    border-radius: 8px;
-    background: #fff;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-    color: var(--ink, #1B3A5C);
-    text-align: left;
-    font-family: inherit;
-  }
-  .wp-suggested-btn:hover {
-    border-color: var(--mint, #3BB5C8);
-    background: var(--bg, #F0F4F8);
-  }
-  .wp-msg {
-    max-width: 85%;
-    animation: wp-fadeIn 0.2s ease;
-  }
-  .wp-msg-client {
-    align-self: flex-end;
-  }
-  .wp-msg-ai {
-    align-self: flex-start;
-  }
-  .wp-msg-bubble {
-    padding: 10px 14px;
-    border-radius: 10px;
-    font-size: 13px;
-    line-height: 1.6;
-    word-break: break-word;
-  }
-  .wp-msg-client .wp-msg-bubble {
-    background: var(--mint, #3BB5C8);
-    color: #fff;
-  }
-  .wp-msg-ai .wp-msg-bubble {
-    background: #fff;
-    border: 1px solid var(--border-light, #E8EDF2);
-    color: var(--ink, #1B3A5C);
-  }
-  @keyframes wp-fadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  /* Typing dots */
-  .wp-typing {
-    display: flex;
-    gap: 4px;
-    padding: 10px 14px;
-    border-radius: 10px;
-    background: #fff;
-    border: 1px solid var(--border-light, #E8EDF2);
-    align-self: flex-start;
-  }
-  .wp-typing span {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--ink-light, #7A8FA3);
-    animation: wp-dotPulse 1.2s ease-in-out infinite;
-  }
-  .wp-typing span:nth-child(2) { animation-delay: 0.2s; }
-  .wp-typing span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes wp-dotPulse {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 1; }
-  }
-
-  /* Chat input */
-  .wp-chat-input-wrap {
-    padding: 12px 16px;
-    border-top: 1px solid var(--border-light, #E8EDF2);
-    background: #fff;
-  }
-  .wp-chat-input-row {
-    display: flex;
-    gap: 8px;
-    border: 1px solid var(--border-light, #E8EDF2);
-    border-radius: 8px;
-    padding: 4px 4px 4px 12px;
-    background: #fff;
-    transition: border-color 0.15s;
-  }
-  .wp-chat-input-row:focus-within {
-    border-color: var(--mint, #3BB5C8);
-  }
-  .wp-chat-input-row input {
-    flex: 1;
-    border: none;
-    outline: none;
-    font-size: 13px;
-    background: transparent;
-    color: var(--ink, #1B3A5C);
-    font-family: inherit;
-  }
-  .wp-chat-input-row input::placeholder {
-    color: var(--ink-light, #7A8FA3);
-  }
-  .wp-chat-send-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: 6px;
-    border: none;
-    background: var(--ink, #1B3A5C);
-    color: #fff;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: opacity 0.15s;
-    font-family: inherit;
-  }
-  .wp-chat-send-btn:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
-  .wp-chat-send-btn:not(:disabled):hover {
-    opacity: 0.85;
-  }
 
   /* Full-width sections below main */
   .wp-section {
@@ -787,17 +600,6 @@ const pageStyles = `
   @media (max-width: 768px) {
     .wp-header { padding: 0 16px; }
     .wp-center { padding: 0 16px; }
-    .wp-main {
-      flex-direction: column;
-    }
-    .wp-col-left,
-    .wp-col-right {
-      width: 100%;
-    }
-    .wp-col-right {
-      min-height: 400px;
-      max-height: 520px;
-    }
     .wp-actions {
       flex-direction: column;
     }
@@ -810,70 +612,8 @@ const pageStyles = `
 `
 
 /* ------------------------------------------------------------------ */
-/*  Suggested questions for empty chat                                 */
-/* ------------------------------------------------------------------ */
-
-const SUGGESTED_QUESTIONS = [
-  'Can you explain the key points of this video in simple terms?',
-  'What are the most important numbers and metrics mentioned?',
-  'Can you compare the different options or plans mentioned?',
-  'Give me a one-paragraph summary of this video.',
-]
-
-/* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
-
-function VoiceInputButton({ onResult, disabled }: { onResult: (text: string) => void, disabled?: boolean }) {
-  const [listening, setListening] = useState(false)
-
-  function startListening() {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SpeechRecognition) return
-
-    const recognition = new SpeechRecognition()
-    recognition.continuous = false
-    recognition.interimResults = false
-    recognition.lang = 'en-US'
-
-    recognition.onstart = () => setListening(true)
-    recognition.onend = () => setListening(false)
-    recognition.onresult = (event: any) => {
-      const text = event.results[0][0].transcript
-      onResult(text)
-    }
-    recognition.onerror = () => setListening(false)
-
-    recognition.start()
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={startListening}
-      disabled={disabled || listening}
-      title={listening ? 'Listening...' : 'Voice input'}
-      style={{
-        background: listening ? 'var(--mint)' : 'none',
-        border: listening ? 'none' : '1px solid var(--border)',
-        borderRadius: 8,
-        padding: '6px 10px',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        transition: 'all 0.15s',
-      }}
-    >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={listening ? 'white' : 'var(--ink-light)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-        <line x1="12" y1="19" x2="12" y2="23"/>
-        <line x1="8" y1="23" x2="16" y2="23"/>
-      </svg>
-    </button>
-  )
-}
 
 export default function PublicWatchPage() {
   const params = useParams()
@@ -883,16 +623,11 @@ export default function PublicWatchPage() {
   const [agent, setAgent] = useState<AgentProfile | null>(null)
   const [quote, setQuote] = useState<Quote | null>(null)
   const [notFound, setNotFound] = useState(false)
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
-  const [chatInput, setChatInput] = useState('')
-  const [chatLoading, setChatLoading] = useState(false)
   const [payLoading, setPayLoading] = useState(false)
   const [payError, setPayError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [disclaimersOpen, setDisclaimersOpen] = useState(false)
 
-  const chatEndRef = useRef<HTMLDivElement>(null)
-  const chatInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const viewTracked = useRef(false)
   const playTracked = useRef(false)
@@ -947,13 +682,6 @@ export default function PublicWatchPage() {
         .single()
       if (quoteData) setQuote(quoteData as Quote)
 
-      const { data: messages } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('video_id', v.id)
-        .order('created_at', { ascending: true })
-      if (messages) setChatMessages(messages as ChatMessage[])
-
       if (!viewTracked.current) {
         const sessionKey = `viewed_${v.id}`
         if (!sessionStorage.getItem(sessionKey)) {
@@ -967,11 +695,6 @@ export default function PublicWatchPage() {
     }
     load()
   }, [params.id])
-
-  /* ---- Scroll chat ---- */
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [chatMessages])
 
   /* ---- Slide tracking ---- */
   const handleTimeUpdate = useCallback(() => {
@@ -992,63 +715,6 @@ export default function PublicWatchPage() {
       videoRef.current.currentTime = (videoDuration / slideCount) * index
     },
     [video, videoDuration],
-  )
-
-  /* ---- Chat ---- */
-  const sendChat = useCallback(
-    async (msg?: string) => {
-      const text = (msg ?? chatInput).trim()
-      if (!text || !video || chatLoading) return
-      setChatInput('')
-      setChatLoading(true)
-
-      const clientMsg: ChatMessage = {
-        id: `temp-${Date.now()}`,
-        video_id: video.id,
-        role: 'client',
-        message: text,
-        created_at: new Date().toISOString(),
-      }
-      setChatMessages((prev) => [...prev, clientMsg])
-      trackEvent(video.id, 'chat_message')
-
-      try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId: video.id, message: text }),
-        })
-        if (!res.ok) throw new Error('Failed')
-        const data = await res.json()
-        if (data.response) {
-          setChatMessages((prev) => [
-            ...prev,
-            {
-              id: `temp-${Date.now() + 1}`,
-              video_id: video.id,
-              role: 'assistant',
-              message: data.response,
-              created_at: new Date().toISOString(),
-            },
-          ])
-        }
-      } catch {
-        setChatMessages((prev) => [
-          ...prev,
-          {
-            id: `err-${Date.now()}`,
-            video_id: video.id,
-            role: 'assistant',
-            message: 'Sorry, I couldn\'t process that. Please try again.',
-            created_at: new Date().toISOString(),
-          },
-        ])
-      } finally {
-        setChatLoading(false)
-        chatInputRef.current?.focus()
-      }
-    },
-    [chatInput, video, chatLoading],
   )
 
   /* ---- Pay ---- */
@@ -1356,91 +1022,6 @@ export default function PublicWatchPage() {
             </div>
           </div>
 
-          {/* ---- RIGHT COLUMN — Chat ---- */}
-          <div className="wp-col-right">
-            <div className="wp-chat-header">Ask about this video</div>
-
-            <div className="wp-chat-body">
-              {chatMessages.length === 0 ? (
-                <div className="wp-chat-empty">
-                  <div>
-                    <div className="wp-chat-empty-title">
-                      I can help you understand this video
-                    </div>
-                    <div className="wp-chat-empty-sub">
-                      Try one of the suggestions below, or type your own question.
-                    </div>
-                  </div>
-                  <div className="wp-suggested-btns">
-                    {SUGGESTED_QUESTIONS.map((q) => (
-                      <button
-                        key={q}
-                        className="wp-suggested-btn"
-                        onClick={() => sendChat(q)}
-                        disabled={chatLoading}
-                      >
-                        {q}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {chatMessages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`wp-msg ${msg.role === 'client' ? 'wp-msg-client' : 'wp-msg-ai'}`}
-                    >
-                      <div className="wp-msg-bubble">{msg.message}</div>
-                    </div>
-                  ))}
-                </>
-              )}
-
-              {chatLoading && (
-                <div className="wp-typing">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-
-            <div className="wp-chat-input-wrap">
-              <div className="wp-chat-input-row">
-                <input
-                  ref={chatInputRef}
-                  type="text"
-                  placeholder="Ask about this video..."
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      sendChat()
-                    }
-                  }}
-                  disabled={chatLoading}
-                />
-                <VoiceInputButton
-                  onResult={(text) => {
-                    setChatInput(text)
-                    sendChat(text)
-                  }}
-                  disabled={chatLoading}
-                />
-                <button
-                  className="wp-chat-send-btn"
-                  onClick={() => sendChat()}
-                  disabled={chatLoading || !chatInput.trim()}
-                >
-                  <IconSend />
-                  Send
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 

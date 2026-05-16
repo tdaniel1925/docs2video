@@ -135,7 +135,7 @@ export default function HomePage() {
             <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
               <div style={{fontSize:40,marginBottom:16}}>&#128249;</div>
               <h3>Video Explainer</h3>
-              <p>AI-narrated video with branded slides, professional voiceover, and a shareable watch page with built-in chat, calendar booking, and payments.</p>
+              <p>AI-narrated video with branded slides, professional voiceover, and a shareable watch page with calendar booking and payments.</p>
               <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$10</div>
             </div>
             <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
@@ -204,7 +204,7 @@ export default function HomePage() {
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               </div>
               <h3>Branded share page</h3>
-              <p>Video + calendar booking + AI chat + payments &mdash; all on one branded link your clients can access instantly.</p>
+              <p>Video + calendar booking + payments &mdash; all on one branded link your clients can access instantly.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon" style={{background:'var(--rose)'}}>
@@ -229,13 +229,6 @@ export default function HomePage() {
               </div>
               <div style={{fontSize:14,fontWeight:700,color:'var(--ink)',marginBottom:4}}>Video explainer</div>
               <div style={{fontSize:13,color:'var(--ink-soft)',lineHeight:1.5}}>Professional narrated video that walks your client through the data in plain language.</div>
-            </div>
-            <div style={{background:'var(--surface)',borderRadius:10,padding:20,border:'1px solid var(--border)'}}>
-              <div style={{width:36,height:36,borderRadius:10,background:'var(--peach)',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:12}}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              </div>
-              <div style={{fontSize:14,fontWeight:700,color:'var(--ink)',marginBottom:4}}>AI chatbot</div>
-              <div style={{fontSize:13,color:'var(--ink-soft)',lineHeight:1.5}}>Your client can ask follow-up questions about the document and get instant AI answers.</div>
             </div>
             <div style={{background:'var(--surface)',borderRadius:10,padding:20,border:'1px solid var(--border)'}}>
               <div style={{width:36,height:36,borderRadius:10,background:'var(--lilac)',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:12}}>
@@ -315,7 +308,7 @@ export default function HomePage() {
             </div>
             <div className="comp-row">
               <div className="comp-label">Client engagement page</div>
-              <div className="comp-new highlight">&#10003; Video + pay + book + chat</div>
+              <div className="comp-new highlight">&#10003; Video + pay + book</div>
               <div className="comp-old">&#10007; Video link only</div>
               <div className="comp-old">&#10007; Video link only</div>
               <div className="comp-old">&#10007; Static file</div>
@@ -540,7 +533,7 @@ export default function HomePage() {
               <ul className="pricing-features">
                 <li>$10 per video, deck, or infographic</li>
                 <li>Full quality, no watermark</li>
-                <li>Share pages with AI chat</li>
+                <li>Branded share pages</li>
                 <li>Download MP4, PDF, PPTX</li>
               </ul>
               <Link href="/signup" className="btn btn-outlined btn-full">Start free</Link>
@@ -640,7 +633,7 @@ export default function HomePage() {
           {/* Testimonial grid */}
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(320px, 1fr))',gap:24,maxWidth:900,margin:'0 auto'}}>
             <div className="feature-card" style={{padding:28}}>
-              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;What impressed me most is the consistency and polish of every video. The template styles look professional, the voiceover quality is remarkable, and the branded share pages with built-in scheduling and AI chat are features I haven&apos;t seen anywhere else. It&apos;s a genuinely well-built product.&rdquo;</p>
+              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;What impressed me most is the consistency and polish of every video. The template styles look professional, the voiceover quality is remarkable, and the branded share pages with built-in scheduling and payments are features I haven&apos;t seen anywhere else. It&apos;s a genuinely well-built product.&rdquo;</p>
               <div style={{fontWeight:700,fontSize:14}}>Betsy Riley</div>
               <div style={{fontSize:13,color:'var(--ink-soft)'}}>CFO, 3Mark Financial</div>
             </div>
