@@ -4,39 +4,39 @@ import { useState } from 'react'
 
 const FAQ_ITEMS = [
   {
-    question: 'Which document types do you support?',
+    question: 'What types of documents can I upload?',
     answer:
-      'We support PDFs of all kinds — financial reports, insurance illustrations, legal contracts, medical records, proposals, audit reports, closing disclosures, benefits summaries, and dozens more. If it has data, we can extract it. If we encounter a document type we don\'t yet handle, send it to us and we\'ll add support within 48 hours.',
+      'You can upload PDFs, paste text, or simply describe an idea. We handle financial reports, insurance illustrations, legal contracts, proposals, audit reports, benefits summaries, and any other document type. If it has information, we can turn it into a video.',
   },
   {
-    question: 'How accurate is the AI extraction?',
+    question: 'How long does it take to create a video?',
     answer:
-      'Our AI achieves 99%+ accuracy on structured documents. Every extraction goes through a human-review step before generation — you see exactly what was pulled and can edit any value before the infographic or video is created. Nothing ships without your approval.',
+      'Most videos are ready in under 5 minutes. Upload your document, choose a style, and our AI handles everything — extracting data, writing the narration script, generating visuals, and producing the voiceover.',
   },
   {
-    question: 'Can I customize the colors and logo?',
+    question: 'Can I customize the look and feel?',
     answer:
-      'Absolutely. You can create unlimited brand profiles, each with your own logo, color palette, fonts, and tone of voice. Every output is automatically styled to match whichever brand profile you select — no manual design work required.',
+      'Yes! Choose from 16+ professionally designed styles, or create a completely custom style with AI. You can also set up brand profiles with your logo, colors, and fonts so every video matches your brand automatically.',
   },
   {
-    question: 'Is there a free trial?',
+    question: 'How does pricing work?',
     answer:
-      'Yes! Every new account gets 10 free infographics and 2 free video explainers — no credit card required. You can explore the full platform, set up your brand profile, and generate real outputs before deciding on a paid plan.',
-  },
-  {
-    question: 'Do viewers need to sign up to watch a video?',
-    answer:
-      'No. Every video and infographic gets a clean, public share link. Your clients can view it instantly on any device — no login, no app download, no signup. You can also password-protect links if you need an extra layer of privacy.',
+      'Start free with 5 videos included. After that, pay $10 per video with no subscription, or subscribe for discounts — Pro at $25/mo gets you 40% off ($6/video), and Business at $99/mo includes 50 videos with no per-project fees.',
   },
   {
     question: 'Is my data secure?',
     answer:
-      'Security is our top priority. All documents are encrypted in transit (TLS 1.3) and at rest (AES-256). We are SOC 2 Type II compliant and undergo annual third-party audits. Your uploaded files are processed in isolated environments and permanently deleted after generation — we never store your source documents.',
+      'Security is our top priority. All documents are encrypted in transit (TLS 1.3) and at rest (AES-256). We are SOC 2 Type II compliant and undergo annual third-party audits. Your uploaded files are processed in isolated environments and permanently deleted after generation.',
   },
   {
-    question: 'Can I connect my email?',
+    question: 'Do my clients need an account to view?',
     answer:
-      'Yes. Docs2Video supports Microsoft 365 (Outlook) natively and Gmail integration is coming soon. You can also connect any email provider via SMTP. Emails are sent from your real address — not a generic "noreply" — and you get open-tracking so you know exactly when a client views your presentation.',
+      'No. Every video gets a clean, shareable link. Your clients can view it instantly on any device — no login, no app download, no signup required. You can also password-protect links for extra privacy.',
+  },
+  {
+    question: 'Can I collect payments through the share page?',
+    answer:
+      'Yes! Connect your Stripe account and attach quotes or payment links to any share page. Your clients can watch the video, understand the proposal, and pay — all from a single link without needing separate invoices.',
   },
 ]
 

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Docs2Video — Turn Documents Into Stunning Visuals",
-  description: "Upload any complex document and get professional infographics and narrated video explainers in seconds.",
+  title: "Docs2Video — Turn Any Document Into a Professional Explainer Video",
+  description: "Upload a PDF, paste text, or describe an idea. Get a branded narrated video with a shareable client page — in minutes, not hours.",
   icons: {
     icon: '/favicon.png',
     apple: '/favicon.png',

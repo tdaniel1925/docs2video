@@ -4,7 +4,7 @@ import MobileNav from './_components/MobileNav'
 import FaqSection from './_components/FaqSection'
 // DemoButton removed — using Get Started only
 import SharePagePreview from './_components/SharePagePreview'
-import RotatingWords from './_components/RotatingWords'
+// RotatingWords removed — using static hero title
 import ClickToPlayVideo from './_components/ClickToPlayVideo'
 import IndustryMegaMenu from './_components/IndustryMegaMenu'
 
@@ -19,7 +19,7 @@ export default function HomePage() {
         color: 'var(--ink)',
       }}>
         <Link href="/signup" style={{ color: 'var(--ink)', textDecoration: 'none' }}>
-          Coming Soon — Sign up for early access and get 5 free explainer videos
+          Start free — 5 explainer videos included, no credit card required
         </Link>
       </div>
 
@@ -48,13 +48,14 @@ export default function HomePage() {
         {/* ───── Hero (side-by-side) ───── */}
         <section className="hero hero-split">
           <div className="hero-left">
-            <div className="hero-eyebrow"><span className="star">&#10022;</span>AI-powered content creation platform</div>
-            <h1 className="hero-title">Turn documents into<br/><RotatingWords /></h1>
-            <p className="hero-sub">Nobody reads a 40-page PDF. Docs2Video transforms any document into narrated explainer videos &mdash; branded, AI-generated, and ready in minutes. Slide decks, courses, and infographics coming soon.</p>
+            <div className="hero-eyebrow"><span className="star">&#10022;</span>Built for professionals who explain complex things</div>
+            <h1 className="hero-title">Turn any document into a professional <em>explainer video</em></h1>
+            <p className="hero-sub">Upload a PDF, paste text, or describe an idea. Get a branded narrated video with a shareable client page &mdash; in minutes, not hours.</p>
             <div style={{display:'flex',gap:12,alignItems:'center',marginTop:28,flexWrap:'wrap'}}>
-              <Link href="/signup" className="btn btn-primary btn-lg">Get Started</Link>
+              <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 5 videos included &rarr;</Link>
+              <a href="#how-it-works" className="btn btn-outlined">Watch demo</a>
             </div>
-            <div className="hero-trust" style={{marginTop:20}}>Trusted by 2,500+ professionals across 12 industries</div>
+            <div className="hero-trust" style={{marginTop:20,fontSize:13,color:'var(--ink-soft)'}}>No credit card required &middot; Cancel anytime</div>
           </div>
           <div className="hero-right">
             <ClickToPlayVideo
@@ -135,13 +136,13 @@ export default function HomePage() {
               <div style={{fontSize:40,marginBottom:16}}>&#128249;</div>
               <h3>Video Explainer</h3>
               <p>AI-narrated video with branded slides, professional voiceover, and a shareable watch page with built-in chat, calendar booking, and payments.</p>
-              <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$29</div>
+              <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$10</div>
             </div>
             <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
               <div style={{fontSize:40,marginBottom:16}}>&#128221;</div>
               <h3>Slide Deck <span style={{fontSize:13,fontWeight:500,color:'var(--ink-soft)'}}>(Coming Soon)</span></h3>
               <p>Editable PPTX with AI-generated backgrounds and structured text. Download it, customize it, present it &mdash; no design skills needed.</p>
-              <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$19</div>
+              <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$10</div>
             </div>
             <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
               <div style={{fontSize:40,marginBottom:16}}>&#127891;</div>
@@ -153,7 +154,7 @@ export default function HomePage() {
               <div style={{fontSize:40,marginBottom:16}}>&#128202;</div>
               <h3>Infographic <span style={{fontSize:13,fontWeight:500,color:'var(--ink-soft)'}}>(Coming Soon)</span></h3>
               <p>Turn data-heavy reports into beautiful visual summaries. AI extracts charts, stats, and key findings into a single shareable graphic.</p>
-              <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$19</div>
+              <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$10</div>
             </div>
           </div>
         </section>
@@ -167,50 +168,50 @@ export default function HomePage() {
         <section className="section">
           <div style={{textAlign:'center',marginBottom:50}}>
             <div className="section-eyebrow">Why Docs2Video</div>
-            <h2 className="section-title">Everything other tools <em>can&apos;t do</em></h2>
+            <h2 className="section-title">The explainer video <em>workflow</em></h2>
           </div>
           <div className="features-grid">
             <div className="feature-card">
               <div className="feature-icon" style={{background:'var(--mint)'}}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               </div>
-              <h3>Reads any document</h3>
-              <p>Upload a PDF, proposal, report, or any file. AI extracts every data point, chart, and finding &mdash; no manual work.</p>
+              <h3>Upload anything</h3>
+              <p>PDFs, text, ideas &mdash; drop in any document or describe what you want explained. Our AI reads and understands it all.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon" style={{background:'var(--peach)'}}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
               </div>
-              <h3>Four output formats</h3>
-              <p>Narrated video, editable PPTX, multi-episode course, or data infographic. Same document, four ways to present it.</p>
+              <h3>AI extracts &amp; writes</h3>
+              <p>AI pulls out the key data points, findings, and structure &mdash; then writes a professional narration script automatically.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon" style={{background:'var(--lilac)'}}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
               </div>
-              <h3>Polished, every frame</h3>
-              <p>Professional styling and visuals on every slide. Every video and infographic looks like your design team made it.</p>
+              <h3>Choose your style</h3>
+              <p>16+ professionally designed templates or create a completely custom style with AI. Match your brand in one click.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon" style={{background:'var(--sky)'}}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
               </div>
-              <h3>AI narration</h3>
-              <p>Choose from 6 professional voices. AI writes the script and narrates your videos with tone matched to your content.</p>
+              <h3>Professional voiceover</h3>
+              <p>6 natural-sounding voices narrate your video. AI matches tone and pacing to your content automatically.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon" style={{background:'var(--sun)'}}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               </div>
-              <h3>Client engagement hub</h3>
-              <p>One branded link where clients watch, ask AI questions, book meetings, and pay &mdash; all without leaving the page.</p>
+              <h3>Branded share page</h3>
+              <p>Video + calendar booking + AI chat + payments &mdash; all on one branded link your clients can access instantly.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon" style={{background:'var(--rose)'}}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
               </div>
-              <h3>Minutes, not hours</h3>
-              <p>Upload your document, pick a format, and have a finished, branded deliverable in minutes. No design skills needed.</p>
+              <h3>Track &amp; follow up</h3>
+              <p>Get notified when clients view your video. Automated follow-up emails keep deals moving without manual effort.</p>
             </div>
           </div>
         </section>
@@ -483,56 +484,93 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* ───── How Pricing Works ───── */}
+        <section className="section" id="how-pricing-works">
+          <div style={{textAlign:'center',marginBottom:40}}>
+            <div className="section-eyebrow">Pricing that scales with you</div>
+            <h2 className="section-title">Start free &mdash; pay as you go or <em>subscribe for discounts</em></h2>
+          </div>
+          <div style={{maxWidth:700,margin:'0 auto',overflowX:'auto'}}>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:14}}>
+              <thead>
+                <tr style={{borderBottom:'2px solid var(--border)'}}>
+                  <th style={{textAlign:'left',padding:'12px 16px',color:'var(--ink-soft)',fontWeight:600}}></th>
+                  <th style={{textAlign:'center',padding:'12px 16px',color:'var(--ink-soft)',fontWeight:600}}>Pay Per Project</th>
+                  <th style={{textAlign:'center',padding:'12px 16px',color:'var(--ink-soft)',fontWeight:600}}>Pro ($25/mo)</th>
+                  <th style={{textAlign:'center',padding:'12px 16px',fontWeight:700,color:'var(--mint-darker, #0d9488)'}}>Business ($99/mo)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style={{borderBottom:'1px solid var(--border)'}}>
+                  <td style={{padding:'12px 16px',fontWeight:600}}>Per video</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>$10</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>$6 (40% off)</td>
+                  <td style={{textAlign:'center',padding:'12px 16px',fontWeight:700,color:'var(--mint-darker, #0d9488)'}}>$0 (included)</td>
+                </tr>
+                <tr style={{borderBottom:'1px solid var(--border)'}}>
+                  <td style={{padding:'12px 16px',fontWeight:600}}>10 videos/mo</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>$100</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>$85</td>
+                  <td style={{textAlign:'center',padding:'12px 16px',fontWeight:700,color:'var(--mint-darker, #0d9488)'}}>$99</td>
+                </tr>
+                <tr>
+                  <td style={{padding:'12px 16px',fontWeight:600}}>50 videos/mo</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>$500</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>$325</td>
+                  <td style={{textAlign:'center',padding:'12px 16px',fontWeight:700,color:'var(--mint-darker, #0d9488)'}}>$99</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         {/* ───── Pricing ───── */}
         <section className="section" id="pricing">
           <div style={{textAlign:'center',marginBottom:50}}>
             <div className="section-eyebrow">Pricing</div>
             <h2 className="section-title">Simple, transparent <em>pricing</em></h2>
-            <p className="section-sub" style={{maxWidth:600,margin:'0 auto'}}>Start with 2 free projects. Then pay per project or go unlimited.</p>
+            <p className="section-sub" style={{maxWidth:600,margin:'0 auto'}}>Start free with 5 videos included. Then pay per project or subscribe for discounts.</p>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4, 1fr)',gap:20,maxWidth:1100,margin:'0 auto'}}>
+          <div className="pricing-grid-5">
             {/* Pay Per Project */}
             <div className="pricing-card" style={{padding:24}}>
               <div className="pricing-name">Pay Per Project</div>
-              <div className="pricing-price">$10</div>
-              <div className="pricing-period">per project</div>
+              <div className="pricing-price">$0</div>
+              <div className="pricing-period">per month</div>
               <ul className="pricing-features">
-                <li>Videos, decks, infographics</li>
+                <li>$10 per video, deck, or infographic</li>
                 <li>Full quality, no watermark</li>
                 <li>Share pages with AI chat</li>
                 <li>Download MP4, PDF, PPTX</li>
               </ul>
-              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:16}}>Video courses: $249 each</div>
-              <Link href="/signup" className="btn btn-mint btn-full">Get Started &rarr;</Link>
+              <Link href="/signup" className="btn btn-outlined btn-full">Start free</Link>
             </div>
             {/* Pro */}
             <div className="pricing-card" style={{padding:24}}>
               <div className="pricing-name">Pro</div>
               <div className="pricing-price">$25</div>
-              <div className="pricing-period">per month + per project</div>
+              <div className="pricing-period">per month</div>
               <ul className="pricing-features">
-                <li>$25/mo membership</li>
-                <li>Then just $6 per project</li>
-                <li>Video courses: $149 each</li>
+                <li>$6 per project (40% off)</li>
                 <li>Priority generation</li>
+                <li>Unlimited brands</li>
+                <li>Everything in Free</li>
               </ul>
-              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:16}}>Save 40% vs pay-per-project</div>
-              <Link href="/signup" className="btn btn-primary btn-full">Go Pro &rarr;</Link>
+              <Link href="/signup" className="btn btn-mint btn-full">Subscribe</Link>
             </div>
             {/* Business */}
             <div className="pricing-card popular" style={{padding:24}}>
-              <div className="pricing-badge">Most popular</div>
+              <div className="pricing-badge">MOST POPULAR</div>
               <div className="pricing-name">Business</div>
               <div className="pricing-price">$99</div>
               <div className="pricing-period">per month</div>
               <ul className="pricing-features">
-                <li>50 videos, decks, or infographics/mo</li>
+                <li>50 projects per month included</li>
                 <li>No per-project fees</li>
-                <li>Video courses: $99 each</li>
                 <li>Priority support</li>
+                <li>Courses at $99 each</li>
               </ul>
-              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:16}}>Best value for regular creators</div>
-              <Link href="/signup" className="btn btn-primary btn-full">Go Business &rarr;</Link>
+              <Link href="/signup" className="btn btn-primary btn-full">Subscribe</Link>
             </div>
             {/* Agency */}
             <div className="pricing-card" style={{padding:24}}>
@@ -545,8 +583,20 @@ export default function HomePage() {
                 <li>Team sharing (coming soon)</li>
                 <li>White-label (coming soon)</li>
               </ul>
-              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:16}}>For teams and agencies</div>
-              <Link href="/signup" className="btn btn-primary btn-full">Go Agency &rarr;</Link>
+              <Link href="/signup" className="btn btn-mint btn-full">Subscribe</Link>
+            </div>
+            {/* Enterprise */}
+            <div className="pricing-card" style={{padding:24}}>
+              <div className="pricing-name">Enterprise</div>
+              <div className="pricing-price">Custom</div>
+              <div className="pricing-period">&nbsp;</div>
+              <ul className="pricing-features">
+                <li>Unlimited everything</li>
+                <li>Dedicated account manager</li>
+                <li>Custom integrations</li>
+                <li>SLA guarantee</li>
+              </ul>
+              <a href="mailto:support@docs2video.com" className="btn btn-outlined btn-full">Contact Sales</a>
             </div>
           </div>
         </section>
@@ -573,24 +623,54 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* ───── Testimonials ───── */}
+        <section className="section" id="testimonials">
+          <div style={{textAlign:'center',marginBottom:50}}>
+            <div className="section-eyebrow">What professionals say</div>
+            <h2 className="section-title">Trusted by professionals who <em>explain complex things</em></h2>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))',gap:24,maxWidth:1100,margin:'0 auto'}}>
+            <div className="feature-card" style={{padding:28}}>
+              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;I used to spend 30 minutes on the phone explaining policy illustrations. Now I send a 3-minute video and my clients call me back ready to sign. My close rate went up 40%.&rdquo;</p>
+              <div style={{fontWeight:700,fontSize:14}}>Sarah M.</div>
+              <div style={{fontSize:13,color:'var(--ink-soft)'}}>Insurance Agent, Northwestern Mutual</div>
+            </div>
+            <div className="feature-card" style={{padding:28}}>
+              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;Portfolio reviews used to take all week to prepare. Docs2Video turns my quarterly reports into polished video summaries my clients actually watch and understand.&rdquo;</p>
+              <div style={{fontWeight:700,fontSize:14}}>David R.</div>
+              <div style={{fontSize:13,color:'var(--ink-soft)'}}>Financial Advisor, Edward Jones</div>
+            </div>
+            <div className="feature-card" style={{padding:28}}>
+              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;I send proposals as video explainers now. Clients watch the whole thing, ask better questions, and the share page lets them book a follow-up right there. Game changer.&rdquo;</p>
+              <div style={{fontWeight:700,fontSize:14}}>Michael T.</div>
+              <div style={{fontSize:13,color:'var(--ink-soft)'}}>Management Consultant, Deloitte</div>
+            </div>
+            <div className="feature-card" style={{padding:28}}>
+              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;Property summaries as videos are incredible for remote buyers. They get the full story in 2 minutes instead of scrolling through a 15-page CMA. Listings move faster.&rdquo;</p>
+              <div style={{fontWeight:700,fontSize:14}}>Jennifer L.</div>
+              <div style={{fontSize:13,color:'var(--ink-soft)'}}>Real Estate Agent, Compass</div>
+            </div>
+          </div>
+        </section>
+
         {/* ───── FAQ ───── */}
         <FaqSection />
 
         {/* ───── Final CTA ───── */}
         <section className="final-cta">
           <h2>Stop sending documents <em>nobody reads</em></h2>
-          <p className="final-cta-sub">Join 2,500+ professionals who use Docs2Video to turn complex documents into videos, decks, courses, and infographics their clients actually engage with.</p>
+          <p className="final-cta-sub">Join 2,500+ professionals who use Docs2Video to turn complex documents into professional explainer videos their clients actually watch.</p>
           <div className="final-cta-buttons">
-            <Link href="/signup" className="btn btn-primary btn-lg">Get Started</Link>
+            <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 5 videos included &rarr;</Link>
           </div>
           <div className="final-cta-perks">
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-              No subscription required
+              No credit card required
             </span>
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-              Ready in minutes
+              Ready in under 5 minutes
             </span>
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
@@ -617,8 +697,9 @@ export default function HomePage() {
               <ul>
                 <li><a href="#features">Features</a></li>
                 <li><a href="#compare">Compare</a></li>
-                <li><a href="#templates">Templates</a></li>
+                <li><Link href="/templates">Templates</Link></li>
                 <li><a href="#pricing">Pricing</a></li>
+                <li><Link href="/analytics">Analytics</Link></li>
               </ul>
             </div>
             <div className="footer-col">
