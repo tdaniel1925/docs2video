@@ -632,32 +632,22 @@ export default function HomePage() {
 
           {/* Featured testimonial */}
           <div style={{background:'white',border:'1px solid var(--border-light)',borderRadius:10,padding:40,maxWidth:800,margin:'0 auto 32px',textAlign:'center'}}>
-            <p style={{fontSize:18,lineHeight:1.8,color:'var(--ink)',marginBottom:24,fontStyle:'italic'}}>&ldquo;Docs2Video completely transformed how we communicate complex financial strategies to our clients. What used to take our team hours of slide preparation now happens in minutes. Our clients actually understand what we&apos;re presenting, and our conversion rate on new business has increased significantly since we started using it.&rdquo;</p>
+            <p style={{fontSize:18,lineHeight:1.8,color:'var(--ink)',marginBottom:24,fontStyle:'italic'}}>&ldquo;The quality of the videos Docs2Video produces is outstanding. You upload a document, and within minutes you have a professional, polished explainer video that looks like it was made by a production studio. The AI narration sounds natural, the slides are beautifully designed, and the share pages make it easy for anyone to watch and take action.&rdquo;</p>
             <div style={{fontWeight:800,fontSize:16}}>Bill Ropper</div>
             <div style={{fontSize:14,color:'var(--ink-soft)'}}>CEO, 3Mark Financial</div>
           </div>
 
           {/* Testimonial grid */}
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))',gap:24,maxWidth:1100,margin:'0 auto'}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(320px, 1fr))',gap:24,maxWidth:900,margin:'0 auto'}}>
             <div className="feature-card" style={{padding:28}}>
-              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;As CFO, I&apos;m always looking for tools that improve efficiency without sacrificing quality. Docs2Video pays for itself every month — our advisors spend less time on presentations and more time with clients. The ROI was immediate.&rdquo;</p>
+              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;What impressed me most is the consistency and polish of every video. The template styles look professional, the voiceover quality is remarkable, and the branded share pages with built-in scheduling and AI chat are features I haven&apos;t seen anywhere else. It&apos;s a genuinely well-built product.&rdquo;</p>
               <div style={{fontWeight:700,fontSize:14}}>Betsy Riley</div>
               <div style={{fontSize:13,color:'var(--ink-soft)'}}>CFO, 3Mark Financial</div>
             </div>
             <div className="feature-card" style={{padding:28}}>
-              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;The ability to turn a complex insurance illustration into a polished video explainer in minutes is incredible. My clients watch the whole thing, understand their coverage, and come to meetings with better questions. It&apos;s elevated how we do business.&rdquo;</p>
+              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;The video quality is incredible — it takes a dense, complicated document and turns it into something anyone can understand in a few minutes. The AI knows exactly what data to highlight, the narration sounds like a real person, and the final product looks like something you&apos;d pay thousands for. Hands down the best tool I&apos;ve used.&rdquo;</p>
               <div style={{fontWeight:700,fontSize:14}}>Phil Resch</div>
               <div style={{fontSize:13,color:'var(--ink-soft)'}}>President, Valor Financial Strategies</div>
-            </div>
-            <div className="feature-card" style={{padding:28}}>
-              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;I used to spend 30 minutes on the phone explaining policy illustrations. Now I send a 3-minute video and my clients call me back ready to sign. My close rate went up 40%.&rdquo;</p>
-              <div style={{fontWeight:700,fontSize:14}}>Sarah M.</div>
-              <div style={{fontSize:13,color:'var(--ink-soft)'}}>Insurance Agent</div>
-            </div>
-            <div className="feature-card" style={{padding:28}}>
-              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;Portfolio reviews used to take all week to prepare. Docs2Video turns my quarterly reports into polished video summaries my clients actually watch and understand.&rdquo;</p>
-              <div style={{fontWeight:700,fontSize:14}}>David R.</div>
-              <div style={{fontSize:13,color:'var(--ink-soft)'}}>Financial Advisor</div>
             </div>
           </div>
         </section>
