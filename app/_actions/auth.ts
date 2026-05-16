@@ -49,9 +49,8 @@ export async function signup(formData: FormData) {
       .single()
     if (referrer) {
       await admin.from('referrals').insert({
-        referrer_id: referrer.id,
-        referred_id: data.user.id,
-        referral_code: referredBy,
+        affiliate_id: referrer.id,
+        referred_user_id: data.user.id,
         status: 'pending',
       })
       await admin.from('profiles').update({ referred_by: referredBy }).eq('id', data.user.id)

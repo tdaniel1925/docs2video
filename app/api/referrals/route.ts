@@ -13,15 +13,15 @@ export async function GET() {
   const admin = createAdminClient()
   const { data: referrals } = await admin
     .from('referrals')
-    .select('id, referred_id, status, reward_amount, created_at')
-    .eq('referrer_id', user.id)
+    .select('id, referred_user_id, status, commission_amount, created_at')
+    .eq('affiliate_id', user.id)
     .order('created_at', { ascending: false })
 
   const stats = {
     total: referrals?.length ?? 0,
     converted: referrals?.filter(r => r.status === 'converted' || r.status === 'rewarded').length ?? 0,
     pending: referrals?.filter(r => r.status === 'pending').length ?? 0,
-    rewarded: referrals?.filter(r => r.status === 'rewarded').reduce((sum, r) => sum + (r.reward_amount ?? 0), 0) ?? 0,
+    rewarded: referrals?.filter(r => r.status === 'rewarded').reduce((sum, r) => sum + (r.commission_amount ?? 0), 0) ?? 0,
   }
 
   return NextResponse.json({
