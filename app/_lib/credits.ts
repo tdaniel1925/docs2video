@@ -26,6 +26,7 @@ export function getCreditCost(action: CreditAction): number {
 /**
  * Deduct credits from a user's account.
  * Returns true on success, false if insufficient credits.
+ * Admin and beta users bypass credit checks.
  */
 export async function deductCredits(
   admin: SupabaseClient,
@@ -34,11 +35,17 @@ export async function deductCredits(
 ): Promise<boolean> {
   const { data: profile } = await admin
     .from('profiles')
-    .select('credits_remaining')
+    .select('credits_remaining, is_admin, is_beta')
     .eq('id', userId)
     .single()
 
   if (!profile) return false
+
+  // Admin and beta users have unlimited credits
+  if (profile.is_admin || profile.is_beta) {
+    console.log(`[credits] Skipping deduction for admin/beta user ${userId}`)
+    return true
+  }
 
   const credits = profile.credits_remaining ?? 0
 

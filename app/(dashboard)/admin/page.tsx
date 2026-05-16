@@ -1,9 +1,19 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import Link from 'next/link'
 import type { Profile, Video } from '@/app/_lib/types'
 
-type Tab = 'dashboard' | 'users' | 'videos' | 'billing'
+type Tab = 'dashboard' | 'users' | 'videos' | 'billing' | 'access' | 'audit'
+
+interface AuditEntry {
+  id: string
+  admin_id: string
+  action: string
+  target_user_id: string | null
+  details: Record<string, unknown> | null
+  created_at: string
+}
 
 export default function AdminPage() {
   const [state, setState] = useState<'loading' | 'denied' | 'error' | 'ok'>('loading')
@@ -11,9 +21,11 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>('dashboard')
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [videos, setVideos] = useState<Video[]>([])
+  const [auditLog, setAuditLog] = useState<AuditEntry[]>([])
   const [search, setSearch] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
+  const [accessSearch, setAccessSearch] = useState('')
 
   useEffect(() => {
     fetch('/api/admin/data')
@@ -26,6 +38,7 @@ export default function AdminPage() {
         if (!d) return
         setProfiles(d.profiles ?? [])
         setVideos(d.videos ?? [])
+        setAuditLog(d.auditLog ?? [])
         setState('ok')
       })
       .catch(e => { setError(e.message); setState('error') })
@@ -35,6 +48,7 @@ export default function AdminPage() {
     fetch('/api/admin/data').then(r => r.json()).then(d => {
       setProfiles(d.profiles ?? [])
       setVideos(d.videos ?? [])
+      setAuditLog(d.auditLog ?? [])
     }).catch(() => {})
   }
 
@@ -57,6 +71,19 @@ export default function AdminPage() {
       const r = await fetch('/api/admin/retry-video', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ videoId }),
+      })
+      if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Failed'); return }
+      reload()
+    } catch { alert('Network error') }
+    setBusy(null)
+  }
+
+  async function toggleAccess(userId: string, field: 'is_admin' | 'is_beta', value: boolean) {
+    setBusy(userId)
+    try {
+      const r = await fetch('/api/admin/manage-access', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, field, value }),
       })
       if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Failed'); return }
       reload()
@@ -89,6 +116,14 @@ export default function AdminPage() {
     [videos, q, filter]
   )
 
+  const adminUsers = useMemo(() => profiles.filter(p => p.is_admin), [profiles])
+  const betaUsers = useMemo(() => profiles.filter(p => p.is_beta), [profiles])
+  const accessQ = accessSearch.toLowerCase()
+  const accessSearchResults = useMemo(() =>
+    accessQ.length >= 2 ? profiles.filter(p => (p.email ?? '').toLowerCase().includes(accessQ) || (p.full_name ?? '').toLowerCase().includes(accessQ)).slice(0, 10) : [],
+    [profiles, accessQ]
+  )
+
   if (state === 'loading') return <div style={{ padding: 64, textAlign: 'center', color: 'var(--ink-light)' }}>Loading admin...</div>
   if (state === 'denied') return <div style={{ padding: 64, textAlign: 'center' }}><h2>Access Denied</h2><p style={{ color: 'var(--ink-light)' }}>You don&apos;t have admin access.</p></div>
   if (state === 'error') return <div style={{ padding: 64, textAlign: 'center' }}><h2>Error</h2><p style={{ color: 'var(--ink-light)' }}>{error}</p></div>
@@ -98,10 +133,13 @@ export default function AdminPage() {
     { id: 'users', label: `Users (${totalUsers})` },
     { id: 'videos', label: `Videos (${totalVideos})` },
     { id: 'billing', label: 'Billing' },
+    { id: 'access', label: 'Manage Access' },
+    { id: 'audit', label: 'Audit Log' },
   ]
 
   const userEmail = (userId: string) => profiles.find(p => p.id === userId)?.email ?? '—'
   const fmt = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const fmtTime = (d: string) => new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
   const planTag = (s: string | null) => {
     const v = (s ?? 'free').toLowerCase()
     const color = ['pro', 'professional', 'active'].includes(v) ? 'mint' : ['agency', 'business'].includes(v) ? 'peach' : v === 'starter' ? 'sky' : ''
@@ -116,7 +154,7 @@ export default function AdminPage() {
     <div>
       <div className="page-head"><div><h1>Admin</h1></div></div>
 
-      <div style={{ display: 'flex', gap: 6, marginBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 24, flexWrap: 'wrap' }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => { setTab(t.id); setSearch(''); setFilter('') }}
             className={`btn btn-sm ${tab === t.id ? 'btn-primary' : 'btn-soft'}`}>{t.label}</button>
@@ -142,7 +180,9 @@ export default function AdminPage() {
             <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
               {profiles.slice(0, 10).map((p, i) => (
                 <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: i < 9 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
-                  <div style={{ flex: 1, fontWeight: 600 }}>{p.email}</div>
+                  <div style={{ flex: 1, fontWeight: 600 }}>
+                    <Link href={`/admin/users/${p.id}`} style={{ color: 'var(--ink)', textDecoration: 'none' }}>{p.email}</Link>
+                  </div>
                   <div style={{ width: 120 }}>{p.full_name ?? '—'}</div>
                   <div style={{ width: 80 }}>{planTag(p.subscription_status)}</div>
                   <div style={{ width: 100, color: 'var(--ink-light)', textAlign: 'right' }}>{fmt(p.created_at)}</div>
@@ -160,6 +200,11 @@ export default function AdminPage() {
                   <div style={{ flex: 1, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title ?? 'Untitled'}</div>
                   <div style={{ width: 160, color: 'var(--ink-light)' }}>{userEmail(v.user_id)}</div>
                   <div style={{ width: 80 }}>{statusTag(v.status)}</div>
+                  <div style={{ width: 60 }}>
+                    {v.status === 'completed' && (
+                      <a href={`/watch/${v.id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: 'var(--primary)' }}>Watch</a>
+                    )}
+                  </div>
                   <div style={{ width: 100, color: 'var(--ink-light)', textAlign: 'right' }}>{fmt(v.created_at)}</div>
                 </div>
               ))}
@@ -178,14 +223,21 @@ export default function AdminPage() {
               <div style={{ width: 120 }}>Name</div>
               <div style={{ width: 80 }}>Plan</div>
               <div style={{ width: 60 }}>Credits</div>
+              <div style={{ width: 50 }}>Flags</div>
               <div style={{ width: 200 }}>Actions</div>
             </div>
             {filteredUsers.slice(0, 50).map((p, i) => (
               <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < Math.min(filteredUsers.length, 50) - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
-                <div style={{ flex: 1, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.email}</div>
+                <div style={{ flex: 1, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <Link href={`/admin/users/${p.id}`} style={{ color: 'var(--ink)', textDecoration: 'none' }}>{p.email}</Link>
+                </div>
                 <div style={{ width: 120, color: 'var(--ink-light)' }}>{p.full_name ?? '—'}</div>
                 <div style={{ width: 80 }}>{planTag(p.subscription_status)}</div>
                 <div style={{ width: 60 }}>{p.credits_remaining ?? 0}</div>
+                <div style={{ width: 50, fontSize: 11 }}>
+                  {p.is_admin && <span className="tag mint" style={{ fontSize: 10 }}>A</span>}
+                  {p.is_beta && <span className="tag sky" style={{ fontSize: 10 }}>B</span>}
+                </div>
                 <div style={{ width: 200, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   <select disabled={busy === p.id} defaultValue=""
                     onChange={e => { if (e.target.value) userAction(p.id, 'change_plan', e.target.value); e.target.value = '' }}
@@ -223,7 +275,7 @@ export default function AdminPage() {
               <div style={{ width: 160 }}>User</div>
               <div style={{ width: 90 }}>Status</div>
               <div style={{ width: 100 }}>Date</div>
-              <div style={{ width: 80 }}>Actions</div>
+              <div style={{ width: 100 }}>Actions</div>
             </div>
             {filteredVideos.slice(0, 50).map((v, i) => (
               <div key={v.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < Math.min(filteredVideos.length, 50) - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
@@ -231,7 +283,10 @@ export default function AdminPage() {
                 <div style={{ width: 160, color: 'var(--ink-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail(v.user_id)}</div>
                 <div style={{ width: 90 }}>{statusTag(v.status)}</div>
                 <div style={{ width: 100, color: 'var(--ink-light)' }}>{fmt(v.created_at)}</div>
-                <div style={{ width: 80 }}>
+                <div style={{ width: 100, display: 'flex', gap: 4 }}>
+                  {v.status === 'completed' && (
+                    <a href={`/watch/${v.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-soft" style={{ fontSize: 11, padding: '3px 8px', textDecoration: 'none' }}>Watch</a>
+                  )}
                   {v.status === 'failed' && (
                     <button className="btn btn-sm btn-soft" style={{ fontSize: 11, padding: '3px 8px' }}
                       disabled={busy === v.id} onClick={() => retryVideo(v.id)}>
@@ -274,9 +329,131 @@ export default function AdminPage() {
             </div>
           </div>
           <div className="settings-card" style={{ marginTop: 16 }}>
-            <h3>Stripe Dashboard</h3>
-            <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 12 }}>For detailed billing, transactions, and revenue reports:</p>
+            <h3>Revenue</h3>
+            <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 12 }}>View full revenue data in Stripe Dashboard for accurate transaction history, refunds, and detailed analytics.</p>
             <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer" className="btn btn-primary">Open Stripe Dashboard</a>
+          </div>
+        </div>
+      )}
+
+      {tab === 'access' && (
+        <div>
+          <div className="settings-card" style={{ marginBottom: 16 }}>
+            <h3>Search Users to Grant Access</h3>
+            <input
+              className="input"
+              placeholder="Search by email to grant admin or beta access..."
+              value={accessSearch}
+              onChange={e => setAccessSearch(e.target.value)}
+              style={{ marginTop: 12, maxWidth: 400 }}
+            />
+            {accessSearchResults.length > 0 && (
+              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+                {accessSearchResults.map((p, i) => (
+                  <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < accessSearchResults.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
+                    <div style={{ flex: 1, fontWeight: 600 }}>{p.email}</div>
+                    <div style={{ width: 100 }}>{p.full_name ?? '—'}</div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        className={`btn btn-sm ${p.is_admin ? 'btn-primary' : 'btn-soft'}`}
+                        disabled={busy === p.id}
+                        onClick={() => toggleAccess(p.id, 'is_admin', !p.is_admin)}
+                        style={{ fontSize: 11 }}
+                      >
+                        {p.is_admin ? 'Remove Admin' : 'Make Admin'}
+                      </button>
+                      <button
+                        className={`btn btn-sm ${p.is_beta ? 'btn-primary' : 'btn-soft'}`}
+                        disabled={busy === p.id}
+                        onClick={() => toggleAccess(p.id, 'is_beta', !p.is_beta)}
+                        style={{ fontSize: 11 }}
+                      >
+                        {p.is_beta ? 'Remove Beta' : 'Make Beta'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="settings-card" style={{ marginBottom: 16 }}>
+            <h3>Admin Users ({adminUsers.length})</h3>
+            {adminUsers.length === 0 ? (
+              <p style={{ color: 'var(--ink-light)', marginTop: 8 }}>No admin users</p>
+            ) : (
+              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+                {adminUsers.map((p, i) => (
+                  <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < adminUsers.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
+                    <div style={{ flex: 1, fontWeight: 600 }}>{p.email}</div>
+                    <div style={{ width: 120 }}>{p.full_name ?? '—'}</div>
+                    <button
+                      className="btn btn-sm btn-soft"
+                      disabled={busy === p.id}
+                      onClick={() => toggleAccess(p.id, 'is_admin', false)}
+                      style={{ fontSize: 11 }}
+                    >
+                      Remove Admin
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="settings-card">
+            <h3>Beta Users ({betaUsers.length})</h3>
+            {betaUsers.length === 0 ? (
+              <p style={{ color: 'var(--ink-light)', marginTop: 8 }}>No beta users</p>
+            ) : (
+              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+                {betaUsers.map((p, i) => (
+                  <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < betaUsers.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
+                    <div style={{ flex: 1, fontWeight: 600 }}>{p.email}</div>
+                    <div style={{ width: 120 }}>{p.full_name ?? '—'}</div>
+                    <button
+                      className="btn btn-sm btn-soft"
+                      disabled={busy === p.id}
+                      onClick={() => toggleAccess(p.id, 'is_beta', false)}
+                      style={{ fontSize: 11 }}
+                    >
+                      Remove Beta
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === 'audit' && (
+        <div>
+          <div className="settings-card">
+            <h3>Recent Admin Actions</h3>
+            {auditLog.length === 0 ? (
+              <p style={{ color: 'var(--ink-light)', marginTop: 8 }}>No audit log entries yet</p>
+            ) : (
+              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-soft)', fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <div style={{ width: 160 }}>Admin</div>
+                  <div style={{ width: 120 }}>Action</div>
+                  <div style={{ flex: 1 }}>Target / Details</div>
+                  <div style={{ width: 140 }}>Time</div>
+                </div>
+                {auditLog.map((entry, i) => (
+                  <div key={entry.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < auditLog.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
+                    <div style={{ width: 160, color: 'var(--ink-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail(entry.admin_id)}</div>
+                    <div style={{ width: 120 }}><span className="tag">{entry.action}</span></div>
+                    <div style={{ flex: 1, color: 'var(--ink-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {entry.target_user_id ? userEmail(entry.target_user_id) : ''}
+                      {entry.details ? ` ${JSON.stringify(entry.details)}` : ''}
+                    </div>
+                    <div style={{ width: 140, color: 'var(--ink-light)' }}>{fmtTime(entry.created_at)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

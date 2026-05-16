@@ -40,10 +40,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No slides provided' }, { status: 400 })
   }
 
-  // Credit check: 2 credits per deck
+  // Credit check: 2 credits per deck (skip for admin/beta)
   const admin = createAdminClient()
-  const { data: profile } = await admin.from('profiles').select('credits_remaining').eq('id', user.id).single()
-  if (!profile || profile.credits_remaining < 2) {
+  const { data: profile } = await admin.from('profiles').select('is_admin, is_beta, credits_remaining').eq('id', user.id).single()
+  if (!profile?.is_admin && !profile?.is_beta && (!profile || profile.credits_remaining < 2)) {
     return NextResponse.json({ error: 'Insufficient credits. Need 2 credits for a deck.' }, { status: 403 })
   }
 

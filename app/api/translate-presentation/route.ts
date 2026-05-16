@@ -57,18 +57,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Video has no script to translate' }, { status: 400 })
   }
 
-  // Credit check (skip for admins)
-  if (!isAdmin(user.email)) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('subscription_status, credits_remaining, pack_credits, card_on_file, free_videos_remaining')
-      .eq('id', user.id)
-      .single()
+  // Credit check (skip for admins and beta users)
+  const { data: creditProfile } = await supabase
+    .from('profiles')
+    .select('is_admin, is_beta, subscription_status, credits_remaining, pack_credits, card_on_file, free_videos_remaining')
+    .eq('id', user.id)
+    .single()
 
-    const subStatus = (profile?.subscription_status ?? '').toLowerCase()
+  if (!creditProfile?.is_admin && !creditProfile?.is_beta) {
+    const subStatus = (creditProfile?.subscription_status ?? '').toLowerCase()
     const isPaidUser = ['active', 'professional', 'pro', 'business', 'agency', 'starter'].includes(subStatus)
-    const freeRemaining = profile?.free_videos_remaining ?? 0
-    const cardOnFile = profile?.card_on_file ?? false
+    const freeRemaining = creditProfile?.free_videos_remaining ?? 0
+    const cardOnFile = creditProfile?.card_on_file ?? false
 
     if (!isPaidUser && freeRemaining <= 0 && !cardOnFile) {
       return NextResponse.json(

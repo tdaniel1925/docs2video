@@ -15,14 +15,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
   }
 
-  // Check credits
+  // Check credits (skip for admin/beta users)
   const { data: profile } = await supabase
     .from('profiles')
-    .select('credits_remaining')
+    .select('is_admin, is_beta, credits_remaining')
     .eq('id', user.id)
     .single()
 
-  if (!profile || profile.credits_remaining <= 0) {
+  if (!profile?.is_admin && !profile?.is_beta && (!profile || profile.credits_remaining <= 0)) {
     return NextResponse.json({ error: 'No credits remaining' }, { status: 403 })
   }
 

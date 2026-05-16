@@ -6,7 +6,6 @@ import { useState, useEffect, useRef } from 'react'
 import NotificationBell from './NotificationBell'
 import { logout } from '../_actions/auth'
 import type { Profile } from '../_lib/types'
-import { isAdmin } from '../_lib/admin'
 
 const CREATE_ITEMS = [
   { href: '/quick', icon: '\uD83D\uDCF9', title: 'Video Explainer', desc: 'Narrated video + share page' },
@@ -37,7 +36,7 @@ export default function Header({ profile }: { profile: Profile }) {
   const createRef = useRef<HTMLDivElement>(null)
   const toolsRef = useRef<HTMLDivElement>(null)
 
-  const showAdmin = isAdmin(profile.email)
+  const showAdmin = profile.is_admin === true
 
   // Close dropdowns on click outside
   useEffect(() => {

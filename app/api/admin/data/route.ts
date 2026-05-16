@@ -13,16 +13,18 @@ export async function GET() {
 
     const admin = createAdminClient()
 
-    const [profilesRes, videosRes, brandsRes] = await Promise.all([
+    const [profilesRes, videosRes, brandsRes, auditRes] = await Promise.all([
       admin.from('profiles').select('*').order('created_at', { ascending: false }),
       admin.from('videos').select('*').order('created_at', { ascending: false }),
       admin.from('brands').select('*').order('created_at', { ascending: false }),
+      admin.from('admin_audit_log').select('*').order('created_at', { ascending: false }).limit(50),
     ])
 
     return NextResponse.json({
       profiles: profilesRes.data ?? [],
       videos: videosRes.data ?? [],
       brands: brandsRes.data ?? [],
+      auditLog: auditRes.data ?? [],
     })
   } catch (err) {
     console.error('[admin/data] Error:', err)

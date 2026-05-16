@@ -23,6 +23,8 @@ export interface Profile {
   credits_reset_at: string | null
   referral_code: string | null
   referred_by: string | null
+  is_admin: boolean
+  is_beta: boolean
   created_at: string
   updated_at: string
 }

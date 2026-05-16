@@ -86,14 +86,14 @@ export async function POST(request: Request) {
       .update({ image_url: publicUrl.publicUrl, status: 'completed' })
       .eq('id', infographic.id)
 
-    // Decrement credits
+    // Decrement credits (skip for admin/beta)
     const { data: currentProfile } = await admin
       .from('profiles')
-      .select('credits_remaining')
+      .select('credits_remaining, is_admin, is_beta')
       .eq('id', user.id)
       .single()
 
-    if (currentProfile) {
+    if (currentProfile && !currentProfile.is_admin && !currentProfile.is_beta) {
       await admin
         .from('profiles')
         .update({ credits_remaining: Math.max(0, currentProfile.credits_remaining - 1) })

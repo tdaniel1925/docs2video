@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { isAdmin } from '../../../_lib/admin'
+import { logAdminAction } from '../../../_lib/audit'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }
 
+    await logAdminAction(user.id, action, userId, { value })
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error('[admin/user-action] Error:', err)
