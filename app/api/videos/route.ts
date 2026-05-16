@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   // --- Free trial / pay-per-video gate ---
   const { data: profile } = await supabase
     .from('profiles')
-    .select('subscription_status, referred_by, card_on_file, free_videos_remaining, stripe_customer_id')
+    .select('subscription_status, referred_by, card_on_file, free_videos_remaining, stripe_customer_id, is_admin, is_beta')
     .eq('id', user.id)
     .single()
 
@@ -98,15 +98,28 @@ export async function POST(request: Request) {
     }
   }
 
-  // Check for existing in-progress video to prevent concurrent generation
+  // Check concurrent generation limit based on plan
   const { count: inProgressCount } = await supabase
     .from('videos')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user.id)
     .in('status', ['pending', 'scripting', 'generating_audio', 'generating_slides', 'assembling'])
 
-  if (inProgressCount && inProgressCount > 0) {
-    return NextResponse.json({ error: 'You already have a video generating. Please wait for it to complete.' }, { status: 409 })
+  // Concurrent limits by plan
+  const isAdmin = (profile as any)?.is_admin === true
+  const isBeta = (profile as any)?.is_beta === true
+  let maxConcurrent = 1 // Free / pay-per-project
+  if (isAdmin || isBeta) maxConcurrent = 99
+  else if (subStatus === 'agency') maxConcurrent = 5
+  else if (subStatus === 'business') maxConcurrent = 3
+  else if (['pro', 'professional', 'active', 'starter'].includes(subStatus)) maxConcurrent = 2
+
+  if (inProgressCount && inProgressCount >= maxConcurrent) {
+    const slots = maxConcurrent === 1 ? 'video' : `${maxConcurrent} videos`
+    return NextResponse.json({
+      error: `You can generate up to ${slots} at a time. ${inProgressCount} currently in progress.${maxConcurrent < 3 ? ' Upgrade your plan for more concurrent slots.' : ''}`,
+      code: 'CONCURRENT_LIMIT',
+    }, { status: 409 })
   }
 
   // Build a title from whichever data format we received
