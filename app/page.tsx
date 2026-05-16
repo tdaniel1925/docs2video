@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import TemplateGallery from './_components/TemplateGallery'
+import TemplateStrip from './_components/TemplateStrip'
 import MobileNav from './_components/MobileNav'
 import FaqSection from './_components/FaqSection'
 // DemoButton removed — using Get Started only
@@ -344,7 +345,7 @@ export default function HomePage() {
             <p className="section-sub" style={{maxWidth:650,margin:'0 auto'}}>Choose from 69+ professionally designed styles — or describe your own and our AI builds it from scratch. No other platform lets you create truly custom visual styles on demand.</p>
           </div>
 
-          <TemplateGallery />
+          <TemplateStrip />
 
           {/* Custom template differentiator */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,maxWidth:800,margin:'32px auto 0'}}>
