@@ -629,26 +629,35 @@ export default function HomePage() {
             <div className="section-eyebrow">What professionals say</div>
             <h2 className="section-title">Trusted by professionals who <em>explain complex things</em></h2>
           </div>
+
+          {/* Featured testimonial */}
+          <div style={{background:'white',border:'1px solid var(--border-light)',borderRadius:10,padding:40,maxWidth:800,margin:'0 auto 32px',textAlign:'center'}}>
+            <p style={{fontSize:18,lineHeight:1.8,color:'var(--ink)',marginBottom:24,fontStyle:'italic'}}>&ldquo;Docs2Video completely transformed how we communicate complex financial strategies to our clients. What used to take our team hours of slide preparation now happens in minutes. Our clients actually understand what we&apos;re presenting, and our conversion rate on new business has increased significantly since we started using it.&rdquo;</p>
+            <div style={{fontWeight:800,fontSize:16}}>Bill Ropper</div>
+            <div style={{fontSize:14,color:'var(--ink-soft)'}}>CEO, 3Mark Financial</div>
+          </div>
+
+          {/* Testimonial grid */}
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))',gap:24,maxWidth:1100,margin:'0 auto'}}>
+            <div className="feature-card" style={{padding:28}}>
+              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;As CFO, I&apos;m always looking for tools that improve efficiency without sacrificing quality. Docs2Video pays for itself every month — our advisors spend less time on presentations and more time with clients. The ROI was immediate.&rdquo;</p>
+              <div style={{fontWeight:700,fontSize:14}}>Betsy Riley</div>
+              <div style={{fontSize:13,color:'var(--ink-soft)'}}>CFO, 3Mark Financial</div>
+            </div>
+            <div className="feature-card" style={{padding:28}}>
+              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;The ability to turn a complex insurance illustration into a polished video explainer in minutes is incredible. My clients watch the whole thing, understand their coverage, and come to meetings with better questions. It&apos;s elevated how we do business.&rdquo;</p>
+              <div style={{fontWeight:700,fontSize:14}}>Phil Resch</div>
+              <div style={{fontSize:13,color:'var(--ink-soft)'}}>President, Valor Financial Strategies</div>
+            </div>
             <div className="feature-card" style={{padding:28}}>
               <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;I used to spend 30 minutes on the phone explaining policy illustrations. Now I send a 3-minute video and my clients call me back ready to sign. My close rate went up 40%.&rdquo;</p>
               <div style={{fontWeight:700,fontSize:14}}>Sarah M.</div>
-              <div style={{fontSize:13,color:'var(--ink-soft)'}}>Insurance Agent, Northwestern Mutual</div>
+              <div style={{fontSize:13,color:'var(--ink-soft)'}}>Insurance Agent</div>
             </div>
             <div className="feature-card" style={{padding:28}}>
               <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;Portfolio reviews used to take all week to prepare. Docs2Video turns my quarterly reports into polished video summaries my clients actually watch and understand.&rdquo;</p>
               <div style={{fontWeight:700,fontSize:14}}>David R.</div>
-              <div style={{fontSize:13,color:'var(--ink-soft)'}}>Financial Advisor, Edward Jones</div>
-            </div>
-            <div className="feature-card" style={{padding:28}}>
-              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;I send proposals as video explainers now. Clients watch the whole thing, ask better questions, and the share page lets them book a follow-up right there. Game changer.&rdquo;</p>
-              <div style={{fontWeight:700,fontSize:14}}>Michael T.</div>
-              <div style={{fontSize:13,color:'var(--ink-soft)'}}>Management Consultant, Deloitte</div>
-            </div>
-            <div className="feature-card" style={{padding:28}}>
-              <p style={{fontSize:14,lineHeight:1.7,color:'var(--ink-soft)',marginBottom:16}}>&ldquo;Property summaries as videos are incredible for remote buyers. They get the full story in 2 minutes instead of scrolling through a 15-page CMA. Listings move faster.&rdquo;</p>
-              <div style={{fontWeight:700,fontSize:14}}>Jennifer L.</div>
-              <div style={{fontSize:13,color:'var(--ink-soft)'}}>Real Estate Agent, Compass</div>
+              <div style={{fontSize:13,color:'var(--ink-soft)'}}>Financial Advisor</div>
             </div>
           </div>
         </section>
