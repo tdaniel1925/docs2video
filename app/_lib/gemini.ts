@@ -9,6 +9,18 @@ const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 // Image generation model — switch between models via env var without code changes
 const IMAGE_MODEL = process.env.IMAGE_MODEL || 'gemini-3-pro-image-preview'
 
+// Generate a simple fallback slide when Gemini fails to return an image
+async function generateFallbackSlide(title: string, primaryColor: string): Promise<Buffer> {
+  const sharp = (await import('sharp')).default ?? (await import('sharp'))
+  // Escape XML special characters in title
+  const safeTitle = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  const svg = `<svg width="1920" height="1080" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1920" height="1080" fill="${primaryColor}"/>
+    <text x="960" y="540" text-anchor="middle" font-size="48" fill="white" font-family="sans-serif">${safeTitle}</text>
+  </svg>`
+  return sharp(Buffer.from(svg)).png().toBuffer()
+}
+
 const GENERIC_EXTRACTION_PROMPT = `You are an expert document analyzer. Analyze this document and extract ALL key information.
 
 First, identify the document type (e.g. life insurance illustration, financial report, contract, proposal, medical record, legal document, business plan, etc.).
@@ -54,6 +66,8 @@ IMPORTANT: If this is a life insurance illustration, ALSO populate the "insuranc
   "disclaimers": ["string - full text of any disclaimer, disclosure, legal notice, or compliance text"]
 }
 
+IMPORTANT: If the document is very long (more than 20 pages), focus on the first 20 pages and summarize the rest.
+
 Rules for the general format:
 - keyMetrics should contain the most important numerical or categorical data points (up to 10)
 - Mark the most important 2-3 metrics with highlight: true
@@ -97,13 +111,22 @@ export async function extractDocumentData(pdfBase64: string): Promise<{ general:
     const result: { general: ExtractedData; insurance?: ExtractedPolicyData } = {
       general: parsed.general as ExtractedData,
     }
+
+    // Validate we got meaningful data
+    if (!result.general.title && result.general.keyMetrics.length === 0 && result.general.sections.length === 0) {
+      throw new Error('Could not extract meaningful data from this document. The file may be image-only, password-protected, or in an unsupported format.')
+    }
+
     // Only include insurance data if it was detected and has meaningful values
     if (parsed.insurance && parsed.insurance.deathBenefit > 0) {
       result.insurance = parsed.insurance as ExtractedPolicyData
     }
     return result
-  } catch {
-    throw new Error(`Failed to parse Gemini response as JSON: ${text.slice(0, 200)}`)
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      throw new Error(`Failed to parse Gemini response as JSON: ${text.slice(0, 200)}`)
+    }
+    throw err
   }
 }
 
@@ -432,27 +455,37 @@ This is slide ${slideIndex + 1} of ${totalSlides}. ALL slides must share identic
     }
   }
 
-  const response = await genai.models.generateContent({
-    model: IMAGE_MODEL,
-    contents: [{ role: 'user', parts }],
-    config: {
-      responseFormat: {
-        image: {
-          aspectRatio: '16:9',
-          imageSize: '4K',
+  // Attempt generation with one retry if no image returned
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await genai.models.generateContent({
+      model: IMAGE_MODEL,
+      contents: [{ role: 'user', parts }],
+      config: {
+        responseFormat: {
+          image: {
+            aspectRatio: '16:9',
+            imageSize: '4K',
+          },
         },
-      },
-    } as any,
-  })
+      } as any,
+    })
 
-  const responseParts = response.candidates?.[0]?.content?.parts ?? []
-  for (const rp of responseParts) {
-    if (rp.inlineData) {
-      return Buffer.from(rp.inlineData.data!, 'base64')
+    const responseParts = response.candidates?.[0]?.content?.parts ?? []
+    for (const rp of responseParts) {
+      if (rp.inlineData) {
+        return Buffer.from(rp.inlineData.data!, 'base64')
+      }
+    }
+
+    if (attempt === 0) {
+      console.warn(`[gemini] No image returned for slide ${slideIndex + 1}, retrying...`)
     }
   }
 
-  throw new Error(`Gemini did not return an image for slide ${slideIndex + 1}`)
+  // Both attempts failed — generate a fallback slide so video assembly never fails
+  console.error(`[gemini] Generating fallback slide for slide ${slideIndex + 1}`)
+  const fallbackTitle = slidePrompt?.split('.')[0] ?? `Slide ${slideIndex + 1}`
+  return generateFallbackSlide(fallbackTitle, colors.primary)
 }
 
 // Keep the infographic generation for backward compatibility

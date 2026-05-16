@@ -5,7 +5,7 @@ import { createClient } from '../../_lib/supabase/server'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+export const maxDuration = 120
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 const IMAGE_MODEL = process.env.IMAGE_MODEL || 'gemini-3-pro-image-preview'
@@ -19,6 +19,38 @@ const FIX_PROMPTS: Record<string, string> = {
   'remove-objects': 'Clean up this image by removing any clutter, distracting objects, signs, or people in the background. Keep the main subject perfectly intact.',
   'brand-filter': 'Apply a subtle color grade/filter to this photo using these brand colors as the dominant tones: primary {primary}, secondary {secondary}. Keep it subtle and professional — like an Instagram filter but branded.',
   'logo-cleanup': 'Clean up this logo image. Make the lines crisp and sharp, remove any artifacts or noise, improve contrast. Output on a transparent/white background.',
+}
+
+const HEADSHOT_PACK_PROMPTS = [
+  { label: 'Studio', prompt: 'Studio headshot with neutral gray gradient background, soft key light from upper left, professional corporate look. Keep this person\'s face exactly the same.' },
+  { label: 'Outdoor', prompt: 'Natural outdoor headshot with blurred green garden background, golden hour sunlight, warm friendly look. Keep this person\'s face exactly the same.' },
+  { label: 'Office', prompt: 'Modern office headshot with blurred bright office background, natural window light, approachable professional. Keep this person\'s face exactly the same.' },
+  { label: 'Executive', prompt: 'Classic portrait with dark charcoal background, dramatic Rembrandt lighting, executive feel. Keep this person\'s face exactly the same.' },
+  { label: 'LinkedIn', prompt: 'Clean white background headshot, even soft lighting, bright and clean LinkedIn-style. Keep this person\'s face exactly the same.' },
+]
+
+async function generateImage(prompt: string, base64Data: string) {
+  const response = await genai.models.generateContent({
+    model: IMAGE_MODEL,
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          { text: prompt },
+          { inlineData: { mimeType: 'image/png', data: base64Data } },
+        ],
+      },
+    ],
+    config: { responseFormat: { image: {} } } as any,
+  })
+
+  const parts = response.candidates?.[0]?.content?.parts ?? []
+  for (const part of parts) {
+    if (part.inlineData) {
+      return `data:image/png;base64,${part.inlineData.data}`
+    }
+  }
+  return null
 }
 
 export async function POST(request: Request) {
@@ -42,14 +74,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing image or fix type' }, { status: 400 })
   }
 
-  if (!FIX_PROMPTS[fixType] && fixType !== 'upscale') {
+  if (!FIX_PROMPTS[fixType] && fixType !== 'upscale' && fixType !== 'headshot-pack') {
     return NextResponse.json({ error: 'Invalid fix type' }, { status: 400 })
   }
 
   try {
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '')
 
-    // Upscale uses Sharp directly — no Gemini call
+    // Upscale uses Sharp directly
     if (fixType === 'upscale') {
       const inputBuffer = Buffer.from(base64Data, 'base64')
       const metadata = await sharp(inputBuffer).metadata()
@@ -63,35 +95,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ image })
     }
 
-    // Build prompt
+    // Headshot pack — generate 5 variations
+    if (fixType === 'headshot-pack') {
+      const results = await Promise.all(
+        HEADSHOT_PACK_PROMPTS.map(({ prompt }) => generateImage(prompt, base64Data))
+      )
+      const images = results.filter(Boolean) as string[]
+      if (images.length === 0) {
+        return NextResponse.json({ error: 'No images returned from AI' }, { status: 500 })
+      }
+      return NextResponse.json({ images })
+    }
+
+    // Standard single-image fix
     let prompt = FIX_PROMPTS[fixType]
     if (fixType === 'brand-filter' && options?.brandColors) {
       prompt = prompt.replace('{primary}', options.brandColors.primary).replace('{secondary}', options.brandColors.secondary)
     }
 
-    const response = await genai.models.generateContent({
-      model: IMAGE_MODEL,
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: prompt },
-            { inlineData: { mimeType: 'image/png', data: base64Data } },
-          ],
-        },
-      ],
-      config: { responseFormat: { image: {} } } as any,
-    })
-
-    const parts = response.candidates?.[0]?.content?.parts ?? []
-    for (const part of parts) {
-      if (part.inlineData) {
-        const image = `data:image/png;base64,${part.inlineData.data}`
-        return NextResponse.json({ image })
-      }
+    const image = await generateImage(prompt, base64Data)
+    if (!image) {
+      return NextResponse.json({ error: 'No image returned from AI' }, { status: 500 })
     }
-
-    return NextResponse.json({ error: 'No image returned from AI' }, { status: 500 })
+    return NextResponse.json({ image })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Photo fix failed'
     return NextResponse.json({ error: message }, { status: 500 })

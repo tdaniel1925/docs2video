@@ -967,7 +967,7 @@ export default function VideoDetailPage() {
       </Link>
 
       <div style={{ marginBottom: 24 }}>
-        <h1 className="page-title" style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4 }}>
+        <h1 className="page-title" style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {video.title ?? 'Untitled'}
         </h1>
         <div style={{ fontSize: 14, color: 'var(--ink-light)' }}>

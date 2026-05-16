@@ -1090,8 +1090,11 @@ export default function PublicWatchPage() {
         <style>{pageStyles}</style>
         <div className="wp-center-screen">
           <div className="wp-not-found">
-            <h1>Video Not Found</h1>
-            <p>This video may have been removed or is still processing.</p>
+            <h1>This presentation is no longer available</h1>
+            <p>It may have been removed by the creator.</p>
+            <a href="/" style={{ display: 'inline-block', marginTop: 20, padding: '10px 20px', background: 'var(--ink, #1B3A5C)', color: '#fff', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>
+              Go to Homepage
+            </a>
           </div>
         </div>
       </div>
@@ -1502,7 +1505,11 @@ export default function PublicWatchPage() {
             </div>
             {payError && <div className="wp-pay-error">{payError}</div>}
             <div className="wp-quote-actions">
-              {hasStripe ? (
+              {quote.total === 0 ? (
+                <div style={{ flex: 1, textAlign: 'center', padding: '12px 0', fontSize: 14, fontWeight: 600, color: 'var(--ink-soft, #3D5A7A)' }}>
+                  This is a complimentary service
+                </div>
+              ) : hasStripe ? (
                 <button onClick={handlePay} disabled={payLoading} className="wp-pay-btn">
                   {payLoading ? 'Processing...' : `Accept & Pay ${formatCents(quote.total)}`}
                 </button>

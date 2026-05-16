@@ -98,6 +98,17 @@ export async function POST(request: Request) {
     }
   }
 
+  // Check for existing in-progress video to prevent concurrent generation
+  const { count: inProgressCount } = await supabase
+    .from('videos')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .in('status', ['pending', 'scripting', 'generating_audio', 'generating_slides', 'assembling'])
+
+  if (inProgressCount && inProgressCount > 0) {
+    return NextResponse.json({ error: 'You already have a video generating. Please wait for it to complete.' }, { status: 409 })
+  }
+
   // Build a title from whichever data format we received
   const title = 'deathBenefit' in policyData
     ? `${(policyData as ExtractedPolicyData).carrier} - ${(policyData as ExtractedPolicyData).policyType} Explainer`

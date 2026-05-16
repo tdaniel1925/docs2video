@@ -812,8 +812,12 @@ export default function CreatePage() {
     setAssets(prev => prev.map((a, i) => i === index ? { ...a, tag } : a))
   }
 
+  const [generating, setGenerating] = useState(false)
+
   async function handleGenerate() {
     if (!activeData) return
+    if (generating) return
+    setGenerating(true)
 
     // Clear draft when generation starts
     try { localStorage.removeItem(DRAFT_KEY) } catch {}
@@ -868,6 +872,8 @@ export default function CreatePage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generation failed')
       setStep('options')
+    } finally {
+      setGenerating(false)
     }
   }
 
