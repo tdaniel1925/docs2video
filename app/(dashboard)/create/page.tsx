@@ -636,6 +636,11 @@ export default function CreatePage() {
     }
   }
 
+  // Edit slide state
+  const [editingSlide, setEditingSlide] = useState<number | null>(null)
+  const [editInstruction, setEditInstruction] = useState('')
+  const [editingSlideLoading, setEditingSlideLoading] = useState(false)
+
   async function handleRegenerateSlide(index: number) {
     const loading = [...slidesLoading]
     loading[index] = true
@@ -651,6 +656,7 @@ export default function CreatePage() {
           styleId: selectedStyle,
           brandId: null,
           slidePrompt: generatedScenes[index]?.slidePrompt,
+          previousSlideBase64: slides[0] || undefined,
         }),
       })
       const data = await res.json()
@@ -664,6 +670,45 @@ export default function CreatePage() {
 
     loading[index] = false
     setSlidesLoading([...loading])
+  }
+
+  async function handleEditSlide(index: number) {
+    if (!editInstruction.trim() || !slides[index]) return
+    setEditingSlideLoading(true)
+    try {
+      const res = await fetch('/api/edit-slide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentSlideBase64: slides[index],
+          editInstruction: editInstruction.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      const newSlides = [...slides]
+      newSlides[index] = data.image
+      setSlides(newSlides)
+      setEditingSlide(null)
+      setEditInstruction('')
+    } catch (err) {
+      console.error(`Slide ${index + 1} edit failed:`, err)
+    } finally {
+      setEditingSlideLoading(false)
+    }
+  }
+
+  function handleDeleteSlide(index: number) {
+    const scenes = editableScenes.length > 0 ? editableScenes : generatedScenes
+    if (scenes.length <= 2) return
+    const newScenes = scenes.filter((_: any, i: number) => i !== index)
+    if (editableScenes.length > 0) setEditableScenes(newScenes)
+    else setGeneratedScenes(newScenes)
+    const newSlides = slides.filter((_, i) => i !== index)
+    setSlides(newSlides)
+    const newLabels = slideLabels.filter((_, i) => i !== index)
+    setSlideLabels(newLabels)
+    setSlideCount(prev => prev - 1)
   }
 
   async function handlePreviewVoice(voiceId: string) {
@@ -2239,7 +2284,7 @@ export default function CreatePage() {
       )}
 
       {/* Step: Approve slides */}
-      {false && (
+      {step === 'approve-slides' && (
         <div className="wizard-card">
           <h2>Preview your slides</h2>
           <div style={{
@@ -2253,8 +2298,9 @@ export default function CreatePage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {(editableScenes.length > 0 ? editableScenes : generatedScenes).map((scene: any, i: number) => {
+              const allScenes = editableScenes.length > 0 ? editableScenes : generatedScenes
               const isFirst = i === 0
-              const isLast = i === (editableScenes.length > 0 ? editableScenes : generatedScenes).length - 1
+              const isLast = i === allScenes.length - 1
               const slideType = isFirst ? 'Cover' : isLast ? 'Closing' : 'Content'
               return (
                 <div key={i} style={{
@@ -2273,10 +2319,62 @@ export default function CreatePage() {
                       justifyContent: 'center', fontWeight: 800, fontSize: 12, flexShrink: 0,
                     }}>{i + 1}</span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{slideType} Slide</span>
-                    <span style={{ fontSize: 11, color: 'var(--ink-light)', marginLeft: 'auto' }}>
-                      ~{Math.round((scene.narration?.split(/\s+/).length ?? 0) / 2.5)}s
-                    </span>
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <span style={{ fontSize: 11, color: 'var(--ink-light)' }}>
+                        ~{Math.round((scene.narration?.split(/\s+/).length ?? 0) / 2.5)}s
+                      </span>
+                      <button
+                        className="btn btn-soft btn-sm"
+                        onClick={() => {
+                          setEditingSlide(editingSlide === i ? null : i)
+                          setEditInstruction('')
+                        }}
+                        style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6 }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-soft btn-sm"
+                        onClick={() => handleRegenerateSlide(i)}
+                        disabled={slidesLoading[i]}
+                        style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, opacity: slidesLoading[i] ? 0.5 : 1 }}
+                      >
+                        {slidesLoading[i] ? 'Redoing...' : 'Redo'}
+                      </button>
+                      {allScenes.length > 2 && (
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDeleteSlide(i)}
+                          style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6 }}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Edit instruction input */}
+                  {editingSlide === i && (
+                    <div style={{ padding: '10px 16px', background: 'var(--bg-soft)', borderBottom: '1px solid var(--border-light)', display: 'flex', gap: 8 }}>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="What would you like to change?"
+                        value={editInstruction}
+                        onChange={e => setEditInstruction(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleEditSlide(i) }}
+                        style={{ flex: 1, fontSize: 13, padding: '8px 12px', borderRadius: 8 }}
+                      />
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => handleEditSlide(i)}
+                        disabled={editingSlideLoading || !editInstruction.trim()}
+                        style={{ fontSize: 12, padding: '8px 14px', borderRadius: 8, opacity: editingSlideLoading ? 0.5 : 1 }}
+                      >
+                        {editingSlideLoading ? 'Applying...' : 'Apply'}
+                      </button>
+                    </div>
+                  )}
 
                   {/* Slide content preview */}
                   <div style={{ padding: 20, aspectRatio: '16/9', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', background: '#f8fafc' }}>

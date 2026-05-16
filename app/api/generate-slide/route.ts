@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { policyData, slideIndex, styleId, brandId, slidePrompt, isLastSlide, assetUrl } = body as {
+  const { policyData, slideIndex, styleId, brandId, slidePrompt, isLastSlide, assetUrl, previousSlideBase64 } = body as {
     policyData: ExtractedPolicyData | ExtractedData
     slideIndex: number
     styleId: SlideStyleId
@@ -28,6 +28,7 @@ export async function POST(request: Request) {
     slidePrompt?: string
     isLastSlide?: boolean
     assetUrl?: string
+    previousSlideBase64?: string
   }
 
   let brandName: string | null = null
@@ -86,9 +87,18 @@ export async function POST(request: Request) {
       } catch { /* proceed without asset */ }
     }
 
+    // Convert previous slide base64 to buffer for visual consistency
+    let previousSlideBuffer: Buffer | null = null
+    if (previousSlideBase64) {
+      try {
+        const base64Data = previousSlideBase64.replace(/^data:image\/\w+;base64,/, '')
+        previousSlideBuffer = Buffer.from(base64Data, 'base64')
+      } catch { /* proceed without consistency reference */ }
+    }
+
     let imageBuffer = await generateSlide(
       policyData, slideIndex, styleId, brandName, logoUrl, colors, slidePrompt, !!photoUrl, undefined,
-      logoBuffer, undefined, undefined, undefined, undefined, undefined, templateRefBuffer, assetBuffer
+      logoBuffer, undefined, undefined, undefined, undefined, undefined, templateRefBuffer ?? previousSlideBuffer, assetBuffer
     )
 
     // Composite real photo onto the slide (logo now handled by Gemini)

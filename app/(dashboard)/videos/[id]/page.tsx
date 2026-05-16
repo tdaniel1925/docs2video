@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '../../../_lib/supabase/client'
 import SendEmailModal from '../../../_components/SendEmailModal'
+import ScriptEditor from '../../../_components/ScriptEditor'
 import type { Video, Brand } from '../../../_lib/types'
 
 // Feature flags — now driven by user's subscription plan
@@ -287,6 +288,14 @@ export default function VideoDetailPage() {
   const pipelineStarted = useRef(false)
   const [userPlan, setUserPlan] = useState<string>('trial')
   const [regeneratingSlide, setRegeneratingSlide] = useState<number | null>(null)
+
+  // Editor state
+  const [showEditor, setShowEditor] = useState(false)
+  const [editorScenes, setEditorScenes] = useState<{scene: number; title: string; narration: string; slidePrompt: string}[]>([])
+  const [editorSlides, setEditorSlides] = useState<(string | null)[]>([])
+  const [reRendering, setReRendering] = useState(false)
+  const [reRenderProgress, setReRenderProgress] = useState('')
+  const [changedAudioIndexes, setChangedAudioIndexes] = useState<Set<number>>(new Set())
 
   // Translate state
   const [showTranslateModal, setShowTranslateModal] = useState(false)
@@ -1220,7 +1229,7 @@ export default function VideoDetailPage() {
               className="action-grid"
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
+                gridTemplateColumns: 'repeat(5, 1fr)',
                 gap: 10,
                 marginTop: 8,
               }}
@@ -1272,6 +1281,24 @@ export default function VideoDetailPage() {
                 Translate
               </button>
               <button
+                onClick={() => {
+                  const videoScenes = Array.isArray(video.script) ? video.script.map((s: any, i: number) => ({
+                    scene: i + 1,
+                    title: s.title ?? `Scene ${i + 1}`,
+                    narration: s.narration ?? '',
+                    slidePrompt: s.slidePrompt ?? '',
+                  })) : []
+                  setEditorScenes(videoScenes)
+                  setEditorSlides((video.slide_urls ?? []).map((url: string) => url))
+                  setChangedAudioIndexes(new Set())
+                  setShowEditor(true)
+                }}
+                className="btn btn-primary"
+                style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}
+              >
+                Edit Video
+              </button>
+              <button
                 onClick={handleDelete}
                 disabled={deleting}
                 className="btn btn-danger"
@@ -1282,7 +1309,7 @@ export default function VideoDetailPage() {
             </div>
           </div>
 
-          {/* RIGHT COLUMN -- 40% -- Quick Actions + Chat */}
+          {/* RIGHT COLUMN -- 40% -- Slide Thumbnails */}
           <div
             className="editor-right"
             style={{
@@ -1297,7 +1324,7 @@ export default function VideoDetailPage() {
               maxHeight: 'calc(100vh - 200px)',
             }}
           >
-            {/* Quick Actions header + 2x3 grid */}
+            {/* Slide thumbnails with regenerate */}
             <div style={{
               padding: '14px 16px',
               borderBottom: '1px solid var(--border-light)',
@@ -1310,150 +1337,139 @@ export default function VideoDetailPage() {
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
                 color: 'var(--ink-light)',
-                marginBottom: 10,
+                marginBottom: 4,
               }}>
-                Quick Actions
-              </div>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 6,
-              }}>
-                {QUICK_ACTIONS.map(action => (
-                  <button
-                    key={action.label}
-                    className="quick-action-btn"
-                    onClick={() => sendChatMessage(action.message)}
-                    disabled={chatLoading}
-                  >
-                    {action.label}
-                  </button>
-                ))}
+                Slides ({slideCount})
               </div>
             </div>
 
-            {/* Chat messages area -- fills available space */}
-            <div
-              ref={chatListRef}
-              style={{
-                flex: 1,
-                overflowY: 'auto',
-                padding: 16,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 12,
-                minHeight: 0,
-              }}
-            >
-              {chatMessages.length === 0 && (
-                <div style={{
-                  padding: '12px 14px', borderRadius: 10, fontSize: 13, lineHeight: 1.5,
-                  background: 'white', border: '1px solid var(--border-light)', color: 'var(--ink)',
-                }}>
-                  I can help you refine this video. Use the buttons above or tell me what you&apos;d like to change.
-                </div>
-              )}
-              {chatMessages.map((msg, i) => (
-                <div
-                  key={i}
-                  style={{
-                    alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                    maxWidth: '85%',
-                  }}
-                >
-                  <div style={{
-                    padding: '10px 14px',
-                    borderRadius: 10,
-                    fontSize: 13,
-                    lineHeight: 1.5,
-                    background: msg.role === 'user' ? 'var(--mint)' : 'white',
-                    color: msg.role === 'user' ? '#0a2e1a' : 'var(--ink)',
-                    border: msg.role === 'assistant' ? '1px solid var(--border-light)' : 'none',
-                  }}>
-                    {msg.text}
+            <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {slideUrls.map((url: string, i: number) => (
+                <div key={i} style={{
+                  display: 'flex', gap: 10, alignItems: 'center',
+                  padding: '8px 10px', borderRadius: 8,
+                  background: currentSlideIndex === i ? 'rgba(168,240,212,0.15)' : 'transparent',
+                  border: currentSlideIndex === i ? '1px solid var(--mint)' : '1px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }} onClick={() => jumpToSlide(i)}>
+                  <img src={url} alt={`Slide ${i+1}`} style={{ width: 80, borderRadius: 6, border: '1px solid var(--border-light)' }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>Slide {i + 1}</div>
+                    {scenes[i] && (
+                      <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 2 }}>
+                        {(scenes[i] as any).title ?? ''}
+                      </div>
+                    )}
                   </div>
+                  <button
+                    className="btn btn-soft btn-sm"
+                    onClick={(e) => { e.stopPropagation(); handleRegenerateSlide(i) }}
+                    disabled={regeneratingSlide === i}
+                    style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, opacity: regeneratingSlide === i ? 0.5 : 1 }}
+                  >
+                    {regeneratingSlide === i ? '...' : 'Redo'}
+                  </button>
                 </div>
               ))}
-              {chatLoading && (
-                <div style={{ alignSelf: 'flex-start' }}>
-                  <div style={{
-                    padding: '10px 14px',
-                    borderRadius: 10,
-                    background: 'white',
-                    border: '1px solid var(--border-light)',
-                  }}>
-                    <div className="typing-dots">
-                      <span /><span /><span />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Chat input at bottom */}
-            <div style={{
-              padding: '12px 16px',
-              borderTop: '1px solid var(--border-light)',
-              background: 'white',
-              flexShrink: 0,
-            }}>
-              <div
-                className="chat-input-wrap"
-                style={{
-                  display: 'flex',
-                  gap: 8,
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  padding: '4px 4px 4px 12px',
-                  background: 'white',
-                  transition: 'border-color 0.15s',
-                }}
-              >
-                <input
-                  ref={chatInputRef}
-                  type="text"
-                  placeholder="Tell me what to change..."
-                  value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      sendChatMessage(chatInput)
-                    }
-                  }}
-                  disabled={chatLoading}
-                  style={{
-                    flex: 1,
-                    border: 'none',
-                    outline: 'none',
-                    fontSize: 13,
-                    background: 'transparent',
-                    color: 'var(--ink)',
-                  }}
-                />
-                <VoiceInputButton
-                  onResult={(text) => {
-                    setChatInput(text)
-                    sendChatMessage(text)
-                  }}
-                  disabled={chatLoading}
-                />
-                <button
-                  onClick={() => sendChatMessage(chatInput)}
-                  disabled={chatLoading || !chatInput.trim()}
-                  className="btn btn-primary"
-                  style={{
-                    padding: '6px 14px',
-                    fontSize: 12,
-                    borderRadius: 6,
-                    opacity: chatLoading || !chatInput.trim() ? 0.5 : 1,
-                  }}
-                >
-                  Send
-                </button>
-              </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Script Editor -- full width, below video */}
+      {showEditor && video.status === 'completed' && (
+        <div style={{ marginTop: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700 }}>Edit Video</h2>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                className="btn btn-soft"
+                onClick={() => setShowEditor(false)}
+                style={{ fontSize: 13, borderRadius: 8 }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={async () => {
+                  setReRendering(true)
+                  setReRenderProgress('Starting re-render...')
+                  try {
+                    const res = await fetch('/api/re-render', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        videoId: video.id,
+                        updatedScenes: editorScenes.map((s, i) => ({ ...s, duration: 0 })),
+                        updatedSlideUrls: editorSlides.filter(Boolean) as string[],
+                        changedAudioIndexes: Array.from(changedAudioIndexes),
+                        voiceId: (video as any).voice_id ?? 'nova',
+                      }),
+                    })
+                    const data = await res.json()
+                    if (!res.ok) throw new Error(data.error)
+                    // Refresh video data
+                    setVideo(prev => prev ? {
+                      ...prev,
+                      video_url: data.videoUrl,
+                      slide_urls: data.slideUrls,
+                      duration: data.duration,
+                      script: editorScenes.map(s => ({ ...s, beat: 'context' as const, duration: 0 })),
+                    } : prev)
+                    setShowEditor(false)
+                    setReRenderProgress('')
+                  } catch (err) {
+                    alert(err instanceof Error ? err.message : 'Re-render failed')
+                  } finally {
+                    setReRendering(false)
+                  }
+                }}
+                disabled={reRendering}
+                style={{ fontSize: 13, borderRadius: 8, opacity: reRendering ? 0.6 : 1 }}
+              >
+                {reRendering ? reRenderProgress || 'Re-rendering...' : 'Save & Regenerate'}
+              </button>
+            </div>
+          </div>
+          <ScriptEditor
+            scenes={editorScenes}
+            slides={editorSlides}
+            onScenesChange={(newScenes) => setEditorScenes(newScenes)}
+            onSlidesChange={(newSlides) => setEditorSlides(newSlides)}
+            onRegenerateAudio={async (sceneIndex, _newNarration) => {
+              setChangedAudioIndexes(prev => new Set(prev).add(sceneIndex))
+            }}
+            onDeleteScene={(sceneIndex) => {
+              if (editorScenes.length <= 2) return
+              setEditorScenes(prev => prev.filter((_, i) => i !== sceneIndex))
+              setEditorSlides(prev => prev.filter((_, i) => i !== sceneIndex))
+            }}
+            onEditSlide={async (sceneIndex, instruction) => {
+              const currentSlide = editorSlides[sceneIndex]
+              if (!currentSlide) return
+              const res = await fetch('/api/edit-slide', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentSlideBase64: currentSlide, editInstruction: instruction }),
+              })
+              const data = await res.json()
+              if (!res.ok) throw new Error(data.error)
+              const newSlides = [...editorSlides]
+              newSlides[sceneIndex] = data.image
+              setEditorSlides(newSlides)
+            }}
+            onRedoSlide={async (sceneIndex) => {
+              await handleRegenerateSlide(sceneIndex)
+              // Update editor slides with the new slide_url
+              const updatedVideo = video
+              if (updatedVideo?.slide_urls?.[sceneIndex]) {
+                const newSlides = [...editorSlides]
+                newSlides[sceneIndex] = (updatedVideo.slide_urls as string[])[sceneIndex]
+                setEditorSlides(newSlides)
+              }
+            }}
+          />
         </div>
       )}
 
