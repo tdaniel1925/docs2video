@@ -403,11 +403,6 @@ export default function SetupPage() {
               </div>
             </div>
           </div>
-          <div style={{ textAlign: 'center', marginBottom: 12 }}>
-            <Link href="/fix" style={{ fontSize: 13, fontWeight: 600, color: 'var(--mint-darker, #2d7a4f)' }}>
-              Need a better headshot? Try our AI Photo Fixer &rarr;
-            </Link>
-          </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={() => setStep(1)} className="btn btn-soft" style={{ flex: 1 }}>Back</button>
             <button onClick={() => setStep(3)} className="btn btn-primary" style={{ flex: 1 }}>
@@ -505,55 +500,83 @@ export default function SetupPage() {
       {/* Step 4: Style */}
       {step === 4 && (
         <div>
-          <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>Pick your default style. You can change this per project later.</p>
+          {/* Explanation */}
+          <div style={{ marginBottom: 20, padding: '16px 20px', background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border-light)' }}>
+            <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>How styles work</p>
+            <p style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.6, margin: 0 }}>
+              Your style controls the visual design of every slide in your videos. Pick one now as your default &mdash; you can change it per project, or create your own custom style anytime.
+            </p>
+          </div>
 
-          {/* Carousel */}
-          <div style={{ position: 'relative', marginBottom: 16 }}>
-            <button onClick={() => scrollCarousel('left')}
-              style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-card)', border: '1px solid var(--border-light)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
-            </button>
-            <button onClick={() => scrollCarousel('right')}
-              style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-card)', border: '1px solid var(--border-light)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
-            </button>
-            <div ref={scrollRef} style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: '8px 40px', scrollbarWidth: 'none' }}>
-              {SLIDE_STYLES.map((style) => (
-                <button key={style.id} onClick={() => { setSelectedStyle(style.id); setExpandedStyle(expandedStyle === style.id ? null : style.id) }}
-                  style={{
-                    flexShrink: 0, width: 200, borderRadius: 10, overflow: 'hidden', cursor: 'pointer', background: 'var(--bg-card)',
-                    border: selectedStyle === style.id ? '2px solid var(--ink)' : '1px solid var(--border-light)',
-                    transition: 'all 0.2s',
-                  }}>
-                  <img src={`/style-previews/${style.id}.png`} alt={style.name} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover' }} />
-                  <div style={{ padding: 8, textAlign: 'left' }}>
-                    <p style={{ fontWeight: 700, fontSize: 12, color: 'var(--ink)' }}>{style.name}</p>
-                  </div>
-                </button>
-              ))}
+          {/* Large preview of selected style */}
+          <div style={{ borderRadius: 10, overflow: 'hidden', border: '2px solid var(--ink)', marginBottom: 16, background: 'var(--bg-card)' }}>
+            <img
+              src={`/style-previews/${selectedStyle}.png`}
+              alt={SLIDE_STYLES.find(s => s.id === selectedStyle)?.name}
+              style={{ width: '100%', display: 'block' }}
+            />
+            <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ fontWeight: 800, fontSize: 16, color: 'var(--ink)', margin: 0 }}>
+                  {SLIDE_STYLES.find(s => s.id === selectedStyle)?.name}
+                </p>
+                <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '2px 0 0' }}>
+                  {SLIDE_STYLES.find(s => s.id === selectedStyle)?.description}
+                </p>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--mint-darker, #2d7a4f)', background: 'var(--mint, #d4edda)', padding: '4px 10px', borderRadius: 6 }}>
+                Selected
+              </span>
             </div>
           </div>
 
-          {expandedStyle && (
-            <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-light)', marginBottom: 16, background: 'var(--bg-card)' }}>
-              <img src={`/style-previews/${expandedStyle}.png`} alt="" style={{ width: '100%' }} />
-              <div style={{ padding: 12 }}>
-                <p style={{ fontWeight: 700, fontSize: 14 }}>{SLIDE_STYLES.find(s => s.id === expandedStyle)?.name}</p>
-                <p style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{SLIDE_STYLES.find(s => s.id === expandedStyle)?.description}</p>
+          {/* Thumbnail strip */}
+          <div style={{ position: 'relative', marginBottom: 20 }}>
+            <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 8 }}>Browse all styles:</p>
+            <div style={{ position: 'relative' }}>
+              <button onClick={() => scrollCarousel('left')}
+                style={{ position: 'absolute', left: -8, top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-card)', border: '1px solid var(--border-light)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <button onClick={() => scrollCarousel('right')}
+                style={{ position: 'absolute', right: -8, top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-card)', border: '1px solid var(--border-light)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+              <div ref={scrollRef} style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '4px 24px', scrollbarWidth: 'none' }}>
+                {SLIDE_STYLES.map((style) => (
+                  <button key={style.id} onClick={() => setSelectedStyle(style.id)}
+                    style={{
+                      flexShrink: 0, width: 100, borderRadius: 8, overflow: 'hidden', cursor: 'pointer', background: 'var(--bg-card)', padding: 0, border: 'none',
+                      outline: selectedStyle === style.id ? '2px solid var(--ink)' : '1px solid var(--border-light)',
+                      outlineOffset: selectedStyle === style.id ? 1 : 0,
+                      opacity: selectedStyle === style.id ? 1 : 0.7,
+                      transition: 'all 0.15s',
+                    }}>
+                    <img src={`/style-previews/${style.id}.png`} alt={style.name} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />
+                  </button>
+                ))}
               </div>
             </div>
-          )}
+          </div>
 
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
             <button onClick={() => setStep(3)} className="btn btn-soft" style={{ flex: 1 }}>Back</button>
             <button onClick={finishSetup} disabled={loading} className="btn btn-primary" style={{ flex: 1 }}>
               {loading ? 'Finishing...' : 'Finish Setup \u2192'}
             </button>
           </div>
 
-          {/* Pre-launch welcome note */}
-          <div style={{ marginTop: 24, padding: '20px 24px', background: 'var(--bg-soft)', borderRadius: 12, border: '1px solid var(--border)', fontSize: 14, lineHeight: 1.6, color: 'var(--ink-soft)' }}>
-            Welcome to Docs2Video! You have 5 free explainer videos to create. After that, each video is just $10 charged to your card on file.
+          {/* Pricing info */}
+          <div style={{ padding: '20px', background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border-light)' }}>
+            <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Your plan</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--mint-darker, #2d7a4f)', background: 'var(--mint, #d4edda)', padding: '3px 8px', borderRadius: 6 }}>FREE</span>
+              <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>5 free videos included &middot; $10 per video after that</span>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
+              <strong style={{ color: 'var(--ink)' }}>Save up to 60%</strong> with a subscription plan. Starting at just $29/mo for 20 videos.{' '}
+              <span style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600, cursor: 'pointer' }}>View plans &rarr;</span>
+            </div>
           </div>
         </div>
       )}
