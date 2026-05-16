@@ -160,21 +160,22 @@ export default async function DashboardPage() {
         /* ── First-time user: getting started ── */
         <div style={{ marginTop: 8 }}>
           {/* Getting started video */}
-          <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
-            <div style={{ position: 'relative', aspectRatio: '16/9', background: '#0a1628', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-              onClick={() => {
-                // Open Loom video in a modal — for now, open in new tab
-                window.open(GETTING_STARTED_VIDEO.replace('/embed/', '/share/'), '_blank')
-              }}>
+          <Link
+            href={GETTING_STARTED_VIDEO.replace('/embed/', '/share/')}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'block', background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginBottom: 24, textDecoration: 'none' }}
+          >
+            <div style={{ position: 'relative', aspectRatio: '16/9', background: '#0a1628', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <div style={{ textAlign: 'center', color: 'white' }}>
                 <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(199,232,168,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--mint, #C7E8A8)"><polygon points="8 4 20 12 8 20" /></svg>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="#C7E8A8"><polygon points="8 4 20 12 8 20" /></svg>
                 </div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>See how Docs2Video works</div>
                 <div style={{ fontSize: 13, opacity: 0.6, marginTop: 4 }}>2 minute walkthrough</div>
               </div>
             </div>
-          </div>
+          </Link>
 
           {/* Main CTA */}
           <Link
