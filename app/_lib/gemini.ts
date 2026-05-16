@@ -3,6 +3,7 @@ import type { ExtractedPolicyData, SlideStyleId } from './types'
 import type { ExtractedData } from './extract-types'
 import { SLIDE_STYLES } from './types'
 import { buildStructuredPrompt } from './prompt-builder'
+import { INDUSTRIES, detectIndustry, type IndustryId } from './industries'
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -40,7 +41,8 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code fence
     ],
     "bulletPoints": ["string - key takeaway or finding"],
     "additionalNotes": ["string - any other important information"],
-    "disclaimers": ["string - full text of any disclaimer, disclosure, legal notice, or compliance text"]
+    "disclaimers": ["string - full text of any disclaimer, disclosure, legal notice, or compliance text"],
+    "industry": "string — detect the industry from content. One of: insurance, financial, real_estate, mortgage, healthcare, legal, consulting, education, accounting, technology, hr, sales, general"
   },
   "insurance": null
 }
@@ -296,6 +298,10 @@ export async function generateSlide(
   const stylePromptText = customStylePrompt || style.prompt
   const isInsurance = 'deathBenefit' in data
 
+  // Detect industry for visual style guidance
+  const industryId = isInsurance ? 'insurance' : ((data as any).industry || detectIndustry((data as ExtractedData).title || '', JSON.stringify(data))) as IndustryId
+  const industryConfig = INDUSTRIES[industryId] || INDUSTRIES.general
+
   // Determine slide position
   const isFirst = slideIndex === 0
   const isLast = slideIndex >= totalSlides - 1
@@ -381,6 +387,7 @@ ${structuredPrompt}
 - Use the FULL canvas — do not leave empty areas, reserved zones, or placeholder boxes
 - VERIFY: Every number, dollar amount, and percentage on the slide MUST exactly match the data provided. Do not round, estimate, or change any numbers.
 - TEXT LIMIT: Maximum 50 words of visible text per slide. Use large numbers, short labels, and icons instead of paragraphs.
+- VISUAL STYLE GUIDANCE: ${industryConfig.slideHints}
 ${previousSlideBuffer || templateRefBuffer ? '- VISUAL CONSISTENCY: Match the exact same color palette, font style, layout grid, and visual language as the reference image provided. The slides must look like they belong to the same deck.' : ''}
 ${isInsurance ? '- LEGAL: Do NOT display any insurance carrier or company name anywhere on the slide. This is a legal requirement.' : ''}
 

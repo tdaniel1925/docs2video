@@ -8,4 +8,5 @@ export interface ExtractedData {
   bulletPoints: string[]
   additionalNotes: string[]
   disclaimers?: string[]
+  industry?: string
 }

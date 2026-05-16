@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai'
 import type { ExtractedPolicyData, VideoScene } from './types'
 import type { ExtractedData } from './extract-types'
+import { INDUSTRIES, detectIndustry, type IndustryId } from './industries'
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -95,11 +96,27 @@ You have ${assetCount} product/brand images that will be placed on slides.
 }
 
 function buildGenericScriptPrompt(data: ExtractedData, brandName: string | null, detailed: boolean = false, assetCount: number = 0): string {
+  const industry = (data as any).industry || detectIndustry(data.title, JSON.stringify(data))
+  const config = INDUSTRIES[industry as IndustryId] || INDUSTRIES.general
+
   const metricsText = (data.keyMetrics ?? []).map(m => `- ${m.label}: ${m.value}`).join('\n')
   const sectionsText = (data.sections ?? []).map(s => `- ${s.title}: ${s.content}`).join('\n')
   const bulletText = (data.bulletPoints ?? []).map(b => `- ${b}`).join('\n')
 
+  // Build disclaimer scenes if required by industry
+  const disclaimerBeat = config.disclaimerRequired ? `
+2. DISCLAIMER (1 scene) — EXACT narration: "${config.disclaimerText}"
+` : ''
+
+  const disclaimerCloseBeat = config.disclaimerRequired ? `
+7. DISCLAIMER-CLOSE (1 scene) — Closing disclaimer. EXACT narration: "${config.closingDisclaimerText}"
+` : ''
+
   return `You are a professional scriptwriter creating an explainer video narration about the following document/content.
+
+INDUSTRY: ${config.label}
+TERMINOLOGY: Use these terms: ${config.terminology.use.join(', ')}. Avoid: ${config.terminology.avoid.join(', ')}
+TONE: ${config.tone}
 
 DOCUMENT DATA:
 - Title: ${data.title}
@@ -128,31 +145,17 @@ VOICE RULES (CRITICAL):
 BEAT STRUCTURE (follow this storytelling framework — each scene has a PURPOSE):
 Every scene must have a "beat" field indicating its storytelling role. Use this exact structure:
 
-1. HOOK (1 scene) — Open with the greeting per VOICE RULES, then grab attention: a surprising fact, a compelling question, or the single most important takeaway from the document. Make the viewer want to keep watching.
-   ${brandName ? `Mention that this presentation is brought by ${brandName}.` : ''}
+${config.beatStructure}
+${disclaimerBeat}${disclaimerCloseBeat}
+   ${brandName ? `For the HOOK: Mention that this presentation is brought by ${brandName}.` : ''}
    Introduce the topic: "${data.title}"
-
-2. CONTEXT (1-2 scenes) — Set the stage. What is this document about? Who is it for? What problem does it address? Give the viewer the big picture before diving into details.
-
-3. STAKES (1-2 scenes) — Why this matters. What's at risk, what's the opportunity, what changes if the viewer understands this content? Make it relevant and urgent.
-
-4. EVIDENCE (3-8 scenes) — The deep dive. Walk through:
-   - Key metrics and data points (one per scene, with specific numbers)
-   - Each major section or topic area
-   - Important findings, charts, or comparisons
-   Break complex topics across MULTIPLE scenes. One concept per scene. Use specific numbers from the document.
-
-5. IMPLICATION (1-2 scenes) — Connect the evidence back to the viewer. What does all this data mean in practical terms? What conclusions should they draw?
-
-6. ACTION (1 scene) — Clear next step. What should the viewer do with this information? Summarize the key takeaways. End with the closing per VOICE RULES.
+   For the ACTION beat: ${config.ctaText}
    ${brandName ? `Direct them to contact ${brandName}.` : 'Encourage the viewer to take the next step.'}
 
 SCENE COUNT: Use 8-16 scenes total. The EVIDENCE section should expand based on how much content is in the document. Simple documents = fewer evidence scenes. Complex ones with many sections = more.
 
 Each scene's narration should be 20-40 seconds (roughly 50-100 words). Each scene must cover ONE clear concept.
-
-TONE: Professional but warm, like a knowledgeable presenter explaining to an engaged audience. Use plain language. Write like a storyteller, not a summarizer — each scene should flow naturally into the next.${assetCount > 0 ? `
-
+${assetCount > 0 ? `
 PRODUCT IMAGES AVAILABLE:
 You have ${assetCount} product/brand images that will be placed on slides.
 - For slides that showcase specific products or features, include the tag [ASSET:1], [ASSET:2], etc. in the slidePrompt to indicate which image should be featured on that slide.
