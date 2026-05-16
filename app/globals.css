@@ -2584,7 +2584,11 @@ h1.hero-title em {
   text-align: center;
   position: relative;
   transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
 }
+.pricing-card .pricing-features { flex: 1; }
+.pricing-card .btn { margin-top: auto; }
 .pricing-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.06); }
 .pricing-card.popular {
   border-color: var(--ink);
