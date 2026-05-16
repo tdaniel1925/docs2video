@@ -10,3 +10,18 @@ export interface ExtractedData {
   disclaimers?: string[]
   industry?: string
 }
+
+/**
+ * Strict insurance detection — prevents non-insurance documents from being
+ * treated as insurance just because a 'deathBenefit' key exists with value 0/null.
+ */
+export function isInsuranceData(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return false
+  const d = data as Record<string, unknown>
+  return (
+    typeof d.deathBenefit === 'number' &&
+    d.deathBenefit > 0 &&
+    typeof d.policyType === 'string' &&
+    d.policyType.length > 0
+  )
+}

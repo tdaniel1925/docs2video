@@ -1,5 +1,5 @@
 import type { ExtractedPolicyData, VideoScene } from './types'
-import type { ExtractedData } from './extract-types'
+import { type ExtractedData, isInsuranceData } from './extract-types'
 
 const KIE_API_BASE = 'https://api.kie.ai'
 
@@ -10,7 +10,7 @@ export function buildMusicPrompt(
   data: ExtractedPolicyData | ExtractedData,
   scenes: VideoScene[]
 ): string {
-  const isInsurance = 'deathBenefit' in data
+  const isInsurance = isInsuranceData(data)
   const title = isInsurance ? (data as ExtractedPolicyData).policyType : (data as ExtractedData).title
   const source = isInsurance ? (data as ExtractedPolicyData).carrier : (data as ExtractedData).source
   const titleLower = (title ?? '').toLowerCase()

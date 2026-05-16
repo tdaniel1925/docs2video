@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai'
 import type { ExtractedPolicyData, SlideStyleId } from './types'
-import type { ExtractedData } from './extract-types'
+import { type ExtractedData, isInsuranceData } from './extract-types'
 import { SLIDE_STYLES } from './types'
 import { buildStructuredPrompt } from './prompt-builder'
 import { INDUSTRIES, detectIndustry, type IndustryId } from './industries'
@@ -184,7 +184,7 @@ ${isFirstSlide && hasPhoto ? `\n- Reserve a clean area (~200x200px) in the BOTTO
 
 // Helper to build content summary from either data format
 function buildContentSummary(data: ExtractedPolicyData | ExtractedData): { headline: string; subline: string; metrics: string } {
-  if ('deathBenefit' in data) {
+  if (isInsuranceData(data)) {
     // Insurance data — never include carrier name
     return {
       headline: `"${data.policyType} Policy Overview"`,
@@ -202,7 +202,7 @@ function buildContentSummary(data: ExtractedPolicyData | ExtractedData): { headl
 }
 
 function getDocumentTypeLabel(data: ExtractedPolicyData | ExtractedData): string {
-  if ('deathBenefit' in data) return 'a life insurance policy overview'
+  if (isInsuranceData(data)) return 'a life insurance policy overview'
   return 'a professional document presentation'
 }
 
@@ -296,7 +296,7 @@ export async function generateSlide(
   const style = SLIDE_STYLES.find(s => s.id === styleId) ?? SLIDE_STYLES[0]
   // Custom style prompt overrides the built-in style
   const stylePromptText = customStylePrompt || style.prompt
-  const isInsurance = 'deathBenefit' in data
+  const isInsurance = isInsuranceData(data)
 
   // Detect industry for visual style guidance
   const industryId = isInsurance ? 'insurance' : ((data as any).industry || detectIndustry((data as ExtractedData).title || '', JSON.stringify(data))) as IndustryId
@@ -376,6 +376,11 @@ The text on the slide should be the KEY FACTS only — short phrases, not full s
   // Build the complete prompt — clean separation of concerns
   const promptText = `You are generating a presentation slide image. Follow these instructions precisely.
 
+=== DATA FIDELITY (CRITICAL) ===
+- ONLY display text, numbers, and facts that are explicitly provided in the description below.
+- Do NOT invent, hallucinate, or add any information not given.
+- Do NOT add insurance/financial terminology unless the content explicitly discusses insurance/finance.
+
 === STRUCTURED IMAGE DESCRIPTION ===
 ${structuredPrompt}
 
@@ -394,7 +399,7 @@ ${isInsurance ? '- LEGAL: Do NOT display any insurance carrier or company name a
 === FORBIDDEN (DO NOT DO ANY OF THESE) ===
 - Do NOT render raw field labels like "Headline:", "Subheadline:", "slidePrompt:", "narration:" etc.
 - Do NOT render any prompt instructions, JSON, or metadata as visible text
-- Do NOT include any company logos, lettermarks, or brand marks
+- Do NOT generate or draw any company logos, lettermarks, or brand marks from scratch (a logo image may be provided separately — use it as-is if attached)
 - Do NOT generate photographs of human faces
 - Do NOT leave empty reserved areas, placeholder boxes, or transparent zones on the slide
 - Do NOT render "300x100px" or any pixel dimension text on the slide
@@ -424,10 +429,10 @@ This is slide ${slideIndex + 1} of ${totalSlides}. ALL slides must share identic
 
   parts.push({ text: promptText })
 
-  // Add logo image if available
+  // Add logo image if available — this is a pre-styled logo that matches the template
   if (logoBuffer) {
     parts.push(
-      { text: 'Use this logo exactly as shown — do not modify or recreate it:' },
+      { text: `LOGO INTEGRATION: Place this logo naturally into the slide design. It has already been styled to match this template's aesthetic. Position it prominently on the ${isFirst || isLast ? 'slide (centered or top area)' : 'top-left or top-right corner (smaller, like a watermark)'}. Do NOT redraw, modify, or recreate the logo — use it EXACTLY as provided. Design the surrounding elements to complement it.` },
       { inlineData: { mimeType: 'image/png', data: logoBuffer.toString('base64') } },
     )
   }

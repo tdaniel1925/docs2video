@@ -123,7 +123,10 @@ export async function POST(request: Request) {
   }
 
   // Build a title from whichever data format we received
-  const title = 'deathBenefit' in policyData
+  const isInsurance = typeof (policyData as any).deathBenefit === 'number'
+    && (policyData as any).deathBenefit > 0
+    && !!(policyData as any).policyType
+  const title = isInsurance
     ? `${(policyData as ExtractedPolicyData).carrier} - ${(policyData as ExtractedPolicyData).policyType} Explainer`
     : `${(policyData as ExtractedData).title} Explainer`
 

@@ -80,6 +80,7 @@ export interface Brand {
   competitor_notes: string | null
   unique_selling_points: string[]
   brand_guide_data: Record<string, unknown> | null
+  logo_kit: Record<string, string> | null
   reference_slides: string[] | null
   deck_style_id: string | null
   is_default: boolean

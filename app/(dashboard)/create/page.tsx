@@ -229,6 +229,13 @@ export default function CreatePage() {
   const [generatingElapsed, setGeneratingElapsed] = useState(0)
   const generatingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // Profile completeness modal (Option B)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [profileName, setProfileName] = useState('')
+  const [profileCompany, setProfileCompany] = useState('')
+  const [profileLoaded, setProfileLoaded] = useState(false)
+  const [savingProfile, setSavingProfile] = useState(false)
+
   useEffect(() => {
     async function loadData() {
       const supabase = createClient()
@@ -246,9 +253,12 @@ export default function CreatePage() {
       // Load user's default style and plan
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const { data: profile } = await supabase.from('profiles').select('default_style, subscription_status').eq('id', user.id).single()
+        const { data: profile } = await supabase.from('profiles').select('default_style, subscription_status, full_name, company_name').eq('id', user.id).single()
         if (profile?.default_style) setSelectedStyle(profile.default_style)
         if (profile?.subscription_status) setUserPlan(profile.subscription_status)
+        setProfileName(profile?.full_name ?? '')
+        setProfileCompany(profile?.company_name ?? '')
+        setProfileLoaded(true)
       }
       // Fetch project pricing
       try {
@@ -817,6 +827,13 @@ export default function CreatePage() {
   async function handleGenerate() {
     if (!activeData) return
     if (generating) return
+
+    // Option B: Check profile completeness before first video
+    if (profileLoaded && !profileName.trim() && !profileCompany.trim()) {
+      setShowProfileModal(true)
+      return
+    }
+
     setGenerating(true)
 
     // Clear draft when generation starts
@@ -3174,6 +3191,74 @@ export default function CreatePage() {
               Try Again
             </button>
           )}
+        </div>
+      )}
+
+      {/* Profile completeness modal (Option B) */}
+      {showProfileModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'white', borderRadius: 10, padding: 32, maxWidth: 420, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700 }}>Complete your profile</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 14, color: 'var(--ink-soft)' }}>
+              Your name and company appear on the share page your clients see. Add them now so your video looks professional.
+            </p>
+            <label style={{ display: 'block', marginBottom: 12 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Your name</span>
+              <input
+                type="text"
+                value={profileName}
+                onChange={e => setProfileName(e.target.value)}
+                placeholder="Jane Smith"
+                className="input"
+                style={{ width: '100%' }}
+              />
+            </label>
+            <label style={{ display: 'block', marginBottom: 20 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Company name</span>
+              <input
+                type="text"
+                value={profileCompany}
+                onChange={e => setProfileCompany(e.target.value)}
+                placeholder="Acme Financial"
+                className="input"
+                style={{ width: '100%' }}
+              />
+            </label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                className="btn btn-primary"
+                disabled={savingProfile || (!profileName.trim() && !profileCompany.trim())}
+                onClick={async () => {
+                  setSavingProfile(true)
+                  try {
+                    const supabase = createClient()
+                    const { data: { user } } = await supabase.auth.getUser()
+                    if (user) {
+                      await supabase.from('profiles').update({
+                        full_name: profileName.trim() || null,
+                        company_name: profileCompany.trim() || null,
+                      }).eq('id', user.id)
+                    }
+                    setShowProfileModal(false)
+                    // Now proceed with generation
+                    handleGenerate()
+                  } catch {
+                    setShowProfileModal(false)
+                  } finally {
+                    setSavingProfile(false)
+                  }
+                }}
+              >
+                {savingProfile ? 'Saving...' : 'Save & continue'}
+              </button>
+              <button
+                className="btn btn-soft"
+                onClick={() => setShowProfileModal(false)}
+              >
+                Skip for now
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

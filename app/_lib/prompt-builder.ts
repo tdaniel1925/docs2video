@@ -103,15 +103,24 @@ export function buildStructuredPrompt(opts: {
   const defaultDetails = 'Shot on 85mm f/1.4 lens, shallow depth of field on background elements, 4K resolution, ultra-detailed, professional presentation slide, crisp typography'
   const detailsBlock = `[DETAILS]: ${details ? `${details}. ${defaultDetails}` : defaultDetails}`
 
-  // Brand colour instructions — specific hex codes so the model can match exactly
+  // Brand colour instructions — adapt template palette to harmonize with brand
   let brandBlock = ''
   if (brandColors) {
-    brandBlock = `\n[BRAND COLORS — use these exact hex codes]:
+    brandBlock = `\n[BRAND COLOR ADAPTATION — CRITICAL]:
+You MUST adapt this template's color palette to complement and harmonize with these brand colors:
 - Primary: ${brandColors.primary}
 - Secondary: ${brandColors.secondary}
 - Accent: ${brandColors.accent}
 - Background base: ${brandColors.background}
-- Text: ${brandColors.text}`
+- Text: ${brandColors.text}
+
+COLOR HARMONY RULES:
+- Use the brand's primary color as the dominant accent throughout the slide
+- Adapt the template's default palette so it complements (not clashes with) the brand colors
+- If the template has a signature color (e.g. neon green, gold, teal), shift it toward the brand's primary/accent hue
+- Background and text colors should create proper contrast for readability
+- The slide should feel like it was DESIGNED for this brand — not a generic template with colors overlaid
+- Keep the template's artistic STYLE (textures, shapes, effects) but adapt the COLOR PALETTE to the brand`
   }
   if (brandName) {
     brandBlock += `\n[BRAND]: "${brandName}" — render as styled text only, never as a logo`

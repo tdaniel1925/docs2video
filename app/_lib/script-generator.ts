@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai'
 import type { ExtractedPolicyData, VideoScene } from './types'
-import type { ExtractedData } from './extract-types'
+import { type ExtractedData, isInsuranceData } from './extract-types'
 import { INDUSTRIES, detectIndustry, type IndustryId } from './industries'
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
@@ -113,6 +113,13 @@ function buildGenericScriptPrompt(data: ExtractedData, brandName: string | null,
 ` : ''
 
   return `You are a professional scriptwriter creating an explainer video narration about the following document/content.
+
+CRITICAL RULE — DATA FIDELITY:
+- ONLY use information that appears in the DOCUMENT DATA below.
+- Do NOT invent, assume, or add any facts, numbers, names, or details not explicitly provided.
+- Do NOT confuse this with insurance, financial products, or any other industry unless the data explicitly states it.
+- If the data says it's about a business deal, proposal, training, marketing plan, etc. — treat it ONLY as that. Never add insurance terminology, policy details, or financial product language.
+- Every claim in the narration must trace back to a specific data point below.
 
 INDUSTRY: ${config.label}
 TERMINOLOGY: Use these terms: ${config.terminology.use.join(', ')}. Avoid: ${config.terminology.avoid.join(', ')}
@@ -255,7 +262,7 @@ export async function generateScript(
   brandTone?: string,
   contactInfo?: { phone?: string; email?: string; calendly?: string }
 ): Promise<VideoScene[]> {
-  const isInsurance = 'deathBenefit' in data
+  const isInsurance = isInsuranceData(data)
   const promptBody = isInsurance
     ? buildInsuranceScriptPrompt(data as ExtractedPolicyData, brandName, detailed, assetCount ?? 0)
     : buildGenericScriptPrompt(data as ExtractedData, brandName, detailed, assetCount ?? 0)

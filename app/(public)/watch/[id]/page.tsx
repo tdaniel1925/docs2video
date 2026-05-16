@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { createClient } from '../../../_lib/supabase/client'
 import type { Video, Brand } from '../../../_lib/types'
 import type { ExtractedData } from '../../../_lib/extract-types'
+import { INDUSTRIES } from '../../../_lib/industries'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -634,6 +635,7 @@ export default function PublicWatchPage() {
 
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
   const [videoDuration, setVideoDuration] = useState(0)
+  const [showDisclosures, setShowDisclosures] = useState(false)
 
   const paid = searchParams.get('paid') === 'true'
 
@@ -785,10 +787,11 @@ export default function PublicWatchPage() {
   /*  Derived data                                                     */
   /* ================================================================ */
   // On client-facing share page, show company name first, then personal name
-  const agentName = agent?.company_name ?? agent?.full_name ?? 'Your Agent'
+  const hasAgentIdentity = !!(agent?.company_name || agent?.full_name)
+  const agentName = agent?.company_name ?? agent?.full_name ?? video.title ?? 'Your Personalized Presentation'
   const agentEmail = agent?.email ?? ''
   const agentPhone = agent?.phone ?? ''
-  const agentInitials = getInitials(agentName)
+  const agentInitials = hasAgentIdentity ? getInitials(agentName) : ''
   const calendlyUrl = agent?.calendly_url?.trim() ?? ''
   const hasCalendly = calendlyUrl.length > 0 && calendlyUrl.startsWith('https://calendly.com/')
   const hasStripe = !!(agent?.stripe_user_id?.trim())
@@ -807,6 +810,13 @@ export default function PublicWatchPage() {
   const policyData = pipelineInput?.policyData
   const isInsurance = !!(policyData?.deathBenefit)
   const carrierDisclaimers: string[] = (video as any).disclaimers ?? policyData?.disclaimers ?? []
+
+  // Industry-based disclosures
+  const detectedIndustry = policyData?.industry as string | undefined
+  const industryConfig = detectedIndustry && INDUSTRIES[detectedIndustry as keyof typeof INDUSTRIES]
+    ? INDUSTRIES[detectedIndustry as keyof typeof INDUSTRIES]
+    : isInsurance ? INDUSTRIES.insurance : null
+  const hasDisclosures = !!(industryConfig?.disclaimerRequired && industryConfig.disclaimerText) || carrierDisclaimers.length > 0
   const createdDate = new Date(video.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -827,9 +837,9 @@ export default function PublicWatchPage() {
         <div className="wp-header-left">
           {agent?.photo_url ? (
             <img src={agent.photo_url} alt={agentName} className="wp-agent-photo" />
-          ) : (
+          ) : hasAgentIdentity ? (
             <div className="wp-agent-initials">{agentInitials}</div>
-          )}
+          ) : null}
           <div>
             <div className="wp-agent-name">{agentName}</div>
             {agent?.company_name && agent.company_name !== agent.full_name && (
@@ -868,7 +878,7 @@ export default function PublicWatchPage() {
             <div className="wp-video-wrap">
               <video
                 ref={videoRef}
-                src={video.video_url!}
+                src={`${video.video_url!}${video.video_url!.includes('?') ? '&' : '?'}v=${new Date(video.updated_at ?? video.created_at).getTime()}`}
                 poster={video.thumbnail_url ?? undefined}
                 controls
                 onTimeUpdate={handleTimeUpdate}
@@ -1156,9 +1166,9 @@ export default function PublicWatchPage() {
           <div className="wp-contact-card">
             {agent.photo_url ? (
               <img src={agent.photo_url} alt={agentName} className="wp-contact-photo" />
-            ) : (
+            ) : hasAgentIdentity ? (
               <div className="wp-contact-initials">{agentInitials}</div>
-            )}
+            ) : null}
             <div>
               <div className="wp-contact-name">{agentName}</div>
               {agent.company_name && agent.company_name !== agent.full_name && (
@@ -1183,6 +1193,115 @@ export default function PublicWatchPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ============================================================ */}
+      {/*  DISCLOSURES DRAWER                                           */}
+      {/* ============================================================ */}
+      {hasDisclosures && (
+        <>
+          {/* Tab trigger — fixed to right edge */}
+          <button
+            onClick={() => setShowDisclosures(true)}
+            style={{
+              position: 'fixed',
+              right: 0,
+              top: '50%',
+              transform: 'translateY(-50%) rotate(-90deg)',
+              transformOrigin: 'bottom right',
+              background: 'var(--ink, #1a2b3c)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px 6px 0 0',
+              padding: '8px 16px',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.03em',
+              cursor: 'pointer',
+              zIndex: 900,
+              opacity: 0.85,
+              transition: 'opacity 0.2s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '0.85')}
+          >
+            Disclosures
+          </button>
+
+          {/* Drawer overlay + panel */}
+          {showDisclosures && (
+            <div
+              style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', justifyContent: 'flex-end' }}
+              onClick={() => setShowDisclosures(false)}
+            >
+              {/* Backdrop */}
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(2px)' }} />
+
+              {/* Panel */}
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  maxWidth: 420,
+                  background: 'white',
+                  boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
+                  padding: '32px 24px',
+                  overflowY: 'auto',
+                  animation: 'slide-in-right 0.25s ease-out',
+                }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Disclosures & Disclaimers</h3>
+                  <button
+                    onClick={() => setShowDisclosures(false)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink, #1a2b3c)" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+
+                {industryConfig?.disclaimerText && (
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft, #5a6b7a)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {industryConfig.label ?? 'Industry'} Disclosure
+                    </div>
+                    <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink, #1a2b3c)', margin: 0 }}>
+                      {industryConfig.disclaimerText}
+                    </p>
+                  </div>
+                )}
+
+                {carrierDisclaimers.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft, #5a6b7a)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Additional Disclosures
+                    </div>
+                    {carrierDisclaimers.map((d, i) => (
+                      <p key={i} style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink, #1a2b3c)', margin: '0 0 8px' }}>
+                        {d}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ borderTop: '1px solid var(--border-light, #e8ecf0)', paddingTop: 16, marginTop: 16 }}>
+                  <p style={{ fontSize: 11, lineHeight: 1.5, color: 'var(--ink-light, #7A8FA3)', margin: 0 }}>
+                    This presentation was generated on {createdDate} and is intended for informational purposes only. Please consult with a qualified professional before making any decisions based on this content.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Drawer animation */}
+          <style>{`
+            @keyframes slide-in-right {
+              from { transform: translateX(100%); }
+              to { transform: translateX(0); }
+            }
+          `}</style>
+        </>
       )}
 
       {/* ============================================================ */}

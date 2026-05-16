@@ -1085,7 +1085,7 @@ export default function VideoDetailPage() {
             }}>
               <video
                 ref={videoRef}
-                src={video.video_url}
+                src={`${video.video_url}${video.video_url?.includes('?') ? '&' : '?'}v=${new Date(video.updated_at ?? video.created_at).getTime()}`}
                 poster={video.thumbnail_url ?? undefined}
                 controls
                 onTimeUpdate={handleTimeUpdate}
