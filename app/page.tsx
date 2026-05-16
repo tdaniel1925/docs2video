@@ -326,11 +326,24 @@ export default function HomePage() {
         {/* ───── Template Gallery ───── */}
         <section className="section" id="templates">
           <div style={{textAlign:'center',marginBottom:40}}>
-            <div className="section-eyebrow">39 styles</div>
-            <h2 className="section-title">Every video looks like you hired <em>a design team</em></h2>
-            <p className="section-sub" style={{maxWidth:600,margin:'0 auto'}}>From executive boardroom to watercolor to hand-drawn doodles. Pick a style that matches your message, or create your own with AI.</p>
+            <div className="section-eyebrow">69+ styles &middot; unlimited custom</div>
+            <h2 className="section-title">The only explainer platform with <em>custom AI templates</em></h2>
+            <p className="section-sub" style={{maxWidth:650,margin:'0 auto'}}>Choose from 69+ professionally designed styles — or describe your own and our AI builds it from scratch. No other platform lets you create truly custom visual styles on demand.</p>
           </div>
+
           <TemplateGallery />
+
+          {/* Custom template differentiator */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,maxWidth:800,margin:'32px auto 0'}}>
+            <div style={{background:'white',border:'1px solid var(--border-light)',borderRadius:10,padding:24}}>
+              <div style={{fontSize:14,fontWeight:700,marginBottom:8}}>69+ Built-In Styles</div>
+              <p style={{fontSize:13,color:'var(--ink-soft)',lineHeight:1.6,margin:0}}>Corporate, luxury, watercolor, doodle, neon, retro, and dozens more — ready to use instantly.</p>
+            </div>
+            <div style={{background:'var(--ink)',color:'white',borderRadius:10,padding:24}}>
+              <div style={{fontSize:14,fontWeight:700,marginBottom:8,color:'var(--mint)'}}>+ Create Your Own with AI</div>
+              <p style={{fontSize:13,color:'rgba(255,255,255,0.7)',lineHeight:1.6,margin:0}}>Describe the style you want — &ldquo;dark blue with gold accents, like a luxury report&rdquo; — and AI generates 4 variations. Only on Docs2Video.</p>
+            </div>
+          </div>
         </section>
 
         {/* ───── Stats Strip ───── */}
