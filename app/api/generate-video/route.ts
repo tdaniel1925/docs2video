@@ -142,7 +142,7 @@ export async function POST(request: Request) {
     } else {
       console.log(`[video ${videoId}] Generating script...`)
       await admin.from('videos').update({ status: 'scripting', progress_detail: 'Writing your script...', progress_pct: 5 }).eq('id', videoId)
-      scenes = await generateScript(policyData, brand?.name ?? null, colors, detailed ?? false, assetBuffers.filter(Boolean).length)
+      scenes = await generateScript(policyData, brand?.name ?? null, colors, detailed ?? false, assetBuffers.filter(Boolean).length, voiceId, (brand as any)?.tone ?? undefined)
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15 }).eq('id', videoId)
     }
 

@@ -19,19 +19,23 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { policyData, brandId, detailed } = body as {
+  const { policyData, brandId, detailed, voiceId, contactInfo } = body as {
     policyData: ExtractedPolicyData | ExtractedData
     brandId: string | null
     detailed?: boolean
+    voiceId?: string
+    contactInfo?: { phone?: string; email?: string; calendly?: string }
   }
 
   let brandName: string | null = null
+  let brandTone: string | undefined
   let colors = { primary: '#1B365D', secondary: '#4A90D9', accent: '#FFB347', background: '#0a1628', text: '#FFFFFF' }
 
   if (brandId) {
     const { data: brand } = await supabase.from('brands').select('*').eq('id', brandId).single()
     if (brand) {
       brandName = brand.name
+      brandTone = (brand as any).tone ?? undefined
       colors = {
         primary: brand.primary_color,
         secondary: brand.secondary_color,
@@ -43,7 +47,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const scenes = await generateScript(policyData, brandName, colors, detailed ?? false)
+    const scenes = await generateScript(policyData, brandName, colors, detailed ?? false, 0, voiceId, brandTone, contactInfo)
     return NextResponse.json({ scenes })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Script generation failed'

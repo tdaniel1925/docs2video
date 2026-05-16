@@ -2330,6 +2330,32 @@ export default function CreatePage() {
                         ~{Math.round((scene.narration?.split(/\s+/).length ?? 0) / 2.5)}s
                       </span>
                       <button
+                        title="Thumbs up"
+                        onClick={() => {
+                          fetch('/api/slide-feedback', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ slideIndex: i, styleId: selectedStyle, slidePrompt: scene.slidePrompt, rating: 'thumbs_up' }),
+                          })
+                        }}
+                        style={{ fontSize: 16, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', opacity: 0.6 }}
+                      >
+                        &#128077;
+                      </button>
+                      <button
+                        title="Thumbs down"
+                        onClick={() => {
+                          fetch('/api/slide-feedback', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ slideIndex: i, styleId: selectedStyle, slidePrompt: scene.slidePrompt, rating: 'thumbs_down' }),
+                          })
+                        }}
+                        style={{ fontSize: 16, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', opacity: 0.6 }}
+                      >
+                        &#128078;
+                      </button>
+                      <button
                         className="btn btn-soft btn-sm"
                         onClick={() => {
                           setEditingSlide(editingSlide === i ? null : i)
@@ -2341,7 +2367,14 @@ export default function CreatePage() {
                       </button>
                       <button
                         className="btn btn-soft btn-sm"
-                        onClick={() => handleRegenerateSlide(i)}
+                        onClick={() => {
+                          fetch('/api/slide-feedback', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ slideIndex: i, styleId: selectedStyle, slidePrompt: scene.slidePrompt, rating: 'redo' }),
+                          })
+                          handleRegenerateSlide(i)
+                        }}
                         disabled={slidesLoading[i]}
                         style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, opacity: slidesLoading[i] ? 0.5 : 1 }}
                       >
@@ -2432,7 +2465,17 @@ export default function CreatePage() {
 
           <div className="wizard-actions">
             <button onClick={() => setStep('choose-style')} className="btn btn-soft">&larr; Back</button>
-            <button onClick={() => setStep('choose-voice')} className="btn btn-primary">
+            <button onClick={() => {
+              const scenes = editableScenes.length > 0 ? editableScenes : generatedScenes
+              scenes.forEach((_: any, i: number) => {
+                fetch('/api/slide-feedback', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ slideIndex: i, styleId: selectedStyle, slidePrompt: scenes[i]?.slidePrompt, rating: 'approve' }),
+                })
+              })
+              setStep('choose-voice')
+            }} className="btn btn-primary">
               Approve &amp; Choose Voice &rarr;
             </button>
           </div>

@@ -379,6 +379,9 @@ ${structuredPrompt}
 - All text must be large enough to read on a phone (minimum 36pt equivalent)
 - Use ONLY the design style described above — do not switch to a generic corporate look
 - Use the FULL canvas — do not leave empty areas, reserved zones, or placeholder boxes
+- VERIFY: Every number, dollar amount, and percentage on the slide MUST exactly match the data provided. Do not round, estimate, or change any numbers.
+- TEXT LIMIT: Maximum 50 words of visible text per slide. Use large numbers, short labels, and icons instead of paragraphs.
+${previousSlideBuffer || templateRefBuffer ? '- VISUAL CONSISTENCY: Match the exact same color palette, font style, layout grid, and visual language as the reference image provided. The slides must look like they belong to the same deck.' : ''}
 ${isInsurance ? '- LEGAL: Do NOT display any insurance carrier or company name anywhere on the slide. This is a legal requirement.' : ''}
 
 === FORBIDDEN (DO NOT DO ANY OF THESE) ===

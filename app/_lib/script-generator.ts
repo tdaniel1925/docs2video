@@ -228,19 +228,59 @@ Return ONLY valid JSON array (no markdown, no code fences):
   }
 }
 
+// Map voice IDs to natural descriptions for script tone matching
+function getVoiceDescription(voiceId?: string): string | null {
+  if (!voiceId) return null
+  const map: Record<string, string> = {
+    nova: 'warm female voice',
+    shimmer: 'warm female voice',
+    onyx: 'deep male voice',
+    echo: 'deep male voice',
+    alloy: 'neutral voice',
+    fable: 'expressive British male voice',
+  }
+  return map[voiceId] ?? null
+}
+
 export async function generateScript(
   data: ExtractedPolicyData | ExtractedData,
   brandName: string | null,
   colors: { primary: string; secondary: string; accent: string; background: string; text: string },
   detailed: boolean = false,
-  assetCount?: number
+  assetCount: number = 0,
+  voiceId?: string,
+  brandTone?: string,
+  contactInfo?: { phone?: string; email?: string; calendly?: string }
 ): Promise<VideoScene[]> {
   const isInsurance = 'deathBenefit' in data
   const promptBody = isInsurance
     ? buildInsuranceScriptPrompt(data as ExtractedPolicyData, brandName, detailed, assetCount ?? 0)
     : buildGenericScriptPrompt(data as ExtractedData, brandName, detailed, assetCount ?? 0)
 
-  const prompt = `${promptBody}
+  // Build additional prompt sections based on new parameters
+  const additionalSections: string[] = []
+
+  const voiceDesc = getVoiceDescription(voiceId)
+  if (voiceDesc) {
+    additionalSections.push(`VOICE STYLE: The narration will be read by a ${voiceDesc}. Write the script to match this voice's natural speaking style.`)
+  }
+
+  if (brandTone) {
+    additionalSections.push(`BRAND TONE: The brand's voice is ${brandTone}. Match this tone throughout the narration.`)
+  }
+
+  if (contactInfo && (contactInfo.phone || contactInfo.email || contactInfo.calendly)) {
+    const parts: string[] = []
+    if (contactInfo.phone) parts.push(contactInfo.phone)
+    if (contactInfo.email) parts.push(contactInfo.email)
+    const contactText = parts.length > 0 ? `Include the agent's contact details: ${parts.join(' ')}. ` : ''
+    const calendlyText = contactInfo.calendly ? 'Say "You can schedule a call directly from this page."' : ''
+    additionalSections.push(`CONTACT INFO FOR CTA: ${contactText}${calendlyText}`)
+  }
+
+  const additionalBlock = additionalSections.length > 0 ? '\n\n' + additionalSections.join('\n\n') : ''
+
+  const prompt = `${promptBody}${additionalBlock}
 
 Return ONLY valid JSON array (no markdown, no code fences):
 [
