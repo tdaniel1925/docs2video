@@ -50,6 +50,8 @@ export default function SetupPage() {
   const [selectedStyle, setSelectedStyle] = useState('luxury')
   const [expandedStyle, setExpandedStyle] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [showPlansModal, setShowPlansModal] = useState(false)
+  const [subscribing, setSubscribing] = useState(false)
 
   const [error, setError] = useState<string | null>(null)
 
@@ -575,7 +577,103 @@ export default function SetupPage() {
             </div>
             <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
               <strong style={{ color: 'var(--ink)' }}>Save up to 60%</strong> with a subscription plan. Starting at just $29/mo for 20 videos.{' '}
-              <span style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600, cursor: 'pointer' }}>View plans &rarr;</span>
+              <button onClick={() => setShowPlansModal(true)} style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600, cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', textDecoration: 'underline' }}>View plans &rarr;</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Plans Modal */}
+      {showPlansModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', padding: 20 }}
+          onClick={() => setShowPlansModal(false)}>
+          <div style={{ width: '100%', maxWidth: 700, maxHeight: '90vh', overflow: 'auto', background: 'white', borderRadius: 10, padding: 32 }}
+            onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+              <div>
+                <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>Choose a plan</h2>
+                <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '4px 0 0' }}>Subscribe and save vs pay-per-video. Cancel anytime.</p>
+              </div>
+              <button onClick={() => setShowPlansModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--ink-light)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            {/* Comparison table */}
+            <div style={{ border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
+              {/* Header */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', background: 'var(--bg-soft)', borderBottom: '1px solid var(--border-light)' }}>
+                <div style={{ padding: '12px 16px', fontSize: 12, fontWeight: 700, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em' }}></div>
+                <div style={{ padding: '12px 16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Starter</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>$29<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-soft)' }}>/mo</span></div>
+                </div>
+                <div style={{ padding: '12px 16px', textAlign: 'center', background: 'var(--mint, #d4edda)', position: 'relative' }}>
+                  <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--ink)', color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>BEST VALUE</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Pro</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>$49<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-soft)' }}>/mo</span></div>
+                </div>
+                <div style={{ padding: '12px 16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Agency</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>$149<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-soft)' }}>/mo</span></div>
+                </div>
+              </div>
+              {/* Rows */}
+              {[
+                { label: 'Videos / month', values: ['20', '60', '150'] },
+                { label: 'Cost per video', values: ['$1.45', '$0.82', '$0.99'] },
+                { label: 'vs. pay-per-video ($10)', values: ['Save 85%', 'Save 92%', 'Save 90%'], highlight: true },
+                { label: 'Custom templates', values: ['3', 'Unlimited', 'Unlimited'] },
+                { label: 'Brand profiles', values: ['3', 'Unlimited', 'Unlimited'] },
+                { label: 'Team seats', values: ['1', '3', '10'] },
+                { label: 'Priority support', values: ['\u2713', '\u2713', '\u2713'] },
+              ].map((row, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', borderBottom: '1px solid var(--border-light)' }}>
+                  <div style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{row.label}</div>
+                  {row.values.map((val, j) => (
+                    <div key={j} style={{ padding: '10px 16px', fontSize: 13, textAlign: 'center', color: row.highlight ? 'var(--mint-darker, #2d7a4f)' : 'var(--ink-soft)', fontWeight: row.highlight ? 700 : 400, background: j === 1 ? 'rgba(199,232,168,0.08)' : 'transparent' }}>
+                      {val}
+                    </div>
+                  ))}
+                </div>
+              ))}
+              {/* CTA row */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', padding: '12px 0' }}>
+                <div></div>
+                {['starter', 'pro', 'agency'].map((plan) => (
+                  <div key={plan} style={{ padding: '4px 16px', textAlign: 'center' }}>
+                    <button
+                      disabled={subscribing}
+                      onClick={async () => {
+                        setSubscribing(true)
+                        try {
+                          const res = await fetch('/api/stripe/checkout', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ planId: plan }),
+                          })
+                          const data = await res.json()
+                          if (data.url) window.location.href = data.url
+                          else throw new Error(data.error || 'Failed')
+                        } catch (err) {
+                          setError(err instanceof Error ? err.message : 'Failed to start checkout')
+                        }
+                        setSubscribing(false)
+                      }}
+                      className={plan === 'pro' ? 'btn btn-primary btn-sm' : 'btn btn-soft btn-sm'}
+                      style={{ width: '100%', fontSize: 12 }}
+                    >
+                      {subscribing ? '...' : 'Subscribe'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ textAlign: 'center' }}>
+              <button onClick={() => setShowPlansModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--ink-soft)', fontWeight: 600 }}>
+                No thanks, I&apos;ll stick with pay-per-video for now
+              </button>
             </div>
           </div>
         </div>
