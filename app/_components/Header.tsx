@@ -8,16 +8,18 @@ import { logout } from '../_actions/auth'
 import type { Profile } from '../_lib/types'
 import { isAdmin } from '../_lib/admin'
 
-const CREATE_ITEMS_LIST = [
+const CREATE_ITEMS = [
   { href: '/quick', icon: '\uD83D\uDCF9', title: 'Video Explainer', desc: 'Narrated video + share page' },
-  { href: '/create', icon: '\uD83C\uDFA8', title: 'Pro Mode', desc: 'Full control — choose style, slides, voice' },
+  { href: '/deck-builder', icon: '\uD83D\uDCCA', title: 'Slide Deck', desc: 'PPTX presentation without audio' },
   { href: '/fix', icon: '\u2728', title: 'Photo Fixer', desc: 'Enhance, fix background, pro headshot' },
-  { href: '/templates', icon: '\uD83D\uDDBC\uFE0F', title: 'Templates', desc: 'Browse or create custom styles' },
-  { href: '/brands/new', icon: '\uD83C\uDFA8', title: 'New Brand', desc: 'Colors, logo, brand guide from URL' },
 ]
 
-// Flat list for route matching
-const CREATE_ITEMS = CREATE_ITEMS_LIST
+const TOOLS_ITEMS = [
+  { href: '/create', icon: '\uD83C\uDFAC', title: 'Pro Mode', desc: 'Full control over every detail' },
+  { href: '/templates', icon: '\uD83D\uDDBC\uFE0F', title: 'Templates', desc: 'Browse or create custom styles' },
+  { href: '/brands', icon: '\uD83C\uDFA8', title: 'Brands', desc: 'Manage colors, logos, brand guides' },
+  { href: '/brands/new', icon: '\uD83C\uDF10', title: 'New Brand from URL', desc: 'Scrape website for brand identity' },
+]
 
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -29,28 +31,30 @@ const NAV_LINKS = [
 export default function Header({ profile }: { profile: Profile }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
+  const [toolsOpen, setToolsOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
   const createRef = useRef<HTMLDivElement>(null)
+  const toolsRef = useRef<HTMLDivElement>(null)
 
   const showAdmin = isAdmin(profile.email)
 
-  // Close create dropdown on click outside
+  // Close dropdowns on click outside
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (createRef.current && !createRef.current.contains(e.target as Node)) {
-        setCreateOpen(false)
-      }
+      if (createRef.current && !createRef.current.contains(e.target as Node)) setCreateOpen(false)
+      if (toolsRef.current && !toolsRef.current.contains(e.target as Node)) setToolsOpen(false)
     }
-    if (createOpen) {
+    if (createOpen || toolsOpen) {
       document.addEventListener('mousedown', handleClick)
       return () => document.removeEventListener('mousedown', handleClick)
     }
-  }, [createOpen])
+  }, [createOpen, toolsOpen])
 
   // Close dropdowns on route change
   useEffect(() => {
     setCreateOpen(false)
+    setToolsOpen(false)
     setMenuOpen(false)
     setMobileOpen(false)
   }, [pathname])
@@ -58,6 +62,9 @@ export default function Header({ profile }: { profile: Profile }) {
   const isCreateActive = CREATE_ITEMS.some(
     (item) => pathname === item.href || pathname.startsWith(item.href + '/')
   ) || pathname === '/create' || pathname.startsWith('/create/')
+  const isToolsActive = TOOLS_ITEMS.some(
+    (item) => pathname === item.href || pathname.startsWith(item.href + '/')
+  )
 
   return (
     <header className="app-header">
@@ -98,6 +105,48 @@ export default function Header({ profile }: { profile: Profile }) {
                       key={item.href}
                       href={item.href}
                       onClick={() => setCreateOpen(false)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
+                        borderRadius: 8, textDecoration: 'none', color: 'var(--ink)',
+                        transition: 'background 0.1s',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-soft)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <span style={{ fontSize: 20, width: 32, textAlign: 'center' }}>{item.icon}</span>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{item.title}</div>
+                        <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>{item.desc}</div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Tools dropdown */}
+            <div ref={toolsRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+              <button
+                onClick={() => setToolsOpen(!toolsOpen)}
+                className={isToolsActive ? 'active' : ''}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '8px 16px', borderRadius: 10, fontSize: 14, fontWeight: 500, color: 'var(--ink-soft)' }}
+              >
+                Tools
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.5 }}>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              {toolsOpen && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, marginTop: 8,
+                  width: 280, background: 'var(--bg-card)', border: '1px solid var(--border-light)',
+                  borderRadius: 10, padding: 6, boxShadow: '0 8px 30px rgba(0,0,0,0.12)', zIndex: 200,
+                }}>
+                  {TOOLS_ITEMS.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setToolsOpen(false)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
                         borderRadius: 8, textDecoration: 'none', color: 'var(--ink)',
@@ -238,6 +287,12 @@ export default function Header({ profile }: { profile: Profile }) {
           <Link href="/dashboard" className={pathname === '/dashboard' ? 'active' : ''}>Dashboard</Link>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-light)', padding: '12px 0 4px' }}>Create</div>
           {CREATE_ITEMS.map((item) => (
+            <Link key={item.href} href={item.href} className={pathname === item.href ? 'active' : ''}>
+              {item.icon} {item.title}
+            </Link>
+          ))}
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-light)', padding: '12px 0 4px' }}>Tools</div>
+          {TOOLS_ITEMS.map((item) => (
             <Link key={item.href} href={item.href} className={pathname === item.href ? 'active' : ''}>
               {item.icon} {item.title}
             </Link>
