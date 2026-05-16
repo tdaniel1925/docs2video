@@ -26,6 +26,7 @@ export default function SettingsPage() {
 
   const [stripeMessage, setStripeMessage] = useState<string | null>(null)
   const [calendlyUrl, setCalendlyUrl] = useState('')
+  const [calendarProvider, setCalendarProvider] = useState<'calendly' | 'calcom' | 'google'>('calendly')
   const [calendarySaving, setCalendarySaving] = useState(false)
   const [calendarySaved, setCalendarySaved] = useState(false)
   const [defaultStyle, setDefaultStyle] = useState('luxury')
@@ -390,8 +391,8 @@ export default function SettingsPage() {
                     <div key={conn.id} style={{ borderRadius: 10, border: '1px solid var(--border-light)', padding: '12px 16px', marginBottom: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 32, height: 32, borderRadius: 8, background: conn.provider === 'microsoft' ? 'rgba(74,144,217,0.15)' : 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: conn.provider === 'microsoft' ? '#4A90D9' : 'var(--ink-soft)' }}>
-                            {conn.provider === 'microsoft' ? 'MS' : 'SM'}
+                          <div style={{ width: 32, height: 32, borderRadius: 8, background: conn.provider === 'microsoft' ? 'rgba(74,144,217,0.15)' : conn.provider === 'google' ? 'rgba(234,67,53,0.12)' : 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: conn.provider === 'microsoft' ? '#4A90D9' : conn.provider === 'google' ? '#EA4335' : 'var(--ink-soft)' }}>
+                            {conn.provider === 'microsoft' ? 'MS' : conn.provider === 'google' ? 'G' : 'SM'}
                           </div>
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -403,7 +404,7 @@ export default function SettingsPage() {
                                 </span>
                               )}
                             </div>
-                            <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>{conn.provider === 'smtp' ? 'SMTP/IMAP' : 'Microsoft 365'}</div>
+                            <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>{conn.provider === 'smtp' ? 'SMTP/IMAP' : conn.provider === 'google' ? 'Gmail' : 'Microsoft 365'}</div>
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 6 }}>
@@ -434,6 +435,13 @@ export default function SettingsPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>Microsoft 365 / Outlook</div>
                   <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>One-click OAuth setup</div>
+                </div>
+              </a>
+              <a href="/api/auth/google" style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 10, border: '1px solid var(--border-light)', padding: '14px 16px', textDecoration: 'none', color: 'var(--ink)' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(234,67,53,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#EA4335' }}>G</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>Gmail / Google Workspace</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>Connect with OAuth — send from your Gmail</div>
                 </div>
               </a>
               <button onClick={() => setShowSmtpModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 10, border: '1px solid var(--border-light)', padding: '14px 16px', background: 'none', cursor: 'pointer', color: 'var(--ink)', textAlign: 'left', width: '100%' }}>
@@ -473,14 +481,56 @@ export default function SettingsPage() {
           {/* Calendar */}
           <div className="settings-card">
             <h3>Calendar Booking</h3>
-            <p className="ssub">Enter your Calendly or Cal.com URL to show a booking widget on your share pages.</p>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <input value={calendlyUrl} onChange={e => setCalendlyUrl(e.target.value)} className="input" placeholder="https://calendly.com/your-name" style={{ flex: 1 }} />
-              <button onClick={saveCalendly} disabled={calendarySaving} className="btn btn-primary btn-sm">
-                {calendarySaving ? 'Saving...' : 'Save'}
-              </button>
-              {calendarySaved && <span style={{ fontSize: 12, color: 'var(--mint-darker)', fontWeight: 600 }}>Saved!</span>}
+            <p className="ssub">Connect your scheduling tool so clients can book meetings from your share pages.</p>
+
+            <div style={{ marginBottom: 12 }}>
+              <label className="input-label" style={{ marginBottom: 6, display: 'block' }}>Provider</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {([
+                  { id: 'calendly' as const, label: 'Calendly' },
+                  { id: 'calcom' as const, label: 'Cal.com' },
+                  { id: 'google' as const, label: 'Google Calendar' },
+                ]).map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => setCalendarProvider(p.id)}
+                    className={`btn btn-sm ${calendarProvider === p.id ? 'btn-primary' : 'btn-soft'}`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {calendarProvider === 'google' ? (
+              <div>
+                <a href="/api/auth/google/calendar" className="btn btn-primary">
+                  Connect Google Calendar &rarr;
+                </a>
+                <p style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 8 }}>
+                  OAuth connection lets clients book directly on your Google Calendar.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <input
+                    value={calendlyUrl}
+                    onChange={e => setCalendlyUrl(e.target.value)}
+                    className="input"
+                    placeholder={calendarProvider === 'calendly' ? 'https://calendly.com/your-name/30min' : 'https://cal.com/your-name'}
+                    style={{ flex: 1 }}
+                  />
+                  <button onClick={saveCalendly} disabled={calendarySaving} className="btn btn-primary btn-sm">
+                    {calendarySaving ? 'Saving...' : 'Save'}
+                  </button>
+                  {calendarySaved && <span style={{ fontSize: 12, color: 'var(--mint-darker)', fontWeight: 600 }}>Saved!</span>}
+                </div>
+                <p style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 8 }}>
+                  Tip: Paste your booking link from Calendly, Cal.com, or any scheduling tool.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -514,7 +564,7 @@ export default function SettingsPage() {
               </div>
               {(profile as any).stripe_customer_id && (
                 <button onClick={async () => {
-                  const res = await fetch('/api/stripe-portal', { method: 'POST' })
+                  const res = await fetch('/api/stripe/portal', { method: 'POST' })
                   const data = await res.json()
                   if (data.url) window.location.href = data.url
                 }} className="btn btn-soft">Manage Billing</button>
@@ -601,7 +651,7 @@ export default function SettingsPage() {
                     ) : plan.tier === 'free' ? (
                       (profile as any).stripe_customer_id ? (
                         <button onClick={async () => {
-                          const res = await fetch('/api/stripe-portal', { method: 'POST' })
+                          const res = await fetch('/api/stripe/portal', { method: 'POST' })
                           const data = await res.json()
                           if (data.url) window.location.href = data.url
                         }} className="btn btn-soft" style={{ width: '100%', fontSize: 13 }}>
