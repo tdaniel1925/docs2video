@@ -845,10 +845,11 @@ export default function VideoDetailPage() {
     }
   }
 
+  const [copied, setCopied] = useState(false)
+
   function copyShareLink() {
     const url = `${window.location.origin}/watch/${params.id}`
 
-    // Check if this is an insurance video
     const pipelineInput = (video?.script as any)?._pipeline_input
     const pd = pipelineInput?.policyData
     const isInsuranceVideo = !!(pd?.deathBenefit)
@@ -856,11 +857,11 @@ export default function VideoDetailPage() {
     if (isInsuranceVideo) {
       const textWithDisclaimer = `I've prepared a video overview of your policy illustration. Click below to watch:\n\n${url}\n\nImportant Disclosure: This video is for educational and informational purposes only and is not intended as legal, tax, or financial advice. Policy guarantees are based on the claims-paying ability of the issuing insurance company. Non-guaranteed values are subject to change. The policy contract and official carrier-issued illustration govern all policy values and guarantees. This video is not endorsed by or affiliated with any insurance carrier and is not a solicitation to purchase insurance. Please review all official policy materials and consult with your licensed professional before making any decisions.`
       navigator.clipboard.writeText(textWithDisclaimer)
-      alert('Link and disclaimers copied to clipboard')
     } else {
       navigator.clipboard.writeText(url)
-      alert('Share link copied!')
     }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 3000)
   }
 
   if (!video) {
@@ -1227,8 +1228,8 @@ export default function VideoDetailPage() {
               <button onClick={() => setShowShareModal(true)} className="btn btn-mint" style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}>
                 Share with Client
               </button>
-              <button onClick={copyShareLink} className="btn btn-soft" style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}>
-                Copy Link
+              <button onClick={copyShareLink} className={`btn ${copied ? 'btn-mint' : 'btn-soft'}`} style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8, transition: 'all 0.2s ease' }}>
+                {copied ? '\u2713 Copied!' : 'Copy Link'}
               </button>
               <button onClick={handleDownload} className="btn btn-soft" style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}>
                 MP4
