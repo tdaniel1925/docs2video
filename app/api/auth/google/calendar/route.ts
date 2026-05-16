@@ -11,7 +11,7 @@ export async function GET() {
     client_id: process.env.GOOGLE_CLIENT_ID!,
     response_type: 'code',
     redirect_uri: `${siteUrl}/api/auth/google/callback`,
-    scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email',
+    scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email',
     access_type: 'offline',
     prompt: 'consent',
     state: `${user.id}:calendar`,
