@@ -14,11 +14,8 @@ const TYPE_BADGE: Record<string, { label: string; color: string }> = {
   template: { label: 'Template', color: 'peach' },
 }
 
-const HERO_PRODUCTS = [
-  { href: '/create', icon: '\uD83C\uDFAC', label: 'Video Explainer', desc: 'Turn any document into a narrated video', price: '$29', cta: 'Create' },
-  { href: '/brand-kit', icon: '\uD83C\uDFAF', label: 'Brand Kit', desc: 'Logo, cards, social media \u2014 everything', price: '$149', cta: 'Build' },
-  { href: '/logo-creator', icon: '\uD83C\uDFA8', label: 'Logo Design', desc: '4 AI-designed logo concepts', price: '$49', cta: 'Design' },
-]
+// Loom walkthrough video URL — replace with your actual Loom embed URL
+const GETTING_STARTED_VIDEO = 'https://www.loom.com/embed/YOUR_LOOM_ID'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -160,50 +157,55 @@ export default async function DashboardPage() {
       )}
 
       {isFirstTime ? (
-        /* ── First-time user: welcome hero ── */
+        /* ── First-time user: getting started ── */
         <div style={{ marginTop: 8 }}>
-          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24, textAlign: 'center' }}>
-            What would you like to create?
-          </h2>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 32 }}>
-            {HERO_PRODUCTS.map((p) => (
-              <Link
-                key={p.href}
-                href={p.href}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  textAlign: 'center',
-                  background: 'white',
-                  border: '1px solid var(--border-light)',
-                  borderRadius: 16,
-                  padding: '40px 24px 32px',
-                  textDecoration: 'none',
-                  color: 'var(--ink)',
-                  transition: 'box-shadow 0.15s ease, transform 0.15s ease',
-                }}
-                className="activity-row"
-              >
-                <div style={{ fontSize: 48, marginBottom: 16 }}>{p.icon}</div>
-                <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{p.label}</div>
-                <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20, lineHeight: 1.5 }}>
-                  {p.desc}
+          {/* Getting started video */}
+          <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
+            <div style={{ position: 'relative', aspectRatio: '16/9', background: '#0a1628', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              onClick={() => {
+                // Open Loom video in a modal — for now, open in new tab
+                window.open(GETTING_STARTED_VIDEO.replace('/embed/', '/share/'), '_blank')
+              }}>
+              <div style={{ textAlign: 'center', color: 'white' }}>
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(199,232,168,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--mint, #C7E8A8)"><polygon points="8 4 20 12 8 20" /></svg>
                 </div>
-                <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 16, color: 'var(--ink)' }}>
-                  {p.price}
-                </div>
-                <span className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-                  {p.cta} &rarr;
-                </span>
-              </Link>
-            ))}
+                <div style={{ fontSize: 18, fontWeight: 700 }}>See how Docs2Video works</div>
+                <div style={{ fontSize: 13, opacity: 0.6, marginTop: 4 }}>2 minute walkthrough</div>
+              </div>
+            </div>
           </div>
 
-          <div style={{ textAlign: 'center' }}>
-            <Link href="/create" style={{ fontSize: 14, color: 'var(--ink-soft)', textDecoration: 'underline' }}>
-              Or explore all products &rarr;
+          {/* Main CTA */}
+          <Link
+            href="/quick"
+            style={{
+              display: 'block', textDecoration: 'none', color: 'var(--ink)',
+              background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+              padding: '28px 24px', marginBottom: 20, textAlign: 'center',
+              transition: 'box-shadow 0.15s ease',
+            }}
+            className="activity-row"
+          >
+            <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Create a Video Explainer</div>
+            <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20, lineHeight: 1.6 }}>
+              Upload any document, paste text, or describe an idea — and get a professional narrated video in minutes.
+            </div>
+            <span className="btn btn-primary btn-lg" style={{ fontSize: 16 }}>
+              + Create Video Explainer &rarr;
+            </span>
+          </Link>
+
+          {/* Quick start options */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            <Link href="/quick" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, textDecoration: 'none', color: 'var(--ink)', fontSize: 13, fontWeight: 600, transition: 'border-color 0.15s' }} className="activity-row">
+              <span style={{ fontSize: 20 }}>&#128196;</span> Upload a PDF
+            </Link>
+            <Link href="/quick?tab=text" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, textDecoration: 'none', color: 'var(--ink)', fontSize: 13, fontWeight: 600, transition: 'border-color 0.15s' }} className="activity-row">
+              <span style={{ fontSize: 20 }}>&#9997;&#65039;</span> Type or paste
+            </Link>
+            <Link href="/quick?tab=idea" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, textDecoration: 'none', color: 'var(--ink)', fontSize: 13, fontWeight: 600, transition: 'border-color 0.15s' }} className="activity-row">
+              <span style={{ fontSize: 20 }}>&#128161;</span> Start from idea
             </Link>
           </div>
         </div>
@@ -213,7 +215,7 @@ export default async function DashboardPage() {
           {/* Big Create button */}
           <div style={{ marginBottom: 32 }}>
             <Link
-              href="/create"
+              href="/quick"
               className="btn btn-primary"
               style={{
                 display: 'inline-flex',
@@ -222,11 +224,10 @@ export default async function DashboardPage() {
                 fontSize: 18,
                 fontWeight: 700,
                 padding: '16px 36px',
-                borderRadius: 12,
+                borderRadius: 10,
               }}
             >
-              + Create
-              <span style={{ fontSize: 13, fontWeight: 500, opacity: 0.8 }}>&mdash; $10 per video</span>
+              + Create Video Explainer
             </Link>
           </div>
 
