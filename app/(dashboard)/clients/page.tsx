@@ -15,6 +15,18 @@ interface Client {
   totalChats: number
 }
 
+interface ClientIntel {
+  email: string
+  name: string
+  totalViews: number
+  videosSent: number
+  avgEngagement: number
+  lastActivity: string | null
+  converted: boolean
+  preferredDevice: string | null
+  preferredTime: string | null
+}
+
 function statusBadge(status: string) {
   const styles: Record<string, { bg: string; color: string }> = {
     engaged: { bg: 'var(--mint, #d4f5e9)', color: '#166534' },
@@ -36,6 +48,7 @@ function statusBadge(status: string) {
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
+  const [intel, setIntel] = useState<ClientIntel[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedClient, setExpandedClient] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -43,10 +56,17 @@ export default function ClientsPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch('/api/clients')
-        if (res.ok) {
-          const data = await res.json()
+        const [clientsRes, intelRes] = await Promise.all([
+          fetch('/api/clients'),
+          fetch('/api/client-intelligence'),
+        ])
+        if (clientsRes.ok) {
+          const data = await clientsRes.json()
           setClients(data.clients ?? [])
+        }
+        if (intelRes.ok) {
+          const data = await intelRes.json()
+          setIntel(data.clients ?? [])
         }
       } catch {
         // ignore
@@ -205,7 +225,7 @@ export default function ClientsPage() {
                           background: 'var(--bg, #f7f7f7)',
                           borderBottom: '1px solid var(--border-light)',
                         }}>
-                          <div style={{ display: 'flex', gap: 24, marginBottom: 12 }}>
+                          <div style={{ display: 'flex', gap: 24, marginBottom: 12, flexWrap: 'wrap' }}>
                             <div style={{ fontSize: 13 }}>
                               <strong>Views:</strong> {client.totalViews}
                             </div>
@@ -215,6 +235,32 @@ export default function ClientsPage() {
                             <div style={{ fontSize: 13 }}>
                               <strong>Chat Messages:</strong> {client.totalChats}
                             </div>
+                            {(() => {
+                              const ci = intel.find(i => i.email === client.email)
+                              if (!ci) return null
+                              return (
+                                <>
+                                  <div style={{ fontSize: 13 }}>
+                                    <strong>Preferred Device:</strong> {ci.preferredDevice ?? '--'}
+                                  </div>
+                                  <div style={{ fontSize: 13 }}>
+                                    <strong>Active Time:</strong> {ci.preferredTime ?? '--'}
+                                  </div>
+                                  <div style={{ fontSize: 13 }}>
+                                    <strong>Converted:</strong>{' '}
+                                    <span style={{ color: ci.converted ? '#16a34a' : 'var(--ink-light)' }}>
+                                      {ci.converted ? 'Yes' : 'No'}
+                                    </span>
+                                  </div>
+                                  {ci.lastActivity && (
+                                    <div style={{ fontSize: 13 }}>
+                                      <strong>Last Activity:</strong>{' '}
+                                      {new Date(ci.lastActivity).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </div>
+                                  )}
+                                </>
+                              )
+                            })()}
                           </div>
                           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Videos:</div>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

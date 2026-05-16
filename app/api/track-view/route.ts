@@ -45,6 +45,76 @@ export async function POST(request: Request) {
       })
     }
 
+    // Upsert client_profiles for intelligence tracking (view events only)
+    if (eventType === 'view') {
+      try {
+        const { data: video } = await supabase
+          .from('videos')
+          .select('user_id')
+          .eq('id', videoId)
+          .single()
+
+        if (video) {
+          // Determine device type from user agent
+          const ua = viewerDevice.toLowerCase()
+          const device = ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')
+            ? 'mobile'
+            : ua.includes('tablet') || ua.includes('ipad')
+            ? 'tablet'
+            : 'desktop'
+
+          // Determine preferred time based on hour
+          const hour = new Date().getUTCHours()
+          const timeOfDay = hour < 6 ? 'night' : hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening'
+
+          // Try to find client email from quotes for this video
+          const { data: quote } = await supabase
+            .from('quotes')
+            .select('client_email, client_name')
+            .eq('video_id', videoId)
+            .single()
+
+          if (quote?.client_email) {
+            // Check if profile exists
+            const { data: existing } = await supabase
+              .from('client_profiles')
+              .select('id, total_views')
+              .eq('user_id', video.user_id)
+              .eq('client_email', quote.client_email)
+              .single()
+
+            if (existing) {
+              await supabase
+                .from('client_profiles')
+                .update({
+                  total_views: (existing.total_views ?? 0) + 1,
+                  last_viewed_at: new Date().toISOString(),
+                  preferred_device: device,
+                  preferred_time: timeOfDay,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', existing.id)
+            } else {
+              await supabase
+                .from('client_profiles')
+                .insert({
+                  user_id: video.user_id,
+                  client_email: quote.client_email,
+                  client_name: quote.client_name,
+                  total_views: 1,
+                  total_videos_sent: 1,
+                  last_viewed_at: new Date().toISOString(),
+                  preferred_device: device,
+                  preferred_time: timeOfDay,
+                })
+            }
+          }
+        }
+      } catch (profileErr) {
+        console.error('[track-view] Client profile upsert error:', profileErr)
+      }
+    }
+
     // Send notification email + SMS to video owner (view events only)
     if (eventType === 'view') {
       try {

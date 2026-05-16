@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
+import { GoogleGenAI } from '@google/genai'
 
 export const runtime = 'nodejs'
+
+const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
 /**
  * Cron endpoint: sends follow-up emails for viewed quotes that haven't been paid.
@@ -109,6 +112,21 @@ export async function GET(request: Request) {
       const videoTitle = video.title ?? 'your presentation'
       const agentName = profile.full_name ?? 'Your advisor'
 
+      // Get client viewing behavior for personalization
+      const { data: clientAnalytics } = await supabase
+        .from('video_analytics')
+        .select('event_type, metadata, created_at')
+        .eq('video_id', view.video_id)
+        .order('created_at', { ascending: true })
+        .limit(20)
+
+      const { data: clientProfile } = await supabase
+        .from('client_profiles')
+        .select('preferred_device, preferred_time, total_views')
+        .eq('user_id', video.user_id)
+        .eq('client_email', clientEmail)
+        .single()
+
       // Determine which follow-up to send
       let emailType: string | null = null
       let subject = ''
@@ -116,38 +134,96 @@ export async function GET(request: Request) {
 
       if (daysSinceView >= 7 && !sentFollowUps.has(`${view.video_id}:follow_up_7day`)) {
         emailType = 'follow_up_7day'
-        subject = `Still interested? Re: ${videoTitle}`
-        html = `
-          <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
-            <p style="color:#333;font-size:15px;line-height:1.6;">Hi ${clientName},</p>
-            <p style="color:#555;font-size:14px;line-height:1.6;">
-              I wanted to follow up one more time regarding the presentation I shared with you: <strong>"${videoTitle}"</strong>.
-            </p>
-            <p style="color:#555;font-size:14px;line-height:1.6;">
-              If you have any questions or would like to discuss the details, I'm happy to help. Otherwise, no worries at all.
-            </p>
-            <p style="color:#555;font-size:14px;line-height:1.6;">
-              Best regards,<br/>${agentName}
-            </p>
-          </div>
-        `
       } else if (daysSinceView >= 3 && !sentFollowUps.has(`${view.video_id}:follow_up_3day`)) {
         emailType = 'follow_up_3day'
-        subject = `Quick follow-up: ${videoTitle}`
-        html = `
-          <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
-            <p style="color:#333;font-size:15px;line-height:1.6;">Hi ${clientName},</p>
-            <p style="color:#555;font-size:14px;line-height:1.6;">
-              I noticed you viewed the presentation I shared: <strong>"${videoTitle}"</strong>. I wanted to check in and see if you had any questions.
-            </p>
-            <p style="color:#555;font-size:14px;line-height:1.6;">
-              I'm available to walk through any details or answer any concerns you might have. Feel free to reply to this email.
-            </p>
-            <p style="color:#555;font-size:14px;line-height:1.6;">
-              Best,<br/>${agentName}
-            </p>
-          </div>
-        `
+      } else if (daysSinceView >= 1 && !sentFollowUps.has(`${view.video_id}:follow_up_1day`)) {
+        // Day 1: viewed but no action
+        const hasActions = clientAnalytics?.some(a =>
+          a.event_type === 'book_meeting' || a.event_type === 'download'
+        )
+        if (clientAnalytics && clientAnalytics.length > 0 && !hasActions) {
+          emailType = 'follow_up_1day'
+        }
+      }
+
+      if (emailType) {
+        // Generate personalized message with Gemini
+        try {
+          const viewBehavior = clientAnalytics?.map(a => `${a.event_type} at ${a.created_at}`).join(', ') ?? 'viewed'
+          const dayLabel = emailType === 'follow_up_1day' ? 'Day 1' : emailType === 'follow_up_3day' ? 'Day 3' : 'Day 7'
+          const hasViewed = (clientAnalytics?.length ?? 0) > 0
+
+          const prompt = `Write a short personalized follow-up email (${dayLabel} after sending a presentation).
+
+Context:
+- Agent name: ${agentName}
+- Client name: ${clientName}
+- Presentation title: "${videoTitle}"
+- Client has viewed: ${hasViewed ? 'Yes' : 'No'}
+- View behavior: ${viewBehavior}
+- Device: ${clientProfile?.preferred_device ?? 'unknown'}
+- Total views: ${clientProfile?.total_views ?? 0}
+- Days since sent: ${Math.round(daysSinceView)}
+
+Rules:
+${emailType === 'follow_up_1day' ? '- They viewed but took no action. Reference what they spent time on if visible.' : ''}
+${emailType === 'follow_up_3day' && !hasViewed ? '- They have NOT viewed yet. Gently resend the link.' : ''}
+${emailType === 'follow_up_7day' ? '- Final follow-up. Offer a quick call. Be warm, not pushy.' : ''}
+- Keep it 2-4 sentences max. Professional and warm.
+- Do NOT include a greeting line (no "Hi Name,") - that will be added separately.
+
+Return ONLY valid JSON (no markdown, no code fences):
+{"subject": "email subject", "body": "the email body text after greeting"}`
+
+          const response = await genai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+          })
+
+          const text = response.text?.trim() ?? ''
+          const cleaned = text.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim()
+          const result = JSON.parse(cleaned)
+
+          subject = result.subject
+          html = `
+            <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+              <p style="color:#333;font-size:15px;line-height:1.6;">Hi ${clientName},</p>
+              <p style="color:#555;font-size:14px;line-height:1.6;">${result.body}</p>
+              <p style="color:#555;font-size:14px;line-height:1.6;">Best,<br/>${agentName}</p>
+            </div>
+          `
+        } catch (geminiErr) {
+          console.error('[cron/follow-ups] Gemini error, using fallback:', geminiErr)
+          // Fallback to generic messages
+          if (emailType === 'follow_up_7day') {
+            subject = `Still interested? Re: ${videoTitle}`
+            html = `
+              <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+                <p style="color:#333;font-size:15px;line-height:1.6;">Hi ${clientName},</p>
+                <p style="color:#555;font-size:14px;line-height:1.6;">I wanted to follow up one more time regarding the presentation I shared: <strong>"${videoTitle}"</strong>. If you have any questions, I'm happy to hop on a quick call.</p>
+                <p style="color:#555;font-size:14px;line-height:1.6;">Best regards,<br/>${agentName}</p>
+              </div>
+            `
+          } else if (emailType === 'follow_up_3day') {
+            subject = `Quick follow-up: ${videoTitle}`
+            html = `
+              <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+                <p style="color:#333;font-size:15px;line-height:1.6;">Hi ${clientName},</p>
+                <p style="color:#555;font-size:14px;line-height:1.6;">I wanted to make sure you received the presentation I prepared for you: <strong>"${videoTitle}"</strong>. Feel free to reach out with any questions.</p>
+                <p style="color:#555;font-size:14px;line-height:1.6;">Best,<br/>${agentName}</p>
+              </div>
+            `
+          } else {
+            subject = `Following up: ${videoTitle}`
+            html = `
+              <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+                <p style="color:#333;font-size:15px;line-height:1.6;">Hi ${clientName},</p>
+                <p style="color:#555;font-size:14px;line-height:1.6;">Thanks for watching "${videoTitle}". I'd love to discuss any questions you might have.</p>
+                <p style="color:#555;font-size:14px;line-height:1.6;">Best,<br/>${agentName}</p>
+              </div>
+            `
+          }
+        }
       }
 
       if (!emailType) continue

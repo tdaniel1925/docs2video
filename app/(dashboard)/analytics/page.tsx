@@ -10,15 +10,57 @@ interface AnalyticsData {
   emailStats: { total: number; opened: number; openRate: number }
 }
 
+interface BenchmarkData {
+  watchThroughRate: { user: number; platform: number }
+  timeToFirstView: { user: number | null; platform: number }
+  conversionRate: { user: number; platform: number }
+  viewsThisMonth: number
+  viewsLastMonth: number
+  clientEngagement: { user: number; platform: number }
+}
+
+function BenchmarkRow({ label, userVal, platformVal, unit, invert }: {
+  label: string; userVal: string; platformVal: string; unit?: string; invert?: boolean
+}) {
+  const userNum = parseFloat(userVal)
+  const platNum = parseFloat(platformVal)
+  const isAbove = invert ? userNum < platNum : userNum > platNum
+  const diff = invert
+    ? platNum > 0 ? `${Math.round(((platNum - userNum) / platNum) * 100)}% faster` : ''
+    : `${Math.abs(Math.round(userNum - platNum))}%`
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border-light)' }}>
+      <span style={{ fontSize: 14, fontWeight: 500 }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ fontWeight: 700, fontSize: 15 }}>{userVal}{unit}</span>
+        <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>(avg: {platformVal}{unit})</span>
+        <span style={{
+          fontSize: 12,
+          fontWeight: 700,
+          color: isAbove ? '#16a34a' : '#dc2626',
+        }}>
+          {isAbove ? '\u2191' : '\u2193'} {diff}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null)
+  const [benchmarks, setBenchmarks] = useState<BenchmarkData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/analytics')
-      .then(r => r.json())
-      .then(d => { setData(d); setLoading(false) })
-      .catch(() => setLoading(false))
+    Promise.all([
+      fetch('/api/analytics').then(r => r.json()),
+      fetch('/api/benchmarks').then(r => r.json()).catch(() => null),
+    ]).then(([analyticsData, benchmarkData]) => {
+      setData(analyticsData)
+      setBenchmarks(benchmarkData)
+      setLoading(false)
+    }).catch(() => setLoading(false))
   }, [])
 
   if (loading) return <div className="page-wrap"><p>Loading analytics...</p></div>
@@ -96,7 +138,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Email stats */}
-      <div className="settings-card">
+      <div className="settings-card" style={{ marginBottom: 32 }}>
         <h3 style={{ marginBottom: 16 }}>Email Performance</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
           <div style={{ textAlign: 'center' }}>
@@ -113,6 +155,57 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </div>
+
+      {/* Benchmarks */}
+      {benchmarks && (
+        <div className="settings-card" style={{ marginBottom: 32 }}>
+          <h3 style={{ marginBottom: 4 }}>Your Performance vs. Platform Average</h3>
+          <p className="ssub" style={{ marginBottom: 16 }}>See how your presentations compare to other users on the platform.</p>
+          <BenchmarkRow
+            label="Watch-through rate"
+            userVal={String(benchmarks.watchThroughRate.user)}
+            platformVal={String(benchmarks.watchThroughRate.platform)}
+            unit="%"
+          />
+          <BenchmarkRow
+            label="Time to first view"
+            userVal={benchmarks.timeToFirstView.user != null ? String(benchmarks.timeToFirstView.user) : '0'}
+            platformVal={String(benchmarks.timeToFirstView.platform)}
+            unit=" hrs"
+            invert
+          />
+          <BenchmarkRow
+            label="Client engagement"
+            userVal={String(benchmarks.clientEngagement.user)}
+            platformVal={String(benchmarks.clientEngagement.platform)}
+            unit=" interactions"
+          />
+          <BenchmarkRow
+            label="Conversion rate"
+            userVal={String(benchmarks.conversionRate.user)}
+            platformVal={String(benchmarks.conversionRate.platform)}
+            unit="%"
+          />
+          <div style={{ marginTop: 16, display: 'flex', gap: 24 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 20, fontWeight: 700 }}>{benchmarks.viewsThisMonth}</div>
+              <div className="ssub">Views this month</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 20, fontWeight: 700 }}>{benchmarks.viewsLastMonth}</div>
+              <div className="ssub">Views last month</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: benchmarks.viewsThisMonth >= benchmarks.viewsLastMonth ? '#16a34a' : '#dc2626' }}>
+                {benchmarks.viewsLastMonth > 0
+                  ? `${benchmarks.viewsThisMonth >= benchmarks.viewsLastMonth ? '+' : ''}${Math.round(((benchmarks.viewsThisMonth - benchmarks.viewsLastMonth) / benchmarks.viewsLastMonth) * 100)}%`
+                  : '--'}
+              </div>
+              <div className="ssub">Month-over-month</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
