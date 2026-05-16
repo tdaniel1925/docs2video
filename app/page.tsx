@@ -217,6 +217,67 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* ───── Industry Intelligence (Key Differentiator) ───── */}
+        <section className="section" id="industries">
+          <div style={{textAlign:'center',marginBottom:48}}>
+            <div className="section-eyebrow">Industry intelligence</div>
+            <h2 className="section-title">The only explainer platform that <em>speaks your language</em></h2>
+            <p className="section-sub" style={{maxWidth:650,margin:'12px auto 0'}}>Other tools generate generic videos. Docs2Video auto-detects your industry and applies the right terminology, compliance language, storytelling structure, and visual style — automatically.</p>
+          </div>
+
+          {/* Industry grid */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(150px, 1fr))',gap:12,maxWidth:1000,margin:'0 auto 40px'}}>
+            {[
+              {icon:'🛡', label:'Insurance', detail:'Carrier rules, disclaimers, policy structure'},
+              {icon:'📊', label:'Financial', detail:'SEC compliance, portfolio terminology'},
+              {icon:'🏠', label:'Real Estate', detail:'Property features, market comps, MLS'},
+              {icon:'🏦', label:'Mortgage', detail:'APR, LTV, TILA/RESPA disclosures'},
+              {icon:'⚕', label:'Healthcare', detail:'Benefits, EOBs, patient-friendly terms'},
+              {icon:'⚖', label:'Legal', detail:'Plain-English contracts, liability terms'},
+              {icon:'📋', label:'Consulting', detail:'ROI, findings, strategic frameworks'},
+              {icon:'🎓', label:'Education', detail:'Research, curriculum, academic style'},
+              {icon:'📑', label:'Accounting', detail:'GAAP, tax implications, CPA language'},
+              {icon:'💻', label:'Technology', detail:'Specs, architecture, security audits'},
+              {icon:'👥', label:'HR', detail:'Compensation, benefits, offer letters'},
+              {icon:'💼', label:'Sales', detail:'Proposals, case studies, pricing'},
+            ].map((ind) => (
+              <div key={ind.label} style={{background:'white',border:'1px solid var(--border-light)',borderRadius:10,padding:'16px 14px',textAlign:'center',transition:'transform 0.2s'}} className="activity-row">
+                <div style={{fontSize:28,marginBottom:8}}>{ind.icon}</div>
+                <div style={{fontSize:13,fontWeight:700,color:'var(--ink)',marginBottom:4}}>{ind.label}</div>
+                <div style={{fontSize:11,color:'var(--ink-soft)',lineHeight:1.4}}>{ind.detail}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* What makes this different */}
+          <div style={{background:'var(--ink)',color:'white',borderRadius:10,padding:'40px 48px',maxWidth:900,margin:'0 auto'}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:32}}>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--mint)',marginBottom:12}}>What other tools do</div>
+                <ul style={{listStyle:'none',padding:0,margin:0,display:'flex',flexDirection:'column',gap:10}}>
+                  {['Generic scripts for every document','Same tone regardless of industry','No compliance awareness','Manual disclaimer writing','Generic "contact us" CTAs'].map((item,i) => (
+                    <li key={i} style={{fontSize:14,color:'rgba(255,255,255,0.5)',display:'flex',alignItems:'center',gap:8}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,100,100,0.7)" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--mint)',marginBottom:12}}>What Docs2Video does</div>
+                <ul style={{listStyle:'none',padding:0,margin:0,display:'flex',flexDirection:'column',gap:10}}>
+                  {['Auto-detects your industry from the document','Applies industry-specific terminology and tone','Adds required legal disclaimers automatically','Uses proven storytelling frameworks per industry','Industry-appropriate CTAs that convert'].map((item,i) => (
+                    <li key={i} style={{fontSize:14,color:'rgba(255,255,255,0.9)',display:'flex',alignItems:'center',gap:8}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--mint)" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ───── Share Page Section ───── */}
         <section className="section" id="share-page">
           <div style={{textAlign:'center',marginBottom:40}}>
