@@ -222,27 +222,27 @@ export default function HomePage() {
             <div className="section-eyebrow">The share page</div>
             <h2 className="section-title">One link replaces <em>five tools</em></h2>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))',gap:16,maxWidth:900,margin:'0 auto 40px'}}>
-            <div style={{background:'var(--surface)',borderRadius:10,padding:20,border:'1px solid var(--border)'}}>
-              <div style={{width:36,height:36,borderRadius:10,background:'var(--mint)',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:12}}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3, 1fr)',gap:24,maxWidth:1000,margin:'0 auto 48px'}}>
+            <div style={{background:'white',borderRadius:10,padding:32,border:'1px solid var(--border-light)',transition:'transform 0.2s, box-shadow 0.2s'}} className="activity-row">
+              <div style={{width:56,height:56,borderRadius:10,background:'var(--mint)',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
               </div>
-              <div style={{fontSize:14,fontWeight:700,color:'var(--ink)',marginBottom:4}}>Video explainer</div>
-              <div style={{fontSize:13,color:'var(--ink-soft)',lineHeight:1.5}}>Professional narrated video that walks your client through the data in plain language.</div>
+              <div style={{fontSize:18,fontWeight:800,color:'var(--ink)',marginBottom:8}}>Video explainer</div>
+              <div style={{fontSize:14,color:'var(--ink-soft)',lineHeight:1.7}}>Professional narrated video that walks your client through the data in plain language. They watch, understand, and take action.</div>
             </div>
-            <div style={{background:'var(--surface)',borderRadius:10,padding:20,border:'1px solid var(--border)'}}>
-              <div style={{width:36,height:36,borderRadius:10,background:'var(--lilac)',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:12}}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <div style={{background:'white',borderRadius:10,padding:32,border:'1px solid var(--border-light)',transition:'transform 0.2s, box-shadow 0.2s'}} className="activity-row">
+              <div style={{width:56,height:56,borderRadius:10,background:'var(--lilac)',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
               </div>
-              <div style={{fontSize:14,fontWeight:700,color:'var(--ink)',marginBottom:4}}>Calendar booking</div>
-              <div style={{fontSize:13,color:'var(--ink-soft)',lineHeight:1.5}}>Embed your calendar so clients can book a follow-up meeting right from the page.</div>
+              <div style={{fontSize:18,fontWeight:800,color:'var(--ink)',marginBottom:8}}>Calendar booking</div>
+              <div style={{fontSize:14,color:'var(--ink-soft)',lineHeight:1.7}}>Embed your Calendly, Cal.com, or Google Calendar so clients can book a follow-up meeting right from the share page.</div>
             </div>
-            <div style={{background:'var(--surface)',borderRadius:10,padding:20,border:'1px solid var(--border)'}}>
-              <div style={{width:36,height:36,borderRadius:10,background:'var(--sky)',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:12}}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <div style={{background:'white',borderRadius:10,padding:32,border:'1px solid var(--border-light)',transition:'transform 0.2s, box-shadow 0.2s'}} className="activity-row">
+              <div style={{width:56,height:56,borderRadius:10,background:'var(--sky)',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               </div>
-              <div style={{fontSize:14,fontWeight:700,color:'var(--ink)',marginBottom:4}}>Quotes &amp; payments</div>
-              <div style={{fontSize:13,color:'var(--ink-soft)',lineHeight:1.5}}>Attach a quote. Your client accepts and pays via Stripe &mdash; no separate invoice needed.</div>
+              <div style={{fontSize:18,fontWeight:800,color:'var(--ink)',marginBottom:8}}>Quotes &amp; payments</div>
+              <div style={{fontSize:14,color:'var(--ink-soft)',lineHeight:1.7}}>Attach a line-item quote. Your client reviews, accepts, and pays via their Stripe &mdash; no separate invoice tool needed.</div>
             </div>
           </div>
           <div style={{textAlign:'center'}}>
