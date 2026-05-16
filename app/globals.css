@@ -3040,3 +3040,18 @@ h1.hero-title em {
     text-align: center;
   }
 }
+
+/* ============= GLOBAL MOBILE FIXES ============= */
+@media (max-width: 600px) {
+  .page-head { flex-direction: column; gap: 12px; align-items: flex-start; }
+  .page-head .btn { width: 100%; justify-content: center; }
+  .stats-row { grid-template-columns: 1fr !important; }
+  .settings-card { padding: 20px 16px; }
+  .activity-row { padding: 12px 16px !important; }
+  .photo-slots { flex-direction: column; }
+}
+
+@media (max-width: 980px) {
+  .wp-main { flex-direction: column; }
+  .wp-col-left, .wp-col-right { width: 100%; }
+}

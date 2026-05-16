@@ -24,6 +24,7 @@ const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/videos', label: 'Library' },
   { href: '/clients', label: 'Clients' },
+  { href: '/analytics', label: 'Analytics' },
   { href: '/settings', label: 'Settings' },
 ]
 
