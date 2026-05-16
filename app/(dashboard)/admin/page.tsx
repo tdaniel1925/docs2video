@@ -338,6 +338,86 @@ export default function AdminPage() {
 
       {tab === 'access' && (
         <div>
+          {/* Create User */}
+          <div className="settings-card" style={{ marginBottom: 16 }}>
+            <h3>Create New User</h3>
+            <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 12 }}>Set up an account for a client or team member and assign a plan.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div>
+                <label className="input-label">Email *</label>
+                <input id="new-user-email" className="input" placeholder="user@company.com" />
+              </div>
+              <div>
+                <label className="input-label">Full Name</label>
+                <input id="new-user-name" className="input" placeholder="Jane Smith" />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div>
+                <label className="input-label">Company</label>
+                <input id="new-user-company" className="input" placeholder="Acme Inc." />
+              </div>
+              <div>
+                <label className="input-label">Plan</label>
+                <select id="new-user-plan" className="input" defaultValue="trial" style={{ appearance: 'auto' }}>
+                  <option value="trial">Free Trial</option>
+                  <option value="active">Pro</option>
+                  <option value="agency">Agency</option>
+                </select>
+              </div>
+              <div>
+                <label className="input-label">Password (optional)</label>
+                <input id="new-user-password" className="input" placeholder="Auto-generated if empty" type="text" />
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                <input type="checkbox" id="new-user-beta" style={{ accentColor: 'var(--ink)' }} /> Beta user (unlimited)
+              </label>
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={async () => {
+                const email = (document.getElementById('new-user-email') as HTMLInputElement).value
+                const fullName = (document.getElementById('new-user-name') as HTMLInputElement).value
+                const companyName = (document.getElementById('new-user-company') as HTMLInputElement).value
+                const plan = (document.getElementById('new-user-plan') as HTMLSelectElement).value
+                const password = (document.getElementById('new-user-password') as HTMLInputElement).value
+                const isBeta = (document.getElementById('new-user-beta') as HTMLInputElement).checked
+                if (!email) { alert('Email is required'); return }
+                setBusy('creating')
+                try {
+                  const r = await fetch('/api/admin/create-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, fullName, companyName, plan, password: password || undefined, isBeta }),
+                  })
+                  const d = await r.json()
+                  if (!r.ok) throw new Error(d.error)
+                  let msg = `User created: ${email}`
+                  if (d.tempPassword) msg += `\nTemporary password: ${d.tempPassword}`
+                  alert(msg)
+                  // Clear fields
+                  ;(document.getElementById('new-user-email') as HTMLInputElement).value = ''
+                  ;(document.getElementById('new-user-name') as HTMLInputElement).value = ''
+                  ;(document.getElementById('new-user-company') as HTMLInputElement).value = ''
+                  ;(document.getElementById('new-user-password') as HTMLInputElement).value = ''
+                  ;(document.getElementById('new-user-beta') as HTMLInputElement).checked = false
+                  // Refresh data
+                  const res = await fetch('/api/admin/data')
+                  const data = await res.json()
+                  setProfiles(data.profiles ?? [])
+                } catch (err) {
+                  alert(err instanceof Error ? err.message : 'Failed to create user')
+                }
+                setBusy(null)
+              }}
+              disabled={busy === 'creating'}
+            >
+              {busy === 'creating' ? 'Creating...' : 'Create User'}
+            </button>
+          </div>
+
           <div className="settings-card" style={{ marginBottom: 16 }}>
             <h3>Search Users to Grant Access</h3>
             <input
