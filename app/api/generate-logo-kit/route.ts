@@ -27,6 +27,31 @@ export async function POST(request: Request) {
   }
 
   const logoUrl = brand.logo_file_url || brand.logo_url
+
+  // Validate that the logo URL points to an actual image file (not text/brand name)
+  const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico']
+  const urlPath = new URL(logoUrl).pathname.toLowerCase()
+  const hasImageExtension = IMAGE_EXTENSIONS.some(ext => urlPath.endsWith(ext))
+
+  if (!hasImageExtension) {
+    // Double-check via HEAD request for content-type
+    try {
+      const headRes = await fetch(logoUrl, { method: 'HEAD', signal: AbortSignal.timeout(5000) })
+      const contentType = headRes.headers.get('content-type') ?? ''
+      if (!contentType.startsWith('image/')) {
+        return NextResponse.json(
+          { error: 'Logo URL does not point to a valid image file. Please upload an actual logo image.' },
+          { status: 400 }
+        )
+      }
+    } catch {
+      return NextResponse.json(
+        { error: 'Could not verify logo image. Please upload a valid logo file.' },
+        { status: 400 }
+      )
+    }
+  }
+
   const brandColors = {
     primary: brand.primary_color || '#333333',
     secondary: brand.secondary_color || '#666666',

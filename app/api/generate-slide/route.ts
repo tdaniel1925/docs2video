@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { generateSlide } from '../../_lib/gemini'
 import { compositeSlide } from '../../_lib/composite'
+import { getStyledLogoUrl } from '../../_lib/logo-styler'
 import type { ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
     const { data: brand } = await supabase.from('brands').select('*').eq('id', brandId).single()
     if (brand) {
       brandName = brand.name
-      logoUrl = brand.logo_file_url ?? brand.logo_url
+      logoUrl = getStyledLogoUrl(brand, styleId) ?? brand.logo_file_url ?? brand.logo_url
       colors = {
         primary: brand.primary_color,
         secondary: brand.secondary_color,

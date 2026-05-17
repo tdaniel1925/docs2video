@@ -53,14 +53,12 @@ export async function POST(request: Request) {
   const freeRemaining = profile?.free_videos_remaining ?? 0
 
   // Admins generate unlimited with no charges
+  let shouldDeductFreeVideo = false
   if (!isAdmin(user.email)) {
     if (!isPaidUser && !hasReferralDiscount) {
       if (freeRemaining > 0) {
-        // Decrement free video counter
-        const admin2 = createAdminClient()
-        await admin2.from('profiles').update({
-          free_videos_remaining: freeRemaining - 1,
-        }).eq('id', user.id)
+        // Will deduct AFTER successful completion
+        shouldDeductFreeVideo = true
       } else if (!cardOnFile) {
         return NextResponse.json(
           { error: 'Free videos used. Please add a payment method to continue.' },
@@ -150,9 +148,10 @@ export async function POST(request: Request) {
     console.log(`[video ${videoId}] Generating audio for ${scenes.length} scenes...`)
     await admin.from('videos').update({ status: 'generating_audio', progress_detail: `Generating narration audio... (0 of ${scenes.length})`, progress_pct: 15 }).eq('id', videoId)
 
-    // Start AI music generation in parallel if requested (runs alongside TTS)
+    // Start AI music generation in parallel if requested OR if KIE_API_KEY is set and no music provided
     let aiMusicPromise: Promise<string | null> | null = null
-    if (aiMusic) {
+    const shouldGenerateMusic = aiMusic || (!musicUrl && process.env.KIE_API_KEY)
+    if (shouldGenerateMusic) {
       const prompt = musicPrompt || buildMusicPrompt(policyData, scenes)
       const title = (policyData as any)?.policyType ?? (policyData as any)?.title ?? 'Background Music'
       console.log(`[video ${videoId}] Starting AI music generation in parallel...`)
@@ -463,6 +462,15 @@ export async function POST(request: Request) {
       }
     } catch (emailErr) {
       console.error(`[video ${videoId}] Video ready email failed:`, emailErr)
+    }
+
+    // Deduct free video credit AFTER successful completion
+    if (shouldDeductFreeVideo) {
+      const admin2 = createAdminClient()
+      await admin2.from('profiles').update({
+        free_videos_remaining: freeRemaining - 1,
+      }).eq('id', user.id)
+      console.log(`[video ${videoId}] Deducted 1 free video credit (${freeRemaining - 1} remaining)`)
     }
 
     console.log(`[video ${videoId}] Complete!`)

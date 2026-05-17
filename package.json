@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "generate-demos": "tsx -r dotenv/config scripts/generate-industry-demos.ts dotenv_config_path=.env.local"
+    "generate-demos": "tsx -r dotenv/config scripts/generate-industry-demos.ts dotenv_config_path=.env.local",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.2",
@@ -35,6 +36,7 @@
     "twilio": "^6.0.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@types/fluent-ffmpeg": "^2.1.28",
     "@types/node": "^20",
