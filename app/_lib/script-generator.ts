@@ -260,7 +260,8 @@ export async function generateScript(
   assetCount: number = 0,
   voiceId?: string,
   brandTone?: string,
-  contactInfo?: { phone?: string; email?: string; calendly?: string }
+  contactInfo?: { phone?: string; email?: string; calendly?: string },
+  purpose?: string,
 ): Promise<VideoScene[]> {
   const isInsurance = isInsuranceData(data)
   const promptBody = isInsurance
@@ -269,6 +270,10 @@ export async function generateScript(
 
   // Build additional prompt sections based on new parameters
   const additionalSections: string[] = []
+
+  if (purpose) {
+    additionalSections.push(`VIDEO PURPOSE (CRITICAL): The user wants this video to "${purpose}". This is the primary objective — shape the entire narrative, tone, emphasis, and call-to-action around accomplishing this goal. Every scene should serve this purpose. Prioritize information that supports this goal and de-emphasize anything that doesn't.`)
+  }
 
   const voiceDesc = getVoiceDescription(voiceId)
   if (voiceDesc) {

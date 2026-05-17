@@ -187,6 +187,7 @@ export default function CreatePage() {
   const [generatedScenes, setGeneratedScenes] = useState<any[]>([])
   const [selectedVoice, setSelectedVoice] = useState<string>(VOICE_OPTIONS[0].id)
   const [detailedMode, setDetailedMode] = useState(false)
+  const [videoPurpose, setVideoPurpose] = useState('')
   const [selectedMusic, setSelectedMusic] = useState<string | null>(null)
   const [uploadedLogo, setUploadedLogo] = useState<string | null>(null)
   const [customTheme, setCustomTheme] = useState(false)
@@ -620,6 +621,7 @@ export default function CreatePage() {
           detailed: detailedMode,
           comparisonMode: multiDocData.length > 1,
           comparisonNotes: comparisonNotes || undefined,
+          purpose: videoPurpose.trim() || undefined,
         }),
       })
       const data = await res.json()
@@ -1810,9 +1812,27 @@ export default function CreatePage() {
               </>
             ) : null}
 
+            {/* Video Purpose — required before script generation */}
+            <div style={{ marginTop: 24 }}>
+              <label className="input-label">
+                What should this video accomplish? <span style={{ color: '#dc2626' }}>*</span>
+              </label>
+              <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8, lineHeight: 1.5 }}>
+                This shapes the entire video &mdash; its narrative, tone, and emphasis. Be specific about your goal and audience.
+              </div>
+              <input
+                type="text"
+                className="input"
+                placeholder="e.g. Convince my client to sign the policy, Train new hires on onboarding, Summarize this report for investors"
+                value={videoPurpose}
+                onChange={e => setVideoPurpose(e.target.value)}
+                required
+              />
+            </div>
+
             <div className="wizard-actions">
               <button onClick={() => { if (confirm('Start over? This will clear all your extracted data and edits.')) { setReviewReady(false); setExtractedData(null); setGeneralData(null); setMultiDocData([]); setEditableScenes([]) } }} className="btn btn-soft">&larr; Start Over</button>
-              <button onClick={handleGenerateScript} className="btn btn-primary">Generate Script &rarr;</button>
+              <button onClick={handleGenerateScript} className="btn btn-primary" disabled={!videoPurpose.trim()}>Generate Script &rarr;</button>
             </div>
           </div>
         )}
@@ -2179,9 +2199,27 @@ export default function CreatePage() {
             </>
           )}
 
+          {/* Video Purpose — required before script generation */}
+          <div style={{ marginTop: 24 }}>
+            <label className="input-label">
+              What should this video accomplish? <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8, lineHeight: 1.5 }}>
+              This shapes the entire video &mdash; its narrative, tone, and emphasis. Be specific about your goal and audience.
+            </div>
+            <input
+              type="text"
+              className="input"
+              placeholder="e.g. Convince my client to sign the policy, Train new hires on onboarding, Summarize this report for investors"
+              value={videoPurpose}
+              onChange={e => setVideoPurpose(e.target.value)}
+              required
+            />
+          </div>
+
           <div className="wizard-actions">
             <button onClick={() => { setStep('upload') }} className="btn btn-soft">&larr; Back</button>
-            <button onClick={handleGenerateScript} className="btn btn-primary">Generate Script &rarr;</button>
+            <button onClick={handleGenerateScript} className="btn btn-primary" disabled={!videoPurpose.trim()}>Generate Script &rarr;</button>
           </div>
         </div>
       )}
