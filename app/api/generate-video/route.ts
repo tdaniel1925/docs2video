@@ -196,7 +196,7 @@ export async function POST(request: Request) {
     const standingPhotoUrl = agentProfile?.photo_standing_url ?? null
     // Use styled logo from logo kit if available, otherwise raw logo
     const logoKit = brand?.logo_kit ?? null
-    const styledLogoUrl = logoKit?.[styleId] ?? brand?.logo_file_url ?? brand?.logo_url ?? null
+    const styledLogoUrl = (styleId && logoKit?.[styleId]) ?? brand?.logo_file_url ?? brand?.logo_url ?? null
     let logoUrl: string | null = styledLogoUrl
     let logoBuffer: Buffer | null = null
     if (logoUrl) {

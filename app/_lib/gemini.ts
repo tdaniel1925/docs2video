@@ -193,10 +193,11 @@ function buildContentSummary(data: ExtractedPolicyData | ExtractedData): { headl
     }
   }
   // General data
-  const topMetrics = data.keyMetrics.slice(0, 4).map(m => `- ${m.label}: ${m.value}`).join('\n')
+  const gd = data as ExtractedData
+  const topMetrics = (gd.keyMetrics ?? []).slice(0, 4).map(m => `- ${m.label}: ${m.value}`).join('\n')
   return {
-    headline: `"${data.title}"`,
-    subline: data.subtitle ? `"${data.subtitle}"` : '',
+    headline: `"${gd.title}"`,
+    subline: gd.subtitle ? `"${gd.subtitle}"` : '',
     metrics: topMetrics || '- Key information from the document',
   }
 }
