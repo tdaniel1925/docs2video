@@ -36,6 +36,7 @@ export default function QuickModePage() {
   const [assetsExpanded, setAssetsExpanded] = useState(false)
   const [assets, setAssets] = useState<{url: string, tag: string, name: string, uploading?: boolean}[]>([])
   const [assetUploading, setAssetUploading] = useState(false)
+  const [videoPurpose, setVideoPurpose] = useState('')
 
   // Load brands on mount
   useEffect(() => {
@@ -193,6 +194,7 @@ export default function QuickModePage() {
             clientName: clientName || undefined,
             clientEmail: clientEmail || undefined,
             assets: assetPayload,
+            purpose: videoPurpose.trim() || undefined,
           },
         },
       }).eq('id', createData.id)
@@ -289,6 +291,25 @@ export default function QuickModePage() {
               {tab.label}
             </button>
           ))}
+        </div>
+
+        {/* Video Purpose — required */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500, marginBottom: 6 }}>
+            What should this video accomplish? <span style={{ color: '#dc2626' }}>*</span>
+          </div>
+          <input
+            type="text"
+            value={videoPurpose}
+            onChange={(e) => setVideoPurpose(e.target.value)}
+            placeholder="e.g. Convince my client to sign, Train new hires, Summarize for investors"
+            className="input-text"
+            style={{ width: '100%', padding: '10px 14px', fontSize: 14 }}
+            required
+          />
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, lineHeight: 1.4 }}>
+            This shapes the narrative, tone, and emphasis. The same document produces very different videos depending on your goal.
+          </div>
         </div>
 
         {/* Upload PDF drop zone */}
@@ -538,14 +559,14 @@ export default function QuickModePage() {
         {/* Create button */}
         <button
           onClick={handleCreate}
-          disabled={!hasInput || loading}
+          disabled={!hasInput || loading || !videoPurpose.trim()}
           className="btn btn-primary btn-lg"
           style={{
             width: '100%',
             padding: '16px 24px',
             fontSize: 16,
             fontWeight: 600,
-            opacity: (!hasInput || loading) ? 0.5 : 1,
+            opacity: (!hasInput || loading || !videoPurpose.trim()) ? 0.5 : 1,
           }}
         >
           {loading ? 'Creating...' : 'Create Presentation'}
