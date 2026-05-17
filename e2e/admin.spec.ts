@@ -6,25 +6,25 @@ test.describe('Admin Dashboard', () => {
     await loginAsAdmin(page)
   })
 
-  test.skip('admin page loads for admin user', async ({ page }) => {
+  test('admin page loads for admin user', async ({ page }) => {
     await page.goto('/admin')
     await expect(page.locator('h1, h2').filter({ hasText: /admin|dashboard/i }).first()).toBeVisible()
   })
 
-  test.skip('stats cards are visible', async ({ page }) => {
+  test('stats cards are visible', async ({ page }) => {
     await page.goto('/admin')
     const statCards = page.locator('[data-testid="stat-card"], [class*="stat"], [class*="metric"]')
     const count = await statCards.count()
     expect(count).toBeGreaterThanOrEqual(1)
   })
 
-  test.skip('recent signups table exists', async ({ page }) => {
+  test('recent signups table exists', async ({ page }) => {
     await page.goto('/admin')
     const signupsTable = page.locator('table, [data-testid="signups-table"], [class*="signup"]').first()
     await expect(signupsTable).toBeVisible()
   })
 
-  test.skip('recent generations table exists', async ({ page }) => {
+  test('recent generations table exists', async ({ page }) => {
     await page.goto('/admin')
     const generationsTable = page.locator('table, [data-testid="generations-table"], [class*="generation"]').last()
     await expect(generationsTable).toBeVisible()
