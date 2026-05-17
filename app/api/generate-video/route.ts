@@ -4,6 +4,7 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { generateScript } from '../../_lib/script-generator'
 import { generateSlide } from '../../_lib/gemini'
 import { compositeSlide } from '../../_lib/composite'
+import { generateCoverOverlay } from '../../_lib/cover-overlay'
 import { synthesizeSpeech } from '../../_lib/tts'
 // Video assembly is offloaded to the Hetzner VPS (video-service)
 const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
@@ -193,10 +194,9 @@ export async function POST(request: Request) {
     const { data: agentProfile } = await admin.from('profiles').select('photo_url, photo_standing_url').eq('id', user.id).single()
     const photoUrl = agentProfile?.photo_url ?? null
     const standingPhotoUrl = agentProfile?.photo_standing_url ?? null
-    // Use styled logo from logo kit if available, otherwise raw logo
-    const logoKit = brand?.logo_kit ?? null
-    const styledLogoUrl = (styleId && logoKit?.[styleId]) ?? brand?.logo_file_url ?? brand?.logo_url ?? null
-    let logoUrl: string | null = styledLogoUrl
+    // Use raw logo for GPT overlay on cover/closing slides
+    const rawLogoUrl = brand?.logo_file_url ?? brand?.logo_url ?? null
+    let logoUrl: string | null = rawLogoUrl
     let logoBuffer: Buffer | null = null
     if (logoUrl) {
       try {
@@ -235,6 +235,51 @@ export async function POST(request: Request) {
       templateRefBuffer = await fs.readFile(refPath)
       console.log(`[video ${videoId}] Loaded template reference image for style "${effectiveStyleId}"`)
     } catch { /* template preview not found, skip */ }
+
+    // Generate GPT cover/closing overlays (logo + title text on transparent background)
+    let coverOverlay: Buffer | null = null
+    let closingOverlay: Buffer | null = null
+    if (logoBuffer) {
+      const isInsurance = policyData && 'policyType' in policyData
+      const overlayColors = colors
+      const overlayTitle = isInsurance
+        ? `${(policyData as any).policyType} Policy Overview`
+        : (policyData as ExtractedData).title || 'Presentation'
+      const overlaySubtitle = isInsurance
+        ? `Prepared for ${(policyData as any).insuredName}`
+        : (policyData as ExtractedData).subtitle || undefined
+      const guideData = brand?.brand_guide_data as Record<string, string> | null
+      const overlayContact = {
+        phone: guideData?.phone ?? undefined,
+        website: guideData?.website ?? undefined,
+      }
+
+      console.log(`[video ${videoId}] Generating GPT cover/closing overlays...`)
+      try {
+        const [coverResult, closingResult] = await Promise.all([
+          withTimeout(generateCoverOverlay({
+            logoBuffer,
+            title: overlayTitle,
+            subtitle: overlaySubtitle,
+            colors: overlayColors,
+            isCover: true,
+          }), 30000, 'Cover overlay'),
+          withTimeout(generateCoverOverlay({
+            logoBuffer,
+            title: overlayTitle,
+            subtitle: brand?.name ?? undefined,
+            contactInfo: overlayContact,
+            colors: overlayColors,
+            isCover: false,
+          }), 30000, 'Closing overlay'),
+        ])
+        coverOverlay = coverResult
+        closingOverlay = closingResult
+        console.log(`[video ${videoId}] GPT overlays generated successfully`)
+      } catch (err) {
+        console.error(`[video ${videoId}] GPT overlay failed, using fallback:`, err)
+      }
+    }
 
     // STAGE 3: Generate slides (or use pre-approved ones)
     let slideBuffers: Buffer[]
@@ -280,7 +325,7 @@ export async function POST(request: Request) {
           sceneAssetMap[0]
         ), 60000, 'Slide 1'
       )
-      buf0 = await compositeSlide(buf0, photoUrl, logoUrl, true, scenes.length === 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo)
+      buf0 = await compositeSlide(buf0, photoUrl, logoUrl, true, scenes.length === 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo, coverOverlay)
       slideBuffers.push(buf0)
       masterSlideBuffer = buf0
       console.log(`[video ${videoId}] Slide 1 done — using as style reference for remaining slides`)
@@ -304,7 +349,8 @@ export async function POST(request: Request) {
                 customStylePrompt, undefined, undefined, templateRefBuffer,
                 sceneAssetMap[idx]
               ), 60000, `Slide ${idx + 1}`)
-              buf = await compositeSlide(buf, photoUrl, logoUrl, false, idx === scenes.length - 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo)
+              const isLast = idx === scenes.length - 1
+              buf = await compositeSlide(buf, photoUrl, logoUrl, false, isLast, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo, isLast ? closingOverlay : null)
               return buf
             })
           )

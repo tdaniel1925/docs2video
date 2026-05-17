@@ -324,31 +324,28 @@ Then in smaller but readable text:
 "This video is for educational and informational purposes only. It is not legal, tax, or financial advice. Policy guarantees are based on the claims-paying ability of the issuing insurance company. Non-guaranteed values are subject to change. Please consult with your licensed professional before making decisions."
 Use a subtle icon like a shield or document seal for visual interest.`
   } else if (isFirst) {
-    if (isInsurance) {
-      const ins = data as ExtractedPolicyData
-      visualContent = `Create an elegant TITLE/COVER slide for a life insurance policy overview.
-Show this text on the slide:
-Title: "${ins.policyType} Policy Overview"
-Subtitle: "Prepared for ${ins.insuredName}"
-${brandName ? `Small text: "Presented by ${brandName}"` : ''}
-Make it feel premium and trustworthy. Use appropriate icons like a shield or family silhouette.`
-    } else {
-      const gen = data as ExtractedData
-      visualContent = `Create an elegant TITLE/COVER slide.
-Show this text on the slide:
-Title: "${gen.title}"
-${gen.subtitle ? `Subtitle: "${gen.subtitle}"` : ''}
-${brandName ? `Small text: "Presented by ${brandName}"` : ''}
-Make it feel professional and polished.`
-    }
+    // Cover slide: Gemini generates a DECORATIVE BACKGROUND FRAME only.
+    // Logo + title text will be composited on top by GPT Image overlay.
+    visualContent = `Create a beautiful DECORATIVE BACKGROUND for a cover slide.
+This is ONLY a background frame — do NOT include any text, titles, logos, or brand names.
+Design an elegant, premium background with:
+- Rich visual textures, patterns, or abstract shapes that match the style
+- A clear central area (roughly 800x600px in the middle) left relatively clean for an overlay
+- Decorative borders, corner elements, or framing that adds visual polish
+- Use the brand colors provided to create a cohesive look
+Do NOT write ANY text on this slide. No titles, no names, no words at all.
+This is purely a decorative visual backdrop.`
   } else if (isLast) {
-    visualContent = `Create a professional CLOSING slide.
-Show this text on the slide:
-Title: "Thank You"
-${brandName ? `Subtitle: "Presented by ${brandName}"` : 'Subtitle: "Questions? Let\'s connect."'}
-${contactInfo?.phone ? `Phone: ${contactInfo.phone}` : ''}
-${contactInfo?.website ? `Website: ${contactInfo.website}` : ''}
-Include a subtle call-to-action feel.`
+    // Closing slide: Same approach — decorative background only.
+    visualContent = `Create a beautiful DECORATIVE BACKGROUND for a closing/thank-you slide.
+This is ONLY a background frame — do NOT include any text, titles, logos, or brand names.
+Design an elegant, professional background with:
+- A warm, conclusive feel (subtle gradients, elegant patterns)
+- A clear central area left clean for an overlay with logo and contact info
+- Decorative elements that signal "conclusion" or "thank you" without using words
+- Use the brand colors provided
+Do NOT write ANY text on this slide. No titles, no "thank you", no contact info, no words at all.
+This is purely a decorative visual backdrop.`
   } else if (slidePrompt) {
     // AI-generated scene — extract the TOPIC from the slidePrompt, not visual instructions
     // The slidePrompt describes what the slide should show conceptually
@@ -433,10 +430,10 @@ This is slide ${slideIndex + 1} of ${totalSlides}. ALL slides must share identic
 
   parts.push({ text: promptText })
 
-  // Add logo image if available — this is a pre-styled logo that matches the template
-  if (logoBuffer) {
+  // Add logo image for MIDDLE slides only — cover/closing logos handled by GPT overlay
+  if (logoBuffer && !isFirst && !isLast) {
     parts.push(
-      { text: `LOGO INTEGRATION: Place this logo naturally into the slide design. It has already been styled to match this template's aesthetic. Position it prominently on the ${isFirst || isLast ? 'slide (centered or top area)' : 'top-left or top-right corner (smaller, like a watermark)'}. Do NOT redraw, modify, or recreate the logo — use it EXACTLY as provided. Design the surrounding elements to complement it.` },
+      { text: `LOGO INTEGRATION: Place this logo naturally in the top-left or top-right corner (smaller, like a watermark). Do NOT redraw, modify, or recreate the logo — use it EXACTLY as provided. Design the surrounding elements to complement it.` },
       { inlineData: { mimeType: 'image/png', data: logoBuffer.toString('base64') } },
     )
   }

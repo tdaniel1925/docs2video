@@ -17,7 +17,7 @@
 | AI Text | Google Gemini 2.5 Pro/Flash + Anthropic Claude |
 | AI Voice | OpenAI TTS-HD (6 voices) |
 | AI Music | Suno via Kie.ai API |
-| AI Logos | OpenAI GPT Image (logo-styler.ts) |
+| AI Logos | OpenAI GPT Image (cover-overlay.ts — logo+title on cover/closing slides) |
 | Video Assembly | FFmpeg (external Hetzner VPS) |
 | Payments | Stripe (subscriptions + agent OAuth Connect) |
 | Email | Gmail API, Microsoft Graph, SMTP/Nodemailer, Resend |
@@ -110,7 +110,7 @@
 ### Branding
 - Website scraper (URL → colors, logo, fonts, tone, industry)
 - Brand guide generation (color psychology, tone guide, content themes)
-- Logo kit (OpenAI styles logos for each of 65 templates)
+- Cover/closing overlay system (Gemini decorative background + GPT logo+title overlay + Sharp composite)
 - Multiple photo uploads (headshot, mid-level, standing)
 - Photo compositing on slides
 

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { generateSlide } from '../../_lib/gemini'
 import { compositeSlide } from '../../_lib/composite'
-import { getStyledLogoUrl } from '../../_lib/logo-styler'
+import { generateCoverOverlay } from '../../_lib/cover-overlay'
 import type { ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     const { data: brand } = await supabase.from('brands').select('*').eq('id', brandId).single()
     if (brand) {
       brandName = brand.name
-      logoUrl = getStyledLogoUrl(brand, styleId) ?? brand.logo_file_url ?? brand.logo_url
+      logoUrl = brand.logo_file_url ?? brand.logo_url
       colors = {
         primary: brand.primary_color,
         secondary: brand.secondary_color,
@@ -102,8 +102,32 @@ export async function POST(request: Request) {
       logoBuffer, undefined, undefined, undefined, undefined, undefined, templateRefBuffer ?? previousSlideBuffer, assetBuffer
     )
 
-    // Composite real photo onto the slide (logo now handled by Gemini)
-    imageBuffer = await compositeSlide(imageBuffer, photoUrl, logoUrl, slideIndex === 0, isLastSlide ?? false, standingPhotoUrl)
+    // Generate GPT overlay for cover/closing slides (logo + title on transparent bg)
+    let overlayBuffer: Buffer | null = null
+    const isCover = slideIndex === 0
+    const isClosing = isLastSlide ?? false
+    if (logoBuffer && (isCover || isClosing)) {
+      try {
+        const isInsurance = policyData && 'policyType' in policyData
+        const title = isInsurance
+          ? `${(policyData as any).policyType} Policy Overview`
+          : (policyData as ExtractedData).title || 'Presentation'
+        const subtitle = isInsurance
+          ? `Prepared for ${(policyData as any).insuredName}`
+          : (policyData as ExtractedData).subtitle || undefined
+
+        overlayBuffer = await generateCoverOverlay({
+          logoBuffer,
+          title,
+          subtitle: isCover ? subtitle : brandName ?? undefined,
+          colors,
+          isCover,
+        })
+      } catch { /* proceed without overlay */ }
+    }
+
+    // Composite overlay + photo onto the slide
+    imageBuffer = await compositeSlide(imageBuffer, photoUrl, logoUrl, isCover, isClosing, standingPhotoUrl, null, null, undefined, overlayBuffer)
 
     const base64 = `data:image/png;base64,${imageBuffer.toString('base64')}`
     return NextResponse.json({ image: base64 })

@@ -1,8 +1,9 @@
 /**
- * Composites agent photos onto Gemini-generated slides.
- * Gemini now handles all branding (logo placement, contact bar).
- * Sharp only handles agent photo overlays (circle headshot on cover,
- * standing photo on closing).
+ * Composites overlays onto Gemini-generated slides:
+ * - Cover/closing: GPT-generated logo+text overlay (transparent PNG)
+ * - Cover: circular headshot photo (bottom-right)
+ * - Closing: standing photo (bottom-right)
+ * - Middle slides: no overlays (Gemini handles everything)
  */
 export async function compositeSlide(
   slideBuffer: Buffer,
@@ -13,7 +14,8 @@ export async function compositeSlide(
   standingPhotoUrl: string | null = null,
   _brandName: string | null = null,
   _primaryColor: string | null = null,
-  _contactInfo?: { phone?: string; website?: string }
+  _contactInfo?: { phone?: string; website?: string },
+  coverOverlayBuffer?: Buffer | null,
 ): Promise<Buffer> {
   const sharpMod = await import('sharp')
   const sharp = sharpMod.default ?? sharpMod
@@ -24,6 +26,21 @@ export async function compositeSlide(
   const height = metadata.height ?? 1080
 
   const composites: any[] = []
+
+  // GPT overlay (logo + title text) for cover/closing slides
+  if (coverOverlayBuffer && (isFirstSlide || isLastSlide)) {
+    // Resize overlay to match slide dimensions
+    const resizedOverlay = await sharp(coverOverlayBuffer)
+      .resize(width, height, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer()
+
+    composites.push({
+      input: resizedOverlay,
+      left: 0,
+      top: 0,
+    })
+  }
 
   // Agent photo — cover slide (circle headshot) or closing slide (standing)
   const shouldShowPhoto = isFirstSlide || isLastSlide
