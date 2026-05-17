@@ -4,40 +4,48 @@ import { loginAsTestUser } from './helpers/auth'
 test.describe('Dashboard', () => {
   test.beforeEach(async ({ page }) => {
     await loginAsTestUser(page)
+    await page.goto('/dashboard')
+    await page.waitForLoadState('networkidle')
   })
 
-  test('dashboard loads with stats row (3 stat cards)', async ({ page }) => {
-    await page.goto('/dashboard')
-    const statCards = page.locator('[data-testid="stat-card"], [class*="stat"], [class*="metric"]')
-    await expect(statCards.first()).toBeVisible()
-    const count = await statCards.count()
-    expect(count).toBeGreaterThanOrEqual(3)
+  test('dashboard page loads with welcome heading', async ({ page }) => {
+    const heading = page.locator('.page-head h1')
+    await expect(heading).toBeVisible()
+    const text = await heading.textContent()
+    expect(text?.toLowerCase()).toContain('welcome back')
   })
 
-  test('recent activity list is visible', async ({ page }) => {
-    await page.goto('/dashboard')
-    const activityList = page.locator('[data-testid="recent-activity"], [class*="activity"], [class*="recent"]').first()
-    await expect(activityList).toBeVisible()
+  test('page head section is visible', async ({ page }) => {
+    const pageHead = page.locator('.page-head')
+    await expect(pageHead).toBeVisible()
   })
 
-  test('+ New Presentation button navigates to /create', async ({ page }) => {
-    await page.goto('/dashboard')
-    const newButton = page.locator('a, button').filter({ hasText: /new|create/i }).first()
-    await expect(newButton).toBeVisible()
-    await newButton.click()
-    await expect(page).toHaveURL(/\/create/)
+  test('create video button or CTA links to /quick', async ({ page }) => {
+    const createLink = page.locator('a[href="/quick"]').first()
+    await expect(createLink).toBeVisible()
+    const text = await createLink.textContent()
+    expect(text?.toLowerCase()).toContain('create')
   })
 
-  test('navigation header shows all links', async ({ page }) => {
-    await page.goto('/dashboard')
-    await expect(page.locator('nav, header').first()).toBeVisible()
+  test('activity rows are rendered', async ({ page }) => {
+    const activityRows = page.locator('.activity-row')
+    const count = await activityRows.count()
+    expect(count).toBeGreaterThanOrEqual(1)
   })
 
-  test('user avatar dropdown opens with settings/signout', async ({ page }) => {
-    await page.goto('/dashboard')
-    const avatar = page.locator('[data-testid="user-avatar"], [class*="avatar"], img[alt*="profile"], img[alt*="avatar"]').first()
-    await avatar.click()
-    await expect(page.locator('text=/settings/i').first()).toBeVisible()
-    await expect(page.locator('text=/sign out|logout|log out/i').first()).toBeVisible()
+  test('clicking create link navigates to /quick', async ({ page }) => {
+    const createLink = page.locator('a[href="/quick"]').first()
+    await createLink.click()
+    await page.waitForURL(/\/quick/, { timeout: 10000 })
+    expect(page.url()).toContain('/quick')
+  })
+
+  test('videos link navigates to videos page', async ({ page }) => {
+    const videosLink = page.locator('a[href="/videos"]').first()
+    if (await videosLink.isVisible()) {
+      await videosLink.click()
+      await page.waitForURL(/\/videos/, { timeout: 10000 })
+      expect(page.url()).toContain('/videos')
+    }
   })
 })

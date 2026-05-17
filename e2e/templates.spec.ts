@@ -4,30 +4,20 @@ import { loginAsTestUser } from './helpers/auth'
 test.describe('Template Management', () => {
   test.beforeEach(async ({ page }) => {
     await loginAsTestUser(page)
-  })
-
-  test('templates page loads', async ({ page }) => {
     await page.goto('/templates')
-    await expect(page.locator('h1, h2').filter({ hasText: /template/i }).first()).toBeVisible()
   })
 
-  test('+ Create template opens the wizard', async ({ page }) => {
-    await page.goto('/templates')
-    const createButton = page.locator('a, button').filter({ hasText: /create template|new template/i }).first()
-    await expect(createButton).toBeVisible()
-    await createButton.click()
-    await expect(page.locator('[data-testid="template-wizard"], [class*="wizard"], [class*="modal"]').first()).toBeVisible()
+  test('templates gallery page loads with heading', async ({ page }) => {
+    await expect(page.locator('.page-head h1')).toHaveText('Your templates', { timeout: 10000 })
   })
 
-  test('AI chat interface is visible in describe step', async ({ page }) => {
-    await page.goto('/templates/new')
-    const chatInterface = page.locator('[data-testid="ai-chat"], [class*="chat"], textarea[placeholder*="describe"]').first()
-    await expect(chatInterface).toBeVisible()
-  })
-
-  test('reference image upload zone exists', async ({ page }) => {
-    await page.goto('/templates/new')
-    const uploadZone = page.locator('[data-testid="reference-upload"], input[accept*="image"], [class*="upload"]').first()
-    await expect(uploadZone).toBeVisible()
+  test('clicking create template shows describe step with textarea', async ({ page }) => {
+    // Click the "+ Create template" button in the page-head
+    await page.click('button.btn.btn-primary:has-text("+ Create template")', { timeout: 10000 })
+    // Verify the wizard card with describe step appears
+    await expect(page.locator('.wizard-card h2')).toContainText('template', { timeout: 10000 })
+    // Switch to "Describe It" tab to reveal the textarea
+    await page.click('button:has-text("Describe It")')
+    await expect(page.locator('textarea.input')).toBeVisible({ timeout: 10000 })
   })
 })

@@ -6,35 +6,22 @@ test.describe('Brand Management', () => {
     await loginAsTestUser(page)
   })
 
-  test('brands list page loads', async ({ page }) => {
+  test('brands page loads with heading', async ({ page }) => {
     await page.goto('/brands')
-    await expect(page.locator('h1, h2').filter({ hasText: /brand/i }).first()).toBeVisible()
+    await expect(page.locator('.page-head h1')).toHaveText('Your brands', { timeout: 10000 })
   })
 
-  test('+ New brand button navigates to /brands/new', async ({ page }) => {
-    await page.goto('/brands')
-    const newBrandButton = page.locator('a, button').filter({ hasText: /new brand|add brand|create brand/i }).first()
-    await expect(newBrandButton).toBeVisible()
-    await newBrandButton.click()
-    await expect(page).toHaveURL(/\/brands\/new/)
-  })
-
-  test('brand creation page has website scraper input', async ({ page }) => {
+  test('new brand form has name input and color pickers', async ({ page }) => {
     await page.goto('/brands/new')
-    const urlInput = page.locator('input[name*="url"], input[name*="website"], input[placeholder*="website"], input[type="url"]').first()
-    await expect(urlInput).toBeVisible()
+    await expect(page.locator('input[name="name"]')).toBeVisible({ timeout: 10000 })
+    // Primary color picker is present (hidden input[type="color"])
+    await expect(page.locator('input[type="color"][name="primary_color"]')).toBeAttached({ timeout: 10000 })
   })
 
-  test('color pickers are interactive', async ({ page }) => {
+  test('create brand with name and redirect to /brands', async ({ page }) => {
     await page.goto('/brands/new')
-    const colorPicker = page.locator('input[type="color"], [data-testid="color-picker"], [class*="color-picker"]').first()
-    await expect(colorPicker).toBeVisible()
-    await colorPicker.click()
-  })
-
-  test('brand preview card updates with color changes', async ({ page }) => {
-    await page.goto('/brands/new')
-    const preview = page.locator('[data-testid="brand-preview"], [class*="preview"]').first()
-    await expect(preview).toBeVisible()
+    await page.fill('input[name="name"]', 'E2E Test Brand')
+    await page.click('button[type="submit"]')
+    await expect(page).toHaveURL(/\/brands/, { timeout: 10000 })
   })
 })

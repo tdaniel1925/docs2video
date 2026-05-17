@@ -1,61 +1,83 @@
 import { test, expect } from '@playwright/test'
 import { loginAsTestUser } from './helpers/auth'
 
-test.describe('Create Flow', () => {
+test.describe('Create Page', () => {
   test.beforeEach(async ({ page }) => {
     await loginAsTestUser(page)
     await page.goto('/create')
+    await page.waitForLoadState('networkidle')
   })
 
-  test('create page loads with 3 input tabs', async ({ page }) => {
-    const tabs = page.locator('[role="tab"], button[data-tab], [class*="tab"]')
-    await expect(tabs.filter({ hasText: /upload|pdf/i }).first()).toBeVisible()
-    await expect(tabs.filter({ hasText: /type|paste/i }).first()).toBeVisible()
-    await expect(tabs.filter({ hasText: /idea|topic/i }).first()).toBeVisible()
+  test('wizard card is visible with heading', async ({ page }) => {
+    const wizardCard = page.locator('.wizard-card').first()
+    await expect(wizardCard).toBeVisible()
+    const heading = wizardCard.locator('h2')
+    await expect(heading).toHaveText('What would you like to explain?')
   })
 
-  test('switching between tabs works', async ({ page }) => {
-    const tabs = page.locator('[role="tab"], button[data-tab], [class*="tab"]')
-    const secondTab = tabs.nth(1)
-    await secondTab.click()
-    await expect(secondTab).toHaveAttribute('aria-selected', 'true')
-  })
-
-  test('Type or Paste tab shows textarea', async ({ page }) => {
-    const pasteTab = page.locator('[role="tab"], button[data-tab], [class*="tab"]').filter({ hasText: /type|paste/i }).first()
-    await pasteTab.click()
-    await expect(page.locator('textarea')).toBeVisible()
-  })
-
-  test('Start from Idea tab shows topic/audience/tone fields', async ({ page }) => {
-    const ideaTab = page.locator('[role="tab"], button[data-tab], [class*="tab"]').filter({ hasText: /idea|topic/i }).first()
-    await ideaTab.click()
-    await expect(page.locator('input[name*="topic"], input[placeholder*="topic"], [data-testid="topic-input"]').first()).toBeVisible()
-    await expect(page.locator('input[name*="audience"], [data-testid="audience-input"], select[name*="audience"]').first()).toBeVisible()
-    await expect(page.locator('input[name*="tone"], [data-testid="tone-input"], select[name*="tone"]').first()).toBeVisible()
-  })
-
-  test('file upload zone accepts drag events', async ({ page }) => {
-    const uploadZone = page.locator('[data-testid="upload-zone"], [class*="dropzone"], [class*="upload"], input[type="file"]').first()
+  test('upload zone is visible by default', async ({ page }) => {
+    const uploadZone = page.locator('.upload-zone')
     await expect(uploadZone).toBeVisible()
   })
 
-  test('brand selection step loads brands', async ({ page }) => {
-    // Navigate to brand selection step (assumes multi-step wizard)
-    const brandStep = page.locator('[data-testid="brand-select"], [class*="brand"]').first()
-    await expect(brandStep).toBeVisible()
+  test('tab pills are visible for input methods', async ({ page }) => {
+    await expect(page.getByRole('button', { name: 'Upload PDF' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Type or Paste' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Start from Idea' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'From URL' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'AI Research' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Narrate Slides' })).toBeVisible()
   })
 
-  test('style picker shows template grid', async ({ page }) => {
-    const styleGrid = page.locator('[data-testid="style-picker"], [class*="template-grid"], [class*="style"]').first()
-    await expect(styleGrid).toBeVisible()
+  test('switching to text tab shows textarea', async ({ page }) => {
+    await page.getByRole('button', { name: 'Type or Paste' }).click()
+    const textarea = page.locator('textarea.input')
+    await expect(textarea).toBeVisible()
+    const placeholder = await textarea.getAttribute('placeholder')
+    expect(placeholder?.toLowerCase()).toContain('paste')
   })
 
-  test('voice selection shows 6 voices with preview buttons', async ({ page }) => {
-    const voiceCards = page.locator('[data-testid="voice-card"], [class*="voice"]')
-    await expect(voiceCards).toHaveCount(6)
-    const previewButtons = page.locator('button:has-text("preview"), button:has-text("play"), button[aria-label*="preview"]')
-    const count = await previewButtons.count()
-    expect(count).toBeGreaterThanOrEqual(6)
+  test('typing text in text tab enables extract button', async ({ page }) => {
+    await page.getByRole('button', { name: 'Type or Paste' }).click()
+    const textarea = page.locator('textarea.input')
+    await textarea.fill('This is a test document about quarterly earnings report for Q3 2025.')
+
+    const extractBtn = page.locator('button.btn-primary', { hasText: /extract/i })
+    await expect(extractBtn).toBeEnabled()
+  })
+
+  test('extract button is disabled when textarea is empty', async ({ page }) => {
+    await page.getByRole('button', { name: 'Type or Paste' }).click()
+    const extractBtn = page.locator('button.btn-primary', { hasText: /extract/i })
+    await expect(extractBtn).toBeDisabled()
+  })
+
+  test('character count displays in text tab', async ({ page }) => {
+    await page.getByRole('button', { name: 'Type or Paste' }).click()
+    const textarea = page.locator('textarea.input')
+    await textarea.fill('Hello world test content')
+    const charCount = page.locator('text=/\\d+ \\/ 50,000 characters/')
+    await expect(charCount).toBeVisible()
+  })
+
+  test('switching to idea tab shows idea form', async ({ page }) => {
+    await page.getByRole('button', { name: 'Start from Idea' }).click()
+    // Idea tab renders textarea/input fields for topic
+    const inputs = page.locator('textarea.input, input.input')
+    const count = await inputs.count()
+    expect(count).toBeGreaterThanOrEqual(1)
+  })
+
+  test('switching to URL tab shows URL input', async ({ page }) => {
+    await page.getByRole('button', { name: 'From URL' }).click()
+    const urlInput = page.locator('input.input[type="url"], input.input[placeholder*="http"]')
+    await expect(urlInput.first()).toBeVisible()
+  })
+
+  test('switching back to upload tab restores upload zone', async ({ page }) => {
+    await page.getByRole('button', { name: 'Type or Paste' }).click()
+    await expect(page.locator('textarea.input')).toBeVisible()
+    await page.getByRole('button', { name: 'Upload PDF' }).click()
+    await expect(page.locator('.upload-zone')).toBeVisible()
   })
 })

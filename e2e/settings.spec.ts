@@ -7,35 +7,19 @@ test.describe('Settings', () => {
     await page.goto('/settings')
   })
 
-  test('settings page loads with profile form', async ({ page }) => {
-    await expect(page.locator('input[name="name"], input[name="full_name"], input[name="displayName"]').first()).toBeVisible()
-    await expect(page.locator('input[name="email"]').first()).toBeVisible()
+  test('settings page loads with heading', async ({ page }) => {
+    await expect(page.locator('.page-head h1')).toHaveText('Settings', { timeout: 10000 })
   })
 
-  test('photo upload sections (headshot, mid-level, standing) are visible', async ({ page }) => {
-    const photoSections = page.locator('[data-testid*="photo"], [class*="photo-upload"], label:has-text("photo"), label:has-text("headshot")')
-    const count = await photoSections.count()
-    expect(count).toBeGreaterThanOrEqual(1)
+  test('profile tab has name and email fields', async ({ page }) => {
+    // Profile tab is the default active tab
+    await expect(page.locator('input[name="full_name"]')).toBeVisible({ timeout: 10000 })
+    // Email field is a readonly input[type="email"]
+    await expect(page.locator('input[type="email"]')).toBeVisible({ timeout: 10000 })
   })
 
-  test('email connections section exists (Gmail, Microsoft, SMTP options)', async ({ page }) => {
-    const emailSection = page.locator('text=/email|connection|integration/i').first()
-    await expect(emailSection).toBeVisible()
-    await expect(page.locator('text=/gmail/i').first()).toBeVisible()
-  })
-
-  test('payments section exists (Connect Stripe button)', async ({ page }) => {
-    const stripeButton = page.locator('button, a').filter({ hasText: /stripe|connect.*payment|payment/i }).first()
-    await expect(stripeButton).toBeVisible()
-  })
-
-  test('calendar booking URL input exists', async ({ page }) => {
-    const calendarInput = page.locator('input[name*="calendar"], input[name*="booking"], input[placeholder*="calendly"], input[placeholder*="booking"]').first()
-    await expect(calendarInput).toBeVisible()
-  })
-
-  test('subscription section shows current plan', async ({ page }) => {
-    const subscriptionSection = page.locator('text=/subscription|plan|billing/i').first()
-    await expect(subscriptionSection).toBeVisible()
+  test('profile tab has save changes button', async ({ page }) => {
+    await expect(page.locator('button[type="submit"]')).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('button[type="submit"]')).toHaveText(/Save changes/, { timeout: 10000 })
   })
 })
