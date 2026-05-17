@@ -51,6 +51,14 @@ export async function updateBrand(formData: FormData) {
   if (!user) return { error: 'Not authenticated' }
 
   const id = formData.get('id') as string
+
+  // Parse JSON fields from hidden inputs
+  const parseJson = (key: string, fallback: unknown = null) => {
+    const val = formData.get(key) as string | null
+    if (!val) return fallback
+    try { return JSON.parse(val) } catch { return fallback }
+  }
+
   const { error } = await supabase
     .from('brands')
     .update({
@@ -62,6 +70,17 @@ export async function updateBrand(formData: FormData) {
       accent_color: formData.get('accent_color') as string,
       background_color: formData.get('background_color') as string,
       text_color: formData.get('text_color') as string,
+      tagline: (formData.get('tagline') as string) || null,
+      description: (formData.get('description') as string) || null,
+      industry: (formData.get('industry') as string) || null,
+      tone: (formData.get('tone') as string) || null,
+      target_audience: (formData.get('target_audience') as string) || null,
+      brand_values: parseJson('brand_values', []),
+      services: parseJson('services', []),
+      unique_selling_points: parseJson('unique_selling_points', []),
+      content_themes: parseJson('content_themes', []),
+      competitor_notes: (formData.get('competitor_notes') as string) || null,
+      social_links: parseJson('social_links', {}),
       is_default: formData.get('is_default') === 'true',
     })
     .eq('id', id)

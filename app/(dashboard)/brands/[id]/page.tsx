@@ -53,10 +53,47 @@ export default function EditBrandPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
 
+  // Logo kit state
+  const [generatingLogoKit, setGeneratingLogoKit] = useState(false)
+  const [logoKitError, setLogoKitError] = useState<string | null>(null)
+
   // Deck builder state
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [generatingSlide, setGeneratingSlide] = useState(0)
+
+  // Brand guide fields
+  const [tagline, setTagline] = useState('')
+  const [description, setDescription] = useState('')
+  const [industry, setIndustry] = useState('')
+  const [tone, setTone] = useState('')
+  const [targetAudience, setTargetAudience] = useState('')
+  const [brandValues, setBrandValues] = useState<string[]>([])
+  const [services, setServices] = useState<string[]>([])
+  const [uniqueSellingPoints, setUniqueSellingPoints] = useState<string[]>([])
+  const [contentThemes, setContentThemes] = useState<string[]>([])
+  const [competitorNotes, setCompetitorNotes] = useState('')
+  const [socialLinks, setSocialLinks] = useState<Record<string, string>>({})
+  const [websiteUrl, setWebsiteUrl] = useState('')
+
+  async function triggerLogoKit(brandId: string) {
+    setGeneratingLogoKit(true)
+    setLogoKitError(null)
+    try {
+      const res = await fetch('/api/generate-logo-kit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brandId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to generate logo kit')
+      setBrand((prev) => prev ? { ...prev, logo_kit: data.kit ?? {} } : prev)
+    } catch (err) {
+      setLogoKitError(err instanceof Error ? err.message : 'Logo kit generation failed')
+    } finally {
+      setGeneratingLogoKit(false)
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -80,6 +117,24 @@ export default function EditBrandPage() {
         if (data.deck_style_id) {
           setSelectedStyleId(data.deck_style_id)
         }
+        // Brand guide fields
+        setTagline(data.tagline ?? '')
+        setDescription(data.description ?? '')
+        setIndustry(data.industry ?? '')
+        setTone(data.tone ?? '')
+        setTargetAudience(data.target_audience ?? '')
+        setBrandValues(data.brand_values ?? [])
+        setServices(data.services ?? [])
+        setUniqueSellingPoints(data.unique_selling_points ?? [])
+        setContentThemes(data.content_themes ?? [])
+        setCompetitorNotes(data.competitor_notes ?? '')
+        setSocialLinks(data.social_links ?? {})
+        setWebsiteUrl(data.social_links?.website ?? '')
+
+        // Auto-trigger logo kit if brand has logo but no kit
+        if (data.logo_file_url && (!data.logo_kit || Object.keys(data.logo_kit).length === 0)) {
+          triggerLogoKit(data.id)
+        }
       }
     }
     load()
@@ -95,6 +150,10 @@ export default function EditBrandPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Upload failed')
       setLogoFileUrl(data.url)
+      // Trigger logo kit regeneration after new logo upload
+      if (brand) {
+        triggerLogoKit(brand.id)
+      }
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
@@ -292,6 +351,15 @@ export default function EditBrandPage() {
             {uploadError && (
               <div style={{ marginTop: 8, fontSize: 13, color: '#dc2626', fontWeight: 500 }}>{uploadError}</div>
             )}
+            {generatingLogoKit && (
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="spinner" />
+                <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Generating styled logos...</span>
+              </div>
+            )}
+            {logoKitError && (
+              <div style={{ marginTop: 8, fontSize: 13, color: '#dc2626', fontWeight: 500 }}>{logoKitError}</div>
+            )}
           </div>
 
           <div className="section-title" style={{ marginTop: 18 }}>Brand Colors</div>
@@ -333,7 +401,191 @@ export default function EditBrandPage() {
             </div>
           </div>
 
-          <div className="check-row">
+          {/* ───────── Identity Section ───────── */}
+          <div className="section-eyebrow" style={{ marginTop: 28 }}>Identity</div>
+
+          <div className="form-group">
+            <label className="input-label">Tagline</label>
+            <input
+              name="tagline"
+              value={tagline}
+              onChange={(e) => setTagline(e.target.value)}
+              className="input"
+              placeholder="Your brand's tagline"
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="input-label">Description</label>
+            <textarea
+              name="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="input"
+              rows={3}
+              placeholder="Brief description of the brand"
+              style={{ resize: 'vertical' }}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="form-group">
+              <label className="input-label">Industry</label>
+              <input
+                name="industry"
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
+                className="input"
+                placeholder="e.g. SaaS, Healthcare"
+              />
+            </div>
+            <div className="form-group">
+              <label className="input-label">Tone</label>
+              <input
+                name="tone"
+                value={tone}
+                onChange={(e) => setTone(e.target.value)}
+                className="input"
+                placeholder="e.g. Professional, Friendly"
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="input-label">Target Audience</label>
+            <input
+              name="target_audience"
+              value={targetAudience}
+              onChange={(e) => setTargetAudience(e.target.value)}
+              className="input"
+              placeholder="Who is this brand for?"
+            />
+          </div>
+
+          {/* ───────── Content & Voice Section ───────── */}
+          <div className="section-eyebrow" style={{ marginTop: 28 }}>Content &amp; Voice</div>
+
+          <div className="form-group">
+            <label className="input-label">Brand Values <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(comma-separated)</span></label>
+            <input
+              value={brandValues.join(', ')}
+              onChange={(e) => setBrandValues(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+              className="input"
+              placeholder="Innovation, Trust, Quality"
+            />
+            <input type="hidden" name="brand_values" value={JSON.stringify(brandValues)} />
+          </div>
+
+          <div className="form-group">
+            <label className="input-label">Services <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(comma-separated)</span></label>
+            <input
+              value={services.join(', ')}
+              onChange={(e) => setServices(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+              className="input"
+              placeholder="Consulting, Development, Design"
+            />
+            <input type="hidden" name="services" value={JSON.stringify(services)} />
+          </div>
+
+          <div className="form-group">
+            <label className="input-label">Unique Selling Points <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(comma-separated)</span></label>
+            <input
+              value={uniqueSellingPoints.join(', ')}
+              onChange={(e) => setUniqueSellingPoints(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+              className="input"
+              placeholder="24/7 support, AI-powered, Industry-leading"
+            />
+            <input type="hidden" name="unique_selling_points" value={JSON.stringify(uniqueSellingPoints)} />
+          </div>
+
+          <div className="form-group">
+            <label className="input-label">Content Themes <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(comma-separated)</span></label>
+            <input
+              value={contentThemes.join(', ')}
+              onChange={(e) => setContentThemes(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+              className="input"
+              placeholder="Leadership, Data insights, Case studies"
+            />
+            <input type="hidden" name="content_themes" value={JSON.stringify(contentThemes)} />
+          </div>
+
+          <div className="form-group">
+            <label className="input-label">Competitor Notes</label>
+            <textarea
+              name="competitor_notes"
+              value={competitorNotes}
+              onChange={(e) => setCompetitorNotes(e.target.value)}
+              className="input"
+              rows={3}
+              placeholder="Notes on competitors, positioning, market gaps"
+              style={{ resize: 'vertical' }}
+            />
+          </div>
+
+          {/* ───────── Social & Web Section ───────── */}
+          <div className="section-eyebrow" style={{ marginTop: 28 }}>Social &amp; Web</div>
+
+          <div className="form-group">
+            <label className="input-label">Website URL</label>
+            <input
+              value={websiteUrl}
+              onChange={(e) => {
+                setWebsiteUrl(e.target.value)
+                setSocialLinks((prev) => ({ ...prev, website: e.target.value }))
+              }}
+              className="input"
+              type="url"
+              placeholder="https://example.com"
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="form-group">
+              <label className="input-label">LinkedIn</label>
+              <input
+                value={socialLinks.linkedin ?? ''}
+                onChange={(e) => setSocialLinks((prev) => ({ ...prev, linkedin: e.target.value }))}
+                className="input"
+                placeholder="https://linkedin.com/company/..."
+              />
+            </div>
+            <div className="form-group">
+              <label className="input-label">Twitter / X</label>
+              <input
+                value={socialLinks.twitter ?? ''}
+                onChange={(e) => setSocialLinks((prev) => ({ ...prev, twitter: e.target.value }))}
+                className="input"
+                placeholder="https://x.com/..."
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="form-group">
+              <label className="input-label">Instagram</label>
+              <input
+                value={socialLinks.instagram ?? ''}
+                onChange={(e) => setSocialLinks((prev) => ({ ...prev, instagram: e.target.value }))}
+                className="input"
+                placeholder="https://instagram.com/..."
+              />
+            </div>
+            <div className="form-group">
+              <label className="input-label">Facebook</label>
+              <input
+                value={socialLinks.facebook ?? ''}
+                onChange={(e) => setSocialLinks((prev) => ({ ...prev, facebook: e.target.value }))}
+                className="input"
+                placeholder="https://facebook.com/..."
+              />
+            </div>
+          </div>
+
+          <input type="hidden" name="social_links" value={JSON.stringify(socialLinks)} />
+
+          {/* ───────── End of brand guide fields ───────── */}
+
+          <div className="check-row" style={{ marginTop: 20 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
               <input type="checkbox" name="is_default" value="true" defaultChecked={brand.is_default} style={{ width: 18, height: 18, accentColor: 'var(--ink)' }} />
               <span style={{ fontSize: 14.5, fontWeight: 500 }}>Set as default brand</span>
