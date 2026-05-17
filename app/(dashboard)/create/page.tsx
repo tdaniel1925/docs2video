@@ -1022,6 +1022,24 @@ export default function CreatePage() {
             ))}
           </div>
 
+          {/* Video Purpose — required, shapes extraction + script */}
+          <div style={{ marginBottom: 20 }}>
+            <label className="input-label">
+              What should this video accomplish? <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8, lineHeight: 1.5 }}>
+              This shapes everything &mdash; what data gets highlighted, the narrative tone, and the call-to-action. The same document produces very different videos depending on your goal.
+            </div>
+            <input
+              type="text"
+              className="input"
+              placeholder="e.g. Convince my client to sign the policy, Train new hires on onboarding, Summarize this report for investors"
+              value={videoPurpose}
+              onChange={e => setVideoPurpose(e.target.value)}
+              required
+            />
+          </div>
+
           {/* Tab: Upload PDF */}
           {inputTab === 'upload' && (
             <div>
@@ -1070,7 +1088,7 @@ export default function CreatePage() {
                         <input type="file" accept=".pdf" multiple className="hidden" style={{ display: 'none' }} onChange={(e) => { if (e.target.files) handleMultiFileSelect(e.target.files); e.target.value = '' }} />
                       </label>
                       <button onClick={() => { setFiles([]); setFile(null); setError(null) }} className="btn btn-soft btn-sm">Clear all</button>
-                      <button onClick={handleExtract} className="btn btn-primary btn-sm">
+                      <button onClick={handleExtract} className="btn btn-primary btn-sm" disabled={!videoPurpose.trim()}>
                         {files.length > 1 ? 'Extract & Compare' : 'Extract Data'} &rarr;
                       </button>
                     </div>
@@ -1110,7 +1128,7 @@ export default function CreatePage() {
               <div className="wizard-actions" style={{ marginTop: 16 }}>
                 <button
                   onClick={handleExtractText}
-                  disabled={!rawText.trim() || textExtracting}
+                  disabled={!rawText.trim() || textExtracting || !videoPurpose.trim()}
                   className="btn btn-primary"
                 >
                   {textExtracting ? 'Extracting...' : 'Extract & Continue \u2192'}
@@ -1182,7 +1200,7 @@ export default function CreatePage() {
                       setTextExtracting(false)
                     }
                   }}
-                  disabled={!urlInput.trim() || textExtracting}
+                  disabled={!urlInput.trim() || textExtracting || !videoPurpose.trim()}
                   className="btn btn-primary"
                 >
                   {textExtracting ? 'Extracting...' : 'Extract & Continue \u2192'}
@@ -1346,7 +1364,7 @@ export default function CreatePage() {
                       setResearchLoading(false)
                     }
                   }}
-                  disabled={!researchTopic.trim() || researchLoading}
+                  disabled={!researchTopic.trim() || researchLoading || !videoPurpose.trim()}
                   className="btn btn-primary"
                 >
                   {researchLoading ? 'Researching...' : 'Research & Continue \u2192'}
@@ -1404,7 +1422,7 @@ export default function CreatePage() {
               <div className="wizard-actions" style={{ marginTop: 16 }}>
                 <button
                   onClick={handleGenerateFromIdea}
-                  disabled={!ideaTopic.trim() || !ideaAudience.trim() || textExtracting}
+                  disabled={!ideaTopic.trim() || !ideaAudience.trim() || textExtracting || !videoPurpose.trim()}
                   className="btn btn-primary"
                 >
                   {textExtracting ? 'Generating...' : 'Generate Content \u2192'}
@@ -1812,24 +1830,6 @@ export default function CreatePage() {
               </>
             ) : null}
 
-            {/* Video Purpose — required before script generation */}
-            <div style={{ marginTop: 24 }}>
-              <label className="input-label">
-                What should this video accomplish? <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8, lineHeight: 1.5 }}>
-                This shapes the entire video &mdash; its narrative, tone, and emphasis. Be specific about your goal and audience.
-              </div>
-              <input
-                type="text"
-                className="input"
-                placeholder="e.g. Convince my client to sign the policy, Train new hires on onboarding, Summarize this report for investors"
-                value={videoPurpose}
-                onChange={e => setVideoPurpose(e.target.value)}
-                required
-              />
-            </div>
-
             <div className="wizard-actions">
               <button onClick={() => { if (confirm('Start over? This will clear all your extracted data and edits.')) { setReviewReady(false); setExtractedData(null); setGeneralData(null); setMultiDocData([]); setEditableScenes([]) } }} className="btn btn-soft">&larr; Start Over</button>
               <button onClick={handleGenerateScript} className="btn btn-primary" disabled={!videoPurpose.trim()}>Generate Script &rarr;</button>
@@ -2198,24 +2198,6 @@ export default function CreatePage() {
               )}
             </>
           )}
-
-          {/* Video Purpose — required before script generation */}
-          <div style={{ marginTop: 24 }}>
-            <label className="input-label">
-              What should this video accomplish? <span style={{ color: '#dc2626' }}>*</span>
-            </label>
-            <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8, lineHeight: 1.5 }}>
-              This shapes the entire video &mdash; its narrative, tone, and emphasis. Be specific about your goal and audience.
-            </div>
-            <input
-              type="text"
-              className="input"
-              placeholder="e.g. Convince my client to sign the policy, Train new hires on onboarding, Summarize this report for investors"
-              value={videoPurpose}
-              onChange={e => setVideoPurpose(e.target.value)}
-              required
-            />
-          </div>
 
           <div className="wizard-actions">
             <button onClick={() => { setStep('upload') }} className="btn btn-soft">&larr; Back</button>
