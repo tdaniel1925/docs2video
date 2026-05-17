@@ -1,7 +1,8 @@
+import { GoogleGenAI } from '@google/genai'
 import type { ExtractedPolicyData, VideoScene } from './types'
 import { type ExtractedData, isInsuranceData } from './extract-types'
 
-const KIE_API_BASE = 'https://api.kie.ai'
+const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
 /**
  * Analyzes content and creates a music generation prompt for Suno AI.
@@ -45,94 +46,63 @@ export function buildMusicPrompt(
 }
 
 /**
- * Generates custom music via Kie.ai Suno API.
- * Returns the audio URL on success, or null if generation fails.
+ * Generates custom background music via Google Lyria 2.
+ * Returns the audio buffer on success, or null if generation fails.
+ * Uses the same Gemini API key — no additional service needed.
  */
 export async function generateCustomMusic(
   prompt: string,
-  title: string = 'Background Music'
+  _title: string = 'Background Music'
 ): Promise<string | null> {
-  const apiKey = process.env.KIE_API_KEY
-  if (!apiKey) {
-    console.error('[music-generator] KIE_API_KEY not set')
+  if (!process.env.GEMINI_API_KEY) {
+    console.error('[music-generator] GEMINI_API_KEY not set')
     return null
   }
 
   try {
-    // 1. Start generation
-    console.log('[music-generator] Starting music generation...')
-    const generateRes = await fetch(`${KIE_API_BASE}/api/suno/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        prompt,
-        instrumental: true,
-        model: 'V4',
-        style: 'Corporate',
-        title,
-      }),
+    console.log('[music-generator] Generating music via Lyria 2...')
+
+    const response = await genai.models.generateContent({
+      model: 'lyria-2',
+      contents: [{
+        role: 'user',
+        parts: [{ text: prompt }],
+      }],
+      config: {
+        responseModalities: ['AUDIO'],
+      } as any,
     })
 
-    if (!generateRes.ok) {
-      const errText = await generateRes.text()
-      console.error(`[music-generator] Generate failed (${generateRes.status}):`, errText)
-      return null
-    }
-
-    const generateData = await generateRes.json()
-    const taskId = generateData.data?.task_id ?? generateData.task_id
-    if (!taskId) {
-      console.error('[music-generator] No task_id in response:', generateData)
-      return null
-    }
-
-    console.log(`[music-generator] Task created: ${taskId}`)
-
-    // 2. Poll for completion (every 5s, max 120s)
-    const maxWait = 120_000
-    const pollInterval = 5_000
-    const startTime = Date.now()
-
-    while (Date.now() - startTime < maxWait) {
-      await new Promise(resolve => setTimeout(resolve, pollInterval))
-
-      const statusRes = await fetch(`${KIE_API_BASE}/api/suno/task/${taskId}`, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-        },
-      })
-
-      if (!statusRes.ok) {
-        console.error(`[music-generator] Status check failed (${statusRes.status})`)
-        continue
-      }
-
-      const statusData = await statusRes.json()
-      const status = statusData.data?.status ?? statusData.status
-
-      if (status === 'completed') {
-        const tracks = statusData.data?.tracks ?? statusData.tracks ?? []
-        const audioUrl = tracks[0]?.audioUrl ?? tracks[0]?.audio_url
-        if (audioUrl) {
-          console.log(`[music-generator] Music ready: ${audioUrl}`)
-          return audioUrl
+    // Extract audio data from response
+    const parts = response.candidates?.[0]?.content?.parts ?? []
+    for (const part of parts) {
+      if (part.inlineData?.mimeType?.startsWith('audio/')) {
+        const buffer = Buffer.from(part.inlineData.data!, 'base64')
+        if (buffer.length < 1000) {
+          console.error(`[music-generator] Audio too small: ${buffer.length} bytes`)
+          return null
         }
-        console.error('[music-generator] Completed but no audioUrl found:', statusData)
-        return null
-      }
 
-      if (status === 'failed') {
-        console.error('[music-generator] Music generation failed:', statusData)
-        return null
-      }
+        // Upload to Supabase storage and return the URL
+        const { createAdminClient } = await import('./supabase/admin')
+        const admin = createAdminClient()
+        const fileName = `music/lyria-${Date.now()}.wav`
+        const { error: uploadError } = await admin.storage
+          .from('videos')
+          .upload(fileName, buffer, { contentType: part.inlineData.mimeType, upsert: true })
 
-      console.log(`[music-generator] Status: ${status} (${Math.round((Date.now() - startTime) / 1000)}s elapsed)`)
+        if (uploadError) {
+          console.error('[music-generator] Upload failed:', uploadError.message)
+          return null
+        }
+
+        const { data: urlData } = admin.storage.from('videos').getPublicUrl(fileName)
+        console.log(`[music-generator] Music ready: ${urlData.publicUrl}`)
+        return urlData.publicUrl
+      }
     }
 
-    console.error('[music-generator] Timed out after 120 seconds')
+    console.error('[music-generator] No audio data in Lyria response')
     return null
   } catch (err) {
     console.error('[music-generator] Error:', err instanceof Error ? err.message : err)

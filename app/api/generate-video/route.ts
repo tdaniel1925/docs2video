@@ -149,9 +149,9 @@ export async function POST(request: Request) {
     console.log(`[video ${videoId}] Generating audio for ${scenes.length} scenes...`)
     await admin.from('videos').update({ status: 'generating_audio', progress_detail: `Generating narration audio... (0 of ${scenes.length})`, progress_pct: 15 }).eq('id', videoId)
 
-    // Start AI music generation in parallel if requested OR if KIE_API_KEY is set and no music provided
+    // Start AI music generation in parallel if requested OR if Gemini key is available and no music provided
     let aiMusicPromise: Promise<string | null> | null = null
-    const shouldGenerateMusic = aiMusic || (!musicUrl && process.env.KIE_API_KEY)
+    const shouldGenerateMusic = aiMusic || (!musicUrl && process.env.GEMINI_API_KEY)
     if (shouldGenerateMusic) {
       const prompt = musicPrompt || buildMusicPrompt(policyData, scenes)
       const title = (policyData as any)?.policyType ?? (policyData as any)?.title ?? 'Background Music'
