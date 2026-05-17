@@ -4,7 +4,7 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { generateScript } from '../../_lib/script-generator'
 import { generateSlide } from '../../_lib/gemini'
 import { compositeSlide } from '../../_lib/composite'
-import { generateCoverOverlay } from '../../_lib/cover-overlay'
+import { generateCoverOverlay, generateLogoWatermark } from '../../_lib/cover-overlay'
 import { synthesizeSpeech } from '../../_lib/tts'
 // Video assembly is offloaded to the Hetzner VPS (video-service)
 const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
@@ -236,9 +236,10 @@ export async function POST(request: Request) {
       console.log(`[video ${videoId}] Loaded template reference image for style "${effectiveStyleId}"`)
     } catch { /* template preview not found, skip */ }
 
-    // Generate GPT cover/closing overlays (logo + title text on transparent background)
+    // Generate Sharp overlays — cover/closing (logo + title) and middle (logo watermark)
     let coverOverlay: Buffer | null = null
     let closingOverlay: Buffer | null = null
+    let logoWatermark: Buffer | null = null
     if (logoBuffer) {
       const isInsurance = policyData && 'policyType' in policyData
       const overlayColors = colors
@@ -254,30 +255,32 @@ export async function POST(request: Request) {
         website: guideData?.website ?? undefined,
       }
 
-      console.log(`[video ${videoId}] Generating GPT cover/closing overlays...`)
+      console.log(`[video ${videoId}] Generating Sharp overlays (cover, closing, watermark)...`)
       try {
-        const [coverResult, closingResult] = await Promise.all([
-          withTimeout(generateCoverOverlay({
+        const [coverResult, closingResult, watermarkResult] = await Promise.all([
+          generateCoverOverlay({
             logoBuffer,
             title: overlayTitle,
             subtitle: overlaySubtitle,
             colors: overlayColors,
             isCover: true,
-          }), 30000, 'Cover overlay'),
-          withTimeout(generateCoverOverlay({
+          }),
+          generateCoverOverlay({
             logoBuffer,
             title: overlayTitle,
             subtitle: brand?.name ?? undefined,
             contactInfo: overlayContact,
             colors: overlayColors,
             isCover: false,
-          }), 30000, 'Closing overlay'),
+          }),
+          generateLogoWatermark(logoBuffer),
         ])
         coverOverlay = coverResult
         closingOverlay = closingResult
-        console.log(`[video ${videoId}] GPT overlays generated successfully`)
+        logoWatermark = watermarkResult
+        console.log(`[video ${videoId}] Sharp overlays generated successfully`)
       } catch (err) {
-        console.error(`[video ${videoId}] GPT overlay failed, using fallback:`, err)
+        console.error(`[video ${videoId}] Overlay generation failed:`, err)
       }
     }
 
@@ -315,17 +318,18 @@ export async function POST(request: Request) {
       let masterSlideBuffer: Buffer | null = null
 
       // Generate slide 1 (cover) — establishes the visual identity (60s timeout)
+      // Logo is NOT passed to Gemini — Sharp composites it afterward
       let buf0 = await withTimeout(
         generateSlide(
           policyData, 0, effectiveStyleId as any,
-          brand?.name ?? null, logoUrl, colors,
+          brand?.name ?? null, null, colors,
           scenes[0].slidePrompt, !!photoUrl, contactInfo,
-          logoBuffer, referenceSlides, scenes.length,
+          null, referenceSlides, scenes.length,
           customStylePrompt, undefined, undefined, templateRefBuffer,
           sceneAssetMap[0]
         ), 60000, 'Slide 1'
       )
-      buf0 = await compositeSlide(buf0, photoUrl, logoUrl, true, scenes.length === 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo, coverOverlay)
+      buf0 = await compositeSlide(buf0, photoUrl, null, true, scenes.length === 1, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo, coverOverlay)
       slideBuffers.push(buf0)
       masterSlideBuffer = buf0
       console.log(`[video ${videoId}] Slide 1 done — using as style reference for remaining slides`)
@@ -341,16 +345,18 @@ export async function POST(request: Request) {
           const batchResults = await Promise.all(
             batch.map(async (scene: any, j: number) => {
               const idx = i + j
+              // Logo is NOT passed to Gemini — Sharp composites it afterward
               let buf = await withTimeout(generateSlide(
                 policyData, idx, effectiveStyleId as any,
-                brand?.name ?? null, logoUrl, colors,
+                brand?.name ?? null, null, colors,
                 scene.slidePrompt, !!photoUrl, contactInfo,
-                logoBuffer, masterRef, scenes.length,
+                null, masterRef, scenes.length,
                 customStylePrompt, undefined, undefined, templateRefBuffer,
                 sceneAssetMap[idx]
               ), 60000, `Slide ${idx + 1}`)
               const isLast = idx === scenes.length - 1
-              buf = await compositeSlide(buf, photoUrl, logoUrl, false, isLast, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo, isLast ? closingOverlay : null)
+              // Cover/closing get full overlay, middle slides get logo watermark
+              buf = await compositeSlide(buf, photoUrl, null, false, isLast, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo, isLast ? closingOverlay : logoWatermark)
               return buf
             })
           )

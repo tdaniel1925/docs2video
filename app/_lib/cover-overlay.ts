@@ -1,16 +1,15 @@
 /**
- * Generates logo + title text overlays for cover and closing slides
- * using OpenAI GPT Image. The overlay has a transparent background
- * and gets composited onto Gemini-generated decorative backgrounds.
+ * Generates logo + title text overlays using Sharp (no AI API calls).
  *
- * This replaces the logo-kit approach: instead of 65 styled logos,
- * we generate 2 overlays per video (cover + closing).
+ * Cover slide: Large centered logo + title + subtitle
+ * Closing slide: Large centered logo + "Thank You" + contact info
+ * Middle slides: Small logo watermark in top-left corner
+ *
+ * All overlays are transparent PNGs composited onto Gemini slides.
+ * This is 100% reliable, pixel-perfect, and free (no API cost).
  */
-import OpenAI from 'openai'
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-
-interface OverlayOptions {
+interface CoverOverlayOptions {
   logoBuffer: Buffer
   title: string
   subtitle?: string
@@ -19,83 +18,13 @@ interface OverlayOptions {
   isCover: boolean // true = cover slide, false = closing slide
 }
 
-/**
- * Generate a logo + text overlay PNG with transparent background.
- * GPT Image renders the uploaded logo at large size with title text.
- */
-export async function generateCoverOverlay(options: OverlayOptions): Promise<Buffer> {
-  const { logoBuffer, title, subtitle, contactInfo, colors, isCover } = options
-
-  let textInstructions: string
-  if (isCover) {
-    textInstructions = `COVER SLIDE OVERLAY:
-- Place the provided logo prominently in the CENTER of the image, sized at roughly 300x300 pixels
-- Below the logo, render the title text: "${title}"
-- ${subtitle ? `Below the title, render subtitle: "${subtitle}"` : 'No subtitle needed'}
-- Use clean, modern typography that complements the logo
-- Title text should be large (50-60pt equivalent), bold, and highly readable`
-  } else {
-    textInstructions = `CLOSING SLIDE OVERLAY:
-- Place the provided logo in the CENTER of the image, sized at roughly 250x250 pixels
-- Below the logo, render: "Thank You"
-- ${subtitle ? `Below that: "${subtitle}"` : ''}
-- ${contactInfo?.phone ? `Contact: ${contactInfo.phone}` : ''}
-- ${contactInfo?.website ? `Website: ${contactInfo.website}` : ''}
-- Use clean, professional typography`
-  }
-
-  const prompt = `Generate a 1920x1080 PNG image with a COMPLETELY TRANSPARENT background.
-
-${textInstructions}
-
-CRITICAL RULES:
-- The background MUST be fully transparent (alpha = 0) — this is an overlay
-- Use text color: ${colors.text} for primary text
-- Use accent color: ${colors.accent} for decorative elements if any
-- The logo must be rendered EXACTLY as provided — do not redraw, simplify, or modify it
-- Center everything horizontally on the 1920px canvas
-- Position content in the vertical center-to-upper-third area
-- Do NOT add any background color, gradient, or pattern — ONLY transparent
-- Do NOT add borders, frames, or decorative backgrounds
-- Keep it clean: just the logo and text on transparent background`
-
-  try {
-    const logoFile = new File([new Uint8Array(logoBuffer)], 'logo.png', { type: 'image/png' })
-    const response = await openai.images.edit({
-      model: 'gpt-image-1',
-      image: logoFile,
-      prompt,
-      size: '1536x1024' as any, // Closest to 16:9 that GPT Image supports
-    })
-
-    const imageData = response.data?.[0]
-    if (!imageData) throw new Error('No image returned from GPT Image')
-
-    // GPT Image returns base64
-    const b64 = (imageData as any).b64_json
-    if (b64) {
-      return Buffer.from(b64, 'base64')
-    }
-
-    // Fallback: URL-based response
-    const url = (imageData as any).url
-    if (url) {
-      const res = await fetch(url)
-      return Buffer.from(await res.arrayBuffer())
-    }
-
-    throw new Error('GPT Image returned neither b64_json nor url')
-  } catch (err) {
-    console.error('[cover-overlay] GPT Image failed, using Sharp fallback:', err)
-    return generateFallbackOverlay(options)
-  }
-}
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
 
 /**
- * Fallback: if GPT Image fails, use Sharp to composite the raw logo
- * with text rendered as SVG. Not as polished but functional.
+ * Generate a cover or closing overlay: large centered logo + title text.
+ * Returns a transparent 1920x1080 PNG.
  */
-async function generateFallbackOverlay(options: OverlayOptions): Promise<Buffer> {
+export async function generateCoverOverlay(options: CoverOverlayOptions): Promise<Buffer> {
   const { logoBuffer, title, subtitle, contactInfo, colors, isCover } = options
   const sharpMod = await import('sharp')
   const sharp = sharpMod.default ?? sharpMod
@@ -103,59 +32,88 @@ async function generateFallbackOverlay(options: OverlayOptions): Promise<Buffer>
   const width = 1920
   const height = 1080
 
-  // Resize logo
-  const logoSize = isCover ? 280 : 220
+  // Resize logo — large and prominent
+  const logoMaxW = isCover ? 500 : 400
+  const logoMaxH = isCover ? 280 : 220
   const resizedLogo = await sharp(logoBuffer)
-    .resize(logoSize, logoSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .resize(logoMaxW, logoMaxH, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toBuffer()
 
   const logoMeta = await sharp(resizedLogo).metadata()
-  const logoW = logoMeta.width ?? logoSize
-  const logoH = logoMeta.height ?? logoSize
+  const logoW = logoMeta.width ?? logoMaxW
+  const logoH = logoMeta.height ?? logoMaxH
+
+  // Position logo in upper-center area
+  const logoLeft = Math.round((width - logoW) / 2)
+  const logoTop = isCover ? Math.round(height * 0.18) : Math.round(height * 0.2)
 
   // Build text lines
-  const lines: string[] = []
+  const lines: { text: string; size: number; weight: string; opacity: number }[] = []
   if (isCover) {
-    lines.push(title)
-    if (subtitle) lines.push(subtitle)
+    lines.push({ text: title, size: 56, weight: 'bold', opacity: 1 })
+    if (subtitle) lines.push({ text: subtitle, size: 30, weight: 'normal', opacity: 0.85 })
   } else {
-    lines.push('Thank You')
-    if (subtitle) lines.push(subtitle)
-    if (contactInfo?.phone) lines.push(contactInfo.phone)
-    if (contactInfo?.website) lines.push(contactInfo.website)
+    lines.push({ text: 'Thank You', size: 52, weight: 'bold', opacity: 1 })
+    if (subtitle) lines.push({ text: subtitle, size: 28, weight: 'normal', opacity: 0.85 })
+    if (contactInfo?.phone) lines.push({ text: contactInfo.phone, size: 24, weight: 'normal', opacity: 0.7 })
+    if (contactInfo?.website) lines.push({ text: contactInfo.website, size: 24, weight: 'normal', opacity: 0.7 })
   }
 
-  // Escape XML entities
-  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  // Build SVG text
+  const textStartY = logoTop + logoH + 50
+  const svgLines = lines.map((line, i) => {
+    const y = textStartY + i * (line.size + 18)
+    return `<text x="${width / 2}" y="${y}" font-family="Plus Jakarta Sans, Helvetica Neue, Arial, sans-serif" font-size="${line.size}" font-weight="${line.weight}" fill="${esc(colors.text)}" fill-opacity="${line.opacity}" text-anchor="middle" dominant-baseline="hanging">${esc(line.text)}</text>`
+  })
 
-  // Build SVG text overlay
-  const titleSize = isCover ? 52 : 44
-  const subSize = 28
-  const textStartY = height / 2 + logoH / 2 + 40
-  const textLines = lines.map((line, i) => {
-    const fontSize = i === 0 ? titleSize : subSize
-    const fontWeight = i === 0 ? 'bold' : 'normal'
-    const y = textStartY + i * (fontSize + 16)
-    return `<text x="${width / 2}" y="${y}" font-family="Plus Jakarta Sans, Helvetica, Arial, sans-serif" font-size="${fontSize}" font-weight="${fontWeight}" fill="${esc(colors.text)}" text-anchor="middle">${esc(line)}</text>`
+  // Add a subtle text shadow for readability on any background
+  const shadowLines = lines.map((line, i) => {
+    const y = textStartY + i * (line.size + 18) + 2
+    return `<text x="${width / 2 + 1}" y="${y}" font-family="Plus Jakarta Sans, Helvetica Neue, Arial, sans-serif" font-size="${line.size}" font-weight="${line.weight}" fill="black" fill-opacity="0.4" text-anchor="middle" dominant-baseline="hanging">${esc(line.text)}</text>`
   })
 
   const svgText = Buffer.from(
     `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-      ${textLines.join('\n      ')}
+      ${shadowLines.join('\n      ')}
+      ${svgLines.join('\n      ')}
     </svg>`
   )
 
   // Composite logo + text on transparent canvas
-  const logoLeft = Math.round((width - logoW) / 2)
-  const logoTop = Math.round(height / 2 - logoH / 2 - 40)
-
   return sharp({
     create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
   })
     .composite([
       { input: resizedLogo, left: logoLeft, top: logoTop },
       { input: svgText, left: 0, top: 0 },
+    ])
+    .png()
+    .toBuffer()
+}
+
+/**
+ * Generate a small logo watermark for middle slides.
+ * Returns a transparent 1920x1080 PNG with logo in top-left corner.
+ */
+export async function generateLogoWatermark(logoBuffer: Buffer): Promise<Buffer> {
+  const sharpMod = await import('sharp')
+  const sharp = sharpMod.default ?? sharpMod
+
+  const width = 1920
+  const height = 1080
+
+  // Small logo for corner watermark
+  const resizedLogo = await sharp(logoBuffer)
+    .resize(160, 60, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer()
+
+  return sharp({
+    create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
+  })
+    .composite([
+      { input: resizedLogo, left: 40, top: 30 },
     ])
     .png()
     .toBuffer()

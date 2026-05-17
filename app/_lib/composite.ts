@@ -1,9 +1,10 @@
 /**
  * Composites overlays onto Gemini-generated slides:
- * - Cover/closing: GPT-generated logo+text overlay (transparent PNG)
+ * - Cover/closing: Sharp-rendered logo+text overlay (transparent PNG)
  * - Cover: circular headshot photo (bottom-right)
  * - Closing: standing photo (bottom-right)
- * - Middle slides: no overlays (Gemini handles everything)
+ * - Middle slides: Sharp-rendered logo watermark (top-left corner)
+ * All logo rendering is done by Sharp — Gemini never touches the logo.
  */
 export async function compositeSlide(
   slideBuffer: Buffer,

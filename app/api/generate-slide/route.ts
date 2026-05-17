@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { generateSlide } from '../../_lib/gemini'
 import { compositeSlide } from '../../_lib/composite'
-import { generateCoverOverlay } from '../../_lib/cover-overlay'
+import { generateCoverOverlay, generateLogoWatermark } from '../../_lib/cover-overlay'
 import type { ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Download logo for Gemini integration
+    // Download logo for Sharp compositing (NOT passed to Gemini)
     let logoBuffer: Buffer | null = null
     if (logoUrl) {
       try {
@@ -97,37 +97,40 @@ export async function POST(request: Request) {
       } catch { /* proceed without consistency reference */ }
     }
 
+    // Logo is NOT passed to Gemini — Sharp composites it afterward
     let imageBuffer = await generateSlide(
-      policyData, slideIndex, styleId, brandName, logoUrl, colors, slidePrompt, !!photoUrl, undefined,
-      logoBuffer, undefined, undefined, undefined, undefined, undefined, templateRefBuffer ?? previousSlideBuffer, assetBuffer
+      policyData, slideIndex, styleId, brandName, null, colors, slidePrompt, !!photoUrl, undefined,
+      null, undefined, undefined, undefined, undefined, undefined, templateRefBuffer ?? previousSlideBuffer, assetBuffer
     )
 
-    // Generate GPT overlay for cover/closing slides (logo + title on transparent bg)
-    let overlayBuffer: Buffer | null = null
+    // Generate Sharp overlay for logo placement
     const isCover = slideIndex === 0
     const isClosing = isLastSlide ?? false
-    if (logoBuffer && (isCover || isClosing)) {
+    let overlayBuffer: Buffer | null = null
+    if (logoBuffer) {
       try {
-        const isInsurance = policyData && 'policyType' in policyData
-        const title = isInsurance
-          ? `${(policyData as any).policyType} Policy Overview`
-          : (policyData as ExtractedData).title || 'Presentation'
-        const subtitle = isInsurance
-          ? `Prepared for ${(policyData as any).insuredName}`
-          : (policyData as ExtractedData).subtitle || undefined
-
-        overlayBuffer = await generateCoverOverlay({
-          logoBuffer,
-          title,
-          subtitle: isCover ? subtitle : brandName ?? undefined,
-          colors,
-          isCover,
-        })
+        if (isCover || isClosing) {
+          const isInsurance = policyData && 'policyType' in policyData
+          const title = isInsurance
+            ? `${(policyData as any).policyType} Policy Overview`
+            : (policyData as ExtractedData).title || 'Presentation'
+          const subtitle = isInsurance
+            ? `Prepared for ${(policyData as any).insuredName}`
+            : (policyData as ExtractedData).subtitle || undefined
+          overlayBuffer = await generateCoverOverlay({
+            logoBuffer, title,
+            subtitle: isCover ? subtitle : brandName ?? undefined,
+            colors, isCover,
+          })
+        } else {
+          // Middle slides get a small logo watermark
+          overlayBuffer = await generateLogoWatermark(logoBuffer)
+        }
       } catch { /* proceed without overlay */ }
     }
 
     // Composite overlay + photo onto the slide
-    imageBuffer = await compositeSlide(imageBuffer, photoUrl, logoUrl, isCover, isClosing, standingPhotoUrl, null, null, undefined, overlayBuffer)
+    imageBuffer = await compositeSlide(imageBuffer, photoUrl, null, isCover, isClosing, standingPhotoUrl, null, null, undefined, overlayBuffer)
 
     const base64 = `data:image/png;base64,${imageBuffer.toString('base64')}`
     return NextResponse.json({ image: base64 })

@@ -430,13 +430,8 @@ This is slide ${slideIndex + 1} of ${totalSlides}. ALL slides must share identic
 
   parts.push({ text: promptText })
 
-  // Add logo image for MIDDLE slides only — cover/closing logos handled by GPT overlay
-  if (logoBuffer && !isFirst && !isLast) {
-    parts.push(
-      { text: `LOGO INTEGRATION: Place this logo naturally in the top-left or top-right corner (smaller, like a watermark). Do NOT redraw, modify, or recreate the logo — use it EXACTLY as provided. Design the surrounding elements to complement it.` },
-      { inlineData: { mimeType: 'image/png', data: logoBuffer.toString('base64') } },
-    )
-  }
+  // Logo is NOT passed to Gemini — Sharp composites the actual logo afterward.
+  // This prevents Gemini from redrawing/reinterpreting the logo.
 
   // Add color swatch reference if available
   if (colorSwatchBuffer) {
