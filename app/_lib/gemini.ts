@@ -173,9 +173,12 @@ STRICT RULES (MUST FOLLOW):
 - All text must be large enough to read on a phone screen (minimum 36pt equivalent)
 - The image must look sharp and high resolution at 1920x1080
 
-BRAND-FREE ZONE (CRITICAL):
-- DO NOT include ANY company name, brand name, logo, lettermark, monogram, emblem, or brand mark ANYWHERE
-- DO NOT write any company name as text on the slide — not in headers, corners, or anywhere
+BRAND-FREE ZONE (CRITICAL — ZERO TOLERANCE):
+- DO NOT include ANY company name, brand name, logo, lettermark, monogram, emblem, or brand mark ANYWHERE on the slide
+- DO NOT write any company name as text — not in headers, footers, corners, watermarks, or anywhere else
+- DO NOT attempt to spell, render, or display any brand name even if one is mentioned in the context — IGNORE IT completely
+- If you see a brand name in the prompt context, DO NOT put it on the slide. The brand name will be added separately later.
+- DO NOT create any text that looks like a logo or brand identity element
 - Use the FULL canvas for your design — do not leave any empty areas, reserved zones, or placeholder spaces
 - Focus ONLY on the CONTENT: data, metrics, charts, icons, section headings, and visual storytelling
 - Use TOPICAL icons (gears, globes, charts, industry symbols) for visual interest — never brand marks
