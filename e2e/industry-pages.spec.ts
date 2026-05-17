@@ -27,32 +27,27 @@ test.describe('Industry Landing Pages', () => {
 
       test(`has pain points section`, async ({ page }) => {
         await page.goto(`/for/${industry}`)
-        const painPoints = page.locator('[data-testid="pain-points"], [class*="pain"], section:has-text("challenge"), section:has-text("problem")').first()
-        await expect(painPoints).toBeVisible()
+        await expect(page.locator('text=The problem').first()).toBeVisible()
       })
 
       test(`has solutions section`, async ({ page }) => {
         await page.goto(`/for/${industry}`)
-        const solutions = page.locator('[data-testid="solutions"], [class*="solution"], section:has-text("solution"), section:has-text("how it works")').first()
-        await expect(solutions).toBeVisible()
+        await expect(page.locator('text=The solution').first()).toBeVisible()
       })
 
       test(`has testimonial section`, async ({ page }) => {
         await page.goto(`/for/${industry}`)
-        const testimonial = page.locator('[data-testid="testimonial"], [class*="testimonial"], blockquote, [class*="quote"]').first()
-        await expect(testimonial).toBeVisible()
+        await expect(page.locator('.testimonial-section').first()).toBeVisible()
       })
 
       test(`has FAQ section`, async ({ page }) => {
         await page.goto(`/for/${industry}`)
-        const faq = page.locator('[data-testid="faq"], [class*="faq"], section:has-text("FAQ"), section:has-text("Frequently")').first()
-        await expect(faq).toBeVisible()
+        await expect(page.locator('.faq-section').first()).toBeVisible()
       })
 
       test(`has CTA section`, async ({ page }) => {
         await page.goto(`/for/${industry}`)
-        const cta = page.locator('a[href*="/signup"], a[href*="/sign-up"], button:has-text("Start"), button:has-text("Try")').first()
-        await expect(cta).toBeVisible()
+        await expect(page.locator('.final-cta').first()).toBeVisible()
       })
     })
   }
