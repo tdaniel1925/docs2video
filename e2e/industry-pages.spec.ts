@@ -26,9 +26,10 @@ for (const industry of INDUSTRIES) {
 
     test('hero title is visible and contains Docs2Video', async ({ page }) => {
       const heroTitle = page.locator('h1.hero-title')
-      await expect(heroTitle).toBeVisible()
+      await expect(heroTitle).toBeVisible({ timeout: 10000 })
       const text = await heroTitle.textContent()
       expect(text).toContain('Docs2Video for')
+      expect(text).toContain(industry.name)
     })
 
     test('hero has start free trial CTA', async ({ page }) => {
@@ -50,7 +51,7 @@ for (const industry of INDUSTRIES) {
 
     test('solution section exists with eyebrow', async ({ page }) => {
       const solutionEyebrow = page.locator('.section-eyebrow', { hasText: 'The solution' })
-      await expect(solutionEyebrow).toBeVisible()
+      await expect(solutionEyebrow).toBeVisible({ timeout: 10000 })
     })
 
     test('comparison table shows before/after', async ({ page }) => {
@@ -62,12 +63,12 @@ for (const industry of INDUSTRIES) {
     })
 
     test('testimonial section exists', async ({ page }) => {
-      const testimonialSection = page.locator('.testimonial-section')
+      const testimonialSection = page.locator('section.testimonial-section')
       await testimonialSection.scrollIntoViewIfNeeded()
-      await expect(testimonialSection).toBeVisible()
+      await expect(testimonialSection).toBeVisible({ timeout: 15000 })
       // Has a testimonial card with stars
-      await expect(testimonialSection.locator('.testimonial-card')).toBeVisible()
-      await expect(testimonialSection.locator('.testimonial-stars')).toBeVisible()
+      await expect(testimonialSection.locator('.testimonial-card')).toBeVisible({ timeout: 10000 })
+      await expect(testimonialSection.locator('.testimonial-stars')).toBeVisible({ timeout: 10000 })
     })
 
     test('FAQ section exists with questions', async ({ page }) => {

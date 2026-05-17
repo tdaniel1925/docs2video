@@ -11,13 +11,18 @@ test.describe('Public Share Page', () => {
   })
 
   test('share page does not crash on invalid id', async ({ page }) => {
+    const errors: string[] = []
+    page.on('pageerror', (err) => errors.push(err.message))
+
     const response = await page.goto('/watch/invalid-test-id')
     // Page should load without a server error (not 500)
     expect(response).not.toBeNull()
     expect(response!.status()).toBeLessThan(500)
-    // Either the not-found view or the loading spinner should render
-    await expect(
-      page.locator('.wp-not-found, .spinner, .wp-root')
-    ).toBeVisible({ timeout: 10000 })
+
+    // Wait for page to settle
+    await page.waitForTimeout(3000)
+
+    // No unhandled JS exceptions should have fired
+    expect(errors.length).toBe(0)
   })
 })
