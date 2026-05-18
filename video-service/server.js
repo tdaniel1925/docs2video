@@ -60,8 +60,21 @@ app.post('/assemble', authCheck, async (req, res) => {
   const workDir = join(tmpdir(), `d2v-${randomUUID()}`)
   console.log(`[${videoId}] Starting assembly: ${slides.length} slides, ${audios.length} audios`)
 
+  // Helper to update video progress in Supabase
+  async function updateProgress(detail, pct) {
+    if (!SUPABASE_URL || !SUPABASE_KEY) return
+    try {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: { persistSession: false },
+        realtime: { transport: WebSocket },
+      })
+      await supabase.from('videos').update({ progress_detail: detail, progress_pct: pct }).eq('id', videoId)
+    } catch (e) { console.error(`[${videoId}] Progress update failed:`, e.message) }
+  }
+
   try {
     await mkdir(workDir, { recursive: true })
+    await updateProgress('Writing files to disk...', 76)
 
     // Write slides and audio to disk
     for (let i = 0; i < slides.length; i++) {
@@ -76,6 +89,7 @@ app.post('/assemble', authCheck, async (req, res) => {
     const durations = []
 
     for (let i = 0; i < slides.length; i++) {
+      await updateProgress(`Encoding clip ${i + 1} of ${slides.length}...`, 76 + Math.round((i / slides.length) * 12))
       const clipPath = join(workDir, `clip_${i}.mp4`)
       const slidePath = join(workDir, `slide_${i}.png`)
       const audioPath = join(workDir, `audio_${i}.mp3`)
@@ -136,6 +150,7 @@ app.post('/assemble', authCheck, async (req, res) => {
     }
 
     console.log(`[${videoId}] Clips done, concatenating...`)
+    await updateProgress('Joining clips together...', 89)
 
     // Concatenate clips
     const concatFile = join(workDir, 'concat.txt')
@@ -186,6 +201,7 @@ app.post('/assemble', authCheck, async (req, res) => {
           ])
           finalPath = mixedPath
           console.log(`[${videoId}] Music mixed`)
+          await updateProgress('Music added, finalizing...', 93)
         } else {
           console.error(`[${videoId}] Music download failed: ${musicRes.status} ${musicRes.statusText}`)
         }
@@ -223,6 +239,7 @@ app.post('/assemble', authCheck, async (req, res) => {
       const { data: thumbUrlData } = supabase.storage.from('videos').getPublicUrl(thumbPath)
 
       console.log(`[${videoId}] Uploaded to Supabase`)
+      await updateProgress('Upload complete!', 98)
 
       res.json({
         success: true,
@@ -242,6 +259,7 @@ app.post('/assemble', authCheck, async (req, res) => {
     }
   } catch (err) {
     console.error(`[${videoId}] Error:`, err.message)
+    await updateProgress(`Assembly failed: ${err.message}`, 0).catch(() => {})
     res.status(500).json({ error: err.message })
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {})
