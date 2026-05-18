@@ -154,24 +154,44 @@ export async function POST(request: Request) {
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15 }).eq('id', videoId)
     }
 
-    // STAGE 2: Generate audio + music + slides ALL IN PARALLEL
-    // Audio and slides don't depend on each other — only assembly needs both
-    console.log(`[video ${videoId}] Starting parallel generation: audio (${scenes.length} scenes) + slides + music...`)
-    await admin.from('videos').update({ status: 'generating_audio', progress_detail: `Generating audio and slides in parallel...`, progress_pct: 15 }).eq('id', videoId)
+    // STAGE 2: Hand off to VPS for audio + slides + assembly
+    // VPS does everything — no Vercel timeout risk
+    console.log(`[video ${videoId}] Handing off to VPS for full pipeline...`)
+    await admin.from('videos').update({ status: 'generating_audio', progress_detail: 'Starting generation...', progress_pct: 10 }).eq('id', videoId)
 
-    // Start AI music generation
-    let aiMusicPromise: Promise<string | null> | null = null
-    const shouldGenerateMusic = aiMusic || (!musicUrl && process.env.GEMINI_API_KEY)
-    if (shouldGenerateMusic) {
-      const prompt = musicPrompt || buildMusicPrompt(policyData, scenes)
-      const title = (policyData as any)?.policyType ?? (policyData as any)?.title ?? 'Background Music'
-      console.log(`[video ${videoId}] Starting AI music generation...`)
-      aiMusicPromise = generateCustomMusic(prompt, title)
+    // Send to VPS — it handles audio, slides, assembly, upload, and marking complete
+    try {
+      const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
+        body: JSON.stringify({
+          videoId,
+          policyData,
+          brandId,
+          voiceId,
+          styleId: styleId ?? brand?.deck_style_id ?? 'executive',
+          scenes,
+          userId: user.id,
+        }),
+        signal: AbortSignal.timeout(10000), // Just wait for VPS to acknowledge, not complete
+      })
+      const vpsData = await vpsRes.json()
+      if (!vpsData.success) throw new Error(vpsData.error || 'VPS rejected request')
+      console.log(`[video ${videoId}] VPS accepted — generation running in background`)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'VPS handoff failed'
+      // If VPS is down, the video stays in generating_audio status
+      // Don't mark as failed yet — VPS might still pick it up
+      console.error(`[video ${videoId}] VPS handoff error:`, msg)
     }
 
-    // Generate ALL audio in parallel (batches of 5 to avoid rate limits)
-    let audioComplete = 0
-    const audioPromise = (async () => {
+    // VPS handles everything from here — just return success
+    // Credit deduction happens on VPS completion (TODO: move to VPS or webhook)
+    console.log(`[video ${videoId}] Handed off to VPS. Returning.`)
+    return NextResponse.json({ success: true })
+
+    /* OLD PIPELINE CODE — replaced by VPS /generate endpoint
+    const audioPromise_REMOVED = (async () => {
       const audioBuffers: Buffer[] = new Array(scenes.length)
       for (let i = 0; i < scenes.length; i += 5) {
         const batch = scenes.slice(i, Math.min(i + 5, scenes.length))
@@ -571,6 +591,7 @@ export async function POST(request: Request) {
 
     console.log(`[video ${videoId}] Complete!`)
     return NextResponse.json({ success: true })
+    END OF OLD PIPELINE */
   } catch (err) {
     console.error(`[video ${videoId}] Error:`, err)
     const message = err instanceof Error ? err.message : 'Video generation failed'

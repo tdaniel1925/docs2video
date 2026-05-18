@@ -14,6 +14,8 @@ const PORT = process.env.PORT || 4000
 const API_SECRET = process.env.API_SECRET || 'docs2video-assembly-secret-2026'
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 
 // Auth middleware
 function authCheck(req, res, next) {
@@ -453,6 +455,247 @@ app.post('/convert', authCheck, async (req, res) => {
     res.status(500).json({ error: err.message })
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {})
+  }
+})
+
+// ============================================================
+// FULL PIPELINE — VPS does everything (no Vercel timeout risk)
+// ============================================================
+app.post('/generate', authCheck, async (req, res) => {
+  const { videoId, policyData, brandId, voiceId, styleId, scenes, userId } = req.body
+
+  if (!videoId || !scenes?.length || !userId) {
+    return res.status(400).json({ error: 'Missing videoId, scenes, or userId' })
+  }
+
+  // Respond immediately — work happens in background
+  res.json({ success: true, message: 'Generation started' })
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: { persistSession: false },
+    realtime: { transport: WebSocket },
+  })
+
+  async function updateStatus(status, detail, pct) {
+    await supabase.from('videos').update({ status, progress_detail: detail, progress_pct: pct }).eq('id', videoId).catch(() => {})
+  }
+
+  try {
+    console.log(`[${videoId}] FULL PIPELINE: ${scenes.length} scenes, voice=${voiceId}, style=${styleId}`)
+
+    // STAGE 1: Generate audio (parallel batches of 5)
+    await updateStatus('generating_audio', `Narrating ${scenes.length} scenes...`, 10)
+    const OpenAI = require('openai')
+    const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
+
+    const audioBuffers = []
+    for (let i = 0; i < scenes.length; i += 5) {
+      const batch = scenes.slice(i, Math.min(i + 5, scenes.length))
+      const results = await Promise.all(batch.map(async (scene) => {
+        if (!scene.narration?.trim()) return Buffer.alloc(0)
+        try {
+          const resp = await openai.audio.speech.create({
+            model: 'tts-1-hd', voice: voiceId || 'nova',
+            input: scene.narration.slice(0, 4096), response_format: 'mp3', speed: 0.95,
+          })
+          return Buffer.from(await resp.arrayBuffer())
+        } catch (e) {
+          console.error(`[${videoId}] TTS failed for scene:`, e.message)
+          return Buffer.alloc(0)
+        }
+      }))
+      audioBuffers.push(...results)
+      const done = Math.min(i + 5, scenes.length)
+      console.log(`[${videoId}] Audio ${done}/${scenes.length}`)
+      await updateStatus('generating_audio', `Narrating scene ${done} of ${scenes.length}...`, 10 + Math.round((done / scenes.length) * 15))
+    }
+    console.log(`[${videoId}] Audio complete: ${audioBuffers.length} clips`)
+
+    // STAGE 2: Generate slides (parallel batches of 5)
+    await updateStatus('generating_slides', `Designing slides...`, 30)
+    const { GoogleGenAI } = require('@google/genai')
+    const genai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+    const IMAGE_MODEL = process.env.IMAGE_MODEL || 'gemini-3-pro-image-preview'
+
+    // Get brand data
+    let brand = null
+    if (brandId) {
+      const { data } = await supabase.from('brands').select('*').eq('id', brandId).single()
+      brand = data
+    }
+    const colors = {
+      primary: brand?.primary_color || '#1B365D',
+      secondary: brand?.secondary_color || '#4A90D9',
+      accent: brand?.accent_color || '#FFB347',
+      background: brand?.background_color || '#0a1628',
+      text: brand?.text_color || '#FFFFFF',
+    }
+
+    // Load template reference
+    const fs = require('fs')
+    const path = require('path')
+    let templateRefBase64 = null
+    try {
+      // Try to fetch from the deployed site
+      const refUrl = `https://docs2video.com/style-previews/${styleId || 'executive'}.png`
+      const refRes = await fetch(refUrl)
+      if (refRes.ok) templateRefBase64 = Buffer.from(await refRes.arrayBuffer()).toString('base64')
+    } catch {}
+
+    const slideBuffers = []
+    for (let i = 0; i < scenes.length; i += 5) {
+      const batch = scenes.slice(i, Math.min(i + 5, scenes.length))
+      const results = await Promise.all(batch.map(async (scene, j) => {
+        const idx = i + j
+        const isFirst = idx === 0
+        const isLast = idx === scenes.length - 1
+        try {
+          const parts = []
+
+          // Build slide prompt
+          let visualContent
+          if (isFirst) {
+            visualContent = 'Create a beautiful DECORATIVE BACKGROUND for a cover slide. Do NOT include any text, titles, logos, or brand names. Design an elegant background with a clear central area for an overlay.'
+          } else if (isLast) {
+            visualContent = 'Create a beautiful DECORATIVE BACKGROUND for a closing slide. Do NOT include any text, titles, logos, or brand names.'
+          } else {
+            visualContent = `Create a professional CONTENT slide. The narration discusses: ${scene.slidePrompt || scene.narration?.slice(0, 200)}. Use icons and data points. Maximum 50 words of text. Keep ALL content in the top 980 pixels — bottom 100px will have a branded bar.`
+          }
+
+          const prompt = `Generate a presentation slide image. 1920x1080 pixels, landscape, 16:9.
+STYLE: ${styleId || 'executive'} presentation style.
+COLORS: Primary ${colors.primary}, Secondary ${colors.secondary}, Accent ${colors.accent}, Background ${colors.background}, Text ${colors.text}
+CONTENT: ${visualContent}
+RULES: Do NOT render any logos or brand names. Do NOT place content in the bottom 100px.`
+
+          if (templateRefBase64) {
+            parts.push({ text: 'Match the visual style of this reference image:' })
+            parts.push({ inlineData: { mimeType: 'image/png', data: templateRefBase64 } })
+          }
+          parts.push({ text: prompt })
+
+          const response = await genai.models.generateContent({
+            model: IMAGE_MODEL,
+            contents: [{ role: 'user', parts }],
+            config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '4K' } } },
+          })
+
+          const respParts = response.candidates?.[0]?.content?.parts ?? []
+          for (const rp of respParts) {
+            if (rp.inlineData) return Buffer.from(rp.inlineData.data, 'base64')
+          }
+          throw new Error('No image in response')
+        } catch (e) {
+          console.error(`[${videoId}] Slide ${idx + 1} failed:`, e.message)
+          // Return a blank slide as fallback
+          return Buffer.alloc(100)
+        }
+      }))
+      slideBuffers.push(...results)
+      const done = Math.min(i + 5, scenes.length)
+      console.log(`[${videoId}] Slides ${done}/${scenes.length}`)
+      await updateStatus('generating_slides', `Designed ${done} of ${scenes.length} slides...`, 30 + Math.round((done / scenes.length) * 35))
+    }
+    console.log(`[${videoId}] Slides complete: ${slideBuffers.length}`)
+
+    // STAGE 3: Assemble with FFmpeg (reuse existing logic)
+    await updateStatus('assembling', 'Assembling your video...', 70)
+    const workDir = join(tmpdir(), `d2v-${randomUUID()}`)
+    await mkdir(workDir, { recursive: true })
+
+    // Write files
+    for (let i = 0; i < slideBuffers.length; i++) {
+      await writeFile(join(workDir, `slide_${i}.png`), slideBuffers[i])
+      if (audioBuffers[i] && audioBuffers[i].length > 0) {
+        await writeFile(join(workDir, `audio_${i}.mp3`), audioBuffers[i])
+      }
+    }
+
+    // Create clips
+    const clipFiles = []
+    const durations = []
+    for (let i = 0; i < slideBuffers.length; i++) {
+      await updateStatus('assembling', `Encoding clip ${i + 1} of ${slideBuffers.length}...`, 70 + Math.round((i / slideBuffers.length) * 15))
+      const clipPath = join(workDir, `clip_${i}.mp4`)
+      const slidePath = join(workDir, `slide_${i}.png`)
+      const audioPath = join(workDir, `audio_${i}.mp3`)
+      const vf = 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2'
+
+      if (audioBuffers[i] && audioBuffers[i].length > 100) {
+        await runFfmpeg(['-loop', '1', '-i', slidePath, '-i', audioPath, '-c:v', 'libx264', '-tune', 'stillimage', '-c:a', 'aac', '-b:a', '192k', '-pix_fmt', 'yuv420p', '-vf', vf, '-shortest', '-y', clipPath])
+      } else {
+        await runFfmpeg(['-loop', '1', '-i', slidePath, '-t', '5', '-c:v', 'libx264', '-tune', 'stillimage', '-pix_fmt', 'yuv420p', '-vf', vf, '-an', '-y', clipPath])
+      }
+      clipFiles.push(clipPath)
+
+      // Get accurate duration
+      try {
+        const dur = await new Promise((resolve) => {
+          execFile('ffprobe', ['-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', clipPath], { timeout: 10000 }, (err, stdout) => {
+            resolve(err ? 5 : parseFloat(stdout.trim()) || 5)
+          })
+        })
+        durations.push(dur)
+      } catch { durations.push(5) }
+    }
+
+    // Concatenate
+    await updateStatus('assembling', 'Joining clips together...', 88)
+    const concatFile = join(workDir, 'concat.txt')
+    await writeFile(concatFile, clipFiles.map(f => `file '${f}'`).join('\n'))
+    const outputPath = join(workDir, 'output.mp4')
+    await runFfmpeg(['-f', 'concat', '-safe', '0', '-i', concatFile, '-c', 'copy', '-movflags', '+faststart', '-y', outputPath])
+
+    // Read and upload
+    await updateStatus('assembling', 'Uploading video...', 92)
+    const videoBuffer = await readFile(outputPath)
+    console.log(`[${videoId}] Video: ${(videoBuffer.length / 1024 / 1024).toFixed(1)}MB`)
+
+    const videoStoragePath = `${userId}/${videoId}.mp4`
+    const { error: uploadError } = await supabase.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
+    if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`)
+    const { data: urlData } = supabase.storage.from('videos').getPublicUrl(videoStoragePath)
+
+    // Upload thumbnail
+    const thumbPath = `${userId}/${videoId}_thumb.png`
+    await supabase.storage.from('videos').upload(thumbPath, slideBuffers[0], { contentType: 'image/png', upsert: true })
+    const { data: thumbUrlData } = supabase.storage.from('videos').getPublicUrl(thumbPath)
+
+    // Upload individual slides
+    await updateStatus('assembling', 'Saving slides...', 96)
+    const slideUrls = []
+    for (let i = 0; i < slideBuffers.length; i++) {
+      const sp = `${userId}/${videoId}_slide_${i}.png`
+      await supabase.storage.from('videos').upload(sp, slideBuffers[i], { contentType: 'image/png', upsert: true })
+      const { data: su } = supabase.storage.from('videos').getPublicUrl(sp)
+      slideUrls.push(su.publicUrl)
+    }
+
+    // Mark complete
+    const totalDuration = durations.reduce((s, d) => s + d, 0)
+    await supabase.from('videos').update({
+      video_url: urlData.publicUrl,
+      thumbnail_url: thumbUrlData.publicUrl,
+      duration: totalDuration,
+      slide_durations: durations,
+      slide_urls: slideUrls,
+      status: 'completed',
+      progress_detail: null,
+      progress_pct: 100,
+    }).eq('id', videoId)
+
+    console.log(`[${videoId}] COMPLETE! ${totalDuration.toFixed(0)}s video, ${slideUrls.length} slides`)
+
+    // Cleanup
+    await rm(workDir, { recursive: true, force: true }).catch(() => {})
+  } catch (err) {
+    console.error(`[${videoId}] PIPELINE FAILED:`, err.message)
+    await supabase.from('videos').update({
+      status: 'failed',
+      error_message: err.message,
+      progress_detail: `Failed: ${err.message}`,
+      progress_pct: 0,
+    }).eq('id', videoId).catch(() => {})
   }
 })
 
