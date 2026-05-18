@@ -666,6 +666,7 @@ export default function CreatePage() {
           comparisonMode: multiDocData.length > 1,
           comparisonNotes: comparisonNotes || undefined,
           purpose: videoPurpose.trim() || undefined,
+          uploadMode,
         }),
       })
       const data = await res.json()

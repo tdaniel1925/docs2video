@@ -95,7 +95,7 @@ You have ${assetCount} product/brand images that will be placed on slides.
 - Not every slide needs a product image — data/chart slides can skip assets.` : ''}`
 }
 
-function buildGenericScriptPrompt(data: ExtractedData, brandName: string | null, detailed: boolean = false, assetCount: number = 0): string {
+function buildGenericScriptPrompt(data: ExtractedData, brandName: string | null, detailed: boolean = false, assetCount: number = 0, uploadMode?: string): string {
   const industry = (data as any).industry || detectIndustry(data.title, JSON.stringify(data))
   const config = INDUSTRIES[industry as IndustryId] || INDUSTRIES.general
 
@@ -159,7 +159,9 @@ ${disclaimerBeat}${disclaimerCloseBeat}
    For the ACTION beat: ${config.ctaText}
    ${brandName ? `Direct them to contact ${brandName}.` : 'Encourage the viewer to take the next step.'}
 
-SCENE COUNT: Use 8-16 scenes total. The EVIDENCE section should expand based on how much content is in the document. Simple documents = fewer evidence scenes. Complex ones with many sections = more.
+${uploadMode === 'narrate' || uploadMode === 'redesign'
+  ? `SCENE COUNT: Create EXACTLY ${(data.sections?.length || 0) + (data.keyMetrics?.length || 0) > 0 ? Math.max(data.sections?.length || 1, 5) : 10} scenes — one scene for EVERY section and topic in the document. Do NOT summarize, combine, or skip any content. Every piece of information must be covered.`
+  : 'SCENE COUNT: Use 8-16 scenes total. The EVIDENCE section should expand based on how much content is in the document. Simple documents = fewer evidence scenes. Complex ones with many sections = more.'}
 
 Each scene's narration should be 20-40 seconds (roughly 50-100 words). Each scene must cover ONE clear concept.
 ${assetCount > 0 ? `
@@ -262,11 +264,12 @@ export async function generateScript(
   brandTone?: string,
   contactInfo?: { phone?: string; email?: string; calendly?: string },
   purpose?: string,
+  uploadMode?: string,
 ): Promise<VideoScene[]> {
   const isInsurance = isInsuranceData(data)
   const promptBody = isInsurance
     ? buildInsuranceScriptPrompt(data as ExtractedPolicyData, brandName, detailed, assetCount ?? 0)
-    : buildGenericScriptPrompt(data as ExtractedData, brandName, detailed, assetCount ?? 0)
+    : buildGenericScriptPrompt(data as ExtractedData, brandName, detailed, assetCount ?? 0, uploadMode)
 
   // Build additional prompt sections based on new parameters
   const additionalSections: string[] = []
