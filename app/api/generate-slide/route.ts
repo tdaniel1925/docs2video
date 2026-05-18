@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { generateSlide } from '../../_lib/gemini'
 import { compositeSlide } from '../../_lib/composite'
-import { generateCoverOverlay, generateLogoWatermark } from '../../_lib/cover-overlay'
+import { generateCoverOverlay, generateBottomBar } from '../../_lib/cover-overlay'
 import type { ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
@@ -124,8 +124,8 @@ export async function POST(request: Request) {
             colors, isCover,
           })
         } else {
-          // Middle slides get a small logo watermark
-          overlayBuffer = await generateLogoWatermark(logoBuffer)
+          // Middle slides get a branded bottom bar with logo
+          overlayBuffer = await generateBottomBar(logoBuffer, { primary: colors.primary, background: colors.background, text: colors.text })
         }
       } catch { /* proceed without overlay */ }
     }

@@ -123,27 +123,57 @@ export async function generateCoverOverlay(options: CoverOverlayOptions): Promis
 }
 
 /**
- * Generate a small logo watermark for middle slides.
- * Returns a transparent 1920x1080 PNG with logo in top-left corner.
+ * Generate a branded bottom bar for middle slides.
+ * Returns a 1920x1080 PNG with a 100px bar at the bottom containing the logo.
+ * Gemini generates content in the top 980px; this bar fills the bottom 100px.
  */
-export async function generateLogoWatermark(logoBuffer: Buffer): Promise<Buffer> {
+export async function generateBottomBar(
+  logoBuffer: Buffer,
+  colors: { primary: string; background: string; text: string }
+): Promise<Buffer> {
   const sharpMod = await import('sharp')
   const sharp = sharpMod.default ?? sharpMod
 
   const width = 1920
   const height = 1080
+  const barHeight = 100
 
-  // Small logo for corner watermark
+  // Resize logo to fit in the bar
   const resizedLogo = await sharp(logoBuffer)
-    .resize(160, 60, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .resize(140, 50, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toBuffer()
+
+  const logoMeta = await sharp(resizedLogo).metadata()
+  const logoW = logoMeta.width ?? 140
+  const logoH = logoMeta.height ?? 50
+
+  // Parse primary color for the bar background
+  const hex = colors.primary.replace('#', '')
+  const r = parseInt(hex.substring(0, 2), 16) || 20
+  const g = parseInt(hex.substring(2, 4), 16) || 20
+  const b = parseInt(hex.substring(4, 6), 16) || 40
+
+  // Create the bar as an SVG with a subtle top border line
+  const barSvg = Buffer.from(
+    `<svg width="${width}" height="${barHeight}" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="${width}" height="1" fill="${colors.text}" fill-opacity="0.15"/>
+      <rect x="0" y="1" width="${width}" height="${barHeight - 1}" fill="rgb(${r},${g},${b})" fill-opacity="0.95"/>
+    </svg>`
+  )
+
+  const barBuffer = await sharp(barSvg).png().toBuffer()
+
+  // Composite: transparent canvas + bar at bottom + logo centered in bar
+  const logoLeft = Math.round((width - logoW) / 2)
+  const logoTop = height - barHeight + Math.round((barHeight - logoH) / 2)
 
   return sharp({
     create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
   })
     .composite([
-      { input: resizedLogo, left: 40, top: 30 },
+      { input: barBuffer, left: 0, top: height - barHeight },
+      { input: resizedLogo, left: logoLeft, top: logoTop },
     ])
     .png()
     .toBuffer()

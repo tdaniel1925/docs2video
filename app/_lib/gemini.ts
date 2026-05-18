@@ -410,6 +410,7 @@ ${structuredPrompt}
 
 === RULES ===
 - Output exactly 1920x1080 pixels, landscape, 16:9
+- BOTTOM BAR ZONE: Keep ALL content (text, icons, data, visuals) within the top 980 pixels. The bottom 100 pixels will be covered by a branded bar — do NOT place any important content there.
 - Fill the ENTIRE canvas — no black bars or empty borders
 - All text must be large enough to read on a phone (minimum 36pt equivalent)
 - Use ONLY the design style described above — do not switch to a generic corporate look

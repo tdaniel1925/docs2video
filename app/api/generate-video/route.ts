@@ -4,7 +4,7 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { generateScript } from '../../_lib/script-generator'
 import { generateSlide } from '../../_lib/gemini'
 import { compositeSlide } from '../../_lib/composite'
-import { generateCoverOverlay, generateLogoWatermark } from '../../_lib/cover-overlay'
+import { generateCoverOverlay, generateBottomBar } from '../../_lib/cover-overlay'
 import { synthesizeSpeech } from '../../_lib/tts'
 // Video assembly is offloaded to the Hetzner VPS (video-service)
 const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
@@ -253,7 +253,7 @@ export async function POST(request: Request) {
     // Generate Sharp overlays — cover/closing (logo + title) and middle (logo watermark)
     let coverOverlay: Buffer | null = null
     let closingOverlay: Buffer | null = null
-    let logoWatermark: Buffer | null = null
+    let bottomBar: Buffer | null = null
     if (logoBuffer) {
       const isInsurance = policyData && 'policyType' in policyData
       const overlayColors = colors
@@ -287,11 +287,11 @@ export async function POST(request: Request) {
             colors: overlayColors,
             isCover: false,
           }),
-          generateLogoWatermark(logoBuffer),
+          generateBottomBar(logoBuffer, { primary: colors.primary, background: colors.background, text: colors.text }),
         ])
         coverOverlay = coverResult
         closingOverlay = closingResult
-        logoWatermark = watermarkResult
+        bottomBar = watermarkResult
         console.log(`[video ${videoId}] Sharp overlays generated successfully`)
       } catch (err) {
         console.error(`[video ${videoId}] Overlay generation failed:`, err)
@@ -370,7 +370,7 @@ export async function POST(request: Request) {
               ), 60000, `Slide ${idx + 1}`)
               const isLast = idx === scenes.length - 1
               // Cover/closing get full overlay, middle slides get logo watermark
-              buf = await compositeSlide(buf, photoUrl, null, false, isLast, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo, isLast ? closingOverlay : logoWatermark)
+              buf = await compositeSlide(buf, photoUrl, null, false, isLast, standingPhotoUrl, brand?.name ?? null, colors.primary, contactInfo, isLast ? closingOverlay : bottomBar)
               return buf
             })
           )

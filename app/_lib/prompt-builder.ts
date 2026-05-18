@@ -120,8 +120,8 @@ COLOR HARMONY RULES:
 - The slide should feel like it was DESIGNED for this brand — not a generic template with colors overlaid
 - Keep the template's artistic STYLE (textures, shapes, effects) but adapt the COLOR PALETTE to the brand`
   }
-  // Logo zone reservation — Sharp composites the real logo afterward
-  const logoZoneBlock = `\n[COMPOSITION RULE]: Reserve the top-left corner (approximately 180x70px area) as visually calm space — solid color, subtle gradient, or low-detail background. This zone will receive a logo overlay after generation. Do NOT place important content, text, or busy visuals in this area.`
+  // Bottom bar zone — Sharp composites a branded bar with logo in the bottom 100px
+  const logoZoneBlock = `\n[COMPOSITION RULE]: The bottom 100 pixels of the image will be covered by a branded bar with a logo. Keep ALL important content (text, data, icons, visuals) within the top 980 pixels. Do NOT place anything important in the bottom 100px zone.`
 
   return [subjectBlock, actionBlock, environmentBlock, artStyleBlock, lightingBlock, detailsBlock, brandBlock, logoZoneBlock]
     .filter(Boolean)
