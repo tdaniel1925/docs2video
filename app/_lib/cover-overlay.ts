@@ -64,13 +64,13 @@ export async function generateCoverOverlay(options: CoverOverlayOptions): Promis
   const textStartY = logoTop + logoH + 50
   const svgLines = lines.map((line, i) => {
     const y = textStartY + i * (line.size + 18)
-    return `<text x="${width / 2}" y="${y}" font-family="Plus Jakarta Sans, Helvetica Neue, Arial, sans-serif" font-size="${line.size}" font-weight="${line.weight}" fill="${esc(colors.text)}" fill-opacity="${line.opacity}" text-anchor="middle" dominant-baseline="hanging">${esc(line.text)}</text>`
+    return `<text x="${width / 2}" y="${y}" font-family="Arial, Helvetica, sans-serif" font-size="${line.size}" font-weight="${line.weight}" fill="${esc(colors.text)}" fill-opacity="${line.opacity}" text-anchor="middle" dominant-baseline="hanging">${esc(line.text)}</text>`
   })
 
   // Add a subtle text shadow for readability on any background
   const shadowLines = lines.map((line, i) => {
     const y = textStartY + i * (line.size + 18) + 2
-    return `<text x="${width / 2 + 1}" y="${y}" font-family="Plus Jakarta Sans, Helvetica Neue, Arial, sans-serif" font-size="${line.size}" font-weight="${line.weight}" fill="black" fill-opacity="0.4" text-anchor="middle" dominant-baseline="hanging">${esc(line.text)}</text>`
+    return `<text x="${width / 2 + 1}" y="${y}" font-family="Arial, Helvetica, sans-serif" font-size="${line.size}" font-weight="${line.weight}" fill="black" fill-opacity="0.4" text-anchor="middle" dominant-baseline="hanging">${esc(line.text)}</text>`
   })
 
   const svgText = Buffer.from(

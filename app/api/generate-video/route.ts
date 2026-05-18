@@ -322,7 +322,7 @@ export async function POST(request: Request) {
       let buf0 = await withTimeout(
         generateSlide(
           policyData, 0, effectiveStyleId as any,
-          brand?.name ?? null, null, colors,
+          null, null, colors,
           scenes[0].slidePrompt, !!photoUrl, contactInfo,
           null, referenceSlides, scenes.length,
           customStylePrompt, undefined, undefined, templateRefBuffer,
@@ -348,7 +348,7 @@ export async function POST(request: Request) {
               // Logo is NOT passed to Gemini — Sharp composites it afterward
               let buf = await withTimeout(generateSlide(
                 policyData, idx, effectiveStyleId as any,
-                brand?.name ?? null, null, colors,
+                null, null, colors,
                 scene.slidePrompt, !!photoUrl, contactInfo,
                 null, masterRef, scenes.length,
                 customStylePrompt, undefined, undefined, templateRefBuffer,
@@ -445,6 +445,7 @@ export async function POST(request: Request) {
       video_url: assemblyResult.videoUrl,
       thumbnail_url: assemblyResult.thumbnailUrl,
       duration: assemblyResult.totalDuration,
+      slide_durations: assemblyResult.durations ?? null,
       status: 'completed',
       slide_urls: slideUrls,
       disclaimers: disclaimers,

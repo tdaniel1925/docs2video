@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '../../../_lib/supabase/client'
@@ -343,20 +343,38 @@ export default function VideoDetailPage() {
   const slideUrls = video?.slide_urls ?? []
   const slideCount = slideUrls.length
   const scenes = Array.isArray(video?.script) ? video.script : []
+  const perSlideDurations: number[] = (video as any)?.slide_durations ?? []
   const slideDuration = videoDuration > 0 && slideCount > 0 ? videoDuration / slideCount : 0
+
+  // Build cumulative start times from per-slide durations (or fall back to equal division)
+  const slideStartTimes = useMemo(() => {
+    if (perSlideDurations.length === slideCount) {
+      const starts: number[] = [0]
+      for (let i = 0; i < perSlideDurations.length - 1; i++) {
+        starts.push(starts[i] + perSlideDurations[i])
+      }
+      return starts
+    }
+    // Fallback: equal division
+    return Array.from({ length: slideCount }, (_, i) => i * slideDuration)
+  }, [perSlideDurations, slideCount, slideDuration])
 
   // Update current slide based on video time
   const handleTimeUpdate = useCallback(() => {
-    if (!videoRef.current || slideCount === 0 || slideDuration === 0) return
+    if (!videoRef.current || slideCount === 0) return
     const time = videoRef.current.currentTime
-    const idx = Math.min(Math.floor(time / slideDuration), slideCount - 1)
-    setCurrentSlideIndex(idx)
-  }, [slideCount, slideDuration])
+    // Find which slide we're in by checking start times
+    let idx = 0
+    for (let i = slideStartTimes.length - 1; i >= 0; i--) {
+      if (time >= slideStartTimes[i]) { idx = i; break }
+    }
+    setCurrentSlideIndex(Math.min(idx, slideCount - 1))
+  }, [slideCount, slideStartTimes])
 
   // Jump video to a slide
   function jumpToSlide(index: number) {
-    if (!videoRef.current || slideDuration === 0) return
-    videoRef.current.currentTime = index * slideDuration
+    if (!videoRef.current || slideCount === 0) return
+    videoRef.current.currentTime = slideStartTimes[index] ?? (index * slideDuration)
     setCurrentSlideIndex(index)
   }
 
@@ -1195,8 +1213,7 @@ export default function VideoDetailPage() {
                 display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 0',
               }}>
                 {scenes.map((scene: any, i: number) => {
-                  const segDuration = videoDuration / slideCount
-                  const timestamp = segDuration * i
+                  const timestamp = slideStartTimes[i] ?? (videoDuration / slideCount * i)
                   const mins = Math.floor(timestamp / 60)
                   const secs = Math.floor(timestamp % 60)
                   const isActive = i === currentSlideIndex

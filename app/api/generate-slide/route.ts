@@ -98,8 +98,9 @@ export async function POST(request: Request) {
     }
 
     // Logo is NOT passed to Gemini — Sharp composites it afterward
+    // brandName NOT passed to Gemini — Sharp composites the actual logo afterward
     let imageBuffer = await generateSlide(
-      policyData, slideIndex, styleId, brandName, null, colors, slidePrompt, !!photoUrl, undefined,
+      policyData, slideIndex, styleId, null, null, colors, slidePrompt, !!photoUrl, undefined,
       null, undefined, undefined, undefined, undefined, undefined, templateRefBuffer ?? previousSlideBuffer, assetBuffer
     )
 
