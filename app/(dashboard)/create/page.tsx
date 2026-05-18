@@ -7,6 +7,7 @@ import { createClient } from '../../_lib/supabase/client'
 import type { Brand, ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { VOICE_OPTIONS, SLIDE_STYLES } from '../../_lib/types'
+import { INDUSTRIES } from '../../_lib/industries'
 
 type InputTab = 'upload' | 'slides' | 'text' | 'idea' | 'url' | 'research' | 'proposal'
 
@@ -189,6 +190,7 @@ export default function CreatePage() {
   const [detailedMode, setDetailedMode] = useState(false)
   const [videoPurpose, setVideoPurpose] = useState('')
   const [uploadMode, setUploadMode] = useState<'summarize' | 'redesign' | 'narrate'>('summarize')
+  const [selectedIndustry, setSelectedIndustry] = useState('general')
   const [originalSlideImages, setOriginalSlideImages] = useState<string[]>([]) // base64 PNGs from PPTX conversion
   const [selectedMusic, setSelectedMusic] = useState<string | null>(null)
   const [uploadedLogo, setUploadedLogo] = useState<string | null>(null)
@@ -667,6 +669,7 @@ export default function CreatePage() {
           comparisonNotes: comparisonNotes || undefined,
           purpose: videoPurpose.trim() || undefined,
           uploadMode,
+          industry: selectedIndustry,
         }),
       })
       const data = await res.json()
@@ -1035,22 +1038,40 @@ export default function CreatePage() {
             ))}
           </div>
 
-          {/* Video Purpose — required, shapes extraction + script */}
-          <div style={{ marginBottom: 20 }}>
-            <label className="input-label">
-              What should this video accomplish? <span style={{ color: '#dc2626' }}>*</span>
-            </label>
-            <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8, lineHeight: 1.5 }}>
-              This shapes everything &mdash; what data gets highlighted, the narrative tone, and the call-to-action. The same document produces very different videos depending on your goal.
+          {/* Video Purpose + Industry — required, shapes extraction + script */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 200px', gap: 16, marginBottom: 20 }}>
+            <div>
+              <label className="input-label">
+                What should this video accomplish? <span style={{ color: '#dc2626' }}>*</span>
+              </label>
+              <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8, lineHeight: 1.5 }}>
+                This shapes the narrative, tone, and emphasis of your video.
+              </div>
+              <input
+                type="text"
+                className="input"
+                placeholder="e.g. Convince my client to sign, Train new hires, Summarize for investors"
+                value={videoPurpose}
+                onChange={e => setVideoPurpose(e.target.value)}
+                required
+              />
             </div>
-            <input
-              type="text"
-              className="input"
-              placeholder="e.g. Convince my client to sign the policy, Train new hires on onboarding, Summarize this report for investors"
-              value={videoPurpose}
-              onChange={e => setVideoPurpose(e.target.value)}
-              required
-            />
+            <div>
+              <label className="input-label">Document type</label>
+              <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8, lineHeight: 1.5 }}>
+                Sets tone &amp; terminology.
+              </div>
+              <select
+                className="input"
+                value={selectedIndustry}
+                onChange={e => setSelectedIndustry(e.target.value)}
+                style={{ height: 42 }}
+              >
+                {Object.entries(INDUSTRIES).map(([id, config]) => (
+                  <option key={id} value={id}>{config.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Tab: Upload PDF */}

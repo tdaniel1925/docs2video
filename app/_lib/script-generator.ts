@@ -95,8 +95,9 @@ You have ${assetCount} product/brand images that will be placed on slides.
 - Not every slide needs a product image — data/chart slides can skip assets.` : ''}`
 }
 
-function buildGenericScriptPrompt(data: ExtractedData, brandName: string | null, detailed: boolean = false, assetCount: number = 0, uploadMode?: string): string {
-  const industry = (data as any).industry || detectIndustry(data.title, JSON.stringify(data))
+function buildGenericScriptPrompt(data: ExtractedData, brandName: string | null, detailed: boolean = false, assetCount: number = 0, uploadMode?: string, userIndustry?: string): string {
+  // Use user-selected industry if provided, otherwise fall back to auto-detection
+  const industry = userIndustry || (data as any).industry || detectIndustry(data.title, JSON.stringify(data))
   const config = INDUSTRIES[industry as IndustryId] || INDUSTRIES.general
 
   const metricsText = (data.keyMetrics ?? []).map(m => `- ${m.label}: ${m.value}`).join('\n')
@@ -265,11 +266,12 @@ export async function generateScript(
   contactInfo?: { phone?: string; email?: string; calendly?: string },
   purpose?: string,
   uploadMode?: string,
+  industry?: string,
 ): Promise<VideoScene[]> {
   const isInsurance = isInsuranceData(data)
   const promptBody = isInsurance
     ? buildInsuranceScriptPrompt(data as ExtractedPolicyData, brandName, detailed, assetCount ?? 0)
-    : buildGenericScriptPrompt(data as ExtractedData, brandName, detailed, assetCount ?? 0, uploadMode)
+    : buildGenericScriptPrompt(data as ExtractedData, brandName, detailed, assetCount ?? 0, uploadMode, industry)
 
   // Build additional prompt sections based on new parameters
   const additionalSections: string[] = []
