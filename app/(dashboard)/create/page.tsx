@@ -1043,7 +1043,7 @@ export default function CreatePage() {
           </div>
 
           {/* Video Purpose + Industry — required, shapes extraction + script */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 200px', gap: 16, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 240px', gap: 16, marginBottom: 20 }}>
             <div>
               <label className="input-label">
                 What should this video accomplish? <span style={{ color: '#dc2626' }}>*</span>
@@ -1119,19 +1119,7 @@ export default function CreatePage() {
                       ))}
                     </div>
 
-                    {/* Actions */}
-                    <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-                      <label className="btn btn-soft btn-sm" style={{ cursor: 'pointer' }}>
-                        + Add more files
-                        <input type="file" accept=".pdf,.pptx,.ppt" multiple className="hidden" style={{ display: 'none' }} onChange={(e) => { if (e.target.files) handleMultiFileSelect(e.target.files); e.target.value = '' }} />
-                      </label>
-                      <button onClick={() => { setFiles([]); setFile(null); setError(null); setUploadMode('summarize') }} className="btn btn-soft btn-sm">Clear all</button>
-                      <button onClick={handleExtract} className="btn btn-primary btn-sm" disabled={!videoPurpose.trim()}>
-                        {uploadMode === 'narrate' ? 'Narrate My Slides' : files.length > 1 ? 'Extract & Compare' : 'Extract Data'} &rarr;
-                      </button>
-                    </div>
-
-                    {/* What would you like to do with this file? */}
+                    {/* What would you like to do with this file? — must be selected before action buttons */}
                     <div style={{
                       marginTop: 16,
                       padding: '20px',
@@ -1187,6 +1175,18 @@ export default function CreatePage() {
                           </button>
                         ))}
                       </div>
+                    </div>
+
+                    {/* Actions — below options so user picks a mode first */}
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 16 }}>
+                      <label className="btn btn-soft btn-sm" style={{ cursor: 'pointer' }}>
+                        + Add more files
+                        <input type="file" accept=".pdf,.pptx,.ppt" multiple className="hidden" style={{ display: 'none' }} onChange={(e) => { if (e.target.files) handleMultiFileSelect(e.target.files); e.target.value = '' }} />
+                      </label>
+                      <button onClick={() => { setFiles([]); setFile(null); setError(null); setUploadMode('summarize') }} className="btn btn-soft btn-sm">Clear all</button>
+                      <button onClick={handleExtract} className="btn btn-primary btn-sm" disabled={!videoPurpose.trim()}>
+                        {uploadMode === 'narrate' ? 'Narrate My Slides' : files.length > 1 ? 'Extract & Compare' : 'Extract Data'} &rarr;
+                      </button>
                     </div>
                   </>
                 ) : (
