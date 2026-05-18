@@ -473,7 +473,7 @@ export default function CreatePage() {
     try {
       // If narrate-only mode with a slide deck, convert slides to images in parallel with extraction
       let convertPromise: Promise<string[]> | null = null
-      if (uploadMode === 'narrate' || uploadMode === 'redesign') {
+      if (uploadMode === 'narrate') {
         const convertForm = new FormData()
         convertForm.append('file', file)
         convertPromise = fetch('/api/convert-slides', { method: 'POST', body: convertForm })
