@@ -154,49 +154,46 @@ export async function POST(request: Request) {
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15 }).eq('id', videoId)
     }
 
-    // STAGE 2: Generate audio + AI music in parallel
-    console.log(`[video ${videoId}] Generating audio for ${scenes.length} scenes...`)
-    await admin.from('videos').update({ status: 'generating_audio', progress_detail: `Generating narration audio... (0 of ${scenes.length})`, progress_pct: 15 }).eq('id', videoId)
+    // STAGE 2: Generate audio + music + slides ALL IN PARALLEL
+    // Audio and slides don't depend on each other — only assembly needs both
+    console.log(`[video ${videoId}] Starting parallel generation: audio (${scenes.length} scenes) + slides + music...`)
+    await admin.from('videos').update({ status: 'generating_audio', progress_detail: `Generating audio and slides in parallel...`, progress_pct: 15 }).eq('id', videoId)
 
-    // Start AI music generation in parallel if requested OR if Gemini key is available and no music provided
+    // Start AI music generation
     let aiMusicPromise: Promise<string | null> | null = null
     const shouldGenerateMusic = aiMusic || (!musicUrl && process.env.GEMINI_API_KEY)
     if (shouldGenerateMusic) {
       const prompt = musicPrompt || buildMusicPrompt(policyData, scenes)
       const title = (policyData as any)?.policyType ?? (policyData as any)?.title ?? 'Background Music'
-      console.log(`[video ${videoId}] Starting AI music generation in parallel...`)
+      console.log(`[video ${videoId}] Starting AI music generation...`)
       aiMusicPromise = generateCustomMusic(prompt, title)
     }
 
-    const audioBuffers: Buffer[] = []
-    for (let i = 0; i < scenes.length; i++) {
-      console.log(`[video ${videoId}] Audio ${i + 1}/${scenes.length}...`)
-      await admin.from('videos').update({ progress_detail: `Generating narration audio... (${i + 1} of ${scenes.length})`, progress_pct: 15 + Math.round((i + 1) / scenes.length * 20) }).eq('id', videoId)
-      const buf = await synthesizeSpeech(scenes[i].narration, voiceId)
-      audioBuffers.push(buf)
-    }
-    console.log(`[video ${videoId}] Audio done — ${audioBuffers.length} clips.`)
-
-    // Resolve AI music if it was started (max 90s wait, then give up)
-    let finalMusicUrl = musicUrl
-    if (aiMusicPromise) {
-      console.log(`[video ${videoId}] Waiting for AI music (max 90s)...`)
-      try {
-        const aiMusicUrl = await Promise.race([
-          aiMusicPromise,
-          new Promise<null>(resolve => setTimeout(() => resolve(null), 90000)),
-        ])
-        if (aiMusicUrl) {
-          console.log(`[video ${videoId}] AI music ready: ${aiMusicUrl}`)
-          finalMusicUrl = aiMusicUrl
-        } else {
-          console.log(`[video ${videoId}] AI music timed out or failed — proceeding without`)
-        }
-      } catch {
-        console.log(`[video ${videoId}] AI music error — proceeding without`)
+    // Generate ALL audio in parallel (batches of 5 to avoid rate limits)
+    let audioComplete = 0
+    const audioPromise = (async () => {
+      const audioBuffers: Buffer[] = new Array(scenes.length)
+      for (let i = 0; i < scenes.length; i += 5) {
+        const batch = scenes.slice(i, Math.min(i + 5, scenes.length))
+        await Promise.all(
+          batch.map((scene: any, j: number) =>
+            synthesizeSpeech(scene.narration, voiceId).then(buf => {
+              audioBuffers[i + j] = buf
+              audioComplete = Math.min(i + j + 1, scenes.length)
+              return buf
+            })
+          )
+        )
+        const done = Math.min(i + 5, scenes.length)
+        console.log(`[video ${videoId}] Audio ${done}/${scenes.length} done`)
+        await admin.from('videos').update({ progress_detail: `Narrating scene ${done} of ${scenes.length}...`, progress_pct: 15 + Math.round((done / scenes.length) * 15) }).eq('id', videoId)
       }
-    }
-    await admin.from('videos').update({ status: 'generating_slides', progress_detail: `Creating slides... (0 of ${scenes.length})`, progress_pct: 35 }).eq('id', videoId)
+      console.log(`[video ${videoId}] All audio done — ${audioBuffers.length} clips`)
+      return audioBuffers
+    })()
+
+    // Slides start in parallel with audio — don't wait for audio to finish
+    await admin.from('videos').update({ status: 'generating_slides', progress_detail: `Creating audio and slides in parallel...`, progress_pct: 25 }).eq('id', videoId)
     if (jobId) await updateJobProgress(admin, jobId, 40, 'running')
 
     // Get agent photo for compositing
@@ -328,7 +325,7 @@ export async function POST(request: Request) {
       // BRAND CONSISTENCY: Generate slide 1 first, then use it as reference for all others
       // This ensures all slides share the same visual identity
       console.log(`[video ${videoId}] Generating slide 1 (master style)...`)
-      await admin.from('videos').update({ progress_detail: `Creating slides... (1 of ${scenes.length})`, progress_pct: 38 }).eq('id', videoId)
+      await admin.from('videos').update({ progress_detail: `Designing cover slide (1 of ${scenes.length})...`, progress_pct: 35 }).eq('id', videoId)
       let masterSlideBuffer: Buffer | null = null
 
       // Generate slide 1 (cover) — establishes the visual identity (60s timeout)
@@ -351,11 +348,11 @@ export async function POST(request: Request) {
       // Generate slides 2-N using slide 1 as reference for visual consistency
       if (scenes.length > 1) {
         const masterRef = masterSlideBuffer ? [masterSlideBuffer] : referenceSlides
-        for (let i = 1; i < scenes.length; i += 3) {
-          const batch = scenes.slice(i, Math.min(i + 3, scenes.length))
-          console.log(`[video ${videoId}] Slide batch ${Math.floor(i / 3) + 1} (slides ${i + 1}-${Math.min(i + 3, scenes.length)})...`)
-          const slidePct = 38 + Math.round((i / scenes.length) * 35)
-          await admin.from('videos').update({ progress_detail: `Creating slides... (${i} of ${scenes.length})`, progress_pct: slidePct }).eq('id', videoId)
+        for (let i = 1; i < scenes.length; i += 5) {
+          const batch = scenes.slice(i, Math.min(i + 5, scenes.length))
+          console.log(`[video ${videoId}] Slide batch ${Math.floor(i / 5) + 1} (slides ${i + 1}-${Math.min(i + 5, scenes.length)})...`)
+          const slidePct = 35 + Math.round((i / scenes.length) * 35)
+          await admin.from('videos').update({ progress_detail: `Designing slide ${i + 1} of ${scenes.length}...`, progress_pct: slidePct }).eq('id', videoId)
           const batchResults = await Promise.all(
             batch.map(async (scene: any, j: number) => {
               const idx = i + j
@@ -375,13 +372,38 @@ export async function POST(request: Request) {
             })
           )
           slideBuffers.push(...batchResults)
-          const doneCount = Math.min(i + 3, scenes.length)
-          const donePct = 38 + Math.round((doneCount / scenes.length) * 35)
-          await admin.from('videos').update({ progress_detail: `Creating slides... (${doneCount} of ${scenes.length})`, progress_pct: donePct }).eq('id', videoId)
+          const doneCount = Math.min(i + 5, scenes.length)
+          const donePct = 35 + Math.round((doneCount / scenes.length) * 35)
+          await admin.from('videos').update({ progress_detail: `Designed ${doneCount} of ${scenes.length} slides...`, progress_pct: donePct }).eq('id', videoId)
         }
       }
     }
-    console.log(`[video ${videoId}] Slides done.`)
+    console.log(`[video ${videoId}] Slides done. Waiting for audio to finish...`)
+
+    // Wait for parallel audio generation to complete
+    const audioBuffers = await audioPromise
+    console.log(`[video ${videoId}] Audio + slides both complete.`)
+
+    // Resolve AI music (max 90s wait from when it started)
+    let finalMusicUrl = musicUrl
+    if (aiMusicPromise) {
+      console.log(`[video ${videoId}] Checking AI music...`)
+      try {
+        const aiMusicUrl = await Promise.race([
+          aiMusicPromise,
+          new Promise<null>(resolve => setTimeout(() => resolve(null), 30000)), // 30s remaining wait
+        ])
+        if (aiMusicUrl) {
+          console.log(`[video ${videoId}] AI music ready: ${aiMusicUrl}`)
+          finalMusicUrl = aiMusicUrl
+        } else {
+          console.log(`[video ${videoId}] AI music not ready — proceeding without`)
+        }
+      } catch {
+        console.log(`[video ${videoId}] AI music error — proceeding without`)
+      }
+    }
+
     await admin.from('videos').update({ status: 'assembling', progress_detail: 'Assembling your video...', progress_pct: 75 }).eq('id', videoId)
     if (jobId) await updateJobProgress(admin, jobId, 75, 'running')
 
