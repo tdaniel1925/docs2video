@@ -192,18 +192,15 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct }: { sta
         This page updates automatically every 3 seconds.
       </div>
 
-      {/* Stuck? retry option — shows after 10 minutes */}
-      {elapsed > 600 && (
+      {/* Retry option — only shows after 20 minutes */}
+      {elapsed > 1200 && (
         <div style={{
           marginTop: 20, padding: '16px 20px', borderRadius: 12,
-          background: 'rgba(255,199,194,0.1)', border: '1px solid rgba(192,58,31,0.2)',
+          background: 'var(--surface-raised)', border: '1px solid var(--border)',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#C03A1F', marginBottom: 6 }}>
-            Taking longer than expected?
-          </div>
           <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 12 }}>
-            Your video may still be processing. If it seems stuck, you can retry.
+            Still working on your video. If you&apos;d like to start over, you can retry.
           </div>
           <button
             onClick={async () => {
@@ -212,7 +209,6 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct }: { sta
               window.location.reload()
             }}
             className="btn btn-soft btn-sm"
-            style={{ color: '#C03A1F' }}
           >
             Retry Generation
           </button>
