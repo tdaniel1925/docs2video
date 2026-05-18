@@ -238,7 +238,17 @@ app.post('/assemble', authCheck, async (req, res) => {
       await supabase.storage.from('videos').upload(thumbPath, thumbBuffer, { contentType: 'image/png', upsert: true })
       const { data: thumbUrlData } = supabase.storage.from('videos').getPublicUrl(thumbPath)
 
-      console.log(`[${videoId}] Uploaded to Supabase`)
+      // Upload individual slides and collect URLs
+      await updateProgress('Saving slides...', 96)
+      const slideUrls = []
+      for (let i = 0; i < slides.length; i++) {
+        const slideBuf = Buffer.from(slides[i], 'base64')
+        const slidePath = `${userId}/${videoId}_slide_${i}.png`
+        await supabase.storage.from('videos').upload(slidePath, slideBuf, { contentType: 'image/png', upsert: true })
+        const { data: slideUrl } = supabase.storage.from('videos').getPublicUrl(slidePath)
+        slideUrls.push(slideUrl.publicUrl)
+      }
+      console.log(`[${videoId}] Uploaded ${slideUrls.length} slides + video to Supabase`)
 
       // Mark video as completed directly — don't rely on Vercel (it may have timed out)
       const totalDuration = durations.reduce((s, d) => s + d, 0)
@@ -247,6 +257,7 @@ app.post('/assemble', authCheck, async (req, res) => {
         thumbnail_url: thumbUrlData.publicUrl,
         duration: totalDuration,
         slide_durations: durations,
+        slide_urls: slideUrls,
         status: 'completed',
         progress_detail: null,
         progress_pct: 100,
