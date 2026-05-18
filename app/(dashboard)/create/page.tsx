@@ -905,43 +905,6 @@ export default function CreatePage() {
 
   return (
     <div className="wizard-container">
-      {/* Quick/Pro Mode Toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 24 }}>
-        <div style={{
-          display: 'inline-flex',
-          background: 'var(--surface-raised, #f1f5f9)',
-          borderRadius: 10,
-          padding: 4,
-        }}>
-          <Link
-            href="/quick"
-            style={{
-              padding: '8px 20px',
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 500,
-              color: 'var(--muted)',
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            Quick Mode
-          </Link>
-          <div style={{
-            padding: '8px 20px',
-            borderRadius: 8,
-            fontSize: 14,
-            fontWeight: 600,
-            background: 'var(--bg-card)',
-            color: 'var(--ink)',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          }}>
-            Pro Mode
-          </div>
-        </div>
-      </div>
-
       {/* Progress Pill */}
       <div className="progress-pill">
         {STEP_LABELS.map((s, i) => {
