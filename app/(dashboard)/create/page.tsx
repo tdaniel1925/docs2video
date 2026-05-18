@@ -190,6 +190,7 @@ export default function CreatePage() {
   const [videoPurpose, setVideoPurpose] = useState('')
   const [slideDeckDetected, setSlideDeckDetected] = useState(false)
   const [narrateOnly, setNarrateOnly] = useState(false)
+  const [originalSlideImages, setOriginalSlideImages] = useState<string[]>([]) // base64 PNGs from PPTX conversion
   const [selectedMusic, setSelectedMusic] = useState<string | null>(null)
   const [uploadedLogo, setUploadedLogo] = useState<string | null>(null)
   const [customTheme, setCustomTheme] = useState(false)
@@ -469,12 +470,25 @@ export default function CreatePage() {
     setStep('extracting')
     setError(null)
     try {
+      // If narrate-only mode with a slide deck, convert slides to images in parallel with extraction
+      let convertPromise: Promise<string[]> | null = null
+      if (narrateOnly && slideDeckDetected) {
+        const convertForm = new FormData()
+        convertForm.append('file', file)
+        convertPromise = fetch('/api/convert-slides', { method: 'POST', body: convertForm })
+          .then(async (r) => {
+            const d = await r.json()
+            if (!r.ok) throw new Error(d.error || 'Slide conversion failed')
+            return d.slides as string[]
+          })
+      }
+
       const formData = new FormData()
       formData.append('file', file)
       const res = await fetch('/api/extract', { method: 'POST', body: formData })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Extraction failed')
-      // The API now returns { general, insurance? }
+
       // If insurance data with meaningful values exists, use it; otherwise use general
       if (data.insurance && data.insurance.deathBenefit > 0) {
         setExtractedData(data.insurance)
@@ -483,6 +497,20 @@ export default function CreatePage() {
         setGeneralData(data.general)
         setExtractedData(null)
       }
+
+      // Wait for slide conversion if narrate-only
+      if (convertPromise) {
+        try {
+          const slideImages = await convertPromise
+          setOriginalSlideImages(slideImages)
+          console.log(`[create] Converted ${slideImages.length} slide images for narrate-only mode`)
+        } catch (err) {
+          console.error('[create] Slide conversion failed, falling back to redesign:', err)
+          setNarrateOnly(false)
+          setOriginalSlideImages([])
+        }
+      }
+
       setMultiDocData([])
       setReviewReady(true)
       setStep('upload')
@@ -885,6 +913,11 @@ export default function CreatePage() {
 
       const approvedSlides = slides.filter(Boolean) as string[]
 
+      // In narrate-only mode, use the converted original slide images
+      const finalApprovedSlides = narrateOnly && originalSlideImages.length > 0
+        ? originalSlideImages.map(b64 => `data:image/png;base64,${b64}`)
+        : slidesMode ? uploadedSlides : (approvedSlides.length >= 4 ? approvedSlides : undefined)
+
       const supabase = createClient()
       await supabase.from('videos').update({
         script: {
@@ -892,10 +925,10 @@ export default function CreatePage() {
             policyData: activeData,
             brandId: null,
             voiceId: selectedVoice,
-            styleId: selectedStyle,
-            customStylePrompt: customStylePrompt || undefined,
+            styleId: narrateOnly ? undefined : selectedStyle, // No style needed for narrate-only
+            customStylePrompt: narrateOnly ? undefined : (customStylePrompt || undefined),
             aiMusic: true,
-            approvedSlides: slidesMode ? uploadedSlides : (approvedSlides.length >= 4 ? approvedSlides : undefined),
+            approvedSlides: finalApprovedSlides,
             scenes: editableScenes.length > 0 ? editableScenes : generatedScenes,
             assets: assetPayload,
           },

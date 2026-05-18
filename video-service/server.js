@@ -120,8 +120,19 @@ app.post('/assemble', authCheck, async (req, res) => {
       }
 
       clipFiles.push(clipPath)
-      const audioSize = audios[i] ? Buffer.from(audios[i], 'base64').length : 0
-      durations.push(audioSize > 0 ? Math.round(audioSize / 16000) : 5)
+      // Get accurate clip duration via ffprobe
+      try {
+        const probeDuration = await new Promise((resolve) => {
+          execFile('ffprobe', ['-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', clipPath], { timeout: 10000 }, (err, stdout) => {
+            if (err) resolve(null)
+            else resolve(parseFloat(stdout.trim()))
+          })
+        })
+        durations.push(probeDuration || 5)
+      } catch {
+        const audioSize = audios[i] ? Buffer.from(audios[i], 'base64').length : 0
+        durations.push(audioSize > 0 ? Math.round(audioSize / 16000) : 5)
+      }
     }
 
     console.log(`[${videoId}] Clips done, concatenating...`)
@@ -231,6 +242,115 @@ app.post('/assemble', authCheck, async (req, res) => {
     }
   } catch (err) {
     console.error(`[${videoId}] Error:`, err.message)
+    res.status(500).json({ error: err.message })
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {})
+  }
+})
+
+// PPTX/PPT to PNG slide conversion endpoint
+// Requires LibreOffice: apt-get install libreoffice-impress
+app.post('/convert', authCheck, async (req, res) => {
+  const { fileBase64, fileName } = req.body
+  if (!fileBase64 || !fileName) {
+    return res.status(400).json({ error: 'Missing fileBase64 or fileName' })
+  }
+
+  const workDir = join(tmpdir(), `d2v-convert-${randomUUID()}`)
+  console.log(`[convert] Starting conversion: ${fileName}`)
+
+  try {
+    await mkdir(workDir, { recursive: true })
+
+    // Write uploaded file
+    const ext = fileName.split('.').pop().toLowerCase()
+    const inputPath = join(workDir, `input.${ext}`)
+    await writeFile(inputPath, Buffer.from(fileBase64, 'base64'))
+
+    // Convert to PDF first (LibreOffice)
+    await new Promise((resolve, reject) => {
+      execFile('libreoffice', [
+        '--headless',
+        '--convert-to', 'pdf',
+        '--outdir', workDir,
+        inputPath,
+      ], { timeout: 120000 }, (err, stdout, stderr) => {
+        if (err) {
+          console.error('[convert] LibreOffice error:', err.message, stderr)
+          return reject(new Error(`Conversion failed: ${err.message}`))
+        }
+        resolve(stdout)
+      })
+    })
+
+    const pdfPath = join(workDir, 'input.pdf')
+
+    // Get page count using pdfinfo or ffprobe
+    let pageCount = 0
+    try {
+      const { stdout } = await new Promise((resolve, reject) => {
+        execFile('pdfinfo', [pdfPath], { timeout: 10000 }, (err, stdout, stderr) => {
+          if (err) return reject(err)
+          resolve({ stdout, stderr })
+        })
+      })
+      const match = stdout.match(/Pages:\s+(\d+)/)
+      pageCount = match ? parseInt(match[1], 10) : 0
+    } catch {
+      // Fallback: try pdftoppm and count output files
+      pageCount = 50 // Will be corrected by actual output
+    }
+
+    console.log(`[convert] PDF has ${pageCount} pages, rendering to PNG...`)
+
+    // Convert PDF pages to PNG using pdftoppm (poppler-utils)
+    // Renders at 1920px wide (16:9 = 1080px tall)
+    await new Promise((resolve, reject) => {
+      execFile('pdftoppm', [
+        '-png',
+        '-rx', '192',  // 192 DPI for ~1920px width on standard slides
+        '-ry', '192',
+        pdfPath,
+        join(workDir, 'slide'),
+      ], { timeout: 120000 }, (err) => {
+        if (err) return reject(new Error(`pdftoppm failed: ${err.message}`))
+        resolve(null)
+      })
+    })
+
+    // Read all generated slide images
+    const { readdir } = require('fs/promises')
+    const files = await readdir(workDir)
+    const slideFiles = files
+      .filter(f => f.startsWith('slide-') && f.endsWith('.png'))
+      .sort()
+
+    console.log(`[convert] Generated ${slideFiles.length} slide images`)
+
+    const slideImages = []
+    for (const sf of slideFiles) {
+      const buf = await readFile(join(workDir, sf))
+
+      // Resize to exact 1920x1080 using ffmpeg
+      const resizedPath = join(workDir, `resized_${sf}`)
+      await runFfmpeg([
+        '-i', join(workDir, sf),
+        '-vf', 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=white',
+        '-y',
+        resizedPath,
+      ])
+      const resizedBuf = await readFile(resizedPath)
+      slideImages.push(resizedBuf.toString('base64'))
+    }
+
+    if (slideImages.length === 0) {
+      throw new Error('No slides extracted from file')
+    }
+
+    console.log(`[convert] Conversion complete: ${slideImages.length} slides`)
+    res.json({ success: true, slides: slideImages, count: slideImages.length })
+  } catch (err) {
+    console.error(`[convert] Error:`, err.message)
     res.status(500).json({ error: err.message })
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {})
