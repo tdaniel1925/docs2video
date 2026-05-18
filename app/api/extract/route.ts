@@ -49,10 +49,30 @@ export async function POST(request: Request) {
 
   try {
     const arrayBuffer = await file.arrayBuffer()
-    const base64 = Buffer.from(arrayBuffer).toString('base64')
-    const mimeType = isPptx ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation' : 'application/pdf'
-    const result = await extractDocumentData(base64, mimeType)
-    // Return both general and insurance data so the client can decide which to show
+    let base64 = Buffer.from(arrayBuffer).toString('base64')
+
+    // PPTX files must be converted to PDF first — Gemini can't read PPTX directly
+    if (isPptx) {
+      const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
+      const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
+
+      const convertRes = await fetch(`${VIDEO_ASSEMBLY_URL}/convert-to-pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
+        body: JSON.stringify({ fileBase64: base64, fileName: file.name }),
+        signal: AbortSignal.timeout(90000),
+      })
+
+      if (!convertRes.ok) {
+        const err = await convertRes.json().catch(() => ({ error: 'Conversion failed' }))
+        return NextResponse.json({ error: `PPTX conversion failed: ${err.error}` }, { status: 500 })
+      }
+
+      const convertData = await convertRes.json()
+      base64 = convertData.pdfBase64
+    }
+
+    const result = await extractDocumentData(base64, 'application/pdf')
     return NextResponse.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Extraction failed'

@@ -248,6 +248,52 @@ app.post('/assemble', authCheck, async (req, res) => {
   }
 })
 
+// PPTX/PPT to PDF conversion (for Gemini extraction)
+app.post('/convert-to-pdf', authCheck, async (req, res) => {
+  const { fileBase64, fileName } = req.body
+  if (!fileBase64 || !fileName) {
+    return res.status(400).json({ error: 'Missing fileBase64 or fileName' })
+  }
+
+  const workDir = join(tmpdir(), `d2v-pdf-${randomUUID()}`)
+  console.log(`[convert-to-pdf] Converting: ${fileName}`)
+
+  try {
+    await mkdir(workDir, { recursive: true })
+
+    const ext = fileName.split('.').pop().toLowerCase()
+    const inputPath = join(workDir, `input.${ext}`)
+    await writeFile(inputPath, Buffer.from(fileBase64, 'base64'))
+
+    // Convert to PDF using LibreOffice
+    await new Promise((resolve, reject) => {
+      execFile('libreoffice', [
+        '--headless',
+        '--convert-to', 'pdf',
+        '--outdir', workDir,
+        inputPath,
+      ], { timeout: 120000 }, (err, stdout, stderr) => {
+        if (err) {
+          console.error('[convert-to-pdf] LibreOffice error:', err.message, stderr)
+          return reject(new Error(`Conversion failed: ${err.message}`))
+        }
+        resolve(stdout)
+      })
+    })
+
+    const pdfPath = join(workDir, 'input.pdf')
+    const pdfBuffer = await readFile(pdfPath)
+    console.log(`[convert-to-pdf] PDF created: ${(pdfBuffer.length / 1024 / 1024).toFixed(1)}MB`)
+
+    res.json({ success: true, pdfBase64: pdfBuffer.toString('base64') })
+  } catch (err) {
+    console.error(`[convert-to-pdf] Error:`, err.message)
+    res.status(500).json({ error: err.message })
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {})
+  }
+})
+
 // PPTX/PPT to PNG slide conversion endpoint
 // Requires LibreOffice: apt-get install libreoffice-impress
 app.post('/convert', authCheck, async (req, res) => {
