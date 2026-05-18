@@ -51,6 +51,7 @@ export default async function DashboardPage() {
     ...(videos ?? []).map((v: any) => ({
       id: v.id, type: 'video', title: v.title, thumbnail_url: v.thumbnail_url,
       file_url: v.video_url, credits_used: 3, created_at: v.created_at, _videoId: v.id,
+      _status: v.status,
     })),
     ...(otherCreations ?? []).map((c: any) => ({ ...c, _videoId: null })),
   ].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -305,10 +306,27 @@ export default async function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* Type badge */}
-                  <span className={`tag ${badge.color}`} style={{ flexShrink: 0 }}>
-                    {badge.label}
-                  </span>
+                  {/* Status badge */}
+                  {item._status && item._status !== 'completed' ? (
+                    <span style={{
+                      flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                      background: item._status === 'failed' ? '#fef2f2' : 'rgba(168,240,212,0.2)',
+                      color: item._status === 'failed' ? '#991b1b' : 'var(--ink)',
+                      border: item._status === 'failed' ? '1px solid #fca5a5' : '1px solid var(--mint)',
+                    }}>
+                      {item._status === 'failed' ? 'Failed' : (
+                        <>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--mint)', animation: 'pulseGlow 2s ease infinite' }} />
+                          Processing
+                        </>
+                      )}
+                    </span>
+                  ) : (
+                    <span className={`tag ${badge.color}`} style={{ flexShrink: 0 }}>
+                      {badge.label}
+                    </span>
+                  )}
 
                   {/* Date */}
                   <div style={{ fontSize: 13, color: 'var(--ink-light)', flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
