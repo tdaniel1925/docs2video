@@ -188,8 +188,7 @@ export default function CreatePage() {
   const [selectedVoice, setSelectedVoice] = useState<string>(VOICE_OPTIONS[0].id)
   const [detailedMode, setDetailedMode] = useState(false)
   const [videoPurpose, setVideoPurpose] = useState('')
-  const [slideDeckDetected, setSlideDeckDetected] = useState(false)
-  const [narrateOnly, setNarrateOnly] = useState(false)
+  const [uploadMode, setUploadMode] = useState<'summarize' | 'redesign' | 'narrate'>('summarize')
   const [originalSlideImages, setOriginalSlideImages] = useState<string[]>([]) // base64 PNGs from PPTX conversion
   const [selectedMusic, setSelectedMusic] = useState<string | null>(null)
   const [uploadedLogo, setUploadedLogo] = useState<string | null>(null)
@@ -402,8 +401,8 @@ export default function CreatePage() {
     if (!validType) { setError('Please upload a PDF or PowerPoint file'); return }
     if (selectedFile.size > 50 * 1024 * 1024) { setError('File must be under 50MB'); return }
     setFile(selectedFile)
-    setSlideDeckDetected(isSlideFile(selectedFile))
-    setNarrateOnly(false)
+    if (isSlideFile(selectedFile)) setUploadMode('narrate')
+    else setUploadMode('summarize')
     setError(null)
   }, [isSlideFile])
 
@@ -422,7 +421,7 @@ export default function CreatePage() {
     if (newFiles.length === 1 && files.length === 0) {
       setFile(newFiles[0])
     }
-    if (hasSlides) setSlideDeckDetected(true)
+    if (hasSlides) setUploadMode('narrate')
     setError(null)
   }, [files.length, isSlideFile])
 
@@ -472,7 +471,7 @@ export default function CreatePage() {
     try {
       // If narrate-only mode with a slide deck, convert slides to images in parallel with extraction
       let convertPromise: Promise<string[]> | null = null
-      if (narrateOnly && slideDeckDetected) {
+      if (uploadMode === 'narrate' || uploadMode === 'redesign') {
         const convertForm = new FormData()
         convertForm.append('file', file)
         convertPromise = fetch('/api/convert-slides', { method: 'POST', body: convertForm })
@@ -506,7 +505,7 @@ export default function CreatePage() {
           console.log(`[create] Converted ${slideImages.length} slide images for narrate-only mode`)
         } catch (err) {
           console.error('[create] Slide conversion failed, falling back to redesign:', err)
-          setNarrateOnly(false)
+          setUploadMode('summarize')
           setOriginalSlideImages([])
         }
       }
@@ -914,7 +913,7 @@ export default function CreatePage() {
       const approvedSlides = slides.filter(Boolean) as string[]
 
       // In narrate-only mode, use the converted original slide images
-      const finalApprovedSlides = narrateOnly && originalSlideImages.length > 0
+      const finalApprovedSlides = uploadMode === 'narrate' && originalSlideImages.length > 0
         ? originalSlideImages.map(b64 => `data:image/png;base64,${b64}`)
         : slidesMode ? uploadedSlides : (approvedSlides.length >= 4 ? approvedSlides : undefined)
 
@@ -925,8 +924,8 @@ export default function CreatePage() {
             policyData: activeData,
             brandId: null,
             voiceId: selectedVoice,
-            styleId: narrateOnly ? undefined : selectedStyle, // No style needed for narrate-only
-            customStylePrompt: narrateOnly ? undefined : (customStylePrompt || undefined),
+            styleId: uploadMode === 'narrate' ? undefined : selectedStyle,
+            customStylePrompt: uploadMode === 'narrate' ? undefined : (customStylePrompt || undefined),
             aiMusic: true,
             approvedSlides: finalApprovedSlides,
             scenes: editableScenes.length > 0 ? editableScenes : generatedScenes,
@@ -1100,13 +1099,13 @@ export default function CreatePage() {
                         + Add more files
                         <input type="file" accept=".pdf,.pptx,.ppt" multiple className="hidden" style={{ display: 'none' }} onChange={(e) => { if (e.target.files) handleMultiFileSelect(e.target.files); e.target.value = '' }} />
                       </label>
-                      <button onClick={() => { setFiles([]); setFile(null); setError(null); setSlideDeckDetected(false); setNarrateOnly(false) }} className="btn btn-soft btn-sm">Clear all</button>
+                      <button onClick={() => { setFiles([]); setFile(null); setError(null); setUploadMode('summarize') }} className="btn btn-soft btn-sm">Clear all</button>
                       <button onClick={handleExtract} className="btn btn-primary btn-sm" disabled={!videoPurpose.trim()}>
-                        {narrateOnly ? 'Narrate My Slides' : files.length > 1 ? 'Extract & Compare' : 'Extract Data'} &rarr;
+                        {uploadMode === 'narrate' ? 'Narrate My Slides' : files.length > 1 ? 'Extract & Compare' : 'Extract Data'} &rarr;
                       </button>
                     </div>
 
-                    {/* What type of file is this? */}
+                    {/* What would you like to do with this file? */}
                     <div style={{
                       marginTop: 16,
                       padding: '20px',
@@ -1117,51 +1116,50 @@ export default function CreatePage() {
                       <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: 'var(--ink)' }}>
                         What would you like to do with this file?
                       </div>
-                      <div style={{ color: 'var(--ink-soft)', marginBottom: 16, lineHeight: 1.5, fontSize: 13 }}>
-                        Choose how you want your video created. You can always change this later.
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {/* Option 1: Redesign */}
-                        <button
-                          onClick={() => { setNarrateOnly(false); setSlideDeckDetected(false) }}
-                          style={{
-                            display: 'flex', alignItems: 'flex-start', gap: 14, padding: '14px 16px',
-                            border: !narrateOnly && !slideDeckDetected ? '2px solid var(--accent, #4A90D9)' : '1px solid var(--border)',
-                            borderRadius: 10, background: !narrateOnly && !slideDeckDetected ? 'rgba(74,144,217,0.06)' : 'white',
-                            cursor: 'pointer', textAlign: 'left', width: '100%',
-                          }}
-                        >
-                          <span style={{ fontSize: 24, lineHeight: 1, marginTop: 2 }}>&#9998;</span>
-                          <div>
-                            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>
-                              Extract content &amp; redesign with AI
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
+                        {([
+                          {
+                            mode: 'narrate' as const,
+                            icon: '\uD83C\uDF99\uFE0F',
+                            title: 'Add narration only',
+                            desc: 'Keep your slides exactly as they are. We add professional voiceover and background music — no visual changes.',
+                          },
+                          {
+                            mode: 'redesign' as const,
+                            icon: '\uD83C\uDFA8',
+                            title: 'Redesign every slide + add narration',
+                            desc: 'Keep all your content but redesign each slide with AI using a new template style. Every slide gets a fresh look — nothing is removed.',
+                          },
+                          {
+                            mode: 'summarize' as const,
+                            icon: '\u2728',
+                            title: 'Summarize, redesign + add narration',
+                            desc: 'AI reads your document, pulls out the key points, and creates a concise set of new slides. Best for long documents, reports, and proposals.',
+                          },
+                        ]).map(opt => (
+                          <button
+                            key={opt.mode}
+                            onClick={() => setUploadMode(opt.mode)}
+                            style={{
+                              display: 'flex', alignItems: 'flex-start', gap: 14, padding: '14px 16px',
+                              border: uploadMode === opt.mode ? '2px solid var(--accent, #4A90D9)' : '1px solid var(--border)',
+                              borderRadius: 10,
+                              background: uploadMode === opt.mode ? 'rgba(74,144,217,0.06)' : 'white',
+                              cursor: 'pointer', textAlign: 'left', width: '100%',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <span style={{ fontSize: 22, lineHeight: 1, marginTop: 2, flexShrink: 0 }}>{opt.icon}</span>
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 3 }}>
+                                {opt.title}
+                              </div>
+                              <div style={{ fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+                                {opt.desc}
+                              </div>
                             </div>
-                            <div style={{ fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.4 }}>
-                              Best for documents, reports, and proposals. AI extracts the key information and creates beautiful new slides in your chosen template style.
-                            </div>
-                          </div>
-                        </button>
-
-                        {/* Option 2: Narrate as-is (slide deck) */}
-                        <button
-                          onClick={() => { setNarrateOnly(true); setSlideDeckDetected(true) }}
-                          style={{
-                            display: 'flex', alignItems: 'flex-start', gap: 14, padding: '14px 16px',
-                            border: narrateOnly ? '2px solid var(--accent, #4A90D9)' : '1px solid var(--border)',
-                            borderRadius: 10, background: narrateOnly ? 'rgba(74,144,217,0.06)' : 'white',
-                            cursor: 'pointer', textAlign: 'left', width: '100%',
-                          }}
-                        >
-                          <span style={{ fontSize: 24, lineHeight: 1, marginTop: 2 }}>&#127908;</span>
-                          <div>
-                            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>
-                              Keep my slides &amp; add narration
-                            </div>
-                            <div style={{ fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.4 }}>
-                              Best for existing slide decks (PowerPoint, PDF exports). Your slides stay exactly as they are &mdash; we just add professional voiceover and background music.
-                            </div>
-                          </div>
-                        </button>
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </>
