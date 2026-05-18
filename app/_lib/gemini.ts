@@ -560,7 +560,6 @@ ${bulletText}`
     artStyle: 'Clean modern infographic design with professional typography, structured data sections, and visual hierarchy',
     lighting: 'Flat design lighting with subtle gradients and drop shadows for depth',
     details: `${orientation} orientation, crisp vector-style icons, readable data labels`,
-    brandName: brandName,
     brandColors: colors,
   })
 
