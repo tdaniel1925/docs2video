@@ -468,10 +468,17 @@ app.post('/generate', authCheck, async (req, res) => {
     return res.status(400).json({ error: 'Missing videoId, scenes, or userId' })
   }
 
+  // Read env vars at request time (not module load time) in case they were set after startup
+  const sUrl = process.env.SUPABASE_URL || SUPABASE_URL
+  const sKey = process.env.SUPABASE_SERVICE_KEY || SUPABASE_KEY
+  if (!sUrl || !sKey) {
+    return res.status(500).json({ error: 'SUPABASE_URL or SUPABASE_SERVICE_KEY not configured on VPS' })
+  }
+
   // Respond immediately — work happens in background
   res.json({ success: true, message: 'Generation started' })
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  const supabase = createClient(sUrl, sKey, {
     auth: { persistSession: false },
     realtime: { transport: WebSocket },
   })
