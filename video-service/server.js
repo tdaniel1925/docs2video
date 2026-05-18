@@ -313,23 +313,28 @@ app.post('/convert', authCheck, async (req, res) => {
     const inputPath = join(workDir, `input.${ext}`)
     await writeFile(inputPath, Buffer.from(fileBase64, 'base64'))
 
-    // Convert to PDF first (LibreOffice)
-    await new Promise((resolve, reject) => {
-      execFile('libreoffice', [
-        '--headless',
-        '--convert-to', 'pdf',
-        '--outdir', workDir,
-        inputPath,
-      ], { timeout: 120000 }, (err, stdout, stderr) => {
-        if (err) {
-          console.error('[convert] LibreOffice error:', err.message, stderr)
-          return reject(new Error(`Conversion failed: ${err.message}`))
-        }
-        resolve(stdout)
+    // Convert to PDF first (LibreOffice) — skip if already a PDF
+    let pdfPath
+    if (ext === 'pdf') {
+      pdfPath = inputPath
+      console.log(`[convert] Input is already PDF, skipping LibreOffice`)
+    } else {
+      await new Promise((resolve, reject) => {
+        execFile('libreoffice', [
+          '--headless',
+          '--convert-to', 'pdf',
+          '--outdir', workDir,
+          inputPath,
+        ], { timeout: 120000 }, (err, stdout, stderr) => {
+          if (err) {
+            console.error('[convert] LibreOffice error:', err.message, stderr)
+            return reject(new Error(`Conversion failed: ${err.message}`))
+          }
+          resolve(stdout)
+        })
       })
-    })
-
-    const pdfPath = join(workDir, 'input.pdf')
+      pdfPath = join(workDir, 'input.pdf')
+    }
 
     // Get page count using pdfinfo or ffprobe
     let pageCount = 0
