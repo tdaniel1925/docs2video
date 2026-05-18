@@ -414,9 +414,16 @@ export async function POST(request: Request) {
       // Use http module for the VPS call to avoid undici's 300s headers timeout
       const http = await import('http')
       const vpsUrl = new URL(`${VIDEO_ASSEMBLY_URL}/assemble`)
+      // Validate all buffers exist before encoding
+      const validSlides = slideBuffers.filter(Boolean)
+      const validAudios = audioBuffers.filter(Boolean)
+      console.log(`[video ${videoId}] Sending ${validSlides.length} slides + ${validAudios.length} audios to VPS (${Math.round(validSlides.reduce((s, b) => s + b.length, 0) / 1024 / 1024)}MB slides, ${Math.round(validAudios.reduce((s, b) => s + b.length, 0) / 1024 / 1024)}MB audio)`)
+      if (validSlides.length === 0 || validAudios.length === 0) {
+        throw new Error(`Missing buffers: ${validSlides.length} slides, ${validAudios.length} audios`)
+      }
       const bodyStr = JSON.stringify({
-        slides: slideBuffers.map(b => b.toString('base64')),
-        audios: audioBuffers.map(b => b.toString('base64')),
+        slides: validSlides.map(b => b.toString('base64')),
+        audios: validAudios.map(b => b.toString('base64')),
         videoId,
         userId: user.id,
         musicUrl: finalMusicUrl || undefined,
