@@ -278,6 +278,7 @@ export default function VideoDetailPage() {
   const router = useRouter()
   const [video, setVideo] = useState<Video | null>(null)
   const [inlineNotice, setInlineNotice] = useState<{ type: 'error' | 'success'; message: string } | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{ message: string; onConfirm: () => void } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [downloadingPDF, setDownloadingPDF] = useState(false)
   const [downloadingPPTX, setDownloadingPPTX] = useState(false)
@@ -742,10 +743,16 @@ export default function VideoDetailPage() {
   }
 
   async function removeQuote() {
-    if (!existingQuote || !confirm('Remove this quote?')) return
-    const supabase = createClient()
-    await supabase.from('quotes').delete().eq('id', existingQuote.id)
-    setExistingQuote(null)
+    if (!existingQuote) return
+    setConfirmAction({
+      message: 'Remove this quote?',
+      onConfirm: async () => {
+        setConfirmAction(null)
+        const supabase = createClient()
+        await supabase.from('quotes').delete().eq('id', existingQuote.id)
+        setExistingQuote(null)
+      }
+    })
   }
 
   async function saveQuote() {
@@ -788,11 +795,17 @@ export default function VideoDetailPage() {
   }
 
   async function handleDelete() {
-    if (!confirm('Delete this video?')) return
-    setDeleting(true)
-    const supabase = createClient()
-    await supabase.from('videos').delete().eq('id', params.id as string)
-    router.push('/videos')
+    setConfirmAction({
+      message: 'Delete this video? This cannot be undone.',
+      onConfirm: async () => {
+        setConfirmAction(null)
+        setDeleting(true)
+        const supabase = createClient()
+        await supabase.from('videos').delete().eq('id', params.id as string)
+        router.push('/videos')
+      }
+    })
+    return
   }
 
   async function handleDownload() {
@@ -1257,6 +1270,22 @@ export default function VideoDetailPage() {
               }}>
                 <span>{inlineNotice.message}</span>
                 <button onClick={() => setInlineNotice(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'inherit', padding: '0 4px' }}>&times;</button>
+              </div>
+            )}
+
+            {/* Inline confirmation dialog */}
+            {confirmAction && (
+              <div style={{
+                padding: '14px 16px', borderRadius: 10, marginBottom: 12,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: '#fffbeb', border: '1px solid #fcd34d',
+                fontSize: 13,
+              }}>
+                <span style={{ color: '#92400e', fontWeight: 500 }}>{confirmAction.message}</span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setConfirmAction(null)} className="btn btn-soft btn-sm">Cancel</button>
+                  <button onClick={confirmAction.onConfirm} className="btn btn-sm" style={{ background: '#dc2626', color: 'white', border: 'none' }}>Confirm</button>
+                </div>
               </div>
             )}
 
