@@ -27,7 +27,7 @@ const FUN_FACTS = [
   'Tip: You can leave this page — your video will continue generating in the background.',
 ]
 
-function VideoProgress({ status, createdAt, progressDetail, progressPct }: { status: string; createdAt: string; progressDetail: string | null; progressPct: number | null }) {
+function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCount }: { status: string; createdAt: string; progressDetail: string | null; progressPct: number | null; sceneCount: number }) {
   const [elapsed, setElapsed] = useState(0)
   const [factIndex, setFactIndex] = useState(0)
 
@@ -52,7 +52,9 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct }: { sta
   const pct = progressPct != null ? Math.min(95, progressPct) : fallbackPct
   const currentStep = PROGRESS_STEPS[effectiveIdx] ?? PROGRESS_STEPS[0]
 
-  const estimatedTotal = 300 // ~5 minutes
+  // Estimate: ~30s script + ~10s per slide audio + ~20s per slide image + ~60s assembly
+  const slides = Math.max(sceneCount, 5)
+  const estimatedTotal = 30 + (slides * 10) + (slides * 20) + 60
   const timeRemaining = Math.max(0, estimatedTotal - elapsed)
   const minutes = Math.floor(timeRemaining / 60)
   const seconds = timeRemaining % 60
@@ -88,8 +90,10 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct }: { sta
           {pct}%
         </div>
         <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginTop: 4, marginBottom: 20 }}>
-          {elapsedMin}:{elapsedSec.toString().padStart(2, '0')} elapsed
-          {timeRemaining > 0 && ` · ~${minutes}:${seconds.toString().padStart(2, '0')} remaining`}
+          {timeRemaining > 0
+            ? `About ${minutes > 0 ? `${minutes} min` : ''}${minutes > 0 && seconds > 0 ? ' ' : ''}${seconds > 0 ? `${seconds}s` : ''} remaining`
+            : `${elapsedMin}:${elapsedSec.toString().padStart(2, '0')} elapsed — almost done`
+          }
         </div>
 
         {/* Animated gradient progress bar */}
@@ -1023,7 +1027,7 @@ export default function VideoDetailPage() {
 
       {/* Processing states */}
       {video.status !== 'completed' && video.status !== 'failed' && (
-        <VideoProgress status={video.status} createdAt={video.created_at} progressDetail={video.progress_detail ?? null} progressPct={video.progress_pct ?? null} />
+        <VideoProgress status={video.status} createdAt={video.created_at} progressDetail={video.progress_detail ?? null} progressPct={video.progress_pct ?? null} sceneCount={Array.isArray(video.script) ? video.script.length : (video.script as any)?._pipeline_input?.scenes?.length ?? 8} />
       )}
 
       {video.status === 'failed' && (
