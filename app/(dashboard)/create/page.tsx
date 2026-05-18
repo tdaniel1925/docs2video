@@ -486,7 +486,8 @@ export default function CreatePage() {
 
       const formData = new FormData()
       formData.append('file', file)
-      const res = await fetch('/api/extract', { method: 'POST', body: formData })
+      const extractUrl = uploadMode !== 'summarize' ? `/api/extract?mode=${uploadMode}` : '/api/extract'
+      const res = await fetch(extractUrl, { method: 'POST', body: formData })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Extraction failed')
 

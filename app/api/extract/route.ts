@@ -3,7 +3,9 @@ import { createClient } from '../../_lib/supabase/server'
 import { extractDocumentData } from '../../_lib/gemini'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
-export async function POST(request: Request) {
+export async function POST(request: Request & { nextUrl?: URL }) {
+  const url = new URL(request.url)
+  const uploadMode = url.searchParams.get('mode') || 'summarize'
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -72,7 +74,8 @@ export async function POST(request: Request) {
       base64 = convertData.pdfBase64
     }
 
-    const result = await extractDocumentData(base64, 'application/pdf')
+    const preserveAllPages = uploadMode === 'narrate' || uploadMode === 'redesign'
+    const result = await extractDocumentData(base64, 'application/pdf', preserveAllPages)
     return NextResponse.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Extraction failed'

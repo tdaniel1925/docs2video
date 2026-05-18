@@ -86,14 +86,21 @@ Rules for insurance (if applicable):
 - Include any important riders or features in the riders array
 - disclaimers: Extract ALL disclaimer, disclosure, legal notice, and compliance text found anywhere in the document. Include the full text of each disclaimer exactly as written. If none found, use an empty array.`
 
-export async function extractDocumentData(pdfBase64: string, mimeType: string = 'application/pdf'): Promise<{ general: ExtractedData; insurance?: ExtractedPolicyData }> {
+export async function extractDocumentData(pdfBase64: string, mimeType: string = 'application/pdf', preserveAllPages: boolean = false): Promise<{ general: ExtractedData; insurance?: ExtractedPolicyData }> {
+  // When preserving all pages (narrate/redesign mode), add instructions to keep every page as a section
+  const preserveInstructions = preserveAllPages ? `
+
+CRITICAL: This document is a slide deck or presentation. You MUST create one section for EVERY page/slide in the document. Do NOT summarize, combine, or skip any pages. Each page must become its own section with its own title and content. The number of sections MUST equal the number of pages in the document.` : ''
+
+  const prompt = GENERIC_EXTRACTION_PROMPT + preserveInstructions
+
   const response = await genai.models.generateContent({
     model: 'gemini-2.5-pro',
     contents: [
       {
         role: 'user',
         parts: [
-          { text: GENERIC_EXTRACTION_PROMPT },
+          { text: prompt },
           {
             inlineData: {
               mimeType,
