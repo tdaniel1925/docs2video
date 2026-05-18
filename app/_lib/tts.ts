@@ -26,10 +26,10 @@ export async function synthesizeSpeech(
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const response = await genai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.5-flash-preview-tts',
         contents: [{
           role: 'user',
-          parts: [{ text: `Read this text aloud in a natural, professional tone. Speak clearly and at a measured pace suitable for a presentation narration:\n\n${text.slice(0, 5000)}` }],
+          parts: [{ text: text.slice(0, 5000) }],
         }],
         config: {
           responseModalities: ['AUDIO'],
@@ -47,11 +47,12 @@ export async function synthesizeSpeech(
       const parts = response.candidates?.[0]?.content?.parts ?? []
       for (const part of parts) {
         if (part.inlineData?.mimeType?.startsWith('audio/')) {
-          const buffer = Buffer.from(part.inlineData.data!, 'base64')
-          if (buffer.length < 100) {
-            throw new Error(`TTS returned suspiciously small audio: ${buffer.length} bytes`)
+          const pcmBuffer = Buffer.from(part.inlineData.data!, 'base64')
+          if (pcmBuffer.length < 100) {
+            throw new Error(`TTS returned suspiciously small audio: ${pcmBuffer.length} bytes`)
           }
-          return buffer
+          // Gemini returns raw PCM (L16, 24kHz, mono) — wrap in WAV header for FFmpeg
+          return wrapPcmInWav(pcmBuffer, 24000, 1, 16)
         }
       }
 
@@ -69,6 +70,38 @@ export async function synthesizeSpeech(
   }
 
   return generateSilence()
+}
+
+/**
+ * Wrap raw PCM data in a WAV header so FFmpeg can read it correctly.
+ */
+function wrapPcmInWav(pcmData: Buffer, sampleRate: number, channels: number, bitsPerSample: number): Buffer {
+  const byteRate = sampleRate * channels * (bitsPerSample / 8)
+  const blockAlign = channels * (bitsPerSample / 8)
+  const dataSize = pcmData.length
+  const headerSize = 44
+  const header = Buffer.alloc(headerSize)
+
+  // RIFF header
+  header.write('RIFF', 0)
+  header.writeUInt32LE(dataSize + headerSize - 8, 4)
+  header.write('WAVE', 8)
+
+  // fmt subchunk
+  header.write('fmt ', 12)
+  header.writeUInt32LE(16, 16)          // subchunk size
+  header.writeUInt16LE(1, 20)           // PCM format
+  header.writeUInt16LE(channels, 22)
+  header.writeUInt32LE(sampleRate, 24)
+  header.writeUInt32LE(byteRate, 28)
+  header.writeUInt16LE(blockAlign, 32)
+  header.writeUInt16LE(bitsPerSample, 34)
+
+  // data subchunk
+  header.write('data', 36)
+  header.writeUInt32LE(dataSize, 40)
+
+  return Buffer.concat([header, pcmData])
 }
 
 /**
