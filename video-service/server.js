@@ -239,14 +239,27 @@ app.post('/assemble', authCheck, async (req, res) => {
       const { data: thumbUrlData } = supabase.storage.from('videos').getPublicUrl(thumbPath)
 
       console.log(`[${videoId}] Uploaded to Supabase`)
-      await updateProgress('Upload complete!', 98)
+
+      // Mark video as completed directly — don't rely on Vercel (it may have timed out)
+      const totalDuration = durations.reduce((s, d) => s + d, 0)
+      await supabase.from('videos').update({
+        video_url: urlData.publicUrl,
+        thumbnail_url: thumbUrlData.publicUrl,
+        duration: totalDuration,
+        slide_durations: durations,
+        status: 'completed',
+        progress_detail: null,
+        progress_pct: 100,
+      }).eq('id', videoId)
+
+      console.log(`[${videoId}] Marked as completed in database`)
 
       res.json({
         success: true,
         videoUrl: urlData.publicUrl,
         thumbnailUrl: thumbUrlData.publicUrl,
         durations,
-        totalDuration: durations.reduce((s, d) => s + d, 0),
+        totalDuration,
       })
     } else {
       // Return video as base64 if no Supabase configured
@@ -259,7 +272,13 @@ app.post('/assemble', authCheck, async (req, res) => {
     }
   } catch (err) {
     console.error(`[${videoId}] Error:`, err.message)
-    await updateProgress(`Assembly failed: ${err.message}`, 0).catch(() => {})
+    // Mark video as failed directly in database
+    if (SUPABASE_URL && SUPABASE_KEY) {
+      try {
+        const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+        await sb.from('videos').update({ status: 'failed', error_message: err.message, progress_detail: `Assembly failed: ${err.message}`, progress_pct: 0 }).eq('id', videoId)
+      } catch (e) { console.error(`[${videoId}] Failed to update status:`, e.message) }
+    }
     res.status(500).json({ error: err.message })
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {})
