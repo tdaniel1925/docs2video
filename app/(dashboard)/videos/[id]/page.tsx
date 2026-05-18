@@ -277,6 +277,7 @@ export default function VideoDetailPage() {
   const params = useParams()
   const router = useRouter()
   const [video, setVideo] = useState<Video | null>(null)
+  const [inlineNotice, setInlineNotice] = useState<{ type: 'error' | 'success'; message: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [downloadingPDF, setDownloadingPDF] = useState(false)
   const [downloadingPPTX, setDownloadingPPTX] = useState(false)
@@ -389,7 +390,7 @@ export default function VideoDetailPage() {
       })
       if (!res.ok) {
         const data = await res.json()
-        alert(data.error ?? 'Failed to regenerate slide')
+        setInlineNotice({ type: 'error', message: data.error ?? 'Failed to regenerate slide' })
         return
       }
       const { slideUrl } = await res.json()
@@ -401,7 +402,7 @@ export default function VideoDetailPage() {
         return { ...prev, slide_urls: updatedUrls }
       })
     } catch {
-      alert('Failed to regenerate slide')
+      setInlineNotice({ type: 'error', message: 'Failed to regenerate slide' })
     } finally {
       setRegeneratingSlide(null)
     }
@@ -614,7 +615,7 @@ export default function VideoDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ videoId: params.id }),
       })
-      if (!res.ok) { alert('Failed to generate follow-up plan'); return }
+      if (!res.ok) { setInlineNotice({ type: 'error', message: 'Failed to generate follow-up plan' }); return }
       const { suggestions } = await res.json()
 
       const supabase = createClient()
@@ -634,7 +635,7 @@ export default function VideoDetailPage() {
         .select()
         .single()
 
-      if (planErr || !plan) { alert('Failed to save plan'); return }
+      if (planErr || !plan) { setInlineNotice({ type: 'error', message: 'Failed to save plan' }); return }
 
       // Create individual email records
       const now = new Date()
@@ -657,7 +658,7 @@ export default function VideoDetailPage() {
       setShowFollowUpForm(false)
     } catch (err) {
       console.error(err)
-      alert('Error creating follow-up plan')
+      setInlineNotice({ type: 'error', message: 'Error creating follow-up plan' })
     } finally {
       setGeneratingPlan(false)
     }
@@ -673,7 +674,7 @@ export default function VideoDetailPage() {
       })
       if (!res.ok) {
         const data = await res.json()
-        alert(data.error ?? 'Send failed')
+        setInlineNotice({ type: 'error', message: data.error ?? 'Send failed' })
         return
       }
       // Update local state
@@ -687,7 +688,7 @@ export default function VideoDetailPage() {
         }
       })
     } catch (err) {
-      alert('Send failed')
+      setInlineNotice({ type: 'error', message: 'Send failed' })
     } finally {
       setSendingEmail(null)
     }
@@ -812,7 +813,7 @@ export default function VideoDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ videoId: video.id, title: video.title ?? 'Video Slides' }),
       })
-      if (!res.ok) { alert('PDF generation failed'); return }
+      if (!res.ok) { setInlineNotice({ type: 'error', message: 'PDF generation failed' }); return }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -834,7 +835,7 @@ export default function VideoDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ videoId: video.id, title: video.title ?? 'Video Slides' }),
       })
-      if (!res.ok) { alert('PPTX generation failed'); return }
+      if (!res.ok) { setInlineNotice({ type: 'error', message: 'PPTX generation failed' }); return }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -858,7 +859,7 @@ export default function VideoDetailPage() {
       })
       if (!res.ok) {
         const data = await res.json()
-        alert(data.error ?? 'Translation failed')
+        setInlineNotice({ type: 'error', message: data.error ?? 'Translation failed' })
         return
       }
       const { videoId: newVideoId } = await res.json()
@@ -866,7 +867,7 @@ export default function VideoDetailPage() {
       setTranslateLang('')
       router.push(`/videos/${newVideoId}`)
     } catch {
-      alert('Translation failed. Please try again.')
+      setInlineNotice({ type: 'error', message: 'Translation failed. Please try again.' })
     } finally {
       setTranslating(false)
     }
@@ -1238,6 +1239,21 @@ export default function VideoDetailPage() {
                     </button>
                   )
                 })}
+              </div>
+            )}
+
+            {/* Inline notification */}
+            {inlineNotice && (
+              <div style={{
+                padding: '12px 16px', borderRadius: 10, marginBottom: 12,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: inlineNotice.type === 'error' ? '#fef2f2' : '#f0fdf4',
+                border: `1px solid ${inlineNotice.type === 'error' ? '#fca5a5' : '#86efac'}`,
+                color: inlineNotice.type === 'error' ? '#991b1b' : '#166534',
+                fontSize: 13,
+              }}>
+                <span>{inlineNotice.message}</span>
+                <button onClick={() => setInlineNotice(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'inherit', padding: '0 4px' }}>&times;</button>
               </div>
             )}
 
