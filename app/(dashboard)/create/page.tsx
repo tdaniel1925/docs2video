@@ -188,6 +188,8 @@ export default function CreatePage() {
   const [selectedVoice, setSelectedVoice] = useState<string>(VOICE_OPTIONS[0].id)
   const [detailedMode, setDetailedMode] = useState(false)
   const [videoPurpose, setVideoPurpose] = useState('')
+  const [slideDeckDetected, setSlideDeckDetected] = useState(false)
+  const [narrateOnly, setNarrateOnly] = useState(false)
   const [selectedMusic, setSelectedMusic] = useState<string | null>(null)
   const [uploadedLogo, setUploadedLogo] = useState<string | null>(null)
   const [customTheme, setCustomTheme] = useState(false)
@@ -385,28 +387,43 @@ export default function CreatePage() {
     setDraftBanner(null)
   }
 
-  const handleFileSelect = useCallback((selectedFile: File) => {
-    if (selectedFile.type !== 'application/pdf') { setError('Please upload a PDF file'); return }
-    if (selectedFile.size > 20 * 1024 * 1024) { setError('File must be under 20MB'); return }
-    setFile(selectedFile)
-    setError(null)
+  const ACCEPTED_TYPES = ['application/pdf', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/vnd.ms-powerpoint']
+  const SLIDE_EXTENSIONS = ['.pptx', '.ppt']
+
+  const isSlideFile = useCallback((f: File) => {
+    return SLIDE_EXTENSIONS.some(ext => f.name.toLowerCase().endsWith(ext)) ||
+      f.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+      f.type === 'application/vnd.ms-powerpoint'
   }, [])
+
+  const handleFileSelect = useCallback((selectedFile: File) => {
+    const validType = ACCEPTED_TYPES.includes(selectedFile.type) || SLIDE_EXTENSIONS.some(ext => selectedFile.name.toLowerCase().endsWith(ext))
+    if (!validType) { setError('Please upload a PDF or PowerPoint file'); return }
+    if (selectedFile.size > 50 * 1024 * 1024) { setError('File must be under 50MB'); return }
+    setFile(selectedFile)
+    setSlideDeckDetected(isSlideFile(selectedFile))
+    setNarrateOnly(false)
+    setError(null)
+  }, [isSlideFile])
 
   const handleMultiFileSelect = useCallback((selectedFiles: FileList | File[]) => {
     const newFiles: File[] = []
+    let hasSlides = false
     for (let i = 0; i < selectedFiles.length; i++) {
       const f = selectedFiles[i]
-      if (f.type !== 'application/pdf') { setError('Please upload PDF files only'); return }
-      if (f.size > 20 * 1024 * 1024) { setError('Each file must be under 20MB'); return }
+      const validType = ACCEPTED_TYPES.includes(f.type) || SLIDE_EXTENSIONS.some(ext => f.name.toLowerCase().endsWith(ext))
+      if (!validType) { setError('Please upload PDF or PowerPoint files'); return }
+      if (f.size > 50 * 1024 * 1024) { setError('Each file must be under 50MB'); return }
       newFiles.push(f)
+      if (isSlideFile(f)) hasSlides = true
     }
     setFiles(prev => [...prev, ...newFiles])
-    // Also set the first file as the single file for backward compat
     if (newFiles.length === 1 && files.length === 0) {
       setFile(newFiles[0])
     }
+    if (hasSlides) setSlideDeckDetected(true)
     setError(null)
-  }, [files.length])
+  }, [files.length, isSlideFile])
 
   function handleRemoveFile(index: number) {
     setFiles(prev => {
@@ -1048,13 +1065,48 @@ export default function CreatePage() {
                     <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
                       <label className="btn btn-soft btn-sm" style={{ cursor: 'pointer' }}>
                         + Add more files
-                        <input type="file" accept=".pdf" multiple className="hidden" style={{ display: 'none' }} onChange={(e) => { if (e.target.files) handleMultiFileSelect(e.target.files); e.target.value = '' }} />
+                        <input type="file" accept=".pdf,.pptx,.ppt" multiple className="hidden" style={{ display: 'none' }} onChange={(e) => { if (e.target.files) handleMultiFileSelect(e.target.files); e.target.value = '' }} />
                       </label>
-                      <button onClick={() => { setFiles([]); setFile(null); setError(null) }} className="btn btn-soft btn-sm">Clear all</button>
+                      <button onClick={() => { setFiles([]); setFile(null); setError(null); setSlideDeckDetected(false); setNarrateOnly(false) }} className="btn btn-soft btn-sm">Clear all</button>
                       <button onClick={handleExtract} className="btn btn-primary btn-sm" disabled={!videoPurpose.trim()}>
-                        {files.length > 1 ? 'Extract & Compare' : 'Extract Data'} &rarr;
+                        {narrateOnly ? 'Narrate My Slides' : files.length > 1 ? 'Extract & Compare' : 'Extract Data'} &rarr;
                       </button>
                     </div>
+
+                    {/* Slide deck detected notification */}
+                    {slideDeckDetected && (
+                      <div style={{
+                        marginTop: 16,
+                        padding: '16px 20px',
+                        background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+                        border: '1px solid #93c5fd',
+                        borderRadius: 10,
+                        fontSize: 14,
+                      }}>
+                        <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--ink)' }}>
+                          Slide deck detected
+                        </div>
+                        <div style={{ color: 'var(--ink-soft)', marginBottom: 12, lineHeight: 1.5, fontSize: 13 }}>
+                          We can narrate your existing slides as-is, or extract the content and redesign them with AI using your chosen template style.
+                        </div>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <button
+                            onClick={() => setNarrateOnly(true)}
+                            className={`btn ${narrateOnly ? 'btn-primary' : 'btn-soft'}`}
+                            style={{ fontSize: 13 }}
+                          >
+                            Narrate my slides as-is
+                          </button>
+                          <button
+                            onClick={() => setNarrateOnly(false)}
+                            className={`btn ${!narrateOnly ? 'btn-primary' : 'btn-soft'}`}
+                            style={{ fontSize: 13 }}
+                          >
+                            Redesign with AI
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <>
@@ -1062,10 +1114,10 @@ export default function CreatePage() {
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     </div>
                     <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 6 }}>Drop your documents here</div>
-                    <div style={{ fontSize: 14, color: 'var(--ink-light)', marginBottom: 18 }}>PDF up to 20 MB each. Upload multiple to compare.</div>
+                    <div style={{ fontSize: 14, color: 'var(--ink-light)', marginBottom: 18 }}>PDF or PowerPoint up to 50 MB. Upload multiple to compare.</div>
                     <label className="btn btn-mint btn-sm" style={{ cursor: 'pointer' }}>
                       Choose Files
-                      <input type="file" accept=".pdf" multiple className="hidden" style={{ display: 'none' }} onChange={(e) => { if (e.target.files) handleMultiFileSelect(e.target.files); e.target.value = '' }} />
+                      <input type="file" accept=".pdf,.pptx,.ppt" multiple className="hidden" style={{ display: 'none' }} onChange={(e) => { if (e.target.files) handleMultiFileSelect(e.target.files); e.target.value = '' }} />
                     </label>
                   </>
                 )}

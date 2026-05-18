@@ -86,7 +86,7 @@ Rules for insurance (if applicable):
 - Include any important riders or features in the riders array
 - disclaimers: Extract ALL disclaimer, disclosure, legal notice, and compliance text found anywhere in the document. Include the full text of each disclaimer exactly as written. If none found, use an empty array.`
 
-export async function extractDocumentData(pdfBase64: string): Promise<{ general: ExtractedData; insurance?: ExtractedPolicyData }> {
+export async function extractDocumentData(pdfBase64: string, mimeType: string = 'application/pdf'): Promise<{ general: ExtractedData; insurance?: ExtractedPolicyData }> {
   const response = await genai.models.generateContent({
     model: 'gemini-2.5-pro',
     contents: [
@@ -96,7 +96,7 @@ export async function extractDocumentData(pdfBase64: string): Promise<{ general:
           { text: GENERIC_EXTRACTION_PROMPT },
           {
             inlineData: {
-              mimeType: 'application/pdf',
+              mimeType,
               data: pdfBase64,
             },
           },

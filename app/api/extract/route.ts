@@ -33,8 +33,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 })
   }
 
-  if (file.type !== 'application/pdf') {
-    return NextResponse.json({ error: 'File must be a PDF' }, { status: 400 })
+  const ACCEPTED_TYPES = [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.ms-powerpoint',
+  ]
+  const isPptx = file.name?.toLowerCase().endsWith('.pptx') || file.name?.toLowerCase().endsWith('.ppt')
+  if (!ACCEPTED_TYPES.includes(file.type) && !isPptx) {
+    return NextResponse.json({ error: 'File must be a PDF or PowerPoint file' }, { status: 400 })
   }
 
   if (file.size > 50 * 1024 * 1024) {
@@ -44,7 +50,8 @@ export async function POST(request: Request) {
   try {
     const arrayBuffer = await file.arrayBuffer()
     const base64 = Buffer.from(arrayBuffer).toString('base64')
-    const result = await extractDocumentData(base64)
+    const mimeType = isPptx ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation' : 'application/pdf'
+    const result = await extractDocumentData(base64, mimeType)
     // Return both general and insurance data so the client can decide which to show
     return NextResponse.json(result)
   } catch (err) {
