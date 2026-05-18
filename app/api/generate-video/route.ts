@@ -71,7 +71,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, assetUrls } = body as {
+  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, assetUrls, purpose, uploadMode, industry } = body as {
     videoId: string
     policyData: ExtractedPolicyData | ExtractedData
     brandId: string | null
@@ -85,6 +85,9 @@ export async function POST(request: Request) {
     aiMusic?: boolean
     musicPrompt?: string
     assetUrls?: { url: string; tag: string }[]
+    purpose?: string
+    uploadMode?: string
+    industry?: string
   }
 
   let brand: Brand | null = null
@@ -141,7 +144,13 @@ export async function POST(request: Request) {
     } else {
       console.log(`[video ${videoId}] Generating script...`)
       await admin.from('videos').update({ status: 'scripting', progress_detail: 'Writing your script...', progress_pct: 5 }).eq('id', videoId)
-      scenes = await generateScript(policyData, brand?.name ?? null, colors, detailed ?? false, assetBuffers.filter(Boolean).length, voiceId, (brand as any)?.tone ?? undefined)
+      const guideDataForScript = brand?.brand_guide_data as Record<string, string> | null
+      const contactInfoForScript = {
+        phone: guideDataForScript?.phone ?? undefined,
+        email: guideDataForScript?.email ?? undefined,
+        calendly: guideDataForScript?.calendly ?? undefined,
+      }
+      scenes = await generateScript(policyData, brand?.name ?? null, colors, detailed ?? false, assetBuffers.filter(Boolean).length, voiceId, (brand as any)?.tone ?? undefined, contactInfoForScript, purpose, uploadMode, industry)
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15 }).eq('id', videoId)
     }
 

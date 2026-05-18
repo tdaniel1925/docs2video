@@ -507,6 +507,7 @@ export default function CreatePage() {
           console.log(`[create] Converted ${slideImages.length} slide images for narrate-only mode`)
         } catch (err) {
           console.error('[create] Slide conversion failed, falling back to redesign:', err)
+          setError('Slide conversion failed — your slides will be redesigned with AI instead.')
           setUploadMode('summarize')
           setOriginalSlideImages([])
         }
@@ -934,6 +935,9 @@ export default function CreatePage() {
             approvedSlides: finalApprovedSlides,
             scenes: editableScenes.length > 0 ? editableScenes : generatedScenes,
             assets: assetPayload,
+            purpose: videoPurpose.trim() || undefined,
+            uploadMode,
+            industry: selectedIndustry,
           },
         },
       }).eq('id', createData.id)
