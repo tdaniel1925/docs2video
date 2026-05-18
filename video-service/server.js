@@ -67,7 +67,7 @@ app.post('/assemble', authCheck, async (req, res) => {
     for (let i = 0; i < slides.length; i++) {
       await writeFile(join(workDir, `slide_${i}.png`), Buffer.from(slides[i], 'base64'))
       if (audios[i]) {
-        await writeFile(join(workDir, `audio_${i}.mp3`), Buffer.from(audios[i], 'base64'))
+        await writeFile(join(workDir, `audio_${i}.wav`), Buffer.from(audios[i], 'base64'))
       }
     }
 
@@ -78,7 +78,7 @@ app.post('/assemble', authCheck, async (req, res) => {
     for (let i = 0; i < slides.length; i++) {
       const clipPath = join(workDir, `clip_${i}.mp4`)
       const slidePath = join(workDir, `slide_${i}.png`)
-      const audioPath = join(workDir, `audio_${i}.mp3`)
+      const audioPath = join(workDir, `audio_${i}.wav`)
 
       const baseVf = 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2'
       let vf = baseVf

@@ -57,8 +57,8 @@ export async function synthesizeSpeech(
           if (pcmBuffer.length < 100) {
             throw new Error(`TTS returned suspiciously small audio: ${pcmBuffer.length} bytes`)
           }
-          // Gemini returns raw PCM (L16, 24kHz, mono) — encode to MP3 for smaller transfer
-          return pcmToMp3(pcmBuffer, 24000)
+          // Gemini returns raw PCM (L16, 24kHz, mono) — wrap in WAV for FFmpeg
+          return wrapPcmInWav(pcmBuffer, 24000, 1, 16)
         }
       }
 
@@ -79,39 +79,7 @@ export async function synthesizeSpeech(
 }
 
 /**
- * Encode raw PCM (16-bit signed, mono) to MP3 using lamejs.
- * Falls back to WAV if encoding fails.
- */
-function pcmToMp3(pcmData: Buffer, sampleRate: number): Buffer {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const lamejs = require('lamejs')
-    const mp3enc = new lamejs.Mp3Encoder(1, sampleRate, 128) // mono, 128kbps
-
-    // Convert Buffer to Int16Array
-    const samples = new Int16Array(pcmData.buffer, pcmData.byteOffset, pcmData.length / 2)
-
-    const mp3Chunks: Buffer[] = []
-    const blockSize = 1152
-    for (let i = 0; i < samples.length; i += blockSize) {
-      const chunk = samples.subarray(i, i + blockSize)
-      const mp3buf = mp3enc.encodeBuffer(chunk)
-      if (mp3buf.length > 0) mp3Chunks.push(Buffer.from(mp3buf))
-    }
-    const final = mp3enc.flush()
-    if (final.length > 0) mp3Chunks.push(Buffer.from(final))
-
-    const mp3Buffer = Buffer.concat(mp3Chunks)
-    console.log(`[tts] PCM ${pcmData.length} bytes → MP3 ${mp3Buffer.length} bytes (${Math.round(mp3Buffer.length / pcmData.length * 100)}%)`)
-    return mp3Buffer
-  } catch (err) {
-    console.error('[tts] MP3 encoding failed, falling back to WAV:', err)
-    return wrapPcmInWav(pcmData, sampleRate, 1, 16)
-  }
-}
-
-/**
- * Wrap raw PCM data in a WAV header (fallback if MP3 encoding fails).
+ * Wrap raw PCM data in a WAV header so FFmpeg can read it correctly.
  */
 function wrapPcmInWav(pcmData: Buffer, sampleRate: number, channels: number, bitsPerSample: number): Buffer {
   const byteRate = sampleRate * channels * (bitsPerSample / 8)
