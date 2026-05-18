@@ -209,7 +209,7 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
           <button
             onClick={async () => {
               const sb = createClient()
-              await sb.from('videos').update({ status: 'pending' }).eq('id', window.location.pathname.split('/').pop()!)
+              await sb.from('videos').update({ status: 'pending', progress_pct: 0, progress_detail: 'Restarting...' }).eq('id', window.location.pathname.split('/').pop()!)
               window.location.reload()
             }}
             className="btn btn-soft btn-sm"
@@ -538,6 +538,9 @@ export default function VideoDetailPage() {
                 aiMusic: input.aiMusic,
                 musicPrompt: input.musicPrompt,
                 assetUrls: input.assets,
+                purpose: input.purpose,
+                uploadMode: input.uploadMode,
+                industry: input.industry,
               }),
             }).then(res => {
               if (!res.ok) res.json().then(d => console.error('[video] Pipeline failed:', d.error)).catch(() => {})
