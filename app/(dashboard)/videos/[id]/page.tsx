@@ -1456,7 +1456,7 @@ export default function VideoDetailPage() {
                     setShowEditor(false)
                     setReRenderProgress('')
                   } catch (err) {
-                    alert(err instanceof Error ? err.message : 'Re-render failed')
+                    setInlineNotice({ type: 'error', message: err instanceof Error ? err.message : 'Re-render failed' })
                   } finally {
                     setReRendering(false)
                   }
