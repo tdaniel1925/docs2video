@@ -1106,40 +1106,64 @@ export default function CreatePage() {
                       </button>
                     </div>
 
-                    {/* Slide deck detected notification */}
-                    {slideDeckDetected && (
-                      <div style={{
-                        marginTop: 16,
-                        padding: '16px 20px',
-                        background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
-                        border: '1px solid #93c5fd',
-                        borderRadius: 10,
-                        fontSize: 14,
-                      }}>
-                        <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--ink)' }}>
-                          Slide deck detected
-                        </div>
-                        <div style={{ color: 'var(--ink-soft)', marginBottom: 12, lineHeight: 1.5, fontSize: 13 }}>
-                          We can narrate your existing slides as-is, or extract the content and redesign them with AI using your chosen template style.
-                        </div>
-                        <div style={{ display: 'flex', gap: 10 }}>
-                          <button
-                            onClick={() => setNarrateOnly(true)}
-                            className={`btn ${narrateOnly ? 'btn-primary' : 'btn-soft'}`}
-                            style={{ fontSize: 13 }}
-                          >
-                            Narrate my slides as-is
-                          </button>
-                          <button
-                            onClick={() => setNarrateOnly(false)}
-                            className={`btn ${!narrateOnly ? 'btn-primary' : 'btn-soft'}`}
-                            style={{ fontSize: 13 }}
-                          >
-                            Redesign with AI
-                          </button>
-                        </div>
+                    {/* What type of file is this? */}
+                    <div style={{
+                      marginTop: 16,
+                      padding: '20px',
+                      background: 'var(--surface-raised, #f8fafc)',
+                      border: '1px solid var(--border, #e2e8f0)',
+                      borderRadius: 10,
+                    }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: 'var(--ink)' }}>
+                        What would you like to do with this file?
                       </div>
-                    )}
+                      <div style={{ color: 'var(--ink-soft)', marginBottom: 16, lineHeight: 1.5, fontSize: 13 }}>
+                        Choose how you want your video created. You can always change this later.
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {/* Option 1: Redesign */}
+                        <button
+                          onClick={() => { setNarrateOnly(false); setSlideDeckDetected(false) }}
+                          style={{
+                            display: 'flex', alignItems: 'flex-start', gap: 14, padding: '14px 16px',
+                            border: !narrateOnly && !slideDeckDetected ? '2px solid var(--accent, #4A90D9)' : '1px solid var(--border)',
+                            borderRadius: 10, background: !narrateOnly && !slideDeckDetected ? 'rgba(74,144,217,0.06)' : 'white',
+                            cursor: 'pointer', textAlign: 'left', width: '100%',
+                          }}
+                        >
+                          <span style={{ fontSize: 24, lineHeight: 1, marginTop: 2 }}>&#9998;</span>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>
+                              Extract content &amp; redesign with AI
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.4 }}>
+                              Best for documents, reports, and proposals. AI extracts the key information and creates beautiful new slides in your chosen template style.
+                            </div>
+                          </div>
+                        </button>
+
+                        {/* Option 2: Narrate as-is (slide deck) */}
+                        <button
+                          onClick={() => { setNarrateOnly(true); setSlideDeckDetected(true) }}
+                          style={{
+                            display: 'flex', alignItems: 'flex-start', gap: 14, padding: '14px 16px',
+                            border: narrateOnly ? '2px solid var(--accent, #4A90D9)' : '1px solid var(--border)',
+                            borderRadius: 10, background: narrateOnly ? 'rgba(74,144,217,0.06)' : 'white',
+                            cursor: 'pointer', textAlign: 'left', width: '100%',
+                          }}
+                        >
+                          <span style={{ fontSize: 24, lineHeight: 1, marginTop: 2 }}>&#127908;</span>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>
+                              Keep my slides &amp; add narration
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.4 }}>
+                              Best for existing slide decks (PowerPoint, PDF exports). Your slides stay exactly as they are &mdash; we just add professional voiceover and background music.
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
                   </>
                 ) : (
                   <>
