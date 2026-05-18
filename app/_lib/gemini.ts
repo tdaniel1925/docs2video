@@ -377,7 +377,6 @@ The text on the slide should be the KEY FACTS only — short phrases, not full s
       ? 'Professional presentation canvas with a reserved clean 200x200px area in the bottom-right for a photo overlay'
       : 'Full-bleed professional presentation canvas, no empty reserved areas',
     artStyle: stylePromptText,
-    brandName: brandName,
     brandColors: colors,
   })
 

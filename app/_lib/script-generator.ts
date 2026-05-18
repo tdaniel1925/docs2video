@@ -286,7 +286,7 @@ export async function generateScript(
   }
 
   if (brandTone) {
-    additionalSections.push(`BRAND TONE: The brand's voice is ${brandTone}. Match this tone throughout the narration.`)
+    additionalSections.push(`BRAND TONE (OVERRIDES INDUSTRY DEFAULT): The brand's actual voice is "${brandTone}". This takes priority over the industry tone above. Match this specific tone throughout the narration — the brand knows its audience better than a generic industry setting.`)
   }
 
   if (contactInfo && (contactInfo.phone || contactInfo.email || contactInfo.calendly)) {
