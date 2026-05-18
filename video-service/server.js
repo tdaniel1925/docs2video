@@ -484,41 +484,43 @@ app.post('/generate', authCheck, async (req, res) => {
   })
 
   async function updateStatus(status, detail, pct) {
-    await supabase.from('videos').update({ status, progress_detail: detail, progress_pct: pct }).eq('id', videoId).catch(() => {})
+    try { await supabase.from('videos').update({ status, progress_detail: detail, progress_pct: pct }).eq('id', videoId) } catch(e) { console.error('Progress update failed:', e.message) }
   }
 
   try {
     console.log(`[${videoId}] FULL PIPELINE: ${scenes.length} scenes, voice=${voiceId}, style=${styleId}`)
 
-    // STAGE 1: Generate audio (parallel batches of 5)
-    await updateStatus('generating_audio', `Narrating ${scenes.length} scenes...`, 10)
+    // STAGE 1+2: Generate audio AND slides IN PARALLEL
+    await updateStatus('generating_audio', `Generating audio and slides...`, 10)
     const OpenAI = require('openai')
     const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 
-    const audioBuffers = []
-    for (let i = 0; i < scenes.length; i += 5) {
-      const batch = scenes.slice(i, Math.min(i + 5, scenes.length))
-      const results = await Promise.all(batch.map(async (scene) => {
-        if (!scene.narration?.trim()) return Buffer.alloc(0)
-        try {
-          const resp = await openai.audio.speech.create({
-            model: 'tts-1-hd', voice: voiceId || 'nova',
-            input: scene.narration.slice(0, 4096), response_format: 'mp3', speed: 0.95,
-          })
-          return Buffer.from(await resp.arrayBuffer())
-        } catch (e) {
-          console.error(`[${videoId}] TTS failed for scene:`, e.message)
-          return Buffer.alloc(0)
-        }
-      }))
-      audioBuffers.push(...results)
-      const done = Math.min(i + 5, scenes.length)
-      console.log(`[${videoId}] Audio ${done}/${scenes.length}`)
-      await updateStatus('generating_audio', `Narrating scene ${done} of ${scenes.length}...`, 10 + Math.round((done / scenes.length) * 15))
-    }
-    console.log(`[${videoId}] Audio complete: ${audioBuffers.length} clips`)
+    // Audio runs in background
+    const audioPromise = (async () => {
+      const buffers = []
+      for (let i = 0; i < scenes.length; i += 5) {
+        const batch = scenes.slice(i, Math.min(i + 5, scenes.length))
+        const results = await Promise.all(batch.map(async (scene) => {
+          if (!scene.narration?.trim()) return Buffer.alloc(0)
+          try {
+            const resp = await openai.audio.speech.create({
+              model: 'tts-1-hd', voice: voiceId || 'nova',
+              input: scene.narration.slice(0, 4096), response_format: 'mp3', speed: 0.95,
+            })
+            return Buffer.from(await resp.arrayBuffer())
+          } catch (e) {
+            console.error(`[${videoId}] TTS failed:`, e.message)
+            return Buffer.alloc(0)
+          }
+        }))
+        buffers.push(...results)
+        console.log(`[${videoId}] Audio ${Math.min(i + 5, scenes.length)}/${scenes.length}`)
+      }
+      console.log(`[${videoId}] Audio complete: ${buffers.length} clips`)
+      return buffers
+    })()
 
-    // STAGE 2: Generate slides (parallel batches of 5)
+    // Slides run in parallel with audio
     await updateStatus('generating_slides', `Designing slides...`, 30)
     const { GoogleGenAI } = require('@google/genai')
     const genai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
@@ -605,7 +607,114 @@ RULES: Do NOT render any logos or brand names. Do NOT place content in the botto
     }
     console.log(`[${videoId}] Slides complete: ${slideBuffers.length}`)
 
-    // STAGE 3: Assemble with FFmpeg (reuse existing logic)
+    // Wait for audio to finish (it ran in parallel with slides)
+    const audioBuffers = await audioPromise
+    console.log(`[${videoId}] Audio + slides both done`)
+
+    // STAGE 2.5: Sharp overlays — cover title, bottom bar with logo, closing
+    await updateStatus('generating_slides', 'Adding branding...', 68)
+    const sharp = require('sharp')
+
+    // Get brand logo + contact info
+    let logoBuffer = null
+    const logoUrl = brand?.logo_file_url || brand?.logo_url || null
+    if (logoUrl) {
+      try {
+        const logoRes = await fetch(logoUrl, { signal: AbortSignal.timeout(8000) })
+        if (logoRes.ok) logoBuffer = Buffer.from(await logoRes.arrayBuffer())
+      } catch (e) { console.log(`[${videoId}] Logo fetch failed:`, e.message) }
+    }
+
+    const brandGuide = brand?.brand_guide_data || {}
+    const contactPhone = brandGuide.phone || ''
+    const contactWebsite = brandGuide.website || ''
+    const brandName = brand?.name || ''
+
+    // Helper: escape XML
+    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+    // Generate bottom bar with logo + contact info for middle slides
+    let bottomBarBuffer = null
+    if (logoBuffer || brandName) {
+      const barH = 100
+      const w = 1920, h = 1080
+      const hex = (colors.primary || '#1B365D').replace('#', '')
+      const r = parseInt(hex.substring(0, 2), 16) || 20
+      const g = parseInt(hex.substring(2, 4), 16) || 20
+      const b = parseInt(hex.substring(4, 6), 16) || 40
+
+      // Resize logo for bar
+      let logoForBar = null
+      let logoW = 0
+      if (logoBuffer) {
+        logoForBar = await sharp(logoBuffer).resize(140, 50, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()
+        const meta = await sharp(logoForBar).metadata()
+        logoW = meta.width || 140
+      }
+
+      // Build bar SVG with contact info
+      const contactText = [contactPhone, contactWebsite].filter(Boolean).join('  |  ')
+      const barSvg = Buffer.from(`<svg width="${w}" height="${barH}" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0" y="0" width="${w}" height="1" fill="${colors.text || '#fff'}" fill-opacity="0.15"/>
+        <rect x="0" y="1" width="${w}" height="${barH - 1}" fill="rgb(${r},${g},${b})" fill-opacity="0.95"/>
+        <text x="${w / 2}" y="${barH / 2 + 5}" font-family="Arial, sans-serif" font-size="14" fill="${colors.text || '#fff'}" fill-opacity="0.7" text-anchor="middle">${esc(contactText)}</text>
+      </svg>`)
+
+      const barPng = await sharp(barSvg).png().toBuffer()
+      const composites = [{ input: barPng, left: 0, top: h - barH }]
+
+      if (logoForBar) {
+        composites.push({ input: logoForBar, left: 40, top: h - barH + Math.round((barH - 50) / 2) })
+      }
+
+      bottomBarBuffer = await sharp({ create: { width: w, height: h, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+        .composite(composites).png().toBuffer()
+      console.log(`[${videoId}] Bottom bar generated`)
+    }
+
+    // Generate cover overlay (logo + title)
+    let coverOverlayBuffer = null
+    if (logoBuffer) {
+      const w = 1920, h = 1080
+      const logoMaxW = 500, logoMaxH = 280
+      const resizedLogo = await sharp(logoBuffer).resize(logoMaxW, logoMaxH, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()
+      const logoMeta = await sharp(resizedLogo).metadata()
+      const lw = logoMeta.width || logoMaxW, lh = logoMeta.height || logoMaxH
+      const logoLeft = Math.round((w - lw) / 2), logoTop = Math.round(h * 0.18)
+
+      const title = (policyData?.title || policyData?.policyType || 'Presentation').slice(0, 80)
+      const subtitle = policyData?.subtitle || brandName || ''
+      const textY = logoTop + lh + 50
+      const svgText = Buffer.from(`<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
+        <text x="${w / 2 + 1}" y="${textY + 2}" font-family="Arial, sans-serif" font-size="52" font-weight="bold" fill="black" fill-opacity="0.4" text-anchor="middle">${esc(title)}</text>
+        <text x="${w / 2}" y="${textY}" font-family="Arial, sans-serif" font-size="52" font-weight="bold" fill="${colors.text || '#fff'}" text-anchor="middle">${esc(title)}</text>
+        ${subtitle ? `<text x="${w / 2}" y="${textY + 60}" font-family="Arial, sans-serif" font-size="28" fill="${colors.text || '#fff'}" fill-opacity="0.85" text-anchor="middle">${esc(subtitle)}</text>` : ''}
+      </svg>`)
+
+      coverOverlayBuffer = await sharp({ create: { width: w, height: h, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+        .composite([
+          { input: resizedLogo, left: logoLeft, top: logoTop },
+          { input: svgText, left: 0, top: 0 },
+        ]).png().toBuffer()
+      console.log(`[${videoId}] Cover overlay generated`)
+    }
+
+    // Apply overlays to slides
+    for (let i = 0; i < slideBuffers.length; i++) {
+      if (slideBuffers[i].length < 200) continue // Skip failed slides
+      try {
+        const isFirst = i === 0
+        const isLast = i === slideBuffers.length - 1
+        const overlay = isFirst ? coverOverlayBuffer : (isLast ? coverOverlayBuffer : bottomBarBuffer)
+        if (overlay) {
+          const resized = await sharp(overlay).resize(1920, 1080, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()
+          slideBuffers[i] = await sharp(slideBuffers[i]).composite([{ input: resized, left: 0, top: 0 }]).png().toBuffer()
+        }
+      } catch (e) { console.error(`[${videoId}] Overlay failed for slide ${i}:`, e.message) }
+    }
+    console.log(`[${videoId}] Overlays applied`)
+
+    // STAGE 3: Assemble with FFmpeg
     await updateStatus('assembling', 'Assembling your video...', 70)
     const workDir = join(tmpdir(), `d2v-${randomUUID()}`)
     await mkdir(workDir, { recursive: true })
@@ -697,12 +806,14 @@ RULES: Do NOT render any logos or brand names. Do NOT place content in the botto
     await rm(workDir, { recursive: true, force: true }).catch(() => {})
   } catch (err) {
     console.error(`[${videoId}] PIPELINE FAILED:`, err.message)
-    await supabase.from('videos').update({
-      status: 'failed',
-      error_message: err.message,
-      progress_detail: `Failed: ${err.message}`,
-      progress_pct: 0,
-    }).eq('id', videoId).catch(() => {})
+    try {
+      await supabase.from('videos').update({
+        status: 'failed',
+        error_message: err.message,
+        progress_detail: `Failed: ${err.message}`,
+        progress_pct: 0,
+      }).eq('id', videoId)
+    } catch(e2) { console.error('Failed to update failure status:', e2.message) }
   }
 })
 
