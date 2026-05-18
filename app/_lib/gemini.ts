@@ -88,11 +88,28 @@ Rules for insurance (if applicable):
 
 export async function extractDocumentData(pdfBase64: string, mimeType: string = 'application/pdf', preserveAllPages: boolean = false): Promise<{ general: ExtractedData; insurance?: ExtractedPolicyData }> {
   // When preserving all pages (narrate/redesign mode), add instructions to keep every page as a section
-  const preserveInstructions = preserveAllPages ? `
+  let prompt = GENERIC_EXTRACTION_PROMPT
+  if (preserveAllPages) {
+    // Override the summarization instructions in the base prompt
+    prompt = prompt.replace(
+      'IMPORTANT: If the document is very long (more than 20 pages), focus on the first 20 pages and summarize the rest.',
+      'IMPORTANT: Process ALL pages of this document. Do NOT skip or summarize any pages.'
+    ).replace(
+      'sections should summarize the main content areas of the document',
+      'sections MUST contain one entry for EVERY page/slide — do NOT summarize or combine pages'
+    )
+    prompt += `
 
-CRITICAL: This document is a slide deck or presentation. You MUST create one section for EVERY page/slide in the document. Do NOT summarize, combine, or skip any pages. Each page must become its own section with its own title and content. The number of sections MUST equal the number of pages in the document.` : ''
-
-  const prompt = GENERIC_EXTRACTION_PROMPT + preserveInstructions
+=== OVERRIDE — PRESERVE ALL PAGES ===
+CRITICAL: This is a slide deck or presentation being redesigned. You MUST:
+1. Create EXACTLY one section for EVERY page/slide in the document
+2. Do NOT summarize, combine, merge, or skip ANY pages
+3. Each section title should reflect that page's actual heading or topic
+4. Each section content should capture ALL text and data from that specific page
+5. The total number of sections in your output MUST equal the total number of pages in the document
+6. If a page has minimal content, still create a section for it
+This is NOT optional. The user specifically requested every page be preserved.`
+  }
 
   const response = await genai.models.generateContent({
     model: 'gemini-2.5-pro',
