@@ -210,7 +210,12 @@ export async function POST(request: Request) {
     if (logoUrl) {
       try {
         const logoRes = await fetch(logoUrl, { signal: AbortSignal.timeout(8000) })
-        if (logoRes.ok) logoBuffer = Buffer.from(await logoRes.arrayBuffer())
+        if (logoRes.ok) {
+          logoBuffer = Buffer.from(await logoRes.arrayBuffer())
+        } else {
+          console.log(`[video ${videoId}] Logo fetch returned ${logoRes.status} — proceeding without`)
+          logoUrl = null
+        }
       } catch {
         console.log(`[video ${videoId}] Failed to fetch logo — proceeding without`)
         logoUrl = null

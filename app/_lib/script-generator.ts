@@ -161,8 +161,8 @@ ${disclaimerBeat}${disclaimerCloseBeat}
    ${brandName ? `Direct them to contact ${brandName}.` : 'Encourage the viewer to take the next step.'}
 
 ${uploadMode === 'narrate' || uploadMode === 'redesign'
-  ? `SCENE COUNT: Create EXACTLY ${(data.sections?.length || 0) + (data.keyMetrics?.length || 0) > 0 ? Math.max(data.sections?.length || 1, 5) : 10} scenes — one scene for EVERY section and topic in the document. Do NOT summarize, combine, or skip any content. Every piece of information must be covered.`
-  : 'SCENE COUNT: Use 8-16 scenes total. The EVIDENCE section should expand based on how much content is in the document. Simple documents = fewer evidence scenes. Complex ones with many sections = more.'}
+  ? `SCENE COUNT: Create EXACTLY ${Math.max(data.sections?.length || 1, 5)} scenes — one scene for EVERY section and topic in the document. Do NOT summarize, combine, or skip any content. Every piece of information must be covered.`
+  : `SCENE COUNT: Use ${Math.max(4, Math.min(16, (data.sections?.length || 3) + 3))} scenes. Match the number of scenes to the amount of content — short documents get fewer scenes (4-6), detailed documents get more (8-16). Do NOT pad with filler content.`}
 
 Each scene's narration should be 20-40 seconds (roughly 50-100 words). Each scene must cover ONE clear concept.
 ${assetCount > 0 ? `

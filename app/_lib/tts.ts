@@ -20,6 +20,12 @@ export async function synthesizeSpeech(
   text: string,
   voiceId: string
 ): Promise<Buffer> {
+  // Guard against empty/whitespace narration
+  if (!text?.trim()) {
+    console.log('[tts] Empty narration text, generating silence')
+    return generateSilence()
+  }
+
   const geminiVoice = VOICE_MAP[voiceId] || 'Kore'
 
   // Retry up to 3 times with backoff
