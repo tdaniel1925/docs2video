@@ -795,6 +795,14 @@ export default function VideoDetailPage() {
   }
 
   async function handleDelete() {
+    // If video isn't completed, delete directly (no confirmation needed for stuck videos)
+    if (video?.status !== 'completed') {
+      setDeleting(true)
+      const supabase = createClient()
+      await supabase.from('videos').delete().eq('id', params.id as string)
+      router.push('/videos')
+      return
+    }
     setConfirmAction({
       message: 'Delete this video? This cannot be undone.',
       onConfirm: async () => {
