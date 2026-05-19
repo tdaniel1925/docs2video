@@ -2955,7 +2955,7 @@ export default function CreatePage() {
           </div>
 
           <div className="wizard-actions">
-            <button onClick={() => setStep('approve-slides')} className="btn btn-soft">&larr; Back</button>
+            <button onClick={() => setStep('script')} className="btn btn-soft">&larr; Back to Script</button>
             <button onClick={handleGenerate} className="btn btn-primary btn-lg">Create my video &rarr;</button>
           </div>
 
@@ -3225,7 +3225,57 @@ export default function CreatePage() {
             </div>
           </div>
 
-          {/* Video Length — AI decides based on content, no toggle needed */}
+          {/* Video Detail Level */}
+          <div style={{ marginBottom: 28 }}>
+            <label className="input-label">Video Detail Level</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              <button
+                type="button"
+                onClick={() => { setDetailedMode(false); setDetailLevel('quick') }}
+                style={{
+                  padding: '16px 14px',
+                  background: detailLevel === 'quick' ? 'rgba(199,232,168,0.12)' : 'white',
+                  border: detailLevel === 'quick' ? '2px solid var(--mint-deep, #a6d87c)' : '1px solid var(--border-light)',
+                  borderRadius: 10, cursor: 'pointer', textAlign: 'left', position: 'relative',
+                }}
+              >
+                {recommendedLevel === 'quick' && <span style={{ position: 'absolute', top: -8, right: 10, background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>Recommended</span>}
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Highlights</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8 }}>30-60 sec &middot; 3-4 slides</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Key numbers only. Quick shares &amp; social.</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setDetailedMode(false); setDetailLevel('standard') }}
+                style={{
+                  padding: '16px 14px',
+                  background: detailLevel === 'standard' ? 'rgba(199,232,168,0.12)' : 'white',
+                  border: detailLevel === 'standard' ? '2px solid var(--mint-deep, #a6d87c)' : '1px solid var(--border-light)',
+                  borderRadius: 10, cursor: 'pointer', textAlign: 'left', position: 'relative',
+                }}
+              >
+                {recommendedLevel === 'standard' && <span style={{ position: 'absolute', top: -8, right: 10, background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>Recommended</span>}
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Overview</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8 }}>2-4 min &middot; 6-10 slides</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Full overview. Client presentations.</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setDetailedMode(true); setDetailLevel('detailed') }}
+                style={{
+                  padding: '16px 14px',
+                  background: detailLevel === 'detailed' ? 'rgba(199,232,168,0.12)' : 'white',
+                  border: detailLevel === 'detailed' ? '2px solid var(--mint-deep, #a6d87c)' : '1px solid var(--border-light)',
+                  borderRadius: 10, cursor: 'pointer', textAlign: 'left', position: 'relative',
+                }}
+              >
+                {recommendedLevel === 'detailed' && <span style={{ position: 'absolute', top: -8, right: 10, background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>Recommended</span>}
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Detailed</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8 }}>5-10 min &middot; 10-16 slides</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Every data point. Complex documents.</div>
+              </button>
+            </div>
+          </div>
 
           {/* Background Music — fully automatic */}
           <div style={{ marginBottom: 24, padding: '14px 18px', borderRadius: 10, background: 'rgba(168,240,212,0.06)', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 12 }}>
