@@ -299,7 +299,7 @@ app.post('/assemble', authCheck, async (req, res) => {
         video_url: urlData.publicUrl,
         thumbnail_url: thumbUrlData.publicUrl,
         duration: totalDuration,
-        slide_durations: durations,
+        // slide_durations: durations, // column doesn't exist in schema
         slide_urls: slideUrls,
         status: 'completed',
         progress_detail: null,
@@ -799,7 +799,7 @@ app.post('/generate', authCheck, async (req, res) => {
         video_url: urlData.publicUrl,
         thumbnail_url: thumbUrlData.publicUrl,
         duration: totalDuration,
-        slide_durations: durations,
+        // slide_durations: durations, // column doesn't exist in schema
         slide_urls: slideUrls,
         status: 'completed',
         progress_detail: null,
