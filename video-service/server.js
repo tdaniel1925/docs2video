@@ -495,33 +495,36 @@ app.post('/generate', authCheck, async (req, res) => {
     const OpenAI = require('openai')
     const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 
-    // Audio runs in background
+    // Audio runs in background — updates progress per clip
+    let audiosDone = 0
     const audioPromise = (async () => {
       const buffers = []
-      for (let i = 0; i < scenes.length; i += 5) {
-        const batch = scenes.slice(i, Math.min(i + 5, scenes.length))
-        const results = await Promise.all(batch.map(async (scene) => {
-          if (!scene.narration?.trim()) return Buffer.alloc(0)
-          try {
-            const resp = await openai.audio.speech.create({
-              model: 'tts-1-hd', voice: voiceId || 'nova',
-              input: scene.narration.slice(0, 4096), response_format: 'mp3', speed: 0.95,
-            })
-            return Buffer.from(await resp.arrayBuffer())
-          } catch (e) {
-            console.error(`[${videoId}] TTS failed:`, e.message)
-            return Buffer.alloc(0)
-          }
-        }))
-        buffers.push(...results)
-        console.log(`[${videoId}] Audio ${Math.min(i + 5, scenes.length)}/${scenes.length}`)
+      for (let i = 0; i < scenes.length; i++) {
+        const scene = scenes[i]
+        if (!scene.narration?.trim()) {
+          buffers.push(Buffer.alloc(0))
+          audiosDone++
+          continue
+        }
+        try {
+          const resp = await openai.audio.speech.create({
+            model: 'tts-1-hd', voice: voiceId || 'nova',
+            input: scene.narration.slice(0, 4096), response_format: 'mp3', speed: 0.95,
+          })
+          buffers.push(Buffer.from(await resp.arrayBuffer()))
+        } catch (e) {
+          console.error(`[${videoId}] TTS failed for clip ${i + 1}:`, e.message)
+          buffers.push(Buffer.alloc(0))
+        }
+        audiosDone++
+        console.log(`[${videoId}] Audio ${audiosDone}/${scenes.length}`)
       }
       console.log(`[${videoId}] Audio complete: ${buffers.length} clips`)
       return buffers
     })()
 
-    // Slides: OpenAI GPT Image using pre-built prompts from Vercel
-    await updateStatus('generating_slides', 'Designing slides...', 30)
+    // Slides: OpenAI GPT Image — one at a time with per-slide progress
+    await updateStatus('generating_slides', 'Preparing slide designs...', 22)
 
     // Fetch logo image if available (for reference in prompts)
     let logoBase64 = null
@@ -533,58 +536,66 @@ app.post('/generate', authCheck, async (req, res) => {
     }
 
     const slideBuffers = []
-    for (let i = 0; i < slidePrompts.length; i += 3) {
-      const batch = slidePrompts.slice(i, Math.min(i + 3, slidePrompts.length))
-      const results = await Promise.all(batch.map(async (prompt, j) => {
-        const idx = i + j
-        for (let attempt = 1; attempt <= 3; attempt++) {
-          try {
-            // gpt-image-1 uses prompt + optional image input
-            const imageInput = []
-            if (logoBase64) {
-              imageInput.push({ type: 'input_image', image_url: `data:image/png;base64,${logoBase64}` })
-            }
+    for (let i = 0; i < slidePrompts.length; i++) {
+      const prompt = slidePrompts[i]
+      // Update progress: slides use 22-65% range
+      const slidePct = 22 + Math.round(((i) / slidePrompts.length) * 43)
+      await updateStatus('generating_slides', `Designing slide ${i + 1} of ${slidePrompts.length}... (audio ${audiosDone}/${scenes.length})`, slidePct)
 
-            const response = await openai.images.generate({
+      let slideBuffer = null
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          // gpt-image-1 uses prompt + optional image edit
+          if (logoBase64) {
+            const response = await openai.images.edit({
               model: 'gpt-image-1',
-              prompt: logoBase64
-                ? `Use the provided brand logo image in this slide. Keep the logo in its ORIGINAL colors.\n\n${prompt}`
-                : prompt,
+              prompt: `Use the provided brand logo image in this slide. Keep the logo in its ORIGINAL colors.\n\n${prompt}`,
+              image: new File([Buffer.from(logoBase64, 'base64')], 'logo.png', { type: 'image/png' }),
               size: '1536x1024',
               quality: 'high',
               n: 1,
-              ...(imageInput.length > 0 ? { image: imageInput } : {}),
             })
-
             const imageData = response.data?.[0]
             if (imageData?.b64_json) {
-              return Buffer.from(imageData.b64_json, 'base64')
-            } else if (imageData?.url) {
-              const imgRes = await fetch(imageData.url)
-              return Buffer.from(await imgRes.arrayBuffer())
+              slideBuffer = Buffer.from(imageData.b64_json, 'base64')
+              break
             }
-            throw new Error('No image in response')
-          } catch (retryErr) {
-            console.error(`[${videoId}] Slide ${idx + 1} attempt ${attempt}/3 failed:`, retryErr.message?.slice(0, 150))
-            if (attempt < 3) await new Promise(r => setTimeout(r, 3000 * attempt))
+          } else {
+            const response = await openai.images.generate({
+              model: 'gpt-image-1',
+              prompt,
+              size: '1536x1024',
+              quality: 'high',
+              n: 1,
+            })
+            const imageData = response.data?.[0]
+            if (imageData?.b64_json) {
+              slideBuffer = Buffer.from(imageData.b64_json, 'base64')
+              break
+            }
           }
+          throw new Error('No image in response')
+        } catch (retryErr) {
+          console.error(`[${videoId}] Slide ${i + 1} attempt ${attempt}/3 failed:`, retryErr.message?.slice(0, 150))
+          if (attempt < 3) await new Promise(r => setTimeout(r, 3000 * attempt))
         }
-        console.error(`[${videoId}] Slide ${idx + 1} all attempts failed`)
-        return Buffer.alloc(100)
-      }))
-      slideBuffers.push(...results)
-      const done = Math.min(i + 3, slidePrompts.length)
-      console.log(`[${videoId}] Slides ${done}/${slidePrompts.length}`)
-      await updateStatus('generating_slides', `Designed ${done} of ${slidePrompts.length} slides...`, 30 + Math.round((done / slidePrompts.length) * 35))
+      }
+      if (!slideBuffer) {
+        console.error(`[${videoId}] Slide ${i + 1} all attempts failed`)
+        slideBuffer = Buffer.alloc(100)
+      }
+      slideBuffers.push(slideBuffer)
+      console.log(`[${videoId}] Slide ${i + 1}/${slidePrompts.length} done`)
     }
     console.log(`[${videoId}] Slides complete: ${slideBuffers.length}`)
 
-    // Wait for audio to finish
+    // Wait for audio to finish (it ran in parallel with slides)
+    await updateStatus('generating_slides', `Slides done, waiting for audio...`, 66)
     const audioBuffers = await audioPromise
     console.log(`[${videoId}] Audio + slides both done`)
 
     // STAGE 3: Assemble with FFmpeg (no Sharp overlays needed — OpenAI bakes everything in)
-    await updateStatus('assembling', 'Assembling your video...', 70)
+    await updateStatus('assembling', 'Assembling your video...', 68)
     const workDir = join(tmpdir(), `d2v-${randomUUID()}`)
     await mkdir(workDir, { recursive: true })
 
@@ -600,7 +611,7 @@ app.post('/generate', authCheck, async (req, res) => {
     const clipFiles = []
     const durations = []
     for (let i = 0; i < slideBuffers.length; i++) {
-      await updateStatus('assembling', `Encoding clip ${i + 1} of ${slideBuffers.length}...`, 70 + Math.round((i / slideBuffers.length) * 15))
+      await updateStatus('assembling', `Encoding clip ${i + 1} of ${slideBuffers.length}...`, 68 + Math.round(((i + 1) / slideBuffers.length) * 15))
       const clipPath = join(workDir, `clip_${i}.mp4`)
       const slidePath = join(workDir, `slide_${i}.png`)
       const audioPath = join(workDir, `audio_${i}.mp3`)
