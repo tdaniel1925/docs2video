@@ -17,7 +17,15 @@ export function buildSlidePrompt(input: SlideGenerationInput): string {
   // Build content section based on layout
   const contentSection = buildContentSection(content)
 
-  // Build the full prompt
+  // Use specialized prompts for cover/closing, generic for content slides
+  if (content.layout === 'title') {
+    return buildCoverPrompt(template, resolvedColors, logoDescription, content)
+  }
+  if (content.layout === 'closing') {
+    return buildClosingPrompt(template, resolvedColors, logoDescription, content)
+  }
+
+  // Content slide prompt
   const prompt = `Create a ${template.name} style presentation slide at 1536x1024 pixels.
 
 === VISUAL DESIGN (follow EXACTLY) ===
@@ -29,8 +37,8 @@ DECORATIVE ELEMENTS:
 - ${spec.decorativeElements.accents ? `Accents: ${spec.decorativeElements.accents}` : ''}
 
 COLOR PALETTE (derived from brand logo — use these EXACT colors):
-- Primary accent color: ${resolvedColors.primary} (use for splatters, borders, highlights, main accents)
-- Secondary accent color: ${resolvedColors.secondary} (use for secondary highlights, accent text, tags)
+- Primary accent color: ${resolvedColors.primary} (use for highlights, borders, main accents)
+- Secondary accent color: ${resolvedColors.secondary} (use for secondary highlights, accent text)
 - Text color: ${resolvedColors.text}
 - Background: ${resolvedColors.background}
 ${resolvedColors.highlight ? `- Highlight: ${resolvedColors.highlight}` : ''}
@@ -46,7 +54,7 @@ ${spec.cardStyle ? `CARD STYLE: ${spec.cardStyle}` : ''}
 ${spec.chartStyle ? `CHART STYLE: ${spec.chartStyle}` : ''}
 
 === LOGO ===
-${logoDescription ? `Place the brand logo in the top area, fully visible, about 250px wide. The logo shows: ${logoDescription}. Keep it in its ORIGINAL colors — do NOT change the logo colors to match the slide palette. The SLIDE adapts to the LOGO, not the other way around.` : 'No logo — skip logo placement.'}
+${logoDescription ? `Small brand logo (120px wide) in the top-right or bottom-right corner. Keep it in its ORIGINAL colors.` : 'No logo.'}
 
 === CONTENT ===
 ${contentSection}
@@ -57,12 +65,124 @@ ${content.brandName ? `${content.brandName}` : ''} ${content.contactInfo?.websit
 === CRITICAL RULES ===
 - 80px safe padding on ALL edges — nothing cut off
 - Every letter, number, and symbol must be complete and readable
-- Follow the color palette EXACTLY — primary accent for main elements, secondary for highlights
+- Follow the color palette EXACTLY
 - The design must feel cohesive — every element belongs to the same visual world
 - Maximum visual polish — gradients, glows, shadows, depth, texture
 - 1536x1024 pixels`
 
   return prompt
+}
+
+/**
+ * Build a cinematic cover slide prompt.
+ * Rich background, large centered logo with glow, title below, accent line separator.
+ */
+function buildCoverPrompt(
+  template: TemplateSpec,
+  colors: { primary: string; secondary: string; text: string; background: string; highlight?: string },
+  logoDescription: string | undefined,
+  content: SlideContent,
+): string {
+  const spec = template.designSpec
+  return `Create a CINEMATIC COVER SLIDE in ${template.name} style. 1536x1024 pixels.
+
+=== BACKGROUND ===
+Rich, dramatic background using the ${template.name} design language.
+Base: ${spec.background.base}${spec.background.texture ? `. Texture: ${spec.background.texture}` : ''}
+Add depth with a radial gradient — slightly lighter in the center where the logo sits, darker at edges.
+${spec.decorativeElements.primary ? `Decorative touches: ${spec.decorativeElements.primary} — subtle, framing the content, not competing with it.` : ''}
+
+=== COLOR PALETTE ===
+- Primary: ${colors.primary}
+- Secondary: ${colors.secondary}
+- Text: ${colors.text}
+- Background: ${colors.background}
+
+=== LOGO (HERO ELEMENT) ===
+${logoDescription
+    ? `The brand logo is the HERO of this slide. Place it LARGE and centered (about 400px wide) in the upper-center area of the slide. Add a subtle glow or soft shadow behind the logo for depth and premium feel. Keep the logo in its ORIGINAL colors — do NOT recolor it.`
+    : 'No logo provided — use a stylish decorative monogram or abstract shape as the centerpiece instead.'}
+
+=== TITLE ===
+Below the logo, add a thin accent line (2px) in ${colors.secondary} as a separator (about 200px wide, centered).
+
+Then the title: "${content.headline}" — rendered in ${spec.typography.headline}. Large, bold, commanding.
+${content.subtitle ? `Below the title: "${content.subtitle}" in ${spec.typography.body}, lighter weight, ${colors.text} at 80% opacity.` : ''}
+
+=== BOTTOM ===
+${content.brandName ? `"${content.brandName}" in small uppercase text at the very bottom center, letter-spaced, subtle.` : ''}
+
+=== CRITICAL RULES ===
+- This is the FIRST thing viewers see — it must feel premium, polished, cinematic
+- Logo is the dominant visual element — large, centered, with depth
+- Title text must be crisp, fully readable, no letters cut off
+- 80px safe padding on ALL edges
+- NO clutter — logo, accent line, title, subtitle. That's it.
+- 1536x1024 pixels`
+}
+
+/**
+ * Build a Call-to-Action closing slide prompt.
+ * Logo top center, bold headline, contact info with icons, drives action.
+ */
+function buildClosingPrompt(
+  template: TemplateSpec,
+  colors: { primary: string; secondary: string; text: string; background: string; highlight?: string },
+  logoDescription: string | undefined,
+  content: SlideContent,
+): string {
+  const spec = template.designSpec
+  const contact = content.contactInfo || {}
+  const contactItems: string[] = []
+  if (contact.phone) contactItems.push(`PHONE ICON + "${contact.phone}"`)
+  if (contact.email) contactItems.push(`EMAIL ICON + "${contact.email}"`)
+  if (contact.website) contactItems.push(`GLOBE ICON + "${contact.website}"`)
+  if (contact.calendly) contactItems.push(`CALENDAR ICON + "${contact.calendly}"`)
+
+  return `Create a CALL-TO-ACTION CLOSING SLIDE in ${template.name} style. 1536x1024 pixels.
+
+=== BACKGROUND ===
+Match the cover slide's dramatic feel — same ${template.name} design language.
+Base: ${spec.background.base}${spec.background.texture ? `. Texture: ${spec.background.texture}` : ''}
+Slightly different from the cover — perhaps a complementary gradient angle or inverted emphasis.
+
+=== COLOR PALETTE ===
+- Primary: ${colors.primary}
+- Secondary: ${colors.secondary}
+- Text: ${colors.text}
+- Background: ${colors.background}
+
+=== LOGO ===
+${logoDescription
+    ? `Brand logo centered near the top, about 250px wide. Subtle glow/shadow for depth. Keep ORIGINAL logo colors.`
+    : 'No logo — use a decorative accent element at the top instead.'}
+
+=== HEADLINE ===
+"${content.headline}" — large, bold, in ${spec.typography.headline}. Centered below the logo.
+This should feel like an invitation — warm, confident, actionable.
+
+=== CONTACT INFO ===
+Below the headline, display contact information in a clean, styled layout:
+${contactItems.length > 0
+    ? contactItems.map(item => `- ${item}`).join('\n')
+    : '- No specific contact info — show a generic "Visit us online" message'}
+
+Each contact item should have:
+- A small, clean icon (line-art style) in ${colors.secondary}
+- The text beside it in ${spec.typography.body}
+- Arranged vertically, centered, with comfortable spacing between items
+
+=== DECORATIVE ===
+${spec.decorativeElements.primary ? `Subtle decorative elements: ${spec.decorativeElements.primary} — framing the content elegantly.` : ''}
+A thin accent line above the contact section (matching the cover slide's accent line) in ${colors.secondary}.
+
+=== CRITICAL RULES ===
+- This is the LAST slide — it must leave a strong impression and drive action
+- Contact info must be 100% readable — every phone number, email, URL perfectly clear
+- Logo + headline + contact info — clean hierarchy, no clutter
+- 80px safe padding on ALL edges
+- Must feel like a bookend to the cover slide — same visual world
+- 1536x1024 pixels`
 }
 
 /**
