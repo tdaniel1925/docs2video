@@ -85,7 +85,19 @@ SCENE COUNT: Use 8-16 scenes total. The EVIDENCE section should expand based on 
 
 Each scene's narration should be 20-40 seconds (roughly 50-100 words). Each scene must cover ONE clear concept.
 
-TONE: Professional but warm, like a trusted financial advisor explaining to a client over coffee. Use plain language — no insurance jargon. Make the client feel informed and confident. Write like a storyteller, not a summarizer.${assetCount > 0 ? `
+TONE: Professional but warm, like a trusted financial advisor explaining to a client over coffee. Use plain language — no insurance jargon. Make the client feel informed and confident.
+
+NARRATION QUALITY (CRITICAL — this will be read aloud by a voice actor):
+- Write for the EAR, not the eye. Read every sentence aloud in your head — if it sounds stilted, rewrite it.
+- Use short, punchy sentences. Break up long ones. Vary sentence length for natural rhythm.
+- Use contractions naturally: "you'll" not "you will", "that's" not "that is", "it's" not "it is"
+- Avoid filler phrases: remove "it's important to note that", "as you can see", "let's take a look at", "as we mentioned"
+- Never start a sentence with "Now," or "So," or "Additionally," — these sound robotic when spoken
+- Use active voice: "Your policy grows to $50,000" not "The cash value is projected to grow to $50,000"
+- Address the viewer directly: "your", "you", "you'll" — make it personal
+- Numbers should sound natural when spoken: "about fifty thousand dollars" not "$49,847.23"
+- Each scene should flow naturally into the next — no jarring transitions
+- Write like a storyteller, not a summarizer. Every scene should have a point, not just list facts.${assetCount > 0 ? `
 
 PRODUCT IMAGES AVAILABLE:
 You have ${assetCount} product/brand images that will be placed on slides.
@@ -165,6 +177,18 @@ ${uploadMode === 'narrate' || uploadMode === 'redesign'
   : `SCENE COUNT: Use ${Math.max(4, Math.min(16, (data.sections?.length || 3) + 3))} scenes. Match the number of scenes to the amount of content — short documents get fewer scenes (4-6), detailed documents get more (8-16). Do NOT pad with filler content.`}
 
 Each scene's narration should be 20-40 seconds (roughly 50-100 words). Each scene must cover ONE clear concept.
+
+NARRATION QUALITY (CRITICAL — this will be read aloud by a voice actor):
+- Write for the EAR, not the eye. Read every sentence aloud in your head — if it sounds stilted, rewrite it.
+- Use short, punchy sentences. Break up long ones. Vary sentence length for natural rhythm.
+- Use contractions naturally: "you'll" not "you will", "that's" not "that is", "it's" not "it is"
+- Avoid filler phrases: remove "it's important to note that", "as you can see", "let's take a look at", "as we mentioned"
+- Never start a sentence with "Now," or "So," or "Additionally," — these sound robotic when spoken
+- Use active voice: "This saves you 40%" not "A savings of 40% can be achieved"
+- Address the viewer directly: "your", "you", "you'll" — make it personal
+- Numbers should sound natural when spoken: "about two hundred thousand" not "$198,447"
+- Each scene should flow naturally into the next — no jarring transitions
+- Write like you're explaining to a smart friend, not reading a report
 ${assetCount > 0 ? `
 PRODUCT IMAGES AVAILABLE:
 You have ${assetCount} product/brand images that will be placed on slides.
