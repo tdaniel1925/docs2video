@@ -491,7 +491,7 @@ app.post('/generate', authCheck, async (req, res) => {
     console.log(`[${videoId}] FULL PIPELINE: ${scenes.length} scenes, voice=${voiceId}, ${slidePrompts.length} prompts`)
 
     // STAGE 1+2: Generate audio AND slides IN PARALLEL
-    await updateStatus('generating_audio', 'Generating audio and slides...', 10)
+    await updateStatus('generating_audio', 'Generating audio and slides...', 20)
     const OpenAI = require('openai')
     const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 

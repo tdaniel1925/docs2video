@@ -170,7 +170,7 @@ export async function POST(request: Request) {
 
     // STAGE 2: Build slide prompts from template spec + brand colors
     console.log(`[video ${videoId}] Building slide prompts for ${scenes.length} scenes...`)
-    await admin.from('videos').update({ progress_detail: 'Preparing slides...', progress_pct: 12 }).eq('id', videoId)
+    await admin.from('videos').update({ progress_detail: 'Preparing slide designs...', progress_pct: 16 }).eq('id', videoId)
 
     const templateId = (styleId ?? brand?.deck_style_id ?? 'executive') as string
     const template = getTemplateSpec(templateId)
@@ -252,7 +252,7 @@ export async function POST(request: Request) {
 
     // STAGE 3: Hand off to VPS with pre-built prompts
     console.log(`[video ${videoId}] Handing off to VPS: ${scenes.length} scenes, voice=${voiceId}, style=${templateId}`)
-    await admin.from('videos').update({ progress_detail: 'Starting generation...', progress_pct: 15 }).eq('id', videoId)
+    await admin.from('videos').update({ progress_detail: 'Sending to video server...', progress_pct: 18 }).eq('id', videoId)
 
     const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate`, {
       method: 'POST',
