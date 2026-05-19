@@ -531,10 +531,61 @@ app.post('/generate', authCheck, async (req, res) => {
   try {
     console.log(`[${videoId}] FULL PIPELINE: ${scenes.length} scenes, voice=${voiceId}, ${slidePrompts.length} prompts`)
 
-    // STAGE 1+2: Generate audio AND slides IN PARALLEL
-    await updateStatus('generating_audio', 'Generating audio and slides...', 20)
+    // STAGE 1+2+3: Generate audio, slides, AND music ALL IN PARALLEL
+    await updateStatus('generating_audio', 'Generating audio, slides, and music...', 20)
     const OpenAI = require('openai')
     const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
+
+    // Music runs in background — estimate duration from scene count (~20s per scene)
+    const estDuration = scenes.length * 20
+    let musicBuffer = null
+    const musicPromise = (async () => {
+      if (!GEMINI_API_KEY) return null
+      try {
+        const { GoogleGenAI } = require('@google/genai')
+        const genai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+        const durationMin = Math.floor(estDuration / 60)
+        const durationSec = estDuration % 60
+        const durationStr = durationMin > 0 ? `${durationMin} minute${durationMin > 1 ? 's' : ''} and ${durationSec} seconds` : `${durationSec} seconds`
+
+        const industryMoods = {
+          insurance: 'trustworthy, warm, reassuring',
+          finance: 'confident, sophisticated, professional',
+          healthcare: 'caring, hopeful, clean',
+          technology: 'innovative, energetic, modern',
+          education: 'inspiring, uplifting, bright',
+          realestate: 'elegant, aspirational, warm',
+          legal: 'authoritative, polished, dignified',
+          marketing: 'dynamic, creative, upbeat',
+          consulting: 'strategic, confident, forward-thinking',
+          nonprofit: 'heartfelt, inspiring, community-driven',
+          retail: 'fun, energetic, inviting',
+          manufacturing: 'strong, reliable, progressive',
+        }
+        const mood = industryMoods[industry] || 'professional, upbeat, confident'
+        const customMusicPrompt = musicPrompt || ''
+
+        console.log(`[${videoId}] Starting music generation (${durationStr})...`)
+        const musicResponse = await genai.models.generateContent({
+          model: 'lyria-3-pro-preview',
+          contents: `Create a ${durationStr} background music track. Instrumental only, absolutely no vocals or singing. ${mood} feel. Upbeat corporate presentation music with driving rhythm, modern piano, light synth accents, and soft percussion. The track should feel polished and motivating — suitable for a professional business video presentation. ${customMusicPrompt}. Fade out naturally at the end.`,
+        })
+
+        const parts = musicResponse.candidates?.[0]?.content?.parts ?? []
+        for (const mp of parts) {
+          if (mp.inlineData && (mp.inlineData.mimeType?.includes('audio') || mp.inlineData.mimeType?.includes('mpeg'))) {
+            const buf = Buffer.from(mp.inlineData.data, 'base64')
+            console.log(`[${videoId}] Music ready: ${(buf.length / 1024 / 1024).toFixed(1)}MB`)
+            return buf
+          }
+        }
+        console.log(`[${videoId}] No audio in Lyria response`)
+        return null
+      } catch (e) {
+        console.error(`[${videoId}] Music generation failed:`, e.message)
+        return null
+      }
+    })()
 
     // Audio runs in background — updates progress per clip
     let audiosDone = 0
@@ -682,90 +733,40 @@ app.post('/generate', authCheck, async (req, res) => {
     const outputPath = join(workDir, 'output.mp4')
     await runFfmpeg(['-f', 'concat', '-safe', '0', '-i', concatFile, '-c', 'copy', '-movflags', '+faststart', '-y', outputPath])
 
-    // STAGE 4: Generate background music with Lyria 3 Pro + mix
+    // STAGE 4: Mix background music (already generated in parallel)
     const totalDurationEst = durations.reduce((s, d) => s + d, 0)
     let finalPath = outputPath
 
-    if (GEMINI_API_KEY) {
+    musicBuffer = await musicPromise
+    if (musicBuffer) {
       try {
-        await updateStatus('assembling', 'Composing background music...', 88)
-        const { GoogleGenAI } = require('@google/genai')
-        const genai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
-
-        // Build music prompt based on industry/mood
-        const durationMin = Math.floor(totalDurationEst / 60)
-        const durationSec = Math.round(totalDurationEst % 60)
-        const durationStr = durationMin > 0 ? `${durationMin} minute${durationMin > 1 ? 's' : ''} and ${durationSec} seconds` : `${durationSec} seconds`
-
-        const industryMoods = {
-          insurance: 'trustworthy, warm, reassuring',
-          finance: 'confident, sophisticated, professional',
-          healthcare: 'caring, hopeful, clean',
-          technology: 'innovative, energetic, modern',
-          education: 'inspiring, uplifting, bright',
-          realestate: 'elegant, aspirational, warm',
-          legal: 'authoritative, polished, dignified',
-          marketing: 'dynamic, creative, upbeat',
-          consulting: 'strategic, confident, forward-thinking',
-          nonprofit: 'heartfelt, inspiring, community-driven',
-          retail: 'fun, energetic, inviting',
-          manufacturing: 'strong, reliable, progressive',
-        }
-        const mood = industryMoods[industry] || 'professional, upbeat, confident'
-        const customPrompt = musicPrompt || ''
-
-        const lyricaPrompt = `Create a ${durationStr} background music track. Instrumental only, absolutely no vocals or singing. ${mood} feel. Upbeat corporate presentation music with driving rhythm, modern piano, light synth accents, and soft percussion. The track should feel polished and motivating — suitable for a professional business video presentation. ${customPrompt}. Fade out naturally at the end.`
-
-        console.log(`[${videoId}] Generating music with Lyria 3 Pro (${durationStr})...`)
-
-        const musicResponse = await genai.models.generateContent({
-          model: 'lyria-3-pro-preview',
-          contents: lyricaPrompt,
-        })
-
-        // Parse Lyria response — audio can be in parts or directly on response
-        const musicParts = musicResponse.candidates?.[0]?.content?.parts ?? []
-        console.log(`[${videoId}] Lyria response parts: ${musicParts.length}, types: ${musicParts.map(p => p.text ? 'text' : p.inlineData ? `data(${p.inlineData.mimeType})` : 'unknown').join(', ')}`)
-        let musicSaved = false
-        for (const mp of musicParts) {
-          if (mp.inlineData && (mp.inlineData.mimeType?.includes('audio') || mp.inlineData.mimeType?.includes('mpeg'))) {
-            const musicPath = join(workDir, 'bgmusic.mp3')
-            await writeFile(musicPath, Buffer.from(mp.inlineData.data, 'base64'))
-            console.log(`[${videoId}] Music generated: ${(Buffer.from(mp.inlineData.data, 'base64').length / 1024 / 1024).toFixed(1)}MB`)
-
-            // Mix music under narration
-            await updateStatus('assembling', 'Mixing background music...', 91)
-            const fadeOutStart = Math.max(0, totalDurationEst - 3)
-            const mixedPath = join(workDir, 'output_with_music.mp4')
-            await runFfmpeg([
-              '-i', outputPath,
-              '-stream_loop', '-1',
-              '-i', musicPath,
-              '-filter_complex',
-              `[1:a]volume=0.07,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[0:a][music]amix=inputs=2:duration=first[out]`,
-              '-map', '0:v',
-              '-map', '[out]',
-              '-c:v', 'copy',
-              '-c:a', 'aac',
-              '-b:a', '192k',
-              '-movflags', '+faststart',
-              '-y',
-              mixedPath,
-            ])
-            finalPath = mixedPath
-            musicSaved = true
-            console.log(`[${videoId}] Music mixed successfully`)
-            break
-          }
-        }
-        if (!musicSaved) {
-          console.log(`[${videoId}] No audio in Lyria response, continuing without music`)
-        }
-      } catch (musicErr) {
-        console.error(`[${videoId}] Music generation failed, continuing without:`, musicErr.message)
+        await updateStatus('assembling', 'Mixing background music...', 88)
+        const musicPath = join(workDir, 'bgmusic.mp3')
+        await writeFile(musicPath, musicBuffer)
+        const fadeOutStart = Math.max(0, totalDurationEst - 3)
+        const mixedPath = join(workDir, 'output_with_music.mp4')
+        await runFfmpeg([
+          '-i', outputPath,
+          '-stream_loop', '-1',
+          '-i', musicPath,
+          '-filter_complex',
+          `[1:a]volume=0.07,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[0:a][music]amix=inputs=2:duration=first[out]`,
+          '-map', '0:v',
+          '-map', '[out]',
+          '-c:v', 'copy',
+          '-c:a', 'aac',
+          '-b:a', '192k',
+          '-movflags', '+faststart',
+          '-y',
+          mixedPath,
+        ])
+        finalPath = mixedPath
+        console.log(`[${videoId}] Music mixed successfully`)
+      } catch (mixErr) {
+        console.error(`[${videoId}] Music mixing failed, continuing without:`, mixErr.message)
       }
     } else {
-      console.log(`[${videoId}] No GEMINI_API_KEY, skipping music generation`)
+      console.log(`[${videoId}] No music available, continuing without`)
     }
 
     // Read and upload
