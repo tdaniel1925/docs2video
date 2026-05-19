@@ -298,7 +298,7 @@ app.post('/assemble', authCheck, async (req, res) => {
       await supabase.from('videos').update({
         video_url: urlData.publicUrl,
         thumbnail_url: thumbUrlData.publicUrl,
-        duration: totalDuration,
+        duration: Math.round(totalDuration),
         // slide_durations: durations, // column doesn't exist in schema
         slide_urls: slideUrls,
         status: 'completed',
@@ -724,10 +724,12 @@ app.post('/generate', authCheck, async (req, res) => {
           contents: lyricaPrompt,
         })
 
+        // Parse Lyria response — audio can be in parts or directly on response
         const musicParts = musicResponse.candidates?.[0]?.content?.parts ?? []
+        console.log(`[${videoId}] Lyria response parts: ${musicParts.length}, types: ${musicParts.map(p => p.text ? 'text' : p.inlineData ? `data(${p.inlineData.mimeType})` : 'unknown').join(', ')}`)
         let musicSaved = false
         for (const mp of musicParts) {
-          if (mp.inlineData && mp.inlineData.mimeType?.includes('audio')) {
+          if (mp.inlineData && (mp.inlineData.mimeType?.includes('audio') || mp.inlineData.mimeType?.includes('mpeg'))) {
             const musicPath = join(workDir, 'bgmusic.mp3')
             await writeFile(musicPath, Buffer.from(mp.inlineData.data, 'base64'))
             console.log(`[${videoId}] Music generated: ${(Buffer.from(mp.inlineData.data, 'base64').length / 1024 / 1024).toFixed(1)}MB`)
@@ -798,7 +800,7 @@ app.post('/generate', authCheck, async (req, res) => {
       const { error: updateError } = await supabase.from('videos').update({
         video_url: urlData.publicUrl,
         thumbnail_url: thumbUrlData.publicUrl,
-        duration: totalDuration,
+        duration: Math.round(totalDuration),
         // slide_durations: durations, // column doesn't exist in schema
         slide_urls: slideUrls,
         status: 'completed',
