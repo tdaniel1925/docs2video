@@ -26,7 +26,7 @@ export function buildSlidePrompt(input: SlideGenerationInput): string {
   }
 
   // Content slide prompt
-  const prompt = `Create a ${template.name} style presentation slide at 1536x1024 pixels.
+  const prompt = `Create a ${template.name} style presentation slide at 1920x1080 pixels.
 
 === VISUAL DESIGN (follow EXACTLY) ===
 BACKGROUND: ${spec.background.base}${spec.background.texture ? `. Texture: ${spec.background.texture}` : ''}${spec.background.gradient ? `. ${spec.background.gradient}` : ''}
@@ -71,7 +71,7 @@ ${content.brandName ? `${content.brandName}` : ''} ${content.contactInfo?.websit
 - The design must feel cohesive — every element belongs to the same visual world
 - Maximum visual polish — gradients, glows, shadows, depth, texture
 - Keep text minimal — use icons, charts, and visuals to communicate data instead of long paragraphs
-- 1536x1024 pixels`
+- 1920x1080 pixels`
 
   return prompt
 }
@@ -87,7 +87,7 @@ function buildCoverPrompt(
   content: SlideContent,
 ): string {
   const spec = template.designSpec
-  return `Create a CINEMATIC COVER SLIDE in ${template.name} style. 1536x1024 pixels.
+  return `Create a CINEMATIC COVER SLIDE in ${template.name} style. 1920x1080 pixels.
 
 === BACKGROUND ===
 Rich, dramatic background using the ${template.name} design language.
@@ -121,7 +121,7 @@ ${content.brandName ? `"${content.brandName}" in small uppercase text at the ver
 - Title text must be crisp, fully readable, no letters cut off
 - 80px safe padding on ALL edges
 - NO clutter — logo, accent line, title, subtitle. That's it.
-- 1536x1024 pixels`
+- 1920x1080 pixels`
 }
 
 /**
@@ -142,7 +142,7 @@ function buildClosingPrompt(
   if (contact.website) contactItems.push(`GLOBE ICON + "${contact.website}"`)
   if (contact.calendly) contactItems.push(`CALENDAR ICON + "${contact.calendly}"`)
 
-  return `Create a CALL-TO-ACTION CLOSING SLIDE in ${template.name} style. 1536x1024 pixels.
+  return `Create a CALL-TO-ACTION CLOSING SLIDE in ${template.name} style. 1920x1080 pixels.
 
 === BACKGROUND ===
 Match the cover slide's dramatic feel — same ${template.name} design language.
@@ -185,7 +185,7 @@ A thin accent line above the contact section (matching the cover slide's accent 
 - Logo + headline + contact info — clean hierarchy, no clutter
 - 80px safe padding on ALL edges
 - Must feel like a bookend to the cover slide — same visual world
-- 1536x1024 pixels`
+- 1920x1080 pixels`
 }
 
 /**
