@@ -1057,40 +1057,22 @@ export default function CreatePage() {
             ))}
           </div>
 
-          {/* Video Purpose + Industry — required, shapes extraction + script */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 240px', gap: 16, marginBottom: 20 }}>
-            <div>
-              <label className="input-label">
-                What should this video accomplish? <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8, lineHeight: 1.5 }}>
-                This shapes the narrative, tone, and emphasis of your video.
-              </div>
-              <input
-                type="text"
-                className="input"
-                placeholder="e.g. Convince my client to sign, Train new hires, Summarize for investors"
-                value={videoPurpose}
-                onChange={e => setVideoPurpose(e.target.value)}
-                required
-              />
+          {/* Video Purpose — required, shapes extraction + script */}
+          <div style={{ marginBottom: 20 }}>
+            <label className="input-label">
+              What should this video accomplish? <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8, lineHeight: 1.5 }}>
+              This shapes the narrative, tone, and emphasis of your video.
             </div>
-            <div>
-              <label className="input-label">Document type</label>
-              <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8, lineHeight: 1.5 }}>
-                Sets tone &amp; terminology.
-              </div>
-              <select
-                className="input"
-                value={selectedIndustry}
-                onChange={e => setSelectedIndustry(e.target.value)}
-                style={{ height: 42 }}
-              >
-                {Object.entries(INDUSTRIES).map(([id, config]) => (
-                  <option key={id} value={id}>{config.label}</option>
-                ))}
-              </select>
-            </div>
+            <input
+              type="text"
+              className="input"
+              placeholder="e.g. Convince my client to sign, Train new hires, Summarize for investors, Explain this to me simply"
+              value={videoPurpose}
+              onChange={e => setVideoPurpose(e.target.value)}
+              required
+            />
           </div>
 
           {/* Tab: Upload PDF */}
