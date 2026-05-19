@@ -31,6 +31,47 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', ffmpeg: true })
 })
 
+// Generate a simple fallback slide when OpenAI fails
+// Returns an SVG buffer — FFmpeg handles SVG via lavfi or we convert during clip encoding
+async function generateFallbackSlide(title, slideNum, totalSlides) {
+  const safeTitle = (title || 'Slide').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  const words = safeTitle.split(' ')
+  const lines = []
+  let current = ''
+  for (const word of words) {
+    if ((current + ' ' + word).length > 40 && current) { lines.push(current); current = word }
+    else { current = current ? current + ' ' + word : word }
+  }
+  if (current) lines.push(current)
+
+  const titleSvg = lines.map((line, i) =>
+    `<text x="768" y="${460 + i * 56}" text-anchor="middle" font-size="44" font-weight="bold" fill="white" font-family="Arial, sans-serif">${line}</text>`
+  ).join('\n')
+
+  const svg = `<svg width="1536" height="1024" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1536" height="1024" fill="#1B365D"/>
+    <rect x="60" y="60" width="1416" height="904" rx="12" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+    ${titleSvg}
+    <text x="768" y="${460 + lines.length * 56 + 30}" text-anchor="middle" font-size="18" fill="rgba(255,255,255,0.5)" font-family="Arial, sans-serif">${slideNum} / ${totalSlides}</text>
+  </svg>`
+
+  // Convert SVG to PNG using ffmpeg
+  const tmpSvg = join(tmpdir(), `fallback-${randomUUID()}.svg`)
+  const tmpPng = join(tmpdir(), `fallback-${randomUUID()}.png`)
+  await writeFile(tmpSvg, svg)
+  try {
+    await runFfmpeg(['-i', tmpSvg, '-y', tmpPng])
+    const png = await readFile(tmpPng)
+    return png
+  } catch {
+    // If ffmpeg can't convert SVG, return SVG buffer (will be handled during clip encoding)
+    return Buffer.from(svg)
+  } finally {
+    await rm(tmpSvg, { force: true }).catch(() => {})
+    await rm(tmpPng, { force: true }).catch(() => {})
+  }
+}
+
 // Run ffmpeg command
 function runFfmpeg(args) {
   return new Promise((resolve, reject) => {
@@ -581,8 +622,8 @@ app.post('/generate', authCheck, async (req, res) => {
         }
       }
       if (!slideBuffer) {
-        console.error(`[${videoId}] Slide ${i + 1} all attempts failed`)
-        slideBuffer = Buffer.alloc(100)
+        console.error(`[${videoId}] Slide ${i + 1} all attempts failed, generating fallback`)
+        slideBuffer = await generateFallbackSlide(scenes[i]?.title || `Slide ${i + 1}`, i + 1, slidePrompts.length)
       }
       slideBuffers.push(slideBuffer)
       console.log(`[${videoId}] Slide ${i + 1}/${slidePrompts.length} done`)

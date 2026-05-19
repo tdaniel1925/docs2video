@@ -83,6 +83,7 @@ export interface DocumentClassification {
   actionItems: string[]        // what should the reader do next
   keyQuestion: string          // the one question this video should answer
   industry: string             // mapped industry for script generation
+  recommendedTemplate: string  // auto-selected template based on document type
 }
 
 const CLASSIFICATION_PROMPT = `You are a document classification expert. Analyze the first few pages of this document and classify it.
@@ -164,6 +165,61 @@ export async function classifyDocument(pdfBase64: string, mimeType: string = 'ap
       general: 'general',
     }
 
+    // Auto-select template based on document type
+    const templateMap: Record<string, string> = {
+      // Insurance — professional executive look
+      life_insurance_illustration: 'executive',
+      annuity_contract: 'executive',
+      health_insurance_eob: 'commercial-pro',
+      auto_home_policy: 'commercial-pro',
+      insurance_claims_denial: 'commercial-pro',
+      disability_policy: 'executive',
+      long_term_care: 'executive',
+      // Finance — clean data-focused
+      bank_statement: 'commercial-pro',
+      credit_report: 'commercial-pro',
+      mortgage_statement: 'executive',
+      tax_return: 'commercial-pro',
+      investment_statement: 'glassmorphism',
+      loan_agreement: 'executive',
+      retirement_plan: 'executive',
+      // Business — varies by tone
+      earnings_report: 'executive',
+      annual_report: 'executive',
+      business_plan: 'glassmorphism',
+      pitch_deck: 'glassmorphism',
+      profit_loss: 'commercial-pro',
+      balance_sheet: 'commercial-pro',
+      marketing_report: 'neubrutalism',
+      sales_proposal: 'commercial-pro',
+      // Legal — formal
+      lease_agreement: 'legal-brief',
+      employment_contract: 'legal-brief',
+      nda_noncompete: 'legal-brief',
+      terms_of_service: 'legal-brief',
+      divorce_decree: 'legal-brief',
+      court_document: 'legal-brief',
+      // Medical — clinical
+      lab_results: 'medical-journal',
+      treatment_plan: 'medical-journal',
+      medical_bill: 'medical-journal',
+      prescription_info: 'medical-journal',
+      // Government
+      social_security_statement: 'commercial-pro',
+      property_tax_assessment: 'commercial-pro',
+      immigration_document: 'legal-brief',
+      benefits_statement: 'commercial-pro',
+      // Education
+      transcript: 'commercial-pro',
+      course_material: 'chalkboard',
+      research_paper: 'medical-journal',
+      // General
+      presentation: 'executive',
+      report: 'commercial-pro',
+      newsletter: 'watercolor',
+      unknown: 'executive',
+    }
+
     return {
       documentType: docType,
       confidence: parsed.confidence ?? 0.5,
@@ -176,6 +232,7 @@ export async function classifyDocument(pdfBase64: string, mimeType: string = 'ap
       actionItems: Array.isArray(parsed.actionItems) ? parsed.actionItems : [],
       keyQuestion: parsed.keyQuestion || 'What does this document mean for you?',
       industry: categoryToIndustry[typeInfo.category] || 'general',
+      recommendedTemplate: templateMap[docType] || 'executive',
     }
   } catch {
     // If classification fails, return a safe default
@@ -191,6 +248,7 @@ export async function classifyDocument(pdfBase64: string, mimeType: string = 'ap
       actionItems: [],
       keyQuestion: 'What does this document mean for you?',
       industry: 'general',
+      recommendedTemplate: 'executive',
     }
   }
 }
