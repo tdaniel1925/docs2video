@@ -4,6 +4,7 @@ import { type ExtractedData, isInsuranceData } from './extract-types'
 import { SLIDE_STYLES } from './types'
 import { buildStructuredPrompt } from './prompt-builder'
 import { INDUSTRIES, detectIndustry, type IndustryId } from './industries'
+import { classifyDocument, type DocumentClassification } from './document-classifier'
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -86,30 +87,18 @@ Rules for insurance (if applicable):
 - Include any important riders or features in the riders array
 - disclaimers: Extract ALL disclaimer, disclosure, legal notice, and compliance text found anywhere in the document. Include the full text of each disclaimer exactly as written. If none found, use an empty array.`
 
-export async function extractDocumentData(pdfBase64: string, mimeType: string = 'application/pdf', preserveAllPages: boolean = false): Promise<{ general: ExtractedData; insurance?: ExtractedPolicyData }> {
-  // When preserving all pages (narrate/redesign mode), add instructions to keep every page as a section
-  let prompt = GENERIC_EXTRACTION_PROMPT
-  if (preserveAllPages) {
-    // Override the summarization instructions in the base prompt
-    prompt = prompt.replace(
-      'IMPORTANT: If the document is very long (more than 20 pages), focus on the first 20 pages and summarize the rest.',
-      'IMPORTANT: Process ALL pages of this document. Do NOT skip or summarize any pages.'
-    ).replace(
-      'sections should summarize the main content areas of the document',
-      'sections MUST contain one entry for EVERY page/slide — do NOT summarize or combine pages'
-    )
-    prompt += `
-
-=== OVERRIDE — PRESERVE ALL PAGES ===
-CRITICAL: This is a slide deck or presentation being redesigned. You MUST:
-1. Create EXACTLY one section for EVERY page/slide in the document
-2. Do NOT summarize, combine, merge, or skip ANY pages
-3. Each section title should reflect that page's actual heading or topic
-4. Each section content should capture ALL text and data from that specific page
-5. The total number of sections in your output MUST equal the total number of pages in the document
-6. If a page has minimal content, still create a section for it
-This is NOT optional. The user specifically requested every page be preserved.`
+export async function extractDocumentData(pdfBase64: string, mimeType: string = 'application/pdf', preserveAllPages: boolean = false): Promise<{ general: ExtractedData; insurance?: ExtractedPolicyData; classification?: DocumentClassification }> {
+  // PASS 1: Classify the document (fast, cheap — Gemini Flash)
+  let classification: DocumentClassification | undefined
+  try {
+    classification = await classifyDocument(pdfBase64, mimeType)
+    console.log(`[classify] Type: ${classification.documentType} (${(classification.confidence * 100).toFixed(0)}% confidence), perspective: ${classification.perspective}`)
+  } catch (e) {
+    console.error('[classify] Classification failed, using generic extraction:', e)
   }
+
+  // PASS 2: Deep extraction with targeted prompt based on classification
+  let prompt = buildTargetedExtractionPrompt(classification, preserveAllPages)
 
   const response = await genai.models.generateContent({
     model: 'gemini-2.5-pro',
@@ -118,12 +107,7 @@ This is NOT optional. The user specifically requested every page be preserved.`
         role: 'user',
         parts: [
           { text: prompt },
-          {
-            inlineData: {
-              mimeType,
-              data: pdfBase64,
-            },
-          },
+          { inlineData: { mimeType, data: pdfBase64 } },
         ],
       },
     ],
@@ -134,8 +118,27 @@ This is NOT optional. The user specifically requested every page be preserved.`
 
   try {
     const parsed = JSON.parse(cleaned)
-    const result: { general: ExtractedData; insurance?: ExtractedPolicyData } = {
+    const result: { general: ExtractedData; insurance?: ExtractedPolicyData; classification?: DocumentClassification } = {
       general: parsed.general as ExtractedData,
+      classification,
+    }
+
+    // Enrich general data with classification insights
+    if (classification) {
+      result.general.industry = result.general.industry || classification.industry
+      // Add red flags and action items to bullet points if not already present
+      if (classification.redFlags.length > 0 && result.general.bulletPoints.length < 10) {
+        result.general.bulletPoints = [
+          ...result.general.bulletPoints,
+          ...classification.redFlags.map(rf => `⚠ ${rf}`),
+        ]
+      }
+      if (classification.actionItems.length > 0) {
+        result.general.additionalNotes = [
+          ...(result.general.additionalNotes || []),
+          ...classification.actionItems.map(ai => `Action: ${ai}`),
+        ]
+      }
     }
 
     // Validate we got meaningful data
@@ -154,6 +157,301 @@ This is NOT optional. The user specifically requested every page be preserved.`
     }
     throw err
   }
+}
+
+/**
+ * Build a targeted extraction prompt based on the document classification.
+ * Each document type gets specific extraction guidance so the AI knows exactly
+ * what to look for instead of trying to fit everything into a generic schema.
+ */
+function buildTargetedExtractionPrompt(classification: DocumentClassification | undefined, preserveAllPages: boolean): string {
+  const docType = classification?.documentType || 'unknown'
+
+  // Document-type-specific extraction guidance
+  const typeGuidance: Record<string, string> = {
+    // Insurance
+    life_insurance_illustration: `This is a LIFE INSURANCE ILLUSTRATION. Focus on:
+- Policy type, carrier, insured name/age
+- Death benefit amount and any changes over time
+- Annual premium and payment mode
+- Cash value projections (guaranteed vs current) at years 1, 5, 10, 15, 20, 25, 30
+- Surrender value projections at the same intervals
+- Riders and their costs
+- Loan rate and provisions
+- Key guarantees and what happens if they expire
+- All disclaimers verbatim`,
+
+    annuity_contract: `This is an ANNUITY CONTRACT. Focus on:
+- Contract type (fixed, variable, indexed, immediate, deferred)
+- Carrier and contract holder
+- Premium/contribution amount
+- Guaranteed minimum interest rate
+- Current crediting rate
+- Accumulation value projections
+- Payout schedule and options (life, period certain, joint)
+- Surrender schedule (charges by year)
+- Death benefit provisions
+- Fees (M&E, admin, rider charges)
+- Free withdrawal provisions
+- All disclaimers verbatim
+IMPORTANT: This is NOT a life insurance illustration. Do NOT extract death benefit as the primary metric.`,
+
+    health_insurance_eob: `This is a HEALTH INSURANCE EOB (Explanation of Benefits). Focus on:
+- Provider name and date of service
+- Procedure codes and descriptions
+- Billed amount vs allowed amount vs insurance paid vs patient responsibility
+- Deductible applied, copay, coinsurance
+- In-network vs out-of-network status
+- Claim status (paid, denied, pending)
+- Any denied services and denial reasons
+- Appeal instructions and deadlines
+- Year-to-date deductible and out-of-pocket totals`,
+
+    bank_statement: `This is a BANK STATEMENT. Focus on:
+- Account holder and account type (checking, savings)
+- Statement period
+- Opening and closing balance
+- Total deposits and withdrawals
+- Top spending categories (if discernible from transaction descriptions)
+- Recurring charges and subscriptions
+- Any fees charged (overdraft, maintenance, ATM)
+- Interest earned
+- Unusual or large transactions
+- Average daily balance`,
+
+    credit_report: `This is a CREDIT REPORT. Focus on:
+- Credit scores (and which bureau)
+- Number of accounts (open, closed, delinquent)
+- Total credit utilization percentage
+- Payment history summary
+- Hard inquiries (last 2 years)
+- Collections or negative items
+- Oldest account age
+- Public records (bankruptcies, liens, judgments)
+- Factors helping and hurting the score`,
+
+    mortgage_statement: `This is a MORTGAGE STATEMENT. Focus on:
+- Lender and loan number
+- Property address
+- Original loan amount and current balance
+- Interest rate (fixed or ARM, if ARM: next adjustment date)
+- Monthly payment breakdown (principal, interest, escrow, PMI)
+- Year-to-date interest and principal paid
+- Escrow balance and upcoming disbursements
+- Maturity date
+- Prepayment penalty provisions
+- Late payment terms`,
+
+    tax_return: `This is a TAX RETURN. Focus on:
+- Filing status and tax year
+- Total income (W-2, 1099, other sources)
+- Adjusted Gross Income (AGI)
+- Deductions (standard vs itemized, and major items)
+- Tax credits claimed
+- Total tax liability
+- Payments and withholdings
+- Refund or amount owed
+- Effective tax rate
+- Self-employment income if applicable`,
+
+    investment_statement: `This is an INVESTMENT/BROKERAGE STATEMENT. Focus on:
+- Account type (brokerage, IRA, 401k, etc.)
+- Total portfolio value
+- Holdings by asset class (stocks, bonds, funds, cash)
+- Top positions by value
+- Period performance (return %, dollar change)
+- Dividends and distributions received
+- Contributions and withdrawals
+- Fees charged
+- Asset allocation percentages
+- Unrealized gains/losses`,
+
+    loan_agreement: `This is a LOAN AGREEMENT. Focus on:
+- Lender and borrower
+- Loan amount and purpose
+- Interest rate (APR) and type (fixed/variable)
+- Repayment schedule and term
+- Monthly payment amount
+- Total cost of the loan over the full term
+- Origination fees and other closing costs
+- Prepayment penalty terms
+- Default and late payment provisions
+- Collateral requirements
+- Balloon payment if applicable`,
+
+    earnings_report: `This is a PUBLIC COMPANY EARNINGS REPORT (10-K/10-Q). Focus on:
+- Company name and reporting period
+- Revenue (total and by segment)
+- Net income and EPS
+- Year-over-year and quarter-over-quarter changes
+- Gross margin, operating margin, net margin
+- Cash and debt positions
+- Guidance (forward-looking statements)
+- Key risk factors
+- Major business developments
+- Share buyback and dividend info`,
+
+    pitch_deck: `This is a PITCH DECK / INVESTOR PRESENTATION. Focus on:
+- Company name and what they do (one sentence)
+- Problem being solved
+- Solution and value proposition
+- Target market and market size (TAM, SAM, SOM)
+- Business model and pricing
+- Traction and key metrics (users, revenue, growth rate)
+- Competitive landscape and differentiation
+- Team highlights
+- The ask (funding amount, use of funds)
+- Timeline and milestones`,
+
+    lease_agreement: `This is a LEASE AGREEMENT. Focus on:
+- Landlord and tenant names
+- Property address and description
+- Lease term (start, end, renewal options)
+- Monthly rent and when it's due
+- Security deposit amount and return conditions
+- Rent increase provisions
+- Maintenance responsibilities (landlord vs tenant)
+- Early termination clause and penalties
+- Pet policy
+- Subletting rules
+- Utilities included/excluded`,
+
+    employment_contract: `This is an EMPLOYMENT CONTRACT. Focus on:
+- Employer and employee
+- Job title and responsibilities
+- Compensation (salary, bonus structure, equity)
+- Benefits (health, retirement, PTO)
+- Start date and term (at-will or fixed)
+- Non-compete scope (geography, duration, industry)
+- Non-solicitation terms
+- IP assignment and confidentiality
+- Termination provisions (cause, severance)
+- Change of control provisions`,
+
+    lab_results: `This is a LAB RESULTS / MEDICAL TEST report. Focus on:
+- Patient name and date of tests
+- Each test name, result value, reference range, and flag (normal/high/low)
+- Any critical or out-of-range values (highlight these prominently)
+- Ordering physician
+- Specimen type and collection date
+- Any notes or comments from the lab
+Do NOT give medical advice, but DO clearly flag which results are outside normal range.`,
+
+    medical_bill: `This is a MEDICAL BILL. Focus on:
+- Provider/facility name
+- Patient name and account number
+- Date of service
+- Itemized charges (procedure, quantity, charge)
+- Insurance adjustments and payments
+- Patient responsibility (total due)
+- Payment due date
+- Payment plan options
+- Look for: duplicate charges, unbundled codes, out-of-network markups`,
+
+    social_security_statement: `This is a SOCIAL SECURITY STATEMENT. Focus on:
+- Estimated monthly benefits at age 62, full retirement age, and age 70
+- Full retirement age for this person
+- Earnings record (yearly earnings history)
+- Disability benefit estimate
+- Survivor benefit estimates
+- Medicare eligibility
+- Credits earned vs credits needed`,
+
+    property_tax_assessment: `This is a PROPERTY TAX ASSESSMENT. Focus on:
+- Property address and parcel number
+- Assessed value (land + improvements)
+- Market value comparison
+- Tax rate and mill levy
+- Annual tax amount
+- Exemptions applied (homestead, senior, etc.)
+- Assessment change from prior year
+- Appeal deadline and process`,
+  }
+
+  // Get specific guidance or use generic
+  const specific = typeGuidance[docType] || ''
+
+  // Build empathy layer based on classification
+  const perspectiveInstruction = classification
+    ? `\nVIDEO PERSPECTIVE: This video explains the document to a "${classification.perspective}". Frame everything from THEIR point of view. Use "your" not "the policyholder's". Example: "Your monthly payment is $1,247" not "The borrower's monthly payment is $1,247".`
+    : ''
+
+  const toneInstruction = classification
+    ? `\nNARRATION TONE: ${classification.tone}. The key question this video answers: "${classification.keyQuestion}"`
+    : ''
+
+  let prompt = `You are an expert document analyzer. Analyze this document and extract ALL key information.
+${specific ? `\nDOCUMENT TYPE DETECTED: ${classification?.documentType || 'unknown'}\n${specific}\n` : ''}
+${perspectiveInstruction}
+${toneInstruction}
+
+Return ONLY valid JSON matching this exact structure (no markdown, no code fences):
+{
+  "documentType": "string describing the type of document",
+  "general": {
+    "title": "string - a clear title summarizing the document",
+    "subtitle": "string or null - a subtitle or secondary description",
+    "source": "string or null - the organization or source of the document",
+    "keyMetrics": [
+      { "label": "string - metric name", "value": "string - metric value", "highlight": true/false }
+    ],
+    "sections": [
+      { "title": "string - section heading", "content": "string - section summary" }
+    ],
+    "bulletPoints": ["string - key takeaway or finding"],
+    "additionalNotes": ["string - any other important information"],
+    "disclaimers": ["string - full text of any disclaimer, disclosure, legal notice, or compliance text"],
+    "industry": "string — one of: insurance, financial, real_estate, mortgage, healthcare, legal, consulting, education, accounting, technology, hr, sales, general"
+  },
+  "insurance": null
+}
+
+IMPORTANT: If this is a LIFE INSURANCE ILLUSTRATION (NOT an annuity, NOT a financial report), ALSO populate the "insurance" field with this structure (otherwise leave it null):
+{
+  "policyType": "string (e.g. Whole Life, IUL, Universal Life, Term, VUL)",
+  "carrier": "string (insurance company name)",
+  "insuredName": "string",
+  "insuredAge": number or null,
+  "deathBenefit": number (initial face amount),
+  "annualPremium": number,
+  "paymentMode": "string (Annual, Monthly, etc.)",
+  "cashValueProjections": [
+    { "year": number, "guaranteed": number, "current": number }
+  ],
+  "surrenderValueProjections": [
+    { "year": number, "guaranteed": number, "current": number }
+  ],
+  "riders": ["string"],
+  "loanRate": number or null,
+  "additionalNotes": ["string"],
+  "disclaimers": ["string"]
+}
+
+${preserveAllPages ? '' : 'IMPORTANT: If the document is very long (more than 20 pages), focus on the first 20 pages and summarize the rest.'}
+
+Rules for the general format:
+- keyMetrics should contain the most important numerical or categorical data points (up to 10)
+- Mark the most important 2-3 metrics with highlight: true
+- sections should summarize the main content areas of the document
+- bulletPoints should list key findings, conclusions, or actionable items
+- additionalNotes for any caveats, disclaimers, or other important context
+- disclaimers: Extract ALL disclaimer text found in the document verbatim`
+
+  if (preserveAllPages) {
+    prompt += `
+
+=== OVERRIDE — PRESERVE ALL PAGES ===
+CRITICAL: This is a slide deck or presentation being redesigned. You MUST:
+1. Create EXACTLY one section for EVERY page/slide in the document
+2. Do NOT summarize, combine, merge, or skip ANY pages
+3. Each section title should reflect that page's actual heading or topic
+4. Each section content should capture ALL text and data from that specific page
+5. The total number of sections in your output MUST equal the total number of pages in the document
+6. If a page has minimal content, still create a section for it
+This is NOT optional. The user specifically requested every page be preserved.`
+  }
+
+  return prompt
 }
 
 /** @deprecated Use extractDocumentData instead */
