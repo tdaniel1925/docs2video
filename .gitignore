@@ -61,3 +61,10 @@ next-env.d.ts
 test-results/
 playwright-report/
 video-service/start.sh
+
+# Video service secrets
+video-service/docker-compose.yml
+
+# Demo/test media files
+demo-*.mp4
+test-overlay-*.png

@@ -79,6 +79,13 @@ export async function POST(request: Request & { nextUrl?: URL }) {
     return NextResponse.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Extraction failed'
+    // Detect common error patterns
+    if (message.includes('password') || message.includes('encrypted') || message.includes('protected')) {
+      return NextResponse.json({ error: 'This PDF appears to be password-protected. Please upload an unprotected version.' }, { status: 400 })
+    }
+    if (message.includes('too large') || message.includes('token') || message.includes('limit')) {
+      return NextResponse.json({ error: 'This document is too large to process. Try uploading a shorter version or pasting the key sections.' }, { status: 400 })
+    }
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

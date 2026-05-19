@@ -878,7 +878,21 @@ export default function CreatePage() {
 
   async function handleGenerate() {
     if (!activeData) return
-    if (generating) return
+    if (generating) return // Prevent duplicate submissions
+
+    // GUARD: Purpose is required
+    if (!videoPurpose.trim()) {
+      setError('Please describe what this video should accomplish before generating.')
+      return
+    }
+
+    // GUARD: Minimum content check
+    const data = activeData as any
+    const hasEnoughContent = (data.sections?.length > 0) || (data.keyMetrics?.length > 0) || (data.bulletPoints?.length > 0) || data.policyType || (editableScenes?.length > 0)
+    if (!hasEnoughContent) {
+      setError('Not enough content extracted. Try pasting more text or uploading a different document.')
+      return
+    }
 
     // Option B: Check profile completeness before first video
     if (profileLoaded && !profileName.trim() && !profileCompany.trim()) {
@@ -1133,12 +1147,13 @@ export default function CreatePage() {
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
                         {([
-                          {
+                          // Only show "narrate only" for PPTX files — doesn't make sense for PDFs/text
+                          ...(files.some(f => isSlideFile(f)) ? [{
                             mode: 'narrate' as const,
                             icon: '\uD83C\uDF99\uFE0F',
                             title: 'Add narration only',
                             desc: 'Keep your slides exactly as they are. We add professional voiceover and background music — no visual changes.',
-                          },
+                          }] : []),
                           {
                             mode: 'redesign' as const,
                             icon: '\uD83C\uDFA8',

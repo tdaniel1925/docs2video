@@ -13,7 +13,10 @@ export const runtime = 'nodejs'
 const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
-export const maxDuration = 120 // Only need enough time for script generation + VPS handoff
+export const maxDuration = 120
+
+// Track in-flight requests to prevent duplicates
+const inFlightVideos = new Set<string>()
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -27,6 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
   }
 
+  // --- Credit check ---
   const { data: profile } = await supabase
     .from('profiles')
     .select('subscription_status, referred_by, card_on_file, free_videos_remaining')
@@ -41,9 +45,7 @@ export async function POST(request: Request) {
 
   if (!isAdmin(user.email)) {
     if (!isPaidUser && !hasReferralDiscount) {
-      if (freeRemaining > 0) {
-        // Will deduct after VPS completes
-      } else if (!cardOnFile) {
+      if (freeRemaining <= 0 && !cardOnFile) {
         return NextResponse.json(
           { error: 'Free videos used. Please add a payment method to continue.' },
           { status: 403 }
@@ -72,6 +74,32 @@ export async function POST(request: Request) {
     industry?: string
   }
 
+  // --- GUARD: Duplicate submission prevention ---
+  if (inFlightVideos.has(videoId)) {
+    return NextResponse.json({ error: 'This video is already being generated.' }, { status: 409 })
+  }
+  inFlightVideos.add(videoId)
+
+  // --- GUARD: Server-side purpose validation ---
+  if (!purpose?.trim() && !preGeneratedScenes?.length) {
+    inFlightVideos.delete(videoId)
+    return NextResponse.json({ error: 'Please describe what this video should accomplish.' }, { status: 400 })
+  }
+
+  // --- GUARD: Minimum content check ---
+  const contentData = policyData as any
+  const hasContent = contentData?.sections?.length > 0 ||
+    contentData?.keyMetrics?.length > 0 ||
+    contentData?.bulletPoints?.length > 0 ||
+    contentData?.policyType ||
+    preGeneratedScenes?.length
+  if (!hasContent) {
+    inFlightVideos.delete(videoId)
+    return NextResponse.json({
+      error: 'Not enough content extracted from your document. Try pasting the text directly or uploading a different file.'
+    }, { status: 400 })
+  }
+
   let brand: Brand | null = null
   if (brandId) {
     const { data } = await supabase.from('brands').select('*').eq('id', brandId).single()
@@ -96,6 +124,14 @@ export async function POST(request: Request) {
   try {
     if (jobId) await updateJobProgress(admin, jobId, 5, 'running')
 
+    // --- GUARD: VPS health check before doing any work ---
+    try {
+      const healthRes = await fetch(`${VIDEO_ASSEMBLY_URL}/health`, { signal: AbortSignal.timeout(5000) })
+      if (!healthRes.ok) throw new Error('VPS not healthy')
+    } catch {
+      throw new Error('Video server is temporarily offline. Please try again in a few minutes.')
+    }
+
     // STAGE 1: Generate script (or reuse pre-generated scenes)
     let scenes
     if (preGeneratedScenes && preGeneratedScenes.length > 0) {
@@ -111,14 +147,30 @@ export async function POST(request: Request) {
         email: guideDataForScript?.email ?? undefined,
         calendly: guideDataForScript?.calendly ?? undefined,
       }
-      scenes = await generateScript(policyData, brand?.name ?? null, colors, detailed ?? false, 0, voiceId, (brand as any)?.tone ?? undefined, contactInfoForScript, purpose, uploadMode, industry)
+
+      // Script generation with 60s timeout
+      try {
+        scenes = await Promise.race([
+          generateScript(policyData, brand?.name ?? null, colors, detailed ?? false, 0, voiceId, (brand as any)?.tone ?? undefined, contactInfoForScript, purpose, uploadMode, industry),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Script generation timed out. This document may be too large — try pasting the key sections instead.')), 60000)),
+        ])
+      } catch (scriptErr) {
+        throw scriptErr
+      }
+
+      if (!scenes || scenes.length === 0) {
+        throw new Error('Script generation produced no scenes. Try providing more content or a clearer purpose.')
+      }
+
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15 }).eq('id', videoId)
     }
 
-    // STAGE 2: Hand off to VPS for audio + slides + assembly
-    // VPS does EVERYTHING — no Vercel timeout risk
+    // STAGE 2: Hand off to VPS
     console.log(`[video ${videoId}] Handing off to VPS: ${scenes.length} scenes, voice=${voiceId}, style=${styleId}`)
     await admin.from('videos').update({ progress_detail: 'Starting generation...', progress_pct: 10 }).eq('id', videoId)
+
+    // Determine image engine: OpenAI primary (better logos), Gemini fallback
+    const imageEngine = process.env.OPENAI_API_KEY ? 'openai' : 'gemini'
 
     const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate`, {
       method: 'POST',
@@ -131,6 +183,16 @@ export async function POST(request: Request) {
         styleId: styleId ?? brand?.deck_style_id ?? 'executive',
         scenes,
         userId: user.id,
+        imageEngine,
+        purpose,
+        uploadMode,
+        industry,
+        brandColors: brand ? {
+          primary: brand.primary_color,
+          secondary: brand.secondary_color,
+          accent: brand.accent_color,
+        } : null,
+        logoUrl: brand?.logo_file_url ?? brand?.logo_url ?? null,
       }),
       signal: AbortSignal.timeout(10000),
     })
@@ -155,5 +217,8 @@ export async function POST(request: Request) {
       link: `/videos/${videoId}`,
     })
     return NextResponse.json({ error: message }, { status: 500 })
+  } finally {
+    // Always clean up in-flight tracking
+    inFlightVideos.delete(videoId)
   }
 }

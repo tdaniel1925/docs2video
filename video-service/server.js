@@ -583,20 +583,27 @@ RULES: Do NOT render any logos or brand names. Do NOT place content in the botto
           }
           parts.push({ text: prompt })
 
-          const response = await genai.models.generateContent({
-            model: IMAGE_MODEL,
-            contents: [{ role: 'user', parts }],
-            config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '4K' } } },
-          })
-
-          const respParts = response.candidates?.[0]?.content?.parts ?? []
-          for (const rp of respParts) {
-            if (rp.inlineData) return Buffer.from(rp.inlineData.data, 'base64')
+          // Retry up to 3 times on failure (handles Gemini 503 overload)
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+              const response = await genai.models.generateContent({
+                model: IMAGE_MODEL,
+                contents: [{ role: 'user', parts }],
+                config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '4K' } } },
+              })
+              const respParts = response.candidates?.[0]?.content?.parts ?? []
+              for (const rp of respParts) {
+                if (rp.inlineData) return Buffer.from(rp.inlineData.data, 'base64')
+              }
+              throw new Error('No image in response')
+            } catch (retryErr) {
+              console.error(`[${videoId}] Slide ${idx + 1} attempt ${attempt}/3 failed:`, retryErr.message?.slice(0, 100))
+              if (attempt < 3) await new Promise(r => setTimeout(r, 5000 * attempt))
+            }
           }
-          throw new Error('No image in response')
+          return Buffer.alloc(100) // All retries failed
         } catch (e) {
-          console.error(`[${videoId}] Slide ${idx + 1} failed:`, e.message)
-          // Return a blank slide as fallback
+          console.error(`[${videoId}] Slide ${idx + 1} error:`, e.message)
           return Buffer.alloc(100)
         }
       }))
@@ -787,18 +794,27 @@ RULES: Do NOT render any logos or brand names. Do NOT place content in the botto
       slideUrls.push(su.publicUrl)
     }
 
-    // Mark complete
+    // Mark complete — with explicit error logging
     const totalDuration = durations.reduce((s, d) => s + d, 0)
-    await supabase.from('videos').update({
-      video_url: urlData.publicUrl,
-      thumbnail_url: thumbUrlData.publicUrl,
-      duration: totalDuration,
-      slide_durations: durations,
-      slide_urls: slideUrls,
-      status: 'completed',
-      progress_detail: null,
-      progress_pct: 100,
-    }).eq('id', videoId)
+    try {
+      const { error: updateError } = await supabase.from('videos').update({
+        video_url: urlData.publicUrl,
+        thumbnail_url: thumbUrlData.publicUrl,
+        duration: totalDuration,
+        slide_durations: durations,
+        slide_urls: slideUrls,
+        status: 'completed',
+        progress_detail: null,
+        progress_pct: 100,
+      }).eq('id', videoId)
+      if (updateError) {
+        console.error(`[${videoId}] DB UPDATE ERROR:`, updateError.message, updateError.details, updateError.hint)
+      } else {
+        console.log(`[${videoId}] Database updated to completed`)
+      }
+    } catch (dbErr) {
+      console.error(`[${videoId}] DB UPDATE CRASHED:`, dbErr.message)
+    }
 
     console.log(`[${videoId}] COMPLETE! ${totalDuration.toFixed(0)}s video, ${slideUrls.length} slides`)
 
