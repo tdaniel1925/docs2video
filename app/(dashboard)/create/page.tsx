@@ -699,7 +699,7 @@ export default function CreatePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           policyData: multiDocData.length > 1 ? multiDocData : activeData,
-          brandId: null,
+          brandId: selectedBrand,
           detailed: detailedMode,
           comparisonMode: multiDocData.length > 1,
           comparisonNotes: comparisonNotes || undefined,
@@ -750,7 +750,7 @@ export default function CreatePage() {
           policyData: activeData,
           slideIndex: index,
           styleId: selectedStyle,
-          brandId: null,
+          brandId: selectedBrand,
           slidePrompt: generatedScenes[index]?.slidePrompt,
           previousSlideBase64: slides[0] || undefined,
         }),
@@ -862,7 +862,7 @@ export default function CreatePage() {
           policyData: activeData,
           styleId: selectedStyle,
           customStylePrompt: customStylePrompt || undefined,
-          brandId: null,
+          brandId: selectedBrand,
         }),
       })
       const data = await res.json()
@@ -950,7 +950,7 @@ export default function CreatePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           policyData: activeData,
-          brandId: null,
+          brandId: selectedBrand,
           voiceId: selectedVoice,
           assets: assetPayload,
         }),
@@ -976,7 +976,7 @@ export default function CreatePage() {
         script: {
           _pipeline_input: {
             policyData: activeData,
-            brandId: null,
+            brandId: selectedBrand,
             voiceId: selectedVoice,
             styleId: uploadMode === 'narrate' ? undefined : selectedStyle,
             customStylePrompt: uploadMode === 'narrate' ? undefined : (customStylePrompt || undefined),
@@ -2930,7 +2930,6 @@ export default function CreatePage() {
                       }}
                     >
                       <option value="product">product</option>
-                      <option value="logo">logo</option>
                       <option value="lifestyle">lifestyle</option>
                       <option value="background">background</option>
                     </select>
@@ -2979,7 +2978,125 @@ export default function CreatePage() {
       {step === 'options' && (
         <div className="wizard-card">
           <h2>Final options</h2>
-          <p className="wizard-sub">Choose a voice and theme. AI will compose custom background music automatically.</p>
+          <p className="wizard-sub">Choose your brand, voice, and theme. AI will compose custom background music automatically.</p>
+
+          {/* Brand Selection */}
+          <div style={{ marginBottom: 28 }}>
+            <label className="input-label">Brand</label>
+            <p style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 12, marginTop: -4 }}>
+              Select a brand to apply its logo, colors, and style to your video. Your logo will appear on the cover, closing slide, and as a watermark on every slide.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+              {/* No brand option */}
+              <button
+                type="button"
+                onClick={() => setSelectedBrand(null)}
+                style={{
+                  padding: '14px 16px',
+                  background: selectedBrand === null ? 'rgba(199,232,168,0.12)' : 'white',
+                  border: selectedBrand === null ? '2px solid var(--mint-deep)' : '1px solid var(--border-light)',
+                  borderRadius: 10,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>No Brand</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>Default colors, no logo</div>
+              </button>
+
+              {/* User's brands */}
+              {brands.map((brand) => (
+                <button
+                  key={brand.id}
+                  type="button"
+                  onClick={() => setSelectedBrand(brand.id)}
+                  style={{
+                    padding: '14px 16px',
+                    background: selectedBrand === brand.id ? 'rgba(199,232,168,0.12)' : 'white',
+                    border: selectedBrand === brand.id ? '2px solid var(--mint-deep)' : '1px solid var(--border-light)',
+                    borderRadius: 10,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    {brand.logo_url ? (
+                      <img src={brand.logo_url} alt="" style={{ height: 20, width: 'auto', maxWidth: 60, objectFit: 'contain' }} />
+                    ) : (
+                      <div style={{ width: 20, height: 20, borderRadius: 4, background: brand.primary_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: brand.text_color, fontSize: 10, fontWeight: 800 }}>{brand.name[0]}</div>
+                    )}
+                    <span style={{ fontSize: 14, fontWeight: 700 }}>{brand.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {[brand.primary_color, brand.secondary_color, brand.accent_color].map((c, i) => (
+                      <div key={i} style={{ width: 14, height: 14, borderRadius: '50%', background: c, border: c?.toLowerCase() === '#ffffff' ? '1px solid var(--border)' : 'none' }} />
+                    ))}
+                  </div>
+                </button>
+              ))}
+
+              {/* Create new brand */}
+              {brands.length < 2 && (
+                <a
+                  href="/brands/new"
+                  style={{
+                    padding: '14px 16px',
+                    background: 'white',
+                    border: '1px dashed var(--border)',
+                    borderRadius: 10,
+                    textDecoration: 'none',
+                    color: 'var(--ink)',
+                    textAlign: 'left',
+                    display: 'block',
+                  }}
+                >
+                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>+ Create Brand</div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>Add logo &amp; colors</div>
+                </a>
+              )}
+            </div>
+
+            {/* Tip when no brand selected */}
+            {selectedBrand === null && (
+              <div style={{
+                marginTop: 12,
+                padding: '12px 16px',
+                background: 'rgba(255,217,184,0.15)',
+                border: '1px solid rgba(255,182,119,0.3)',
+                borderRadius: 10,
+                fontSize: 13,
+                color: 'var(--ink-soft)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+              }}>
+                <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0, marginTop: 1 }}>&#128161;</span>
+                <div>
+                  <strong style={{ color: 'var(--ink)' }}>For best results, create a brand.</strong>{' '}
+                  If you have a logo, <a href="/brands/new" style={{ color: 'var(--mint-darker)', fontWeight: 600 }}>create a brand</a> and upload it. Your logo will be professionally placed on cover and closing slides, plus appear as a watermark throughout. Videos with branding look more professional and build trust.
+                </div>
+              </div>
+            )}
+
+            {/* Confirmation when brand IS selected */}
+            {selectedBrand !== null && (
+              <div style={{
+                marginTop: 12,
+                padding: '10px 14px',
+                background: 'rgba(199,232,168,0.1)',
+                border: '1px solid rgba(199,232,168,0.3)',
+                borderRadius: 10,
+                fontSize: 12,
+                color: 'var(--mint-darker)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                Your brand&apos;s logo and colors will be applied to all slides.
+              </div>
+            )}
+          </div>
 
           {/* Custom Theme toggle (premium $5 add-on) */}
           {!slidesMode && (
@@ -3248,7 +3365,6 @@ export default function CreatePage() {
                       }}
                     >
                       <option value="product">product</option>
-                      <option value="logo">logo</option>
                       <option value="lifestyle">lifestyle</option>
                       <option value="background">background</option>
                     </select>
