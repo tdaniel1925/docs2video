@@ -196,15 +196,16 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
         This page updates automatically every 3 seconds.
       </div>
 
-      {/* Retry option — only shows after 20 minutes */}
-      {elapsed > 1200 && (
+      {/* Retry option — shows after 5 minutes */}
+      {elapsed > 300 && (
         <div style={{
           marginTop: 20, padding: '16px 20px', borderRadius: 12,
           background: 'var(--surface-raised)', border: '1px solid var(--border)',
           textAlign: 'center',
         }}>
           <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 12 }}>
-            Still working on your video. If you&apos;d like to start over, you can retry.
+            Taking longer than expected? Progress is at {pct}%.
+            {pct < 30 ? ' The video server may be busy.' : pct < 70 ? ' Slides are still being designed.' : ' Almost done — hang tight.'}
           </div>
           <button
             onClick={async () => {
@@ -214,7 +215,7 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
             }}
             className="btn btn-soft btn-sm"
           >
-            Retry Generation
+            Restart Generation
           </button>
         </div>
       )}
@@ -402,8 +403,9 @@ export default function VideoDetailPage() {
         updatedUrls[index] = slideUrl
         return { ...prev, slide_urls: updatedUrls }
       })
+      setInlineNotice({ type: 'success', message: `Slide ${index + 1} redesigned successfully` })
     } catch {
-      setInlineNotice({ type: 'error', message: 'Failed to regenerate slide' })
+      setInlineNotice({ type: 'error', message: 'Failed to regenerate slide. Please try again.' })
     } finally {
       setRegeneratingSlide(null)
     }
@@ -611,7 +613,8 @@ export default function VideoDetailPage() {
   }, [params.id])
 
   async function handleCreateFollowUp() {
-    if (!followUpClientName || !followUpClientEmail) return
+    if (!followUpClientName.trim()) { setInlineNotice({ type: 'error', message: 'Please enter a client name' }); return }
+    if (!followUpClientEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(followUpClientEmail)) { setInlineNotice({ type: 'error', message: 'Please enter a valid email address' }); return }
     setGeneratingPlan(true)
     try {
       const res = await fetch('/api/follow-up/generate', {
@@ -757,8 +760,10 @@ export default function VideoDetailPage() {
 
   async function saveQuote() {
     if (!video) return
-    setQuoteSaving(true)
     const validItems = quoteLineItems.filter(i => i.description.trim() && i.amount > 0)
+    if (validItems.length === 0) { setInlineNotice({ type: 'error', message: 'Add at least one line item with a description and amount' }); return }
+    if (quoteClientEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(quoteClientEmail)) { setInlineNotice({ type: 'error', message: 'Please enter a valid client email' }); return }
+    setQuoteSaving(true)
     const subtotal = validItems.reduce((sum, i) => sum + i.amount, 0)
 
     const supabase = createClient()
@@ -787,6 +792,7 @@ export default function VideoDetailPage() {
 
     setQuoteSaving(false)
     setShowQuoteBuilder(false)
+    setInlineNotice({ type: 'success', message: 'Quote saved successfully' })
   }
 
   function quoteStatusBadge(status: string) {
