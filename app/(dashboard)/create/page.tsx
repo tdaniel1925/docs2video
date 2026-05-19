@@ -188,6 +188,8 @@ export default function CreatePage() {
   const [generatedScenes, setGeneratedScenes] = useState<any[]>([])
   const [selectedVoice, setSelectedVoice] = useState<string>(VOICE_OPTIONS[0].id)
   const [detailedMode, setDetailedMode] = useState(false)
+  const [detailLevel, setDetailLevel] = useState<'quick' | 'standard' | 'detailed'>('standard')
+  const [recommendedLevel, setRecommendedLevel] = useState<'quick' | 'standard' | 'detailed'>('standard')
   const [videoPurpose, setVideoPurpose] = useState('')
   const [uploadMode, setUploadMode] = useState<'summarize' | 'redesign' | 'narrate'>('summarize')
   const [selectedIndustry, setSelectedIndustry] = useState('general')
@@ -651,9 +653,41 @@ export default function CreatePage() {
     }
   }, [step])
 
+  // Auto-scroll to top when step changes so new content is always visible
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [step])
+
   // Determine which data format we're working with
   const activeData = extractedData || generalData
   const isGeneralData = !extractedData && !!generalData
+
+  // Smart detail level recommendation based on data complexity
+  useEffect(() => {
+    if (!activeData) return
+    let rec: 'quick' | 'standard' | 'detailed' = 'standard'
+
+    if (extractedData) {
+      const ins = extractedData as any
+      const projCount = ins.cashValueProjections?.length ?? 0
+      const riderCount = ins.riders?.length ?? 0
+      if (projCount > 5 && riderCount > 3) rec = 'detailed'
+      else if (projCount <= 2 && riderCount <= 1) rec = 'quick'
+    } else if (generalData) {
+      const gen = generalData as any
+      const metricCount = gen.keyMetrics?.length ?? 0
+      const sectionCount = gen.sections?.length ?? 0
+      if (metricCount <= 3 && sectionCount <= 2) rec = 'quick'
+      else if (metricCount > 8 || sectionCount > 5) rec = 'detailed'
+    }
+
+    if (inputTab === 'research') rec = 'detailed'
+    if (inputTab === 'idea' && rec === 'detailed') rec = 'standard'
+
+    setRecommendedLevel(rec)
+    setDetailLevel(rec)
+    setDetailedMode(rec === 'detailed')
+  }, [activeData, extractedData, generalData, inputTab])
 
   async function handleGenerateScript() {
     setStep('script')
@@ -1021,38 +1055,54 @@ export default function CreatePage() {
           <h2>What would you like to explain?</h2>
           <p className="wizard-sub">Drop in your document and we&apos;ll handle the rest. Your video will be ready in about 2 minutes.</p>
 
-          {/* Tab pills */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 24, background: 'var(--surface-raised, #f1f5f9)', borderRadius: 10, padding: 4, width: 'fit-content' }}>
+          {/* Input method cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
             {([
-              { key: 'upload' as InputTab, label: 'Upload PDF', accent: false },
-              { key: 'slides' as InputTab, label: 'Narrate Slides', accent: true },
-              { key: 'text' as InputTab, label: 'Type or Paste', accent: false },
-              { key: 'url' as InputTab, label: 'From URL', accent: false },
-              { key: 'research' as InputTab, label: 'AI Research', accent: true },
-              { key: 'idea' as InputTab, label: 'Start from Idea', accent: false },
+              { key: 'upload' as InputTab, title: 'Upload Document', desc: 'PDF, PPTX, images', icon: (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker, #2d7a4f)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+              )},
+              { key: 'text' as InputTab, title: 'Write Your Own', desc: 'Paste text, notes, bullets', icon: (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--lilac, #C4B5FD)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              )},
+              { key: 'idea' as InputTab, title: 'Start from Idea', desc: 'Describe a topic, AI creates content', icon: (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--peach, #FBBF77)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+              )},
+              { key: 'url' as InputTab, title: 'Website Scraper', desc: 'Enter a URL, we extract it', icon: (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--sky, #7DD3FC)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              )},
+              { key: 'research' as InputTab, title: 'AI Research', desc: 'AI researches and compiles', icon: (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--lilac, #C4B5FD)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+              )},
               ...(['professional', 'active', 'agency'].includes(userPlan.toLowerCase())
-                ? [{ key: 'proposal' as InputTab, label: 'AI Proposal', accent: true }]
+                ? [{ key: 'proposal' as InputTab, title: 'Proposal Builder', desc: 'Create a client proposal', icon: (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--peach, #FBBF77)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+                )}]
                 : []),
-            ]).map(tab => (
+              { key: 'slides' as InputTab, title: 'Narrate Slides', desc: 'Upload slides, AI adds voiceover', icon: (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--sky, #7DD3FC)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              )},
+            ]).map(card => (
               <button
-                key={tab.key}
-                onClick={() => setInputTab(tab.key)}
-                className="btn btn-sm"
+                key={card.key}
+                onClick={() => setInputTab(card.key)}
                 style={{
+                  background: inputTab === card.key ? 'rgba(199,232,168,0.05)' : 'white',
+                  border: `1px solid ${inputTab === card.key ? 'var(--mint-deep, #6DBE47)' : 'var(--border-light, #e2e8f0)'}`,
                   borderRadius: 10,
-                  background: inputTab === tab.key
-                    ? (tab.accent ? 'var(--lilac, #C4B5FD)' : 'var(--mint, #A8F0D4)')
-                    : 'transparent',
-                  color: inputTab === tab.key ? 'var(--ink, #1a1a2e)' : 'var(--ink-soft, #64748b)',
-                  fontWeight: inputTab === tab.key ? 700 : 500,
-                  border: 'none',
-                  padding: '8px 18px',
+                  padding: 24,
                   cursor: 'pointer',
-                  fontSize: 14,
+                  textAlign: 'left',
                   transition: 'all 0.2s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
                 }}
               >
-                {tab.label}
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: 10, background: inputTab === card.key ? 'rgba(199,232,168,0.15)' : 'var(--bg-soft, #f8fafc)' }}>
+                  {card.icon}
+                </span>
+                <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink, #1a1a2e)' }}>{card.title}</span>
+                <span style={{ fontSize: 13, color: 'var(--ink-soft, #64748b)', lineHeight: 1.4 }}>{card.desc}</span>
               </button>
             ))}
           </div>
@@ -2619,23 +2669,63 @@ export default function CreatePage() {
           <h2>Who should narrate your video?</h2>
           <p className="wizard-sub">Pick a voice and duration. Click any voice to hear a preview.</p>
 
-          {/* Duration */}
-          <div style={{ marginBottom: 24 }}>
-            <label className="input-label">Video Length</label>
-            <div style={{ display: 'flex', gap: 10 }}>
+          {/* Detail Level */}
+          <div style={{ marginBottom: 28 }}>
+            <label className="input-label">Video Detail Level</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
               <button
-                onClick={() => setDetailedMode(false)}
-                className={`btn ${!detailedMode ? 'btn-primary' : 'btn-soft'}`}
                 type="button"
+                onClick={() => { setDetailedMode(false); setDetailLevel('quick') }}
+                style={{
+                  padding: '16px 14px',
+                  background: detailLevel === 'quick' ? 'rgba(199,232,168,0.12)' : 'white',
+                  border: detailLevel === 'quick' ? '2px solid var(--mint-deep)' : '1px solid var(--border-light)',
+                  borderRadius: 10,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  position: 'relative',
+                }}
               >
-                Standard (2-3 min)
+                {recommendedLevel === 'quick' && <span style={{ position: 'absolute', top: -8, right: 10, background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>Recommended</span>}
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Highlights</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8 }}>30-60 seconds &middot; 3-4 slides</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Key numbers only. Perfect for quick shares, texts, and social media.</div>
               </button>
               <button
-                onClick={() => setDetailedMode(true)}
-                className={`btn ${detailedMode ? 'btn-primary' : 'btn-soft'}`}
                 type="button"
+                onClick={() => { setDetailedMode(false); setDetailLevel('standard') }}
+                style={{
+                  padding: '16px 14px',
+                  background: detailLevel === 'standard' ? 'rgba(199,232,168,0.12)' : 'white',
+                  border: detailLevel === 'standard' ? '2px solid var(--mint-deep)' : '1px solid var(--border-light)',
+                  borderRadius: 10,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  position: 'relative',
+                }}
               >
-                Detailed (5-7 min)
+                {recommendedLevel === 'standard' && <span style={{ position: 'absolute', top: -8, right: 10, background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>Recommended</span>}
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Overview</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8 }}>2-4 minutes &middot; 6-10 slides</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Full overview of key data. Best for client presentations.</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setDetailedMode(true); setDetailLevel('detailed') }}
+                style={{
+                  padding: '16px 14px',
+                  background: detailLevel === 'detailed' ? 'rgba(199,232,168,0.12)' : 'white',
+                  border: detailLevel === 'detailed' ? '2px solid var(--mint-deep)' : '1px solid var(--border-light)',
+                  borderRadius: 10,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  position: 'relative',
+                }}
+              >
+                {recommendedLevel === 'detailed' && <span style={{ position: 'absolute', top: -8, right: 10, background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>Recommended</span>}
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Detailed</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8 }}>5-10 minutes &middot; 10-16 slides</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Every data point explained. Best for complex documents.</div>
               </button>
             </div>
           </div>
@@ -3224,6 +3314,21 @@ export default function CreatePage() {
           <p style={{ marginTop: 8, fontSize: 13, color: 'var(--ink-light)' }}>
             You'll be redirected to track progress in a moment.
           </p>
+          <div style={{
+            marginTop: 20,
+            padding: '14px 20px',
+            background: 'var(--bg-soft)',
+            borderRadius: 10,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            fontSize: 14,
+            color: 'var(--ink-soft)',
+            textAlign: 'left',
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker)" strokeWidth="2" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            <span><strong>You can leave this page.</strong> Your video will keep generating in the background. Check your <a href="/videos" style={{color: 'var(--mint-darker)', fontWeight: 600}}>library</a> for progress.</span>
+          </div>
         </div>
       )}
 

@@ -1062,7 +1062,25 @@ export default function VideoDetailPage() {
 
       {/* Processing states */}
       {video.status !== 'completed' && video.status !== 'failed' && (
-        <VideoProgress status={video.status} createdAt={video.created_at} progressDetail={video.progress_detail ?? null} progressPct={video.progress_pct ?? null} sceneCount={Array.isArray(video.script) ? video.script.length : (video.script as any)?._pipeline_input?.scenes?.length ?? 8} />
+        <>
+          <VideoProgress status={video.status} createdAt={video.created_at} progressDetail={video.progress_detail ?? null} progressPct={video.progress_pct ?? null} sceneCount={Array.isArray(video.script) ? video.script.length : (video.script as any)?._pipeline_input?.scenes?.length ?? 8} />
+          <div style={{
+            marginTop: 20,
+            padding: '14px 20px',
+            background: 'var(--bg-soft)',
+            borderRadius: 10,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            fontSize: 14,
+            color: 'var(--ink-soft)',
+            maxWidth: 640,
+            margin: '20px auto 0',
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker)" strokeWidth="2" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            <span>You can navigate away — we&apos;ll keep building your video. You&apos;ll find it in your <a href="/videos" style={{color: 'var(--mint-darker)', fontWeight: 600}}>library</a> when it&apos;s done.</span>
+          </div>
+        </>
       )}
 
       {video.status === 'failed' && (
