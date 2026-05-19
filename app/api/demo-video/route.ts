@@ -152,7 +152,7 @@ export async function POST(request: Request) {
       // STAGE 4: Generate TTS
       console.log(`[demo ${demoId}] Generating audio...`)
       const audioBuffers = await Promise.all(
-        scenes.map(scene => synthesizeSpeech(scene.narration, 'Kore'))
+        scenes.map(scene => synthesizeSpeech(scene.narration, 'nova'))
       )
       await admin.from('demo_videos').update({ status: 'assembling' }).eq('id', demoId)
 

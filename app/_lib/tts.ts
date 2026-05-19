@@ -1,46 +1,12 @@
-import { GoogleGenAI } from '@google/genai'
+import OpenAI from 'openai'
 
-let genaiClient: GoogleGenAI | null = null
+let client: OpenAI | null = null
 
-function getClient(): GoogleGenAI {
-  if (!genaiClient) {
-    genaiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+function getClient(): OpenAI {
+  if (!client) {
+    client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
   }
-  return genaiClient
-}
-
-/**
- * Convert raw PCM audio (24kHz, 16-bit, mono) to WAV buffer.
- * Gemini TTS returns raw PCM — FFmpeg needs a proper container.
- */
-function pcmToWav(pcmData: Buffer, sampleRate = 24000, channels = 1, bitsPerSample = 16): Buffer {
-  const byteRate = sampleRate * channels * (bitsPerSample / 8)
-  const blockAlign = channels * (bitsPerSample / 8)
-  const dataSize = pcmData.length
-  const headerSize = 44
-  const buffer = Buffer.alloc(headerSize + dataSize)
-
-  // RIFF header
-  buffer.write('RIFF', 0)
-  buffer.writeUInt32LE(36 + dataSize, 4)
-  buffer.write('WAVE', 8)
-
-  // fmt chunk
-  buffer.write('fmt ', 12)
-  buffer.writeUInt32LE(16, 16) // chunk size
-  buffer.writeUInt16LE(1, 20) // PCM format
-  buffer.writeUInt16LE(channels, 22)
-  buffer.writeUInt32LE(sampleRate, 24)
-  buffer.writeUInt32LE(byteRate, 28)
-  buffer.writeUInt16LE(blockAlign, 32)
-  buffer.writeUInt16LE(bitsPerSample, 34)
-
-  // data chunk
-  buffer.write('data', 36)
-  buffer.writeUInt32LE(dataSize, 40)
-  pcmData.copy(buffer, headerSize)
-
-  return buffer
+  return client
 }
 
 export async function synthesizeSpeech(
@@ -50,43 +16,39 @@ export async function synthesizeSpeech(
   // Guard against empty/whitespace narration
   if (!text?.trim()) {
     console.log('[tts] Empty narration text, generating silence')
-    return generateSilence()
+    return generateSilence(text)
   }
 
-  const client = getClient()
+  const openai = getClient()
 
-  // Retry up to 3 times with backoff
+  // Retry up to 3 times with backoff + 30s timeout per attempt
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const response = await client.models.generateContent({
-        model: 'gemini-3.1-flash-tts-preview',
-        contents: [{ parts: [{ text: text.slice(0, 8000) }] }],
-        config: {
-          responseModalities: ['AUDIO'],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: voiceId },
-            },
-          },
-        } as any,
-      })
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 30000) // 30s timeout
 
-      const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data
-      if (!audioData) {
-        throw new Error('Gemini TTS returned no audio data')
-      }
+      const response = await openai.audio.speech.create(
+        {
+          model: 'tts-1-hd',
+          voice: voiceId as 'alloy' | 'echo' | 'fable' | 'nova' | 'onyx' | 'shimmer',
+          input: text.slice(0, 4096), // OpenAI limit
+          response_format: 'mp3',
+          speed: 0.95,
+        },
+        { signal: controller.signal as any }
+      )
 
-      const pcmBuffer = Buffer.from(audioData, 'base64')
+      clearTimeout(timeout)
+
+      const arrayBuffer = await response.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
 
       // Verify we got actual audio
-      if (pcmBuffer.length < 100) {
-        throw new Error(`TTS returned suspiciously small audio: ${pcmBuffer.length} bytes`)
+      if (buffer.length < 100) {
+        throw new Error(`TTS returned suspiciously small audio: ${buffer.length} bytes`)
       }
 
-      // Convert raw PCM to WAV so FFmpeg can handle it
-      const wavBuffer = pcmToWav(pcmBuffer)
-      console.log(`[tts] Generated ${(wavBuffer.length / 1024).toFixed(0)}KB WAV for "${text.slice(0, 40)}..."`)
-      return wavBuffer
+      return buffer
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       console.error(`[tts] Attempt ${attempt}/3 failed for text "${text.slice(0, 50)}...": ${msg}`)
@@ -94,23 +56,47 @@ export async function synthesizeSpeech(
         await new Promise(r => setTimeout(r, 1000 * attempt))
       } else {
         console.error(`[tts] All 3 attempts failed, generating silence`)
-        return generateSilence()
+        return generateSilence(text)
       }
     }
   }
 
-  return generateSilence()
+  return generateSilence(text)
 }
 
 /**
- * Generate a minimal valid WAV silence buffer.
+ * Generate a valid silent MP3 using OpenAI TTS with a pause.
+ * Falls back to a minimal valid MP3 if that also fails.
  */
-function generateSilence(): Buffer {
-  // 1 second of silence at 24kHz, 16-bit mono
-  const sampleRate = 24000
-  const duration = 1 // seconds
-  const pcmData = Buffer.alloc(sampleRate * 2 * duration) // 16-bit = 2 bytes per sample
-  return pcmToWav(pcmData, sampleRate)
+async function generateSilence(originalText: string): Promise<Buffer> {
+  // Try generating a very short TTS clip with just "..." as a pause
+  try {
+    const openai = getClient()
+    const response = await openai.audio.speech.create({
+      model: 'tts-1',
+      voice: 'alloy',
+      input: '...',
+      response_format: 'mp3',
+      speed: 1.0,
+    })
+    const buf = Buffer.from(await response.arrayBuffer())
+    if (buf.length > 100) {
+      console.log(`[tts] Generated pause audio as fallback (${buf.length} bytes)`)
+      return buf
+    }
+  } catch {
+    console.error('[tts] Fallback pause generation also failed')
+  }
+
+  // Last resort: return a minimal valid MP3 file header
+  const silence = Buffer.alloc(417)
+  silence[0] = 0xFF
+  silence[1] = 0xFB
+  silence[2] = 0x90
+  silence[3] = 0x00
+  const frames: Buffer[] = []
+  for (let i = 0; i < 76; i++) frames.push(Buffer.from(silence))
+  return Buffer.concat(frames)
 }
 
 export async function synthesizeAllScenes(

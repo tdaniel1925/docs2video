@@ -191,10 +191,14 @@ export interface SentEmail {
   created_at: string
 }
 
-// Gemini TTS voices — high quality, natural sounding
+// OpenAI TTS voices — used by VPS for video narration
 export const VOICE_OPTIONS = [
-  { id: 'Kore', name: 'Kore', gender: 'Female', description: 'Clear, professional, and warm' },
-  { id: 'Puck', name: 'Puck', gender: 'Male', description: 'Confident, articulate, and engaging' },
+  { id: 'nova', name: 'Sarah', gender: 'Female', description: 'Friendly and warm — most popular' },
+  { id: 'shimmer', name: 'Emily', gender: 'Female', description: 'Gentle and reassuring' },
+  { id: 'onyx', name: 'James', gender: 'Male', description: 'Deep and authoritative' },
+  { id: 'echo', name: 'Michael', gender: 'Male', description: 'Warm and conversational' },
+  { id: 'alloy', name: 'Alex', gender: 'Neutral', description: 'Professional and balanced' },
+  { id: 'fable', name: 'Oliver', gender: 'Male', description: 'Expressive with British accent' },
 ] as const
 
 // Presentation styles

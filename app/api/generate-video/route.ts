@@ -259,19 +259,12 @@ export async function POST(request: Request) {
     console.log(`[video ${videoId}] Handing off to VPS: ${scenes.length} scenes, voice=${voiceId}, style=${templateId}`)
     await admin.from('videos').update({ progress_detail: 'Sending to video server...', progress_pct: 18 }).eq('id', videoId)
 
-    // Map Gemini voice IDs to OpenAI equivalents for VPS compatibility
-    const VOICE_MAP: Record<string, string> = {
-      'Kore': 'nova',    // Female → Female
-      'Puck': 'onyx',    // Male → Male
-    }
-    const vpsVoiceId = VOICE_MAP[voiceId] ?? voiceId
-
     const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
       body: JSON.stringify({
         videoId,
-        voiceId: vpsVoiceId,
+        voiceId,
         scenes,
         userId: user.id,
         slidePrompts,
