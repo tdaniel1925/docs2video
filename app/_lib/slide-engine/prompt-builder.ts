@@ -154,6 +154,7 @@ function buildContentSection(content: SlideContent): string {
         if (content.contactInfo.phone) parts.push(`Phone: ${content.contactInfo.phone}`)
         if (content.contactInfo.email) parts.push(`Email: ${content.contactInfo.email}`)
         if (content.contactInfo.website) parts.push(`Website: ${content.contactInfo.website}`)
+        if (content.contactInfo.calendly) parts.push(`Book a meeting: ${content.contactInfo.calendly}`)
       }
       break
   }

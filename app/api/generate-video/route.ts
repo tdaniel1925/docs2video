@@ -7,6 +7,9 @@ import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { isAdmin } from '../../_lib/admin'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
+import { buildSlidePrompt, extractLogoColors } from '../../_lib/slide-engine/prompt-builder'
+import { getTemplateSpec } from '../../_lib/slide-engine/templates'
+import type { SlideContent, BrandColors } from '../../_lib/slide-engine/types'
 
 export const runtime = 'nodejs'
 
@@ -165,34 +168,102 @@ export async function POST(request: Request) {
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15 }).eq('id', videoId)
     }
 
-    // STAGE 2: Hand off to VPS
-    console.log(`[video ${videoId}] Handing off to VPS: ${scenes.length} scenes, voice=${voiceId}, style=${styleId}`)
-    await admin.from('videos').update({ progress_detail: 'Starting generation...', progress_pct: 10 }).eq('id', videoId)
+    // STAGE 2: Build slide prompts from template spec + brand colors
+    console.log(`[video ${videoId}] Building slide prompts for ${scenes.length} scenes...`)
+    await admin.from('videos').update({ progress_detail: 'Preparing slides...', progress_pct: 12 }).eq('id', videoId)
 
-    // Determine image engine: OpenAI primary (better logos), Gemini fallback
-    const imageEngine = process.env.OPENAI_API_KEY ? 'openai' : 'gemini'
+    const templateId = (styleId ?? brand?.deck_style_id ?? 'executive') as string
+    const template = getTemplateSpec(templateId)
+
+    // Extract brand colors from logo (or use brand profile colors)
+    let brandColors: BrandColors = {
+      primary: brand?.primary_color ?? '#1B365D',
+      secondary: brand?.secondary_color ?? '#4A90D9',
+    }
+    const logoUrl = brand?.logo_file_url ?? brand?.logo_url ?? null
+    if (logoUrl) {
+      try {
+        const logoRes = await fetch(logoUrl, { signal: AbortSignal.timeout(8000) })
+        if (logoRes.ok) {
+          const logoBuffer = Buffer.from(await logoRes.arrayBuffer())
+          brandColors = await extractLogoColors(logoBuffer)
+        }
+      } catch (e) {
+        console.log(`[video ${videoId}] Logo color extraction failed, using profile colors`)
+      }
+    }
+
+    // Map each scene to a SlideContent and build the OpenAI prompt
+    const brandGuide = brand?.brand_guide_data as Record<string, string> | null
+    const slidePrompts = scenes.map((scene: any, i: number) => {
+      const isFirst = i === 0
+      const isLast = i === scenes.length - 1
+
+      let content: SlideContent
+      if (isFirst) {
+        content = {
+          layout: 'title',
+          headline: scene.title || (policyData as any)?.title || 'Presentation',
+          subtitle: scene.subtitle || brand?.name || '',
+          brandName: brand?.name,
+          contactInfo: { phone: brandGuide?.phone, website: brandGuide?.website, email: brandGuide?.email },
+          pageNumber: 1,
+          totalPages: scenes.length,
+        }
+      } else if (isLast) {
+        content = {
+          layout: 'closing',
+          headline: scene.title || 'Thank You',
+          brandName: brand?.name,
+          contactInfo: { phone: brandGuide?.phone, website: brandGuide?.website, email: brandGuide?.email, calendly: brandGuide?.calendly },
+          pageNumber: scenes.length,
+          totalPages: scenes.length,
+        }
+      } else {
+        // Detect layout from scene content
+        const hasStats = scene.stats?.length > 0 || scene.keyMetrics?.length > 0
+        const hasBullets = scene.bullets?.length > 0
+        const hasChart = scene.chartData != null
+
+        let layout: SlideContent['layout'] = 'bullets'
+        if (hasStats) layout = 'stats'
+        else if (hasChart) layout = 'chart'
+
+        content = {
+          layout,
+          headline: scene.title || '',
+          subtitle: scene.subtitle,
+          stats: scene.stats || scene.keyMetrics?.map((m: any) => ({ value: m.value, label: m.label })),
+          bullets: hasBullets ? scene.bullets : scene.slidePrompt ? [{ text: scene.slidePrompt }] : undefined,
+          chartData: scene.chartData,
+          brandName: brand?.name,
+          pageNumber: i + 1,
+          totalPages: scenes.length,
+        }
+      }
+
+      return buildSlidePrompt({
+        template,
+        brandColors,
+        logoDescription: logoUrl ? (brand?.name ?? 'brand logo') : undefined,
+        content,
+      })
+    })
+
+    // STAGE 3: Hand off to VPS with pre-built prompts
+    console.log(`[video ${videoId}] Handing off to VPS: ${scenes.length} scenes, voice=${voiceId}, style=${templateId}`)
+    await admin.from('videos').update({ progress_detail: 'Starting generation...', progress_pct: 15 }).eq('id', videoId)
 
     const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
       body: JSON.stringify({
         videoId,
-        policyData,
-        brandId,
         voiceId,
-        styleId: styleId ?? brand?.deck_style_id ?? 'executive',
         scenes,
         userId: user.id,
-        imageEngine,
-        purpose,
-        uploadMode,
-        industry,
-        brandColors: brand ? {
-          primary: brand.primary_color,
-          secondary: brand.secondary_color,
-          accent: brand.accent_color,
-        } : null,
-        logoUrl: brand?.logo_file_url ?? brand?.logo_url ?? null,
+        slidePrompts,
+        logoUrl,
       }),
       signal: AbortSignal.timeout(10000),
     })

@@ -14,7 +14,6 @@ const PORT = process.env.PORT || 4000
 const API_SECRET = process.env.API_SECRET || 'docs2video-assembly-secret-2026'
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 
 // Auth middleware
@@ -462,10 +461,10 @@ app.post('/convert', authCheck, async (req, res) => {
 // FULL PIPELINE — VPS does everything (no Vercel timeout risk)
 // ============================================================
 app.post('/generate', authCheck, async (req, res) => {
-  const { videoId, policyData, brandId, voiceId, styleId, scenes, userId } = req.body
+  const { videoId, voiceId, scenes, userId, slidePrompts, logoUrl } = req.body
 
-  if (!videoId || !scenes?.length || !userId) {
-    return res.status(400).json({ error: 'Missing videoId, scenes, or userId' })
+  if (!videoId || !scenes?.length || !userId || !slidePrompts?.length) {
+    return res.status(400).json({ error: 'Missing videoId, scenes, userId, or slidePrompts' })
   }
 
   // Read env vars at request time (not module load time) in case they were set after startup
@@ -488,10 +487,10 @@ app.post('/generate', authCheck, async (req, res) => {
   }
 
   try {
-    console.log(`[${videoId}] FULL PIPELINE: ${scenes.length} scenes, voice=${voiceId}, style=${styleId}`)
+    console.log(`[${videoId}] FULL PIPELINE: ${scenes.length} scenes, voice=${voiceId}, ${slidePrompts.length} prompts`)
 
     // STAGE 1+2: Generate audio AND slides IN PARALLEL
-    await updateStatus('generating_audio', `Generating audio and slides...`, 10)
+    await updateStatus('generating_audio', 'Generating audio and slides...', 10)
     const OpenAI = require('openai')
     const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 
@@ -520,208 +519,70 @@ app.post('/generate', authCheck, async (req, res) => {
       return buffers
     })()
 
-    // Slides run in parallel with audio
-    await updateStatus('generating_slides', `Designing slides...`, 30)
-    const { GoogleGenAI } = require('@google/genai')
-    const genai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
-    const IMAGE_MODEL = process.env.IMAGE_MODEL || 'gemini-3-pro-image-preview'
+    // Slides: OpenAI GPT Image using pre-built prompts from Vercel
+    await updateStatus('generating_slides', 'Designing slides...', 30)
 
-    // Get brand data
-    let brand = null
-    if (brandId) {
-      const { data } = await supabase.from('brands').select('*').eq('id', brandId).single()
-      brand = data
-    }
-    const colors = {
-      primary: brand?.primary_color || '#1B365D',
-      secondary: brand?.secondary_color || '#4A90D9',
-      accent: brand?.accent_color || '#FFB347',
-      background: brand?.background_color || '#0a1628',
-      text: brand?.text_color || '#FFFFFF',
-    }
-
-    // Load template reference
-    const fs = require('fs')
-    const path = require('path')
-    let templateRefBase64 = null
-    try {
-      // Try to fetch from the deployed site
-      const refUrl = `https://docs2video.com/style-previews/${styleId || 'executive'}.png`
-      const refRes = await fetch(refUrl)
-      if (refRes.ok) templateRefBase64 = Buffer.from(await refRes.arrayBuffer()).toString('base64')
-    } catch {}
-
-    const slideBuffers = []
-    for (let i = 0; i < scenes.length; i += 5) {
-      const batch = scenes.slice(i, Math.min(i + 5, scenes.length))
-      const results = await Promise.all(batch.map(async (scene, j) => {
-        const idx = i + j
-        const isFirst = idx === 0
-        const isLast = idx === scenes.length - 1
-        try {
-          const parts = []
-
-          // Build slide prompt
-          let visualContent
-          if (isFirst) {
-            visualContent = 'Create a beautiful DECORATIVE BACKGROUND for a cover slide. Do NOT include any text, titles, logos, or brand names. Design an elegant background with a clear central area for an overlay.'
-          } else if (isLast) {
-            visualContent = 'Create a beautiful DECORATIVE BACKGROUND for a closing slide. Do NOT include any text, titles, logos, or brand names.'
-          } else {
-            visualContent = `Create a professional CONTENT slide. The narration discusses: ${scene.slidePrompt || scene.narration?.slice(0, 200)}. Use icons and data points. Maximum 50 words of text. Keep ALL content in the top 980 pixels — bottom 100px will have a branded bar.`
-          }
-
-          const prompt = `Generate a presentation slide image. 1920x1080 pixels, landscape, 16:9.
-STYLE: ${styleId || 'executive'} presentation style.
-COLORS: Primary ${colors.primary}, Secondary ${colors.secondary}, Accent ${colors.accent}, Background ${colors.background}, Text ${colors.text}
-CONTENT: ${visualContent}
-RULES: Do NOT render any logos or brand names. Do NOT place content in the bottom 100px.`
-
-          if (templateRefBase64) {
-            parts.push({ text: 'Match the visual style of this reference image:' })
-            parts.push({ inlineData: { mimeType: 'image/png', data: templateRefBase64 } })
-          }
-          parts.push({ text: prompt })
-
-          // Retry up to 3 times on failure (handles Gemini 503 overload)
-          for (let attempt = 1; attempt <= 3; attempt++) {
-            try {
-              const response = await genai.models.generateContent({
-                model: IMAGE_MODEL,
-                contents: [{ role: 'user', parts }],
-                config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '4K' } } },
-              })
-              const respParts = response.candidates?.[0]?.content?.parts ?? []
-              for (const rp of respParts) {
-                if (rp.inlineData) return Buffer.from(rp.inlineData.data, 'base64')
-              }
-              throw new Error('No image in response')
-            } catch (retryErr) {
-              console.error(`[${videoId}] Slide ${idx + 1} attempt ${attempt}/3 failed:`, retryErr.message?.slice(0, 100))
-              if (attempt < 3) await new Promise(r => setTimeout(r, 5000 * attempt))
-            }
-          }
-          return Buffer.alloc(100) // All retries failed
-        } catch (e) {
-          console.error(`[${videoId}] Slide ${idx + 1} error:`, e.message)
-          return Buffer.alloc(100)
-        }
-      }))
-      slideBuffers.push(...results)
-      const done = Math.min(i + 5, scenes.length)
-      console.log(`[${videoId}] Slides ${done}/${scenes.length}`)
-      await updateStatus('generating_slides', `Designed ${done} of ${scenes.length} slides...`, 30 + Math.round((done / scenes.length) * 35))
-    }
-    console.log(`[${videoId}] Slides complete: ${slideBuffers.length}`)
-
-    // Wait for audio to finish (it ran in parallel with slides)
-    const audioBuffers = await audioPromise
-    console.log(`[${videoId}] Audio + slides both done`)
-
-    // STAGE 2.5: Sharp overlays — cover title, bottom bar with logo, closing
-    await updateStatus('generating_slides', 'Adding branding...', 68)
-    const sharp = require('sharp')
-
-    // Get brand logo + contact info
-    let logoBuffer = null
-    const logoUrl = brand?.logo_file_url || brand?.logo_url || null
+    // Fetch logo image if available (for reference in prompts)
+    let logoBase64 = null
     if (logoUrl) {
       try {
         const logoRes = await fetch(logoUrl, { signal: AbortSignal.timeout(8000) })
-        if (logoRes.ok) logoBuffer = Buffer.from(await logoRes.arrayBuffer())
+        if (logoRes.ok) logoBase64 = Buffer.from(await logoRes.arrayBuffer()).toString('base64')
       } catch (e) { console.log(`[${videoId}] Logo fetch failed:`, e.message) }
     }
 
-    const brandGuide = brand?.brand_guide_data || {}
-    const contactPhone = brandGuide.phone || ''
-    const contactWebsite = brandGuide.website || ''
-    const brandName = brand?.name || ''
+    const slideBuffers = []
+    for (let i = 0; i < slidePrompts.length; i += 3) {
+      const batch = slidePrompts.slice(i, Math.min(i + 3, slidePrompts.length))
+      const results = await Promise.all(batch.map(async (prompt, j) => {
+        const idx = i + j
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            // gpt-image-1 uses prompt + optional image input
+            const imageInput = []
+            if (logoBase64) {
+              imageInput.push({ type: 'input_image', image_url: `data:image/png;base64,${logoBase64}` })
+            }
 
-    // Helper: escape XML
-    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+            const response = await openai.images.generate({
+              model: 'gpt-image-1',
+              prompt: logoBase64
+                ? `Use the provided brand logo image in this slide. Keep the logo in its ORIGINAL colors.\n\n${prompt}`
+                : prompt,
+              size: '1536x1024',
+              quality: 'high',
+              n: 1,
+              ...(imageInput.length > 0 ? { image: imageInput } : {}),
+            })
 
-    // Generate bottom bar with logo + contact info for middle slides
-    let bottomBarBuffer = null
-    if (logoBuffer || brandName) {
-      const barH = 100
-      const w = 1920, h = 1080
-      const hex = (colors.primary || '#1B365D').replace('#', '')
-      const r = parseInt(hex.substring(0, 2), 16) || 20
-      const g = parseInt(hex.substring(2, 4), 16) || 20
-      const b = parseInt(hex.substring(4, 6), 16) || 40
-
-      // Resize logo for bar
-      let logoForBar = null
-      let logoW = 0
-      if (logoBuffer) {
-        logoForBar = await sharp(logoBuffer).resize(140, 50, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()
-        const meta = await sharp(logoForBar).metadata()
-        logoW = meta.width || 140
-      }
-
-      // Build bar SVG with contact info
-      const contactText = [contactPhone, contactWebsite].filter(Boolean).join('  |  ')
-      const barSvg = Buffer.from(`<svg width="${w}" height="${barH}" xmlns="http://www.w3.org/2000/svg">
-        <rect x="0" y="0" width="${w}" height="1" fill="${colors.text || '#fff'}" fill-opacity="0.15"/>
-        <rect x="0" y="1" width="${w}" height="${barH - 1}" fill="rgb(${r},${g},${b})" fill-opacity="0.95"/>
-        <text x="${w / 2}" y="${barH / 2 + 5}" font-family="Arial, sans-serif" font-size="14" fill="${colors.text || '#fff'}" fill-opacity="0.7" text-anchor="middle">${esc(contactText)}</text>
-      </svg>`)
-
-      const barPng = await sharp(barSvg).png().toBuffer()
-      const composites = [{ input: barPng, left: 0, top: h - barH }]
-
-      if (logoForBar) {
-        composites.push({ input: logoForBar, left: 40, top: h - barH + Math.round((barH - 50) / 2) })
-      }
-
-      bottomBarBuffer = await sharp({ create: { width: w, height: h, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
-        .composite(composites).png().toBuffer()
-      console.log(`[${videoId}] Bottom bar generated`)
-    }
-
-    // Generate cover overlay (logo + title)
-    let coverOverlayBuffer = null
-    if (logoBuffer) {
-      const w = 1920, h = 1080
-      const logoMaxW = 500, logoMaxH = 280
-      const resizedLogo = await sharp(logoBuffer).resize(logoMaxW, logoMaxH, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()
-      const logoMeta = await sharp(resizedLogo).metadata()
-      const lw = logoMeta.width || logoMaxW, lh = logoMeta.height || logoMaxH
-      const logoLeft = Math.round((w - lw) / 2), logoTop = Math.round(h * 0.18)
-
-      const title = (policyData?.title || policyData?.policyType || 'Presentation').slice(0, 80)
-      const subtitle = policyData?.subtitle || brandName || ''
-      const textY = logoTop + lh + 50
-      const svgText = Buffer.from(`<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
-        <text x="${w / 2 + 1}" y="${textY + 2}" font-family="Arial, sans-serif" font-size="52" font-weight="bold" fill="black" fill-opacity="0.4" text-anchor="middle">${esc(title)}</text>
-        <text x="${w / 2}" y="${textY}" font-family="Arial, sans-serif" font-size="52" font-weight="bold" fill="${colors.text || '#fff'}" text-anchor="middle">${esc(title)}</text>
-        ${subtitle ? `<text x="${w / 2}" y="${textY + 60}" font-family="Arial, sans-serif" font-size="28" fill="${colors.text || '#fff'}" fill-opacity="0.85" text-anchor="middle">${esc(subtitle)}</text>` : ''}
-      </svg>`)
-
-      coverOverlayBuffer = await sharp({ create: { width: w, height: h, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
-        .composite([
-          { input: resizedLogo, left: logoLeft, top: logoTop },
-          { input: svgText, left: 0, top: 0 },
-        ]).png().toBuffer()
-      console.log(`[${videoId}] Cover overlay generated`)
-    }
-
-    // Apply overlays to slides
-    for (let i = 0; i < slideBuffers.length; i++) {
-      if (slideBuffers[i].length < 200) continue // Skip failed slides
-      try {
-        const isFirst = i === 0
-        const isLast = i === slideBuffers.length - 1
-        const overlay = isFirst ? coverOverlayBuffer : (isLast ? coverOverlayBuffer : bottomBarBuffer)
-        if (overlay) {
-          const resized = await sharp(overlay).resize(1920, 1080, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()
-          slideBuffers[i] = await sharp(slideBuffers[i]).composite([{ input: resized, left: 0, top: 0 }]).png().toBuffer()
+            const imageData = response.data?.[0]
+            if (imageData?.b64_json) {
+              return Buffer.from(imageData.b64_json, 'base64')
+            } else if (imageData?.url) {
+              const imgRes = await fetch(imageData.url)
+              return Buffer.from(await imgRes.arrayBuffer())
+            }
+            throw new Error('No image in response')
+          } catch (retryErr) {
+            console.error(`[${videoId}] Slide ${idx + 1} attempt ${attempt}/3 failed:`, retryErr.message?.slice(0, 150))
+            if (attempt < 3) await new Promise(r => setTimeout(r, 3000 * attempt))
+          }
         }
-      } catch (e) { console.error(`[${videoId}] Overlay failed for slide ${i}:`, e.message) }
+        console.error(`[${videoId}] Slide ${idx + 1} all attempts failed`)
+        return Buffer.alloc(100)
+      }))
+      slideBuffers.push(...results)
+      const done = Math.min(i + 3, slidePrompts.length)
+      console.log(`[${videoId}] Slides ${done}/${slidePrompts.length}`)
+      await updateStatus('generating_slides', `Designed ${done} of ${slidePrompts.length} slides...`, 30 + Math.round((done / slidePrompts.length) * 35))
     }
-    console.log(`[${videoId}] Overlays applied`)
+    console.log(`[${videoId}] Slides complete: ${slideBuffers.length}`)
 
-    // STAGE 3: Assemble with FFmpeg
+    // Wait for audio to finish
+    const audioBuffers = await audioPromise
+    console.log(`[${videoId}] Audio + slides both done`)
+
+    // STAGE 3: Assemble with FFmpeg (no Sharp overlays needed — OpenAI bakes everything in)
     await updateStatus('assembling', 'Assembling your video...', 70)
     const workDir = join(tmpdir(), `d2v-${randomUUID()}`)
     await mkdir(workDir, { recursive: true })

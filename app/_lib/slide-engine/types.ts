@@ -71,7 +71,7 @@ export interface SlideContent {
   leftLabel?: string
   rightLabel?: string
   brandName?: string
-  contactInfo?: { phone?: string; website?: string; email?: string }
+  contactInfo?: { phone?: string; website?: string; email?: string; calendly?: string }
   pageNumber?: number
   totalPages?: number
 }
