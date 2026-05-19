@@ -32,7 +32,7 @@ export default async function DashboardPage() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
   const [{ data: videos }, { data: otherCreations }, { count: videoCount }, { count: videoMonthCount }] = await Promise.all([
-    supabase.from('videos').select('id, title, thumbnail_url, video_url, status, created_at')
+    supabase.from('videos').select('id, title, thumbnail_url, video_url, status, progress_pct, progress_detail, created_at')
       .eq('user_id', user!.id).order('created_at', { ascending: false }).limit(8),
     supabase.from('creations').select('*')
       .eq('user_id', user!.id).neq('type', 'video').order('created_at', { ascending: false }).limit(8),
@@ -51,7 +51,7 @@ export default async function DashboardPage() {
     ...(videos ?? []).map((v: any) => ({
       id: v.id, type: 'video', title: v.title, thumbnail_url: v.thumbnail_url,
       file_url: v.video_url, credits_used: 3, created_at: v.created_at, _videoId: v.id,
-      _status: v.status,
+      _status: v.status, _progressPct: v.progress_pct, _progressDetail: v.progress_detail,
     })),
     ...(otherCreations ?? []).map((c: any) => ({ ...c, _videoId: null })),
   ].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -308,20 +308,27 @@ export default async function DashboardPage() {
 
                   {/* Status badge */}
                   {item._status && item._status !== 'completed' ? (
-                    <span style={{
-                      flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6,
-                      padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                      background: item._status === 'failed' ? '#fef2f2' : 'rgba(168,240,212,0.2)',
-                      color: item._status === 'failed' ? '#991b1b' : 'var(--ink)',
-                      border: item._status === 'failed' ? '1px solid #fca5a5' : '1px solid var(--mint)',
-                    }}>
-                      {item._status === 'failed' ? 'Failed' : (
-                        <>
-                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--mint)', animation: 'pulseGlow 2s ease infinite' }} />
-                          Processing
-                        </>
+                    <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, minWidth: 120 }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                        background: item._status === 'failed' ? '#fef2f2' : 'rgba(168,240,212,0.2)',
+                        color: item._status === 'failed' ? '#991b1b' : 'var(--ink)',
+                        border: item._status === 'failed' ? '1px solid #fca5a5' : '1px solid var(--mint)',
+                      }}>
+                        {item._status === 'failed' ? 'Failed' : (
+                          <>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--mint)', animation: 'pulseGlow 2s ease infinite' }} />
+                            {item._progressPct ? `${item._progressPct}%` : 'Processing'}
+                          </>
+                        )}
+                      </span>
+                      {item._progressDetail && item._status !== 'failed' && (
+                        <span style={{ fontSize: 11, color: 'var(--ink-light)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item._progressDetail}
+                        </span>
                       )}
-                    </span>
+                    </div>
                   ) : (
                     <span className={`tag ${badge.color}`} style={{ flexShrink: 0 }}>
                       {badge.label}

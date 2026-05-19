@@ -79,7 +79,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
   const [{ data: videos }, { data: otherCreations }] = await Promise.all([
     supabase
       .from('videos')
-      .select('id, user_id, title, thumbnail_url, video_url, status, created_at')
+      .select('id, user_id, title, thumbnail_url, video_url, status, progress_pct, progress_detail, created_at')
       .eq('user_id', user!.id)
       .order('created_at', { ascending: false }),
     supabase
@@ -101,8 +101,8 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
       file_url: v.video_url,
       credits_used: 3,
       created_at: v.created_at,
-      _videoId: v.id, // Keep the real video ID
-      _status: v.status,
+      _videoId: v.id,
+      _status: v.status, _progressPct: v.progress_pct, _progressDetail: v.progress_detail,
     })),
     ...(otherCreations ?? []).map(c => ({
       ...c,
@@ -231,11 +231,18 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
                     </span>
                   ) : null
                 })()}
-                {/* Video status badge */}
+                {/* Video status badge with progress */}
                 {isVideo && item._status && item._status !== 'completed' && (
-                  <span className={`tag ${item._status === 'failed' ? 'rose' : 'peach'}`} style={{ flexShrink: 0, fontSize: 11 }}>
-                    {item._status === 'failed' ? 'Failed' : 'Processing'}
-                  </span>
+                  <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                    <span className={`tag ${item._status === 'failed' ? 'rose' : 'peach'}`} style={{ fontSize: 11 }}>
+                      {item._status === 'failed' ? 'Failed' : (item as any)._progressPct ? `${(item as any)._progressPct}%` : 'Processing'}
+                    </span>
+                    {(item as any)._progressDetail && item._status !== 'failed' && (
+                      <span style={{ fontSize: 10, color: 'var(--ink-light)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {(item as any)._progressDetail}
+                      </span>
+                    )}
+                  </div>
                 )}
 
                 {/* Date */}
