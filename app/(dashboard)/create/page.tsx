@@ -3235,66 +3235,12 @@ export default function CreatePage() {
       {/* Step: Generating */}
       {step === 'generating' && (
         <div className="wizard-card" style={{ textAlign: 'center', padding: '48px 32px' }}>
-          {/* Progress bar */}
-          <div style={{ maxWidth: 400, margin: '0 auto 28px', height: 6, background: 'var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-            <div style={{
-              height: '100%', borderRadius: 10, background: 'var(--mint)',
-              transition: 'width 1s ease',
-              width: generatingElapsed < 5 ? '10%'
-                : generatingElapsed < 15 ? '25%'
-                : generatingElapsed < 30 ? '45%'
-                : generatingElapsed < 50 ? '65%'
-                : generatingElapsed < 75 ? '80%'
-                : '92%',
-            }} />
-          </div>
-
-          {/* Stage indicators */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginBottom: 28, flexWrap: 'wrap' }}>
-            {[
-              { label: 'Writing script', threshold: 0 },
-              { label: 'Generating audio', threshold: 10 },
-              { label: 'Designing slides', threshold: 25 },
-              { label: 'Assembling video', threshold: 45 },
-            ].map((stage, i) => {
-              const isActive = generatingElapsed >= stage.threshold
-              const thresholds = [10, 25, 45, 999]
-              const isDone = generatingElapsed >= thresholds[i]
-              return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{
-                    width: 24, height: 24, borderRadius: '50%',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 700,
-                    background: isDone ? 'var(--mint)' : isActive ? 'var(--ink)' : 'var(--border)',
-                    color: isDone ? 'var(--ink)' : isActive ? 'white' : 'var(--ink-light)',
-                    transition: 'all 0.3s ease',
-                  }}>
-                    {isDone ? '\u2713' : i + 1}
-                  </div>
-                  <span style={{
-                    fontSize: 13, fontWeight: isActive ? 700 : 500,
-                    color: isActive ? 'var(--ink)' : 'var(--ink-light)',
-                    transition: 'all 0.3s ease',
-                  }}>
-                    {stage.label}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Status message */}
+          <div className="spinner" style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--mint)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 20px' }} />
           <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>
-            {generatingElapsed < 5 ? 'Writing your video script...' :
-             generatingElapsed < 15 ? 'Generating voiceover audio...' :
-             generatingElapsed < 30 ? 'Designing slide visuals...' :
-             generatingElapsed < 50 ? 'Assembling your video...' :
-             generatingElapsed < 75 ? 'Almost there \u2014 finalizing...' :
-             'Still working \u2014 longer videos take a bit more time...'}
+            Setting up your video...
           </p>
           <p style={{ marginTop: 8, fontSize: 13, color: 'var(--ink-light)' }}>
-            {generatingElapsed}s elapsed
+            You'll be redirected to track progress in a moment.
           </p>
         </div>
       )}

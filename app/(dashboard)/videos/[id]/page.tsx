@@ -52,9 +52,9 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
   const pct = progressPct != null ? Math.min(95, progressPct) : fallbackPct
   const currentStep = PROGRESS_STEPS[effectiveIdx] ?? PROGRESS_STEPS[0]
 
-  // Estimate: ~30s script + ~10s per slide audio + ~20s per slide image + ~60s assembly
+  // Estimate: ~30s script + ~10s per slide audio + ~25s per slide image + ~30s music + ~60s assembly
   const slides = Math.max(sceneCount, 5)
-  const estimatedTotal = 30 + (slides * 10) + (slides * 20) + 60
+  const estimatedTotal = 30 + (slides * 10) + (slides * 25) + 30 + 60
   const timeRemaining = Math.max(0, estimatedTotal - elapsed)
   const minutes = Math.floor(timeRemaining / 60)
   const seconds = timeRemaining % 60
