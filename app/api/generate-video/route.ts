@@ -264,6 +264,8 @@ export async function POST(request: Request) {
         userId: user.id,
         slidePrompts,
         logoUrl,
+        musicPrompt: musicPrompt || '',
+        industry: industry || '',
       }),
       signal: AbortSignal.timeout(10000),
     })

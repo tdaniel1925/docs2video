@@ -15,6 +15,7 @@ const API_SECRET = process.env.API_SECRET || 'docs2video-assembly-secret-2026'
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 
 // Auth middleware
 function authCheck(req, res, next) {
@@ -461,7 +462,7 @@ app.post('/convert', authCheck, async (req, res) => {
 // FULL PIPELINE — VPS does everything (no Vercel timeout risk)
 // ============================================================
 app.post('/generate', authCheck, async (req, res) => {
-  const { videoId, voiceId, scenes, userId, slidePrompts, logoUrl } = req.body
+  const { videoId, voiceId, scenes, userId, slidePrompts, logoUrl, musicPrompt, industry } = req.body
 
   if (!videoId || !scenes?.length || !userId || !slidePrompts?.length) {
     return res.status(400).json({ error: 'Missing videoId, scenes, userId, or slidePrompts' })
@@ -624,15 +625,99 @@ app.post('/generate', authCheck, async (req, res) => {
     }
 
     // Concatenate
-    await updateStatus('assembling', 'Joining clips together...', 88)
+    await updateStatus('assembling', 'Joining clips together...', 85)
     const concatFile = join(workDir, 'concat.txt')
     await writeFile(concatFile, clipFiles.map(f => `file '${f}'`).join('\n'))
     const outputPath = join(workDir, 'output.mp4')
     await runFfmpeg(['-f', 'concat', '-safe', '0', '-i', concatFile, '-c', 'copy', '-movflags', '+faststart', '-y', outputPath])
 
+    // STAGE 4: Generate background music with Lyria 3 Pro + mix
+    const totalDurationEst = durations.reduce((s, d) => s + d, 0)
+    let finalPath = outputPath
+
+    if (GEMINI_API_KEY) {
+      try {
+        await updateStatus('assembling', 'Composing background music...', 88)
+        const { GoogleGenAI } = require('@google/genai')
+        const genai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+
+        // Build music prompt based on industry/mood
+        const durationMin = Math.floor(totalDurationEst / 60)
+        const durationSec = Math.round(totalDurationEst % 60)
+        const durationStr = durationMin > 0 ? `${durationMin} minute${durationMin > 1 ? 's' : ''} and ${durationSec} seconds` : `${durationSec} seconds`
+
+        const industryMoods = {
+          insurance: 'trustworthy, warm, reassuring',
+          finance: 'confident, sophisticated, professional',
+          healthcare: 'caring, hopeful, clean',
+          technology: 'innovative, energetic, modern',
+          education: 'inspiring, uplifting, bright',
+          realestate: 'elegant, aspirational, warm',
+          legal: 'authoritative, polished, dignified',
+          marketing: 'dynamic, creative, upbeat',
+          consulting: 'strategic, confident, forward-thinking',
+          nonprofit: 'heartfelt, inspiring, community-driven',
+          retail: 'fun, energetic, inviting',
+          manufacturing: 'strong, reliable, progressive',
+        }
+        const mood = industryMoods[industry] || 'professional, upbeat, confident'
+        const customPrompt = musicPrompt || ''
+
+        const lyricaPrompt = `Create a ${durationStr} background music track. Instrumental only, absolutely no vocals or singing. ${mood} feel. Upbeat corporate presentation music with driving rhythm, modern piano, light synth accents, and soft percussion. The track should feel polished and motivating — suitable for a professional business video presentation. ${customPrompt}. Fade out naturally at the end.`
+
+        console.log(`[${videoId}] Generating music with Lyria 3 Pro (${durationStr})...`)
+
+        const musicResponse = await genai.models.generateContent({
+          model: 'lyria-3-pro-preview',
+          contents: lyricaPrompt,
+        })
+
+        const musicParts = musicResponse.candidates?.[0]?.content?.parts ?? []
+        let musicSaved = false
+        for (const mp of musicParts) {
+          if (mp.inlineData && mp.inlineData.mimeType?.includes('audio')) {
+            const musicPath = join(workDir, 'bgmusic.mp3')
+            await writeFile(musicPath, Buffer.from(mp.inlineData.data, 'base64'))
+            console.log(`[${videoId}] Music generated: ${(Buffer.from(mp.inlineData.data, 'base64').length / 1024 / 1024).toFixed(1)}MB`)
+
+            // Mix music under narration
+            await updateStatus('assembling', 'Mixing background music...', 91)
+            const fadeOutStart = Math.max(0, totalDurationEst - 3)
+            const mixedPath = join(workDir, 'output_with_music.mp4')
+            await runFfmpeg([
+              '-i', outputPath,
+              '-stream_loop', '-1',
+              '-i', musicPath,
+              '-filter_complex',
+              `[1:a]volume=0.12,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[0:a][music]amix=inputs=2:duration=first[out]`,
+              '-map', '0:v',
+              '-map', '[out]',
+              '-c:v', 'copy',
+              '-c:a', 'aac',
+              '-b:a', '192k',
+              '-movflags', '+faststart',
+              '-y',
+              mixedPath,
+            ])
+            finalPath = mixedPath
+            musicSaved = true
+            console.log(`[${videoId}] Music mixed successfully`)
+            break
+          }
+        }
+        if (!musicSaved) {
+          console.log(`[${videoId}] No audio in Lyria response, continuing without music`)
+        }
+      } catch (musicErr) {
+        console.error(`[${videoId}] Music generation failed, continuing without:`, musicErr.message)
+      }
+    } else {
+      console.log(`[${videoId}] No GEMINI_API_KEY, skipping music generation`)
+    }
+
     // Read and upload
-    await updateStatus('assembling', 'Uploading video...', 92)
-    const videoBuffer = await readFile(outputPath)
+    await updateStatus('assembling', 'Uploading video...', 94)
+    const videoBuffer = await readFile(finalPath)
     console.log(`[${videoId}] Video: ${(videoBuffer.length / 1024 / 1024).toFixed(1)}MB`)
 
     const videoStoragePath = `${userId}/${videoId}.mp4`
@@ -656,7 +741,7 @@ app.post('/generate', authCheck, async (req, res) => {
     }
 
     // Mark complete — with explicit error logging
-    const totalDuration = durations.reduce((s, d) => s + d, 0)
+    const totalDuration = totalDurationEst
     try {
       const { error: updateError } = await supabase.from('videos').update({
         video_url: urlData.publicUrl,
