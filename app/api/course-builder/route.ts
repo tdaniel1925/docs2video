@@ -121,7 +121,7 @@ RULES:
             _pipeline_input: {
               policyData,
               brandId: null,
-              voiceId: 'alloy',
+              voiceId: 'Kore',
               styleId: 'executive',
               detailed: false,
             },

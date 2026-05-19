@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     for (let i = 0; i < updatedScenes.length; i++) {
       if (changedAudioIndexes.includes(i)) {
         console.log(`[re-render ${videoId}] Generating new TTS for scene ${i}...`)
-        const audioBuffer = await synthesizeSpeech(updatedScenes[i].narration, voiceId || 'nova')
+        const audioBuffer = await synthesizeSpeech(updatedScenes[i].narration, voiceId || 'Kore')
         audioBuffers.push(audioBuffer)
       } else if (existingAudioUrls[i]) {
         // Download existing audio
@@ -62,16 +62,16 @@ export async function POST(request: Request) {
             audioBuffers.push(Buffer.from(await audioRes.arrayBuffer()))
           } else {
             // Fallback: regenerate
-            const audioBuffer = await synthesizeSpeech(updatedScenes[i].narration, voiceId || 'nova')
+            const audioBuffer = await synthesizeSpeech(updatedScenes[i].narration, voiceId || 'Kore')
             audioBuffers.push(audioBuffer)
           }
         } catch {
-          const audioBuffer = await synthesizeSpeech(updatedScenes[i].narration, voiceId || 'nova')
+          const audioBuffer = await synthesizeSpeech(updatedScenes[i].narration, voiceId || 'Kore')
           audioBuffers.push(audioBuffer)
         }
       } else {
         // No existing audio, generate fresh
-        const audioBuffer = await synthesizeSpeech(updatedScenes[i].narration, voiceId || 'nova')
+        const audioBuffer = await synthesizeSpeech(updatedScenes[i].narration, voiceId || 'Kore')
         audioBuffers.push(audioBuffer)
       }
     }

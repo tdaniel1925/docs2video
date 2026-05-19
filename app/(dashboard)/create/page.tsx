@@ -154,6 +154,7 @@ export default function CreatePage() {
   const [multiDocData, setMultiDocData] = useState<ExtractedData[]>([])
   const [comparisonNotes, setComparisonNotes] = useState('')
   const [brands, setBrands] = useState<Brand[]>([])
+  const [brandsLoaded, setBrandsLoaded] = useState(false)
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null)
   const [extractedData, setExtractedData] = useState<ExtractedPolicyData | null>(null)
   const [generalData, setGeneralData] = useState<ExtractedData | null>(null)
@@ -253,10 +254,13 @@ export default function CreatePage() {
         .order('is_default', { ascending: false })
       if (data) {
         setBrands(data as Brand[])
-        // Don't auto-select default brand — let user choose on Options page
-        // const defaultBrand = data.find((b: Brand) => b.is_default)
-        // if (defaultBrand) setSelectedBrand(defaultBrand.id)
+        // Auto-select default brand if user hasn't chosen yet
+        if (!selectedBrand) {
+          const defaultBrand = data.find((b: Brand) => b.is_default)
+          if (defaultBrand) setSelectedBrand(defaultBrand.id)
+        }
       }
+      setBrandsLoaded(true)
       // Load user's default style and plan
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
@@ -2122,7 +2126,17 @@ export default function CreatePage() {
               </div>
               <div className="wizard-actions">
                 <button onClick={() => setStep('upload')} className="btn btn-soft">&larr; Back to Review</button>
-                <button onClick={() => setStep('options')} className="btn btn-primary">Next: Final Options &rarr;</button>
+                <button
+                  onClick={() => {
+                    if (!editableScenes || editableScenes.length === 0) {
+                      setError('Please wait for the script to generate, or add at least one scene.')
+                      return
+                    }
+                    setStep('options')
+                  }}
+                  disabled={!editableScenes || editableScenes.length === 0}
+                  className="btn btn-primary"
+                >Next: Final Options &rarr;</button>
               </div>
             </>
           )}
@@ -2987,6 +3001,11 @@ export default function CreatePage() {
               Select a brand to apply its logo, colors, and style to your video. Your logo will appear on the cover, closing slide, and as a watermark on every slide.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+              {!brandsLoaded && (
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--ink-light)', fontSize: 13, gridColumn: '1 / -1' }}>
+                  Loading brands...
+                </div>
+              )}
               {/* No brand option */}
               <button
                 type="button"

@@ -49,13 +49,13 @@ export async function POST(request: Request) {
           user_id: targetUserId,
           title: item.name || `Bulk Video ${i + 1}`,
           status: 'pending',
-          voice_id: 'nova',
+          voice_id: 'Kore',
           is_trial: false,
           script: {
             _pipeline_input: {
               policyData: { rawText: item.documentText ?? '', sourceUrl: item.documentUrl ?? '' },
               brandId: null,
-              voiceId: 'nova',
+              voiceId: 'Kore',
               styleId: 'executive',
             },
           },
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           videoId: video.id,
           policyData: { rawText: item.documentText ?? '', sourceUrl: item.documentUrl ?? '' },
-          voiceId: 'nova',
+          voiceId: 'Kore',
           styleId: 'executive',
         }),
       })

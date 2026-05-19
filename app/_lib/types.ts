@@ -191,15 +191,10 @@ export interface SentEmail {
   created_at: string
 }
 
-// OpenAI TTS voices — these voices support automatic language detection
-// They will speak in whatever language the text is written in
+// Gemini TTS voices — high quality, natural sounding
 export const VOICE_OPTIONS = [
-  { id: 'nova', name: 'Sarah', gender: 'Female', description: 'Friendly and warm — most popular' },
-  { id: 'shimmer', name: 'Emily', gender: 'Female', description: 'Gentle and reassuring' },
-  { id: 'onyx', name: 'James', gender: 'Male', description: 'Deep and authoritative' },
-  { id: 'echo', name: 'Michael', gender: 'Male', description: 'Warm and conversational' },
-  { id: 'alloy', name: 'Alex', gender: 'Neutral', description: 'Professional and balanced' },
-  { id: 'fable', name: 'Oliver', gender: 'Male', description: 'Expressive with British accent' },
+  { id: 'Kore', name: 'Kore', gender: 'Female', description: 'Clear, professional, and warm' },
+  { id: 'Puck', name: 'Puck', gender: 'Male', description: 'Confident, articulate, and engaging' },
 ] as const
 
 // Presentation styles

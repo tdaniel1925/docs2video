@@ -80,7 +80,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         .insert({
           user_id: user.id,
           title: `Campaign: ${contact.name} at ${contact.company || 'Prospect'}`,
-          voice_id: 'nova',
+          voice_id: 'Kore',
           status: 'pending',
           is_trial: false,
         })
@@ -119,7 +119,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // Generate audio
       const audioBuffers: Buffer[] = []
       for (let i = 0; i < scenes.length; i++) {
-        const buf = await synthesizeSpeech(scenes[i].narration, 'nova')
+        const buf = await synthesizeSpeech(scenes[i].narration, 'Kore')
         audioBuffers.push(buf)
       }
       await admin.from('videos').update({ status: 'generating_slides', progress_pct: 35 }).eq('id', video.id)

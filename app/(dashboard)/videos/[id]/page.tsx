@@ -1540,7 +1540,7 @@ export default function VideoDetailPage() {
                         updatedScenes: editorScenes.map((s, i) => ({ ...s, duration: 0 })),
                         updatedSlideUrls: editorSlides.filter(Boolean) as string[],
                         changedAudioIndexes: Array.from(changedAudioIndexes),
-                        voiceId: (video as any).voice_id ?? 'nova',
+                        voiceId: (video as any).voice_id ?? 'Kore',
                       }),
                     })
                     const data = await res.json()

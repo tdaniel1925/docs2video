@@ -82,7 +82,7 @@ ${TEMPLATE_MAP}
 
 Available voices:
 - "onyx" (James) — Deep, authoritative. Best for formal, financial, legal, insurance content.
-- "nova" (Sarah) — Friendly, warm. Best for educational, marketing, general content. Most popular.
+- "Kore" (Sarah) — Friendly, warm. Best for educational, marketing, general content. Most popular.
 - "shimmer" (Emily) — Gentle, reassuring. Best for sensitive, wellness, personal topics.
 - "echo" (Michael) — Warm, conversational. Best for casual, friendly content.
 - "alloy" (Alex) — Professional, balanced. Best for neutral, corporate content.
@@ -105,7 +105,7 @@ Pick the template that BEST matches the content type, industry, and tone. Pick t
 
     return NextResponse.json({
       templateId: parsed.templateId || 'executive',
-      voiceId: parsed.voiceId || 'nova',
+      voiceId: parsed.voiceId || 'Kore',
       slideCount: parsed.slideCount || 8,
       mood: parsed.mood || 'professional',
     })
@@ -114,7 +114,7 @@ Pick the template that BEST matches the content type, industry, and tone. Pick t
     // Fallback defaults
     return NextResponse.json({
       templateId: isInsurance ? 'executive' : 'flat-vector',
-      voiceId: isInsurance ? 'onyx' : 'nova',
+      voiceId: isInsurance ? 'Puck' : 'Kore',
       slideCount: 8,
       mood: 'professional',
     })
