@@ -291,6 +291,8 @@ export default function VideoDetailPage() {
   const pipelineStarted = useRef(false)
   const [userPlan, setUserPlan] = useState<string>('trial')
   const [regeneratingSlide, setRegeneratingSlide] = useState<number | null>(null)
+  const [editSlideModal, setEditSlideModal] = useState<{ index: number } | null>(null)
+  const [editSlideInstruction, setEditSlideInstruction] = useState('')
 
   // Editor state
   const [showEditor, setShowEditor] = useState(false)
@@ -381,14 +383,16 @@ export default function VideoDetailPage() {
     setCurrentSlideIndex(index)
   }
 
-  async function handleRegenerateSlide(index: number) {
+  async function handleRegenerateSlide(index: number, instruction?: string) {
     if (regeneratingSlide !== null || !video) return
     setRegeneratingSlide(index)
+    setEditSlideModal(null)
+    setEditSlideInstruction('')
     try {
       const res = await fetch('/api/regenerate-slide', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId: video.id, slideIndex: index }),
+        body: JSON.stringify({ videoId: video.id, slideIndex: index, instruction: instruction || undefined }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -1203,9 +1207,9 @@ export default function VideoDetailPage() {
                     </div>
                     {/* Regenerate slide button */}
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleRegenerateSlide(i) }}
+                      onClick={(e) => { e.stopPropagation(); setEditSlideModal({ index: i }); setEditSlideInstruction('') }}
                       disabled={regeneratingSlide !== null}
-                      title={`Regenerate slide ${i + 1}`}
+                      title={`Edit slide ${i + 1}`}
                       style={{
                         position: 'absolute',
                         top: 2,
@@ -1299,6 +1303,41 @@ export default function VideoDetailPage() {
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => setConfirmAction(null)} className="btn btn-soft btn-sm">Cancel</button>
                   <button onClick={confirmAction.onConfirm} className="btn btn-sm" style={{ background: '#dc2626', color: 'white', border: 'none' }}>Confirm</button>
+                </div>
+              </div>
+            )}
+
+            {/* Edit slide modal */}
+            {editSlideModal && (
+              <div style={{
+                padding: '16px 20px', borderRadius: 10, marginBottom: 12,
+                background: 'white', border: '1px solid var(--border)',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
+                  Edit Slide {editSlideModal.index + 1}
+                </div>
+                <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 10px' }}>
+                  Describe what you want to change, or leave blank to fully regenerate.
+                </p>
+                <textarea
+                  className="input"
+                  value={editSlideInstruction}
+                  onChange={(e) => setEditSlideInstruction(e.target.value)}
+                  placeholder="e.g., Make the chart bars red, add the phone number, use a lighter background..."
+                  style={{ minHeight: 60, resize: 'vertical', fontSize: 13, fontFamily: 'inherit', marginBottom: 10 }}
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleRegenerateSlide(editSlideModal.index, editSlideInstruction.trim() || undefined) } }}
+                />
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button onClick={() => setEditSlideModal(null)} className="btn btn-soft btn-sm">Cancel</button>
+                  <button
+                    onClick={() => handleRegenerateSlide(editSlideModal.index, editSlideInstruction.trim() || undefined)}
+                    className="btn btn-primary btn-sm"
+                    disabled={regeneratingSlide !== null}
+                  >
+                    {editSlideInstruction.trim() ? 'Apply Changes' : 'Regenerate'}
+                  </button>
                 </div>
               </div>
             )}
@@ -1443,9 +1482,9 @@ export default function VideoDetailPage() {
                   </div>
                   <button
                     className="btn btn-soft btn-sm"
-                    onClick={(e) => { e.stopPropagation(); handleRegenerateSlide(i) }}
-                    disabled={regeneratingSlide === i}
-                    style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, opacity: regeneratingSlide === i ? 0.5 : 1 }}
+                    onClick={(e) => { e.stopPropagation(); setEditSlideModal({ index: i }); setEditSlideInstruction('') }}
+                    disabled={regeneratingSlide !== null}
+                    style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, opacity: regeneratingSlide !== null ? 0.5 : 1 }}
                   >
                     {regeneratingSlide === i ? '...' : 'Redo'}
                   </button>
