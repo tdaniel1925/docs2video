@@ -15,11 +15,18 @@ import { comicBook } from './comic-book'
 import { marbleGold } from './marble-gold'
 import { neubrutalism } from './neubrutalism'
 import { terminal } from './terminal'
+import { socialGrid } from './social-grid'
+import { blueSteps, isometric, flatVector, doodle, lineArt, vintageCraft, flatCartoon } from './batch-styles-1'
+import { colorfulSteps, timeline, animePop, feltCraft, botanicalWarm, vintageEditorial, tornCollage } from './batch-styles-2'
+import { inventorBox, cafeRealistic, oldNewspaper, paperLayers, streetGraffiti, urbanChaos, urbanCanvas } from './batch-styles-3'
+import { neonNightclub, brickBlocks, cinematicHud, americanaPoster, blackLabel, fireVibes, summerFest } from './batch-styles-4'
+import { indieZine, redNeon, editorial, rockPoster, streetGrunge, stockCertificate, vintageBond } from './batch-styles-5'
+import { nightclubFlyer, concertPoster, moviePoster, festival, scientificPaper, collageScrapbook, gradientMesh, newspaper, travelMagazine } from './batch-styles-6'
 
 export const TEMPLATE_SPECS: Record<string, TemplateSpec> = {
-  'urban-friday': urbanFriday,
-  'steampunk': steampunk,
   'executive': executive,
+  'steampunk': steampunk,
+  'urban-friday': urbanFriday,
   'profile-resume': profileResume,
   'neon-cyber': neonCyber,
   'glassmorphism': glassmorphism,
@@ -34,6 +41,51 @@ export const TEMPLATE_SPECS: Record<string, TemplateSpec> = {
   'marble-gold': marbleGold,
   'neubrutalism': neubrutalism,
   'terminal': terminal,
+  'social-grid': socialGrid,
+  'blue-steps': blueSteps,
+  'isometric': isometric,
+  'flat-vector': flatVector,
+  'doodle': doodle,
+  'line-art': lineArt,
+  'vintage-craft': vintageCraft,
+  'flat-cartoon': flatCartoon,
+  'colorful-steps': colorfulSteps,
+  'timeline': timeline,
+  'anime-pop': animePop,
+  'felt-craft': feltCraft,
+  'botanical-warm': botanicalWarm,
+  'vintage-editorial': vintageEditorial,
+  'torn-collage': tornCollage,
+  'inventor-box': inventorBox,
+  'cafe-realistic': cafeRealistic,
+  'old-newspaper': oldNewspaper,
+  'paper-layers': paperLayers,
+  'street-graffiti': streetGraffiti,
+  'urban-chaos': urbanChaos,
+  'urban-canvas': urbanCanvas,
+  'neon-nightclub': neonNightclub,
+  'brick-blocks': brickBlocks,
+  'cinematic-hud': cinematicHud,
+  'americana-poster': americanaPoster,
+  'black-label': blackLabel,
+  'fire-vibes': fireVibes,
+  'summer-fest': summerFest,
+  'indie-zine': indieZine,
+  'red-neon': redNeon,
+  'editorial': editorial,
+  'rock-poster': rockPoster,
+  'street-grunge': streetGrunge,
+  'stock-certificate': stockCertificate,
+  'vintage-bond': vintageBond,
+  'nightclub-flyer': nightclubFlyer,
+  'concert-poster': concertPoster,
+  'movie-poster': moviePoster,
+  'festival': festival,
+  'scientific-paper': scientificPaper,
+  'collage-scrapbook': collageScrapbook,
+  'gradient-mesh': gradientMesh,
+  'newspaper': newspaper,
+  'travel-magazine': travelMagazine,
 }
 
 export function getTemplateSpec(id: string): TemplateSpec {
