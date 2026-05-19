@@ -232,7 +232,7 @@ app.post('/assemble', authCheck, async (req, res) => {
             '-stream_loop', '-1',
             '-i', musicPath,
             '-filter_complex',
-            `[1:a]volume=0.12,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[0:a][music]amix=inputs=2:duration=first[out]`,
+            `[1:a]volume=0.07,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[0:a][music]amix=inputs=2:duration=first[out]`,
             '-map', '0:v',
             '-map', '[out]',
             '-c:v', 'copy',
@@ -576,17 +576,13 @@ app.post('/generate', authCheck, async (req, res) => {
       } catch (e) { console.log(`[${videoId}] Logo fetch failed:`, e.message) }
     }
 
-    const slideBuffers = []
-    for (let i = 0; i < slidePrompts.length; i++) {
-      const prompt = slidePrompts[i]
-      // Update progress: slides use 22-65% range
-      const slidePct = 22 + Math.round(((i) / slidePrompts.length) * 43)
-      await updateStatus('generating_slides', `Designing slide ${i + 1} of ${slidePrompts.length}... (audio ${audiosDone}/${scenes.length})`, slidePct)
+    // Generate slides in parallel batches of 2 for speed
+    const slideBuffers = new Array(slidePrompts.length).fill(null)
 
-      let slideBuffer = null
+    async function generateOneSlide(idx) {
+      const prompt = slidePrompts[idx]
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          // gpt-image-1 uses prompt + optional image edit
           if (logoBase64) {
             const response = await openai.images.edit({
               model: 'gpt-image-1',
@@ -597,10 +593,7 @@ app.post('/generate', authCheck, async (req, res) => {
               n: 1,
             })
             const imageData = response.data?.[0]
-            if (imageData?.b64_json) {
-              slideBuffer = Buffer.from(imageData.b64_json, 'base64')
-              break
-            }
+            if (imageData?.b64_json) return Buffer.from(imageData.b64_json, 'base64')
           } else {
             const response = await openai.images.generate({
               model: 'gpt-image-1',
@@ -610,23 +603,29 @@ app.post('/generate', authCheck, async (req, res) => {
               n: 1,
             })
             const imageData = response.data?.[0]
-            if (imageData?.b64_json) {
-              slideBuffer = Buffer.from(imageData.b64_json, 'base64')
-              break
-            }
+            if (imageData?.b64_json) return Buffer.from(imageData.b64_json, 'base64')
           }
           throw new Error('No image in response')
         } catch (retryErr) {
-          console.error(`[${videoId}] Slide ${i + 1} attempt ${attempt}/3 failed:`, retryErr.message?.slice(0, 150))
+          console.error(`[${videoId}] Slide ${idx + 1} attempt ${attempt}/3 failed:`, retryErr.message?.slice(0, 150))
           if (attempt < 3) await new Promise(r => setTimeout(r, 3000 * attempt))
         }
       }
-      if (!slideBuffer) {
-        console.error(`[${videoId}] Slide ${i + 1} all attempts failed, generating fallback`)
-        slideBuffer = await generateFallbackSlide(scenes[i]?.title || `Slide ${i + 1}`, i + 1, slidePrompts.length)
+      console.error(`[${videoId}] Slide ${idx + 1} all attempts failed, generating fallback`)
+      return await generateFallbackSlide(scenes[idx]?.title || `Slide ${idx + 1}`, idx + 1, slidePrompts.length)
+    }
+
+    const BATCH_SIZE = 2
+    for (let i = 0; i < slidePrompts.length; i += BATCH_SIZE) {
+      const batch = []
+      for (let j = i; j < Math.min(i + BATCH_SIZE, slidePrompts.length); j++) {
+        batch.push(generateOneSlide(j).then(buf => { slideBuffers[j] = buf }))
       }
-      slideBuffers.push(slideBuffer)
-      console.log(`[${videoId}] Slide ${i + 1}/${slidePrompts.length} done`)
+      await Promise.all(batch)
+      const done = Math.min(i + BATCH_SIZE, slidePrompts.length)
+      console.log(`[${videoId}] Slides ${done}/${slidePrompts.length} done`)
+      const slidePct = 22 + Math.round((done / slidePrompts.length) * 43)
+      await updateStatus('generating_slides', `Designing slide ${done} of ${slidePrompts.length}... (audio ${audiosDone}/${scenes.length})`, slidePct)
     }
     console.log(`[${videoId}] Slides complete: ${slideBuffers.length}`)
 
@@ -743,7 +742,7 @@ app.post('/generate', authCheck, async (req, res) => {
               '-stream_loop', '-1',
               '-i', musicPath,
               '-filter_complex',
-              `[1:a]volume=0.12,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[0:a][music]amix=inputs=2:duration=first[out]`,
+              `[1:a]volume=0.07,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[0:a][music]amix=inputs=2:duration=first[out]`,
               '-map', '0:v',
               '-map', '[out]',
               '-c:v', 'copy',

@@ -64,10 +64,13 @@ ${content.brandName ? `${content.brandName}` : ''} ${content.contactInfo?.websit
 
 === CRITICAL RULES ===
 - 80px safe padding on ALL edges — nothing cut off
-- Every letter, number, and symbol must be complete and readable
+- Every letter, number, and symbol must be PERFECTLY SPELLED — double-check all text
+- ONLY display the text provided in the CONTENT section above — do NOT add your own text, instructions, or descriptions
+- Do NOT render any prompt instructions, visual descriptions, or metadata as visible text on the slide
 - Follow the color palette EXACTLY
 - The design must feel cohesive — every element belongs to the same visual world
 - Maximum visual polish — gradients, glows, shadows, depth, texture
+- Keep text minimal — use icons, charts, and visuals to communicate data instead of long paragraphs
 - 1536x1024 pixels`
 
   return prompt
@@ -101,10 +104,10 @@ ${spec.decorativeElements.primary ? `Decorative touches: ${spec.decorativeElemen
 === LOGO (HERO ELEMENT) ===
 ${logoDescription
     ? `The brand logo is the HERO of this slide. Place it LARGE and centered (about 400px wide) in the upper-center area of the slide. Add a subtle glow or soft shadow behind the logo for depth and premium feel. Keep the logo in its ORIGINAL colors — do NOT recolor it.`
-    : 'No logo provided — use a stylish decorative monogram or abstract shape as the centerpiece instead.'}
+    : 'No logo — skip logo placement entirely. Leave the upper area clean.'}
 
 === TITLE ===
-Below the logo, add a thin accent line (2px) in ${colors.secondary} as a separator (about 200px wide, centered).
+${logoDescription ? `Below the logo, add a thin accent line (2px) in ${colors.secondary} as a separator (about 200px wide, centered).` : `Add a thin accent line (2px) in ${colors.secondary} as a decorative separator (about 200px wide, centered) in the upper third.`}
 
 Then the title: "${content.headline}" — rendered in ${spec.typography.headline}. Large, bold, commanding.
 ${content.subtitle ? `Below the title: "${content.subtitle}" in ${spec.typography.body}, lighter weight, ${colors.text} at 80% opacity.` : ''}
@@ -155,7 +158,7 @@ Slightly different from the cover — perhaps a complementary gradient angle or 
 === LOGO ===
 ${logoDescription
     ? `Brand logo centered near the top, about 250px wide. Subtle glow/shadow for depth. Keep ORIGINAL logo colors.`
-    : 'No logo — use a decorative accent element at the top instead.'}
+    : 'No logo — skip logo placement entirely.'}
 
 === HEADLINE ===
 "${content.headline}" — large, bold, in ${spec.typography.headline}. Centered below the logo.

@@ -229,12 +229,17 @@ export async function POST(request: Request) {
         if (hasStats) layout = 'stats'
         else if (hasChart) layout = 'chart'
 
+        // Use narration summary as bullet content (NOT slidePrompt — that's a visual instruction, not display text)
+        const narrativeBullets = !hasBullets && scene.narration
+          ? scene.narration.split(/[.!?]+/).filter((s: string) => s.trim().length > 10).slice(0, 4).map((s: string) => ({ text: s.trim() }))
+          : undefined
+
         content = {
           layout,
           headline: scene.title || '',
           subtitle: scene.subtitle,
           stats: scene.stats || scene.keyMetrics?.map((m: any) => ({ value: m.value, label: m.label })),
-          bullets: hasBullets ? scene.bullets : scene.slidePrompt ? [{ text: scene.slidePrompt }] : undefined,
+          bullets: hasBullets ? scene.bullets : narrativeBullets,
           chartData: scene.chartData,
           brandName: brand?.name,
           pageNumber: i + 1,
