@@ -57,8 +57,7 @@ VOICE RULES (CRITICAL):
 BEAT STRUCTURE (follow this storytelling framework — each scene has a PURPOSE):
 Every scene must have a "beat" field indicating its storytelling role. Use this exact structure:
 
-1. HOOK (1 scene) — Open with the greeting per VOICE RULES, then immediately state something compelling: a key benefit, a surprising number, or a thought-provoking question about the policy. Make the viewer want to keep watching.
-   ${brandName ? `Mention that this presentation is brought by {{BRAND_NAME}}.` : ''}
+1. HOOK (1 scene) — Open with the greeting per VOICE RULES, then immediately state something compelling: a key benefit, a surprising number, or a thought-provoking question about the policy. Make the viewer want to keep watching. Do NOT say "brought to you by" — just dive into the content.
 
 2. DISCLAIMER (1 scene) — EXACT narration: "Before we begin, please note: this video is intended for educational and informational purposes only. It explains general concepts related to life insurance illustrations. It is not legal, tax, or financial advice. Policy guarantees are based on the claims-paying ability of the issuing insurance company. Any non-guaranteed values shown are subject to change. Please review all policy materials and consult with your licensed insurance professional before making any decisions."
 
@@ -175,8 +174,7 @@ Every scene must have a "beat" field indicating its storytelling role. Use this 
 
 ${config.beatStructure}
 ${disclaimerBeat}${disclaimerCloseBeat}
-   ${brandName ? `For the HOOK: Mention that this presentation is brought by {{BRAND_NAME}}.` : ''}
-   Introduce the topic: "${data.title}"
+   For the HOOK: Jump straight into the topic "${data.title}" — do NOT say "brought to you by" or introduce a brand name.
    For the ACTION beat: ${config.ctaText}
    ${brandName ? `Direct them to contact {{BRAND_NAME}}.` : 'Encourage the viewer to take the next step.'}
 
