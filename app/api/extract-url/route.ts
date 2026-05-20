@@ -213,43 +213,42 @@ export async function POST(request: Request) {
       console.log('[extract-url] Scraping brand from URL...')
       const brandAnalysis = await scrapeBrand(url)
 
-      // Validate and convert logo to PNG
+      // Upload logo to Supabase storage (brand scraper already processed it)
       let logoFileUrl: string | null = null
       try {
-        let logoBuffer: Buffer | null = null
+        if (brandAnalysis.logoUrl) {
+          let logoBuffer: Buffer | null = null
 
-        if (brandAnalysis.logoUrl?.startsWith('data:')) {
-          const base64Data = brandAnalysis.logoUrl.split(',')[1]
-          logoBuffer = Buffer.from(base64Data, 'base64')
-        } else if (brandAnalysis.logoUrl) {
-          // Download the logo
-          const logoRes = await fetch(brandAnalysis.logoUrl, { signal: AbortSignal.timeout(8000) })
-          if (logoRes.ok) {
-            const ct = logoRes.headers.get('content-type') || ''
-            // Skip SVG logos — they can't be used with OpenAI images.edit
-            if (!ct.includes('svg')) {
-              logoBuffer = Buffer.from(await logoRes.arrayBuffer())
-            } else {
-              console.log('[extract-url] Skipping SVG logo — not compatible with image generation')
+          if (brandAnalysis.logoUrl.startsWith('data:')) {
+            // Brand scraper already processed — extract base64
+            const base64Data = brandAnalysis.logoUrl.split(',')[1]
+            logoBuffer = Buffer.from(base64Data, 'base64')
+          } else {
+            // Raw URL — download and convert to PNG
+            const logoRes = await fetch(brandAnalysis.logoUrl, { signal: AbortSignal.timeout(8000) })
+            if (logoRes.ok) {
+              const ct = logoRes.headers.get('content-type') || ''
+              if (!ct.includes('svg')) {
+                const rawBuf = Buffer.from(await logoRes.arrayBuffer())
+                // Convert to PNG with Sharp
+                logoBuffer = await sharp(rawBuf)
+                  .resize(512, 512, { fit: 'inside', withoutEnlargement: true })
+                  .png()
+                  .toBuffer()
+              }
             }
           }
-        }
 
-        if (logoBuffer && logoBuffer.length > 100) {
-          // Convert to PNG with Sharp, resize to max 512x512 for consistency
-          const pngBuffer = await sharp(logoBuffer)
-            .resize(512, 512, { fit: 'inside', withoutEnlargement: true })
-            .png()
-            .toBuffer()
-
-          const logoPath = `${user.id}/brand_logo_${Date.now()}.png`
-          await supabase.storage.from('brand-assets').upload(logoPath, pngBuffer, { contentType: 'image/png', upsert: true })
-          const { data: logoUrlData } = supabase.storage.from('brand-assets').getPublicUrl(logoPath)
-          logoFileUrl = logoUrlData.publicUrl
-          console.log(`[extract-url] Logo validated and converted to PNG: ${pngBuffer.length} bytes`)
+          if (logoBuffer && logoBuffer.length > 100) {
+            const logoPath = `${user.id}/brand_logo_${Date.now()}.png`
+            await supabase.storage.from('brand-assets').upload(logoPath, logoBuffer, { contentType: 'image/png', upsert: true })
+            const { data: logoUrlData } = supabase.storage.from('brand-assets').getPublicUrl(logoPath)
+            logoFileUrl = logoUrlData.publicUrl
+            console.log(`[extract-url] Logo uploaded to storage: ${(logoBuffer.length / 1024).toFixed(0)}KB`)
+          }
         }
       } catch (logoErr) {
-        console.log('[extract-url] Logo processing failed, skipping:', logoErr instanceof Error ? logoErr.message : 'unknown')
+        console.log('[extract-url] Logo upload failed, skipping:', logoErr instanceof Error ? logoErr.message : 'unknown')
       }
 
       const { data: newBrand, error: brandError } = await supabase.from('brands').insert({
