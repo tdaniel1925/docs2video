@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { GoogleGenAI } from '@google/genai'
+import sharp from 'sharp'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { scrapeBrand } from '../../_lib/brand-scraper'
 
@@ -212,17 +213,43 @@ export async function POST(request: Request) {
       console.log('[extract-url] Scraping brand from URL...')
       const brandAnalysis = await scrapeBrand(url)
 
-      // Upload logo if it's a data URL (upscaled by brand-scraper)
+      // Validate and convert logo to PNG
       let logoFileUrl: string | null = null
-      if (brandAnalysis.logoUrl?.startsWith('data:')) {
-        const base64Data = brandAnalysis.logoUrl.split(',')[1]
-        const logoBuffer = Buffer.from(base64Data, 'base64')
-        const logoPath = `${user.id}/brand_logo_${Date.now()}.png`
-        await supabase.storage.from('brand-assets').upload(logoPath, logoBuffer, { contentType: 'image/png', upsert: true })
-        const { data: logoUrlData } = supabase.storage.from('brand-assets').getPublicUrl(logoPath)
-        logoFileUrl = logoUrlData.publicUrl
-      } else if (brandAnalysis.logoUrl) {
-        logoFileUrl = brandAnalysis.logoUrl
+      try {
+        let logoBuffer: Buffer | null = null
+
+        if (brandAnalysis.logoUrl?.startsWith('data:')) {
+          const base64Data = brandAnalysis.logoUrl.split(',')[1]
+          logoBuffer = Buffer.from(base64Data, 'base64')
+        } else if (brandAnalysis.logoUrl) {
+          // Download the logo
+          const logoRes = await fetch(brandAnalysis.logoUrl, { signal: AbortSignal.timeout(8000) })
+          if (logoRes.ok) {
+            const ct = logoRes.headers.get('content-type') || ''
+            // Skip SVG logos — they can't be used with OpenAI images.edit
+            if (!ct.includes('svg')) {
+              logoBuffer = Buffer.from(await logoRes.arrayBuffer())
+            } else {
+              console.log('[extract-url] Skipping SVG logo — not compatible with image generation')
+            }
+          }
+        }
+
+        if (logoBuffer && logoBuffer.length > 100) {
+          // Convert to PNG with Sharp, resize to max 512x512 for consistency
+          const pngBuffer = await sharp(logoBuffer)
+            .resize(512, 512, { fit: 'inside', withoutEnlargement: true })
+            .png()
+            .toBuffer()
+
+          const logoPath = `${user.id}/brand_logo_${Date.now()}.png`
+          await supabase.storage.from('brand-assets').upload(logoPath, pngBuffer, { contentType: 'image/png', upsert: true })
+          const { data: logoUrlData } = supabase.storage.from('brand-assets').getPublicUrl(logoPath)
+          logoFileUrl = logoUrlData.publicUrl
+          console.log(`[extract-url] Logo validated and converted to PNG: ${pngBuffer.length} bytes`)
+        }
+      } catch (logoErr) {
+        console.log('[extract-url] Logo processing failed, skipping:', logoErr instanceof Error ? logoErr.message : 'unknown')
       }
 
       const { data: newBrand, error: brandError } = await supabase.from('brands').insert({
