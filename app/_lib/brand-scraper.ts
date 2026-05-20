@@ -163,23 +163,46 @@ export async function scrapeBrand(url: string): Promise<BrandAnalysis> {
   const fonts = extractFonts(allHtml)
   const socialLinks = extractSocialLinks(allHtml)
   const jsonLd = extractJsonLd(mainHtml)
-  const logoUrl = extractLogoUrl(mainHtml, fullUrl)
+  const scrapedLogoUrl = extractLogoUrl(mainHtml, fullUrl)
 
   const trimmedMain = mainHtml.slice(0, 20000)
   const trimmedAbout = aboutHtml ? aboutHtml.slice(0, 8000) : ''
   const trimmedServices = servicesHtml ? servicesHtml.slice(0, 8000) : ''
 
-  // Try to fetch the logo image for visual analysis
+  // Logo strategy: Logo.dev first (clean high-res), then scraped fallback
   let logoBuffer: Buffer | null = null
   let logoMime = 'image/png'
-  if (logoUrl) {
+  let logoUrl: string | null = null
+
+  // 1. Try Logo.dev API — best quality, clean transparent PNGs
+  const domain = parsedUrl.hostname.replace('www.', '')
+  try {
+    const logoDevUrl = `https://img.logo.dev/${domain}?token=pk_OoIZc53tSDKpqi7uM8wyZQ&size=512&format=png`
+    const logoDevRes = await fetch(logoDevUrl, { signal: AbortSignal.timeout(5000) })
+    if (logoDevRes.ok) {
+      const ct = logoDevRes.headers.get('content-type') ?? ''
+      if (ct.startsWith('image/')) {
+        logoBuffer = Buffer.from(await logoDevRes.arrayBuffer())
+        logoMime = 'image/png'
+        logoUrl = logoDevUrl
+        console.log(`[brand-scraper] Logo.dev found logo for ${domain}: ${(logoBuffer.length / 1024).toFixed(0)}KB`)
+      }
+    }
+  } catch {
+    console.log(`[brand-scraper] Logo.dev lookup failed for ${domain}`)
+  }
+
+  // 2. Fallback: scrape logo from website HTML
+  if (!logoBuffer && scrapedLogoUrl) {
     try {
-      const logoRes = await fetch(logoUrl, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(5000) })
+      const logoRes = await fetch(scrapedLogoUrl, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(5000) })
       if (logoRes.ok) {
         const ct = logoRes.headers.get('content-type') ?? 'image/png'
-        if (ct.startsWith('image/')) {
+        if (ct.startsWith('image/') && !ct.includes('svg')) {
           logoBuffer = Buffer.from(await logoRes.arrayBuffer())
           logoMime = ct.split(';')[0]
+          logoUrl = scrapedLogoUrl
+          console.log(`[brand-scraper] Scraped logo fallback: ${(logoBuffer.length / 1024).toFixed(0)}KB`)
         }
       }
     } catch { /* skip */ }
@@ -288,33 +311,40 @@ Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no c
     }
   }
 
-  // Upscale small logos with OpenAI gpt-image-2 (preserves exact design, just higher res)
+  // Process logo: use as-is if good quality (Logo.dev), upscale with OpenAI if small
   let processedLogoUrl = logoUrl
   if (logoBuffer && !logoMime.includes('svg')) {
-    try {
-      const OpenAI = (await import('openai')).default
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-      console.log(`[brand-scraper] Upscaling logo with OpenAI (${(logoBuffer.length / 1024).toFixed(0)}KB)...`)
-      const logoFile = new File([new Uint8Array(logoBuffer)], 'logo.png', { type: 'image/png' })
-      const response = await openai.images.edit({
-        model: 'gpt-image-2',
-        image: logoFile,
-        prompt: 'Upscale this logo to high resolution. Keep the EXACT same design, colors, shapes, and text. Do not modify, redesign, or add anything. Output on clean white background, crisp edges, centered.',
-        size: '1024x1024',
-        quality: 'high',
-        n: 1,
-      })
-      const imageData = response.data?.[0]
-      if (imageData?.b64_json) {
-        processedLogoUrl = `data:image/png;base64,${imageData.b64_json}`
-        console.log('[brand-scraper] Logo upscaled successfully with OpenAI')
-      } else {
+    // Check if logo is too small and needs upscaling (under 200px wide = ~10KB for PNG)
+    const needsUpscale = logoBuffer.length < 15000
+    if (needsUpscale) {
+      try {
+        const OpenAI = (await import('openai')).default
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+        console.log(`[brand-scraper] Small logo (${(logoBuffer.length / 1024).toFixed(0)}KB), upscaling with OpenAI...`)
+        const logoFile = new File([new Uint8Array(logoBuffer)], 'logo.png', { type: 'image/png' })
+        const response = await openai.images.edit({
+          model: 'gpt-image-2',
+          image: logoFile,
+          prompt: 'Upscale this logo to high resolution. Keep the EXACT same design, colors, shapes, and text. Do not modify, redesign, or add anything. Output on clean white background, crisp edges, centered.',
+          size: '1024x1024',
+          quality: 'high',
+          n: 1,
+        })
+        const imageData = response.data?.[0]
+        if (imageData?.b64_json) {
+          processedLogoUrl = `data:image/png;base64,${imageData.b64_json}`
+          console.log('[brand-scraper] Logo upscaled successfully')
+        } else {
+          processedLogoUrl = `data:${logoMime};base64,${logoBuffer.toString('base64')}`
+        }
+      } catch (err) {
+        console.log('[brand-scraper] Logo upscale failed, using original:', err instanceof Error ? err.message : 'unknown')
         processedLogoUrl = `data:${logoMime};base64,${logoBuffer.toString('base64')}`
-        console.log('[brand-scraper] OpenAI returned no image, using original')
       }
-    } catch (err) {
-      console.log('[brand-scraper] Logo upscale failed, using original:', err instanceof Error ? err.message : 'unknown')
+    } else {
+      // Logo is good quality already (Logo.dev or large scraped logo)
       processedLogoUrl = `data:${logoMime};base64,${logoBuffer.toString('base64')}`
+      console.log(`[brand-scraper] Logo good quality (${(logoBuffer.length / 1024).toFixed(0)}KB), using as-is`)
     }
   }
 
