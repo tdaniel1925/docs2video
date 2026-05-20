@@ -288,12 +288,34 @@ Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no c
     }
   }
 
-  // Use the actual scraped logo as-is (no AI recreation — it produces inaccurate results)
-  // Convert to data URL for the brand creation page to upload
+  // Upscale small logos with OpenAI gpt-image-2 (preserves exact design, just higher res)
   let processedLogoUrl = logoUrl
   if (logoBuffer && !logoMime.includes('svg')) {
-    processedLogoUrl = `data:${logoMime};base64,${logoBuffer.toString('base64')}`
-    console.log(`[brand-scraper] Using original logo: ${(logoBuffer.length / 1024).toFixed(0)}KB`)
+    try {
+      const OpenAI = (await import('openai')).default
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+      console.log(`[brand-scraper] Upscaling logo with OpenAI (${(logoBuffer.length / 1024).toFixed(0)}KB)...`)
+      const logoFile = new File([new Uint8Array(logoBuffer)], 'logo.png', { type: 'image/png' })
+      const response = await openai.images.edit({
+        model: 'gpt-image-2',
+        image: logoFile,
+        prompt: 'Upscale this logo to high resolution. Keep the EXACT same design, colors, shapes, and text. Do not modify, redesign, or add anything. Output on clean white background, crisp edges, centered.',
+        size: '1024x1024',
+        quality: 'high',
+        n: 1,
+      })
+      const imageData = response.data?.[0]
+      if (imageData?.b64_json) {
+        processedLogoUrl = `data:image/png;base64,${imageData.b64_json}`
+        console.log('[brand-scraper] Logo upscaled successfully with OpenAI')
+      } else {
+        processedLogoUrl = `data:${logoMime};base64,${logoBuffer.toString('base64')}`
+        console.log('[brand-scraper] OpenAI returned no image, using original')
+      }
+    } catch (err) {
+      console.log('[brand-scraper] Logo upscale failed, using original:', err instanceof Error ? err.message : 'unknown')
+      processedLogoUrl = `data:${logoMime};base64,${logoBuffer.toString('base64')}`
+    }
   }
 
   return {

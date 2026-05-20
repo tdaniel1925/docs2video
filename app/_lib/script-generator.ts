@@ -162,6 +162,14 @@ VOICE RULES (CRITICAL):
 - After the greeting, go straight into the content. No introductions about who is presenting.
 - The LAST scene should end with: "Thank you for your time. If you have any questions, please don't hesitate to reach out."
 
+DATA INTEGRITY (CRITICAL — DO NOT MAKE THINGS UP):
+- ONLY state facts, numbers, names, and claims that appear in the DOCUMENT DATA above
+- NEVER invent contact information — no fake phone numbers, emails, or websites
+- NEVER say "visit our website" or "call us" or "contact us" unless a specific URL, phone, or email is provided in the data
+- If there is no contact info in the data, the closing scene should simply thank the viewer — do NOT fabricate a CTA with made-up details
+- NEVER guess at product names, features, or statistics — if it's not in the data, don't say it
+- Every sentence in the narration must trace back to a specific fact in the document data above
+
 BEAT STRUCTURE (follow this storytelling framework — each scene has a PURPOSE):
 Every scene must have a "beat" field indicating its storytelling role. Use this exact structure:
 
@@ -368,12 +376,21 @@ SCENE PACING (CRITICAL):
 - A 5-minute video should have 12-20 scenes, not 6-8
 - Every scene gets its own slide, so more scenes = more visual variety
 
+DATA INTEGRITY (CRITICAL — DO NOT MAKE THINGS UP):
+- ONLY discuss facts, numbers, names, and claims that appear in the DOCUMENT DATA above
+- NEVER invent contact information — no fake phone numbers, emails, or websites
+- NEVER say "visit our website" or "call us" unless a specific URL or phone is provided
+- If there is no contact info, the closing scene should simply thank the viewer
+- Every claim in the dialogue must trace back to a specific fact in the document data
+- Do NOT guess at product names, features, or statistics
+
 DIALOGUE RULES:
 - Each scene has 2-4 dialogue lines alternating between speakers
 - ${speakerConfig.speaker1.name} leads and explains, ${speakerConfig.speaker2.name} asks questions and reacts
 - Keep each line 1-2 sentences max — short and punchy, like a real conversation
 - Include natural reactions: "That's impressive." / "Right, exactly." / "So what you're saying is..."
 - NO cheesy radio host energy. This should feel like two smart people having a real conversation.
+- Each scene's dialogue must reference SPECIFIC data points from the document — not generic statements
 - The "narration" field should contain ALL dialogue combined as plain text WITHOUT speaker names (no "Host:" or "Expert:" prefixes)
 - The "dialogue" array has the individual lines with speaker tags
 
