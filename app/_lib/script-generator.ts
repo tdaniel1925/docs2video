@@ -352,47 +352,51 @@ export async function generateScript(
 
     const speakerConfig = isSerious
       ? {
-          speaker1: { name: 'Advisor', voice: 'ash', instructions: 'Speak as a knowledgeable, trustworthy professional advisor. Measured pace, confident but warm. Explain complex topics clearly without being condescending.' },
-          speaker2: { name: 'Client', voice: 'shimmer', instructions: 'Speak as an engaged, thoughtful client. Ask genuine questions. Sound interested and occasionally impressed by good data. Natural reactions.' },
+          speaker1: { name: 'Alex', voice: 'ash', instructions: 'Speak like a smart friend explaining something they know well. Warm, casual, confident. Not lecturing — sharing. Use "you know what I mean?" energy.' },
+          speaker2: { name: 'Jordan', voice: 'shimmer', instructions: 'Speak like a curious, engaged friend. Genuinely interested. React naturally — laugh, be surprised, ask follow-ups. Sound like you actually care about the answer.' },
         }
       : {
-          speaker1: { name: 'Host', voice: 'coral', instructions: 'Speak as an enthusiastic, warm podcast host. Upbeat and engaging. Use natural pauses for emphasis. Drive the conversation forward with energy.' },
-          speaker2: { name: 'Expert', voice: 'ash', instructions: 'Speak as a confident subject matter expert. Authoritative but approachable. Deliver facts with conviction. Occasionally show genuine enthusiasm about impressive data.' },
+          speaker1: { name: 'Alex', voice: 'coral', instructions: 'Speak like an upbeat, knowledgeable friend. Casual and warm. Share facts like you are genuinely excited about them. Not a news anchor — a friend at coffee.' },
+          speaker2: { name: 'Jordan', voice: 'ash', instructions: 'Speak like a smart friend who is learning something interesting. React naturally, ask real questions, push back sometimes. Sound genuinely engaged.' },
         }
 
     const podcastPrompt = `${promptBody}${additionalBlock}
 
-NARRATION FORMAT: MULTI-VOICE DISCUSSION
-This video uses TWO speakers in a natural conversation format.
+NARRATION FORMAT: TWO FRIENDS TALKING
+This video uses TWO speakers having a CASUAL, NATURAL conversation — like two smart friends discussing something interesting over coffee.
 
 SPEAKERS:
 - "${speakerConfig.speaker1.name}" — ${speakerConfig.speaker1.instructions}
 - "${speakerConfig.speaker2.name}" — ${speakerConfig.speaker2.instructions}
 
-SCENE PACING (CRITICAL):
-- Each scene covers ONE specific fact, stat, or data point — never multiple topics
-- Each scene should be 10-15 seconds of dialogue (2-3 quick exchanges)
-- A 3-minute video should have 15-20 scenes. A 5-minute video should have 25-30 scenes.
-- Every scene gets its own slide — more scenes = more visual variety = better engagement
+CONVERSATION TONE (THIS IS THE MOST IMPORTANT RULE):
+- Write like TWO FRIENDS TALKING, not two professionals presenting
+- NEVER use phrases like "the evidence shows", "the data indicates", "as we can see", "it's worth noting"
+- Instead use: "check this out", "so basically", "here's the cool part", "wait really?", "yeah and get this"
+- React like humans: "Wow.", "No way.", "That's wild.", "OK so...", "Huh, interesting."
+- Use casual contractions: "that's", "it's", "they've", "won't", "gonna"
+- Interrupt naturally: one person can finish the other's thought
+- Show genuine emotion — excitement, surprise, curiosity
+- It should sound like a conversation you'd WANT to eavesdrop on
+
+SCENE PACING:
+- Each scene covers ONE specific fact or data point
+- Each scene should be 10-15 seconds (2-3 quick exchanges)
+- A 3-minute video = 15-20 scenes. 5-minute = 25-30 scenes.
 - NEVER let a scene run longer than 20 seconds
 
-DATA INTEGRITY (CRITICAL — DO NOT MAKE THINGS UP):
-- ONLY discuss facts, numbers, names, and claims that appear in the DOCUMENT DATA above
-- NEVER invent contact information — no fake phone numbers, emails, or websites
-- NEVER say "visit our website" or "call us" unless a specific URL or phone is provided
-- If there is no contact info, the closing scene should simply thank the viewer
-- Every claim in the dialogue must trace back to a specific fact in the document data
-- Do NOT guess at product names, features, or statistics
+DATA INTEGRITY (CRITICAL):
+- ONLY discuss facts from the DOCUMENT DATA above — never invent anything
+- NEVER invent contact info — no fake phone numbers, emails, or websites
+- If a phone number or URL is mentioned in dialogue, that scene's slide MUST show it
+- If there is no contact info, just thank the viewer at the end
+- Every claim must trace back to actual document data
 
 DIALOGUE RULES:
-- Each scene has 2-4 dialogue lines alternating between speakers
-- ${speakerConfig.speaker1.name} leads and explains, ${speakerConfig.speaker2.name} asks questions and reacts
-- Keep each line 1-2 sentences max — short and punchy, like a real conversation
-- Include natural reactions: "That's impressive." / "Right, exactly." / "So what you're saying is..."
-- NO cheesy radio host energy. This should feel like two smart people having a real conversation.
-- Each scene's dialogue must reference SPECIFIC data points from the document — not generic statements
-- The "narration" field should contain ALL dialogue combined as plain text WITHOUT speaker names (no "Host:" or "Expert:" prefixes)
-- The "dialogue" array has the individual lines with speaker tags
+- 2-3 exchanges per scene, alternating speakers
+- Keep each line 1-2 sentences — short, punchy, conversational
+- The "narration" field = ALL dialogue as plain text WITHOUT speaker names
+- The "dialogue" array = individual lines with speaker/voice/instructions tags
 
 Return ONLY valid JSON array (no markdown, no code fences):
 [

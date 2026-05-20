@@ -187,12 +187,22 @@ export async function POST(request: Request) {
       const isLast = i === scenes.length - 1
 
       // Extract bullet content from narration if no explicit bullets
-      // Strip speaker tags (Host:, Expert:, Advisor:, Client:) from narration
+      // Strip speaker tags from narration
       const hasBullets = scene.bullets?.length > 0
-      const cleanNarration = scene.narration?.replace(/^(Host|Expert|Advisor|Client|Narrator|Clarifier):\s*/gim, '') || ''
+      const cleanNarration = scene.narration?.replace(/^(Host|Expert|Advisor|Client|Narrator|Clarifier|Alex|Jordan):\s*/gim, '') || ''
       const narrativeBullets = !hasBullets && cleanNarration
         ? cleanNarration.split(/[.!?]+/).filter((s: string) => s.trim().length > 10).slice(0, 4).map((s: string) => ({ text: s.trim() }))
         : undefined
+
+      // If narration mentions a phone number, include it in slide contact info
+      const phoneInNarration = cleanNarration.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/)
+      const urlInNarration = cleanNarration.match(/(?:https?:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/\S*)?/i)
+
+      const sceneContactInfo = (isFirst || isLast)
+        ? { phone: brandGuide?.phone, website: brandGuide?.website?.toLowerCase(), email: brandGuide?.email?.toLowerCase(), calendly: brandGuide?.calendly }
+        : phoneInNarration || urlInNarration
+          ? { phone: phoneInNarration?.[0], website: urlInNarration?.[0]?.toLowerCase() }
+          : undefined
 
       const input: SimpleSlideInput = {
         type: isFirst ? 'cover' : isLast ? 'closing' : 'content',
@@ -203,7 +213,7 @@ export async function POST(request: Request) {
         brandColors,
         stats: scene.stats || scene.keyMetrics?.map((m: any) => ({ value: m.value, label: m.label })),
         bullets: hasBullets ? scene.bullets : narrativeBullets,
-        contactInfo: (isFirst || isLast) ? { phone: brandGuide?.phone, website: brandGuide?.website, email: brandGuide?.email, calendly: brandGuide?.calendly } : undefined,
+        contactInfo: sceneContactInfo,
         pageNumber: i + 1,
         totalPages: scenes.length,
       }

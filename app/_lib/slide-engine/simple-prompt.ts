@@ -32,8 +32,8 @@ export function buildSimpleSlidePrompt(input: SimpleSlideInput): string {
     contentLines.push(`This is a CLOSING/CTA slide — drive the viewer to take action.`)
     contentLines.push(`Headline: "${headline}"`)
     if (contactInfo?.phone) contentLines.push(`Phone: ${contactInfo.phone}`)
-    if (contactInfo?.email) contentLines.push(`Email: ${contactInfo.email}`)
-    if (contactInfo?.website) contentLines.push(`Website: ${contactInfo.website}`)
+    if (contactInfo?.email) contentLines.push(`Email: ${contactInfo.email?.toLowerCase()}`)
+    if (contactInfo?.website) contentLines.push(`Website: ${contactInfo.website?.toLowerCase()}`)
     if (contactInfo?.calendly) contentLines.push(`"Schedule a call from this page"`)
   } else {
     contentLines.push(`Title: "${headline}"`)
@@ -63,6 +63,8 @@ Rules:
 - Display ALL content text above on the slide
 - Every letter perfectly spelled and readable
 - 80px safe padding on all edges
+- All URLs and email addresses must be displayed in lowercase
+- When a phone number is in the content, display it prominently
 - Do NOT add any text not listed above
 - Do NOT render instructions or metadata as visible text`
 }
