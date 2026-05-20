@@ -149,6 +149,7 @@ export interface Video {
   thumbnail_url: string | null
   duration: number | null
   slide_urls: string[] | null
+  music_url: string | null
   is_trial: boolean
   status: 'pending' | 'scripting' | 'generating_slides' | 'generating_audio' | 'assembling' | 'completed' | 'failed'
   progress_detail: string | null

@@ -27,6 +27,7 @@ interface Video {
   video_url: string | null
   thumbnail_url: string | null
   slide_urls: string[] | null
+  music_url: string | null
   title: string | null
 }
 
@@ -38,7 +39,11 @@ export default function MarketingWatchPage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [video, setVideo] = useState<Video | null>(null)
   const [notFound, setNotFound] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const musicRef = useRef<HTMLAudioElement>(null)
   const viewTracked = useRef(false)
+  const [musicVolume, setMusicVolume] = useState(0.3)
+  const [musicMuted, setMusicMuted] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -71,7 +76,7 @@ export default function MarketingWatchPage() {
       if (contactData.video_id) {
         const { data: videoData } = await supabase
           .from('videos')
-          .select('id, video_url, thumbnail_url, slide_urls, title')
+          .select('id, video_url, thumbnail_url, slide_urls, music_url, title')
           .eq('id', contactData.video_id)
           .eq('status', 'completed')
           .single()
@@ -145,14 +150,95 @@ export default function MarketingWatchPage() {
       <div style={contentStyle}>
         <div style={videoWrapStyle}>
           <video
+            ref={videoRef}
             src={video.video_url!}
             poster={video.thumbnail_url ?? undefined}
             controls
             autoPlay
             playsInline
+            onPlay={() => {
+              if (musicRef.current && video?.music_url) musicRef.current.play().catch(() => {})
+            }}
+            onPause={() => {
+              if (musicRef.current) musicRef.current.pause()
+            }}
+            onSeeked={() => {
+              if (musicRef.current && videoRef.current) {
+                musicRef.current.currentTime = videoRef.current.currentTime
+              }
+            }}
             style={{ width: '100%', display: 'block', borderRadius: 12 }}
           />
+          {video.music_url && (
+            <audio
+              ref={musicRef}
+              src={video.music_url}
+              loop
+              preload="auto"
+              style={{ display: 'none' }}
+            />
+          )}
         </div>
+
+        {/* Music volume control */}
+        {video.music_url && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '0 0 16px',
+            fontSize: 12,
+            color: '#666',
+          }}>
+            <button
+              onClick={() => {
+                setMusicMuted(m => {
+                  const next = !m
+                  if (musicRef.current) musicRef.current.muted = next
+                  return next
+                })
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 2,
+                display: 'flex',
+                alignItems: 'center',
+                color: musicMuted ? '#aaa' : '#666',
+              }}
+              title={musicMuted ? 'Unmute music' : 'Mute music'}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18V5l12-2v13" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="16" r="3" />
+                {musicMuted && <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2" />}
+              </svg>
+            </button>
+            <span style={{ fontWeight: 600, minWidth: 40 }}>Music</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={musicMuted ? 0 : musicVolume}
+              onChange={e => {
+                const v = parseFloat(e.target.value)
+                setMusicVolume(v)
+                setMusicMuted(v === 0)
+                if (musicRef.current) {
+                  musicRef.current.volume = v
+                  musicRef.current.muted = v === 0
+                }
+              }}
+              style={{ flex: 1, maxWidth: 140 }}
+            />
+            <span style={{ fontSize: 11, color: '#999', minWidth: 30 }}>
+              {musicMuted ? 'Off' : `${Math.round(musicVolume * 100)}%`}
+            </span>
+          </div>
+        )}
 
         {/* CTA Section */}
         {campaign && (

@@ -11,10 +11,11 @@ import { INDUSTRIES } from '../../_lib/industries'
 
 type InputTab = 'upload' | 'slides' | 'text' | 'idea' | 'url' | 'research' | 'proposal'
 
-type Step = 'upload' | 'extracting' | 'script' | 'options' | 'generating' | 'done' | 'review' | 'review-script' | 'choose-brand' | 'choose-style' | 'approve-slides' | 'choose-voice'
+type Step = 'upload' | 'extracting' | 'detail-level' | 'script' | 'options' | 'generating' | 'done' | 'review' | 'review-script' | 'choose-brand' | 'choose-style' | 'approve-slides' | 'choose-voice'
 
 const STEP_LABELS = [
-  { key: 'upload', label: 'Upload' },
+  { key: 'upload', label: 'Content' },
+  { key: 'detail-level', label: 'Length' },
   { key: 'script', label: 'Script' },
   { key: 'options', label: 'Options' },
   { key: 'generating', label: 'Create' },
@@ -105,7 +106,10 @@ function StylePicker({ selectedStyle, onSelect, onBack, onNext, customStylePromp
               onCustomStylePrompt?.('')
             }}
           >
-            <img src={`/style-previews/${style.id}.png`} alt={style.name} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', borderRadius: 10, marginBottom: 8 }} loading="lazy" />
+            <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+              <img src={`/style-previews/${style.id}.png`} alt={`${style.name} cover`} style={{ flex: 1, aspectRatio: '16/9', objectFit: 'cover', borderRadius: 10, minWidth: 0 }} loading="lazy" />
+              <img src={`/style-previews/${style.id}-content.png`} alt={`${style.name} content`} style={{ flex: 1, aspectRatio: '16/9', objectFit: 'cover', borderRadius: 10, minWidth: 0 }} loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+            </div>
             <div className="style-name">{style.name}</div>
             <div className="style-desc">{style.description}</div>
           </div>
@@ -198,7 +202,7 @@ export default function CreatePage() {
   const [selectedMusic, setSelectedMusic] = useState<string | null>(null)
   const [uploadedLogo, setUploadedLogo] = useState<string | null>(null)
   const [customTheme, setCustomTheme] = useState(false)
-  const [suggestedTheme, setSuggestedTheme] = useState<{ name: string; description: string; prompt: string; colors: any; previewUrl?: string } | null>(null)
+  const [suggestedTheme, setSuggestedTheme] = useState<{ name: string; description: string; prompt: string; colors: any; previewUrl?: string; previewUrls?: string[] } | null>(null)
   const [themeAccepted, setThemeAccepted] = useState(false)
   const [generatingThemePreview, setGeneratingThemePreview] = useState(false)
   const [uploadedSlides, setUploadedSlides] = useState<string[]>([]) // base64 data URLs
@@ -984,7 +988,9 @@ export default function CreatePage() {
             voiceId: selectedVoice,
             styleId: uploadMode === 'narrate' ? undefined : selectedStyle,
             customStylePrompt: uploadMode === 'narrate' ? undefined : (customStylePrompt || undefined),
-            aiMusic: true,
+            aiMusic,
+            musicPrompt: aiMusic ? musicPrompt : undefined,
+            musicUrl: !aiMusic && selectedMusic ? selectedMusic : undefined,
             approvedSlides: finalApprovedSlides,
             scenes: editableScenes.length > 0 ? editableScenes : generatedScenes,
             assets: assetPayload,
@@ -1020,7 +1026,7 @@ export default function CreatePage() {
         {STEP_LABELS.map((s, i) => {
           const sIdx = STEP_LABELS.findIndex(sl => sl.key === s.key)
           const isDone = currentStepIdx > sIdx
-          const isActive = (step === s.key) || (step === 'extracting' && s.key === 'upload')
+          const isActive = (step === s.key) || (step === 'extracting' && s.key === 'upload') || (step === 'detail-level' && s.key === 'detail-level')
           return (
             <div key={s.key} className={`pp-step${isActive ? ' active' : ''}${isDone ? ' done' : ''}`}>
               <div className="pp-dot">
@@ -1319,11 +1325,19 @@ export default function CreatePage() {
                       })
                       const data = await res.json()
                       if (!res.ok) throw new Error(data.error || 'Extraction failed')
-                      // Separate suggestedTheme from content data
-                      const { suggestedTheme: theme, ...contentData } = data
+                      // Separate suggestedTheme and autoBrandId from content data
+                      const { suggestedTheme: theme, autoBrandId, ...contentData } = data
                       setGeneralData(contentData)
                       setExtractedData(null)
                       setReviewReady(true)
+                      // Auto-select the brand created from URL scraping
+                      if (autoBrandId) {
+                        setSelectedBrand(autoBrandId)
+                        // Reload brands list so the new brand appears in the options page
+                        const supabase = createClient()
+                        const { data: updatedBrands } = await supabase.from('brands').select('*').order('is_default', { ascending: false })
+                        if (updatedBrands) setBrands(updatedBrands as Brand[])
+                      }
                       // If theme was generated, store it and generate a preview
                       if (theme?.prompt) {
                         setSuggestedTheme(theme)
@@ -1336,7 +1350,7 @@ export default function CreatePage() {
                           body: JSON.stringify({ prompt: theme.prompt, name: theme.name }),
                         }).then(r => r.json()).then(preview => {
                           if (preview.previewUrl) {
-                            setSuggestedTheme(prev => prev ? { ...prev, previewUrl: preview.previewUrl } : null)
+                            setSuggestedTheme(prev => prev ? { ...prev, previewUrl: preview.previewUrl, previewUrls: preview.previewUrls || [preview.previewUrl] } : null)
                           }
                         }).catch(() => {}).finally(() => setGeneratingThemePreview(false))
                       }
@@ -1643,20 +1657,38 @@ export default function CreatePage() {
           <div className="wizard-card" style={{ marginTop: 20, border: '2px solid var(--mint)', background: 'rgba(168,240,212,0.04)' }}>
             <h2 style={{ margin: '0 0 4px' }}>We designed a theme from this website</h2>
             <p className="wizard-sub">Based on the site&apos;s colors and design, we created a custom slide theme. Want to use it?</p>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginTop: 16 }}>
-              <div style={{ flex: 1 }}>
-                {generatingThemePreview ? (
-                  <div style={{ width: '100%', aspectRatio: '16/9', borderRadius: 10, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-light)' }}>
-                    <div className="spinner" style={{ marginRight: 8 }} /> Generating preview...
-                  </div>
-                ) : suggestedTheme.previewUrl ? (
-                  <img src={suggestedTheme.previewUrl} alt={suggestedTheme.name} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border-light)' }} />
-                ) : (
-                  <div style={{ width: '100%', aspectRatio: '16/9', borderRadius: 10, background: suggestedTheme.colors?.background || '#1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: suggestedTheme.colors?.text || '#fff', fontWeight: 700, fontSize: 18, border: '1px solid var(--border-light)' }}>
-                    {suggestedTheme.name}
-                  </div>
-                )}
+            {/* Preview slides */}
+            {generatingThemePreview ? (
+              <div style={{ display: 'flex', gap: 12, marginTop: 16, marginBottom: 16 }}>
+                <div style={{ flex: 1, aspectRatio: '16/9', borderRadius: 10, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-light)' }}>
+                  <div className="spinner" style={{ marginRight: 8 }} /> Cover...
+                </div>
+                <div style={{ flex: 1, aspectRatio: '16/9', borderRadius: 10, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-light)' }}>
+                  <div className="spinner" style={{ marginRight: 8 }} /> Content...
+                </div>
               </div>
+            ) : suggestedTheme.previewUrls && suggestedTheme.previewUrls.length > 1 ? (
+              <div style={{ display: 'flex', gap: 12, marginTop: 16, marginBottom: 16 }}>
+                {suggestedTheme.previewUrls.map((url, i) => (
+                  <div key={i} style={{ flex: 1, position: 'relative' }}>
+                    <img src={url} alt={`${suggestedTheme.name} ${i === 0 ? 'Cover' : 'Content'}`} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border-light)' }} />
+                    <div style={{ position: 'absolute', bottom: 6, left: 6, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4 }}>
+                      {i === 0 ? 'Cover' : 'Content'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : suggestedTheme.previewUrl ? (
+              <div style={{ marginTop: 16, marginBottom: 16 }}>
+                <img src={suggestedTheme.previewUrl} alt={suggestedTheme.name} style={{ width: '100%', maxWidth: 480, aspectRatio: '16/9', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border-light)' }} />
+              </div>
+            ) : (
+              <div style={{ marginTop: 16, marginBottom: 16, width: '100%', maxWidth: 480, aspectRatio: '16/9', borderRadius: 10, background: suggestedTheme.colors?.background || '#1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: suggestedTheme.colors?.text || '#fff', fontWeight: 700, fontSize: 18, border: '1px solid var(--border-light)' }}>
+                {suggestedTheme.name}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{suggestedTheme.name}</div>
                 <div style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 12, lineHeight: 1.5 }}>{suggestedTheme.description}</div>
@@ -1980,11 +2012,72 @@ export default function CreatePage() {
 
             <div className="wizard-actions">
               <button onClick={() => { if (confirm('Start over? This will clear all your extracted data and edits.')) { setReviewReady(false); setExtractedData(null); setGeneralData(null); setMultiDocData([]); setEditableScenes([]) } }} className="btn btn-soft">&larr; Start Over</button>
-              <button onClick={handleGenerateScript} className="btn btn-primary" disabled={!videoPurpose.trim()}>Generate Script &rarr;</button>
+              <button onClick={() => setStep('detail-level')} className="btn btn-primary" disabled={!videoPurpose.trim()}>Choose Video Length &rarr;</button>
             </div>
           </div>
         )}
         </>
+      )}
+
+      {/* Step: Detail Level — choose video length before script generation */}
+      {step === 'detail-level' && (
+        <div className="wizard-card">
+          <h2>How detailed should your video be?</h2>
+          <p className="wizard-sub">This determines how many scenes and how long your video will be.</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
+            <button
+              type="button"
+              onClick={() => { setDetailedMode(false); setDetailLevel('quick') }}
+              style={{
+                padding: '20px 16px',
+                background: detailLevel === 'quick' ? 'rgba(199,232,168,0.12)' : 'white',
+                border: detailLevel === 'quick' ? '2px solid var(--mint-deep, #a6d87c)' : '1px solid var(--border-light)',
+                borderRadius: 10, cursor: 'pointer', textAlign: 'left', position: 'relative',
+              }}
+            >
+              {recommendedLevel === 'quick' && <span style={{ position: 'absolute', top: -8, right: 10, background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>Recommended</span>}
+              <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>Highlights</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 8 }}>30-60 seconds &middot; 3-4 slides</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>Key numbers only. Perfect for quick shares, texts, and social media.</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDetailedMode(false); setDetailLevel('standard') }}
+              style={{
+                padding: '20px 16px',
+                background: detailLevel === 'standard' ? 'rgba(199,232,168,0.12)' : 'white',
+                border: detailLevel === 'standard' ? '2px solid var(--mint-deep, #a6d87c)' : '1px solid var(--border-light)',
+                borderRadius: 10, cursor: 'pointer', textAlign: 'left', position: 'relative',
+              }}
+            >
+              {recommendedLevel === 'standard' && <span style={{ position: 'absolute', top: -8, right: 10, background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>Recommended</span>}
+              <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>Overview</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 8 }}>2-4 minutes &middot; 6-10 slides</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>Full overview of key data. Best for client presentations.</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDetailedMode(true); setDetailLevel('detailed') }}
+              style={{
+                padding: '20px 16px',
+                background: detailLevel === 'detailed' ? 'rgba(199,232,168,0.12)' : 'white',
+                border: detailLevel === 'detailed' ? '2px solid var(--mint-deep, #a6d87c)' : '1px solid var(--border-light)',
+                borderRadius: 10, cursor: 'pointer', textAlign: 'left', position: 'relative',
+              }}
+            >
+              {recommendedLevel === 'detailed' && <span style={{ position: 'absolute', top: -8, right: 10, background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>Recommended</span>}
+              <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>Detailed</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 8 }}>5-10 minutes &middot; 10-16 slides</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>Every data point explained. Best for complex documents.</div>
+            </button>
+          </div>
+
+          <div className="wizard-actions">
+            <button onClick={() => setStep('upload')} className="btn btn-soft">&larr; Back</button>
+            <button onClick={handleGenerateScript} className="btn btn-primary">Generate Script &rarr;</button>
+          </div>
+        </div>
       )}
 
       {/* Step: Extracting */}
@@ -2069,7 +2162,7 @@ export default function CreatePage() {
               <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>Script generation failed</p>
               <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20 }}>Please try again or go back to edit your content.</p>
               <div className="wizard-actions" style={{ justifyContent: 'center' }}>
-                <button onClick={() => setStep('upload')} className="btn btn-soft">&larr; Back to Review</button>
+                <button onClick={() => setStep('detail-level')} className="btn btn-soft">&larr; Back</button>
                 <button onClick={handleGenerateScript} className="btn btn-primary">Try Again</button>
               </div>
             </div>
@@ -2125,7 +2218,7 @@ export default function CreatePage() {
                 Total: {editableScenes.length} scenes &middot; ~{Math.round(editableScenes.reduce((sum, s) => sum + s.narration.split(/\s+/).length, 0) / 2.5)}s estimated duration
               </div>
               <div className="wizard-actions">
-                <button onClick={() => setStep('upload')} className="btn btn-soft">&larr; Back to Review</button>
+                <button onClick={() => setStep('detail-level')} className="btn btn-soft">&larr; Back</button>
                 <button
                   onClick={() => {
                     if (!editableScenes || editableScenes.length === 0) {
@@ -3252,58 +3345,6 @@ export default function CreatePage() {
                   </button>
                 </div>
               ))}
-            </div>
-          </div>
-
-          {/* Video Detail Level */}
-          <div style={{ marginBottom: 28 }}>
-            <label className="input-label">Video Detail Level</label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-              <button
-                type="button"
-                onClick={() => { setDetailedMode(false); setDetailLevel('quick') }}
-                style={{
-                  padding: '16px 14px',
-                  background: detailLevel === 'quick' ? 'rgba(199,232,168,0.12)' : 'white',
-                  border: detailLevel === 'quick' ? '2px solid var(--mint-deep, #a6d87c)' : '1px solid var(--border-light)',
-                  borderRadius: 10, cursor: 'pointer', textAlign: 'left', position: 'relative',
-                }}
-              >
-                {recommendedLevel === 'quick' && <span style={{ position: 'absolute', top: -8, right: 10, background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>Recommended</span>}
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Highlights</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8 }}>30-60 sec &middot; 3-4 slides</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Key numbers only. Quick shares &amp; social.</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setDetailedMode(false); setDetailLevel('standard') }}
-                style={{
-                  padding: '16px 14px',
-                  background: detailLevel === 'standard' ? 'rgba(199,232,168,0.12)' : 'white',
-                  border: detailLevel === 'standard' ? '2px solid var(--mint-deep, #a6d87c)' : '1px solid var(--border-light)',
-                  borderRadius: 10, cursor: 'pointer', textAlign: 'left', position: 'relative',
-                }}
-              >
-                {recommendedLevel === 'standard' && <span style={{ position: 'absolute', top: -8, right: 10, background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>Recommended</span>}
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Overview</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8 }}>2-4 min &middot; 6-10 slides</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Full overview. Client presentations.</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setDetailedMode(true); setDetailLevel('detailed') }}
-                style={{
-                  padding: '16px 14px',
-                  background: detailLevel === 'detailed' ? 'rgba(199,232,168,0.12)' : 'white',
-                  border: detailLevel === 'detailed' ? '2px solid var(--mint-deep, #a6d87c)' : '1px solid var(--border-light)',
-                  borderRadius: 10, cursor: 'pointer', textAlign: 'left', position: 'relative',
-                }}
-              >
-                {recommendedLevel === 'detailed' && <span style={{ position: 'absolute', top: -8, right: 10, background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>Recommended</span>}
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Detailed</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8 }}>5-10 min &middot; 10-16 slides</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Every data point. Complex documents.</div>
-              </button>
             </div>
           </div>
 

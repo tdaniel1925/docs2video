@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { GoogleGenAI } from '@google/genai'
 import type { ExtractedData } from '../../_lib/extract-types'
+import { scrapeBrand } from '../../_lib/brand-scraper'
 
 export const runtime = 'nodejs'
 
@@ -205,7 +206,61 @@ export async function POST(request: Request) {
       console.error('[extract-url] Failed to parse theme suggestion')
     }
 
-    return NextResponse.json({ ...data, suggestedTheme })
+    // Auto-create brand from scraped URL
+    let autoBrandId: string | null = null
+    try {
+      console.log('[extract-url] Scraping brand from URL...')
+      const brandAnalysis = await scrapeBrand(url)
+
+      // Upload logo if it's a data URL (upscaled by brand-scraper)
+      let logoFileUrl: string | null = null
+      if (brandAnalysis.logoUrl?.startsWith('data:')) {
+        const base64Data = brandAnalysis.logoUrl.split(',')[1]
+        const logoBuffer = Buffer.from(base64Data, 'base64')
+        const logoPath = `${user.id}/brand_logo_${Date.now()}.png`
+        await supabase.storage.from('brand-assets').upload(logoPath, logoBuffer, { contentType: 'image/png', upsert: true })
+        const { data: logoUrlData } = supabase.storage.from('brand-assets').getPublicUrl(logoPath)
+        logoFileUrl = logoUrlData.publicUrl
+      } else if (brandAnalysis.logoUrl) {
+        logoFileUrl = brandAnalysis.logoUrl
+      }
+
+      const { data: newBrand, error: brandError } = await supabase.from('brands').insert({
+        user_id: user.id,
+        name: brandAnalysis.companyName || parsedUrl.hostname.replace('www.', ''),
+        logo_url: brandAnalysis.logoUrl?.startsWith('data:') ? null : (brandAnalysis.logoUrl || null),
+        logo_file_url: logoFileUrl,
+        primary_color: brandAnalysis.primaryColor || '#1B365D',
+        secondary_color: brandAnalysis.secondaryColor || '#4A90D9',
+        accent_color: brandAnalysis.accentColor || '#FFB347',
+        background_color: brandAnalysis.backgroundColor || '#0a1628',
+        text_color: brandAnalysis.textColor || '#FFFFFF',
+        tagline: brandAnalysis.tagline || null,
+        description: brandAnalysis.description || null,
+        industry: brandAnalysis.industry || null,
+        tone: brandAnalysis.tone || null,
+        target_audience: brandAnalysis.targetAudience || null,
+        fonts: brandAnalysis.fonts || [],
+        brand_values: brandAnalysis.brandValues || [],
+        services: brandAnalysis.services || [],
+        social_links: brandAnalysis.socialLinks || {},
+        content_themes: brandAnalysis.contentThemes || [],
+        competitor_notes: brandAnalysis.competitorNotes || null,
+        unique_selling_points: brandAnalysis.uniqueSellingPoints || [],
+        is_default: false,
+      }).select('id').single()
+
+      if (brandError) {
+        console.error('[extract-url] Brand creation failed:', brandError.message)
+      } else {
+        autoBrandId = newBrand.id
+        console.log(`[extract-url] Auto-created brand: ${brandAnalysis.companyName} (${autoBrandId})`)
+      }
+    } catch (brandErr) {
+      console.error('[extract-url] Brand scraping failed:', brandErr instanceof Error ? brandErr.message : 'unknown')
+    }
+
+    return NextResponse.json({ ...data, suggestedTheme, autoBrandId })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'URL extraction failed'
     return NextResponse.json({ error: message }, { status: 500 })

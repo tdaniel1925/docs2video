@@ -17,36 +17,65 @@ export async function POST(request: Request) {
 
   const body = await request.json()
 
-  // Simple single-preview mode: just a prompt and name
+  // Simple preview mode: generate cover + content sample slides
   if (body.prompt && body.name && !body.policyData) {
-    try {
-      const response = await genai.models.generateContent({
-        model: 'gemini-3-pro-image-preview',
-        contents: `Create a professional presentation slide preview. This is a SAMPLE slide to show the visual style.
+    const coverPrompt = `Create a professional COVER/TITLE slide for a presentation. This is a SAMPLE slide to show the visual style.
 
 DESIGN STYLE:
 ${body.prompt}
 
-Show a sample slide with:
-- Title: "Quarterly Business Review"
-- 3 sample bullet points about business metrics
-- Clean, professional layout
+Show a cover slide with:
+- Large title: "Quarterly Business Review"
+- Subtitle: "Q2 2025 Performance Summary"
+- Company branding area
+- Clean, bold, professional title layout
 - 1920x1080, landscape, 16:9
-- Make it look polished and ready for a real presentation`,
-        config: {
-          responseFormat: { image: { aspectRatio: '16:9', imageSize: '4K' } },
-        } as any,
-      })
-      const parts = response.candidates?.[0]?.content?.parts ?? []
-      for (const part of parts) {
-        if (part.inlineData) {
-          return NextResponse.json({ previewUrl: `data:image/png;base64,${part.inlineData.data}` })
-        }
+- Make it look polished — this is the first slide the audience sees`
+
+    const contentPrompt = `Create a professional CONTENT slide for a presentation. This is a SAMPLE slide to show the visual style.
+
+DESIGN STYLE:
+${body.prompt}
+
+Show a content slide with:
+- Title: "Revenue Growth"
+- 3 key metrics: "$2.4M Revenue (+18%)", "1,240 New Clients", "94% Retention Rate"
+- 2-3 bullet points explaining the data
+- Clean, professional data layout
+- 1920x1080, landscape, 16:9
+- Make it look polished and ready for a real presentation`
+
+    try {
+      const [coverRes, contentRes] = await Promise.all([
+        genai.models.generateContent({
+          model: 'gemini-3-pro-image-preview',
+          contents: coverPrompt,
+          config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '4K' } } } as any,
+        }),
+        genai.models.generateContent({
+          model: 'gemini-3-pro-image-preview',
+          contents: contentPrompt,
+          config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '4K' } } } as any,
+        }),
+      ])
+
+      let coverUrl: string | null = null
+      let contentUrl: string | null = null
+
+      for (const part of (coverRes.candidates?.[0]?.content?.parts ?? [])) {
+        if (part.inlineData) { coverUrl = `data:image/png;base64,${part.inlineData.data}`; break }
       }
-      return NextResponse.json({ previewUrl: null })
+      for (const part of (contentRes.candidates?.[0]?.content?.parts ?? [])) {
+        if (part.inlineData) { contentUrl = `data:image/png;base64,${part.inlineData.data}`; break }
+      }
+
+      return NextResponse.json({
+        previewUrl: coverUrl,
+        previewUrls: [coverUrl, contentUrl].filter(Boolean),
+      })
     } catch (err) {
-      console.error('[style-previews] Single preview failed:', err)
-      return NextResponse.json({ previewUrl: null })
+      console.error('[style-previews] Preview generation failed:', err)
+      return NextResponse.json({ previewUrl: null, previewUrls: [] })
     }
   }
 

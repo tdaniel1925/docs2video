@@ -309,8 +309,19 @@ export default function VideoDetailPage() {
 
   // Video player state
   const videoRef = useRef<HTMLVideoElement>(null)
+  const musicRef = useRef<HTMLAudioElement>(null)
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
   const [videoDuration, setVideoDuration] = useState(0)
+  const [musicVolume, setMusicVolume] = useState(0.3)
+  const [musicMuted, setMusicMuted] = useState(false)
+
+  // Sync music volume when ref or volume changes
+  useEffect(() => {
+    if (musicRef.current) {
+      musicRef.current.volume = musicVolume
+      musicRef.current.muted = musicMuted
+    }
+  }, [video?.music_url, musicVolume, musicMuted])
 
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([
@@ -1168,10 +1179,90 @@ export default function VideoDetailPage() {
                 onLoadedMetadata={() => {
                   if (videoRef.current) setVideoDuration(videoRef.current.duration)
                 }}
+                onPlay={() => {
+                  if (musicRef.current && video?.music_url) musicRef.current.play().catch(() => {})
+                }}
+                onPause={() => {
+                  if (musicRef.current) musicRef.current.pause()
+                }}
+                onSeeked={() => {
+                  if (musicRef.current && videoRef.current) {
+                    musicRef.current.currentTime = videoRef.current.currentTime
+                  }
+                }}
                 style={{ width: '100%', display: 'block', maxHeight: '50vh' }}
                 playsInline
               />
+              {video.music_url && (
+                <audio
+                  ref={musicRef}
+                  src={video.music_url}
+                  loop
+                  preload="auto"
+                  style={{ display: 'none' }}
+                />
+              )}
             </div>
+
+            {/* Music volume control */}
+            {video.music_url && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '4px 4px 0',
+                fontSize: 12,
+                color: 'var(--ink-soft)',
+              }}>
+                <button
+                  onClick={() => {
+                    setMusicMuted(m => {
+                      const next = !m
+                      if (musicRef.current) musicRef.current.muted = next
+                      return next
+                    })
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: musicMuted ? 'var(--ink-light)' : 'var(--ink-soft)',
+                  }}
+                  title={musicMuted ? 'Unmute music' : 'Mute music'}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 18V5l12-2v13" />
+                    <circle cx="6" cy="18" r="3" />
+                    <circle cx="18" cy="16" r="3" />
+                    {musicMuted && <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2" />}
+                  </svg>
+                </button>
+                <span style={{ fontWeight: 600, minWidth: 40 }}>Music</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={musicMuted ? 0 : musicVolume}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value)
+                    setMusicVolume(v)
+                    setMusicMuted(v === 0)
+                    if (musicRef.current) {
+                      musicRef.current.volume = v
+                      musicRef.current.muted = v === 0
+                    }
+                  }}
+                  style={{ flex: 1, maxWidth: 140, accentColor: 'var(--mint)' }}
+                />
+                <span style={{ fontSize: 11, color: 'var(--ink-light)', minWidth: 30 }}>
+                  {musicMuted ? 'Off' : `${Math.round(musicVolume * 100)}%`}
+                </span>
+              </div>
+            )}
 
             {/* Slide indicator */}
             {slideCount > 0 && (
