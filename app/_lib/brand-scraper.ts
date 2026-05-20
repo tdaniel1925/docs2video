@@ -311,16 +311,37 @@ Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no c
     }
   }
 
-  // Process logo: use as-is if good quality (Logo.dev), upscale with OpenAI if small
+  // Process logo: resize small logos with Sharp first, then upscale with OpenAI if needed
   let processedLogoUrl = logoUrl
   if (logoBuffer && !logoMime.includes('svg')) {
-    // Check if logo is too small and needs upscaling (under 200px wide = ~10KB for PNG)
-    const needsUpscale = logoBuffer.length < 15000
-    if (needsUpscale) {
+    const sharpMod = await import('sharp')
+    const sharp = sharpMod.default ?? sharpMod
+
+    // First: use Sharp to ensure minimum size (OpenAI needs at least 256x256)
+    try {
+      const meta = await sharp(logoBuffer).metadata()
+      const w = meta.width ?? 0
+      const h = meta.height ?? 0
+      console.log(`[brand-scraper] Logo dimensions: ${w}x${h}, ${(logoBuffer.length / 1024).toFixed(0)}KB`)
+
+      if (w < 256 || h < 256) {
+        // Resize up to at least 512px on the longest side with white background
+        logoBuffer = await sharp(logoBuffer)
+          .resize(512, 512, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+          .png()
+          .toBuffer()
+        console.log(`[brand-scraper] Logo padded to 512x512 (${(logoBuffer.length / 1024).toFixed(0)}KB)`)
+      }
+    } catch (sharpErr) {
+      console.log('[brand-scraper] Sharp logo processing failed:', sharpErr instanceof Error ? sharpErr.message : 'unknown')
+    }
+
+    // Now try OpenAI upscale for small logos (under 15KB after padding)
+    if (logoBuffer.length < 15000) {
       try {
         const OpenAI = (await import('openai')).default
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-        console.log(`[brand-scraper] Small logo (${(logoBuffer.length / 1024).toFixed(0)}KB), upscaling with OpenAI...`)
+        console.log(`[brand-scraper] Upscaling logo with OpenAI (${(logoBuffer.length / 1024).toFixed(0)}KB)...`)
         const logoFile = new File([new Uint8Array(logoBuffer)], 'logo.png', { type: 'image/png' })
         const response = await openai.images.edit({
           model: 'gpt-image-2',
@@ -335,14 +356,14 @@ Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no c
           processedLogoUrl = `data:image/png;base64,${imageData.b64_json}`
           console.log('[brand-scraper] Logo upscaled successfully')
         } else {
-          processedLogoUrl = `data:${logoMime};base64,${logoBuffer.toString('base64')}`
+          processedLogoUrl = `data:image/png;base64,${logoBuffer.toString('base64')}`
         }
       } catch (err) {
-        console.log('[brand-scraper] Logo upscale failed, using original:', err instanceof Error ? err.message : 'unknown')
-        processedLogoUrl = `data:${logoMime};base64,${logoBuffer.toString('base64')}`
+        console.log('[brand-scraper] Logo upscale failed, using padded version:', err instanceof Error ? err.message : 'unknown')
+        processedLogoUrl = `data:image/png;base64,${logoBuffer.toString('base64')}`
       }
     } else {
-      // Logo is good quality already (Logo.dev or large scraped logo)
+      // Logo is good quality already
       processedLogoUrl = `data:${logoMime};base64,${logoBuffer.toString('base64')}`
       console.log(`[brand-scraper] Logo good quality (${(logoBuffer.length / 1024).toFixed(0)}KB), using as-is`)
     }
