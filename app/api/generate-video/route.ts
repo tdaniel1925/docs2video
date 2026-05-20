@@ -187,9 +187,11 @@ export async function POST(request: Request) {
       const isLast = i === scenes.length - 1
 
       // Extract bullet content from narration if no explicit bullets
+      // Strip speaker tags (Host:, Expert:, Advisor:, Client:) from narration
       const hasBullets = scene.bullets?.length > 0
-      const narrativeBullets = !hasBullets && scene.narration
-        ? scene.narration.split(/[.!?]+/).filter((s: string) => s.trim().length > 10).slice(0, 4).map((s: string) => ({ text: s.trim() }))
+      const cleanNarration = scene.narration?.replace(/^(Host|Expert|Advisor|Client|Narrator|Clarifier):\s*/gim, '') || ''
+      const narrativeBullets = !hasBullets && cleanNarration
+        ? cleanNarration.split(/[.!?]+/).filter((s: string) => s.trim().length > 10).slice(0, 4).map((s: string) => ({ text: s.trim() }))
         : undefined
 
       const input: SimpleSlideInput = {

@@ -636,7 +636,7 @@ export default function PublicWatchPage() {
 
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
   const [videoDuration, setVideoDuration] = useState(0)
-  const [musicVolume, setMusicVolume] = useState(0.3)
+  const [musicVolume, setMusicVolume] = useState(0.1)
   const [musicMuted, setMusicMuted] = useState(false)
 
   // Sync music volume

@@ -42,7 +42,7 @@ export default function MarketingWatchPage() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const musicRef = useRef<HTMLAudioElement>(null)
   const viewTracked = useRef(false)
-  const [musicVolume, setMusicVolume] = useState(0.3)
+  const [musicVolume, setMusicVolume] = useState(0.1)
   const [musicMuted, setMusicMuted] = useState(false)
 
   useEffect(() => {

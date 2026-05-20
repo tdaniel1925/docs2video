@@ -361,13 +361,20 @@ SPEAKERS:
 - "${speakerConfig.speaker1.name}" — ${speakerConfig.speaker1.instructions}
 - "${speakerConfig.speaker2.name}" — ${speakerConfig.speaker2.instructions}
 
+SCENE PACING (CRITICAL):
+- Create MORE scenes than you normally would — each scene should cover ONE specific fact or data point
+- Each scene should be 15-25 seconds of dialogue max (3-4 short exchanges)
+- NEVER let one scene cover multiple topics — split them into separate scenes
+- A 5-minute video should have 12-20 scenes, not 6-8
+- Every scene gets its own slide, so more scenes = more visual variety
+
 DIALOGUE RULES:
-- Each scene has 3-6 dialogue lines alternating between speakers
+- Each scene has 2-4 dialogue lines alternating between speakers
 - ${speakerConfig.speaker1.name} leads and explains, ${speakerConfig.speaker2.name} asks questions and reacts
 - Keep each line 1-2 sentences max — short and punchy, like a real conversation
 - Include natural reactions: "That's impressive." / "Right, exactly." / "So what you're saying is..."
 - NO cheesy radio host energy. This should feel like two smart people having a real conversation.
-- The "narration" field should contain ALL dialogue combined as plain text (for subtitle/fallback)
+- The "narration" field should contain ALL dialogue combined as plain text WITHOUT speaker names (no "Host:" or "Expert:" prefixes)
 - The "dialogue" array has the individual lines with speaker tags
 
 Return ONLY valid JSON array (no markdown, no code fences):
