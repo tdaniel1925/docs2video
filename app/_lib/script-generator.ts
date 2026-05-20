@@ -36,7 +36,7 @@ ${data.loanRate ? `- Loan Rate: ${data.loanRate}%` : ''}
 ${svSummary ? `- Surrender Value Projections:\n  ${svSummary}` : ''}
 - Riders: ${(data.riders ?? []).join(', ') || 'None'}
 - Additional Notes: ${(data.additionalNotes ?? []).join(', ') || 'None'}
-${brandName ? `- Agent/Agency: ${brandName}` : ''}
+${brandName ? `- Agent/Agency: {{BRAND_NAME}}` : ''}
 
 CARRIER NAME RULE (CRITICAL — LEGAL REQUIREMENT):
 - NEVER mention the insurance carrier name anywhere in the narration.
@@ -58,7 +58,7 @@ BEAT STRUCTURE (follow this storytelling framework — each scene has a PURPOSE)
 Every scene must have a "beat" field indicating its storytelling role. Use this exact structure:
 
 1. HOOK (1 scene) — Open with the greeting per VOICE RULES, then immediately state something compelling: a key benefit, a surprising number, or a thought-provoking question about the policy. Make the viewer want to keep watching.
-   ${brandName ? `Mention that this presentation is brought by ${brandName}.` : ''}
+   ${brandName ? `Mention that this presentation is brought by {{BRAND_NAME}}.` : ''}
 
 2. DISCLAIMER (1 scene) — EXACT narration: "Before we begin, please note: this video is intended for educational and informational purposes only. It explains general concepts related to life insurance illustrations. It is not legal, tax, or financial advice. Policy guarantees are based on the claims-paying ability of the issuing insurance company. Any non-guaranteed values shown are subject to change. Please review all policy materials and consult with your licensed insurance professional before making any decisions."
 
@@ -79,7 +79,7 @@ Every scene must have a "beat" field indicating its storytelling role. Use this 
 7. DISCLAIMER-CLOSE (1 scene) — Closing legal disclaimer. EXACT narration: "As a reminder, this video is for educational purposes only and does not constitute financial advice. Policy guarantees depend on the issuing carrier's claims-paying ability, and non-guaranteed values may change. Please review your official policy documents and consult with your licensed professional."
 
 8. ACTION (1 scene) — Clear next step. What should the viewer do now? End with the closing per VOICE RULES.
-   ${brandName ? `Direct them to contact ${brandName}.` : 'Direct them to contact their agent.'}
+   ${brandName ? `Direct them to contact {{BRAND_NAME}}.` : 'Direct them to contact their agent.'}
 
 SCENE COUNT: Use 8-16 scenes total. The EVIDENCE section should expand based on how much data is in the document. Simple policies = fewer evidence scenes. Complex ones with many riders and projections = more.
 
@@ -142,7 +142,7 @@ DOCUMENT DATA:
 - Title: ${data.title}
 ${data.subtitle ? `- Subtitle: ${data.subtitle}` : ''}
 ${data.source ? `- Source: ${data.source}` : ''}
-${brandName ? `- Presented by: ${brandName}` : ''}
+${brandName ? `- Presented by: {{BRAND_NAME}}` : ''}
 
 Key Metrics:
 ${metricsText || '(none)'}
@@ -175,10 +175,10 @@ Every scene must have a "beat" field indicating its storytelling role. Use this 
 
 ${config.beatStructure}
 ${disclaimerBeat}${disclaimerCloseBeat}
-   ${brandName ? `For the HOOK: Mention that this presentation is brought by ${brandName}.` : ''}
+   ${brandName ? `For the HOOK: Mention that this presentation is brought by {{BRAND_NAME}}.` : ''}
    Introduce the topic: "${data.title}"
    For the ACTION beat: ${config.ctaText}
-   ${brandName ? `Direct them to contact ${brandName}.` : 'Encourage the viewer to take the next step.'}
+   ${brandName ? `Direct them to contact {{BRAND_NAME}}.` : 'Encourage the viewer to take the next step.'}
 
 ${uploadMode === 'narrate' || uploadMode === 'redesign'
   ? `SCENE COUNT: Create EXACTLY ${Math.max(data.sections?.length || 1, 5)} scenes — one scene for EVERY section and topic in the document. Do NOT summarize, combine, or skip any content. Every piece of information must be covered.`

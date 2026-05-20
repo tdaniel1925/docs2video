@@ -140,7 +140,16 @@ export async function POST(request: Request) {
     let scenes
     if (preGeneratedScenes && preGeneratedScenes.length > 0) {
       console.log(`[video ${videoId}] Using ${preGeneratedScenes.length} pre-generated scenes.`)
-      scenes = preGeneratedScenes
+      // Replace {{BRAND_NAME}} placeholder with the actual selected brand
+      const actualBrandName = brand?.name || ''
+      scenes = preGeneratedScenes.map((s: any) => ({
+        ...s,
+        narration: s.narration?.replaceAll('{{BRAND_NAME}}', actualBrandName) || s.narration,
+        dialogue: s.dialogue?.map((d: any) => ({
+          ...d,
+          text: d.text?.replaceAll('{{BRAND_NAME}}', actualBrandName) || d.text,
+        })),
+      }))
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script ready', progress_pct: 15 }).eq('id', videoId)
     } else {
       console.log(`[video ${videoId}] Generating script...`)
