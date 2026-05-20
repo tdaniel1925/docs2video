@@ -128,11 +128,19 @@ export interface ExtractedPolicyData {
   disclaimers?: string[]
 }
 
+export interface DialogueLine {
+  speaker: string
+  voice: string
+  instructions: string
+  text: string
+}
+
 export interface VideoScene {
   scene: number
   beat: 'hook' | 'disclaimer' | 'disclaimer-close' | 'context' | 'stakes' | 'evidence' | 'implication' | 'action'
   title: string
   narration: string
+  dialogue?: DialogueLine[]
   slidePrompt: string
   duration: number
 }

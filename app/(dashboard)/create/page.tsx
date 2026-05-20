@@ -195,6 +195,7 @@ export default function CreatePage() {
   const [detailedMode, setDetailedMode] = useState(false)
   const [detailLevel, setDetailLevel] = useState<'quick' | 'standard' | 'detailed'>('standard')
   const [recommendedLevel, setRecommendedLevel] = useState<'quick' | 'standard' | 'detailed'>('standard')
+  const [narrationStyle, setNarrationStyle] = useState<'solo' | 'podcast'>('solo')
   const [videoPurpose, setVideoPurpose] = useState('')
   const [uploadMode, setUploadMode] = useState<'summarize' | 'redesign' | 'narrate'>('summarize')
   const [selectedIndustry, setSelectedIndustry] = useState('general')
@@ -374,6 +375,7 @@ export default function CreatePage() {
           selectedStyle,
           selectedBrand,
           detailLevel,
+          narrationStyle,
           videoPurpose,
           selectedIndustry,
           aiMusic,
@@ -402,6 +404,7 @@ export default function CreatePage() {
       if (draft.selectedStyle) setSelectedStyle(draft.selectedStyle)
       if (draft.selectedBrand) setSelectedBrand(draft.selectedBrand)
       if (draft.detailLevel) { setDetailLevel(draft.detailLevel); setDetailedMode(draft.detailLevel === 'detailed') }
+      if (draft.narrationStyle) setNarrationStyle(draft.narrationStyle)
       if (draft.videoPurpose) setVideoPurpose(draft.videoPurpose)
       if (draft.selectedIndustry) setSelectedIndustry(draft.selectedIndustry)
       if (draft.aiMusic !== undefined) setAiMusic(draft.aiMusic)
@@ -728,6 +731,7 @@ export default function CreatePage() {
           brandId: selectedBrand,
           detailed: detailedMode,
           detailLevel,
+          narrationStyle,
           comparisonMode: multiDocData.length > 1,
           comparisonNotes: comparisonNotes || undefined,
           purpose: videoPurpose.trim() || undefined,
@@ -1007,6 +1011,7 @@ export default function CreatePage() {
             voiceId: selectedVoice,
             styleId: uploadMode === 'narrate' ? undefined : selectedStyle,
             customStylePrompt: uploadMode === 'narrate' ? undefined : (customStylePrompt || undefined),
+            narrationStyle,
             aiMusic,
             musicPrompt: aiMusic ? musicPrompt : undefined,
             musicUrl: !aiMusic && selectedMusic ? selectedMusic : undefined,
@@ -2090,6 +2095,40 @@ export default function CreatePage() {
               <div style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 8 }}>5-10 minutes &middot; 10-16 slides</div>
               <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>Every data point explained. Best for complex documents.</div>
             </button>
+          </div>
+
+          {/* Narration Style */}
+          <div style={{ marginTop: 28 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Narration style</h3>
+            <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 14 }}>Choose how your video sounds</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+              <button
+                type="button"
+                onClick={() => setNarrationStyle('solo')}
+                style={{
+                  padding: '16px',
+                  background: narrationStyle === 'solo' ? 'rgba(199,232,168,0.12)' : 'white',
+                  border: narrationStyle === 'solo' ? '2px solid var(--mint-deep, #a6d87c)' : '1px solid var(--border-light)',
+                  borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                }}
+              >
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Solo Narrator</div>
+                <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>One professional voice explains everything. Clean, focused, traditional.</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNarrationStyle('podcast')}
+                style={{
+                  padding: '16px',
+                  background: narrationStyle === 'podcast' ? 'rgba(199,232,168,0.12)' : 'white',
+                  border: narrationStyle === 'podcast' ? '2px solid var(--mint-deep, #a6d87c)' : '1px solid var(--border-light)',
+                  borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                }}
+              >
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Multi-Voice Discussion</div>
+                <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>Two voices discuss the content naturally. More engaging and conversational.</div>
+              </button>
+            </div>
           </div>
 
           <div className="wizard-actions">

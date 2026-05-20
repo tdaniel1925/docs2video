@@ -59,7 +59,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, assetUrls, purpose, uploadMode, industry } = body as {
+  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, narrationStyle, assetUrls, purpose, uploadMode, industry } = body as {
     videoId: string
     policyData: ExtractedPolicyData | ExtractedData
     brandId: string | null
@@ -72,6 +72,7 @@ export async function POST(request: Request) {
     musicUrl?: string
     aiMusic?: boolean
     musicPrompt?: string
+    narrationStyle?: 'solo' | 'podcast'
     assetUrls?: { url: string; tag: string }[]
     purpose?: string
     uploadMode?: string
@@ -278,6 +279,7 @@ export async function POST(request: Request) {
         logoUrl,
         musicPrompt: musicPrompt || '',
         industry: industry || '',
+        narrationStyle: narrationStyle || 'solo',
       }),
       signal: AbortSignal.timeout(10000),
     })

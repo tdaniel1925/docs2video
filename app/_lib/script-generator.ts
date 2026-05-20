@@ -292,6 +292,7 @@ export async function generateScript(
   uploadMode?: string,
   industry?: string,
   detailLevel?: 'quick' | 'standard' | 'detailed',
+  narrationStyle?: 'solo' | 'podcast',
 ): Promise<VideoScene[]> {
   const isInsurance = isInsuranceData(data)
   const promptBody = isInsurance
@@ -312,9 +313,11 @@ export async function generateScript(
     additionalSections.push(`VIDEO PURPOSE (CRITICAL): The user wants this video to "${purpose}". This is the primary objective — shape the entire narrative, tone, emphasis, and call-to-action around accomplishing this goal. Every scene should serve this purpose. Prioritize information that supports this goal and de-emphasize anything that doesn't.`)
   }
 
-  const voiceDesc = getVoiceDescription(voiceId)
-  if (voiceDesc) {
-    additionalSections.push(`VOICE STYLE: The narration will be read by a ${voiceDesc}. Write the script to match this voice's natural speaking style.`)
+  if (narrationStyle !== 'podcast') {
+    const voiceDesc = getVoiceDescription(voiceId)
+    if (voiceDesc) {
+      additionalSections.push(`VOICE STYLE: The narration will be read by a ${voiceDesc}. Write the script to match this voice's natural speaking style.`)
+    }
   }
 
   if (brandTone) {
@@ -332,6 +335,80 @@ export async function generateScript(
 
   const additionalBlock = additionalSections.length > 0 ? '\n\n' + additionalSections.join('\n\n') : ''
 
+  // Podcast mode: generate dialogue with speaker tags
+  if (narrationStyle === 'podcast') {
+    // Determine conversation style based on content type
+    const detectedIndustry = industry || detectIndustry((data as any).title || '', JSON.stringify(data))
+    const seriousIndustries = ['insurance', 'finance', 'legal', 'healthcare', 'medical']
+    const isSerious = seriousIndustries.includes(detectedIndustry)
+
+    const speakerConfig = isSerious
+      ? {
+          speaker1: { name: 'Advisor', voice: 'ash', instructions: 'Speak as a knowledgeable, trustworthy professional advisor. Measured pace, confident but warm. Explain complex topics clearly without being condescending.' },
+          speaker2: { name: 'Client', voice: 'shimmer', instructions: 'Speak as an engaged, thoughtful client. Ask genuine questions. Sound interested and occasionally impressed by good data. Natural reactions.' },
+        }
+      : {
+          speaker1: { name: 'Host', voice: 'coral', instructions: 'Speak as an enthusiastic, warm podcast host. Upbeat and engaging. Use natural pauses for emphasis. Drive the conversation forward with energy.' },
+          speaker2: { name: 'Expert', voice: 'ash', instructions: 'Speak as a confident subject matter expert. Authoritative but approachable. Deliver facts with conviction. Occasionally show genuine enthusiasm about impressive data.' },
+        }
+
+    const podcastPrompt = `${promptBody}${additionalBlock}
+
+NARRATION FORMAT: MULTI-VOICE DISCUSSION
+This video uses TWO speakers in a natural conversation format.
+
+SPEAKERS:
+- "${speakerConfig.speaker1.name}" — ${speakerConfig.speaker1.instructions}
+- "${speakerConfig.speaker2.name}" — ${speakerConfig.speaker2.instructions}
+
+DIALOGUE RULES:
+- Each scene has 3-6 dialogue lines alternating between speakers
+- ${speakerConfig.speaker1.name} leads and explains, ${speakerConfig.speaker2.name} asks questions and reacts
+- Keep each line 1-2 sentences max — short and punchy, like a real conversation
+- Include natural reactions: "That's impressive." / "Right, exactly." / "So what you're saying is..."
+- NO cheesy radio host energy. This should feel like two smart people having a real conversation.
+- The "narration" field should contain ALL dialogue combined as plain text (for subtitle/fallback)
+- The "dialogue" array has the individual lines with speaker tags
+
+Return ONLY valid JSON array (no markdown, no code fences):
+[
+  {
+    "scene": 1,
+    "beat": "hook",
+    "title": "scene title",
+    "narration": "combined text of all dialogue for this scene",
+    "dialogue": [
+      { "speaker": "${speakerConfig.speaker1.name}", "voice": "${speakerConfig.speaker1.voice}", "instructions": "${speakerConfig.speaker1.instructions}", "text": "what this speaker says" },
+      { "speaker": "${speakerConfig.speaker2.name}", "voice": "${speakerConfig.speaker2.voice}", "instructions": "${speakerConfig.speaker2.instructions}", "text": "what this speaker says" }
+    ],
+    "slidePrompt": "brief visual description",
+    "duration": estimated seconds
+  }
+]
+
+The "beat" field must be one of: "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"
+The "slidePrompt" should describe the VISUAL CONCEPT — NOT repeat dialogue.`
+
+    const response = await genai.models.generateContent({
+      model: 'gemini-2.5-pro',
+      contents: podcastPrompt,
+    })
+
+    const text = response.text?.trim() ?? ''
+    const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
+
+    try {
+      const scenes = JSON.parse(cleaned) as VideoScene[]
+      if (!Array.isArray(scenes) || scenes.length === 0) {
+        throw new Error('Invalid script format')
+      }
+      return scenes
+    } catch {
+      throw new Error(`Failed to parse podcast script: ${text.slice(0, 200)}`)
+    }
+  }
+
+  // Solo narrator mode (default)
   const prompt = `${promptBody}${additionalBlock}
 
 Return ONLY valid JSON array (no markdown, no code fences):

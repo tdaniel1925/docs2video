@@ -574,6 +574,7 @@ export default function VideoDetailPage() {
                 musicUrl: input.musicUrl,
                 aiMusic: input.aiMusic,
                 musicPrompt: input.musicPrompt,
+                narrationStyle: input.narrationStyle,
                 assetUrls: input.assets,
                 purpose: input.purpose,
                 uploadMode: input.uploadMode,
