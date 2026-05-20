@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { GoogleGenAI } from '@google/genai'
+import OpenAI from 'openai'
 import { deductCredits } from '../../_lib/credits'
-import { generatePptx, buildBackgroundPrompt } from '../../_lib/pptx-generator'
-import type { DeckSlide, DeckOptions } from '../../_lib/pptx-generator'
+import { generatePptx } from '../../_lib/pptx-generator'
+import type { DeckSlide } from '../../_lib/pptx-generator'
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
+import { buildSimpleSlidePrompt, getStylePrompt } from '../../_lib/slide-engine/simple-prompt'
+import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 
 export const runtime = 'nodejs'
 export const maxDuration = 600
 
-const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -87,62 +89,54 @@ export async function POST(request: Request) {
   try {
     if (jobId) await updateJobProgress(admin, jobId, 5, 'running')
 
-    // Generate background images for each slide
+    // Generate slide images with OpenAI gpt-image-2
     const deckSlides: DeckSlide[] = []
+    const stylePrompt = getStylePrompt('executive') // default style for decks
 
     for (let i = 0; i < slideSpecs.length; i++) {
       const spec = slideSpecs[i]
       const progress = 10 + Math.round((i / slideSpecs.length) * 70)
       if (jobId) await updateJobProgress(admin, jobId, progress, 'running')
 
-      console.log(`[deck] Generating background ${i + 1}/${slideSpecs.length}...`)
+      console.log(`[deck] Generating slide ${i + 1}/${slideSpecs.length}...`)
 
-      const prompt = buildBackgroundPrompt(
-        spec.slideType,
-        spec.headline,
-        colors.primary,
-        colors.secondary,
-        colors.accent,
-        referenceImage,
-      )
+      const isFirst = i === 0
+      const isLast = i === slideSpecs.length - 1
 
-      const parts: any[] = [{ text: prompt }]
-      if (referenceImage) {
-        const match = referenceImage.match(/^data:(image\/\w+);base64,(.+)$/)
-        if (match) {
-          parts.push({ inlineData: { mimeType: match[1], data: match[2] } })
-        }
+      const input: SimpleSlideInput = {
+        type: isFirst ? 'cover' : isLast ? 'closing' : 'content',
+        stylePrompt,
+        headline: spec.headline,
+        subtitle: spec.subheadline,
+        brandName: brand?.name,
+        brandColors: { primary: colors.primary, secondary: colors.secondary },
+        stats: spec.stats,
+        bullets: spec.bodyPoints?.map((b: string) => ({ text: b })),
+        contactInfo: isLast ? contactInfo : undefined,
+        pageNumber: i + 1,
+        totalPages: slideSpecs.length,
       }
 
+      const prompt = buildSimpleSlidePrompt(input)
+
       try {
-        const response = await genai.models.generateContent({
-          model: 'gemini-3-pro-image-preview',
-          contents: [{ role: 'user', parts }],
-          config: {
-            responseFormat: {
-              image: { aspectRatio: '16:9', imageSize: '4K' },
-            },
-          } as any,
+        const response = await openai.images.generate({
+          model: 'gpt-image-2',
+          prompt,
+          size: '1920x1088',
+          quality: 'high',
+          n: 1,
         })
 
-        const responseParts = response.candidates?.[0]?.content?.parts ?? []
-        let bgBuffer: Buffer | null = null
-        for (const rp of responseParts) {
-          if (rp.inlineData) {
-            bgBuffer = Buffer.from(rp.inlineData.data!, 'base64')
-            break
-          }
-        }
-
-        if (!bgBuffer) throw new Error('No image returned')
+        const imageData = response.data?.[0]
+        if (!imageData?.b64_json) throw new Error('No image returned')
 
         deckSlides.push({
           ...spec,
-          backgroundImage: bgBuffer,
+          backgroundImage: Buffer.from(imageData.b64_json, 'base64'),
         })
       } catch (err) {
-        console.error(`[deck] Background ${i + 1} failed:`, err)
-        // Create a simple colored background fallback
+        console.error(`[deck] Slide ${i + 1} failed:`, err)
         const sharpMod = await import('sharp')
         const sharp = sharpMod.default ?? sharpMod
         const fallbackBg = await sharp({

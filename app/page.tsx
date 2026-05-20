@@ -141,7 +141,7 @@ export default function HomePage() {
             </div>
             <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
               <div style={{fontSize:40,marginBottom:16}}>&#128221;</div>
-              <h3>Slide Deck <span style={{fontSize:13,fontWeight:500,color:'var(--ink-soft)'}}>(Coming Soon)</span></h3>
+              <h3>Slide Deck</h3>
               <p>Editable PPTX with AI-generated backgrounds and structured text. Download it, customize it, present it &mdash; no design skills needed.</p>
               <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$10</div>
             </div>
@@ -626,56 +626,56 @@ export default function HomePage() {
               </ul>
               <Link href="/signup" className="btn btn-outlined btn-full">Start free</Link>
             </div>
-            {/* Pro */}
+            {/* Starter */}
             <div className="pricing-card" style={{padding:24}}>
-              <div className="pricing-name">Pro</div>
-              <div className="pricing-price">$25</div>
+              <div className="pricing-name">Starter</div>
+              <div className="pricing-price">$29</div>
               <div className="pricing-period">per month</div>
               <ul className="pricing-features">
-                <li>$6 per project (40% off)</li>
-                <li>Priority generation</li>
-                <li>Unlimited brands</li>
-                <li>Everything in Free</li>
+                <li>5 videos per month</li>
+                <li>$5 per additional video</li>
+                <li>Multi-voice narration</li>
+                <li>2 brand profiles</li>
               </ul>
               <Link href="/signup" className="btn btn-mint btn-full">Subscribe</Link>
             </div>
-            {/* Business */}
+            {/* Pro */}
             <div className="pricing-card popular" style={{padding:24}}>
               <div className="pricing-badge">MOST POPULAR</div>
-              <div className="pricing-name">Business</div>
-              <div className="pricing-price">$99</div>
+              <div className="pricing-name">Pro</div>
+              <div className="pricing-price">$79</div>
               <div className="pricing-period">per month</div>
               <ul className="pricing-features">
-                <li>50 projects per month included</li>
-                <li>No per-project fees</li>
-                <li>Priority support</li>
-                <li>Courses at $99 each</li>
+                <li>20 videos per month</li>
+                <li>$5 per additional video</li>
+                <li>Priority generation</li>
+                <li>Unlimited brands</li>
               </ul>
               <Link href="/signup" className="btn btn-primary btn-full">Subscribe</Link>
             </div>
-            {/* Agency */}
+            {/* Business */}
             <div className="pricing-card" style={{padding:24}}>
-              <div className="pricing-name">Agency</div>
-              <div className="pricing-price">$249</div>
+              <div className="pricing-name">Business</div>
+              <div className="pricing-price">$199</div>
               <div className="pricing-period">per month</div>
               <ul className="pricing-features">
-                <li>150 projects per month</li>
-                <li>5 video courses included</li>
-                <li>Team sharing (coming soon)</li>
-                <li>White-label (coming soon)</li>
+                <li>75 videos per month</li>
+                <li>$5 per additional video</li>
+                <li>White-label share pages</li>
+                <li>Priority support</li>
               </ul>
               <Link href="/signup" className="btn btn-mint btn-full">Subscribe</Link>
             </div>
             {/* Enterprise */}
             <div className="pricing-card" style={{padding:24}}>
               <div className="pricing-name">Enterprise</div>
-              <div className="pricing-price">Custom</div>
-              <div className="pricing-period">&nbsp;</div>
+              <div className="pricing-price">$499</div>
+              <div className="pricing-period">per month</div>
               <ul className="pricing-features">
-                <li>Unlimited everything</li>
-                <li>Dedicated account manager</li>
-                <li>Custom integrations</li>
-                <li>SLA guarantee</li>
+                <li>200 videos per month</li>
+                <li>$5 per additional video</li>
+                <li>API access + bulk creation</li>
+                <li>Dedicated support</li>
               </ul>
               <a href="mailto:support@docs2video.com" className="btn btn-outlined btn-full">Contact Sales</a>
             </div>
