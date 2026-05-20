@@ -249,17 +249,43 @@ export async function POST(request: Request) {
         }
       }
 
+      // If user selected a custom style (e.g. from URL scraping), build a clean prompt
+      // without the template system to avoid conflicting design instructions
+      if (customStylePrompt) {
+        const contentLines: string[] = []
+        if (content.headline) contentLines.push(`HEADLINE: "${content.headline}"`)
+        if (content.subtitle) contentLines.push(`SUBTITLE: "${content.subtitle}"`)
+        if (content.stats?.length) contentLines.push(`KEY STATS:\n${content.stats.map((s: any) => `- ${s.label}: ${s.value}`).join('\n')}`)
+        if (content.bullets?.length) contentLines.push(`KEY POINTS:\n${content.bullets.map((b: any) => `- ${b.text}`).join('\n')}`)
+        if (content.brandName) contentLines.push(`BRAND: ${content.brandName}`)
+        contentLines.push(`SLIDE ${content.pageNumber} of ${content.totalPages}`)
+
+        const slideType = isFirst ? 'COVER/TITLE' : isLast ? 'CLOSING/CTA' : 'CONTENT'
+
+        return `Create a professional ${slideType} presentation slide at 1920x1088 pixels.
+
+=== VISUAL DESIGN STYLE ===
+${customStylePrompt}
+
+=== CONTENT TO DISPLAY ===
+${contentLines.join('\n')}
+
+=== RULES ===
+- Display ALL the content text above on the slide — headlines, stats, bullet points
+- Use the visual style described above for colors, backgrounds, typography
+- 80px safe padding on all edges
+- Every letter must be perfectly spelled and fully readable
+- ${isFirst ? 'This is the COVER slide — make it bold and cinematic' : isLast ? 'This is the CLOSING slide — include a call to action' : 'Make the data visually compelling with icons, charts, or visual hierarchy'}
+- Do NOT add any text that is not in the CONTENT section above
+${logoUrl ? '- Place a small brand logo (120px) in the corner' : ''}`
+      }
+
       const basePrompt = buildSlidePrompt({
         template,
         brandColors,
         logoDescription: logoUrl ? (brand?.name ?? 'brand logo') : undefined,
         content,
       })
-
-      // If user selected a custom style (e.g. from URL scraping), inject that style prompt
-      if (customStylePrompt) {
-        return `${basePrompt}\n\n=== CUSTOM VISUAL STYLE (OVERRIDE — follow this closely) ===\n${customStylePrompt}`
-      }
       return basePrompt
     })
 
