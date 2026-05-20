@@ -7,9 +7,8 @@ import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { isAdmin } from '../../_lib/admin'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
-import { buildSlidePrompt, extractLogoColors } from '../../_lib/slide-engine/prompt-builder'
-import { getTemplateSpec } from '../../_lib/slide-engine/templates'
-import type { SlideContent, BrandColors } from '../../_lib/slide-engine/types'
+import { buildSimpleSlidePrompt, getStylePrompt } from '../../_lib/slide-engine/simple-prompt'
+import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 
 export const runtime = 'nodejs'
 
@@ -170,123 +169,44 @@ export async function POST(request: Request) {
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15 }).eq('id', videoId)
     }
 
-    // STAGE 2: Build slide prompts from template spec + brand colors
+    // STAGE 2: Build slide prompts — simple, direct prompts for OpenAI
     console.log(`[video ${videoId}] Building slide prompts for ${scenes.length} scenes...`)
     await admin.from('videos').update({ progress_detail: 'Preparing slide designs...', progress_pct: 16 }).eq('id', videoId)
 
     const templateId = (styleId ?? brand?.deck_style_id ?? 'executive') as string
-    const template = getTemplateSpec(templateId)
-
-    // Extract brand colors from logo (or use brand profile colors)
-    let brandColors: BrandColors = {
+    const stylePrompt = customStylePrompt || getStylePrompt(templateId)
+    const logoUrl = brand?.logo_file_url ?? brand?.logo_url ?? null
+    const brandGuide = brand?.brand_guide_data as Record<string, string> | null
+    const brandColors = {
       primary: brand?.primary_color ?? '#1B365D',
       secondary: brand?.secondary_color ?? '#4A90D9',
     }
-    const logoUrl = brand?.logo_file_url ?? brand?.logo_url ?? null
-    if (logoUrl) {
-      try {
-        const logoRes = await fetch(logoUrl, { signal: AbortSignal.timeout(8000) })
-        if (logoRes.ok) {
-          const logoBuffer = Buffer.from(await logoRes.arrayBuffer())
-          brandColors = await extractLogoColors(logoBuffer)
-        }
-      } catch (e) {
-        console.log(`[video ${videoId}] Logo color extraction failed, using profile colors`)
-      }
-    }
 
-    // Map each scene to a SlideContent and build the OpenAI prompt
-    const brandGuide = brand?.brand_guide_data as Record<string, string> | null
     const slidePrompts = scenes.map((scene: any, i: number) => {
       const isFirst = i === 0
       const isLast = i === scenes.length - 1
 
-      let content: SlideContent
-      if (isFirst) {
-        content = {
-          layout: 'title',
-          headline: scene.title || (policyData as any)?.title || 'Presentation',
-          subtitle: scene.subtitle || brand?.name || '',
-          brandName: brand?.name,
-          contactInfo: { phone: brandGuide?.phone, website: brandGuide?.website, email: brandGuide?.email },
-          pageNumber: 1,
-          totalPages: scenes.length,
-        }
-      } else if (isLast) {
-        content = {
-          layout: 'closing',
-          headline: scene.title || 'Thank You',
-          brandName: brand?.name,
-          contactInfo: { phone: brandGuide?.phone, website: brandGuide?.website, email: brandGuide?.email, calendly: brandGuide?.calendly },
-          pageNumber: scenes.length,
-          totalPages: scenes.length,
-        }
-      } else {
-        // Detect layout from scene content
-        const hasStats = scene.stats?.length > 0 || scene.keyMetrics?.length > 0
-        const hasBullets = scene.bullets?.length > 0
-        const hasChart = scene.chartData != null
+      // Extract bullet content from narration if no explicit bullets
+      const hasBullets = scene.bullets?.length > 0
+      const narrativeBullets = !hasBullets && scene.narration
+        ? scene.narration.split(/[.!?]+/).filter((s: string) => s.trim().length > 10).slice(0, 4).map((s: string) => ({ text: s.trim() }))
+        : undefined
 
-        let layout: SlideContent['layout'] = 'bullets'
-        if (hasStats) layout = 'stats'
-        else if (hasChart) layout = 'chart'
-
-        // Use narration summary as bullet content (NOT slidePrompt — that's a visual instruction, not display text)
-        const narrativeBullets = !hasBullets && scene.narration
-          ? scene.narration.split(/[.!?]+/).filter((s: string) => s.trim().length > 10).slice(0, 4).map((s: string) => ({ text: s.trim() }))
-          : undefined
-
-        content = {
-          layout,
-          headline: scene.title || '',
-          subtitle: scene.subtitle,
-          stats: scene.stats || scene.keyMetrics?.map((m: any) => ({ value: m.value, label: m.label })),
-          bullets: hasBullets ? scene.bullets : narrativeBullets,
-          chartData: scene.chartData,
-          brandName: brand?.name,
-          pageNumber: i + 1,
-          totalPages: scenes.length,
-        }
-      }
-
-      // If user selected a custom style (e.g. from URL scraping), build a clean prompt
-      // without the template system to avoid conflicting design instructions
-      if (customStylePrompt) {
-        const contentLines: string[] = []
-        if (content.headline) contentLines.push(`HEADLINE: "${content.headline}"`)
-        if (content.subtitle) contentLines.push(`SUBTITLE: "${content.subtitle}"`)
-        if (content.stats?.length) contentLines.push(`KEY STATS:\n${content.stats.map((s: any) => `- ${s.label}: ${s.value}`).join('\n')}`)
-        if (content.bullets?.length) contentLines.push(`KEY POINTS:\n${content.bullets.map((b: any) => `- ${b.text}`).join('\n')}`)
-        if (content.brandName) contentLines.push(`BRAND: ${content.brandName}`)
-        contentLines.push(`SLIDE ${content.pageNumber} of ${content.totalPages}`)
-
-        const slideType = isFirst ? 'COVER/TITLE' : isLast ? 'CLOSING/CTA' : 'CONTENT'
-
-        return `Create a professional ${slideType} presentation slide at 1920x1088 pixels.
-
-=== VISUAL DESIGN STYLE ===
-${customStylePrompt}
-
-=== CONTENT TO DISPLAY ===
-${contentLines.join('\n')}
-
-=== RULES ===
-- Display ALL the content text above on the slide — headlines, stats, bullet points
-- Use the visual style described above for colors, backgrounds, typography
-- 80px safe padding on all edges
-- Every letter must be perfectly spelled and fully readable
-- ${isFirst ? 'This is the COVER slide — make it bold and cinematic' : isLast ? 'This is the CLOSING slide — include a call to action' : 'Make the data visually compelling with icons, charts, or visual hierarchy'}
-- Do NOT add any text that is not in the CONTENT section above
-${logoUrl ? '- Place a small brand logo (120px) in the corner' : ''}`
-      }
-
-      const basePrompt = buildSlidePrompt({
-        template,
+      const input: SimpleSlideInput = {
+        type: isFirst ? 'cover' : isLast ? 'closing' : 'content',
+        stylePrompt,
+        headline: scene.title || (isFirst ? (policyData as any)?.title || 'Presentation' : isLast ? 'Thank You' : ''),
+        subtitle: scene.subtitle || (isFirst ? brand?.name : undefined),
+        brandName: brand?.name,
         brandColors,
-        logoDescription: logoUrl ? (brand?.name ?? 'brand logo') : undefined,
-        content,
-      })
-      return basePrompt
+        stats: scene.stats || scene.keyMetrics?.map((m: any) => ({ value: m.value, label: m.label })),
+        bullets: hasBullets ? scene.bullets : narrativeBullets,
+        contactInfo: (isFirst || isLast) ? { phone: brandGuide?.phone, website: brandGuide?.website, email: brandGuide?.email, calendly: brandGuide?.calendly } : undefined,
+        pageNumber: i + 1,
+        totalPages: scenes.length,
+      }
+
+      return buildSimpleSlidePrompt(input)
     })
 
     // STAGE 3: Hand off to VPS with pre-built prompts
