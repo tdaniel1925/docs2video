@@ -278,6 +278,25 @@ export async function scrapeBrand(url: string): Promise<BrandAnalysis> {
     } catch { /* skip */ }
   }
 
+  // Extract dominant colors from logo using Sharp (more reliable than CSS parsing)
+  let logoColors: { primary: string; secondary: string } | null = null
+  if (logoBuffer && !logoMime.includes('svg')) {
+    try {
+      const sharpMod = await import('sharp')
+      const sharp = sharpMod.default ?? sharpMod
+      const { dominant } = await sharp(logoBuffer).stats()
+      const toHex = (r: number, g: number, b: number) => '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('')
+      const dominantHex = toHex(dominant.r, dominant.g, dominant.b)
+      // Use a contrasting dark/light as secondary based on logo brightness
+      const brightness = (dominant.r * 299 + dominant.g * 587 + dominant.b * 114) / 1000
+      const secondaryHex = brightness > 128 ? '#1a2b3c' : '#e8edf2'
+      logoColors = { primary: dominantHex, secondary: secondaryHex }
+      console.log(`[brand-scraper] Logo colors extracted: primary=${dominantHex}, secondary=${secondaryHex}`)
+    } catch (colorErr) {
+      console.log('[brand-scraper] Logo color extraction failed:', colorErr instanceof Error ? colorErr.message : 'unknown')
+    }
+  }
+
   const prompt = `You are a professional brand strategist. Analyze this website thoroughly and create a complete brand guide.
 
 Website: ${fullUrl}
@@ -361,8 +380,8 @@ Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no c
       industry: 'unknown',
       tone: 'professional',
       targetAudience: null,
-      primaryColor: allColors[0] ?? '#1B365D',
-      secondaryColor: allColors[1] ?? '#4A90D9',
+      primaryColor: logoColors?.primary ?? allColors[0] ?? '#1B365D',
+      secondaryColor: logoColors?.secondary ?? allColors[1] ?? '#4A90D9',
       accentColor: allColors[2] ?? '#FFB347',
       backgroundColor: '#FFFFFF',
       textColor: '#1A1A1A',
@@ -446,8 +465,8 @@ Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no c
     industry: (brandData.industry as string) ?? 'unknown',
     tone: (brandData.tone as string) ?? 'professional',
     targetAudience: (brandData.targetAudience as string) ?? null,
-    primaryColor: (brandData.primaryColor as string) ?? '#1B365D',
-    secondaryColor: (brandData.secondaryColor as string) ?? '#4A90D9',
+    primaryColor: logoColors?.primary ?? (brandData.primaryColor as string) ?? '#1B365D',
+    secondaryColor: logoColors?.secondary ?? (brandData.secondaryColor as string) ?? '#4A90D9',
     accentColor: (brandData.accentColor as string) ?? '#FFB347',
     backgroundColor: (brandData.backgroundColor as string) ?? '#FFFFFF',
     textColor: (brandData.textColor as string) ?? '#1A1A1A',
