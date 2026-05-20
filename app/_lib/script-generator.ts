@@ -83,7 +83,7 @@ Every scene must have a "beat" field indicating its storytelling role. Use this 
 
 SCENE COUNT: Use 8-16 scenes total. The EVIDENCE section should expand based on how much data is in the document. Simple policies = fewer evidence scenes. Complex ones with many riders and projections = more.
 
-Each scene's narration should be 20-40 seconds (roughly 50-100 words). Each scene must cover ONE clear concept.
+Each scene's narration should be 10-20 seconds (roughly 25-50 words). Each scene must cover ONE specific fact or data point — not a broad topic. More scenes with tight focus beats fewer scenes with long narration. A 3-minute video should have 15-20 scenes.
 
 TONE: Professional but warm, like a trusted financial advisor explaining to a client over coffee. Use plain language — no insurance jargon. Make the client feel informed and confident.
 
@@ -184,7 +184,7 @@ ${uploadMode === 'narrate' || uploadMode === 'redesign'
   ? `SCENE COUNT: Create EXACTLY ${Math.max(data.sections?.length || 1, 5)} scenes — one scene for EVERY section and topic in the document. Do NOT summarize, combine, or skip any content. Every piece of information must be covered.`
   : `SCENE COUNT: Use ${Math.max(4, Math.min(16, (data.sections?.length || 3) + 3))} scenes. Match the number of scenes to the amount of content — short documents get fewer scenes (4-6), detailed documents get more (8-16). Do NOT pad with filler content.`}
 
-Each scene's narration should be 20-40 seconds (roughly 50-100 words). Each scene must cover ONE clear concept.
+Each scene's narration should be 10-20 seconds (roughly 25-50 words). Each scene must cover ONE specific fact or data point — not a broad topic. More scenes with tight focus beats fewer scenes with long narration. A 3-minute video should have 15-20 scenes.
 
 NARRATION QUALITY (CRITICAL — this will be read aloud by a voice actor):
 - Write for the EAR, not the eye. Read every sentence aloud in your head — if it sounds stilted, rewrite it.
@@ -370,11 +370,11 @@ SPEAKERS:
 - "${speakerConfig.speaker2.name}" — ${speakerConfig.speaker2.instructions}
 
 SCENE PACING (CRITICAL):
-- Create MORE scenes than you normally would — each scene should cover ONE specific fact or data point
-- Each scene should be 15-25 seconds of dialogue max (3-4 short exchanges)
-- NEVER let one scene cover multiple topics — split them into separate scenes
-- A 5-minute video should have 12-20 scenes, not 6-8
-- Every scene gets its own slide, so more scenes = more visual variety
+- Each scene covers ONE specific fact, stat, or data point — never multiple topics
+- Each scene should be 10-15 seconds of dialogue (2-3 quick exchanges)
+- A 3-minute video should have 15-20 scenes. A 5-minute video should have 25-30 scenes.
+- Every scene gets its own slide — more scenes = more visual variety = better engagement
+- NEVER let a scene run longer than 20 seconds
 
 DATA INTEGRITY (CRITICAL — DO NOT MAKE THINGS UP):
 - ONLY discuss facts, numbers, names, and claims that appear in the DOCUMENT DATA above
