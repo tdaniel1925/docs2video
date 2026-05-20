@@ -288,38 +288,12 @@ Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no c
     }
   }
 
-  // Upscale the logo if we found one
-  let upscaledLogoUrl = logoUrl
+  // Use the actual scraped logo as-is (no AI recreation — it produces inaccurate results)
+  // Convert to data URL for the brand creation page to upload
+  let processedLogoUrl = logoUrl
   if (logoBuffer && !logoMime.includes('svg')) {
-    try {
-      console.log('[brand-scraper] Upscaling logo...')
-      const upscaleResponse = await genai.models.generateContent({
-        model: 'gemini-3-pro-image-preview',
-        contents: [{
-          role: 'user',
-          parts: [
-            { text: `Recreate this logo in HIGH RESOLUTION. Exact same design, colors, text, and layout. Output on pure white background, crisp clean edges, centered, square format. Do NOT modify or redesign — recreate exactly as shown.` },
-            { inlineData: { mimeType: logoMime, data: logoBuffer.toString('base64') } },
-          ],
-        }],
-        config: {
-          responseFormat: {
-            image: { aspectRatio: '1:1', imageSize: '1024' },
-          },
-        } as any,
-      })
-      const upParts = upscaleResponse.candidates?.[0]?.content?.parts ?? []
-      for (const rp of upParts) {
-        if (rp.inlineData) {
-          // Return as data URL — the brand creation page will upload it
-          upscaledLogoUrl = `data:image/png;base64,${rp.inlineData.data}`
-          console.log('[brand-scraper] Logo upscaled successfully')
-          break
-        }
-      }
-    } catch (err) {
-      console.log('[brand-scraper] Logo upscale failed, using original:', err instanceof Error ? err.message : 'unknown')
-    }
+    processedLogoUrl = `data:${logoMime};base64,${logoBuffer.toString('base64')}`
+    console.log(`[brand-scraper] Using original logo: ${(logoBuffer.length / 1024).toFixed(0)}KB`)
   }
 
   return {
@@ -334,7 +308,7 @@ Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no c
     accentColor: (brandData.accentColor as string) ?? '#FFB347',
     backgroundColor: (brandData.backgroundColor as string) ?? '#FFFFFF',
     textColor: (brandData.textColor as string) ?? '#1A1A1A',
-    logoUrl: upscaledLogoUrl,
+    logoUrl: processedLogoUrl,
     fonts: (brandData.fonts as string[]) ?? fonts,
     brandValues: (brandData.brandValues as string[]) ?? [],
     services: (brandData.services as string[]) ?? [],

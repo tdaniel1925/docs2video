@@ -312,7 +312,7 @@ export default function VideoDetailPage() {
   const musicRef = useRef<HTMLAudioElement>(null)
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
   const [videoDuration, setVideoDuration] = useState(0)
-  const [musicVolume, setMusicVolume] = useState(0.1)
+  const [musicVolume, setMusicVolume] = useState(0.01)
   const [musicMuted, setMusicMuted] = useState(false)
 
   // Sync music volume when ref or volume changes
