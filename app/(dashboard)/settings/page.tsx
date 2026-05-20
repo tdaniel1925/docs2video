@@ -615,19 +615,21 @@ export default function SettingsPage() {
                 <div style={{ fontSize: 24, fontWeight: 800, textTransform: 'capitalize' }}>
                   {(() => {
                     const s = profile.subscription_status?.toLowerCase() ?? ''
-                    if (['agency'].includes(s)) return 'Agency'
+                    if (['enterprise', 'enterprise-plus', 'enterprise_plus'].includes(s)) return 'Enterprise'
                     if (['business', 'unlimited'].includes(s)) return 'Business'
-                    if (['pro', 'professional', 'active'].includes(s)) return 'Pro'
-                    return 'Pay Per Project'
+                    if (['pro', 'professional'].includes(s)) return 'Pro'
+                    if (['starter', 'active'].includes(s)) return 'Starter'
+                    return 'Pay Per Video'
                   })()}
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginTop: 4 }}>
                   {(() => {
                     const s = profile.subscription_status?.toLowerCase() ?? ''
-                    if (['agency'].includes(s)) return '150 projects + 5 courses/mo'
-                    if (['business', 'unlimited'].includes(s)) return '50 projects/mo included'
-                    if (['pro', 'professional', 'active'].includes(s)) return '40% off all projects'
-                    return 'Pay per project at full price'
+                    if (['enterprise', 'enterprise-plus', 'enterprise_plus'].includes(s)) return '200 videos/mo + API'
+                    if (['business', 'unlimited'].includes(s)) return '75 videos/mo included'
+                    if (['pro', 'professional'].includes(s)) return '20 videos/mo included'
+                    if (['starter', 'active'].includes(s)) return '5 videos/mo included'
+                    return '$10 per video'
                   })()}
                 </div>
               </div>
@@ -649,42 +651,51 @@ export default function SettingsPage() {
               {([
                 {
                   tier: 'free',
-                  label: 'Pay Per Project',
+                  label: 'Pay Per Video',
                   price: '$0',
                   period: '',
-                  highlight: '$10 per video/deck/infographic',
-                  features: ['No monthly fee', 'Full quality output', '$249 per course'],
+                  highlight: '1 free video, then $10 each',
+                  features: ['No monthly fee', 'Full quality output', 'Share pages with AI chat'],
+                },
+                {
+                  tier: 'starter',
+                  label: 'Starter',
+                  price: '$29',
+                  period: '/mo',
+                  highlight: '5 videos/mo included',
+                  features: ['$5 per additional video', 'Multi-voice narration', '2 brand profiles'],
                 },
                 {
                   tier: 'pro',
                   label: 'Pro',
-                  price: '$25',
+                  price: '$79',
                   period: '/mo',
-                  highlight: '$6 per project (40% off)',
-                  features: ['Priority generation', '$149 per course', 'Unlimited brands'],
+                  highlight: '20 videos/mo included',
+                  features: ['$5 per additional video', 'Priority generation', 'Unlimited brands'],
                 },
                 {
                   tier: 'business',
                   label: 'Business',
-                  price: '$99',
+                  price: '$199',
                   period: '/mo',
-                  highlight: '50 projects/mo included',
-                  features: ['No per-project fees', 'Courses at $99 each', 'Priority support'],
+                  highlight: '75 videos/mo included',
+                  features: ['$5 per additional video', 'White-label share pages', 'Priority support'],
                 },
                 {
-                  tier: 'agency',
-                  label: 'Agency',
-                  price: '$249',
+                  tier: 'enterprise',
+                  label: 'Enterprise',
+                  price: '$499',
                   period: '/mo',
-                  highlight: '150 projects + 5 courses/mo',
-                  features: ['Everything unlimited', 'Team sharing (soon)', 'White-label (soon)'],
+                  highlight: '200 videos/mo + API',
+                  features: ['$5 per additional video', 'Unlimited slide edits', 'Dedicated support'],
                 },
               ] as const).map(plan => {
                 const s = profile.subscription_status?.toLowerCase() ?? ''
                 const currentTier = (() => {
-                  if (['agency'].includes(s)) return 'agency'
+                  if (['enterprise', 'enterprise-plus', 'enterprise_plus'].includes(s)) return 'enterprise'
                   if (['business', 'unlimited'].includes(s)) return 'business'
-                  if (['pro', 'professional', 'active'].includes(s)) return 'pro'
+                  if (['pro', 'professional'].includes(s)) return 'pro'
+                  if (['starter', 'active'].includes(s)) return 'starter'
                   return 'free'
                 })()
                 const isCurrent = currentTier === plan.tier

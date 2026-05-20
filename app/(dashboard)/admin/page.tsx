@@ -92,14 +92,14 @@ export default function AdminPage() {
   }
 
   const totalUsers = profiles.length
-  const activeSubs = profiles.filter(p => ['active', 'pro', 'professional', 'agency', 'starter', 'business'].includes((p.subscription_status ?? '').toLowerCase())).length
+  const activeSubs = profiles.filter(p => ['active', 'pro', 'professional', 'starter', 'business', 'enterprise'].includes((p.subscription_status ?? '').toLowerCase())).length
   const totalVideos = videos.length
   const completedVideos = videos.filter(v => v.status === 'completed').length
   const failedVideos = videos.filter(v => v.status === 'failed').length
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
   const thisWeek = videos.filter(v => v.created_at > weekAgo).length
 
-  const planPrices: Record<string, number> = { starter: 19, pro: 49, professional: 49, active: 49, business: 99, agency: 149 }
+  const planPrices: Record<string, number> = { starter: 29, pro: 79, professional: 79, active: 29, business: 199, enterprise: 499 }
   const mrr = profiles.reduce((sum, p) => sum + (planPrices[(p.subscription_status ?? '').toLowerCase()] ?? 0), 0)
 
   const q = search.toLowerCase()
@@ -142,7 +142,7 @@ export default function AdminPage() {
   const fmtTime = (d: string) => new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
   const planTag = (s: string | null) => {
     const v = (s ?? 'free').toLowerCase()
-    const color = ['pro', 'professional', 'active'].includes(v) ? 'mint' : ['agency', 'business'].includes(v) ? 'peach' : v === 'starter' ? 'sky' : ''
+    const color = ['pro', 'professional'].includes(v) ? 'mint' : ['business', 'enterprise'].includes(v) ? 'peach' : ['starter', 'active'].includes(v) ? 'sky' : ''
     return <span className={`tag ${color}`} style={{ textTransform: 'capitalize' }}>{v || 'free'}</span>
   }
   const statusTag = (s: string) => {
@@ -246,7 +246,8 @@ export default function AdminPage() {
                     <option value="free">Free</option>
                     <option value="starter">Starter</option>
                     <option value="pro">Pro</option>
-                    <option value="agency">Agency</option>
+                    <option value="business">Business</option>
+                    <option value="enterprise">Enterprise</option>
                   </select>
                   <button className="btn btn-sm btn-soft" style={{ fontSize: 11, padding: '3px 8px' }} disabled={busy === p.id}
                     onClick={() => userAction(p.id, 'add_credits', 10)}>+10</button>
@@ -310,13 +311,15 @@ export default function AdminPage() {
           </div>
           <div className="settings-card" style={{ marginTop: 24 }}>
             <h3>Plan Distribution</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 16 }}>
-              {['free', 'starter', 'pro', 'agency'].map(plan => {
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginTop: 16 }}>
+              {['free', 'starter', 'pro', 'business', 'enterprise'].map(plan => {
                 const count = plan === 'free'
                   ? profiles.filter(p => !p.subscription_status || ['free', 'trial', 'cancelled', 'expired'].includes((p.subscription_status ?? '').toLowerCase())).length
                   : profiles.filter(p => {
                       const s = (p.subscription_status ?? '').toLowerCase()
-                      if (plan === 'pro') return ['pro', 'professional', 'active'].includes(s)
+                      if (plan === 'starter') return ['starter', 'active'].includes(s)
+                      if (plan === 'pro') return ['pro', 'professional'].includes(s)
+                      if (plan === 'enterprise') return ['enterprise', 'enterprise-plus', 'enterprise_plus'].includes(s)
                       return s === plan
                     }).length
                 return (
@@ -361,8 +364,10 @@ export default function AdminPage() {
                 <label className="input-label">Plan</label>
                 <select id="new-user-plan" className="input" defaultValue="trial" style={{ appearance: 'auto' }}>
                   <option value="trial">Free Trial</option>
-                  <option value="active">Pro</option>
-                  <option value="agency">Agency</option>
+                  <option value="starter">Starter</option>
+                  <option value="pro">Pro</option>
+                  <option value="business">Business</option>
+                  <option value="enterprise">Enterprise</option>
                 </select>
               </div>
               <div>

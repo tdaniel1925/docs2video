@@ -17,7 +17,7 @@ export default function PricingHelpPage() {
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
           <h1>Pricing & Plans</h1>
-          <p>Understand your options, from the free trial to agency-level plans.</p>
+          <p>Understand your options, from the free trial to enterprise-level plans.</p>
         </div>
       </div>
 
@@ -42,21 +42,39 @@ export default function PricingHelpPage() {
         </div>
       </div>
 
-      {/* Pay Per Project */}
+      {/* Pay Per Video */}
       <div style={{
         background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Pay Per Project — $10
+          Pay Per Video — $10
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            No subscription needed. Simply pay <strong style={{ color: 'var(--ink)' }}>$10 per video project</strong> when you create one. This is ideal if you only make videos occasionally.
+            No subscription needed. You get <strong style={{ color: 'var(--ink)' }}>1 free video</strong> to try, then pay <strong style={{ color: 'var(--ink)' }}>$10 per video</strong>. Ideal if you only make videos occasionally.
           </p>
           <p>
-            There is no monthly fee, no commitment, and no expiration. Create a video whenever you need one, pay for it at checkout, and it is yours forever.
+            No monthly fee, no commitment, no expiration. Full quality, no watermark, share pages with AI chat, download as MP4, PDF, or PPTX.
           </p>
+        </div>
+      </div>
+
+      {/* Starter */}
+      <div style={{
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        padding: '28px 32px', marginBottom: 20,
+      }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+          Starter Plan — $29/month
+        </h2>
+        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+          <p style={{ marginBottom: 10 }}>
+            Includes <strong style={{ color: 'var(--ink)' }}>5 videos per month</strong>. Additional videos are <strong style={{ color: 'var(--ink)' }}>$5 each</strong>.
+          </p>
+          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Multi-voice podcast narration</p>
+          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> 2 brand profiles</p>
+          <p><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> All slide templates</p>
         </div>
       </div>
 
@@ -67,7 +85,7 @@ export default function PricingHelpPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)', margin: 0 }}>
-            Pro Plan — $25/month + $6/project
+            Pro Plan — $79/month
           </h2>
           <span style={{
             background: 'var(--mint)', color: 'var(--ink)', fontSize: 11, fontWeight: 700,
@@ -76,23 +94,12 @@ export default function PricingHelpPage() {
         </div>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            The Pro plan is designed for professionals who create videos regularly. For <strong style={{ color: 'var(--ink)' }}>$25 per month</strong>, you get access to Pro features plus a reduced per-project rate of <strong style={{ color: 'var(--ink)' }}>$6 per video</strong>.
+            Includes <strong style={{ color: 'var(--ink)' }}>20 videos per month</strong>. Additional videos are <strong style={{ color: 'var(--ink)' }}>$5 each</strong>.
           </p>
-          <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Pro benefits include:</strong>
-          </p>
-          <p style={{ marginBottom: 6 }}>
-            <span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Significantly lower per-project pricing
-          </p>
-          <p style={{ marginBottom: 6 }}>
-            <span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Access to AI Proposal creator
-          </p>
-          <p style={{ marginBottom: 6 }}>
-            <span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Priority video generation
-          </p>
-          <p>
-            <span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Cancel anytime with no penalty
-          </p>
+          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Priority video generation</p>
+          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Unlimited brands</p>
+          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> 5 free slide edits per video</p>
+          <p><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Cancel anytime</p>
         </div>
       </div>
 
@@ -102,48 +109,34 @@ export default function PricingHelpPage() {
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Business Plan — $99/month
+          Business Plan — $199/month
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            The Business plan includes <strong style={{ color: 'var(--ink)' }}>50 projects per month</strong> for a flat rate of <strong style={{ color: 'var(--ink)' }}>$99/month</strong>. No per-project fees for those 50 projects.
+            Includes <strong style={{ color: 'var(--ink)' }}>75 videos per month</strong>. Additional videos are <strong style={{ color: 'var(--ink)' }}>$5 each</strong>.
           </p>
-          <p style={{ marginBottom: 10 }}>
-            This plan is ideal for teams and professionals who produce a high volume of content. All Pro features are included.
-          </p>
-          <p>
-            If you exceed 50 projects in a month, additional projects are billed at the Pro per-project rate.
-          </p>
+          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> White-label share pages</p>
+          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> 10 free slide edits per video</p>
+          <p><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Priority support</p>
         </div>
       </div>
 
-      {/* Agency */}
+      {/* Enterprise */}
       <div style={{
         background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Agency Plan — $249/month
+          Enterprise Plan — $499/month
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Built for agencies and large teams. The Agency plan includes <strong style={{ color: 'var(--ink)' }}>150 projects per month</strong> plus <strong style={{ color: 'var(--ink)' }}>5 course builds</strong> for <strong style={{ color: 'var(--ink)' }}>$249/month</strong>.
+            Includes <strong style={{ color: 'var(--ink)' }}>200 videos per month</strong>. Additional videos are <strong style={{ color: 'var(--ink)' }}>$5 each</strong>.
           </p>
-          <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Agency benefits include:</strong>
-          </p>
-          <p style={{ marginBottom: 6 }}>
-            <span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> 150 projects per month (videos, infographics, flyers, cards, logos)
-          </p>
-          <p style={{ marginBottom: 6 }}>
-            <span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> 5 course builds per month (multi-episode video series)
-          </p>
-          <p style={{ marginBottom: 6 }}>
-            <span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> All Pro and Business features
-          </p>
-          <p>
-            <span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Priority support
-          </p>
+          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Unlimited slide edits</p>
+          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> White-label share pages</p>
+          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> API access and bulk creation</p>
+          <p><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Dedicated support</p>
         </div>
       </div>
 

@@ -223,7 +223,7 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
   )
 }
 
-const PRO_PLANS = ['professional', 'active', 'agency']
+const PRO_PLANS = ['starter', 'pro', 'professional', 'active', 'business', 'enterprise']
 
 interface FollowUpEmail {
   id: string

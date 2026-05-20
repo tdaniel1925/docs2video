@@ -126,7 +126,8 @@ export default function AdminUserDetailPage() {
             <option value="free">Free</option>
             <option value="starter">Starter</option>
             <option value="pro">Pro</option>
-            <option value="agency">Agency</option>
+            <option value="business">Business</option>
+            <option value="enterprise">Enterprise</option>
           </select>
           <button className="btn btn-sm btn-soft" disabled={busy} onClick={() => userAction('add_credits', 10)}>+10 Credits</button>
           <button className="btn btn-sm btn-soft" disabled={busy} onClick={() => userAction('add_credits', 100)}>+100 Credits</button>

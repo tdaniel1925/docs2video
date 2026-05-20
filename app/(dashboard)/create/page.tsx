@@ -1107,7 +1107,7 @@ export default function CreatePage() {
               { key: 'research' as InputTab, title: 'AI Research', desc: 'AI researches and compiles', icon: (
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--lilac, #C4B5FD)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
               )},
-              ...(['professional', 'active', 'agency'].includes(userPlan.toLowerCase())
+              ...(['starter', 'pro', 'professional', 'active', 'business', 'enterprise'].includes(userPlan.toLowerCase())
                 ? [{ key: 'proposal' as InputTab, title: 'Proposal Builder', desc: 'Create a client proposal', icon: (
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--peach, #FBBF77)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
                 )}]

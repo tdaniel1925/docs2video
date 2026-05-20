@@ -18,11 +18,10 @@ export const stripe = new Proxy({} as Stripe, {
 
 /* ── Subscription price IDs from env ── */
 export const SUBSCRIPTION_PRICES: Record<Exclude<PlanTier, 'free'>, string> = {
+  starter: process.env.STRIPE_PRICE_STARTER!,
   pro: process.env.STRIPE_PRICE_PRO!,
   business: process.env.STRIPE_PRICE_BUSINESS!,
-  agency: process.env.STRIPE_PRICE_AGENCY!,
   enterprise: process.env.STRIPE_PRICE_ENTERPRISE!,
-  'enterprise-plus': process.env.STRIPE_PRICE_ENTERPRISE_PLUS!,
 }
 
 /* ── Per-project price IDs from env ── */

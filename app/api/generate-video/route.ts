@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     .single()
 
   const subStatus = (profile?.subscription_status ?? '').toLowerCase()
-  const isPaidUser = ['active', 'professional', 'pro', 'business', 'agency', 'starter'].includes(subStatus)
+  const isPaidUser = ['active', 'professional', 'pro', 'business', 'enterprise', 'starter'].includes(subStatus)
   const hasReferralDiscount = !!profile?.referred_by
   const cardOnFile = profile?.card_on_file ?? false
   const freeRemaining = profile?.free_videos_remaining ?? 0

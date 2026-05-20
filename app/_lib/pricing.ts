@@ -1,10 +1,10 @@
 /**
  * Credit-based pricing: each plan includes monthly video credits.
- * Extra videos beyond the plan are charged per-video via card on file.
+ * Extra videos beyond the plan are $5 each across all tiers.
  * Slide regenerations cost 1/4 credit each.
  */
 
-export type PlanTier = 'free' | 'pro' | 'business' | 'agency' | 'enterprise' | 'enterprise-plus'
+export type PlanTier = 'free' | 'starter' | 'pro' | 'business' | 'enterprise'
 
 export interface PlanInfo {
   tier: PlanTier
@@ -14,7 +14,6 @@ export interface PlanInfo {
   features: string[]
   videosPerMonth: number // included credits, -1 = unlimited
   extraVideoPrice: number // cents per additional video
-  coursesPerMonth: number // 0 = pay per course, -1 = unlimited
   regenCreditsPerVideo: number // free slide regenerations per video
 }
 
@@ -33,103 +32,72 @@ export const PLANS: PlanInfo[] = [
     ],
     videosPerMonth: 1,
     extraVideoPrice: 1000, // $10
-    coursesPerMonth: 0,
     regenCreditsPerVideo: 2,
+  },
+  {
+    tier: 'starter',
+    label: 'Starter',
+    monthlyPrice: 2900, // $29
+    description: '5 videos per month',
+    features: [
+      '5 videos per month included',
+      '$5 per additional video',
+      'Multi-voice podcast narration',
+      '2 brand profiles',
+      'All slide templates',
+    ],
+    videosPerMonth: 5,
+    extraVideoPrice: 500, // $5
+    regenCreditsPerVideo: 3,
   },
   {
     tier: 'pro',
     label: 'Pro',
-    monthlyPrice: 2500, // $25
-    description: '5 videos/mo + discounted extras',
+    monthlyPrice: 7900, // $79
+    description: '20 videos per month',
     features: [
-      '5 videos per month included',
-      '$6 per additional video',
+      '20 videos per month included',
+      '$5 per additional video',
       'Priority generation',
       'Unlimited brands',
-      '$149 per video course',
+      '5 free slide edits per video',
     ],
-    videosPerMonth: 5,
-    extraVideoPrice: 600, // $6
-    coursesPerMonth: 0,
-    regenCreditsPerVideo: 3,
+    videosPerMonth: 20,
+    extraVideoPrice: 500, // $5
+    regenCreditsPerVideo: 5,
   },
   {
     tier: 'business',
     label: 'Business',
-    monthlyPrice: 9900, // $99
-    description: '30 videos per month',
+    monthlyPrice: 19900, // $199
+    description: '75 videos per month',
     features: [
-      '30 videos per month included',
-      '$4 per additional video',
-      '5 free slide edits per video',
-      'Courses at $99 each',
+      '75 videos per month included',
+      '$5 per additional video',
+      '10 free slide edits per video',
+      'White-label share pages',
       'Priority support',
     ],
-    videosPerMonth: 30,
-    extraVideoPrice: 400, // $4
-    coursesPerMonth: 0,
-    regenCreditsPerVideo: 5,
-  },
-  {
-    tier: 'agency',
-    label: 'Agency',
-    monthlyPrice: 24900, // $249
-    description: '80 videos + 5 courses',
-    features: [
-      '80 videos per month included',
-      '$3 per additional video',
-      '10 free slide edits per video',
-      '5 video courses per month',
-      'Team sharing (coming soon)',
-      'White-label options (coming soon)',
-    ],
-    videosPerMonth: 80,
-    extraVideoPrice: 300, // $3
-    coursesPerMonth: 5,
+    videosPerMonth: 75,
+    extraVideoPrice: 500, // $5
     regenCreditsPerVideo: 10,
   },
   {
     tier: 'enterprise',
     label: 'Enterprise',
     monthlyPrice: 49900, // $499
-    description: '200 videos + 20 courses',
+    description: '200 videos per month',
     features: [
       '200 videos per month included',
-      '$2 per additional video',
+      '$5 per additional video',
       'Unlimited slide edits',
-      '20 video courses per month',
-      'Bulk creation (50 at a time)',
       'White-label share pages',
-      'Client CRM dashboard',
-      '5 team seats',
-      'Priority email support',
+      'API access',
+      'Bulk creation',
+      'Dedicated support',
     ],
     videosPerMonth: 200,
-    extraVideoPrice: 200, // $2
-    coursesPerMonth: 20,
-    regenCreditsPerVideo: -1, // unlimited
-  },
-  {
-    tier: 'enterprise-plus',
-    label: 'Enterprise Plus',
-    monthlyPrice: 79900, // $799
-    description: '500 videos + unlimited courses',
-    features: [
-      '500 videos per month included',
-      '$1.50 per additional video',
-      'Unlimited slide edits',
-      'Unlimited courses',
-      'Bulk creation (200 at a time)',
-      'Custom domain share pages',
-      'API access',
-      '20 team seats',
-      'Dedicated phone + Slack support',
-      '1-on-1 onboarding call',
-      '99.9% SLA guarantee',
-    ],
-    videosPerMonth: 500,
-    extraVideoPrice: 150, // $1.50
-    coursesPerMonth: -1,
+    extraVideoPrice: 500, // $5
     regenCreditsPerVideo: -1, // unlimited
   },
 ]
@@ -139,14 +107,13 @@ export interface ProjectPrice {
   label: string
   description: string
   basePrice: number // cents — pay-per-project price
-  proPrice: number // cents — Pro member price
+  proPrice: number // cents — paid member price
 }
 
 export const PROJECT_PRICES: ProjectPrice[] = [
-  { type: 'video', label: 'Video Explainer', description: 'Narrated video + share page', basePrice: 1000, proPrice: 600 },
-  { type: 'deck', label: 'Slide Deck', description: 'Editable PPTX, no audio', basePrice: 1000, proPrice: 600 },
-  { type: 'infographic', label: 'Infographic', description: 'Data visualization', basePrice: 1000, proPrice: 600 },
-  { type: 'course', label: 'Video Course', description: 'Multi-episode series', basePrice: 24900, proPrice: 14900 },
+  { type: 'video', label: 'Video Explainer', description: 'Narrated video + share page', basePrice: 1000, proPrice: 500 },
+  { type: 'deck', label: 'Slide Deck', description: 'Editable PPTX, no audio', basePrice: 1000, proPrice: 500 },
+  { type: 'infographic', label: 'Infographic', description: 'Data visualization', basePrice: 1000, proPrice: 500 },
 ]
 
 export function getProjectPrice(type: string): ProjectPrice | undefined {
@@ -159,29 +126,16 @@ export function getPlan(tier: PlanTier): PlanInfo {
 
 export function getUserTier(subscriptionStatus: string | null): PlanTier {
   const status = (subscriptionStatus ?? '').toLowerCase()
-  if (['enterprise-plus', 'enterprise_plus'].includes(status)) return 'enterprise-plus'
-  if (['enterprise'].includes(status)) return 'enterprise'
-  if (['agency'].includes(status)) return 'agency'
+  if (['enterprise', 'enterprise-plus', 'enterprise_plus'].includes(status)) return 'enterprise'
   if (['business', 'unlimited'].includes(status)) return 'business'
-  if (['pro', 'professional', 'active', 'starter'].includes(status)) return 'pro'
+  if (['pro', 'professional'].includes(status)) return 'pro'
+  if (['starter', 'active'].includes(status)) return 'starter'
   return 'free'
 }
 
 export function getUserPrice(type: string, subscriptionStatus: string | null): number {
   const tier = getUserTier(subscriptionStatus)
   const plan = getPlan(tier)
-
-  // If plan includes videos and this is a video/deck/infographic, it's covered by credits
-  // The actual credit check happens in the API — this returns the overage price
-  if (type === 'course') {
-    if (plan.coursesPerMonth === -1) return 0 // unlimited
-    if (tier === 'business') return 9900
-    if (tier === 'pro') return 14900
-    return 24900 // free tier
-  }
-
-  // For videos: return 0 if they have credits, otherwise return the extra video price
-  // Actual enforcement happens server-side
   return plan.extraVideoPrice
 }
 
@@ -197,10 +151,10 @@ export function isProMember(subscriptionStatus: string | null): boolean {
 
 export function isUnlimited(subscriptionStatus: string | null): boolean {
   const tier = getUserTier(subscriptionStatus)
-  return tier === 'enterprise' || tier === 'enterprise-plus'
+  return tier === 'enterprise'
 }
 
 export function isEnterprise(subscriptionStatus: string | null): boolean {
   const tier = getUserTier(subscriptionStatus)
-  return tier === 'enterprise' || tier === 'enterprise-plus'
+  return tier === 'enterprise'
 }

@@ -72,7 +72,7 @@ export default async function DashboardPage() {
   const pendingCount = pendingFollowUps?.length ?? 0
 
   const firstName = profile?.full_name?.split(' ')[0] ?? 'there'
-  const isPro = profile?.subscription_status && ['professional', 'active', 'agency', 'starter', 'pro', 'business'].includes((profile.subscription_status ?? '').toLowerCase())
+  const isPro = profile?.subscription_status && ['starter', 'pro', 'professional', 'active', 'business', 'enterprise'].includes((profile.subscription_status ?? '').toLowerCase())
   const planName = profile?.subscription_status
     ? profile.subscription_status.charAt(0).toUpperCase() + profile.subscription_status.slice(1)
     : 'Free'

@@ -826,8 +826,8 @@ export default function PublicWatchPage() {
   const slideCount = slideUrls.length
   const hasPdf = !!video.infographic?.source_pdf_url
 
-  // White-label: hide Docs2Video branding for enterprise/agency/business subscribers
-  const WHITELABEL_PLANS = ['enterprise', 'agency', 'business']
+  // White-label: hide Docs2Video branding for business/enterprise subscribers
+  const WHITELABEL_PLANS = ['enterprise', 'business']
   const isWhiteLabel = !!(agent?.subscription_status && WHITELABEL_PLANS.includes(agent.subscription_status.toLowerCase()))
 
   // Insurance detection and disclaimers
