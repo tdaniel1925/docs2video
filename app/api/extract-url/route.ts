@@ -241,10 +241,14 @@ export async function POST(request: Request) {
 
           if (logoBuffer && logoBuffer.length > 100) {
             const logoPath = `${user.id}/brand_logo_${Date.now()}.png`
-            await supabase.storage.from('brand-assets').upload(logoPath, logoBuffer, { contentType: 'image/png', upsert: true })
-            const { data: logoUrlData } = supabase.storage.from('brand-assets').getPublicUrl(logoPath)
-            logoFileUrl = logoUrlData.publicUrl
-            console.log(`[extract-url] Logo uploaded to storage: ${(logoBuffer.length / 1024).toFixed(0)}KB`)
+            const { error: uploadErr } = await supabase.storage.from('videos').upload(logoPath, logoBuffer, { contentType: 'image/png', upsert: true })
+            if (uploadErr) {
+              console.error(`[extract-url] Logo upload failed: ${uploadErr.message}`)
+            } else {
+              const { data: logoUrlData } = supabase.storage.from('videos').getPublicUrl(logoPath)
+              logoFileUrl = logoUrlData.publicUrl
+              console.log(`[extract-url] Logo uploaded to storage: ${(logoBuffer.length / 1024).toFixed(0)}KB → ${logoFileUrl}`)
+            }
           }
         }
       } catch (logoErr) {
