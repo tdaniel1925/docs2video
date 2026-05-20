@@ -330,7 +330,6 @@ export default function VideoDetailPage() {
       if (document.hidden) {
         musicRef.current.pause()
       } else if (!videoRef.current.paused && video?.music_url) {
-        musicRef.current.currentTime = videoRef.current.currentTime % (musicRef.current.duration || Infinity)
         musicRef.current.play().catch(() => {})
       }
     }
@@ -1200,10 +1199,12 @@ export default function VideoDetailPage() {
                 onPause={() => {
                   if (musicRef.current) musicRef.current.pause()
                 }}
-                onSeeked={() => {
+                onSeeking={() => {
                   if (musicRef.current && videoRef.current) {
-                    const musicDur = musicRef.current.duration || Infinity
-                    musicRef.current.currentTime = musicDur > 0 ? videoRef.current.currentTime % musicDur : 0
+                    const musicDur = musicRef.current.duration
+                    if (musicDur && musicDur > 0) {
+                      musicRef.current.currentTime = videoRef.current.currentTime % musicDur
+                    }
                   }
                 }}
                 style={{ width: '100%', display: 'block', maxHeight: '50vh' }}

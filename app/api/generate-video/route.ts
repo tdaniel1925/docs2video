@@ -248,12 +248,18 @@ export async function POST(request: Request) {
         }
       }
 
-      return buildSlidePrompt({
+      const basePrompt = buildSlidePrompt({
         template,
         brandColors,
         logoDescription: logoUrl ? (brand?.name ?? 'brand logo') : undefined,
         content,
       })
+
+      // If user selected a custom style (e.g. from URL scraping), inject that style prompt
+      if (customStylePrompt) {
+        return `${basePrompt}\n\n=== CUSTOM VISUAL STYLE (OVERRIDE — follow this closely) ===\n${customStylePrompt}`
+      }
+      return basePrompt
     })
 
     // STAGE 3: Hand off to VPS with pre-built prompts
