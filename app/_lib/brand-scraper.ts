@@ -78,23 +78,93 @@ export function extractJsonLd(html: string): string {
 }
 
 export function extractLogoUrl(html: string, baseUrl: string): string | null {
-  let logoUrl: string | null = null
-
-  const logoImgMatch = html.match(/<img[^>]*(?:class=["'][^"']*logo[^"']*["']|alt=["'][^"']*logo[^"']*["']|src=["'][^"']*logo[^"']*["'])[^>]*src=["']([^"']+)["']/i)
-    ?? html.match(/<img[^>]*src=["']([^"']*logo[^"']+)["']/i)
-  const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
-    ?? html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i)
-  const faviconMatch = html.match(/<link[^>]*rel=["'](?:icon|shortcut icon|apple-touch-icon)["'][^>]*href=["']([^"']+)["']/i)
-    ?? html.match(/<link[^>]*href=["']([^"']+)["'][^>]*rel=["'](?:icon|shortcut icon|apple-touch-icon)["']/i)
-
-  if (logoImgMatch) logoUrl = logoImgMatch[1]
-  else if (ogImageMatch) logoUrl = ogImageMatch[1]
-  else if (faviconMatch) logoUrl = faviconMatch[1]
-
-  if (logoUrl && !logoUrl.startsWith('http') && !logoUrl.startsWith('data:')) {
-    try { logoUrl = new URL(logoUrl, baseUrl).href } catch { logoUrl = null }
+  function resolve(url: string): string | null {
+    if (!url || url.startsWith('data:')) return null
+    if (url.startsWith('http')) return url
+    try { return new URL(url, baseUrl).href } catch { return null }
   }
-  return logoUrl
+
+  // Try to strip WordPress size suffixes to get original full-size image
+  // e.g. "logo-70x25.png" → "logo.png", "logo-300x150.jpg" → "logo.jpg"
+  function getFullSizeUrl(url: string): string {
+    return url.replace(/-\d+x\d+(\.\w+)$/, '$1')
+  }
+
+  const candidates: { url: string; priority: number }[] = []
+
+  // 1. HEADER/NAV logos (highest priority — this is THE logo)
+  const headerBlock = html.match(/<(?:header|nav)[\s\S]*?<\/(?:header|nav)>/i)?.[0] ?? ''
+  const headerImgs = headerBlock.match(/<img[^>]*src=["']([^"']+)["'][^>]*>/gi) || []
+  for (const img of headerImgs) {
+    const src = img.match(/src=["']([^"']+)["']/i)?.[1]
+    if (src) {
+      const resolved = resolve(src)
+      if (resolved && !resolved.includes('.svg')) {
+        candidates.push({ url: getFullSizeUrl(resolved), priority: 10 })
+        if (getFullSizeUrl(resolved) !== resolved) candidates.push({ url: resolved, priority: 9 })
+      }
+    }
+    // Check srcset for larger versions
+    const srcset = img.match(/srcset=["']([^"']+)["']/i)?.[1]
+    if (srcset) {
+      const parts = srcset.split(',').map(s => s.trim())
+      for (const part of parts) {
+        const [url] = part.split(/\s+/)
+        const resolved = resolve(url)
+        if (resolved && !resolved.includes('.svg')) {
+          candidates.push({ url: resolved, priority: 11 }) // srcset versions are usually best
+        }
+      }
+    }
+  }
+
+  // 2. Any img with "logo" in class, alt, or src (medium priority)
+  const logoImgs = html.match(/<img[^>]*(?:class=["'][^"']*logo[^"']*["']|alt=["'][^"']*logo[^"']*["']|src=["'][^"']*logo[^"']*["'])[^>]*>/gi) || []
+  for (const img of logoImgs) {
+    const src = img.match(/src=["']([^"']+)["']/i)?.[1]
+    if (src) {
+      const resolved = resolve(src)
+      if (resolved && !resolved.includes('.svg')) {
+        candidates.push({ url: getFullSizeUrl(resolved), priority: 7 })
+        if (getFullSizeUrl(resolved) !== resolved) candidates.push({ url: resolved, priority: 6 })
+      }
+    }
+    const srcset = img.match(/srcset=["']([^"']+)["']/i)?.[1]
+    if (srcset) {
+      const parts = srcset.split(',').map(s => s.trim())
+      for (const part of parts) {
+        const [url] = part.split(/\s+/)
+        const resolved = resolve(url)
+        if (resolved && !resolved.includes('.svg')) candidates.push({ url: resolved, priority: 8 })
+      }
+    }
+  }
+
+  // 3. Apple touch icon (decent fallback — usually 180x180)
+  const touchIcon = html.match(/<link[^>]*rel=["']apple-touch-icon["'][^>]*href=["']([^"']+)["']/i)?.[1]
+    ?? html.match(/<link[^>]*href=["']([^"']+)["'][^>]*rel=["']apple-touch-icon["']/i)?.[1]
+  if (touchIcon) {
+    const resolved = resolve(touchIcon)
+    if (resolved) candidates.push({ url: resolved, priority: 4 })
+  }
+
+  // 4. og:image (low priority — often a hero image, not the logo)
+  const ogImage = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)?.[1]
+  if (ogImage) {
+    const resolved = resolve(ogImage)
+    if (resolved) candidates.push({ url: resolved, priority: 2 })
+  }
+
+  // Sort by priority (highest first), deduplicate, return best
+  candidates.sort((a, b) => b.priority - a.priority)
+  const seen = new Set<string>()
+  for (const c of candidates) {
+    if (seen.has(c.url)) continue
+    seen.add(c.url)
+    return c.url
+  }
+
+  return null
 }
 
 export interface BrandAnalysis {
