@@ -195,15 +195,11 @@ export async function POST(request: Request) {
       const isFirst = i === 0
       const isLast = i === scenes.length - 1
 
-      // Extract bullet content from narration if no explicit bullets
-      // Strip speaker tags from narration
-      const hasBullets = scene.bullets?.length > 0
+      // Use slideData from script generator (preferred) or fall back to narration extraction
+      const sd = scene.slideData as { headline?: string; stats?: { label: string; value: string }[]; bullets?: string[] } | undefined
       const cleanNarration = scene.narration?.replace(/^(Host|Expert|Advisor|Client|Narrator|Clarifier|Alex|Jordan):\s*/gim, '') || ''
-      const narrativeBullets = !hasBullets && cleanNarration
-        ? cleanNarration.split(/[.!?]+/).filter((s: string) => s.trim().length > 10).slice(0, 4).map((s: string) => ({ text: s.trim() }))
-        : undefined
 
-      // If narration mentions a phone number, include it in slide contact info
+      // Detect phone/URL in narration to show on slide
       const phoneInNarration = cleanNarration.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/)
       const urlInNarration = cleanNarration.match(/(?:https?:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/\S*)?/i)
 
@@ -213,15 +209,24 @@ export async function POST(request: Request) {
           ? { phone: phoneInNarration?.[0], website: urlInNarration?.[0]?.toLowerCase() }
           : undefined
 
+      // Build slide content: slideData > explicit bullets > narration fallback
+      let slideStats = sd?.stats || scene.stats || scene.keyMetrics?.map((m: any) => ({ value: m.value, label: m.label }))
+      let slideBullets = sd?.bullets?.map((b: string) => ({ text: b }))
+        || (scene.bullets?.length > 0 ? scene.bullets : undefined)
+      if (!slideBullets && !slideStats && !isFirst && !isLast) {
+        // Last resort: extract from narration
+        slideBullets = cleanNarration.split(/[.!?]+/).filter((s: string) => s.trim().length > 10).slice(0, 4).map((s: string) => ({ text: s.trim() }))
+      }
+
       const input: SimpleSlideInput = {
         type: isFirst ? 'cover' : isLast ? 'closing' : 'content',
         stylePrompt,
-        headline: scene.title || (isFirst ? (policyData as any)?.title || 'Presentation' : isLast ? 'Thank You' : ''),
+        headline: sd?.headline || scene.title || (isFirst ? (policyData as any)?.title || 'Presentation' : isLast ? 'Thank You' : ''),
         subtitle: scene.subtitle || (isFirst ? brand?.name : undefined),
         brandName: brand?.name,
         brandColors,
-        stats: scene.stats || scene.keyMetrics?.map((m: any) => ({ value: m.value, label: m.label })),
-        bullets: hasBullets ? scene.bullets : narrativeBullets,
+        stats: slideStats,
+        bullets: slideBullets,
         contactInfo: sceneContactInfo,
         pageNumber: i + 1,
         totalPages: scenes.length,

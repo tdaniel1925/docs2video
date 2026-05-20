@@ -135,12 +135,19 @@ export interface DialogueLine {
   text: string
 }
 
+export interface SlideData {
+  headline: string
+  stats?: { label: string; value: string }[]
+  bullets?: string[]
+}
+
 export interface VideoScene {
   scene: number
   beat: 'hook' | 'disclaimer' | 'disclaimer-close' | 'context' | 'stakes' | 'evidence' | 'implication' | 'action'
   title: string
   narration: string
   dialogue?: DialogueLine[]
+  slideData?: SlideData
   slidePrompt: string
   duration: number
 }

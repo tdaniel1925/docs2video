@@ -186,17 +186,29 @@ ${uploadMode === 'narrate' || uploadMode === 'redesign'
 
 Each scene's narration should be 10-20 seconds (roughly 25-50 words). Each scene must cover ONE specific fact or data point — not a broad topic. More scenes with tight focus beats fewer scenes with long narration. A 3-minute video should have 15-20 scenes.
 
-NARRATION QUALITY (CRITICAL — this will be read aloud by a voice actor):
-- Write for the EAR, not the eye. Read every sentence aloud in your head — if it sounds stilted, rewrite it.
-- Use short, punchy sentences. Break up long ones. Vary sentence length for natural rhythm.
-- Use contractions naturally: "you'll" not "you will", "that's" not "that is", "it's" not "it is"
-- Avoid filler phrases: remove "it's important to note that", "as you can see", "let's take a look at", "as we mentioned"
-- Never start a sentence with "Now," or "So," or "Additionally," — these sound robotic when spoken
+NARRATION QUALITY (CRITICAL — this will be read aloud):
+- Write for the EAR, not the eye. If it sounds stilted when read aloud, rewrite it.
+- Short, punchy sentences. Vary rhythm. Use contractions: "you'll", "that's", "it's"
+- BANNED PHRASES (never use these): "it's important to note", "as you can see", "let's take a look at", "the data shows", "the evidence suggests", "it's worth noting", "as we mentioned", "moving on to", "in conclusion"
+- Never start with "Now,", "So,", "Additionally,", "Furthermore,"
 - Use active voice: "This saves you 40%" not "A savings of 40% can be achieved"
-- Address the viewer directly: "your", "you", "you'll" — make it personal
-- Numbers should sound natural when spoken: "about two hundred thousand" not "$198,447"
-- Each scene should flow naturally into the next — no jarring transitions
-- Write like you're explaining to a smart friend, not reading a report
+- Numbers spoken naturally: "about two hundred thousand" not "$198,447"
+- Vary how you reference the company: use the company name, "they", "the team", "the platform", "their" — never the same reference twice in a row
+- Never assume or editorialize — don't say "that's impressive" or "that's a lot" unless the data explicitly supports a comparison
+- Each scene flows naturally into the next
+
+DYNAMIC DELIVERY (adapt to the purpose):
+- If the purpose is to SELL or PITCH: confident, benefit-focused, forward momentum. Lead with outcomes. "This means you get..." / "The result is..."
+- If the purpose is to EXPLAIN to clients: warm, clear, patient. Break complex ideas into simple language. "Here's how this works..." / "What this means for you..."
+- If the purpose is to TRAIN employees: structured, step-by-step. Anticipate questions. "The first step is..." / "The key thing to remember here..."
+- If the purpose is to INFORM or REPORT: balanced, factual, let data speak. "Revenue came in at..." / "The platform processes..."
+- If no clear purpose: default to clear, engaging explanation
+
+SLIDE DATA vs NARRATION (CRITICAL — these are DIFFERENT):
+- The "slideData" field contains RAW FACTS to display on screen: headlines, stats, bullet points pulled directly from the document data
+- The "narration" field contains what the speaker SAYS — a conversational summary/explanation of that data
+- The narrator should NOT read the slide. They DISCUSS it, add context, explain why it matters
+- Example: slideData shows "Revenue: $2.4M (+18%)" → narrator says "Revenue jumped eighteen percent this year, coming in at two point four million."
 ${assetCount > 0 ? `
 PRODUCT IMAGES AVAILABLE:
 You have ${assetCount} product/brand images that will be placed on slides.
@@ -404,18 +416,27 @@ Return ONLY valid JSON array (no markdown, no code fences):
     "scene": 1,
     "beat": "hook",
     "title": "scene title",
-    "narration": "combined text of all dialogue for this scene",
+    "slideData": {
+      "headline": "title for the slide",
+      "stats": [{ "label": "Metric Name", "value": "$1.2M" }],
+      "bullets": ["Key fact from the document", "Another specific data point"]
+    },
+    "narration": "combined text of all dialogue WITHOUT speaker names",
     "dialogue": [
       { "speaker": "${speakerConfig.speaker1.name}", "voice": "${speakerConfig.speaker1.voice}", "instructions": "${speakerConfig.speaker1.instructions}", "text": "what this speaker says" },
       { "speaker": "${speakerConfig.speaker2.name}", "voice": "${speakerConfig.speaker2.voice}", "instructions": "${speakerConfig.speaker2.instructions}", "text": "what this speaker says" }
     ],
-    "slidePrompt": "brief visual description",
+    "slidePrompt": "brief visual concept for slide background/style",
     "duration": estimated seconds
   }
 ]
 
-The "beat" field must be one of: "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"
-The "slidePrompt" should describe the VISUAL CONCEPT — NOT repeat dialogue.`
+FIELD RULES:
+- "slideData": RAW FACTS for the slide — pulled directly from document data. Stats with values, bullet points with specific facts.
+- "narration": what the speakers say — a conversational discussion of the slideData. NOT a repeat of it.
+- "dialogue": individual lines with speaker tags. The speakers DISCUSS the data, they don't read it.
+- "slidePrompt": visual concept only (e.g. "growth chart on dark background") — NOT content text
+- "beat": one of "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"`
 
     const response = await genai.models.generateContent({
       model: 'gemini-2.5-pro',
@@ -445,14 +466,24 @@ Return ONLY valid JSON array (no markdown, no code fences):
     "scene": 1,
     "beat": "hook",
     "title": "scene title",
-    "narration": "full narration text the voice will read",
-    "slidePrompt": "brief visual description — what should this slide LOOK like? Describe the visual concept, icons, or imagery. Do NOT include narration text here.",
+    "slideData": {
+      "headline": "title for the slide",
+      "stats": [{ "label": "Metric Name", "value": "$1.2M" }],
+      "bullets": ["Key fact from the document", "Another specific data point"]
+    },
+    "narration": "what the narrator SAYS — a conversational explanation of the slideData, NOT a repeat of it",
+    "slidePrompt": "brief visual concept for the slide background/style",
     "duration": estimated seconds
   }
 ]
 
-The "beat" field must be one of: "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"
-The "slidePrompt" should describe the VISUAL CONCEPT for the slide image — NOT repeat the narration. Example: "A family protected under a shield icon with a large dollar amount" NOT "The death benefit is $500,000."`
+FIELD RULES:
+- "slideData.headline": short title for the slide (2-5 words)
+- "slideData.stats": key metrics WITH their values from the document data — use for numbers, percentages, dollar amounts. Omit if no stats for this scene.
+- "slideData.bullets": 2-4 specific facts from the document to display as text. Omit for cover/closing slides.
+- "narration": what the speaker says — conversational, explains the data, does NOT just read the bullets
+- "slidePrompt": visual concept only (e.g. "dark background with growth chart icon") — NOT content text
+- "beat": one of "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"`
 
   const response = await genai.models.generateContent({
     model: 'gemini-2.5-pro',
