@@ -379,8 +379,13 @@ export default function VideoDetailPage() {
   // Jump video to a slide
   function jumpToSlide(index: number) {
     if (!videoRef.current || slideCount === 0) return
-    videoRef.current.currentTime = slideStartTimes[index] ?? (index * slideDuration)
+    // Use actual video duration from element, or DB duration as fallback
+    const dur = videoRef.current.duration || videoDuration || (video as any)?.duration || 0
+    const fallbackSlideDur = dur > 0 && slideCount > 0 ? dur / slideCount : 0
+    const seekTime = slideStartTimes[index] ?? (index * fallbackSlideDur)
+    videoRef.current.currentTime = Math.min(seekTime, dur > 0 ? dur - 0.1 : seekTime)
     setCurrentSlideIndex(index)
+    if (videoRef.current.paused) videoRef.current.play().catch(() => {})
   }
 
   async function handleRegenerateSlide(index: number, instruction?: string) {

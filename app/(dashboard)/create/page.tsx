@@ -2781,11 +2781,22 @@ export default function CreatePage() {
             {/* Music type toggle */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
               <button
+                onClick={() => { setAiMusic(false); setSelectedMusic(null); if (musicAudioRef.current) { musicAudioRef.current.pause(); setPreviewingMusic(null) } }}
+                style={{
+                  padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  border: !aiMusic && !selectedMusic ? '2px solid var(--mint)' : '1px solid var(--border)',
+                  background: !aiMusic && !selectedMusic ? 'rgba(59,181,200,0.06)' : 'white',
+                  color: 'var(--ink)',
+                }}
+              >
+                No Music
+              </button>
+              <button
                 onClick={() => { setAiMusic(false) }}
                 style={{
                   padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                  border: !aiMusic ? '2px solid var(--mint)' : '1px solid var(--border)',
-                  background: !aiMusic ? 'rgba(59,181,200,0.06)' : 'white',
+                  border: !aiMusic && selectedMusic ? '2px solid var(--mint)' : '1px solid var(--border)',
+                  background: !aiMusic && selectedMusic ? 'rgba(59,181,200,0.06)' : 'white',
                   color: 'var(--ink)',
                 }}
               >
