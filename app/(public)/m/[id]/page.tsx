@@ -164,7 +164,8 @@ export default function MarketingWatchPage() {
             }}
             onSeeked={() => {
               if (musicRef.current && videoRef.current) {
-                musicRef.current.currentTime = videoRef.current.currentTime
+                const musicDur = musicRef.current.duration || Infinity
+                musicRef.current.currentTime = musicDur > 0 ? videoRef.current.currentTime % musicDur : 0
               }
             }}
             style={{ width: '100%', display: 'block', borderRadius: 12 }}

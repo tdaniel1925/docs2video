@@ -13,7 +13,8 @@ import type { SlideContent, BrandColors } from '../../_lib/slide-engine/types'
 
 export const runtime = 'nodejs'
 
-const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
+const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL
+if (!VIDEO_ASSEMBLY_URL) console.error('[generate-video] VIDEO_ASSEMBLY_URL env var is not set!')
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
 export const maxDuration = 120

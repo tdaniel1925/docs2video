@@ -291,6 +291,7 @@ export async function generateScript(
   purpose?: string,
   uploadMode?: string,
   industry?: string,
+  detailLevel?: 'quick' | 'standard' | 'detailed',
 ): Promise<VideoScene[]> {
   const isInsurance = isInsuranceData(data)
   const promptBody = isInsurance
@@ -299,6 +300,13 @@ export async function generateScript(
 
   // Build additional prompt sections based on new parameters
   const additionalSections: string[] = []
+
+  // Detail level controls scene count
+  if (detailLevel === 'quick') {
+    additionalSections.push(`VIDEO LENGTH: HIGHLIGHTS MODE — Create exactly 3-4 scenes total. Keep it under 60 seconds. Only cover the most important 2-3 data points. Skip introductions and detailed explanations. Be punchy and direct.`)
+  } else if (detailLevel === 'detailed') {
+    additionalSections.push(`VIDEO LENGTH: DETAILED MODE — Create 10-16 scenes. Cover EVERY data point, metric, and section thoroughly. Each scene should explain one concept in depth. Target 5-10 minutes total. Do not skip or summarize any content.`)
+  }
 
   if (purpose) {
     additionalSections.push(`VIDEO PURPOSE (CRITICAL): The user wants this video to "${purpose}". This is the primary objective — shape the entire narrative, tone, emphasis, and call-to-action around accomplishing this goal. Every scene should serve this purpose. Prioritize information that supports this goal and de-emphasize anything that doesn't.`)

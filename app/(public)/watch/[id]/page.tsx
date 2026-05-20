@@ -646,6 +646,21 @@ export default function PublicWatchPage() {
       musicRef.current.muted = musicMuted
     }
   }, [video?.music_url, musicVolume, musicMuted])
+
+  // Pause music when tab is hidden, resume when visible
+  useEffect(() => {
+    function handleVisibility() {
+      if (!musicRef.current || !videoRef.current) return
+      if (document.hidden) {
+        musicRef.current.pause()
+      } else if (!videoRef.current.paused && video?.music_url) {
+        musicRef.current.currentTime = videoRef.current.currentTime % (musicRef.current.duration || Infinity)
+        musicRef.current.play().catch(() => {})
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [video?.music_url])
   const [showDisclosures, setShowDisclosures] = useState(false)
 
   const paid = searchParams.get('paid') === 'true'
@@ -908,7 +923,8 @@ export default function PublicWatchPage() {
                 }}
                 onSeeked={() => {
                   if (musicRef.current && videoRef.current) {
-                    musicRef.current.currentTime = videoRef.current.currentTime
+                    const musicDur = musicRef.current.duration || Infinity
+                    musicRef.current.currentTime = musicDur > 0 ? videoRef.current.currentTime % musicDur : 0
                   }
                 }}
                 playsInline
