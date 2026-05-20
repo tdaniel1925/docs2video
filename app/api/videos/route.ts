@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     .single()
 
   const subStatus = (profile?.subscription_status ?? '').toLowerCase()
-  const isPaid = ['active', 'professional', 'pro', 'business', 'agency', 'starter'].includes(subStatus)
+  const isPaid = ['active', 'professional', 'pro', 'business', 'enterprise', 'starter'].includes(subStatus)
   const hasReferral = !!profile?.referred_by
   const cardOnFile = profile?.card_on_file ?? false
   const freeVideosRemaining = profile?.free_videos_remaining ?? 0
@@ -110,9 +110,10 @@ export async function POST(request: Request) {
   const isBeta = (profile as any)?.is_beta === true
   let maxConcurrent = 1 // Free / pay-per-project
   if (isAdmin || isBeta) maxConcurrent = 99
-  else if (subStatus === 'agency') maxConcurrent = 5
+  else if (subStatus === 'enterprise') maxConcurrent = 5
   else if (subStatus === 'business') maxConcurrent = 3
-  else if (['pro', 'professional', 'active', 'starter'].includes(subStatus)) maxConcurrent = 2
+  else if (['pro', 'professional'].includes(subStatus)) maxConcurrent = 2
+  else if (['starter', 'active'].includes(subStatus)) maxConcurrent = 2
 
   if (inProgressCount && inProgressCount >= maxConcurrent) {
     const slots = maxConcurrent === 1 ? 'video' : `${maxConcurrent} videos`

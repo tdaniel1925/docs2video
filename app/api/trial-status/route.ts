@@ -13,7 +13,7 @@ export async function GET() {
     .single()
 
   const subStatus = (profile?.subscription_status ?? '').toLowerCase()
-  const isPaid = ['active', 'professional', 'pro', 'business', 'agency', 'starter'].includes(subStatus)
+  const isPaid = ['active', 'professional', 'pro', 'business', 'enterprise', 'starter'].includes(subStatus)
   const hasReferral = !!profile?.referred_by
   const cardOnFile = profile?.card_on_file ?? false
   const freeVideosRemaining = profile?.free_videos_remaining ?? 5

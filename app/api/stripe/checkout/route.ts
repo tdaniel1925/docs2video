@@ -8,7 +8,7 @@ export const runtime = 'nodejs'
 /**
  * POST /api/stripe/checkout
  * Creates a Stripe Checkout session for a subscription.
- * Accepts { planId: 'pro' | 'business' | 'agency' }.
+ * Accepts { planId: 'starter' | 'pro' | 'business' | 'enterprise' }.
  */
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -19,8 +19,8 @@ export async function POST(request: Request) {
 
   const { planId } = (await request.json()) as { planId?: string }
 
-  if (!planId || !['pro', 'business', 'agency'].includes(planId)) {
-    return NextResponse.json({ error: 'Invalid plan. Must be pro, business, or agency.' }, { status: 400 })
+  if (!planId || !['starter', 'pro', 'business', 'enterprise'].includes(planId)) {
+    return NextResponse.json({ error: 'Invalid plan. Must be starter, pro, business, or enterprise.' }, { status: 400 })
   }
 
   const priceId = SUBSCRIPTION_PRICES[planId as Exclude<PlanTier, 'free'>]

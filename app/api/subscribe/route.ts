@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 
 /**
  * POST /api/subscribe
- * Creates a Stripe Checkout Session in subscription mode for Pro/Business/Agency.
+ * Creates a Stripe Checkout Session in subscription mode for Starter/Pro/Business/Enterprise.
  */
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -18,8 +18,8 @@ export async function POST(request: Request) {
 
   const { tier } = (await request.json()) as { tier: string }
 
-  if (!tier || !['pro', 'business', 'agency'].includes(tier)) {
-    return NextResponse.json({ error: 'Invalid tier. Must be pro, business, or agency.' }, { status: 400 })
+  if (!tier || !['starter', 'pro', 'business', 'enterprise'].includes(tier)) {
+    return NextResponse.json({ error: 'Invalid tier. Must be starter, pro, business, or enterprise.' }, { status: 400 })
   }
 
   const priceId = SUBSCRIPTION_PRICES[tier as Exclude<PlanTier, 'free'>]

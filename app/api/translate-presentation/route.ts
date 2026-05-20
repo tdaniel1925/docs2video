@@ -66,7 +66,7 @@ export async function POST(request: Request) {
 
   if (!creditProfile?.is_admin && !creditProfile?.is_beta) {
     const subStatus = (creditProfile?.subscription_status ?? '').toLowerCase()
-    const isPaidUser = ['active', 'professional', 'pro', 'business', 'agency', 'starter'].includes(subStatus)
+    const isPaidUser = ['active', 'professional', 'pro', 'business', 'enterprise', 'starter'].includes(subStatus)
     const freeRemaining = creditProfile?.free_videos_remaining ?? 0
     const cardOnFile = creditProfile?.card_on_file ?? false
 

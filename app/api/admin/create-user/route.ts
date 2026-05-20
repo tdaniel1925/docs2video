@@ -66,7 +66,7 @@ export async function POST(request: Request) {
       is_beta: isBeta ?? false,
       is_admin: false,
       onboarding_completed: false,
-      credits_remaining: plan === 'pro' ? 100 : plan === 'agency' ? 300 : 10,
+      credits_remaining: plan === 'enterprise' ? 300 : plan === 'business' ? 100 : plan === 'pro' ? 50 : plan === 'starter' ? 20 : 10,
     })
 
     // Log admin action

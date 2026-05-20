@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   if (existing) {
     // Upgrade existing user
     await supabase.from('profiles').update({
-      subscription_status: 'agency',
+      subscription_status: 'enterprise',
       card_on_file: true,
       free_videos_remaining: 999,
     }).eq('id', existing.id)
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: createErr?.message || 'Failed to create user' }, { status: 500 })
   }
 
-  // Set to agency tier
+  // Set to enterprise tier
   await supabase.from('profiles').update({
     subscription_status: 'agency',
     full_name: name || null,
