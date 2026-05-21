@@ -47,17 +47,26 @@ Show a content slide with:
 - 80px padding on all edges`
 
     try {
-      // Generate one content preview with OpenAI — same engine as actual slides
-      const contentRes = await openai.images.generate({
-        model: 'gpt-image-2',
-        prompt: contentPrompt,
-        size: '1920x1088',
-        quality: 'high',
-        n: 1,
-      })
+      // Generate 2 previews with OpenAI — same engine as actual slides
+      const [coverRes, contentRes] = await Promise.all([
+        openai.images.generate({
+          model: 'gpt-image-2',
+          prompt: coverPrompt,
+          size: '1920x1088',
+          quality: 'high',
+          n: 1,
+        }),
+        openai.images.generate({
+          model: 'gpt-image-2',
+          prompt: contentPrompt,
+          size: '1920x1088',
+          quality: 'high',
+          n: 1,
+        }),
+      ])
 
+      const coverUrl = coverRes.data?.[0]?.b64_json ? `data:image/png;base64,${coverRes.data[0].b64_json}` : null
       const contentUrl = contentRes.data?.[0]?.b64_json ? `data:image/png;base64,${contentRes.data[0].b64_json}` : null
-      const coverUrl = contentUrl // show same preview for both to save costs
 
       return NextResponse.json({
         previewUrl: coverUrl,
