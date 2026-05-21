@@ -68,27 +68,30 @@ export default function OptionsPage() {
         },
       }).eq('id', createData.id)
 
-      // Trigger the video generation pipeline
-      const input = {
-        videoId: createData.id,
-        policyData: state.extractedData,
-        brandId: selectedBrand,
-        voiceId: selectedVoice,
-        styleId: state.themeAccepted ? 'custom-url-theme' : undefined,
-        customStylePrompt: state.customStylePrompt || undefined,
-        narrationStyle: state.narrationStyle || 'solo',
-        aiMusic,
-        musicPrompt: aiMusic ? musicPrompt : undefined,
-        preGeneratedScenes: state.scenes,
-        purpose: state.purpose,
-        industry: state.extractedData?.industry || 'general',
-      }
-
-      fetch('/api/generate-video', {
+      // Trigger the video generation pipeline and wait for it to accept
+      const genRes = await fetch('/api/generate-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
-      }).catch(err => console.error('[create] Pipeline trigger failed:', err))
+        body: JSON.stringify({
+          videoId: createData.id,
+          policyData: state.extractedData,
+          brandId: selectedBrand,
+          voiceId: selectedVoice,
+          styleId: state.themeAccepted ? 'custom-url-theme' : undefined,
+          customStylePrompt: state.customStylePrompt || undefined,
+          narrationStyle: state.narrationStyle || 'solo',
+          aiMusic,
+          musicPrompt: aiMusic ? musicPrompt : undefined,
+          preGeneratedScenes: state.scenes,
+          purpose: state.purpose,
+          industry: state.extractedData?.industry || 'general',
+        }),
+      })
+      const genData = await genRes.json()
+      if (!genRes.ok) {
+        console.error('[create] Pipeline failed:', genData.error)
+        // Still navigate — the video exists, user can retry from detail page
+      }
 
       // Clean up and navigate
       localStorage.removeItem('d2v_create')
