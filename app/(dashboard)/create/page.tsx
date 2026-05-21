@@ -121,8 +121,13 @@ export default function CreateGoalPage() {
           <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 8, textAlign: 'center' }}>
             You have an unfinished video
           </h1>
-          <p style={{ fontSize: 16, color: 'var(--ink-soft)', textAlign: 'center', marginBottom: 32, lineHeight: 1.6 }}>
+          <p style={{ fontSize: 16, color: 'var(--ink-soft)', textAlign: 'center', marginBottom: 12, lineHeight: 1.6 }}>
             {pendingState.purpose ? `"${pendingState.purpose.slice(0, 100)}${pendingState.purpose.length > 100 ? '...' : ''}"` : 'Pick up where you left off or start fresh.'}
+          </p>
+          <p style={{ fontSize: 14, color: 'var(--ink-light)', textAlign: 'center', marginBottom: 32 }}>
+            You stopped at: <strong style={{ color: 'var(--ink)' }}>
+              {pendingState.scenes?.length > 0 ? 'Script editing' : pendingState.extractedData ? 'Content review' : pendingState.method ? 'Content extraction' : 'Adding content'}
+            </strong>
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

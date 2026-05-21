@@ -53,7 +53,7 @@ export default function OptionsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          policyData: state.extractedData,
+          policyData: { ...state.extractedData, contactPhone: state.contactPhone, contactEmail: state.contactEmail, contactWebsite: state.contactWebsite, pricingInfo: state.pricingInfo, ctaUrl: state.ctaUrl },
           brandId: selectedBrand,
           voiceId: selectedVoice,
         }),
@@ -65,7 +65,7 @@ export default function OptionsPage() {
       await supabase.from('videos').update({
         script: {
           _pipeline_input: {
-            policyData: state.extractedData,
+            policyData: { ...state.extractedData, contactPhone: state.contactPhone, contactEmail: state.contactEmail, contactWebsite: state.contactWebsite, pricingInfo: state.pricingInfo, ctaUrl: state.ctaUrl },
             brandId: selectedBrand,
             voiceId: selectedVoice,
             styleId: state.themeAccepted ? 'custom-url-theme' : undefined,
@@ -86,7 +86,7 @@ export default function OptionsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           videoId: createData.id,
-          policyData: state.extractedData,
+          policyData: { ...state.extractedData, contactPhone: state.contactPhone, contactEmail: state.contactEmail, contactWebsite: state.contactWebsite, pricingInfo: state.pricingInfo, ctaUrl: state.ctaUrl },
           brandId: selectedBrand,
           voiceId: selectedVoice,
           styleId: state.themeAccepted ? 'custom-url-theme' : undefined,

@@ -28,11 +28,16 @@ export default function ScriptPage() {
 
   useEffect(() => {
     const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+    if (!state.extractedData && !state.scenes) {
+      // No data — redirect back
+      router.push('/create/source')
+      return
+    }
     setCreateState(state)
     if (state.detailLevel) setDetailLevel(state.detailLevel)
     if (state.narrationStyle) setNarrationStyle(state.narrationStyle)
     if (state.scenes) setScenes(state.scenes)
-  }, [])
+  }, [router])
 
   async function handleGenerate() {
     setGenerating(true)

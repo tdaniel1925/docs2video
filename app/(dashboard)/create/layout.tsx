@@ -13,15 +13,19 @@ const STEPS = [
 
 export default function CreateLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const currentIdx = STEPS.findIndex(s => pathname === s.path || pathname?.startsWith(s.path + '/'))
+
+  // Map extracting to Content step (it's part of that flow)
+  const effectivePath = pathname === '/create/extracting' ? '/create/source' : pathname
+  const currentIdx = STEPS.findIndex(s => effectivePath === s.path || effectivePath?.startsWith(s.path + '/'))
   const activeIdx = currentIdx >= 0 ? currentIdx : 0
 
-  // Hide step bar on generating page
+  // Hide step bar on generating and extracting pages
   const isGenerating = pathname === '/create/generating'
+  const isExtracting = pathname === '/create/extracting'
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {!isGenerating && (
+      {!isGenerating && !isExtracting && (
         <div style={{
           padding: '20px 32px 0',
           maxWidth: 900,

@@ -79,9 +79,27 @@ export default function GeneratingPage() {
           <div style={{ fontSize: 48, marginBottom: 16 }}>&#9888;&#65039;</div>
           <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>Something went wrong</h1>
           <p style={{ fontSize: 16, color: 'var(--ink-soft)', marginBottom: 24, lineHeight: 1.6 }}>{error}</p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-            <Link href="/create" className="btn btn-soft">Start over</Link>
-            <Link href="/dashboard" className="btn btn-primary">Go to Dashboard</Link>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            {videoId && (
+              <Link href={`/videos/${videoId}`} style={{
+                padding: '12px 24px', borderRadius: 10, background: 'var(--ink)', color: 'white',
+                fontSize: 14, fontWeight: 700, textDecoration: 'none',
+              }}>
+                Retry from video page
+              </Link>
+            )}
+            <Link href="/create" style={{
+              padding: '12px 24px', borderRadius: 10, border: '1px solid var(--border)',
+              background: 'white', color: 'var(--ink-soft)', fontSize: 14, fontWeight: 600, textDecoration: 'none',
+            }}>
+              Start over
+            </Link>
+            <Link href="/dashboard" style={{
+              padding: '12px 24px', borderRadius: 10, border: '1px solid var(--border)',
+              background: 'white', color: 'var(--ink-soft)', fontSize: 14, fontWeight: 600, textDecoration: 'none',
+            }}>
+              Dashboard
+            </Link>
           </div>
         </div>
       </div>
