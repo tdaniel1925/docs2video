@@ -183,12 +183,22 @@ export async function POST(request: Request) {
     await admin.from('videos').update({ progress_detail: 'Preparing slide designs...', progress_pct: 16 }).eq('id', videoId)
 
     const templateId = (styleId ?? brand?.deck_style_id ?? 'executive') as string
-    const stylePrompt = customStylePrompt || getStylePrompt(templateId)
     const logoUrl = brand?.logo_file_url ?? brand?.logo_url ?? null
     const brandGuide = brand?.brand_guide_data as Record<string, string> | null
     const brandColors = {
       primary: brand?.primary_color ?? '#1B365D',
       secondary: brand?.secondary_color ?? '#4A90D9',
+    }
+
+    // Build style prompt: custom theme > brand-colored style > template default
+    let stylePrompt: string
+    if (customStylePrompt) {
+      stylePrompt = customStylePrompt
+    } else if (brand && brand.primary_color !== '#1B365D') {
+      // Brand has custom colors — generate a style that matches them
+      stylePrompt = `Clean, modern professional style. Use ${brand.primary_color} as the primary accent color and ${brand.secondary_color} as secondary. Background should complement these brand colors — use white or very light neutral backgrounds with the brand colors for headings, borders, and highlights. Professional corporate feel that matches the brand identity.`
+    } else {
+      stylePrompt = getStylePrompt(templateId)
     }
 
     const slidePrompts = scenes.map((scene: any, i: number) => {
