@@ -161,13 +161,16 @@ VOICE RULES (CRITICAL):
 - After the greeting, go straight into the content. No introductions about who is presenting.
 - The LAST scene should end with: "Thank you for your time. If you have any questions, please don't hesitate to reach out."
 
-DATA INTEGRITY (CRITICAL — DO NOT MAKE THINGS UP):
-- ONLY state facts, numbers, names, and claims that appear in the DOCUMENT DATA above
-- NEVER invent contact information — no fake phone numbers, emails, or websites
-- NEVER say "visit our website" or "call us" or "contact us" unless a specific URL, phone, or email is provided in the data
-- If there is no contact info in the data, the closing scene should simply thank the viewer — do NOT fabricate a CTA with made-up details
-- NEVER guess at product names, features, or statistics — if it's not in the data, don't say it
-- Every sentence in the narration must trace back to a specific fact in the document data above
+DATA INTEGRITY (ABSOLUTE RULE — VIOLATION = FAILURE):
+- ONLY state facts, numbers, names, and claims that appear VERBATIM in the DOCUMENT DATA above
+- ZERO TOLERANCE for invented information. If you add ANY fact not in the data, the entire script is invalid.
+- NEVER include ANY phone number unless it appears EXACTLY in the document data above. No +44, no 1-800, no (555) numbers. NONE.
+- NEVER include ANY website URL unless it appears EXACTLY in the document data above. No .com, .co.uk, .org guesses. NONE.
+- NEVER include ANY email address unless it appears EXACTLY in the document data above
+- NEVER say "visit our website", "call us", "contact us", "reach out to us", "give us a call", or ANY variation unless the EXACT contact details are in the data
+- If there is no contact info in the data, the closing scene should simply say "Thank you for watching" — NOTHING MORE
+- NEVER guess at product names, pricing, locations, team sizes, years in business, or any other detail
+- Before including any number, name, or claim — verify it exists word-for-word in the DOCUMENT DATA section above
 
 BEAT STRUCTURE (follow this storytelling framework — each scene has a PURPOSE):
 Every scene must have a "beat" field indicating its storytelling role. Use this exact structure:
@@ -175,8 +178,7 @@ Every scene must have a "beat" field indicating its storytelling role. Use this 
 ${config.beatStructure}
 ${disclaimerBeat}${disclaimerCloseBeat}
    For the HOOK: Jump straight into the topic "${data.title}" — do NOT say "brought to you by" or introduce a brand name.
-   For the ACTION beat: ${config.ctaText}
-   ${brandName ? `Direct them to contact {{BRAND_NAME}}.` : 'Encourage the viewer to take the next step.'}
+   For the ACTION beat: Simply thank the viewer. Only mention specific contact methods if they appear in the DOCUMENT DATA above. Do NOT invent any phone numbers, emails, or websites.
 
 ${uploadMode === 'narrate' || uploadMode === 'redesign'
   ? `SCENE COUNT: Create EXACTLY ${Math.max(data.sections?.length || 1, 5)} scenes — one scene for EVERY section and topic in the document. Do NOT summarize, combine, or skip any content. Every piece of information must be covered.`
@@ -395,12 +397,13 @@ SCENE PACING:
 - A 3-minute video = 15-20 scenes. 5-minute = 25-30 scenes.
 - NEVER let a scene run longer than 20 seconds
 
-DATA INTEGRITY (CRITICAL):
-- ONLY discuss facts from the DOCUMENT DATA above — never invent anything
-- NEVER invent contact info — no fake phone numbers, emails, or websites
-- If a phone number or URL is mentioned in dialogue, that scene's slide MUST show it
-- If there is no contact info, just thank the viewer at the end
-- Every claim must trace back to actual document data
+DATA INTEGRITY (ABSOLUTE RULE — VIOLATION = FAILURE):
+- ONLY discuss facts that appear VERBATIM in the DOCUMENT DATA above
+- ZERO TOLERANCE for invented info. If you add ANY fact not in the data, the entire script is invalid.
+- NEVER include ANY phone number, website URL, or email unless it appears EXACTLY in the document data. No guessing. NONE.
+- NEVER say "call us", "visit our website", "reach out" or any variation unless EXACT contact details are in the data
+- If there is no contact info in the data, just say "Thank you for watching" — NOTHING MORE
+- Before including any number, name, or claim — verify it exists word-for-word in the DOCUMENT DATA
 
 DIALOGUE RULES:
 - 2-3 exchanges per scene, alternating speakers
