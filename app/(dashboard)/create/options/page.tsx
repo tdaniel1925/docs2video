@@ -1,10 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../../_lib/supabase/client'
 import { VOICE_OPTIONS } from '../../../_lib/types'
 import type { Brand } from '../../../_lib/types'
+
+const VOICE_SAMPLES: Record<string, string> = {
+  nova: 'Hello, I\'m Sarah. I have a warm, friendly voice that\'s perfect for explainer videos and client presentations.',
+  shimmer: 'Hi there, I\'m Emily. My voice is clear and approachable, great for educational content.',
+  onyx: 'Hello, I\'m James. My voice carries authority and depth, ideal for professional reports.',
+  echo: 'Hey, I\'m Michael. I have a conversational tone that works well for casual presentations.',
+  alloy: 'Hello, I\'m Alex. My voice is neutral and versatile, suitable for any type of content.',
+  fable: 'Good day, I\'m Oliver. I bring an expressive, storytelling quality to your narration.',
+}
 
 export default function OptionsPage() {
   const router = useRouter()
@@ -16,6 +25,9 @@ export default function OptionsPage() {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [playingVoice, setPlayingVoice] = useState<string | null>(null)
+  const [generatingPreview, setGeneratingPreview] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
@@ -102,6 +114,32 @@ export default function OptionsPage() {
     }
   }
 
+  async function previewVoice(voiceId: string) {
+    if (playingVoice === voiceId) {
+      audioRef.current?.pause()
+      setPlayingVoice(null)
+      return
+    }
+    if (audioRef.current) audioRef.current.pause()
+    setGeneratingPreview(voiceId)
+    try {
+      const res = await fetch('/api/voice-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: VOICE_SAMPLES[voiceId] || 'Hello, this is a voice preview.', voiceId }),
+      })
+      if (!res.ok) throw new Error('Preview failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      audio.onended = () => setPlayingVoice(null)
+      audio.play()
+      audioRef.current = audio
+      setPlayingVoice(voiceId)
+    } catch { /* skip */ }
+    setGeneratingPreview(null)
+  }
+
   if (!createState) {
     return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="spinner" /></div>
   }
@@ -129,7 +167,7 @@ export default function OptionsPage() {
         <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Voice</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 32 }}>
           {VOICE_OPTIONS.map(voice => (
-            <button
+            <div
               key={voice.id}
               onClick={() => setSelectedVoice(voice.id)}
               style={{
@@ -139,9 +177,21 @@ export default function OptionsPage() {
                 cursor: 'pointer', textAlign: 'left',
               }}
             >
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{voice.name}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <div style={{ fontSize: 15, fontWeight: 700 }}>{voice.name}</div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); previewVoice(voice.id) }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer', fontSize: 12,
+                    fontWeight: 600, color: playingVoice === voice.id ? 'var(--mint-darker, #2d7a4f)' : 'var(--ink-light)',
+                    fontFamily: 'inherit', padding: '2px 6px',
+                  }}
+                >
+                  {generatingPreview === voice.id ? '...' : playingVoice === voice.id ? '■ Stop' : '▶ Preview'}
+                </button>
+              </div>
               <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>{voice.description}</div>
-            </button>
+            </div>
           ))}
         </div>
 

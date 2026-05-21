@@ -18,8 +18,8 @@ export async function POST(request: Request) {
 
   const { tier } = (await request.json()) as { tier: string }
 
-  if (!tier || !['starter', 'pro', 'business', 'enterprise'].includes(tier)) {
-    return NextResponse.json({ error: 'Invalid tier. Must be starter, pro, business, or enterprise.' }, { status: 400 })
+  if (!tier || !['personal', 'starter', 'pro', 'business', 'enterprise'].includes(tier)) {
+    return NextResponse.json({ error: 'Invalid tier.' }, { status: 400 })
   }
 
   const priceId = SUBSCRIPTION_PRICES[tier as Exclude<PlanTier, 'free'>]

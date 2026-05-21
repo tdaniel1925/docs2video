@@ -134,6 +134,30 @@ export default function ReviewPage() {
           )}
         </div>
 
+        {/* Missing info detection */}
+        {(() => {
+          const allText = JSON.stringify(data).toLowerCase()
+          const missing: string[] = []
+          if (!allText.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\+\d[\d\s-]{7,}/)) missing.push('phone number')
+          if (!allText.match(/\S+@\S+\.\S+/)) missing.push('email address')
+          if (!allText.match(/(?:www\.|https?:\/\/)\S+/)) missing.push('website URL')
+          if (missing.length === 0) return null
+          return (
+            <div style={{
+              padding: '20px 24px', borderRadius: 14, marginBottom: 24,
+              background: '#fffbeb', border: '1px solid #fbbf24',
+            }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#92400e', marginBottom: 6 }}>
+                Missing information detected
+              </div>
+              <div style={{ fontSize: 14, color: '#a16207', lineHeight: 1.6 }}>
+                We didn&apos;t find a <strong>{missing.join(', ')}</strong> in the source content.
+                If you want contact info in your video, add it to your brand profile or include it in the source material.
+              </div>
+            </div>
+          )
+        })()}
+
         {/* Logo upload card */}
         <div style={{
           padding: '28px', borderRadius: 16, background: 'white',
