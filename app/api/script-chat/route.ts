@@ -15,15 +15,14 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-  const { message, scenes, purpose } = await request.json()
+  const { message, scenes, purpose, sourceData } = await request.json()
 
   if (!message || !scenes) {
     return NextResponse.json({ error: 'Missing message or scenes' }, { status: 400 })
   }
 
-  const sceneSummary = scenes.map((s: any, i: number) =>
-    `Scene ${i + 1}: "${s.title}" — ${s.narration?.slice(0, 100)}...`
-  ).join('\n')
+  // Build source reference for the AI
+  const sourceRef = sourceData ? JSON.stringify(sourceData).slice(0, 15000) : ''
 
   const response = await getOpenAI().chat.completions.create({
     model: 'gpt-4o-mini',
@@ -31,6 +30,11 @@ export async function POST(request: Request) {
       {
         role: 'system',
         content: `You are a professional script editor assistant. The user has a video script with ${scenes.length} scenes. Video purpose: "${purpose || 'informational video'}".
+
+${sourceRef ? `ORIGINAL SOURCE DATA (use this to verify facts, correct errors, and find missing information):
+${sourceRef}
+
+When the user says something is wrong or asks for corrections, LOOK UP the correct information from the source data above. Do not guess — use the exact facts from the source.` : ''}
 
 You MUST respond with a JSON object in one of these formats:
 
