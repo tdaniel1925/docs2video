@@ -68,10 +68,30 @@ export default function OptionsPage() {
         },
       }).eq('id', createData.id)
 
-      // Clean up
-      localStorage.removeItem('d2v_create')
+      // Trigger the video generation pipeline
+      const input = {
+        videoId: createData.id,
+        policyData: state.extractedData,
+        brandId: selectedBrand,
+        voiceId: selectedVoice,
+        styleId: state.themeAccepted ? 'custom-url-theme' : undefined,
+        customStylePrompt: state.customStylePrompt || undefined,
+        narrationStyle: state.narrationStyle || 'solo',
+        aiMusic,
+        musicPrompt: aiMusic ? musicPrompt : undefined,
+        preGeneratedScenes: state.scenes,
+        purpose: state.purpose,
+        industry: state.extractedData?.industry || 'general',
+      }
 
-      // Navigate to generating page
+      fetch('/api/generate-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      }).catch(err => console.error('[create] Pipeline trigger failed:', err))
+
+      // Clean up and navigate
+      localStorage.removeItem('d2v_create')
       router.push(`/create/generating?id=${createData.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generation failed')
