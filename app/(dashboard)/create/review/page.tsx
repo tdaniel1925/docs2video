@@ -137,13 +137,40 @@ export default function ReviewPage() {
           )}
         </div>
 
-        {/* Missing info — inline form fields */}
+        {/* Missing info — intent-aware dynamic fields */}
         {(() => {
           const allText = JSON.stringify(data).toLowerCase()
+          const intentType = createState.intentType || ''
           const hasPhone = !!allText.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\+\d[\d\s-]{7,}/)
           const hasEmail = !!allText.match(/\S+@\S+\.\S+/)
           const hasWebsite = !!allText.match(/(?:www\.|https?:\/\/)\S+/)
-          if (hasPhone && hasEmail && hasWebsite) return null
+          const hasPricing = !!allText.match(/\$\d|pricing|price|cost|plan|tier|subscription|free trial/)
+          const hasCompanyName = !!data?.title
+
+          // Build dynamic fields based on intent
+          type FieldDef = { key: string; label: string; placeholder: string; type: string }
+          const fields: FieldDef[] = []
+
+          // Common contact fields if missing
+          if (!hasPhone) fields.push({ key: 'contactPhone', label: 'Phone number', placeholder: '(555) 123-4567', type: 'tel' })
+          if (!hasEmail) fields.push({ key: 'contactEmail', label: 'Email address', placeholder: 'hello@company.com', type: 'email' })
+          if (!hasWebsite) fields.push({ key: 'contactWebsite', label: 'Website URL', placeholder: 'https://yoursite.com', type: 'url' })
+
+          // Intent-specific fields
+          if (intentType === 'sales' && !hasPricing) {
+            fields.push({ key: 'pricingInfo', label: 'Pricing details', placeholder: 'e.g. Free trial, $29/mo starter, $79/mo pro', type: 'text' })
+            fields.push({ key: 'ctaUrl', label: 'Sign up / demo URL', placeholder: 'https://yoursite.com/demo', type: 'url' })
+          }
+          if (intentType === 'proposal') {
+            fields.push({ key: 'clientName', label: 'Client name', placeholder: 'Who is this proposal for?', type: 'text' })
+            fields.push({ key: 'timeline', label: 'Timeline', placeholder: 'e.g. 6 weeks, Q3 2026', type: 'text' })
+          }
+          if (intentType === 'report') {
+            fields.push({ key: 'reportPeriod', label: 'Report period', placeholder: 'e.g. Q2 2026, January-March', type: 'text' })
+            fields.push({ key: 'preparedBy', label: 'Prepared by', placeholder: 'Team or person name', type: 'text' })
+          }
+
+          if (fields.length === 0) return null
           return (
             <div style={{
               padding: '24px 28px', borderRadius: 16, marginBottom: 24,
@@ -156,63 +183,27 @@ export default function ReviewPage() {
                 We didn&apos;t find contact details in the source. Add them here to include on the closing slide.
               </p>
               <div style={{ display: 'grid', gap: 12 }}>
-                {!hasPhone && (
-                  <input
-                    type="tel"
-                    placeholder="Phone number"
-                    value={contactPhone}
-                    onChange={e => {
-                      setContactPhone(e.target.value)
-                      const s = JSON.parse(localStorage.getItem('d2v_create') || '{}')
-                      s.contactPhone = e.target.value
-                      localStorage.setItem('d2v_create', JSON.stringify(s))
-                    }}
-                    style={{
-                      padding: '14px 16px', borderRadius: 10, border: '1px solid var(--border)',
-                      fontSize: 15, fontFamily: 'inherit', outline: 'none', width: '100%',
-                    }}
-                    onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
-                    onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
-                  />
-                )}
-                {!hasEmail && (
-                  <input
-                    type="email"
-                    placeholder="Email address"
-                    value={contactEmail}
-                    onChange={e => {
-                      setContactEmail(e.target.value)
-                      const s = JSON.parse(localStorage.getItem('d2v_create') || '{}')
-                      s.contactEmail = e.target.value
-                      localStorage.setItem('d2v_create', JSON.stringify(s))
-                    }}
-                    style={{
-                      padding: '14px 16px', borderRadius: 10, border: '1px solid var(--border)',
-                      fontSize: 15, fontFamily: 'inherit', outline: 'none', width: '100%',
-                    }}
-                    onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
-                    onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
-                  />
-                )}
-                {!hasWebsite && (
-                  <input
-                    type="url"
-                    placeholder="Website URL"
-                    value={contactWebsite}
-                    onChange={e => {
-                      setContactWebsite(e.target.value)
-                      const s = JSON.parse(localStorage.getItem('d2v_create') || '{}')
-                      s.contactWebsite = e.target.value
-                      localStorage.setItem('d2v_create', JSON.stringify(s))
-                    }}
-                    style={{
-                      padding: '14px 16px', borderRadius: 10, border: '1px solid var(--border)',
-                      fontSize: 15, fontFamily: 'inherit', outline: 'none', width: '100%',
-                    }}
-                    onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
-                    onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
-                  />
-                )}
+                {fields.map(f => (
+                  <div key={f.key}>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 4, display: 'block' }}>{f.label}</label>
+                    <input
+                      type={f.type}
+                      placeholder={f.placeholder}
+                      defaultValue={(createState as any)?.[f.key] || ''}
+                      onChange={e => {
+                        const s = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+                        s[f.key] = e.target.value
+                        localStorage.setItem('d2v_create', JSON.stringify(s))
+                      }}
+                      style={{
+                        padding: '14px 16px', borderRadius: 10, border: '1px solid var(--border)',
+                        fontSize: 15, fontFamily: 'inherit', outline: 'none', width: '100%',
+                      }}
+                      onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+                      onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           )
