@@ -7,6 +7,7 @@ import { updateBrand, deleteBrand } from '../../../_actions/brands'
 import { createClient } from '../../../_lib/supabase/client'
 import type { Brand } from '../../../_lib/types'
 import { SLIDE_STYLES } from '../../../_lib/types'
+import InlineConfirm from '../../../_components/InlineConfirm'
 
 const COLOR_LABELS: Record<string, string> = {
   primary_color: 'Primary',
@@ -192,7 +193,6 @@ export default function EditBrandPage() {
   }
 
   async function handleDelete() {
-    if (!confirm('Delete this brand? Infographics using it will keep their current style.')) return
     setDeleting(true)
     const result = await deleteBrand(params.id as string)
     if (result?.error) {
@@ -259,14 +259,9 @@ export default function EditBrandPage() {
             <Link href={`/brands/${params.id}/guide`} className="btn btn-soft" style={{ fontSize: 13 }}>
               View Brand Guide
             </Link>
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="btn btn-danger"
-              style={{ fontSize: 13 }}
-            >
-              {deleting ? 'Deleting...' : 'Delete'}
-            </button>
+            <InlineConfirm message="Delete this brand?" confirmLabel="Delete" onConfirm={handleDelete}>
+              <button className="btn btn-danger" style={{ fontSize: 13 }}>Delete</button>
+            </InlineConfirm>
           </div>
         </div>
 

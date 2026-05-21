@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/app/_lib/supabase/client'
 import { isAdmin } from '@/app/_lib/admin'
+import InlineConfirm from '@/app/_components/InlineConfirm'
 
 type Campaign = {
   id: string
@@ -254,7 +255,6 @@ export default function CampaignsPage() {
   }
 
   async function handleDeleteCampaign(id: string) {
-    if (!confirm('Delete this campaign and all its contacts?')) return
     setActionLoading('delete')
     try {
       await fetch(`/api/admin/campaigns/${id}`, { method: 'DELETE' })
@@ -296,7 +296,6 @@ export default function CampaignsPage() {
 
   async function handleGenerateVideos() {
     if (!selectedCampaign) return
-    if (!confirm('Generate personalized videos for all pending contacts? This may take several minutes per contact.')) return
     setActionLoading('generate')
     try {
       const res = await fetch(`/api/admin/campaigns/${selectedCampaign.id}/generate`, { method: 'POST' })
@@ -323,7 +322,6 @@ export default function CampaignsPage() {
 
   async function handleSendApproved() {
     if (!selectedCampaign) return
-    if (!confirm('Send branded emails to all approved contacts?')) return
     setActionLoading('send')
     try {
       const res = await fetch(`/api/admin/campaigns/${selectedCampaign.id}/send`, { method: 'POST' })
@@ -412,14 +410,14 @@ export default function CampaignsPage() {
             {showAddContacts ? 'Cancel' : 'Add Contacts'}
           </button>
           {pendingContacts.length > 0 && (
-            <button style={btnPrimary} onClick={handleGenerateVideos} disabled={actionLoading === 'generate'}>
-              {actionLoading === 'generate' ? 'Generating...' : `Generate Videos (${pendingContacts.length})`}
-            </button>
+            <InlineConfirm message={`Generate ${pendingContacts.length} videos?`} confirmLabel="Generate" onConfirm={handleGenerateVideos}>
+              <button style={btnPrimary}>{`Generate Videos (${pendingContacts.length})`}</button>
+            </InlineConfirm>
           )}
           {approvedContacts.length > 0 && (
-            <button style={{ ...btnPrimary, background: '#3b82f6', color: '#fff' }} onClick={handleSendApproved} disabled={actionLoading === 'send'}>
-              {actionLoading === 'send' ? 'Sending...' : `Send Approved (${approvedContacts.length})`}
-            </button>
+            <InlineConfirm message={`Send to ${approvedContacts.length} contacts?`} confirmLabel="Send" onConfirm={handleSendApproved}>
+              <button style={{ ...btnPrimary, background: '#3b82f6', color: '#fff' }}>{`Send Approved (${approvedContacts.length})`}</button>
+            </InlineConfirm>
           )}
           <button style={btnSecondary} onClick={handleRunNurture} disabled={actionLoading === 'nurture'}>
             {actionLoading === 'nurture' ? 'Running...' : 'Run Nurture'}
@@ -645,9 +643,9 @@ export default function CampaignsPage() {
                     <td style={tdStyle}>{c.signed_up_count}</td>
                     <td style={{ ...tdStyle, color: 'var(--ink-soft)' }}>{fmtDate(c.created_at)}</td>
                     <td style={tdStyle}>
-                      <button style={btnDanger} onClick={() => handleDeleteCampaign(c.id)} disabled={!!actionLoading}>
-                        Delete
-                      </button>
+                      <InlineConfirm message="Delete campaign?" confirmLabel="Delete" onConfirm={() => handleDeleteCampaign(c.id)}>
+                        <button style={btnDanger}>Delete</button>
+                      </InlineConfirm>
                     </td>
                   </tr>
                 ))}

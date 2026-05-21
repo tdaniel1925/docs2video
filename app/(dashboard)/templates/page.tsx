@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import InlineConfirm from '../../_components/InlineConfirm'
 import type { CustomTemplate } from '../../_lib/types'
 
 type View = 'gallery' | 'create'
@@ -234,7 +235,6 @@ export default function TemplatesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this template?')) return
     await fetch(`/api/templates?id=${id}`, { method: 'DELETE' })
     loadTemplates()
   }
@@ -378,7 +378,7 @@ export default function TemplatesPage() {
                 <div style={{ padding: '16px 20px' }}>
                   <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{t.name}</div>
                   {t.description && <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 12 }}>{t.description}</div>}
-                  <button onClick={() => handleDelete(t.id)} className="btn btn-danger btn-sm">Delete</button>
+                  <InlineConfirm message="Delete this template?" confirmLabel="Delete" onConfirm={() => handleDelete(t.id)}><button className="btn btn-danger btn-sm">Delete</button></InlineConfirm>
                 </div>
               </div>
             ))}

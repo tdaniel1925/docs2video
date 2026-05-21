@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/client'
 import SmtpSetupModal from '../../_components/SmtpSetupModal'
+import InlineConfirm from '../../_components/InlineConfirm'
 import { SLIDE_STYLES } from '../../_lib/types'
 import type { Profile, Brand } from '../../_lib/types'
 
@@ -142,7 +143,6 @@ export default function SettingsPage() {
   }
 
   async function disconnectEmail(id: string) {
-    if (!confirm('Disconnect this email account?')) return
     const supabase = createClient()
     await supabase.from('email_connections').delete().eq('id', id)
     loadEmailConnections()
@@ -484,7 +484,7 @@ export default function SettingsPage() {
                           >
                             {isTesting ? 'Sending...' : 'Send Test Email'}
                           </button>
-                          <button onClick={() => disconnectEmail(conn.id)} className="btn btn-danger btn-sm">Disconnect</button>
+                          <InlineConfirm message="Disconnect?" confirmLabel="Yes" onConfirm={() => disconnectEmail(conn.id)}><button className="btn btn-danger btn-sm">Disconnect</button></InlineConfirm>
                         </div>
                       </div>
                       {testResult && (

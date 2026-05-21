@@ -8,6 +8,7 @@ import type { Brand, ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { VOICE_OPTIONS, SLIDE_STYLES } from '../../_lib/types'
 import { INDUSTRIES } from '../../_lib/industries'
+import InlineConfirm from '../../_components/InlineConfirm'
 
 type InputTab = 'upload' | 'slides' | 'text' | 'idea' | 'url' | 'research' | 'proposal'
 
@@ -2093,7 +2094,7 @@ export default function CreatePage() {
             ) : null}
 
             <div className="wizard-actions">
-              <button onClick={() => { if (confirm('Start over? This will clear all your extracted data and edits.')) { setReviewReady(false); setExtractedData(null); setGeneralData(null); setMultiDocData([]); setEditableScenes([]) } }} className="btn btn-soft">&larr; Start Over</button>
+              <InlineConfirm message="Clear all data and start over?" confirmLabel="Yes, start over" onConfirm={() => { setReviewReady(false); setExtractedData(null); setGeneralData(null); setMultiDocData([]); setEditableScenes([]) }}><button className="btn btn-soft">&larr; Start Over</button></InlineConfirm>
               <button onClick={() => setStep('detail-level')} className="btn btn-primary" disabled={!videoPurpose.trim()}>Choose Video Length &rarr;</button>
             </div>
           </div>

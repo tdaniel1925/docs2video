@@ -11,6 +11,7 @@ export default function BrandsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState<string | null>(null)
   const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null) // brand id or 'bulk'
 
   useEffect(() => {
     async function load() {
@@ -26,18 +27,17 @@ export default function BrandsPage() {
   }, [])
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this brand? This cannot be undone.')) return
     setDeleting(id)
     const supabase = createClient()
     await supabase.from('brands').delete().eq('id', id)
     setBrands(prev => prev.filter(b => b.id !== id))
     setSelectedIds(prev => { const next = new Set(prev); next.delete(id); return next })
     setDeleting(null)
+    setConfirmDelete(null)
   }
 
   async function handleBulkDelete() {
     if (selectedIds.size === 0) return
-    if (!confirm(`Delete ${selectedIds.size} brand${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return
     setBulkDeleting(true)
     const supabase = createClient()
     for (const id of selectedIds) {
@@ -46,6 +46,7 @@ export default function BrandsPage() {
     setBrands(prev => prev.filter(b => !selectedIds.has(b.id)))
     setSelectedIds(new Set())
     setBulkDeleting(false)
+    setConfirmDelete(null)
   }
 
   function toggleSelect(id: string) {
@@ -99,18 +100,28 @@ export default function BrandsPage() {
                   {selectedIds.size === brands.length ? 'Deselect all' : 'Select all'}
                 </button>
               )}
-              {selectedIds.size > 0 && (
+              {selectedIds.size > 0 && confirmDelete !== 'bulk' && (
                 <button
-                  onClick={handleBulkDelete}
-                  disabled={bulkDeleting}
+                  onClick={() => setConfirmDelete('bulk')}
                   style={{
                     padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
                     background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5',
-                    cursor: bulkDeleting ? 'wait' : 'pointer',
+                    cursor: 'pointer',
                   }}
                 >
-                  {bulkDeleting ? 'Deleting...' : `Delete ${selectedIds.size} selected`}
+                  {`Delete ${selectedIds.size} selected`}
                 </button>
+              )}
+              {confirmDelete === 'bulk' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', borderRadius: 8, background: '#fee2e2', border: '1px solid #fca5a5' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#b91c1c' }}>Delete {selectedIds.size} brand{selectedIds.size > 1 ? 's' : ''}?</span>
+                  <button onClick={handleBulkDelete} disabled={bulkDeleting} style={{ padding: '4px 12px', borderRadius: 6, border: 'none', background: '#b91c1c', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    {bulkDeleting ? 'Deleting...' : 'Yes, delete'}
+                  </button>
+                  <button onClick={() => setConfirmDelete(null)} style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--ink-soft)' }}>
+                    Cancel
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -141,23 +152,49 @@ export default function BrandsPage() {
                   </div>
                 )}
 
-                {/* Delete button */}
-                <button
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(brand.id) }}
-                  disabled={deleting === brand.id}
-                  style={{
-                    position: 'absolute', top: 8, right: 8, width: 26, height: 26,
-                    borderRadius: '50%', border: '1px solid var(--border-light)',
-                    background: 'white', cursor: 'pointer', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', zIndex: 2,
-                    fontSize: 14, color: 'var(--ink-light)', transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#b91c1c'; e.currentTarget.style.borderColor = '#fca5a5' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = 'var(--ink-light)'; e.currentTarget.style.borderColor = 'var(--border-light)' }}
-                  title="Delete brand"
-                >
-                  {deleting === brand.id ? '...' : '\u00D7'}
-                </button>
+                {/* Delete button / inline confirm */}
+                {confirmDelete === brand.id ? (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      position: 'absolute', top: 6, right: 6, zIndex: 3,
+                      background: 'white', borderRadius: 8, padding: '6px 10px',
+                      border: '1px solid #fca5a5', boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      display: 'flex', alignItems: 'center', gap: 6, fontSize: 12,
+                    }}
+                  >
+                    <span style={{ color: '#b91c1c', fontWeight: 600 }}>Delete?</span>
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(brand.id) }}
+                      disabled={deleting === brand.id}
+                      style={{ padding: '3px 10px', borderRadius: 6, border: 'none', background: '#b91c1c', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      {deleting === brand.id ? '...' : 'Yes'}
+                    </button>
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmDelete(null) }}
+                      style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--ink-soft)' }}
+                    >
+                      No
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmDelete(brand.id) }}
+                    style={{
+                      position: 'absolute', top: 8, right: 8, width: 26, height: 26,
+                      borderRadius: '50%', border: '1px solid var(--border-light)',
+                      background: 'white', cursor: 'pointer', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center', zIndex: 2,
+                      fontSize: 14, color: 'var(--ink-light)', transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#b91c1c'; e.currentTarget.style.borderColor = '#fca5a5' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = 'var(--ink-light)'; e.currentTarget.style.borderColor = 'var(--border-light)' }}
+                    title="Delete brand"
+                  >
+                    {'\u00D7'}
+                  </button>
+                )}
 
                 {/* Brand card content — clickable link */}
                 <Link

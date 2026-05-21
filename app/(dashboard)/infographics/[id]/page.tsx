@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '../../../_lib/supabase/client'
 import type { Infographic, Brand } from '../../../_lib/types'
 import { VOICE_OPTIONS } from '../../../_lib/types'
+import InlineConfirm from '../../../_components/InlineConfirm'
 
 export default function InfographicDetailPage() {
   const params = useParams()
@@ -53,7 +54,6 @@ export default function InfographicDetailPage() {
   }, [params.id])
 
   async function handleDelete() {
-    if (!confirm('Delete this infographic?')) return
     setDeleting(true)
     const supabase = createClient()
     await supabase.from('infographics').delete().eq('id', params.id as string)
@@ -161,14 +161,9 @@ export default function InfographicDetailPage() {
               </button>
             </>
           )}
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="btn btn-danger btn-sm"
-            style={deleting ? { opacity: 0.5 } : undefined}
-          >
-            {deleting ? 'Deleting...' : 'Delete'}
-          </button>
+          <InlineConfirm message="Delete this infographic?" confirmLabel="Delete" onConfirm={handleDelete}>
+            <button className="btn btn-danger btn-sm">Delete</button>
+          </InlineConfirm>
         </div>
       </div>
 
