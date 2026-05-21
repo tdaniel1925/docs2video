@@ -14,6 +14,9 @@ export default function ReviewPage() {
   const [themeAccepted, setThemeAccepted] = useState(false)
   const [brands, setBrands] = useState<Brand[]>([])
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null)
+  const [contactPhone, setContactPhone] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [contactWebsite, setContactWebsite] = useState('')
 
   useEffect(() => {
     const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
@@ -134,25 +137,82 @@ export default function ReviewPage() {
           )}
         </div>
 
-        {/* Missing info detection */}
+        {/* Missing info — inline form fields */}
         {(() => {
           const allText = JSON.stringify(data).toLowerCase()
-          const missing: string[] = []
-          if (!allText.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\+\d[\d\s-]{7,}/)) missing.push('phone number')
-          if (!allText.match(/\S+@\S+\.\S+/)) missing.push('email address')
-          if (!allText.match(/(?:www\.|https?:\/\/)\S+/)) missing.push('website URL')
-          if (missing.length === 0) return null
+          const hasPhone = !!allText.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\+\d[\d\s-]{7,}/)
+          const hasEmail = !!allText.match(/\S+@\S+\.\S+/)
+          const hasWebsite = !!allText.match(/(?:www\.|https?:\/\/)\S+/)
+          if (hasPhone && hasEmail && hasWebsite) return null
           return (
             <div style={{
-              padding: '20px 24px', borderRadius: 14, marginBottom: 24,
-              background: '#fffbeb', border: '1px solid #fbbf24',
+              padding: '24px 28px', borderRadius: 16, marginBottom: 24,
+              background: 'white', border: '2px solid #fbbf24',
             }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#92400e', marginBottom: 6 }}>
-                Missing information detected
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>
+                Add contact info <span style={{ fontSize: 13, fontWeight: 500, color: '#a16207' }}>(optional)</span>
               </div>
-              <div style={{ fontSize: 14, color: '#a16207', lineHeight: 1.6 }}>
-                We didn&apos;t find a <strong>{missing.join(', ')}</strong> in the source content.
-                If you want contact info in your video, add it to your brand profile or include it in the source material.
+              <p style={{ fontSize: 14, color: '#a16207', marginBottom: 16, lineHeight: 1.5 }}>
+                We didn&apos;t find contact details in the source. Add them here to include on the closing slide.
+              </p>
+              <div style={{ display: 'grid', gap: 12 }}>
+                {!hasPhone && (
+                  <input
+                    type="tel"
+                    placeholder="Phone number"
+                    value={contactPhone}
+                    onChange={e => {
+                      setContactPhone(e.target.value)
+                      const s = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+                      s.contactPhone = e.target.value
+                      localStorage.setItem('d2v_create', JSON.stringify(s))
+                    }}
+                    style={{
+                      padding: '14px 16px', borderRadius: 10, border: '1px solid var(--border)',
+                      fontSize: 15, fontFamily: 'inherit', outline: 'none', width: '100%',
+                    }}
+                    onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+                    onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                  />
+                )}
+                {!hasEmail && (
+                  <input
+                    type="email"
+                    placeholder="Email address"
+                    value={contactEmail}
+                    onChange={e => {
+                      setContactEmail(e.target.value)
+                      const s = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+                      s.contactEmail = e.target.value
+                      localStorage.setItem('d2v_create', JSON.stringify(s))
+                    }}
+                    style={{
+                      padding: '14px 16px', borderRadius: 10, border: '1px solid var(--border)',
+                      fontSize: 15, fontFamily: 'inherit', outline: 'none', width: '100%',
+                    }}
+                    onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+                    onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                  />
+                )}
+                {!hasWebsite && (
+                  <input
+                    type="url"
+                    placeholder="Website URL"
+                    value={contactWebsite}
+                    onChange={e => {
+                      setContactWebsite(e.target.value)
+                      const s = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+                      s.contactWebsite = e.target.value
+                      localStorage.setItem('d2v_create', JSON.stringify(s))
+                    }}
+                    style={{
+                      padding: '14px 16px', borderRadius: 10, border: '1px solid var(--border)',
+                      fontSize: 15, fontFamily: 'inherit', outline: 'none', width: '100%',
+                    }}
+                    onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+                    onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                  />
+                )}
               </div>
             </div>
           )
