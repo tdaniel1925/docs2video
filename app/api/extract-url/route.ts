@@ -193,7 +193,7 @@ export async function POST(request: Request) {
     let autoLogoUrl: string | null = null
     try {
       console.log('[extract-url] Scraping brand from URL...')
-      const brandAnalysis = await scrapeBrand(url)
+      const brandAnalysis = await scrapeBrand(url, { markdown, html })
 
       // Upload logo to Supabase storage (brand scraper already processed it)
       let logoFileUrl: string | null = null

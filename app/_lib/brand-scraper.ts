@@ -193,7 +193,7 @@ export interface BrandAnalysis {
   socialLinks: Record<string, string>
 }
 
-export async function scrapeBrand(url: string): Promise<BrandAnalysis> {
+export async function scrapeBrand(url: string, firecrawlContent?: { markdown: string; html: string }): Promise<BrandAnalysis> {
   let fullUrl = url.trim()
   if (!fullUrl.startsWith('http')) fullUrl = 'https://' + fullUrl
 
@@ -207,37 +207,29 @@ export async function scrapeBrand(url: string): Promise<BrandAnalysis> {
 
   const baseOrigin = parsedUrl.origin
 
-  const [mainHtml, aboutHtml, servicesHtml, contactHtml] = await Promise.all([
-    fetchPage(fullUrl).then(h => {
-      if (!h) throw new Error('MAIN_FETCH_FAILED')
-      return h
-    }),
-    fetchPage(`${baseOrigin}/about`).then(h => h || fetchPage(`${baseOrigin}/about-us`)),
-    fetchPage(`${baseOrigin}/services`).then(h => h || fetchPage(`${baseOrigin}/what-we-do`)),
-    fetchPage(`${baseOrigin}/contact`),
-  ]).catch(err => {
-    if (err?.message === 'MAIN_FETCH_FAILED') throw err
-    return [null, null, null, null] as (string | null)[]
-  }) as [string, string | null, string | null, string | null]
-
-  if (!mainHtml) {
-    throw new Error('Could not reach website. The site may be blocking automated requests.')
+  // Use Firecrawl content if provided (accurate), otherwise fall back to manual fetch
+  let mainHtml: string
+  let pageText: string
+  if (firecrawlContent?.html && firecrawlContent?.markdown) {
+    mainHtml = firecrawlContent.html
+    pageText = firecrawlContent.markdown
+    console.log('[brand-scraper] Using Firecrawl content for brand analysis')
+  } else {
+    const fetched = await fetchPage(fullUrl)
+    if (!fetched) throw new Error('Could not reach website.')
+    mainHtml = fetched
+    pageText = mainHtml.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
   }
 
   const titleMatch = mainHtml.match(/<title[^>]*>([^<]+)<\/title>/i)
   const descMatch = mainHtml.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i)
     ?? mainHtml.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']description["']/i)
 
-  const allHtml = [mainHtml, aboutHtml, servicesHtml, contactHtml].filter(Boolean).join('\n')
-  const allColors = extractColors(allHtml)
-  const fonts = extractFonts(allHtml)
-  const socialLinks = extractSocialLinks(allHtml)
+  const allColors = extractColors(mainHtml)
+  const fonts = extractFonts(mainHtml)
+  const socialLinks = extractSocialLinks(mainHtml)
   const jsonLd = extractJsonLd(mainHtml)
   const scrapedLogoUrl = extractLogoUrl(mainHtml, fullUrl)
-
-  const trimmedMain = mainHtml.slice(0, 20000)
-  const trimmedAbout = aboutHtml ? aboutHtml.slice(0, 8000) : ''
-  const trimmedServices = servicesHtml ? servicesHtml.slice(0, 8000) : ''
 
   // Logo strategy: try multiple sources, pick the best one
   const logo: { buffer: Buffer | null; mime: string; url: string | null; source: string; score: number } = { buffer: null, mime: 'image/png', url: null, source: '', score: 0 }
@@ -348,25 +340,21 @@ export async function scrapeBrand(url: string): Promise<BrandAnalysis> {
     }
   }
 
-  const prompt = `You are a professional brand strategist. Analyze this website thoroughly and create a complete brand guide.
+  const prompt = `You are a professional brand strategist. Extract brand information ONLY from the text provided below. Do NOT add, invent, or guess any information not present in this text.
 
 Website: ${fullUrl}
 ${titleMatch?.[1] ? `Page title: ${titleMatch[1].trim()}` : ''}
 ${descMatch?.[1] ? `Meta description: ${descMatch[1]}` : ''}
 
-Main page text content (extracted from HTML):
-${mainHtml.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 8000)}
-
-${trimmedAbout ? `About page text:\n${aboutHtml!.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 4000)}\n` : ''}
-
-${trimmedServices ? `Services page text:\n${servicesHtml!.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 4000)}\n` : ''}
+EXACT WEBSITE CONTENT (scraped by web crawler — use ONLY this data):
+${pageText.slice(0, 15000)}
 
 ${jsonLd ? `Structured data (JSON-LD):\n${jsonLd}\n` : ''}
 
-CSS colors found on the website: ${allColors.join(', ')}
+CSS colors found: ${allColors.join(', ')}
 Fonts found: ${fonts.join(', ')}
 Social links found: ${JSON.stringify(socialLinks)}
-${logo.buffer ? '\nA logo image from the website is attached below. Analyze it for colors and style.' : ''}
+${logo.buffer ? '\nA logo image from the website is attached below.' : ''}
 
 CRITICAL COLOR INSTRUCTIONS:
 - Do NOT just pick random CSS hex codes from the list above. Many of those are framework defaults (like #000, #fff, #f8f9fa, #e2e8f0).
