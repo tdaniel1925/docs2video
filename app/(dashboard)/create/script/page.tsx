@@ -92,9 +92,15 @@ export default function ScriptPage() {
       if (data.scenes) {
         setScenes(data.scenes)
         autoSave(data.scenes, 0)
-        setChatMessages(prev => [...prev, { role: 'assistant', text: `Updated ${data.scenes.length} scenes.` }])
-      } else if (data.reply) {
+      }
+      if (data.reply) {
         setChatMessages(prev => [...prev, { role: 'assistant', text: data.reply }])
+      }
+      if (data.suggestion) {
+        setChatMessages(prev => [...prev, { role: 'assistant', text: `💡 ${data.suggestion}` }])
+      }
+      if (data.options) {
+        setChatMessages(prev => [...prev, { role: 'assistant', text: `_options_${JSON.stringify(data.options)}` }])
       }
     } catch {
       setChatMessages(prev => [...prev, { role: 'assistant', text: 'Something went wrong. Try again.' }])
@@ -313,18 +319,39 @@ export default function ScriptPage() {
                       </div>
                     </div>
                   )}
-                  {chatMessages.map((msg, i) => (
-                    <div key={i} style={{
-                      marginBottom: 10, padding: '8px 12px', borderRadius: 10,
-                      background: msg.role === 'user' ? 'var(--ink)' : 'var(--bg-soft)',
-                      color: msg.role === 'user' ? 'white' : 'var(--ink)',
-                      fontSize: 13, lineHeight: 1.5,
-                      marginLeft: msg.role === 'user' ? 40 : 0,
-                      marginRight: msg.role === 'assistant' ? 40 : 0,
-                    }}>
-                      {msg.text}
-                    </div>
-                  ))}
+                  {chatMessages.map((msg, i) => {
+                    // Render clickable options
+                    if (msg.text.startsWith('_options_')) {
+                      try {
+                        const options = JSON.parse(msg.text.replace('_options_', ''))
+                        return (
+                          <div key={i} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                            {options.map((opt: string, j: number) => (
+                              <button key={j} onClick={() => { setChatInput(opt) }} style={{
+                                padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)',
+                                background: 'white', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                                color: 'var(--ink)', fontWeight: 600,
+                              }}>
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        )
+                      } catch { return null }
+                    }
+                    return (
+                      <div key={i} style={{
+                        marginBottom: 10, padding: '8px 12px', borderRadius: 10,
+                        background: msg.role === 'user' ? 'var(--ink)' : 'var(--bg-soft)',
+                        color: msg.role === 'user' ? 'white' : 'var(--ink)',
+                        fontSize: 13, lineHeight: 1.5,
+                        marginLeft: msg.role === 'user' ? 40 : 0,
+                        marginRight: msg.role === 'assistant' ? 40 : 0,
+                      }}>
+                        {msg.text}
+                      </div>
+                    )
+                  })}
                   {chatLoading && (
                     <div style={{ fontSize: 13, color: 'var(--ink-light)', padding: '8px 0' }}>
                       Thinking...
