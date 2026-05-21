@@ -392,11 +392,11 @@ export default function ScriptPage() {
             </div>
 
             <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-              <button onClick={() => { setScenes([]); setError(null); setChatMessages([]) }} style={{
+              <button onClick={() => router.push('/create/review')} style={{
                 padding: '16px 28px', borderRadius: 12, border: '2px solid var(--border)',
                 background: 'white', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: 'var(--ink-soft)', fontFamily: 'inherit',
               }}>
-                Regenerate
+                &larr; Back
               </button>
               <button onClick={handleContinue} style={{
                 flex: 1, padding: '16px 28px', borderRadius: 12, border: 'none',
