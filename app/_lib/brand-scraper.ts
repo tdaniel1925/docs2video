@@ -315,14 +315,34 @@ export async function scrapeBrand(url: string): Promise<BrandAnalysis> {
     try {
       const sharpMod = await import('sharp')
       const sharp = sharpMod.default ?? sharpMod
-      const { dominant } = await sharp(logo.buffer).stats()
       const toHex = (r: number, g: number, b: number) => '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('')
-      const dominantHex = toHex(dominant.r, dominant.g, dominant.b)
-      // Use a contrasting dark/light as secondary based on logo brightness
-      const brightness = (dominant.r * 299 + dominant.g * 587 + dominant.b * 114) / 1000
-      const secondaryHex = brightness > 128 ? '#1a2b3c' : '#e8edf2'
-      logoColors = { primary: dominantHex, secondary: secondaryHex }
-      console.log(`[brand-scraper] Logo colors extracted: primary=${dominantHex}, secondary=${secondaryHex}`)
+      // Sample logo at small size and find most saturated (colorful) pixels — skip white/black/gray
+      const { data, info } = await sharp(logo.buffer).resize(20, 20, { fit: 'cover' }).raw().toBuffer({ resolveWithObject: true })
+      const colorCounts: Record<string, { r: number; g: number; b: number; count: number }> = {}
+      for (let i = 0; i < data.length; i += info.channels) {
+        const r = data[i], g = data[i + 1], b = data[i + 2]
+        // Skip near-white, near-black, and gray pixels
+        const max = Math.max(r, g, b), min = Math.min(r, g, b)
+        const saturation = max === 0 ? 0 : (max - min) / max
+        if (saturation < 0.15) continue // skip grays/whites/blacks
+        // Quantize to reduce noise
+        const qr = Math.round(r / 32) * 32, qg = Math.round(g / 32) * 32, qb = Math.round(b / 32) * 32
+        const key = `${qr},${qg},${qb}`
+        if (!colorCounts[key]) colorCounts[key] = { r: qr, g: qg, b: qb, count: 0 }
+        colorCounts[key].count++
+      }
+      const sorted = Object.values(colorCounts).sort((a, b) => b.count - a.count)
+      if (sorted.length > 0) {
+        const primary = sorted[0]
+        const secondary = sorted.length > 1 ? sorted[1] : { r: 26, g: 43, b: 60 }
+        logoColors = {
+          primary: toHex(primary.r, primary.g, primary.b),
+          secondary: toHex(secondary.r, secondary.g, secondary.b),
+        }
+        console.log(`[brand-scraper] Logo colors: primary=${logoColors.primary}, secondary=${logoColors.secondary} (from ${sorted.length} colors)`)
+      } else {
+        console.log('[brand-scraper] No saturated colors found in logo, using defaults')
+      }
     } catch (colorErr) {
       console.log('[brand-scraper] Logo color extraction failed:', colorErr instanceof Error ? colorErr.message : 'unknown')
     }

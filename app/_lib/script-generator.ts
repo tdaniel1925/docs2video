@@ -364,29 +364,30 @@ export async function generateScript(
 
     const speakerConfig = isSerious
       ? {
-          speaker1: { name: 'Alex', voice: 'ash', instructions: 'Speak like a smart friend explaining something they know well. Warm, casual, confident. Not lecturing — sharing. Use "you know what I mean?" energy.' },
-          speaker2: { name: 'Jordan', voice: 'shimmer', instructions: 'Speak like a curious, engaged friend. Genuinely interested. React naturally — laugh, be surprised, ask follow-ups. Sound like you actually care about the answer.' },
+          speaker1: { name: 'Alex', voice: 'ash', instructions: 'Speak as a clear, professional narrator. Warm but authoritative. Steady pace, confident delivery.' },
+          speaker2: { name: 'Jordan', voice: 'shimmer', instructions: 'Speak as a thoughtful co-narrator. Professional, clear, and engaged. Ask purposeful questions that advance the topic.' },
         }
       : {
-          speaker1: { name: 'Alex', voice: 'coral', instructions: 'Speak like an upbeat, knowledgeable friend. Casual and warm. Share facts like you are genuinely excited about them. Not a news anchor — a friend at coffee.' },
-          speaker2: { name: 'Jordan', voice: 'ash', instructions: 'Speak like a smart friend who is learning something interesting. React naturally, ask real questions, push back sometimes. Sound genuinely engaged.' },
+          speaker1: { name: 'Alex', voice: 'coral', instructions: 'Speak as an engaging, professional narrator. Warm and clear. Present information with energy but not forced enthusiasm.' },
+          speaker2: { name: 'Jordan', voice: 'ash', instructions: 'Speak as a knowledgeable co-narrator. Professional and direct. Ask smart questions and add context.' },
         }
 
     const podcastPrompt = `${promptBody}${additionalBlock}
 
-NARRATION FORMAT: TWO FRIENDS TALKING
-This video uses TWO speakers having a CASUAL, NATURAL conversation — like two smart friends discussing something interesting over coffee.
+NARRATION FORMAT: TWO PROFESSIONAL NARRATORS
+This video uses TWO speakers in a structured, professional discussion format.
 
 SPEAKERS:
 - "${speakerConfig.speaker1.name}" — ${speakerConfig.speaker1.instructions}
 - "${speakerConfig.speaker2.name}" — ${speakerConfig.speaker2.instructions}
 
-CONVERSATION TONE (THIS IS THE MOST IMPORTANT RULE):
-- Write like TWO FRIENDS TALKING, not two professionals presenting
-- NEVER use phrases like "the evidence shows", "the data indicates", "as we can see", "it's worth noting"
-- Instead use: "check this out", "so basically", "here's the cool part", "wait really?", "yeah and get this"
-- React like humans: "Wow.", "No way.", "That's wild.", "OK so...", "Huh, interesting."
-- Use casual contractions: "that's", "it's", "they've", "won't", "gonna"
+CONVERSATION TONE:
+- Professional and clear — two knowledgeable narrators discussing the content
+- NOT forced casual, NOT fake enthusiasm, NOT "two friends at coffee"
+- Natural speech with contractions ("that's", "it's", "they've") but professional vocabulary
+- NEVER use: "check this out", "that's wild", "no way", "wait really" — too informal
+- NEVER use: "the evidence shows", "the data indicates", "it's worth noting" — too robotic
+- Good tone: clear, direct, informative, naturally engaging without trying too hard
 - Interrupt naturally: one person can finish the other's thought
 - Show genuine emotion — excitement, surprise, curiosity
 - It should sound like a conversation you'd WANT to eavesdrop on
