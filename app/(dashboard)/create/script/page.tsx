@@ -18,6 +18,7 @@ export default function ScriptPage() {
   const [chatLoading, setChatLoading] = useState(false)
   const [chatCount, setChatCount] = useState(0)
   const [templatePromptShown, setTemplatePromptShown] = useState(false)
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   // Auto-save scenes to localStorage with debounce
@@ -280,16 +281,38 @@ export default function ScriptPage() {
               {/* Left: Script editor */}
               <div>
                 {scenes.map((scene: any, i: number) => (
-                  <div key={i} style={{
-                    marginBottom: 14, borderRadius: 14, padding: 18,
-                    background: 'white', border: '1px solid var(--border-light)',
-                  }}>
+                  <div
+                    key={i}
+                    draggable
+                    onDragStart={() => setDragIdx(i)}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={() => {
+                      if (dragIdx === null || dragIdx === i) return
+                      const updated = [...scenes]
+                      const [moved] = updated.splice(dragIdx, 1)
+                      updated.splice(i, 0, moved)
+                      // Renumber
+                      updated.forEach((s, idx) => { s.scene = idx + 1 })
+                      setScenes(updated)
+                      autoSave(updated, i)
+                      setDragIdx(null)
+                    }}
+                    onDragEnd={() => setDragIdx(null)}
+                    style={{
+                      marginBottom: 14, borderRadius: 14, padding: 18,
+                      background: 'white',
+                      border: dragIdx === i ? '2px solid var(--mint)' : '1px solid var(--border-light)',
+                      opacity: dragIdx === i ? 0.6 : 1,
+                      cursor: 'grab',
+                      transition: 'opacity 0.2s, border-color 0.2s',
+                    }}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                       <span style={{
                         width: 26, height: 26, borderRadius: '50%', background: 'var(--mint)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontWeight: 800, fontSize: 12, flexShrink: 0,
-                      }}>{i + 1}</span>
+                        fontWeight: 800, fontSize: 12, flexShrink: 0, cursor: 'grab',
+                      }} title="Drag to reorder">{i + 1}</span>
                       <input
                         type="text"
                         value={scene.title}
@@ -342,20 +365,25 @@ export default function ScriptPage() {
                 {/* Chat messages */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', minHeight: 200 }}>
                   {chatMessages.length === 0 && (
-                    <div style={{ fontSize: 13, color: 'var(--ink-light)', lineHeight: 1.6 }}>
-                      <p style={{ marginBottom: 8 }}>Try:</p>
-                      <div onClick={() => { setChatInput('Make all scenes shorter'); }} style={{ padding: '6px 10px', borderRadius: 8, background: 'var(--bg-soft)', marginBottom: 6, cursor: 'pointer', fontSize: 12 }}>
-                        &ldquo;Make all scenes shorter&rdquo;
-                      </div>
-                      <div onClick={() => { setChatInput('Add a scene about pricing'); }} style={{ padding: '6px 10px', borderRadius: 8, background: 'var(--bg-soft)', marginBottom: 6, cursor: 'pointer', fontSize: 12 }}>
-                        &ldquo;Add a scene about pricing&rdquo;
-                      </div>
-                      <div onClick={() => { setChatInput('Make the tone more casual'); }} style={{ padding: '6px 10px', borderRadius: 8, background: 'var(--bg-soft)', marginBottom: 6, cursor: 'pointer', fontSize: 12 }}>
-                        &ldquo;Make the tone more casual&rdquo;
-                      </div>
-                      <div onClick={() => { setChatInput('Rewrite scene 1 to be more engaging'); }} style={{ padding: '6px 10px', borderRadius: 8, background: 'var(--bg-soft)', cursor: 'pointer', fontSize: 12 }}>
-                        &ldquo;Rewrite scene 1 to be more engaging&rdquo;
-                      </div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-light)', lineHeight: 1.5 }}>
+                      <p style={{ marginBottom: 6, fontWeight: 600 }}>Edit:</p>
+                      {['Make all scenes shorter', 'Add a scene about pricing', 'Make the tone more casual', 'Rewrite scene 1'].map(cmd => (
+                        <div key={cmd} onClick={() => setChatInput(cmd)} style={{ padding: '5px 10px', borderRadius: 8, background: 'var(--bg-soft)', marginBottom: 4, cursor: 'pointer' }}>
+                          {cmd}
+                        </div>
+                      ))}
+                      <p style={{ marginBottom: 6, marginTop: 10, fontWeight: 600 }}>Quality:</p>
+                      {['Review the full script', 'Check for repetition', 'Is anything missing from the source?', 'Is the CTA strong enough?'].map(cmd => (
+                        <div key={cmd} onClick={() => setChatInput(cmd)} style={{ padding: '5px 10px', borderRadius: 8, background: 'var(--bg-soft)', marginBottom: 4, cursor: 'pointer' }}>
+                          {cmd}
+                        </div>
+                      ))}
+                      <p style={{ marginBottom: 6, marginTop: 10, fontWeight: 600 }}>Structure:</p>
+                      {['Which scene is the longest?', 'Merge similar scenes', 'Add transition between scenes', 'How long is this video?'].map(cmd => (
+                        <div key={cmd} onClick={() => setChatInput(cmd)} style={{ padding: '5px 10px', borderRadius: 8, background: 'var(--bg-soft)', marginBottom: 4, cursor: 'pointer' }}>
+                          {cmd}
+                        </div>
+                      ))}
                     </div>
                   )}
                   {chatMessages.map((msg, i) => {

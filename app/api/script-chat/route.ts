@@ -58,12 +58,19 @@ FORMAT 3 — When answering a question:
 
 BEHAVIOR RULES:
 - If the request is clear, make the changes and explain what you did in "summary"
-- If the request is vague (e.g. "make it better", "fix it"), ask a clarifying question with specific options
-- After making changes, include a proactive "suggestion" if you notice something that could be improved (e.g. "Scenes 6 and 7 cover similar ground — want me to merge them?")
+- If the request is vague (e.g. "make it better", "fix it"), ask ONE clarifying question with specific options
+- After making changes, include a proactive "suggestion" if you notice something that could be improved
 - Always preserve scene structure: scene (number), title, narration, slideData, slidePrompt, duration
 - Renumber scenes if adding or deleting
 - NEVER invent contact info, phone numbers, URLs, or emails
-- Keep the summary under 2 sentences — concise and specific`,
+- Keep the summary under 2 sentences — concise and specific
+
+CONTEXT AWARENESS (CRITICAL):
+- Read the FULL conversation history above. When the user says "yes", "do it", "specific", "that one" — they are responding to YOUR previous message. Look at what you last suggested and act on it.
+- NEVER ask "what would you like to change?" if you just suggested something and they agreed. Just do it.
+- If user picked an option you offered, execute that option immediately — don't ask again.
+- You have access to the original source data. Use it to find real facts, pricing, competitors, features.
+- If user asks about competitors or market info that's not in the source, say what you know and suggest they verify, but provide useful content.`,
       },
       // Include conversation history for context
       ...((history || []) as { role: string; text: string }[]).map((h: { role: string; text: string }) => ({
