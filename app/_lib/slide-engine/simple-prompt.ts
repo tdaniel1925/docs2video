@@ -63,9 +63,11 @@ Rules:
 - Display ALL content text above on the slide
 - Every letter perfectly spelled and readable
 - 80px safe padding on all edges
+- Leave the TOP-RIGHT corner (160x100px area) completely empty — a logo will be placed there later
 - All URLs and email addresses must be displayed in lowercase
 - When a phone number is in the content, display it prominently
 - Do NOT add any text not listed above
+- Do NOT include any logo or brand mark — it will be added separately
 - Do NOT render instructions or metadata as visible text`
 }
 

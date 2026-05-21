@@ -1755,6 +1755,9 @@ export default function CreatePage() {
                 {suggestedTheme.previewUrls.map((url, i) => (
                   <div key={i} style={{ flex: 1, position: 'relative' }}>
                     <img src={url} alt={`${suggestedTheme.name} ${i === 0 ? 'Cover' : 'Content'}`} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border-light)' }} />
+                    {detectedLogoUrl && (
+                      <img src={detectedLogoUrl} alt="Logo" style={{ position: 'absolute', top: '4%', right: '3%', height: '12%', objectFit: 'contain', opacity: 0.9 }} />
+                    )}
                     <div style={{ position: 'absolute', bottom: 6, left: 6, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4 }}>
                       {i === 0 ? 'Cover' : 'Content'}
                     </div>
