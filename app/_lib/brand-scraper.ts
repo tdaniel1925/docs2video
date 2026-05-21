@@ -210,14 +210,16 @@ export async function scrapeBrand(url: string, firecrawlContent?: { markdown: st
   // Use Firecrawl content if provided (accurate), otherwise fall back to manual fetch
   let mainHtml: string
   let pageText: string
-  if (firecrawlContent?.html && firecrawlContent?.markdown) {
-    mainHtml = firecrawlContent.html
+  if (firecrawlContent?.markdown) {
     pageText = firecrawlContent.markdown
-    console.log('[brand-scraper] Using Firecrawl content for brand analysis')
-  } else {
-    const fetched = await fetchPage(fullUrl)
-    if (!fetched) throw new Error('Could not reach website.')
-    mainHtml = fetched
+    console.log('[brand-scraper] Using Firecrawl markdown for brand analysis')
+  }
+
+  // Always fetch raw HTML for logo/color/font extraction — Firecrawl HTML may strip tags
+  const rawHtml = await fetchPage(fullUrl)
+  mainHtml = rawHtml || firecrawlContent?.html || ''
+  if (!pageText) {
+    if (!mainHtml) throw new Error('Could not reach website.')
     pageText = mainHtml.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
   }
 
@@ -230,6 +232,7 @@ export async function scrapeBrand(url: string, firecrawlContent?: { markdown: st
   const socialLinks = extractSocialLinks(mainHtml)
   const jsonLd = extractJsonLd(mainHtml)
   const scrapedLogoUrl = extractLogoUrl(mainHtml, fullUrl)
+  console.log(`[brand-scraper] Logo URL from HTML: ${scrapedLogoUrl?.slice(0, 80) ?? 'none'}`)
 
   // Logo strategy: try multiple sources, pick the best one
   const logo: { buffer: Buffer | null; mime: string; url: string | null; source: string; score: number } = { buffer: null, mime: 'image/png', url: null, source: '', score: 0 }
