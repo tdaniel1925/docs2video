@@ -11,18 +11,18 @@ export default function ScriptPage() {
   const [scenes, setScenes] = useState<any[]>([])
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
+  const [savedScene, setSavedScene] = useState<number | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Auto-save scenes to localStorage with debounce
-  const autoSave = useCallback((updatedScenes: any[]) => {
+  const autoSave = useCallback((updatedScenes: any[], sceneIdx: number) => {
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => {
       const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
       state.scenes = updatedScenes
       localStorage.setItem('d2v_create', JSON.stringify(state))
-      setSaved(true)
-      setTimeout(() => setSaved(false), 1500)
+      setSavedScene(sceneIdx)
+      setTimeout(() => setSavedScene(null), 1500)
     }, 800)
   }, [])
 
@@ -96,8 +96,24 @@ export default function ScriptPage() {
 
         {scenes.length === 0 && (
           <>
-            {/* Detail level */}
-            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Video length</h3>
+            {/* Back button */}
+            <button onClick={() => router.push('/create/review')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--ink-light)', marginBottom: 24, fontFamily: 'inherit' }}>
+              &larr; Back to review
+            </button>
+
+            {/* Detail level with AI recommendation */}
+            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Video length</h3>
+            {(() => {
+              const intent = createState?.intentType || ''
+              const rec = intent === 'sales' ? 'standard' : intent === 'train' ? 'detailed' : intent === 'report' ? 'standard' : intent === 'proposal' ? 'standard' : intent === 'educate' ? 'standard' : null
+              const recLabel = rec === 'quick' ? 'Highlights' : rec === 'detailed' ? 'Detailed' : rec === 'standard' ? 'Standard' : null
+              if (!recLabel) return null
+              return (
+                <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>
+                  Based on your goal, we recommend <strong style={{ color: 'var(--ink)' }}>{recLabel}</strong>.
+                </p>
+              )
+            })()}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
               {[
                 { id: 'quick' as const, title: 'Highlights', desc: '30-60 seconds', sub: '3-4 slides' },
@@ -174,13 +190,8 @@ export default function ScriptPage() {
         {/* Script editor */}
         {scenes.length > 0 && (
           <>
-            <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-              <span>{scenes.length} scenes &middot; ~{Math.round(scenes.reduce((sum: number, s: any) => sum + (s.narration?.split(/\s+/).length || 0), 0) / 2.5)}s estimated</span>
-              {saved && (
-                <span style={{ fontSize: 12, color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600, animation: 'fadeInUp 0.3s ease' }}>
-                  &#10003; Saved
-                </span>
-              )}
+            <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20, textAlign: 'center' }}>
+              {scenes.length} scenes &middot; ~{Math.round(scenes.reduce((sum: number, s: any) => sum + (s.narration?.split(/\s+/).length || 0), 0) / 2.5)}s estimated
             </div>
 
             {scenes.map((scene: any, i: number) => (
@@ -201,7 +212,7 @@ export default function ScriptPage() {
                       const updated = [...scenes]
                       updated[i] = { ...updated[i], title: e.target.value }
                       setScenes(updated)
-                      autoSave(updated)
+                      autoSave(updated, i)
                     }}
                     style={{ border: 'none', background: 'transparent', fontWeight: 700, fontSize: 16, flex: 1, outline: 'none', color: 'var(--ink)', fontFamily: 'inherit' }}
                   />
@@ -220,8 +231,13 @@ export default function ScriptPage() {
                     fontFamily: 'inherit', outline: 'none',
                   }}
                 />
-                <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 4 }}>
-                  ~{Math.round((scene.narration?.split(/\s+/).length || 0) / 2.5)}s &middot; {scene.narration?.split(/\s+/).length || 0} words
+                <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>~{Math.round((scene.narration?.split(/\s+/).length || 0) / 2.5)}s &middot; {scene.narration?.split(/\s+/).length || 0} words</span>
+                  {savedScene === i && (
+                    <span style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600, animation: 'fadeInUp 0.3s ease' }}>
+                      &#10003; Saved
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

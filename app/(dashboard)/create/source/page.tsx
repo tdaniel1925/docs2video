@@ -95,6 +95,9 @@ export default function SourcePage() {
 
       {!method ? (
         <div style={{ width: '100%', animation: 'fadeInUp 0.4s ease' }}>
+          <button onClick={() => router.push('/create')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--ink-light)', marginBottom: 24, fontFamily: 'inherit' }}>
+            &larr; Back to goal
+          </button>
           <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-0.03em', textAlign: 'center', marginBottom: 8 }}>
             Add your content
           </h1>
