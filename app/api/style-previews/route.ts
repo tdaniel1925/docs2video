@@ -19,31 +19,32 @@ export async function POST(request: Request) {
 
   // Simple preview mode: generate cover + content sample slides
   if (body.prompt && body.name && !body.policyData) {
-    const coverPrompt = `Create a professional COVER/TITLE slide for a presentation. This is a SAMPLE slide to show the visual style.
+    const coverPrompt = `Create a professional COVER/TITLE slide for a presentation, 1920x1088 pixels.
 
 DESIGN STYLE:
 ${body.prompt}
+Glossy, polished finish — subtle glass reflections, soft glows, depth with layered shadows.
 
 Show a cover slide with:
 - Large title: "Quarterly Business Review"
 - Subtitle: "Q2 2025 Performance Summary"
-- Company branding area
-- Clean, bold, professional title layout
-- 1920x1080, landscape, 16:9
-- Make it look polished — this is the first slide the audience sees`
+- Do NOT include any logo, company name, or brand mark — leave the top-right corner empty
+- Clean, bold layout with the style described above
+- 80px padding on all edges`
 
-    const contentPrompt = `Create a professional CONTENT slide for a presentation. This is a SAMPLE slide to show the visual style.
+    const contentPrompt = `Create a professional CONTENT slide for a presentation, 1920x1088 pixels.
 
 DESIGN STYLE:
 ${body.prompt}
+Glossy, polished finish — subtle glass reflections, soft glows, depth with layered shadows.
 
 Show a content slide with:
 - Title: "Revenue Growth"
 - 3 key metrics: "$2.4M Revenue (+18%)", "1,240 New Clients", "94% Retention Rate"
 - 2-3 bullet points explaining the data
-- Clean, professional data layout
-- 1920x1080, landscape, 16:9
-- Make it look polished and ready for a real presentation`
+- Do NOT include any logo, company name, or brand mark — leave the top-right corner empty
+- Clean, professional data layout with the style described above
+- 80px padding on all edges`
 
     try {
       const [coverRes, contentRes] = await Promise.all([
