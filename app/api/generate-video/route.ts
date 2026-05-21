@@ -167,6 +167,13 @@ export async function POST(request: Request) {
           bullets: s.slideData.bullets?.filter((b: string) => !phonePattern.test(b) || sourceText.includes(b)),
         } : s.slideData,
       }))
+
+      // Remove any scenes with empty narration — no silent slides
+      const beforeCount = scenes.length
+      scenes = scenes.filter((s: any) => s.narration?.trim().length > 10)
+      if (scenes.length < beforeCount) {
+        console.log(`[video ${videoId}] Removed ${beforeCount - scenes.length} empty scenes`)
+      }
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script ready', progress_pct: 15 }).eq('id', videoId)
     } else {
       console.log(`[video ${videoId}] Generating script...`)
