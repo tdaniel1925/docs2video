@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { GoogleGenAI } from '@google/genai'
+import FirecrawlApp from '@mendable/firecrawl-js'
 import sharp from 'sharp'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { scrapeBrand } from '../../_lib/brand-scraper'
@@ -8,6 +9,7 @@ import { scrapeBrand } from '../../_lib/brand-scraper'
 export const runtime = 'nodejs'
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+const firecrawl = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY! })
 
 const THEME_PROMPT = `You are an expert web designer analyzing a website's visual identity. Based on the HTML/CSS below, create a slide presentation style prompt that captures this website's look and feel.
 
@@ -115,53 +117,27 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Fetch the page with comprehensive browser-like headers
-    let fetchRes = await fetch(parsedUrl.toString(), {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Cache-Control': 'no-cache',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Upgrade-Insecure-Requests': '1',
-      },
-      redirect: 'follow',
-      signal: AbortSignal.timeout(15000),
-    })
+    // Use Firecrawl for accurate content extraction — no AI hallucination
+    console.log(`[extract-url] Firecrawl scraping ${parsedUrl.toString()}...`)
+    const crawlResult = await firecrawl.scrape(parsedUrl.toString(), {
+      formats: ['markdown', 'html'],
+    }) as any
 
-    // Retry with simpler headers if blocked
-    if (!fetchRes.ok && (fetchRes.status === 403 || fetchRes.status === 406)) {
-      fetchRes = await fetch(parsedUrl.toString(), {
-        headers: {
-          'User-Agent': 'Googlebot/2.1 (+http://www.google.com/bot.html)',
-          'Accept': 'text/html',
-        },
-        redirect: 'follow',
-        signal: AbortSignal.timeout(15000),
-      })
-    }
+    const markdown = crawlResult?.markdown || crawlResult?.data?.markdown || ''
+    const html = crawlResult?.html || crawlResult?.data?.html || ''
 
-    if (!fetchRes.ok) {
-      return NextResponse.json({ error: `Failed to fetch URL (status ${fetchRes.status})` }, { status: 400 })
-    }
-
-    const html = await fetchRes.text()
-    const textContent = stripHtml(html)
-
-    if (textContent.length < 50) {
+    if (markdown.length < 50) {
       return NextResponse.json({ error: 'Could not extract meaningful content from this URL' }, { status: 400 })
     }
 
-    // Truncate text for content extraction
-    const truncated = textContent.slice(0, 50000)
-    // Extract a chunk of HTML with CSS for theme analysis (first 30k chars has most styling)
+    console.log(`[extract-url] Firecrawl got ${markdown.length} chars markdown, ${html.length} chars HTML`)
+
+    // Use the EXACT text from Firecrawl (no AI guessing about page content)
+    const truncated = markdown.slice(0, 50000)
     const htmlForTheme = html.slice(0, 30000)
 
-    // Run content extraction and theme analysis in parallel
+    // Run content structuring and theme analysis in parallel
+    // Gemini ONLY structures the data — it does NOT add or invent anything
     const [contentResponse, themeResponse] = await Promise.all([
       genai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -170,7 +146,7 @@ export async function POST(request: Request) {
             role: 'user',
             parts: [
               { text: EXTRACTION_PROMPT },
-              { text: `\n\nHere is the text extracted from ${parsedUrl.hostname}:\n\n${truncated}` },
+              { text: `\n\nHere is the EXACT text from ${parsedUrl.hostname} (extracted by web scraper — do NOT add any information not present here):\n\n${truncated}` },
             ],
           },
         ],
