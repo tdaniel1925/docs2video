@@ -9,7 +9,12 @@ import { scrapeBrand } from '../../_lib/brand-scraper'
 export const runtime = 'nodejs'
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
-const firecrawl = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY! })
+
+let _firecrawl: InstanceType<typeof FirecrawlApp> | null = null
+function getFirecrawl() {
+  if (!_firecrawl) _firecrawl = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY! })
+  return _firecrawl
+}
 
 const THEME_PROMPT = `You are an expert web designer analyzing a website's visual identity. Based on the HTML/CSS below, create a slide presentation style prompt that captures this website's look and feel.
 
@@ -119,7 +124,7 @@ export async function POST(request: Request) {
   try {
     // Use Firecrawl for accurate content extraction — no AI hallucination
     console.log(`[extract-url] Firecrawl scraping ${parsedUrl.toString()}...`)
-    const crawlResult = await firecrawl.scrape(parsedUrl.toString(), {
+    const crawlResult = await getFirecrawl().scrape(parsedUrl.toString(), {
       formats: ['markdown', 'html'],
     }) as any
 
