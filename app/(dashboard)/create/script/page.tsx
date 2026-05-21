@@ -105,7 +105,7 @@ export default function ScriptPage() {
             <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Video length</h3>
             {(() => {
               const intent = createState?.intentType || ''
-              const rec = intent === 'sales' ? 'standard' : intent === 'train' ? 'detailed' : intent === 'report' ? 'standard' : intent === 'proposal' ? 'standard' : intent === 'educate' ? 'standard' : null
+              const rec: string | null = intent === 'sales' ? 'standard' : intent === 'train' ? 'detailed' : intent === 'report' ? 'standard' : intent === 'proposal' ? 'standard' : intent === 'educate' ? 'standard' : null
               const recLabel = rec === 'quick' ? 'Highlights' : rec === 'detailed' ? 'Detailed' : rec === 'standard' ? 'Standard' : null
               if (!recLabel) return null
               return (
