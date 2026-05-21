@@ -208,8 +208,8 @@ export async function scrapeBrand(url: string, firecrawlContent?: { markdown: st
   const baseOrigin = parsedUrl.origin
 
   // Use Firecrawl content if provided (accurate), otherwise fall back to manual fetch
-  let mainHtml: string
-  let pageText: string
+  let mainHtml: string = ''
+  let pageText: string = ''
   if (firecrawlContent?.markdown) {
     pageText = firecrawlContent.markdown
     console.log('[brand-scraper] Using Firecrawl markdown for brand analysis')
