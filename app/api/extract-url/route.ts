@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
-import { GoogleGenAI } from '@google/genai'
+import OpenAI from 'openai'
 import FirecrawlApp from '@mendable/firecrawl-js'
 import sharp from 'sharp'
 import type { ExtractedData } from '../../_lib/extract-types'
@@ -8,7 +8,11 @@ import { scrapeBrand } from '../../_lib/brand-scraper'
 
 export const runtime = 'nodejs'
 
-const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+let _openai: OpenAI | null = null
+function getOpenAI() {
+  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+  return _openai
+}
 
 let _firecrawl: InstanceType<typeof FirecrawlApp> | null = null
 function getFirecrawl() {
@@ -147,36 +151,26 @@ export async function POST(request: Request) {
     const truncated = markdown.slice(0, 50000)
     const htmlForTheme = html.slice(0, 30000)
 
-    // Run content structuring and theme analysis in parallel
-    // Gemini ONLY structures the data — it does NOT add or invent anything
+    // Run content structuring and theme analysis in parallel with OpenAI
+    const openai = getOpenAI()
     const [contentResponse, themeResponse] = await Promise.all([
-      genai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { text: EXTRACTION_PROMPT },
-              { text: `\n\nHere is the EXACT text from ${parsedUrl.hostname} (extracted by web scraper — do NOT add any information not present here):\n\n${truncated}` },
-            ],
-          },
+      openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'user', content: `${EXTRACTION_PROMPT}\n\nHere is the EXACT text from ${parsedUrl.hostname} (extracted by web scraper — do NOT add any information not present here):\n\n${truncated}` },
         ],
+        temperature: 0.3,
       }),
-      genai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { text: THEME_PROMPT },
-              { text: `\n\nHere is the HTML/CSS from ${parsedUrl.hostname}:\n\n${htmlForTheme}` },
-            ],
-          },
+      openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'user', content: `${THEME_PROMPT}\n\nHere is the HTML/CSS from ${parsedUrl.hostname}:\n\n${htmlForTheme}` },
         ],
+        temperature: 0.5,
       }),
     ])
 
-    const raw = contentResponse.text?.trim() ?? ''
+    const raw = contentResponse.choices[0]?.message?.content?.trim() ?? ''
     const cleaned = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
 
     const data: ExtractedData = JSON.parse(cleaned)
@@ -187,7 +181,7 @@ export async function POST(request: Request) {
     // Parse theme suggestion
     let suggestedTheme = null
     try {
-      const themeRaw = themeResponse.text?.trim() ?? ''
+      const themeRaw = themeResponse.choices[0]?.message?.content?.trim() ?? ''
       const themeCleaned = themeRaw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
       suggestedTheme = JSON.parse(themeCleaned)
     } catch {

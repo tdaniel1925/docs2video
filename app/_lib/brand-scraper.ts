@@ -1,6 +1,10 @@
-import { GoogleGenAI } from '@google/genai'
+import OpenAI from 'openai'
 
-const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+let _openai: OpenAI | null = null
+function getOpenAI() {
+  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+  return _openai
+}
 
 export const FETCH_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
@@ -394,20 +398,13 @@ Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no c
   "colorPsychology": "string (why these colors work for this brand)"
 }`
 
-  // Build content parts — include logo image if available for visual color analysis
-  const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
-    { text: prompt },
-  ]
-  if (logo.buffer && !logo.mime.includes('svg')) {
-    parts.push({ inlineData: { mimeType: logo.mime, data: logo.buffer.toString('base64') } })
-  }
-
-  const response = await genai.models.generateContent({
-    model: 'gemini-2.5-pro',
-    contents: [{ role: 'user', parts }],
+  const response = await getOpenAI().chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.3,
   })
 
-  const text = response.text?.trim() ?? ''
+  const text = response.choices[0]?.message?.content?.trim() ?? ''
   const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
 
   let brandData: Record<string, unknown>
