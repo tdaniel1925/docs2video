@@ -15,21 +15,57 @@ const INTENTS = [
 export default function CreateGoalPage() {
   const router = useRouter()
   const [selected, setSelected] = useState<string | null>(null)
-  const [step, setStep] = useState<'choose' | 'refine' | 'confirm'>('choose')
+  const [step, setStep] = useState<'choose' | 'resume' | 'refine' | 'confirm'>('choose')
   const [answers, setAnswers] = useState<string[]>([])
   const [currentAnswer, setCurrentAnswer] = useState('')
   const [currentQ, setCurrentQ] = useState(0)
   const [refinedPurpose, setRefinedPurpose] = useState('')
   const [refining, setRefining] = useState(false)
+  const [pendingState, setPendingState] = useState<any>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const intent = INTENTS.find(i => i.id === selected)
+
+  // Check for pending creation on mount
+  useEffect(() => {
+    const existing = localStorage.getItem('d2v_create')
+    if (existing) {
+      try {
+        const state = JSON.parse(existing)
+        if (state.purpose || state.extractedData || state.scenes) {
+          setPendingState(state)
+          setStep('resume')
+          return
+        }
+      } catch { /* ignore */ }
+    }
+  }, [])
 
   useEffect(() => {
     if (step === 'refine' && inputRef.current) inputRef.current.focus()
   }, [step, currentQ])
 
+  function handleStartFresh() {
+    localStorage.removeItem('d2v_create')
+    sessionStorage.removeItem('d2v_file')
+    sessionStorage.removeItem('d2v_fileName')
+    sessionStorage.removeItem('d2v_fileType')
+    setPendingState(null)
+    setStep('choose')
+  }
+
+  function handleResume() {
+    // Figure out where they left off and navigate there
+    const state = pendingState
+    if (state.scenes?.length > 0) router.push('/create/script')
+    else if (state.extractedData) router.push('/create/review')
+    else if (state.purpose) router.push('/create/source')
+    else router.push('/create/source')
+  }
+
   function handleSelectIntent(id: string) {
+    // Clear any old state when starting fresh
+    localStorage.removeItem('d2v_create')
     setSelected(id)
     setStep('refine')
     setAnswers([])
@@ -78,6 +114,41 @@ export default function CreateGoalPage() {
       flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: '40px 24px', maxWidth: 900, margin: '0 auto', width: '100%',
     }}>
+
+      {/* Resume or discard pending creation */}
+      {step === 'resume' && pendingState && (
+        <div style={{ width: '100%', maxWidth: 500, animation: 'fadeInUp 0.4s ease' }}>
+          <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 8, textAlign: 'center' }}>
+            You have an unfinished video
+          </h1>
+          <p style={{ fontSize: 16, color: 'var(--ink-soft)', textAlign: 'center', marginBottom: 32, lineHeight: 1.6 }}>
+            {pendingState.purpose ? `"${pendingState.purpose.slice(0, 100)}${pendingState.purpose.length > 100 ? '...' : ''}"` : 'Pick up where you left off or start fresh.'}
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <button
+              onClick={handleResume}
+              style={{
+                padding: '18px', borderRadius: 12, border: 'none',
+                background: 'var(--ink)', color: 'white', fontSize: 17, fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              Continue where I left off &rarr;
+            </button>
+            <button
+              onClick={handleStartFresh}
+              style={{
+                padding: '18px', borderRadius: 12, border: '2px solid var(--border)',
+                background: 'white', color: 'var(--ink-soft)', fontSize: 15, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              Discard and start fresh
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Step 1: Choose intent */}
       {step === 'choose' && (
