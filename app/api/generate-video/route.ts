@@ -195,8 +195,8 @@ export async function POST(request: Request) {
     if (customStylePrompt) {
       stylePrompt = customStylePrompt
     } else if (brand && brand.primary_color !== '#1B365D') {
-      // Brand has custom colors — generate a style that matches them
-      stylePrompt = `Clean, modern professional style. Use ${brand.primary_color} as the primary accent color and ${brand.secondary_color} as secondary. Background should complement these brand colors — use white or very light neutral backgrounds with the brand colors for headings, borders, and highlights. Professional corporate feel that matches the brand identity.`
+      // Brand has custom colors — generate a creative style that matches them
+      stylePrompt = `Modern, visually striking presentation style. Primary brand color: ${brand.primary_color}, secondary: ${brand.secondary_color}. Use these colors boldly — gradient backgrounds, colored accent panels, glowing highlights, subtle patterns. Mix light and dark sections for visual variety. Each slide should feel like a premium design portfolio piece — creative layouts, interesting typography hierarchy, layered depth with shadows and glass effects. NOT a boring corporate template — make it look like a designer crafted each slide by hand. Think Apple keynote meets luxury brand lookbook.`
     } else {
       stylePrompt = getStylePrompt(templateId)
     }
