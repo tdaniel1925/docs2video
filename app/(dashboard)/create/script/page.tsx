@@ -19,6 +19,9 @@ export default function ScriptPage() {
   const [chatCount, setChatCount] = useState(0)
   const [templatePromptShown, setTemplatePromptShown] = useState(false)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const [previewIdx, setPreviewIdx] = useState<number | null>(null)
+  const [previewImg, setPreviewImg] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   // Auto-save scenes to localStorage — debounced for typing, instant for other actions
@@ -173,6 +176,29 @@ export default function ScriptPage() {
     }
     setChatLoading(false)
     setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+  }
+
+  async function handlePreviewSlide(idx: number) {
+    setPreviewIdx(idx)
+    setPreviewImg(null)
+    setPreviewLoading(true)
+    try {
+      const scene = scenes[idx]
+      const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+      const brandColors = state.extractedData?.primaryColor ? { primary: state.extractedData.primaryColor, secondary: state.extractedData.secondaryColor || '#4A90D9' } : { primary: '#1B365D', secondary: '#4A90D9' }
+
+      const res = await fetch('/api/style-previews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `${state.customStylePrompt || 'Modern professional style'}\nColors: primary ${brandColors.primary}, accent ${brandColors.secondary}.\nGlossy polished finish.`,
+          name: scene.title,
+        }),
+      })
+      const data = await res.json()
+      if (data.previewUrl) setPreviewImg(data.previewUrl)
+    } catch { /* skip */ }
+    setPreviewLoading(false)
   }
 
   function handleContinue() {
@@ -372,6 +398,16 @@ export default function ScriptPage() {
                           &#10003; Saved
                         </span>
                       )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handlePreviewSlide(i) }}
+                        style={{
+                          marginLeft: 'auto', background: 'none', border: '1px solid var(--border)',
+                          borderRadius: 6, padding: '2px 8px', fontSize: 11, color: 'var(--ink-light)',
+                          cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
+                        }}
+                      >
+                        Preview slide
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -515,6 +551,43 @@ export default function ScriptPage() {
           </>
         )}
       </div>
+
+      {/* Preview modal */}
+      {previewIdx !== null && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }} onClick={() => { setPreviewIdx(null); setPreviewImg(null) }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }} />
+          <div onClick={e => e.stopPropagation()} style={{
+            position: 'relative', background: 'white', borderRadius: 16, padding: 24,
+            maxWidth: 700, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>Slide {(previewIdx ?? 0) + 1} Preview</div>
+                <div style={{ fontSize: 13, color: 'var(--ink-light)' }}>{scenes[previewIdx ?? 0]?.title}</div>
+              </div>
+              <button onClick={() => { setPreviewIdx(null); setPreviewImg(null) }} style={{
+                background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-light)', padding: 4,
+              }}>&times;</button>
+            </div>
+            {previewLoading ? (
+              <div style={{ aspectRatio: '16/9', borderRadius: 10, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="spinner" style={{ marginRight: 8 }} /> Generating preview...
+              </div>
+            ) : previewImg ? (
+              <img src={previewImg} alt="Slide preview" style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', borderRadius: 10 }} />
+            ) : (
+              <div style={{ aspectRatio: '16/9', borderRadius: 10, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-light)' }}>
+                Preview failed — try again
+              </div>
+            )}
+            <p style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 10, textAlign: 'center' }}>
+              This is an approximate preview. Final slides may vary slightly.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
