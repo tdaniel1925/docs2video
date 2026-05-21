@@ -160,6 +160,7 @@ export default function CreatePage() {
   const [brands, setBrands] = useState<Brand[]>([])
   const [brandsLoaded, setBrandsLoaded] = useState(false)
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null)
+  const [detectedLogoUrl, setDetectedLogoUrl] = useState<string | null>(null)
   const [extractedData, setExtractedData] = useState<ExtractedPolicyData | null>(null)
   const [generalData, setGeneralData] = useState<ExtractedData | null>(null)
   const [inputTab, setInputTab] = useState<InputTab>('upload')
@@ -1349,8 +1350,8 @@ export default function CreatePage() {
                       })
                       const data = await res.json()
                       if (!res.ok) throw new Error(data.error || 'Extraction failed')
-                      // Separate suggestedTheme and autoBrandId from content data
-                      const { suggestedTheme: theme, autoBrandId, ...contentData } = data
+                      // Separate suggestedTheme, autoBrandId, autoLogoUrl from content data
+                      const { suggestedTheme: theme, autoBrandId, autoLogoUrl, ...contentData } = data
                       setGeneralData(contentData)
                       setExtractedData(null)
                       setReviewReady(true)
@@ -1361,6 +1362,10 @@ export default function CreatePage() {
                         const supabase = createClient()
                         const { data: updatedBrands } = await supabase.from('brands').select('*').order('is_default', { ascending: false })
                         if (updatedBrands) setBrands(updatedBrands as Brand[])
+                      }
+                      // Show detected logo for user confirmation
+                      if (autoLogoUrl) {
+                        setDetectedLogoUrl(autoLogoUrl)
                       }
                       // If theme was generated, store it and generate a preview
                       if (theme?.prompt) {
@@ -1676,6 +1681,59 @@ export default function CreatePage() {
         </div>
 
         {/* Inline review after extraction */}
+        {/* Detected Logo from URL scrape */}
+        {reviewReady && detectedLogoUrl && (
+          <div className="wizard-card" style={{ marginTop: 20, border: '2px solid var(--mint)', background: 'rgba(168,240,212,0.04)' }}>
+            <h2 style={{ margin: '0 0 4px' }}>We found this logo</h2>
+            <p className="wizard-sub">Is this the correct logo? If not, you can upload the right one.</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 16 }}>
+              <div style={{ width: 120, height: 120, borderRadius: 10, border: '1px solid var(--border-light)', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
+                <img src={detectedLogoUrl} alt="Detected logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  <button
+                    onClick={() => setDetectedLogoUrl(null)}
+                    className="btn btn-primary"
+                  >
+                    Looks good
+                  </button>
+                  <label className="btn btn-soft" style={{ cursor: 'pointer' }}>
+                    Upload different logo
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      style={{ display: 'none' }}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file || !selectedBrand) return
+                        const formData = new FormData()
+                        formData.append('file', file)
+                        // Upload to storage and update brand
+                        const supabase = createClient()
+                        const logoPath = `${selectedBrand}/brand_logo_${Date.now()}.png`
+                        const buf = Buffer.from(await file.arrayBuffer())
+                        const { error: upErr } = await supabase.storage.from('videos').upload(logoPath, buf, { contentType: 'image/png', upsert: true })
+                        if (!upErr) {
+                          const { data: urlData } = supabase.storage.from('videos').getPublicUrl(logoPath)
+                          await supabase.from('brands').update({ logo_file_url: urlData.publicUrl }).eq('id', selectedBrand)
+                          setDetectedLogoUrl(urlData.publicUrl)
+                          // Reload brands
+                          const { data: updatedBrands } = await supabase.from('brands').select('*').order('is_default', { ascending: false })
+                          if (updatedBrands) setBrands(updatedBrands as Brand[])
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>
+                  This logo will appear on your video slides and share page.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Suggested Theme from URL */}
         {reviewReady && suggestedTheme && !themeAccepted && (
           <div className="wizard-card" style={{ marginTop: 20, border: '2px solid var(--mint)', background: 'rgba(168,240,212,0.04)' }}>

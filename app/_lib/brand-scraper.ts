@@ -239,52 +239,86 @@ export async function scrapeBrand(url: string): Promise<BrandAnalysis> {
   const trimmedAbout = aboutHtml ? aboutHtml.slice(0, 8000) : ''
   const trimmedServices = servicesHtml ? servicesHtml.slice(0, 8000) : ''
 
-  // Logo strategy: Logo.dev first (clean high-res), then scraped fallback
-  let logoBuffer: Buffer | null = null
-  let logoMime = 'image/png'
-  let logoUrl: string | null = null
-
-  // 1. Try Logo.dev API — best quality, clean transparent PNGs
+  // Logo strategy: try multiple sources, pick the best one
+  const logo: { buffer: Buffer | null; mime: string; url: string | null; source: string } = { buffer: null, mime: 'image/png', url: null, source: '' }
   const domain = parsedUrl.hostname.replace('www.', '')
-  try {
-    const logoDevUrl = `https://img.logo.dev/${domain}?token=pk_OoIZc53tSDKpqi7uM8wyZQ&size=512&format=png`
-    const logoDevRes = await fetch(logoDevUrl, { signal: AbortSignal.timeout(5000) })
-    if (logoDevRes.ok) {
-      const ct = logoDevRes.headers.get('content-type') ?? ''
-      if (ct.startsWith('image/')) {
-        logoBuffer = Buffer.from(await logoDevRes.arrayBuffer())
-        logoMime = 'image/png'
-        logoUrl = logoDevUrl
-        console.log(`[brand-scraper] Logo.dev found logo for ${domain}: ${(logoBuffer.length / 1024).toFixed(0)}KB`)
-      }
-    }
-  } catch {
-    console.log(`[brand-scraper] Logo.dev lookup failed for ${domain}`)
-  }
 
-  // 2. Fallback: scrape logo from website HTML
-  if (!logoBuffer && scrapedLogoUrl) {
+  async function tryLogoUrl(url: string, source: string): Promise<boolean> {
+    if (logo.buffer) return true // already found
     try {
-      const logoRes = await fetch(scrapedLogoUrl, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(5000) })
-      if (logoRes.ok) {
-        const ct = logoRes.headers.get('content-type') ?? 'image/png'
+      const res = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(5000) })
+      if (res.ok) {
+        const ct = res.headers.get('content-type') ?? ''
         if (ct.startsWith('image/') && !ct.includes('svg')) {
-          logoBuffer = Buffer.from(await logoRes.arrayBuffer())
-          logoMime = ct.split(';')[0]
-          logoUrl = scrapedLogoUrl
-          console.log(`[brand-scraper] Scraped logo fallback: ${(logoBuffer.length / 1024).toFixed(0)}KB`)
+          const buf = Buffer.from(await res.arrayBuffer())
+          if (buf.length > 500) { // skip tiny placeholders
+            // Keep the largest logo found
+            if (!logo.buffer || buf.length > (logo.buffer as Buffer).length) {
+              logo.buffer = buf
+              logo.mime = ct.split(';')[0] || 'image/png'
+              logo.url = url
+              logo.source = source
+              console.log(`[brand-scraper] Logo found via ${source}: ${(buf.length / 1024).toFixed(0)}KB — ${url.slice(0, 80)}`)
+            }
+            return true
+          }
         }
       }
     } catch { /* skip */ }
+    return false
+  }
+
+  // Source 1: Logo.dev API (clean, high-res, transparent PNGs)
+  await tryLogoUrl(`https://img.logo.dev/${domain}?token=pk_OoIZc53tSDKpqi7uM8wyZQ&size=512&format=png`, 'Logo.dev')
+
+  // Source 2: Google Favicon API (256px, very reliable)
+  if (!logo.buffer) {
+    await tryLogoUrl(`https://www.google.com/s2/favicons?domain=${domain}&sz=256`, 'Google Favicon')
+  }
+
+  // Source 3: Common direct paths that many sites use
+  if (!logo.buffer) {
+    const commonPaths = [
+      '/apple-touch-icon.png',
+      '/apple-touch-icon-precomposed.png',
+      '/logo.png',
+      '/images/logo.png',
+      '/assets/logo.png',
+      '/img/logo.png',
+      '/favicon-192x192.png',
+      '/android-chrome-512x512.png',
+      '/android-chrome-192x192.png',
+    ]
+    for (const path of commonPaths) {
+      if (logo.buffer) break
+      await tryLogoUrl(`${baseOrigin}${path}`, `Direct path ${path}`)
+    }
+  }
+
+  // Source 4: Scraped from HTML (header/nav priority, srcset, WordPress full-size)
+  if (!logo.buffer && scrapedLogoUrl) {
+    await tryLogoUrl(scrapedLogoUrl, 'HTML scrape')
+  }
+
+  // Source 5: WordPress — try stripping size suffix for full original
+  if (scrapedLogoUrl && scrapedLogoUrl.match(/-\d+x\d+\.\w+$/)) {
+    const fullUrl = scrapedLogoUrl.replace(/-\d+x\d+(\.\w+)$/, '$1')
+    if (fullUrl !== scrapedLogoUrl) {
+      await tryLogoUrl(fullUrl, 'WordPress full-size')
+    }
+  }
+
+  if (!logo.buffer) {
+    console.log(`[brand-scraper] No logo found for ${domain} from any source`)
   }
 
   // Extract dominant colors from logo using Sharp (more reliable than CSS parsing)
   let logoColors: { primary: string; secondary: string } | null = null
-  if (logoBuffer && !logoMime.includes('svg')) {
+  if (logo.buffer && !logo.mime.includes('svg')) {
     try {
       const sharpMod = await import('sharp')
       const sharp = sharpMod.default ?? sharpMod
-      const { dominant } = await sharp(logoBuffer).stats()
+      const { dominant } = await sharp(logo.buffer).stats()
       const toHex = (r: number, g: number, b: number) => '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('')
       const dominantHex = toHex(dominant.r, dominant.g, dominant.b)
       // Use a contrasting dark/light as secondary based on logo brightness
@@ -315,14 +349,14 @@ ${jsonLd ? `Structured data (JSON-LD):\n${jsonLd}\n` : ''}
 CSS colors found on the website: ${allColors.join(', ')}
 Fonts found: ${fonts.join(', ')}
 Social links found: ${JSON.stringify(socialLinks)}
-${logoBuffer ? '\nA logo image from the website is attached below. Analyze it for colors and style.' : ''}
+${logo.buffer ? '\nA logo image from the website is attached below. Analyze it for colors and style.' : ''}
 
 CRITICAL COLOR INSTRUCTIONS:
 - Do NOT just pick random CSS hex codes from the list above. Many of those are framework defaults (like #000, #fff, #f8f9fa, #e2e8f0).
 - Instead, identify the ACTUAL BRAND COLORS — the colors used for the company logo, main headings, buttons, accent elements, and hero sections.
 - The primary color should be the brand's main identifier (usually the logo color or the dominant color on buttons/headers).
 - If a logo image is attached, extract the primary color DIRECTLY from the logo.
-${logoBuffer ? '- Look at the attached logo image carefully — the main color in the logo IS the primary brand color.' : ''}
+${logo.buffer ? '- Look at the attached logo image carefully — the main color in the logo IS the primary brand color.' : ''}
 
 Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no code fences):
 {
@@ -357,8 +391,8 @@ Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no c
   const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
     { text: prompt },
   ]
-  if (logoBuffer && !logoMime.includes('svg')) {
-    parts.push({ inlineData: { mimeType: logoMime, data: logoBuffer.toString('base64') } })
+  if (logo.buffer && !logo.mime.includes('svg')) {
+    parts.push({ inlineData: { mimeType: logo.mime, data: logo.buffer.toString('base64') } })
   }
 
   const response = await genai.models.generateContent({
@@ -385,7 +419,7 @@ Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no c
       accentColor: allColors[2] ?? '#FFB347',
       backgroundColor: '#FFFFFF',
       textColor: '#1A1A1A',
-      logoUrl,
+      logoUrl: logo.url,
       fonts,
       brandValues: [],
       services: [],
@@ -401,37 +435,37 @@ Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no c
   }
 
   // Process logo: resize small logos with Sharp first, then upscale with OpenAI if needed
-  let processedLogoUrl = logoUrl
-  if (logoBuffer && !logoMime.includes('svg')) {
+  let processedLogoUrl = logo.url
+  if (logo.buffer && !logo.mime.includes('svg')) {
     const sharpMod = await import('sharp')
     const sharp = sharpMod.default ?? sharpMod
 
     // First: use Sharp to ensure minimum size (OpenAI needs at least 256x256)
     try {
-      const meta = await sharp(logoBuffer).metadata()
+      const meta = await sharp(logo.buffer).metadata()
       const w = meta.width ?? 0
       const h = meta.height ?? 0
-      console.log(`[brand-scraper] Logo dimensions: ${w}x${h}, ${(logoBuffer.length / 1024).toFixed(0)}KB`)
+      console.log(`[brand-scraper] Logo dimensions: ${w}x${h}, ${(logo.buffer.length / 1024).toFixed(0)}KB`)
 
       if (w < 256 || h < 256) {
         // Resize up to at least 512px on the longest side with white background
-        logoBuffer = await sharp(logoBuffer)
+        logo.buffer = await sharp(logo.buffer)
           .resize(512, 512, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
           .png()
           .toBuffer()
-        console.log(`[brand-scraper] Logo padded to 512x512 (${(logoBuffer.length / 1024).toFixed(0)}KB)`)
+        console.log(`[brand-scraper] Logo padded to 512x512 (${(logo.buffer.length / 1024).toFixed(0)}KB)`)
       }
     } catch (sharpErr) {
       console.log('[brand-scraper] Sharp logo processing failed:', sharpErr instanceof Error ? sharpErr.message : 'unknown')
     }
 
     // Now try OpenAI upscale for small logos (under 15KB after padding)
-    if (logoBuffer.length < 15000) {
+    if (logo.buffer.length < 15000) {
       try {
         const OpenAI = (await import('openai')).default
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-        console.log(`[brand-scraper] Upscaling logo with OpenAI (${(logoBuffer.length / 1024).toFixed(0)}KB)...`)
-        const logoFile = new File([new Uint8Array(logoBuffer)], 'logo.png', { type: 'image/png' })
+        console.log(`[brand-scraper] Upscaling logo with OpenAI (${(logo.buffer.length / 1024).toFixed(0)}KB)...`)
+        const logoFile = new File([new Uint8Array(logo.buffer)], 'logo.png', { type: 'image/png' })
         const response = await openai.images.edit({
           model: 'gpt-image-2',
           image: logoFile,
@@ -445,16 +479,16 @@ Create a comprehensive brand analysis. Return ONLY valid JSON (no markdown, no c
           processedLogoUrl = `data:image/png;base64,${imageData.b64_json}`
           console.log('[brand-scraper] Logo upscaled successfully')
         } else {
-          processedLogoUrl = `data:image/png;base64,${logoBuffer.toString('base64')}`
+          processedLogoUrl = `data:image/png;base64,${logo.buffer.toString('base64')}`
         }
       } catch (err) {
         console.log('[brand-scraper] Logo upscale failed, using padded version:', err instanceof Error ? err.message : 'unknown')
-        processedLogoUrl = `data:image/png;base64,${logoBuffer.toString('base64')}`
+        processedLogoUrl = `data:image/png;base64,${logo.buffer.toString('base64')}`
       }
     } else {
       // Logo is good quality already
-      processedLogoUrl = `data:${logoMime};base64,${logoBuffer.toString('base64')}`
-      console.log(`[brand-scraper] Logo good quality (${(logoBuffer.length / 1024).toFixed(0)}KB), using as-is`)
+      processedLogoUrl = `data:${logo.mime};base64,${logo.buffer.toString('base64')}`
+      console.log(`[brand-scraper] Logo good quality (${(logo.buffer.length / 1024).toFixed(0)}KB), using as-is`)
     }
   }
 

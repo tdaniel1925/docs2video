@@ -209,6 +209,7 @@ export async function POST(request: Request) {
 
     // Auto-create brand from scraped URL
     let autoBrandId: string | null = null
+    let autoLogoUrl: string | null = null
     try {
       console.log('[extract-url] Scraping brand from URL...')
       const brandAnalysis = await scrapeBrand(url)
@@ -284,13 +285,14 @@ export async function POST(request: Request) {
         console.error('[extract-url] Brand creation failed:', brandError.message)
       } else {
         autoBrandId = newBrand.id
-        console.log(`[extract-url] Auto-created brand: ${brandAnalysis.companyName} (${autoBrandId})`)
+        autoLogoUrl = logoFileUrl
+        console.log(`[extract-url] Auto-created brand: ${brandAnalysis.companyName} (${autoBrandId}), logo: ${logoFileUrl ? 'yes' : 'no'}`)
       }
     } catch (brandErr) {
       console.error('[extract-url] Brand scraping failed:', brandErr instanceof Error ? brandErr.message : 'unknown')
     }
 
-    return NextResponse.json({ ...data, suggestedTheme, autoBrandId })
+    return NextResponse.json({ ...data, suggestedTheme, autoBrandId, autoLogoUrl })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'URL extraction failed'
     return NextResponse.json({ error: message }, { status: 500 })
