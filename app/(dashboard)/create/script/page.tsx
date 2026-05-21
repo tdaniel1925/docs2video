@@ -223,7 +223,7 @@ export default function ScriptPage() {
                     const updated = [...scenes]
                     updated[i] = { ...updated[i], narration: e.target.value }
                     setScenes(updated)
-                    autoSave(updated)
+                    autoSave(updated, i)
                   }}
                   style={{
                     width: '100%', minHeight: 80, resize: 'vertical', border: '1px solid var(--border-light)',
