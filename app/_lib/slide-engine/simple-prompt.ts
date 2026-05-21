@@ -70,7 +70,7 @@ Rules:
 - Display ALL content text above on the slide
 - Every letter perfectly spelled and readable
 - 80px safe padding on all edges
-- Leave the TOP-RIGHT corner (160x100px area) completely empty — a logo will be placed there later
+- A small logo will be composited in the top-right corner later — do not worry about leaving space for it
 - All URLs and email addresses must be displayed in lowercase
 - When a phone number is in the content, display it prominently
 - Do NOT add any text not listed above

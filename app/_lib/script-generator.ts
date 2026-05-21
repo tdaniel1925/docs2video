@@ -1,9 +1,13 @@
-import { GoogleGenAI } from '@google/genai'
+import OpenAI from 'openai'
 import type { ExtractedPolicyData, VideoScene } from './types'
 import { type ExtractedData, isInsuranceData } from './extract-types'
 import { INDUSTRIES, detectIndustry, type IndustryId } from './industries'
 
-const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+let _openai: OpenAI | null = null
+function getOpenAI() {
+  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+  return _openai
+}
 
 function formatCurrency(n: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -157,9 +161,8 @@ Additional Notes: ${(data as any).additionalNotes?.join(', ') || 'None'}
 VOICE RULES (CRITICAL):
 - The narrator must NEVER introduce themselves, say their name, or say who they are. They are just a voice.
 - The narrator must NEVER say "I'm [name]" or "My name is" or "I'm your agent/advisor"
-- The FIRST scene should start with: "Hello, and thank you for your time."
-- After the greeting, go straight into the content. No introductions about who is presenting.
-- The LAST scene should end with: "Thank you for your time. If you have any questions, please don't hesitate to reach out."
+- The FIRST scene should open naturally — jump straight into the topic. No formal "Hello and thank you" greeting.
+- The LAST scene should simply wrap up the content naturally. No forced "thank you for your time" or "don't hesitate to reach out."
 
 DATA INTEGRITY (ABSOLUTE RULE — VIOLATION = FAILURE):
 - ONLY state facts, numbers, names, and claims that appear VERBATIM in the DOCUMENT DATA above
@@ -266,12 +269,13 @@ Return ONLY valid JSON array (no markdown, no code fences):
   }
 ]`
 
-  const response = await genai.models.generateContent({
-    model: 'gemini-2.5-pro',
-    contents: prompt,
+  const response = await getOpenAI().chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.7,
   })
 
-  const text = response.text?.trim() ?? ''
+  const text = response.choices[0]?.message?.content?.trim() ?? ''
   const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
 
   try {
@@ -440,12 +444,13 @@ FIELD RULES:
 - "slidePrompt": visual concept only (e.g. "growth chart on dark background") — NOT content text
 - "beat": one of "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"`
 
-    const response = await genai.models.generateContent({
-      model: 'gemini-2.5-pro',
-      contents: podcastPrompt,
+    const response = await getOpenAI().chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: podcastPrompt }],
+      temperature: 0.7,
     })
 
-    const text = response.text?.trim() ?? ''
+    const text = response.choices[0]?.message?.content?.trim() ?? ''
     const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
 
     try {
@@ -487,12 +492,13 @@ FIELD RULES:
 - "slidePrompt": visual concept only (e.g. "dark background with growth chart icon") — NOT content text
 - "beat": one of "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"`
 
-  const response = await genai.models.generateContent({
-    model: 'gemini-2.5-pro',
-    contents: prompt,
+  const response = await getOpenAI().chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.7,
   })
 
-  const text = response.text?.trim() ?? ''
+  const text = response.choices[0]?.message?.content?.trim() ?? ''
   const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
 
   try {
