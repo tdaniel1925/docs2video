@@ -240,11 +240,10 @@ export async function scrapeBrand(url: string): Promise<BrandAnalysis> {
   const trimmedServices = servicesHtml ? servicesHtml.slice(0, 8000) : ''
 
   // Logo strategy: try multiple sources, pick the best one
-  const logo: { buffer: Buffer | null; mime: string; url: string | null; source: string } = { buffer: null, mime: 'image/png', url: null, source: '' }
+  const logo: { buffer: Buffer | null; mime: string; url: string | null; source: string; score: number } = { buffer: null, mime: 'image/png', url: null, source: '', score: 0 }
   const domain = parsedUrl.hostname.replace('www.', '')
 
   async function tryLogoUrl(url: string, source: string): Promise<boolean> {
-    if (logo.buffer) return true // already found
     try {
       const res = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(5000) })
       if (res.ok) {
@@ -252,13 +251,28 @@ export async function scrapeBrand(url: string): Promise<BrandAnalysis> {
         if (ct.startsWith('image/') && !ct.includes('svg')) {
           const buf = Buffer.from(await res.arrayBuffer())
           if (buf.length > 500) { // skip tiny placeholders
-            // Keep the largest logo found
-            if (!logo.buffer || buf.length > (logo.buffer as Buffer).length) {
+            // Score this logo: prefer wider images (real logos) over square icons
+            let score = buf.length
+            try {
+              const sharpMod = await import('sharp')
+              const s = sharpMod.default ?? sharpMod
+              const meta = await s(buf).metadata()
+              const w = meta.width ?? 0
+              const h = meta.height ?? 0
+              const ratio = w / Math.max(h, 1)
+              // Wide logos (ratio > 1.5) are almost always the real logo with text
+              // Square icons (ratio ~1) are usually favicons
+              if (ratio > 1.5) score += 500000 // heavily prefer wide logos
+              if (w >= 400) score += 100000 // prefer larger dimensions
+            } catch { /* skip metadata check */ }
+
+            if (!logo.buffer || score > logo.score) {
               logo.buffer = buf
               logo.mime = ct.split(';')[0] || 'image/png'
               logo.url = url
               logo.source = source
-              console.log(`[brand-scraper] Logo found via ${source}: ${(buf.length / 1024).toFixed(0)}KB — ${url.slice(0, 80)}`)
+              logo.score = score
+              console.log(`[brand-scraper] Logo found via ${source}: ${(buf.length / 1024).toFixed(0)}KB (score: ${score}) — ${url.slice(0, 80)}`)
             }
             return true
           }
@@ -269,38 +283,21 @@ export async function scrapeBrand(url: string): Promise<BrandAnalysis> {
   }
 
   // Source 1: Logo.dev API (clean, high-res, transparent PNGs)
+  // Try ALL sources — scoring picks the best one (wide logos beat square icons)
   await tryLogoUrl(`https://img.logo.dev/${domain}?token=pk_OoIZc53tSDKpqi7uM8wyZQ&size=512&format=png`, 'Logo.dev')
+  await tryLogoUrl(`https://www.google.com/s2/favicons?domain=${domain}&sz=256`, 'Google Favicon')
 
-  // Source 2: Google Favicon API (256px, very reliable)
-  if (!logo.buffer) {
-    await tryLogoUrl(`https://www.google.com/s2/favicons?domain=${domain}&sz=256`, 'Google Favicon')
+  // Common direct paths
+  for (const path of ['/apple-touch-icon.png', '/logo.png', '/images/logo.png', '/assets/logo.png', '/android-chrome-512x512.png']) {
+    await tryLogoUrl(`${baseOrigin}${path}`, `Direct path ${path}`)
   }
 
-  // Source 3: Common direct paths that many sites use
-  if (!logo.buffer) {
-    const commonPaths = [
-      '/apple-touch-icon.png',
-      '/apple-touch-icon-precomposed.png',
-      '/logo.png',
-      '/images/logo.png',
-      '/assets/logo.png',
-      '/img/logo.png',
-      '/favicon-192x192.png',
-      '/android-chrome-512x512.png',
-      '/android-chrome-192x192.png',
-    ]
-    for (const path of commonPaths) {
-      if (logo.buffer) break
-      await tryLogoUrl(`${baseOrigin}${path}`, `Direct path ${path}`)
-    }
-  }
-
-  // Source 4: Scraped from HTML (header/nav priority, srcset, WordPress full-size)
-  if (!logo.buffer && scrapedLogoUrl) {
+  // HTML scraped logo
+  if (scrapedLogoUrl) {
     await tryLogoUrl(scrapedLogoUrl, 'HTML scrape')
   }
 
-  // Source 5: WordPress — try stripping size suffix for full original
+  // WordPress full-size — strip size suffix
   if (scrapedLogoUrl && scrapedLogoUrl.match(/-\d+x\d+\.\w+$/)) {
     const fullUrl = scrapedLogoUrl.replace(/-\d+x\d+(\.\w+)$/, '$1')
     if (fullUrl !== scrapedLogoUrl) {
