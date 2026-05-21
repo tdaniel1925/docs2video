@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function ScriptPage() {
@@ -11,6 +11,20 @@ export default function ScriptPage() {
   const [scenes, setScenes] = useState<any[]>([])
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Auto-save scenes to localStorage with debounce
+  const autoSave = useCallback((updatedScenes: any[]) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+      state.scenes = updatedScenes
+      localStorage.setItem('d2v_create', JSON.stringify(state))
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1500)
+    }, 800)
+  }, [])
 
   useEffect(() => {
     const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
@@ -160,8 +174,13 @@ export default function ScriptPage() {
         {/* Script editor */}
         {scenes.length > 0 && (
           <>
-            <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20, textAlign: 'center' }}>
-              {scenes.length} scenes &middot; ~{Math.round(scenes.reduce((sum: number, s: any) => sum + (s.narration?.split(/\s+/).length || 0), 0) / 2.5)}s estimated
+            <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+              <span>{scenes.length} scenes &middot; ~{Math.round(scenes.reduce((sum: number, s: any) => sum + (s.narration?.split(/\s+/).length || 0), 0) / 2.5)}s estimated</span>
+              {saved && (
+                <span style={{ fontSize: 12, color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600, animation: 'fadeInUp 0.3s ease' }}>
+                  &#10003; Saved
+                </span>
+              )}
             </div>
 
             {scenes.map((scene: any, i: number) => (
@@ -182,6 +201,7 @@ export default function ScriptPage() {
                       const updated = [...scenes]
                       updated[i] = { ...updated[i], title: e.target.value }
                       setScenes(updated)
+                      autoSave(updated)
                     }}
                     style={{ border: 'none', background: 'transparent', fontWeight: 700, fontSize: 16, flex: 1, outline: 'none', color: 'var(--ink)', fontFamily: 'inherit' }}
                   />
@@ -192,6 +212,7 @@ export default function ScriptPage() {
                     const updated = [...scenes]
                     updated[i] = { ...updated[i], narration: e.target.value }
                     setScenes(updated)
+                    autoSave(updated)
                   }}
                   style={{
                     width: '100%', minHeight: 80, resize: 'vertical', border: '1px solid var(--border-light)',
