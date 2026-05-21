@@ -17,18 +17,14 @@ function getFirecrawl() {
   return _firecrawl
 }
 
-// Detect if message needs web lookup
+// Detect if message contains a URL to scrape
 function needsWebSearch(msg: string): string | null {
-  const urlMatch = msg.match(/https?:\/\/[^\s]+/)
-  if (urlMatch) return urlMatch[0]
-  const patterns = [
-    /(?:look up|search|check|find|research|what does|tell me about)\s+(\S+\.(?:com|io|ai|org|net|co)\S*)/i,
-    /(?:competitor|compare with|vs\.?)\s+(\S+\.(?:com|io|ai|org|net|co)\S*)/i,
-  ]
-  for (const p of patterns) {
-    const match = msg.match(p)
-    if (match) return match[1].startsWith('http') ? match[1] : `https://${match[1]}`
-  }
+  // Match full URLs
+  const fullUrl = msg.match(/https?:\/\/[^\s,)]+/)
+  if (fullUrl) return fullUrl[0]
+  // Match domain-like strings (word.tld)
+  const domainMatch = msg.match(/\b([\w-]+\.(?:com|io|ai|org|net|co|dev|app|xyz|us|uk|ca|edu|gov)(?:\/\S*)?)\b/i)
+  if (domainMatch) return `https://${domainMatch[1]}`
   return null
 }
 
@@ -110,6 +106,8 @@ CONTEXT AWARENESS (CRITICAL):
 - If user picked an option you offered, execute that option immediately — don't ask again.
 - You have access to the original source data. Use it to find real facts, pricing, competitors, features.
 - If user asks about competitors or market info that's not in the source, say what you know and suggest they verify, but provide useful content.
+- Users may paste large blocks of text as reference material. Use that content to update the script as requested.
+- If a URL is detected in the message, web content from that URL will be provided below. Use it.
 ${webContent ? `\nWEB RESEARCH (scraped from ${urlToScrape}):\n${webContent}\n\nUse this web content to answer the user's question or incorporate into the script as requested.` : ''}`,
       },
       // Include conversation history for context

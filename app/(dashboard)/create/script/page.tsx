@@ -434,32 +434,39 @@ export default function ScriptPage() {
                 </div>
 
                 {/* Chat input */}
-                <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-light)', display: 'flex', gap: 8 }}>
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={e => setChatInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleChat() }}
-                    placeholder="Tell AI what to change..."
-                    style={{
-                      flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)',
-                      fontSize: 13, fontFamily: 'inherit', outline: 'none',
-                    }}
-                    onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
-                    onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
-                  />
-                  <button
-                    onClick={handleChat}
-                    disabled={chatLoading || !chatInput.trim()}
-                    style={{
-                      padding: '10px 16px', borderRadius: 8, border: 'none',
-                      background: chatInput.trim() ? 'var(--ink)' : 'var(--border)',
-                      color: 'white', fontSize: 13, fontWeight: 700, cursor: chatInput.trim() ? 'pointer' : 'default',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    &rarr;
-                  </button>
+                <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-light)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--ink-light)', marginBottom: 4 }}>
+                    Paste text or URLs as reference. Press Enter to send.
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <textarea
+                      value={chatInput}
+                      onChange={e => setChatInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChat() } }}
+                      placeholder="Tell AI what to change, paste content, or drop a URL..."
+                      rows={chatInput.includes('\n') || chatInput.length > 80 ? 3 : 1}
+                      style={{
+                        flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)',
+                        fontSize: 13, fontFamily: 'inherit', outline: 'none', resize: 'none',
+                        minHeight: 38, transition: 'height 0.2s',
+                      }}
+                      onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+                      onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                    />
+                    <button
+                      onClick={handleChat}
+                      disabled={chatLoading || !chatInput.trim()}
+                      style={{
+                        padding: '10px 16px', borderRadius: 8, border: 'none',
+                        background: chatInput.trim() ? 'var(--ink)' : 'var(--border)',
+                        color: 'white', fontSize: 13, fontWeight: 700,
+                        cursor: chatInput.trim() ? 'pointer' : 'default',
+                        fontFamily: 'inherit', alignSelf: 'flex-end',
+                      }}
+                    >
+                      &rarr;
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
