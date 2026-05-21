@@ -16,6 +16,8 @@ export default function ScriptPage() {
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; text: string }[]>([])
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
+  const [chatCount, setChatCount] = useState(0)
+  const [templatePromptShown, setTemplatePromptShown] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   // Auto-save scenes to localStorage with debounce
@@ -79,6 +81,33 @@ export default function ScriptPage() {
     if (!chatInput.trim() || chatLoading) return
     const msg = chatInput.trim()
     setChatInput('')
+
+    // Handle template save
+    if (msg === 'Yes, save as template') {
+      setChatMessages(prev => [...prev, { role: 'user', text: msg }])
+      const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+      const templateName = state.purpose?.slice(0, 50) || 'My template'
+      // Save to localStorage templates list
+      const templates = JSON.parse(localStorage.getItem('d2v_templates') || '[]')
+      templates.push({
+        id: Date.now().toString(),
+        name: templateName,
+        intentType: state.intentType,
+        purpose: state.purpose,
+        detailLevel,
+        narrationStyle,
+        createdAt: new Date().toISOString(),
+      })
+      localStorage.setItem('d2v_templates', JSON.stringify(templates))
+      setChatMessages(prev => [...prev, { role: 'assistant', text: `Template saved as "${templateName}". Next time you create a similar video, you can load this template from the goal page.` }])
+      return
+    }
+    if (msg === 'No thanks') {
+      setChatMessages(prev => [...prev, { role: 'user', text: msg }])
+      setChatMessages(prev => [...prev, { role: 'assistant', text: 'No problem. You can always save a template later from Settings.' }])
+      return
+    }
+
     setChatMessages(prev => [...prev, { role: 'user', text: msg }])
     setChatLoading(true)
     try {
@@ -92,6 +121,16 @@ export default function ScriptPage() {
       if (data.scenes) {
         setScenes(data.scenes)
         autoSave(data.scenes, 0)
+        const newCount = chatCount + 1
+        setChatCount(newCount)
+        // After 3 AI changes, suggest saving as template
+        if (newCount === 3 && !templatePromptShown) {
+          setTemplatePromptShown(true)
+          setTimeout(() => {
+            setChatMessages(prev => [...prev, { role: 'assistant', text: '💾 You\'ve customized this script quite a bit. Want to save these preferences as a template for future videos with similar content?' }])
+            setChatMessages(prev => [...prev, { role: 'assistant', text: `_options_${JSON.stringify(['Yes, save as template', 'No thanks'])}` }])
+          }, 500)
+        }
       }
       if (data.reply) {
         setChatMessages(prev => [...prev, { role: 'assistant', text: data.reply }])
