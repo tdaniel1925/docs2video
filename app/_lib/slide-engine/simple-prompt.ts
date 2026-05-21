@@ -29,13 +29,19 @@ export function buildSimpleSlidePrompt(input: SimpleSlideInput): string {
     contentLines.push(`Title: "${headline}"`)
     if (subtitle) contentLines.push(`Subtitle: "${subtitle}"`)
   } else if (type === 'closing') {
-    contentLines.push(`This is a CLOSING slide — simple thank you.`)
+    contentLines.push(`This is a CLOSING slide.`)
     contentLines.push(`Headline: "${headline}"`)
+    if (brandName) contentLines.push(`Brand name: "${brandName}" — display prominently`)
     if (contactInfo?.phone) contentLines.push(`Phone: ${contactInfo.phone}`)
     if (contactInfo?.email) contentLines.push(`Email: ${contactInfo.email?.toLowerCase()}`)
     if (contactInfo?.website) contentLines.push(`Website: ${contactInfo.website?.toLowerCase()}`)
     if (contactInfo?.calendly) contentLines.push(`"Schedule a call from this page"`)
-    contentLines.push(`Do NOT invent any contact information. Only show phone/email/website if listed above. If none listed, just show "Thank You".`)
+    if (bullets && bullets.length > 0) {
+      contentLines.push(`Additional info:`)
+      bullets.forEach(b => contentLines.push(`- ${b.text}`))
+    }
+    contentLines.push(`Fill the slide with content — no large empty white spaces. If no contact info above, show the brand name large and centered with "Thank You for Watching" below it.`)
+    contentLines.push(`Do NOT invent any contact information. Only show phone/email/website if listed above.`)
   } else {
     contentLines.push(`Title: "${headline}"`)
     if (subtitle) contentLines.push(`Subtitle: "${subtitle}"`)

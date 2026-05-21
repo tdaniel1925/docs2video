@@ -140,15 +140,32 @@ export async function POST(request: Request) {
     let scenes
     if (preGeneratedScenes && preGeneratedScenes.length > 0) {
       console.log(`[video ${videoId}] Using ${preGeneratedScenes.length} pre-generated scenes.`)
-      // Replace {{BRAND_NAME}} placeholder with the actual selected brand
+      // Replace {{BRAND_NAME}} placeholder and strip invented contact info
       const actualBrandName = brand?.name || ''
+      const sourceText = JSON.stringify(policyData) // original document data
+      const phonePattern = /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\+\d[\d\s-]{7,15}\d|\d{3,4}[\s-]\d{3,4}[\s-]\d{3,4}/g
+
+      function stripFakePhones(text: string): string {
+        return text.replace(phonePattern, (match) => {
+          // Keep the number ONLY if it exists in the original source data
+          const digits = match.replace(/\D/g, '')
+          if (sourceText.includes(digits) || sourceText.includes(match)) return match
+          console.log(`[video ${videoId}] Stripped invented phone: ${match}`)
+          return ''
+        }).replace(/\s{2,}/g, ' ').trim()
+      }
+
       scenes = preGeneratedScenes.map((s: any) => ({
         ...s,
-        narration: s.narration?.replaceAll('{{BRAND_NAME}}', actualBrandName) || s.narration,
+        narration: stripFakePhones(s.narration?.replaceAll('{{BRAND_NAME}}', actualBrandName) || s.narration || ''),
         dialogue: s.dialogue?.map((d: any) => ({
           ...d,
-          text: d.text?.replaceAll('{{BRAND_NAME}}', actualBrandName) || d.text,
+          text: stripFakePhones(d.text?.replaceAll('{{BRAND_NAME}}', actualBrandName) || d.text || ''),
         })),
+        slideData: s.slideData ? {
+          ...s.slideData,
+          bullets: s.slideData.bullets?.filter((b: string) => !phonePattern.test(b) || sourceText.includes(b)),
+        } : s.slideData,
       }))
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script ready', progress_pct: 15 }).eq('id', videoId)
     } else {
