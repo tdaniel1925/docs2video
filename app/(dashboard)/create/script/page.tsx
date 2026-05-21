@@ -13,6 +13,10 @@ export default function ScriptPage() {
   const [error, setError] = useState<string | null>(null)
   const [savedScene, setSavedScene] = useState<number | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; text: string }[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
 
   // Auto-save scenes to localStorage with debounce
   const autoSave = useCallback((updatedScenes: any[], sceneIdx: number) => {
@@ -71,6 +75,34 @@ export default function ScriptPage() {
     setGenerating(false)
   }
 
+  async function handleChat() {
+    if (!chatInput.trim() || chatLoading) return
+    const msg = chatInput.trim()
+    setChatInput('')
+    setChatMessages(prev => [...prev, { role: 'user', text: msg }])
+    setChatLoading(true)
+    try {
+      const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+      const res = await fetch('/api/script-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, scenes, purpose: state.purpose }),
+      })
+      const data = await res.json()
+      if (data.scenes) {
+        setScenes(data.scenes)
+        autoSave(data.scenes, 0)
+        setChatMessages(prev => [...prev, { role: 'assistant', text: `Updated ${data.scenes.length} scenes.` }])
+      } else if (data.reply) {
+        setChatMessages(prev => [...prev, { role: 'assistant', text: data.reply }])
+      }
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'assistant', text: 'Something went wrong. Try again.' }])
+    }
+    setChatLoading(false)
+    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+  }
+
   function handleContinue() {
     const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
     state.scenes = scenes
@@ -82,7 +114,7 @@ export default function ScriptPage() {
 
   return (
     <div style={{
-      flex: 1, padding: '40px 24px', maxWidth: 800, margin: '0 auto', width: '100%',
+      flex: 1, padding: '40px 24px', maxWidth: scenes.length > 0 ? 1100 : 800, margin: '0 auto', width: '100%', transition: 'max-width 0.3s',
     }}>
       <style>{`
         @keyframes fadeInUp {
@@ -192,63 +224,148 @@ export default function ScriptPage() {
           </>
         )}
 
-        {/* Script editor */}
+        {/* Two-column: Script editor + AI chat */}
         {scenes.length > 0 && (
           <>
             <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20, textAlign: 'center' }}>
               {scenes.length} scenes &middot; ~{Math.round(scenes.reduce((sum: number, s: any) => sum + (s.narration?.split(/\s+/).length || 0), 0) / 2.5)}s estimated
             </div>
 
-            {scenes.map((scene: any, i: number) => (
-              <div key={i} style={{
-                marginBottom: 16, borderRadius: 14, padding: 20,
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'start' }}>
+              {/* Left: Script editor */}
+              <div>
+                {scenes.map((scene: any, i: number) => (
+                  <div key={i} style={{
+                    marginBottom: 14, borderRadius: 14, padding: 18,
+                    background: 'white', border: '1px solid var(--border-light)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <span style={{
+                        width: 26, height: 26, borderRadius: '50%', background: 'var(--mint)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontWeight: 800, fontSize: 12, flexShrink: 0,
+                      }}>{i + 1}</span>
+                      <input
+                        type="text"
+                        value={scene.title}
+                        onChange={e => {
+                          const updated = [...scenes]
+                          updated[i] = { ...updated[i], title: e.target.value }
+                          setScenes(updated)
+                          autoSave(updated, i)
+                        }}
+                        style={{ border: 'none', background: 'transparent', fontWeight: 700, fontSize: 15, flex: 1, outline: 'none', color: 'var(--ink)', fontFamily: 'inherit' }}
+                      />
+                    </div>
+                    <textarea
+                      value={scene.narration}
+                      onChange={e => {
+                        const updated = [...scenes]
+                        updated[i] = { ...updated[i], narration: e.target.value }
+                        setScenes(updated)
+                        autoSave(updated, i)
+                      }}
+                      style={{
+                        width: '100%', minHeight: 70, resize: 'vertical', border: '1px solid var(--border-light)',
+                        borderRadius: 8, padding: 10, fontSize: 13, lineHeight: 1.6,
+                        fontFamily: 'inherit', outline: 'none',
+                      }}
+                    />
+                    <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span>~{Math.round((scene.narration?.split(/\s+/).length || 0) / 2.5)}s &middot; {scene.narration?.split(/\s+/).length || 0} words</span>
+                      {savedScene === i && (
+                        <span style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600, animation: 'fadeInUp 0.3s ease' }}>
+                          &#10003; Saved
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Right: AI Chat assistant */}
+              <div style={{
+                position: 'sticky', top: 80, borderRadius: 16,
                 background: 'white', border: '1px solid var(--border-light)',
+                display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 120px)',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <span style={{
-                    width: 28, height: 28, borderRadius: '50%', background: 'var(--mint)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontWeight: 800, fontSize: 13, flexShrink: 0,
-                  }}>{i + 1}</span>
+                <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border-light)' }}>
+                  <div style={{ fontSize: 15, fontWeight: 700 }}>Script Assistant</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>Ask AI to edit your script</div>
+                </div>
+
+                {/* Chat messages */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', minHeight: 200 }}>
+                  {chatMessages.length === 0 && (
+                    <div style={{ fontSize: 13, color: 'var(--ink-light)', lineHeight: 1.6 }}>
+                      <p style={{ marginBottom: 8 }}>Try:</p>
+                      <div onClick={() => { setChatInput('Make all scenes shorter'); }} style={{ padding: '6px 10px', borderRadius: 8, background: 'var(--bg-soft)', marginBottom: 6, cursor: 'pointer', fontSize: 12 }}>
+                        &ldquo;Make all scenes shorter&rdquo;
+                      </div>
+                      <div onClick={() => { setChatInput('Add a scene about pricing'); }} style={{ padding: '6px 10px', borderRadius: 8, background: 'var(--bg-soft)', marginBottom: 6, cursor: 'pointer', fontSize: 12 }}>
+                        &ldquo;Add a scene about pricing&rdquo;
+                      </div>
+                      <div onClick={() => { setChatInput('Make the tone more casual'); }} style={{ padding: '6px 10px', borderRadius: 8, background: 'var(--bg-soft)', marginBottom: 6, cursor: 'pointer', fontSize: 12 }}>
+                        &ldquo;Make the tone more casual&rdquo;
+                      </div>
+                      <div onClick={() => { setChatInput('Rewrite scene 1 to be more engaging'); }} style={{ padding: '6px 10px', borderRadius: 8, background: 'var(--bg-soft)', cursor: 'pointer', fontSize: 12 }}>
+                        &ldquo;Rewrite scene 1 to be more engaging&rdquo;
+                      </div>
+                    </div>
+                  )}
+                  {chatMessages.map((msg, i) => (
+                    <div key={i} style={{
+                      marginBottom: 10, padding: '8px 12px', borderRadius: 10,
+                      background: msg.role === 'user' ? 'var(--ink)' : 'var(--bg-soft)',
+                      color: msg.role === 'user' ? 'white' : 'var(--ink)',
+                      fontSize: 13, lineHeight: 1.5,
+                      marginLeft: msg.role === 'user' ? 40 : 0,
+                      marginRight: msg.role === 'assistant' ? 40 : 0,
+                    }}>
+                      {msg.text}
+                    </div>
+                  ))}
+                  {chatLoading && (
+                    <div style={{ fontSize: 13, color: 'var(--ink-light)', padding: '8px 0' }}>
+                      Thinking...
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {/* Chat input */}
+                <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-light)', display: 'flex', gap: 8 }}>
                   <input
                     type="text"
-                    value={scene.title}
-                    onChange={e => {
-                      const updated = [...scenes]
-                      updated[i] = { ...updated[i], title: e.target.value }
-                      setScenes(updated)
-                      autoSave(updated, i)
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleChat() }}
+                    placeholder="Tell AI what to change..."
+                    style={{
+                      flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)',
+                      fontSize: 13, fontFamily: 'inherit', outline: 'none',
                     }}
-                    style={{ border: 'none', background: 'transparent', fontWeight: 700, fontSize: 16, flex: 1, outline: 'none', color: 'var(--ink)', fontFamily: 'inherit' }}
+                    onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+                    onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
                   />
-                </div>
-                <textarea
-                  value={scene.narration}
-                  onChange={e => {
-                    const updated = [...scenes]
-                    updated[i] = { ...updated[i], narration: e.target.value }
-                    setScenes(updated)
-                    autoSave(updated, i)
-                  }}
-                  style={{
-                    width: '100%', minHeight: 80, resize: 'vertical', border: '1px solid var(--border-light)',
-                    borderRadius: 8, padding: 12, fontSize: 14, lineHeight: 1.6,
-                    fontFamily: 'inherit', outline: 'none',
-                  }}
-                />
-                <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span>~{Math.round((scene.narration?.split(/\s+/).length || 0) / 2.5)}s &middot; {scene.narration?.split(/\s+/).length || 0} words</span>
-                  {savedScene === i && (
-                    <span style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600, animation: 'fadeInUp 0.3s ease' }}>
-                      &#10003; Saved
-                    </span>
-                  )}
+                  <button
+                    onClick={handleChat}
+                    disabled={chatLoading || !chatInput.trim()}
+                    style={{
+                      padding: '10px 16px', borderRadius: 8, border: 'none',
+                      background: chatInput.trim() ? 'var(--ink)' : 'var(--border)',
+                      color: 'white', fontSize: 13, fontWeight: 700, cursor: chatInput.trim() ? 'pointer' : 'default',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    &rarr;
+                  </button>
                 </div>
               </div>
-            ))}
+            </div>
 
             <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-              <button onClick={() => { setScenes([]); setError(null) }} style={{
+              <button onClick={() => { setScenes([]); setError(null); setChatMessages([]) }} style={{
                 padding: '16px 28px', borderRadius: 12, border: '2px solid var(--border)',
                 background: 'white', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: 'var(--ink-soft)', fontFamily: 'inherit',
               }}>
