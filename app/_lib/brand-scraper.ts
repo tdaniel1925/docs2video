@@ -277,27 +277,26 @@ export async function scrapeBrand(url: string, firecrawlContent?: { markdown: st
     return false
   }
 
-  // Source 1: Logo.dev API (clean, high-res, transparent PNGs)
-  // Try ALL sources — scoring picks the best one (wide logos beat square icons)
-  await tryLogoUrl(`https://img.logo.dev/${domain}?token=pk_OoIZc53tSDKpqi7uM8wyZQ&size=512&format=png`, 'Logo.dev')
-  await tryLogoUrl(`https://www.google.com/s2/favicons?domain=${domain}&sz=256`, 'Google Favicon')
-
-  // Common direct paths
-  for (const path of ['/apple-touch-icon.png', '/logo.png', '/images/logo.png', '/assets/logo.png', '/android-chrome-512x512.png']) {
-    await tryLogoUrl(`${baseOrigin}${path}`, `Direct path ${path}`)
-  }
-
-  // HTML scraped logo
+  // Try multiple sources — scoring picks the best one (wide logos beat square icons)
+  // HTML scrape first (most likely to find the real logo), then fallbacks
   if (scrapedLogoUrl) {
     await tryLogoUrl(scrapedLogoUrl, 'HTML scrape')
   }
 
   // WordPress full-size — strip size suffix
   if (scrapedLogoUrl && scrapedLogoUrl.match(/-\d+x\d+\.\w+$/)) {
-    const fullUrl = scrapedLogoUrl.replace(/-\d+x\d+(\.\w+)$/, '$1')
-    if (fullUrl !== scrapedLogoUrl) {
-      await tryLogoUrl(fullUrl, 'WordPress full-size')
+    const fullUrl2 = scrapedLogoUrl.replace(/-\d+x\d+(\.\w+)$/, '$1')
+    if (fullUrl2 !== scrapedLogoUrl) {
+      await tryLogoUrl(fullUrl2, 'WordPress full-size')
     }
+  }
+
+  // Google Favicon as fallback (256px)
+  await tryLogoUrl(`https://www.google.com/s2/favicons?domain=${domain}&sz=256`, 'Google Favicon')
+
+  // Common direct paths as last resort
+  for (const path of ['/apple-touch-icon.png', '/logo.png', '/images/logo.png', '/assets/logo.png', '/android-chrome-512x512.png']) {
+    await tryLogoUrl(`${baseOrigin}${path}`, `Direct path ${path}`)
   }
 
   if (!logo.buffer) {
