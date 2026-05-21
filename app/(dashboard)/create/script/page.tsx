@@ -119,9 +119,21 @@ export default function ScriptPage() {
         body: JSON.stringify({ message: msg, scenes, purpose: state.purpose, sourceData: state.extractedData, history: chatMessages.filter(m => !m.text.startsWith('_options_')).slice(-10) }),
       })
       const data = await res.json()
-      if (data.scenes) {
-        setScenes(data.scenes)
-        autoSave(data.scenes, 0)
+      console.log('[script-chat] Response:', JSON.stringify(data).slice(0, 500))
+      if (data.scenes && Array.isArray(data.scenes) && data.scenes.length > 0) {
+        // Ensure scenes have narration field
+        const validScenes = data.scenes.map((s: any, idx: number) => ({
+          ...s,
+          scene: idx + 1,
+          title: s.title || `Scene ${idx + 1}`,
+          narration: s.narration || '',
+          slideData: s.slideData || undefined,
+          slidePrompt: s.slidePrompt || '',
+          duration: s.duration || 15,
+        }))
+        setScenes(validScenes)
+        autoSave(validScenes, 0)
+        console.log(`[script-chat] Updated ${validScenes.length} scenes`)
         const newCount = chatCount + 1
         setChatCount(newCount)
         // After 3 AI changes, suggest saving as template

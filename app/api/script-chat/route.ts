@@ -73,12 +73,13 @@ When the user says something is wrong or asks for corrections, LOOK UP the corre
 
 You MUST respond with a JSON object in one of these formats:
 
-FORMAT 1 — When you make changes:
+FORMAT 1 — When you make ANY changes (CRITICAL: you MUST include the full scenes array):
 {
-  "scenes": [/* complete updated scenes array */],
+  "scenes": [/* COMPLETE array of ALL scenes — not just the changed ones. Include EVERY scene even if unchanged. This is the FULL replacement script. */],
   "summary": "Brief description of what you changed — be specific about which scenes and what changed",
   "suggestion": "Optional follow-up suggestion, or null"
 }
+IMPORTANT: If you say you made changes but don't include the "scenes" array, the changes will NOT be applied. You MUST always return ALL scenes.
 
 FORMAT 2 — When you need clarification:
 {
@@ -121,6 +122,7 @@ ${webContent ? `\nWEB RESEARCH (scraped from ${urlToScrape}):\n${webContent}\n\n
       },
     ],
     temperature: 0.5,
+    max_tokens: 8000,
   })
 
   const text = response.choices[0]?.message?.content?.trim() ?? ''
