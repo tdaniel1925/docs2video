@@ -21,17 +21,31 @@ export default function ScriptPage() {
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
-  // Auto-save scenes to localStorage with debounce
-  const autoSave = useCallback((updatedScenes: any[], sceneIdx: number) => {
+  // Auto-save scenes to localStorage — debounced for typing, instant for other actions
+  const autoSave = useCallback((updatedScenes: any[], sceneIdx: number, instant?: boolean) => {
     if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => {
+    const doSave = () => {
       const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
       state.scenes = updatedScenes
       localStorage.setItem('d2v_create', JSON.stringify(state))
       setSavedScene(sceneIdx)
       setTimeout(() => setSavedScene(null), 1500)
-    }, 800)
+    }
+    if (instant) {
+      doSave()
+    } else {
+      saveTimer.current = setTimeout(doSave, 800)
+    }
   }, [])
+
+  // Safety net: save scenes whenever they change
+  useEffect(() => {
+    if (scenes.length > 0) {
+      const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+      state.scenes = scenes
+      localStorage.setItem('d2v_create', JSON.stringify(state))
+    }
+  }, [scenes])
 
   useEffect(() => {
     const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
@@ -132,7 +146,7 @@ export default function ScriptPage() {
           duration: s.duration || 15,
         }))
         setScenes(validScenes)
-        autoSave(validScenes, 0)
+        autoSave(validScenes, 0, true)
         console.log(`[script-chat] Updated ${validScenes.length} scenes`)
         const newCount = chatCount + 1
         setChatCount(newCount)
@@ -306,7 +320,7 @@ export default function ScriptPage() {
                       // Renumber
                       updated.forEach((s, idx) => { s.scene = idx + 1 })
                       setScenes(updated)
-                      autoSave(updated, i)
+                      autoSave(updated, i, true)
                       setDragIdx(null)
                     }}
                     onDragEnd={() => setDragIdx(null)}
