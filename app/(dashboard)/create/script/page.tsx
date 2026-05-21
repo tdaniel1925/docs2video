@@ -86,7 +86,7 @@ export default function ScriptPage() {
       const res = await fetch('/api/script-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, scenes, purpose: state.purpose, sourceData: state.extractedData }),
+        body: JSON.stringify({ message: msg, scenes, purpose: state.purpose, sourceData: state.extractedData, history: chatMessages.filter(m => !m.text.startsWith('_options_')).slice(-10) }),
       })
       const data = await res.json()
       if (data.scenes) {

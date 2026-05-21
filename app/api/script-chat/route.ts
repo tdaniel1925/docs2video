@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-  const { message, scenes, purpose, sourceData } = await request.json()
+  const { message, scenes, purpose, sourceData, history } = await request.json()
 
   if (!message || !scenes) {
     return NextResponse.json({ error: 'Missing message or scenes' }, { status: 400 })
@@ -65,8 +65,13 @@ BEHAVIOR RULES:
 - NEVER invent contact info, phone numbers, URLs, or emails
 - Keep the summary under 2 sentences — concise and specific`,
       },
+      // Include conversation history for context
+      ...((history || []) as { role: string; text: string }[]).map((h: { role: string; text: string }) => ({
+        role: h.role as 'user' | 'assistant',
+        content: h.text,
+      })),
       {
-        role: 'user',
+        role: 'user' as const,
         content: `Current script:\n${JSON.stringify(scenes, null, 2)}\n\nUser request: ${message}`,
       },
     ],
