@@ -43,7 +43,7 @@ export default function ScriptPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          policyData: state.extractedData,
+          policyData: { ...state.extractedData, intentType: state.intentType },
           brandId: state.selectedBrand || state.autoBrandId,
           detailed: detailLevel === 'detailed',
           detailLevel,

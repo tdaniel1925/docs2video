@@ -319,12 +319,59 @@ export async function generateScript(
   narrationStyle?: 'solo' | 'podcast',
 ): Promise<VideoScene[]> {
   const isInsurance = isInsuranceData(data)
+
+  // PASS 1: Deep analysis — understand the business before writing the script
+  const intentMap: Record<string, string> = {
+    sales: 'This is a SALES VIDEO. Focus on: pricing (list ALL tiers/plans), free trials, key differentiators, social proof, customer testimonials, clear CTA. Emphasize what makes this worth buying.',
+    educate: 'This is an EDUCATIONAL VIDEO. Focus on: core concepts explained clearly, real examples, step-by-step breakdowns, practical takeaways the audience can use.',
+    train: 'This is a TRAINING VIDEO. Focus on: processes step-by-step, common mistakes to avoid, best practices, skills to develop, practical exercises.',
+    report: 'This is a DATA REPORT VIDEO. Focus on: key metrics with context, trends, comparisons, what the numbers mean, actionable insights from the data.',
+    proposal: 'This is a PROPOSAL VIDEO. Focus on: the problem being solved, the unique approach, expected outcomes, why this team/company is the right choice, timeline and next steps.',
+  }
+  const intentGuidance = intentMap[(data as any)?.intentType || ''] || purpose ? `VIDEO PURPOSE: ${purpose}` : 'Create an informative overview of this content.'
+
+  let deepAnalysis = ''
+  try {
+    const analysisResponse = await getOpenAI().chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{
+        role: 'user',
+        content: `You are a content strategist preparing a video. Analyze this source material and create a strategic brief.
+
+${intentGuidance}
+
+SOURCE DATA:
+${JSON.stringify(data).slice(0, 30000)}
+
+Create a strategic brief that identifies:
+1. CORE MESSAGE: What is the single most important thing viewers should understand? (1 sentence)
+2. KEY FACTS: List the 8-15 most important specific facts, numbers, features, or data points from the source. Include ALL pricing info, ALL product features, ALL statistics. Be exhaustive.
+3. UNIQUE VALUE: What makes this different/special? (2-3 points)
+4. AUDIENCE HOOKS: What would make the target audience care? (2-3 points)
+5. STRUCTURE: Suggested flow of topics from opening to closing
+6. CONTACT/CTA: Any real contact info, URLs, or calls to action found in the source (ONLY if they actually exist in the data — do NOT invent any)
+
+Return as plain text, not JSON. Be specific — use actual numbers, names, and facts from the source.`
+      }],
+      temperature: 0.3,
+    })
+    deepAnalysis = analysisResponse.choices[0]?.message?.content?.trim() ?? ''
+    console.log(`[script-gen] Deep analysis: ${deepAnalysis.length} chars`)
+  } catch (err) {
+    console.error('[script-gen] Deep analysis failed, proceeding without:', err instanceof Error ? err.message : 'unknown')
+  }
+
   const promptBody = isInsurance
     ? buildInsuranceScriptPrompt(data as ExtractedPolicyData, brandName, detailed, assetCount ?? 0)
     : buildGenericScriptPrompt(data as ExtractedData, brandName, detailed, assetCount ?? 0, uploadMode, industry)
 
   // Build additional prompt sections based on new parameters
   const additionalSections: string[] = []
+
+  // Inject deep analysis as the primary content guide
+  if (deepAnalysis) {
+    additionalSections.push(`STRATEGIC BRIEF (USE THIS AS YOUR PRIMARY GUIDE — cover ALL these points in the script):\n${deepAnalysis}`)
+  }
 
   // Detail level OVERRIDES the base scene count
   if (detailLevel === 'quick') {
