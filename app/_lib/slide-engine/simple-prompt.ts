@@ -15,6 +15,7 @@ export interface SimpleSlideInput {
   stats?: { label: string; value: string }[]
   bullets?: { text: string }[]
   contactInfo?: { phone?: string; website?: string; email?: string; calendly?: string }
+  narrationContext?: string
   pageNumber: number
   totalPages: number
 }
@@ -56,6 +57,7 @@ export function buildSimpleSlidePrompt(input: SimpleSlideInput): string {
   }
 
   if (brandName) contentLines.push(`Brand: "${brandName}" in small text at bottom.`)
+  if (input.narrationContext) contentLines.push(`CONTEXT: While this slide is showing, the narrator is saying: "${input.narrationContext.slice(0, 200)}". The slide content MUST match this topic.`)
   contentLines.push(`Slide ${pageNumber} of ${totalPages}.`)
 
   return `Create a professional presentation slide, 1920x1088 pixels.

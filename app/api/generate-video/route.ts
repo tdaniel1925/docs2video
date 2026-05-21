@@ -155,16 +155,26 @@ export async function POST(request: Request) {
         }).replace(/\s{2,}/g, ' ').trim()
       }
 
+      // Clean function: strip "undefined", fake phones, brand placeholder
+      function cleanText(t: string): string {
+        return stripFakePhones(
+          (t || '').replaceAll('{{BRAND_NAME}}', actualBrandName).replace(/\bundefined\b/gi, '').replace(/\s{2,}/g, ' ').trim()
+        )
+      }
+
       scenes = preGeneratedScenes.map((s: any) => ({
         ...s,
-        narration: stripFakePhones(s.narration?.replaceAll('{{BRAND_NAME}}', actualBrandName) || s.narration || ''),
+        title: cleanText(s.title || ''),
+        narration: cleanText(s.narration || ''),
         dialogue: s.dialogue?.map((d: any) => ({
           ...d,
-          text: stripFakePhones(d.text?.replaceAll('{{BRAND_NAME}}', actualBrandName) || d.text || ''),
+          text: cleanText(d.text || ''),
         })),
         slideData: s.slideData ? {
           ...s.slideData,
-          bullets: s.slideData.bullets?.filter((b: string) => !phonePattern.test(b) || sourceText.includes(b)),
+          headline: cleanText(s.slideData.headline || s.title || ''),
+          bullets: s.slideData.bullets?.filter((b: string) => !phonePattern.test(b) || sourceText.includes(b)).map((b: string) => cleanText(b)),
+          stats: s.slideData.stats?.map((st: any) => ({ label: cleanText(st.label || ''), value: cleanText(st.value || '') })),
         } : s.slideData,
       }))
 
@@ -263,6 +273,7 @@ export async function POST(request: Request) {
         stats: slideStats,
         bullets: slideBullets,
         contactInfo: sceneContactInfo,
+        narrationContext: scene.narration?.slice(0, 200),
         pageNumber: i + 1,
         totalPages: scenes.length,
       }
