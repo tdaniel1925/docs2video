@@ -131,8 +131,14 @@ export async function POST(request: Request) {
     const markdown = crawlResult?.markdown || crawlResult?.data?.markdown || ''
     const html = crawlResult?.html || crawlResult?.data?.html || ''
 
-    if (markdown.length < 50) {
-      return NextResponse.json({ error: 'Could not extract meaningful content from this URL' }, { status: 400 })
+    if (!markdown || markdown.length < 50) {
+      console.error('[extract-url] Firecrawl returned insufficient content:', markdown?.slice(0, 200))
+      return NextResponse.json({ error: 'Could not extract meaningful content from this URL. The site may be blocking scrapers or temporarily unavailable.' }, { status: 400 })
+    }
+
+    // Check if Firecrawl returned an error page instead of real content
+    if (markdown.includes('502') && markdown.includes('Server Error') || markdown.includes('403 Forbidden')) {
+      return NextResponse.json({ error: 'The website returned an error. Please try again in a moment.' }, { status: 400 })
     }
 
     console.log(`[extract-url] Firecrawl got ${markdown.length} chars markdown, ${html.length} chars HTML`)
