@@ -180,7 +180,7 @@ export default function ReviewPage() {
                 Add contact info <span style={{ fontSize: 13, fontWeight: 500, color: '#a16207' }}>(optional)</span>
               </div>
               <p style={{ fontSize: 14, color: '#a16207', marginBottom: 16, lineHeight: 1.5 }}>
-                We didn&apos;t find contact details in the source. Add them here to include on the closing slide.
+                We didn&apos;t find contact details in the source. Add them here — they&apos;ll appear on the closing slide and the narrator will mention them at the end of the video.
               </p>
               <div style={{ display: 'grid', gap: 12 }}>
                 {fields.map(f => (

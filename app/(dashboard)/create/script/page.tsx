@@ -72,12 +72,23 @@ export default function ScriptPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          policyData: { ...state.extractedData, intentType: state.intentType },
+          policyData: {
+            ...state.extractedData,
+            intentType: state.intentType,
+            contactPhone: state.contactPhone,
+            contactEmail: state.contactEmail,
+            contactWebsite: state.contactWebsite,
+          },
           brandId: state.selectedBrand || state.autoBrandId,
           detailed: detailLevel === 'detailed',
           detailLevel,
           narrationStyle,
           purpose: state.purpose,
+          contactInfo: {
+            phone: state.contactPhone || undefined,
+            email: state.contactEmail || undefined,
+            website: state.contactWebsite || undefined,
+          },
           industry: state.extractedData?.industry || 'general',
         }),
       })

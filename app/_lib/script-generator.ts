@@ -196,6 +196,11 @@ NARRATION QUALITY (CRITICAL — this will be read aloud):
 - Never start with "Now,", "So,", "Additionally,", "Furthermore,"
 - Use active voice: "This saves you 40%" not "A savings of 40% can be achieved"
 - Numbers spoken naturally: "about two hundred thousand" not "$198,447"
+- Decimals: write "one point one" not "1.1". Write "two point five percent" not "2.5%"
+- Dashes and hyphens: NEVER write a literal dash in narration. "state-of-the-art" becomes "state of the art". "24/7" becomes "twenty four seven". "10-15" becomes "ten to fifteen"
+- Symbols: NEVER include symbols that would be read literally. No @, #, &, /, \, |, etc. Write them as words: "at" not "@", "and" not "&", "number" not "#"
+- Phone numbers: spell out naturally: "five five five, one two three, four five six seven" not "555-123-4567"
+- URLs: say "visit their website" not "go to w w w dot example dot com" — URLs look fine on slides but sound terrible spoken
 - Vary how you reference the company: use the company name, "they", "the team", "the platform", "their" — never the same reference twice in a row
 - Never assume or editorialize — don't say "that's impressive" or "that's a lot" unless the data explicitly supports a comparison
 - Each scene flows naturally into the next
@@ -343,6 +348,13 @@ ${intentGuidance}
 SOURCE DATA:
 ${JSON.stringify(data).slice(0, 30000)}
 
+${contactInfo?.phone || contactInfo?.email || contactInfo?.calendly ? `USER-PROVIDED CONTACT INFO (use this in the closing scene):
+${contactInfo.phone ? `Phone: ${contactInfo.phone}` : ''}
+${contactInfo.email ? `Email: ${contactInfo.email}` : ''}
+${(contactInfo as any)?.website ? `Website: ${(contactInfo as any).website}` : ''}
+${contactInfo.calendly ? `Booking: ${contactInfo.calendly}` : ''}
+The narrator should mention this contact info naturally in the final scene. Show it on the closing slide.` : ''}
+
 Create a strategic brief that identifies:
 1. CORE MESSAGE: What is the single most important thing viewers should understand? (1 sentence)
 2. KEY FACTS: List the 8-15 most important specific facts, numbers, features, or data points from the source. Include ALL pricing info, ALL product features, ALL statistics. Be exhaustive.
@@ -400,13 +412,17 @@ Return as plain text, not JSON. Be specific — use actual numbers, names, and f
     additionalSections.push(`BRAND TONE (OVERRIDES INDUSTRY DEFAULT): The brand's actual voice is "${brandTone}". This takes priority over the industry tone above. Match this specific tone throughout the narration — the brand knows its audience better than a generic industry setting.`)
   }
 
-  if (contactInfo && (contactInfo.phone || contactInfo.email || contactInfo.calendly)) {
+  if (contactInfo && (contactInfo.phone || contactInfo.email || contactInfo.calendly || (contactInfo as any)?.website)) {
     const parts: string[] = []
-    if (contactInfo.phone) parts.push(contactInfo.phone)
-    if (contactInfo.email) parts.push(contactInfo.email)
-    const contactText = parts.length > 0 ? `Include the agent's contact details: ${parts.join(' ')}. ` : ''
-    const calendlyText = contactInfo.calendly ? 'Say "You can schedule a call directly from this page."' : ''
-    additionalSections.push(`CONTACT INFO FOR CTA: ${contactText}${calendlyText}`)
+    if (contactInfo.phone) parts.push(`Phone: ${contactInfo.phone}`)
+    if (contactInfo.email) parts.push(`Email: ${contactInfo.email}`)
+    if ((contactInfo as any)?.website) parts.push(`Website: ${(contactInfo as any).website}`)
+    if (contactInfo.calendly) parts.push('Booking link available on the share page')
+    additionalSections.push(`CONTACT INFO (MUST be included in the closing scene narration AND on the closing slide):
+${parts.join('\n')}
+The narrator should mention these naturally in the last scene. Display them on the closing slide.
+For phone numbers in narration: spell out naturally ("five five five, one two three, four five six seven")
+For websites in narration: just say "visit their website" — the URL will be on the slide.`)
   }
 
   const additionalBlock = additionalSections.length > 0 ? '\n\n' + additionalSections.join('\n\n') : ''
