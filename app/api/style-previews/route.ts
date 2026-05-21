@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { generateStylePreviews } from '../../_lib/gemini'
-import OpenAI from 'openai'
+import { GoogleGenAI } from '@google/genai'
 import type { ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -48,24 +48,26 @@ Show a content slide with:
 
     try {
       const [coverRes, contentRes] = await Promise.all([
-        openai.images.generate({
-          model: 'gpt-image-2',
-          prompt: coverPrompt + '\nGlossy, polished finish — subtle glass reflections, soft glows, depth with layered shadows.',
-          size: '1920x1088',
-          quality: 'high',
-          n: 1,
+        genai.models.generateContent({
+          model: 'gemini-3-pro-image-preview',
+          contents: coverPrompt,
+          config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '4K' } } } as any,
         }),
-        openai.images.generate({
-          model: 'gpt-image-2',
-          prompt: contentPrompt + '\nGlossy, polished finish — subtle glass reflections, soft glows, depth with layered shadows.',
-          size: '1920x1088',
-          quality: 'high',
-          n: 1,
+        genai.models.generateContent({
+          model: 'gemini-3-pro-image-preview',
+          contents: contentPrompt,
+          config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '4K' } } } as any,
         }),
       ])
 
-      const coverUrl = coverRes.data?.[0]?.b64_json ? `data:image/png;base64,${coverRes.data[0].b64_json}` : null
-      const contentUrl = contentRes.data?.[0]?.b64_json ? `data:image/png;base64,${contentRes.data[0].b64_json}` : null
+      let coverUrl: string | null = null
+      let contentUrl: string | null = null
+      for (const part of (coverRes.candidates?.[0]?.content?.parts ?? [])) {
+        if (part.inlineData) { coverUrl = `data:image/png;base64,${part.inlineData.data}`; break }
+      }
+      for (const part of (contentRes.candidates?.[0]?.content?.parts ?? [])) {
+        if (part.inlineData) { contentUrl = `data:image/png;base64,${part.inlineData.data}`; break }
+      }
 
       return NextResponse.json({
         previewUrl: coverUrl,
