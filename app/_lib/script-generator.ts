@@ -383,29 +383,35 @@ export async function generateScript(
 
     const podcastPrompt = `${promptBody}${additionalBlock}
 
-NARRATION FORMAT: TWO PROFESSIONAL NARRATORS
-This video uses TWO speakers in a structured, professional discussion format.
+NARRATION FORMAT: TWO NARRATORS IN ONE FLOWING CONVERSATION
+This is ONE continuous conversation between two people, broken into scenes.
+
+CRITICAL: Write the ENTIRE conversation first as a natural flowing dialogue, THEN divide it into scenes. Each scene should feel like a continuation of the previous one — not a fresh start.
 
 SPEAKERS:
 - "${speakerConfig.speaker1.name}" — ${speakerConfig.speaker1.instructions}
 - "${speakerConfig.speaker2.name}" — ${speakerConfig.speaker2.instructions}
 
-CONVERSATION TONE:
-- Professional and clear — two knowledgeable narrators discussing the content
-- NOT forced casual, NOT fake enthusiasm, NOT "two friends at coffee"
-- Natural speech with contractions ("that's", "it's", "they've") but professional vocabulary
-- NEVER use: "check this out", "that's wild", "no way", "wait really" — too informal
-- NEVER use: "the evidence shows", "the data indicates", "it's worth noting" — too robotic
-- Good tone: clear, direct, informative, naturally engaging without trying too hard
-- Interrupt naturally: one person can finish the other's thought
-- Show genuine emotion — excitement, surprise, curiosity
-- It should sound like a conversation you'd WANT to eavesdrop on
+CONVERSATION FLOW RULES (MOST IMPORTANT):
+- The conversation must flow like ONE talk, not separate segments
+- Use transition phrases between scenes: "and speaking of...", "that actually connects to...", "building on that...", "the other thing I wanted to mention..."
+- ${speakerConfig.speaker2.name} should reference what ${speakerConfig.speaker1.name} said earlier: "you mentioned earlier that...", "going back to what you said about..."
+- Vary who leads — sometimes ${speakerConfig.speaker2.name} introduces a new topic
+- Include natural connective tissue: "right", "exactly", "mm-hmm", "that makes sense"
+- The opening should set context for the whole conversation: "${speakerConfig.speaker1.name}, let's talk about..."
+- The closing should feel like a natural wrap-up, not a forced ending
+
+TONE:
+- Professional but warm — like two smart colleagues briefing each other
+- Natural contractions ("that's", "it's", "they've")
+- Short sentences, clear delivery, good pacing
+- No robotic phrases: "the data shows", "it's worth noting", "as we can see"
+- No forced casual: "check this out", "that's wild", "no way"
 
 SCENE PACING:
-- Each scene covers ONE specific fact or data point
-- Each scene should be 10-15 seconds (2-3 quick exchanges)
+- Each scene = 10-15 seconds (2-3 exchanges)
+- Scenes are cuts in one continuous conversation, not separate topics
 - A 3-minute video = 15-20 scenes. 5-minute = 25-30 scenes.
-- NEVER let a scene run longer than 20 seconds
 
 DATA INTEGRITY (ABSOLUTE RULE — VIOLATION = FAILURE):
 - ONLY discuss facts that appear VERBATIM in the DOCUMENT DATA above
