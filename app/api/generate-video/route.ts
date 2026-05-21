@@ -199,15 +199,10 @@ export async function POST(request: Request) {
       const sd = scene.slideData as { headline?: string; stats?: { label: string; value: string }[]; bullets?: string[] } | undefined
       const cleanNarration = scene.narration?.replace(/^(Host|Expert|Advisor|Client|Narrator|Clarifier|Alex|Jordan):\s*/gim, '') || ''
 
-      // Detect phone/URL in narration to show on slide
-      const phoneInNarration = cleanNarration.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/)
-      const urlInNarration = cleanNarration.match(/(?:https?:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/\S*)?/i)
-
-      const sceneContactInfo = (isFirst || isLast)
-        ? { phone: brandGuide?.phone, website: brandGuide?.website?.toLowerCase(), email: brandGuide?.email?.toLowerCase(), calendly: brandGuide?.calendly }
-        : phoneInNarration || urlInNarration
-          ? { phone: phoneInNarration?.[0], website: urlInNarration?.[0]?.toLowerCase() }
-          : undefined
+      // ONLY use contact info from brand guide — NEVER extract from narration (AI may invent fake info)
+      const sceneContactInfo = (isFirst || isLast) && brandGuide
+        ? { phone: brandGuide.phone || undefined, website: brandGuide.website?.toLowerCase() || undefined, email: brandGuide.email?.toLowerCase() || undefined, calendly: brandGuide.calendly || undefined }
+        : undefined
 
       // Build slide content: slideData > explicit bullets > narration fallback
       let slideStats = sd?.stats || scene.stats || scene.keyMetrics?.map((m: any) => ({ value: m.value, label: m.label }))
@@ -216,6 +211,12 @@ export async function POST(request: Request) {
       if (!slideBullets && !slideStats && !isFirst && !isLast) {
         // Last resort: extract from narration
         slideBullets = cleanNarration.split(/[.!?]+/).filter((s: string) => s.trim().length > 10).slice(0, 4).map((s: string) => ({ text: s.trim() }))
+      }
+
+      // Filter out any bullets that look like invented contact info
+      const contactPattern = /\b(?:\d{3}[-.\s]?\d{3,4}[-.\s]?\d{4}|\+\d{2}|@\w+\.\w+|www\.\w+|\.co\.uk|\.com\/|contact us|call us|reach out|get in touch|visit our)\b/i
+      if (slideBullets) {
+        slideBullets = slideBullets.filter((b: { text: string }) => !contactPattern.test(b.text))
       }
 
       const input: SimpleSlideInput = {

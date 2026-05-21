@@ -29,12 +29,13 @@ export function buildSimpleSlidePrompt(input: SimpleSlideInput): string {
     contentLines.push(`Title: "${headline}"`)
     if (subtitle) contentLines.push(`Subtitle: "${subtitle}"`)
   } else if (type === 'closing') {
-    contentLines.push(`This is a CLOSING/CTA slide — drive the viewer to take action.`)
+    contentLines.push(`This is a CLOSING slide — simple thank you.`)
     contentLines.push(`Headline: "${headline}"`)
     if (contactInfo?.phone) contentLines.push(`Phone: ${contactInfo.phone}`)
     if (contactInfo?.email) contentLines.push(`Email: ${contactInfo.email?.toLowerCase()}`)
     if (contactInfo?.website) contentLines.push(`Website: ${contactInfo.website?.toLowerCase()}`)
     if (contactInfo?.calendly) contentLines.push(`"Schedule a call from this page"`)
+    contentLines.push(`Do NOT invent any contact information. Only show phone/email/website if listed above. If none listed, just show "Thank You".`)
   } else {
     contentLines.push(`Title: "${headline}"`)
     if (subtitle) contentLines.push(`Subtitle: "${subtitle}"`)
