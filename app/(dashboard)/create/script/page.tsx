@@ -384,6 +384,12 @@ export default function ScriptPage() {
                           {cmd}
                         </div>
                       ))}
+                      <p style={{ marginBottom: 6, marginTop: 10, fontWeight: 600 }}>Research:</p>
+                      {['Look up competitor info from [url]', 'Add info from https://...', 'Compare us with [competitor.com]'].map(cmd => (
+                        <div key={cmd} onClick={() => setChatInput(cmd)} style={{ padding: '5px 10px', borderRadius: 8, background: 'var(--bg-soft)', marginBottom: 4, cursor: 'pointer' }}>
+                          {cmd}
+                        </div>
+                      ))}
                     </div>
                   )}
                   {chatMessages.map((msg, i) => {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import FirecrawlApp from '@mendable/firecrawl-js'
 import { createClient } from '../../_lib/supabase/server'
 
 export const runtime = 'nodejs'
@@ -8,6 +9,27 @@ let _openai: OpenAI | null = null
 function getOpenAI() {
   if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
   return _openai
+}
+
+let _firecrawl: InstanceType<typeof FirecrawlApp> | null = null
+function getFirecrawl() {
+  if (!_firecrawl) _firecrawl = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY! })
+  return _firecrawl
+}
+
+// Detect if message needs web lookup
+function needsWebSearch(msg: string): string | null {
+  const urlMatch = msg.match(/https?:\/\/[^\s]+/)
+  if (urlMatch) return urlMatch[0]
+  const patterns = [
+    /(?:look up|search|check|find|research|what does|tell me about)\s+(\S+\.(?:com|io|ai|org|net|co)\S*)/i,
+    /(?:competitor|compare with|vs\.?)\s+(\S+\.(?:com|io|ai|org|net|co)\S*)/i,
+  ]
+  for (const p of patterns) {
+    const match = msg.match(p)
+    if (match) return match[1].startsWith('http') ? match[1] : `https://${match[1]}`
+  }
+  return null
 }
 
 export async function POST(request: Request) {
@@ -23,6 +45,23 @@ export async function POST(request: Request) {
 
   // Build source reference for the AI
   const sourceRef = sourceData ? JSON.stringify(sourceData).slice(0, 15000) : ''
+
+  // Check if message needs web lookup
+  let webContent = ''
+  const urlToScrape = needsWebSearch(message)
+  if (urlToScrape) {
+    try {
+      console.log(`[script-chat] Scraping URL: ${urlToScrape}`)
+      const result = await getFirecrawl().scrape(urlToScrape, { formats: ['markdown'] }) as any
+      const md = result?.markdown || result?.data?.markdown || ''
+      if (md.length > 50) {
+        webContent = md.slice(0, 10000)
+        console.log(`[script-chat] Got ${webContent.length} chars from ${urlToScrape}`)
+      }
+    } catch (err) {
+      console.log(`[script-chat] Web scrape failed:`, err instanceof Error ? err.message : 'unknown')
+    }
+  }
 
   const response = await getOpenAI().chat.completions.create({
     model: 'gpt-4o-mini',
@@ -70,7 +109,8 @@ CONTEXT AWARENESS (CRITICAL):
 - NEVER ask "what would you like to change?" if you just suggested something and they agreed. Just do it.
 - If user picked an option you offered, execute that option immediately — don't ask again.
 - You have access to the original source data. Use it to find real facts, pricing, competitors, features.
-- If user asks about competitors or market info that's not in the source, say what you know and suggest they verify, but provide useful content.`,
+- If user asks about competitors or market info that's not in the source, say what you know and suggest they verify, but provide useful content.
+${webContent ? `\nWEB RESEARCH (scraped from ${urlToScrape}):\n${webContent}\n\nUse this web content to answer the user's question or incorporate into the script as requested.` : ''}`,
       },
       // Include conversation history for context
       ...((history || []) as { role: string; text: string }[]).map((h: { role: string; text: string }) => ({
