@@ -97,8 +97,7 @@ export default function CreatePage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: cleanUrl }),
-          signal: AbortSignal.timeout(120000),
-        })
+                  })
         const extractResult = await extractRes.json()
         if (!extractRes.ok) { setError(extractResult.error || 'Extraction failed'); setStage('idle'); return }
         const { suggestedTheme, autoBrandId, autoLogoUrl, ...contentData } = extractResult
@@ -112,8 +111,7 @@ export default function CreatePage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: textInput.trim(), purpose: purpose.trim() }),
-          signal: AbortSignal.timeout(120000),
-        })
+                  })
         const extractResult = await extractRes.json()
         if (!extractRes.ok) { setError(extractResult.error || 'Extraction failed'); setStage('idle'); return }
         extractedData = extractResult
@@ -123,8 +121,7 @@ export default function CreatePage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ idea: purpose.trim(), purpose: purpose.trim() }),
-          signal: AbortSignal.timeout(120000),
-        })
+                  })
         const extractResult = await extractRes.json()
         if (!extractRes.ok) { setError(extractResult.error || 'Content generation failed'); setStage('idle'); return }
         extractedData = extractResult
@@ -182,11 +179,7 @@ export default function CreatePage() {
 
       router.push(`/create/generating?id=${createData.id}`)
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'TimeoutError') {
-        setError('This is taking too long. Try a shorter document or simpler URL.')
-      } else {
-        setError(err instanceof Error ? err.message : 'Something went wrong')
-      }
+      setError(err instanceof Error ? err.message : 'Something went wrong')
       setStage('idle')
     }
   }
@@ -208,7 +201,6 @@ export default function CreatePage() {
       const extractRes = await fetch('/api/extract', {
         method: 'POST',
         body: formData,
-        signal: AbortSignal.timeout(120000),
       })
       const extractText = await extractRes.text()
       let extractData: any

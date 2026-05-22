@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
-import { extractDocumentData } from '../../_lib/gemini'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
+import OpenAI from 'openai'
 
 export async function POST(request: Request & { nextUrl?: URL }) {
   const url = new URL(request.url)
@@ -159,40 +159,77 @@ Only include real data found in the content. Never invent contact info.`,
 
   try {
     const arrayBuffer = await file.arrayBuffer()
-    let base64 = Buffer.from(arrayBuffer).toString('base64')
+    const base64 = Buffer.from(arrayBuffer).toString('base64')
+    const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
+    const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
-    // PPTX and DOCX files must be converted to PDF first
-    if (isPptx || isDocx) {
-      const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
-      const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
+    // Send to VPS to extract text from PDF/PPTX/DOCX
+    const extractRes = await fetch(`${VIDEO_ASSEMBLY_URL}/extract-text`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
+      body: JSON.stringify({ fileBase64: base64, fileName: file.name }),
+      signal: AbortSignal.timeout(90000),
+    })
 
-      const convertRes = await fetch(`${VIDEO_ASSEMBLY_URL}/convert-to-pdf`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
-        body: JSON.stringify({ fileBase64: base64, fileName: file.name }),
-        signal: AbortSignal.timeout(90000),
-      })
-
-      if (!convertRes.ok) {
-        const err = await convertRes.json().catch(() => ({ error: 'Conversion failed' }))
-        return NextResponse.json({ error: `PPTX conversion failed: ${err.error}` }, { status: 500 })
-      }
-
-      const convertData = await convertRes.json()
-      base64 = convertData.pdfBase64
+    let rawText = ''
+    if (extractRes.ok) {
+      const extractResult = await extractRes.json()
+      rawText = extractResult.text || ''
     }
 
-    const preserveAllPages = uploadMode === 'narrate' || uploadMode === 'redesign'
-    const result = await extractDocumentData(base64, 'application/pdf', preserveAllPages)
-    return NextResponse.json(result)
+    // Fallback: if VPS doesn't have /extract-text, use OpenAI vision on the PDF
+    if (!rawText && isPdf) {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+      const visionRes = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Extract ALL text content from this document. Return the complete text, preserving structure. Include all headings, paragraphs, lists, tables, contact info, and data.' },
+            { type: 'image_url', image_url: { url: `data:application/pdf;base64,${base64}` } },
+          ],
+        }],
+        max_tokens: 4000,
+      })
+      rawText = visionRes.choices[0]?.message?.content || ''
+    }
+
+    if (!rawText || rawText.trim().length < 20) {
+      return NextResponse.json({ error: 'Could not extract text from this document. It may be image-only or password-protected.' }, { status: 400 })
+    }
+
+    // Structure with OpenAI
+    const purposeField = formData.get('purpose') as string | null
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+    const structureRes = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{
+        role: 'system',
+        content: `Extract and structure this document content into JSON. Return:
+{
+  "title": "Main title or document name",
+  "subtitle": "Subtitle or tagline if any",
+  "sections": [{ "title": "Section name", "content": "Full section content — do not summarize" }],
+  "keyMetrics": [{ "value": "stat value", "label": "stat label" }],
+  "contactInfo": { "phone": "phone if found or null", "email": "email if found or null", "website": "website if found or null" },
+  "companyName": "Company name if mentioned or null"
+}
+Include ALL content from the document. Do not skip sections. Never invent contact info.`,
+      }, {
+        role: 'user',
+        content: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Document content:\n${rawText.slice(0, 15000)}`,
+      }],
+      temperature: 0.3,
+      max_tokens: 4000,
+      response_format: { type: 'json_object' },
+    })
+
+    const structured = JSON.parse(structureRes.choices[0]?.message?.content || '{}')
+    return NextResponse.json(structured)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Extraction failed'
-    // Detect common error patterns
     if (message.includes('password') || message.includes('encrypted') || message.includes('protected')) {
       return NextResponse.json({ error: 'This PDF appears to be password-protected. Please upload an unprotected version.' }, { status: 400 })
-    }
-    if (message.includes('too large') || message.includes('token') || message.includes('limit')) {
-      return NextResponse.json({ error: 'This document is too large to process. Try uploading a shorter version or pasting the key sections.' }, { status: 400 })
     }
     return NextResponse.json({ error: message }, { status: 500 })
   }
