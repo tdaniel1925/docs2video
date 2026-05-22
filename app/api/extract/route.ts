@@ -167,35 +167,31 @@ Only include real data found in the content. Never invent contact info.`,
   try {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
+    const base64 = buffer.toString('base64')
     const openai = getOpenAI()
-
-    // Upload file to OpenAI for extraction
-    const uploadedFile = await openai.files.create({
-      file: new File([buffer], file.name || 'document.pdf', { type: file.type || 'application/pdf' }),
-      purpose: 'assistants',
-    })
-
-    // Extract and structure using OpenAI with file attachment
     const purposeField = formData.get('purpose') as string | null
+
+    // Send PDF as base64 inline — faster than file upload
+    const mimeType = isPdf ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
     const response = await (openai as any).responses.create({
       model: 'gpt-4o-mini',
       input: [
         {
           role: 'user',
           content: [
-            { type: 'input_file', file_id: uploadedFile.id },
+            { type: 'input_file', file_data: `data:${mimeType};base64,${base64}` },
             {
               type: 'input_text',
-              text: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Extract and structure ALL content from this document into JSON. Return:
+              text: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Extract and structure ALL content from this document into JSON. Return ONLY valid JSON:
 {
   "title": "Main title or document name",
   "subtitle": "Subtitle or tagline if any",
-  "sections": [{ "title": "Section name", "content": "Full section content — do not summarize" }],
+  "sections": [{ "title": "Section name", "content": "Full section content" }],
   "keyMetrics": [{ "value": "stat value", "label": "stat label" }],
-  "contactInfo": { "phone": "phone if found or null", "email": "email if found or null", "website": "website if found or null" },
-  "companyName": "Company name if mentioned or null"
+  "contactInfo": { "phone": "phone or null", "email": "email or null", "website": "website or null" },
+  "companyName": "Company name or null"
 }
-Include ALL content. Do not skip sections. Never invent contact info. Return ONLY valid JSON.`,
+Include ALL content. Never invent contact info.`,
             },
           ],
         },
@@ -206,10 +202,6 @@ Include ALL content. Do not skip sections. Never invent contact info. Return ONL
     const respText = response.output_text || ''
     const cleaned = respText.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
     const structured = JSON.parse(cleaned)
-
-    // Clean up uploaded file
-    await openai.files.delete(uploadedFile.id).catch(() => {})
-
     return NextResponse.json(structured)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Extraction failed'
