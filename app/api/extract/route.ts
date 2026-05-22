@@ -183,7 +183,7 @@ Only include real data found in the content. Never invent contact info.`,
         {
           role: 'user',
           content: [
-            { type: 'file', file: { file_id: uploadedFile.id } },
+            { type: 'input_file', file_id: uploadedFile.id },
             {
               type: 'input_text',
               text: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Extract and structure ALL content from this document into JSON. Return:
