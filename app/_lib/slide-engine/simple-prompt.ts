@@ -56,7 +56,7 @@ export function buildSimpleSlidePrompt(input: SimpleSlideInput): string {
     }
   }
 
-  if (brandName) contentLines.push(`Brand: "${brandName}" in small text at bottom.`)
+  if (brandName) contentLines.push(`Brand name: "${brandName}" — display EXACTLY as written (preserve apostrophes, capitalization, spacing) in small text at bottom. Use the SAME font as other text on the slide.`)
   if (input.narrationContext) contentLines.push(`CONTEXT: While this slide is showing, the narrator is saying: "${input.narrationContext.slice(0, 200)}". The slide content MUST match this topic.`)
   contentLines.push(`Slide ${pageNumber} of ${totalPages}.`)
 

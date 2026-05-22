@@ -178,12 +178,17 @@ export async function POST(request: Request) {
         } : s.slideData,
       }))
 
-      // Remove any scenes with empty narration — no silent slides
+      // Remove any scenes with empty/trivial narration — no silent slides
       const beforeCount = scenes.length
-      scenes = scenes.filter((s: any) => s.narration?.trim().length > 10)
+      scenes = scenes.filter((s: any) => {
+        const words = s.narration?.trim().split(/\s+/).length || 0
+        return words >= 5 // at least 5 words of narration
+      })
       if (scenes.length < beforeCount) {
-        console.log(`[video ${videoId}] Removed ${beforeCount - scenes.length} empty scenes`)
+        console.log(`[video ${videoId}] Removed ${beforeCount - scenes.length} empty/trivial scenes`)
       }
+      // Ensure scene count matches — renumber
+      scenes.forEach((s: any, idx: number) => { s.scene = idx + 1 })
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script ready', progress_pct: 15 }).eq('id', videoId)
     } else {
       console.log(`[video ${videoId}] Generating script...`)

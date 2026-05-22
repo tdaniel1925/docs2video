@@ -25,6 +25,8 @@ export default function OptionsPage() {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [bookingUrl, setBookingUrl] = useState('')
+  const [paymentLink, setPaymentLink] = useState('')
   const [playingVoice, setPlayingVoice] = useState<string | null>(null)
   const [generatingPreview, setGeneratingPreview] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -76,6 +78,8 @@ export default function OptionsPage() {
             scenes: state.scenes,
             purpose: state.purpose,
             industry: state.extractedData?.industry || 'general',
+            bookingUrl: bookingUrl.trim() || undefined,
+            paymentLink: paymentLink.trim() || undefined,
           },
         },
       }).eq('id', createData.id)
@@ -272,6 +276,36 @@ export default function OptionsPage() {
             </div>
           </>
         )}
+
+        {/* Share page links */}
+        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Share page buttons <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-light)' }}>(optional)</span></h3>
+        <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>Add links so viewers can book a call or make a payment directly from your video&apos;s share page.</p>
+        <div style={{ display: 'grid', gap: 12, marginBottom: 32 }}>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 4, display: 'block' }}>Booking link</label>
+            <input
+              type="url"
+              value={bookingUrl}
+              onChange={e => setBookingUrl(e.target.value)}
+              placeholder="Paste your Calendly, Cal.com, or any booking URL"
+              style={{ width: '100%', padding: '14px 16px', borderRadius: 10, border: '1px solid var(--border)', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
+              onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+              onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 4, display: 'block' }}>Payment link</label>
+            <input
+              type="url"
+              value={paymentLink}
+              onChange={e => setPaymentLink(e.target.value)}
+              placeholder="Paste your Stripe, PayPal, Square, or any payment URL"
+              style={{ width: '100%', padding: '14px 16px', borderRadius: 10, border: '1px solid var(--border)', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
+              onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+              onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
+            />
+          </div>
+        </div>
 
         {error && (
           <div style={{ padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 14, marginBottom: 20 }}>
