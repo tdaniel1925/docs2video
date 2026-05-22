@@ -233,7 +233,7 @@ export async function POST(request: Request) {
     }
 
     // Merge direct regex contact extraction — more reliable than AI detection
-    if (!data.contactInfo) (data as any).contactInfo = {}
+    if (!(data as any).contactInfo) (data as any).contactInfo = {}
     const ci = (data as any).contactInfo
     if (!ci.phone && directContactInfo.phone) ci.phone = directContactInfo.phone
     if (!ci.email && directContactInfo.email) ci.email = directContactInfo.email
