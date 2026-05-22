@@ -107,8 +107,9 @@ Only include real data found in the content. Never invent contact info.`,
   }
 
   const fname = file.name?.toLowerCase() || ''
-  const isTextFile = fname.endsWith('.txt') || fname.endsWith('.csv') || fname.endsWith('.doc') || fname.endsWith('.docx') ||
-    file.type === 'text/plain' || file.type === 'text/csv' ||
+  const isTextFile = fname.endsWith('.txt') || fname.endsWith('.csv') ||
+    file.type === 'text/plain' || file.type === 'text/csv'
+  const isDocx = fname.endsWith('.docx') || fname.endsWith('.doc') ||
     file.type === 'application/msword' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
   // For text-based files, read content and use AI structuring
@@ -152,7 +153,7 @@ Only include real data found in the content. Never invent contact info.`,
 
   const isPptx = fname.endsWith('.pptx') || fname.endsWith('.ppt')
   const isPdf = fname.endsWith('.pdf') || file.type === 'application/pdf'
-  if (!isPdf && !isPptx) {
+  if (!isPdf && !isPptx && !isDocx) {
     return NextResponse.json({ error: 'Unsupported file type. Upload a PDF, PPTX, DOCX, TXT, or CSV.' }, { status: 400 })
   }
 
@@ -160,8 +161,8 @@ Only include real data found in the content. Never invent contact info.`,
     const arrayBuffer = await file.arrayBuffer()
     let base64 = Buffer.from(arrayBuffer).toString('base64')
 
-    // PPTX files must be converted to PDF first — Gemini can't read PPTX directly
-    if (isPptx) {
+    // PPTX and DOCX files must be converted to PDF first
+    if (isPptx || isDocx) {
       const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
       const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
