@@ -285,9 +285,9 @@ export default function ScriptPage() {
             })()}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
               {[
-                { id: 'quick' as const, title: 'Highlights', desc: '30-60 seconds', sub: '3-4 slides' },
-                { id: 'standard' as const, title: 'Standard', desc: '2-4 minutes', sub: '8-14 slides' },
-                { id: 'detailed' as const, title: 'Detailed', desc: '5-10 minutes', sub: '15-25 slides' },
+                { id: 'quick' as const, title: 'Highlights', desc: 'Under 60 seconds', sub: 'Quick summaries, social media clips, elevator pitches' },
+                { id: 'standard' as const, title: 'Standard', desc: '2-5 minutes', sub: 'Client presentations, product overviews, reports' },
+                { id: 'detailed' as const, title: 'Detailed', desc: '5-15 minutes', sub: 'Training videos, full walkthroughs, comprehensive explainers' },
               ].map(level => (
                 <button
                   key={level.id}
