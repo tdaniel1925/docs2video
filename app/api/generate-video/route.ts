@@ -187,33 +187,6 @@ export async function POST(request: Request) {
       if (scenes.length < beforeCount) {
         console.log(`[video ${videoId}] Removed ${beforeCount - scenes.length} empty/trivial scenes`)
       }
-      // Split any scenes over 60 words into multiple scenes
-      const splitScenes: any[] = []
-      for (const s of scenes) {
-        const words = s.narration?.trim().split(/\s+/) || []
-        if (words.length > 60) {
-          // Split at sentence boundaries near the midpoint
-          const sentences = s.narration.split(/(?<=[.!?])\s+/)
-          let current = ''
-          let part = 1
-          for (const sentence of sentences) {
-            if ((current + ' ' + sentence).split(/\s+/).length > 50 && current.length > 20) {
-              splitScenes.push({ ...s, title: part === 1 ? s.title : `${s.title} (continued)`, narration: current.trim(), scene: 0 })
-              current = sentence
-              part++
-            } else {
-              current = current ? current + ' ' + sentence : sentence
-            }
-          }
-          if (current.trim()) {
-            splitScenes.push({ ...s, title: part > 1 ? `${s.title} (continued)` : s.title, narration: current.trim(), scene: 0 })
-          }
-        } else {
-          splitScenes.push(s)
-        }
-      }
-      scenes = splitScenes
-
       // Ensure scene count matches — renumber
       scenes.forEach((s: any, idx: number) => { s.scene = idx + 1 })
 
