@@ -129,7 +129,7 @@ export async function POST(request: Request) {
     && !!(policyData as any).policyType
   const title = isInsurance
     ? `${(policyData as ExtractedPolicyData).carrier} - ${(policyData as ExtractedPolicyData).policyType} Explainer`
-    : `${(policyData as ExtractedData).title} Explainer`
+    : `${(policyData as ExtractedData).title || (policyData as any).companyName || 'Video'} Explainer`
 
   const { data: video, error } = await supabase
     .from('videos')

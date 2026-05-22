@@ -57,7 +57,7 @@ export default function CreatePage() {
     setPurpose(s.prompt)
     setMethod(s.method)
     if (s.method === 'upload') {
-      setTimeout(() => fileRef.current?.click(), 100)
+      setTimeout(() => fileRef.current?.click(), 300)
     }
   }
 
@@ -193,7 +193,7 @@ export default function CreatePage() {
 
   async function handleUploadFlow() {
     const file = fileRef.current?.files?.[0]
-    if (!file) return
+    if (!file) { setError('No file selected. Please choose a file first.'); return }
 
     setStage('extracting')
     setStageMsg('Reading your document...')
@@ -210,7 +210,9 @@ export default function CreatePage() {
         body: formData,
         signal: AbortSignal.timeout(120000),
       })
-      const extractData = await extractRes.json()
+      const extractText = await extractRes.text()
+      let extractData: any
+      try { extractData = JSON.parse(extractText) } catch { setError(`Extraction failed: ${extractText.slice(0, 200)}`); setStage('idle'); return }
       if (!extractRes.ok) { setError(extractData.error || 'Extraction failed'); setStage('idle'); return }
 
       // Step 2: Create video record — promote contactInfo to top-level
