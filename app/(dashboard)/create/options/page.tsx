@@ -74,7 +74,7 @@ export default function OptionsPage() {
           }),
         })
         const deckData = await deckRes.json()
-        if (!deckRes.ok) throw new Error(deckData.error || 'Deck generation failed')
+        if (!deckRes.ok) throw new Error(typeof deckData.error === 'string' ? deckData.error : JSON.stringify(deckData.error) || 'Deck generation failed')
 
         localStorage.removeItem('d2v_create')
         // Redirect to the deck download or dashboard
@@ -94,7 +94,7 @@ export default function OptionsPage() {
         body: JSON.stringify({ policyData, brandId: selectedBrand, voiceId: selectedVoice }),
       })
       const createData = await createRes.json()
-      if (!createRes.ok) throw new Error(createData.error || 'Failed to create video')
+      if (!createRes.ok) throw new Error(typeof createData.error === 'string' ? createData.error : JSON.stringify(createData.error) || 'Failed to create video')
 
       await supabase.from('videos').update({
         script: {
@@ -131,7 +131,8 @@ export default function OptionsPage() {
       localStorage.removeItem('d2v_create')
       router.push(`/create/generating?id=${createData.id}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Generation failed')
+      const msg = err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err)
+      setError(msg || 'Generation failed')
       setGenerating(false)
     }
   }
