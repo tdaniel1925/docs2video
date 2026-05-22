@@ -184,6 +184,85 @@ export default function CreateGoalPage() {
               </button>
             ))}
           </div>
+
+          {/* Saved templates */}
+          {(() => {
+            const templates = JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('d2v_templates') || '[]' : '[]')
+            if (templates.length === 0) return null
+            return (
+              <div style={{ marginTop: 40 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink-soft)', marginBottom: 12 }}>Your templates</h3>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {templates.map((t: any) => (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        localStorage.setItem('d2v_create', JSON.stringify({
+                          purpose: t.purpose,
+                          intentType: t.intentType,
+                          detailLevel: t.detailLevel,
+                          narrationStyle: t.narrationStyle,
+                        }))
+                        router.push('/create/source')
+                      }}
+                      style={{
+                        padding: '12px 18px', borderRadius: 10, border: '1px solid var(--border-light)',
+                        background: 'white', cursor: 'pointer', textAlign: 'left', fontSize: 13, fontFamily: 'inherit',
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, marginBottom: 2 }}>{t.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>{t.intentType} &middot; {t.detailLevel}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Saved drafts */}
+          {(() => {
+            const drafts = JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('d2v_drafts') || '[]' : '[]')
+            if (drafts.length === 0) return null
+            return (
+              <div style={{ marginTop: 32 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink-soft)', marginBottom: 12 }}>Saved drafts</h3>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {drafts.map((d: any, idx: number) => (
+                    <div key={d.id} style={{
+                      padding: '12px 18px', borderRadius: 10, border: '1px solid var(--border-light)',
+                      background: 'white', display: 'flex', alignItems: 'center', gap: 12,
+                    }}>
+                      <button
+                        onClick={() => {
+                          localStorage.setItem('d2v_create', JSON.stringify(d.state))
+                          // Remove from drafts
+                          const updated = drafts.filter((_: any, i: number) => i !== idx)
+                          localStorage.setItem('d2v_drafts', JSON.stringify(updated))
+                          // Navigate to where they left off
+                          if (d.state.scenes?.length) router.push('/create/script')
+                          else if (d.state.extractedData) router.push('/create/review')
+                          else router.push('/create/source')
+                        }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', padding: 0 }}
+                      >
+                        <div style={{ fontWeight: 700, fontSize: 13 }}>{d.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>Saved {new Date(d.savedAt).toLocaleDateString()}</div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          const updated = drafts.filter((_: any, i: number) => i !== idx)
+                          localStorage.setItem('d2v_drafts', JSON.stringify(updated))
+                          window.location.reload()
+                        }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--ink-light)', padding: 2 }}
+                        title="Delete draft"
+                      >&times;</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
         </div>
       )}
 

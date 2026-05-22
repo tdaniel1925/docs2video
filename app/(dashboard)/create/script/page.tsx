@@ -148,8 +148,31 @@ export default function ScriptPage() {
       })
       const data = await res.json()
       console.log('[script-chat] Response:', JSON.stringify(data).slice(0, 500))
+
+      // Handle diff-based changes (FORMAT 1)
+      if (data.changes && Array.isArray(data.changes) && data.changes.length > 0) {
+        const updated = [...scenes]
+        for (const change of data.changes) {
+          const idx = change.index
+          if (idx >= 0 && idx < updated.length) {
+            updated[idx] = {
+              ...updated[idx],
+              ...(change.title !== undefined ? { title: change.title } : {}),
+              ...(change.narration !== undefined ? { narration: change.narration } : {}),
+              ...(change.slideData !== undefined ? { slideData: change.slideData } : {}),
+              ...(change.slidePrompt !== undefined ? { slidePrompt: change.slidePrompt } : {}),
+              ...(change.duration !== undefined ? { duration: change.duration } : {}),
+            }
+          }
+        }
+        setScenes(updated)
+        autoSave(updated, data.changes[0]?.index || 0, true)
+        console.log(`[script-chat] Applied ${data.changes.length} changes`)
+        setChatCount(c => c + 1)
+      }
+
+      // Handle full scenes replacement (FORMAT 1B — add/delete/reorder)
       if (data.scenes && Array.isArray(data.scenes) && data.scenes.length > 0) {
-        // Ensure scenes have narration field
         const validScenes = data.scenes.map((s: any, idx: number) => ({
           ...s,
           scene: idx + 1,
@@ -161,7 +184,7 @@ export default function ScriptPage() {
         }))
         setScenes(validScenes)
         autoSave(validScenes, 0, true)
-        console.log(`[script-chat] Updated ${validScenes.length} scenes`)
+        console.log(`[script-chat] Replaced with ${validScenes.length} scenes`)
         const newCount = chatCount + 1
         setChatCount(newCount)
         // After 3 AI changes, suggest saving as template

@@ -73,13 +73,24 @@ When the user says something is wrong or asks for corrections, LOOK UP the corre
 
 You MUST respond with a JSON object in one of these formats:
 
-FORMAT 1 — When you make ANY changes (CRITICAL: you MUST include the full scenes array):
+FORMAT 1 — When you EDIT existing scenes:
 {
-  "scenes": [/* COMPLETE array of ALL scenes — not just the changed ones. Include EVERY scene even if unchanged. This is the FULL replacement script. */],
-  "summary": "Brief description of what you changed — be specific about which scenes and what changed",
+  "changes": [
+    { "index": 0, "title": "new title", "narration": "new narration text", "slideData": { "headline": "...", "bullets": ["..."], "stats": [...] } },
+    { "index": 4, "narration": "only changed narration — other fields stay the same" }
+  ],
+  "summary": "What you changed and why",
   "suggestion": "Optional follow-up suggestion, or null"
 }
-IMPORTANT: If you say you made changes but don't include the "scenes" array, the changes will NOT be applied. You MUST always return ALL scenes.
+Only include the fields you actually changed. "index" is 0-based (scene 1 = index 0).
+
+FORMAT 1B — When you ADD or DELETE scenes (structural changes):
+{
+  "scenes": [/* COMPLETE array of ALL scenes */],
+  "summary": "What you changed",
+  "suggestion": "Optional suggestion, or null"
+}
+Use this format ONLY when adding new scenes, deleting scenes, or reordering. For simple edits, use FORMAT 1 with "changes".
 
 FORMAT 2 — When you need clarification:
 {

@@ -1136,6 +1136,48 @@ export default function PublicWatchPage() {
                 {copied ? 'Link Copied' : 'Share'}
               </button>
             </div>
+
+            {/* Booking & Payment buttons */}
+            {(() => {
+              const pi = (video.script as any)?._pipeline_input
+              const bookingUrl = pi?.bookingUrl
+              const paymentLnk = pi?.paymentLink
+              if (!bookingUrl && !paymentLnk) return null
+              return (
+                <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                  {bookingUrl && (
+                    <a
+                      href={bookingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => trackEvent(video.id, 'booking_click')}
+                      style={{
+                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        height: 48, borderRadius: 10, background: 'var(--mint, #3BB5C8)', color: '#fff',
+                        fontSize: 15, fontWeight: 700, textDecoration: 'none', transition: 'opacity 0.15s',
+                      }}
+                    >
+                      <IconCalendar /> Book a Call
+                    </a>
+                  )}
+                  {paymentLnk && (
+                    <a
+                      href={paymentLnk}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => trackEvent(video.id, 'payment_click')}
+                      style={{
+                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        height: 48, borderRadius: 10, background: 'var(--ink, #1B3A5C)', color: '#fff',
+                        fontSize: 15, fontWeight: 700, textDecoration: 'none', transition: 'opacity 0.15s',
+                      }}
+                    >
+                      Make a Payment
+                    </a>
+                  )}
+                </div>
+              )
+            })()}
           </div>
 
         </div>
