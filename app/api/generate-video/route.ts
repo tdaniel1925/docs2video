@@ -248,9 +248,15 @@ export async function POST(request: Request) {
       const sd = scene.slideData as { headline?: string; stats?: { label: string; value: string }[]; bullets?: string[] } | undefined
       const cleanNarration = scene.narration?.replace(/^(Host|Expert|Advisor|Client|Narrator|Clarifier|Alex|Jordan):\s*/gim, '') || ''
 
-      // ONLY use contact info from brand guide — NEVER extract from narration (AI may invent fake info)
-      const sceneContactInfo = (isFirst || isLast) && brandGuide
-        ? { phone: brandGuide.phone || undefined, website: brandGuide.website?.toLowerCase() || undefined, email: brandGuide.email?.toLowerCase() || undefined, calendly: brandGuide.calendly || undefined }
+      // Contact info for closing slide: brand guide + user-entered from review page
+      const pd = policyData as any
+      const sceneContactInfo = (isFirst || isLast)
+        ? {
+            phone: brandGuide?.phone || pd?.contactPhone || (pd?.contactInfo?.phone) || undefined,
+            website: (brandGuide?.website || pd?.contactWebsite || pd?.contactInfo?.website || '')?.toLowerCase() || undefined,
+            email: (brandGuide?.email || pd?.contactEmail || pd?.contactInfo?.email || '')?.toLowerCase() || undefined,
+            calendly: brandGuide?.calendly || undefined,
+          }
         : undefined
 
       // Build slide content: slideData > explicit bullets > narration fallback
