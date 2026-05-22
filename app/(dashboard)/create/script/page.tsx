@@ -341,18 +341,45 @@ export default function ScriptPage() {
               </div>
             )}
 
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              style={{
-                width: '100%', padding: '18px', borderRadius: 12, border: 'none',
-                background: 'var(--ink)', color: 'white', fontSize: 17, fontWeight: 700,
-                cursor: generating ? 'wait' : 'pointer', fontFamily: 'inherit',
-                opacity: generating ? 0.7 : 1, transition: 'opacity 0.2s',
-              }}
-            >
-              {generating ? 'Generating script...' : 'Generate Script →'}
-            </button>
+            {generating ? (
+              <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                <style>{`
+                  @keyframes scriptPulse {
+                    0%, 100% { transform: scale(1); opacity: 0.7; }
+                    50% { transform: scale(1.05); opacity: 1; }
+                  }
+                  @keyframes dotBounce {
+                    0%, 80%, 100% { transform: translateY(0); }
+                    40% { transform: translateY(-8px); }
+                  }
+                `}</style>
+                <div style={{ animation: 'scriptPulse 2s ease infinite', marginBottom: 20 }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>&#9998;&#65039;</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Writing your script</div>
+                  <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>AI is analyzing your content and crafting the narration</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
+                  {[0, 1, 2].map(i => (
+                    <div key={i} style={{
+                      width: 8, height: 8, borderRadius: '50%', background: 'var(--mint)',
+                      animation: `dotBounce 1.4s infinite ${i * 0.2}s`,
+                    }} />
+                  ))}
+                </div>
+                <p style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 16 }}>This usually takes 10-20 seconds</p>
+              </div>
+            ) : (
+              <button
+                onClick={handleGenerate}
+                style={{
+                  width: '100%', padding: '18px', borderRadius: 12, border: 'none',
+                  background: 'var(--ink)', color: 'white', fontSize: 17, fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Generate Script &rarr;
+              </button>
+            )}
           </>
         )}
 
