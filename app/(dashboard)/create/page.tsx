@@ -86,53 +86,94 @@ export default function CreatePage() {
     setElapsed(0)
 
     try {
-      let requestBody: any = { purpose: purpose.trim() }
+      // Step 1: Extract content
+      let extractedData: any = null
 
       if (method === 'url') {
-        let url = urlInput.trim()
-        if (!/^https?:\/\//i.test(url)) url = `https://${url}`
-        requestBody.method = 'url'
-        requestBody.url = url
+        let cleanUrl = urlInput.trim()
+        if (!/^https?:\/\//i.test(cleanUrl)) cleanUrl = `https://${cleanUrl}`
+        setStageMsg('Scraping website...')
+        const extractRes = await fetch('/api/extract-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: cleanUrl }),
+          signal: AbortSignal.timeout(120000),
+        })
+        const extractResult = await extractRes.json()
+        if (!extractRes.ok) { setError(extractResult.error || 'Extraction failed'); setStage('idle'); return }
+        const { suggestedTheme, autoBrandId, autoLogoUrl, ...contentData } = extractResult
+        extractedData = contentData
+        // Use auto-detected brand if user didn't pick one
+        if (!selectedBrand && autoBrandId) extractedData._autoBrandId = autoBrandId
+        if (suggestedTheme?.prompt) extractedData._customStylePrompt = suggestedTheme.prompt
       } else if (method === 'text') {
-        requestBody.method = 'text'
-        requestBody.text = textInput.trim()
+        setStageMsg('Analyzing text...')
+        const extractRes = await fetch('/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: textInput.trim(), purpose: purpose.trim() }),
+          signal: AbortSignal.timeout(120000),
+        })
+        const extractResult = await extractRes.json()
+        if (!extractRes.ok) { setError(extractResult.error || 'Extraction failed'); setStage('idle'); return }
+        extractedData = extractResult
       } else if (method === 'idea' || !method) {
-        // No content source — treat purpose as the idea
-        requestBody.method = 'idea'
-        requestBody.idea = purpose.trim()
+        setStageMsg('AI is researching your topic...')
+        const extractRes = await fetch('/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idea: purpose.trim(), purpose: purpose.trim() }),
+          signal: AbortSignal.timeout(120000),
+        })
+        const extractResult = await extractRes.json()
+        if (!extractRes.ok) { setError(extractResult.error || 'Content generation failed'); setStage('idle'); return }
+        extractedData = extractResult
+      } else if (method === 'upload') {
+        // Upload handled by handleUploadFlow
+        await handleUploadFlow()
+        return
       }
 
-      if (selectedBrand) requestBody.brandId = selectedBrand
-      if (aiMusic) {
-        requestBody.aiMusic = true
-        requestBody.musicPrompt = 'Professional ambient background music, subtle and warm'
-      }
+      if (!extractedData) { setError('No content could be extracted'); setStage('idle'); return }
 
-      setStageMsg('Analyzing content...')
-      setTimeout(() => { if (stage === 'extracting') setStageMsg('Writing script and generating slides...') }, 8000)
-      setTimeout(() => { if (stage === 'extracting') setStageMsg('Almost there...') }, 20000)
+      // Step 2: Create video record
+      setStageMsg('Setting up your video...')
+      const effectiveBrand = selectedBrand || extractedData._autoBrandId || null
+      const customStyle = extractedData._customStylePrompt || undefined
+      delete extractedData._autoBrandId
+      delete extractedData._customStylePrompt
 
-      const res = await fetch('/api/create-video', {
+      const policyData = { ...extractedData }
+      const createRes = await fetch('/api/videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-        signal: AbortSignal.timeout(120000),
+        body: JSON.stringify({ policyData, brandId: effectiveBrand, voiceId: 'nova' }),
       })
-      const data = await res.json()
+      const createData = await createRes.json()
+      if (!createRes.ok) { setError(createData.error || 'Failed to create video'); setStage('idle'); return }
 
-      if (!res.ok) {
-        setError(data.error || 'Something went wrong')
-        setStage('idle')
+      // Step 3: Save pipeline input + trigger generation
+      setStageMsg('Starting video generation...')
+      const genRes = await fetch('/api/generate-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoId: createData.id, policyData, brandId: effectiveBrand, voiceId: 'nova',
+          styleId: customStyle ? 'custom-url-theme' : undefined,
+          customStylePrompt: customStyle,
+          narrationStyle: 'solo', aiMusic, purpose: purpose.trim(),
+          musicPrompt: aiMusic ? 'Professional ambient background music, subtle and warm' : undefined,
+          industry: extractedData?.industry || 'general',
+        }),
+      })
+      const genData = await genRes.json()
+      if (!genRes.ok) {
+        // Video record exists — navigate to generating page anyway, user can retry
+        router.push(`/create/generating?id=${createData.id}`)
         return
       }
 
-      if (data.warning) {
-        // Video created but pipeline may have issues — navigate anyway
-        router.push(`/create/generating?id=${data.videoId}`)
-        return
-      }
-
-      router.push(`/create/generating?id=${data.videoId}`)
+      router.push(`/create/generating?id=${createData.id}`)
     } catch (err) {
       if (err instanceof DOMException && err.name === 'TimeoutError') {
         setError('This is taking too long. Try a shorter document or simpler URL.')
@@ -165,9 +206,8 @@ export default function CreatePage() {
       const extractData = await extractRes.json()
       if (!extractRes.ok) { setError(extractData.error || 'Extraction failed'); setStage('idle'); return }
 
-      setStageMsg('Creating your video...')
-
       // Step 2: Create video record
+      setStageMsg('Setting up your video...')
       const policyData = { ...extractData }
       const createRes = await fetch('/api/videos', {
         method: 'POST',
@@ -178,6 +218,7 @@ export default function CreatePage() {
       if (!createRes.ok) { setError(createData.error || 'Failed to create video'); setStage('idle'); return }
 
       // Step 3: Trigger pipeline
+      setStageMsg('Starting video generation...')
       const genRes = await fetch('/api/generate-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -190,8 +231,7 @@ export default function CreatePage() {
       })
       const genData = await genRes.json()
       if (!genRes.ok) {
-        setError(genData.error || 'Pipeline failed to start')
-        setStage('idle')
+        router.push(`/create/generating?id=${createData.id}`)
         return
       }
 
