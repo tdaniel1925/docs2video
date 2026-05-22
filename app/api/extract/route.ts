@@ -163,7 +163,7 @@ Only include real data found in the content. Never invent contact info.`,
 
     // Extract text from PDF using pdf-parse
     if (isPdf) {
-      const pdfParse = require('pdf-parse')
+      const pdfParse = require('pdf-parse/lib/pdf-parse')
       const pdfData = await pdfParse(buffer)
       rawText = pdfData.text || ''
     } else {
@@ -180,7 +180,7 @@ Only include real data found in the content. Never invent contact info.`,
         return NextResponse.json({ error: 'Failed to convert document. Try saving as PDF first.' }, { status: 400 })
       }
       const convertData = await convertRes.json()
-      const pdfParse = require('pdf-parse')
+      const pdfParse = require('pdf-parse/lib/pdf-parse')
       const pdfBuffer = Buffer.from(convertData.pdfBase64, 'base64')
       const pdfData = await pdfParse(pdfBuffer)
       rawText = pdfData.text || ''
