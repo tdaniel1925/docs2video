@@ -24,6 +24,15 @@ export default function ReviewPage() {
     if (state.autoLogoUrl) setLogoPreview(state.autoLogoUrl)
     if (state.autoBrandId) setSelectedBrand(state.autoBrandId)
 
+    // Auto-populate contact info from extraction if found
+    const ci = state.extractedData?.contactInfo
+    if (ci) {
+      if (ci.phone && !state.contactPhone) { state.contactPhone = ci.phone; setContactPhone(ci.phone) }
+      if (ci.email && !state.contactEmail) { state.contactEmail = ci.email; setContactEmail(ci.email) }
+      if (ci.website && !state.contactWebsite) { state.contactWebsite = ci.website; setContactWebsite(ci.website) }
+      localStorage.setItem('d2v_create', JSON.stringify(state))
+    }
+
     // Load brands
     const supabase = createClient()
     supabase.from('brands').select('*').order('is_default', { ascending: false }).then(({ data }) => {
@@ -141,11 +150,13 @@ export default function ReviewPage() {
         {(() => {
           const allText = JSON.stringify(data).toLowerCase()
           const intentType = createState.intentType || ''
-          const hasPhone = !!allText.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\+\d[\d\s-]{7,}/)
-          const hasEmail = !!allText.match(/\S+@\S+\.\S+/)
-          const hasWebsite = !!allText.match(/(?:www\.|https?:\/\/)\S+/)
+          // Check both structured contactInfo AND raw text patterns
+          const ci = data?.contactInfo || {}
+          const hasPhone = !!ci.phone || !!allText.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\+\d[\d\s-]{7,}/)
+          const hasEmail = !!ci.email || !!allText.match(/\S+@\S+\.\S+/)
+          const hasWebsite = !!ci.website || !!allText.match(/(?:www\.|https?:\/\/)\S+/)
           const hasPricing = !!allText.match(/\$\d|pricing|price|cost|plan|tier|subscription|free trial/)
-          const hasCompanyName = !!data?.title
+          const hasCompanyName = !!data?.title || !!data?.companyName
 
           // Build dynamic fields based on intent
           type FieldDef = { key: string; label: string; placeholder: string; type: string }
