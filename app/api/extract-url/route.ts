@@ -51,6 +51,13 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code fence
   "title": "string — a clear, concise title summarizing the content",
   "subtitle": "string or null — a supporting subtitle if appropriate",
   "source": "string or null — the source or origin of the content if identifiable",
+  "companyName": "string or null — the exact company/organization name as written on the site (preserve apostrophes, capitalization)",
+  "contactInfo": {
+    "phone": "string or null — any phone number found anywhere on the page including footer",
+    "email": "string or null — any email address found anywhere on the page including footer",
+    "website": "string or null — the main website URL",
+    "address": "string or null — any physical address found"
+  },
   "keyMetrics": [
     { "label": "string", "value": "string", "highlight": true/false }
   ],
@@ -62,6 +69,8 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code fence
 }
 
 Rules:
+- CONTACT INFO: Carefully scan the ENTIRE text including headers, footers, sidebars for phone numbers, email addresses, and physical addresses. Check the very bottom of the content — footers often have contact info.
+- COMPANY NAME: Extract the exact company name with correct spelling, apostrophes, and capitalization
 - Extract any numbers, percentages, dollar amounts, dates, or quantifiable data as keyMetrics
 - Mark the 2-3 most important metrics with "highlight": true
 - Break the content into logical sections with clear titles
@@ -126,26 +135,61 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Use Firecrawl for accurate content extraction — no AI hallucination
+    // Scrape main page + key nav pages for comprehensive content
     console.log(`[extract-url] Firecrawl scraping ${parsedUrl.toString()}...`)
-    const crawlResult = await getFirecrawl().scrape(parsedUrl.toString(), {
+    const mainResult = await getFirecrawl().scrape(parsedUrl.toString(), {
       formats: ['markdown', 'html'],
     }) as any
 
-    const markdown = crawlResult?.markdown || crawlResult?.data?.markdown || ''
-    const html = crawlResult?.html || crawlResult?.data?.html || ''
+    let markdown = mainResult?.markdown || mainResult?.data?.markdown || ''
+    let html = mainResult?.html || mainResult?.data?.html || ''
+
+    // Extract nav links and scrape key pages (about, pricing, services, contact)
+    const baseOrigin = parsedUrl.origin
+    const navKeywords = /\b(about|pricing|services|contact|features|solutions|products|plans)\b/i
+    const navLinks: string[] = []
+    const linkMatches = html.match(/href=["']([^"']+)["']/gi) || []
+    for (const m of linkMatches) {
+      const href = m.match(/href=["']([^"']+)["']/)?.[1]
+      if (href && navKeywords.test(href) && !href.includes('#') && !href.includes('mailto:')) {
+        let fullUrl = href
+        if (!fullUrl.startsWith('http')) {
+          try { fullUrl = new URL(href, baseOrigin).href } catch { continue }
+        }
+        if (fullUrl.startsWith(baseOrigin) && !navLinks.includes(fullUrl)) {
+          navLinks.push(fullUrl)
+        }
+      }
+    }
+
+    // Scrape up to 3 nav pages in parallel
+    if (navLinks.length > 0) {
+      console.log(`[extract-url] Scraping ${Math.min(navLinks.length, 3)} nav pages: ${navLinks.slice(0, 3).join(', ')}`)
+      const navResults = await Promise.allSettled(
+        navLinks.slice(0, 3).map(url =>
+          getFirecrawl().scrape(url, { formats: ['markdown'] }).catch(() => null)
+        )
+      )
+      for (const r of navResults) {
+        if (r.status === 'fulfilled' && r.value) {
+          const navMd = (r.value as any)?.markdown || (r.value as any)?.data?.markdown || ''
+          if (navMd.length > 50) {
+            markdown += `\n\n---\n\n${navMd}`
+          }
+        }
+      }
+    }
 
     if (!markdown || markdown.length < 50) {
       console.error('[extract-url] Firecrawl returned insufficient content:', markdown?.slice(0, 200))
       return NextResponse.json({ error: 'Could not extract meaningful content from this URL. The site may be blocking scrapers or temporarily unavailable.' }, { status: 400 })
     }
 
-    // Check if Firecrawl returned an error page instead of real content
     if (markdown.includes('502') && markdown.includes('Server Error') || markdown.includes('403 Forbidden')) {
       return NextResponse.json({ error: 'The website returned an error. Please try again in a moment.' }, { status: 400 })
     }
 
-    console.log(`[extract-url] Firecrawl got ${markdown.length} chars markdown, ${html.length} chars HTML`)
+    console.log(`[extract-url] Total content: ${markdown.length} chars markdown from ${1 + navLinks.slice(0, 3).length} pages`)
 
     // Use the EXACT text from Firecrawl (no AI guessing about page content)
     const truncated = markdown.slice(0, 50000)
