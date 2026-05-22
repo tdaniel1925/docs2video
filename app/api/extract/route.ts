@@ -102,18 +102,58 @@ Only include real data found in the content. Never invent contact info.`,
     return NextResponse.json({ error: 'No file provided' }, { status: 400 })
   }
 
-  const ACCEPTED_TYPES = [
-    'application/pdf',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'application/vnd.ms-powerpoint',
-  ]
-  const isPptx = file.name?.toLowerCase().endsWith('.pptx') || file.name?.toLowerCase().endsWith('.ppt')
-  if (!ACCEPTED_TYPES.includes(file.type) && !isPptx) {
-    return NextResponse.json({ error: 'File must be a PDF or PowerPoint file' }, { status: 400 })
-  }
-
   if (file.size > 50 * 1024 * 1024) {
     return NextResponse.json({ error: 'File must be under 50MB' }, { status: 400 })
+  }
+
+  const fname = file.name?.toLowerCase() || ''
+  const isTextFile = fname.endsWith('.txt') || fname.endsWith('.csv') || fname.endsWith('.doc') || fname.endsWith('.docx') ||
+    file.type === 'text/plain' || file.type === 'text/csv' ||
+    file.type === 'application/msword' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+
+  // For text-based files, read content and use AI structuring
+  if (isTextFile) {
+    try {
+      const text = await file.text()
+      if (!text || text.trim().length < 10) {
+        return NextResponse.json({ error: 'File appears to be empty' }, { status: 400 })
+      }
+      const purposeField = formData.get('purpose') as string | null
+      const OpenAI = (await import('openai')).default
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+      const structureRes = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{
+          role: 'system',
+          content: `Extract and structure content into JSON. Return:
+{
+  "title": "Main title",
+  "subtitle": "Subtitle or tagline",
+  "sections": [{ "title": "Section name", "content": "Section content" }],
+  "keyMetrics": [{ "value": "stat value", "label": "stat label" }],
+  "contactInfo": { "phone": null, "email": null, "website": null },
+  "companyName": "Company name if mentioned"
+}
+Only include real data found in the content. Never invent contact info.`,
+        }, {
+          role: 'user',
+          content: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Content:\n${text.slice(0, 15000)}`,
+        }],
+        temperature: 0.3,
+        max_tokens: 3000,
+        response_format: { type: 'json_object' },
+      })
+      const structured = JSON.parse(structureRes.choices[0]?.message?.content || '{}')
+      return NextResponse.json(structured)
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to process text file' }, { status: 500 })
+    }
+  }
+
+  const isPptx = fname.endsWith('.pptx') || fname.endsWith('.ppt')
+  const isPdf = fname.endsWith('.pdf') || file.type === 'application/pdf'
+  if (!isPdf && !isPptx) {
+    return NextResponse.json({ error: 'Unsupported file type. Upload a PDF, PPTX, DOCX, TXT, or CSV.' }, { status: 400 })
   }
 
   try {
