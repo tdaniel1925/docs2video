@@ -65,28 +65,28 @@ Every scene must have a "beat" field indicating its storytelling role. Use this 
 
 2. DISCLAIMER (1 scene) — EXACT narration: "Before we begin, please note: this video is intended for educational and informational purposes only. It explains general concepts related to life insurance illustrations. It is not legal, tax, or financial advice. Policy guarantees are based on the claims-paying ability of the issuing insurance company. Any non-guaranteed values shown are subject to change. Please review all policy materials and consult with your licensed insurance professional before making any decisions."
 
-3. CONTEXT (1-2 scenes) — Set the stage: who is this policy for, what type of policy, the big picture of what it provides. Client overview and policy summary.
+3. CONTEXT — Set the stage: who is this policy for, what type of policy, the big picture. Use as many scenes as needed.
 
-4. STAKES (1-2 scenes) — Why this matters. What the death benefit means for the family. The real-world impact of this coverage. Make it emotional but factual.
+4. STAKES — Why this matters. What the death benefit means for the family. Real-world impact. Make it emotional but factual.
 
-5. EVIDENCE (3-8 scenes) — The deep dive. This is the bulk of the video. Walk through:
+5. EVIDENCE — The deep dive. This is the bulk of the video. Walk through:
    - Premium breakdown (how much, how often, value received)
    - Cash value growth year by year (guaranteed vs illustrated)
    ${data.surrenderValueProjections.length > 0 ? '- Surrender values and what they mean' : ''}
    ${data.loanRate ? `- Policy loans and the ${data.loanRate}% loan rate` : ''}
    ${data.riders.length > 0 ? '- Each rider and what protection it provides' : ''}
-   Break complex data across MULTIPLE scenes. One concept per scene. Use specific numbers.
+   Use as many scenes as needed. One concept per scene. Use specific numbers. Be thorough.
 
-6. IMPLICATION (1-2 scenes) — What this all means for the viewer. Connect the data back to their life. "By year 20, your cash value exceeds your total premiums paid — your policy is essentially paying for itself."
+6. IMPLICATION — What this all means for the viewer. Connect the data back to their life.
 
 7. DISCLAIMER-CLOSE (1 scene) — Closing legal disclaimer. EXACT narration: "As a reminder, this video is for educational purposes only and does not constitute financial advice. Policy guarantees depend on the issuing carrier's claims-paying ability, and non-guaranteed values may change. Please review your official policy documents and consult with your licensed professional."
 
 8. ACTION (1 scene) — Clear next step. What should the viewer do now? End with the closing per VOICE RULES.
    ${brandName ? `Direct them to contact {{BRAND_NAME}}.` : 'Direct them to contact their agent.'}
 
-SCENE COUNT: Use 8-16 scenes total. The EVIDENCE section should expand based on how much data is in the document. Simple policies = fewer evidence scenes. Complex ones with many riders and projections = more.
+SCENE COUNT: Determined by the VIDEO LENGTH instruction below. Do NOT decide scene count here.
 
-SCENE STRUCTURE: Each scene covers ONE topic or concept. When the topic changes, start a new scene. Scenes can be any length needed to properly explain the topic — short for simple facts, longer for complex explanations. The key rule is: ONE topic per scene, ONE slide per scene. Never discuss multiple unrelated points in the same scene.
+SCENE STRUCTURE: Each scene covers ONE topic or concept. Scenes can be any length needed. ONE topic per scene, ONE slide per scene.
 
 TONE: Professional but warm, like a trusted financial advisor explaining to a client over coffee. Use plain language — no insurance jargon. Make the client feel informed and confident.
 
@@ -183,11 +183,9 @@ ${disclaimerBeat}${disclaimerCloseBeat}
    For the HOOK: Jump straight into the topic "${data.title}" — do NOT say "brought to you by" or introduce a brand name.
    For the ACTION beat: Simply thank the viewer. Only mention specific contact methods if they appear in the DOCUMENT DATA above. Do NOT invent any phone numbers, emails, or websites.
 
-${uploadMode === 'narrate' || uploadMode === 'redesign'
-  ? `SCENE COUNT: Create EXACTLY ${Math.max(data.sections?.length || 1, 5)} scenes — one scene for EVERY section and topic in the document. Do NOT summarize, combine, or skip any content. Every piece of information must be covered.`
-  : `SCENE COUNT: Use ${Math.max(4, Math.min(16, (data.sections?.length || 3) + 3))} scenes. Match the number of scenes to the amount of content — short documents get fewer scenes (4-6), detailed documents get more (8-16). Do NOT pad with filler content.`}
+SCENE COUNT: Determined by the VIDEO LENGTH instruction below. Do NOT decide scene count here.
 
-SCENE STRUCTURE: Each scene covers ONE topic or concept. When the topic changes, start a new scene. Scenes can be any length needed to properly explain the topic — short for simple facts, longer for complex explanations. The key rule is: ONE topic per scene, ONE slide per scene. Never discuss multiple unrelated points in the same scene.
+SCENE STRUCTURE: Each scene covers ONE topic or concept. Scenes can be any length needed. ONE topic per scene, ONE slide per scene.
 
 NARRATION QUALITY (CRITICAL — this will be read aloud):
 - Write for the EAR, not the eye. If it sounds stilted when read aloud, rewrite it.
@@ -472,9 +470,9 @@ TONE:
 - No forced casual: "check this out", "that's wild", "no way"
 
 SCENE PACING:
-- Each scene = 10-15 seconds (2-3 exchanges)
+- Each scene covers one topic in the conversation
 - Scenes are cuts in one continuous conversation, not separate topics
-- A 3-minute video = 15-20 scenes. 5-minute = 25-30 scenes.
+- Scene count and length determined by the VIDEO LENGTH instruction below
 
 DATA INTEGRITY (ABSOLUTE RULE — VIOLATION = FAILURE):
 - ONLY discuss facts that appear VERBATIM in the DOCUMENT DATA above
