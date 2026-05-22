@@ -387,7 +387,14 @@ Return as plain text, not JSON. Be specific — use actual numbers, names, and f
   if (detailLevel === 'quick') {
     additionalSections.push(`VIDEO LENGTH: HIGHLIGHTS — 3-4 scenes, under 60 seconds. Only the top 2-3 key points. Keep narration brief.`)
   } else if (detailLevel === 'detailed') {
-    additionalSections.push(`VIDEO LENGTH: DETAILED — Cover EVERY data point, metric, section, and detail in the source. Create as many scenes as needed. Each scene should thoroughly explain its topic — use as many words as needed for clarity. Do NOT rush or summarize. Target 5-15 minutes. This should feel like a comprehensive walkthrough.`)
+    additionalSections.push(`VIDEO LENGTH: DETAILED — This must be a LONG, THOROUGH video. Requirements:
+- Cover EVERY data point, metric, section, and detail in the source
+- Each scene should have 100-200 words of narration — explain thoroughly, give context, provide examples
+- Do NOT summarize — EXPAND on each point. Explain what it means, why it matters, how it works
+- If a section has multiple sub-points, give each sub-point its own scene
+- Add context scenes: explain background, industry context, why the viewer should care
+- Target 5-15 minutes minimum. If you create less than 10 scenes, you are not being thorough enough.
+- This should feel like a comprehensive training walkthrough, not a summary`)
   } else {
     additionalSections.push(`VIDEO LENGTH: STANDARD — Cover all major points with reasonable depth. 6-12 scenes. Each scene should fully explain its topic.`)
   }
