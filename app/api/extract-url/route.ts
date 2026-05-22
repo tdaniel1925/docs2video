@@ -146,7 +146,7 @@ export async function POST(request: Request) {
 
     // Extract nav links and scrape key pages (about, pricing, services, contact)
     const baseOrigin = parsedUrl.origin
-    const navKeywords = /\b(about|pricing|services|contact|features|solutions|products|plans)\b/i
+    const navKeywords = /\b(about|pricing|services|contact|features|solutions|products|plans|testimonials|reviews|faq|how-it-works|case-studies|clients)\b/i
     const navLinks: string[] = []
     const linkMatches = html.match(/href=["']([^"']+)["']/gi) || []
     for (const m of linkMatches) {
@@ -164,9 +164,9 @@ export async function POST(request: Request) {
 
     // Scrape up to 3 nav pages in parallel
     if (navLinks.length > 0) {
-      console.log(`[extract-url] Scraping ${Math.min(navLinks.length, 3)} nav pages: ${navLinks.slice(0, 3).join(', ')}`)
+      console.log(`[extract-url] Scraping ${Math.min(navLinks.length, 3)} nav pages: ${navLinks.slice(0, 5).join(', ')}`)
       const navResults = await Promise.allSettled(
-        navLinks.slice(0, 3).map(url =>
+        navLinks.slice(0, 5).map(url =>
           getFirecrawl().scrape(url, { formats: ['markdown'] }).catch(() => null)
         )
       )
@@ -189,7 +189,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'The website returned an error. Please try again in a moment.' }, { status: 400 })
     }
 
-    console.log(`[extract-url] Total content: ${markdown.length} chars markdown from ${1 + navLinks.slice(0, 3).length} pages`)
+    console.log(`[extract-url] Total content: ${markdown.length} chars markdown from ${1 + navLinks.slice(0, 5).length} pages`)
 
     // Use the EXACT text from Firecrawl (no AI guessing about page content)
     const truncated = markdown.slice(0, 50000)
