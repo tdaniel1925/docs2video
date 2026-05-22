@@ -86,7 +86,7 @@ Every scene must have a "beat" field indicating its storytelling role. Use this 
 
 SCENE COUNT: Use 8-16 scenes total. The EVIDENCE section should expand based on how much data is in the document. Simple policies = fewer evidence scenes. Complex ones with many riders and projections = more.
 
-Each scene's narration should be 10-20 seconds (roughly 25-50 words). Each scene must cover ONE specific fact or data point — not a broad topic. More scenes with tight focus beats fewer scenes with long narration. A 3-minute video should have 15-20 scenes.
+SCENE LENGTH (STRICT): Each scene MUST be 25-50 words. If a scene has more than 50 words, SPLIT it into two scenes. Each scene = ONE fact, ONE slide. NEVER combine multiple topics in one scene.
 
 TONE: Professional but warm, like a trusted financial advisor explaining to a client over coffee. Use plain language — no insurance jargon. Make the client feel informed and confident.
 
@@ -187,7 +187,7 @@ ${uploadMode === 'narrate' || uploadMode === 'redesign'
   ? `SCENE COUNT: Create EXACTLY ${Math.max(data.sections?.length || 1, 5)} scenes — one scene for EVERY section and topic in the document. Do NOT summarize, combine, or skip any content. Every piece of information must be covered.`
   : `SCENE COUNT: Use ${Math.max(4, Math.min(16, (data.sections?.length || 3) + 3))} scenes. Match the number of scenes to the amount of content — short documents get fewer scenes (4-6), detailed documents get more (8-16). Do NOT pad with filler content.`}
 
-Each scene's narration should be 10-20 seconds (roughly 25-50 words). Each scene must cover ONE specific fact or data point — not a broad topic. More scenes with tight focus beats fewer scenes with long narration. A 3-minute video should have 15-20 scenes.
+SCENE LENGTH (STRICT): Each scene MUST be 25-50 words. If a scene has more than 50 words, SPLIT it into two scenes. Each scene = ONE fact, ONE slide. NEVER combine multiple topics in one scene.
 
 NARRATION QUALITY (CRITICAL — this will be read aloud):
 - Write for the EAR, not the eye. If it sounds stilted when read aloud, rewrite it.
