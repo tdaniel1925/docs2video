@@ -341,87 +341,144 @@ export default function ScriptPage() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'start' }}>
-              {/* Left: Script editor */}
+              {/* Left: Script editor — accordion with narration + slide content */}
               <div>
-                {scenes.map((scene: any, i: number) => (
-                  <div
-                    key={i}
-                    draggable
-                    onDragStart={() => setDragIdx(i)}
-                    onDragOver={e => e.preventDefault()}
-                    onDrop={() => {
-                      if (dragIdx === null || dragIdx === i) return
-                      const updated = [...scenes]
-                      const [moved] = updated.splice(dragIdx, 1)
-                      updated.splice(i, 0, moved)
-                      // Renumber
-                      updated.forEach((s, idx) => { s.scene = idx + 1 })
-                      setScenes(updated)
-                      autoSave(updated, i, true)
-                      setDragIdx(null)
-                    }}
-                    onDragEnd={() => setDragIdx(null)}
-                    style={{
-                      marginBottom: 14, borderRadius: 14, padding: 18,
-                      background: 'white',
-                      border: dragIdx === i ? '2px solid var(--mint)' : '1px solid var(--border-light)',
-                      opacity: dragIdx === i ? 0.6 : 1,
-                      cursor: 'grab',
-                      transition: 'opacity 0.2s, border-color 0.2s',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <span style={{
-                        width: 26, height: 26, borderRadius: '50%', background: 'var(--mint)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontWeight: 800, fontSize: 12, flexShrink: 0, cursor: 'grab',
-                      }} title="Drag to reorder">{i + 1}</span>
-                      <input
-                        type="text"
-                        value={scene.title}
-                        onChange={e => {
-                          const updated = [...scenes]
-                          updated[i] = { ...updated[i], title: e.target.value }
-                          setScenes(updated)
-                          autoSave(updated, i)
-                        }}
-                        style={{ border: 'none', background: 'transparent', fontWeight: 700, fontSize: 15, flex: 1, outline: 'none', color: 'var(--ink)', fontFamily: 'inherit' }}
-                      />
-                    </div>
-                    <textarea
-                      value={scene.narration}
-                      onChange={e => {
+                {scenes.map((scene: any, i: number) => {
+                  const sd = scene.slideData || {}
+                  const bullets = sd.bullets || []
+                  const stats = sd.stats || []
+                  return (
+                    <div
+                      key={i}
+                      draggable
+                      onDragStart={() => setDragIdx(i)}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={() => {
+                        if (dragIdx === null || dragIdx === i) return
                         const updated = [...scenes]
-                        updated[i] = { ...updated[i], narration: e.target.value }
+                        const [moved] = updated.splice(dragIdx, 1)
+                        updated.splice(i, 0, moved)
+                        updated.forEach((s, idx) => { s.scene = idx + 1 })
                         setScenes(updated)
-                        autoSave(updated, i)
+                        autoSave(updated, i, true)
+                        setDragIdx(null)
                       }}
+                      onDragEnd={() => setDragIdx(null)}
                       style={{
-                        width: '100%', minHeight: 70, resize: 'vertical', border: '1px solid var(--border-light)',
-                        borderRadius: 8, padding: 10, fontSize: 13, lineHeight: 1.6,
-                        fontFamily: 'inherit', outline: 'none',
+                        marginBottom: 12, borderRadius: 14, overflow: 'hidden',
+                        background: 'white',
+                        border: dragIdx === i ? '2px solid var(--mint)' : '1px solid var(--border-light)',
+                        opacity: dragIdx === i ? 0.6 : 1,
+                        transition: 'opacity 0.2s, border-color 0.2s',
                       }}
-                    />
-                    <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span>~{Math.round((scene.narration?.split(/\s+/).length || 0) / 2.5)}s &middot; {scene.narration?.split(/\s+/).length || 0} words</span>
-                      {savedScene === i && (
-                        <span style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600, animation: 'fadeInUp 0.3s ease' }}>
-                          &#10003; Saved
-                        </span>
-                      )}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handlePreviewSlide(i) }}
-                        style={{
-                          marginLeft: 'auto', background: 'none', border: '1px solid var(--border)',
-                          borderRadius: 6, padding: '2px 8px', fontSize: 11, color: 'var(--ink-light)',
-                          cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
-                        }}
-                      >
-                        Preview slide
-                      </button>
+                    >
+                      {/* Scene header */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', cursor: 'grab' }}>
+                        <span style={{
+                          width: 26, height: 26, borderRadius: '50%', background: 'var(--mint)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontWeight: 800, fontSize: 12, flexShrink: 0,
+                        }}>{i + 1}</span>
+                        <input
+                          type="text"
+                          value={scene.title}
+                          onChange={e => {
+                            const updated = [...scenes]
+                            updated[i] = { ...updated[i], title: e.target.value }
+                            setScenes(updated)
+                            autoSave(updated, i)
+                          }}
+                          style={{ border: 'none', background: 'transparent', fontWeight: 700, fontSize: 15, flex: 1, outline: 'none', color: 'var(--ink)', fontFamily: 'inherit' }}
+                        />
+                        <span style={{ fontSize: 11, color: 'var(--ink-light)', whiteSpace: 'nowrap' }}>~{Math.round((scene.narration?.split(/\s+/).length || 0) / 2.5)}s</span>
+                        {savedScene === i && <span style={{ fontSize: 11, color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>&#10003;</span>}
+                      </div>
+
+                      {/* Narration section */}
+                      <div style={{ padding: '0 16px 8px' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-light)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Narration</div>
+                        <textarea
+                          value={scene.narration}
+                          onChange={e => {
+                            const updated = [...scenes]
+                            updated[i] = { ...updated[i], narration: e.target.value }
+                            setScenes(updated)
+                            autoSave(updated, i)
+                          }}
+                          style={{
+                            width: '100%', minHeight: 60, resize: 'vertical', border: '1px solid var(--border-light)',
+                            borderRadius: 8, padding: 10, fontSize: 13, lineHeight: 1.6,
+                            fontFamily: 'inherit', outline: 'none',
+                          }}
+                        />
+                      </div>
+
+                      {/* Slide content section */}
+                      <div style={{ padding: '0 16px 12px' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-light)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Slide Content</div>
+                        <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--bg-soft)', border: '1px solid var(--border-light)', fontSize: 13 }}>
+                          <input
+                            type="text"
+                            value={sd.headline || scene.title || ''}
+                            onChange={e => {
+                              const updated = [...scenes]
+                              updated[i] = { ...updated[i], slideData: { ...sd, headline: e.target.value } }
+                              setScenes(updated)
+                              autoSave(updated, i)
+                            }}
+                            placeholder="Slide headline"
+                            style={{ border: 'none', background: 'transparent', fontWeight: 700, fontSize: 14, width: '100%', outline: 'none', color: 'var(--ink)', fontFamily: 'inherit', marginBottom: 6 }}
+                          />
+                          {stats.length > 0 && (
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                              {stats.map((st: any, j: number) => (
+                                <span key={j} style={{ padding: '2px 8px', borderRadius: 6, background: 'white', border: '1px solid var(--border)', fontSize: 12 }}>
+                                  <strong>{st.value}</strong> {st.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {bullets.length > 0 ? (
+                            <div>
+                              {bullets.map((b: string, j: number) => (
+                                <div key={j} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: 3 }}>
+                                  <span style={{ color: 'var(--mint)', fontSize: 10, marginTop: 3 }}>&#9679;</span>
+                                  <input
+                                    type="text"
+                                    value={typeof b === 'string' ? b : (b as any)?.text || ''}
+                                    onChange={e => {
+                                      const updated = [...scenes]
+                                      const newBullets = [...bullets]
+                                      newBullets[j] = e.target.value
+                                      updated[i] = { ...updated[i], slideData: { ...sd, bullets: newBullets } }
+                                      setScenes(updated)
+                                      autoSave(updated, i)
+                                    }}
+                                    style={{ border: 'none', background: 'transparent', fontSize: 12, flex: 1, outline: 'none', color: 'var(--ink-soft)', fontFamily: 'inherit' }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: 12, color: 'var(--ink-light)', fontStyle: 'italic' }}>No bullet points — AI will extract from narration</div>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handlePreviewSlide(i) }}
+                            style={{
+                              background: 'none', border: '1px solid var(--border)',
+                              borderRadius: 6, padding: '3px 10px', fontSize: 11, color: 'var(--ink-light)',
+                              cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
+                            }}
+                          >
+                            Preview slide
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               {/* Right: AI Chat assistant */}
