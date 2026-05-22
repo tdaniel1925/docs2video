@@ -387,11 +387,11 @@ Return as plain text, not JSON. Be specific — use actual numbers, names, and f
 
   // Detail level OVERRIDES the base scene count
   if (detailLevel === 'quick') {
-    additionalSections.push(`VIDEO LENGTH (OVERRIDE): HIGHLIGHTS MODE — Create exactly 3-4 scenes total. IGNORE any other scene count instructions. Keep it under 60 seconds. Only the most important 2-3 data points.`)
+    additionalSections.push(`VIDEO LENGTH: HIGHLIGHTS — 3-4 scenes, under 60 seconds. Only the top 2-3 key points. Keep narration brief.`)
   } else if (detailLevel === 'detailed') {
-    additionalSections.push(`VIDEO LENGTH (OVERRIDE): DETAILED MODE — Create 15-25 scenes. IGNORE any other scene count instructions. Cover EVERY data point, metric, and section. Each scene covers ONE specific fact. Target 5-10 minutes.`)
+    additionalSections.push(`VIDEO LENGTH: DETAILED — Cover EVERY data point, metric, section, and detail in the source. Create as many scenes as needed. Each scene should thoroughly explain its topic — use as many words as needed for clarity. Do NOT rush or summarize. Target 5-15 minutes. This should feel like a comprehensive walkthrough.`)
   } else {
-    additionalSections.push(`VIDEO LENGTH (OVERRIDE): STANDARD MODE — Create 8-14 scenes. IGNORE any other scene count instructions. Cover all major points.`)
+    additionalSections.push(`VIDEO LENGTH: STANDARD — Cover all major points with reasonable depth. 6-12 scenes. Each scene should fully explain its topic.`)
   }
 
   // Every scene MUST have narration
