@@ -189,6 +189,26 @@ export async function POST(request: Request) {
       }
       // Ensure scene count matches — renumber
       scenes.forEach((s: any, idx: number) => { s.scene = idx + 1 })
+
+      // Inject contact info into last scene narration if available
+      const pd = policyData as any
+      const closingPhone = pd?.contactPhone || pd?.contactInfo?.phone || brand?.brand_guide_data?.phone
+      const closingEmail = pd?.contactEmail || pd?.contactInfo?.email || brand?.brand_guide_data?.email
+      const closingWebsite = pd?.contactWebsite || pd?.contactInfo?.website
+      if (scenes.length > 0 && (closingPhone || closingEmail || closingWebsite)) {
+        const lastScene = scenes[scenes.length - 1]
+        const lastWords = lastScene.narration?.trim().split(/\s+/).length || 0
+        // If last scene is short (likely just "thank you"), add contact mention
+        if (lastWords < 30) {
+          const parts: string[] = []
+          if (closingPhone) parts.push(`give us a call at ${closingPhone.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3')}`)
+          if (closingEmail) parts.push(`email us at ${closingEmail}`)
+          if (closingWebsite) parts.push(`or visit our website for more information`)
+          lastScene.narration = `Thank you for watching. To learn more, ${parts.join(', ')}. We look forward to hearing from you.`
+          console.log(`[video ${videoId}] Injected contact info into closing narration`)
+        }
+      }
+
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script ready', progress_pct: 15 }).eq('id', videoId)
     } else {
       console.log(`[video ${videoId}] Generating script...`)
