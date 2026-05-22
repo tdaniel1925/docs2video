@@ -191,6 +191,16 @@ export async function POST(request: Request) {
 
     console.log(`[extract-url] Total content: ${markdown.length} chars markdown from ${1 + navLinks.slice(0, 5).length} pages`)
 
+    // Extract contact info directly with regex — don't rely on AI
+    const phoneMatches = markdown.match(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g) || []
+    const emailMatches = markdown.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || []
+    const directContactInfo = {
+      phone: phoneMatches.find(p => !p.startsWith('159') && p.length >= 10) || null, // skip image IDs
+      email: emailMatches.find(e => !e.includes('example') && !e.includes('test')) || null,
+      website: parsedUrl.origin,
+    }
+    console.log(`[extract-url] Direct contact extraction: phone=${directContactInfo.phone}, email=${directContactInfo.email}`)
+
     // Use the EXACT text from Firecrawl (no AI guessing about page content)
     const truncated = markdown.slice(0, 50000)
     const htmlForTheme = html.slice(0, 30000)
@@ -221,6 +231,13 @@ export async function POST(request: Request) {
     if (!data.source) {
       data.source = parsedUrl.hostname
     }
+
+    // Merge direct regex contact extraction — more reliable than AI detection
+    if (!data.contactInfo) (data as any).contactInfo = {}
+    const ci = (data as any).contactInfo
+    if (!ci.phone && directContactInfo.phone) ci.phone = directContactInfo.phone
+    if (!ci.email && directContactInfo.email) ci.email = directContactInfo.email
+    if (!ci.website) ci.website = directContactInfo.website
 
     // Parse theme suggestion
     let suggestedTheme = null
