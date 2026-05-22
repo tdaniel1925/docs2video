@@ -30,22 +30,14 @@ export function buildSimpleSlidePrompt(input: SimpleSlideInput): string {
     contentLines.push(`Title: "${headline}"`)
     if (subtitle) contentLines.push(`Subtitle: "${subtitle}"`)
   } else if (type === 'closing') {
-    contentLines.push(`This is a CLOSING slide.`)
-    contentLines.push(`Headline: "${headline}"`)
-    if (brandName) contentLines.push(`Brand name: "${brandName}" — display EXACTLY as written, prominently`)
-    if (contactInfo?.phone) contentLines.push(`Phone number — RENDER EXACTLY: "${contactInfo.phone}" — do NOT change any digits, do NOT substitute with a different number`)
-    if (contactInfo?.email) contentLines.push(`Email — RENDER EXACTLY: "${contactInfo.email?.toLowerCase()}" — do NOT change this email address`)
-    if (contactInfo?.website) contentLines.push(`Website — RENDER EXACTLY: "${contactInfo.website?.toLowerCase()}" — do NOT change this URL`)
-    if (contactInfo?.calendly) contentLines.push(`"Schedule a call from this page"`)
-    if (bullets && bullets.length > 0) {
-      contentLines.push(`Additional info:`)
-      bullets.forEach(b => contentLines.push(`- ${b.text}`))
+    contentLines.push(`Closing slide. "${headline}"`)
+    if (brandName) contentLines.push(`"${brandName}"`)
+    if (contactInfo?.phone) contentLines.push(`Phone: ${contactInfo.phone}`)
+    if (contactInfo?.email) contentLines.push(`Email: ${contactInfo.email?.toLowerCase()}`)
+    if (contactInfo?.website) contentLines.push(`Website: ${contactInfo.website?.toLowerCase()}`)
+    if (!contactInfo?.phone && !contactInfo?.email && !contactInfo?.website) {
+      contentLines.push(`Show brand name large with "Thank You" below.`)
     }
-    const hasContact = contactInfo?.phone || contactInfo?.email || contactInfo?.website
-    if (!hasContact) {
-      contentLines.push(`No contact info provided. Show the brand name large and centered with "Thank You" below it.`)
-    }
-    contentLines.push(`CRITICAL: Every phone number, email, and URL on this slide must be EXACTLY as written above — character for character. Do NOT invent, change, or substitute ANY contact information. Keep content in the LEFT side of the slide to avoid overlapping with the logo in the top-right corner.`)
   } else {
     contentLines.push(`Title: "${headline}"`)
     if (subtitle) contentLines.push(`Subtitle: "${subtitle}"`)
@@ -59,7 +51,7 @@ export function buildSimpleSlidePrompt(input: SimpleSlideInput): string {
     }
   }
 
-  if (brandName) contentLines.push(`Brand name: "${brandName}" — display EXACTLY as written (preserve apostrophes, capitalization, spacing) in small text at bottom. Use the SAME font as other text on the slide.`)
+  if (brandName && type !== 'closing') contentLines.push(`"${brandName}" small at bottom.`)
   if (input.narrationContext) contentLines.push(`CONTEXT: While this slide is showing, the narrator is saying: "${input.narrationContext.slice(0, 200)}". The slide content MUST match this topic.`)
   contentLines.push(`Slide ${pageNumber} of ${totalPages}.`)
 
@@ -71,16 +63,7 @@ Glossy, polished finish — subtle glass reflections, soft glows behind key elem
 
 ${contentLines.join('\n')}
 
-Rules:
-- Display ALL content text above on the slide
-- Every letter perfectly spelled and readable
-- 80px safe padding on all edges
-- A small logo will be composited in the top-right corner later — do not worry about leaving space for it
-- All URLs and email addresses must be displayed in lowercase
-- When a phone number is in the content, display it prominently
-- Do NOT add any text not listed above
-- Do NOT include any logo or brand mark — it will be added separately
-- Do NOT render instructions or metadata as visible text`
+Rules: Show only the text listed above. Spell everything exactly. 80px padding. No logo. Keep top-right corner clear.`
 }
 
 /**
