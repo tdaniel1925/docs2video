@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
-import OpenAI from 'openai'
 
 export async function POST(request: Request & { nextUrl?: URL }) {
   const url = new URL(request.url)
@@ -41,8 +40,8 @@ export async function POST(request: Request & { nextUrl?: URL }) {
         return NextResponse.json({ error: 'No content provided' }, { status: 400 })
       }
 
-      const OpenAI = (await import('openai')).default
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+      const OpenAILib = (await import('openai')).default
+      const openai = new OpenAILib({ apiKey: process.env.OPENAI_API_KEY! })
 
       let contentToStructure = ''
       if (text) {
@@ -120,8 +119,8 @@ Only include real data found in the content. Never invent contact info.`,
         return NextResponse.json({ error: 'File appears to be empty' }, { status: 400 })
       }
       const purposeField = formData.get('purpose') as string | null
-      const OpenAI = (await import('openai')).default
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+      const OpenAILib = (await import('openai')).default
+      const openai = new OpenAILib({ apiKey: process.env.OPENAI_API_KEY! })
       const structureRes = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [{
@@ -159,39 +158,32 @@ Only include real data found in the content. Never invent contact info.`,
 
   try {
     const arrayBuffer = await file.arrayBuffer()
-    const base64 = Buffer.from(arrayBuffer).toString('base64')
-    const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
-    const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
-
-    // Send to VPS to extract text from PDF/PPTX/DOCX
-    const extractRes = await fetch(`${VIDEO_ASSEMBLY_URL}/extract-text`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
-      body: JSON.stringify({ fileBase64: base64, fileName: file.name }),
-      signal: AbortSignal.timeout(90000),
-    })
-
+    const buffer = Buffer.from(arrayBuffer)
     let rawText = ''
-    if (extractRes.ok) {
-      const extractResult = await extractRes.json()
-      rawText = extractResult.text || ''
-    }
 
-    // Fallback: if VPS doesn't have /extract-text, use OpenAI vision on the PDF
-    if (!rawText && isPdf) {
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-      const visionRes = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'text', text: 'Extract ALL text content from this document. Return the complete text, preserving structure. Include all headings, paragraphs, lists, tables, contact info, and data.' },
-            { type: 'image_url', image_url: { url: `data:application/pdf;base64,${base64}` } },
-          ],
-        }],
-        max_tokens: 4000,
+    // Extract text from PDF using pdf-parse
+    if (isPdf) {
+      const pdfParse = require('pdf-parse')
+      const pdfData = await pdfParse(buffer)
+      rawText = pdfData.text || ''
+    } else {
+      // PPTX/DOCX — send to VPS for conversion, then extract
+      const base64 = buffer.toString('base64')
+      const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
+      const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
+      const convertRes = await fetch(`${VIDEO_ASSEMBLY_URL}/convert-to-pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
+        body: JSON.stringify({ fileBase64: base64, fileName: file.name }),
       })
-      rawText = visionRes.choices[0]?.message?.content || ''
+      if (!convertRes.ok) {
+        return NextResponse.json({ error: 'Failed to convert document. Try saving as PDF first.' }, { status: 400 })
+      }
+      const convertData = await convertRes.json()
+      const pdfParse = require('pdf-parse')
+      const pdfBuffer = Buffer.from(convertData.pdfBase64, 'base64')
+      const pdfData = await pdfParse(pdfBuffer)
+      rawText = pdfData.text || ''
     }
 
     if (!rawText || rawText.trim().length < 20) {
@@ -200,7 +192,8 @@ Only include real data found in the content. Never invent contact info.`,
 
     // Structure with OpenAI
     const purposeField = formData.get('purpose') as string | null
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+    const OpenAILib2 = (await import('openai')).default
+    const openai = new OpenAILib2({ apiKey: process.env.OPENAI_API_KEY! })
     const structureRes = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{
