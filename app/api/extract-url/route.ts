@@ -198,7 +198,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Could not extract meaningful content from this URL. The site may be blocking scrapers or temporarily unavailable.' }, { status: 400 })
     }
 
-    if (markdown.includes('502') && markdown.includes('Server Error') || markdown.includes('403 Forbidden')) {
+    if ((markdown.includes('502') && markdown.includes('Server Error')) || markdown.includes('403 Forbidden')) {
       return NextResponse.json({ error: 'The website returned an error. Please try again in a moment.' }, { status: 400 })
     }
 

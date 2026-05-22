@@ -142,7 +142,17 @@ ${webContent ? `\nWEB RESEARCH (scraped from ${urlToScrape}):\n${webContent}\n\n
   try {
     const parsed = JSON.parse(cleaned)
 
-    // Format 1: Changes made with summary
+    // Format 1: Diff-based changes
+    if (parsed.changes && Array.isArray(parsed.changes) && parsed.changes.length > 0) {
+      return NextResponse.json({
+        changes: parsed.changes,
+        reply: parsed.summary || `Applied ${parsed.changes.length} change${parsed.changes.length > 1 ? 's' : ''}.`,
+        suggestion: parsed.suggestion || null,
+        options: parsed.options || null,
+      })
+    }
+
+    // Format 1B: Full scenes replacement (add/delete/reorder)
     if (parsed.scenes && Array.isArray(parsed.scenes)) {
       return NextResponse.json({
         scenes: parsed.scenes,

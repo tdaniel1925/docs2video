@@ -32,6 +32,7 @@ export default function ExtractingPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url: createState.url }),
+            signal: AbortSignal.timeout(120000),
           })
           result = await res.json()
           if (!res.ok) throw new Error(result.error || 'Extraction failed')
@@ -50,7 +51,7 @@ export default function ExtractingPage() {
           formData.append('file', file)
           if (createState.purpose) formData.append('purpose', createState.purpose)
 
-          const res = await fetch('/api/extract', { method: 'POST', body: formData })
+          const res = await fetch('/api/extract', { method: 'POST', body: formData, signal: AbortSignal.timeout(120000) })
           result = await res.json()
           if (!res.ok) throw new Error(result.error || 'Extraction failed')
           sessionStorage.removeItem('d2v_file')
@@ -61,6 +62,7 @@ export default function ExtractingPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: createState.rawText, purpose: createState.purpose }),
+            signal: AbortSignal.timeout(120000),
           })
           result = await res.json()
           if (!res.ok) throw new Error(result.error || 'Extraction failed')
@@ -69,6 +71,7 @@ export default function ExtractingPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ idea: createState.ideaTopic, audience: createState.ideaAudience, purpose: createState.purpose }),
+            signal: AbortSignal.timeout(120000),
           })
           result = await res.json()
           if (!res.ok) throw new Error(result.error || 'Extraction failed')
@@ -84,7 +87,11 @@ export default function ExtractingPage() {
 
         router.push('/create/review')
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Extraction failed')
+        if (err instanceof DOMException && err.name === 'TimeoutError') {
+          setError('Extraction timed out. The content may be too large or the server is busy. Please try again.')
+        } else {
+          setError(err instanceof Error ? err.message : 'Extraction failed')
+        }
       }
     }
 
@@ -116,16 +123,6 @@ export default function ExtractingPage() {
       flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: '40px 24px',
     }}>
-      <style>{`
-        @keyframes shimmer {
-          0% { background-position: -200% center; }
-          100% { background-position: 200% center; }
-        }
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
 
       {/* Progress bar */}
       <div style={{ width: '100%', maxWidth: 400, height: 8, background: 'var(--border)', borderRadius: 10, overflow: 'hidden', marginBottom: 40 }}>

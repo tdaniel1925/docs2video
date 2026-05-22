@@ -3069,3 +3069,18 @@ h1.hero-title em {
   .wp-main { flex-direction: column; }
   .wp-col-left, .wp-col-right { width: 100%; }
 }
+
+/* Shared animation */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Create flow responsive */
+@media (max-width: 640px) {
+  .create-suggestions-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .create-source-grid { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 768px) {
+  .create-script-layout { grid-template-columns: 1fr !important; }
+}

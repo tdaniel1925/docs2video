@@ -28,6 +28,73 @@ export async function POST(request: Request & { nextUrl?: URL }) {
     return NextResponse.json({ error: 'No credits remaining' }, { status: 403 })
   }
 
+  // Detect content type — JSON for text/idea, formData for file uploads
+  const contentType = request.headers.get('content-type') || ''
+
+  if (contentType.includes('application/json')) {
+    // Handle text paste and idea modes
+    try {
+      const body = await request.json()
+      const { text, idea, audience, purpose } = body
+
+      if (!text && !idea) {
+        return NextResponse.json({ error: 'No content provided' }, { status: 400 })
+      }
+
+      const OpenAI = (await import('openai')).default
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+
+      let contentToStructure = ''
+      if (text) {
+        contentToStructure = text
+      } else if (idea) {
+        // Generate content from idea using AI
+        const ideaRes = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [{
+            role: 'user',
+            content: `Write comprehensive content about: "${idea}"${audience ? ` for audience: ${audience}` : ''}${purpose ? `. Purpose: ${purpose}` : ''}.
+Include: overview, key points, benefits, relevant statistics or examples, and a conclusion. Write 500-1000 words of factual, useful content.`,
+          }],
+          temperature: 0.7,
+          max_tokens: 2000,
+        })
+        contentToStructure = ideaRes.choices[0]?.message?.content || idea
+      }
+
+      // Structure the content using AI
+      const structureRes = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{
+          role: 'system',
+          content: `Extract and structure content into JSON. Return:
+{
+  "title": "Main title",
+  "subtitle": "Subtitle or tagline",
+  "sections": [{ "title": "Section name", "content": "Section content" }],
+  "keyMetrics": [{ "value": "stat value", "label": "stat label" }],
+  "contactInfo": { "phone": null, "email": null, "website": null },
+  "companyName": "Company name if mentioned"
+}
+Only include real data found in the content. Never invent contact info.`,
+        }, {
+          role: 'user',
+          content: `${purpose ? `Purpose: ${purpose}\n\n` : ''}Content:\n${contentToStructure.slice(0, 15000)}`,
+        }],
+        temperature: 0.3,
+        max_tokens: 3000,
+        response_format: { type: 'json_object' },
+      })
+
+      const structured = JSON.parse(structureRes.choices[0]?.message?.content || '{}')
+      return NextResponse.json(structured)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Extraction failed'
+      return NextResponse.json({ error: message }, { status: 500 })
+    }
+  }
+
+  // File upload mode — formData
   const formData = await request.formData()
   const file = formData.get('file') as File | null
 

@@ -100,20 +100,72 @@ export default function ReviewPage() {
     <div style={{
       flex: 1, padding: '40px 24px', maxWidth: 800, margin: '0 auto', width: '100%',
     }}>
-      <style>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
 
       <div style={{ animation: 'fadeInUp 0.4s ease' }}>
         <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 8 }}>
-          Review your content
+          Here&apos;s what we found
         </h1>
-        <p style={{ fontSize: 17, color: 'var(--ink-soft)', marginBottom: 40, lineHeight: 1.6 }}>
-          Make sure everything looks right. You can edit the script in the next step.
+        <p style={{ fontSize: 17, color: 'var(--ink-soft)', marginBottom: 32, lineHeight: 1.6 }}>
+          Review the extracted content, then we&apos;ll generate your script.
         </p>
+
+        {/* Analysis summary */}
+        {(() => {
+          const sectionCount = data?.sections?.length || 0
+          const metricCount = data?.keyMetrics?.length || 0
+          const hasContact = !!(data?.contactInfo?.phone || data?.contactInfo?.email)
+          const allText = JSON.stringify(data || {})
+          const wordCount = allText.split(/\s+/).length
+          const hasPricing = /\$\d|pricing|price|plan|tier/i.test(allText)
+
+          // Estimate video length
+          let recMinutes = '1-2'
+          let recLabel = 'Highlights'
+          if (wordCount > 3000) { recMinutes = '5-10'; recLabel = 'Detailed' }
+          else if (wordCount > 1200) { recMinutes = '3-5'; recLabel = 'Standard' }
+          else if (wordCount > 500) { recMinutes = '2-3'; recLabel = 'Standard' }
+
+          const stats = [
+            { value: sectionCount, label: 'Sections' },
+            { value: metricCount, label: 'Key stats' },
+            { value: `~${recMinutes} min`, label: 'Recommended' },
+          ]
+
+          const capabilities: string[] = []
+          if (sectionCount > 0) capabilities.push('Structured content for narration')
+          if (metricCount > 0) capabilities.push('Stats and data for visual slides')
+          if (hasPricing) capabilities.push('Pricing details found')
+          if (hasContact) capabilities.push('Contact info for closing slide')
+          if (data?.testimonials?.length > 0) capabilities.push('Testimonials for social proof')
+
+          return (
+            <div style={{
+              padding: '24px 28px', borderRadius: 10, marginBottom: 24,
+              background: 'rgba(168,240,212,0.08)', border: '2px solid var(--mint)',
+            }}>
+              <div style={{ display: 'flex', gap: 24, marginBottom: 16 }}>
+                {stats.map((s, i) => (
+                  <div key={i}>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)' }}>{s.value}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              {capabilities.length > 0 && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {capabilities.map((c, i) => (
+                    <span key={i} style={{
+                      padding: '4px 12px', borderRadius: 6, background: 'rgba(168,240,212,0.2)',
+                      fontSize: 13, color: 'var(--ink-soft)', fontWeight: 500,
+                    }}>
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {/* Extracted content card */}
         <div style={{
@@ -271,7 +323,7 @@ export default function ReviewPage() {
               </label>
               {!logoPreview && (
                 <button
-                  onClick={() => router.push('/create/script')}
+                  onClick={handleContinue}
                   style={{ marginLeft: 12, background: 'none', border: 'none', fontSize: 14, color: 'var(--ink-light)', cursor: 'pointer', fontFamily: 'inherit' }}
                 >
                   Skip for now

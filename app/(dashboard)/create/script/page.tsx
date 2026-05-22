@@ -41,14 +41,18 @@ export default function ScriptPage() {
     }
   }, [])
 
-  // Safety net: save scenes whenever they change
+  // Safety net: save on page unload
   useEffect(() => {
-    if (scenes.length > 0) {
-      const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
-      state.scenes = scenes
-      localStorage.setItem('d2v_create', JSON.stringify(state))
+    const handleUnload = () => {
+      if (scenes.length > 0) {
+        const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+        state.scenes = scenes
+        localStorage.setItem('d2v_create', JSON.stringify(state))
+      }
     }
-  }, [scenes])
+    window.addEventListener('beforeunload', handleUnload)
+    return () => window.removeEventListener('beforeunload', handleUnload)
+  })
 
   useEffect(() => {
     const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
@@ -106,9 +110,9 @@ export default function ScriptPage() {
     setGenerating(false)
   }
 
-  async function handleChat() {
-    if (!chatInput.trim() || chatLoading) return
-    const msg = chatInput.trim()
+  async function handleChat(directMsg?: string) {
+    const msg = directMsg?.trim() || chatInput.trim()
+    if (!msg || chatLoading) return
     setChatInput('')
 
     // Handle template save
@@ -147,7 +151,6 @@ export default function ScriptPage() {
         body: JSON.stringify({ message: msg, scenes, purpose: state.purpose, sourceData: state.extractedData, history: chatMessages.filter(m => !m.text.startsWith('_options_')).slice(-10) }),
       })
       const data = await res.json()
-      console.log('[script-chat] Response:', JSON.stringify(data).slice(0, 500))
 
       // Handle diff-based changes (FORMAT 1)
       if (data.changes && Array.isArray(data.changes) && data.changes.length > 0) {
@@ -167,7 +170,6 @@ export default function ScriptPage() {
         }
         setScenes(updated)
         autoSave(updated, data.changes[0]?.index || 0, true)
-        console.log(`[script-chat] Applied ${data.changes.length} changes`)
         setChatCount(c => c + 1)
       }
 
@@ -184,7 +186,6 @@ export default function ScriptPage() {
         }))
         setScenes(validScenes)
         autoSave(validScenes, 0, true)
-        console.log(`[script-chat] Replaced with ${validScenes.length} scenes`)
         const newCount = chatCount + 1
         setChatCount(newCount)
         // After 3 AI changes, suggest saving as template
@@ -248,12 +249,6 @@ export default function ScriptPage() {
     <div style={{
       flex: 1, padding: '40px 24px', maxWidth: scenes.length > 0 ? 1100 : 800, margin: '0 auto', width: '100%', transition: 'max-width 0.3s',
     }}>
-      <style>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
 
       <div style={{ animation: 'fadeInUp 0.4s ease' }}>
         <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 8 }}>
@@ -390,7 +385,7 @@ export default function ScriptPage() {
               {scenes.length} scenes &middot; ~{Math.round(scenes.reduce((sum: number, s: any) => sum + (s.narration?.split(/\s+/).length || 0), 0) / 2.5)}s estimated
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'start' }}>
+            <div className="create-script-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'start' }}>
               {/* Left: Script editor — accordion with narration + slide content */}
               <div>
                 {scenes.map((scene: any, i: number) => {
@@ -580,7 +575,7 @@ export default function ScriptPage() {
                         return (
                           <div key={i} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
                             {options.map((opt: string, j: number) => (
-                              <button key={j} onClick={() => { setChatInput(opt) }} style={{
+                              <button key={j} onClick={() => { handleChat(opt) }} style={{
                                 padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)',
                                 background: 'white', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
                                 color: 'var(--ink)', fontWeight: 600,
@@ -634,7 +629,7 @@ export default function ScriptPage() {
                       onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
                     />
                     <button
-                      onClick={handleChat}
+                      onClick={() => handleChat()}
                       disabled={chatLoading || !chatInput.trim()}
                       style={{
                         padding: '10px 16px', borderRadius: 8, border: 'none',

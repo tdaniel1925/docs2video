@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '../../../_lib/supabase/client'
 
 const INPUT_METHODS = [
   { id: 'upload', icon: '📄', title: 'Upload Document', desc: 'PDF, DOCX, PPTX, or text file', accept: '.pdf,.doc,.docx,.pptx,.txt,.csv' },
@@ -20,6 +19,7 @@ export default function SourcePage() {
   const [ideaAudience, setIdeaAudience] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fileName, setFileName] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function handleSubmit() {
@@ -105,7 +105,7 @@ export default function SourcePage() {
             Upload a document, paste a URL, or start from scratch.
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+          <div className="create-source-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
             {INPUT_METHODS.map(m => (
               <button
                 key={m.id}
@@ -162,6 +162,7 @@ export default function SourcePage() {
                     const dt = new DataTransfer()
                     dt.items.add(e.dataTransfer.files[0])
                     fileRef.current.files = dt.files
+                    setFileName(e.dataTransfer.files[0].name)
                   }
                 }}
               >
@@ -169,7 +170,8 @@ export default function SourcePage() {
                 <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Drop your file here or click to browse</div>
                 <div style={{ fontSize: 13, color: 'var(--ink-light)' }}>PDF, DOCX, PPTX, TXT, CSV</div>
               </div>
-              <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.pptx,.txt,.csv" style={{ display: 'none' }} onChange={() => {}} />
+              {fileName && <div style={{ marginTop: 10, fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{fileName}</div>}
+              <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.pptx,.txt,.csv" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) setFileName(f.name) }} />
             </div>
           )}
 
@@ -265,12 +267,6 @@ export default function SourcePage() {
         </div>
       )}
 
-      <style>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   )
 }

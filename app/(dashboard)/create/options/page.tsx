@@ -123,10 +123,16 @@ export default function OptionsPage() {
           aiMusic, musicPrompt: aiMusic ? musicPrompt : undefined,
           preGeneratedScenes: state.scenes, purpose: state.purpose,
           industry: state.extractedData?.industry || 'general',
+          bookingUrl: bookingUrl.trim() || undefined,
+          paymentLink: paymentLink.trim() || undefined,
         }),
       })
       const genData = await genRes.json()
-      if (!genRes.ok) console.error('[create] Pipeline failed:', genData.error)
+      if (!genRes.ok) {
+        setError(genData.error || 'Video pipeline failed to start. Your video was saved but generation may not have started.')
+        setGenerating(false)
+        return
+      }
 
       localStorage.removeItem('d2v_create')
       router.push(`/create/generating?id=${createData.id}`)
@@ -171,12 +177,6 @@ export default function OptionsPage() {
     <div style={{
       flex: 1, padding: '40px 24px', maxWidth: 800, margin: '0 auto', width: '100%',
     }}>
-      <style>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
 
       <div style={{ animation: 'fadeInUp 0.4s ease' }}>
         <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 8 }}>

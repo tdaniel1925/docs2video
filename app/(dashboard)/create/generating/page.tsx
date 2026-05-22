@@ -72,6 +72,34 @@ export default function GeneratingPage() {
   const minutes = Math.floor(elapsed / 60)
   const seconds = elapsed % 60
 
+  if (!videoId) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+        <div style={{ textAlign: 'center', maxWidth: 480 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>&#9888;&#65039;</div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>No video found</h1>
+          <p style={{ fontSize: 16, color: 'var(--ink-soft)', marginBottom: 24, lineHeight: 1.6 }}>
+            This page needs a video ID. The video creation may not have started properly.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <Link href="/create" style={{
+              padding: '12px 24px', borderRadius: 10, background: 'var(--ink)', color: 'white',
+              fontSize: 14, fontWeight: 700, textDecoration: 'none',
+            }}>
+              Start over
+            </Link>
+            <Link href="/dashboard" style={{
+              padding: '12px 24px', borderRadius: 10, border: '1px solid var(--border)',
+              background: 'white', color: 'var(--ink-soft)', fontSize: 14, fontWeight: 600, textDecoration: 'none',
+            }}>
+              Dashboard
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (error) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
@@ -115,14 +143,6 @@ export default function GeneratingPage() {
         @keyframes pulseGlow {
           0%, 100% { box-shadow: 0 0 0 0 rgba(168,240,212,0.4); }
           50% { box-shadow: 0 0 0 20px rgba(168,240,212,0); }
-        }
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes shimmer {
-          0% { background-position: -200% center; }
-          100% { background-position: 200% center; }
         }
       `}</style>
 
