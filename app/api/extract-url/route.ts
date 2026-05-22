@@ -195,8 +195,8 @@ export async function POST(request: Request) {
     const phoneMatches = markdown.match(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g) || []
     const emailMatches = markdown.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || []
     const directContactInfo = {
-      phone: phoneMatches.find(p => !p.startsWith('159') && p.length >= 10) || null, // skip image IDs
-      email: emailMatches.find(e => !e.includes('example') && !e.includes('test')) || null,
+      phone: phoneMatches.find((p: string) => !p.startsWith('159') && p.length >= 10) || null,
+      email: emailMatches.find((e: string) => !e.includes('example') && !e.includes('test')) || null,
       website: parsedUrl.origin,
     }
     console.log(`[extract-url] Direct contact extraction: phone=${directContactInfo.phone}, email=${directContactInfo.email}`)
