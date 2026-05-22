@@ -166,42 +166,29 @@ Only include real data found in the content. Never invent contact info.`,
 
   try {
     const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-    const base64 = buffer.toString('base64')
-    const openai = getOpenAI()
+    const base64 = Buffer.from(arrayBuffer).toString('base64')
     const purposeField = formData.get('purpose') as string | null
+    const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
+    const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
-    // Send PDF as base64 inline — faster than file upload
-    const mimeType = isPdf ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-    const response = await (openai as any).responses.create({
-      model: 'gpt-4o-mini',
-      input: [
-        {
-          role: 'user',
-          content: [
-            { type: 'input_file', file_data: `data:${mimeType};base64,${base64}` },
-            {
-              type: 'input_text',
-              text: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Extract and structure ALL content from this document into JSON. Return ONLY valid JSON:
-{
-  "title": "Main title or document name",
-  "subtitle": "Subtitle or tagline if any",
-  "sections": [{ "title": "Section name", "content": "Full section content" }],
-  "keyMetrics": [{ "value": "stat value", "label": "stat label" }],
-  "contactInfo": { "phone": "phone or null", "email": "email or null", "website": "website or null" },
-  "companyName": "Company name or null"
-}
-Include ALL content. Never invent contact info.`,
-            },
-          ],
-        },
-      ],
-      text: { format: { type: 'json_object' } },
+    // Send to VPS for extraction — no Vercel timeout limits
+    const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/extract-document`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
+      body: JSON.stringify({
+        fileBase64: base64,
+        fileName: file.name,
+        purpose: purposeField || undefined,
+        mimeType: file.type || 'application/pdf',
+      }),
     })
 
-    const respText = response.output_text || ''
-    const cleaned = respText.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
-    const structured = JSON.parse(cleaned)
+    if (!vpsRes.ok) {
+      const err = await vpsRes.json().catch(() => ({ error: 'VPS extraction failed' }))
+      return NextResponse.json({ error: err.error || 'Document extraction failed' }, { status: vpsRes.status })
+    }
+
+    const structured = await vpsRes.json()
     return NextResponse.json(structured)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Extraction failed'
