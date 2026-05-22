@@ -32,17 +32,20 @@ export function buildSimpleSlidePrompt(input: SimpleSlideInput): string {
   } else if (type === 'closing') {
     contentLines.push(`This is a CLOSING slide.`)
     contentLines.push(`Headline: "${headline}"`)
-    if (brandName) contentLines.push(`Brand name: "${brandName}" — display prominently`)
-    if (contactInfo?.phone) contentLines.push(`Phone: ${contactInfo.phone}`)
-    if (contactInfo?.email) contentLines.push(`Email: ${contactInfo.email?.toLowerCase()}`)
-    if (contactInfo?.website) contentLines.push(`Website: ${contactInfo.website?.toLowerCase()}`)
+    if (brandName) contentLines.push(`Brand name: "${brandName}" — display EXACTLY as written, prominently`)
+    if (contactInfo?.phone) contentLines.push(`Phone number — RENDER EXACTLY: "${contactInfo.phone}" — do NOT change any digits, do NOT substitute with a different number`)
+    if (contactInfo?.email) contentLines.push(`Email — RENDER EXACTLY: "${contactInfo.email?.toLowerCase()}" — do NOT change this email address`)
+    if (contactInfo?.website) contentLines.push(`Website — RENDER EXACTLY: "${contactInfo.website?.toLowerCase()}" — do NOT change this URL`)
     if (contactInfo?.calendly) contentLines.push(`"Schedule a call from this page"`)
     if (bullets && bullets.length > 0) {
       contentLines.push(`Additional info:`)
       bullets.forEach(b => contentLines.push(`- ${b.text}`))
     }
-    contentLines.push(`Fill the slide with content — no large empty white spaces. If no contact info above, show the brand name large and centered with "Thank You for Watching" below it.`)
-    contentLines.push(`Do NOT invent any contact information. Only show phone/email/website if listed above.`)
+    const hasContact = contactInfo?.phone || contactInfo?.email || contactInfo?.website
+    if (!hasContact) {
+      contentLines.push(`No contact info provided. Show the brand name large and centered with "Thank You" below it.`)
+    }
+    contentLines.push(`CRITICAL: Every phone number, email, and URL on this slide must be EXACTLY as written above — character for character. Do NOT invent, change, or substitute ANY contact information. Keep content in the LEFT side of the slide to avoid overlapping with the logo in the top-right corner.`)
   } else {
     contentLines.push(`Title: "${headline}"`)
     if (subtitle) contentLines.push(`Subtitle: "${subtitle}"`)
