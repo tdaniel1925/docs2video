@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
+import OpenAI from 'openai'
+
+export const runtime = 'nodejs'
+export const maxDuration = 120
+
+function getOpenAI() {
+  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+}
 
 export async function POST(request: Request & { nextUrl?: URL }) {
   const url = new URL(request.url)
@@ -159,46 +167,26 @@ Only include real data found in the content. Never invent contact info.`,
   try {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
-    let rawText = ''
+    const openai = getOpenAI()
 
-    // Extract text from PDF using pdf-parse
-    if (isPdf) {
-      const pdfParse = require('pdf-parse/lib/pdf-parse')
-      const pdfData = await pdfParse(buffer)
-      rawText = pdfData.text || ''
-    } else {
-      // PPTX/DOCX — send to VPS for conversion, then extract
-      const base64 = buffer.toString('base64')
-      const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
-      const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
-      const convertRes = await fetch(`${VIDEO_ASSEMBLY_URL}/convert-to-pdf`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
-        body: JSON.stringify({ fileBase64: base64, fileName: file.name }),
-      })
-      if (!convertRes.ok) {
-        return NextResponse.json({ error: 'Failed to convert document. Try saving as PDF first.' }, { status: 400 })
-      }
-      const convertData = await convertRes.json()
-      const pdfParse = require('pdf-parse/lib/pdf-parse')
-      const pdfBuffer = Buffer.from(convertData.pdfBase64, 'base64')
-      const pdfData = await pdfParse(pdfBuffer)
-      rawText = pdfData.text || ''
-    }
+    // Upload file to OpenAI for extraction
+    const uploadedFile = await openai.files.create({
+      file: new File([buffer], file.name || 'document.pdf', { type: file.type || 'application/pdf' }),
+      purpose: 'assistants',
+    })
 
-    if (!rawText || rawText.trim().length < 20) {
-      return NextResponse.json({ error: 'Could not extract text from this document. It may be image-only or password-protected.' }, { status: 400 })
-    }
-
-    // Structure with OpenAI
+    // Extract and structure using OpenAI with file attachment
     const purposeField = formData.get('purpose') as string | null
-    const OpenAILib2 = (await import('openai')).default
-    const openai = new OpenAILib2({ apiKey: process.env.OPENAI_API_KEY! })
-    const structureRes = await openai.chat.completions.create({
+    const response = await (openai as any).responses.create({
       model: 'gpt-4o-mini',
-      messages: [{
-        role: 'system',
-        content: `Extract and structure this document content into JSON. Return:
+      input: [
+        {
+          role: 'user',
+          content: [
+            { type: 'file', file: { file_id: uploadedFile.id } },
+            {
+              type: 'input_text',
+              text: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Extract and structure ALL content from this document into JSON. Return:
 {
   "title": "Main title or document name",
   "subtitle": "Subtitle or tagline if any",
@@ -207,17 +195,21 @@ Only include real data found in the content. Never invent contact info.`,
   "contactInfo": { "phone": "phone if found or null", "email": "email if found or null", "website": "website if found or null" },
   "companyName": "Company name if mentioned or null"
 }
-Include ALL content from the document. Do not skip sections. Never invent contact info.`,
-      }, {
-        role: 'user',
-        content: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Document content:\n${rawText.slice(0, 15000)}`,
-      }],
-      temperature: 0.3,
-      max_tokens: 4000,
-      response_format: { type: 'json_object' },
+Include ALL content. Do not skip sections. Never invent contact info. Return ONLY valid JSON.`,
+            },
+          ],
+        },
+      ],
+      text: { format: { type: 'json_object' } },
     })
 
-    const structured = JSON.parse(structureRes.choices[0]?.message?.content || '{}')
+    const respText = response.output_text || ''
+    const cleaned = respText.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
+    const structured = JSON.parse(cleaned)
+
+    // Clean up uploaded file
+    await openai.files.delete(uploadedFile.id).catch(() => {})
+
     return NextResponse.json(structured)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Extraction failed'
