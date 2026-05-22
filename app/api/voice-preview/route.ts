@@ -6,14 +6,14 @@ export const runtime = 'nodejs'
 const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY || ''
 
 const CARTESIA_VOICES: Record<string, string> = {
-  nova: 'b7d50908-b17c-442d-ad8d-7c56c5d11b2f',     // American female, warm narrator
-  shimmer: '71a7ad14-091c-4e8e-a314-022ece01c121',   // American female, professional
-  onyx: '98a34ef2-2140-4c28-9c71-663dc4dd7022',      // American male, deep authoritative
-  echo: 'fb26447f-308b-471e-8b00-8e9f04284eb5',      // American male, conversational
-  alloy: 'daf747c6-6bc2-4083-bd59-aa94dce23571',     // American neutral, clear
-  fable: 'a3520a8f-226a-428d-9fcd-b0f44571f6e2',     // American male, storyteller
-  ash: '63ff761f-c1e8-414b-b969-a1cb962bbc72',        // American male, professional
-  coral: 'c2ac25f9-ecc4-4f56-9095-651354df60c0',     // American female, engaging
+  nova: 'f9fc912e-52f0-448a-8bfa-47e9ca75f25a',     // Marilyn - smooth supportive female narrator
+  shimmer: '58fbaf73-d7de-4e82-a6b3-118180e7057c',   // Janet - bright warm female
+  onyx: '8d110413-2f14-44a2-8203-2104db4340e9',      // Darren - deep friendly baritone male
+  echo: 'd46abd1d-2d02-43e8-819f-51fb652c1c61',      // Grant - reliable clear American male
+  alloy: 'cc00e582-ed66-4004-8336-0175b85c85f6',     // Dana - balanced neutral female
+  fable: 'ab109683-f31f-40d7-b264-9ec3e26fb85e',     // Russell - friendly deep mentor male
+  ash: '820a3788-2b37-4d21-847a-b65d8a68c99a',       // Tyler - direct confident male
+  coral: '829ccd10-f8b3-43cd-b8a0-4aeaa81f3b30',     // Linda - clear confident mature female
 }
 
 async function cartesiaPreview(text: string, voiceId: string): Promise<Buffer> {
