@@ -144,13 +144,20 @@ export async function POST(request: Request) {
     let markdown = mainResult?.markdown || mainResult?.data?.markdown || ''
     let html = mainResult?.html || mainResult?.data?.html || ''
 
-    // Extract nav links and scrape key pages (about, pricing, services, contact)
+    // Extract nav links from both HTML and markdown, then scrape key pages
     const baseOrigin = parsedUrl.origin
     const navKeywords = /\b(about|pricing|services|contact|features|solutions|products|plans|testimonials|reviews|faq|how-it-works|case-studies|clients)\b/i
     const navLinks: string[] = []
-    const linkMatches = html.match(/href=["']([^"']+)["']/gi) || []
-    for (const m of linkMatches) {
-      const href = m.match(/href=["']([^"']+)["']/)?.[1]
+    // From HTML
+    const htmlLinkMatches = html.match(/href=["']([^"']+)["']/gi) || []
+    // From markdown [text](url)
+    const mdLinkMatches = markdown.match(/\]\(([^)]+)\)/g) || []
+    const allHrefs = [
+      ...htmlLinkMatches.map((m: string) => m.match(/href=["']([^"']+)["']/)?.[1]).filter(Boolean),
+      ...mdLinkMatches.map((m: string) => m.match(/\]\(([^)]+)\)/)?.[1]).filter(Boolean),
+    ]
+    for (const rawHref of allHrefs) {
+      const href = (rawHref as string).replace(/[)>\s]+$/, '') // clean trailing chars
       if (href && navKeywords.test(href) && !href.includes('#') && !href.includes('mailto:')) {
         let fullUrl = href
         if (!fullUrl.startsWith('http')) {
@@ -160,6 +167,12 @@ export async function POST(request: Request) {
           navLinks.push(fullUrl)
         }
       }
+    }
+
+    // Always try /contact if not already found
+    const contactUrl = `${baseOrigin}/contact/`
+    if (!navLinks.some((l: string) => l.includes('contact'))) {
+      navLinks.unshift(contactUrl) // prioritize contact page
     }
 
     // Scrape up to 3 nav pages in parallel
