@@ -143,7 +143,14 @@ export default function CreatePage() {
       delete extractedData._autoBrandId
       delete extractedData._customStylePrompt
 
-      const policyData = { ...extractedData }
+      // Promote nested contactInfo to top-level so generate-video finds it
+      const ci = extractedData.contactInfo || {}
+      const policyData = {
+        ...extractedData,
+        contactPhone: ci.phone || undefined,
+        contactEmail: ci.email || undefined,
+        contactWebsite: ci.website || undefined,
+      }
       const createRes = await fetch('/api/videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -206,9 +213,15 @@ export default function CreatePage() {
       const extractData = await extractRes.json()
       if (!extractRes.ok) { setError(extractData.error || 'Extraction failed'); setStage('idle'); return }
 
-      // Step 2: Create video record
+      // Step 2: Create video record — promote contactInfo to top-level
       setStageMsg('Setting up your video...')
-      const policyData = { ...extractData }
+      const uci = extractData.contactInfo || {}
+      const policyData = {
+        ...extractData,
+        contactPhone: uci.phone || undefined,
+        contactEmail: uci.email || undefined,
+        contactWebsite: uci.website || undefined,
+      }
       const createRes = await fetch('/api/videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

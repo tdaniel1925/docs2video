@@ -179,10 +179,13 @@ export async function POST(request: Request) {
       }))
 
       // Remove any scenes with empty/trivial narration — no silent slides
+      // BUT never drop the closing/action scene
       const beforeCount = scenes.length
-      scenes = scenes.filter((s: any) => {
+      scenes = scenes.filter((s: any, idx: number) => {
         const words = s.narration?.trim().split(/\s+/).length || 0
-        return words >= 5 // at least 5 words of narration
+        const isClosing = s.beat === 'action' || s.beat === 'disclaimer-close' || idx === scenes.length - 1
+        if (isClosing) return true // never drop closing scenes
+        return words >= 5
       })
       if (scenes.length < beforeCount) {
         console.log(`[video ${videoId}] Removed ${beforeCount - scenes.length} empty/trivial scenes`)
@@ -214,9 +217,11 @@ export async function POST(request: Request) {
       console.log(`[video ${videoId}] Generating script...`)
       await admin.from('videos').update({ status: 'scripting', progress_detail: 'Writing your script...', progress_pct: 5 }).eq('id', videoId)
       const guideDataForScript = brand?.brand_guide_data as Record<string, string> | null
+      const pd = policyData as any
       const contactInfoForScript = {
-        phone: guideDataForScript?.phone ?? undefined,
-        email: guideDataForScript?.email ?? undefined,
+        phone: guideDataForScript?.phone ?? pd?.contactPhone ?? pd?.contactInfo?.phone ?? undefined,
+        email: guideDataForScript?.email ?? pd?.contactEmail ?? pd?.contactInfo?.email ?? undefined,
+        website: pd?.contactWebsite ?? pd?.contactInfo?.website ?? undefined,
         calendly: guideDataForScript?.calendly ?? undefined,
       }
 

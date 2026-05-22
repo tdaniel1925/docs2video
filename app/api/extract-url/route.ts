@@ -245,6 +245,20 @@ export async function POST(request: Request) {
       data.source = parsedUrl.hostname
     }
 
+    // Fix company name — extract from HTML as ground truth (AI often strips apostrophes)
+    const ogSiteName = html.match(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i)?.[1]
+    const htmlTitle = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim()
+    const groundTruthName = ogSiteName || (htmlTitle ? htmlTitle.split(/[|\-–—]/)[0].trim() : null)
+    if (groundTruthName && (data as any).companyName) {
+      // If AI stripped an apostrophe or changed casing, use the HTML version
+      const aiName = (data as any).companyName.toLowerCase().replace(/['']/g, '')
+      const htmlName = groundTruthName.toLowerCase().replace(/['']/g, '')
+      if (aiName === htmlName && (data as any).companyName !== groundTruthName) {
+        console.log(`[extract-url] Corrected company name: "${(data as any).companyName}" → "${groundTruthName}"`)
+        ;(data as any).companyName = groundTruthName
+      }
+    }
+
     // Merge direct regex contact extraction — more reliable than AI detection
     if (!(data as any).contactInfo) (data as any).contactInfo = {}
     const ci = (data as any).contactInfo

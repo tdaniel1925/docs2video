@@ -346,11 +346,11 @@ ${intentGuidance}
 SOURCE DATA:
 ${JSON.stringify(data).slice(0, 30000)}
 
-${contactInfo?.phone || contactInfo?.email || contactInfo?.calendly ? `USER-PROVIDED CONTACT INFO (use this in the closing scene):
-${contactInfo.phone ? `Phone: ${contactInfo.phone}` : ''}
-${contactInfo.email ? `Email: ${contactInfo.email}` : ''}
+${contactInfo?.phone || contactInfo?.email || contactInfo?.calendly || (contactInfo as any)?.website ? `USER-PROVIDED CONTACT INFO (use this in the closing scene):
+${contactInfo?.phone ? `Phone: ${contactInfo.phone}` : ''}
+${contactInfo?.email ? `Email: ${contactInfo.email}` : ''}
 ${(contactInfo as any)?.website ? `Website: ${(contactInfo as any).website}` : ''}
-${contactInfo.calendly ? `Booking: ${contactInfo.calendly}` : ''}
+${contactInfo?.calendly ? `Booking: ${contactInfo.calendly}` : ''}
 The narrator should mention this contact info naturally in the final scene. Show it on the closing slide.` : ''}
 
 Create a strategic brief that identifies:
