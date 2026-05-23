@@ -359,11 +359,11 @@ export async function generateScript(
 
   // PASS 1: Deep analysis — understand the business before writing the script
   const intentMap: Record<string, string> = {
-    sales: 'This is a SALES VIDEO. Focus on: pricing (list ALL tiers/plans), free trials, key differentiators, social proof, customer testimonials, clear CTA. Emphasize what makes this worth buying.',
-    educate: 'This is an EDUCATIONAL VIDEO. Focus on: core concepts explained clearly, real examples, step-by-step breakdowns, practical takeaways the audience can use.',
-    train: 'This is a TRAINING VIDEO. Focus on: processes step-by-step, common mistakes to avoid, best practices, skills to develop, practical exercises.',
-    report: 'This is a DATA REPORT VIDEO. Focus on: key metrics with context, trends, comparisons, what the numbers mean, actionable insights from the data.',
-    proposal: 'This is a PROPOSAL VIDEO. Focus on: the problem being solved, the unique approach, expected outcomes, why this team/company is the right choice, timeline and next steps.',
+    sales: 'This is a SALES VIDEO. The viewer is a potential buyer. Lead with the PROBLEM they have, not your product. Show the cost of NOT acting. Present benefits (not features), then pricing AFTER value is established. End with one specific CTA — not "contact us" but "book a 15-minute call" or "start your free trial." Use social proof before asking for the sale.',
+    educate: 'This is an EDUCATIONAL VIDEO. The viewer wants to UNDERSTAND something. Start with why this matters to THEM. Explain concepts using analogies they already know. Every fact should answer "so what?" — why does this matter? End with what they can DO with this knowledge.',
+    train: 'This is a TRAINING VIDEO. The viewer needs to LEARN a process. Start with WHY this matters to their job. Show each step with context (not just "do this" but "do this BECAUSE..."). Anticipate where they will get confused. End with what they should do Monday morning.',
+    report: 'This is a DATA REPORT VIDEO. The viewer is a decision-maker. Don\'t read every number — pick the 3-5 that drive decisions. For each metric, explain: what it means, is it good or bad, and what should we do about it. Lead with the headline ("revenue is up 18%"), then support it.',
+    proposal: 'This is a PROPOSAL VIDEO. The viewer is deciding whether to hire/buy from you. Lead with their problem (show you understand it). Present your approach as the obvious solution. Prove it with past results. Address "why you and not someone else?" End with specific next steps and timeline.',
   }
   const intentGuidance = intentMap[(data as any)?.intentType || ''] || purpose ? `VIDEO PURPOSE: ${purpose}` : 'Create an informative overview of this content.'
 
@@ -373,29 +373,56 @@ export async function generateScript(
       model: 'gpt-4o-mini',
       messages: [{
         role: 'user',
-        content: `You are a content strategist preparing a video. Analyze this source material and create a strategic brief.
+        content: `You are a senior communications strategist who understands sales psychology, audience empathy, and persuasion. You are preparing a video that will be WATCHED by a real person — not read as a document.
+
+Your job is to think like the VIEWER, not the document author. What does the viewer care about? What are they afraid of? What would make them take action?
 
 ${intentGuidance}
 
 SOURCE DATA:
 ${JSON.stringify(data).slice(0, 30000)}
 
-${contactInfo?.phone || contactInfo?.email || contactInfo?.calendly || (contactInfo as any)?.website ? `USER-PROVIDED CONTACT INFO (use this in the closing scene):
+${contactInfo?.phone || contactInfo?.email || contactInfo?.calendly || (contactInfo as any)?.website ? `CONTACT INFO (for closing scene only):
 ${contactInfo?.phone ? `Phone: ${contactInfo.phone}` : ''}
 ${contactInfo?.email ? `Email: ${contactInfo.email}` : ''}
 ${(contactInfo as any)?.website ? `Website: ${(contactInfo as any).website}` : ''}
-${contactInfo?.calendly ? `Booking: ${contactInfo.calendly}` : ''}
-The narrator should mention this contact info naturally in the final scene. Show it on the closing slide.` : ''}
+${contactInfo?.calendly ? `Booking: ${contactInfo.calendly}` : ''}` : ''}
 
-Create a strategic brief that identifies:
-1. CORE MESSAGE: What is the single most important thing viewers should understand? (1 sentence)
-2. KEY FACTS: List the 8-15 most important specific facts, numbers, features, or data points from the source. Include ALL pricing info, ALL product features, ALL statistics. Be exhaustive.
-3. UNIQUE VALUE: What makes this different/special? (2-3 points)
-4. AUDIENCE HOOKS: What would make the target audience care? (2-3 points)
-5. STRUCTURE: Suggested flow of topics from opening to closing
-6. CONTACT/CTA: Any real contact info, URLs, or calls to action found in the source (ONLY if they actually exist in the data — do NOT invent any)
+Create a strategic brief covering:
 
-Return as plain text, not JSON. Be specific — use actual numbers, names, and facts from the source.`
+1. AUDIENCE: Who is watching this video? (client, prospect, employee, stakeholder?) What is their knowledge level? What language do they use — technical or plain English?
+
+2. EMOTIONAL STATE: What is the viewer feeling BEFORE watching? (confused by a document? skeptical of a pitch? overwhelmed by data? anxious about a decision?) What should they feel AFTER?
+
+3. THE ONE THING: If the viewer remembers only ONE takeaway, what should it be? Not a feature — a benefit. Not "death benefit is $750K" but "your family is protected no matter what happens."
+
+4. KEY FACTS: The 8-15 most important specific facts from the source. For each fact, note WHY it matters to the viewer — not just WHAT it is.
+   Example: "$500/month premium" → "For about $16 a day — less than a lunch — your family gets lifetime protection"
+
+5. OBJECTIONS: What 2-3 concerns will the viewer have? Address them proactively.
+   Example: "Is this too expensive?" → Show the per-day cost. "What if the market crashes?" → Explain the floor protection.
+
+6. PERSUASION ANGLE: What's the strongest emotional lever?
+   - Fear of missing out? ("Rates go up every birthday")
+   - Peace of mind? ("You'll never worry about your family's future again")
+   - Social proof? ("Over 2,000 families already trust this")
+   - Urgency? ("This rate is only guaranteed for 30 days")
+
+7. STORY ARC: Map the video as a journey:
+   - HOOK: What question or statement grabs attention in 3 seconds?
+   - PROBLEM: What pain point does the viewer recognize?
+   - SOLUTION: How does this solve it? (benefits, not features)
+   - PROOF: What evidence backs it up? (numbers, testimonials, examples)
+   - ACTION: What specific thing should they do next?
+
+8. LANGUAGE GUIDE:
+   - Translate jargon: List any technical terms and their plain-English equivalents
+   - Tone: conversational and confident, not corporate or salesy
+   - Reframe negatives: "cost" → "investment", "policy" → "plan", "premium" → "contribution"
+
+9. CONTACT/CTA: Real contact info from the source (ONLY if it exists — NEVER invent). What is the single strongest CTA for this audience?
+
+Return as plain text, not JSON. Be specific — use actual numbers, names, and facts from the source. Think like a strategist, not a summarizer.`
       }],
       temperature: 0.3,
     })
