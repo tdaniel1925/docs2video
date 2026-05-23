@@ -1,5 +1,7 @@
 import OpenAI from 'openai'
 
+const TTS_MAX_CHARS = 4096
+
 let client: OpenAI | null = null
 
 function getClient(): OpenAI {
@@ -11,12 +13,25 @@ function getClient(): OpenAI {
 
 export async function synthesizeSpeech(
   text: string,
-  voiceId: string
+  voiceId: string,
+  options: { strict?: boolean } = {}
 ): Promise<Buffer> {
   // Guard against empty/whitespace narration
   if (!text?.trim()) {
     console.log('[tts] Empty narration text, generating silence')
     return generateSilence(text)
+  }
+
+  const strict = options.strict ?? process.env.STRICT_MODE === 'true'
+
+  if (text.length > TTS_MAX_CHARS) {
+    if (strict) {
+      throw new Error(
+        `TTS text exceeds ${TTS_MAX_CHARS} char limit (${text.length} chars). Split into multiple scenes before calling synthesizeSpeech.`
+      )
+    }
+    // Non-strict: split at sentence boundary, synthesize each chunk, concatenate
+    return await synthesizeLongText(text, voiceId)
   }
 
   const openai = getClient()
@@ -31,7 +46,7 @@ export async function synthesizeSpeech(
         {
           model: 'tts-1-hd',
           voice: voiceId as 'alloy' | 'echo' | 'fable' | 'nova' | 'onyx' | 'shimmer',
-          input: text.slice(0, 4096), // OpenAI limit
+          input: text,
           response_format: 'mp3',
           speed: 0.95,
         },
@@ -62,6 +77,33 @@ export async function synthesizeSpeech(
   }
 
   return generateSilence(text)
+}
+
+async function synthesizeLongText(text: string, voiceId: string): Promise<Buffer> {
+  const chunks = splitAtSentenceBoundary(text, TTS_MAX_CHARS - 100)
+  console.log(`[tts] Long text (${text.length} chars) split into ${chunks.length} chunks`)
+  const buffers: Buffer[] = []
+  for (const chunk of chunks) {
+    const buf = await synthesizeSpeech(chunk, voiceId, { strict: false })
+    buffers.push(buf)
+  }
+  return Buffer.concat(buffers)
+}
+
+export function splitAtSentenceBoundary(text: string, maxLen: number): string[] {
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text]
+  const chunks: string[] = []
+  let current = ''
+  for (const sentence of sentences) {
+    if ((current + sentence).length > maxLen) {
+      if (current) chunks.push(current.trim())
+      current = sentence
+    } else {
+      current += sentence
+    }
+  }
+  if (current) chunks.push(current.trim())
+  return chunks
 }
 
 /**
