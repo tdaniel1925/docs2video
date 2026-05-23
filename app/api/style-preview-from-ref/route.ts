@@ -29,14 +29,28 @@ export async function POST(request: Request) {
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
 
-    // Generate cover slide
+    // First, analyze the reference image to extract a style description
+    const analysisRes = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: `data:image/png;base64,${referenceImageBase64}` } },
+          { type: 'text', text: 'Describe this image\'s visual style in detail for recreating it: colors (specific hex codes), typography style, layout approach, textures, decorative elements, mood, spacing. Be very specific. 2-4 sentences.' },
+        ],
+      }],
+      max_tokens: 300,
+    })
+    const styleDescription = analysisRes.choices[0]?.message?.content ?? 'Professional modern design'
+
+    // Generate cover slide using the extracted style description
     const coverRes = await openai.images.generate({
       model: 'gpt-image-2',
-      prompt: `Create a presentation COVER slide matching the reference style EXACTLY. Same colors, textures, typography treatment, layout approach, decorative elements.
+      prompt: `Create a presentation COVER slide in this EXACT visual style: ${styleDescription}
 
 Content: Title "Quarterly Business Review", subtitle "Q2 2025 Performance Summary", small text "Prepared by Anderson Financial Group".
 
-Match the visual style of the reference image precisely — same mood, same aesthetic, same level of polish. 1920x1080 landscape. Fill entire canvas.`,
+1920x1080 landscape. Fill entire canvas edge to edge. No logos.`,
       size: '1536x1024',
       quality: 'high',
       n: 1,
@@ -45,11 +59,11 @@ Match the visual style of the reference image precisely — same mood, same aest
     // Generate content slide
     const contentRes = await openai.images.generate({
       model: 'gpt-image-2',
-      prompt: `Create a presentation CONTENT slide matching the reference style EXACTLY. Same colors, textures, typography treatment, layout approach, decorative elements.
+      prompt: `Create a presentation CONTENT slide in this EXACT visual style: ${styleDescription}
 
-Content: Title "KEY METRICS". Three data sections: Revenue $2.4M (+18%), New Clients 1,240, Retention Rate 94%. Growth drivers: 3 bullet points.
+Content: Title "KEY METRICS". Three data card sections: Revenue $2.4M (+18%), New Clients 1,240, Retention Rate 94%. Below: Growth Drivers heading with 3 bullet points.
 
-Match the visual style of the reference image precisely — same mood, same aesthetic, same level of polish. 1920x1080 landscape. Fill entire canvas.`,
+1920x1080 landscape. Fill entire canvas edge to edge. No logos.`,
       size: '1536x1024',
       quality: 'high',
       n: 1,
