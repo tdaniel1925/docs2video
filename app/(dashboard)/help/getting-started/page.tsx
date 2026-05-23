@@ -121,7 +121,7 @@ export default function GettingStartedPage() {
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 12 }}>
-            Every new account comes with <strong style={{ color: 'var(--ink)' }}>5 free explainer videos</strong>. This lets you try the full creation experience before you pay anything.
+            Every new account comes with <strong style={{ color: 'var(--ink)' }}>2 free videos</strong>. This lets you try the full creation experience before you pay anything.
           </p>
           <p style={{ marginBottom: 12 }}>
             <strong style={{ color: 'var(--ink)' }}>What is included:</strong> Each free video gives you the complete experience — AI content extraction, script editing, voice narration, background music, and all download formats (MP4, PDF, PPTX).

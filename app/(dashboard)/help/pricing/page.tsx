@@ -31,7 +31,7 @@ export default function PricingHelpPage() {
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Every new account starts with <strong style={{ color: 'var(--ink)' }}>5 free explainer videos</strong>. A payment card is required to sign up, but you will not be charged during the trial.
+            Every new account starts with <strong style={{ color: 'var(--ink)' }}>2 free videos</strong>. No credit card required to get started.
           </p>
           <p style={{ marginBottom: 10 }}>
             Free videos include all features: AI content extraction, full script editing, voice narration, background music, and downloads in MP4, PDF, and PPTX formats.
