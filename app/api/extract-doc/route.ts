@@ -5,9 +5,8 @@ export const runtime = 'nodejs'
 export const maxDuration = 300
 
 /**
- * Thin proxy to VPS /extract-document endpoint.
- * Streams the request body to VPS and returns the response.
- * This avoids CORS issues with direct browser → VPS requests.
+ * Proxy: accepts file upload (FormData), converts to base64,
+ * forwards to VPS /extract-document for OpenAI extraction.
  */
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -18,12 +17,24 @@ export async function POST(request: Request) {
   const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
   try {
-    const body = await request.json()
+    const formData = await request.formData()
+    const file = formData.get('file') as File | null
+    const purpose = formData.get('purpose') as string | null
+
+    if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+
+    const arrayBuffer = await file.arrayBuffer()
+    const base64 = Buffer.from(arrayBuffer).toString('base64')
 
     const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/extract-document`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        fileBase64: base64,
+        fileName: file.name,
+        purpose: purpose || undefined,
+        mimeType: file.type || 'application/pdf',
+      }),
     })
 
     const result = await vpsRes.json()
