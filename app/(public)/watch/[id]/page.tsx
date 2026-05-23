@@ -597,6 +597,105 @@ const pageStyles = `
     margin: 16px 0;
   }
 
+  /* Lead capture card */
+  .wp-lead-card {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    background: #fff;
+    border-top: 1px solid var(--border-light, #E8EDF2);
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.08);
+    padding: 20px 24px;
+    animation: slideUp 0.4s ease-out;
+  }
+  .wp-lead-inner {
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  .wp-lead-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  .wp-lead-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink, #1B3A5C);
+  }
+  .wp-lead-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--ink-light, #7A8FA3);
+    transition: color 0.15s;
+  }
+  .wp-lead-close:hover {
+    color: var(--ink, #1B3A5C);
+  }
+  .wp-lead-form {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .wp-lead-input {
+    flex: 1;
+    min-width: 140px;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border-light, #E8EDF2);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--ink, #1B3A5C);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .wp-lead-input:focus {
+    border-color: var(--mint, #3BB5C8);
+  }
+  .wp-lead-submit {
+    height: 40px;
+    padding: 0 20px;
+    background: var(--ink, #1B3A5C);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  .wp-lead-submit:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .wp-lead-submit:not(:disabled):hover {
+    opacity: 0.9;
+  }
+  .wp-lead-success {
+    font-size: 14px;
+    color: var(--mint-darker, #1E7A8A);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .wp-lead-error {
+    font-size: 12px;
+    color: #C03A1F;
+    margin-top: 6px;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
   /* Mobile responsive */
   @media (max-width: 768px) {
     .wp-header { padding: 0 16px; }
@@ -629,6 +728,16 @@ export default function PublicWatchPage() {
   const [copied, setCopied] = useState(false)
   const [videoEnded, setVideoEnded] = useState(false)
   const [disclaimersOpen, setDisclaimersOpen] = useState(false)
+
+  // Lead capture state
+  const [showLeadCapture, setShowLeadCapture] = useState(false)
+  const [leadDismissed, setLeadDismissed] = useState(false)
+  const [leadSubmitted, setLeadSubmitted] = useState(false)
+  const [leadEmail, setLeadEmail] = useState('')
+  const [leadName, setLeadName] = useState('')
+  const [leadSubmitting, setLeadSubmitting] = useState(false)
+  const [leadError, setLeadError] = useState<string | null>(null)
+  const leadTriggered = useRef(false)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const musicRef = useRef<HTMLAudioElement>(null)
@@ -733,6 +842,12 @@ export default function PublicWatchPage() {
     const segmentDuration = videoDuration / slideCount
     const idx = Math.min(Math.floor(videoRef.current.currentTime / segmentDuration), slideCount - 1)
     setCurrentSlideIndex(idx)
+
+    // Trigger lead capture at 60% playback
+    if (!leadTriggered.current && videoDuration > 0 && videoRef.current.currentTime / videoDuration >= 0.6) {
+      leadTriggered.current = true
+      setShowLeadCapture(true)
+    }
   }, [video, videoDuration])
 
   const jumpToSlide = useCallback(
@@ -1581,6 +1696,100 @@ export default function PublicWatchPage() {
           >
             Create yours free &rarr;
           </a>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/*  LEAD CAPTURE — paid plans only, after 60% playback           */}
+      {/* ============================================================ */}
+      {showLeadCapture && !leadDismissed && !leadSubmitted && !isFreeTier && (
+        <div className="wp-lead-card">
+          <div className="wp-lead-inner">
+            <div className="wp-lead-header">
+              <div className="wp-lead-title">Interested? Leave your email for more info</div>
+              <button
+                className="wp-lead-close"
+                onClick={() => setLeadDismissed(true)}
+                aria-label="Close"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <form
+              className="wp-lead-form"
+              onSubmit={async (e) => {
+                e.preventDefault()
+                if (!leadEmail.trim() || leadSubmitting) return
+                setLeadSubmitting(true)
+                setLeadError(null)
+                try {
+                  const res = await fetch('/api/capture-lead', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      videoId: video.id,
+                      email: leadEmail.trim(),
+                      name: leadName.trim() || undefined,
+                    }),
+                  })
+                  if (!res.ok) {
+                    const data = await res.json().catch(() => ({}))
+                    throw new Error(data.error || 'Failed to submit')
+                  }
+                  setLeadSubmitted(true)
+                } catch (err) {
+                  setLeadError(err instanceof Error ? err.message : 'Something went wrong')
+                } finally {
+                  setLeadSubmitting(false)
+                }
+              }}
+            >
+              <input
+                type="email"
+                className="wp-lead-input"
+                placeholder="Your email"
+                value={leadEmail}
+                onChange={(e) => setLeadEmail(e.target.value)}
+                required
+              />
+              <input
+                type="text"
+                className="wp-lead-input"
+                placeholder="Name (optional)"
+                value={leadName}
+                onChange={(e) => setLeadName(e.target.value)}
+              />
+              <button type="submit" className="wp-lead-submit" disabled={leadSubmitting}>
+                {leadSubmitting ? 'Sending...' : 'Submit'}
+              </button>
+            </form>
+            {leadError && <div className="wp-lead-error">{leadError}</div>}
+          </div>
+        </div>
+      )}
+
+      {leadSubmitted && showLeadCapture && !leadDismissed && !isFreeTier && (
+        <div className="wp-lead-card">
+          <div className="wp-lead-inner">
+            <div className="wp-lead-header">
+              <div className="wp-lead-success">
+                <IconCheck /> Thanks! We'll be in touch.
+              </div>
+              <button
+                className="wp-lead-close"
+                onClick={() => setLeadDismissed(true)}
+                aria-label="Close"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

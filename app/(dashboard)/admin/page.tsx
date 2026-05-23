@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import type { Profile, Video } from '@/app/_lib/types'
 
-type Tab = 'dashboard' | 'users' | 'videos' | 'billing' | 'access' | 'audit'
+type Tab = 'dashboard' | 'users' | 'videos' | 'billing' | 'access' | 'audit' | 'prospects'
 
 interface AuditEntry {
   id: string
@@ -30,6 +30,10 @@ export default function AdminPage() {
   const [dailyActivity, setDailyActivity] = useState<{ date: string; users: number; videos: number }[]>([])
   const [auditDateFilter, setAuditDateFilter] = useState<'7' | '30' | 'all'>('30')
   const [auditSearch, setAuditSearch] = useState('')
+  const [prospectUrls, setProspectUrls] = useState('')
+  const [prospectDemos, setProspectDemos] = useState<{ id: string; title: string; status: string; created_at: string; video_url: string | null; progress_detail: string | null }[]>([])
+  const [prospectBusy, setProspectBusy] = useState(false)
+  const [prospectResult, setProspectResult] = useState<{ url: string; videoId?: string; companyName?: string; error?: string }[] | null>(null)
 
   useEffect(() => {
     fetch('/api/admin/data')
@@ -144,6 +148,7 @@ export default function AdminPage() {
     { id: 'billing', label: 'Billing' },
     { id: 'access', label: 'Manage Access' },
     { id: 'audit', label: 'Audit Log' },
+    { id: 'prospects', label: 'Prospects' },
   ]
 
   const userEmail = (userId: string) => profiles.find(p => p.id === userId)?.email ?? '—'
@@ -628,6 +633,116 @@ export default function AdminPage() {
           </div>
         )
       })()}
+
+      {tab === 'prospects' && (
+        <div>
+          <div className="settings-card" style={{ marginBottom: 16 }}>
+            <h3>Generate Demo Videos</h3>
+            <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 12 }}>
+              Paste company website URLs (one per line) to auto-extract their brand info and create demo video records.
+            </p>
+            <textarea
+              className="input"
+              placeholder={"https://example.com\nhttps://another-company.com"}
+              value={prospectUrls}
+              onChange={e => setProspectUrls(e.target.value)}
+              rows={5}
+              style={{ width: '100%', fontFamily: 'monospace', fontSize: 13, resize: 'vertical' }}
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
+              <button
+                className="btn btn-primary"
+                disabled={prospectBusy || !prospectUrls.trim()}
+                onClick={async () => {
+                  setProspectBusy(true)
+                  setProspectResult(null)
+                  try {
+                    const urls = prospectUrls.split('\n').map(u => u.trim()).filter(Boolean)
+                    const r = await fetch('/api/admin/auto-demo', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ urls }),
+                    })
+                    const d = await r.json()
+                    if (!r.ok) throw new Error(d.error || 'Failed')
+                    setProspectResult(d.results ?? [])
+                    setProspectUrls('')
+                    // Refresh demo list
+                    fetch('/api/admin/auto-demo').then(r => r.json()).then(d => setProspectDemos(d.demos ?? [])).catch(() => {})
+                  } catch (err) {
+                    alert(err instanceof Error ? err.message : 'Failed to generate demos')
+                  }
+                  setProspectBusy(false)
+                }}
+              >
+                {prospectBusy ? 'Processing...' : 'Generate Demo Videos'}
+              </button>
+              <button
+                className="btn btn-sm btn-soft"
+                onClick={() => {
+                  fetch('/api/admin/auto-demo').then(r => r.json()).then(d => setProspectDemos(d.demos ?? [])).catch(() => {})
+                }}
+              >
+                Refresh List
+              </button>
+            </div>
+          </div>
+
+          {prospectResult && (
+            <div className="settings-card" style={{ marginBottom: 16 }}>
+              <h3>Results</h3>
+              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+                {prospectResult.map((r, i) => (
+                  <div key={i} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < prospectResult.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
+                    <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontWeight: 600 }}>{r.companyName ?? r.url}</span>
+                      <span style={{ color: 'var(--ink-light)', marginLeft: 8, fontSize: 12 }}>{r.url}</span>
+                    </div>
+                    <div style={{ width: 100 }}>
+                      {r.error ? (
+                        <span className="tag rose" style={{ fontSize: 11 }}>Failed</span>
+                      ) : (
+                        <span className="tag mint" style={{ fontSize: 11 }}>Created</span>
+                      )}
+                    </div>
+                    {r.error && <div style={{ width: 200, fontSize: 11, color: '#dc2626' }}>{r.error}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="settings-card">
+            <h3>Demo Videos</h3>
+            {prospectDemos.length === 0 ? (
+              <div style={{ padding: 24, textAlign: 'center', color: 'var(--ink-light)' }}>
+                <p>No demo videos yet. Click &quot;Refresh List&quot; to load or generate some above.</p>
+              </div>
+            ) : (
+              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-soft)', fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <div style={{ flex: 1 }}>Company</div>
+                  <div style={{ width: 90 }}>Status</div>
+                  <div style={{ width: 100 }}>Date</div>
+                  <div style={{ width: 80 }}>Actions</div>
+                </div>
+                {prospectDemos.map((d, i) => (
+                  <div key={d.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < prospectDemos.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
+                    <div style={{ flex: 1, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</div>
+                    <div style={{ width: 90 }}>{statusTag(d.status)}</div>
+                    <div style={{ width: 100, color: 'var(--ink-light)' }}>{fmt(d.created_at)}</div>
+                    <div style={{ width: 80 }}>
+                      {d.status === 'completed' && d.video_url && (
+                        <a href={`/watch/${d.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-soft" style={{ fontSize: 11, padding: '3px 8px', textDecoration: 'none' }}>Watch</a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

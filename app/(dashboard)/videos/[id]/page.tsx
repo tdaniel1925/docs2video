@@ -308,6 +308,12 @@ export default function VideoDetailPage() {
   const [translateLang, setTranslateLang] = useState('')
   const [translating, setTranslating] = useState(false)
 
+  // Social posts state
+  const [showSocialModal, setShowSocialModal] = useState(false)
+  const [socialPosts, setSocialPosts] = useState<{ linkedin: string; twitter: string; facebook: string } | null>(null)
+  const [socialLoading, setSocialLoading] = useState(false)
+  const [socialCopied, setSocialCopied] = useState<string | null>(null)
+
   // Video player state
   const videoRef = useRef<HTMLVideoElement>(null)
   const musicRef = useRef<HTMLAudioElement>(null)
@@ -1566,6 +1572,32 @@ export default function VideoDetailPage() {
                 Translate
               </button>
               <button
+                onClick={async () => {
+                  if (socialLoading) return
+                  setSocialLoading(true)
+                  setSocialPosts(null)
+                  setShowSocialModal(true)
+                  try {
+                    const res = await fetch('/api/generate-social-post', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ videoId: video.id }),
+                    })
+                    if (!res.ok) throw new Error('Failed to generate posts')
+                    const data = await res.json()
+                    setSocialPosts(data)
+                  } catch {
+                    setSocialPosts(null)
+                  } finally {
+                    setSocialLoading(false)
+                  }
+                }}
+                className="btn btn-soft"
+                style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}
+              >
+                Social Posts
+              </button>
+              <button
                 onClick={() => {
                   const videoScenes = Array.isArray(video.script) ? video.script.map((s: any, i: number) => ({
                     scene: i + 1,
@@ -2222,6 +2254,70 @@ export default function VideoDetailPage() {
                 className="btn btn-soft"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Social Posts Modal */}
+      {showSocialModal && video && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(8px)' }}>
+          <div style={{ width: '100%', maxWidth: 520, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 32, maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>Social Posts</h2>
+              <button onClick={() => { setShowSocialModal(false); setSocialPosts(null); setSocialCopied(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-light)' }}>&times;</button>
+            </div>
+
+            {socialLoading && (
+              <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                <div className="spinner" style={{ margin: '0 auto 16px' }} />
+                <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>Generating social posts...</div>
+              </div>
+            )}
+
+            {!socialLoading && !socialPosts && (
+              <div style={{ textAlign: 'center', padding: '40px 0', fontSize: 14, color: 'var(--ink-soft)' }}>
+                Failed to generate posts. Please try again.
+              </div>
+            )}
+
+            {socialPosts && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {([
+                  { key: 'linkedin' as const, label: 'LinkedIn', color: '#0A66C2' },
+                  { key: 'twitter' as const, label: 'X / Twitter', color: '#1DA1F2' },
+                  { key: 'facebook' as const, label: 'Facebook', color: '#1877F2' },
+                ] as const).map(({ key, label, color }) => (
+                  <div key={key} style={{ border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: 'var(--bg)', borderBottom: '1px solid var(--border-light)' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color }}>{label}</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(socialPosts[key] || '')
+                          setSocialCopied(key)
+                          setTimeout(() => setSocialCopied(null), 2000)
+                        }}
+                        className="btn btn-soft"
+                        style={{ padding: '4px 12px', fontSize: 12, borderRadius: 6 }}
+                      >
+                        {socialCopied === key ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                    <div style={{ padding: '14px 16px', fontSize: 13, lineHeight: 1.6, color: 'var(--ink)', whiteSpace: 'pre-wrap' }}>
+                      {socialPosts[key]}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+              <button
+                onClick={() => { setShowSocialModal(false); setSocialPosts(null); setSocialCopied(null) }}
+                className="btn btn-soft"
+              >
+                Close
               </button>
             </div>
           </div>
