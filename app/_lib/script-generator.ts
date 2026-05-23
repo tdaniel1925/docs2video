@@ -187,21 +187,55 @@ SCENE COUNT: Determined by the VIDEO LENGTH instruction below. Do NOT decide sce
 
 SCENE STRUCTURE: Each scene covers ONE topic or concept. Scenes can be any length needed. ONE topic per scene, ONE slide per scene.
 
-NARRATION QUALITY (CRITICAL — this will be read aloud):
-- Write for the EAR, not the eye. If it sounds stilted when read aloud, rewrite it.
+NARRATION QUALITY (CRITICAL — this will be read aloud by a voice-over artist):
+- Write for the EAR, not the eye. Read every sentence aloud in your head. If it sounds stilted, rewrite it.
 - Short, punchy sentences. Vary rhythm. Use contractions: "you'll", "that's", "it's"
-- BANNED PHRASES (never use these): "it's important to note", "as you can see", "let's take a look at", "the data shows", "the evidence suggests", "it's worth noting", "as we mentioned", "moving on to", "in conclusion"
+- BANNED PHRASES (never use these): "it's important to note", "as you can see", "let's take a look at", "the data shows", "the evidence suggests", "it's worth noting", "as we mentioned", "moving on to", "in conclusion", "it goes without saying", "at the end of the day", "in this video", "in today's presentation"
 - Never start with "Now,", "So,", "Additionally,", "Furthermore,"
 - Use active voice: "This saves you 40%" not "A savings of 40% can be achieved"
-- Numbers spoken naturally: "about two hundred thousand" not "$198,447"
-- Decimals: write "one point one" not "1.1". Write "two point five percent" not "2.5%"
-- Dashes and hyphens: NEVER write a literal dash in narration. "state-of-the-art" becomes "state of the art". "24/7" becomes "twenty four seven". "10-15" becomes "ten to fifteen"
-- Symbols: NEVER include symbols that would be read literally. No @, #, &, /, \, |, etc. Write them as words: "at" not "@", "and" not "&", "number" not "#"
-- Phone numbers: spell out naturally: "five five five, one two three, four five six seven" not "555-123-4567"
-- URLs: say "visit their website" not "go to w w w dot example dot com" — URLs look fine on slides but sound terrible spoken
-- Vary how you reference the company: use the company name, "they", "the team", "the platform", "their" — never the same reference twice in a row
-- Never assume or editorialize — don't say "that's impressive" or "that's a lot" unless the data explicitly supports a comparison
-- Each scene flows naturally into the next
+
+NUMBER & DATA PRONUNCIATION (the narrator reads these aloud):
+- Phone numbers: say EACH DIGIT with natural grouping. "1-866-752-8002" becomes "one, eight six six, seven five two, eight zero zero two". NEVER read as a whole number.
+- Money: "twenty five thousand dollars" not "$25,000". Round numbers can be short: "about fifty thousand"
+- Percentages: "seven point five percent" not "7.5%"
+- Decimals: "one point one" not "1.1"
+- Dates: "January fifteenth, twenty twenty six" not "1/15/2026"
+- Dashes and hyphens: NEVER write a literal dash. "state-of-the-art" becomes "state of the art". "24/7" becomes "twenty four seven"
+- Symbols: NEVER include @, #, &, /, \, |. Write as words: "at" not "@", "and" not "&"
+- URLs: say "visit their website" not "w w w dot example dot com". URLs look fine on slides but sound terrible spoken.
+- Don't read every stat from a table — pick the 2-3 most impactful and explain WHY they matter
+
+MEDIUM AWARENESS (this is a VIDEO, not a website):
+- NEVER say "click here", "scroll down", "fill out the form below", "see below", "the link above", "submit your information" — these are web actions
+- INSTEAD say "visit our website", "give us a call", "reach out to us", "get in touch"
+- If source says "fill out the form" → say "visit our website to get started"
+- If source says "click here to learn more" → say "learn more at our website"
+- The viewer CANNOT interact with the video — don't ask them to do things they can't do while watching
+- Don't say "as you can see on screen" — the viewer knows they're watching
+- Don't describe what the slide shows — the narrator should ADD context and meaning, not read the slide
+
+NARRATIVE INTELLIGENCE:
+- Open with a HOOK, not a greeting. "What if your money could grow tax free?" beats "Hello, today we'll discuss..."
+- Don't repeat the company name every sentence — say it once at the opening, once at the close. Use "they", "the team", "their" in between.
+- Don't read bullet points — the slide shows them. The narrator explains WHY each point matters.
+- Pick the 3-5 most important features, not all of them. Explain the BENEFIT, not just the feature.
+- Translate jargon the first time: "Indexed Universal Life, or IUL" then just "your policy" after that
+- Testimonials: paraphrase naturally. Don't quote word-for-word (sounds robotic when narrated).
+- FAQ content: don't ask and answer questions. Just state the facts directly.
+- "About Us" content: skip the corporate history. Focus on what the VIEWER gets.
+- Each scene flows naturally into the next — no jarring topic jumps
+
+CONTACT INFO RULES:
+- Contact information (phone, email, website) must ONLY appear in the LAST scene narration. NEVER mention contact details in any earlier scene.
+- If contact info exists: end with ONE clear call to action, not three. Pick the strongest: a phone call OR a website visit. Be confident: "Call us today at..." not "If you'd like, you could maybe consider..."
+- If NO contact info exists in the data: end with "Thank you for watching" — nothing more. No invented contacts.
+- Don't end with "Thank you for watching" if there IS real contact info — end with the CTA instead.
+
+FILLER & REDUNDANCY:
+- Never repeat the same point in different words across scenes
+- Never use filler: "It's important to note that", "As a matter of fact", "The truth is", "Believe it or not"
+- Never editorialize without data: don't say "that's impressive" or "that's remarkable" unless the data explicitly supports a comparison
+- Never pad scenes with generic statements. Every sentence should contain a FACT or advance the story.
 
 DYNAMIC DELIVERY (adapt to the purpose):
 - If the purpose is to SELL or PITCH: confident, benefit-focused, forward momentum. Lead with outcomes. "This means you get..." / "The result is..."
