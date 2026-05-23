@@ -193,14 +193,17 @@ export default function CreatePage() {
     setElapsed(0)
 
     try {
-      // Step 1: Extract content from file
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('purpose', purpose.trim())
+      // Step 1: Extract content — send directly to VPS (bypasses Vercel timeout)
+      const arrayBuffer = await file.arrayBuffer()
+      const bytes = new Uint8Array(arrayBuffer)
+      let binary = ''
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+      const base64 = btoa(binary)
 
-      const extractRes = await fetch('/api/extract', {
+      const extractRes = await fetch('/api/extract-doc', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileBase64: base64, fileName: file.name, purpose: purpose.trim() }),
       })
       const extractText = await extractRes.text()
       let extractData: any
