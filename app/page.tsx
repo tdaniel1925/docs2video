@@ -37,6 +37,7 @@ export default function HomePage() {
               <a href="#compare">Compare</a>
               <a href="#templates">Templates</a>
               <a href="#pricing">Pricing</a>
+              <Link href="/blog">Blog</Link>
             </div>
             <div className="top-nav-right">
               <Link href="/login" style={{color:'rgba(255,255,255,0.85)',textDecoration:'none',fontSize:'14px',fontWeight:500}}>Login</Link>
@@ -785,6 +786,7 @@ export default function HomePage() {
             <div className="footer-col">
               <h4>Resources</h4>
               <ul>
+                <li><Link href="/blog">Blog</Link></li>
                 <li><a href="#use-cases">Use Cases</a></li>
                 <li><a href="#faq">FAQ</a></li>
                 <li><Link href="/cookies">Cookie Policy</Link></li>
@@ -793,7 +795,7 @@ export default function HomePage() {
             <div className="footer-col">
               <h4>Company</h4>
               <ul>
-                <li><a href="mailto:support@docs2video.com">Contact</a></li>
+                <li><Link href="/contact">Contact</Link></li>
                 <li><Link href="/terms">Terms of Service</Link></li>
                 <li><Link href="/privacy">Privacy Policy</Link></li>
               </ul>
