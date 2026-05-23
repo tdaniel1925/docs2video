@@ -7,6 +7,7 @@ import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { isAdmin } from '../../_lib/admin'
 import { logError } from '../../_lib/error-logger'
+import { validateScript } from '../../_lib/script-validator'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { buildSimpleSlidePrompt, getStylePrompt } from '../../_lib/slide-engine/simple-prompt'
 import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
@@ -266,6 +267,32 @@ export async function POST(request: Request) {
       scenes = scenes.map((s: any) => ({ ...s, narration: s.narration ? formatForTTS(s.narration) : s.narration }))
 
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15, prompt_versions: { ...DEFAULT_PROMPT_VERSIONS } }).eq('id', videoId)
+    }
+
+    // --- GUARD: Pre-flight script validation ---
+    const isInsurance = 'policyType' in (policyData as any)
+    const validation = validateScript(scenes, {
+      industry: industry ?? (isInsurance ? 'insurance' : undefined),
+      contactInfo: undefined,
+      detailLevel: detailed ? 'detailed' : 'standard',
+      requireDisclaimer: isInsurance,
+    })
+
+    if (!validation.ok) {
+      inFlightVideos.delete(videoId)
+      await admin.from('videos').update({
+        status: 'failed',
+        error_message: `Script validation failed: ${validation.errors.map(e => e.message).join('; ')}`
+      }).eq('id', videoId)
+      if (jobId) await updateJobProgress(admin, jobId, 0, 'failed', { error_message: 'Script validation failed' })
+      return NextResponse.json({
+        error: 'Script validation failed',
+        details: validation.errors,
+      }, { status: 422 })
+    }
+
+    if (validation.warnings.length > 0) {
+      console.log(`[video ${videoId}] Script warnings:`, validation.warnings)
     }
 
     // STAGE 2: Build slide prompts — simple, direct prompts for OpenAI
