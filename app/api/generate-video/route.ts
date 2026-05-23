@@ -10,6 +10,7 @@ import { logError } from '../../_lib/error-logger'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { buildSimpleSlidePrompt, getStylePrompt } from '../../_lib/slide-engine/simple-prompt'
 import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
+import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 
 export const runtime = 'nodejs'
 
@@ -234,7 +235,7 @@ export async function POST(request: Request) {
         }
       }
 
-      await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script ready', progress_pct: 15 }).eq('id', videoId)
+      await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script ready', progress_pct: 15, prompt_versions: { ...DEFAULT_PROMPT_VERSIONS } }).eq('id', videoId)
     } else {
       console.log(`[video ${videoId}] Generating script...`)
       await admin.from('videos').update({ status: 'scripting', progress_detail: 'Writing your script...', progress_pct: 5 }).eq('id', videoId)
@@ -264,7 +265,7 @@ export async function POST(request: Request) {
       // Format narration for TTS
       scenes = scenes.map((s: any) => ({ ...s, narration: s.narration ? formatForTTS(s.narration) : s.narration }))
 
-      await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15 }).eq('id', videoId)
+      await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15, prompt_versions: { ...DEFAULT_PROMPT_VERSIONS } }).eq('id', videoId)
     }
 
     // STAGE 2: Build slide prompts — simple, direct prompts for OpenAI

@@ -3,6 +3,7 @@ import { createClient } from '../../_lib/supabase/server'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { logError } from '../../_lib/error-logger'
 import OpenAI from 'openai'
+import { CONTENT_STRUCTURING_SYSTEM_PROMPT } from '../../_lib/prompts'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -75,16 +76,7 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
         model: 'gpt-4o-mini',
         messages: [{
           role: 'system',
-          content: `Extract and structure content into JSON. Return:
-{
-  "title": "Main title",
-  "subtitle": "Subtitle or tagline",
-  "sections": [{ "title": "Section name", "content": "Section content" }],
-  "keyMetrics": [{ "value": "stat value", "label": "stat label" }],
-  "contactInfo": { "phone": null, "email": null, "website": null },
-  "companyName": "Company name if mentioned"
-}
-Only include real data found in the content. Never invent contact info.`,
+          content: CONTENT_STRUCTURING_SYSTEM_PROMPT,
         }, {
           role: 'user',
           content: `${purpose ? `Purpose: ${purpose}\n\n` : ''}Content:\n${contentToStructure.slice(0, 15000)}`,
@@ -135,16 +127,7 @@ Only include real data found in the content. Never invent contact info.`,
         model: 'gpt-4o-mini',
         messages: [{
           role: 'system',
-          content: `Extract and structure content into JSON. Return:
-{
-  "title": "Main title",
-  "subtitle": "Subtitle or tagline",
-  "sections": [{ "title": "Section name", "content": "Section content" }],
-  "keyMetrics": [{ "value": "stat value", "label": "stat label" }],
-  "contactInfo": { "phone": null, "email": null, "website": null },
-  "companyName": "Company name if mentioned"
-}
-Only include real data found in the content. Never invent contact info.`,
+          content: CONTENT_STRUCTURING_SYSTEM_PROMPT,
         }, {
           role: 'user',
           content: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Content:\n${text.slice(0, 15000)}`,

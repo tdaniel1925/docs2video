@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1920px; height: 1080px;
+    font-family: 'Segoe UI', 'Inter', -apple-system, sans-serif;
+    background: linear-gradient(135deg, #f0f4f8 0%, #e8f0f8 50%, #f0f4f8 100%);
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Decorative elements */
+  .deco-circle {
+    position: absolute; border-radius: 50%; border: 2px solid rgba(26, 54, 104, 0.06);
+  }
+  .deco-1 { width: 300px; height: 300px; top: -100px; right: -50px; }
+  .deco-2 { width: 200px; height: 200px; bottom: -60px; left: -40px; }
+  .deco-3 { width: 150px; height: 150px; top: 200px; left: -40px; border-color: rgba(204, 0, 0, 0.06); }
+  .deco-star { position: absolute; color: rgba(204, 0, 0, 0.08); font-size: 40px; }
+  .star-1 { top: 80px; left: 60px; }
+  .star-2 { bottom: 120px; right: 100px; font-size: 30px; }
+  .star-3 { top: 300px; right: 60px; font-size: 24px; }
+
+  /* Logo area */
+  .logo-area {
+    position: absolute; top: 15px; right: 15px;
+    width: 280px;
+  }
+  .logo-area img { width: 100%; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #1a3668 0%, #1e4080 100%);
+    border-radius: 0 0 20px 20px;
+    padding: 40px 80px 30px;
+    margin: 0 60px;
+    text-align: center;
+    position: relative;
+  }
+  .header h1 {
+    color: white; font-size: 42px; font-weight: 800;
+    letter-spacing: -0.02em; line-height: 1.2;
+  }
+  .header .subtitle {
+    color: rgba(255,255,255,0.75); font-size: 18px;
+    margin-top: 8px; font-weight: 400;
+  }
+  .header-accent {
+    position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%);
+    width: 80px; height: 4px; background: #cc0000; border-radius: 2px;
+  }
+
+  /* Steps container */
+  .steps {
+    display: flex; gap: 20px;
+    padding: 50px 80px 0;
+    justify-content: center;
+  }
+
+  /* Step card */
+  .step {
+    flex: 1; max-width: 340px;
+    background: white;
+    border-radius: 16px;
+    border: 1.5px solid #e0e8f0;
+    padding: 28px 24px;
+    position: relative;
+    box-shadow: 0 4px 20px rgba(26, 54, 104, 0.06);
+  }
+  .step-number {
+    position: absolute; top: -16px; left: 24px;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #cc0000; color: white;
+    font-size: 18px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 10px rgba(204, 0, 0, 0.3);
+  }
+  .step-header {
+    background: linear-gradient(135deg, #1a3668 0%, #2a5090 100%);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+  }
+  .step-header h3 {
+    color: white; font-size: 16px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .step-icon {
+    font-size: 36px; text-align: center; margin-bottom: 12px;
+  }
+  .step-body {
+    font-size: 14px; color: #3d5a7a; line-height: 1.7;
+  }
+  .step-body ul { list-style: none; padding: 0; }
+  .step-body li {
+    padding: 6px 0 6px 24px; position: relative;
+  }
+  .step-body li::before {
+    content: ''; position: absolute; left: 4px; top: 14px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #cc0000; opacity: 0.8;
+  }
+
+  /* Connector arrows */
+  .connector {
+    display: flex; align-items: center; padding-top: 60px;
+  }
+  .connector svg { width: 30px; color: #cc0000; }
+
+  /* Bottom CTA */
+  .cta-bar {
+    position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(135deg, #1a3668 0%, #1e4080 100%);
+    border-radius: 16px;
+    padding: 20px 60px;
+    text-align: center;
+    border: 2px solid rgba(204, 0, 0, 0.3);
+    box-shadow: 0 8px 30px rgba(26, 54, 104, 0.15);
+  }
+  .cta-bar h2 {
+    color: white; font-size: 24px; font-weight: 800;
+  }
+  .cta-bar .cta-sub {
+    color: rgba(255,255,255,0.7); font-size: 14px; margin-top: 4px;
+  }
+  .cta-btn {
+    display: inline-block; margin-top: 12px;
+    padding: 12px 40px; border-radius: 10px;
+    background: #cc0000; color: white;
+    font-size: 18px; font-weight: 700;
+    border: 2px solid rgba(255,255,255,0.2);
+  }
+
+  /* Watermark */
+  .watermark {
+    position: absolute; bottom: 12px; right: 20px;
+    font-size: 11px; color: rgba(26, 54, 104, 0.3);
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Decorative -->
+  <div class="deco-circle deco-1"></div>
+  <div class="deco-circle deco-2"></div>
+  <div class="deco-circle deco-3"></div>
+  <div class="deco-star star-1">&#9733;</div>
+  <div class="deco-star star-2">&#9733;</div>
+  <div class="deco-star star-3">&#9733;</div>
+
+  <!-- Logo -->
+  <div class="logo-area">
+    <img src="file:///C:/Users/tdani/One%20World%20Dropbox/Trent%20Daniel/1%20-%20BotMakers/Clients/Apex%20Affinity%20Group/Logos/Apex%20Affinity%20Grop%20Logo%20-%20Full%20Color%20PNG.png" alt="Apex Affinity Group" />
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <h1>How to Start an Insurance Business</h1>
+    <div class="subtitle">Your 5-step roadmap to building a profitable insurance agency</div>
+    <div class="header-accent"></div>
+  </div>
+
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step">
+      <div class="step-number">1</div>
+      <div class="step-header"><h3>Get Licensed</h3></div>
+      <div class="step-body">
+        <ul>
+          <li>Complete pre-licensing coursework (40-60 hours)</li>
+          <li>Pass your state insurance exam</li>
+          <li>Apply for your license with the state DOI</li>
+          <li>Choose your lines: life, health, P&C</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="connector">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+        <path d="M5 12h14M13 5l7 7-7 7"/>
+      </svg>
+    </div>
+
+    <div class="step">
+      <div class="step-number">2</div>
+      <div class="step-header"><h3>Build Your Foundation</h3></div>
+      <div class="step-body">
+        <ul>
+          <li>Register your business (LLC recommended)</li>
+          <li>Get your E&O insurance</li>
+          <li>Contract with carriers (start with 3-5)</li>
+          <li>Set up your CRM and phone system</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="connector">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+        <path d="M5 12h14M13 5l7 7-7 7"/>
+      </svg>
+    </div>
+
+    <div class="step">
+      <div class="step-number">3</div>
+      <div class="step-header"><h3>Launch & Grow</h3></div>
+      <div class="step-body">
+        <ul>
+          <li>Build your online presence and website</li>
+          <li>Start with your warm market (100 contacts)</li>
+          <li>Create a referral system from day one</li>
+          <li>Target 10 policies in your first 30 days</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-bar">
+    <h2>Ready to Launch Your Agency?</h2>
+    <div class="cta-sub">Apex Affinity Group helps new agents get contracted, trained, and selling faster.</div>
+    <div class="cta-btn">Get Started Today &#8594;</div>
+  </div>
+
+  <div class="watermark">Powered by Docs2Video</div>
+
+</body>
+</html>
