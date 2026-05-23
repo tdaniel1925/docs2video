@@ -13,7 +13,7 @@ import { buildSimpleSlidePrompt, getStylePrompt } from '../../_lib/slide-engine/
 import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 import { PHONE_REGEX, phoneToSpoken, isPhoneInSource } from '../../_lib/phone-utils'
-import { estimateVideoCost } from '../../_lib/cost-estimator'
+import { estimateVideoCost, exceedsCeiling } from '../../_lib/cost-estimator'
 
 export const runtime = 'nodejs'
 
@@ -318,6 +318,16 @@ export async function POST(request: Request) {
 
     // Save cost estimate to video record
     await admin.from('videos').update({ estimated_cost_cents: costEstimate.estimated_cost_cents }).eq('id', videoId)
+
+    // Check daily spend ceiling (env-gated via COST_CEILINGS_ENABLED)
+    const userTier = subStatus || 'free'
+    const ceilingExceeded = await exceedsCeiling(user.id, costEstimate.estimated_cost_cents, userTier, admin)
+    if (ceilingExceeded) {
+      inFlightVideos.delete(videoId)
+      await admin.from('videos').update({ status: 'failed', error_message: 'Daily usage limit reached.' }).eq('id', videoId)
+      if (jobId) await updateJobProgress(admin, jobId, 0, 'failed', { error_message: 'Daily usage limit reached.' })
+      return NextResponse.json({ error: 'Daily usage limit reached.' }, { status: 429 })
+    }
 
     // STAGE 2: Build slide prompts — simple, direct prompts for OpenAI
     console.log(`[video ${videoId}] Building slide prompts for ${scenes.length} scenes...`)
