@@ -5,7 +5,7 @@ import OpenAI from 'openai'
 import { rateLimit, getRateLimitKey } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
-export const maxDuration = 120
+export const maxDuration = 300
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -43,31 +43,31 @@ export async function POST(request: Request) {
     })
     const styleDescription = analysisRes.choices[0]?.message?.content ?? 'Professional modern design'
 
-    // Generate cover slide using the extracted style description
-    const coverRes = await openai.images.generate({
-      model: 'gpt-image-2',
-      prompt: `Create a presentation COVER slide in this EXACT visual style: ${styleDescription}
+    // Generate both slides in parallel for speed
+    const [coverRes, contentRes] = await Promise.all([
+      openai.images.generate({
+        model: 'gpt-image-2',
+        prompt: `Create a presentation COVER slide in this EXACT visual style: ${styleDescription}
 
 Content: Title "Quarterly Business Review", subtitle "Q2 2025 Performance Summary", small text "Prepared by Anderson Financial Group".
 
 1920x1080 landscape. Fill entire canvas edge to edge. No logos.`,
-      size: '1536x1024',
-      quality: 'high',
-      n: 1,
-    })
-
-    // Generate content slide
-    const contentRes = await openai.images.generate({
-      model: 'gpt-image-2',
-      prompt: `Create a presentation CONTENT slide in this EXACT visual style: ${styleDescription}
+        size: '1536x1024',
+        quality: 'high',
+        n: 1,
+      }),
+      openai.images.generate({
+        model: 'gpt-image-2',
+        prompt: `Create a presentation CONTENT slide in this EXACT visual style: ${styleDescription}
 
 Content: Title "KEY METRICS". Three data card sections: Revenue $2.4M (+18%), New Clients 1,240, Retention Rate 94%. Below: Growth Drivers heading with 3 bullet points.
 
 1920x1080 landscape. Fill entire canvas edge to edge. No logos.`,
-      size: '1536x1024',
-      quality: 'high',
-      n: 1,
-    })
+        size: '1536x1024',
+        quality: 'high',
+        n: 1,
+      }),
+    ])
 
     const coverImage = coverRes.data?.[0]?.b64_json ? `data:image/png;base64,${coverRes.data[0].b64_json}` : null
     const contentImage = contentRes.data?.[0]?.b64_json ? `data:image/png;base64,${contentRes.data[0].b64_json}` : null
@@ -84,6 +84,7 @@ Content: Title "KEY METRICS". Three data card sections: Revenue $2.4M (+18%), Ne
       referenceUrl: refUrl.publicUrl,
     })
   } catch (err) {
+    console.error('[style-preview-from-ref] Error:', err)
     const message = err instanceof Error ? err.message : 'Preview generation failed'
     return NextResponse.json({ error: message }, { status: 500 })
   }
