@@ -2,7 +2,7 @@ import OpenAI from 'openai'
 import type { ExtractedPolicyData, VideoScene } from './types'
 import { type ExtractedData, isInsuranceData } from './extract-types'
 import { detectIndustry } from './industries'
-import { buildInsuranceScriptPrompt, buildStrategicAnalysisPrompt, getPrompt } from './prompts'
+import { buildStrategicAnalysisPrompt, getPrompt } from './prompts'
 
 let _openai: OpenAI | null = null
 function getOpenAI() {
@@ -148,8 +148,10 @@ export async function generateScript(
   const promptVersion = process.env.PROMPT_VERSION_OVERRIDE || undefined
   const genericPromptBuilder = getPrompt('script_generation_generic', promptVersion)
 
+  const insurancePromptBuilder = getPrompt('script_generation_insurance', promptVersion)
+
   const promptBody = isInsurance
-    ? buildInsuranceScriptPrompt(data as ExtractedPolicyData, brandName, detailed, assetCount ?? 0)
+    ? insurancePromptBuilder(data as ExtractedPolicyData, brandName, detailed, assetCount ?? 0)
     : genericPromptBuilder(data as ExtractedData, brandName, detailed, assetCount ?? 0, uploadMode, industry)
 
   // Build additional prompt sections based on new parameters
