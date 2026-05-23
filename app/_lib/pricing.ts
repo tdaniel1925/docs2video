@@ -4,7 +4,7 @@
  * Slide regenerations cost 1/4 credit each.
  */
 
-export type PlanTier = 'free' | 'personal' | 'starter' | 'pro' | 'business' | 'enterprise'
+export type PlanTier = 'free' | 'starter' | 'pro' | 'business' | 'enterprise'
 
 export interface PlanInfo {
   tier: PlanTier
@@ -33,22 +33,6 @@ export const PLANS: PlanInfo[] = [
     videosPerMonth: 2,
     extraVideoPrice: 1000, // $10
     regenCreditsPerVideo: 2,
-  },
-  {
-    tier: 'personal',
-    label: 'Personal',
-    monthlyPrice: 1000, // $10
-    description: '3 videos per month',
-    features: [
-      '3 videos per month included',
-      '$5 per additional video',
-      'Solo narrator voice',
-      'Basic templates',
-      'Download MP4 and PDF',
-    ],
-    videosPerMonth: 3,
-    extraVideoPrice: 500, // $5
-    regenCreditsPerVideo: 1,
   },
   {
     tier: 'starter',
@@ -146,7 +130,6 @@ export function getUserTier(subscriptionStatus: string | null): PlanTier {
   if (['business', 'unlimited'].includes(status)) return 'business'
   if (['pro', 'professional'].includes(status)) return 'pro'
   if (['starter', 'active'].includes(status)) return 'starter'
-  if (['personal'].includes(status)) return 'personal'
   return 'free'
 }
 

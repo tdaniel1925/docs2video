@@ -831,7 +831,7 @@ export default function PublicWatchPage() {
   const WHITELABEL_PLANS = ['enterprise', 'business']
   const isWhiteLabel = !!(agent?.subscription_status && WHITELABEL_PLANS.includes(agent.subscription_status.toLowerCase()))
   // Show promo banner only for free tier (no subscription or inactive)
-  const PAID_PLANS = ['active', 'professional', 'pro', 'business', 'enterprise', 'starter', 'personal']
+  const PAID_PLANS = ['active', 'professional', 'pro', 'business', 'enterprise', 'starter']
   const isFreeTier = !agent?.subscription_status || !PAID_PLANS.includes(agent.subscription_status.toLowerCase())
 
   // Insurance detection and disclaimers
