@@ -26,6 +26,10 @@ export default function AdminPage() {
   const [busy, setBusy] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
   const [accessSearch, setAccessSearch] = useState('')
+  const [videoAnalytics, setVideoAnalytics] = useState<Record<string, { views: number; plays: number }>>({})
+  const [dailyActivity, setDailyActivity] = useState<{ date: string; users: number; videos: number }[]>([])
+  const [auditDateFilter, setAuditDateFilter] = useState<'7' | '30' | 'all'>('30')
+  const [auditSearch, setAuditSearch] = useState('')
 
   useEffect(() => {
     fetch('/api/admin/data')
@@ -39,9 +43,13 @@ export default function AdminPage() {
         setProfiles(d.profiles ?? [])
         setVideos(d.videos ?? [])
         setAuditLog(d.auditLog ?? [])
+        setVideoAnalytics(d.videoAnalytics ?? {})
         setState('ok')
       })
       .catch(e => { setError(e.message); setState('error') })
+    fetch('/api/admin/stats').then(r => r.json()).then(d => {
+      if (d.dailyActivity) setDailyActivity(d.dailyActivity)
+    }).catch(() => {})
   }, [])
 
   function reload() {
@@ -49,6 +57,7 @@ export default function AdminPage() {
       setProfiles(d.profiles ?? [])
       setVideos(d.videos ?? [])
       setAuditLog(d.auditLog ?? [])
+      setVideoAnalytics(d.videoAnalytics ?? {})
     }).catch(() => {})
   }
 
@@ -214,6 +223,26 @@ export default function AdminPage() {
               {videos.length === 0 && <div style={{ padding: 32, textAlign: 'center', color: 'var(--ink-light)' }}>No videos yet</div>}
             </div>
           </div>
+
+          {dailyActivity.length > 0 && (
+            <div className="settings-card" style={{ marginTop: 16 }}>
+              <h3>Usage Trends (Last 30 Days)</h3>
+              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12, maxHeight: 400, overflowY: 'auto' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-soft)', fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', position: 'sticky', top: 0 }}>
+                  <div style={{ flex: 1 }}>Date</div>
+                  <div style={{ width: 100, textAlign: 'center' }}>New Users</div>
+                  <div style={{ width: 100, textAlign: 'center' }}>New Videos</div>
+                </div>
+                {dailyActivity.map((day, i) => (
+                  <div key={day.date} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderBottom: i < dailyActivity.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
+                    <div style={{ flex: 1, color: 'var(--ink-light)' }}>{day.date}</div>
+                    <div style={{ width: 100, textAlign: 'center', fontWeight: day.users > 0 ? 600 : 400, color: day.users > 0 ? 'var(--ink)' : 'var(--ink-light)' }}>{day.users}</div>
+                    <div style={{ width: 100, textAlign: 'center', fontWeight: day.videos > 0 ? 600 : 400, color: day.videos > 0 ? 'var(--ink)' : 'var(--ink-light)' }}>{day.videos}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -278,6 +307,8 @@ export default function AdminPage() {
               <div style={{ flex: 1 }}>Title</div>
               <div style={{ width: 160 }}>User</div>
               <div style={{ width: 90 }}>Status</div>
+              <div style={{ width: 50, textAlign: 'center' }}>Views</div>
+              <div style={{ width: 50, textAlign: 'center' }}>Plays</div>
               <div style={{ width: 100 }}>Date</div>
               <div style={{ width: 100 }}>Actions</div>
             </div>
@@ -286,6 +317,8 @@ export default function AdminPage() {
                 <div style={{ flex: 1, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title ?? 'Untitled'}</div>
                 <div style={{ width: 160, color: 'var(--ink-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail(v.user_id)}</div>
                 <div style={{ width: 90 }}>{statusTag(v.status)}</div>
+                <div style={{ width: 50, textAlign: 'center', color: 'var(--ink-light)' }}>{videoAnalytics[v.id]?.views ?? 0}</div>
+                <div style={{ width: 50, textAlign: 'center', color: 'var(--ink-light)' }}>{videoAnalytics[v.id]?.plays ?? 0}</div>
                 <div style={{ width: 100, color: 'var(--ink-light)' }}>{fmt(v.created_at)}</div>
                 <div style={{ width: 100, display: 'flex', gap: 4 }}>
                   {v.status === 'completed' && (
@@ -515,36 +548,86 @@ export default function AdminPage() {
         </div>
       )}
 
-      {tab === 'audit' && (
-        <div>
-          <div className="settings-card">
-            <h3>Recent Admin Actions</h3>
-            {auditLog.length === 0 ? (
-              <p style={{ color: 'var(--ink-light)', marginTop: 8 }}>No audit log entries yet</p>
-            ) : (
-              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-soft)', fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  <div style={{ width: 160 }}>Admin</div>
-                  <div style={{ width: 120 }}>Action</div>
-                  <div style={{ flex: 1 }}>Target / Details</div>
-                  <div style={{ width: 140 }}>Time</div>
-                </div>
-                {auditLog.map((entry, i) => (
-                  <div key={entry.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < auditLog.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
-                    <div style={{ width: 160, color: 'var(--ink-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail(entry.admin_id)}</div>
-                    <div style={{ width: 120 }}><span className="tag">{entry.action}</span></div>
-                    <div style={{ flex: 1, color: 'var(--ink-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {entry.target_user_id ? userEmail(entry.target_user_id) : ''}
-                      {entry.details ? ` ${JSON.stringify(entry.details)}` : ''}
-                    </div>
-                    <div style={{ width: 140, color: 'var(--ink-light)' }}>{fmtTime(entry.created_at)}</div>
-                  </div>
-                ))}
+      {tab === 'audit' && (() => {
+        const now = Date.now()
+        const filteredAudit = auditLog.filter(entry => {
+          // Date filter
+          if (auditDateFilter === '7') {
+            if (new Date(entry.created_at).getTime() < now - 7 * 86400000) return false
+          } else if (auditDateFilter === '30') {
+            if (new Date(entry.created_at).getTime() < now - 30 * 86400000) return false
+          }
+          // Search filter
+          if (auditSearch) {
+            const q = auditSearch.toLowerCase()
+            const adminEmail = userEmail(entry.admin_id).toLowerCase()
+            const targetEmail = entry.target_user_id ? userEmail(entry.target_user_id).toLowerCase() : ''
+            const action = entry.action.toLowerCase()
+            if (!adminEmail.includes(q) && !targetEmail.includes(q) && !action.includes(q)) return false
+          }
+          return true
+        })
+
+        const exportCsv = () => {
+          const header = 'Admin,Action,Target,Details,Time'
+          const rows = filteredAudit.map(e =>
+            [userEmail(e.admin_id), e.action, e.target_user_id ? userEmail(e.target_user_id) : '', e.details ? JSON.stringify(e.details).replace(/"/g, '""') : '', e.created_at]
+              .map(v => `"${v}"`).join(',')
+          )
+          const csv = [header, ...rows].join('\n')
+          const blob = new Blob([csv], { type: 'text/csv' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`
+          a.click()
+          URL.revokeObjectURL(url)
+        }
+
+        return (
+          <div>
+            <div className="settings-card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                <h3>Admin Audit Log</h3>
+                <button className="btn btn-sm btn-soft" onClick={exportCsv} style={{ fontSize: 12 }}>Export CSV</button>
               </div>
-            )}
+              <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {([['7', 'Last 7 days'], ['30', 'Last 30 days'], ['all', 'All time']] as const).map(([val, label]) => (
+                    <button key={val} onClick={() => setAuditDateFilter(val)}
+                      className={`btn btn-sm ${auditDateFilter === val ? 'btn-primary' : 'btn-soft'}`} style={{ fontSize: 12 }}>{label}</button>
+                  ))}
+                </div>
+                <input className="input" placeholder="Search by email or action..." value={auditSearch} onChange={e => setAuditSearch(e.target.value)} style={{ maxWidth: 280, fontSize: 13 }} />
+              </div>
+              {filteredAudit.length === 0 ? (
+                <p style={{ color: 'var(--ink-light)', marginTop: 12 }}>No audit log entries match your filters</p>
+              ) : (
+                <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-soft)', fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div style={{ width: 160 }}>Admin</div>
+                    <div style={{ width: 120 }}>Action</div>
+                    <div style={{ flex: 1 }}>Target / Details</div>
+                    <div style={{ width: 140 }}>Time</div>
+                  </div>
+                  {filteredAudit.map((entry, i) => (
+                    <div key={entry.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < filteredAudit.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
+                      <div style={{ width: 160, color: 'var(--ink-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail(entry.admin_id)}</div>
+                      <div style={{ width: 120 }}><span className="tag">{entry.action}</span></div>
+                      <div style={{ flex: 1, color: 'var(--ink-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {entry.target_user_id ? userEmail(entry.target_user_id) : ''}
+                        {entry.details ? ` ${JSON.stringify(entry.details)}` : ''}
+                      </div>
+                      <div style={{ width: 140, color: 'var(--ink-light)' }}>{fmtTime(entry.created_at)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-light)' }}>Showing {filteredAudit.length} of {auditLog.length} entries</div>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }

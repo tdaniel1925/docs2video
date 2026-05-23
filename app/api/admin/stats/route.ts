@@ -81,6 +81,27 @@ export async function GET() {
       admin.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', d30),
     ])
 
+    // Daily activity for last 30 days
+    const [dailyUsersRes, dailyVideosRes] = await Promise.all([
+      admin.from('profiles').select('created_at').gte('created_at', d30),
+      admin.from('videos').select('created_at').gte('created_at', d30),
+    ])
+    const dailyMap: Record<string, { users: number; videos: number }> = {}
+    for (let i = 29; i >= 0; i--) {
+      const day = new Date(now.getTime() - i * 86400000)
+      const key = day.toISOString().slice(0, 10)
+      dailyMap[key] = { users: 0, videos: 0 }
+    }
+    for (const u of (dailyUsersRes.data ?? [])) {
+      const key = u.created_at.slice(0, 10)
+      if (dailyMap[key]) dailyMap[key].users++
+    }
+    for (const v of (dailyVideosRes.data ?? [])) {
+      const key = v.created_at.slice(0, 10)
+      if (dailyMap[key]) dailyMap[key].videos++
+    }
+    const dailyActivity = Object.entries(dailyMap).map(([date, counts]) => ({ date, ...counts }))
+
     // VPS health check
     let vpsStatus = 'unknown'
     try {
@@ -105,6 +126,7 @@ export async function GET() {
       vpsStatus,
       recentUsers: recentUsers ?? [],
       recentVideos: recentVideos ?? [],
+      dailyActivity,
     })
   } catch (err) {
     console.error('[admin/stats] Error:', err)
