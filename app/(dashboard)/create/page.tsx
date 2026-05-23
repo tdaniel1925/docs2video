@@ -323,6 +323,16 @@ export default function CreatePage() {
       padding: '48px 24px 40px', maxWidth: 720, margin: '0 auto', width: '100%',
     }}>
 
+      {/* Back to dashboard */}
+      <div style={{ width: '100%', marginBottom: 8 }}>
+        <button
+          onClick={() => router.push('/dashboard')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--ink-light)', fontFamily: 'inherit', padding: 0 }}
+        >
+          &larr; Dashboard
+        </button>
+      </div>
+
       {/* Heading */}
       <h1 style={{
         fontSize: 38, fontWeight: 800, letterSpacing: '-0.03em',
