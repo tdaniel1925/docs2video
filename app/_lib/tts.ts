@@ -18,8 +18,8 @@ export async function synthesizeSpeech(
 ): Promise<Buffer> {
   // Guard against empty/whitespace narration
   if (!text?.trim()) {
-    console.log('[tts] Empty narration text, generating silence')
-    return generateSilence(text)
+    console.log('[tts] Empty narration text, generating brief silence')
+    return generateBriefSilence()
   }
 
   const strict = options.strict ?? process.env.STRICT_MODE === 'true'
@@ -35,6 +35,7 @@ export async function synthesizeSpeech(
   }
 
   const openai = getClient()
+  let lastError: Error | null = null
 
   // Retry up to 3 times with backoff + 30s timeout per attempt
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -65,18 +66,16 @@ export async function synthesizeSpeech(
 
       return buffer
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      console.error(`[tts] Attempt ${attempt}/3 failed for text "${text.slice(0, 50)}...": ${msg}`)
+      lastError = err instanceof Error ? err : new Error(String(err))
+      console.error(`[tts] Attempt ${attempt}/3 failed for text "${text.slice(0, 50)}...": ${lastError.message}`)
       if (attempt < 3) {
         await new Promise(r => setTimeout(r, 1000 * attempt))
-      } else {
-        console.error(`[tts] All 3 attempts failed, generating silence`)
-        return generateSilence(text)
       }
     }
   }
 
-  return generateSilence(text)
+  // All 3 attempts failed — throw instead of silently substituting silence
+  throw new Error(`TTS failed after 3 attempts: ${lastError?.message || 'Unknown error'}`)
 }
 
 async function synthesizeLongText(text: string, voiceId: string): Promise<Buffer> {
@@ -107,11 +106,11 @@ export function splitAtSentenceBoundary(text: string, maxLen: number): string[] 
 }
 
 /**
- * Generate a valid silent MP3 using OpenAI TTS with a pause.
- * Falls back to a minimal valid MP3 if that also fails.
+ * Generate brief silence for intentionally empty narration scenes.
+ * Uses OpenAI TTS with "..." to produce a valid short audio clip.
+ * NOT used as error fallback — TTS errors should propagate.
  */
-async function generateSilence(originalText: string): Promise<Buffer> {
-  // Try generating a very short TTS clip with just "..." as a pause
+async function generateBriefSilence(): Promise<Buffer> {
   try {
     const openai = getClient()
     const response = await openai.audio.speech.create({
@@ -123,32 +122,59 @@ async function generateSilence(originalText: string): Promise<Buffer> {
     })
     const buf = Buffer.from(await response.arrayBuffer())
     if (buf.length > 100) {
-      console.log(`[tts] Generated pause audio as fallback (${buf.length} bytes)`)
+      console.log(`[tts] Generated brief silence (${buf.length} bytes)`)
       return buf
     }
   } catch {
-    console.error('[tts] Fallback pause generation also failed')
+    console.warn('[tts] Could not generate brief silence via TTS')
   }
 
-  // Last resort: return a minimal valid MP3 file header
-  const silence = Buffer.alloc(417)
-  silence[0] = 0xFF
-  silence[1] = 0xFB
-  silence[2] = 0x90
-  silence[3] = 0x00
-  const frames: Buffer[] = []
-  for (let i = 0; i < 76; i++) frames.push(Buffer.from(silence))
-  return Buffer.concat(frames)
+  // Return empty buffer — FFmpeg can handle zero-length audio segments
+  return Buffer.alloc(0)
 }
 
 export async function synthesizeAllScenes(
-  scenes: { narration: string }[],
+  scenes: Array<{ narration: string }>,
   voiceId: string
 ): Promise<Buffer[]> {
-  const audioBuffers: Buffer[] = []
-  for (const scene of scenes) {
-    const audio = await synthesizeSpeech(scene.narration, voiceId)
-    audioBuffers.push(audio)
+  const buffers: Buffer[] = []
+  const failures: { sceneIndex: number; error: string }[] = []
+
+  for (let i = 0; i < scenes.length; i++) {
+    const scene = scenes[i]
+    try {
+      if (!scene.narration?.trim()) {
+        // Intentionally empty narration — generate brief silence
+        try {
+          const openai = getClient()
+          const response = await openai.audio.speech.create({
+            model: 'tts-1',
+            voice: 'alloy',
+            input: '...',
+            response_format: 'mp3',
+            speed: 1.0,
+          })
+          buffers.push(Buffer.from(await response.arrayBuffer()))
+        } catch {
+          // If even "..." fails, push a minimal valid buffer
+          // But log it — this shouldn't happen often
+          console.warn(`[tts] Could not generate silence for empty scene ${i + 1}`)
+          buffers.push(Buffer.alloc(0)) // Will be handled by FFmpeg
+        }
+        continue
+      }
+      const buf = await synthesizeSpeech(scene.narration, voiceId)
+      buffers.push(buf)
+    } catch (err: any) {
+      failures.push({ sceneIndex: i + 1, error: err.message })
+    }
   }
-  return audioBuffers
+
+  if (failures.length > 0) {
+    throw new Error(
+      `TTS synthesis failed for ${failures.length} scene(s): ${failures.map(f => `Scene ${f.sceneIndex}: ${f.error}`).join('; ')}`
+    )
+  }
+
+  return buffers
 }
