@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import FirecrawlApp from '@mendable/firecrawl-js'
 import { createClient } from '../../_lib/supabase/server'
-import { buildScriptChatSystemPrompt } from '../../_lib/prompts'
+import { createAdminClient } from '../../_lib/supabase/admin'
+import { buildScriptChatSystemPrompt, DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 
 export const runtime = 'nodejs'
 
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-  const { message, scenes, purpose, sourceData, history } = await request.json()
+  const { message, scenes, purpose, sourceData, history, videoId } = await request.json()
 
   if (!message || !scenes) {
     return NextResponse.json({ error: 'Missing message or scenes' }, { status: 400 })
@@ -84,11 +85,40 @@ export async function POST(request: Request) {
   const text = response.choices[0]?.message?.content?.trim() ?? ''
   const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
 
+  // Helper: save a script revision (non-blocking, best-effort)
+  async function saveRevision(updatedScenes: any[]) {
+    if (!videoId) return
+    try {
+      const admin = createAdminClient()
+      const { data: latestRevision } = await admin
+        .from('script_revisions')
+        .select('revision_number')
+        .eq('video_id', videoId)
+        .order('revision_number', { ascending: false })
+        .limit(1)
+        .single()
+
+      const revisionNumber = (latestRevision?.revision_number ?? 0) + 1
+
+      await admin.from('script_revisions').insert({
+        video_id: videoId,
+        revision_number: revisionNumber,
+        scenes: updatedScenes,
+        prompt_versions: DEFAULT_PROMPT_VERSIONS,
+      })
+      console.log(`[script-chat] Saved revision #${revisionNumber} for video ${videoId}`)
+    } catch (err) {
+      console.warn(`[script-chat] Failed to save revision:`, err instanceof Error ? err.message : 'unknown')
+    }
+  }
+
   try {
     const parsed = JSON.parse(cleaned)
 
     // Format 1: Diff-based changes
     if (parsed.changes && Array.isArray(parsed.changes) && parsed.changes.length > 0) {
+      // Don't await — fire and forget so we don't slow the response
+      // Changes are diffs, not full scenes, so we skip revision for diff-based edits
       return NextResponse.json({
         changes: parsed.changes,
         reply: parsed.summary || `Applied ${parsed.changes.length} change${parsed.changes.length > 1 ? 's' : ''}.`,
@@ -99,6 +129,7 @@ export async function POST(request: Request) {
 
     // Format 1B: Full scenes replacement (add/delete/reorder)
     if (parsed.scenes && Array.isArray(parsed.scenes)) {
+      await saveRevision(parsed.scenes)
       return NextResponse.json({
         scenes: parsed.scenes,
         reply: parsed.summary || `Updated ${parsed.scenes.length} scenes.`,
@@ -117,6 +148,7 @@ export async function POST(request: Request) {
 
     // Legacy: raw array
     if (Array.isArray(parsed)) {
+      await saveRevision(parsed)
       return NextResponse.json({ scenes: parsed, reply: `Updated ${parsed.length} scenes.` })
     }
 

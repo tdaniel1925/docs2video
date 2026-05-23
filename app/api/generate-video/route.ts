@@ -316,6 +316,30 @@ export async function POST(request: Request) {
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15, prompt_versions: { ...DEFAULT_PROMPT_VERSIONS } }).eq('id', videoId)
     }
 
+    // Save script revision
+    try {
+      const { data: latestRevision } = await admin
+        .from('script_revisions')
+        .select('revision_number')
+        .eq('video_id', videoId)
+        .order('revision_number', { ascending: false })
+        .limit(1)
+        .single()
+
+      const revisionNumber = (latestRevision?.revision_number ?? 0) + 1
+
+      await admin.from('script_revisions').insert({
+        video_id: videoId,
+        revision_number: revisionNumber,
+        scenes: scenes,
+        prompt_versions: DEFAULT_PROMPT_VERSIONS,
+      })
+      console.log(`[video ${videoId}] Saved script revision #${revisionNumber}`)
+    } catch (revErr) {
+      // Non-fatal — don't block video generation if revision save fails
+      console.warn(`[video ${videoId}] Failed to save script revision:`, revErr instanceof Error ? revErr.message : 'unknown')
+    }
+
     // --- GUARD: Pre-flight script validation ---
     const isInsurance = 'policyType' in (policyData as any)
     const validation = validateScript(scenes, {
