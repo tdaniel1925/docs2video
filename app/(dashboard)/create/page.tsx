@@ -35,6 +35,8 @@ export default function CreatePage() {
   const [brands, setBrands] = useState<Brand[]>([])
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null)
   const [aiMusic, setAiMusic] = useState(false)
+  const [bookingUrl, setBookingUrl] = useState('')
+  const [paymentLink, setPaymentLink] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const purposeRef = useRef<HTMLTextAreaElement>(null)
 
@@ -168,6 +170,8 @@ export default function CreatePage() {
           narrationStyle: 'solo', aiMusic, purpose: purpose.trim(),
           musicPrompt: aiMusic ? 'Professional ambient background music, subtle and warm' : undefined,
           industry: extractedData?.industry || 'general',
+          bookingUrl: bookingUrl.trim() || undefined,
+          paymentLink: paymentLink.trim() || undefined,
         }),
       })
       const genData = await genRes.json()
@@ -234,6 +238,8 @@ export default function CreatePage() {
           narrationStyle: 'solo', aiMusic, purpose: purpose.trim(),
           musicPrompt: aiMusic ? 'Professional ambient background music, subtle and warm' : undefined,
           industry: extractData?.industry || 'general',
+          bookingUrl: bookingUrl.trim() || undefined,
+          paymentLink: paymentLink.trim() || undefined,
         }),
       })
       const genData = await genRes.json()
@@ -559,6 +565,25 @@ export default function CreatePage() {
                     AI music
                   </button>
                 </div>
+              </div>
+
+              {/* Booking & Payment links */}
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Share page links <span style={{ fontWeight: 500, color: 'var(--ink-light)' }}>(optional)</span></div>
+                <input
+                  type="url"
+                  value={bookingUrl}
+                  onChange={e => setBookingUrl(e.target.value)}
+                  placeholder="Booking link (Calendly, Cal.com, etc.)"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border-light)', fontSize: 13, fontFamily: 'inherit', outline: 'none', marginBottom: 8 }}
+                />
+                <input
+                  type="url"
+                  value={paymentLink}
+                  onChange={e => setPaymentLink(e.target.value)}
+                  placeholder="Payment link (Stripe, PayPal, etc.)"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border-light)', fontSize: 13, fontFamily: 'inherit', outline: 'none' }}
+                />
               </div>
             </div>
           )}

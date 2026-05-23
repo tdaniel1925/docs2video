@@ -1128,6 +1128,34 @@ export default function PublicWatchPage() {
                 </button>
               )}
 
+              {/* PPTX download */}
+              {slideCount > 0 && (
+                <button
+                  className="wp-action-btn"
+                  onClick={async () => {
+                    trackEvent(video.id, 'download', { type: 'pptx' })
+                    try {
+                      const res = await fetch('/api/download-pptx', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ videoId: video.id }),
+                      })
+                      if (!res.ok) throw new Error('Failed')
+                      const blob = await res.blob()
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = `${video.title || 'presentation'}.pptx`
+                      a.click()
+                      URL.revokeObjectURL(url)
+                    } catch { /* skip */ }
+                  }}
+                >
+                  <IconDownload />
+                  Download PPTX
+                </button>
+              )}
+
               <button
                 className={`wp-action-btn${copied ? ' copied' : ''}`}
                 onClick={handleCopyLink}
@@ -1135,6 +1163,50 @@ export default function PublicWatchPage() {
                 {copied ? <IconCheck /> : <IconShare />}
                 {copied ? 'Link Copied' : 'Share'}
               </button>
+
+              {/* Social share buttons */}
+              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                <button
+                  className="wp-action-btn"
+                  style={{ flex: 1, fontSize: 12, padding: '8px 0' }}
+                  onClick={() => {
+                    trackEvent(video.id, 'social_share', { platform: 'facebook' })
+                    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank', 'width=600,height=400')
+                  }}
+                >
+                  Facebook
+                </button>
+                <button
+                  className="wp-action-btn"
+                  style={{ flex: 1, fontSize: 12, padding: '8px 0' }}
+                  onClick={() => {
+                    trackEvent(video.id, 'social_share', { platform: 'twitter' })
+                    window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(video.title || 'Check out this video')}`, '_blank', 'width=600,height=400')
+                  }}
+                >
+                  X / Twitter
+                </button>
+                <button
+                  className="wp-action-btn"
+                  style={{ flex: 1, fontSize: 12, padding: '8px 0' }}
+                  onClick={() => {
+                    trackEvent(video.id, 'social_share', { platform: 'linkedin' })
+                    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`, '_blank', 'width=600,height=400')
+                  }}
+                >
+                  LinkedIn
+                </button>
+                <button
+                  className="wp-action-btn"
+                  style={{ flex: 1, fontSize: 12, padding: '8px 0' }}
+                  onClick={() => {
+                    trackEvent(video.id, 'social_share', { platform: 'email' })
+                    window.open(`mailto:?subject=${encodeURIComponent(video.title || 'Check out this video')}&body=${encodeURIComponent(window.location.href)}`)
+                  }}
+                >
+                  Email
+                </button>
+              </div>
             </div>
 
             {/* Booking & Payment buttons */}
