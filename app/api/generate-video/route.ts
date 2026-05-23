@@ -6,6 +6,7 @@ import { sendNotification, createJob, updateJobProgress } from '../../_lib/notif
 import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { isAdmin } from '../../_lib/admin'
+import { logError } from '../../_lib/error-logger'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { buildSimpleSlidePrompt, getStylePrompt } from '../../_lib/slide-engine/simple-prompt'
 import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
@@ -372,6 +373,7 @@ export async function POST(request: Request) {
 
   } catch (err) {
     console.error(`[video ${videoId}] Error:`, err)
+    logError('generate-video', err, { videoId, userId: user.id })
     const message = err instanceof Error ? err.message : 'Video generation failed'
     await admin.from('videos').update({ status: 'failed', error_message: message }).eq('id', videoId)
     if (jobId) await updateJobProgress(admin, jobId, 0, 'failed', { error_message: message })

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getStripe, tierFromPriceId } from '../../../_lib/stripe'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import type Stripe from 'stripe'
+import { logError } from '../../../_lib/error-logger'
 
 export const runtime = 'nodejs'
 
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     console.error('[webhook] Signature verification failed:', message)
+    logError('stripe-webhook', err, { detail: 'Signature verification failed' })
     return NextResponse.json({ error: `Webhook signature verification failed: ${message}` }, { status: 400 })
   }
 

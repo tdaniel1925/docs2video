@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
+import { logError } from '../../_lib/error-logger'
 import OpenAI from 'openai'
 
 export const runtime = 'nodejs'
@@ -96,6 +97,7 @@ Only include real data found in the content. Never invent contact info.`,
       const structured = JSON.parse(structureRes.choices[0]?.message?.content || '{}')
       return NextResponse.json(structured)
     } catch (err) {
+      logError('extract-text', err, { userId: user.id })
       const message = err instanceof Error ? err.message : 'Extraction failed'
       return NextResponse.json({ error: message }, { status: 500 })
     }
@@ -191,6 +193,7 @@ Only include real data found in the content. Never invent contact info.`,
     const structured = await vpsRes.json()
     return NextResponse.json(structured)
   } catch (err) {
+    logError('extract-file', err, { userId: user.id, fileName: file.name })
     const message = err instanceof Error ? err.message : 'Extraction failed'
     if (message.includes('password') || message.includes('encrypted') || message.includes('protected')) {
       return NextResponse.json({ error: 'This PDF appears to be password-protected. Please upload an unprotected version.' }, { status: 400 })

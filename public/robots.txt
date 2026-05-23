@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /settings
+Disallow: /create
+Disallow: /videos
+
+Sitemap: https://docs2video.com/sitemap.xml

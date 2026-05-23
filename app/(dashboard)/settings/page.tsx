@@ -766,6 +766,29 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* ===== DANGER ZONE ===== */}
+      <div className="settings-card" style={{ marginTop: 40, border: '1px solid #e8c4c4' }}>
+        <h3 style={{ color: '#c03a1f' }}>Danger Zone</h3>
+        <p className="ssub">Permanently delete your account and all associated data. This action cannot be undone.</p>
+        <button
+          className="btn"
+          style={{ background: '#c03a1f', color: '#fff', border: 'none', marginTop: 8 }}
+          onClick={async () => {
+            if (!window.confirm('Are you sure you want to delete your account? All your videos, brands, and data will be permanently removed. This cannot be undone.')) return
+            if (!window.confirm('This is your final confirmation. Type OK in the next prompt to proceed.')) return
+            const res = await fetch('/api/account/delete', { method: 'POST' })
+            if (res.ok) {
+              window.location.href = '/login?deleted=1'
+            } else {
+              const data = await res.json()
+              alert(data.error || 'Failed to delete account')
+            }
+          }}
+        >
+          Delete Account
+        </button>
+      </div>
+
       {/* SMTP Modal */}
       {showSmtpModal && (
         <SmtpSetupModal
