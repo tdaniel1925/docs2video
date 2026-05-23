@@ -167,12 +167,15 @@ export default function AdminPage() {
             <div className="stat-card mint"><div className="stat-label">Total Users</div><div className="stat-value">{totalUsers}</div></div>
             <div className="stat-card"><div className="stat-label">Active Subscribers</div><div className="stat-value">{activeSubs}</div></div>
             <div className="stat-card peach"><div className="stat-label">Est. MRR</div><div className="stat-value">${mrr.toLocaleString()}</div></div>
+            <div className="stat-card"><div className="stat-label">This Week</div><div className="stat-value">{thisWeek} videos</div></div>
           </div>
           <div className="stats-row">
             <div className="stat-card"><div className="stat-label">Total Videos</div><div className="stat-value">{totalVideos}</div></div>
             <div className="stat-card mint"><div className="stat-label">Completed</div><div className="stat-value">{completedVideos}</div></div>
             <div className="stat-card" style={failedVideos > 0 ? { background: 'var(--rose)' } : undefined}>
-              <div className="stat-label">Failed</div><div className="stat-value">{failedVideos}</div></div>
+              <div className="stat-label">Failed</div><div className="stat-value">{failedVideos}</div>
+            </div>
+            <VpsStatus />
           </div>
 
           <div className="settings-card" style={{ marginTop: 24 }}>
@@ -542,6 +545,26 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function VpsStatus() {
+  const [status, setStatus] = useState<'checking' | 'healthy' | 'degraded' | 'offline'>('checking')
+  useEffect(() => {
+    fetch('/api/admin/stats').then(r => r.json()).then(d => {
+      setStatus(d.vpsStatus === 'healthy' ? 'healthy' : d.vpsStatus === 'degraded' ? 'degraded' : 'offline')
+    }).catch(() => setStatus('offline'))
+  }, [])
+  const colors = { checking: 'var(--ink-light)', healthy: '#16a34a', degraded: '#f59e0b', offline: '#dc2626' }
+  const labels = { checking: 'Checking...', healthy: 'VPS Online', degraded: 'VPS Degraded', offline: 'VPS Offline' }
+  return (
+    <div className="stat-card" style={status === 'offline' ? { background: 'var(--rose)' } : undefined}>
+      <div className="stat-label">Video Server</div>
+      <div className="stat-value" style={{ fontSize: 16, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: colors[status], display: 'inline-block' }} />
+        {labels[status]}
+      </div>
     </div>
   )
 }

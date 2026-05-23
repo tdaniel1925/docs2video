@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { isAdmin } from '../../../_lib/admin'
+import { getStripe } from '../../../_lib/stripe'
+
+export const maxDuration = 30
 
 export async function GET() {
-  // Verify the current user is an admin
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -15,24 +17,50 @@ export async function GET() {
   try {
     const admin = createAdminClient()
 
-    // Fetch counts
-    const [profilesRes, infographicsRes, videosRes] = await Promise.all([
+    // Fetch counts + subscription breakdown
+    const [profilesRes, infographicsRes, videosRes, subscribersRes] = await Promise.all([
       admin.from('profiles').select('*', { count: 'exact', head: true }),
       admin.from('infographics').select('*', { count: 'exact', head: true }),
       admin.from('videos').select('*', { count: 'exact', head: true }),
+      admin.from('profiles').select('subscription_status').not('subscription_status', 'is', null),
     ])
+
+    // Count active subscribers by tier
+    const subs = (subscribersRes.data ?? []).reduce((acc: Record<string, number>, p: any) => {
+      const status = (p.subscription_status || '').toLowerCase()
+      if (status && status !== 'free' && status !== 'canceled' && status !== 'cancelled') {
+        acc[status] = (acc[status] || 0) + 1
+      }
+      return acc
+    }, {})
+
+    // Fetch real revenue from Stripe
+    let mrr = 0
+    let totalRevenue = 0
+    let activeSubscriptions = 0
+    try {
+      const stripe = getStripe()
+      // Get active subscriptions for MRR
+      const activeSubs = await stripe.subscriptions.list({ status: 'active', limit: 100 })
+      activeSubscriptions = activeSubs.data.length
+      for (const sub of activeSubs.data) {
+        for (const item of sub.items.data) {
+          mrr += (item.price?.unit_amount ?? 0) * (item.quantity ?? 1)
+        }
+      }
+      // Get total revenue (last 90 days of successful charges)
+      const charges = await stripe.charges.list({ limit: 100, created: { gte: Math.floor(Date.now() / 1000) - 90 * 86400 } })
+      for (const charge of charges.data) {
+        if (charge.paid && !charge.refunded) totalRevenue += charge.amount
+      }
+    } catch (stripeErr) {
+      console.error('[admin/stats] Stripe error:', stripeErr)
+    }
 
     // Fetch recent signups
     const { data: recentUsers } = await admin
       .from('profiles')
       .select('email, created_at, subscription_status')
-      .order('created_at', { ascending: false })
-      .limit(10)
-
-    // Fetch recent infographics
-    const { data: recentInfographics } = await admin
-      .from('infographics')
-      .select('title, created_at, status')
       .order('created_at', { ascending: false })
       .limit(10)
 
@@ -43,13 +71,39 @@ export async function GET() {
       .order('created_at', { ascending: false })
       .limit(10)
 
+    // Videos created in last 7 days and 30 days
+    const now = new Date()
+    const d7 = new Date(now.getTime() - 7 * 86400000).toISOString()
+    const d30 = new Date(now.getTime() - 30 * 86400000).toISOString()
+    const [videos7Res, videos30Res, users30Res] = await Promise.all([
+      admin.from('videos').select('*', { count: 'exact', head: true }).gte('created_at', d7),
+      admin.from('videos').select('*', { count: 'exact', head: true }).gte('created_at', d30),
+      admin.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', d30),
+    ])
+
+    // VPS health check
+    let vpsStatus = 'unknown'
+    try {
+      const vpsUrl = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
+      const vpsRes = await fetch(`${vpsUrl}/health`, { signal: AbortSignal.timeout(5000) })
+      vpsStatus = vpsRes.ok ? 'healthy' : 'degraded'
+    } catch { vpsStatus = 'offline' }
+
     return NextResponse.json({
       totalUsers: profilesRes.count ?? 0,
       totalInfographics: infographicsRes.count ?? 0,
       totalVideos: videosRes.count ?? 0,
-      revenue: '$0.00',
+      mrr: `$${(mrr / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+      mrrCents: mrr,
+      totalRevenue: `$${(totalRevenue / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+      totalRevenueCents: totalRevenue,
+      activeSubscriptions,
+      subscriberBreakdown: subs,
+      videosLast7Days: videos7Res.count ?? 0,
+      videosLast30Days: videos30Res.count ?? 0,
+      signupsLast30Days: users30Res.count ?? 0,
+      vpsStatus,
       recentUsers: recentUsers ?? [],
-      recentInfographics: recentInfographics ?? [],
       recentVideos: recentVideos ?? [],
     })
   } catch (err) {

@@ -11,10 +11,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
-  const { action, userId, value } = await request.json() as {
+  const { action, userId, value, reason } = await request.json() as {
     action: 'change_plan' | 'add_credits' | 'reset_credits' | 'toggle_ban'
     userId: string
     value?: string | number
+    reason?: string
   }
 
   if (!action || !userId) {
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }
 
-    await logAdminAction(user.id, action, userId, { value })
+    await logAdminAction(user.id, action, userId, { value, ...(reason ? { reason } : {}) })
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error('[admin/user-action] Error:', err)

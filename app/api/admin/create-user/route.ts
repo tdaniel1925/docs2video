@@ -76,11 +76,15 @@ export async function POST(request: Request) {
       isBeta: isBeta ?? false,
     })
 
+    // Log the temp password server-side only — never return it in the response
+    if (!password) {
+      console.log(`[admin/create-user] Temp password generated for ${email} — deliver via secure channel`)
+    }
+
     return NextResponse.json({
       success: true,
       userId: authUser.user.id,
       email,
-      tempPassword: password ? undefined : tempPassword,
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to create user'
