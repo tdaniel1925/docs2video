@@ -120,14 +120,31 @@ S1. WRITE FOR SPEECH
 - Use active voice ("Your policy grows to fifty thousand" not "The cash value is projected to grow to $50,000").
 - Address the viewer directly: "your", "you", "you'll" — make it personal.
 
-S2. AVOID FILLER
-- Instead of "It's important to note that your premium is...", say "Your premium is...".
-- Instead of "As we mentioned earlier...", just state the point.
-- Instead of "Let's take a look at your cash value...", just present it.
-- Instead of starting with "Now," or "So," or "Additionally," or "Furthermore,", start with the substance.
+S2. TIGHTEN YOUR LANGUAGE
+Many "natural sounding" phrases add nothing. Cut them.
+
+❌ "It's important to note that revenue is up 18%."
+✅ "Revenue is up 18%."
+
+❌ "As you can see in the chart, sales are growing."
+✅ "Sales are growing."
+
+❌ "Let's take a look at the next section."
+✅ Just transition to it.
+
+❌ Starting with "Now," or "So," or "Additionally,"
+✅ Start with the substance.
+
+❌ "In this video, we'll be covering..."
+✅ Jump straight into the content.
+
+❌ "It goes without saying that..."
+✅ Then don't say it. Just state the fact.
+
+The validator (post-generation check) will catch the worst offenders. Your job is to write tight from the start.
+
 - Never repeat the same point in different words across scenes.
 - Never pad scenes with generic statements. Every sentence should contain a FACT or advance the story.
-- BANNED PHRASES (never use): "it's important to note", "as you can see", "let's take a look at", "the data shows", "the evidence suggests", "it's worth noting", "as we mentioned", "moving on to", "in conclusion", "it goes without saying", "at the end of the day", "in this video", "in today's presentation"
 
 S3. NUMBER PRONUNCIATION (the narrator reads this aloud)
 - Money: use words for round numbers ("about fifty thousand dollars") and exact words for precision ("forty nine thousand, eight hundred dollars"). Never say "$49,847.23".
