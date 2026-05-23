@@ -210,12 +210,12 @@ export interface SentEmail {
 
 // OpenAI TTS voices — used by VPS for video narration
 export const VOICE_OPTIONS = [
-  { id: 'nova', name: 'Sarah', gender: 'Female', description: 'Friendly and warm — most popular' },
-  { id: 'shimmer', name: 'Emily', gender: 'Female', description: 'Gentle and reassuring' },
+  { id: 'nova', name: 'Sarah', gender: 'Female', description: 'Friendly and natural — most popular' },
+  { id: 'shimmer', name: 'Emily', gender: 'Female', description: 'Warm and gentle' },
   { id: 'onyx', name: 'James', gender: 'Male', description: 'Deep and authoritative' },
   { id: 'echo', name: 'Michael', gender: 'Male', description: 'Warm and conversational' },
-  { id: 'alloy', name: 'Alex', gender: 'Neutral', description: 'Professional and balanced' },
-  { id: 'fable', name: 'Oliver', gender: 'Male', description: 'Expressive with British accent' },
+  { id: 'alloy', name: 'Alex', gender: 'Neutral', description: 'Balanced and neutral' },
+  { id: 'fable', name: 'Oliver', gender: 'Male', description: 'British and expressive' },
 ] as const
 
 // Presentation styles
