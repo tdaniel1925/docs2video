@@ -28,7 +28,7 @@ const GUIDES: HelpGuide[] = [
   {
     href: '/help/creating-videos',
     title: 'Creating Explainer Videos',
-    description: 'Step-by-step walkthrough of uploading content, editing scripts, choosing options, and generating your video.',
+    description: 'Upload a document, review the AI script, pick a voice and style, and generate your video — all on one page.',
     icon: '🎬',
   },
   {
@@ -46,7 +46,7 @@ const GUIDES: HelpGuide[] = [
   {
     href: '/help/pricing',
     title: 'Pricing & Plans',
-    description: 'Free trial, Pay Per Project, Pro, Business, and Agency plans explained.',
+    description: 'Free 2 videos, Starter $29, Pro $79, Business $199, and Enterprise $499 plans explained.',
     icon: '💰',
   },
   {
@@ -54,6 +54,30 @@ const GUIDES: HelpGuide[] = [
     title: 'FAQ & Troubleshooting',
     description: 'Common questions, troubleshooting tips for stuck videos, missing audio, and more.',
     icon: '❓',
+  },
+  {
+    href: '/help/brands',
+    title: 'Brands & Customization',
+    description: 'How to create brands, upload logos, use custom themes, and apply brand colors to your videos.',
+    icon: '🎨',
+  },
+  {
+    href: '/help/downloads',
+    title: 'Downloads & Formats',
+    description: 'MP4 video, PDF slides, PPTX presentations, and script downloads explained.',
+    icon: '📥',
+  },
+  {
+    href: '/help/social-sharing',
+    title: 'Social Sharing',
+    description: 'Generate social posts from your videos and share on LinkedIn, Twitter, and Facebook.',
+    icon: '📱',
+  },
+  {
+    href: '/help/account',
+    title: 'Account & Settings',
+    description: 'Manage your profile, notifications, billing, and subscription settings.',
+    icon: '⚙️',
   },
 ]
 
@@ -351,6 +375,124 @@ const ARTICLES: HelpArticle[] = [
       '• **20% commission** on their payments',
       '• Payouts processed monthly for balances over $50',
       'Track your clicks, signups, conversions, and earnings on the Affiliate Dashboard.',
+    ],
+  },
+
+  // Quick Answers
+  {
+    id: 'upload-document',
+    title: 'How do I upload a document?',
+    category: 'getting-started',
+    icon: '📄',
+    content: [
+      'Click **Create Video** from the dashboard or navigation. On the content input screen, select **Upload PDF** and drag your file onto the upload zone, or click to browse.',
+      'You can also paste text directly using **Type or Paste**, enter a webpage with **From URL**, or let AI generate content with **AI Research** or **Start from Idea**.',
+      '**Supported file types:** PDF, DOCX, PPTX, TXT, and CSV.',
+    ],
+  },
+  {
+    id: 'video-creation-time',
+    title: 'How long does video creation take?',
+    category: 'creators',
+    icon: '⏱️',
+    content: [
+      'Most videos are generated in **2-4 minutes**. The process includes generating slides, recording narration, and compositing everything into a final MP4.',
+      'You do not need to stay on the page. Video generation continues in the background. When it finishes, your video appears in your Library.',
+    ],
+  },
+  {
+    id: 'edit-script',
+    title: 'Can I edit the script?',
+    category: 'creators',
+    icon: '✏️',
+    content: [
+      'Yes. After the AI generates your script, you see each scene as an editable card. You can edit the narration text, scene titles, and slide notes for every scene.',
+      'You can also reorder scenes by dragging, delete scenes you do not want, or add new scenes with the "Add Scene" button.',
+      'Take your time — the more accurate the script, the better the final video.',
+    ],
+  },
+  {
+    id: 'change-voice',
+    title: 'How do I change the voice?',
+    category: 'creators',
+    icon: '🎙️',
+    content: [
+      'During video creation, you will see a voice selection section. Browse the available voices and **click any voice to hear a preview**.',
+      'Voices range from professional and authoritative to warm and conversational. The default voice is **Sarah (nova)**, a natural-sounding female voice.',
+      'Select your preferred voice before clicking "Create my video." The voice cannot be changed after generation without recreating the video.',
+    ],
+  },
+  {
+    id: 'add-logo',
+    title: 'How do I add my logo?',
+    category: 'creators',
+    icon: '🏷️',
+    content: [
+      'Your logo is managed through **Brands**. Go to **Brands** in the navigation, then create or edit a brand.',
+      'Upload a PNG or SVG logo file. The logo appears on your video title slide, closing slide, and share page.',
+      'When creating a video, select the brand with your logo from the brand dropdown. See the **Brands & Customization** guide for full details.',
+    ],
+  },
+  {
+    id: 'file-types',
+    title: 'What file types are supported?',
+    category: 'getting-started',
+    icon: '📁',
+    content: [
+      'Docs2Video supports the following file types for upload:',
+      '• **PDF** — Reports, proposals, whitepapers, illustrations',
+      '• **DOCX** — Word documents',
+      '• **PPTX** — PowerPoint presentations',
+      '• **TXT** — Plain text files',
+      '• **CSV** — Spreadsheet data',
+      'You can also paste text directly, enter a URL to scrape, or let AI research and generate content from scratch.',
+    ],
+  },
+  {
+    id: 'share-with-client',
+    title: 'How do I share with a client?',
+    category: 'sharing',
+    icon: '📤',
+    content: [
+      'Open a completed video from your Library. You have two options:',
+      '• **Share with Client** — Click this button to send the video by email. Enter the client\'s email and an optional message.',
+      '• **Copy Link** — Copies the share page URL to your clipboard. Paste it into any email, chat, or message.',
+      'The share page is fully branded with your logo, colors, and contact details. It includes a video player, AI chatbot, and optional calendar booking.',
+    ],
+  },
+  {
+    id: 'viewer-tracking',
+    title: 'What happens when someone watches my video?',
+    category: 'sharing',
+    icon: '👁️',
+    content: [
+      'When a client opens your share page, Docs2Video tracks their engagement:',
+      '• **Page views** — How many times the share page was opened',
+      '• **Video plays** — How many times the video was played',
+      '• **Watch duration** — How much of the video they watched',
+      'You can see analytics for each video on its detail page. This helps you understand which videos resonate with your audience.',
+    ],
+  },
+  {
+    id: 'referrals',
+    title: 'How do referrals work?',
+    category: 'billing',
+    icon: '🤝',
+    content: [
+      'Go to **Settings > Subscription > Affiliate Program** to join and get your unique referral link.',
+      'Share your link with others. When someone signs up and makes a purchase, you earn **20% commission** on their payments.',
+      'Payouts are processed monthly for balances over $50. Track your clicks, signups, and earnings on the Affiliate Dashboard.',
+    ],
+  },
+  {
+    id: 'upgrade-plan',
+    title: 'How do I upgrade my plan?',
+    category: 'billing',
+    icon: '⬆️',
+    content: [
+      'Go to **Settings > Subscription**. Your current plan is displayed along with upgrade options.',
+      'Click **Upgrade** next to the plan you want. Upgrades take effect immediately and you are prorated for the remaining billing period.',
+      'Available plans: **Free** (2 videos), **Starter** ($29/mo, 5 videos), **Pro** ($79/mo, 20 videos), **Business** ($199/mo, 75 videos), **Enterprise** ($499/mo, 200 videos).',
     ],
   },
 ]
