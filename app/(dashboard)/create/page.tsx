@@ -37,14 +37,27 @@ export default function CreatePage() {
   const [aiMusic, setAiMusic] = useState(false)
   const [bookingUrl, setBookingUrl] = useState('')
   const [paymentLink, setPaymentLink] = useState('')
+  const [showUpgrade, setShowUpgrade] = useState(false)
+  const [freeRemaining, setFreeRemaining] = useState<number | null>(null)
+  const [isPaid, setIsPaid] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const purposeRef = useRef<HTMLTextAreaElement>(null)
 
-  // Load brands
+  // Load brands + check credits
   useEffect(() => {
     const supabase = createClient()
     supabase.from('brands').select('*').order('is_default', { ascending: false }).then(({ data }) => {
       if (data) setBrands(data as Brand[])
+    })
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('profiles').select('subscription_status, free_videos_remaining').eq('id', user.id).single().then(({ data }) => {
+        if (!data) return
+        const status = (data.subscription_status ?? '').toLowerCase()
+        const paid = ['active', 'professional', 'pro', 'business', 'enterprise', 'starter'].includes(status)
+        setIsPaid(paid)
+        setFreeRemaining(data.free_videos_remaining ?? 0)
+      })
     })
   }, [])
 
@@ -71,6 +84,12 @@ export default function CreatePage() {
   async function handleGo() {
     if (!purpose.trim()) { setError('Describe what you want first'); return }
     setError(null)
+
+    // Check credits before doing anything
+    if (!isPaid && freeRemaining !== null && freeRemaining <= 0) {
+      setShowUpgrade(true)
+      return
+    }
 
     // Validate content input
     if (method === 'url' && !urlInput.trim()) { setError('Paste a URL to continue'); return }
@@ -176,7 +195,7 @@ export default function CreatePage() {
       })
       const genData = await genRes.json()
       if (!genRes.ok) {
-        // Video record exists — navigate to generating page anyway, user can retry
+        if (genRes.status === 403) { setShowUpgrade(true); setStage('idle'); return }
         router.push(`/create/generating?id=${createData.id}`)
         return
       }
@@ -244,6 +263,7 @@ export default function CreatePage() {
       })
       const genData = await genRes.json()
       if (!genRes.ok) {
+        if (genRes.status === 403) { setShowUpgrade(true); setStage('idle'); return }
         router.push(`/create/generating?id=${createData.id}`)
         return
       }
@@ -603,18 +623,85 @@ export default function CreatePage() {
 
       {/* Go button */}
       {purpose && (
-        <button
-          onClick={handleGo}
-          disabled={stage !== 'idle'}
-          style={{
-            width: '100%', padding: '18px', borderRadius: 10, border: 'none',
-            background: 'var(--ink)', color: 'white', fontSize: 18, fontWeight: 800,
-            cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.02em',
-            transition: 'opacity 0.2s', animation: 'fadeInUp 0.3s ease',
-          }}
-        >
-          Create video &rarr;
-        </button>
+        <>
+          {!isPaid && freeRemaining !== null && freeRemaining > 0 && (
+            <div style={{ fontSize: 13, color: 'var(--ink-light)', textAlign: 'center', marginBottom: 8 }}>
+              {freeRemaining} free video{freeRemaining !== 1 ? 's' : ''} remaining
+            </div>
+          )}
+          <button
+            onClick={handleGo}
+            disabled={stage !== 'idle'}
+            style={{
+              width: '100%', padding: '18px', borderRadius: 10, border: 'none',
+              background: 'var(--ink)', color: 'white', fontSize: 18, fontWeight: 800,
+              cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.02em',
+              transition: 'opacity 0.2s', animation: 'fadeInUp 0.3s ease',
+            }}
+          >
+            Create video &rarr;
+          </button>
+        </>
+      )}
+
+      {/* Upgrade modal */}
+      {showUpgrade && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.5)',
+        }} onClick={() => setShowUpgrade(false)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: 'white', borderRadius: 10, padding: '36px 32px', maxWidth: 440, width: '90%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>&#127916;</div>
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)', marginBottom: 8 }}>
+              You&apos;ve used your free videos
+            </h2>
+            <p style={{ fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.6, marginBottom: 8 }}>
+              Your 2 free videos are used up. Upgrade to keep creating professional explainer videos for your clients.
+            </p>
+            <p style={{ fontSize: 14, color: 'var(--ink-light)', marginBottom: 24 }}>
+              Plans start at $29/mo for 5 videos, or pay $10 per video with no subscription.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => { setShowUpgrade(false); router.push('/pricing') }}
+                style={{
+                  flex: 1, padding: '14px', borderRadius: 8, border: 'none',
+                  background: 'var(--ink)', color: 'white', fontSize: 16, fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                View plans
+              </button>
+              <button
+                onClick={async () => {
+                  setShowUpgrade(false)
+                  setStage('extracting')
+                  setStageMsg('Processing payment...')
+                  try {
+                    const res = await fetch('/api/pay-project', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ projectType: 'video' }),
+                    })
+                    const data = await res.json()
+                    if (data.url) window.location.href = data.url
+                    else { setError('Could not start payment'); setStage('idle') }
+                  } catch { setError('Payment failed'); setStage('idle') }
+                }}
+                style={{
+                  flex: 1, padding: '14px', borderRadius: 8, border: '2px solid var(--mint)',
+                  background: 'white', color: 'var(--ink)', fontSize: 16, fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Pay $10 for this video
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Advanced link */}
