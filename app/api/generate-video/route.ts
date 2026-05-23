@@ -18,6 +18,27 @@ const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().r
 
 export const maxDuration = 120
 
+// Format narration for TTS — convert numbers to spoken words
+function formatForTTS(text: string): string {
+  const dw: Record<string, string> = { '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine' }
+  return text
+    // Phone numbers: 1-800-441-1417, (800) 441-1417, 800.441.1417, +1 800 441 1417
+    .replace(/\+?1?[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g, (match) => {
+      const digits = match.replace(/\D/g, '')
+      const parts: string[] = []
+      let i = 0
+      if (digits.length === 11 && digits[0] === '1') { parts.push('one'); i = 1 }
+      parts.push(digits.slice(i, i + 3).split('').map(d => dw[d]).join(' '))
+      parts.push(digits.slice(i + 3, i + 6).split('').map(d => dw[d]).join(' '))
+      parts.push(digits.slice(i + 6).split('').map(d => dw[d]).join(' '))
+      return parts.join(', ')
+    })
+    // Percentages: 7.5% → seven point five percent
+    .replace(/(\d+)\.(\d+)%/g, (_, a: string, b: string) => {
+      return `${a.split('').map(d => dw[d] || d).join(' ')} point ${b.split('').map(d => dw[d] || d).join(' ')} percent`
+    })
+}
+
 // Track in-flight requests to prevent duplicates
 const inFlightVideos = new Set<string>()
 
@@ -165,7 +186,7 @@ export async function POST(request: Request) {
       scenes = preGeneratedScenes.map((s: any) => ({
         ...s,
         title: cleanText(s.title || ''),
-        narration: cleanText(s.narration || ''),
+        narration: formatForTTS(cleanText(s.narration || '')),
         dialogue: s.dialogue?.map((d: any) => ({
           ...d,
           text: cleanText(d.text || ''),
@@ -238,6 +259,9 @@ export async function POST(request: Request) {
       if (!scenes || scenes.length === 0) {
         throw new Error('Script generation produced no scenes. Try providing more content or a clearer purpose.')
       }
+
+      // Format narration for TTS
+      scenes = scenes.map((s: any) => ({ ...s, narration: s.narration ? formatForTTS(s.narration) : s.narration }))
 
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15 }).eq('id', videoId)
     }
