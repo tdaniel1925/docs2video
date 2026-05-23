@@ -314,6 +314,48 @@ export const INDUSTRIES: Record<IndustryId, IndustryConfig> = {
   },
 }
 
+/**
+ * LLM-based industry classification (F17).
+ * Uses gpt-4o-mini to classify a document into an industry.
+ * Falls back to regex-based detectIndustry on failure.
+ * Cost: ~$0.0001 per call.
+ */
+export async function classifyIndustryLLM(title: string, content: string): Promise<IndustryId> {
+  const industryIds = Object.keys(INDUSTRIES).filter(id => id !== 'general')
+  const snippet = content.slice(0, 500)
+
+  try {
+    const { default: OpenAI } = await import('openai')
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{
+        role: 'user',
+        content: `Classify this document into one of these industries: ${industryIds.join(', ')}. If none fit, return "general".
+
+Document title: ${title}
+Content preview: ${snippet}
+
+Return ONLY the industry ID, nothing else.`,
+      }],
+      temperature: 0,
+      max_tokens: 20,
+    })
+
+    const result = response.choices[0]?.message?.content?.trim().toLowerCase().replace(/[^a-z_]/g, '') ?? ''
+
+    if (result in INDUSTRIES) {
+      return result as IndustryId
+    }
+    console.warn(`[industry] LLM returned unknown industry "${result}", falling back to regex`)
+    return detectIndustry(title, content)
+  } catch (err) {
+    console.error('[industry] LLM classification failed, falling back to regex:', err instanceof Error ? err.message : 'unknown')
+    return detectIndustry(title, content)
+  }
+}
+
 export function detectIndustry(title: string, content: string): IndustryId {
   const text = `${title} ${content}`.toLowerCase()
 
