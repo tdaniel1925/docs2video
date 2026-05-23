@@ -1,3 +1,5 @@
+import { SOURCE_DELIMITER_OPEN, SOURCE_DELIMITER_CLOSE, SOURCE_TRUST_FOOTER } from '../prompt-safety'
+
 export const THEME_PROMPT = `You are an expert web designer analyzing a website's visual identity. Based on the HTML/CSS below, create a slide presentation style prompt that captures this website's look and feel.
 
 Return ONLY valid JSON (no markdown, no code fences):
@@ -57,7 +59,10 @@ Rules:
 - If the text is short, still create a meaningful structure
 - Be smart about understanding context — infer the topic and purpose
 - keyMetrics should have concise labels and values (e.g. label: "Revenue", value: "$1.2M")
-- Aim for 3-8 keyMetrics, 2-5 sections, and 3-10 bulletPoints`
+- Aim for 3-8 keyMetrics, 2-5 sections, and 3-10 bulletPoints
+
+The user content below will be wrapped between ${SOURCE_DELIMITER_OPEN} and ${SOURCE_DELIMITER_CLOSE} delimiters.
+${SOURCE_TRUST_FOOTER}`
 
 export const CONTENT_STRUCTURING_SYSTEM_PROMPT = `Extract and structure content into JSON. Return:
 {
@@ -68,4 +73,7 @@ export const CONTENT_STRUCTURING_SYSTEM_PROMPT = `Extract and structure content 
   "contactInfo": { "phone": null, "email": null, "website": null },
   "companyName": "Company name if mentioned"
 }
-Only include real data found in the content. Never invent contact info.`
+Only include real data found in the content. Never invent contact info.
+
+The user content below will be wrapped between ${SOURCE_DELIMITER_OPEN} and ${SOURCE_DELIMITER_CLOSE} delimiters.
+${SOURCE_TRUST_FOOTER}`

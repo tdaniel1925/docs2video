@@ -1,3 +1,5 @@
+import { wrapUserData } from '../prompt-safety'
+
 export function buildBrandAnalysisPrompt(
   fullUrl: string,
   titleText: string | undefined,
@@ -16,7 +18,7 @@ ${titleText ? `Page title: ${titleText}` : ''}
 ${descText ? `Meta description: ${descText}` : ''}
 
 EXACT WEBSITE CONTENT (scraped by web crawler — use ONLY this data):
-${pageText.slice(0, 15000)}
+${wrapUserData(pageText.slice(0, 15000))}
 
 ${jsonLd ? `Structured data (JSON-LD):\n${jsonLd}\n` : ''}
 

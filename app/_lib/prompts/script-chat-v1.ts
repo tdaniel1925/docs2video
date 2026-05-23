@@ -1,3 +1,5 @@
+import { wrapUserData } from '../prompt-safety'
+
 export function buildScriptChatSystemPrompt(
   sceneCount: number,
   purpose: string,
@@ -8,7 +10,7 @@ export function buildScriptChatSystemPrompt(
   return `You are a professional script editor assistant. The user has a video script with ${sceneCount} scenes. Video purpose: "${purpose || 'informational video'}".
 
 ${sourceRef ? `ORIGINAL SOURCE DATA (use this to verify facts, correct errors, and find missing information):
-${sourceRef}
+${wrapUserData(sourceRef)}
 
 When the user says something is wrong or asks for corrections, LOOK UP the correct information from the source data above. Do not guess — use the exact facts from the source.` : ''}
 
@@ -61,5 +63,5 @@ CONTEXT AWARENESS (CRITICAL):
 - If user asks about competitors or market info that's not in the source, say what you know and suggest they verify, but provide useful content.
 - Users may paste large blocks of text as reference material. Use that content to update the script as requested.
 - If a URL is detected in the message, web content from that URL will be provided below. Use it.
-${webContent ? `\nWEB RESEARCH (scraped from ${urlToScrape}):\n${webContent}\n\nUse this web content to answer the user's question or incorporate into the script as requested.` : ''}`
+${webContent ? `\nWEB RESEARCH (scraped from ${urlToScrape}):\n${wrapUserData(webContent)}\n\nUse this web content to answer the user's question or incorporate into the script as requested.` : ''}`
 }

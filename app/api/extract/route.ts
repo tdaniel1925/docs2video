@@ -4,6 +4,7 @@ import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { logError } from '../../_lib/error-logger'
 import OpenAI from 'openai'
 import { CONTENT_STRUCTURING_SYSTEM_PROMPT } from '../../_lib/prompts'
+import { sanitizeSourceData, wrapUserData } from '../../_lib/prompt-safety'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -79,7 +80,7 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
           content: CONTENT_STRUCTURING_SYSTEM_PROMPT,
         }, {
           role: 'user',
-          content: `${purpose ? `Purpose: ${purpose}\n\n` : ''}Content:\n${contentToStructure.slice(0, 15000)}`,
+          content: `${purpose ? `Purpose: ${purpose}\n\n` : ''}Content:\n${wrapUserData(contentToStructure.slice(0, 15000))}`,
         }],
         temperature: 0.3,
         max_tokens: 3000,
@@ -130,7 +131,7 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
           content: CONTENT_STRUCTURING_SYSTEM_PROMPT,
         }, {
           role: 'user',
-          content: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Content:\n${text.slice(0, 15000)}`,
+          content: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Content:\n${wrapUserData(text.slice(0, 15000))}`,
         }],
         temperature: 0.3,
         max_tokens: 3000,

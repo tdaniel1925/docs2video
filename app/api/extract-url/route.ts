@@ -6,6 +6,7 @@ import sharp from 'sharp'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { scrapeBrand } from '../../_lib/brand-scraper'
 import { THEME_PROMPT, EXTRACTION_PROMPT } from '../../_lib/prompts'
+import { wrapUserData } from '../../_lib/prompt-safety'
 
 export const runtime = 'nodejs'
 
@@ -164,14 +165,14 @@ export async function POST(request: Request) {
       openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'user', content: `${EXTRACTION_PROMPT}\n\nHere is the EXACT text from ${parsedUrl.hostname} (extracted by web scraper — do NOT add any information not present here):\n\n${truncated}` },
+          { role: 'user', content: `${EXTRACTION_PROMPT}\n\nHere is the EXACT text from ${parsedUrl.hostname} (extracted by web scraper — do NOT add any information not present here):\n\n${wrapUserData(truncated)}` },
         ],
         temperature: 0.3,
       }),
       openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'user', content: `${THEME_PROMPT}\n\nHere is the HTML/CSS from ${parsedUrl.hostname}:\n\n${htmlForTheme}` },
+          { role: 'user', content: `${THEME_PROMPT}\n\nHere is the HTML/CSS from ${parsedUrl.hostname}:\n\n${wrapUserData(htmlForTheme)}` },
         ],
         temperature: 0.5,
       }),

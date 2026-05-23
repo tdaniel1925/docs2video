@@ -1,6 +1,7 @@
 import type { ExtractedPolicyData } from '../types'
 import type { ExtractedData } from '../extract-types'
 import { INDUSTRIES, detectIndustry, type IndustryId } from '../industries'
+import { wrapUserData } from '../prompt-safety'
 
 function formatCurrency(n: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -19,10 +20,7 @@ export function buildInsuranceScriptPrompt(data: ExtractedPolicyData, brandName:
     .map(p => `Year ${p.year}: Guaranteed ${formatCurrency(p.guaranteed)}, Current ${formatCurrency(p.current)}`)
     .join('\n  ')
 
-  return `You are a professional scriptwriter creating a life insurance policy explainer video narration.
-
-POLICY DATA:
-- Policy Type: ${data.policyType}
+  const policyDataBlock = `- Policy Type: ${data.policyType}
 - Insured: ${data.insuredName}, Age ${data.insuredAge ?? 'N/A'}
 - Death Benefit: ${formatCurrency(data.deathBenefit)}
 - Annual Premium: ${formatCurrency(data.annualPremium)}
@@ -33,7 +31,12 @@ ${data.loanRate ? `- Loan Rate: ${data.loanRate}%` : ''}
 ${svSummary ? `- Surrender Value Projections:\n  ${svSummary}` : ''}
 - Riders: ${(data.riders ?? []).join(', ') || 'None'}
 - Additional Notes: ${(data.additionalNotes ?? []).join(', ') || 'None'}
-${brandName ? `- Agent/Agency: {{BRAND_NAME}}` : ''}
+${brandName ? `- Agent/Agency: {{BRAND_NAME}}` : ''}`
+
+  return `You are a professional scriptwriter creating a life insurance policy explainer video narration.
+
+POLICY DATA:
+${wrapUserData(policyDataBlock)}
 
 CARRIER NAME RULE (CRITICAL — LEGAL REQUIREMENT):
 - NEVER mention the insurance carrier name anywhere in the narration.
@@ -121,6 +124,22 @@ export function buildGenericScriptPrompt(data: ExtractedData, brandName: string 
 7. DISCLAIMER-CLOSE (1 scene) — Closing disclaimer. EXACT narration: "${config.closingDisclaimerText}"
 ` : ''
 
+  const documentDataBlock = `- Title: ${data.title}
+${data.subtitle ? `- Subtitle: ${data.subtitle}` : ''}
+${data.source ? `- Source: ${data.source}` : ''}
+${brandName ? `- Presented by: {{BRAND_NAME}}` : ''}
+
+Key Metrics:
+${metricsText || '(none)'}
+
+Sections:
+${sectionsText || '(none)'}
+
+Key Points:
+${bulletText || '(none)'}
+
+Additional Notes: ${(data as any).additionalNotes?.join(', ') || 'None'}`
+
   return `You are a professional scriptwriter creating an explainer video narration about the following document/content.
 
 CRITICAL RULE — DATA FIDELITY:
@@ -135,21 +154,7 @@ TERMINOLOGY: Use these terms: ${config.terminology.use.join(', ')}. Avoid: ${con
 TONE: ${config.tone}
 
 DOCUMENT DATA:
-- Title: ${data.title}
-${data.subtitle ? `- Subtitle: ${data.subtitle}` : ''}
-${data.source ? `- Source: ${data.source}` : ''}
-${brandName ? `- Presented by: {{BRAND_NAME}}` : ''}
-
-Key Metrics:
-${metricsText || '(none)'}
-
-Sections:
-${sectionsText || '(none)'}
-
-Key Points:
-${bulletText || '(none)'}
-
-Additional Notes: ${(data as any).additionalNotes?.join(', ') || 'None'}
+${wrapUserData(documentDataBlock)}
 
 VOICE RULES (CRITICAL):
 - The narrator must NEVER introduce themselves, say their name, or say who they are. They are just a voice.
