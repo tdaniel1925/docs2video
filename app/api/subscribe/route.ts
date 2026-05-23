@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     .eq('id', user.id)
     .single()
 
-  const origin = request.headers.get('origin') ?? 'https://prismgraphs.com'
+  const origin = request.headers.get('origin') ?? 'https://docs2video.com'
 
   try {
     const stripe = getStripe()

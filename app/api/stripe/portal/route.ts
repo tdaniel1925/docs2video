@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     const stripe = getStripe()
     const session = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
-      return_url: `${request.headers.get('origin') ?? 'https://prismgraphs.com'}/settings?tab=subscription`,
+      return_url: `${request.headers.get('origin') ?? 'https://docs2video.com'}/settings?tab=subscription`,
     })
 
     return NextResponse.json({ url: session.url })

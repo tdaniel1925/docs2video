@@ -20,7 +20,7 @@ export default function HomePage() {
         color: 'var(--ink)',
       }}>
         <Link href="/signup" style={{ color: 'var(--ink)', textDecoration: 'none' }}>
-          Start free — 5 explainer videos included, no credit card required
+          Start free — 2 free videos, no credit card required
         </Link>
       </div>
 
@@ -53,7 +53,7 @@ export default function HomePage() {
             <h1 className="hero-title">Turn any document into a professional <em>explainer video</em></h1>
             <p className="hero-sub">Upload a PDF, paste text, or describe an idea. Get a branded narrated video with a shareable client page &mdash; in minutes, not hours.</p>
             <div style={{display:'flex',gap:12,alignItems:'center',marginTop:28,flexWrap:'wrap'}}>
-              <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 5 videos included &rarr;</Link>
+              <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 2 free videos &rarr;</Link>
               <a href="#how-it-works" className="btn btn-outlined">Watch demo</a>
             </div>
             <div className="hero-trust" style={{marginTop:20,fontSize:13,color:'var(--ink-soft)'}}>No credit card required &middot; Cancel anytime</div>
@@ -610,7 +610,7 @@ export default function HomePage() {
           <div style={{textAlign:'center',marginBottom:50}}>
             <div className="section-eyebrow">Pricing</div>
             <h2 className="section-title">Simple, transparent <em>pricing</em></h2>
-            <p className="section-sub" style={{maxWidth:600,margin:'0 auto'}}>Start free with 5 videos included. Then pay per project or subscribe for discounts.</p>
+            <p className="section-sub" style={{maxWidth:600,margin:'0 auto'}}>Start free with 2 free videos. Then pay per project or subscribe for discounts.</p>
           </div>
           <div className="pricing-grid-5">
             {/* Pay Per Project */}
@@ -736,12 +736,42 @@ export default function HomePage() {
         {/* ───── FAQ ───── */}
         <FaqSection />
 
+        {/* ───── Our Story ───── */}
+        <section style={{padding:'80px 24px',maxWidth:800,margin:'0 auto',textAlign:'center'}}>
+          <div style={{display:'inline-block',marginBottom:32}}>
+            <img
+              src="/founders.png"
+              alt="Trent and Sella Daniel, founders of Docs2Video"
+              style={{width:320,height:'auto',borderRadius:10,boxShadow:'0 8px 32px rgba(0,0,0,0.12)'}}
+            />
+          </div>
+          <h2 style={{fontSize:28,fontWeight:800,letterSpacing:'-0.02em',color:'var(--ink)',marginBottom:12}}>
+            Built by people who get it
+          </h2>
+          <p style={{fontSize:16,lineHeight:1.7,color:'var(--ink-soft)',maxWidth:640,margin:'0 auto 16px'}}>
+            We spent years helping businesses grow &mdash; Trent as a radio and television producer, Sella as a marketing executive at Greystar. We watched the same pattern over and over: great proposals, powerful reports, detailed documents... that nobody ever opened.
+          </p>
+          <p style={{fontSize:16,lineHeight:1.7,color:'var(--ink-soft)',maxWidth:640,margin:'0 auto 24px'}}>
+            So we built Docs2Video. Because a three-minute video gets watched. A thirty-page PDF doesn&apos;t. And the businesses that communicate clearly are the ones that win.
+          </p>
+          <div style={{display:'flex',justifyContent:'center',gap:32,fontSize:14,color:'var(--ink-light)'}}>
+            <div>
+              <div style={{fontWeight:700,color:'var(--ink)',fontSize:15}}>Trent Daniel</div>
+              <div>CEO, BotMakers Inc.</div>
+            </div>
+            <div>
+              <div style={{fontWeight:700,color:'var(--ink)',fontSize:15}}>Sella Daniel</div>
+              <div>Creative Director</div>
+            </div>
+          </div>
+        </section>
+
         {/* ───── Final CTA ───── */}
         <section className="final-cta">
           <h2>Stop sending documents <em>nobody reads</em></h2>
           <p className="final-cta-sub">Join 2,500+ professionals who use Docs2Video to turn complex documents into professional explainer videos their clients actually watch.</p>
           <div className="final-cta-buttons">
-            <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 5 videos included &rarr;</Link>
+            <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 2 free videos &rarr;</Link>
           </div>
           <div className="final-cta-perks">
             <span>
