@@ -627,6 +627,7 @@ export default function PublicWatchPage() {
   const [payLoading, setPayLoading] = useState(false)
   const [payError, setPayError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [videoEnded, setVideoEnded] = useState(false)
   const [disclaimersOpen, setDisclaimersOpen] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -829,6 +830,9 @@ export default function PublicWatchPage() {
   // White-label: hide Docs2Video branding for business/enterprise subscribers
   const WHITELABEL_PLANS = ['enterprise', 'business']
   const isWhiteLabel = !!(agent?.subscription_status && WHITELABEL_PLANS.includes(agent.subscription_status.toLowerCase()))
+  // Show promo banner only for free tier (no subscription or inactive)
+  const PAID_PLANS = ['active', 'professional', 'pro', 'business', 'enterprise', 'starter', 'personal']
+  const isFreeTier = !agent?.subscription_status || !PAID_PLANS.includes(agent.subscription_status.toLowerCase())
 
   // Insurance detection and disclaimers
   const pipelineInput = (video.script as any)?._pipeline_input
@@ -919,6 +923,10 @@ export default function PublicWatchPage() {
                 }}
                 onPause={() => {
                   if (musicRef.current) musicRef.current.pause()
+                }}
+                onEnded={() => {
+                  if (musicRef.current) musicRef.current.pause()
+                  setVideoEnded(true)
                 }}
                 onSeeking={() => {
                   if (musicRef.current && videoRef.current) {
@@ -1525,9 +1533,61 @@ export default function PublicWatchPage() {
       )}
 
       {/* ============================================================ */}
+      {/*  PROMO BANNER — free tier only                                */}
+      {/* ============================================================ */}
+      {isFreeTier && videoEnded && (
+        <div style={{
+          maxWidth: 600, margin: '0 auto 32px', padding: '28px 32px', borderRadius: 10,
+          background: 'linear-gradient(135deg, #1B3A5C 0%, #2A5A8C 100%)',
+          textAlign: 'center', animation: 'fadeInUp 0.5s ease',
+        }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 8, letterSpacing: '-0.02em' }}>
+            Create videos like this in minutes
+          </div>
+          <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.75)', marginBottom: 20, lineHeight: 1.5 }}>
+            Turn any document, website, or idea into a professional narrated video. No editing skills needed.
+          </div>
+          <a
+            href="https://docs2video.com/signup"
+            style={{
+              display: 'inline-block', padding: '14px 36px', borderRadius: 8,
+              background: '#3BB5C8', color: '#fff', fontSize: 16, fontWeight: 700,
+              textDecoration: 'none', transition: 'opacity 0.15s',
+            }}
+          >
+            Try Free &rarr;
+          </a>
+        </div>
+      )}
+
+      {/* Fixed bottom bar — free tier only */}
+      {isFreeTier && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
+          padding: '10px 20px',
+          background: 'rgba(27, 58, 92, 0.95)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
+        }}>
+          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
+            Made with Docs2Video
+          </span>
+          <a
+            href="https://docs2video.com/signup"
+            style={{
+              padding: '6px 16px', borderRadius: 6,
+              background: '#3BB5C8', color: '#fff', fontSize: 12, fontWeight: 700,
+              textDecoration: 'none',
+            }}
+          >
+            Create yours free &rarr;
+          </a>
+        </div>
+      )}
+
+      {/* ============================================================ */}
       {/*  FOOTER                                                       */}
       {/* ============================================================ */}
-      <footer className="wp-footer">
+      <footer className="wp-footer" style={isFreeTier ? { paddingBottom: 48 } : undefined}>
         {isWhiteLabel ? (
           <span style={{ fontSize: 11, color: 'var(--ink-light, #7A8FA3)', fontWeight: 600, letterSpacing: '0.04em' }}>
             {agent?.company_name ?? agentName}
