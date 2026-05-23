@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/client'
+import { SLIDE_STYLES } from '../../_lib/types'
+import { autoSelectStyle } from '../../_lib/style-picker'
 import type { Brand } from '../../_lib/types'
 
 const SUGGESTIONS = [
@@ -40,6 +42,15 @@ export default function CreatePage() {
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [freeRemaining, setFreeRemaining] = useState<number | null>(null)
   const [isPaid, setIsPaid] = useState(false)
+  // Style picker state
+  const [styleTab, setStyleTab] = useState<'auto' | 'browse' | 'upload'>('auto')
+  const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null)
+  const [styleReferenceUrl, setStyleReferenceUrl] = useState<string | null>(null)
+  const [stylePreviewImages, setStylePreviewImages] = useState<string[]>([])
+  const [stylePreviewLoading, setStylePreviewLoading] = useState(false)
+  const [stylePreviewError, setStylePreviewError] = useState<string | null>(null)
+  const [styleSearchQuery, setStyleSearchQuery] = useState('')
+  const styleFileRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const purposeRef = useRef<HTMLTextAreaElement>(null)
 
@@ -59,6 +70,49 @@ export default function CreatePage() {
         setFreeRemaining(data.free_videos_remaining ?? 0)
       })
     })
+  }, [])
+
+  // Auto-select style based on selected brand
+  useEffect(() => {
+    if (selectedStyleId && styleTab !== 'auto') return // user already picked manually
+    const brand = brands.find(b => b.id === selectedBrand)
+    const picked = autoSelectStyle(brand?.primary_color, brand?.industry)
+    setSelectedStyleId(picked)
+  }, [selectedBrand, brands]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle reference image upload for custom style
+  const handleStyleImageUpload = useCallback(async (file: File) => {
+    setStylePreviewLoading(true)
+    setStylePreviewError(null)
+    setStylePreviewImages([])
+    try {
+      const reader = new FileReader()
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string
+          resolve(result.split(',')[1]) // strip data:... prefix
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      const res = await fetch('/api/style-preview-from-ref', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ referenceImageBase64: base64 }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setStylePreviewError(data.error || 'Preview generation failed')
+        return
+      }
+      setStylePreviewImages(data.previews || [])
+      setStyleReferenceUrl(data.referenceUrl || null)
+      setSelectedStyleId(null) // using custom reference, not a built-in style
+    } catch (err) {
+      setStylePreviewError(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setStylePreviewLoading(false)
+    }
   }, [])
 
   // Elapsed timer during processing
@@ -184,8 +238,9 @@ export default function CreatePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           videoId: createData.id, policyData, brandId: effectiveBrand, voiceId: 'nova',
-          styleId: customStyle ? 'custom-url-theme' : undefined,
+          styleId: customStyle ? 'custom-url-theme' : (selectedStyleId || undefined),
           customStylePrompt: customStyle,
+          styleReferenceUrl: styleReferenceUrl || undefined,
           narrationStyle: 'solo', aiMusic, purpose: purpose.trim(),
           musicPrompt: aiMusic ? 'Professional ambient background music, subtle and warm' : undefined,
           industry: extractedData?.industry || 'general',
@@ -254,6 +309,8 @@ export default function CreatePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           videoId: createData.id, policyData, brandId: selectedBrand, voiceId: 'nova',
+          styleId: selectedStyleId || undefined,
+          styleReferenceUrl: styleReferenceUrl || undefined,
           narrationStyle: 'solo', aiMusic, purpose: purpose.trim(),
           musicPrompt: aiMusic ? 'Professional ambient background music, subtle and warm' : undefined,
           industry: extractData?.industry || 'general',
@@ -615,6 +672,239 @@ export default function CreatePage() {
                   style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border-light)', fontSize: 13, fontFamily: 'inherit', outline: 'none' }}
                 />
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Style Picker */}
+      {purpose && (
+        <div style={{ width: '100%', marginBottom: 20, animation: 'fadeInUp 0.3s ease' }}>
+          <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 10 }}>
+            Choose your slide style
+          </label>
+
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 16, background: 'var(--bg-soft)', borderRadius: 10, padding: 4 }}>
+            {([
+              { id: 'auto' as const, label: 'Auto Pick' },
+              { id: 'browse' as const, label: 'Browse Styles' },
+              { id: 'upload' as const, label: 'Upload Your Own' },
+            ]).map(t => (
+              <button
+                key={t.id}
+                onClick={() => setStyleTab(t.id)}
+                style={{
+                  flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  border: 'none', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                  background: styleTab === t.id ? 'white' : 'transparent',
+                  color: styleTab === t.id ? 'var(--ink)' : 'var(--ink-light)',
+                  boxShadow: styleTab === t.id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab 1: Auto Pick */}
+          {styleTab === 'auto' && (() => {
+            const picked = SLIDE_STYLES.find(s => s.id === selectedStyleId) || SLIDE_STYLES[0]
+            return (
+              <div style={{ padding: '20px', borderRadius: 10, background: 'var(--bg-soft)', border: '1px solid var(--border-light)' }}>
+                <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                  <div style={{
+                    width: 120, height: 68, borderRadius: 8, overflow: 'hidden',
+                    background: 'var(--border-light)', flexShrink: 0,
+                  }}>
+                    <img
+                      src={`/style-previews/${picked.id}.png`}
+                      alt={picked.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>
+                      {picked.name}
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.4 }}>
+                      {picked.description}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 6 }}>
+                      We suggest <strong>{picked.name}</strong> for your content
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                  <button
+                    onClick={() => { /* already selected */ }}
+                    style={{
+                      padding: '8px 16px', borderRadius: 8, border: '2px solid var(--mint)',
+                      background: 'rgba(59,181,200,0.06)', fontSize: 13, fontWeight: 700,
+                      cursor: 'pointer', fontFamily: 'inherit', color: 'var(--ink)',
+                    }}
+                  >
+                    Use this style
+                  </button>
+                  <button
+                    onClick={() => setStyleTab('browse')}
+                    style={{
+                      padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border-light)',
+                      background: 'white', fontSize: 13, fontWeight: 600,
+                      cursor: 'pointer', fontFamily: 'inherit', color: 'var(--ink-soft)',
+                    }}
+                  >
+                    Browse other styles
+                  </button>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Tab 2: Browse Styles */}
+          {styleTab === 'browse' && (
+            <div>
+              <input
+                type="text"
+                value={styleSearchQuery}
+                onChange={e => setStyleSearchQuery(e.target.value)}
+                placeholder="Search styles..."
+                style={{
+                  width: '100%', padding: '10px 14px', borderRadius: 8,
+                  border: '1.5px solid var(--border-light)', fontSize: 13, fontFamily: 'inherit',
+                  outline: 'none', marginBottom: 12, transition: 'border-color 0.2s',
+                }}
+                onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+                onBlur={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
+              />
+              <div style={{
+                display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10,
+                maxHeight: 360, overflowY: 'auto', paddingRight: 4,
+              }}>
+                {SLIDE_STYLES
+                  .filter(s => {
+                    if (!styleSearchQuery) return true
+                    const q = styleSearchQuery.toLowerCase()
+                    return s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q)
+                  })
+                  .map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => { setSelectedStyleId(s.id); setStyleReferenceUrl(null); setStylePreviewImages([]) }}
+                      style={{
+                        padding: 0, borderRadius: 10, overflow: 'hidden', cursor: 'pointer',
+                        border: selectedStyleId === s.id ? '2px solid var(--mint)' : '1.5px solid var(--border-light)',
+                        background: 'white', fontFamily: 'inherit', textAlign: 'left',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <div style={{ width: '100%', height: 80, background: 'var(--bg-soft)', overflow: 'hidden' }}>
+                        <img
+                          src={`/style-previews/${s.id}.png`}
+                          alt={s.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                        />
+                      </div>
+                      <div style={{ padding: '8px 10px' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>
+                          {s.name}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--ink-light)', lineHeight: 1.3 }}>
+                          {s.description}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tab 3: Upload Your Own */}
+          {styleTab === 'upload' && (
+            <div>
+              <div
+                onClick={() => styleFileRef.current?.click()}
+                onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--mint)' }}
+                onDragLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                onDrop={e => {
+                  e.preventDefault()
+                  e.currentTarget.style.borderColor = 'var(--border)'
+                  const file = e.dataTransfer.files[0]
+                  if (file && file.type.startsWith('image/')) handleStyleImageUpload(file)
+                }}
+                style={{
+                  padding: '32px 24px', borderRadius: 10, border: '2px dashed var(--border)',
+                  background: 'var(--bg-soft)', cursor: 'pointer', textAlign: 'center',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <div style={{ fontSize: 28, marginBottom: 8 }}>&#127912;</div>
+                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
+                  Drop a reference image or click to browse
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>
+                  Upload a slide, poster, or design you love. We&apos;ll match its style.
+                </div>
+              </div>
+              <input
+                ref={styleFileRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleStyleImageUpload(f) }}
+              />
+
+              {stylePreviewLoading && (
+                <div style={{ marginTop: 16, textAlign: 'center', padding: '24px', color: 'var(--ink-soft)', fontSize: 14 }}>
+                  Generating preview slides... this takes about 30 seconds.
+                </div>
+              )}
+
+              {stylePreviewError && (
+                <div style={{
+                  marginTop: 12, padding: '10px 14px', borderRadius: 8,
+                  background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 13,
+                }}>
+                  {stylePreviewError}
+                </div>
+              )}
+
+              {stylePreviewImages.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
+                    Preview slides
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    {stylePreviewImages.map((img, i) => (
+                      <img
+                        key={i}
+                        src={img}
+                        alt={`Preview ${i + 1}`}
+                        style={{ width: '100%', borderRadius: 8, border: '1px solid var(--border-light)' }}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => { setSelectedStyleId(null); /* styleReferenceUrl already set */ }}
+                    style={{
+                      marginTop: 12, padding: '8px 16px', borderRadius: 8,
+                      border: '2px solid var(--mint)', background: 'rgba(59,181,200,0.06)',
+                      fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                      color: 'var(--ink)',
+                    }}
+                  >
+                    Use this style
+                  </button>
+                </div>
+              )}
+
+              {!isPaid && (
+                <div style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-light)' }}>
+                  Free accounts: 3 style previews per day.
+                </div>
+              )}
             </div>
           )}
         </div>
