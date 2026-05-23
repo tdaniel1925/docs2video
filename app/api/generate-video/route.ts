@@ -37,6 +37,31 @@ function formatForTTS(text: string): string {
 // Track in-flight requests to prevent duplicates
 const inFlightVideos = new Set<string>()
 
+// Scene filter helpers — only truly empty scenes get removed
+export function isSceneEmpty(scene: any): boolean {
+  const narration = scene.narration?.trim() || ''
+  const slidePrompt = scene.slidePrompt?.trim() || ''
+  const hasNarration = narration.length > 0
+  const hasSlideContent = slidePrompt.length > 0
+  return !hasNarration && !hasSlideContent
+}
+
+export function isSceneSuspiciouslyShort(scene: any): boolean {
+  const narration = scene.narration?.trim() || ''
+  const minByBeat: Record<string, number> = {
+    hook: 15,
+    disclaimer: 100,
+    'disclaimer-close': 100,
+    context: 30,
+    stakes: 30,
+    evidence: 40,
+    implication: 30,
+    action: 20,
+  }
+  const min = minByBeat[scene.beat] || 30
+  return narration.length < min
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -192,20 +217,20 @@ export async function POST(request: Request) {
         } : s.slideData,
       }))
 
-      // Remove any scenes with empty/trivial narration — no silent slides
-      // BUT never drop the closing/action scene
+      // Remove truly empty scenes (no narration AND no slide content)
       const beforeCount = scenes.length
-      scenes = scenes.filter((s: any, idx: number) => {
-        const words = s.narration?.trim().split(/\s+/).length || 0
-        const isClosing = s.beat === 'action' || s.beat === 'disclaimer-close' || idx === scenes.length - 1
-        if (isClosing) return true // never drop closing scenes
-        return words >= 5
-      })
+      scenes = scenes
+        .filter((s: any) => !isSceneEmpty(s))
+        .map((s: any, idx: number) => ({ ...s, scene: idx + 1 }))
       if (scenes.length < beforeCount) {
-        console.log(`[video ${videoId}] Removed ${beforeCount - scenes.length} empty/trivial scenes`)
+        console.log(`[video ${videoId}] Removed ${beforeCount - scenes.length} empty scenes`)
       }
-      // Ensure scene count matches — renumber
-      scenes.forEach((s: any, idx: number) => { s.scene = idx + 1 })
+      // Log suspiciously short scenes but keep them
+      scenes.forEach((s: any, idx: number) => {
+        if (isSceneSuspiciouslyShort(s)) {
+          console.warn(`[video ${videoId}] Scene ${idx + 1} (${s.beat || 'unknown'}) is suspiciously short: "${s.narration?.slice(0, 50)}..."`)
+        }
+      })
 
       // Inject contact info into last scene narration if available
       const pd = policyData as any
