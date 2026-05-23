@@ -25,7 +25,7 @@ const BANNED_PHRASES = [
 
 const TTS_MAX_CHARS = 4000
 
-const PHONE_PATTERN = /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\+\d[\d\s-]{7,15}\d/g
+import { PHONE_REGEX } from './phone-utils'
 
 const DISCLAIMER_KEYWORDS = [
   'disclaimer',
@@ -172,7 +172,7 @@ export function validateScript(
     // 4. Contact info mismatch — phone numbers
     if (options.contactInfo?.phone) {
       const providedDigits = options.contactInfo.phone.replace(/\D/g, '')
-      const foundPhones = narration.match(PHONE_PATTERN)
+      const foundPhones = narration.match(PHONE_REGEX)
       if (foundPhones) {
         for (const found of foundPhones) {
           const foundDigits = found.replace(/\D/g, '')

@@ -12,6 +12,7 @@ import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { buildSimpleSlidePrompt, getStylePrompt } from '../../_lib/slide-engine/simple-prompt'
 import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
+import { PHONE_REGEX, phoneToSpoken, isPhoneInSource } from '../../_lib/phone-utils'
 
 export const runtime = 'nodejs'
 
@@ -25,17 +26,8 @@ export const maxDuration = 120
 function formatForTTS(text: string): string {
   const dw: Record<string, string> = { '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine' }
   return text
-    // Phone numbers: 1-800-441-1417, (800) 441-1417, 800.441.1417, +1 800 441 1417
-    .replace(/\+?1?[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g, (match) => {
-      const digits = match.replace(/\D/g, '')
-      const parts: string[] = []
-      let i = 0
-      if (digits.length === 11 && digits[0] === '1') { parts.push('one'); i = 1 }
-      parts.push(digits.slice(i, i + 3).split('').map(d => dw[d]).join(' '))
-      parts.push(digits.slice(i + 3, i + 6).split('').map(d => dw[d]).join(' '))
-      parts.push(digits.slice(i + 6).split('').map(d => dw[d]).join(' '))
-      return parts.join(', ')
-    })
+    // Phone numbers — use unified PHONE_REGEX
+    .replace(PHONE_REGEX, (match) => phoneToSpoken(match))
     // Percentages: 7.5% → seven point five percent
     .replace(/(\d+)\.(\d+)%/g, (_, a: string, b: string) => {
       return `${a.split('').map(d => dw[d] || d).join(' ')} point ${b.split('').map(d => dw[d] || d).join(' ')} percent`
@@ -167,13 +159,11 @@ export async function POST(request: Request) {
       // Replace {{BRAND_NAME}} placeholder and strip invented contact info
       const actualBrandName = brand?.name || ''
       const sourceText = JSON.stringify(policyData) // original document data
-      const phonePattern = /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\+\d[\d\s-]{7,15}\d|\d{3,4}[\s-]\d{3,4}[\s-]\d{3,4}/g
 
       function stripFakePhones(text: string): string {
-        return text.replace(phonePattern, (match) => {
+        return text.replace(PHONE_REGEX, (match) => {
           // Keep the number ONLY if it exists in the original source data
-          const digits = match.replace(/\D/g, '')
-          if (sourceText.includes(digits) || sourceText.includes(match)) return match
+          if (isPhoneInSource(match, sourceText) || sourceText.includes(match)) return match
           console.log(`[video ${videoId}] Stripped invented phone: ${match}`)
           return ''
         }).replace(/\s{2,}/g, ' ').trim()
@@ -197,7 +187,7 @@ export async function POST(request: Request) {
         slideData: s.slideData ? {
           ...s.slideData,
           headline: cleanText(s.slideData.headline || s.title || ''),
-          bullets: s.slideData.bullets?.filter((b: string) => !phonePattern.test(b) || sourceText.includes(b)).map((b: string) => cleanText(b)),
+          bullets: s.slideData.bullets?.filter((b: string) => !PHONE_REGEX.test(b) || sourceText.includes(b)).map((b: string) => cleanText(b)),
           stats: s.slideData.stats?.map((st: any) => ({ label: cleanText(st.label || ''), value: cleanText(st.value || '') })),
         } : s.slideData,
       }))
