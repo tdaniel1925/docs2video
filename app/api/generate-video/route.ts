@@ -13,6 +13,7 @@ import { buildSimpleSlidePrompt, getStylePrompt } from '../../_lib/slide-engine/
 import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 import { PHONE_REGEX, phoneToSpoken, isPhoneInSource } from '../../_lib/phone-utils'
+import { estimateVideoCost } from '../../_lib/cost-estimator'
 
 export const runtime = 'nodejs'
 
@@ -309,6 +310,14 @@ export async function POST(request: Request) {
     if (validation.warnings.length > 0) {
       console.log(`[video ${videoId}] Script warnings:`, validation.warnings)
     }
+
+    // --- Cost estimate ---
+    const totalNarrationChars = scenes.reduce((sum: number, s: any) => sum + (s.narration?.length ?? 0), 0)
+    const costEstimate = estimateVideoCost(scenes.length, totalNarrationChars, !!(aiMusic || musicPrompt))
+    console.log(`[video ${videoId}] Estimated cost: ${costEstimate.estimated_cost_cents}¢`)
+
+    // Save cost estimate to video record
+    await admin.from('videos').update({ estimated_cost_cents: costEstimate.estimated_cost_cents }).eq('id', videoId)
 
     // STAGE 2: Build slide prompts — simple, direct prompts for OpenAI
     console.log(`[video ${videoId}] Building slide prompts for ${scenes.length} scenes...`)
