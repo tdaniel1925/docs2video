@@ -218,6 +218,37 @@ export async function POST(request: Request) {
         } : s.slideData,
       }))
 
+      // Strip carrier name from slide data (F18 — compliance)
+      if (policyData && typeof policyData === 'object' && 'carrier' in (policyData as any)) {
+        const carrierName = (policyData as any).carrier
+        if (carrierName && typeof carrierName === 'string' && carrierName.length > 1) {
+          const carrierRegex = new RegExp(carrierName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+          scenes.forEach((scene: any) => {
+            if (scene.slidePrompt) {
+              scene.slidePrompt = scene.slidePrompt.replace(carrierRegex, 'the carrier')
+            }
+            if (scene.slideData) {
+              if (scene.slideData.headline) {
+                scene.slideData.headline = scene.slideData.headline.replace(carrierRegex, 'the carrier')
+              }
+              if (scene.slideData.bullets) {
+                scene.slideData.bullets = scene.slideData.bullets.map((b: string) =>
+                  typeof b === 'string' ? b.replace(carrierRegex, 'the carrier') : b
+                )
+              }
+              if (scene.slideData.stats) {
+                scene.slideData.stats = scene.slideData.stats.map((st: any) => ({
+                  ...st,
+                  label: st.label ? st.label.replace(carrierRegex, 'the carrier') : st.label,
+                  value: st.value ? st.value.replace(carrierRegex, 'the carrier') : st.value,
+                }))
+              }
+            }
+          })
+          console.log(`[video ${videoId}] Stripped carrier name "${carrierName}" from slide data`)
+        }
+      }
+
       // Remove truly empty scenes (no narration AND no slide content)
       const beforeCount = scenes.length
       scenes = scenes
