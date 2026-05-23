@@ -1,0 +1,153 @@
+[
+  {
+    "scene": 1,
+    "beat": "hook",
+    "title": "Transform Your Career",
+    "slideData": {
+      "headline": "Apex Affinity Group",
+      "stats": [],
+      "bullets": [
+        "1,200+ Agents Supported",
+        "35% Avg Agent Commission Increase in Year 1"
+      ]
+    },
+    "narration": "Are you ready to transform your insurance career and boost your earnings? With Apex Affinity Group, over one thousand two hundred agents have found the support they need to grow their business, achieving an average commission increase of thirty five percent in their first year.",
+    "slidePrompt": "dynamic background with upward trend graphic",
+    "duration": 10
+  },
+  {
+    "scene": 2,
+    "beat": "disclaimer",
+    "title": "Legal Disclaimer",
+    "slideData": {
+      "headline": "Important Information",
+      "stats": [],
+      "bullets": []
+    },
+    "narration": "This video is for educational and informational purposes only. It is not legal, tax, or financial advice. Policy guarantees are based on the claims-paying ability of the issuing insurance company. Non-guaranteed values are subject to change. Please consult with your licensed insurance professional before making decisions.",
+    "slidePrompt": "simple background with caution symbol",
+    "duration": 15
+  },
+  {
+    "scene": 3,
+    "beat": "context",
+    "title": "Who We Are",
+    "slideData": {
+      "headline": "Apex Affinity Group",
+      "stats": [],
+      "bullets": [
+        "Founded in 2018",
+        "Supports Agents Nationwide"
+      ]
+    },
+    "narration": "Apex Affinity Group is a national insurance marketing organization that provides independent life and health insurance agents with top-tier carrier contracts, advanced training, and technology tools to help them succeed. Founded in two thousand eighteen, they now support agents across all fifty states.",
+    "slidePrompt": "background with map of the United States",
+    "duration": 10
+  },
+  {
+    "scene": 4,
+    "beat": "stakes",
+    "title": "Why It Matters",
+    "slideData": {
+      "headline": "Impact on Your Future",
+      "stats": [],
+      "bullets": [
+        "Significant financial growth potential",
+        "Support for client needs"
+      ]
+    },
+    "narration": "This support means you can better serve your clients while experiencing significant financial growth. The right guidance and resources can make a world of difference in your career.",
+    "slidePrompt": "background depicting growth potential",
+    "duration": 10
+  },
+  {
+    "scene": 5,
+    "beat": "evidence",
+    "title": "What We Offer",
+    "slideData": {
+      "headline": "Comprehensive Support",
+      "stats": [],
+      "bullets": [
+        "45+ A-rated Carrier Partners",
+        "No Production Requirements"
+      ]
+    },
+    "narration": "Apex provides street-level and above contracts with over forty-five A-rated carriers. Plus, there are no production requirements, so you can keep your contracts even if you take a month off. This flexibility helps reduce pressure while still offering robust support.",
+    "slidePrompt": "background with icons of support and flexibility",
+    "duration": 10
+  },
+  {
+    "scene": 6,
+    "beat": "evidence",
+    "title": "Agent Success Stories",
+    "slideData": {
+      "headline": "Real Results",
+      "stats": [],
+      "bullets": [
+        "Maria: $80K to $185K in Year 1",
+        "James: Access to multiple carriers"
+      ]
+    },
+    "narration": "Agents like Maria Gonzalez have seen remarkable success, increasing her income from eighty thousand to one hundred eighty-five thousand dollars in her first year. James Patterson experienced a transformation in his business, gaining access to multiple carriers that allowed him to better serve his clients.",
+    "slidePrompt": "background with testimonials and success icons",
+    "duration": 10
+  },
+  {
+    "scene": 7,
+    "beat": "evidence",
+    "title": "Technology Platform",
+    "slideData": {
+      "headline": "Streamlined Processes",
+      "stats": [],
+      "bullets": [
+        "Proprietary CRM and Lead Management",
+        "E-App Integration with 30+ Carriers"
+      ]
+    },
+    "narration": "With the Apex Connect CRM, agents can manage leads, track policies, and automate follow-ups efficiently. The e-App integration with over thirty carriers simplifies quoting and submissions, helping you save time and increase productivity.",
+    "slidePrompt": "background with technology and efficiency imagery",
+    "duration": 10
+  },
+  {
+    "scene": 8,
+    "beat": "implication",
+    "title": "Your Path Forward",
+    "slideData": {
+      "headline": "Join a Thriving Community",
+      "stats": [],
+      "bullets": [
+        "Annual Apex Summit Conference",
+        "Weekly Training Webinars"
+      ]
+    },
+    "narration": "Joining Apex means becoming part of a thriving community. You’ll have access to the annual Apex Summit conference, where you can learn from top industry speakers, and weekly training webinars to keep your skills sharp.",
+    "slidePrompt": "background depicting community and learning",
+    "duration": 10
+  },
+  {
+    "scene": 9,
+    "beat": "disclaimer-close",
+    "title": "Closing Disclaimer",
+    "slideData": {
+      "headline": "Final Thoughts",
+      "stats": [],
+      "bullets": []
+    },
+    "narration": "As a reminder, this video is for educational purposes only and does not constitute financial advice. Policy guarantees depend on the issuing carrier's claims-paying ability, and non-guaranteed values may change. Please review your official policy documents and consult with your licensed professional.",
+    "slidePrompt": "calm background with reassuring imagery",
+    "duration": 15
+  },
+  {
+    "scene": 10,
+    "beat": "action",
+    "title": "Contact Us",
+    "slideData": {
+      "headline": "Get Started Today",
+      "stats": [],
+      "bullets": []
+    },
+    "narration": "For more information, contact Apex Affinity Group at one, eight eight, two, seven four, two, seven three, nine or email agents at apex affinity group dot com. Schedule your discovery call today and take the first step toward transforming your insurance career!",
+    "slidePrompt": "background with contact details clearly displayed",
+    "duration": 10
+  }
+]

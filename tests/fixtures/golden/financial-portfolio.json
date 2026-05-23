@@ -1,0 +1,162 @@
+[
+  {
+    "scene": 1,
+    "beat": "hook",
+    "title": "Q1 2026 Performance",
+    "slideData": {
+      "headline": "Portfolio Highlights",
+      "stats": [
+        {
+          "label": "Total Portfolio Value",
+          "value": "$2,847,320"
+        },
+        {
+          "label": "Quarterly Return",
+          "value": "+4.2%"
+        }
+      ],
+      "bullets": [
+        "Outperformed S&P 500 by 40 basis points",
+        "Annual dividend income projected at $68,420"
+      ]
+    },
+    "narration": "In the first quarter of twenty twenty-six, the portfolio reached a total value of two million eight hundred forty-seven thousand three hundred twenty dollars, reflecting a quarterly return of four point two percent. This performance has surpassed the benchmark S&P 500 by forty basis points, providing a strong foundation for continued growth.",
+    "slidePrompt": "light background with upward trend graph",
+    "duration": 15
+  },
+  {
+    "scene": 2,
+    "beat": "context",
+    "title": "About the Portfolio",
+    "slideData": {
+      "headline": "Managed by Chen Family Trust",
+      "bullets": [
+        "Diverse asset allocation strategy",
+        "Focus on growth and income generation"
+      ]
+    },
+    "narration": "This summary represents the managed account of the Chen Family Trust. The strategy emphasizes a diverse asset allocation that balances growth with income generation, ensuring long-term financial health.",
+    "slidePrompt": "background with a family trust theme",
+    "duration": 12
+  },
+  {
+    "scene": 3,
+    "beat": "stakes",
+    "title": "Why It Matters",
+    "slideData": {
+      "headline": "Importance of Performance",
+      "bullets": [
+        "Confidence in investment strategy",
+        "Potential for future growth"
+      ]
+    },
+    "narration": "Understanding this performance is crucial. It not only builds confidence in the investment strategy but also highlights the potential for future growth. With a solid foundation, the portfolio is well-positioned to navigate market fluctuations.",
+    "slidePrompt": "background with a compass or navigation theme",
+    "duration": 10
+  },
+  {
+    "scene": 4,
+    "beat": "evidence",
+    "title": "Asset Allocation Overview",
+    "slideData": {
+      "headline": "Current Allocation",
+      "bullets": [
+        "55% US Equities, 15% International Equities",
+        "20% Fixed Income, 5% Real Estate",
+        "5% Cash & Equivalents"
+      ]
+    },
+    "narration": "The current asset allocation consists of fifty-five percent in US equities, fifteen percent in international equities, twenty percent in fixed income, five percent in real estate, and five percent in cash and equivalents. This allocation remains unchanged from the previous quarter, with a slight overweight in US equities driven by strong performance.",
+    "slidePrompt": "background with pie chart illustration",
+    "duration": 12
+  },
+  {
+    "scene": 5,
+    "beat": "evidence",
+    "title": "Performance Attribution",
+    "slideData": {
+      "headline": "Top Contributors",
+      "bullets": [
+        "Technology sector +8.2%",
+        "Healthcare +5.1%",
+        "Consumer Discretionary +4.8%"
+      ]
+    },
+    "narration": "Examining performance attribution reveals that the technology sector led contributions with an eight point two percent return. Healthcare followed closely at five point one percent, and consumer discretionary added four point eight percent. These sectors have significantly bolstered overall returns this quarter.",
+    "slidePrompt": "background with bar graph showing sectors",
+    "duration": 12
+  },
+  {
+    "scene": 6,
+    "beat": "evidence",
+    "title": "Fixed Income Analysis",
+    "slideData": {
+      "headline": "Bond Portfolio Insights",
+      "bullets": [
+        "Duration: 4.8 years",
+        "Average yield: 4.9%"
+      ]
+    },
+    "narration": "The bond portfolio has a duration of four point eight years and an average yield of four point nine percent. This mix, which includes sixty percent investment-grade corporate bonds, twenty-five percent US Treasuries, and fifteen percent municipal bonds, has proven stable with no credit events occurring during the quarter.",
+    "slidePrompt": "background with bond market imagery",
+    "duration": 12
+  },
+  {
+    "scene": 7,
+    "beat": "evidence",
+    "title": "Risk Metrics",
+    "slideData": {
+      "headline": "Understanding Risk",
+      "bullets": [
+        "Portfolio beta: 0.87",
+        "Sharpe ratio: 1.42"
+      ]
+    },
+    "narration": "Risk metrics show that the portfolio has a beta of zero point eighty-seven, indicating lower volatility compared to the broader market. The Sharpe ratio of one point forty-two suggests strong risk-adjusted returns over the trailing twelve months.",
+    "slidePrompt": "background with risk assessment theme",
+    "duration": 12
+  },
+  {
+    "scene": 8,
+    "beat": "implication",
+    "title": "Strategic Recommendations",
+    "slideData": {
+      "headline": "Next Steps",
+      "bullets": [
+        "Rebalance US Equities to target 55%",
+        "Increase municipal bond allocation",
+        "Consider adding emerging market exposure"
+      ]
+    },
+    "narration": "To enhance overall performance, we recommend rebalancing US equities to the target of fifty-five percent, trimming twelve thousand four hundred dollars. Additionally, increasing the allocation to municipal bonds ahead of potential tax law changes can optimize your tax situation. Considering emerging market exposure could further diversify the portfolio.",
+    "slidePrompt": "background with a checklist theme",
+    "duration": 12
+  },
+  {
+    "scene": 9,
+    "beat": "action",
+    "title": "Final Thoughts",
+    "slideData": {
+      "headline": "Take Action",
+      "bullets": [
+        "Schedule annual estate planning review",
+        "Next rebalancing window: April 15, 2026"
+      ]
+    },
+    "narration": "As we look ahead, scheduling your annual estate planning review is essential, especially in light of the new beneficiary provisions. Remember, the next rebalancing window is April fifteenth, twenty twenty-six, ensuring your investments remain aligned with your goals.",
+    "slidePrompt": "background with a calendar theme",
+    "duration": 10
+  },
+  {
+    "scene": 10,
+    "beat": "action",
+    "title": "Closing",
+    "slideData": {
+      "headline": "Thank You",
+      "bullets": []
+    },
+    "narration": "Thank you for watching.",
+    "slidePrompt": "simple background with a warm tone",
+    "duration": 5
+  }
+]

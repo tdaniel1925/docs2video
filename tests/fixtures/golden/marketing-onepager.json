@@ -1,0 +1,175 @@
+[
+  {
+    "scene": 1,
+    "beat": "hook",
+    "title": "Transform Your Product Development",
+    "slideData": {
+      "headline": "FlowMetrics — Real-Time Analytics",
+      "stats": [],
+      "bullets": [
+        "Ship faster with confidence",
+        "Know what users actually do"
+      ]
+    },
+    "narration": "Are you tired of guessing what features your users want? Product teams often waste time debating what to build next, leading to wasted resources and increased churn. FlowMetrics changes that by providing real-time analytics that reveal user behavior.",
+    "slidePrompt": "dark background with analytics dashboard icon",
+    "duration": 10
+  },
+  {
+    "scene": 2,
+    "beat": "context",
+    "title": "Understanding the Challenge",
+    "slideData": {
+      "headline": "The Problem",
+      "stats": [],
+      "bullets": [
+        "40% of time spent on feature debates",
+        "Spreadsheets and gut feelings lead to mistakes"
+      ]
+    },
+    "narration": "Product teams spend forty percent of their time arguing about what to build next. Without real usage data, decisions rely on spreadsheets and gut feelings, often resulting in shipping features that nobody uses. This uncertainty can lead to churn, and teams may not understand why until it’s too late.",
+    "slidePrompt": "light background with frustrated team icon",
+    "duration": 12
+  },
+  {
+    "scene": 3,
+    "beat": "stakes",
+    "title": "The Cost of Inaction",
+    "slideData": {
+      "headline": "Consequences of Outdated Systems",
+      "stats": [],
+      "bullets": [
+        "Wasted resources",
+        "Increased churn rate"
+      ]
+    },
+    "narration": "The lack of actionable insights not only wastes resources but also increases churn rates. Teams miss critical opportunities to enhance their products and understand their users, negatively impacting overall business performance.",
+    "slidePrompt": "gray background with warning sign icon",
+    "duration": 10
+  },
+  {
+    "scene": 4,
+    "beat": "evidence",
+    "title": "How FlowMetrics Works",
+    "slideData": {
+      "headline": "Seamless Integration",
+      "stats": [
+        {
+          "label": "Avg Setup Time",
+          "value": "less than 15 minutes"
+        }
+      ],
+      "bullets": [
+        "One simple SDK integration",
+        "Captures every user interaction"
+      ]
+    },
+    "narration": "With FlowMetrics, you only need one simple SDK integration, taking less than fifteen minutes to set up. It captures every user interaction—clicks, scrolls, and feature usage—turning that data into actionable dashboards your entire team can understand.",
+    "slidePrompt": "blue background with integration icon",
+    "duration": 12
+  },
+  {
+    "scene": 5,
+    "beat": "evidence",
+    "title": "Key Features",
+    "slideData": {
+      "headline": "Powerful Features",
+      "stats": [],
+      "bullets": [
+        "Real-time event streaming",
+        "AI-powered anomaly detection alerts",
+        "Custom dashboards"
+      ]
+    },
+    "narration": "FlowMetrics offers powerful features like real-time event streaming with sub-second latency and AI-powered anomaly detection alerts. You can build custom dashboards with a drag-and-drop builder, making it easy to visualize what’s working and what’s not.",
+    "slidePrompt": "dark background with feature icons",
+    "duration": 12
+  },
+  {
+    "scene": 6,
+    "beat": "evidence",
+    "title": "Proven Results",
+    "slideData": {
+      "headline": "Customer Success Stories",
+      "stats": [],
+      "bullets": [
+        "Notion reduced feature cycles by 30%",
+        "Canva fixed a $2.1M issue"
+      ]
+    },
+    "narration": "Real customers are seeing real results. Notion reduced their feature development cycles by thirty percent using FlowMetrics adoption data. Canva was able to identify and fix a checkout flow issue that was costing them two point one million dollars a year in abandoned upgrades.",
+    "slidePrompt": "light background with success stories icons",
+    "duration": 12
+  },
+  {
+    "scene": 7,
+    "beat": "evidence",
+    "title": "Scalability and Reliability",
+    "slideData": {
+      "headline": "Robust Performance",
+      "stats": [
+        {
+          "label": "Uptime SLA",
+          "value": "99.99%"
+        }
+      ],
+      "bullets": [
+        "Processes 3.2 billion events daily",
+        "Used by 12 of Fortune 100"
+      ]
+    },
+    "narration": "FlowMetrics is built for scalability and reliability. It processes three point two billion events daily and boasts a ninety-nine point ninety-nine percent uptime SLA. Trusted by twelve of the Fortune one hundred, you can rest assured that your data is in good hands.",
+    "slidePrompt": "dark background with reliability icon",
+    "duration": 12
+  },
+  {
+    "scene": 8,
+    "beat": "implication",
+    "title": "Business Impact",
+    "slideData": {
+      "headline": "Unlock Efficiency",
+      "stats": [
+        {
+          "label": "Avg ROI",
+          "value": "340% in Year 1"
+        }
+      ],
+      "bullets": [
+        "Reduce time wasted",
+        "Increase feature adoption"
+      ]
+    },
+    "narration": "By integrating FlowMetrics, businesses can unlock significant efficiency gains and reduce time wasted on ineffective features. With an average return on investment of three hundred forty percent in the first year, the benefits are clear.",
+    "slidePrompt": "light background with growth arrow icon",
+    "duration": 10
+  },
+  {
+    "scene": 9,
+    "beat": "action",
+    "title": "Start Your Journey",
+    "slideData": {
+      "headline": "Get Started Today",
+      "stats": [],
+      "bullets": [
+        "14-day free trial",
+        "No SQL knowledge required"
+      ]
+    },
+    "narration": "Ready to see the transformation? Start your fourteen-day free trial today and discover how FlowMetrics can empower your product team with the insights needed to build features that users love.",
+    "slidePrompt": "blue background with trial icon",
+    "duration": 10
+  },
+  {
+    "scene": 10,
+    "beat": "action",
+    "title": "Closing",
+    "slideData": {
+      "headline": "Thank You",
+      "stats": [],
+      "bullets": []
+    },
+    "narration": "Thank you for watching.",
+    "slidePrompt": "simple background with thank you text",
+    "duration": 5
+  }
+]

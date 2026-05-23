@@ -1,0 +1,18 @@
+{
+  "title": "Team Standup Notes — May 20, 2026",
+  "subtitle": null,
+  "source": "text-input",
+  "keyMetrics": [],
+  "sections": [
+    {
+      "title": "Updates",
+      "content": "Backend migration to Postgres 16 completed. New onboarding flow ships Wednesday. Q2 revenue target is $420K, currently at $380K with 6 weeks remaining."
+    }
+  ],
+  "bulletPoints": [
+    "Postgres 16 migration done",
+    "Onboarding flow ships Wednesday"
+  ],
+  "additionalNotes": [],
+  "industry": "technology"
+}

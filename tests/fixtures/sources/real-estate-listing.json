@@ -1,0 +1,48 @@
+{
+  "title": "1847 Magnolia Drive — Luxury Home Listing",
+  "subtitle": "Austin, TX 78703 — Tarrytown Neighborhood",
+  "source": "property-listing",
+  "keyMetrics": [
+    { "label": "List Price", "value": "$1,275,000", "highlight": true },
+    { "label": "Bedrooms / Bathrooms", "value": "4 BD / 3.5 BA" },
+    { "label": "Square Footage", "value": "3,420 sq ft" },
+    { "label": "Lot Size", "value": "0.38 acres" },
+    { "label": "Year Built", "value": "2019" },
+    { "label": "Price Per Sq Ft", "value": "$373" },
+    { "label": "Days on Market", "value": "8" },
+    { "label": "HOA Fees", "value": "$175/month" }
+  ],
+  "sections": [
+    {
+      "title": "Property Description",
+      "content": "Stunning modern farmhouse in the heart of Tarrytown with panoramic Hill Country views. Open-concept living with 12-foot ceilings, white oak hardwood floors throughout, and a chef's kitchen featuring Thermador appliances, quartzite countertops, and a 10-foot waterfall island. Primary suite on the main level with spa-inspired bathroom including a freestanding soaking tub and dual vanities. Three additional bedrooms upstairs with a flex space/game room. Covered back patio with outdoor kitchen, saltwater pool, and mature pecan trees providing natural shade."
+    },
+    {
+      "title": "Recent Upgrades",
+      "content": "2025 upgrades include: whole-home water filtration system ($8,500), Tesla Powerwall battery backup ($12,000), smart home integration with Control4 system ($15,000), and professional landscaping with native drought-resistant plants ($6,200). Total invested in improvements: $41,700."
+    },
+    {
+      "title": "Neighborhood & Schools",
+      "content": "Tarrytown is one of Austin's most sought-after neighborhoods, located minutes from downtown, Lady Bird Lake, and Zilker Park. Walkability score: 82. Zoned for: Casis Elementary (10/10 GreatSchools), O. Henry Middle School (8/10), Austin High School (7/10). Average home prices in Tarrytown: $1.1M-$2.5M."
+    },
+    {
+      "title": "Comparable Sales",
+      "content": "2104 Pruett St: $1,190,000 (3,180 sq ft, sold 2/2026). 1923 Westover Rd: $1,340,000 (3,680 sq ft, sold 1/2026). 2015 Exposition Blvd: $1,225,000 (3,100 sq ft, sold 3/2026). Average comparable: $1,251,667. This listing is priced 1.9% above comparable average with superior upgrades."
+    }
+  ],
+  "bulletPoints": [
+    "Modern farmhouse design with Hill Country views",
+    "Chef's kitchen with Thermador appliances and 10-foot island",
+    "Saltwater pool and outdoor kitchen on 0.38-acre lot",
+    "Main-level primary suite with spa bathroom",
+    "$41,700 in recent upgrades including Tesla Powerwall",
+    "Top-rated Casis Elementary school zone",
+    "8 days on market — high demand area"
+  ],
+  "additionalNotes": [
+    "Seller is motivated — relocating for work. Flexible on closing timeline.",
+    "Pre-inspection report available upon request.",
+    "Property qualifies for Austin Energy Green Building incentives."
+  ],
+  "industry": "real_estate"
+}

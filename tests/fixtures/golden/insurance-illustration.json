@@ -1,0 +1,209 @@
+[
+  {
+    "scene": 1,
+    "beat": "hook",
+    "title": "Protect Your Family",
+    "slideData": {
+      "headline": "Family Security",
+      "stats": [],
+      "bullets": [
+        "What would happen to your family if something unexpected occurred?",
+        "Your family deserves financial protection."
+      ]
+    },
+    "narration": "Hello Margaret A. Chen, thank you for your time. What would happen to your family if something unexpected occurred? Imagine having peace of mind knowing they’re financially secure, no matter what happens. That's the power of Indexed Universal Life insurance.",
+    "slidePrompt": "soft background with a family silhouette",
+    "duration": 15
+  },
+  {
+    "scene": 2,
+    "beat": "disclaimer",
+    "title": "Important Information",
+    "slideData": {
+      "headline": "Disclaimer",
+      "stats": [],
+      "bullets": []
+    },
+    "narration": "Before we begin, please note: this video is intended for educational and informational purposes only. It explains general concepts related to life insurance illustrations. It is not legal, tax, or financial advice. Policy guarantees are based on the claims-paying ability of the issuing insurance company. Any non-guaranteed values shown are subject to change. Please review all policy materials and consult with your licensed insurance professional before making any decisions.",
+    "slidePrompt": "clean background with a legal document icon",
+    "duration": 30
+  },
+  {
+    "scene": 3,
+    "beat": "context",
+    "title": "What is Indexed Universal Life?",
+    "slideData": {
+      "headline": "Your Policy Overview",
+      "stats": [],
+      "bullets": [
+        "Designed for individuals looking for flexible protection.",
+        "Offers both a death benefit and cash value growth."
+      ]
+    },
+    "narration": "This policy is an Indexed Universal Life plan, designed for individuals like you, looking for flexible protection. It provides not only a valuable death benefit but also the potential for cash value growth over time.",
+    "slidePrompt": "background with a financial growth chart",
+    "duration": 20
+  },
+  {
+    "scene": 4,
+    "beat": "stakes",
+    "title": "Death Benefit Importance",
+    "slideData": {
+      "headline": "Protecting Your Loved Ones",
+      "stats": [
+        {
+          "label": "Death Benefit",
+          "value": "$750,000"
+        }
+      ],
+      "bullets": [
+        "Ensures your family’s financial security.",
+        "Provides peace of mind during difficult times."
+      ]
+    },
+    "narration": "The policy includes a death benefit of seven hundred fifty thousand dollars. This ensures your family's financial security in the event of your passing, providing them with peace of mind during difficult times.",
+    "slidePrompt": "background with a heart and family icon",
+    "duration": 25
+  },
+  {
+    "scene": 5,
+    "beat": "evidence",
+    "title": "Monthly Premium Breakdown",
+    "slideData": {
+      "headline": "Affordable Coverage",
+      "stats": [
+        {
+          "label": "Monthly Premium",
+          "value": "$520"
+        },
+        {
+          "label": "Daily Cost",
+          "value": "$16"
+        }
+      ],
+      "bullets": [
+        "Just $520 a month for protection.",
+        "Less than the cost of your daily lunch."
+      ]
+    },
+    "narration": "For just five hundred twenty dollars a month, you secure your family’s future. That's about sixteen dollars a day—less than the cost of your daily lunch. It's an affordable way to ensure your loved ones are protected.",
+    "slidePrompt": "background with a piggy bank",
+    "duration": 20
+  },
+  {
+    "scene": 6,
+    "beat": "evidence",
+    "title": "Cash Value Growth",
+    "slideData": {
+      "headline": "Growing Your Investment",
+      "stats": [],
+      "bullets": [
+        "Guaranteed growth starting at $1,850.",
+        "Projected to reach $84,900 by year ten."
+      ]
+    },
+    "narration": "Your policy's cash value starts at one thousand eight hundred fifty dollars in the first year and is projected to grow significantly, reaching eighty-four thousand nine hundred dollars by year ten. This growth adds a safety net for your future financial needs.",
+    "slidePrompt": "background with an upward trending graph",
+    "duration": 25
+  },
+  {
+    "scene": 7,
+    "beat": "evidence",
+    "title": "Surrender Values Explained",
+    "slideData": {
+      "headline": "Access to Funds",
+      "stats": [
+        {
+          "label": "Year 5 Surrender Value",
+          "value": "$24,000"
+        }
+      ],
+      "bullets": [
+        "Access to cash value if needed.",
+        "Growing liquidity over time."
+      ]
+    },
+    "narration": "After five years, you could access up to twenty-four thousand dollars, providing liquidity if you ever need to tap into your cash value. This growing access to funds can be a crucial resource for you.",
+    "slidePrompt": "background with a cash flow icon",
+    "duration": 20
+  },
+  {
+    "scene": 8,
+    "beat": "evidence",
+    "title": "Loan Rate Details",
+    "slideData": {
+      "headline": "Policy Loans",
+      "stats": [
+        {
+          "label": "Loan Rate",
+          "value": "5%"
+        }
+      ],
+      "bullets": [
+        "Loans available against cash value.",
+        "5% interest rate on loans."
+      ]
+    },
+    "narration": "You can take loans against your policy's cash value at a competitive rate of five percent. This gives you the flexibility to access funds when you need them, while still keeping your policy active.",
+    "slidePrompt": "background with a lending icon",
+    "duration": 20
+  },
+  {
+    "scene": 9,
+    "beat": "evidence",
+    "title": "Policy Riders Explained",
+    "slideData": {
+      "headline": "Additional Protection",
+      "stats": [],
+      "bullets": [
+        "Accelerated Death Benefit Rider.",
+        "Waiver of Premium Rider included."
+      ]
+    },
+    "narration": "Your policy includes valuable riders like the Accelerated Death Benefit Rider, which allows access to the death benefit in case of terminal illness, and the Waiver of Premium Rider, ensuring your coverage continues even if you're unable to pay.",
+    "slidePrompt": "background with a shield icon",
+    "duration": 25
+  },
+  {
+    "scene": 10,
+    "beat": "implication",
+    "title": "What This Means for You",
+    "slideData": {
+      "headline": "Your Financial Future",
+      "stats": [],
+      "bullets": [
+        "Comprehensive protection for your family.",
+        "Flexible options tailored to your needs."
+      ]
+    },
+    "narration": "This Indexed Universal Life policy means comprehensive protection for your family and flexible options tailored to your needs. You can feel confident knowing you’re making a smart financial decision.",
+    "slidePrompt": "background with a family financial planning theme",
+    "duration": 20
+  },
+  {
+    "scene": 11,
+    "beat": "disclaimer-close",
+    "title": "Final Reminder",
+    "slideData": {
+      "headline": "Disclaimer",
+      "stats": [],
+      "bullets": []
+    },
+    "narration": "As a reminder, this video is for educational purposes only and does not constitute financial advice. Policy guarantees depend on the issuing carrier's claims-paying ability, and non-guaranteed values may change. Please review your official policy documents and consult with your licensed professional.",
+    "slidePrompt": "background with a legal document icon",
+    "duration": 30
+  },
+  {
+    "scene": 12,
+    "beat": "action",
+    "title": "Next Steps",
+    "slideData": {
+      "headline": "Contact Us",
+      "stats": [],
+      "bullets": []
+    },
+    "narration": "If you’re ready to secure your family’s future, call us today. You can reach us at one-eight-hundred-four-four-one-one-four-one-seven, or email us at mchen@securefuturefinancial.com. Thank you for your time. If you have any questions, please don't hesitate to reach out.",
+    "slidePrompt": "background with a contact info icon",
+    "duration": 30
+  }
+]

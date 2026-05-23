@@ -1,0 +1,46 @@
+{
+  "title": "Apex Affinity Group — Insurance Marketing Organization",
+  "subtitle": "Helping Independent Agents Grow Their Business",
+  "source": "https://apexaffinitygroup.com",
+  "keyMetrics": [
+    { "label": "Agents Supported", "value": "1,200+", "highlight": true },
+    { "label": "Carrier Partners", "value": "45+" },
+    { "label": "States Licensed", "value": "All 50 States" },
+    { "label": "Avg Agent Commission Increase", "value": "35% in Year 1", "highlight": true }
+  ],
+  "sections": [
+    {
+      "title": "Who We Are",
+      "content": "Apex Affinity Group is a national insurance marketing organization (IMO) that provides independent life and health insurance agents with top-tier carrier contracts, advanced training, and technology tools to grow their business. Founded in 2018, Apex has grown to support over 1,200 agents across all 50 states."
+    },
+    {
+      "title": "What We Offer",
+      "content": "Street-level and above contracts with 45+ A-rated carriers. In-house case design and underwriting support. Proprietary CRM and lead management platform. Weekly training webinars and annual conference. Co-op marketing programs. Real-time commission tracking and advance programs."
+    },
+    {
+      "title": "Products",
+      "content": "Life Insurance: Term, Whole Life, IUL, Final Expense. Health Insurance: ACA, Medicare Advantage, Medicare Supplement, Dental/Vision. Annuities: Fixed, Fixed Indexed, MYGA. Specialty: Disability Income, Long-Term Care, Group Benefits."
+    },
+    {
+      "title": "Agent Success Stories",
+      "content": "Maria Gonzalez, Austin TX: 'I went from $80K to $185K in my first year with Apex. The case design support alone is worth it.' James Patterson, Atlanta GA: 'The carrier access changed everything. I was captive before — now I can actually shop for my clients.' Priya Sharma, Chicago IL: 'The weekly training keeps me sharp. I placed my first IUL case within 60 days of joining.'"
+    },
+    {
+      "title": "Technology Platform",
+      "content": "Apex Connect CRM: Manage leads, track policies, automate follow-ups. E-App integration with 30+ carriers. Quote comparison engine for life, health, and annuity products. Client portal for policy access and service requests. Mobile app for on-the-go quoting and submissions."
+    }
+  ],
+  "bulletPoints": [
+    "No production requirements — keep your contracts even if you take a month off",
+    "Same-day contracting with most carriers",
+    "Dedicated case designer assigned to every agent",
+    "Monthly bonus programs above standard commission",
+    "Annual Apex Summit conference with top industry speakers"
+  ],
+  "additionalNotes": [
+    "Headquarters: Dallas, TX. Regional offices in Atlanta, Chicago, and Phoenix.",
+    "Contact: 1-888-274-2739 or agents@apexaffinitygroup.com",
+    "Schedule a discovery call at calendly.com/apex-recruiting"
+  ],
+  "industry": "insurance"
+}

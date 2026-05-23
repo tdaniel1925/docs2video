@@ -1,0 +1,48 @@
+{
+  "title": "Q1 2026 Portfolio Review",
+  "subtitle": "Chen Family Trust — Managed Account Summary",
+  "source": "quarterly-review",
+  "keyMetrics": [
+    { "label": "Total Portfolio Value", "value": "$2,847,320", "highlight": true },
+    { "label": "Quarterly Return", "value": "+4.2%", "highlight": true },
+    { "label": "YTD Return", "value": "+4.2%" },
+    { "label": "Benchmark (S&P 500)", "value": "+3.8%" },
+    { "label": "Inception-to-Date Return", "value": "+47.6%" },
+    { "label": "Annual Dividend Income", "value": "$68,420" }
+  ],
+  "sections": [
+    {
+      "title": "Asset Allocation",
+      "content": "Current allocation: 55% US Equities ($1,566,026), 15% International Equities ($427,098), 20% Fixed Income ($569,464), 5% Real Estate ($142,366), 5% Cash & Equivalents ($142,366). Target allocation unchanged from last quarter. US Equities slightly overweight due to Q1 performance."
+    },
+    {
+      "title": "Performance Attribution",
+      "content": "Top contributors: Technology sector (+8.2% allocation return), Healthcare (+5.1%), Consumer Discretionary (+4.8%). Detractors: Energy (-2.1%), Utilities (-0.8%). International holdings contributed +3.4% with strength in European markets."
+    },
+    {
+      "title": "Fixed Income Analysis",
+      "content": "Bond portfolio duration: 4.8 years. Average yield: 4.9%. Holdings split between investment-grade corporate bonds (60%), US Treasuries (25%), and municipal bonds (15%). No credit events during the quarter."
+    },
+    {
+      "title": "Risk Metrics",
+      "content": "Portfolio beta: 0.87. Sharpe ratio: 1.42 (trailing 12 months). Maximum drawdown in Q1: -1.8% (February). VaR (95%, 1-day): $28,470."
+    },
+    {
+      "title": "Recommendations",
+      "content": "1. Rebalance US Equities to target 55% (trim $12,400). 2. Increase municipal bond allocation ahead of potential tax law changes. 3. Consider adding emerging market exposure (target 3% from International). 4. Schedule annual estate planning review — trust provisions should be reviewed given new beneficiary."
+    }
+  ],
+  "bulletPoints": [
+    "Portfolio outperformed benchmark by 40 basis points this quarter",
+    "Dividend income on track for $68,420 annually",
+    "Tax-loss harvesting captured $14,200 in realized losses",
+    "Next rebalancing window: April 15, 2026",
+    "Fee summary: 0.65% annual management fee ($18,508)"
+  ],
+  "additionalNotes": [
+    "RMD for 2026 estimated at $42,800 from IRA holdings.",
+    "Charitable giving strategy: consider donor-advised fund contribution before year-end.",
+    "Account consolidated from 3 prior advisors in 2023."
+  ],
+  "industry": "financial_services"
+}

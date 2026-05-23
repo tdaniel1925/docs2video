@@ -1,0 +1,167 @@
+[
+  {
+    "scene": 1,
+    "beat": "hook",
+    "title": "Stunning Modern Farmhouse",
+    "slideData": {
+      "headline": "1847 Magnolia Drive",
+      "stats": [
+        {
+          "label": "List Price",
+          "value": "$1,275,000"
+        }
+      ],
+      "bullets": [
+        "4 Bedrooms / 3.5 Bathrooms",
+        "3,420 sq ft",
+        "Built in 2019"
+      ]
+    },
+    "narration": "Imagine waking up every day to breathtaking Hill Country views in this stunning modern farmhouse at 1847 Magnolia Drive, listed for one million two hundred seventy-five thousand dollars. With four bedrooms and three and a half bathrooms, this spacious home offers a perfect blend of luxury and comfort.",
+    "slidePrompt": "beautiful farmhouse with scenic hill views",
+    "duration": 10
+  },
+  {
+    "scene": 2,
+    "beat": "context",
+    "title": "Tarrytown Neighborhood",
+    "slideData": {
+      "headline": "Desirable Location",
+      "stats": [],
+      "bullets": [
+        "Heart of Tarrytown",
+        "Minutes from downtown Austin",
+        "Walkability score: 82"
+      ]
+    },
+    "narration": "Located in the heart of Tarrytown, this home places you just minutes away from downtown Austin, Lady Bird Lake, and Zilker Park. With a walkability score of eighty-two, you can easily explore this vibrant community.",
+    "slidePrompt": "map of Tarrytown with key locations",
+    "duration": 8
+  },
+  {
+    "scene": 3,
+    "beat": "stakes",
+    "title": "High Demand Property",
+    "slideData": {
+      "headline": "Act Fast!",
+      "stats": [
+        {
+          "label": "Days on Market",
+          "value": "8"
+        }
+      ],
+      "bullets": [
+        "Highly sought-after area",
+        "Motivated seller",
+        "Flexible closing timeline"
+      ]
+    },
+    "narration": "This breathtaking home has only been on the market for eight days, highlighting the high demand in this sought-after neighborhood. The seller is motivated and flexible on the closing timeline, making this the perfect opportunity for you.",
+    "slidePrompt": "clock ticking to signify urgency",
+    "duration": 8
+  },
+  {
+    "scene": 4,
+    "beat": "evidence",
+    "title": "Luxurious Features",
+    "slideData": {
+      "headline": "Modern Amenities",
+      "stats": [],
+      "bullets": [
+        "Chef's kitchen with Thermador appliances",
+        "Saltwater pool and outdoor kitchen",
+        "Spa-inspired primary suite"
+      ]
+    },
+    "narration": "This home boasts a chef's kitchen featuring Thermador appliances and a stunning ten-foot waterfall island, perfect for entertaining. Step outside to find a saltwater pool and outdoor kitchen—ideal for enjoying the beautiful Texas climate. The primary suite offers a spa-inspired bathroom, ensuring every day feels like a retreat.",
+    "slidePrompt": "luxury kitchen and pool visuals",
+    "duration": 10
+  },
+  {
+    "scene": 5,
+    "beat": "evidence",
+    "title": "Recent Upgrades",
+    "slideData": {
+      "headline": "Invested in Quality",
+      "stats": [
+        {
+          "label": "Total Upgrades",
+          "value": "$41,700"
+        }
+      ],
+      "bullets": [
+        "Tesla Powerwall for energy efficiency",
+        "Whole-home water filtration system",
+        "Professional landscaping with native plants"
+      ]
+    },
+    "narration": "With a total investment of forty-one thousand seven hundred dollars in upgrades, this home is equipped with a Tesla Powerwall for energy efficiency and a whole-home water filtration system. The professional landscaping features native drought-resistant plants, enhancing curb appeal while being environmentally friendly.",
+    "slidePrompt": "visuals of modern upgrades",
+    "duration": 10
+  },
+  {
+    "scene": 6,
+    "beat": "evidence",
+    "title": "Top-rated Schools",
+    "slideData": {
+      "headline": "Educational Excellence",
+      "stats": [],
+      "bullets": [
+        "Casis Elementary (10/10)",
+        "O. Henry Middle School (8/10)",
+        "Austin High School (7/10)"
+      ]
+    },
+    "narration": "Families will appreciate being zoned for top-rated schools, including Casis Elementary, which boasts a perfect ten out of ten rating. O. Henry Middle School and Austin High School also offer excellent educational opportunities, adding to the appeal of this location.",
+    "slidePrompt": "school ratings and logos",
+    "duration": 8
+  },
+  {
+    "scene": 7,
+    "beat": "implication",
+    "title": "Investment Potential",
+    "slideData": {
+      "headline": "Smart Investment",
+      "stats": [
+        {
+          "label": "Average Home Prices",
+          "value": "$1.1M-$2.5M"
+        }
+      ],
+      "bullets": [
+        "Priced competitively",
+        "Superior upgrades",
+        "Investment in a desirable community"
+      ]
+    },
+    "narration": "This property is competitively priced at one million two hundred seventy-five thousand dollars, slightly above the average comparable of one million two hundred fifty-one thousand six hundred sixty-seven dollars. With superior upgrades and located in a desirable community, it represents a smart investment for your future.",
+    "slidePrompt": "graph comparing home prices",
+    "duration": 10
+  },
+  {
+    "scene": 8,
+    "beat": "action",
+    "title": "Your New Home Awaits",
+    "slideData": {
+      "headline": "Schedule a Showing",
+      "stats": [],
+      "bullets": []
+    },
+    "narration": "Don’t wait—schedule your private tour today and discover your new home at 1847 Magnolia Drive. This luxurious property could be the perfect fit for your lifestyle.",
+    "slidePrompt": "inviting visual of the home exterior",
+    "duration": 8
+  },
+  {
+    "scene": 9,
+    "beat": "disclaimer-close",
+    "title": "Thank You for Watching",
+    "slideData": {
+      "headline": "End of Presentation",
+      "stats": [],
+      "bullets": []
+    },
+    "narration": "Thank you for watching.",
+    "slidePrompt": "simple elegant background",
+    "duration": 5
+  }
+]

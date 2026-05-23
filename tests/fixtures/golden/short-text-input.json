@@ -1,0 +1,60 @@
+[
+  {
+    "scene": 1,
+    "beat": "hook",
+    "title": "Revenue Goals in Sight",
+    "slideData": {
+      "headline": "Team Standup Notes",
+      "bullets": [
+        "$420K Q2 revenue target",
+        "$380K currently",
+        "6 weeks remaining"
+      ]
+    },
+    "narration": "Are we ready to hit our revenue goals and improve our systems? Our target for Q2 is four hundred twenty thousand dollars, and we're currently at three hundred eighty thousand, with just six weeks left to close the gap.",
+    "slidePrompt": "dynamic graphic showing a countdown clock",
+    "duration": 15
+  },
+  {
+    "scene": 2,
+    "beat": "evidence",
+    "title": "System Enhancements",
+    "slideData": {
+      "headline": "Postgres Migration Complete",
+      "bullets": [
+        "Backend migration to Postgres 16 completed",
+        "New onboarding flow ships Wednesday"
+      ]
+    },
+    "narration": "The successful migration to Postgres 16 enhances our system's performance and reliability. Plus, we’re launching a new onboarding flow this Wednesday, which will streamline the process for new users.",
+    "slidePrompt": "illustration of seamless data flow",
+    "duration": 20
+  },
+  {
+    "scene": 3,
+    "beat": "implication",
+    "title": "Path to Success",
+    "slideData": {
+      "headline": "Boosting Efficiency",
+      "bullets": [
+        "Enhanced user experience",
+        "Increased sales potential"
+      ]
+    },
+    "narration": "These improvements mean enhanced user experiences and greater potential for sales. With these systems in place, we are well-positioned to meet our revenue targets.",
+    "slidePrompt": "graphic showing upward trajectory in performance",
+    "duration": 15
+  },
+  {
+    "scene": 4,
+    "beat": "action",
+    "title": "Let’s Rally Together",
+    "slideData": {
+      "headline": "Every Contribution Counts",
+      "bullets": []
+    },
+    "narration": "Let’s work together to close the revenue gap—every contribution counts!",
+    "slidePrompt": "motivational visual of teamwork",
+    "duration": 10
+  }
+]

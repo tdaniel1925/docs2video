@@ -1,0 +1,47 @@
+{
+  "title": "FlowMetrics — Real-Time Analytics for Product Teams",
+  "subtitle": "Ship faster with confidence. Know what users actually do.",
+  "source": "product-onepager",
+  "keyMetrics": [
+    { "label": "Active Customers", "value": "2,400+", "highlight": true },
+    { "label": "Events Processed Daily", "value": "3.2 Billion" },
+    { "label": "Avg Setup Time", "value": "< 15 minutes" },
+    { "label": "Uptime SLA", "value": "99.99%" },
+    { "label": "Avg ROI", "value": "340% in Year 1", "highlight": true }
+  ],
+  "sections": [
+    {
+      "title": "The Problem",
+      "content": "Product teams spend 40% of their time arguing about what to build next — because they don't have real usage data. Spreadsheets and gut feelings lead to shipping features nobody uses. Meanwhile, churn creeps up and nobody knows why until it's too late."
+    },
+    {
+      "title": "How FlowMetrics Works",
+      "content": "One SDK. Five minutes to integrate. FlowMetrics captures every user interaction — clicks, scrolls, rage clicks, feature usage, session recordings — and turns it into actionable dashboards your whole team can understand. No SQL required. Auto-generated insights surface what's working and what's not before you have to ask."
+    },
+    {
+      "title": "Key Features",
+      "content": "Real-time event streaming with sub-second latency. Cohort analysis and user segmentation. Funnel visualization with drop-off detection. Feature adoption tracking. Session replay with privacy masking. AI-powered anomaly detection alerts. Custom dashboards with drag-and-drop builder. SOC 2 Type II certified."
+    },
+    {
+      "title": "Customer Results",
+      "content": "Notion reduced feature development cycles by 30% using FlowMetrics adoption data. Canva identified and fixed a checkout flow issue that was costing $2.1M/year in abandoned upgrades. Linear credits FlowMetrics with helping them achieve 95% feature adoption rates across their user base."
+    },
+    {
+      "title": "Pricing",
+      "content": "Starter: Free up to 10K events/month. Growth: $299/month for up to 10M events. Scale: $899/month for up to 100M events. Enterprise: Custom pricing with dedicated support, SLA, and on-premise option."
+    }
+  ],
+  "bulletPoints": [
+    "One-line SDK integration for React, Vue, Angular, iOS, Android",
+    "GDPR and CCPA compliant out of the box",
+    "No impact on page load speed (async, < 5KB gzipped)",
+    "14-day free trial on all paid plans",
+    "Used by 12 of the Fortune 100"
+  ],
+  "additionalNotes": [
+    "Founded in 2022 by former Amplitude and Mixpanel engineers.",
+    "Series B: $48M raised from Andreessen Horowitz and Index Ventures.",
+    "Named a Leader in Forrester Wave for Digital Analytics, Q1 2026."
+  ],
+  "industry": "technology"
+}

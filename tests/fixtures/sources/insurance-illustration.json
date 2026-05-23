@@ -1,0 +1,60 @@
+{
+  "policyType": "Indexed Universal Life",
+  "carrier": "National Western Life",
+  "insuredName": "Margaret A. Chen",
+  "insuredAge": 42,
+  "deathBenefit": 750000,
+  "annualPremium": 6240,
+  "paymentMode": "Monthly ($520/mo)",
+  "cashValueProjections": [
+    { "year": 1, "guaranteed": 1850, "current": 4120 },
+    { "year": 2, "guaranteed": 3200, "current": 9430 },
+    { "year": 3, "guaranteed": 4100, "current": 15800 },
+    { "year": 4, "guaranteed": 4600, "current": 22900 },
+    { "year": 5, "guaranteed": 4900, "current": 31200 },
+    { "year": 6, "guaranteed": 5100, "current": 40100 },
+    { "year": 7, "guaranteed": 5200, "current": 49800 },
+    { "year": 8, "guaranteed": 5300, "current": 60400 },
+    { "year": 9, "guaranteed": 5400, "current": 72100 },
+    { "year": 10, "guaranteed": 5500, "current": 84900 }
+  ],
+  "surrenderValueProjections": [
+    { "year": 1, "guaranteed": 0, "current": 0 },
+    { "year": 2, "guaranteed": 0, "current": 2100 },
+    { "year": 3, "guaranteed": 0, "current": 8500 },
+    { "year": 4, "guaranteed": 0, "current": 15700 },
+    { "year": 5, "guaranteed": 1200, "current": 24000 },
+    { "year": 6, "guaranteed": 2400, "current": 33100 },
+    { "year": 7, "guaranteed": 3600, "current": 42800 },
+    { "year": 8, "guaranteed": 4800, "current": 53400 },
+    { "year": 9, "guaranteed": 5400, "current": 65100 },
+    { "year": 10, "guaranteed": 5500, "current": 77900 }
+  ],
+  "riders": [
+    "Accelerated Death Benefit Rider",
+    "Waiver of Premium Rider",
+    "Term Life Insurance Rider ($250,000 for 20 years)"
+  ],
+  "loanRate": 5.0,
+  "additionalNotes": [
+    "Policy includes a 0% floor with 10.5% cap on the S&P 500 index account.",
+    "Guaranteed interest rate of 2% on the fixed account.",
+    "Surrender charges apply for the first 10 policy years.",
+    "This illustration assumes a 6.32% illustrated rate, which is not guaranteed."
+  ],
+  "disclaimers": [
+    "This is an illustration, not a contract. Actual results may vary.",
+    "The values shown are not guaranteed unless specifically labeled as guaranteed.",
+    "Policy loans and withdrawals will reduce the death benefit and cash value."
+  ],
+  "contactInfo": {
+    "phone": "1-800-441-1417",
+    "email": "mchen@securefuturefinancial.com",
+    "website": "www.securefuturefinancial.com"
+  },
+  "agentInfo": {
+    "name": "David R. Nakamura",
+    "agency": "Secure Future Financial Group",
+    "license": "CA DOI #0K84521"
+  }
+}
