@@ -172,7 +172,7 @@ export async function generateScript(
 - Do NOT summarize — EXPAND on each point. Explain what it means, why it matters, how it works
 - If a section has multiple sub-points, give each sub-point its own scene
 - Add context scenes: explain background, industry context, why the viewer should care
-- Target 5-15 minutes minimum. If you create less than 10 scenes, you are not being thorough enough.
+- Use as many scenes as the content requires. A 1-page document might need 4 scenes. A 50-page document might need 12. Let the source data dictate scene count, not a fixed minimum.
 - This should feel like a comprehensive training walkthrough, not a summary`)
   } else {
     additionalSections.push(`VIDEO LENGTH: STANDARD — Cover all major points with reasonable depth. 6-12 scenes. Each scene should fully explain its topic.`)
