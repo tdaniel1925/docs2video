@@ -100,13 +100,14 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, narrationStyle, assetUrls, purpose, uploadMode, industry } = body as {
+  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, styleReferenceUrl, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, narrationStyle, assetUrls, purpose, uploadMode, industry } = body as {
     videoId: string
     policyData: ExtractedPolicyData | ExtractedData
     brandId: string | null
     voiceId: string
     styleId?: SlideStyleId
     customStylePrompt?: string
+    styleReferenceUrl?: string
     approvedSlides?: string[]
     preGeneratedScenes?: any[]
     detailed?: boolean
@@ -386,6 +387,10 @@ export async function POST(request: Request) {
 
     // STAGE 2: Build slide prompts — simple, direct prompts for OpenAI
     console.log(`[video ${videoId}] Building slide prompts for ${scenes.length} scenes...`)
+    // Save style reference URL if provided (custom uploaded style)
+    if (styleReferenceUrl) {
+      await admin.from('videos').update({ style_reference_url: styleReferenceUrl }).eq('id', videoId)
+    }
     await admin.from('videos').update({ progress_detail: 'Preparing slide designs...', progress_pct: 16 }).eq('id', videoId)
 
     const templateId = (styleId ?? brand?.deck_style_id ?? 'executive') as string

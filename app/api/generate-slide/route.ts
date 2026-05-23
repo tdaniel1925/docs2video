@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { policyData, slideIndex, styleId, brandId, slidePrompt, isLastSlide, assetUrl, previousSlideBase64 } = body as {
+  const { policyData, slideIndex, styleId, brandId, slidePrompt, isLastSlide, assetUrl, previousSlideBase64, styleReferenceUrl } = body as {
     policyData: ExtractedPolicyData | ExtractedData
     slideIndex: number
     styleId: SlideStyleId
@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     isLastSlide?: boolean
     assetUrl?: string
     previousSlideBase64?: string
+    styleReferenceUrl?: string
   }
 
   let brandName: string | null = null
@@ -74,10 +75,19 @@ export async function POST(request: Request) {
     const fs = await import('fs/promises')
     const path = await import('path')
     let templateRefBuffer: Buffer | null = null
-    try {
-      const refPath = path.join(process.cwd(), 'public', 'style-previews', `${styleId}.png`)
-      templateRefBuffer = await fs.readFile(refPath)
-    } catch { /* template preview not found, skip */ }
+    // Priority: styleReferenceUrl (custom upload) > local style preview file
+    if (styleReferenceUrl) {
+      try {
+        const refRes = await fetch(styleReferenceUrl, { signal: AbortSignal.timeout(8000) })
+        if (refRes.ok) templateRefBuffer = Buffer.from(await refRes.arrayBuffer())
+      } catch { /* proceed without custom reference */ }
+    }
+    if (!templateRefBuffer) {
+      try {
+        const refPath = path.join(process.cwd(), 'public', 'style-previews', `${styleId}.png`)
+        templateRefBuffer = await fs.readFile(refPath)
+      } catch { /* template preview not found, skip */ }
+    }
 
     // Download asset image if provided
     let assetBuffer: Buffer | null = null
