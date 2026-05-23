@@ -1,4 +1,5 @@
 import { buildInsuranceScriptPrompt, buildGenericScriptPrompt } from './script-generator-v1'
+import { buildGenericScriptPromptV2 } from './script-generator-v2'
 import { buildStrategicAnalysisPrompt } from './strategic-analysis-v1'
 import { buildBrandAnalysisPrompt } from './brand-analysis-v1'
 import { THEME_PROMPT, EXTRACTION_PROMPT, CONTENT_STRUCTURING_SYSTEM_PROMPT } from './extraction-v1'
@@ -6,7 +7,7 @@ import { buildScriptChatSystemPrompt } from './script-chat-v1'
 
 export const PROMPT_REGISTRY = {
   script_generation_insurance: { v1: buildInsuranceScriptPrompt },
-  script_generation_generic: { v1: buildGenericScriptPrompt },
+  script_generation_generic: { v1: buildGenericScriptPrompt, v2: buildGenericScriptPromptV2 },
   strategic_analysis: { v1: buildStrategicAnalysisPrompt },
   brand_analysis: { v1: buildBrandAnalysisPrompt },
   extraction_url: { v1: EXTRACTION_PROMPT },
@@ -41,6 +42,7 @@ export function getPrompt<K extends keyof typeof PROMPT_REGISTRY>(
 
 // Re-export for convenience
 export { buildInsuranceScriptPrompt, buildGenericScriptPrompt } from './script-generator-v1'
+export { buildGenericScriptPromptV2 } from './script-generator-v2'
 export { buildStrategicAnalysisPrompt } from './strategic-analysis-v1'
 export { buildBrandAnalysisPrompt } from './brand-analysis-v1'
 export { THEME_PROMPT, EXTRACTION_PROMPT, CONTENT_STRUCTURING_SYSTEM_PROMPT } from './extraction-v1'
