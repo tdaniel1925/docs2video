@@ -1,8 +1,9 @@
 import OpenAI from 'openai'
 import type { ExtractedPolicyData, VideoScene } from './types'
 import { type ExtractedData, isInsuranceData } from './extract-types'
-import { detectIndustry } from './industries'
+import { detectIndustry, classifyIndustryLLM } from './industries'
 import { getPrompt } from './prompts'
+import { fitSourceData } from './source-data-fitter'
 
 let _openai: OpenAI | null = null
 function getOpenAI() {
@@ -125,16 +126,22 @@ export async function generateScript(
       model: 'gpt-4o-mini',
       messages: [{
         role: 'user',
-        content: getPrompt('strategic_analysis', process.env.PROMPT_VERSION_OVERRIDE || undefined)(
-          intentGuidance,
-          JSON.stringify(data).slice(0, 30000),
-          {
-            phone: contactInfo?.phone,
-            email: contactInfo?.email,
-            calendly: contactInfo?.calendly,
-            website: (contactInfo as any)?.website,
-          },
-        ),
+        content: (() => {
+          const { fitted, wasTruncated, droppedSections } = fitSourceData(data, 30000)
+          if (wasTruncated) {
+            console.warn(`[script-gen] Source data truncated for strategic analysis. Dropped: ${droppedSections.join(', ')}`)
+          }
+          return getPrompt('strategic_analysis', process.env.PROMPT_VERSION_OVERRIDE || undefined)(
+            intentGuidance,
+            JSON.stringify(fitted),
+            {
+              phone: contactInfo?.phone,
+              email: contactInfo?.email,
+              calendly: contactInfo?.calendly,
+              website: (contactInfo as any)?.website,
+            },
+          )
+        })(),
       }],
       temperature: 0.3,
     })
@@ -214,7 +221,7 @@ For websites in narration: just say "visit their website" — the URL will be on
   // Podcast mode: generate dialogue with speaker tags
   if (narrationStyle === 'podcast') {
     // Determine conversation style based on content type
-    const detectedIndustry = industry || detectIndustry((data as any).title || '', JSON.stringify(data))
+    const detectedIndustry = industry || await classifyIndustryLLM((data as any).title || '', JSON.stringify(data))
     const seriousIndustries = ['insurance', 'finance', 'legal', 'healthcare', 'medical']
     const isSerious = seriousIndustries.includes(detectedIndustry)
 
