@@ -736,36 +736,6 @@ export default function HomePage() {
         {/* ───── FAQ ───── */}
         <FaqSection />
 
-        {/* ───── Our Story ───── */}
-        <section style={{padding:'80px 24px',maxWidth:800,margin:'0 auto',textAlign:'center'}}>
-          <div style={{display:'inline-block',marginBottom:32}}>
-            <img
-              src="/founders.png"
-              alt="Trent and Sella Daniel, founders of Docs2Video"
-              style={{width:320,height:'auto',borderRadius:10,boxShadow:'0 8px 32px rgba(0,0,0,0.12)'}}
-            />
-          </div>
-          <h2 style={{fontSize:28,fontWeight:800,letterSpacing:'-0.02em',color:'var(--ink)',marginBottom:12}}>
-            Built by people who get it
-          </h2>
-          <p style={{fontSize:16,lineHeight:1.7,color:'var(--ink-soft)',maxWidth:640,margin:'0 auto 16px'}}>
-            We spent years helping businesses grow &mdash; Trent as a radio and television producer, Sella as a marketing executive at Greystar. We watched the same pattern over and over: great proposals, powerful reports, detailed documents... that nobody ever opened.
-          </p>
-          <p style={{fontSize:16,lineHeight:1.7,color:'var(--ink-soft)',maxWidth:640,margin:'0 auto 24px'}}>
-            So we built Docs2Video. Because a three-minute video gets watched. A thirty-page PDF doesn&apos;t. And the businesses that communicate clearly are the ones that win.
-          </p>
-          <div style={{display:'flex',justifyContent:'center',gap:32,fontSize:14,color:'var(--ink-light)'}}>
-            <div>
-              <div style={{fontWeight:700,color:'var(--ink)',fontSize:15}}>Trent Daniel</div>
-              <div>CEO, BotMakers Inc.</div>
-            </div>
-            <div>
-              <div style={{fontWeight:700,color:'var(--ink)',fontSize:15}}>Sella Daniel</div>
-              <div>Creative Director</div>
-            </div>
-          </div>
-        </section>
-
         {/* ───── Final CTA ───── */}
         <section className="final-cta">
           <h2>Stop sending documents <em>nobody reads</em></h2>
