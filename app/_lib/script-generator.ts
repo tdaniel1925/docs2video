@@ -2,7 +2,7 @@ import OpenAI from 'openai'
 import type { ExtractedPolicyData, VideoScene } from './types'
 import { type ExtractedData, isInsuranceData } from './extract-types'
 import { detectIndustry } from './industries'
-import { buildStrategicAnalysisPrompt, getPrompt } from './prompts'
+import { getPrompt } from './prompts'
 
 let _openai: OpenAI | null = null
 function getOpenAI() {
@@ -125,7 +125,7 @@ export async function generateScript(
       model: 'gpt-4o-mini',
       messages: [{
         role: 'user',
-        content: buildStrategicAnalysisPrompt(
+        content: getPrompt('strategic_analysis', process.env.PROMPT_VERSION_OVERRIDE || undefined)(
           intentGuidance,
           JSON.stringify(data).slice(0, 30000),
           {

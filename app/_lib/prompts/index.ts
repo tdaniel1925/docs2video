@@ -2,6 +2,7 @@ import { buildInsuranceScriptPrompt, buildGenericScriptPrompt } from './script-g
 import { buildGenericScriptPromptV2 } from './script-generator-v2'
 import { buildInsuranceScriptPromptV2 } from './script-generator-insurance-v2'
 import { buildStrategicAnalysisPrompt } from './strategic-analysis-v1'
+import { buildStrategicAnalysisPromptV2 } from './strategic-analysis-v2'
 import { buildBrandAnalysisPrompt } from './brand-analysis-v1'
 import { THEME_PROMPT, EXTRACTION_PROMPT, CONTENT_STRUCTURING_SYSTEM_PROMPT } from './extraction-v1'
 import { buildScriptChatSystemPrompt } from './script-chat-v1'
@@ -9,7 +10,7 @@ import { buildScriptChatSystemPrompt } from './script-chat-v1'
 export const PROMPT_REGISTRY = {
   script_generation_insurance: { v1: buildInsuranceScriptPrompt, v2: buildInsuranceScriptPromptV2 },
   script_generation_generic: { v1: buildGenericScriptPrompt, v2: buildGenericScriptPromptV2 },
-  strategic_analysis: { v1: buildStrategicAnalysisPrompt },
+  strategic_analysis: { v1: buildStrategicAnalysisPrompt, v2: buildStrategicAnalysisPromptV2 },
   brand_analysis: { v1: buildBrandAnalysisPrompt },
   extraction_url: { v1: EXTRACTION_PROMPT },
   extraction_theme: { v1: THEME_PROMPT },
@@ -46,6 +47,7 @@ export { buildInsuranceScriptPrompt, buildGenericScriptPrompt } from './script-g
 export { buildGenericScriptPromptV2 } from './script-generator-v2'
 export { buildInsuranceScriptPromptV2 } from './script-generator-insurance-v2'
 export { buildStrategicAnalysisPrompt } from './strategic-analysis-v1'
+export { buildStrategicAnalysisPromptV2 } from './strategic-analysis-v2'
 export { buildBrandAnalysisPrompt } from './brand-analysis-v1'
 export { THEME_PROMPT, EXTRACTION_PROMPT, CONTENT_STRUCTURING_SYSTEM_PROMPT } from './extraction-v1'
 export { buildScriptChatSystemPrompt } from './script-chat-v1'
