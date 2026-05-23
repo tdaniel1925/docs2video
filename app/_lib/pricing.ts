@@ -24,13 +24,13 @@ export const PLANS: PlanInfo[] = [
     monthlyPrice: 0,
     description: 'No subscription required',
     features: [
-      '1 free video to try',
+      '2 free videos to try',
       '$10 per additional video',
       'Full quality, no watermark',
       'Share pages with AI chat',
       'Download MP4, PDF, PPTX',
     ],
-    videosPerMonth: 1,
+    videosPerMonth: 2,
     extraVideoPrice: 1000, // $10
     regenCreditsPerVideo: 2,
   },

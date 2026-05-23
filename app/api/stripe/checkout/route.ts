@@ -19,8 +19,8 @@ export async function POST(request: Request) {
 
   const { planId } = (await request.json()) as { planId?: string }
 
-  if (!planId || !['starter', 'pro', 'business', 'enterprise'].includes(planId)) {
-    return NextResponse.json({ error: 'Invalid plan. Must be starter, pro, business, or enterprise.' }, { status: 400 })
+  if (!planId || !['personal', 'starter', 'pro', 'business', 'enterprise'].includes(planId)) {
+    return NextResponse.json({ error: 'Invalid plan.' }, { status: 400 })
   }
 
   const priceId = SUBSCRIPTION_PRICES[planId as Exclude<PlanTier, 'free'>]
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     .eq('id', user.id)
     .single()
 
-  const origin = request.headers.get('origin') ?? 'https://prismgraphs.com'
+  const origin = request.headers.get('origin') ?? 'https://docs2video.com'
 
   try {
     const stripe = getStripe()

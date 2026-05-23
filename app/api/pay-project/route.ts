@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
-import { getStripe, PROJECT_PRICE_IDS } from '../../_lib/stripe'
+import { getStripe, VIDEO_PRICE_IDS } from '../../_lib/stripe'
 import { getUserPrice, getProjectPrice, getUserTier, isProMember, isUnlimited, formatPrice } from '../../_lib/pricing'
 
 export const runtime = 'nodejs'
@@ -9,14 +9,9 @@ export const runtime = 'nodejs'
  * Resolve the correct Stripe Price ID for a project type + user tier.
  */
 function resolveStripePriceId(projectType: string, tier: string): string | null {
-  if (projectType === 'course') {
-    if (tier === 'business') return PROJECT_PRICE_IDS.course_biz
-    if (tier === 'pro') return PROJECT_PRICE_IDS.course_pro
-    return PROJECT_PRICE_IDS.course
-  }
-  // video, deck, infographic
-  if (tier === 'pro') return PROJECT_PRICE_IDS.project_pro
-  return PROJECT_PRICE_IDS.project
+  // Paid members get $5 rate, free tier gets $10 rate
+  if (tier !== 'free') return VIDEO_PRICE_IDS.member
+  return VIDEO_PRICE_IDS.free
 }
 
 /**
@@ -61,7 +56,7 @@ export async function POST(request: Request) {
     })
   }
 
-  const origin = request.headers.get('origin') ?? 'https://prismgraphs.com'
+  const origin = request.headers.get('origin') ?? 'https://docs2video.com'
   const stripePriceId = resolveStripePriceId(projectType, tier)
 
   try {
