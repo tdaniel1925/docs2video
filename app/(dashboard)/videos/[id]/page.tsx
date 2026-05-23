@@ -210,7 +210,8 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
           <button
             onClick={async () => {
               const sb = createClient()
-              await sb.from('videos').update({ status: 'pending', progress_pct: 0, progress_detail: 'Restarting...' }).eq('id', window.location.pathname.split('/').pop()!)
+              const vid = window.location.pathname.split('/').filter(Boolean).pop() || ''
+              await sb.from('videos').update({ status: 'pending', progress_pct: 0, progress_detail: 'Restarting...' }).eq('id', vid)
               window.location.reload()
             }}
             className="btn btn-soft btn-sm"
@@ -1054,9 +1055,20 @@ export default function VideoDetailPage() {
         <h1 className="page-title" style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {video.title ?? 'Untitled'}
         </h1>
-        <div style={{ fontSize: 14, color: 'var(--ink-light)' }}>
+        <div style={{ fontSize: 14, color: 'var(--ink-light)', display: 'flex', alignItems: 'center', gap: 8 }}>
           {new Date(video.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           {video.duration && ` \u00b7 ${Math.floor(video.duration / 60)}:${(video.duration % 60).toString().padStart(2, '0')}`}
+          {(video as any).brand && (
+            <>
+              {' \u00b7 '}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                {(video as any).brand.primary_color && (
+                  <span style={{ width: 10, height: 10, borderRadius: 3, background: (video as any).brand.primary_color, display: 'inline-block' }} />
+                )}
+                {(video as any).brand.name}
+              </span>
+            </>
+          )}
         </div>
       </div>
 
@@ -1508,6 +1520,29 @@ export default function VideoDetailPage() {
                 style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8, ...(downloadingPPTX ? { opacity: 0.5 } : {}) }}
               >
                 {downloadingPPTX ? 'PPTX...' : 'PPTX'}
+              </button>
+              <button
+                onClick={() => {
+                  const scriptData = video.script as any
+                  let scriptText = ''
+                  if (Array.isArray(scriptData)) {
+                    scriptText = scriptData.map((s: any, i: number) =>
+                      `Scene ${i + 1}: ${s.title || ''}\n${s.narration || ''}\n`
+                    ).join('\n---\n\n')
+                  }
+                  if (!scriptText) return
+                  const blob = new Blob([scriptText], { type: 'text/plain' })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `${video.title ?? 'script'}.txt`
+                  a.click()
+                  URL.revokeObjectURL(url)
+                }}
+                className="btn btn-soft"
+                style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}
+              >
+                Script
               </button>
               <button
                 onClick={() => router.push(`/create?duplicate=${video.id}`)}
