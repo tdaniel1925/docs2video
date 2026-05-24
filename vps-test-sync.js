@@ -1,0 +1,36 @@
+const {execFile}=require('child_process')
+const run=(args)=>new Promise((res,rej)=>{
+  execFile('ffmpeg',args,{timeout:30000},(e,o,se)=>{
+    if(e)rej(e);else res(se)
+  })
+})
+const probe=(f)=>new Promise((res)=>{
+  execFile('ffprobe',['-v','quiet','-show_entries','format=duration','-of','csv=p=0',f],{timeout:5000},(e,o)=>{
+    res(o?o.trim():'error')
+  })
+})
+async function test(){
+  console.log('Creating 5-second test audio...')
+  await run(['-f','lavfi','-i','sine=frequency=440:duration=5','-c:a','libmp3lame','-y','/tmp/test_audio.mp3'])
+  console.log('Creating test image...')
+  await run(['-f','lavfi','-i','color=c=blue:s=320x240:d=1','-frames:v','1','-y','/tmp/test_slide.png'])
+  console.log('Test 1: -shortest')
+  await run(['-loop','1','-i','/tmp/test_slide.png','-i','/tmp/test_audio.mp3','-c:v','libx264','-tune','stillimage','-g','25','-preset','ultrafast','-c:a','aac','-shortest','-y','/tmp/t1.mp4'])
+  console.log('Test 2: -t 6 (1s padding)')
+  await run(['-loop','1','-i','/tmp/test_slide.png','-i','/tmp/test_audio.mp3','-c:v','libx264','-tune','stillimage','-g','25','-preset','ultrafast','-c:a','aac','-t','6','-y','/tmp/t2.mp4'])
+  console.log('Test 3: -shortest + 0.5s pad via audio filter')
+  await run(['-loop','1','-i','/tmp/test_slide.png','-i','/tmp/test_audio.mp3','-c:v','libx264','-tune','stillimage','-g','25','-preset','ultrafast','-c:a','aac','-af','apad=pad_dur=0.5','-shortest','-y','/tmp/t3.mp4'])
+  var d1=await probe('/tmp/t1.mp4')
+  var d2=await probe('/tmp/t2.mp4')
+  var d3=await probe('/tmp/t3.mp4')
+  console.log('')
+  console.log('RESULTS (audio was exactly 5.0 seconds):')
+  console.log('  -shortest:          '+d1+'s')
+  console.log('  -t 6:               '+d2+'s')
+  console.log('  -shortest + apad:   '+d3+'s')
+  console.log('')
+  console.log('-shortest should be ~5s (exact audio length)')
+  console.log('-t 6 should be 6s (fixed, may have silence)')
+  console.log('-shortest+apad should be ~5.5s (audio + 0.5s pad)')
+}
+test().catch(e=>console.error('FAILED:',e.message))
