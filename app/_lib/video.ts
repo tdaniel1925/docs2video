@@ -58,6 +58,31 @@ function getFfmpegPath(): string {
   return fallback
 }
 
+// Probe real audio duration using FFmpeg (instead of buffer-size guessing)
+export function probeAudioDuration(audioPath: string): Promise<number> {
+  return new Promise((resolve) => {
+    const ffmpegPath = getFfmpegPath()
+    execFile(ffmpegPath, [
+      '-i', audioPath,
+      '-f', 'null',
+      '-'
+    ], { timeout: 10000 }, (_err, _stdout, stderr) => {
+      // FFmpeg outputs info to stderr
+      const match = stderr.match(/Duration: (\d+):(\d+):(\d+)\.(\d+)/)
+      if (match) {
+        const hours = parseInt(match[1])
+        const minutes = parseInt(match[2])
+        const seconds = parseInt(match[3])
+        const ms = parseInt(match[4]) * 10
+        resolve(hours * 3600 + minutes * 60 + seconds + ms / 1000)
+      } else {
+        console.warn('[ffmpeg] Could not probe duration, using estimate')
+        resolve(0) // caller will use fallback
+      }
+    })
+  })
+}
+
 // Run ffmpeg directly via execFile (handles spaces in paths correctly)
 function runFfmpegCmd(args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -115,8 +140,16 @@ export async function assembleVideo(
         ? `${baseVf},drawtext=text='${watermarkText.replace(/'/g, "\\'")}':fontsize=32:fontcolor=white@0.4:x=w-tw-40:y=h-th-30`
         : baseVf
 
+      let slideDuration = 5 // default for slides without audio
+
       if (audioBuffers[i]) {
-        // Create clip: slide shown for full duration of audio
+        // Probe real audio duration instead of guessing from buffer size
+        const realDuration = await probeAudioDuration(audioPath)
+        slideDuration = realDuration > 0
+          ? realDuration + 0.8   // Add 0.8s padding so slide stays visible after audio ends
+          : Math.round(audioBuffers[i].length / 16000) + 1  // Fallback: buffer estimate + 1s
+
+        // Create clip: slide shown for exact duration (no -shortest which can cut audio)
         await runFfmpegCmd([
           '-loop', '1',
           '-i', slidePath,
@@ -127,7 +160,7 @@ export async function assembleVideo(
           '-b:a', '192k',
           '-pix_fmt', 'yuv420p',
           '-vf', vf,
-          '-shortest',
+          '-t', String(slideDuration),
           '-y',
           clipPath,
         ])
@@ -148,8 +181,7 @@ export async function assembleVideo(
       }
 
       clipFiles.push(clipPath)
-      // Estimate duration from audio buffer size (~16KB/sec for 128kbps mp3)
-      durations.push(audioBuffers[i] ? Math.round(audioBuffers[i].length / 16000) : 5)
+      durations.push(Math.round(slideDuration))
     }
 
     // Step 2: Concatenate all clips into final video
