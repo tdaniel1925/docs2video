@@ -2,10 +2,15 @@
  * Admin email list — fallback for when DB check fails.
  * Reads from ADMIN_EMAILS env var (comma-separated).
  */
-const FALLBACK_ADMIN_EMAILS: string[] = (process.env.ADMIN_EMAILS ?? '')
-  .split(',')
-  .map((e) => e.trim().toLowerCase())
-  .filter(Boolean)
+const HARDCODED_ADMINS = ['trenttdaniel@gmail.com', 'tdaniel@botmakers.ai']
+
+const FALLBACK_ADMIN_EMAILS: string[] = [
+  ...HARDCODED_ADMINS,
+  ...(process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+]
 
 export function isAdmin(email: string | null | undefined): boolean {
   if (!email) return false
