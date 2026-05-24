@@ -188,6 +188,16 @@ export async function generateScript(
   // Every scene MUST have narration
   additionalSections.push(`CRITICAL: Every scene MUST have narration text. There must be NO silent scenes. If a scene has a slide, it MUST have narration explaining that slide. The number of audio clips must EXACTLY match the number of scenes.`)
 
+  // Slide-audio sync: narration must match its own slide
+  additionalSections.push(`SLIDE-AUDIO SYNC RULES (CRITICAL FOR VIDEO QUALITY):
+- Each scene's narration must ONLY describe content that appears on THAT scene's slide. Never preview, tease, or introduce the next slide's topic.
+- Do NOT say things like "next we'll look at..." or "coming up..." or "let's move on to..." — the slide transition handles that automatically.
+- The narration should START by addressing what the viewer is ALREADY seeing on screen, not what they're about to see.
+- If a scene covers "Key Metrics", every word of that scene's narration must be about those metrics — not about the previous or next topic.
+- BAD: "Now let's take a look at your key metrics" (viewer hasn't seen the metrics slide yet when this plays)
+- GOOD: "Here are the key metrics that matter most" (viewer is already looking at the metrics slide)
+- Each scene must be self-contained: introduce its topic, explain it, and wrap it up WITHOUT referencing other scenes.`)
+
   if (purpose) {
     additionalSections.push(`VIDEO PURPOSE (CRITICAL): The user wants this video to "${purpose}". This is the primary objective — shape the entire narrative, tone, emphasis, and call-to-action around accomplishing this goal. Every scene should serve this purpose. Prioritize information that supports this goal and de-emphasize anything that doesn't.`)
   }
@@ -343,17 +353,17 @@ Return ONLY valid JSON array (no markdown, no code fences):
       "stats": [{ "label": "Metric Name", "value": "$1.2M" }],
       "bullets": ["Key fact from the document", "Another specific data point"]
     },
-    "narration": "what the narrator SAYS — a conversational explanation of the slideData, NOT a repeat of it",
+    "narration": "what the narrator SAYS — a conversational explanation of the slideData, NOT a repeat of it. Must ONLY discuss THIS slide's content — never preview or introduce the next slide.",
     "slidePrompt": "brief visual concept for the slide background/style",
     "duration": estimated seconds
   }
 ]
 
 FIELD RULES:
-- "slideData.headline": short title for the slide (2-5 words)
+- "slideData.headline": short title for the slide (2-5 words). This headline ANCHORS the narration — every word in this scene's narration must relate to this headline.
 - "slideData.stats": key metrics WITH their values from the document data — use for numbers, percentages, dollar amounts. Omit if no stats for this scene.
 - "slideData.bullets": 2-4 specific facts from the document to display as text. Omit for cover/closing slides.
-- "narration": what the speaker says — conversational, explains the data, does NOT just read the bullets
+- "narration": what the speaker says — conversational, explains the data, does NOT just read the bullets. Must be SELF-CONTAINED: introduce the topic, explain it, and wrap up WITHOUT referencing other scenes.
 - "slidePrompt": visual concept only (e.g. "dark background with growth chart icon") — NOT content text
 - "beat": one of "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"`
 
@@ -371,8 +381,20 @@ FIELD RULES:
     if (!Array.isArray(scenes) || scenes.length === 0) {
       throw new Error('Invalid script format')
     }
+
+    // Post-parse: strip forward-looking phrases that break slide-audio sync
+    const forwardPhrases = /\b(next,?\s+we('ll|\s+will)\s+(look|see|explore|cover|discuss|examine)|coming up|let's\s+(move|turn|shift)\s+(on\s+)?to|in\s+the\s+next\s+(slide|scene|section)|up\s+next|moving\s+on\s+to|now\s+let's\s+(take\s+a\s+)?look\s+at)\b/gi
+    for (const scene of scenes) {
+      if (scene.narration) {
+        scene.narration = scene.narration.replace(forwardPhrases, '').replace(/\s{2,}/g, ' ').trim()
+      }
+    }
+
     return scenes
-  } catch {
-    throw new Error(`Failed to parse script: ${text.slice(0, 200)}`)
+  } catch (e) {
+    if (e instanceof SyntaxError) {
+      throw new Error(`Failed to parse script: ${text.slice(0, 200)}`)
+    }
+    throw e
   }
 }
