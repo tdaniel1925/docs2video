@@ -66,3 +66,8 @@ export function autoSelectStyle(
   // Fallback
   return 'executive'
 }
+
+export function autoSelectFromBrand(brand: { primary_color?: string; industry?: string; tone?: string } | null): string {
+  if (!brand) return 'executive'
+  return autoSelectStyle(brand.primary_color, brand.industry)
+}

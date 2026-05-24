@@ -202,11 +202,17 @@ export default function CreatePage() {
                   })
         const extractResult = await extractRes.json()
         if (!extractRes.ok) { setError(extractResult.error || 'Extraction failed'); setStage('idle'); return }
-        const { suggestedTheme, autoBrandId, autoLogoUrl, ...contentData } = extractResult
+        const { suggestedTheme, autoBrandId, autoLogoUrl, autoBrandInfo, ...contentData } = extractResult
         extractedData = contentData
         // Use auto-detected brand if user didn't pick one
         if (!selectedBrand && autoBrandId) extractedData._autoBrandId = autoBrandId
         if (suggestedTheme?.prompt) extractedData._customStylePrompt = suggestedTheme.prompt
+        // Auto-pick slide style from the scraped website's brand data
+        if (autoBrandInfo && styleTab === 'auto') {
+          const picked = autoSelectFromBrand(autoBrandInfo)
+          setSelectedStyleId(picked)
+          setStyleMatchedSite(autoBrandInfo.name || cleanUrl.replace(/^https?:\/\/(www\.)?/, '').replace(/\/.*$/, ''))
+        }
       } else if (method === 'text') {
         setStageMsg('Analyzing text...')
         const extractRes = await fetch('/api/extract', {
@@ -759,7 +765,10 @@ export default function CreatePage() {
                       {picked.description}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 6 }}>
-                      We suggest <strong>{picked.name}</strong> for your content
+                      {styleMatchedSite
+                        ? <>Styled to match <strong>{styleMatchedSite}</strong></>
+                        : <>We suggest <strong>{picked.name}</strong> for your content</>
+                      }
                     </div>
                   </div>
                 </div>

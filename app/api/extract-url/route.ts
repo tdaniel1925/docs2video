@@ -220,9 +220,16 @@ export async function POST(request: Request) {
     // Auto-create brand from scraped URL
     let autoBrandId: string | null = null
     let autoLogoUrl: string | null = null
+    let autoBrandInfo: { primary_color: string | null; industry: string | null; tone: string | null; name: string | null } | null = null
     try {
       console.log('[extract-url] Scraping brand from URL...')
       const brandAnalysis = await scrapeBrand(url, { markdown, html })
+      autoBrandInfo = {
+        primary_color: brandAnalysis.primaryColor || null,
+        industry: brandAnalysis.industry || null,
+        tone: brandAnalysis.tone || null,
+        name: brandAnalysis.companyName || null,
+      }
 
       // Upload logo to Supabase storage (brand scraper already processed it)
       let logoFileUrl: string | null = null
@@ -302,7 +309,7 @@ export async function POST(request: Request) {
       console.error('[extract-url] Brand scraping failed:', brandErr instanceof Error ? brandErr.message : 'unknown')
     }
 
-    return NextResponse.json({ ...data, suggestedTheme, autoBrandId, autoLogoUrl })
+    return NextResponse.json({ ...data, suggestedTheme, autoBrandId, autoLogoUrl, autoBrandInfo })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'URL extraction failed'
     return NextResponse.json({ error: message }, { status: 500 })
