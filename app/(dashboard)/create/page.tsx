@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/client'
 import { SLIDE_STYLES } from '../../_lib/types'
-import { autoSelectStyle } from '../../_lib/style-picker'
+import { autoSelectStyle, autoSelectFromBrand } from '../../_lib/style-picker'
 import type { Brand } from '../../_lib/types'
 
 const SUGGESTIONS = [
@@ -49,7 +49,10 @@ export default function CreatePage() {
   const [stylePreviewImages, setStylePreviewImages] = useState<string[]>([])
   const [stylePreviewLoading, setStylePreviewLoading] = useState(false)
   const [stylePreviewError, setStylePreviewError] = useState<string | null>(null)
+  const [styleProgress, setStyleProgress] = useState<string>('')
+  const [styleProgressPct, setStyleProgressPct] = useState(0)
   const [styleSearchQuery, setStyleSearchQuery] = useState('')
+  const [styleMatchedSite, setStyleMatchedSite] = useState<string | null>(null)
   const styleFileRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const purposeRef = useRef<HTMLTextAreaElement>(null)
@@ -85,6 +88,8 @@ export default function CreatePage() {
     setStylePreviewLoading(true)
     setStylePreviewError(null)
     setStylePreviewImages([])
+    setStyleProgress('Uploading image...')
+    setStyleProgressPct(10)
     try {
       const reader = new FileReader()
       const base64 = await new Promise<string>((resolve, reject) => {
@@ -95,21 +100,43 @@ export default function CreatePage() {
         reader.onerror = reject
         reader.readAsDataURL(file)
       })
+      setStyleProgress('Analyzing visual style...')
+      setStyleProgressPct(25)
       const res = await fetch('/api/style-preview-from-ref', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ referenceImageBase64: base64 }),
       })
+      // Show estimated progress while waiting for response
+      const progressInterval = setInterval(() => {
+        setStyleProgressPct(prev => {
+          if (prev < 50) return prev + 5
+          if (prev < 75) return prev + 3
+          return Math.min(prev + 1, 90)
+        })
+        setStyleProgress(prev => {
+          if (prev === 'Analyzing visual style...') return 'Extracting colors and layout...'
+          if (prev === 'Extracting colors and layout...') return 'Generating preview slides...'
+          return prev
+        })
+      }, 3000)
       const data = await res.json()
+      clearInterval(progressInterval)
       if (!res.ok) {
         setStylePreviewError(data.error || 'Preview generation failed')
+        setStyleProgress('')
+        setStyleProgressPct(0)
         return
       }
+      setStyleProgress('Done!')
+      setStyleProgressPct(100)
       setStylePreviewImages(data.previews || [])
       setStyleReferenceUrl(data.referenceUrl || null)
       setSelectedStyleId(null) // using custom reference, not a built-in style
     } catch (err) {
       setStylePreviewError(err instanceof Error ? err.message : 'Upload failed')
+      setStyleProgress('')
+      setStyleProgressPct(0)
     } finally {
       setStylePreviewLoading(false)
     }
@@ -857,8 +884,15 @@ export default function CreatePage() {
               />
 
               {stylePreviewLoading && (
-                <div style={{ marginTop: 16, textAlign: 'center', padding: '24px', color: 'var(--ink-soft)', fontSize: 14 }}>
-                  Generating preview slides... this takes about 30 seconds.
+                <div style={{ marginTop: 16, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 24, textAlign: 'center' }}>
+                  <div className="spinner" style={{ margin: '0 auto 16px' }} />
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{styleProgress}</div>
+                  <div style={{ maxWidth: 300, margin: '0 auto' }}>
+                    <div style={{ height: 6, background: 'var(--border-light)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: styleProgressPct + '%', background: 'var(--mint)', borderRadius: 3, transition: 'width 0.5s ease' }} />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 8 }}>This usually takes 30-60 seconds</div>
                 </div>
               )}
 
