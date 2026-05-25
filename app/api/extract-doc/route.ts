@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
+import { classifyDocument } from '../../_lib/document-classifier'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -7,6 +8,7 @@ export const maxDuration = 300
 /**
  * Proxy: accepts file upload (FormData), converts to base64,
  * forwards to VPS /extract-document for OpenAI extraction.
+ * Also classifies the document for intelligent script generation.
  */
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -25,20 +27,36 @@ export async function POST(request: Request) {
 
     const arrayBuffer = await file.arrayBuffer()
     const base64 = Buffer.from(arrayBuffer).toString('base64')
+    const mimeType = file.type || 'application/pdf'
 
-    const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/extract-document`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
-      body: JSON.stringify({
-        fileBase64: base64,
-        fileName: file.name,
-        purpose: purpose || undefined,
-        mimeType: file.type || 'application/pdf',
+    // Run extraction and classification in parallel
+    const [vpsRes, classification] = await Promise.all([
+      fetch(`${VIDEO_ASSEMBLY_URL}/extract-document`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
+        body: JSON.stringify({
+          fileBase64: base64,
+          fileName: file.name,
+          purpose: purpose || undefined,
+          mimeType,
+        }),
       }),
-    })
+      classifyDocument(base64, mimeType).catch(err => {
+        console.error('[extract-doc] Classification failed:', err instanceof Error ? err.message : 'unknown')
+        return null
+      }),
+    ])
 
     const result = await vpsRes.json()
     if (!vpsRes.ok) return NextResponse.json({ error: result.error || 'Extraction failed' }, { status: vpsRes.status })
+
+    // Attach classification to extraction result
+    if (classification) {
+      result.classification = classification
+      result.industry = classification.industry
+      console.log(`[extract-doc] Classified: ${classification.documentType} (${classification.category}/${classification.sensitivity}) → ${classification.redFlags?.length || 0} red flags`)
+    }
+
     return NextResponse.json(result)
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Extraction failed' }, { status: 500 })

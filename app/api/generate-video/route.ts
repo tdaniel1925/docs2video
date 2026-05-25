@@ -300,7 +300,7 @@ export async function POST(request: Request) {
       // Script generation with 60s timeout
       try {
         scenes = await Promise.race([
-          generateScript(policyData, brand?.name ?? null, colors, detailed ?? false, 0, voiceId, (brand as any)?.tone ?? undefined, contactInfoForScript, purpose, uploadMode, industry),
+          generateScript(policyData, brand?.name ?? null, colors, detailed ?? false, 0, voiceId, (brand as any)?.tone ?? undefined, contactInfoForScript, purpose, uploadMode, industry, (body as any).detailLevel || (detailed ? 'detailed' : 'standard'), narrationStyle, (policyData as any)?.classification ?? null),
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Script generation timed out. This document may be too large — try pasting the key sections instead.')), 60000)),
         ])
       } catch (scriptErr) {

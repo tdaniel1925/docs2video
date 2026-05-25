@@ -107,6 +107,7 @@ export async function generateScript(
   industry?: string,
   detailLevel?: 'quick' | 'standard' | 'detailed',
   narrationStyle?: 'solo' | 'podcast',
+  classification?: { documentType?: string; category?: string; sensitivity?: string; tone?: string; perspective?: string; redFlags?: string[]; actionItems?: string[]; keyQuestion?: string } | null,
 ): Promise<VideoScene[]> {
   const isInsurance = isInsuranceData(data)
 
@@ -167,6 +168,52 @@ export async function generateScript(
   // Inject deep analysis as the primary content guide
   if (deepAnalysis) {
     additionalSections.push(`STRATEGIC BRIEF (USE THIS AS YOUR PRIMARY GUIDE — cover ALL these points in the script):\n${deepAnalysis}`)
+  }
+
+  // Inject document classification intelligence
+  if (classification) {
+    const classRules: string[] = []
+
+    // Perspective and tone
+    if (classification.perspective) {
+      classRules.push(`AUDIENCE: The viewer is a ${classification.perspective}. Address them directly and explain things from their perspective.`)
+    }
+    if (classification.tone) {
+      classRules.push(`TONE: ${classification.tone}. This overrides any default tone settings.`)
+    }
+    if (classification.sensitivity === 'high') {
+      classRules.push(`SENSITIVITY: HIGH. This is a regulated/sensitive document. Be precise with numbers, include appropriate disclaimers, do NOT make claims beyond what the source data supports.`)
+    }
+
+    // Key question
+    if (classification.keyQuestion) {
+      classRules.push(`KEY QUESTION: The video MUST answer this: "${classification.keyQuestion}". Structure the script to build toward answering this clearly.`)
+    }
+
+    // Red flags — include as a dedicated scene or weave into content
+    if (classification.redFlags?.length) {
+      classRules.push(`RED FLAGS TO ADDRESS (important things the viewer should know):\n${classification.redFlags.map(f => `- ${f}`).join('\n')}\nInclude these naturally in the narration — don't ignore them.`)
+    }
+
+    // Action items — for the closing/CTA scene
+    if (classification.actionItems?.length) {
+      classRules.push(`ACTION ITEMS FOR CLOSING SCENE:\n${classification.actionItems.map(a => `- ${a}`).join('\n')}\nInclude these as concrete next steps in the final scene.`)
+    }
+
+    // Industry-specific hard rules
+    if (classification.category === 'insurance') {
+      classRules.push(`INSURANCE RULES:\n- NEVER mention the insurance carrier/company name\n- Include required disclaimers about illustrations not being guarantees\n- Projected values are NOT guaranteed — say "projected" or "estimated"\n- Focus on what the policy DOES for the client, not the carrier brand`)
+    } else if (classification.category === 'healthcare') {
+      classRules.push(`HEALTHCARE RULES:\n- Use patient-friendly language, avoid medical jargon\n- Do NOT make diagnostic claims\n- Explain what results MEAN, not just what they ARE\n- Be empathetic and reassuring in tone`)
+    } else if (classification.category === 'legal') {
+      classRules.push(`LEGAL RULES:\n- Do NOT frame content as legal advice\n- Use precise language — don't paraphrase legal terms loosely\n- Highlight key obligations and deadlines\n- Recommend consulting an attorney for specific situations`)
+    } else if (classification.category === 'finance') {
+      classRules.push(`FINANCIAL RULES:\n- All numbers must match the source exactly — no rounding\n- Include "past performance does not guarantee future results" where applicable\n- Explain financial terms in plain language\n- Be clear about fees, penalties, and fine print`)
+    }
+
+    if (classRules.length > 0) {
+      additionalSections.push(`DOCUMENT INTELLIGENCE (auto-detected rules for this ${classification.documentType || 'document'}):\n${classRules.join('\n\n')}`)
+    }
   }
 
   // Detail level OVERRIDES the base scene count
