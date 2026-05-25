@@ -38,22 +38,9 @@ export async function POST() {
       results[`pack_${pack.credits}`] = `product: ${product.id}, price: ${price.id}`
     }
 
-    // 2. Create metered overage price (usage-based billing)
-    // This gets added to subscriptions as a metered component
-    const overageProduct = await stripe.products.create({
-      name: 'Credit Overage',
-      description: 'Additional credits beyond monthly plan allocation',
-      metadata: { type: 'credit_overage' },
-    })
-
-    const overagePrice = await stripe.prices.create({
-      product: overageProduct.id,
-      unit_amount: 1,
-      currency: 'usd',
-      recurring: { interval: 'month', usage_type: 'metered' },
-    } as Parameters<typeof stripe.prices.create>[0])
-
-    results['overage'] = `product: ${overageProduct.id}, price: ${overagePrice.id}`
+    // NOTE: Metered overage billing skipped — Stripe API v2025+ requires
+    // Billing Meters which need manual setup in Stripe Dashboard.
+    // For now, overages are handled via credit pack purchases.
 
     // Log all IDs for env var setup
     console.log('=== STRIPE CREDIT PRODUCTS CREATED ===')
