@@ -2,12 +2,9 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { SLIDE_STYLES } from '../../../_lib/types'
-import { autoSelectStyle } from '../../../_lib/style-picker'
-
 type OutputType = 'video' | 'pptx' | 'pdf'
 type InputMethod = 'url' | 'upload' | 'text' | 'idea' | null
-type Stage = 'idle' | 'extracting' | 'error' | 'style-suggest'
+type Stage = 'idle' | 'extracting' | 'error' | 'generating-preview' | 'style-suggest'
 
 const OUTPUT_OPTIONS: { type: OutputType; label: string; desc: string }[] = [
   { type: 'video', label: 'Video', desc: 'Narrated explainer with slides, voice, and music' },
@@ -36,15 +33,16 @@ export default function Step1Content() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   // Style suggestion state (shown after URL scrape)
-  const [suggestedStyleId, setSuggestedStyleId] = useState<string | null>(null)
   const [suggestedSiteName, setSuggestedSiteName] = useState<string>('')
+  const [previewImages, setPreviewImages] = useState<string[]>([])
+  const [previewStyleDesc, setPreviewStyleDesc] = useState<string>('')
   const [pendingExtractedData, setPendingExtractedData] = useState<Record<string, unknown> | null>(null)
   const [pendingAutoBrandInfo, setPendingAutoBrandInfo] = useState<Record<string, unknown> | null>(null)
 
   async function createDraftAndRedirect(
     extractedData: Record<string, unknown>,
     autoBrandInfo: Record<string, unknown> | null,
-    overrides?: { styleId?: string; skipToStep?: string },
+    overrides?: { styleId?: string; customStylePrompt?: string; skipToStep?: string },
   ) {
     setStageMsg('Setting up your project...')
     setStage('extracting')
@@ -76,8 +74,9 @@ export default function Step1Content() {
             videoId: draftData.videoId,
             updates: {
               styleId: overrides.styleId,
+              customStylePrompt: overrides.customStylePrompt || undefined,
               inlineBrand: autoBrandInfo,
-              step: outputType === 'video' ? 3 : 3, // voice step for video, style step for doc
+              step: outputType === 'video' ? 3 : 4, // voice step for video, script step for doc
             },
           }),
         })
@@ -95,11 +94,11 @@ export default function Step1Content() {
   }
 
   async function handleUseThisStyle() {
-    if (!pendingExtractedData || !suggestedStyleId) return
-    // For video: skip to voice (step 3); for pptx/pdf: skip to script
+    if (!pendingExtractedData) return
     const skipTo = outputType === 'video' ? 'voice' : 'script'
     await createDraftAndRedirect(pendingExtractedData, pendingAutoBrandInfo, {
-      styleId: suggestedStyleId,
+      styleId: 'custom-brand-preview',
+      customStylePrompt: previewStyleDesc,
       skipToStep: skipTo,
     })
   }
@@ -176,19 +175,42 @@ export default function Step1Content() {
 
       if (!extractedData) throw new Error('No content could be extracted')
 
-      // For URL scrape with brand info, show style suggestion before creating draft
+      // For URL scrape with brand info, generate real preview slides
       if (method === 'url' && autoBrandInfo) {
-        const primaryColor = (autoBrandInfo as Record<string, unknown>).primaryColor as string || null
-        const industry = (autoBrandInfo as Record<string, unknown>).industry as string || null
-        const selectedStyle = autoSelectStyle(primaryColor, industry)
-        const siteName = (autoBrandInfo as Record<string, unknown>).name as string ||
-          (autoBrandInfo as Record<string, unknown>).companyName as string ||
+        const bi = autoBrandInfo as Record<string, unknown>
+        const siteName = (bi.name as string) || (bi.companyName as string) ||
           new URL(urlInput.trim().startsWith('http') ? urlInput.trim() : `https://${urlInput.trim()}`).hostname
-        setSuggestedStyleId(selectedStyle)
         setSuggestedSiteName(siteName)
         setPendingExtractedData(extractedData)
         setPendingAutoBrandInfo(autoBrandInfo)
-        setStage('style-suggest')
+        setStage('generating-preview')
+        setStageMsg('Generating slide style preview...')
+
+        try {
+          const previewRes = await fetch('/api/style-preview-from-brand', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              primaryColor: bi.primary_color || bi.primaryColor || null,
+              secondaryColor: bi.secondary_color || bi.secondaryColor || null,
+              companyName: siteName,
+              industry: bi.industry || null,
+              tone: bi.tone || null,
+            }),
+          })
+          const previewData = await previewRes.json()
+          if (previewRes.ok && previewData.previews?.length > 0) {
+            setPreviewImages(previewData.previews)
+            setPreviewStyleDesc(previewData.styleDescription || '')
+            setStage('style-suggest')
+          } else {
+            // Preview failed, proceed without preview
+            await createDraftAndRedirect(extractedData, autoBrandInfo)
+          }
+        } catch {
+          // Preview failed, proceed without preview
+          await createDraftAndRedirect(extractedData, autoBrandInfo)
+        }
         return
       }
 
@@ -410,54 +432,75 @@ export default function Step1Content() {
         </div>
       )}
 
-      {/* Style suggestion after URL scrape */}
-      {stage === 'style-suggest' && suggestedStyleId && (() => {
-        const styleObj = SLIDE_STYLES.find(s => s.id === suggestedStyleId) || SLIDE_STYLES[0]
-        return (
+      {/* Generating preview progress */}
+      {stage === 'generating-preview' && (
+        <div style={{
+          padding: '28px 24px',
+          borderRadius: 10,
+          border: '1px solid var(--border)',
+          background: 'white',
+          textAlign: 'center',
+          marginBottom: 16,
+        }}>
           <div style={{
-            padding: '28px 24px',
-            borderRadius: 10,
-            border: '2px solid #C7E8A8',
-            background: 'white',
-            textAlign: 'center',
+            width: 32, height: 32,
+            border: '3px solid var(--border)',
+            borderTopColor: '#C7E8A8',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+            margin: '0 auto 16px',
+          }} />
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>{stageMsg}</div>
+          <div style={{ fontSize: 13, color: 'var(--ink-light)' }}>This usually takes 30-60 seconds</div>
+        </div>
+      )}
+
+      {/* Style preview after URL scrape — shows AI-generated slides */}
+      {stage === 'style-suggest' && previewImages.length > 0 && (
+        <div style={{
+          padding: '28px 24px',
+          borderRadius: 10,
+          border: '2px solid #C7E8A8',
+          background: 'white',
+          textAlign: 'center',
+          marginBottom: 16,
+        }}>
+          <div style={{
+            display: 'inline-block',
+            padding: '4px 14px',
+            borderRadius: 8,
+            background: '#F0F9E8',
+            color: '#3D7A3F',
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: '0.03em',
+            textTransform: 'uppercase',
             marginBottom: 16,
           }}>
-            <div style={{
-              display: 'inline-block',
-              padding: '4px 14px',
-              borderRadius: 8,
-              background: '#F0F9E8',
-              color: '#3D7A3F',
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: '0.03em',
-              textTransform: 'uppercase',
-              marginBottom: 16,
-            }}>
-              Style preview
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+            Style preview
+          </div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+            {previewImages.map((img, idx) => (
               <img
-                src={`/style-previews/${suggestedStyleId}.png`}
-                alt={styleObj.name}
+                key={idx}
+                src={img}
+                alt={idx === 0 ? 'Cover slide preview' : 'Content slide preview'}
                 style={{
-                  width: 320,
-                  maxWidth: '100%',
+                  width: 300,
+                  maxWidth: '48%',
                   height: 'auto',
                   borderRadius: 8,
                   border: '1px solid rgba(0,0,0,0.1)',
                 }}
               />
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.03em', marginBottom: 4 }}>
-              {styleObj.name}
-            </div>
-            <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 8 }}>
-              {styleObj.description}
-            </div>
-            <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 24 }}>
-              We suggest <strong>{styleObj.name}</strong> based on {suggestedSiteName}&apos;s design
-            </p>
+            ))}
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
+            Here&apos;s how your slides will look
+          </div>
+          <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 24 }}>
+            Generated to match <strong>{suggestedSiteName}</strong>&apos;s brand style
+          </p>
             {error && (
               <div style={{
                 padding: '10px 14px',
@@ -504,11 +547,10 @@ export default function Step1Content() {
               </button>
             </div>
           </div>
-        )
-      })()}
+      )}
 
       {/* Next button */}
-      {stage !== 'style-suggest' && (
+      {stage !== 'style-suggest' && stage !== 'generating-preview' && (
         <button
           onClick={handleNext}
           disabled={stage === 'extracting'}
