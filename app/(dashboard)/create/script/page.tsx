@@ -102,6 +102,8 @@ export default function ScriptPage() {
           customStylePrompt: draft.customStylePrompt,
           detailLevel: draft.detailLevel,
           narrationStyle: draft.narrationStyle,
+          voiceId: draft.voiceId || 'nova',
+          aiMusic: draft.aiMusic ?? false,
         })
       } catch (err) {
         console.error('[script] load draft error:', err)
@@ -359,6 +361,15 @@ export default function ScriptPage() {
         body: JSON.stringify({
           videoId,
           outputType,
+          policyData: createState?.extractedData || {},
+          purpose: createState?.purpose || 'Create a professional video',
+          preGeneratedScenes: scenes,
+          brandId: createState?.selectedBrand || createState?.autoBrandId || undefined,
+          voiceId: (createState as any)?.voiceId || 'nova',
+          narrationStyle,
+          detailLevel,
+          industry: (createState?.extractedData as Record<string, unknown>)?.industry || 'general',
+          aiMusic: (createState as any)?.aiMusic ?? false,
         }),
       })
       if (!genRes.ok) {
