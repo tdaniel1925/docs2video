@@ -87,11 +87,11 @@ export default function PricingHelpPage() {
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Free — 1,000 Credits
+          Free — 2 Short Videos
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Every new account starts with <strong style={{ color: 'var(--ink)' }}>1,000 credits</strong>. Cancel anytime. That&apos;s enough for approximately <strong style={{ color: 'var(--ink)' }}>2 standard explainer videos</strong> or <strong style={{ color: 'var(--ink)' }}>4 quick videos</strong>.
+            Every new account starts with <strong style={{ color: 'var(--ink)' }}>1,000 credits</strong> (enough for <strong style={{ color: 'var(--ink)' }}>2 short explainer videos</strong>). Cancel anytime.
           </p>
           <p>
             All features included: AI content extraction, script editing, voice narration, background music, and downloads in MP4, PPTX, and PDF formats.

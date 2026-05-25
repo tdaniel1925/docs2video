@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/client'
 import { SLIDE_STYLES } from '../../_lib/types'
 import { autoSelectStyle, autoSelectFromBrand } from '../../_lib/style-picker'
+import { getUserTier, type PlanTier } from '../../_lib/pricing'
 import type { Brand } from '../../_lib/types'
 import Step1Content from './_components/Step1Content'
+import UpgradeModal from '../../_components/UpgradeModal'
 
 const SUGGESTIONS = [
   { icon: '🌐', label: 'Explain my website', method: 'url' as const, placeholder: 'Paste your website URL', prompt: 'Create a video that explains what this company does' },
@@ -46,8 +48,11 @@ export default function CreatePage() {
   const [bookingUrl, setBookingUrl] = useState('')
   const [paymentLink, setPaymentLink] = useState('')
   const [showUpgrade, setShowUpgrade] = useState(false)
+  const [showLengthUpgrade, setShowLengthUpgrade] = useState(false)
   const [freeRemaining, setFreeRemaining] = useState<number | null>(null)
   const [isPaid, setIsPaid] = useState(false)
+  const [userTier, setUserTier] = useState<PlanTier>('free')
+  const [detailLevel, setDetailLevel] = useState<'quick' | 'standard' | 'detailed'>('quick')
   // Style picker state
   const [styleTab, setStyleTab] = useState<'auto' | 'browse' | 'upload'>('auto')
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null)
@@ -77,6 +82,10 @@ export default function CreatePage() {
         const paid = ['active', 'professional', 'pro', 'business', 'enterprise', 'starter'].includes(status)
         setIsPaid(paid)
         setFreeRemaining(data.free_videos_remaining ?? 0)
+        const tier = getUserTier(data.subscription_status)
+        setUserTier(tier)
+        // Default to standard for paid users
+        if (tier !== 'free') setDetailLevel('standard')
       })
     })
   }, [])
@@ -281,6 +290,7 @@ export default function CreatePage() {
           customStylePrompt: customStyle,
           styleReferenceUrl: styleReferenceUrl || undefined,
           narrationStyle: 'solo', aiMusic, purpose: purpose.trim(),
+          detailLevel,
           musicPrompt: aiMusic ? 'Professional ambient background music, subtle and warm' : undefined,
           industry: extractedData?.industry || 'general',
           bookingUrl: bookingUrl.trim() || undefined,
@@ -351,6 +361,7 @@ export default function CreatePage() {
           styleId: selectedStyleId || undefined,
           styleReferenceUrl: styleReferenceUrl || undefined,
           narrationStyle: 'solo', aiMusic, purpose: purpose.trim(),
+          detailLevel,
           musicPrompt: aiMusic ? 'Professional ambient background music, subtle and warm' : undefined,
           industry: extractData?.industry || 'general',
           bookingUrl: bookingUrl.trim() || undefined,
@@ -959,6 +970,57 @@ export default function CreatePage() {
         </div>
       )}
 
+      {/* Video Length */}
+      {purpose && (
+        <div style={{ width: '100%', marginBottom: 20, animation: 'fadeInUp 0.3s ease' }}>
+          <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 10 }}>
+            Video length
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            {([
+              { id: 'quick' as const, title: 'Short', time: '1-2 min', desc: 'Quick overview of key points', minTier: 'free' as PlanTier },
+              { id: 'standard' as const, title: 'Standard', time: '3-4 min', desc: 'Detailed walkthrough', minTier: 'starter' as PlanTier },
+              { id: 'detailed' as const, title: 'Detailed', time: '4-6 min', desc: 'Comprehensive deep-dive', minTier: 'pro' as PlanTier },
+            ]).map(level => {
+              const selected = detailLevel === level.id
+              const tierOrder: PlanTier[] = ['free', 'starter', 'pro', 'business', 'enterprise']
+              const allowed = tierOrder.indexOf(userTier) >= tierOrder.indexOf(level.minTier)
+              return (
+                <button
+                  key={level.id}
+                  onClick={() => {
+                    if (allowed) {
+                      setDetailLevel(level.id)
+                    } else {
+                      setShowLengthUpgrade(true)
+                    }
+                  }}
+                  style={{
+                    padding: '14px 12px', borderRadius: 10, cursor: 'pointer',
+                    border: selected ? '2px solid var(--mint)' : '1.5px solid var(--border-light)',
+                    background: selected ? 'rgba(199, 232, 168, 0.08)' : 'white',
+                    fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.15s',
+                    opacity: allowed ? 1 : 0.7, position: 'relative',
+                  }}
+                >
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>
+                    {!allowed && <span style={{ marginRight: 4 }}>&#128274;</span>}
+                    {level.title}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>{level.time}</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-light)', lineHeight: 1.3 }}>{level.desc}</div>
+                  {!allowed && (
+                    <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 4 }}>
+                      {level.minTier === 'starter' ? 'Starter+ plan' : 'Pro+ plan'}
+                    </div>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Error */}
       {error && (
         <div style={{
@@ -1068,6 +1130,9 @@ export default function CreatePage() {
           I want to edit the script first &rarr;
         </button>
       )}
+
+      {/* Length upgrade modal */}
+      <UpgradeModal open={showLengthUpgrade} onClose={() => setShowLengthUpgrade(false)} />
     </div>
   )
 }

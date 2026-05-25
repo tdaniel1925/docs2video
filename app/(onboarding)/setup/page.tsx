@@ -153,6 +153,26 @@ export default function SetupPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setLogoUrl(data.url)
+      // Auto-extract colors from logo
+      try {
+        const colorRes = await fetch('/api/extract-logo-colors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageUrl: data.url }),
+        })
+        if (colorRes.ok) {
+          const extracted = await colorRes.json()
+          if (extracted.primary) {
+            setColors({
+              primary_color: extracted.primary,
+              secondary_color: extracted.secondary,
+              accent_color: extracted.accent,
+              background_color: extracted.background,
+              text_color: extracted.text,
+            })
+          }
+        }
+      } catch { /* color extraction is best-effort */ }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Logo upload failed')
     }

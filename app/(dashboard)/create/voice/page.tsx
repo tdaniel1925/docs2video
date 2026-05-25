@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import WizardProgress from '../_components/WizardProgress'
 import CreditCost from '../_components/CreditCost'
+import UpgradeModal from '../../../_components/UpgradeModal'
+import { createClient } from '../../../_lib/supabase/client'
+import { getUserTier, type PlanTier } from '../../../_lib/pricing'
 
 const VOICE_OPTIONS = [
   { id: 'nova', name: 'Nova', description: 'Warm female' },
@@ -76,6 +79,8 @@ export default function VoicePage() {
   }
   const [detailLevel, setDetailLevel] = useState<'quick' | 'standard' | 'detailed'>('standard')
   const [aiMusic, setAiMusic] = useState(false)
+  const [userTier, setUserTier] = useState<PlanTier>('free')
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
   useEffect(() => {
     if (!videoId) {
@@ -118,6 +123,32 @@ export default function VoicePage() {
     }
     loadDraft()
   }, [videoId, router])
+
+  // Fetch user tier for detail level gating
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('profiles').select('subscription_status').eq('id', user.id).single().then(({ data }) => {
+        if (data) setUserTier(getUserTier(data.subscription_status))
+      })
+    })
+  }, [])
+
+  function isDetailLevelAllowed(level: 'quick' | 'standard' | 'detailed'): boolean {
+    if (level === 'quick') return true
+    if (level === 'standard') return userTier !== 'free'
+    // detailed requires pro+
+    return userTier === 'pro' || userTier === 'business' || userTier === 'enterprise'
+  }
+
+  function handleDetailLevelClick(level: 'quick' | 'standard' | 'detailed') {
+    if (isDetailLevelAllowed(level)) {
+      setDetailLevel(level)
+    } else {
+      setShowUpgradeModal(true)
+    }
+  }
 
   async function handleNext() {
     if (!videoId) return
@@ -268,17 +299,27 @@ export default function VoicePage() {
           <div style={styles.lengthGrid}>
             {DETAIL_LEVELS.map((level) => {
               const selected = detailLevel === level.id
+              const allowed = isDetailLevelAllowed(level.id)
               return (
                 <button
                   key={level.id}
-                  onClick={() => setDetailLevel(level.id)}
+                  onClick={() => handleDetailLevelClick(level.id)}
                   style={{
                     ...styles.lengthCard,
                     ...(selected ? styles.lengthCardSelected : {}),
+                    ...(!allowed ? { opacity: 0.7, position: 'relative' as const } : {}),
                   }}
                 >
-                  <span style={styles.lengthTitle}>{level.title}</span>
+                  <span style={styles.lengthTitle}>
+                    {!allowed && <span style={{ marginRight: 4 }}>&#128274;</span>}
+                    {level.title}
+                  </span>
                   <span style={styles.lengthDesc}>{level.description}</span>
+                  {!allowed && (
+                    <span style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 4, display: 'block' }}>
+                      {level.id === 'standard' ? 'Starter+ plan' : 'Pro+ plan'}
+                    </span>
+                  )}
                 </button>
               )
             })}
@@ -340,6 +381,7 @@ export default function VoicePage() {
           </button>
         </div>
       </div>
+      <UpgradeModal open={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
     </div>
   )
 }

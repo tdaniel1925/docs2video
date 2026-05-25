@@ -16,7 +16,7 @@ export default function SendEmailModal({ videoId, infographicId, title, clientNa
   const [selectedConnection, setSelectedConnection] = useState<string | null>(null)
   const [toEmail, setToEmail] = useState('')
   const [toName, setToName] = useState(clientName ?? '')
-  const [subject, setSubject] = useState(`Your Policy Explained — ${title}`)
+  const [subject, setSubject] = useState(`Your Presentation — ${title}`)
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -63,72 +63,70 @@ export default function SendEmailModal({ videoId, infographicId, title, clientNa
 
   if (sent) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-8 shadow-2xl text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 mb-4">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round"><path d="M5 13l4 4L19 7"/></svg>
+      <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(8px)' }}>
+        <div style={{ width: '100%', maxWidth: 440, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 32, textAlign: 'center' }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(199,232,168,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker)" strokeWidth="2.5" strokeLinecap="round"><path d="M5 13l4 4L19 7"/></svg>
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Email Sent!</h2>
-          <p className="text-sm text-slate-400 mb-6">Your presentation has been sent to {toEmail}</p>
-          <button onClick={onClose} className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700">Done</button>
+          <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 6 }}>Email Sent!</h2>
+          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 24 }}>Your presentation has been sent to {toEmail}</p>
+          <button onClick={onClose} className="btn btn-primary">Done</button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
-        <h2 className="text-xl font-bold mb-1">Send to Client</h2>
-        <p className="text-sm text-slate-400 mb-6">Email this presentation directly to your client</p>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(8px)' }}>
+      <div style={{ width: '100%', maxWidth: 440, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div>
+            <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 2 }}>Send to Client</h2>
+            <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Email this presentation directly</p>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: 'var(--ink-light)', lineHeight: 1 }}>&times;</button>
+        </div>
 
         {connections.length === 0 ? (
-          <div className="text-center py-6">
-            <p className="text-slate-400 mb-4">No email accounts connected yet.</p>
-            <a href="/settings" className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 inline-block">
-              Connect Email in Settings
-            </a>
+          <div style={{ textAlign: 'center', padding: '32px 0' }}>
+            <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>No email accounts connected yet.</p>
+            <a href="/settings" className="btn btn-primary">Connect Email in Settings</a>
           </div>
         ) : (
-          <div className="space-y-4">
-            {/* From */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">From</label>
-              <select value={selectedConnection ?? ''} onChange={(e) => setSelectedConnection(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
+          <div>
+            <div className="form-group">
+              <label className="input-label">From</label>
+              <select value={selectedConnection ?? ''} onChange={(e) => setSelectedConnection(e.target.value)} className="input-select">
                 {connections.map((c) => (
                   <option key={c.id} value={c.id}>{c.email_address} ({c.provider})</option>
                 ))}
               </select>
             </div>
 
-            {/* To */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Client Email</label>
-              <input value={toEmail} onChange={(e) => setToEmail(e.target.value)} type="email" required
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
-                placeholder="client@example.com" />
+            <div className="form-group">
+              <label className="input-label">Client Email</label>
+              <input value={toEmail} onChange={(e) => setToEmail(e.target.value)} type="email" required className="input" placeholder="client@example.com" />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Client Name</label>
-              <input value={toName} onChange={(e) => setToName(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
-                placeholder="John Smith" />
+            <div className="form-group">
+              <label className="input-label">Client Name</label>
+              <input value={toName} onChange={(e) => setToName(e.target.value)} className="input" placeholder="John Smith" />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Subject</label>
-              <input value={subject} onChange={(e) => setSubject(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white focus:border-blue-500 focus:outline-none" />
+            <div className="form-group">
+              <label className="input-label">Subject</label>
+              <input value={subject} onChange={(e) => setSubject(e.target.value)} className="input" />
             </div>
 
-            {error && <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-400">{error}</div>}
+            {error && (
+              <div style={{ borderRadius: 10, background: '#fde8e8', padding: '10px 16px', fontSize: 13, marginBottom: 16, color: '#b91c1c', fontWeight: 600 }}>
+                {error}
+              </div>
+            )}
 
-            <div className="flex gap-3 pt-2">
-              <button onClick={onClose} className="flex-1 rounded-lg border border-white/10 px-4 py-3 text-sm text-slate-300 hover:bg-white/5">Cancel</button>
-              <button onClick={handleSend} disabled={sending || !toEmail || !selectedConnection}
-                className="flex-1 rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <button onClick={onClose} className="btn btn-soft" style={{ flex: 1 }}>Cancel</button>
+              <button onClick={handleSend} disabled={sending || !toEmail || !selectedConnection} className="btn btn-primary" style={{ flex: 1 }}>
                 {sending ? 'Sending...' : 'Send Email'}
               </button>
             </div>

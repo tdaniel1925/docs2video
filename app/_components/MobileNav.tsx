@@ -24,10 +24,12 @@ export default function MobileNav() {
           </button>
 
           <div className="mobile-menu-links">
+            <a href="#how-it-works" onClick={() => setOpen(false)}>How It Works</a>
             <a href="#features" onClick={() => setOpen(false)}>Features</a>
-            <a href="#templates" onClick={() => setOpen(false)}>Templates</a>
+            <a href="#industries" onClick={() => setOpen(false)}>Industries</a>
+            <a href="#compare" onClick={() => setOpen(false)}>Compare</a>
             <a href="#pricing" onClick={() => setOpen(false)}>Pricing</a>
-            <a href="#faq" onClick={() => setOpen(false)}>FAQ</a>
+            <Link href="/blog" onClick={() => setOpen(false)}>Blog</Link>
           </div>
 
           <div className="mobile-menu-cta">

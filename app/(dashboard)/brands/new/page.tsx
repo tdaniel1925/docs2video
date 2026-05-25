@@ -523,6 +523,29 @@ export default function NewBrandPage() {
                 placeholder="https://..."
                 value={logoUrl}
                 onChange={(e) => setLogoUrl(e.target.value)}
+                onBlur={async () => {
+                  if (!logoUrl || !logoUrl.startsWith('http') || userEditedAdvancedColors) return
+                  try {
+                    const res = await fetch('/api/extract-logo-colors', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ imageUrl: logoUrl }),
+                    })
+                    if (res.ok) {
+                      const extracted = await res.json()
+                      if (extracted.primary) {
+                        setPrimaryColor(extracted.primary)
+                        setColors({
+                          primary_color: extracted.primary,
+                          secondary_color: extracted.secondary,
+                          accent_color: extracted.accent,
+                          background_color: extracted.background,
+                          text_color: extracted.text,
+                        })
+                      }
+                    }
+                  } catch { /* best effort */ }
+                }}
                 style={{ flex: 1 }}
               />
               {logoUrl && (

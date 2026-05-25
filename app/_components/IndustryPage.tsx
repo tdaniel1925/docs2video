@@ -41,7 +41,7 @@ export default function IndustryPage({
             <Link className="btn btn-primary btn-lg" href="/signup">Start free trial &rarr;</Link>
             <Link className="btn btn-outlined btn-lg" href="/#templates">See templates</Link>
           </div>
-          <div className="hero-note">10 free infographics &middot; cancel anytime</div>
+          <div className="hero-note">2 free short videos &middot; cancel anytime</div>
         </section>
       </div>
 

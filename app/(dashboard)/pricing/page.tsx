@@ -82,8 +82,8 @@ export default function PricingPage() {
         <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Pay Per Video</div>
         <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 12 }}>No subscription required</div>
         <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--ink)', marginBottom: 4 }}>$0<span style={{ fontSize: 16, fontWeight: 500, color: 'var(--ink-light)' }}>/mo</span></div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--mint)', marginBottom: 4 }}>1,000 credits</div>
-        <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>~2 standard explainer videos</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--mint)', marginBottom: 4 }}>2 short videos</div>
+        <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>1,000 credits included</div>
         {currentTier === 'free' && (
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--mint)', padding: '8px 0' }}>Current plan</div>
         )}

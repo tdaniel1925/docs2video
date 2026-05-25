@@ -18,7 +18,7 @@ export default function HomePage() {
         color: 'var(--ink)',
       }}>
         <Link href="/signup" style={{ color: 'var(--ink)', textDecoration: 'none' }}>
-          Start free — 1,000 credits included
+          Start free — 2 short videos included
         </Link>
       </div>
 
@@ -51,7 +51,7 @@ export default function HomePage() {
             <h1 className="hero-title">Turn any document into a professional <em>explainer video</em></h1>
             <p className="hero-sub">Upload a PDF, paste text, or describe an idea. Get a branded narrated video with a shareable client page &mdash; in minutes, not hours.</p>
             <div style={{display:'flex',gap:12,alignItems:'center',marginTop:28,flexWrap:'wrap'}}>
-              <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 1,000 credits &rarr;</Link>
+              <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 2 short videos &rarr;</Link>
               <a href="#how-it-works" className="btn btn-outlined">Watch demo</a>
             </div>
             <div className="hero-trust" style={{marginTop:20,fontSize:13,color:'var(--ink-soft)'}}>Cancel anytime &middot; No commitment</div>
@@ -595,7 +595,7 @@ export default function HomePage() {
               <div className="pricing-name">Free</div>
               <div className="pricing-price">$0</div>
               <div className="pricing-period">per month</div>
-              <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>1,000 credits</div>
+              <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>2 short videos</div>
               <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~2 standard explainers</div>
               <ul className="pricing-features">
                 <li>All features included</li>
@@ -723,12 +723,12 @@ export default function HomePage() {
           <h2>Stop sending documents <em>nobody reads</em></h2>
           <p className="final-cta-sub">Join 2,500+ professionals who use Docs2Video to turn complex documents into professional explainer videos their clients actually watch.</p>
           <div className="final-cta-buttons">
-            <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 1,000 credits &rarr;</Link>
+            <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 2 short videos &rarr;</Link>
           </div>
           <div className="final-cta-perks">
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-              1,000 credits included
+              2 short videos included
             </span>
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
