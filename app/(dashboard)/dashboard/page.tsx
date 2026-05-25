@@ -1,3 +1,4 @@
+import React from 'react'
 import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/server'
 
@@ -17,6 +18,128 @@ const TYPE_BADGE: Record<string, { label: string; color: string }> = {
 // Loom walkthrough video URL — replace with your actual Loom embed URL
 const GETTING_STARTED_VIDEO = 'https://www.loom.com/embed/YOUR_LOOM_ID'
 
+const OUTPUT_ICONS: Record<string, React.ReactNode> = {
+  video: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>,
+  pptx: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>,
+  pdf: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
+}
+
+function getDraftUrl(videoId: string, step: number): string {
+  switch (step) {
+    case 2: return `/create/brand?id=${videoId}`
+    case 3: return `/create/voice?id=${videoId}`
+    case 4: return `/create/style?id=${videoId}`
+    case 5: return `/create/script?id=${videoId}`
+    default: return '/create'
+  }
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
+function DraftsSection({ drafts }: { drafts: any[] }) {
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'var(--ink)' }}>
+        Continue where you left off
+      </h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {drafts.map((draft: any) => {
+          const draftData = draft.draft_data || {}
+          const outputType = draft.output_type || draftData.outputType || 'video'
+          const purpose = draftData.purpose || 'Untitled draft'
+          const truncatedPurpose = purpose.length > 60 ? purpose.slice(0, 57) + '...' : purpose
+          const step = draftData.step || 1
+          const url = getDraftUrl(draft.id, step)
+
+          return (
+            <div
+              key={draft.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                padding: '14px 18px',
+                background: '#F4F1EC',
+                border: '1px solid var(--border-light)',
+                borderRadius: 10,
+              }}
+            >
+              {/* Output type icon */}
+              <div style={{
+                width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+                background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--ink-soft)',
+              }}>
+                {OUTPUT_ICONS[outputType] || OUTPUT_ICONS.video}
+              </div>
+
+              {/* Purpose + time */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {truncatedPurpose}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2 }}>
+                  Started {timeAgo(draft.updated_at)}
+                </div>
+              </div>
+
+              {/* Continue button */}
+              <Link
+                href={url}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  background: 'var(--mint)', color: 'white', textDecoration: 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Continue
+              </Link>
+
+              {/* Discard button */}
+              <DiscardDraftButton videoId={draft.id} />
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function DiscardDraftButton({ videoId }: { videoId: string }) {
+  return (
+    <form action={async () => {
+      'use server'
+      const { createAdminClient: createAdmin } = await import('../../_lib/supabase/admin')
+      const { createClient: createServerClient } = await import('../../_lib/supabase/server')
+      const supabase = await createServerClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const admin = createAdmin()
+      await admin.from('videos').delete().eq('id', videoId).eq('user_id', user.id).eq('status', 'draft')
+    }}>
+      <button
+        type="submit"
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          fontSize: 12, color: 'var(--ink-light)', textDecoration: 'underline',
+          padding: '4px 8px', flexShrink: 0,
+        }}
+      >
+        Discard
+      </button>
+    </form>
+  )
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -26,6 +149,15 @@ export default async function DashboardPage() {
     .select('full_name, credits_remaining, subscription_status, referred_by, card_on_file, free_videos_remaining')
     .eq('id', user!.id)
     .single()
+
+  // Fetch drafts for "Continue where you left off" section
+  const { data: drafts } = await supabase
+    .from('videos')
+    .select('id, output_type, draft_data, updated_at')
+    .eq('user_id', user!.id)
+    .eq('status', 'draft')
+    .order('updated_at', { ascending: false })
+    .limit(5)
 
   // Fetch from BOTH videos and creations tables, merge for accurate counts
   const now = new Date()
@@ -155,6 +287,11 @@ export default async function DashboardPage() {
             {trialExhausted ? 'Choose a plan' : 'Upgrade'}
           </Link>
         </div>
+      )}
+
+      {/* Continue where you left off — drafts */}
+      {drafts && drafts.length > 0 && (
+        <DraftsSection drafts={drafts} />
       )}
 
       {isFirstTime ? (

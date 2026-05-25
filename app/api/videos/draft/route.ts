@@ -154,3 +154,53 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(video)
 }
+
+/**
+ * DELETE /api/videos/draft?videoId=xxx
+ * Discards a draft by deleting the video record.
+ */
+export async function DELETE(request: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
+  const videoId = request.nextUrl.searchParams.get('videoId')
+  if (!videoId) {
+    return NextResponse.json({ error: 'videoId query parameter is required' }, { status: 400 })
+  }
+
+  const admin = createAdminClient()
+
+  // Ownership check
+  const { data: video, error: fetchError } = await admin
+    .from('videos')
+    .select('id, user_id, status')
+    .eq('id', videoId)
+    .single()
+
+  if (fetchError || !video) {
+    return NextResponse.json({ error: 'Video not found' }, { status: 404 })
+  }
+
+  if (video.user_id !== user.id) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
+  }
+
+  if (video.status !== 'draft') {
+    return NextResponse.json({ error: 'Only drafts can be discarded' }, { status: 400 })
+  }
+
+  const { error: deleteError } = await admin
+    .from('videos')
+    .delete()
+    .eq('id', videoId)
+
+  if (deleteError) {
+    console.error('[draft] Failed to delete draft:', deleteError)
+    return NextResponse.json({ error: 'Failed to delete draft' }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true })
+}
