@@ -721,7 +721,7 @@ export default function HomePage() {
           {/* Featured testimonial */}
           <div style={{background:'white',border:'1px solid var(--border-light)',borderRadius:10,padding:40,maxWidth:800,margin:'0 auto 32px',textAlign:'center'}}>
             <p style={{fontSize:18,lineHeight:1.8,color:'var(--ink)',marginBottom:24,fontStyle:'italic'}}>&ldquo;The quality of the videos Docs2Video produces is outstanding. You upload a document, and within minutes you have a professional, polished explainer video that looks like it was made by a production studio. The AI narration sounds natural, the slides are beautifully designed, and the share pages make it easy for anyone to watch and take action.&rdquo;</p>
-            <div style={{fontWeight:800,fontSize:16}}>Bill Ropper</div>
+            <div style={{fontWeight:800,fontSize:16}}>Bill Propper</div>
             <div style={{fontSize:14,color:'var(--ink-soft)'}}>CEO, 3Mark Financial</div>
           </div>
 
