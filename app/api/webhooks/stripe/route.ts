@@ -3,6 +3,7 @@ import { getStripe, tierFromPriceId } from '../../../_lib/stripe'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import type Stripe from 'stripe'
 import { logError } from '../../../_lib/error-logger'
+import { grantMonthlyCredits, addTopupCredits } from '../../../_lib/credits'
 
 export const runtime = 'nodejs'
 
@@ -61,6 +62,17 @@ export async function POST(request: Request) {
         break
       }
 
+      if (session.metadata?.type === 'credit_pack') {
+        // Credit pack purchase — add topup credits
+        const credits = parseInt(session.metadata.credits || '0', 10)
+        const packName = session.metadata.pack_name || 'credit_pack'
+        if (credits > 0) {
+          await addTopupCredits(userId, credits, packName)
+          console.log(`[webhook] Credit pack purchased: ${credits} credits for user ${userId}`)
+        }
+        break
+      }
+
       if (session.metadata?.type === 'subscription') {
         // Subscription checkout completed — update profile
         const tier = session.metadata.tier ?? 'pro'
@@ -72,6 +84,8 @@ export async function POST(request: Request) {
           stripe_subscription_id: subscriptionId,
         }).eq('id', userId)
 
+        // Grant initial monthly credits for new subscription
+        await grantMonthlyCredits(userId, tier)
         console.log(`[webhook] User ${userId} subscribed to ${tier}`)
       }
       break
@@ -142,8 +156,18 @@ export async function POST(request: Request) {
     case 'invoice.payment_succeeded': {
       const invoice = event.data.object as Stripe.Invoice
       const customerId = invoice.customer as string
-      // Only log for subscription renewals (not the initial payment)
+      // Grant monthly credits on subscription renewal
       if (invoice.billing_reason === 'subscription_cycle') {
+        const { data: renewProfile } = await supabase
+          .from('profiles')
+          .select('id, subscription_status')
+          .eq('stripe_customer_id', customerId)
+          .single()
+
+        if (renewProfile?.id && renewProfile.subscription_status) {
+          await grantMonthlyCredits(renewProfile.id, renewProfile.subscription_status)
+          console.log(`[webhook] Monthly credits granted for user ${renewProfile.id} (${renewProfile.subscription_status})`)
+        }
         console.log(`[webhook] Recurring payment succeeded for customer ${customerId}, amount: ${invoice.amount_paid}`)
       }
       break

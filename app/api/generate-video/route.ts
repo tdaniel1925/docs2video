@@ -14,6 +14,7 @@ import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 import { PHONE_REGEX, phoneToSpoken, isPhoneInSource } from '../../_lib/phone-utils'
 import { estimateVideoCost, exceedsCeiling } from '../../_lib/cost-estimator'
+import { deductCredits, calculateVideoCost, checkCredits } from '../../_lib/credits'
 
 export const runtime = 'nodejs'
 
@@ -145,6 +146,33 @@ export async function POST(request: Request) {
     return NextResponse.json({
       error: 'Not enough content extracted from your document. Try pasting the text directly or uploading a different file.'
     }, { status: 400 })
+  }
+
+  // --- Credit deduction ---
+  if (!isAdmin(user.email)) {
+    const videoCost = calculateVideoCost({
+      outputType: (body as any).outputType || 'video',
+      detailLevel: (body as any).detailLevel || (detailed ? 'detailed' : 'standard'),
+      narrationStyle: narrationStyle || 'solo',
+    })
+
+    const creditCheck = await checkCredits(user.id, videoCost)
+    if (!creditCheck.allowed) {
+      inFlightVideos.delete(videoId)
+      return NextResponse.json(
+        { error: `Not enough credits. Need ${videoCost}, have ${creditCheck.remaining}.` },
+        { status: 402 }
+      )
+    }
+
+    const deducted = await deductCredits(user.id, videoCost, 'video_generation', videoId)
+    if (!deducted) {
+      inFlightVideos.delete(videoId)
+      return NextResponse.json(
+        { error: 'Credit deduction failed. Please try again.' },
+        { status: 402 }
+      )
+    }
   }
 
   let brand: Brand | null = null

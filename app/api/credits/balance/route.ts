@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
-import { getBalance } from '../../../_lib/credits'
+import { getBalance, ensureCreditBalance } from '../../../_lib/credits'
 
 export const runtime = 'nodejs'
 
@@ -16,7 +16,19 @@ export async function GET() {
   }
 
   try {
-    const balance = await getBalance(user.id)
+    let balance = await getBalance(user.id)
+
+    // If no credit row exists, create one based on subscription tier
+    if (balance.total === 0 && balance.cycleGranted === 0) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('subscription_status')
+        .eq('id', user.id)
+        .single()
+      await ensureCreditBalance(user.id, profile?.subscription_status || 'free')
+      balance = await getBalance(user.id)
+    }
+
     return NextResponse.json({
       balance: balance.total,
       monthly: balance.monthly,
