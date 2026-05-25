@@ -20,7 +20,7 @@ export default function HomePage() {
         color: 'var(--ink)',
       }}>
         <Link href="/signup" style={{ color: 'var(--ink)', textDecoration: 'none' }}>
-          Start free — 2 free videos, no credit card required
+          Start free — 1,000 credits, no credit card required
         </Link>
       </div>
 
@@ -570,39 +570,40 @@ export default function HomePage() {
         <section className="section" id="how-pricing-works">
           <div style={{textAlign:'center',marginBottom:40}}>
             <div className="section-eyebrow">Pricing that scales with you</div>
-            <h2 className="section-title">Start free &mdash; pay as you go or <em>subscribe for discounts</em></h2>
+            <h2 className="section-title">Credits for videos, decks &amp; PDFs &mdash; <em>use them your way</em></h2>
           </div>
           <div style={{maxWidth:700,margin:'0 auto',overflowX:'auto'}}>
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:14}}>
               <thead>
                 <tr style={{borderBottom:'2px solid var(--border)'}}>
-                  <th style={{textAlign:'left',padding:'12px 16px',color:'var(--ink-soft)',fontWeight:600}}></th>
-                  <th style={{textAlign:'center',padding:'12px 16px',color:'var(--ink-soft)',fontWeight:600}}>Pay Per Project</th>
-                  <th style={{textAlign:'center',padding:'12px 16px',color:'var(--ink-soft)',fontWeight:600}}>Pro ($25/mo)</th>
-                  <th style={{textAlign:'center',padding:'12px 16px',fontWeight:700,color:'var(--mint-darker, #0d9488)'}}>Business ($99/mo)</th>
+                  <th style={{textAlign:'left',padding:'12px 16px',color:'var(--ink-soft)',fontWeight:600}}>What you create</th>
+                  <th style={{textAlign:'center',padding:'12px 16px',color:'var(--ink-soft)',fontWeight:600}}>Credits</th>
                 </tr>
               </thead>
               <tbody>
                 <tr style={{borderBottom:'1px solid var(--border)'}}>
-                  <td style={{padding:'12px 16px',fontWeight:600}}>Per video</td>
-                  <td style={{textAlign:'center',padding:'12px 16px'}}>$10</td>
-                  <td style={{textAlign:'center',padding:'12px 16px'}}>$6 (40% off)</td>
-                  <td style={{textAlign:'center',padding:'12px 16px',fontWeight:700,color:'var(--mint-darker, #0d9488)'}}>$0 (included)</td>
+                  <td style={{padding:'12px 16px',fontWeight:600}}>Quick video (under 60s)</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>250</td>
                 </tr>
                 <tr style={{borderBottom:'1px solid var(--border)'}}>
-                  <td style={{padding:'12px 16px',fontWeight:600}}>10 videos/mo</td>
-                  <td style={{textAlign:'center',padding:'12px 16px'}}>$100</td>
-                  <td style={{textAlign:'center',padding:'12px 16px'}}>$85</td>
-                  <td style={{textAlign:'center',padding:'12px 16px',fontWeight:700,color:'var(--mint-darker, #0d9488)'}}>$99</td>
+                  <td style={{padding:'12px 16px',fontWeight:600}}>Standard video (2-3 min)</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>500</td>
+                </tr>
+                <tr style={{borderBottom:'1px solid var(--border)'}}>
+                  <td style={{padding:'12px 16px',fontWeight:600}}>Detailed video (5+ min)</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>750</td>
+                </tr>
+                <tr style={{borderBottom:'1px solid var(--border)'}}>
+                  <td style={{padding:'12px 16px',fontWeight:600}}>Slide deck (PPTX)</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>400</td>
                 </tr>
                 <tr>
-                  <td style={{padding:'12px 16px',fontWeight:600}}>50 videos/mo</td>
-                  <td style={{textAlign:'center',padding:'12px 16px'}}>$500</td>
-                  <td style={{textAlign:'center',padding:'12px 16px'}}>$325</td>
-                  <td style={{textAlign:'center',padding:'12px 16px',fontWeight:700,color:'var(--mint-darker, #0d9488)'}}>$99</td>
+                  <td style={{padding:'12px 16px',fontWeight:600}}>PDF document</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>300</td>
                 </tr>
               </tbody>
             </table>
+            <p style={{textAlign:'center',fontSize:13,color:'var(--ink-light)',marginTop:16}}>Podcast narration adds 200 credits. Style previews: 50 credits (first free).</p>
           </div>
         </section>
 
@@ -611,18 +612,19 @@ export default function HomePage() {
           <div style={{textAlign:'center',marginBottom:50}}>
             <div className="section-eyebrow">Pricing</div>
             <h2 className="section-title">Simple, transparent <em>pricing</em></h2>
-            <p className="section-sub" style={{maxWidth:600,margin:'0 auto'}}>Start free with 2 free videos. Then pay per project or subscribe for discounts.</p>
+            <p className="section-sub" style={{maxWidth:600,margin:'0 auto'}}>Every plan includes credits for videos, slide decks, and PDFs. Need more? Buy extra credits anytime.</p>
           </div>
           <div className="pricing-grid-5">
-            {/* Pay Per Project */}
+            {/* Free */}
             <div className="pricing-card" style={{padding:24}}>
-              <div className="pricing-name">Pay Per Project</div>
+              <div className="pricing-name">Free</div>
               <div className="pricing-price">$0</div>
               <div className="pricing-period">per month</div>
+              <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>1,000 credits</div>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~2 standard explainers</div>
               <ul className="pricing-features">
-                <li>$10 per video, deck, or infographic</li>
+                <li>All features included</li>
                 <li>Full quality, no watermark</li>
-                <li>Branded share pages</li>
                 <li>Download MP4, PDF, PPTX</li>
               </ul>
               <Link href="/signup" className="btn btn-outlined btn-full">Start free</Link>
@@ -632,11 +634,12 @@ export default function HomePage() {
               <div className="pricing-name">Starter</div>
               <div className="pricing-price">$29</div>
               <div className="pricing-period">per month</div>
+              <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>5,000 credits</div>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~10 standard explainers</div>
               <ul className="pricing-features">
-                <li>5 videos per month</li>
-                <li>$5 per additional video</li>
                 <li>Multi-voice narration</li>
                 <li>2 brand profiles</li>
+                <li>All slide templates</li>
               </ul>
               <Link href="/signup" className="btn btn-mint btn-full">Subscribe</Link>
             </div>
@@ -646,11 +649,12 @@ export default function HomePage() {
               <div className="pricing-name">Pro</div>
               <div className="pricing-price">$79</div>
               <div className="pricing-period">per month</div>
+              <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>25,000 credits</div>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~50 standard explainers</div>
               <ul className="pricing-features">
-                <li>20 videos per month</li>
-                <li>$5 per additional video</li>
                 <li>Priority generation</li>
                 <li>Unlimited brands</li>
+                <li>Style previews</li>
               </ul>
               <Link href="/signup" className="btn btn-primary btn-full">Subscribe</Link>
             </div>
@@ -659,11 +663,12 @@ export default function HomePage() {
               <div className="pricing-name">Business</div>
               <div className="pricing-price">$199</div>
               <div className="pricing-period">per month</div>
+              <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>75,000 credits</div>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~150 standard explainers</div>
               <ul className="pricing-features">
-                <li>75 videos per month</li>
-                <li>$5 per additional video</li>
                 <li>White-label share pages</li>
                 <li>Priority support</li>
+                <li>Extra credits: $4/1,000</li>
               </ul>
               <Link href="/signup" className="btn btn-mint btn-full">Subscribe</Link>
             </div>
@@ -672,11 +677,12 @@ export default function HomePage() {
               <div className="pricing-name">Enterprise</div>
               <div className="pricing-price">$499</div>
               <div className="pricing-period">per month</div>
+              <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>200,000 credits</div>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~400 standard explainers</div>
               <ul className="pricing-features">
-                <li>200 videos per month</li>
-                <li>$5 per additional video</li>
                 <li>API access + bulk creation</li>
                 <li>Dedicated support</li>
+                <li>Extra credits: $3/1,000</li>
               </ul>
               <a href="mailto:support@docs2video.com" className="btn btn-outlined btn-full">Contact Sales</a>
             </div>

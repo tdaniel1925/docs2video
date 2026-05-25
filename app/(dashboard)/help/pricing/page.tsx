@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 
+const BULLET = <span style={{ color: 'var(--mint-darker)' }}>&#8226;</span>
+
 export default function PricingHelpPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
@@ -11,138 +13,214 @@ export default function PricingHelpPage() {
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>Pricing & Plans</span>
+        <span>Pricing & Credits</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>Pricing & Plans</h1>
-          <p>Understand your options, from the free trial to enterprise-level plans.</p>
+          <h1>Pricing & Credits</h1>
+          <p>Understand how credits work and choose the right plan for your needs.</p>
         </div>
       </div>
 
-      {/* Free Trial */}
+      {/* How Credits Work */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Free Trial — 5 Videos
+          How Credits Work
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Every new account starts with <strong style={{ color: 'var(--ink)' }}>2 free videos</strong>. No credit card required to get started.
+            Every plan includes <strong style={{ color: 'var(--ink)' }}>monthly credits</strong>. Credits are used when you create videos, slide decks, or PDFs. Different actions cost different amounts of credits.
           </p>
           <p style={{ marginBottom: 10 }}>
-            Free videos include all features: AI content extraction, full script editing, voice narration, background music, and downloads in MP4, PDF, and PPTX formats.
+            Your credit balance is shown in the top menu bar. Before any action that uses credits, you&apos;ll see the cost and can confirm before proceeding.
           </p>
           <p>
-            Your free videos never expire. Once they are used, you can choose any paid plan or continue on a pay-per-project basis.
+            Monthly credits reset on your billing date. Need more? Buy credit packs anytime on any paid plan — purchased credits never expire.
           </p>
         </div>
       </div>
 
-      {/* Pay Per Video */}
+      {/* Credit Costs */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Pay Per Video — $10
+          What Credits Cost
+        </h2>
+        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                <th style={{ textAlign: 'left', padding: '8px 0', color: 'var(--ink)', fontWeight: 700 }}>Action</th>
+                <th style={{ textAlign: 'right', padding: '8px 0', color: 'var(--ink)', fontWeight: 700 }}>Credits</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ['Quick video (under 60s)', '250'],
+                ['Standard video (2-3 min)', '500'],
+                ['Detailed video (5+ min)', '750'],
+                ['Podcast mode add-on', '+200'],
+                ['Slide deck (PPTX)', '400'],
+                ['PDF document', '300'],
+                ['Style preview (first free)', '50'],
+                ['Script regeneration (first free)', '25'],
+              ].map(([action, cost]) => (
+                <tr key={action} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                  <td style={{ padding: '8px 0' }}>{action}</td>
+                  <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 600, color: 'var(--ink)' }}>{cost}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Free Plan */}
+      <div style={{
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        padding: '28px 32px', marginBottom: 20,
+      }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+          Free — 1,000 Credits
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            No subscription needed. You get <strong style={{ color: 'var(--ink)' }}>1 free video</strong> to try, then pay <strong style={{ color: 'var(--ink)' }}>$10 per video</strong>. Ideal if you only make videos occasionally.
+            Every new account starts with <strong style={{ color: 'var(--ink)' }}>1,000 credits</strong>. No credit card required. That&apos;s enough for approximately <strong style={{ color: 'var(--ink)' }}>2 standard explainer videos</strong> or <strong style={{ color: 'var(--ink)' }}>4 quick videos</strong>.
           </p>
           <p>
-            No monthly fee, no commitment, no expiration. Full quality, no watermark, share pages with AI chat, download as MP4, PDF, or PPTX.
+            All features included: AI content extraction, script editing, voice narration, background music, and downloads in MP4, PPTX, and PDF formats.
           </p>
         </div>
       </div>
 
       {/* Starter */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Starter Plan — $29/month
+          Starter — $29/month — 5,000 Credits
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Includes <strong style={{ color: 'var(--ink)' }}>5 videos per month</strong>. Additional videos are <strong style={{ color: 'var(--ink)' }}>$5 each</strong>.
+            Approximately <strong style={{ color: 'var(--ink)' }}>10 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>20 quick videos</strong> per month.
           </p>
-          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Multi-voice podcast narration</p>
-          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> 2 brand profiles</p>
-          <p><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> All slide templates</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} Multi-voice podcast narration</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} 2 brand profiles</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} All slide templates</p>
+          <p>{BULLET} Buy extra credits: $5 per 1,000</p>
         </div>
       </div>
 
       {/* Pro */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '2px solid var(--ink)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)', margin: 0 }}>
-            Pro Plan — $79/month
+            Pro — $79/month — 25,000 Credits
           </h2>
           <span style={{
-            background: 'var(--mint)', color: 'var(--ink)', fontSize: 11, fontWeight: 700,
-            padding: '3px 10px', borderRadius: 20,
+            background: 'var(--ink)', color: 'white', fontSize: 11, fontWeight: 700,
+            padding: '3px 10px', borderRadius: 6,
           }}>POPULAR</span>
         </div>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Includes <strong style={{ color: 'var(--ink)' }}>20 videos per month</strong>. Additional videos are <strong style={{ color: 'var(--ink)' }}>$5 each</strong>.
+            Approximately <strong style={{ color: 'var(--ink)' }}>50 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>100 quick videos</strong> per month.
           </p>
-          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Priority video generation</p>
-          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Unlimited brands</p>
-          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> 5 free slide edits per video</p>
-          <p><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Cancel anytime</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} Priority video generation</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} Unlimited brands</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} Style previews included</p>
+          <p>{BULLET} Buy extra credits: $5 per 1,000</p>
         </div>
       </div>
 
       {/* Business */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Business Plan — $199/month
+          Business — $199/month — 75,000 Credits
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Includes <strong style={{ color: 'var(--ink)' }}>75 videos per month</strong>. Additional videos are <strong style={{ color: 'var(--ink)' }}>$5 each</strong>.
+            Approximately <strong style={{ color: 'var(--ink)' }}>150 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>300 quick videos</strong> per month.
           </p>
-          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> White-label share pages</p>
-          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> 10 free slide edits per video</p>
-          <p><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Priority support</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} White-label share pages</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} Unlimited style previews</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} Priority support</p>
+          <p>{BULLET} Buy extra credits: $4 per 1,000</p>
         </div>
       </div>
 
       {/* Enterprise */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Enterprise Plan — $499/month
+          Enterprise — $499/month — 200,000 Credits
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Includes <strong style={{ color: 'var(--ink)' }}>200 videos per month</strong>. Additional videos are <strong style={{ color: 'var(--ink)' }}>$5 each</strong>.
+            Approximately <strong style={{ color: 'var(--ink)' }}>400 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>800 quick videos</strong> per month.
           </p>
-          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Unlimited slide edits</p>
-          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> White-label share pages</p>
-          <p style={{ marginBottom: 6 }}><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> API access and bulk creation</p>
-          <p><span style={{ color: 'var(--mint-darker)' }}>&#8226;</span> Dedicated support</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} API access and bulk creation</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} White-label share pages</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} Dedicated support</p>
+          <p>{BULLET} Buy extra credits: $3 per 1,000</p>
+        </div>
+      </div>
+
+      {/* Credit Packs */}
+      <div style={{
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        padding: '28px 32px', marginBottom: 20,
+      }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+          Credit Packs
+        </h2>
+        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+          <p style={{ marginBottom: 16 }}>
+            Need more credits? Buy a pack anytime. Purchased credits <strong style={{ color: 'var(--ink)' }}>never expire</strong> — they stay in your account until used.
+          </p>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                <th style={{ textAlign: 'left', padding: '8px 0', color: 'var(--ink)', fontWeight: 700 }}>Pack</th>
+                <th style={{ textAlign: 'center', padding: '8px 0', color: 'var(--ink)', fontWeight: 700 }}>Credits</th>
+                <th style={{ textAlign: 'right', padding: '8px 0', color: 'var(--ink)', fontWeight: 700 }}>Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ['Starter Pack', '2,500', '$10'],
+                ['Power Pack', '7,500', '$25'],
+                ['Studio Pack', '18,000', '$50'],
+              ].map(([name, credits, price]) => (
+                <tr key={name} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                  <td style={{ padding: '8px 0' }}>{name}</td>
+                  <td style={{ padding: '8px 0', textAlign: 'center', fontWeight: 600, color: 'var(--ink)' }}>{credits}</td>
+                  <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 600, color: 'var(--ink)' }}>{price}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
       {/* Upgrading / Downgrading */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
@@ -151,33 +229,33 @@ export default function PricingHelpPage() {
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: '50%', background: 'var(--ink)', color: 'var(--mint)',
+              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>1</div>
             <div>
-              <strong style={{ color: 'var(--ink)' }}>Go to Settings.</strong> Click your profile icon, then select "Settings" from the menu.
+              <strong style={{ color: 'var(--ink)' }}>Go to Settings.</strong> Click your profile icon, then select &quot;Settings&quot; from the menu.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: '50%', background: 'var(--ink)', color: 'var(--mint)',
+              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>2</div>
             <div>
-              <strong style={{ color: 'var(--ink)' }}>Find the Subscription section.</strong> Your current plan is displayed along with options to change it.
+              <strong style={{ color: 'var(--ink)' }}>Find the Subscription section.</strong> Your current plan and credit balance are displayed.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: '50%', background: 'var(--ink)', color: 'var(--mint)',
+              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>3</div>
             <div>
-              <strong style={{ color: 'var(--ink)' }}>Select your new plan.</strong> Click "Upgrade" or "Downgrade" next to the plan you want. Changes take effect immediately for upgrades. Downgrades take effect at the end of your current billing period.
+              <strong style={{ color: 'var(--ink)' }}>Select your new plan.</strong> Upgrades take effect immediately with new credits. Downgrades take effect at the end of your current billing period.
             </div>
           </div>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>Cancellation:</strong> You can cancel any subscription at any time. Your plan remains active until the end of the current billing period, and you are not charged again. After cancellation, your account reverts to pay-per-project pricing.
+            <strong style={{ color: 'var(--ink)' }}>Cancellation:</strong> Cancel any subscription anytime. Your plan stays active until the end of the billing period. Unused monthly credits are not refunded, but purchased credit packs remain in your account.
           </p>
         </div>
       </div>
