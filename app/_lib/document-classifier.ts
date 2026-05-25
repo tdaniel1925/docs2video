@@ -114,6 +114,14 @@ CLASSIFICATION RULES:
 - If unsure between two types, pick the more specific one
 - If nothing fits, use "unknown"
 
+AUDIENCE DETECTION RULES:
+- If document contains "Dear Client", "your policy", "your account", "you will receive" → audience is "client"
+- If document contains "Board of Directors", "shareholders", "quarterly results" → audience is "investor"
+- If document contains "employee handbook", "onboarding", "team member", "HR policy" → audience is "employee"
+- If document contains "Dear Patient", "your results", "treatment plan", "diagnosis" → audience is "patient"
+- If document is a pitch deck, proposal, or sales material → audience is "prospect"
+- Default to "general" only if none of the above match
+
 RED FLAG RULES:
 - Be SPECIFIC to this document, not generic. "Your interest rate of 6.5% is above current averages" not "watch out for high interest rates"
 - Look for: hidden fees, penalty clauses, expiring guarantees, unusual terms, below-average rates, above-average costs

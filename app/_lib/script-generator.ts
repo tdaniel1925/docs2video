@@ -1,7 +1,7 @@
 import OpenAI from 'openai'
 import type { ExtractedPolicyData, VideoScene } from './types'
 import { type ExtractedData, isInsuranceData } from './extract-types'
-import { detectIndustry, classifyIndustryLLM } from './industries'
+import { detectIndustry, classifyIndustryLLM, INDUSTRIES, type IndustryId } from './industries'
 import { getPrompt } from './prompts'
 import { fitSourceData } from './source-data-fitter'
 
@@ -174,41 +174,87 @@ export async function generateScript(
   if (classification) {
     const classRules: string[] = []
 
-    // Perspective and tone
+    // Perspective and tone (always applied regardless of confidence)
     if (classification.perspective) {
       classRules.push(`AUDIENCE: The viewer is a ${classification.perspective}. Address them directly and explain things from their perspective.`)
     }
     if (classification.tone) {
       classRules.push(`TONE: ${classification.tone}. This overrides any default tone settings.`)
     }
-    if (classification.sensitivity === 'high') {
-      classRules.push(`SENSITIVITY: HIGH. This is a regulated/sensitive document. Be precise with numbers, include appropriate disclaimers, do NOT make claims beyond what the source data supports.`)
-    }
 
-    // Key question
-    if (classification.keyQuestion) {
-      classRules.push(`KEY QUESTION: The video MUST answer this: "${classification.keyQuestion}". Structure the script to build toward answering this clearly.`)
-    }
-
-    // Red flags — include as a dedicated scene or weave into content
+    // Red flags (always applied regardless of confidence)
     if (classification.redFlags?.length) {
       classRules.push(`RED FLAGS TO ADDRESS (important things the viewer should know):\n${classification.redFlags.map(f => `- ${f}`).join('\n')}\nInclude these naturally in the narration — don't ignore them.`)
     }
 
-    // Action items — for the closing/CTA scene
-    if (classification.actionItems?.length) {
-      classRules.push(`ACTION ITEMS FOR CLOSING SCENE:\n${classification.actionItems.map(a => `- ${a}`).join('\n')}\nInclude these as concrete next steps in the final scene.`)
+    // FIX 2: Confidence gating — only apply hard rules if confidence is sufficient
+    const confidence = (classification as any).confidence ?? 0.5
+    if (confidence < 0.5) {
+      // Low confidence: skip industry-specific hard rules, keep tone/perspective/redFlags
+      classRules.push(`Note: Document type was not confidently identified. Apply general best practices.`)
+    } else {
+      // Confidence >= 0.5: apply sensitivity and hard rules
+      if (confidence >= 0.8) {
+        classRules.push(`Document type confirmed with high confidence. Strictly enforce all rules below.`)
+      }
+
+      if (classification.sensitivity === 'high') {
+        classRules.push(`SENSITIVITY: HIGH. This is a regulated/sensitive document. Be precise with numbers, include appropriate disclaimers, do NOT make claims beyond what the source data supports.`)
+      }
+
+      // Key question
+      if (classification.keyQuestion) {
+        classRules.push(`KEY QUESTION: The video MUST answer this: "${classification.keyQuestion}". Structure the script to build toward answering this clearly.`)
+      }
+
+      // Action items — for the closing/CTA scene
+      if (classification.actionItems?.length) {
+        classRules.push(`ACTION ITEMS FOR CLOSING SCENE:\n${classification.actionItems.map(a => `- ${a}`).join('\n')}\nInclude these as concrete next steps in the final scene.`)
+      }
+
+      // Industry-specific hard rules
+      if (classification.category === 'insurance') {
+        classRules.push(`INSURANCE RULES:\n- NEVER mention the insurance carrier/company name\n- Include required disclaimers about illustrations not being guarantees\n- Projected values are NOT guaranteed — say "projected" or "estimated"\n- Focus on what the policy DOES for the client, not the carrier brand`)
+      } else if (classification.category === 'healthcare') {
+        classRules.push(`HEALTHCARE RULES:\n- Use patient-friendly language, avoid medical jargon\n- Do NOT make diagnostic claims\n- Explain what results MEAN, not just what they ARE\n- Be empathetic and reassuring in tone`)
+      } else if (classification.category === 'legal') {
+        classRules.push(`LEGAL RULES:\n- Do NOT frame content as legal advice\n- Use precise language — don't paraphrase legal terms loosely\n- Highlight key obligations and deadlines\n- Recommend consulting an attorney for specific situations`)
+      } else if (classification.category === 'finance') {
+        classRules.push(`FINANCIAL RULES:\n- All numbers must match the source exactly — no rounding\n- Include "past performance does not guarantee future results" where applicable\n- Explain financial terms in plain language\n- Be clear about fees, penalties, and fine print`)
+      } else if (classification.category === 'real-estate' || (classification as any).industry === 'real-estate') {
+        classRules.push(`REAL ESTATE RULES:\n- Highlight property features and neighborhood benefits\n- Include square footage, bedrooms, bathrooms accurately\n- Mention nearby amenities and schools\n- CTA should drive scheduling a showing or consultation`)
+      } else if (classification.category === 'education' || (classification as any).industry === 'education') {
+        classRules.push(`EDUCATION RULES:\n- Use clear, accessible language for all learning levels\n- Break complex concepts into digestible pieces\n- Include practical examples and applications\n- Encourage further learning and exploration`)
+      } else if ((classification as any).industry === 'fitness' || (classification as any).industry === 'coaching') {
+        classRules.push(`FITNESS/COACHING RULES:\n- Focus on outcomes and transformations, not just features\n- Use motivational but not pushy tone\n- Include specific results or testimonials if available\n- CTA should drive booking a session or starting a trial`)
+      } else if ((classification as any).industry === 'non-profit') {
+        classRules.push(`NON-PROFIT RULES:\n- Lead with mission and impact, not organization details\n- Use stories and real examples of impact\n- Be transparent about how funds are used\n- CTA should drive donations or volunteer sign-ups`)
+      } else if ((classification as any).industry === 'retail' || (classification as any).industry === 'manufacturing') {
+        classRules.push(`BUSINESS RULES:\n- Focus on value proposition and competitive advantages\n- Include specific product/service differentiators\n- Use customer-focused language (benefits over features)\n- CTA should drive purchasing or requesting a quote`)
+      }
     }
 
-    // Industry-specific hard rules
-    if (classification.category === 'insurance') {
-      classRules.push(`INSURANCE RULES:\n- NEVER mention the insurance carrier/company name\n- Include required disclaimers about illustrations not being guarantees\n- Projected values are NOT guaranteed — say "projected" or "estimated"\n- Focus on what the policy DOES for the client, not the carrier brand`)
-    } else if (classification.category === 'healthcare') {
-      classRules.push(`HEALTHCARE RULES:\n- Use patient-friendly language, avoid medical jargon\n- Do NOT make diagnostic claims\n- Explain what results MEAN, not just what they ARE\n- Be empathetic and reassuring in tone`)
-    } else if (classification.category === 'legal') {
-      classRules.push(`LEGAL RULES:\n- Do NOT frame content as legal advice\n- Use precise language — don't paraphrase legal terms loosely\n- Highlight key obligations and deadlines\n- Recommend consulting an attorney for specific situations`)
-    } else if (classification.category === 'finance') {
-      classRules.push(`FINANCIAL RULES:\n- All numbers must match the source exactly — no rounding\n- Include "past performance does not guarantee future results" where applicable\n- Explain financial terms in plain language\n- Be clear about fees, penalties, and fine print`)
+    // FIX 1: Wire CTA from industry config into script generator
+    const resolvedIndustry = ((classification as any).industry || industry || 'general') as string
+    const industryConfig = INDUSTRIES[resolvedIndustry as IndustryId] ?? null
+    if (industryConfig?.ctaText) {
+      classRules.push(`CLOSING CTA: Use this call-to-action for the final scene: '${industryConfig.ctaText}'. Adapt it naturally to fit the content.`)
+    } else {
+      // Smart default CTA based on document category
+      const defaultCtaMap: Record<string, string> = {
+        insurance: 'Schedule a policy review today.',
+        legal: 'Consult your attorney to discuss next steps.',
+        healthcare: 'Schedule a follow-up appointment with your provider.',
+        finance: 'Schedule a financial review to discuss your options.',
+        'real-estate': 'Schedule a showing or consultation today.',
+        education: 'Take the next step in your learning journey.',
+        business: 'Reach out to discuss how we can help.',
+      }
+      const ctaCategory = classification.category || 'general'
+      const defaultCta = defaultCtaMap[ctaCategory]
+      if (defaultCta) {
+        classRules.push(`CLOSING CTA: Use this call-to-action for the final scene: '${defaultCta}'. Adapt it naturally to fit the content.`)
+      }
     }
 
     if (classRules.length > 0) {

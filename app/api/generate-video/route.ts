@@ -409,7 +409,7 @@ export async function POST(request: Request) {
     }
     await admin.from('videos').update({ progress_detail: 'Preparing slide designs...', progress_pct: 16 }).eq('id', videoId)
 
-    const templateId = (styleId ?? brand?.deck_style_id ?? 'blue-steps') as string
+    const templateId = (styleId ?? brand?.deck_style_id ?? (policyData as any)?.classification?.recommendedTemplate ?? 'blue-steps') as string
     const logoUrl = brand?.logo_file_url ?? brand?.logo_url ?? null
     const brandGuide = brand?.brand_guide_data as Record<string, string> | null
     const brandColors = {
