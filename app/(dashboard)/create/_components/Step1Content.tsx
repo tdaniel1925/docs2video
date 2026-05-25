@@ -246,7 +246,7 @@ export default function Step1Content() {
         const formData = new FormData()
         formData.append('file', file)
         formData.append('purpose', purpose.trim())
-        const res = await fetch('/api/extract-text', { method: 'POST', body: formData })
+        const res = await fetch('/api/extract-doc', { method: 'POST', body: formData })
         const result = await res.json()
         if (!res.ok) throw new Error(result.error || 'File processing failed')
         extractedData = result
