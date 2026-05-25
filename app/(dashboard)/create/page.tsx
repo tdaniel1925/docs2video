@@ -6,6 +6,7 @@ import { createClient } from '../../_lib/supabase/client'
 import { SLIDE_STYLES } from '../../_lib/types'
 import { autoSelectStyle, autoSelectFromBrand } from '../../_lib/style-picker'
 import type { Brand } from '../../_lib/types'
+import Step1Content from './_components/Step1Content'
 
 const SUGGESTIONS = [
   { icon: '🌐', label: 'Explain my website', method: 'url' as const, placeholder: 'Paste your website URL', prompt: 'Create a video that explains what this company does' },
@@ -22,6 +23,11 @@ type InputMethod = 'url' | 'upload' | 'text' | 'idea' | null
 type Stage = 'idle' | 'extracting' | 'generating' | 'done'
 
 export default function CreatePage() {
+  const useNewFlow = process.env.NEXT_PUBLIC_USE_NEW_CREATE_FLOW === 'true'
+  if (useNewFlow) {
+    return <Step1Content />
+  }
+
   const router = useRouter()
   const [purpose, setPurpose] = useState('')
   const [method, setMethod] = useState<InputMethod>(null)

@@ -31,20 +31,27 @@ export default function GeneratingPage() {
   const [elapsed, setElapsed] = useState(0)
   const [tipIdx, setTipIdx] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [outputType, setOutputType] = useState<string>('video')
+  const [videoUrl, setVideoUrl] = useState<string | null>(null)
 
   // Poll for status
   useEffect(() => {
     if (!videoId) return
     const supabase = createClient()
     const interval = setInterval(async () => {
-      const { data } = await supabase.from('videos').select('status, progress_pct, progress_detail, error_message').eq('id', videoId).single()
+      const { data } = await supabase.from('videos').select('status, progress_pct, progress_detail, error_message, output_type, video_url').eq('id', videoId).single()
       if (data) {
         setStatus(data.status)
         setProgressPct(data.progress_pct ?? 0)
         setProgressDetail(data.progress_detail ?? '')
+        if (data.output_type) setOutputType(data.output_type)
+        if (data.video_url) setVideoUrl(data.video_url)
         if (data.status === 'completed') {
           clearInterval(interval)
-          router.push(`/videos/${videoId}`)
+          // For video output, redirect to the video page as before
+          if (!data.output_type || data.output_type === 'video') {
+            router.push(`/videos/${videoId}`)
+          }
         }
         if (data.status === 'failed') {
           clearInterval(interval)
@@ -130,6 +137,69 @@ export default function GeneratingPage() {
             </Link>
           </div>
         </div>
+      </div>
+    )
+  }
+
+  // PPTX or PDF completed — show download UI instead of redirecting
+  if (status === 'completed' && outputType && outputType !== 'video') {
+    const isPptx = outputType === 'pptx'
+    const label = isPptx ? 'PPTX' : 'PDF'
+    const readyMsg = isPptx ? 'Your slide deck is ready!' : 'Your document is ready!'
+    return (
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '40px 24px', minHeight: '80vh',
+      }}>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>{isPptx ? '\uD83D\uDCCA' : '\uD83D\uDCC4'}</div>
+        <h1 style={{ fontSize: 32, fontWeight: 800, color: 'var(--ink)', marginBottom: 8, letterSpacing: '-0.03em' }}>
+          {readyMsg}
+        </h1>
+        <p style={{ fontSize: 16, color: 'var(--ink-soft)', marginBottom: 32, lineHeight: 1.6, textAlign: 'center', maxWidth: 480 }}>
+          Your {label} has been generated and is ready to download.
+        </p>
+
+        {videoUrl && (
+          <a
+            href={videoUrl}
+            download
+            style={{
+              display: 'inline-block', padding: '16px 40px', borderRadius: 10,
+              background: 'var(--ink)', color: 'white', fontSize: 18, fontWeight: 800,
+              textDecoration: 'none', marginBottom: 24, letterSpacing: '-0.02em',
+              transition: 'opacity 0.2s',
+            }}
+          >
+            Download {label}
+          </a>
+        )}
+
+        {/* Upsell for video version */}
+        <div style={{
+          maxWidth: 480, width: '100%', padding: '24px 28px', borderRadius: 10,
+          background: 'rgba(199, 232, 168, 0.12)', border: '1.5px solid var(--mint)',
+          textAlign: 'center', marginBottom: 24,
+        }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+            Want a narrated video version too?
+          </div>
+          <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16, lineHeight: 1.5 }}>
+            Turn this into a professional video with AI voiceover, music, and animated slides.
+          </div>
+          <Link href="/create" style={{
+            display: 'inline-block', padding: '10px 28px', borderRadius: 8,
+            border: '2px solid var(--mint)', background: 'white', color: 'var(--ink)',
+            fontSize: 14, fontWeight: 700, textDecoration: 'none',
+          }}>
+            Create video version
+          </Link>
+        </div>
+
+        <Link href="/dashboard" style={{
+          fontSize: 14, color: 'var(--ink-light)', textDecoration: 'none',
+        }}>
+          Back to Dashboard
+        </Link>
       </div>
     )
   }

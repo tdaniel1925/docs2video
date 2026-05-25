@@ -1,15 +1,25 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import WizardProgress from '../_components/WizardProgress'
+import CreditCost from '../_components/CreditCost'
 
 export default function ScriptPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const videoId = searchParams.get('id')
+
+  // Wizard mode = videoId present
+  const isWizard = !!videoId
+
   const [createState, setCreateState] = useState<any>(null)
   const [detailLevel, setDetailLevel] = useState<'quick' | 'standard' | 'detailed'>('standard')
   const [narrationStyle, setNarrationStyle] = useState<'solo' | 'podcast'>('solo')
+  const [outputType, setOutputType] = useState<'video' | 'pptx' | 'pdf'>('video')
   const [scenes, setScenes] = useState<any[]>([])
   const [generating, setGenerating] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedScene, setSavedScene] = useState<number | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -22,15 +32,19 @@ export default function ScriptPage() {
   const [previewIdx, setPreviewIdx] = useState<number | null>(null)
   const [previewImg, setPreviewImg] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [draftLoading, setDraftLoading] = useState(isWizard)
+  const [draftData, setDraftData] = useState<any>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   // Auto-save scenes to localStorage — debounced for typing, instant for other actions
   const autoSave = useCallback((updatedScenes: any[], sceneIdx: number, instant?: boolean) => {
     if (saveTimer.current) clearTimeout(saveTimer.current)
     const doSave = () => {
-      const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
-      state.scenes = updatedScenes
-      localStorage.setItem('d2v_create', JSON.stringify(state))
+      if (!isWizard) {
+        const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+        state.scenes = updatedScenes
+        localStorage.setItem('d2v_create', JSON.stringify(state))
+      }
       setSavedScene(sceneIdx)
       setTimeout(() => setSavedScene(null), 1500)
     }
@@ -39,12 +53,12 @@ export default function ScriptPage() {
     } else {
       saveTimer.current = setTimeout(doSave, 800)
     }
-  }, [])
+  }, [isWizard])
 
   // Safety net: save on page unload
   useEffect(() => {
     const handleUnload = () => {
-      if (scenes.length > 0) {
+      if (scenes.length > 0 && !isWizard) {
         const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
         state.scenes = scenes
         localStorage.setItem('d2v_create', JSON.stringify(state))
@@ -54,7 +68,54 @@ export default function ScriptPage() {
     return () => window.removeEventListener('beforeunload', handleUnload)
   })
 
+  // Wizard flow: load draft from API
   useEffect(() => {
+    if (!isWizard) return
+    async function loadDraft() {
+      try {
+        const res = await fetch(`/api/videos/draft?videoId=${videoId}`)
+        if (!res.ok) throw new Error('Failed to load draft')
+        const video = await res.json()
+        const draft = video.draft_data
+        if (!draft) throw new Error('No draft data')
+
+        setDraftData(draft)
+        const ot = draft.outputType || video.output_type || 'video'
+        setOutputType(ot)
+        if (draft.detailLevel) setDetailLevel(draft.detailLevel)
+        if (draft.narrationStyle) setNarrationStyle(draft.narrationStyle)
+
+        // If draft already has scenes, restore them
+        if (draft.scenes && draft.scenes.length > 0) {
+          setScenes(draft.scenes)
+        }
+        // Build a createState-like object from draft data for script generation
+        setCreateState({
+          extractedData: draft.extractedData || draft.inlineBrand || {},
+          intentType: draft.intentType || draft.purpose,
+          purpose: draft.purpose,
+          contactPhone: draft.contactPhone,
+          contactEmail: draft.contactEmail,
+          contactWebsite: draft.contactWebsite,
+          selectedBrand: draft.brandId,
+          autoBrandId: draft.autoBrandId,
+          customStylePrompt: draft.customStylePrompt,
+          detailLevel: draft.detailLevel,
+          narrationStyle: draft.narrationStyle,
+        })
+      } catch (err) {
+        console.error('[script] load draft error:', err)
+        setError('Could not load your draft. Please go back and try again.')
+      } finally {
+        setDraftLoading(false)
+      }
+    }
+    loadDraft()
+  }, [isWizard, videoId])
+
+  // Legacy flow: load from localStorage
+  useEffect(() => {
+    if (isWizard) return
     const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
     if (!state.extractedData && !state.scenes) {
       // No data — redirect back
@@ -65,13 +126,13 @@ export default function ScriptPage() {
     if (state.detailLevel) setDetailLevel(state.detailLevel)
     if (state.narrationStyle) setNarrationStyle(state.narrationStyle)
     if (state.scenes) setScenes(state.scenes)
-  }, [router])
+  }, [router, isWizard])
 
   async function handleGenerate() {
     setGenerating(true)
     setError(null)
     try {
-      const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+      const state = isWizard ? createState : JSON.parse(localStorage.getItem('d2v_create') || '{}')
       const res = await fetch('/api/generate-script', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -94,16 +155,34 @@ export default function ScriptPage() {
             website: state.contactWebsite || undefined,
           },
           industry: state.extractedData?.industry || 'general',
+          outputType,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Script generation failed')
 
       setScenes(data.scenes)
-      state.scenes = data.scenes
-      state.detailLevel = detailLevel
-      state.narrationStyle = narrationStyle
-      localStorage.setItem('d2v_create', JSON.stringify(state))
+
+      if (isWizard) {
+        // Save scenes to draft
+        await fetch('/api/videos/draft', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            videoId,
+            updates: {
+              scenes: data.scenes,
+              detailLevel,
+              narrationStyle,
+            },
+          }),
+        })
+      } else {
+        state.scenes = data.scenes
+        state.detailLevel = detailLevel
+        state.narrationStyle = narrationStyle
+        localStorage.setItem('d2v_create', JSON.stringify(state))
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate script')
     }
@@ -118,7 +197,7 @@ export default function ScriptPage() {
     // Handle template save
     if (msg === 'Yes, save as template') {
       setChatMessages(prev => [...prev, { role: 'user', text: msg }])
-      const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+      const state = isWizard ? createState : JSON.parse(localStorage.getItem('d2v_create') || '{}')
       const templateName = state.purpose?.slice(0, 50) || 'My template'
       // Save to localStorage templates list
       const templates = JSON.parse(localStorage.getItem('d2v_templates') || '[]')
@@ -144,7 +223,7 @@ export default function ScriptPage() {
     setChatMessages(prev => [...prev, { role: 'user', text: msg }])
     setChatLoading(true)
     try {
-      const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+      const state = isWizard ? createState : JSON.parse(localStorage.getItem('d2v_create') || '{}')
       const res = await fetch('/api/script-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -219,7 +298,7 @@ export default function ScriptPage() {
     setPreviewLoading(true)
     try {
       const scene = scenes[idx]
-      const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+      const state = isWizard ? createState : JSON.parse(localStorage.getItem('d2v_create') || '{}')
       const brandColors = state.extractedData?.primaryColor ? { primary: state.extractedData.primaryColor, secondary: state.extractedData.secondaryColor || '#4A90D9' } : { primary: '#1B365D', secondary: '#4A90D9' }
 
       const res = await fetch('/api/style-previews', {
@@ -236,7 +315,12 @@ export default function ScriptPage() {
     setPreviewLoading(false)
   }
 
+  // Legacy flow: continue to options
   function handleContinue() {
+    if (isWizard) {
+      handleWizardGenerate()
+      return
+    }
     const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
     state.scenes = scenes
     state.detailLevel = detailLevel
@@ -245,28 +329,102 @@ export default function ScriptPage() {
     router.push('/create/options')
   }
 
+  // Wizard flow: save script to draft, then trigger generation and redirect
+  async function handleWizardGenerate() {
+    if (!videoId) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      // 1. Save script and advance step
+      const wizardStep = outputType === 'video' ? 5 : 4
+      const patchRes = await fetch('/api/videos/draft', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoId,
+          updates: {
+            scenes,
+            detailLevel,
+            narrationStyle,
+            step: wizardStep,
+          },
+        }),
+      })
+      if (!patchRes.ok) throw new Error('Failed to save script')
+
+      // 2. Trigger generation
+      const genRes = await fetch('/api/generate-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoId,
+          outputType,
+        }),
+      })
+      if (!genRes.ok) {
+        const genData = await genRes.json().catch(() => ({}))
+        throw new Error(genData.error || 'Failed to start generation')
+      }
+
+      // 3. Redirect to generating page
+      router.push(`/create/generating?id=${videoId}`)
+    } catch (err) {
+      console.error('[script] generate error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to generate. Please try again.')
+      setSubmitting(false)
+    }
+  }
+
+  // Determine wizard step number for progress bar
+  const wizardStep = outputType === 'video' ? 5 : 4
+  const backPath = isWizard
+    ? `/create/style?id=${videoId}`
+    : '/create/review'
+
+  // Loading state for wizard
+  if (draftLoading) {
+    return (
+      <div style={pageStyles.page}>
+        <div style={pageStyles.container}>
+          <div style={pageStyles.loadingText}>Loading...</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{
       flex: 1, padding: '40px 24px', maxWidth: scenes.length > 0 ? 1100 : 800, margin: '0 auto', width: '100%', transition: 'max-width 0.3s',
     }}>
+
+      {/* Wizard progress bar — only in wizard mode */}
+      {isWizard && (
+        <WizardProgress currentStep={wizardStep} outputType={outputType} />
+      )}
 
       <div style={{ animation: 'fadeInUp 0.4s ease' }}>
         <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 8 }}>
           {scenes.length > 0 ? 'Your script' : 'Configure your video'}
         </h1>
         <p style={{ fontSize: 17, color: 'var(--ink-soft)', marginBottom: 40, lineHeight: 1.6 }}>
-          {scenes.length > 0 ? 'Edit the narration for each scene. This is what the voice will say.' : 'Choose the length and style, then generate your script.'}
+          {scenes.length > 0
+            ? outputType === 'video'
+              ? 'Edit the narration for each scene. This is what the voice will say.'
+              : 'Edit the content for each slide. Headlines and bullets will appear on your slides.'
+            : 'Choose the length and style, then generate your script.'}
         </p>
 
         {scenes.length === 0 && (
           <>
             {/* Back button */}
-            <button onClick={() => router.push('/create/review')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--ink-light)', marginBottom: 24, fontFamily: 'inherit' }}>
-              &larr; Back to review
+            <button onClick={() => router.push(backPath)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--ink-light)', marginBottom: 24, fontFamily: 'inherit' }}>
+              &larr; {isWizard ? 'Back to style' : 'Back to review'}
             </button>
 
             {/* Detail level with AI recommendation */}
-            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Video length</h3>
+            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+              {outputType === 'video' ? 'Video length' : 'Document length'}
+            </h3>
             {(() => {
               const intent = createState?.intentType || ''
               const rec: string | null = intent === 'sales' ? 'standard' : intent === 'train' ? 'detailed' : intent === 'report' ? 'standard' : intent === 'proposal' ? 'standard' : intent === 'educate' ? 'standard' : null
@@ -280,18 +438,19 @@ export default function ScriptPage() {
             })()}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
               {[
-                { id: 'quick' as const, title: 'Highlights', desc: 'Under 60 seconds', sub: 'Quick summaries, social media clips, elevator pitches' },
-                { id: 'standard' as const, title: 'Standard', desc: '2-5 minutes', sub: 'Client presentations, product overviews, reports' },
-                { id: 'detailed' as const, title: 'Detailed', desc: '5-15 minutes', sub: 'Training videos, full walkthroughs, comprehensive explainers' },
+                { id: 'quick' as const, title: 'Highlights', desc: outputType === 'video' ? 'Under 60 seconds' : '3-5 slides', sub: 'Quick summaries, social media clips, elevator pitches' },
+                { id: 'standard' as const, title: 'Standard', desc: outputType === 'video' ? '2-5 minutes' : '8-15 slides', sub: 'Client presentations, product overviews, reports' },
+                { id: 'detailed' as const, title: 'Detailed', desc: outputType === 'video' ? '5-15 minutes' : '15-30 slides', sub: 'Training videos, full walkthroughs, comprehensive explainers' },
               ].map(level => (
                 <button
                   key={level.id}
                   onClick={() => setDetailLevel(level.id)}
                   style={{
-                    padding: '24px 20px', borderRadius: 14,
+                    padding: '24px 20px', borderRadius: 10,
                     border: detailLevel === level.id ? '2px solid var(--mint)' : '2px solid var(--border-light)',
                     background: detailLevel === level.id ? 'rgba(168,240,212,0.06)' : 'white',
                     cursor: 'pointer', textAlign: 'left',
+                    fontFamily: 'inherit',
                   }}
                 >
                   <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{level.title}</div>
@@ -301,34 +460,40 @@ export default function ScriptPage() {
               ))}
             </div>
 
-            {/* Narration style */}
-            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Narration style</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 32 }}>
-              <button
-                onClick={() => setNarrationStyle('solo')}
-                style={{
-                  padding: '24px 20px', borderRadius: 14,
-                  border: narrationStyle === 'solo' ? '2px solid var(--mint)' : '2px solid var(--border-light)',
-                  background: narrationStyle === 'solo' ? 'rgba(168,240,212,0.06)' : 'white',
-                  cursor: 'pointer', textAlign: 'left',
-                }}
-              >
-                <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>Solo Narrator</div>
-                <div style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.5 }}>One professional voice. Clean, focused, traditional.</div>
-              </button>
-              <button
-                onClick={() => setNarrationStyle('podcast')}
-                style={{
-                  padding: '24px 20px', borderRadius: 14,
-                  border: narrationStyle === 'podcast' ? '2px solid var(--mint)' : '2px solid var(--border-light)',
-                  background: narrationStyle === 'podcast' ? 'rgba(168,240,212,0.06)' : 'white',
-                  cursor: 'pointer', textAlign: 'left',
-                }}
-              >
-                <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>Two Narrators</div>
-                <div style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.5 }}>Professional discussion format. More engaging.</div>
-              </button>
-            </div>
+            {/* Narration style — only for video output */}
+            {outputType === 'video' && (
+              <>
+                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Narration style</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 32 }}>
+                  <button
+                    onClick={() => setNarrationStyle('solo')}
+                    style={{
+                      padding: '24px 20px', borderRadius: 10,
+                      border: narrationStyle === 'solo' ? '2px solid var(--mint)' : '2px solid var(--border-light)',
+                      background: narrationStyle === 'solo' ? 'rgba(168,240,212,0.06)' : 'white',
+                      cursor: 'pointer', textAlign: 'left',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>Solo Narrator</div>
+                    <div style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.5 }}>One professional voice. Clean, focused, traditional.</div>
+                  </button>
+                  <button
+                    onClick={() => setNarrationStyle('podcast')}
+                    style={{
+                      padding: '24px 20px', borderRadius: 10,
+                      border: narrationStyle === 'podcast' ? '2px solid var(--mint)' : '2px solid var(--border-light)',
+                      background: narrationStyle === 'podcast' ? 'rgba(168,240,212,0.06)' : 'white',
+                      cursor: 'pointer', textAlign: 'left',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>Two Narrators</div>
+                    <div style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.5 }}>Professional discussion format. More engaging.</div>
+                  </button>
+                </div>
+              </>
+            )}
 
             {error && (
               <div style={{ padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 14, marginBottom: 20 }}>
@@ -367,7 +532,7 @@ export default function ScriptPage() {
               <button
                 onClick={handleGenerate}
                 style={{
-                  width: '100%', padding: '18px', borderRadius: 12, border: 'none',
+                  width: '100%', padding: '18px', borderRadius: 10, border: 'none',
                   background: 'var(--ink)', color: 'white', fontSize: 17, fontWeight: 700,
                   cursor: 'pointer', fontFamily: 'inherit',
                 }}
@@ -410,7 +575,7 @@ export default function ScriptPage() {
                       }}
                       onDragEnd={() => setDragIdx(null)}
                       style={{
-                        marginBottom: 12, borderRadius: 14, overflow: 'hidden',
+                        marginBottom: 12, borderRadius: 10, overflow: 'hidden',
                         background: 'white',
                         border: dragIdx === i ? '2px solid var(--mint)' : '1px solid var(--border-light)',
                         opacity: dragIdx === i ? 0.6 : 1,
@@ -439,24 +604,29 @@ export default function ScriptPage() {
                         {savedScene === i && <span style={{ fontSize: 11, color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>&#10003;</span>}
                       </div>
 
-                      {/* Narration section */}
-                      <div style={{ padding: '0 16px 8px' }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-light)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Narration</div>
-                        <textarea
-                          value={scene.narration}
-                          onChange={e => {
-                            const updated = [...scenes]
-                            updated[i] = { ...updated[i], narration: e.target.value }
-                            setScenes(updated)
-                            autoSave(updated, i)
-                          }}
-                          style={{
-                            width: '100%', minHeight: 60, resize: 'vertical', border: '1px solid var(--border-light)',
-                            borderRadius: 8, padding: 10, fontSize: 13, lineHeight: 1.6,
-                            fontFamily: 'inherit', outline: 'none',
-                          }}
-                        />
-                      </div>
+                      {/* Narration section — always shown for video, shown as speaker notes for pptx */}
+                      {(outputType === 'video' || outputType === 'pptx') && (
+                        <div style={{ padding: '0 16px 8px' }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-light)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {outputType === 'video' ? 'Narration' : 'Speaker Notes'}
+                          </div>
+                          <textarea
+                            value={scene.narration}
+                            onChange={e => {
+                              const updated = [...scenes]
+                              updated[i] = { ...updated[i], narration: e.target.value }
+                              setScenes(updated)
+                              autoSave(updated, i)
+                            }}
+                            placeholder={outputType === 'pptx' ? 'Speaker notes for this slide (optional)' : ''}
+                            style={{
+                              width: '100%', minHeight: 60, resize: 'vertical', border: '1px solid var(--border-light)',
+                              borderRadius: 8, padding: 10, fontSize: 13, lineHeight: 1.6,
+                              fontFamily: 'inherit', outline: 'none',
+                            }}
+                          />
+                        </div>
+                      )}
 
                       {/* Slide content section */}
                       <div style={{ padding: '0 16px 12px' }}>
@@ -528,7 +698,7 @@ export default function ScriptPage() {
 
               {/* Right: AI Chat assistant */}
               <div style={{
-                position: 'sticky', top: 80, borderRadius: 16,
+                position: 'sticky', top: 80, borderRadius: 10,
                 background: 'white', border: '1px solid var(--border-light)',
                 display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 120px)',
               }}>
@@ -646,19 +816,44 @@ export default function ScriptPage() {
               </div>
             </div>
 
+            {error && (
+              <div style={{ padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 14, marginTop: 16 }}>
+                {error}
+              </div>
+            )}
+
+            {/* Credit cost — wizard mode only */}
+            {isWizard && (
+              <div style={{ marginTop: 20 }}>
+                <CreditCost
+                  outputType={outputType}
+                  detailLevel={detailLevel}
+                  narrationStyle={narrationStyle}
+                />
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-              <button onClick={() => router.push('/create/review')} style={{
-                padding: '16px 28px', borderRadius: 12, border: '2px solid var(--border)',
+              <button onClick={() => router.push(backPath)} style={{
+                padding: '16px 28px', borderRadius: 10, border: '2px solid var(--border)',
                 background: 'white', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: 'var(--ink-soft)', fontFamily: 'inherit',
               }}>
                 &larr; Back
               </button>
-              <button onClick={handleContinue} style={{
-                flex: 1, padding: '16px 28px', borderRadius: 12, border: 'none',
-                background: 'var(--ink)', color: 'white', fontSize: 17, fontWeight: 700,
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}>
-                Continue to options &rarr;
+              <button
+                onClick={handleContinue}
+                disabled={submitting}
+                style={{
+                  flex: 1, padding: '16px 28px', borderRadius: 10, border: 'none',
+                  background: submitting ? 'var(--ink-light)' : 'var(--ink)', color: 'white', fontSize: 17, fontWeight: 700,
+                  cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                  opacity: submitting ? 0.7 : 1,
+                  transition: 'opacity 0.2s',
+                }}
+              >
+                {isWizard
+                  ? (submitting ? 'Generating...' : 'Generate')
+                  : 'Continue to options \u2192'}
               </button>
             </div>
           </>
@@ -672,7 +867,7 @@ export default function ScriptPage() {
         }} onClick={() => { setPreviewIdx(null); setPreviewImg(null) }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }} />
           <div onClick={e => e.stopPropagation()} style={{
-            position: 'relative', background: 'white', borderRadius: 16, padding: 24,
+            position: 'relative', background: 'white', borderRadius: 10, padding: 24,
             maxWidth: 700, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -703,4 +898,23 @@ export default function ScriptPage() {
       )}
     </div>
   )
+}
+
+const pageStyles: Record<string, React.CSSProperties> = {
+  page: {
+    minHeight: '100vh',
+    background: '#F4F1EC',
+    padding: '24px 16px 48px',
+    fontFamily: 'var(--font-sans, "Plus Jakarta Sans", sans-serif)',
+  },
+  container: {
+    maxWidth: 720,
+    margin: '0 auto',
+  },
+  loadingText: {
+    textAlign: 'center' as const,
+    padding: 48,
+    fontSize: 15,
+    color: 'var(--ink-light, #8899AA)',
+  },
 }
