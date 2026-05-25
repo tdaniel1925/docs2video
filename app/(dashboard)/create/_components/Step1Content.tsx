@@ -30,6 +30,7 @@ export default function Step1Content() {
   const [fileName, setFileName] = useState<string | null>(null)
   const [stage, setStage] = useState<Stage>('idle')
   const [stageMsg, setStageMsg] = useState('')
+  const [progressPct, setProgressPct] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -206,11 +207,12 @@ export default function Step1Content() {
 
       if (method === 'url') {
         setStageMsg('Connecting to website...')
+        setProgressPct(5)
         const scrapeTimers = [
-          setTimeout(() => setStageMsg('Reading page content...'), 2000),
-          setTimeout(() => setStageMsg('Extracting brand colors and logo...'), 5000),
-          setTimeout(() => setStageMsg('Analyzing content structure...'), 10000),
-          setTimeout(() => setStageMsg('Building content summary...'), 18000),
+          setTimeout(() => { setStageMsg('Reading page content...'); setProgressPct(15) }, 2000),
+          setTimeout(() => { setStageMsg('Extracting brand colors and logo...'); setProgressPct(30) }, 5000),
+          setTimeout(() => { setStageMsg('Analyzing content structure...'); setProgressPct(45) }, 10000),
+          setTimeout(() => { setStageMsg('Building content summary...'); setProgressPct(55) }, 18000),
         ]
         let cleanUrl = urlInput.trim()
         if (!/^https?:\/\//i.test(cleanUrl)) cleanUrl = `https://${cleanUrl}`
@@ -272,14 +274,14 @@ export default function Step1Content() {
         setPendingAutoBrandInfo(autoBrandInfo)
         setStage('generating-preview')
         setStageMsg('Analyzing brand style...')
-        // Timed progress steps to show activity
+        setProgressPct(60)
         const progressSteps = [
-          { msg: 'Extracting brand colors and typography...', delay: 3000 },
-          { msg: 'Designing cover slide...', delay: 8000 },
-          { msg: 'Designing content slide...', delay: 20000 },
-          { msg: 'Almost done...', delay: 35000 },
+          { msg: 'Extracting brand colors and typography...', delay: 3000, pct: 68 },
+          { msg: 'Designing cover slide...', delay: 8000, pct: 75 },
+          { msg: 'Designing content slide...', delay: 20000, pct: 85 },
+          { msg: 'Adding logo and finishing...', delay: 35000, pct: 92 },
         ]
-        const timers = progressSteps.map(s => setTimeout(() => setStageMsg(s.msg), s.delay))
+        const timers = progressSteps.map(s => setTimeout(() => { setStageMsg(s.msg); setProgressPct(s.pct) }, s.delay))
         const cleanupTimers = () => timers.forEach(t => clearTimeout(t))
 
         try {
@@ -300,6 +302,7 @@ export default function Step1Content() {
           if (previewRes.ok && previewData.previews?.length > 0) {
             setPreviewImages(previewData.previews)
             setPreviewStyleDesc(previewData.styleDescription || '')
+            setProgressPct(100)
             setStage('style-suggest')
           } else {
             await createDraftAndRedirect(extractedData, autoBrandInfo)
@@ -507,30 +510,7 @@ export default function Step1Content() {
       )}
 
       {/* Extracting state */}
-      {stage === 'extracting' && (
-        <div style={{
-          padding: '20px',
-          borderRadius: 10,
-          background: 'var(--bg-soft)',
-          border: '1px solid var(--border-light)',
-          textAlign: 'center',
-          marginBottom: 16,
-        }}>
-          <div style={{
-            width: 24,
-            height: 24,
-            border: '3px solid var(--border)',
-            borderTopColor: 'var(--mint)',
-            borderRadius: '50%',
-            animation: 'spin 0.8s linear infinite',
-            margin: '0 auto 12px',
-          }} />
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{stageMsg}</div>
-        </div>
-      )}
-
-      {/* Generating preview progress */}
-      {stage === 'generating-preview' && (
+      {(stage === 'extracting' || stage === 'generating-preview') && (
         <div style={{
           padding: '28px 24px',
           borderRadius: 10,
@@ -539,16 +519,21 @@ export default function Step1Content() {
           textAlign: 'center',
           marginBottom: 16,
         }}>
+          {/* Percentage display */}
+          <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.03em', marginBottom: 8 }}>
+            {progressPct}%
+          </div>
+          {/* Progress bar */}
           <div style={{
-            width: 32, height: 32,
-            border: '3px solid var(--border)',
-            borderTopColor: '#C7E8A8',
-            borderRadius: '50%',
-            animation: 'spin 0.8s linear infinite',
-            margin: '0 auto 16px',
-          }} />
-          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>{stageMsg}</div>
-          <div style={{ fontSize: 13, color: 'var(--ink-light)' }}>This usually takes 30-60 seconds</div>
+            width: '100%', height: 8, background: 'var(--border)', borderRadius: 4,
+            overflow: 'hidden', marginBottom: 16,
+          }}>
+            <div style={{
+              width: `${progressPct}%`, height: '100%', background: '#C7E8A8',
+              borderRadius: 4, transition: 'width 0.5s ease',
+            }} />
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{stageMsg}</div>
         </div>
       )}
 
