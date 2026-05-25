@@ -14,7 +14,6 @@ const CREATE_ITEMS = [
 
 const TOOLS_ITEMS = [
   { href: '/create', icon: '\uD83C\uDFAC', title: 'Pro Mode', desc: 'Full control over every detail' },
-  { href: '/templates', icon: '\uD83D\uDDBC\uFE0F', title: 'Templates', desc: 'Browse or create custom styles' },
   { href: '/brands', icon: '\uD83C\uDFA8', title: 'Brands', desc: 'Manage colors, logos, brand guides' },
   { href: '/brands/new', icon: '\uD83C\uDF10', title: 'New Brand from URL', desc: 'Scrape website for brand identity' },
 ]
@@ -32,9 +31,24 @@ export default function Header({ profile }: { profile: Profile }) {
   const [createOpen, setCreateOpen] = useState(false)
   const [toolsOpen, setToolsOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [credits, setCredits] = useState<{ balance: number; monthly: number } | null>(null)
   const pathname = usePathname()
   const createRef = useRef<HTMLDivElement>(null)
   const toolsRef = useRef<HTMLDivElement>(null)
+
+  // Fetch credit balance on mount
+  useEffect(() => {
+    fetch('/api/credits/balance')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && typeof d.balance === 'number') setCredits({ balance: d.balance, monthly: d.monthly }) })
+      .catch(() => {})
+  }, [])
+
+  const creditColor = credits && credits.monthly > 0
+    ? credits.balance / credits.monthly > 0.25 ? '#22c55e'
+      : credits.balance / credits.monthly > 0.10 ? '#eab308'
+      : '#ef4444'
+    : credits ? '#22c55e' : undefined
 
   const showAdmin = profile.is_admin === true
 
@@ -210,6 +224,25 @@ export default function Header({ profile }: { profile: Profile }) {
             )}
           </svg>
         </button>
+
+        {credits && (
+          <Link
+            href="/pricing"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              padding: '4px 10px', borderRadius: 8, textDecoration: 'none',
+              fontSize: 13, fontWeight: 600, color: creditColor,
+              background: 'var(--bg-soft)', border: '1px solid var(--border-light)',
+            }}
+            title="Credit balance"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={creditColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v12M15 9.5c0-1.38-1.34-2.5-3-2.5s-3 1.12-3 2.5 1.34 2.5 3 2.5 3 1.12 3 2.5-1.34 2.5-3 2.5" />
+            </svg>
+            {credits.balance.toLocaleString()} credits
+          </Link>
+        )}
 
         <NotificationBell />
 

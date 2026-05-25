@@ -99,7 +99,7 @@ export default function SettingsPage() {
   const [calendarProvider, setCalendarProvider] = useState<'calendly' | 'calcom' | 'google'>('calendly')
   const [calendarySaving, setCalendarySaving] = useState(false)
   const [calendarySaved, setCalendarySaved] = useState(false)
-  const [defaultStyle, setDefaultStyle] = useState('luxury')
+  const [defaultStyle, setDefaultStyle] = useState('blue-steps')
   const [styleSaving, setStyleSaving] = useState(false)
   const searchParams = useSearchParams()
 
