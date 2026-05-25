@@ -99,11 +99,12 @@ export default function ScriptPage() {
           contactWebsite: draft.contactWebsite,
           selectedBrand: draft.brandId,
           autoBrandId: draft.autoBrandId,
-          customStylePrompt: draft.customStylePrompt,
+          customStylePrompt: draft.customStylePrompt || undefined,
           detailLevel: draft.detailLevel,
           narrationStyle: draft.narrationStyle,
           voiceId: draft.voiceId || 'nova',
           aiMusic: draft.aiMusic ?? false,
+          styleId: draft.styleId || undefined,
         })
       } catch (err) {
         console.error('[script] load draft error:', err)
@@ -370,6 +371,8 @@ export default function ScriptPage() {
           detailLevel,
           industry: (createState?.extractedData as Record<string, unknown>)?.industry || 'general',
           aiMusic: (createState as any)?.aiMusic ?? false,
+          styleId: (createState as any)?.styleId || undefined,
+          customStylePrompt: (createState as any)?.customStylePrompt || undefined,
         }),
       })
       if (!genRes.ok) {

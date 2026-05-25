@@ -100,7 +100,11 @@ export default function VoicePage() {
 
         // Restore saved values
         if (draft.narrationStyle) setNarrationStyle(draft.narrationStyle)
-        if (draft.voiceId) setVoiceId(draft.voiceId)
+        if (draft.voiceId) {
+          setVoiceId(draft.voiceId)
+          if (draft.narrationStyle === 'podcast') setPodcastVoice1(draft.voiceId)
+        }
+        if (draft.podcastVoice2) setPodcastVoice2(draft.podcastVoice2)
         if (draft.detailLevel) setDetailLevel(draft.detailLevel)
         if (draft.aiMusic !== undefined) setAiMusic(draft.aiMusic)
       } catch (err) {
@@ -129,6 +133,7 @@ export default function VoicePage() {
             narrationStyle,
             detailLevel,
             aiMusic,
+            podcastVoice2: narrationStyle === 'podcast' ? podcastVoice2 : undefined,
             step: 3,
           },
         }),
