@@ -127,7 +127,7 @@ export async function GET(request: Request) {
   <li>Pick a visual style</li>
   <li>We generate your video automatically</li>
 </ol>
-<p>Your first project is free &mdash; no credit card needed.</p>`
+<p>Your first project is free &mdash; no commitment needed.</p>`
         ctaText = 'Create Your First Video'
         ctaUrl = 'https://docs2video.com/create'
       }

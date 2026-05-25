@@ -266,7 +266,7 @@ export default function MarketingWatchPage() {
               Start Free
             </a>
             <p style={{ fontSize: 13, color: '#888', marginTop: 8 }}>
-              Your first 2 videos are free. No credit card required.
+              Start free with 1,000 credits.
             </p>
           </div>
         )}

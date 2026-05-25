@@ -65,7 +65,7 @@ function buildNurtureEmail(stage: number, contact: { id: string; name: string; e
           </div>
         </div>
         <p style="font-size: 15px; line-height: 1.6; color: #444;">
-          Your first 2 videos are completely free -- no credit card required. See what Docs2Video can do for your business.
+          Your first 2 videos are completely free -- cancel anytime. See what Docs2Video can do for your business.
         </p>
         <div style="text-align: center; margin: 28px 0;">
           <a href="${signupUrl}" style="display: inline-block; background: #C7E8A8; color: #1a1a1a; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px;">

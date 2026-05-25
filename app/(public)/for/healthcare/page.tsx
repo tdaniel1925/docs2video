@@ -172,7 +172,7 @@ export default function HealthcarePage() {
       <div className="container">
         <section className="final-cta">
           <h2>Ready to transform how you communicate with employees and <em>patients</em>?</h2>
-          <p className="final-cta-sub">Clarity reduces calls, errors, and frustration. Start free — no credit card required.</p>
+          <p className="final-cta-sub">Clarity reduces calls, errors, and frustration. Start free — cancel anytime.</p>
           <div className="final-cta-buttons">
             <Link href="/signup" className="btn btn-primary btn-lg">Try a free demo &rarr;</Link>
             <Link href="/" className="btn btn-outlined btn-lg">Learn more</Link>

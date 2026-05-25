@@ -18,7 +18,7 @@ export default function HomePage() {
         color: 'var(--ink)',
       }}>
         <Link href="/signup" style={{ color: 'var(--ink)', textDecoration: 'none' }}>
-          Start free — 1,000 credits, no credit card required
+          Start free — 1,000 credits included
         </Link>
       </div>
 
@@ -51,10 +51,10 @@ export default function HomePage() {
             <h1 className="hero-title">Turn any document into a professional <em>explainer video</em></h1>
             <p className="hero-sub">Upload a PDF, paste text, or describe an idea. Get a branded narrated video with a shareable client page &mdash; in minutes, not hours.</p>
             <div style={{display:'flex',gap:12,alignItems:'center',marginTop:28,flexWrap:'wrap'}}>
-              <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 2 free videos &rarr;</Link>
+              <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 1,000 credits &rarr;</Link>
               <a href="#how-it-works" className="btn btn-outlined">Watch demo</a>
             </div>
-            <div className="hero-trust" style={{marginTop:20,fontSize:13,color:'var(--ink-soft)'}}>No credit card required &middot; Cancel anytime</div>
+            <div className="hero-trust" style={{marginTop:20,fontSize:13,color:'var(--ink-soft)'}}>Cancel anytime &middot; No commitment</div>
           </div>
           <div className="hero-right">
             <ClickToPlayVideo
@@ -723,12 +723,12 @@ export default function HomePage() {
           <h2>Stop sending documents <em>nobody reads</em></h2>
           <p className="final-cta-sub">Join 2,500+ professionals who use Docs2Video to turn complex documents into professional explainer videos their clients actually watch.</p>
           <div className="final-cta-buttons">
-            <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 2 free videos &rarr;</Link>
+            <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 1,000 credits &rarr;</Link>
           </div>
           <div className="final-cta-perks">
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-              No credit card required
+              1,000 credits included
             </span>
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
@@ -759,7 +759,6 @@ export default function HomePage() {
               <ul>
                 <li><a href="#features">Features</a></li>
                 <li><a href="#compare">Compare</a></li>
-                <li><Link href="/templates">Templates</Link></li>
                 <li><a href="#pricing">Pricing</a></li>
                 <li><Link href="/analytics">Analytics</Link></li>
               </ul>

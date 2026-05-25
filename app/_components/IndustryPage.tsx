@@ -41,7 +41,7 @@ export default function IndustryPage({
             <Link className="btn btn-primary btn-lg" href="/signup">Start free trial &rarr;</Link>
             <Link className="btn btn-outlined btn-lg" href="/#templates">See templates</Link>
           </div>
-          <div className="hero-note">10 free infographics &middot; no credit card required</div>
+          <div className="hero-note">10 free infographics &middot; cancel anytime</div>
         </section>
       </div>
 
@@ -168,7 +168,7 @@ export default function IndustryPage({
       <div className="container">
         <section className="final-cta">
           <h2>Ready to transform your {industry.toLowerCase()} <em>workflow</em>?</h2>
-          <p className="final-cta-sub">Start free. No credit card, no commitment.</p>
+          <p className="final-cta-sub">Start free. No commitment required.</p>
           <div className="final-cta-buttons">
             <Link href="/signup" className="btn btn-primary btn-lg">Start free trial</Link>
             <Link href="/" className="btn btn-outlined btn-lg">Learn more</Link>

@@ -91,7 +91,7 @@ export default function PricingHelpPage() {
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Every new account starts with <strong style={{ color: 'var(--ink)' }}>1,000 credits</strong>. No credit card required. That&apos;s enough for approximately <strong style={{ color: 'var(--ink)' }}>2 standard explainer videos</strong> or <strong style={{ color: 'var(--ink)' }}>4 quick videos</strong>.
+            Every new account starts with <strong style={{ color: 'var(--ink)' }}>1,000 credits</strong>. Cancel anytime. That&apos;s enough for approximately <strong style={{ color: 'var(--ink)' }}>2 standard explainer videos</strong> or <strong style={{ color: 'var(--ink)' }}>4 quick videos</strong>.
           </p>
           <p>
             All features included: AI content extraction, script editing, voice narration, background music, and downloads in MP4, PPTX, and PDF formats.

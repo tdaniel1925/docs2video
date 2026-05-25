@@ -74,6 +74,8 @@ export default function Step1Content() {
 
       // If style was pre-selected, save it to the draft and skip brand+style steps
       if (overrides?.styleId) {
+        // Extract autoBrandId from extracted data (created by extract-url API)
+        const autoBrandId = extractedData['_autoBrandId'] as string | undefined
         await fetch('/api/videos/draft', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -82,11 +84,23 @@ export default function Step1Content() {
             updates: {
               styleId: overrides.styleId,
               customStylePrompt: overrides.customStylePrompt || undefined,
+              brandId: autoBrandId || undefined,
               inlineBrand: autoBrandInfo,
-              step: outputType === 'video' ? 3 : 4, // voice step for video, script step for doc
+              step: outputType === 'video' ? 3 : 4,
             },
           }),
         })
+        // Also update the video record's brand_id directly
+        if (autoBrandId) {
+          await fetch('/api/videos/draft', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              videoId: draftData.videoId,
+              updates: { brandId: autoBrandId },
+            }),
+          })
+        }
       }
 
       if (overrides?.skipToStep) {

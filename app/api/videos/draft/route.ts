@@ -115,12 +115,18 @@ export async function PATCH(request: NextRequest) {
 
   const newExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
+  // Build update payload — also update video-level fields if provided
+  const updatePayload: Record<string, unknown> = {
+    draft_data: mergedDraft,
+    draft_expires_at: newExpiresAt,
+  }
+  if (updates.brandId) updatePayload.brand_id = updates.brandId
+  if (updates.outputType) updatePayload.output_type = updates.outputType
+  if (updates.detailLevel) updatePayload.detail_level = updates.detailLevel
+
   const { error: updateError } = await admin
     .from('videos')
-    .update({
-      draft_data: mergedDraft,
-      draft_expires_at: newExpiresAt,
-    })
+    .update(updatePayload)
     .eq('id', videoId)
 
   if (updateError) {

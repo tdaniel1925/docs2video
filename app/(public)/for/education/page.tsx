@@ -172,7 +172,7 @@ export default function EducationPage() {
       <div className="container">
         <section className="final-cta">
           <h2>Ready to make your research <em>accessible</em>?</h2>
-          <p className="final-cta-sub">Give your work the audience it deserves. Start free — no credit card required.</p>
+          <p className="final-cta-sub">Give your work the audience it deserves. Start free — cancel anytime.</p>
           <div className="final-cta-buttons">
             <Link href="/signup" className="btn btn-primary btn-lg">Try a free demo &rarr;</Link>
             <Link href="/" className="btn btn-outlined btn-lg">Learn more</Link>

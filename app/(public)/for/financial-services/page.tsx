@@ -172,7 +172,7 @@ export default function FinancialServicesPage() {
       <div className="container">
         <section className="final-cta">
           <h2>Ready to transform how clients experience their <em>wealth</em>?</h2>
-          <p className="final-cta-sub">Give your clients the clarity they deserve. Start free — no credit card required.</p>
+          <p className="final-cta-sub">Give your clients the clarity they deserve. Start free — cancel anytime.</p>
           <div className="final-cta-buttons">
             <Link href="/signup" className="btn btn-primary btn-lg">Try a free demo &rarr;</Link>
             <Link href="/" className="btn btn-outlined btn-lg">Learn more</Link>
