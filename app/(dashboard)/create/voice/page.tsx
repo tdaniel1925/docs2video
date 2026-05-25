@@ -61,6 +61,7 @@ export default function VoicePage() {
   const [voiceId, setVoiceId] = useState('nova')
   const [podcastVoice1, setPodcastVoice1] = useState('nova')
   const [podcastVoice2, setPodcastVoice2] = useState('onyx')
+  const [styleAlreadyPicked, setStyleAlreadyPicked] = useState(false)
   const [playingSample, setPlayingSample] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -107,6 +108,7 @@ export default function VoicePage() {
         if (draft.podcastVoice2) setPodcastVoice2(draft.podcastVoice2)
         if (draft.detailLevel) setDetailLevel(draft.detailLevel)
         if (draft.aiMusic !== undefined) setAiMusic(draft.aiMusic)
+        if (draft.styleId) setStyleAlreadyPicked(true)
       } catch (err) {
         console.error('[voice] load error:', err)
         setError('Could not load your draft. Please go back and try again.')
@@ -139,7 +141,12 @@ export default function VoicePage() {
         }),
       })
       if (!res.ok) throw new Error('Failed to save')
-      router.push(`/create/style?id=${videoId}`)
+      // Skip style step if style was already chosen (e.g. from URL scrape preview)
+      if (styleAlreadyPicked) {
+        router.push(`/create/script?id=${videoId}`)
+      } else {
+        router.push(`/create/style?id=${videoId}`)
+      }
     } catch (err) {
       console.error('[voice] save error:', err)
       setError('Failed to save. Please try again.')

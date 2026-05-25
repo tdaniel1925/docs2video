@@ -184,7 +184,16 @@ export default function Step1Content() {
         setPendingExtractedData(extractedData)
         setPendingAutoBrandInfo(autoBrandInfo)
         setStage('generating-preview')
-        setStageMsg('Generating slide style preview...')
+        setStageMsg('Analyzing brand style...')
+        // Timed progress steps to show activity
+        const progressSteps = [
+          { msg: 'Extracting brand colors and typography...', delay: 3000 },
+          { msg: 'Designing cover slide...', delay: 8000 },
+          { msg: 'Designing content slide...', delay: 20000 },
+          { msg: 'Almost done...', delay: 35000 },
+        ]
+        const timers = progressSteps.map(s => setTimeout(() => setStageMsg(s.msg), s.delay))
+        const cleanupTimers = () => timers.forEach(t => clearTimeout(t))
 
         try {
           const previewRes = await fetch('/api/style-preview-from-brand', {
@@ -199,16 +208,16 @@ export default function Step1Content() {
             }),
           })
           const previewData = await previewRes.json()
+          cleanupTimers()
           if (previewRes.ok && previewData.previews?.length > 0) {
             setPreviewImages(previewData.previews)
             setPreviewStyleDesc(previewData.styleDescription || '')
             setStage('style-suggest')
           } else {
-            // Preview failed, proceed without preview
             await createDraftAndRedirect(extractedData, autoBrandInfo)
           }
         } catch {
-          // Preview failed, proceed without preview
+          cleanupTimers()
           await createDraftAndRedirect(extractedData, autoBrandInfo)
         }
         return
