@@ -60,10 +60,10 @@ export default function PricingPage() {
         Choose your plan
       </h1>
       <p style={{ fontSize: 17, color: 'var(--ink-soft)', textAlign: 'center', marginBottom: 12, lineHeight: 1.6 }}>
-        Every plan includes full quality videos, share pages, and all download formats.
+        Every plan includes credits for videos, slide decks, and PDFs.
       </p>
       <p style={{ fontSize: 14, color: 'var(--ink-light)', textAlign: 'center', marginBottom: 40 }}>
-        All overages: $5 per additional video on any paid plan.
+        Need more? Buy extra credits anytime on any paid plan.
       </p>
 
       {error && (
@@ -82,7 +82,8 @@ export default function PricingPage() {
         <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Pay Per Video</div>
         <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 12 }}>No subscription required</div>
         <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--ink)', marginBottom: 4 }}>$0<span style={{ fontSize: 16, fontWeight: 500, color: 'var(--ink-light)' }}>/mo</span></div>
-        <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>2 free videos, then $10 each</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--mint)', marginBottom: 4 }}>1,000 credits</div>
+        <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>~2 standard explainer videos</div>
         {currentTier === 'free' && (
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--mint)', padding: '8px 0' }}>Current plan</div>
         )}
@@ -113,7 +114,15 @@ export default function PricingPage() {
               <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--ink)', marginBottom: 2 }}>
                 ${plan.monthlyPrice / 100}<span style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink-light)' }}>/mo</span>
               </div>
-              <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>{plan.description}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--mint)', marginBottom: 2 }}>
+                {plan.monthlyCredits.toLocaleString()} credits
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>
+                ~{plan.approxStandardVideos} standard explainers
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--ink-light)', marginBottom: 16 }}>
+                or ~{plan.approxQuickVideos} quick videos, ~{Math.floor(plan.monthlyCredits / 400)} slide decks
+              </div>
 
               <div style={{ flex: 1, marginBottom: 16 }}>
                 {plan.features.map((f, i) => (
@@ -155,8 +164,9 @@ export default function PricingPage() {
         })}
       </div>
 
-      <p style={{ fontSize: 13, color: 'var(--ink-light)', textAlign: 'center', marginTop: 24 }}>
-        All plans can be cancelled anytime. Billing is monthly.
+      <p style={{ fontSize: 13, color: 'var(--ink-light)', textAlign: 'center', marginTop: 24, lineHeight: 1.6 }}>
+        All plans can be cancelled anytime. Billing is monthly. Credits reset each billing cycle.
+        <br />Extra credits available on paid plans at $3-5 per 1,000 credits.
       </p>
     </div>
   )
