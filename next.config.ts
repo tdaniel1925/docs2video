@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ['ffmpeg-static', 'sharp', '@img/sharp-linux-x64'],
+  serverExternalPackages: ['ffmpeg-static', 'sharp', '@img/sharp-linux-x64', 'pdf-lib', 'pptxgenjs'],
+  outputFileTracingExcludes: {
+    '*': ['node_modules/ffmpeg-static/**', 'node_modules/@img/**'],
+  },
   async headers() {
     return [
       {
