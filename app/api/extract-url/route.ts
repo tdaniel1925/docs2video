@@ -9,6 +9,7 @@ import { THEME_PROMPT, EXTRACTION_PROMPT } from '../../_lib/prompts'
 import { wrapUserData } from '../../_lib/prompt-safety'
 
 export const runtime = 'nodejs'
+export const maxDuration = 120
 
 let _openai: OpenAI | null = null
 function getOpenAI() {
