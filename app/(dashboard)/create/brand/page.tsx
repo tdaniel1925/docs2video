@@ -305,8 +305,9 @@ export default function BrandPage() {
 
       {/* Heading */}
       <h1 style={{
-        fontSize: 38, fontWeight: 800, letterSpacing: '-0.03em',
+        fontSize: 30, fontWeight: 800, letterSpacing: '-0.03em',
         textAlign: 'center', marginBottom: 8, color: 'var(--ink)',
+        fontFamily: 'inherit',
         animation: 'fadeInUp 0.4s ease',
       }}>
         Choose your brand
@@ -407,8 +408,8 @@ export default function BrandPage() {
         </div>
       )}
 
-      {/* Divider */}
-      {brands.length > 0 && (
+      {/* Divider / toggle link */}
+      {brands.length > 0 && !selectedBrandId && (
         <div style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 16,
           marginBottom: 24, animation: 'fadeInUp 0.4s ease 0.15s both',
@@ -421,14 +422,28 @@ export default function BrandPage() {
         </div>
       )}
 
-      {/* Inline brand form */}
+      {/* "or create new instead" link when a saved brand is selected */}
+      {selectedBrandId && (
+        <div style={{ width: '100%', textAlign: 'center', marginBottom: 20 }}>
+          <button
+            onClick={() => setSelectedBrandId(null)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 13, color: 'var(--ink-light)', fontFamily: 'inherit',
+              textDecoration: 'underline', padding: 0,
+            }}
+          >
+            or create a new brand instead
+          </button>
+        </div>
+      )}
+
+      {/* Inline brand form — hidden when a saved brand is selected */}
+      {!selectedBrandId && (
       <div style={{
         width: '100%', padding: '24px', borderRadius: 10,
-        background: selectedBrandId ? 'var(--bg-soft)' : 'white',
+        background: 'white',
         border: '1.5px solid var(--border-light)',
-        opacity: selectedBrandId ? 0.5 : 1,
-        pointerEvents: selectedBrandId ? 'none' : 'auto',
-        transition: 'opacity 0.2s',
         marginBottom: 20,
         animation: 'fadeInUp 0.4s ease 0.2s both',
       }}>
@@ -617,6 +632,7 @@ export default function BrandPage() {
           </label>
         </div>
       </div>
+      )}
 
       {/* Error */}
       {error && (

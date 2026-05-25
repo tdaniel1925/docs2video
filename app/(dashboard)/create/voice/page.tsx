@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import WizardProgress from '../_components/WizardProgress'
 import CreditCost from '../_components/CreditCost'
@@ -61,6 +61,18 @@ export default function VoicePage() {
   const [voiceId, setVoiceId] = useState('nova')
   const [podcastVoice1, setPodcastVoice1] = useState('nova')
   const [podcastVoice2, setPodcastVoice2] = useState('onyx')
+  const [playingSample, setPlayingSample] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  function playSample(samplePath: string) {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
+    if (playingSample === samplePath) { setPlayingSample(null); return }
+    const audio = new Audio(samplePath)
+    audio.onended = () => setPlayingSample(null)
+    audio.play()
+    audioRef.current = audio
+    setPlayingSample(samplePath)
+  }
   const [detailLevel, setDetailLevel] = useState<'quick' | 'standard' | 'detailed'>('standard')
   const [aiMusic, setAiMusic] = useState(false)
 
@@ -172,9 +184,7 @@ export default function VoicePage() {
                   </div>
                   <button
                     style={styles.playBtn}
-                    disabled
-                    title="Coming soon"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); playSample(style.id === 'solo' ? `/samples/solo-${voiceId}.mp3` : '/samples/podcast-sample.mp3') }}
                   >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                       <path d="M4 3L13 8L4 13V3Z" fill="currentColor" />
@@ -204,6 +214,12 @@ export default function VoicePage() {
                   >
                     <span style={styles.voiceName}>{voice.name}</span>
                     <span style={styles.voiceDesc}>{voice.description}</span>
+                    <span
+                      onClick={(e) => { e.stopPropagation(); playSample(`/samples/solo-${voice.id}.mp3`) }}
+                      style={{ fontSize: 11, color: playingSample === `/samples/solo-${voice.id}.mp3` ? 'var(--mint-darker, #0d9488)' : 'var(--ink-light)', cursor: 'pointer', marginTop: 4 }}
+                    >
+                      {playingSample === `/samples/solo-${voice.id}.mp3` ? '■ Stop' : '▶ Listen'}
+                    </span>
                   </button>
                 )
               })}
@@ -323,7 +339,6 @@ export default function VoicePage() {
 const styles: Record<string, React.CSSProperties> = {
   page: {
     minHeight: '100vh',
-    background: '#F4F1EC',
     padding: '24px 16px 48px',
     fontFamily: 'var(--font-sans, "Plus Jakarta Sans", sans-serif)',
   },
@@ -332,11 +347,12 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '0 auto',
   },
   heading: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: 800,
+    letterSpacing: '-0.03em',
     color: 'var(--ink, #1B3A5C)',
     margin: '16px 0 4px',
-    fontFamily: 'var(--font-serif, "Instrument Serif", serif)',
+    fontFamily: 'inherit',
   },
   subheading: {
     fontSize: 15,

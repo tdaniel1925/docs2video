@@ -254,7 +254,6 @@ export default function StylePage() {
 const styles: Record<string, React.CSSProperties> = {
   page: {
     minHeight: '100vh',
-    background: '#F4F1EC',
     padding: '24px 16px 48px',
     fontFamily: 'var(--font-sans, "Plus Jakarta Sans", sans-serif)',
   },
@@ -263,11 +262,12 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '0 auto',
   },
   heading: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: 800,
+    letterSpacing: '-0.03em',
     color: 'var(--ink, #1B3A5C)',
     margin: '16px 0 4px',
-    fontFamily: 'var(--font-serif, "Instrument Serif", serif)',
+    fontFamily: 'inherit',
   },
   subheading: {
     fontSize: 15,
@@ -317,7 +317,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 24,
     fontWeight: 800,
     color: 'var(--ink, #1B3A5C)',
-    fontFamily: 'var(--font-serif, "Instrument Serif", serif)',
+    fontFamily: 'inherit',
+    letterSpacing: '-0.03em',
     marginBottom: 6,
   },
   suggestedDesc: {
@@ -435,7 +436,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 18,
     fontWeight: 800,
     color: 'var(--ink-light, #8899AA)',
-    fontFamily: 'var(--font-serif, "Instrument Serif", serif)',
+    fontFamily: 'inherit',
   },
   styleInfo: {
     display: 'flex',

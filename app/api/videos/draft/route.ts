@@ -17,14 +17,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  let body: { outputType?: string; purpose?: string }
+  let body: { outputType?: string; purpose?: string; extractedData?: Record<string, unknown>; contentMethod?: string; autoBrandInfo?: Record<string, unknown> }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { outputType, purpose } = body
+  const { outputType, purpose, extractedData, contentMethod, autoBrandInfo } = body
   if (!outputType || !['video', 'pptx', 'pdf'].includes(outputType)) {
     return NextResponse.json({ error: 'outputType must be video, pptx, or pdf' }, { status: 400 })
   }
@@ -33,6 +33,16 @@ export async function POST(request: NextRequest) {
     step: 1,
     outputType: outputType as 'video' | 'pptx' | 'pdf',
     purpose,
+    contentMethod: contentMethod as WizardDraft['contentMethod'],
+    extractedData: extractedData || undefined,
+  }
+
+  // Store auto-detected brand info for the brand step
+  if (autoBrandInfo) {
+    draftData.inlineBrand = {
+      name: (autoBrandInfo.name as string) || '',
+      primaryColor: (autoBrandInfo.primary_color as string) || undefined,
+    }
   }
 
   const now = new Date()
