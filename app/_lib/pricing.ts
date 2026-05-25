@@ -15,6 +15,10 @@ export interface PlanInfo {
   videosPerMonth: number // included credits, -1 = unlimited
   extraVideoPrice: number // cents per additional video
   regenCreditsPerVideo: number // free slide regenerations per video
+  monthlyCredits: number // inflated credit amount
+  approxStandardVideos: number // approximate standard videos included
+  approxQuickVideos: number // approximate quick videos included
+  overageRatePer1000: number // cents per 1,000 overage credits
 }
 
 export const PLANS: PlanInfo[] = [
@@ -33,6 +37,10 @@ export const PLANS: PlanInfo[] = [
     videosPerMonth: 2,
     extraVideoPrice: 1000, // $10
     regenCreditsPerVideo: 2,
+    monthlyCredits: 1000,
+    approxStandardVideos: 2,
+    approxQuickVideos: 4,
+    overageRatePer1000: 0, // free users can't buy overages
   },
   {
     tier: 'starter',
@@ -49,6 +57,10 @@ export const PLANS: PlanInfo[] = [
     videosPerMonth: 5,
     extraVideoPrice: 500, // $5
     regenCreditsPerVideo: 3,
+    monthlyCredits: 5000,
+    approxStandardVideos: 10,
+    approxQuickVideos: 20,
+    overageRatePer1000: 500,
   },
   {
     tier: 'pro',
@@ -65,6 +77,10 @@ export const PLANS: PlanInfo[] = [
     videosPerMonth: 20,
     extraVideoPrice: 500, // $5
     regenCreditsPerVideo: 5,
+    monthlyCredits: 25000,
+    approxStandardVideos: 50,
+    approxQuickVideos: 100,
+    overageRatePer1000: 500,
   },
   {
     tier: 'business',
@@ -81,6 +97,10 @@ export const PLANS: PlanInfo[] = [
     videosPerMonth: 75,
     extraVideoPrice: 500, // $5
     regenCreditsPerVideo: 10,
+    monthlyCredits: 75000,
+    approxStandardVideos: 150,
+    approxQuickVideos: 300,
+    overageRatePer1000: 400,
   },
   {
     tier: 'enterprise',
@@ -99,6 +119,10 @@ export const PLANS: PlanInfo[] = [
     videosPerMonth: 200,
     extraVideoPrice: 500, // $5
     regenCreditsPerVideo: -1, // unlimited
+    monthlyCredits: 200000,
+    approxStandardVideos: 400,
+    approxQuickVideos: 800,
+    overageRatePer1000: 300,
   },
 ]
 

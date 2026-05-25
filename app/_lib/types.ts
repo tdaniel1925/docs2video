@@ -167,13 +167,44 @@ export interface Video {
   slide_urls: string[] | null
   music_url: string | null
   is_trial: boolean
-  status: 'pending' | 'scripting' | 'generating_slides' | 'generating_audio' | 'assembling' | 'completed' | 'failed'
+  status: 'draft' | 'pending' | 'scripting' | 'generating_slides' | 'generating_audio' | 'assembling' | 'completed' | 'failed'
   progress_detail: string | null
   progress_pct: number | null
   error_message: string | null
+  output_type: 'video' | 'pptx' | 'pdf'
+  detail_level: 'quick' | 'standard' | 'detailed'
+  draft_data: WizardDraft | null
+  draft_expires_at: string | null
   created_at: string
   updated_at: string
   brand?: Brand
+}
+
+export interface WizardDraft {
+  step: number
+  outputType: 'video' | 'pptx' | 'pdf'
+  purpose?: string
+  contentMethod?: 'url' | 'file' | 'text' | 'ai'
+  extractedData?: Record<string, unknown>
+  brandId?: string
+  inlineBrand?: {
+    name: string
+    logoUrl?: string
+    primaryColor?: string
+    secondaryColor?: string
+    phone?: string
+    email?: string
+    website?: string
+  }
+  voiceId?: string
+  narrationStyle?: 'solo' | 'podcast'
+  detailLevel?: 'quick' | 'standard' | 'detailed'
+  aiMusic?: boolean
+  musicPrompt?: string
+  styleId?: string
+  customStylePrompt?: string
+  styleReferenceUrl?: string
+  script?: VideoScene[]
 }
 
 export interface EmailConnection {
