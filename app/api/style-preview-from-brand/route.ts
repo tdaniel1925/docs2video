@@ -112,7 +112,9 @@ async function generatePreviewsDirect(styleDescription: string, companyName: str
     let contentBuf: Buffer | null = contentRes.data?.[0]?.b64_json ? Buffer.from(contentRes.data[0].b64_json, 'base64') : null
 
     // Composite logo onto slides if available
-    console.log('[style-preview-from-brand] logoUrl:', logoUrl ? logoUrl.slice(0, 80) + '...' : 'none')
+    console.log('[style-preview-from-brand] logoUrl received:', logoUrl ? `"${logoUrl.slice(0, 100)}..."` : 'NONE')
+    console.log('[style-preview-from-brand] coverBuf:', coverBuf ? `${coverBuf.length} bytes` : 'null')
+    console.log('[style-preview-from-brand] contentBuf:', contentBuf ? `${contentBuf.length} bytes` : 'null')
     if (logoUrl && (coverBuf || contentBuf)) {
       try {
         const sharp = (await import('sharp')).default

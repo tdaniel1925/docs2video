@@ -216,7 +216,7 @@ export default function BrandPage() {
       if (outputType === 'video') {
         router.push(`/create/voice?id=${videoId}`)
       } else {
-        router.push(`/create/style?id=${videoId}`)
+        router.push(`/create/script?id=${videoId}`)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -239,7 +239,7 @@ export default function BrandPage() {
       if (outputType === 'video') {
         router.push(`/create/voice?id=${videoId}`)
       } else {
-        router.push(`/create/style?id=${videoId}`)
+        router.push(`/create/script?id=${videoId}`)
       }
     } catch {
       setError('Failed to skip')

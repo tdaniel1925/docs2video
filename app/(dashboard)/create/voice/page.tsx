@@ -95,7 +95,7 @@ export default function VoicePage() {
 
         // Skip voice step for non-video outputs
         if (ot === 'pptx' || ot === 'pdf') {
-          router.replace(`/create/style?id=${videoId}`)
+          router.replace(`/create/script?id=${videoId}`)
           return
         }
 
@@ -141,12 +141,8 @@ export default function VoicePage() {
         }),
       })
       if (!res.ok) throw new Error('Failed to save')
-      // Skip style step if style was already chosen (e.g. from URL scrape preview)
-      if (styleAlreadyPicked) {
-        router.push(`/create/script?id=${videoId}`)
-      } else {
-        router.push(`/create/style?id=${videoId}`)
-      }
+      // Always go to script — style step removed from wizard
+      router.push(`/create/script?id=${videoId}`)
     } catch (err) {
       console.error('[voice] save error:', err)
       setError('Failed to save. Please try again.')

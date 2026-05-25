@@ -390,9 +390,9 @@ export default function ScriptPage() {
   }
 
   // Determine wizard step number for progress bar
-  const wizardStep = outputType === 'video' ? 5 : 4
+  const wizardStep = outputType === 'video' ? 4 : 3
   const backPath = isWizard
-    ? `/create/style?id=${videoId}`
+    ? (outputType === 'video' ? `/create/voice?id=${videoId}` : `/create/brand?id=${videoId}`)
     : '/create/review'
 
   // Loading state for wizard
