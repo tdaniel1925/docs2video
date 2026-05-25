@@ -282,7 +282,7 @@ export default function VoicePage() {
           <div style={styles.musicRow}>
             <div>
               <h2 style={styles.sectionTitle}>Background music</h2>
-              <p style={styles.musicDesc}>Add AI-generated background music to your video</p>
+              <p style={styles.musicDesc}>AI generates subtle, professional background music that fades in and out automatically</p>
             </div>
             <button
               onClick={() => setAiMusic(!aiMusic)}
