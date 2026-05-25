@@ -27,12 +27,13 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { primaryColor, secondaryColor, companyName, industry, tone } = body as {
+  const { primaryColor, secondaryColor, companyName, industry, tone, logoUrl } = body as {
     primaryColor?: string
     secondaryColor?: string
     companyName?: string
     industry?: string
     tone?: string
+    logoUrl?: string
   }
 
   if (!VIDEO_ASSEMBLY_URL) {
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
       const errText = await vpsRes.text().catch(() => 'Unknown error')
       console.error('[style-preview-from-brand] VPS error:', vpsRes.status, errText)
       // Fall back to direct generation
-      return await generatePreviewsDirect(styleDescription, companyName || 'Your Company')
+      return await generatePreviewsDirect(styleDescription, companyName || 'Your Company', logoUrl)
     }
 
     const data = await vpsRes.json()
@@ -81,11 +82,11 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error('[style-preview-from-brand] Error:', err)
     // Fall back to direct generation
-    return await generatePreviewsDirect(styleDescription, companyName || 'Your Company')
+    return await generatePreviewsDirect(styleDescription, companyName || 'Your Company', logoUrl)
   }
 }
 
-async function generatePreviewsDirect(styleDescription: string, companyName: string) {
+async function generatePreviewsDirect(styleDescription: string, companyName: string, logoUrl?: string) {
   try {
     const OpenAI = (await import('openai')).default
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -93,26 +94,65 @@ async function generatePreviewsDirect(styleDescription: string, companyName: str
     const [coverRes, contentRes] = await Promise.all([
       openai.images.generate({
         model: 'gpt-image-2',
-        prompt: `Create a presentation COVER slide in this style: ${styleDescription}. Title: "${companyName}", subtitle: "Company Overview". 1920x1080 landscape. Fill entire canvas. No logos.`,
+        prompt: `Create a presentation COVER slide in this style: ${styleDescription}. Title: "${companyName}", subtitle: "Company Overview". 1920x1080 landscape. Fill entire canvas. Leave top-right corner clear for a logo overlay.`,
         size: '1536x1024',
         quality: 'high',
         n: 1,
       }),
       openai.images.generate({
         model: 'gpt-image-2',
-        prompt: `Create a presentation CONTENT slide in this style: ${styleDescription}. Title: "KEY HIGHLIGHTS". Show 3 data sections with placeholder metrics. 1920x1080 landscape. Fill entire canvas. No logos.`,
+        prompt: `Create a presentation CONTENT slide in this style: ${styleDescription}. Title: "KEY HIGHLIGHTS". Show 3 data sections with placeholder metrics. 1920x1080 landscape. Fill entire canvas. Leave top-right corner clear for a logo overlay.`,
         size: '1536x1024',
         quality: 'high',
         n: 1,
       }),
     ])
 
-    const cover = coverRes.data?.[0]?.b64_json
-      ? `data:image/png;base64,${coverRes.data[0].b64_json}`
-      : null
-    const content = contentRes.data?.[0]?.b64_json
-      ? `data:image/png;base64,${contentRes.data[0].b64_json}`
-      : null
+    let coverBuf: Buffer | null = coverRes.data?.[0]?.b64_json ? Buffer.from(coverRes.data[0].b64_json, 'base64') : null
+    let contentBuf: Buffer | null = contentRes.data?.[0]?.b64_json ? Buffer.from(contentRes.data[0].b64_json, 'base64') : null
+
+    // Composite logo onto slides if available
+    if (logoUrl && (coverBuf || contentBuf)) {
+      try {
+        const sharp = (await import('sharp')).default
+        let logoBuf: Buffer | null = null
+
+        if (logoUrl.startsWith('data:')) {
+          logoBuf = Buffer.from(logoUrl.split(',')[1], 'base64')
+        } else {
+          const logoRes = await fetch(logoUrl, { signal: AbortSignal.timeout(8000) })
+          if (logoRes.ok) logoBuf = Buffer.from(await logoRes.arrayBuffer())
+        }
+
+        if (logoBuf) {
+          const logoResized = await sharp(logoBuf)
+            .resize(200, 120, { fit: 'inside', withoutEnlargement: true })
+            .png()
+            .toBuffer()
+          const logoMeta = await sharp(logoResized).metadata()
+          const lw = logoMeta.width || 100
+
+          if (coverBuf) {
+            coverBuf = await sharp(coverBuf)
+              .composite([{ input: logoResized, top: 20, left: 1536 - lw - 20 }])
+              .png()
+              .toBuffer()
+          }
+          if (contentBuf) {
+            contentBuf = await sharp(contentBuf)
+              .composite([{ input: logoResized, top: 20, left: 1536 - lw - 20 }])
+              .png()
+              .toBuffer()
+          }
+          console.log('[style-preview-from-brand] Logo composited on preview slides')
+        }
+      } catch (logoErr) {
+        console.error('[style-preview-from-brand] Logo composite failed:', logoErr instanceof Error ? logoErr.message : 'unknown')
+      }
+    }
+
+    const cover = coverBuf ? `data:image/png;base64,${coverBuf.toString('base64')}` : null
+    const content = contentBuf ? `data:image/png;base64,${contentBuf.toString('base64')}` : null
 
     return NextResponse.json({
       previews: [cover, content].filter(Boolean),
