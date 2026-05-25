@@ -68,6 +68,7 @@ export default function Step1Content() {
           contentMethod: method || 'idea',
           autoBrandInfo,
           ...(overrides?.styleId ? { styleId: overrides.styleId } : {}),
+          ...(extractedData?.classification ? { classification: extractedData.classification } : {}),
         }),
       })
       const draftData = await draftRes.json()

@@ -182,7 +182,23 @@ export async function POST(request: Request) {
     // STAGE 1: Generate script (or reuse pre-generated scenes)
     let scenes
     if (preGeneratedScenes && preGeneratedScenes.length > 0) {
-      console.log(`[video ${videoId}] Using ${preGeneratedScenes.length} pre-generated scenes.`)
+      // FIX 9: Validate pre-generated scenes have minimum required fields
+      const validScenes = preGeneratedScenes.filter((s: any) => {
+        const hasNarration = typeof s.narration === 'string' && s.narration.trim().length > 0
+        const hasTitle = typeof s.title === 'string' && s.title.trim().length > 0
+        const hasSlideContent = s.slidePrompt || s.slideData
+        return hasNarration && hasTitle && hasSlideContent
+      })
+      if (validScenes.length < preGeneratedScenes.length) {
+        console.warn(`[video ${videoId}] Filtered ${preGeneratedScenes.length - validScenes.length} invalid pre-generated scenes (missing narration, title, or slide content)`)
+      }
+      if (validScenes.length === 0) {
+        inFlightVideos.delete(videoId)
+        return NextResponse.json({ error: 'All pre-generated scenes are invalid (missing narration, title, or slide content). Please regenerate your script.' }, { status: 400 })
+      }
+      // Replace with validated scenes
+      const preGenScenes = validScenes
+      console.log(`[video ${videoId}] Using ${preGenScenes.length} pre-generated scenes.`)
       // Replace {{BRAND_NAME}} placeholder and strip invented contact info
       const actualBrandName = brand?.name || ''
       const sourceText = JSON.stringify(policyData) // original document data
@@ -203,7 +219,7 @@ export async function POST(request: Request) {
         )
       }
 
-      scenes = preGeneratedScenes.map((s: any) => ({
+      scenes = preGenScenes.map((s: any) => ({
         ...s,
         title: cleanText(s.title || ''),
         narration: formatForTTS(cleanText(s.narration || '')),

@@ -204,6 +204,7 @@ export interface WizardDraft {
   styleId?: string
   customStylePrompt?: string
   styleReferenceUrl?: string
+  classification?: Record<string, unknown>
   script?: VideoScene[]
 }
 

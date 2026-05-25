@@ -128,10 +128,139 @@ ACTION ITEMS RULES:
 - Maximum 4 action items, minimum 1`
 
 /**
+ * Classify a document from text content (for URLs, pasted text, DOCX, etc.).
+ * Uses the same prompt as classifyDocument but with text instead of inline data.
+ */
+export async function classifyFromText(
+  content: string,
+  purpose?: string,
+): Promise<DocumentClassification> {
+  const truncated = content.slice(0, 30000)
+  const promptAddition = purpose ? `\n\nThe user's stated purpose: "${purpose}"` : ''
+
+  try {
+    const response = await genai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: `${CLASSIFICATION_PROMPT}${promptAddition}\n\nHere is the document text to classify:\n\n${truncated}` },
+          ],
+        },
+      ],
+    })
+
+    const text = response.text?.trim() ?? ''
+    const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
+    const parsed = JSON.parse(cleaned)
+    const docType = (parsed.documentType as DocumentTypeId) || 'unknown'
+    const typeInfo = DOCUMENT_TYPES[docType] || DOCUMENT_TYPES.unknown
+
+    const categoryToIndustry: Record<string, string> = {
+      insurance: 'insurance',
+      finance: 'financial',
+      business: 'consulting',
+      legal: 'legal',
+      healthcare: 'healthcare',
+      government: 'general',
+      education: 'education',
+      general: 'general',
+    }
+
+    const templateMap: Record<string, string> = {
+      life_insurance_illustration: 'executive', annuity_contract: 'executive',
+      health_insurance_eob: 'commercial-pro', auto_home_policy: 'commercial-pro',
+      insurance_claims_denial: 'commercial-pro', disability_policy: 'executive',
+      long_term_care: 'executive', bank_statement: 'commercial-pro',
+      credit_report: 'commercial-pro', mortgage_statement: 'executive',
+      tax_return: 'commercial-pro', investment_statement: 'glassmorphism',
+      loan_agreement: 'executive', retirement_plan: 'executive',
+      earnings_report: 'executive', annual_report: 'executive',
+      business_plan: 'glassmorphism', pitch_deck: 'glassmorphism',
+      profit_loss: 'commercial-pro', balance_sheet: 'commercial-pro',
+      marketing_report: 'neubrutalism', sales_proposal: 'commercial-pro',
+      lease_agreement: 'legal-brief', employment_contract: 'legal-brief',
+      nda_noncompete: 'legal-brief', terms_of_service: 'legal-brief',
+      divorce_decree: 'legal-brief', court_document: 'legal-brief',
+      lab_results: 'medical-journal', treatment_plan: 'medical-journal',
+      medical_bill: 'medical-journal', prescription_info: 'medical-journal',
+      social_security_statement: 'commercial-pro', property_tax_assessment: 'commercial-pro',
+      immigration_document: 'legal-brief', benefits_statement: 'commercial-pro',
+      transcript: 'commercial-pro', course_material: 'chalkboard',
+      research_paper: 'medical-journal', presentation: 'executive',
+      report: 'commercial-pro', newsletter: 'watercolor', unknown: 'executive',
+    }
+
+    return {
+      documentType: docType,
+      confidence: parsed.confidence ?? 0.5,
+      category: typeInfo.category,
+      title: parsed.title || 'Document Explained',
+      perspective: parsed.perspective || 'reader',
+      sensitivity: typeInfo.sensitivity,
+      tone: parsed.tone || 'clear and professional',
+      redFlags: Array.isArray(parsed.redFlags) ? parsed.redFlags : [],
+      actionItems: Array.isArray(parsed.actionItems) ? parsed.actionItems : [],
+      keyQuestion: parsed.keyQuestion || 'What does this document mean for you?',
+      industry: categoryToIndustry[typeInfo.category] || 'general',
+      recommendedTemplate: templateMap[docType] || 'executive',
+    }
+  } catch (err) {
+    console.error('[classifyFromText] Classification failed:', err instanceof Error ? err.message : 'unknown')
+    return {
+      documentType: 'unknown',
+      confidence: 0,
+      category: 'general',
+      title: 'Document Explained',
+      perspective: 'reader',
+      sensitivity: 'low',
+      tone: 'clear and professional',
+      redFlags: [],
+      actionItems: [],
+      keyQuestion: 'What does this document mean for you?',
+      industry: 'general',
+      recommendedTemplate: 'executive',
+    }
+  }
+}
+
+/**
  * Classify a document using Gemini Flash (fast, cheap).
  * This is Pass 1 of the two-pass extraction system.
  */
 export async function classifyDocument(pdfBase64: string, mimeType: string = 'application/pdf'): Promise<DocumentClassification> {
+  // For non-PDF/image types (DOCX, PPTX, CSV), Gemini may not support inline data.
+  // Fall back to text-based classification by attempting to decode as text.
+  const supportedInlineMimes = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif']
+  if (!supportedInlineMimes.includes(mimeType)) {
+    try {
+      const textContent = Buffer.from(pdfBase64, 'base64').toString('utf-8')
+      // If it decodes to reasonable text (not binary garbage), use text classification
+      const printableRatio = textContent.slice(0, 1000).split('').filter(c => c.charCodeAt(0) >= 32 || c === '\n' || c === '\r' || c === '\t').length / Math.min(textContent.length, 1000)
+      if (printableRatio > 0.7) {
+        return classifyFromText(textContent)
+      }
+    } catch {
+      // Fall through to inline data attempt
+    }
+    // If we can't decode as text, return safe default rather than failing
+    return {
+      documentType: 'unknown',
+      confidence: 0,
+      category: 'general',
+      title: 'Document Explained',
+      perspective: 'reader',
+      sensitivity: 'low',
+      tone: 'clear and professional',
+      redFlags: [],
+      actionItems: [],
+      keyQuestion: 'What does this document mean for you?',
+      industry: 'general',
+      recommendedTemplate: 'executive',
+    }
+  }
+
   const response = await genai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: [

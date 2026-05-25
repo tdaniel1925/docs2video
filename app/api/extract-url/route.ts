@@ -7,6 +7,7 @@ import type { ExtractedData } from '../../_lib/extract-types'
 import { scrapeBrand } from '../../_lib/brand-scraper'
 import { THEME_PROMPT, EXTRACTION_PROMPT } from '../../_lib/prompts'
 import { wrapUserData } from '../../_lib/prompt-safety'
+import { classifyFromText } from '../../_lib/document-classifier'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -142,6 +143,16 @@ export async function POST(request: Request) {
 
     if ((markdown.includes('502') && markdown.includes('Server Error')) || markdown.includes('403 Forbidden')) {
       return NextResponse.json({ error: 'The website returned an error. Please try again in a moment.' }, { status: 400 })
+    }
+
+    // FIX 8: Paywall detection
+    const mainContentOnly = mainResult?.markdown || mainResult?.data?.markdown || ''
+    if (mainContentOnly.length < 100) {
+      const lower = mainContentOnly.toLowerCase()
+      const paywallStrings = ['subscribe to read', 'sign in to continue', 'premium content', 'members only', 'login to view', 'create an account to continue']
+      if (paywallStrings.some(s => lower.includes(s))) {
+        return NextResponse.json({ error: 'This page appears to be behind a login or paywall. Try copying the text and pasting it instead.' }, { status: 400 })
+      }
     }
 
     console.log(`[extract-url] Total content: ${markdown.length} chars markdown from ${1 + navLinks.slice(0, 5).length} pages`)
@@ -320,7 +331,15 @@ export async function POST(request: Request) {
       console.error('[extract-url] Brand scraping failed:', brandErr instanceof Error ? brandErr.message : 'unknown')
     }
 
-    return NextResponse.json({ ...data, suggestedTheme, autoBrandId, autoLogoUrl, autoBrandInfo })
+    // FIX 4: Classify the extracted content
+    let classification = null
+    try {
+      classification = await classifyFromText(truncated)
+    } catch (classErr) {
+      console.error('[extract-url] Classification failed, continuing without:', classErr instanceof Error ? classErr.message : 'unknown')
+    }
+
+    return NextResponse.json({ ...data, suggestedTheme, autoBrandId, autoLogoUrl, autoBrandInfo, classification })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'URL extraction failed'
     return NextResponse.json({ error: message }, { status: 500 })

@@ -5,6 +5,7 @@ import { logError } from '../../_lib/error-logger'
 import OpenAI from 'openai'
 import { CONTENT_STRUCTURING_SYSTEM_PROMPT } from '../../_lib/prompts'
 import { sanitizeSourceData, wrapUserData } from '../../_lib/prompt-safety'
+import { classifyFromText } from '../../_lib/document-classifier'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -88,7 +89,22 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
       })
 
       const structured = JSON.parse(structureRes.choices[0]?.message?.content || '{}')
-      return NextResponse.json(structured)
+
+      // FIX 10: Validate AI output has required fields
+      if (!structured.title) structured.title = purpose || idea || 'Untitled'
+      if (!structured.sections && !structured.bulletPoints) {
+        structured.sections = [{ heading: 'Overview', content: contentToStructure.slice(0, 500) }]
+      }
+
+      // FIX 5: Classify the content
+      let classification = null
+      try {
+        classification = await classifyFromText(contentToStructure, purpose)
+      } catch {
+        // Classification is non-critical, continue without
+      }
+
+      return NextResponse.json({ ...structured, classification })
     } catch (err) {
       logError('extract-text', err, { userId: user.id })
       const message = err instanceof Error ? err.message : 'Extraction failed'
