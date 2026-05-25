@@ -40,6 +40,9 @@ export default function Step1Content() {
   const [pendingExtractedData, setPendingExtractedData] = useState<Record<string, unknown> | null>(null)
   const [pendingAutoBrandInfo, setPendingAutoBrandInfo] = useState<Record<string, unknown> | null>(null)
 
+  // Branding toggle
+  const [useBranding, setUseBranding] = useState(true)
+
   // New style option state
   const refImageInputRef = useRef<HTMLInputElement>(null)
   const [refImageLoading, setRefImageLoading] = useState(false)
@@ -117,7 +120,12 @@ export default function Step1Content() {
   async function handleUseThisStyle() {
     if (!pendingExtractedData) return
     const skipTo = outputType === 'video' ? 'voice' : 'script'
-    await createDraftAndRedirect(pendingExtractedData, pendingAutoBrandInfo, {
+    const brandInfo = useBranding ? pendingAutoBrandInfo : null
+    const extractedData = { ...pendingExtractedData }
+    if (!useBranding) {
+      delete extractedData['_autoBrandId']
+    }
+    await createDraftAndRedirect(extractedData, brandInfo, {
       styleId: 'custom-brand-preview',
       customStylePrompt: previewStyleDesc,
       skipToStep: skipTo,
@@ -126,8 +134,12 @@ export default function Step1Content() {
 
   async function handleChooseDifferentStyle() {
     if (!pendingExtractedData) return
-    // Proceed normally through brand → voice → style
-    await createDraftAndRedirect(pendingExtractedData, pendingAutoBrandInfo)
+    const brandInfo = useBranding ? pendingAutoBrandInfo : null
+    const extractedData = { ...pendingExtractedData }
+    if (!useBranding) {
+      delete extractedData['_autoBrandId']
+    }
+    await createDraftAndRedirect(extractedData, brandInfo)
   }
 
   async function handleReferenceImageUpload(file: File) {
@@ -273,6 +285,7 @@ export default function Step1Content() {
               companyName: siteName,
               industry: bi.industry || null,
               tone: bi.tone || null,
+              logoUrl: bi.logoFileUrl || bi.logoUrl || null,
             }),
           })
           const previewData = await previewRes.json()
@@ -542,6 +555,124 @@ export default function Step1Content() {
           textAlign: 'center',
           marginBottom: 16,
         }}>
+          {/* Brand info card */}
+          {pendingAutoBrandInfo && (() => {
+            const bi = pendingAutoBrandInfo as Record<string, unknown>
+            const logoSrc = (bi.logoFileUrl as string) || (bi.logoUrl as string) || ''
+            const brandName = (bi.name as string) || suggestedSiteName || ''
+            const tagline = bi.tagline as string | undefined
+            const industry = bi.industry as string | undefined
+            const phone = bi.phone as string | undefined
+            const brandEmail = bi.email as string | undefined
+            const website = bi.website as string | undefined
+            const hasContact = phone || brandEmail || website
+            return (
+              <div style={{
+                padding: '16px 20px',
+                borderRadius: 10,
+                border: '1px solid var(--border)',
+                background: 'white',
+                textAlign: 'left',
+                marginBottom: 20,
+              }}>
+                <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                  {logoSrc && (
+                    <img
+                      src={logoSrc}
+                      alt={`${brandName} logo`}
+                      style={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: 8,
+                        objectFit: 'contain',
+                        flexShrink: 0,
+                        background: '#f5f5f5',
+                      }}
+                    />
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.3 }}>
+                      {brandName}
+                    </div>
+                    {tagline && (
+                      <div style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 2, lineHeight: 1.4 }}>
+                        {tagline}
+                      </div>
+                    )}
+                    {industry && (
+                      <span style={{
+                        display: 'inline-block',
+                        marginTop: 6,
+                        padding: '2px 10px',
+                        borderRadius: 6,
+                        background: '#F0F9E8',
+                        color: '#3D7A3F',
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}>
+                        {industry}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {hasContact && (
+                  <div style={{
+                    display: 'flex',
+                    gap: 16,
+                    flexWrap: 'wrap',
+                    marginTop: 12,
+                    paddingTop: 10,
+                    borderTop: '1px solid var(--border-light, #eee)',
+                  }}>
+                    {phone && (
+                      <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>{phone}</span>
+                    )}
+                    {brandEmail && (
+                      <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>{brandEmail}</span>
+                    )}
+                    {website && (
+                      <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>{website}</span>
+                    )}
+                  </div>
+                )}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  marginTop: 14,
+                  paddingTop: 12,
+                  borderTop: '1px solid var(--border-light, #eee)',
+                }}>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: 'var(--ink)',
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={useBranding}
+                      onChange={(e) => setUseBranding(e.target.checked)}
+                      style={{
+                        width: 18,
+                        height: 18,
+                        accentColor: '#C7E8A8',
+                        cursor: 'pointer',
+                      }}
+                    />
+                    Include branding in video
+                  </label>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 8 }}>
+                  This info was found on the website. You can edit it in the Brand step.
+                </div>
+              </div>
+            )
+          })()}
+
           <div style={{
             display: 'inline-block',
             padding: '4px 14px',

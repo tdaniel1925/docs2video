@@ -220,15 +220,21 @@ export async function POST(request: Request) {
     // Auto-create brand from scraped URL
     let autoBrandId: string | null = null
     let autoLogoUrl: string | null = null
-    let autoBrandInfo: { primary_color: string | null; industry: string | null; tone: string | null; name: string | null } | null = null
+    let autoBrandInfo: Record<string, unknown> | null = null
     try {
       console.log('[extract-url] Scraping brand from URL...')
       const brandAnalysis = await scrapeBrand(url, { markdown, html })
       autoBrandInfo = {
         primary_color: brandAnalysis.primaryColor || null,
+        secondary_color: brandAnalysis.secondaryColor || null,
         industry: brandAnalysis.industry || null,
         tone: brandAnalysis.tone || null,
         name: brandAnalysis.companyName || null,
+        tagline: brandAnalysis.tagline || null,
+        description: brandAnalysis.description || null,
+        website: url,
+        services: brandAnalysis.services || [],
+        logoUrl: brandAnalysis.logoUrl || null,
       }
 
       // Upload logo to Supabase storage (brand scraper already processed it)
@@ -303,6 +309,10 @@ export async function POST(request: Request) {
       } else {
         autoBrandId = newBrand.id
         autoLogoUrl = logoFileUrl
+        // Add uploaded logo URL to brand info for client
+        if (autoLogoUrl && autoBrandInfo) {
+          (autoBrandInfo as Record<string, unknown>).logoFileUrl = autoLogoUrl
+        }
         console.log(`[extract-url] Auto-created brand: ${brandAnalysis.companyName} (${autoBrandId}), logo: ${logoFileUrl ? 'yes' : 'no'}`)
       }
     } catch (brandErr) {
