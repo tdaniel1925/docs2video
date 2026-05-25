@@ -6,143 +6,6 @@ import WizardProgress from '../_components/WizardProgress'
 import { SLIDE_STYLES } from '../../../_lib/types'
 import { autoSelectStyle } from '../../../_lib/style-picker'
 
-/* Color palette for each style used to render mini preview swatches */
-const STYLE_COLORS: Record<string, { bg: string; accent: string; text: string; bar: string }> = {
-  'executive':        { bg: '#2C2C2C', accent: '#C9A84C', text: '#FFFFFF', bar: '#C9A84C' },
-  'steampunk':        { bg: '#1E1610', accent: '#B87333', text: '#F5E6CC', bar: '#8B6914' },
-  'social-grid':      { bg: '#FFFFFF', accent: '#FF6F61', text: '#333333', bar: '#FFB347' },
-  'blue-steps':       { bg: '#F0F8FF', accent: '#00838F', text: '#004D40', bar: '#4DD0E1' },
-  'isometric':        { bg: '#F5F5F5', accent: '#6C63FF', text: '#333333', bar: '#FF6584' },
-  'flat-vector':      { bg: '#FFFFFF', accent: '#2196F3', text: '#333333', bar: '#4CAF50' },
-  'doodle':           { bg: '#FFFBF0', accent: '#FF7043', text: '#5D4037', bar: '#66BB6A' },
-  'watercolor':       { bg: '#FFF0F5', accent: '#CE93D8', text: '#4A148C', bar: '#80CBC4' },
-  'neon-cyber':       { bg: '#0A0A0A', accent: '#00FFFF', text: '#FFFFFF', bar: '#FF00FF' },
-  'line-art':         { bg: '#FFFFFF', accent: '#00897B', text: '#37474F', bar: '#B2DFDB' },
-  'vintage-craft':    { bg: '#2C1E10', accent: '#D4A76A', text: '#F5E6CC', bar: '#8B5E3C' },
-  'flat-cartoon':     { bg: '#FFFFFF', accent: '#FF5722', text: '#333333', bar: '#FFCA28' },
-  'colorful-steps':   { bg: '#FFFFFF', accent: '#E91E63', text: '#333333', bar: '#00BCD4' },
-  'timeline':         { bg: '#F5F5F5', accent: '#00796B', text: '#37474F', bar: '#B2DFDB' },
-  'profile-resume':   { bg: '#FFF8E1', accent: '#D84315', text: '#3E2723', bar: '#FF8F00' },
-  'anime-pop':        { bg: '#1A1A2E', accent: '#FF2E63', text: '#FFFFFF', bar: '#08D9D6' },
-  'felt-craft':       { bg: '#E8E0D8', accent: '#E57373', text: '#4E342E', bar: '#81C784' },
-  'botanical-warm':   { bg: '#FFF3E0', accent: '#6D4C41', text: '#3E2723', bar: '#A1887F' },
-  'vintage-editorial':{ bg: '#F5F0E0', accent: '#1B5E20', text: '#1A1A1A', bar: '#C9A84C' },
-  'torn-collage':     { bg: '#E0E0E0', accent: '#FF6D00', text: '#1A1A1A', bar: '#212121' },
-  'inventor-box':     { bg: '#F5ECD7', accent: '#795548', text: '#3E2723', bar: '#B8860B' },
-  'chalkboard':       { bg: '#2E3B2E', accent: '#FFEB3B', text: '#FFFFFF', bar: '#4FC3F7' },
-  'cafe-realistic':   { bg: '#4E3524', accent: '#D4A76A', text: '#FFF8E1', bar: '#8D6E63' },
-  'old-newspaper':    { bg: '#F5E6C8', accent: '#1A1A1A', text: '#333333', bar: '#8D6E63' },
-  'paper-layers':     { bg: '#87CEEB', accent: '#1565C0', text: '#FFFFFF', bar: '#D7CCC8' },
-  'street-graffiti':  { bg: '#757575', accent: '#FF1744', text: '#FFFFFF', bar: '#FFEA00' },
-  'urban-chaos':      { bg: '#1A1A1A', accent: '#FFFFFF', text: '#EEEEEE', bar: '#FF6F00' },
-  'urban-canvas':     { bg: '#FFD600', accent: '#1A1A1A', text: '#1A1A1A', bar: '#FFFFFF' },
-  'neon-nightclub':   { bg: '#0D0D2B', accent: '#FF4081', text: '#FFFFFF', bar: '#448AFF' },
-  'brick-blocks':     { bg: '#C8E6C9', accent: '#F44336', text: '#1A1A1A', bar: '#2196F3' },
-  'cinematic-hud':    { bg: '#1A1A2E', accent: '#FFB300', text: '#E0E0E0', bar: '#00E5FF' },
-  'commercial-pro':   { bg: '#0D47A1', accent: '#FFD600', text: '#FFFFFF', bar: '#FF6D00' },
-  'americana-poster': { bg: '#F5E6C8', accent: '#B71C1C', text: '#1A1A1A', bar: '#1565C0' },
-  'black-label':      { bg: '#0A0A0A', accent: '#C0C0C0', text: '#FFFFFF', bar: '#808080' },
-  'fire-vibes':       { bg: '#0A0A0A', accent: '#FF6D00', text: '#FFFFFF', bar: '#FFB300' },
-  'urban-friday':     { bg: '#1A1A1A', accent: '#FFD600', text: '#FFFFFF', bar: '#FFC107' },
-  'summer-fest':      { bg: '#FFCDD2', accent: '#FFD600', text: '#333333', bar: '#81D4FA' },
-  'indie-zine':       { bg: '#FFF8E1', accent: '#4CAF50', text: '#1A1A1A', bar: '#FF9800' },
-  'red-neon':         { bg: '#0A0A0A', accent: '#FF1744', text: '#FFFFFF', bar: '#FFD700' },
-  'editorial':        { bg: '#E8E8EC', accent: '#00AEEF', text: '#1A1A1A', bar: '#EC008C' },
-  'rock-poster':      { bg: '#B71C1C', accent: '#FFFFFF', text: '#FFFFFF', bar: '#FFD600' },
-  'street-grunge':    { bg: '#0D7377', accent: '#F5F0E1', text: '#FFFFFF', bar: '#1A1A1A' },
-  'stock-certificate':{ bg: '#FFFFF0', accent: '#1B5E20', text: '#1A1A1A', bar: '#C9A84C' },
-  'vintage-bond':     { bg: '#F5E6C8', accent: '#8B4513', text: '#1A1A1A', bar: '#B87333' },
-  'art-deco':         { bg: '#0A0A0A', accent: '#C9A84C', text: '#FFFFFF', bar: '#FFD700' },
-  'marble-gold':      { bg: '#F5F5F5', accent: '#C9A84C', text: '#333333', bar: '#E0E0E0' },
-  'nightclub-flyer':  { bg: '#0A0A0A', accent: '#FF4081', text: '#FFFFFF', bar: '#00E5FF' },
-  'concert-poster':   { bg: '#1A1A1A', accent: '#D32F2F', text: '#FFFFFF', bar: '#FFCDD2' },
-  'movie-poster':     { bg: '#0D1B2A', accent: '#FF6D00', text: '#FFFFFF', bar: '#00838F' },
-  'festival':         { bg: '#FF8A65', accent: '#CE93D8', text: '#FFFFFF', bar: '#FFD54F' },
-  'medical-journal':  { bg: '#FFFFFF', accent: '#00897B', text: '#1A1A1A', bar: '#B2DFDB' },
-  'legal-brief':      { bg: '#FFFFF5', accent: '#1A237E', text: '#1A237E', bar: '#C5CAE9' },
-  'scientific-paper': { bg: '#FFFFFF', accent: '#1A237E', text: '#1A1A1A', bar: '#90CAF9' },
-  'collage-scrapbook':{ bg: '#D7CCC8', accent: '#F48FB1', text: '#4E342E', bar: '#AED581' },
-  'comic-book':       { bg: '#FFFFFF', accent: '#D32F2F', text: '#1A1A1A', bar: '#1976D2' },
-  'chalkboard-v2':    { bg: '#2E4A2E', accent: '#FFEB3B', text: '#FFFFFF', bar: '#F48FB1' },
-  'glassmorphism':    { bg: '#7B1FA2', accent: '#FFFFFF', text: '#FFFFFF', bar: '#2196F3' },
-  'neubrutalism':     { bg: '#F5F5F0', accent: '#FFEB3B', text: '#1A1A1A', bar: '#FF4081' },
-  'gradient-mesh':    { bg: '#0A0A0A', accent: '#7C4DFF', text: '#FFFFFF', bar: '#00E5FF' },
-  'terminal':         { bg: '#000000', accent: '#00FF00', text: '#00FF00', bar: '#00CC00' },
-  'newspaper':        { bg: '#F5F0E0', accent: '#1A1A1A', text: '#333333', bar: '#C5C5C5' },
-  'travel-magazine':  { bg: '#1976D2', accent: '#FFD700', text: '#FFFFFF', bar: '#80DEEA' },
-}
-
-const DEFAULT_COLORS = { bg: '#F5F5F5', accent: '#6C63FF', text: '#333333', bar: '#FF6584' }
-
-/** Renders a tiny visual preview swatch representing the style */
-function StylePreviewSwatch({ styleId, size = 'small' }: { styleId: string; size?: 'small' | 'large' }) {
-  const c = STYLE_COLORS[styleId] || DEFAULT_COLORS
-  const isLarge = size === 'large'
-  const w = isLarge ? 180 : 64
-  const h = isLarge ? 110 : 44
-
-  return (
-    <div style={{
-      width: w,
-      height: h,
-      borderRadius: 6,
-      background: c.bg,
-      border: '1px solid rgba(0,0,0,0.1)',
-      overflow: 'hidden',
-      position: 'relative',
-      flexShrink: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'flex-end',
-      padding: isLarge ? 10 : 4,
-      gap: isLarge ? 5 : 2,
-    }}>
-      {/* Title bar */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: isLarge ? 24 : 10,
-        background: c.accent,
-        opacity: 0.9,
-      }} />
-      {/* Fake text lines */}
-      <div style={{
-        width: isLarge ? '60%' : '55%',
-        height: isLarge ? 6 : 3,
-        borderRadius: 2,
-        background: c.text,
-        opacity: 0.5,
-      }} />
-      <div style={{
-        width: isLarge ? '80%' : '75%',
-        height: isLarge ? 4 : 2,
-        borderRadius: 2,
-        background: c.text,
-        opacity: 0.25,
-      }} />
-      {/* Fake bar chart */}
-      <div style={{
-        display: 'flex',
-        gap: isLarge ? 3 : 2,
-        alignItems: 'flex-end',
-        marginTop: isLarge ? 4 : 2,
-      }}>
-        {[0.5, 0.8, 0.35, 1, 0.65].map((ratio, i) => (
-          <div key={i} style={{
-            flex: 1,
-            height: Math.round((isLarge ? 36 : 14) * ratio),
-            borderRadius: 1,
-            background: i % 2 === 0 ? c.accent : c.bar,
-            opacity: 0.85,
-          }} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export default function StylePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -273,7 +136,11 @@ export default function StylePage() {
             <div style={styles.suggestedCard}>
               <div style={styles.suggestedBadge}>Suggested for you</div>
               <div style={styles.suggestedPreviewWrap}>
-                <StylePreviewSwatch styleId={suggestedStyle.id} size="large" />
+                <img
+                  src={`/style-previews/${suggestedStyle.id}.png`}
+                  alt={suggestedStyle.name}
+                  style={styles.suggestedImg}
+                />
               </div>
               <div style={styles.suggestedName}>{suggestedStyle.name}</div>
               <div style={styles.suggestedDesc}>{suggestedStyle.description}</div>
@@ -341,7 +208,11 @@ export default function StylePage() {
                       ...(isSelected ? styles.styleCardSelected : {}),
                     }}
                   >
-                    <StylePreviewSwatch styleId={style.id} size="small" />
+                    <img
+                      src={`/style-previews/${style.id}.png`}
+                      alt={style.name}
+                      style={styles.gridImg}
+                    />
                     <div style={styles.styleInfo}>
                       <span style={styles.styleName}>{style.name}</span>
                       <span style={styles.styleDesc}>{style.description}</span>
@@ -456,6 +327,14 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     marginBottom: 16,
   },
+  suggestedImg: {
+    width: 320,
+    maxWidth: '100%',
+    height: 'auto',
+    borderRadius: 8,
+    border: '1px solid rgba(0,0,0,0.1)',
+    objectFit: 'cover' as const,
+  },
   suggestedName: {
     fontSize: 24,
     fontWeight: 800,
@@ -543,14 +422,14 @@ const styles: Record<string, React.CSSProperties> = {
   },
   styleGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: 10,
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 12,
   },
   styleCard: {
     display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    padding: '14px 14px',
+    flexDirection: 'column' as const,
+    gap: 8,
+    padding: 0,
     borderRadius: 10,
     border: '2px solid var(--border-light, #e0e0e0)',
     background: 'white',
@@ -559,18 +438,26 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: 'inherit',
     transition: 'all 0.15s ease',
     position: 'relative' as const,
+    overflow: 'hidden' as const,
   },
   styleCardSelected: {
     borderColor: '#C7E8A8',
     background: '#F0F9E8',
   },
-  /* styleThumbnail and styleInitial removed — replaced by StylePreviewSwatch */
+  gridImg: {
+    width: '100%',
+    height: 120,
+    objectFit: 'cover' as const,
+    display: 'block',
+    flexShrink: 0,
+  },
   styleInfo: {
     display: 'flex',
     flexDirection: 'column' as const,
     gap: 2,
     flex: 1,
     minWidth: 0,
+    padding: '0 10px 10px',
   },
   styleName: {
     fontSize: 14,

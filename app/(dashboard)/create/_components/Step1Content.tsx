@@ -2,10 +2,12 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { SLIDE_STYLES } from '../../../_lib/types'
+import { autoSelectStyle } from '../../../_lib/style-picker'
 
 type OutputType = 'video' | 'pptx' | 'pdf'
 type InputMethod = 'url' | 'upload' | 'text' | 'idea' | null
-type Stage = 'idle' | 'extracting' | 'error'
+type Stage = 'idle' | 'extracting' | 'error' | 'style-suggest'
 
 const OUTPUT_OPTIONS: { type: OutputType; label: string; desc: string }[] = [
   { type: 'video', label: 'Video', desc: 'Narrated explainer with slides, voice, and music' },
@@ -32,6 +34,81 @@ export default function Step1Content() {
   const [stageMsg, setStageMsg] = useState('')
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Style suggestion state (shown after URL scrape)
+  const [suggestedStyleId, setSuggestedStyleId] = useState<string | null>(null)
+  const [suggestedSiteName, setSuggestedSiteName] = useState<string>('')
+  const [pendingExtractedData, setPendingExtractedData] = useState<Record<string, unknown> | null>(null)
+  const [pendingAutoBrandInfo, setPendingAutoBrandInfo] = useState<Record<string, unknown> | null>(null)
+
+  async function createDraftAndRedirect(
+    extractedData: Record<string, unknown>,
+    autoBrandInfo: Record<string, unknown> | null,
+    overrides?: { styleId?: string; skipToStep?: string },
+  ) {
+    setStageMsg('Setting up your project...')
+    setStage('extracting')
+    try {
+      const draftRes = await fetch('/api/videos/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          outputType,
+          purpose: purpose.trim(),
+          extractedData,
+          contentMethod: method || 'idea',
+          autoBrandInfo,
+          ...(overrides?.styleId ? { styleId: overrides.styleId } : {}),
+        }),
+      })
+      const draftData = await draftRes.json()
+      if (!draftRes.ok) {
+        if (draftRes.status === 402) { setError('Not enough credits. Upgrade your plan or buy more credits.'); setStage('idle'); return }
+        throw new Error(draftData.error || 'Failed to create project')
+      }
+
+      // If style was pre-selected, save it to the draft and skip brand+style steps
+      if (overrides?.styleId) {
+        await fetch('/api/videos/draft', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            videoId: draftData.videoId,
+            updates: {
+              styleId: overrides.styleId,
+              inlineBrand: autoBrandInfo,
+              step: outputType === 'video' ? 3 : 3, // voice step for video, style step for doc
+            },
+          }),
+        })
+      }
+
+      if (overrides?.skipToStep) {
+        router.push(`/create/${overrides.skipToStep}?id=${draftData.videoId}`)
+      } else {
+        router.push(`/create/brand?id=${draftData.videoId}`)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setStage('idle')
+    }
+  }
+
+  async function handleUseThisStyle() {
+    if (!pendingExtractedData || !suggestedStyleId) return
+    // For video: skip to voice (step 3); for pptx/pdf: skip to script
+    const skipTo = outputType === 'video' ? 'voice' : 'script'
+    await createDraftAndRedirect(pendingExtractedData, pendingAutoBrandInfo, {
+      styleId: suggestedStyleId,
+      skipToStep: skipTo,
+    })
+  }
+
+  async function handleChooseDifferentStyle() {
+    if (!pendingExtractedData) return
+    // Proceed normally through brand → voice → style
+    await createDraftAndRedirect(pendingExtractedData, pendingAutoBrandInfo)
+  }
 
   async function handleNext() {
     setError(null)
@@ -99,27 +176,24 @@ export default function Step1Content() {
 
       if (!extractedData) throw new Error('No content could be extracted')
 
-      // Create draft video record
-      setStageMsg('Setting up your project...')
-      const draftRes = await fetch('/api/videos/draft', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          outputType,
-          purpose: purpose.trim(),
-          extractedData,
-          contentMethod: method || 'idea',
-          autoBrandInfo,
-        }),
-      })
-      const draftData = await draftRes.json()
-      if (!draftRes.ok) {
-        if (draftRes.status === 402) { setError('Not enough credits. Upgrade your plan or buy more credits.'); setStage('idle'); return }
-        throw new Error(draftData.error || 'Failed to create project')
+      // For URL scrape with brand info, show style suggestion before creating draft
+      if (method === 'url' && autoBrandInfo) {
+        const primaryColor = (autoBrandInfo as Record<string, unknown>).primaryColor as string || null
+        const industry = (autoBrandInfo as Record<string, unknown>).industry as string || null
+        const selectedStyle = autoSelectStyle(primaryColor, industry)
+        const siteName = (autoBrandInfo as Record<string, unknown>).name as string ||
+          (autoBrandInfo as Record<string, unknown>).companyName as string ||
+          new URL(urlInput.trim().startsWith('http') ? urlInput.trim() : `https://${urlInput.trim()}`).hostname
+        setSuggestedStyleId(selectedStyle)
+        setSuggestedSiteName(siteName)
+        setPendingExtractedData(extractedData)
+        setPendingAutoBrandInfo(autoBrandInfo)
+        setStage('style-suggest')
+        return
       }
 
-      // Redirect to Step 2: Brand
-      router.push(`/create/brand?id=${draftData.videoId}`)
+      // Create draft video record
+      await createDraftAndRedirect(extractedData, autoBrandInfo)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
       setStage('idle')
@@ -336,24 +410,123 @@ export default function Step1Content() {
         </div>
       )}
 
+      {/* Style suggestion after URL scrape */}
+      {stage === 'style-suggest' && suggestedStyleId && (() => {
+        const styleObj = SLIDE_STYLES.find(s => s.id === suggestedStyleId) || SLIDE_STYLES[0]
+        return (
+          <div style={{
+            padding: '28px 24px',
+            borderRadius: 10,
+            border: '2px solid #C7E8A8',
+            background: 'white',
+            textAlign: 'center',
+            marginBottom: 16,
+          }}>
+            <div style={{
+              display: 'inline-block',
+              padding: '4px 14px',
+              borderRadius: 8,
+              background: '#F0F9E8',
+              color: '#3D7A3F',
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.03em',
+              textTransform: 'uppercase',
+              marginBottom: 16,
+            }}>
+              Style preview
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <img
+                src={`/style-previews/${suggestedStyleId}.png`}
+                alt={styleObj.name}
+                style={{
+                  width: 320,
+                  maxWidth: '100%',
+                  height: 'auto',
+                  borderRadius: 8,
+                  border: '1px solid rgba(0,0,0,0.1)',
+                }}
+              />
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.03em', marginBottom: 4 }}>
+              {styleObj.name}
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 8 }}>
+              {styleObj.description}
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 24 }}>
+              We suggest <strong>{styleObj.name}</strong> based on {suggestedSiteName}&apos;s design
+            </p>
+            {error && (
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: 8,
+                background: '#FEF2F2',
+                border: '1px solid #FECACA',
+                color: '#DC2626',
+                fontSize: 13,
+                marginBottom: 16,
+              }}>
+                {error}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button
+                onClick={handleUseThisStyle}
+                style={{
+                  padding: '12px 28px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: '#C7E8A8',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: 'var(--ink)',
+                  cursor: 'pointer',
+                }}
+              >
+                Use this style
+              </button>
+              <button
+                onClick={handleChooseDifferentStyle}
+                style={{
+                  padding: '12px 28px',
+                  borderRadius: 10,
+                  border: '1px solid var(--border-light, #e0e0e0)',
+                  background: 'white',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: 'var(--ink-soft)',
+                  cursor: 'pointer',
+                }}
+              >
+                Choose a different style
+              </button>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Next button */}
-      <button
-        onClick={handleNext}
-        disabled={stage === 'extracting'}
-        style={{
-          width: '100%',
-          padding: '14px 24px',
-          borderRadius: 10,
-          border: 'none',
-          background: stage === 'extracting' ? 'var(--border)' : 'var(--ink)',
-          color: '#fff',
-          fontSize: 16,
-          fontWeight: 700,
-          cursor: stage === 'extracting' ? 'not-allowed' : 'pointer',
-        }}
-      >
-        {stage === 'extracting' ? 'Processing...' : 'Next'}
-      </button>
+      {stage !== 'style-suggest' && (
+        <button
+          onClick={handleNext}
+          disabled={stage === 'extracting'}
+          style={{
+            width: '100%',
+            padding: '14px 24px',
+            borderRadius: 10,
+            border: 'none',
+            background: stage === 'extracting' ? 'var(--border)' : 'var(--ink)',
+            color: '#fff',
+            fontSize: 16,
+            fontWeight: 700,
+            cursor: stage === 'extracting' ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {stage === 'extracting' ? 'Processing...' : 'Next'}
+        </button>
+      )}
     </div>
   )
 }
