@@ -371,6 +371,7 @@ export default function ScriptPage() {
           detailLevel,
           industry: (createState?.extractedData as Record<string, unknown>)?.industry || 'general',
           aiMusic: (createState as any)?.aiMusic ?? false,
+          musicPrompt: (createState as any)?.aiMusic ? 'Professional ambient background music, subtle and warm' : undefined,
           styleId: (createState as any)?.styleId || undefined,
           customStylePrompt: (createState as any)?.customStylePrompt || undefined,
         }),
@@ -435,77 +436,54 @@ export default function ScriptPage() {
               &larr; {isWizard ? 'Back to style' : 'Back to review'}
             </button>
 
-            {/* Detail level with AI recommendation */}
-            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-              {outputType === 'video' ? 'Video length' : 'Document length'}
-            </h3>
-            {(() => {
-              const intent = createState?.intentType || ''
-              const rec: string | null = intent === 'sales' ? 'standard' : intent === 'train' ? 'detailed' : intent === 'report' ? 'standard' : intent === 'proposal' ? 'standard' : intent === 'educate' ? 'standard' : null
-              const recLabel = rec === 'quick' ? 'Highlights' : rec === 'detailed' ? 'Detailed' : rec === 'standard' ? 'Standard' : null
-              if (!recLabel) return null
-              return (
-                <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>
-                  Based on your goal, we recommend <strong style={{ color: 'var(--ink)' }}>{recLabel}</strong>.
-                </p>
-              )
-            })()}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
-              {[
-                { id: 'quick' as const, title: 'Highlights', desc: outputType === 'video' ? 'Under 60 seconds' : '3-5 slides', sub: 'Quick summaries, social media clips, elevator pitches' },
-                { id: 'standard' as const, title: 'Standard', desc: outputType === 'video' ? '2-5 minutes' : '8-15 slides', sub: 'Client presentations, product overviews, reports' },
-                { id: 'detailed' as const, title: 'Detailed', desc: outputType === 'video' ? '5-15 minutes' : '15-30 slides', sub: 'Training videos, full walkthroughs, comprehensive explainers' },
-              ].map(level => (
-                <button
-                  key={level.id}
-                  onClick={() => setDetailLevel(level.id)}
-                  style={{
-                    padding: '24px 20px', borderRadius: 10,
-                    border: detailLevel === level.id ? '2px solid var(--mint)' : '2px solid var(--border-light)',
-                    background: detailLevel === level.id ? 'rgba(168,240,212,0.06)' : 'white',
-                    cursor: 'pointer', textAlign: 'left',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{level.title}</div>
-                  <div style={{ fontSize: 14, color: 'var(--ink-light)', marginBottom: 2 }}>{level.desc}</div>
-                  <div style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{level.sub}</div>
-                </button>
-              ))}
-            </div>
-
-            {/* Narration style — only for video output */}
-            {outputType === 'video' && (
+            {/* Detail level + narration style — only show in legacy (non-wizard) mode */}
+            {!isWizard && (
               <>
-                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Narration style</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 32 }}>
-                  <button
-                    onClick={() => setNarrationStyle('solo')}
-                    style={{
-                      padding: '24px 20px', borderRadius: 10,
-                      border: narrationStyle === 'solo' ? '2px solid var(--mint)' : '2px solid var(--border-light)',
-                      background: narrationStyle === 'solo' ? 'rgba(168,240,212,0.06)' : 'white',
-                      cursor: 'pointer', textAlign: 'left',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>Solo Narrator</div>
-                    <div style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.5 }}>One professional voice. Clean, focused, traditional.</div>
-                  </button>
-                  <button
-                    onClick={() => setNarrationStyle('podcast')}
-                    style={{
-                      padding: '24px 20px', borderRadius: 10,
-                      border: narrationStyle === 'podcast' ? '2px solid var(--mint)' : '2px solid var(--border-light)',
-                      background: narrationStyle === 'podcast' ? 'rgba(168,240,212,0.06)' : 'white',
-                      cursor: 'pointer', textAlign: 'left',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>Two Narrators</div>
-                    <div style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.5 }}>Professional discussion format. More engaging.</div>
-                  </button>
+                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+                  {outputType === 'video' ? 'Video length' : 'Document length'}
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
+                  {[
+                    { id: 'quick' as const, title: 'Highlights', desc: outputType === 'video' ? 'Under 60 seconds' : '3-5 slides' },
+                    { id: 'standard' as const, title: 'Standard', desc: outputType === 'video' ? '2-5 minutes' : '8-15 slides' },
+                    { id: 'detailed' as const, title: 'Detailed', desc: outputType === 'video' ? '5-15 minutes' : '15-30 slides' },
+                  ].map(level => (
+                    <button key={level.id} onClick={() => setDetailLevel(level.id)} style={{
+                      padding: '20px', borderRadius: 10,
+                      border: detailLevel === level.id ? '2px solid var(--mint)' : '2px solid var(--border-light)',
+                      background: detailLevel === level.id ? 'rgba(168,240,212,0.06)' : 'white',
+                      cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                    }}>
+                      <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{level.title}</div>
+                      <div style={{ fontSize: 14, color: 'var(--ink-light)' }}>{level.desc}</div>
+                    </button>
+                  ))}
                 </div>
+                {outputType === 'video' && (
+                  <>
+                    <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Narration style</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 32 }}>
+                      <button onClick={() => setNarrationStyle('solo')} style={{
+                        padding: '20px', borderRadius: 10,
+                        border: narrationStyle === 'solo' ? '2px solid var(--mint)' : '2px solid var(--border-light)',
+                        background: narrationStyle === 'solo' ? 'rgba(168,240,212,0.06)' : 'white',
+                        cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                      }}>
+                        <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>Solo Narrator</div>
+                        <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>One professional voice.</div>
+                      </button>
+                      <button onClick={() => setNarrationStyle('podcast')} style={{
+                        padding: '20px', borderRadius: 10,
+                        border: narrationStyle === 'podcast' ? '2px solid var(--mint)' : '2px solid var(--border-light)',
+                        background: narrationStyle === 'podcast' ? 'rgba(168,240,212,0.06)' : 'white',
+                        cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                      }}>
+                        <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>Two Narrators</div>
+                        <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>Professional discussion format.</div>
+                      </button>
+                    </div>
+                  </>
+                )}
               </>
             )}
 

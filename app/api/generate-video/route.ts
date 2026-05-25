@@ -478,7 +478,7 @@ export async function POST(request: Request) {
         userId: user.id,
         slidePrompts,
         logoUrl,
-        musicPrompt: musicPrompt || '',
+        musicPrompt: musicPrompt || (aiMusic ? 'Professional ambient background music, subtle and warm' : ''),
         industry: industry || '',
         narrationStyle: narrationStyle || 'solo',
       }),
