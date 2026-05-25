@@ -37,31 +37,8 @@ if(c.includes(old4)){
   console.log("4. Fixed 560x320 (no enlarge) -> 200x120")
 }
 
-// 2. Add white background pill behind logo for contrast
-// Find the composite call and add a white rounded rect behind the logo
-// Look for the pattern where logo is composited onto slide
-var compositePattern="composite([{ input: logoResized, top:"
-if(c.includes(compositePattern)){
-  // Replace the simple composite with one that adds a white pill behind
-  var oldComposite=".composite([{ input: logoResized, top: 15, left: 1920 - lw - 15 }])"
-  var newComposite=`.composite([
-                { input: await sharp({ create: { width: lw + 20, height: (logoMeta.height || 60) + 16, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 0.7 } } }).png().toBuffer(), top: 7, left: 1920 - lw - 25 },
-                { input: logoResized, top: 15, left: 1920 - lw - 15 }
-              ])`
-  if(c.includes(oldComposite)){
-    c=c.replace(oldComposite, newComposite)
-    changes++
-    console.log("5. Added white pill background behind logo")
-  }else{
-    // Try alternate position patterns
-    console.log("5. WARN: Could not find exact composite pattern, checking alternatives...")
-    // Look for any .composite with logoResized
-    var match=c.match(/\.composite\(\[\{\s*input:\s*logoResized,\s*top:\s*(\d+),\s*left:\s*[^}]+\}\]\)/g)
-    if(match){
-      console.log("   Found: "+match[0].slice(0,80))
-    }
-  }
-}
+// 2. Logo composite — no pill needed, slides now have light top-right corner
+// (GPT-image-2 prompt updated to include light area for logo)
 
 // 3. Fix logo position — use consistent 20px padding from top-right
 var posPatterns=[

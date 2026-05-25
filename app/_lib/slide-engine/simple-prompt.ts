@@ -63,7 +63,7 @@ Glossy, polished finish — subtle glass reflections, soft glows behind key elem
 
 ${contentLines.join('\n')}
 
-Rules: Show only the text listed above. Spell everything exactly. 80px padding. No logo. Keep top-right corner clear.`
+Rules: Show only the text listed above. Spell everything exactly. 80px padding. No logo. Keep top-right corner clear with a light or white background area (at least 220x140px) so a logo can be overlaid there with good contrast.`
 }
 
 /**

@@ -94,14 +94,14 @@ async function generatePreviewsDirect(styleDescription: string, companyName: str
     const [coverRes, contentRes] = await Promise.all([
       openai.images.generate({
         model: 'gpt-image-2',
-        prompt: `Create a presentation COVER slide in this style: ${styleDescription}. Title: "${companyName}", subtitle: "Company Overview". 1920x1080 landscape. Fill entire canvas. Leave top-right corner clear for a logo overlay.`,
+        prompt: `Create a presentation COVER slide in this style: ${styleDescription}. Title: "${companyName}", subtitle: "Company Overview". 1920x1080 landscape. Fill entire canvas. Keep top-right corner clear with a light or white background area (at least 220x140px) so a logo can be overlaid with good contrast.`,
         size: '1536x1024',
         quality: 'high',
         n: 1,
       }),
       openai.images.generate({
         model: 'gpt-image-2',
-        prompt: `Create a presentation CONTENT slide in this style: ${styleDescription}. Title: "KEY HIGHLIGHTS". Show 3 data sections with placeholder metrics. 1920x1080 landscape. Fill entire canvas. Leave top-right corner clear for a logo overlay.`,
+        prompt: `Create a presentation CONTENT slide in this style: ${styleDescription}. Title: "KEY HIGHLIGHTS". Show 3 data sections with placeholder metrics. 1920x1080 landscape. Fill entire canvas. Keep top-right corner clear with a light or white background area (at least 220x140px) so a logo can be overlaid with good contrast.`,
         size: '1536x1024',
         quality: 'high',
         n: 1,
@@ -136,26 +136,15 @@ async function generatePreviewsDirect(styleDescription: string, companyName: str
           const lw = logoMeta.width || 80
           const lh = logoMeta.height || 50
 
-          // Create white pill background for contrast
-          const pillBuf = await sharp({
-            create: { width: lw + 16, height: lh + 12, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 0.75 } }
-          }).png().toBuffer()
-
           if (coverBuf) {
             coverBuf = await sharp(coverBuf)
-              .composite([
-                { input: pillBuf, top: 14, left: 1536 - lw - 28 },
-                { input: logoResized, top: 20, left: 1536 - lw - 20 },
-              ])
+              .composite([{ input: logoResized, top: 20, left: 1536 - lw - 20 }])
               .png()
               .toBuffer()
           }
           if (contentBuf) {
             contentBuf = await sharp(contentBuf)
-              .composite([
-                { input: pillBuf, top: 14, left: 1536 - lw - 28 },
-                { input: logoResized, top: 20, left: 1536 - lw - 20 },
-              ])
+              .composite([{ input: logoResized, top: 20, left: 1536 - lw - 20 }])
               .png()
               .toBuffer()
           }
