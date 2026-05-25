@@ -205,7 +205,13 @@ export default function Step1Content() {
       let autoBrandInfo: Record<string, unknown> | null = null
 
       if (method === 'url') {
-        setStageMsg('Scraping website...')
+        setStageMsg('Connecting to website...')
+        const scrapeTimers = [
+          setTimeout(() => setStageMsg('Reading page content...'), 2000),
+          setTimeout(() => setStageMsg('Extracting brand colors and logo...'), 5000),
+          setTimeout(() => setStageMsg('Analyzing content structure...'), 10000),
+          setTimeout(() => setStageMsg('Building content summary...'), 18000),
+        ]
         let cleanUrl = urlInput.trim()
         if (!/^https?:\/\//i.test(cleanUrl)) cleanUrl = `https://${cleanUrl}`
         const res = await fetch('/api/extract-url', {
@@ -213,6 +219,7 @@ export default function Step1Content() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: cleanUrl }),
         })
+        scrapeTimers.forEach(t => clearTimeout(t))
         const result = await res.json()
         if (!res.ok) throw new Error(result.error || 'Extraction failed')
         const { suggestedTheme, autoBrandId, autoLogoUrl, autoBrandInfo: abi, ...contentData } = result
