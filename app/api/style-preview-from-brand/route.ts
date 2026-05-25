@@ -129,21 +129,33 @@ async function generatePreviewsDirect(styleDescription: string, companyName: str
 
         if (logoBuf) {
           const logoResized = await sharp(logoBuf)
-            .resize(200, 120, { fit: 'inside', withoutEnlargement: true })
+            .resize(160, 100, { fit: 'inside', withoutEnlargement: true })
             .png()
             .toBuffer()
           const logoMeta = await sharp(logoResized).metadata()
-          const lw = logoMeta.width || 100
+          const lw = logoMeta.width || 80
+          const lh = logoMeta.height || 50
+
+          // Create white pill background for contrast
+          const pillBuf = await sharp({
+            create: { width: lw + 16, height: lh + 12, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 0.75 } }
+          }).png().toBuffer()
 
           if (coverBuf) {
             coverBuf = await sharp(coverBuf)
-              .composite([{ input: logoResized, top: 20, left: 1536 - lw - 20 }])
+              .composite([
+                { input: pillBuf, top: 14, left: 1536 - lw - 28 },
+                { input: logoResized, top: 20, left: 1536 - lw - 20 },
+              ])
               .png()
               .toBuffer()
           }
           if (contentBuf) {
             contentBuf = await sharp(contentBuf)
-              .composite([{ input: logoResized, top: 20, left: 1536 - lw - 20 }])
+              .composite([
+                { input: pillBuf, top: 14, left: 1536 - lw - 28 },
+                { input: logoResized, top: 20, left: 1536 - lw - 20 },
+              ])
               .png()
               .toBuffer()
           }
