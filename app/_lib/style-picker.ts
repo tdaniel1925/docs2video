@@ -64,10 +64,10 @@ export function autoSelectStyle(
   }
 
   // Fallback
-  return 'executive'
+  return 'blue-steps'
 }
 
 export function autoSelectFromBrand(brand: { primary_color?: string; industry?: string; tone?: string } | null): string {
-  if (!brand) return 'executive'
+  if (!brand) return 'blue-steps'
   return autoSelectStyle(brand.primary_color, brand.industry)
 }

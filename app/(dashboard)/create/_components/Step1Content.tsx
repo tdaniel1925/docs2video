@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { SLIDE_STYLES } from '../../../_lib/types'
 type OutputType = 'video' | 'pptx' | 'pdf'
 type InputMethod = 'url' | 'upload' | 'text' | 'idea' | null
 type Stage = 'idle' | 'extracting' | 'error' | 'generating-preview' | 'style-suggest'
@@ -38,6 +39,12 @@ export default function Step1Content() {
   const [previewStyleDesc, setPreviewStyleDesc] = useState<string>('')
   const [pendingExtractedData, setPendingExtractedData] = useState<Record<string, unknown> | null>(null)
   const [pendingAutoBrandInfo, setPendingAutoBrandInfo] = useState<Record<string, unknown> | null>(null)
+
+  // New style option state
+  const refImageInputRef = useRef<HTMLInputElement>(null)
+  const [refImageLoading, setRefImageLoading] = useState(false)
+  const [refImageError, setRefImageError] = useState<string | null>(null)
+  const [showStylesGrid, setShowStylesGrid] = useState(false)
 
   async function createDraftAndRedirect(
     extractedData: Record<string, unknown>,
@@ -106,6 +113,53 @@ export default function Step1Content() {
   async function handleChooseDifferentStyle() {
     if (!pendingExtractedData) return
     // Proceed normally through brand → voice → style
+    await createDraftAndRedirect(pendingExtractedData, pendingAutoBrandInfo)
+  }
+
+  async function handleReferenceImageUpload(file: File) {
+    if (!pendingExtractedData) return
+    setRefImageError(null)
+    setRefImageLoading(true)
+    try {
+      const reader = new FileReader()
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error('Failed to read file'))
+        reader.readAsDataURL(file)
+      })
+      const res = await fetch('/api/style-preview-from-ref', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ referenceImageBase64: base64 }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to generate preview from reference')
+      if (data.previews?.length > 0) {
+        setPreviewImages(data.previews)
+        setPreviewStyleDesc(data.styleDescription || '')
+      } else {
+        throw new Error('No preview images returned')
+      }
+    } catch (err) {
+      setRefImageError(err instanceof Error ? err.message : 'Failed to generate preview')
+    } finally {
+      setRefImageLoading(false)
+    }
+  }
+
+  async function handleSelectPresetStyle(styleId: string) {
+    if (!pendingExtractedData) return
+    const style = SLIDE_STYLES.find(s => s.id === styleId)
+    const skipTo = outputType === 'video' ? 'voice' : 'script'
+    await createDraftAndRedirect(pendingExtractedData, pendingAutoBrandInfo, {
+      styleId,
+      customStylePrompt: style?.prompt || '',
+      skipToStep: skipTo,
+    })
+  }
+
+  async function handleCreateBrand() {
+    if (!pendingExtractedData) return
     await createDraftAndRedirect(pendingExtractedData, pendingAutoBrandInfo)
   }
 
@@ -523,38 +577,161 @@ export default function Step1Content() {
                 {error}
               </div>
             )}
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button
-                onClick={handleUseThisStyle}
-                style={{
-                  padding: '12px 28px',
-                  borderRadius: 10,
-                  border: 'none',
-                  background: '#C7E8A8',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: 'var(--ink)',
-                  cursor: 'pointer',
-                }}
-              >
-                Use this style
-              </button>
-              <button
-                onClick={handleChooseDifferentStyle}
-                style={{
-                  padding: '12px 28px',
-                  borderRadius: 10,
-                  border: '1px solid var(--border-light, #e0e0e0)',
-                  background: 'white',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: 'var(--ink-soft)',
-                  cursor: 'pointer',
-                }}
-              >
-                Choose a different style
-              </button>
-            </div>
+            {refImageError && (
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: 8,
+                background: '#FEF2F2',
+                border: '1px solid #FECACA',
+                color: '#DC2626',
+                fontSize: 13,
+                marginBottom: 16,
+              }}>
+                {refImageError}
+              </div>
+            )}
+
+            {refImageLoading ? (
+              <div style={{ padding: '20px', textAlign: 'center' }}>
+                <div style={{
+                  width: 24, height: 24,
+                  border: '3px solid var(--border)',
+                  borderTopColor: '#C7E8A8',
+                  borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite',
+                  margin: '0 auto 12px',
+                }} />
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>Generating new preview...</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'stretch' }}>
+                {/* Option 1: Use this style */}
+                <button
+                  onClick={handleUseThisStyle}
+                  style={{
+                    width: '100%',
+                    padding: '12px 28px',
+                    borderRadius: 10,
+                    border: 'none',
+                    background: '#C7E8A8',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: 'var(--ink)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Use this style
+                </button>
+
+                {/* Option 2: Upload a reference image */}
+                <input
+                  ref={refImageInputRef}
+                  type="file"
+                  accept=".png,.jpg,.jpeg,.webp"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleReferenceImageUpload(file)
+                  }}
+                />
+                <button
+                  onClick={() => refImageInputRef.current?.click()}
+                  style={{
+                    width: '100%',
+                    padding: '12px 28px',
+                    borderRadius: 10,
+                    border: '1px solid var(--border)',
+                    background: 'white',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: 'var(--ink)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                    <path d="M14 10v3a1 1 0 01-1 1H3a1 1 0 01-1-1v-3M11 5L8 2M8 2L5 5M8 2v8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Upload a reference image
+                </button>
+
+                {/* Row: Browse styles + Create a brand */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                  <button
+                    onClick={() => setShowStylesGrid(!showStylesGrid)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: 'var(--ink-light)',
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                      padding: 0,
+                    }}
+                  >
+                    Browse {SLIDE_STYLES.length} styles
+                  </button>
+                  <button
+                    onClick={handleCreateBrand}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: 13,
+                      color: 'var(--ink-light)',
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                      padding: 0,
+                    }}
+                  >
+                    Create a brand
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Styles grid */}
+            {showStylesGrid && (
+              <div style={{
+                marginTop: 16,
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 12,
+              }}>
+                {SLIDE_STYLES.map((style) => (
+                  <button
+                    key={style.id}
+                    onClick={() => handleSelectPresetStyle(style.id)}
+                    style={{
+                      padding: 0,
+                      border: '1px solid var(--border)',
+                      borderRadius: 8,
+                      background: 'white',
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <img
+                      src={`/style-previews/${style.id}.png`}
+                      alt={style.name}
+                      style={{ width: '100%', height: 'auto', display: 'block' }}
+                    />
+                    <div style={{
+                      padding: '8px 6px',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'var(--ink)',
+                    }}>
+                      {style.name}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
       )}
 
