@@ -720,14 +720,24 @@ export default function AdminPage() {
                       <span style={{ fontWeight: 600 }}>{r.companyName ?? r.url}</span>
                       <span style={{ color: 'var(--ink-light)', marginLeft: 8, fontSize: 12 }}>{r.url}</span>
                     </div>
-                    <div style={{ width: 100 }}>
+                    <div>
                       {r.error ? (
                         <span className="tag rose" style={{ fontSize: 11 }}>Failed</span>
                       ) : (
                         <span className="tag mint" style={{ fontSize: 11 }}>Created</span>
                       )}
                     </div>
-                    {r.error && <div style={{ width: 200, fontSize: 11, color: '#dc2626' }}>{r.error}</div>}
+                    {r.error && <div style={{ fontSize: 11, color: '#dc2626', maxWidth: 200 }}>{r.error}</div>}
+                    {!r.error && r.videoId && (
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <Link href={`/videos/${r.videoId}`} className="btn btn-sm btn-primary" style={{ fontSize: 11, padding: '3px 10px', textDecoration: 'none' }}>
+                          Preview &amp; Generate
+                        </Link>
+                        <a href={`/watch/${r.videoId}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-soft" style={{ fontSize: 11, padding: '3px 10px', textDecoration: 'none' }}>
+                          Share Page
+                        </a>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -753,9 +763,15 @@ export default function AdminPage() {
                     <div style={{ flex: 1, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</div>
                     <div style={{ width: 90 }}>{statusTag(d.status)}</div>
                     <div style={{ width: 100, color: 'var(--ink-light)' }}>{fmt(d.created_at)}</div>
-                    <div style={{ width: 80 }}>
-                      {d.status === 'completed' && d.video_url && (
-                        <a href={`/watch/${d.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-soft" style={{ fontSize: 11, padding: '3px 8px', textDecoration: 'none' }}>Watch</a>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <Link href={`/videos/${d.id}`} className="btn btn-sm btn-soft" style={{ fontSize: 11, padding: '3px 8px', textDecoration: 'none' }}>
+                        {d.status === 'pending' ? 'Generate' : d.status === 'completed' ? 'Edit' : 'View'}
+                      </Link>
+                      {d.status === 'completed' && (
+                        <a href={`/watch/${d.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-mint" style={{ fontSize: 11, padding: '3px 8px', textDecoration: 'none' }}>Watch</a>
+                      )}
+                      {d.status === 'pending' && (
+                        <span style={{ fontSize: 11, color: 'var(--ink-light)' }}>{d.progress_detail?.slice(0, 40) ?? 'Awaiting generation'}</span>
                       )}
                     </div>
                   </div>
