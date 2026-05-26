@@ -88,6 +88,7 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState(false)
   const [photoUploading, setPhotoUploading] = useState<string | null>(null)
   const [logoUploading, setLogoUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const [emailConnections, setEmailConnections] = useState<any[]>([])
   const [showSmtpModal, setShowSmtpModal] = useState(false)
   const [emailMessage, setEmailMessage] = useState<string | null>(null)
@@ -264,35 +265,79 @@ export default function SettingsPage() {
     setTimeout(() => setSuccess(false), 3000)
   }
 
+  // Compress image client-side before upload (resize to max dimension)
+  async function compressImage(file: File, maxDim: number): Promise<File> {
+    return new Promise((resolve) => {
+      // Skip non-image or small files
+      if (!file.type.startsWith('image/') || file.size < 500_000) { resolve(file); return }
+      const img = new Image()
+      img.onload = () => {
+        // Only resize if larger than maxDim
+        if (img.width <= maxDim && img.height <= maxDim) { resolve(file); return }
+        const canvas = document.createElement('canvas')
+        const scale = Math.min(maxDim / img.width, maxDim / img.height)
+        canvas.width = Math.round(img.width * scale)
+        canvas.height = Math.round(img.height * scale)
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }))
+          } else { resolve(file) }
+        }, 'image/jpeg', 0.9)
+      }
+      img.onerror = () => resolve(file)
+      img.src = URL.createObjectURL(file)
+    })
+  }
+
   async function handlePhotoUpload(file: File, type: string) {
     setPhotoUploading(type)
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('type', type)
     try {
+      const compressed = await compressImage(file, 1200)
+      const formData = new FormData()
+      formData.append('file', compressed)
+      formData.append('type', type)
       const res = await fetch('/api/upload-photo', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (res.ok && profile) {
-        const key = type === 'headshot' ? 'photo_url' : type === 'midlevel' ? 'photo_midlevel_url' : 'photo_standing_url'
-        setProfile({ ...profile, [key]: data.url } as Profile)
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Upload failed' }))
+        setUploadError(data.error || `Upload failed (${res.status})`)
+      } else {
+        const data = await res.json()
+        if (profile) {
+          const key = type === 'headshot' ? 'photo_url' : type === 'midlevel' ? 'photo_midlevel_url' : 'photo_standing_url'
+          setProfile({ ...profile, [key]: data.url } as Profile)
+        }
+        setUploadError(null)
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Failed to upload photo. Try a smaller file or different format.')
+    }
     setPhotoUploading(null)
   }
 
   async function handleLogoUpload(file: File) {
     setLogoUploading(true)
-    const formData = new FormData()
-    formData.append('file', file)
     try {
+      const compressed = await compressImage(file, 800)
+      const formData = new FormData()
+      formData.append('file', compressed)
       const res = await fetch('/api/upload-logo', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (res.ok && brand) {
-        const supabase = createClient()
-        await supabase.from('brands').update({ logo_file_url: data.url, logo_url: data.url }).eq('id', brand.id)
-        setBrand({ ...brand, logo_file_url: data.url, logo_url: data.url })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Upload failed' }))
+        setUploadError(data.error || `Logo upload failed (${res.status})`)
+      } else {
+        const data = await res.json()
+        if (brand) {
+          const supabase = createClient()
+          await supabase.from('brands').update({ logo_file_url: data.url, logo_url: data.url }).eq('id', brand.id)
+          setBrand({ ...brand, logo_file_url: data.url, logo_url: data.url })
+        }
+        setUploadError(null)
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Failed to upload logo. Try a smaller file or different format.')
+    }
     setLogoUploading(false)
   }
 
@@ -407,6 +452,12 @@ export default function SettingsPage() {
           <div className="settings-card">
             <h3>Profile Photos</h3>
             <p className="ssub">These photos appear on your presentation slides and share pages.</p>
+            {uploadError && (
+              <div style={{ borderRadius: 10, background: '#fde8e8', padding: '10px 16px', fontSize: 13, marginBottom: 12, color: '#b91c1c', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {uploadError}
+                <button onClick={() => setUploadError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#b91c1c', lineHeight: 1 }}>&times;</button>
+              </div>
+            )}
             <Link href="/fix" style={{ display: 'inline-block', fontSize: 13, fontWeight: 600, color: 'var(--mint-darker, #2d7a4f)', marginBottom: 8 }}>
               Need to fix a photo? Try AI Photo Fixer &rarr;
             </Link>
