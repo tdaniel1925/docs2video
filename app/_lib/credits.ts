@@ -114,7 +114,24 @@ export async function getBalance(userId: string): Promise<CreditBalance> {
 }
 
 export async function checkCredits(userId: string, needed: number): Promise<CreditCheckResult> {
-  const balance = await getBalance(userId)
+  let balance = await getBalance(userId)
+
+  // If user has 0 credits and no cycle grant, they likely missed their initial grant — fix it now
+  if (balance.total === 0 && balance.cycleGranted === 0) {
+    const admin = createAdminClient()
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('subscription_status, is_admin, is_beta')
+      .eq('id', userId)
+      .single()
+
+    if (profile && !profile.is_admin && !profile.is_beta) {
+      console.log(`[credits] Auto-granting initial credits for user ${userId} (${profile.subscription_status || 'free'})`)
+      await grantMonthlyCredits(userId, profile.subscription_status || 'free')
+      balance = await getBalance(userId)
+    }
+  }
+
   const allowed = balance.total >= needed
   return {
     allowed,
