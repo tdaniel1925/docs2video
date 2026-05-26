@@ -24,29 +24,34 @@ export async function generateDemoScript(
   const servicesText = (brandData.services ?? []).length > 0 ? brandData.services.join(', ') : 'various services'
   const uspsText = (brandData.uniqueSellingPoints ?? []).length > 0 ? brandData.uniqueSellingPoints.join(', ') : ''
 
-  const prompt = `You are a professional scriptwriter creating a SHORT demo explainer video about a company.
+  const prompt = `You are a professional scriptwriter creating a SHORT personalized sales demo video. The video is FROM Docs2Video (an AI platform that turns documents into professional explainer videos) TO a prospect company. The goal is to show the prospect what Docs2Video can do specifically for THEIR business.
 
-COMPANY INFO:
-- Name: ${brandData.companyName}
-- Tagline: ${brandData.tagline ?? 'N/A'}
-- Description: ${brandData.description}
-- Services: ${servicesText}
+PROSPECT COMPANY INFO:
+- Company Name: ${brandData.companyName}
+- What they do: ${brandData.description}
+- Their services: ${servicesText}
 ${uspsText ? `- What makes them different: ${uspsText}` : ''}
 
 VOICE RULES (CRITICAL):
 - The narrator must NEVER introduce themselves.
-- Start scene 1 with: "Welcome to ${brandData.companyName}."
-- End the last scene with: "Visit ${brandData.companyName} to learn more."
+- This video is styled in the PROSPECT's brand colors — show them what their content COULD look like.
+- Speak directly to the prospect: "you", "your clients", "your team"
+- Reference their specific business by name and what they do.
 
 INSTRUCTIONS:
-- Create EXACTLY 3 scenes
+- Create EXACTLY 4 scenes
 - Each scene should be 15-20 seconds of narration (roughly 35-50 words)
-- Total video should be approximately 45-60 seconds
-- Scene 1: Company intro — who they are and what they do
-- Scene 2: Key services or value proposition — what makes them stand out
-- Scene 3: Call to action — why the viewer should engage
+- Total video should be approximately 60-80 seconds
 
-TONE: Professional but warm. Plain language. Make the company sound confident and approachable.
+- Scene 1 — THE HOOK: Start with their pain point. "${brandData.companyName}, imagine if every proposal, report, or document you sent to clients came with a video like this one — automatically." Reference what they actually do.
+
+- Scene 2 — THE DEMO: "This video was created in under 2 minutes from your website alone. No filming, no editing, no design skills. Docs2Video's AI read your website, extracted your brand, and built this presentation automatically." Mention their specific services to make it feel personalized.
+
+- Scene 3 — THE VALUE: Show what they could use it for specifically. If they're insurance — "Turn policy illustrations into client-ready explainers." If consulting — "Transform audit reports into executive briefings." If real estate — "Convert listings into property showcase videos." Be specific to their industry. Mention: branded share pages, AI narration, client tracking, and payment collection.
+
+- Scene 4 — THE CTA: "Start free with 2 short videos. See how ${brandData.companyName} can close faster, communicate clearer, and stand out from the competition. Visit docs2video.com to try it now."
+
+TONE: Confident, direct, slightly urgent. This is a sales video — make them feel like they're missing out by NOT using this. Use their company name at least 3 times across all scenes.
 
 Return ONLY valid JSON array (no markdown, no code fences):
 [

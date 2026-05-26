@@ -139,7 +139,21 @@ export async function POST(request: Request) {
           console.error(`[auto-demo] Brand scrape failed for ${url}:`, brandErr instanceof Error ? brandErr.message : 'unknown')
         }
 
-        // Create a video record in pending state
+        // Build pipeline input so the video detail page can trigger generation
+        const policyData = {
+          title: `${companyName} — Company Overview`,
+          subtitle: extractedData.description || null,
+          source: parsedUrl.toString(),
+          keyMetrics: (extractedData.services || []).slice(0, 6).map((s: string) => ({ label: 'Service', value: s })),
+          sections: [
+            { title: 'About', content: extractedData.description || `${companyName} is a professional services company.` },
+            ...(extractedData.uniqueSellingPoints || []).slice(0, 3).map((u: string) => ({ title: 'Differentiator', content: u })),
+          ],
+          bulletPoints: extractedData.services || [],
+          additionalNotes: extractedData.uniqueSellingPoints || [],
+        }
+
+        // Create a video record with pipeline input so generation triggers automatically
         const { data: video, error: videoError } = await admin.from('videos').insert({
           user_id: user.id,
           brand_id: brandId,
@@ -148,6 +162,16 @@ export async function POST(request: Request) {
           voice_id: 'nova',
           is_trial: true,
           progress_detail: `Auto-demo for ${parsedUrl.hostname}. Data extracted, awaiting video generation.`,
+          script: {
+            _pipeline_input: {
+              policyData,
+              brandId,
+              voiceId: 'nova',
+              styleId: 'executive',
+              purpose: `Create a sales demo video showing what Docs2Video can do for ${companyName}`,
+              isDemoVideo: true,
+            },
+          },
         }).select('id').single()
 
         if (videoError) {
