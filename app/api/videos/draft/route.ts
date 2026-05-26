@@ -5,6 +5,7 @@ import { createAdminClient } from '../../../_lib/supabase/admin'
 import type { WizardDraft } from '../../../_lib/types'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
 /**
  * POST /api/videos/draft

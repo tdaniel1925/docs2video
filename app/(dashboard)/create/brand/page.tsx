@@ -219,7 +219,8 @@ export default function BrandPage() {
         router.push(`/create/script?id=${videoId}`)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      const msg = err instanceof Error ? err.message : 'Something went wrong'
+      setError(msg === 'Failed to fetch' ? 'Connection lost. Please check your internet and try again.' : msg)
       setSubmitting(false)
     }
   }
