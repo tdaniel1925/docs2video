@@ -94,6 +94,15 @@ export default function SettingsPage() {
   const [testingConnection, setTestingConnection] = useState<string | null>(null)
   const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({})
 
+  // Social accounts state
+  const [socialLoading, setSocialLoading] = useState(false)
+  const [socialPlatforms, setSocialPlatforms] = useState<{ platform: string; connected: boolean }[]>([])
+  const [socialConnected, setSocialConnected] = useState(false)
+  const [socialVoice, setSocialVoice] = useState('professional')
+  const [socialTopics, setSocialTopics] = useState('')
+  const [socialSaving, setSocialSaving] = useState(false)
+  const [socialSaved, setSocialSaved] = useState(false)
+
   const [stripeMessage, setStripeMessage] = useState<string | null>(null)
   const [calendlyUrl, setCalendlyUrl] = useState('')
   const [calendarProvider, setCalendarProvider] = useState<'calendly' | 'calcom' | 'google'>('calendly')
@@ -117,6 +126,13 @@ export default function SettingsPage() {
       const { data: b } = await supabase.from('brands').select('*').eq('user_id', user.id).eq('is_default', true).single()
       if (b) setBrand(b as Brand)
       loadEmailConnections()
+      loadSocialAccounts()
+
+      // Load social settings from profile
+      if (p) {
+        setSocialVoice((p as any).social_voice ?? 'professional')
+        setSocialTopics(((p as any).social_topics ?? []).join(', '))
+      }
     }
     load()
 
@@ -140,6 +156,71 @@ export default function SettingsPage() {
     const res = await fetch('/api/email-connections')
     const data = await res.json()
     if (Array.isArray(data)) setEmailConnections(data)
+  }
+
+  async function loadSocialAccounts() {
+    try {
+      const res = await fetch('/api/social-accounts')
+      const data = await res.json()
+      setSocialConnected(data.connected ?? false)
+      setSocialPlatforms(data.platforms ?? [])
+    } catch { /* ignore */ }
+  }
+
+  async function connectSocial() {
+    setSocialLoading(true)
+    try {
+      // Step 1: Create profile if needed
+      const createRes = await fetch('/api/social-accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create-profile' }),
+      })
+      const createData = await createRes.json()
+      if (!createRes.ok) { alert(createData.error || 'Failed'); setSocialLoading(false); return }
+
+      // Step 2: Generate linking URL
+      const linkRes = await fetch('/api/social-accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'generate-link' }),
+      })
+      const linkData = await linkRes.json()
+      if (linkData.url) {
+        window.open(linkData.url, '_blank', 'width=600,height=700')
+        setSocialConnected(true)
+        // Poll for updates after user connects
+        setTimeout(() => loadSocialAccounts(), 10000)
+      } else {
+        alert(linkData.error || 'Failed to generate link')
+      }
+    } catch { alert('Connection failed') }
+    setSocialLoading(false)
+  }
+
+  async function disconnectSocialPlatform(platform: string) {
+    try {
+      await fetch('/api/social-accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'disconnect', platform }),
+      })
+      loadSocialAccounts()
+    } catch { /* ignore */ }
+  }
+
+  async function saveSocialSettings() {
+    if (!profile) return
+    setSocialSaving(true)
+    const supabase = createClient()
+    const topics = socialTopics.split(',').map(t => t.trim()).filter(Boolean)
+    await supabase.from('profiles').update({
+      social_voice: socialVoice,
+      social_topics: topics,
+    }).eq('id', profile.id)
+    setSocialSaving(false)
+    setSocialSaved(true)
+    setTimeout(() => setSocialSaved(false), 3000)
   }
 
   async function disconnectEmail(id: string) {
@@ -435,6 +516,85 @@ export default function SettingsPage() {
       {/* ===== INTEGRATIONS TAB ===== */}
       {tab === 'integrations' && (
         <div>
+          {/* Social Accounts */}
+          <div className="settings-card">
+            <h3>Social Accounts</h3>
+            <p className="ssub">Connect your social media accounts to post directly from Docs2Video.</p>
+
+            {!socialConnected ? (
+              <button className="btn btn-primary" onClick={connectSocial} disabled={socialLoading}>
+                {socialLoading ? 'Connecting...' : 'Connect Social Media'}
+              </button>
+            ) : (
+              <>
+                {socialPlatforms.length > 0 ? (
+                  <div style={{ marginBottom: 16 }}>
+                    {socialPlatforms.map((p) => {
+                      const icons: Record<string, string> = { twitter: 'X', linkedin: 'in', facebook: 'f', instagram: 'IG', youtube: 'YT', tiktok: 'TT' }
+                      const colors: Record<string, string> = { twitter: '#000', linkedin: '#0077B5', facebook: '#1877F2', instagram: '#E4405F', youtube: '#FF0000', tiktok: '#000' }
+                      return (
+                        <div key={p.platform} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border-light)', marginBottom: 6 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: `${colors[p.platform] || '#666'}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: colors[p.platform] || '#666' }}>
+                              {icons[p.platform] || p.platform[0].toUpperCase()}
+                            </div>
+                            <div>
+                              <span style={{ fontSize: 14, fontWeight: 600, textTransform: 'capitalize' }}>{p.platform}</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: '#2d8a4e', marginLeft: 8 }}>
+                                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#2d8a4e', display: 'inline-block' }} />
+                                Connected
+                              </span>
+                            </div>
+                          </div>
+                          <InlineConfirm message="Disconnect?" confirmLabel="Yes" onConfirm={() => disconnectSocialPlatform(p.platform)}>
+                            <button className="btn btn-danger btn-sm">Disconnect</button>
+                          </InlineConfirm>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 12 }}>Profile created. Click below to connect your social accounts.</p>
+                )}
+                <button className="btn btn-soft" onClick={connectSocial} disabled={socialLoading}>
+                  {socialLoading ? 'Opening...' : 'Add / Manage Accounts'}
+                </button>
+              </>
+            )}
+
+            {/* Social Voice & Topics */}
+            {socialConnected && (
+              <div style={{ marginTop: 20, borderTop: '1px solid var(--border-light)', paddingTop: 16 }}>
+                <div className="form-group">
+                  <label className="input-label">Social Voice</label>
+                  <select className="input-select" value={socialVoice} onChange={e => setSocialVoice(e.target.value)}>
+                    <option value="professional">Professional</option>
+                    <option value="casual">Casual</option>
+                    <option value="witty">Witty</option>
+                    <option value="authoritative">Authoritative</option>
+                    <option value="educational">Educational</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="input-label">Content Topics</label>
+                  <input
+                    className="input"
+                    value={socialTopics}
+                    onChange={e => setSocialTopics(e.target.value)}
+                    placeholder="e.g. insurance tips, market trends, client success stories"
+                  />
+                  <p style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 4 }}>Comma-separated topics for AI content generation</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button className="btn btn-primary btn-sm" onClick={saveSocialSettings} disabled={socialSaving}>
+                    {socialSaving ? 'Saving...' : 'Save Social Settings'}
+                  </button>
+                  {socialSaved && <span style={{ fontSize: 12, color: 'var(--mint-darker)', fontWeight: 600 }}>Saved!</span>}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Email */}
           <div className="settings-card">
             <h3>Email Connections</h3>

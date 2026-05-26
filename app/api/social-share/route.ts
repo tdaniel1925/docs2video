@@ -32,6 +32,15 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
 
+  // Check if user has their own Ayrshare profile key
+  const { data: userProfile } = await admin
+    .from('profiles')
+    .select('ayrshare_profile_key')
+    .eq('id', user.id)
+    .single()
+
+  const useProfileKey = userProfile?.ayrshare_profile_key
+
   // Check monthly share credit limit
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
@@ -53,17 +62,24 @@ export async function POST(request: Request) {
 
   try {
     // Post via AyrShare
+    const postBody: Record<string, unknown> = {
+      post: shareText + `\n\n${shareUrl}`,
+      platforms: [platform],
+      mediaUrls: imageUrl ? [imageUrl] : undefined,
+    }
+
+    // Use user's own profile key if they have one connected
+    if (useProfileKey) {
+      postBody.profileKey = useProfileKey
+    }
+
     const ayrRes = await fetch('https://app.ayrshare.com/api/post', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${AYRSHARE_API_KEY}`,
       },
-      body: JSON.stringify({
-        post: shareText + `\n\n${shareUrl}`,
-        platforms: [platform],
-        mediaUrls: imageUrl ? [imageUrl] : undefined,
-      }),
+      body: JSON.stringify(postBody),
     })
 
     const ayrData = await ayrRes.json()

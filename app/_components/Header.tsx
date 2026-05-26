@@ -22,6 +22,7 @@ const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/videos', label: 'Library' },
   { href: '/clients', label: 'Clients' },
+  { href: '/social-media', label: 'Social' },
   { href: '/analytics', label: 'Analytics' },
   { href: '/settings', label: 'Settings' },
 ]
@@ -332,6 +333,7 @@ export default function Header({ profile }: { profile: Profile }) {
           <div style={{ height: 8 }} />
           <Link href="/videos" className={pathname === '/videos' ? 'active' : ''}>Library</Link>
           <Link href="/clients" className={pathname === '/clients' ? 'active' : ''}>Clients</Link>
+          <Link href="/social-media" className={pathname === '/social-media' ? 'active' : ''}>Social Media</Link>
           <Link href="/settings" className={pathname === '/settings' ? 'active' : ''}>Settings</Link>
           {showAdmin && (
             <Link href="/admin" className={pathname.startsWith('/admin') ? 'active' : ''}>Admin</Link>
