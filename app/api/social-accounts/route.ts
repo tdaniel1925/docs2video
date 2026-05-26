@@ -12,37 +12,71 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const admin = createAdminClient()
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('ayrshare_profile_key')
-    .eq('id', user.id)
-    .single()
 
-  const profileKey = profile?.ayrshare_profile_key
-  if (!profileKey) {
+  // Try to get per-user profile key
+  let profileKey: string | null = null
+  try {
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('ayrshare_profile_key')
+      .eq('id', user.id)
+      .single()
+    profileKey = profile?.ayrshare_profile_key ?? null
+  } catch {
+    // Column may not exist yet (migration not run) — continue with global fallback
+  }
+
+  // If user has their own profile key, check that profile
+  if (profileKey) {
+    try {
+      const res = await fetch(`https://app.ayrshare.com/api/profiles/${profileKey}`, {
+        headers: { 'Authorization': `Bearer ${AYRSHARE_API_KEY}` },
+      })
+      const data = await res.json()
+
+      if (data.status === 'error') {
+        return NextResponse.json({ connected: true, profileKey, platforms: [], error: data.message })
+      }
+
+      const platforms = (data.activeSocialAccounts || []).map((p: string) => ({
+        platform: p,
+        connected: true,
+      }))
+
+      return NextResponse.json({ connected: true, profileKey, platforms, mode: 'user' })
+    } catch (err) {
+      console.error('[social-accounts] GET profile error:', err)
+    }
+  }
+
+  // Fallback: check the global Ayrshare account
+  if (!AYRSHARE_API_KEY) {
     return NextResponse.json({ connected: false, platforms: [] })
   }
 
   try {
-    const res = await fetch(`https://app.ayrshare.com/api/profiles/${profileKey}`, {
+    const res = await fetch('https://app.ayrshare.com/api/user', {
       headers: { 'Authorization': `Bearer ${AYRSHARE_API_KEY}` },
     })
     const data = await res.json()
 
     if (data.status === 'error') {
-      return NextResponse.json({ connected: true, profileKey, platforms: [], error: data.message })
+      return NextResponse.json({ connected: false, platforms: [], error: data.message })
     }
 
-    // Extract connected platforms
     const platforms = (data.activeSocialAccounts || []).map((p: string) => ({
       platform: p,
       connected: true,
     }))
 
-    return NextResponse.json({ connected: true, profileKey, platforms })
+    if (platforms.length > 0) {
+      return NextResponse.json({ connected: true, platforms, mode: 'global' })
+    }
+
+    return NextResponse.json({ connected: false, platforms: [] })
   } catch (err) {
-    console.error('[social-accounts] GET error:', err)
-    return NextResponse.json({ connected: true, profileKey, platforms: [], error: 'Failed to fetch accounts' })
+    console.error('[social-accounts] GET global error:', err)
+    return NextResponse.json({ connected: false, platforms: [], error: 'Failed to fetch accounts' })
   }
 }
 

@@ -74,9 +74,12 @@ export default function SocialMediaPage() {
       try {
         const res = await fetch('/api/social-accounts')
         const data = await res.json()
-        if (data.platforms) {
+        if (data.platforms?.length > 0) {
           const connected = data.platforms.map((pl: any) => pl.platform)
           setConnectedPlatforms(connected)
+          setHasProfile(true) // Connected via global or user profile
+        } else if (data.connected) {
+          setHasProfile(true)
         }
       } catch { /* ignore */ }
     }

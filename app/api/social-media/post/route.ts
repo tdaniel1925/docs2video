@@ -29,15 +29,18 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
 
-  // Get user's Ayrshare profile key
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('ayrshare_profile_key')
-    .eq('id', user.id)
-    .single()
+  // Get user's Ayrshare profile key (or fall back to global)
+  let profileKey: string | null = null
+  try {
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('ayrshare_profile_key')
+      .eq('id', user.id)
+      .single()
+    profileKey = profile?.ayrshare_profile_key ?? null
+  } catch { /* column may not exist */ }
 
-  const profileKey = profile?.ayrshare_profile_key
-  if (!profileKey) {
+  if (!profileKey && !AYRSHARE_API_KEY) {
     return NextResponse.json({ error: 'Connect your social accounts first in Settings' }, { status: 400 })
   }
 
@@ -52,7 +55,10 @@ export async function POST(request: Request) {
     const postBody: Record<string, unknown> = {
       post: caption,
       platforms,
-      profileKey,
+    }
+    // Use per-user profile key if available
+    if (profileKey) {
+      postBody.profileKey = profileKey
     }
 
     if (mediaUrl) {
