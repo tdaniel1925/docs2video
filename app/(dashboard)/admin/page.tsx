@@ -54,6 +54,10 @@ export default function AdminPage() {
     fetch('/api/admin/stats').then(r => r.json()).then(d => {
       if (d.dailyActivity) setDailyActivity(d.dailyActivity)
     }).catch(() => {})
+    // Load prospect demos on mount
+    fetch('/api/admin/auto-demo').then(r => r.json()).then(d => {
+      setProspectDemos(d.demos ?? [])
+    }).catch(() => {})
   }, [])
 
   function reload() {
