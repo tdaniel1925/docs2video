@@ -3,6 +3,7 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { Resend } from 'resend'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
 // Simple in-memory rate limit: max 5 captures per video per hour
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()

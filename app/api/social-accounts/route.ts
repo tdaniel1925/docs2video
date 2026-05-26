@@ -3,6 +3,7 @@ import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 const AYRSHARE_API_KEY = process.env.AYRSHARE_API_KEY
 

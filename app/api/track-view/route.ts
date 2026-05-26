@@ -3,6 +3,7 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { sendVideoViewedEmail, sendVideoViewedSms } from '../../_lib/notifications'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
 const VALID_EVENTS = ['view', 'play', 'chat_message', 'download', 'book_meeting'] as const
 

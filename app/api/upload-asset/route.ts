@@ -4,6 +4,7 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { randomUUID } from 'crypto'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_SIZE = 10 * 1024 * 1024 // 10MB

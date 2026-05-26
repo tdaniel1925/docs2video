@@ -5,18 +5,32 @@ import crypto from 'crypto'
 
 export const maxDuration = 300
 
-// Simple in-memory rate limiter
+// Simple in-memory rate limiter — 1 per IP per 24 hours
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+// Global daily cap
+let globalDemoCount = 0
+let globalResetAt = Date.now() + 86400000
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now()
+
+  // Reset global counter daily
+  if (now > globalResetAt) {
+    globalDemoCount = 0
+    globalResetAt = now + 86400000
+  }
+  // Global cap: 10 demos per day
+  if (globalDemoCount >= 10) return true
+
   const entry = rateLimitMap.get(ip)
   if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + 3600000 }) // 1 hour window
+    rateLimitMap.set(ip, { count: 1, resetAt: now + 86400000 }) // 24 hour window
+    globalDemoCount++
     return false
   }
-  if (entry.count >= 2) return true
+  if (entry.count >= 1) return true // max 1 per IP per 24 hours
   entry.count++
+  globalDemoCount++
   return false
 }
 
@@ -102,6 +116,8 @@ export async function POST(req: NextRequest) {
         company_name: brandData.companyName,
       } : null,
       status: 'processing',
+      is_trial: true,
+      detail_level: 'quick',
       created_at: new Date().toISOString(),
     }).select().single()
 

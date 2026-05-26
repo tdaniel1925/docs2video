@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { isAdmin } from '../../../_lib/admin'
 import { getStripe } from '../../../_lib/stripe'
+export const maxDuration = 30
 
 export async function POST() {
   // Admin only

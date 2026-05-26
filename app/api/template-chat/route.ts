@@ -4,6 +4,7 @@ import { createClient } from '../../_lib/supabase/server'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 

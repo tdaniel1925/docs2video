@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import type { ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
+export const maxDuration = 30
 
 export async function GET() {
   const supabase = await createClient()

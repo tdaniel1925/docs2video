@@ -4,6 +4,7 @@ import { getStripe, VIDEO_PRICE_IDS } from '../../_lib/stripe'
 import { getUserPrice, getProjectPrice, getUserTier, isProMember, isUnlimited, formatPrice } from '../../_lib/pricing'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
 /**
  * Resolve the correct Stripe Price ID for a project type + user tier.

@@ -4,6 +4,7 @@ import { GoogleGenAI } from '@google/genai'
 import type { ExtractedData } from '../../_lib/extract-types'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 

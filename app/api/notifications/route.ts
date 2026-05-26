@@ -3,6 +3,7 @@ import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
 // GET: fetch notifications + active jobs for current user
 export async function GET() {

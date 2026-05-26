@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { getStripe } from '../../../_lib/stripe'
+export const maxDuration = 30
 
 const CREDIT_PACKS: Record<string, { credits: number; priceEnv: string }> = {
   starter: { credits: 2500, priceEnv: 'STRIPE_PRICE_CREDIT_PACK_2500' },

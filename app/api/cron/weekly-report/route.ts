@@ -3,6 +3,7 @@ import { createAdminClient } from '../../../_lib/supabase/admin'
 import { Resend } from 'resend'
 
 export const runtime = 'nodejs'
+export const maxDuration = 300
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY!)

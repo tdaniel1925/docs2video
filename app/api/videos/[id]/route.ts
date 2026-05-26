@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
+export const maxDuration = 30
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params

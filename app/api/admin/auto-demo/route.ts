@@ -7,6 +7,7 @@ import OpenAI from 'openai'
 import FirecrawlApp from '@mendable/firecrawl-js'
 
 export const runtime = 'nodejs'
+export const maxDuration = 300
 
 let _openai: OpenAI | null = null
 function getOpenAI() {

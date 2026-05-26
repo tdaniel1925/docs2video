@@ -4,6 +4,7 @@ import { getStripe, SUBSCRIPTION_PRICES } from '../../_lib/stripe'
 import type { PlanTier } from '../../_lib/pricing'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
 /**
  * POST /api/subscribe

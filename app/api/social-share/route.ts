@@ -3,6 +3,7 @@ import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 const AYRSHARE_API_KEY = process.env.AYRSHARE_API_KEY
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'docs2video.com'

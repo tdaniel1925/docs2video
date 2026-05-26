@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
 export async function GET(
   _request: Request,

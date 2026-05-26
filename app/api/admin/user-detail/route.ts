@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { isAdmin } from '../../../_lib/admin'
+export const maxDuration = 30
 
 export async function GET(request: Request) {
   const supabase = await createClient()

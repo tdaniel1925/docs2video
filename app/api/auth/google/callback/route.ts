@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../../_lib/supabase/admin'
+export const maxDuration = 30
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)

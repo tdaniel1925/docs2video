@@ -4,6 +4,7 @@ import { createAdminClient } from '../../../_lib/supabase/admin'
 import { isAdmin } from '../../../_lib/admin'
 
 export const runtime = 'nodejs'
+export const maxDuration = 300
 
 export async function POST(request: Request) {
   try {

@@ -3,6 +3,7 @@ import { createClient } from '../../_lib/supabase/server'
 import { getStripe } from '../../_lib/stripe'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
 /**
  * POST /api/stripe-portal

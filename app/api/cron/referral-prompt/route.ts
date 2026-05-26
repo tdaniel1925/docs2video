@@ -4,6 +4,7 @@ import { Resend } from 'resend'
 import crypto from 'crypto'
 
 export const runtime = 'nodejs'
+export const maxDuration = 300
 
 /**
  * Cron endpoint: sends referral prompt emails to users who have

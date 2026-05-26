@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
 const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY || ''
 

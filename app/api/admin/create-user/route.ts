@@ -6,6 +6,7 @@ import { logAdminAction } from '../../../_lib/audit'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
 export async function POST(request: Request) {
   const supabase = await createClient()

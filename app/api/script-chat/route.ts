@@ -6,6 +6,7 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { buildScriptChatSystemPrompt, DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 let _openai: OpenAI | null = null
 function getOpenAI() {

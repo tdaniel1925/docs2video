@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { validateEmail, sanitizeString } from '../../_lib/validate'
+export const maxDuration = 30
 
 export async function POST(request: Request) {
   const { name, email, subject, message } = await request.json()

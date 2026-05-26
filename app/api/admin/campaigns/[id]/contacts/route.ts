@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../../../../_lib/supabase/server'
 import { createAdminClient } from '../../../../../_lib/supabase/admin'
 import { isAdmin } from '../../../../../_lib/admin'
+export const maxDuration = 300
 
 async function verifyAdmin() {
   const supabase = await createClient()

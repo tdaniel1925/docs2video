@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { generateFullLogoKit } from '../../_lib/logo-styler'
+export const maxDuration = 300
 
 export async function POST(request: Request) {
   const supabase = await createClient()

@@ -3,6 +3,7 @@ import { Resend } from 'resend'
 import { createClient } from '../../../../../_lib/supabase/server'
 import { createAdminClient } from '../../../../../_lib/supabase/admin'
 import { isAdmin } from '../../../../../_lib/admin'
+export const maxDuration = 300
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://docs2video.com'
 

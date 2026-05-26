@@ -3,6 +3,7 @@ import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { isAdmin } from '../../../_lib/admin'
 import { logAdminAction } from '../../../_lib/audit'
+export const maxDuration = 30
 
 export async function POST(request: Request) {
   const supabase = await createClient()

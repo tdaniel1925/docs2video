@@ -4,6 +4,7 @@ import { createAdminClient } from '../../../_lib/supabase/admin'
 import { deductCredits } from '../../../_lib/credits'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 const AYRSHARE_API_KEY = process.env.AYRSHARE_API_KEY
 const CREDITS_PER_PLATFORM = 25

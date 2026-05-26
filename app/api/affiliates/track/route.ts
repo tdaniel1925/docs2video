@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
 // POST: track a referral click or signup
 export async function POST(request: Request) {

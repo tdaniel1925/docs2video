@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { stripe } from '../../_lib/stripe'
+export const maxDuration = 30
 
 export async function POST() {
   const supabase = await createClient()

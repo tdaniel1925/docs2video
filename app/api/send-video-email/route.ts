@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '../../_lib/supabase/server'
+export const maxDuration = 60
 
 let _resend: Resend | null = null
 function getResend() {

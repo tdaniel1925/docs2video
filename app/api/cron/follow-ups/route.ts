@@ -3,6 +3,7 @@ import { createAdminClient } from '../../../_lib/supabase/admin'
 import { GoogleGenAI } from '@google/genai'
 
 export const runtime = 'nodejs'
+export const maxDuration = 300
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 

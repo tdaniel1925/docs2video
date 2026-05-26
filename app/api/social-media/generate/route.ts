@@ -5,6 +5,7 @@ import { deductCredits } from '../../../_lib/credits'
 import OpenAI from 'openai'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 const CREDITS_PER_GENERATION = 25
 

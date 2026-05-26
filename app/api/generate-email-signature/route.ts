@@ -4,6 +4,7 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { deductCredits } from '../../_lib/credits'
 
 export const runtime = 'nodejs'
+export const maxDuration = 300
 
 type Style = 'minimal' | 'professional' | 'bold' | 'elegant' | 'modern'
 
