@@ -83,7 +83,7 @@ Brand: "${BRAND_NAME}" prominently displayed.`,
 Headline: "Try it free at docs2video.com"
 Sub-text: "Your first explainer video is on us."
 Visual: Clean, bold call-to-action design. Large URL. Inviting and confident.
-Include: "No credit card required" badge.
+Include: "2 free short videos" badge.
 Brand: "${BRAND_NAME}" prominently displayed with tagline "Documents deserve to be seen."`,
         narration:
           'Try it free at docs2video.com. Upload any policy illustration and get your first branded explainer video on us. Your clients will actually watch this one.',

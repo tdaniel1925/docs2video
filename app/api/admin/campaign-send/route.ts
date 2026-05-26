@@ -104,7 +104,7 @@ TERMINOLOGY THEY USE: ${industryConfig.terminology.use.join(', ')}
 The email should:
 1. Open with a pain point specific to ${verticalLabel} professionals (they spend too much time explaining complex documents to clients)
 2. Position Docs2Video as the solution (upload any document → AI creates a branded video explainer)
-3. Mention the free trial (2 free videos, no credit card required)
+3. Mention the free trial (2 free videos, 2 free short videos included)
 4. Be concise (under 150 words for the body)
 5. Sound human, not salesy — like a founder reaching out personally
 6. Use {{name}} for their first name and {{company}} for their company name
@@ -128,13 +128,13 @@ Return ONLY valid JSON (no markdown fences):
       const generated = JSON.parse(cleaned)
       return NextResponse.json({
         subject: generated.subject || `Turn your ${verticalLabel} documents into videos`,
-        body: generated.body || `Hi {{name}},\n\nWe built Docs2Video to help ${verticalLabel} professionals turn complex documents into clear, branded video explainers — in under 2 minutes.\n\nWant to try it? 2 free videos, no credit card required.\n\nBest,\nTrent`,
+        body: generated.body || `Hi {{name}},\n\nWe built Docs2Video to help ${verticalLabel} professionals turn complex documents into clear, branded video explainers — in under 2 minutes.\n\nWant to try it? 2 free videos, 2 free short videos included.\n\nBest,\nTrent`,
         ctaText: generated.ctaText || 'Try It Free',
       })
     } catch {
       return NextResponse.json({
         subject: `Turn your ${verticalLabel} documents into videos`,
-        body: `Hi {{name}},\n\nWe built Docs2Video to help ${verticalLabel} professionals turn complex documents into clear, branded video explainers — in under 2 minutes.\n\nWant to try it? 2 free videos, no credit card required.\n\nBest,\nTrent`,
+        body: `Hi {{name}},\n\nWe built Docs2Video to help ${verticalLabel} professionals turn complex documents into clear, branded video explainers — in under 2 minutes.\n\nWant to try it? 2 free videos, 2 free short videos included.\n\nBest,\nTrent`,
         ctaText: 'Try It Free',
       })
     }

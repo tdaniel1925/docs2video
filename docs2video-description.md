@@ -15,7 +15,7 @@ Send your client a single link. They watch the explainer, see the key numbers vi
 
 No design skills. No video editing. No back-and-forth. Just upload, generate, share. Your clients understand. You close faster.
 
-Try it free — no credit card required.
+Try it free — 2 short videos included.
 
 ## Full Description (500 words)
 
@@ -64,7 +64,7 @@ Docs2Video turns any document into a branded, narrated video explainer that your
 - Custom AI template maker — upload any image and generate a matching style
 
 ### Pricing
-- **Free:** 1 explainer, 1 brand — no credit card required
+- **Free:** 2 short videos, 1 brand — 1,000 credits included
 - **Starter:** 15 explainers/mo, 2 brands, custom templates
 - **Professional:** 50 explainers/mo, unlimited brands, custom templates, proposals, quotes, payments, follow-ups, calendar
 - **Agency:** 200 explainers/mo, unlimited brands, white-label, API access, team seats
@@ -74,4 +74,4 @@ Need more? Buy pay-per-use packs anytime — 1, 5, 10, or 25 explainers.
 Detailed mode videos use 2 credits instead of 1.
 
 ### Try It Free
-Upload your first document at docs2video.com. No credit card required.
+Upload your first document at docs2video.com. Start free with 2 short videos.

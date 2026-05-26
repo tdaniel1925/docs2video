@@ -74,7 +74,7 @@
 **[Show the pricing page or signup page]**
 
 **Script:**
-"Your first 5 videos are completely free. No credit card required. Try Docs2Video today at docs2video.com."
+"Start free with 2 short videos included. Try Docs2Video today at docs2video.com."
 
 **[End on the signup page]**
 
