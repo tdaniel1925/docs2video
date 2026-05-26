@@ -51,14 +51,17 @@ export async function GET() {
 
   // Fallback: check the global Ayrshare account
   if (!AYRSHARE_API_KEY) {
+    console.log('[social-accounts] No API key and no profile key')
     return NextResponse.json({ connected: false, platforms: [] })
   }
 
   try {
+    console.log('[social-accounts] Checking global Ayrshare account...')
     const res = await fetch('https://app.ayrshare.com/api/user', {
       headers: { 'Authorization': `Bearer ${AYRSHARE_API_KEY}` },
     })
     const data = await res.json()
+    console.log('[social-accounts] Global response:', JSON.stringify({ status: res.status, activeSocialAccounts: data.activeSocialAccounts }))
 
     if (data.status === 'error') {
       return NextResponse.json({ connected: false, platforms: [], error: data.message })

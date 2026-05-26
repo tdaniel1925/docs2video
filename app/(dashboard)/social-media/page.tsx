@@ -61,23 +61,25 @@ export default function SocialMediaPage() {
       if (b) setBrand(b as Brand)
 
       // Load profile social settings
-      const { data: p } = await supabase.from('profiles').select('social_voice, social_topics, posting_schedule, ayrshare_profile_key').eq('id', user.id).single()
-      if (p) {
-        setSocialVoice((p as any).social_voice ?? 'professional')
-        setSocialTopics((p as any).social_topics ?? [])
-        const schedule = (p as any).posting_schedule
-        if (schedule?.frequency) setPostingFrequency(schedule.frequency)
-        setHasProfile(!!(p as any).ayrshare_profile_key)
-      }
+      try {
+        const { data: p } = await supabase.from('profiles').select('social_voice, social_topics, posting_schedule, ayrshare_profile_key').eq('id', user.id).single()
+        if (p) {
+          setSocialVoice((p as any).social_voice ?? 'professional')
+          setSocialTopics((p as any).social_topics ?? [])
+          const schedule = (p as any).posting_schedule
+          if (schedule?.frequency) setPostingFrequency(schedule.frequency)
+          setHasProfile(!!(p as any).ayrshare_profile_key)
+        }
+      } catch { /* columns may not exist yet */ }
 
-      // Load connected platforms
+      // Load connected platforms (always runs, even if profile load fails)
       try {
         const res = await fetch('/api/social-accounts')
         const data = await res.json()
         if (data.platforms?.length > 0) {
           const connected = data.platforms.map((pl: any) => pl.platform)
           setConnectedPlatforms(connected)
-          setHasProfile(true) // Connected via global or user profile
+          setHasProfile(true)
         } else if (data.connected) {
           setHasProfile(true)
         }
