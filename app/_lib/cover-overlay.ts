@@ -63,9 +63,9 @@ export async function generateCoverOverlay(options: CoverOverlayOptions): Promis
   const height = 1080
   const fontFamily = fonts.bold ? 'Plus Jakarta Sans' : 'Arial, Helvetica, sans-serif'
 
-  // Resize logo — large and prominent
-  const logoMaxW = isCover ? 500 : 400
-  const logoMaxH = isCover ? 280 : 220
+  // Resize logo — visible but not overpowering
+  const logoMaxW = isCover ? 240 : 200
+  const logoMaxH = isCover ? 140 : 120
   const resizedLogo = await sharp(logoBuffer)
     .resize(logoMaxW, logoMaxH, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
