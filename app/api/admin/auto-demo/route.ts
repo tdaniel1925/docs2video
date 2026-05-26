@@ -207,6 +207,43 @@ export async function POST(request: Request) {
   }
 }
 
+// DELETE: Remove a demo video
+export async function DELETE(request: Request) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user || !isAdmin(user.email)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
+    const { videoId } = (await request.json()) as { videoId: string }
+    if (!videoId) {
+      return NextResponse.json({ error: 'videoId is required' }, { status: 400 })
+    }
+
+    const admin = createAdminClient()
+
+    // Get video to find associated brand
+    const { data: video } = await admin.from('videos').select('brand_id').eq('id', videoId).eq('is_trial', true).single()
+
+    // Delete the video
+    const { error: delError } = await admin.from('videos').delete().eq('id', videoId).eq('is_trial', true)
+    if (delError) {
+      return NextResponse.json({ error: delError.message }, { status: 500 })
+    }
+
+    // Also delete associated brand if it exists
+    if (video?.brand_id) {
+      await admin.from('brands').delete().eq('id', video.brand_id)
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('[auto-demo] DELETE error:', err)
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+  }
+}
+
 // GET: List demo videos created by admin
 export async function GET(request: Request) {
   try {

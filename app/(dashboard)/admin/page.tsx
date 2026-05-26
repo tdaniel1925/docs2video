@@ -676,6 +676,11 @@ export default function AdminPage() {
                     if (!r.ok) throw new Error(d.error || 'Failed')
                     setProspectResult(d.results ?? [])
                     setProspectUrls('')
+                    // Auto-open first successful video to trigger generation
+                    const successes = (d.results ?? []).filter((r: any) => r.videoId && !r.error)
+                    if (successes.length > 0) {
+                      window.open(`/videos/${successes[0].videoId}`, '_blank')
+                    }
                     // Refresh demo list
                     fetch('/api/admin/auto-demo').then(r => r.json()).then(d => setProspectDemos(d.demos ?? [])).catch(() => {})
                   } catch (err) {
@@ -760,20 +765,51 @@ export default function AdminPage() {
                   <div style={{ flex: 1 }}>Company</div>
                   <div style={{ width: 90 }}>Status</div>
                   <div style={{ width: 100 }}>Date</div>
-                  <div style={{ width: 80 }}>Actions</div>
+                  <div style={{ width: 220 }}>Actions</div>
                 </div>
                 {prospectDemos.map((d, i) => (
                   <div key={d.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < prospectDemos.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
                     <div style={{ flex: 1, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</div>
                     <div style={{ width: 90 }}>{statusTag(d.status)}</div>
                     <div style={{ width: 100, color: 'var(--ink-light)' }}>{fmt(d.created_at)}</div>
-                    <div style={{ display: 'flex', gap: 4 }}>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       <Link href={`/videos/${d.id}`} className="btn btn-sm btn-soft" style={{ fontSize: 11, padding: '3px 8px', textDecoration: 'none' }}>
                         {d.status === 'pending' ? 'Generate' : d.status === 'completed' ? 'Edit' : 'View'}
                       </Link>
                       {d.status === 'completed' && (
                         <a href={`/watch/${d.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-mint" style={{ fontSize: 11, padding: '3px 8px', textDecoration: 'none' }}>Watch</a>
                       )}
+                      {d.status === 'completed' && (
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/watch/${d.id}`)
+                            alert('Share link copied!')
+                          }}
+                          className="btn btn-sm btn-soft"
+                          style={{ fontSize: 11, padding: '3px 8px' }}
+                        >
+                          Copy Link
+                        </button>
+                      )}
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Delete demo for ${d.title}?`)) return
+                          const r = await fetch('/api/admin/auto-demo', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ videoId: d.id }),
+                          })
+                          if (r.ok) {
+                            setProspectDemos(prev => prev.filter(x => x.id !== d.id))
+                          } else {
+                            alert('Failed to delete')
+                          }
+                        }}
+                        className="btn btn-sm"
+                        style={{ fontSize: 11, padding: '3px 8px', color: '#dc2626', border: '1px solid #fecaca' }}
+                      >
+                        Delete
+                      </button>
                       {d.status === 'pending' && (
                         <span style={{ fontSize: 11, color: 'var(--ink-light)' }}>{d.progress_detail?.slice(0, 40) ?? 'Awaiting generation'}</span>
                       )}
