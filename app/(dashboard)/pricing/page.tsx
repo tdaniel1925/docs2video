@@ -55,7 +55,7 @@ export default function PricingPage() {
   const paidPlans = PLANS.filter(p => p.tier !== 'free')
 
   return (
-    <div style={{ flex: 1, padding: '48px 24px', maxWidth: 1100, margin: '0 auto', width: '100%' }}>
+    <div style={{ flex: 1, padding: '48px 24px', width: '100%' }}>
       <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-0.03em', textAlign: 'center', marginBottom: 8, color: 'var(--ink)' }}>
         Choose your plan
       </h1>
@@ -74,7 +74,7 @@ export default function PricingPage() {
 
       {/* Free tier card */}
       <div style={{
-        maxWidth: 500, margin: '0 auto 32px', padding: '24px 28px', borderRadius: 10,
+        width: '100%', margin: '0 0 32px', padding: '24px 28px', borderRadius: 10,
         background: currentTier === 'free' ? 'rgba(59,181,200,0.06)' : 'white',
         border: currentTier === 'free' ? '2px solid var(--mint)' : '1px solid var(--border-light)',
         textAlign: 'center',
@@ -90,7 +90,7 @@ export default function PricingPage() {
       </div>
 
       {/* Paid plans grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${paidPlans.length}, 1fr)`, gap: 12 }}>
         {paidPlans.map(plan => {
           const isCurrent = currentTier === plan.tier
           const isPopular = plan.tier === 'pro'

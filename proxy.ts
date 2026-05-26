@@ -31,7 +31,7 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   // Redirect unauthenticated users away from protected pages
-  if (!user && !publicPaths.includes(pathname) && !pathname.startsWith('/auth') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/demo') && !pathname.startsWith('/watch') && !pathname.startsWith('/for') && !pathname.startsWith('/demo') && !pathname.startsWith('/share-demo') && !pathname.startsWith('/demo-prezi') && !pathname.startsWith('/terms') && !pathname.startsWith('/privacy') && !pathname.startsWith('/cookies')) {
+  if (!user && !publicPaths.includes(pathname) && !pathname.startsWith('/auth') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/demo') && !pathname.startsWith('/api/try-demo') && !pathname.startsWith('/watch') && !pathname.startsWith('/for') && !pathname.startsWith('/try') && !pathname.startsWith('/demo') && !pathname.startsWith('/share-demo') && !pathname.startsWith('/demo-prezi') && !pathname.startsWith('/terms') && !pathname.startsWith('/privacy') && !pathname.startsWith('/cookies')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
