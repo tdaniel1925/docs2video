@@ -22,7 +22,7 @@ const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL
 if (!VIDEO_ASSEMBLY_URL) console.error('[generate-video] VIDEO_ASSEMBLY_URL env var is not set!')
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
-export const maxDuration = 120
+export const maxDuration = 300
 
 // Format narration for TTS — convert numbers to spoken words
 function formatForTTS(text: string): string {

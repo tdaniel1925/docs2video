@@ -10,7 +10,7 @@ import { wrapUserData } from '../../_lib/prompt-safety'
 import { classifyFromText } from '../../_lib/document-classifier'
 
 export const runtime = 'nodejs'
-export const maxDuration = 120
+export const maxDuration = 300
 
 let _openai: OpenAI | null = null
 function getOpenAI() {

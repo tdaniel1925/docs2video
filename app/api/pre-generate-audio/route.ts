@@ -5,7 +5,7 @@ import { synthesizeSpeech } from '../../_lib/tts'
 import { randomUUID } from 'crypto'
 
 export const runtime = 'nodejs'
-export const maxDuration = 120
+export const maxDuration = 300
 
 export async function POST(request: Request) {
   const supabase = await createClient()

@@ -3,7 +3,7 @@ import { createClient } from '../../_lib/supabase/server'
 import { isAdmin } from '../../_lib/admin'
 
 export const runtime = 'nodejs'
-export const maxDuration = 120
+export const maxDuration = 300
 
 /**
  * Unified create-video endpoint.

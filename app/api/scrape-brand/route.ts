@@ -4,7 +4,7 @@ import { scrapeBrand } from '../../_lib/brand-scraper'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
-export const maxDuration = 120
+export const maxDuration = 300
 
 export async function POST(request: Request) {
   const supabase = await createClient()

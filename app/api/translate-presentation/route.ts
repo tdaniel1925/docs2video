@@ -6,7 +6,7 @@ import { isAdmin } from '../../_lib/admin'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
-export const maxDuration = 120
+export const maxDuration = 300
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
