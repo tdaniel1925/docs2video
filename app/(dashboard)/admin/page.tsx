@@ -31,9 +31,11 @@ export default function AdminPage() {
   const [auditDateFilter, setAuditDateFilter] = useState<'7' | '30' | 'all'>('30')
   const [auditSearch, setAuditSearch] = useState('')
   const [prospectUrls, setProspectUrls] = useState('')
-  const [prospectDemos, setProspectDemos] = useState<{ id: string; title: string; status: string; created_at: string; video_url: string | null; progress_detail: string | null }[]>([])
-  const [prospectBusy, setProspectBusy] = useState(false)
-  const [prospectResult, setProspectResult] = useState<{ url: string; videoId?: string; companyName?: string; error?: string }[] | null>(null)
+  const [prospects, setProspects] = useState<any[]>([])
+  const [generating, setGenerating] = useState(false)
+  const [sendModal, setSendModal] = useState<{ prospectId: string; companyName: string; email: string; subject: string } | null>(null)
+  const [sendForm, setSendForm] = useState({ email: '', name: '', subject: '', body: '' })
+  const [sendBusy, setSendBusy] = useState(false)
 
   useEffect(() => {
     fetch('/api/admin/data')
@@ -55,8 +57,8 @@ export default function AdminPage() {
       if (d.dailyActivity) setDailyActivity(d.dailyActivity)
     }).catch(() => {})
     // Load prospect demos on mount
-    fetch('/api/admin/auto-demo').then(r => r.json()).then(d => {
-      setProspectDemos(d.demos ?? [])
+    fetch('/api/admin/prospect-pipeline').then(r => r.json()).then(d => {
+      setProspects(d.prospects ?? [])
     }).catch(() => {})
   }, [])
 
@@ -645,10 +647,11 @@ export default function AdminPage() {
 
       {tab === 'prospects' && (
         <div>
+          {/* Section 1: Generate New Demos */}
           <div className="settings-card" style={{ marginBottom: 16 }}>
-            <h3>Generate Demo Videos</h3>
+            <h3>Generate New Demos</h3>
             <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 12 }}>
-              Paste company website URLs (one per line) to auto-extract their brand info and create demo video records.
+              Paste prospect website URLs (one per line). Each URL will be scraped, branded, scripted, and turned into a 45-60 second sales video automatically.
             </p>
             <textarea
               className="input"
@@ -661,54 +664,52 @@ export default function AdminPage() {
             <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
               <button
                 className="btn btn-primary"
-                disabled={prospectBusy || !prospectUrls.trim()}
+                disabled={generating || !prospectUrls.trim()}
                 onClick={async () => {
-                  setProspectBusy(true)
-                  setProspectResult(null)
+                  setGenerating(true)
                   try {
                     const urls = prospectUrls.split('\n').map(u => u.trim()).filter(Boolean)
-                    const r = await fetch('/api/admin/auto-demo', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ urls }),
-                    })
-                    const d = await r.json()
-                    if (!r.ok) throw new Error(d.error || 'Failed')
-                    setProspectResult(d.results ?? [])
-                    setProspectUrls('')
-                    // Auto-open first successful video to trigger generation
-                    const successes = (d.results ?? []).filter((r: any) => r.videoId && !r.error)
-                    if (successes.length > 0) {
-                      window.open(`/videos/${successes[0].videoId}`, '_blank')
+                    for (const url of urls.slice(0, 10)) {
+                      try {
+                        await fetch('/api/admin/prospect-pipeline', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ url }),
+                        })
+                      } catch {}
                     }
-                    // Refresh demo list
-                    fetch('/api/admin/auto-demo').then(r => r.json()).then(d => setProspectDemos(d.demos ?? [])).catch(() => {})
+                    setProspectUrls('')
+                    // Refresh list
+                    const r = await fetch('/api/admin/prospect-pipeline')
+                    const d = await r.json()
+                    setProspects(d.prospects ?? [])
                   } catch (err) {
                     alert(err instanceof Error ? err.message : 'Failed to generate demos')
                   }
-                  setProspectBusy(false)
+                  setGenerating(false)
                 }}
               >
-                {prospectBusy ? 'Processing...' : 'Generate Demo Videos'}
+                {generating ? 'Generating...' : 'Generate Demos'}
               </button>
               <button
                 className="btn btn-sm btn-soft"
-                onClick={() => {
-                  fetch('/api/admin/auto-demo').then(r => r.json()).then(d => setProspectDemos(d.demos ?? [])).catch(() => {})
+                onClick={async () => {
+                  const r = await fetch('/api/admin/prospect-pipeline')
+                  const d = await r.json()
+                  setProspects(d.prospects ?? [])
                 }}
               >
-                Refresh List
+                Refresh
               </button>
             </div>
 
-            {/* Progress indicator */}
-            {prospectBusy && (
+            {generating && (
               <div style={{ marginTop: 16, padding: 20, background: 'var(--bg-soft, #f8f9fa)', borderRadius: 10, border: '1px solid var(--border-light)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                   <div className="spinner" />
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Generating demo videos...</div>
-                    <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 2 }}>Scraping websites, extracting brands, creating video records. This may take 30-60 seconds per URL.</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Pipeline running...</div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 2 }}>Scraping, scripting, generating slides, assembling video. This takes 2-5 minutes per URL.</div>
                   </div>
                 </div>
                 <div style={{ height: 4, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden' }}>
@@ -719,106 +720,196 @@ export default function AdminPage() {
             )}
           </div>
 
-          {prospectResult && (
+          {/* Section 2: Review Queue */}
+          {prospects.filter(p => p.status === 'ready_for_review').length > 0 && (
             <div className="settings-card" style={{ marginBottom: 16 }}>
-              <h3>Results</h3>
+              <h3>Review Queue</h3>
               <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
-                {prospectResult.map((r, i) => (
-                  <div key={i} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < prospectResult.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
-                    <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontWeight: 600 }}>{r.companyName ?? r.url}</span>
-                      <span style={{ color: 'var(--ink-light)', marginLeft: 8, fontSize: 12 }}>{r.url}</span>
-                    </div>
-                    <div>
-                      {r.error ? (
-                        <span className="tag rose" style={{ fontSize: 11 }}>Failed</span>
-                      ) : (
-                        <span className="tag mint" style={{ fontSize: 11 }}>Created</span>
-                      )}
-                    </div>
-                    {r.error && <div style={{ fontSize: 11, color: '#dc2626', maxWidth: 200 }}>{r.error}</div>}
-                    {!r.error && r.videoId && (
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <Link href={`/videos/${r.videoId}`} className="btn btn-sm btn-primary" style={{ fontSize: 11, padding: '3px 10px', textDecoration: 'none' }}>
-                          Preview &amp; Generate
-                        </Link>
-                        <a href={`/watch/${r.videoId}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-soft" style={{ fontSize: 11, padding: '3px 10px', textDecoration: 'none' }}>
-                          Share Page
-                        </a>
-                      </div>
+                {prospects.filter(p => p.status === 'ready_for_review').map((p, i, arr) => (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none' }}>
+                    {p.thumbnail_url && (
+                      <img src={p.thumbnail_url} alt="" style={{ width: 120, height: 68, objectFit: 'cover', borderRadius: 6 }} />
                     )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{p.company_name ?? 'Unknown'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2 }}>{p.url}</div>
+                      {p.duration && <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>{p.duration}s</div>}
+                    </div>
+                    {p.video_url && (
+                      <a href={p.video_url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-soft" style={{ fontSize: 11, textDecoration: 'none' }}>Play</a>
+                    )}
+                    <button
+                      className="btn btn-sm btn-primary"
+                      style={{ fontSize: 11 }}
+                      onClick={() => {
+                        setSendModal({ prospectId: p.id, companyName: p.company_name ?? '', email: p.contact_email ?? '', subject: `${p.company_name ?? 'Your company'} + Docs2Video — personalized demo` })
+                        setSendForm({ email: p.contact_email ?? '', name: p.contact_name ?? '', subject: `${p.company_name ?? 'Your company'} + Docs2Video — personalized demo`, body: '' })
+                      }}
+                    >
+                      Approve &amp; Send
+                    </button>
+                    <button
+                      className="btn btn-sm btn-soft"
+                      style={{ fontSize: 11 }}
+                      onClick={async () => {
+                        await fetch('/api/admin/prospect-pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: p.url }) })
+                        const r = await fetch('/api/admin/prospect-pipeline')
+                        const d = await r.json()
+                        setProspects(d.prospects ?? [])
+                      }}
+                    >
+                      Regenerate
+                    </button>
+                    <button
+                      className="btn btn-sm"
+                      style={{ fontSize: 11, color: '#dc2626', border: '1px solid #fecaca' }}
+                      onClick={async () => {
+                        // Mark as rejected (simple inline update)
+                        await fetch('/api/admin/prospect-pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: '__reject__', prospectId: p.id }) }).catch(() => {})
+                        setProspects(prev => prev.map(x => x.id === p.id ? { ...x, status: 'rejected' } : x))
+                      }}
+                    >
+                      Reject
+                    </button>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="settings-card">
-            <h3>Demo Videos</h3>
-            {prospectDemos.length === 0 ? (
-              <div style={{ padding: 24, textAlign: 'center', color: 'var(--ink-light)' }}>
-                <p>No demo videos yet. Click &quot;Refresh List&quot; to load or generate some above.</p>
+          {/* Send Modal */}
+          {sendModal && (
+            <div className="settings-card" style={{ marginBottom: 16, border: '2px solid var(--mint)' }}>
+              <h3>Send to {sendModal.companyName}</h3>
+              <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)' }}>Contact Email *</label>
+                  <input className="input" value={sendForm.email} onChange={e => setSendForm(f => ({ ...f, email: e.target.value }))} placeholder="contact@company.com" style={{ width: '100%', marginTop: 4 }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)' }}>Contact Name</label>
+                  <input className="input" value={sendForm.name} onChange={e => setSendForm(f => ({ ...f, name: e.target.value }))} placeholder="John Smith" style={{ width: '100%', marginTop: 4 }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)' }}>Subject *</label>
+                  <input className="input" value={sendForm.subject} onChange={e => setSendForm(f => ({ ...f, subject: e.target.value }))} style={{ width: '100%', marginTop: 4 }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)' }}>Custom Message (optional)</label>
+                  <textarea className="input" value={sendForm.body} onChange={e => setSendForm(f => ({ ...f, body: e.target.value }))} rows={3} placeholder="Leave blank for auto-generated message" style={{ width: '100%', marginTop: 4, resize: 'vertical' }} />
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <button
+                    className="btn btn-primary"
+                    disabled={sendBusy || !sendForm.email || !sendForm.subject}
+                    onClick={async () => {
+                      setSendBusy(true)
+                      try {
+                        const r = await fetch('/api/admin/prospect-send', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            prospectId: sendModal.prospectId,
+                            contactEmail: sendForm.email,
+                            contactName: sendForm.name || undefined,
+                            subject: sendForm.subject,
+                            body: sendForm.body || undefined,
+                          }),
+                        })
+                        const d = await r.json()
+                        if (!r.ok) throw new Error(d.error || 'Failed to send')
+                        setSendModal(null)
+                        // Refresh
+                        const rr = await fetch('/api/admin/prospect-pipeline')
+                        const dd = await rr.json()
+                        setProspects(dd.prospects ?? [])
+                      } catch (err) {
+                        alert(err instanceof Error ? err.message : 'Send failed')
+                      }
+                      setSendBusy(false)
+                    }}
+                  >
+                    {sendBusy ? 'Sending...' : 'Send Email'}
+                  </button>
+                  <button className="btn btn-soft" onClick={() => setSendModal(null)}>Cancel</button>
+                </div>
               </div>
-            ) : (
+            </div>
+          )}
+
+          {/* Section 3: Sent */}
+          {prospects.filter(p => ['sent', 'watched', 'converted'].includes(p.status)).length > 0 && (
+            <div className="settings-card" style={{ marginBottom: 16 }}>
+              <h3>Sent</h3>
               <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-soft)', fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   <div style={{ flex: 1 }}>Company</div>
-                  <div style={{ width: 90 }}>Status</div>
-                  <div style={{ width: 100 }}>Date</div>
-                  <div style={{ width: 220 }}>Actions</div>
+                  <div style={{ width: 160 }}>Contact</div>
+                  <div style={{ width: 100 }}>Sent</div>
+                  <div style={{ width: 100 }}>Status</div>
                 </div>
-                {prospectDemos.map((d, i) => (
-                  <div key={d.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < prospectDemos.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
-                    <div style={{ flex: 1, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</div>
-                    <div style={{ width: 90 }}>{statusTag(d.status)}</div>
-                    <div style={{ width: 100, color: 'var(--ink-light)' }}>{fmt(d.created_at)}</div>
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      <Link href={`/videos/${d.id}`} className="btn btn-sm btn-soft" style={{ fontSize: 11, padding: '3px 8px', textDecoration: 'none' }}>
-                        {d.status === 'pending' ? 'Generate' : d.status === 'completed' ? 'Edit' : 'View'}
-                      </Link>
-                      {d.status === 'completed' && (
-                        <a href={`/watch/${d.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-mint" style={{ fontSize: 11, padding: '3px 8px', textDecoration: 'none' }}>Watch</a>
-                      )}
-                      {d.status === 'completed' && (
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}/watch/${d.id}`)
-                            alert('Share link copied!')
-                          }}
-                          className="btn btn-sm btn-soft"
-                          style={{ fontSize: 11, padding: '3px 8px' }}
-                        >
-                          Copy Link
-                        </button>
-                      )}
-                      <button
-                        onClick={async () => {
-                          if (!confirm(`Delete demo for ${d.title}?`)) return
-                          const r = await fetch('/api/admin/auto-demo', {
-                            method: 'DELETE',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ videoId: d.id }),
-                          })
-                          if (r.ok) {
-                            setProspectDemos(prev => prev.filter(x => x.id !== d.id))
-                          } else {
-                            alert('Failed to delete')
-                          }
-                        }}
-                        className="btn btn-sm"
-                        style={{ fontSize: 11, padding: '3px 8px', color: '#dc2626', border: '1px solid #fecaca' }}
-                      >
-                        Delete
-                      </button>
-                      {d.status === 'pending' && (
-                        <span style={{ fontSize: 11, color: 'var(--ink-light)' }}>{d.progress_detail?.slice(0, 40) ?? 'Awaiting generation'}</span>
-                      )}
+                {prospects.filter(p => ['sent', 'watched', 'converted'].includes(p.status)).map((p, i, arr) => (
+                  <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
+                    <div style={{ flex: 1, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.company_name ?? 'Unknown'}</div>
+                    <div style={{ width: 160, fontSize: 12, color: 'var(--ink-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.contact_email ?? '—'}</div>
+                    <div style={{ width: 100, fontSize: 12, color: 'var(--ink-light)' }}>{p.email_sent_at ? fmt(p.email_sent_at) : '—'}</div>
+                    <div style={{ width: 100 }}>
+                      {p.status === 'sent' && <span className="tag peach" style={{ fontSize: 11 }}>Sent</span>}
+                      {p.status === 'watched' && <span className="tag mint" style={{ fontSize: 11 }}>Watched</span>}
+                      {p.status === 'converted' && <span className="tag" style={{ fontSize: 11, background: '#fef3c7', color: '#92400e' }}>Converted</span>}
                     </div>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Section 4: Failed/Rejected */}
+          {prospects.filter(p => ['failed', 'rejected'].includes(p.status)).length > 0 && (
+            <div className="settings-card" style={{ marginBottom: 16 }}>
+              <h3>Failed / Rejected</h3>
+              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+                {prospects.filter(p => ['failed', 'rejected'].includes(p.status)).map((p, i, arr) => (
+                  <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600 }}>{p.company_name ?? p.url}</div>
+                      {p.error_message && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 2 }}>{p.error_message}</div>}
+                      {p.review_notes && <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 2 }}>{p.review_notes}</div>}
+                    </div>
+                    <span className={`tag ${p.status === 'failed' ? 'rose' : ''}`} style={{ fontSize: 11, textTransform: 'capitalize' }}>{p.status}</span>
+                    <button
+                      className="btn btn-sm btn-soft"
+                      style={{ fontSize: 11 }}
+                      onClick={async () => {
+                        await fetch('/api/admin/prospect-pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: p.url }) })
+                        const r = await fetch('/api/admin/prospect-pipeline')
+                        const d = await r.json()
+                        setProspects(d.prospects ?? [])
+                      }}
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* In-progress */}
+          {prospects.filter(p => ['queued', 'scraping', 'scripting', 'generating', 'assembling'].includes(p.status)).length > 0 && (
+            <div className="settings-card" style={{ marginBottom: 16 }}>
+              <h3>In Progress</h3>
+              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+                {prospects.filter(p => ['queued', 'scraping', 'scripting', 'generating', 'assembling'].includes(p.status)).map((p, i, arr) => (
+                  <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
+                    <div className="spinner" style={{ width: 14, height: 14 }} />
+                    <div style={{ flex: 1, fontWeight: 600 }}>{p.company_name ?? p.url}</div>
+                    <span className="tag peach" style={{ fontSize: 11, textTransform: 'capitalize' }}>{p.status}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
