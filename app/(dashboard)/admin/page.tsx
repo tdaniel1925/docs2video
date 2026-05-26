@@ -36,15 +36,11 @@ export default function AdminPage() {
   const [sendModal, setSendModal] = useState<{ prospectId: string; companyName: string; email: string; subject: string } | null>(null)
   const [sendForm, setSendForm] = useState({ email: '', name: '', subject: '', body: '' })
   const [sendBusy, setSendBusy] = useState(false)
-  const [bulkCsv, setBulkCsv] = useState('')
-  const [bulkVideoUrl, setBulkVideoUrl] = useState('https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/site-assets/hero-video.mp4')
-  const [bulkSubject, setBulkSubject] = useState('See what Docs2Video can do for {{company}}')
-  const [bulkBody, setBulkBody] = useState('Hi {{name}},\n\nI put together a quick video showing how Docs2Video could work for {{company}}.\n\nClick the link below to watch your personalized demo — it only takes 60 seconds.\n\nBest,\nTrent')
-  const [bulkSending, setBulkSending] = useState(false)
-  const [bulkResult, setBulkResult] = useState<{ sent: number; failed: number; errors: { email: string; error: string }[] } | null>(null)
   // Campaign system
+  const [campaigns, setCampaigns] = useState<any[]>([])
   const [campaignIndustry, setCampaignIndustry] = useState('insurance')
   const [campaignSubIndustry, setCampaignSubIndustry] = useState('')
+  const [campaignName, setCampaignName] = useState('')
   const [campaignContacts, setCampaignContacts] = useState<{ email: string; name?: string; company?: string }[]>([])
   const [campaignCsvText, setCampaignCsvText] = useState('')
   const [campaignSubject, setCampaignSubject] = useState('')
@@ -53,8 +49,8 @@ export default function AdminPage() {
   const [campaignCtaUrl, setCampaignCtaUrl] = useState('')
   const [campaignGenerating, setCampaignGenerating] = useState(false)
   const [campaignSending, setCampaignSending] = useState(false)
-  const [campaignResult, setCampaignResult] = useState<{ sent: number; failed: number; errors: { email: string; error: string }[] } | null>(null)
-  const [campaignStep, setCampaignStep] = useState<'setup' | 'preview' | 'sent'>('setup')
+  const [campaignStep, setCampaignStep] = useState<'setup' | 'preview' | 'done'>('setup')
+  const [campaignBusy, setCampaignBusy] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/admin/data')
@@ -79,6 +75,10 @@ export default function AdminPage() {
     fetch('/api/admin/prospect-pipeline').then(r => r.json()).then(d => {
       setProspects(d.prospects ?? [])
     }).catch(() => {})
+    // Load campaigns
+    fetch('/api/admin/campaign-send').then(r => r.json()).then(d => {
+      setCampaigns(d.campaigns ?? [])
+    }).catch(() => {})
   }, [])
 
   function reload() {
@@ -88,6 +88,26 @@ export default function AdminPage() {
       setAuditLog(d.auditLog ?? [])
       setVideoAnalytics(d.videoAnalytics ?? {})
     }).catch(() => {})
+  }
+
+  function reloadCampaigns() {
+    fetch('/api/admin/campaign-send').then(r => r.json()).then(d => {
+      setCampaigns(d.campaigns ?? [])
+    }).catch(() => {})
+  }
+
+  async function campaignAction(campaignId: string, action: string) {
+    setCampaignBusy(campaignId)
+    try {
+      const r = await fetch('/api/admin/campaign-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, campaignId }),
+      })
+      if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Failed'); }
+      reloadCampaigns()
+    } catch { alert('Network error') }
+    setCampaignBusy(null)
   }
 
   async function userAction(userId: string, action: string, value?: string | number) {
@@ -932,14 +952,25 @@ export default function AdminPage() {
 
           {/* Industry Campaign System */}
           <div className="settings-card" style={{ marginTop: 24 }}>
-            <h3>Industry Email Campaigns</h3>
-            <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
-              Select an industry, upload a CSV of contacts, and AI will generate targeted email copy. Preview before sending.
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <h3 style={{ marginBottom: 2 }}>Industry Email Campaigns</h3>
+                <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: 0 }}>
+                  Create targeted campaigns by industry. Upload CSV or paste contacts, AI generates copy, preview and send.
+                </p>
+              </div>
+              <button className="btn btn-sm btn-soft" onClick={reloadCampaigns}>Refresh</button>
+            </div>
 
             {campaignStep === 'setup' && (
               <div>
-                {/* Step 1: Industry Selection */}
+                {/* Campaign Name */}
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', display: 'block', marginBottom: 4 }}>Campaign Name</label>
+                  <input className="input" value={campaignName} onChange={e => setCampaignName(e.target.value)} placeholder="e.g. Life Insurance Agents — May 2026" style={{ width: '100%', fontSize: 13 }} />
+                </div>
+
+                {/* Industry Selection */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                   <div>
                     <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', display: 'block', marginBottom: 4 }}>Industry *</label>
@@ -965,10 +996,47 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* Step 2: CSV Upload or Paste */}
+                {/* Add Contacts — Manual + CSV */}
                 <div style={{ marginBottom: 16 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', display: 'block', marginBottom: 8 }}>Contacts</label>
+
+                  {/* Manual add form */}
+                  <div style={{ background: 'var(--bg-soft)', border: '1px solid var(--border-light)', borderRadius: 10, padding: 16, marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Add Individual Contact</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 8, alignItems: 'end' }}>
+                      <div>
+                        <label style={{ fontSize: 11, color: 'var(--ink-light)', display: 'block', marginBottom: 2 }}>Email *</label>
+                        <input id="manual-email" className="input" placeholder="email@company.com" style={{ width: '100%', fontSize: 12 }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: 'var(--ink-light)', display: 'block', marginBottom: 2 }}>Name</label>
+                        <input id="manual-name" className="input" placeholder="John Smith" style={{ width: '100%', fontSize: 12 }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: 'var(--ink-light)', display: 'block', marginBottom: 2 }}>Company</label>
+                        <input id="manual-company" className="input" placeholder="Acme Inc" style={{ width: '100%', fontSize: 12 }} />
+                      </div>
+                      <button className="btn btn-sm btn-primary" style={{ fontSize: 11, whiteSpace: 'nowrap' }} onClick={() => {
+                        const emailEl = document.getElementById('manual-email') as HTMLInputElement
+                        const nameEl = document.getElementById('manual-name') as HTMLInputElement
+                        const companyEl = document.getElementById('manual-company') as HTMLInputElement
+                        const email = emailEl?.value.trim()
+                        if (!email || !email.includes('@')) { alert('Enter a valid email'); return }
+                        const line = `${email}, ${nameEl?.value.trim() || ''}, ${companyEl?.value.trim() || ''}`
+                        setCampaignCsvText(prev => prev ? `${prev}\n${line}` : line)
+                        if (emailEl) emailEl.value = ''
+                        if (nameEl) nameEl.value = ''
+                        if (companyEl) companyEl.value = ''
+                        emailEl?.focus()
+                      }}>
+                        + Add
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* CSV upload or paste */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)' }}>Contacts (CSV: email, name, company)</label>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>Bulk Import</div>
                     <label className="btn btn-sm btn-soft" style={{ fontSize: 11, cursor: 'pointer', margin: 0 }}>
                       Upload CSV
                       <input type="file" accept=".csv,.txt" style={{ display: 'none' }} onChange={e => {
@@ -977,16 +1045,21 @@ export default function AdminPage() {
                         const reader = new FileReader()
                         reader.onload = (ev) => {
                           const text = ev.target?.result as string
-                          if (text) setCampaignCsvText(text)
+                          if (text) setCampaignCsvText(prev => prev ? `${prev}\n${text}` : text)
                         }
                         reader.readAsText(file)
                         e.target.value = ''
                       }} />
                     </label>
+                    {campaignCsvText.trim() && (
+                      <button className="btn btn-sm" style={{ fontSize: 11, color: '#dc2626', border: '1px solid #fecaca' }} onClick={() => setCampaignCsvText('')}>
+                        Clear All
+                      </button>
+                    )}
                   </div>
                   <textarea
                     className="input"
-                    placeholder={"email, name, company\njohn@acme.com, John Smith, Acme Insurance\njane@bigcorp.com, Jane Doe, BigCorp Financial"}
+                    placeholder={"Paste CSV or type contacts (email, name, company — one per line):\njohn@acme.com, John Smith, Acme Insurance\njane@bigcorp.com, Jane Doe, BigCorp Financial\nor just emails:\nbob@example.com"}
                     value={campaignCsvText}
                     onChange={e => setCampaignCsvText(e.target.value)}
                     rows={6}
@@ -994,45 +1067,35 @@ export default function AdminPage() {
                   />
                   {campaignCsvText.trim() && (
                     <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ink-light)' }}>
-                      {campaignCsvText.split('\n').filter(l => l.trim() && l.includes('@')).length} valid contacts detected
+                      {campaignCsvText.split('\n').filter(l => l.trim() && l.includes('@')).length} valid contacts
                     </div>
                   )}
                 </div>
 
-                {/* Step 3: CTA URL override */}
+                {/* CTA URL override */}
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', display: 'block', marginBottom: 4 }}>Landing Page URL (leave blank for industry page)</label>
                   <input className="input" value={campaignCtaUrl} onChange={e => setCampaignCtaUrl(e.target.value)} placeholder={`https://docs2video.com/industries/${campaignIndustry}`} style={{ width: '100%', fontSize: 13 }} />
                 </div>
 
-                {/* Generate button */}
                 <button
                   className="btn btn-primary"
                   disabled={campaignGenerating || !campaignCsvText.trim()}
                   onClick={async () => {
-                    // Parse CSV
                     const lines = campaignCsvText.split('\n').map(l => l.trim()).filter(Boolean)
-                    // Skip header row if it looks like one
                     const startIdx = lines[0]?.toLowerCase().includes('email') ? 1 : 0
                     const parsed = lines.slice(startIdx).map(line => {
                       const parts = line.split(',').map(p => p.trim())
                       return { email: parts[0], name: parts[1] || '', company: parts[2] || '' }
                     }).filter(c => c.email && c.email.includes('@'))
-
-                    if (!parsed.length) { alert('No valid contacts found. Ensure CSV has email in first column.'); return }
+                    if (!parsed.length) { alert('No valid contacts found.'); return }
                     setCampaignContacts(parsed)
-
-                    // Generate AI copy
                     setCampaignGenerating(true)
                     try {
                       const r = await fetch('/api/admin/campaign-send', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          action: 'generate',
-                          industry: campaignIndustry,
-                          subIndustry: campaignSubIndustry || undefined,
-                        }),
+                        body: JSON.stringify({ action: 'generate', industry: campaignIndustry, subIndustry: campaignSubIndustry || undefined }),
                       })
                       const d = await r.json()
                       if (!r.ok) { alert(d.error || 'Failed to generate copy'); return }
@@ -1040,9 +1103,7 @@ export default function AdminPage() {
                       setCampaignBody(d.body)
                       setCampaignCtaText(d.ctaText || 'Try It Free')
                       setCampaignStep('preview')
-                    } catch (err) {
-                      alert(err instanceof Error ? err.message : 'Network error')
-                    }
+                    } catch (err) { alert(err instanceof Error ? err.message : 'Network error') }
                     setCampaignGenerating(false)
                   }}
                 >
@@ -1065,7 +1126,7 @@ export default function AdminPage() {
                 </div>
 
                 <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', display: 'block', marginBottom: 4 }}>Email Body (supports &#123;&#123;name&#125;&#125; and &#123;&#123;company&#125;&#125;)</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', display: 'block', marginBottom: 4 }}>Email Body (use &#123;&#123;name&#125;&#125; and &#123;&#123;company&#125;&#125;)</label>
                   <textarea className="input" value={campaignBody} onChange={e => setCampaignBody(e.target.value)} rows={8} style={{ width: '100%', fontSize: 13, resize: 'vertical' }} />
                 </div>
 
@@ -1080,7 +1141,7 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* Preview card */}
+                {/* Preview */}
                 <div style={{ background: '#F4F1EC', border: '1px solid var(--border-light)', borderRadius: 10, padding: 20, marginBottom: 16 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Preview (first contact)</div>
                   <div style={{ background: 'white', borderRadius: 8, padding: 20, border: '1px solid #e5e2dc' }}>
@@ -1096,97 +1157,150 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn btn-soft" onClick={() => setCampaignStep('setup')}>← Back</button>
-                  <button
-                    className="btn btn-soft"
-                    disabled={campaignGenerating}
-                    onClick={async () => {
-                      setCampaignGenerating(true)
-                      try {
-                        const r = await fetch('/api/admin/campaign-send', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ action: 'generate', industry: campaignIndustry, subIndustry: campaignSubIndustry || undefined }),
-                        })
-                        const d = await r.json()
-                        if (r.ok) { setCampaignSubject(d.subject); setCampaignBody(d.body); setCampaignCtaText(d.ctaText || 'Try It Free') }
-                      } catch {}
-                      setCampaignGenerating(false)
-                    }}
-                  >
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button className="btn btn-soft" onClick={() => setCampaignStep('setup')}>Back</button>
+                  <button className="btn btn-soft" disabled={campaignGenerating} onClick={async () => {
+                    setCampaignGenerating(true)
+                    try {
+                      const r = await fetch('/api/admin/campaign-send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'generate', industry: campaignIndustry, subIndustry: campaignSubIndustry || undefined }) })
+                      const d = await r.json()
+                      if (r.ok) { setCampaignSubject(d.subject); setCampaignBody(d.body); setCampaignCtaText(d.ctaText || 'Try It Free') }
+                    } catch {}
+                    setCampaignGenerating(false)
+                  }}>
                     {campaignGenerating ? 'Regenerating...' : 'Regenerate Copy'}
                   </button>
                   <button
                     className="btn btn-primary"
                     disabled={campaignSending}
                     onClick={async () => {
-                      if (!confirm(`Send campaign email to ${campaignContacts.length} contacts?`)) return
+                      if (!confirm(`Create campaign and start sending to ${campaignContacts.length} contacts?`)) return
                       setCampaignSending(true)
-                      setCampaignResult(null)
                       try {
+                        // Create the campaign in DB
                         const r = await fetch('/api/admin/campaign-send', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
-                            action: 'send',
+                            action: 'create',
+                            name: campaignName || `${campaignIndustry} Campaign`,
                             industry: campaignIndustry,
                             subIndustry: campaignSubIndustry || undefined,
-                            contacts: campaignContacts,
                             subject: campaignSubject,
                             emailBody: campaignBody,
                             ctaText: campaignCtaText,
                             ctaUrl: campaignCtaUrl || `https://docs2video.com/industries/${campaignIndustry}`,
+                            contacts: campaignContacts,
                           }),
                         })
                         const d = await r.json()
-                        if (!r.ok) { alert(d.error || 'Send failed'); return }
-                        setCampaignResult(d)
-                        setCampaignStep('sent')
-                      } catch (err) {
-                        alert(err instanceof Error ? err.message : 'Network error')
-                      }
+                        if (!r.ok) { alert(d.error || 'Failed to create campaign'); setCampaignSending(false); return }
+
+                        // Start sending immediately
+                        await fetch('/api/admin/campaign-send', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ action: 'send', campaignId: d.campaignId }),
+                        })
+
+                        reloadCampaigns()
+                        setCampaignStep('done')
+                      } catch (err) { alert(err instanceof Error ? err.message : 'Network error') }
                       setCampaignSending(false)
                     }}
                   >
-                    {campaignSending ? 'Sending...' : `Send to ${campaignContacts.length} contacts`}
+                    {campaignSending ? 'Creating & Sending...' : `Send to ${campaignContacts.length} contacts`}
                   </button>
                 </div>
               </div>
             )}
 
-            {campaignStep === 'sent' && campaignResult && (
-              <div>
-                <div style={{ padding: 20, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, textAlign: 'center' }}>
-                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(199,232,168,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker)" strokeWidth="2.5" strokeLinecap="round"><path d="M5 13l4 4L19 7"/></svg>
-                  </div>
-                  <h4 style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Campaign Sent!</h4>
-                  <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 8 }}>
-                    <span style={{ color: '#16a34a', fontWeight: 700, fontSize: 14 }}>{campaignResult.sent} delivered</span>
-                    {campaignResult.failed > 0 && <span style={{ color: '#dc2626', fontWeight: 700, fontSize: 14 }}>{campaignResult.failed} failed</span>}
-                  </div>
-                  {campaignResult.errors.length > 0 && (
-                    <div style={{ marginTop: 12, fontSize: 12, color: 'var(--ink-soft)', textAlign: 'left' }}>
-                      {campaignResult.errors.slice(0, 5).map((e, i) => (
-                        <div key={i}>{e.email}: {e.error}</div>
-                      ))}
-                    </div>
-                  )}
+            {campaignStep === 'done' && (
+              <div style={{ padding: 20, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, textAlign: 'center' }}>
+                <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(199,232,168,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker)" strokeWidth="2.5" strokeLinecap="round"><path d="M5 13l4 4L19 7"/></svg>
                 </div>
-                <button className="btn btn-soft" style={{ marginTop: 12 }} onClick={() => {
+                <h4 style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Campaign Created & Sending!</h4>
+                <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>Track progress below. You can pause or cancel at any time.</p>
+                <button className="btn btn-soft" onClick={() => {
                   setCampaignStep('setup')
                   setCampaignCsvText('')
                   setCampaignContacts([])
                   setCampaignSubject('')
                   setCampaignBody('')
-                  setCampaignResult(null)
+                  setCampaignName('')
                 }}>
                   New Campaign
                 </button>
               </div>
             )}
           </div>
+
+          {/* Campaign History & Controls */}
+          {campaigns.length > 0 && (
+            <div className="settings-card" style={{ marginTop: 16 }}>
+              <h3>Campaign History</h3>
+              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-soft)', fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <div style={{ flex: 1 }}>Campaign</div>
+                  <div style={{ width: 100 }}>Industry</div>
+                  <div style={{ width: 80, textAlign: 'center' }}>Sent</div>
+                  <div style={{ width: 80, textAlign: 'center' }}>Pending</div>
+                  <div style={{ width: 80, textAlign: 'center' }}>Failed</div>
+                  <div style={{ width: 90 }}>Status</div>
+                  <div style={{ width: 180 }}>Actions</div>
+                </div>
+                {campaigns.map((c: any, i: number) => {
+                  const statusColors: Record<string, string> = { draft: '', sending: 'peach', paused: '', completed: 'mint', cancelled: 'rose' }
+                  const pct = c.total_contacts > 0 ? Math.round(((c.stats?.sent ?? 0) / c.total_contacts) * 100) : 0
+                  return (
+                    <div key={c.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', borderBottom: i < campaigns.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 2 }}>
+                          {fmt(c.created_at)} — {c.total_contacts} contacts
+                        </div>
+                        {c.status === 'sending' && (
+                          <div style={{ marginTop: 4, height: 3, background: 'var(--border-light)', borderRadius: 3, overflow: 'hidden', width: '100%', maxWidth: 200 }}>
+                            <div style={{ height: '100%', background: 'var(--mint)', borderRadius: 3, width: `${pct}%`, transition: 'width 0.3s' }} />
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ width: 100 }}>
+                        <span className="tag" style={{ fontSize: 10, textTransform: 'capitalize' }}>{(c.industry || '').replace('_', ' ')}</span>
+                      </div>
+                      <div style={{ width: 80, textAlign: 'center', fontWeight: 600, color: '#16a34a' }}>{c.stats?.sent ?? c.sent_count ?? 0}</div>
+                      <div style={{ width: 80, textAlign: 'center', color: 'var(--ink-light)' }}>{c.stats?.pending ?? 0}</div>
+                      <div style={{ width: 80, textAlign: 'center', color: (c.stats?.failed ?? 0) > 0 ? '#dc2626' : 'var(--ink-light)' }}>{c.stats?.failed ?? c.failed_count ?? 0}</div>
+                      <div style={{ width: 90 }}>
+                        <span className={`tag ${statusColors[c.status] || ''}`} style={{ fontSize: 10, textTransform: 'capitalize' }}>{c.status}</span>
+                      </div>
+                      <div style={{ width: 180, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        {(c.status === 'draft' || c.status === 'paused') && (
+                          <button className="btn btn-sm btn-primary" style={{ fontSize: 10 }} disabled={campaignBusy === c.id}
+                            onClick={() => campaignAction(c.id, c.status === 'draft' ? 'send' : 'resume')}>
+                            {campaignBusy === c.id ? '...' : c.status === 'draft' ? 'Start' : 'Resume'}
+                          </button>
+                        )}
+                        {c.status === 'sending' && (
+                          <button className="btn btn-sm btn-soft" style={{ fontSize: 10 }} disabled={campaignBusy === c.id}
+                            onClick={() => campaignAction(c.id, 'pause')}>
+                            {campaignBusy === c.id ? '...' : 'Pause'}
+                          </button>
+                        )}
+                        {['draft', 'sending', 'paused'].includes(c.status) && (
+                          <button className="btn btn-sm" style={{ fontSize: 10, color: '#dc2626', border: '1px solid #fecaca' }} disabled={campaignBusy === c.id}
+                            onClick={() => { if (confirm('Cancel this campaign? Unsent contacts will be skipped.')) campaignAction(c.id, 'cancel') }}>
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
