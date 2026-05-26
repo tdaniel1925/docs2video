@@ -691,6 +691,23 @@ export default function AdminPage() {
                 Refresh List
               </button>
             </div>
+
+            {/* Progress indicator */}
+            {prospectBusy && (
+              <div style={{ marginTop: 16, padding: 20, background: 'var(--bg-soft, #f8f9fa)', borderRadius: 10, border: '1px solid var(--border-light)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <div className="spinner" />
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Generating demo videos...</div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 2 }}>Scraping websites, extracting brands, creating video records. This may take 30-60 seconds per URL.</div>
+                  </div>
+                </div>
+                <div style={{ height: 4, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', background: 'var(--mint)', borderRadius: 4, animation: 'progressPulse 2s ease-in-out infinite', width: '60%' }} />
+                </div>
+                <style>{`@keyframes progressPulse { 0%, 100% { width: 20%; opacity: 0.7; } 50% { width: 80%; opacity: 1; } }`}</style>
+              </div>
+            )}
           </div>
 
           {prospectResult && (
