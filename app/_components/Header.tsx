@@ -23,8 +23,6 @@ const NAV_LINKS = [
   { href: '/videos', label: 'Library' },
   { href: '/clients', label: 'Clients' },
   { href: '/social-media', label: 'Social' },
-  { href: '/analytics', label: 'Analytics' },
-  { href: '/settings', label: 'Settings' },
 ]
 
 export default function Header({ profile }: { profile: Profile }) {
@@ -191,15 +189,6 @@ export default function Header({ profile }: { profile: Profile }) {
               </Link>
             ))}
 
-            {/* Admin */}
-            {showAdmin && (
-              <Link
-                href="/admin"
-                className={pathname.startsWith('/admin') ? 'active' : ''}
-              >
-                Admin
-              </Link>
-            )}
           </nav>
         </div>
 
@@ -275,9 +264,19 @@ export default function Header({ profile }: { profile: Profile }) {
               }}
             >
               <div style={{ padding: '8px 14px', fontSize: 13, color: 'var(--muted)' }}>
+                {profile.full_name || profile.email}
+              </div>
+              <div style={{ padding: '0 14px 6px', fontSize: 12, color: 'var(--ink-light)' }}>
                 {['pro', 'professional', 'active', 'agency'].includes(profile.subscription_status?.toLowerCase() ?? '') ? 'Pro Member' : 'Free Account'}
               </div>
               <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: 0 }} />
+              <Link
+                href="/analytics"
+                onClick={() => setMenuOpen(false)}
+                style={{ display: 'block', padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none' }}
+              >
+                Analytics
+              </Link>
               <Link
                 href="/settings"
                 onClick={() => setMenuOpen(false)}
@@ -292,6 +291,19 @@ export default function Header({ profile }: { profile: Profile }) {
               >
                 Help Center
               </Link>
+              {showAdmin && (
+                <>
+                  <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: 0 }} />
+                  <Link
+                    href="/admin"
+                    onClick={() => setMenuOpen(false)}
+                    style={{ display: 'block', padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none', fontWeight: 600 }}
+                  >
+                    Admin
+                  </Link>
+                </>
+              )}
+              <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: 0 }} />
               <form action={logout}>
                 <button
                   type="submit"
@@ -334,7 +346,10 @@ export default function Header({ profile }: { profile: Profile }) {
           <Link href="/videos" className={pathname === '/videos' ? 'active' : ''}>Library</Link>
           <Link href="/clients" className={pathname === '/clients' ? 'active' : ''}>Clients</Link>
           <Link href="/social-media" className={pathname === '/social-media' ? 'active' : ''}>Social Media</Link>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-light)', padding: '12px 0 4px' }}>Account</div>
+          <Link href="/analytics" className={pathname === '/analytics' ? 'active' : ''}>Analytics</Link>
           <Link href="/settings" className={pathname === '/settings' ? 'active' : ''}>Settings</Link>
+          <Link href="/help" className={pathname.startsWith('/help') ? 'active' : ''}>Help Center</Link>
           {showAdmin && (
             <Link href="/admin" className={pathname.startsWith('/admin') ? 'active' : ''}>Admin</Link>
           )}

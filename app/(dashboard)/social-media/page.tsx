@@ -48,6 +48,7 @@ export default function SocialMediaPage() {
   const [generatingContent, setGeneratingContent] = useState<string | null>(null)
   const [selectedContentPlatform, setSelectedContentPlatform] = useState<string>('linkedin')
   const [postingContent, setPostingContent] = useState(false)
+  const [statusMsg, setStatusMsg] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -202,10 +203,10 @@ export default function SocialMediaPage() {
       if (data.posts) {
         setContentPosts(data.posts)
       } else {
-        alert(data.error || 'Failed to generate posts')
+        setStatusMsg({ type: 'error', text: data.error || 'Failed to generate posts' })
       }
     } catch {
-      alert('Failed to generate posts')
+      setStatusMsg({ type: 'error', text: 'Failed to generate posts' })
     }
     setGeneratingContent(null)
   }
@@ -221,12 +222,12 @@ export default function SocialMediaPage() {
       })
       const data = await res.json()
       if (res.ok) {
-        alert('Posted successfully!')
+        setStatusMsg({ type: 'success', text: 'Posted successfully!' })
       } else {
-        alert(data.error || 'Failed to post')
+        setStatusMsg({ type: 'error', text: data.error || 'Failed to post' })
       }
     } catch {
-      alert('Failed to post')
+      setStatusMsg({ type: 'error', text: 'Failed to post' })
     }
     setPostingContent(false)
   }
@@ -259,6 +260,13 @@ export default function SocialMediaPage() {
           <p>Create and publish social posts powered by your brand and content.</p>
         </div>
       </div>
+
+      {statusMsg && (
+        <div style={{ borderRadius: 10, padding: '10px 16px', fontSize: 13, marginBottom: 12, fontWeight: 600, background: statusMsg.type === 'error' ? '#fde8e8' : 'rgba(199,232,168,0.2)', color: statusMsg.type === 'error' ? '#b91c1c' : '#2d8a4e', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {statusMsg.text}
+          <button onClick={() => setStatusMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'inherit', lineHeight: 1 }}>&times;</button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="settings-tabs">

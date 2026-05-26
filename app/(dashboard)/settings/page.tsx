@@ -98,6 +98,7 @@ export default function SettingsPage() {
   const [socialLoading, setSocialLoading] = useState(false)
   const [socialPlatforms, setSocialPlatforms] = useState<{ platform: string; connected: boolean }[]>([])
   const [socialConnected, setSocialConnected] = useState(false)
+  const [socialError, setSocialError] = useState<string | null>(null)
   const [socialVoice, setSocialVoice] = useState('professional')
   const [socialTopics, setSocialTopics] = useState('')
   const [socialSaving, setSocialSaving] = useState(false)
@@ -169,6 +170,7 @@ export default function SettingsPage() {
 
   async function connectSocial() {
     setSocialLoading(true)
+    setSocialError(null)
     try {
       // Step 1: Create profile if needed
       const createRes = await fetch('/api/social-accounts', {
@@ -177,24 +179,20 @@ export default function SettingsPage() {
         body: JSON.stringify({ action: 'create-profile' }),
       })
       const createData = await createRes.json()
-      if (!createRes.ok) { alert(createData.error || 'Failed'); setSocialLoading(false); return }
+      if (!createRes.ok) { setSocialError(createData.error || 'Failed to create social profile'); setSocialLoading(false); return }
 
-      // Step 2: Generate linking URL
-      const linkRes = await fetch('/api/social-accounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'generate-link' }),
-      })
-      const linkData = await linkRes.json()
-      if (linkData.url) {
-        window.open(linkData.url, '_blank', 'width=600,height=700')
+      // Step 2: Open Ayrshare connect page with profile key
+      const profileKey = createData.profileKey
+      if (profileKey) {
+        window.open(`https://app.ayrshare.com/social-accounts?profileKey=${profileKey}`, '_blank', 'width=600,height=700')
         setSocialConnected(true)
         // Poll for updates after user connects
         setTimeout(() => loadSocialAccounts(), 10000)
+        setTimeout(() => loadSocialAccounts(), 20000)
       } else {
-        alert(linkData.error || 'Failed to generate link')
+        setSocialError('No profile key returned. Please try again.')
       }
-    } catch { alert('Connection failed') }
+    } catch { setSocialError('Connection failed. Please check your internet and try again.') }
     setSocialLoading(false)
   }
 
@@ -520,6 +518,12 @@ export default function SettingsPage() {
           <div className="settings-card">
             <h3>Social Accounts</h3>
             <p className="ssub">Connect your social media accounts to post directly from Docs2Video.</p>
+
+            {socialError && (
+              <div style={{ borderRadius: 10, background: '#fde8e8', padding: '10px 16px', fontSize: 13, marginBottom: 12, color: '#b91c1c', fontWeight: 600 }}>
+                {socialError}
+              </div>
+            )}
 
             {!socialConnected ? (
               <button className="btn btn-primary" onClick={connectSocial} disabled={socialLoading}>

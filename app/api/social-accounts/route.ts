@@ -100,41 +100,6 @@ export async function POST(request: Request) {
     }
   }
 
-  // Generate JWT link for connecting social accounts
-  if (action === 'generate-link') {
-    const { data: profile } = await admin
-      .from('profiles')
-      .select('ayrshare_profile_key')
-      .eq('id', user.id)
-      .single()
-
-    const profileKey = profile?.ayrshare_profile_key
-    if (!profileKey) {
-      return NextResponse.json({ error: 'No Ayrshare profile. Create one first.' }, { status: 400 })
-    }
-
-    try {
-      const res = await fetch('https://app.ayrshare.com/api/profiles/generateJWT', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${AYRSHARE_API_KEY}`,
-        },
-        body: JSON.stringify({ profileKey, domain: 'docs2video.com' }),
-      })
-      const data = await res.json()
-
-      if (data.status === 'error') {
-        return NextResponse.json({ error: data.message || 'Failed to generate link' }, { status: 500 })
-      }
-
-      return NextResponse.json({ url: data.url })
-    } catch (err) {
-      console.error('[social-accounts] generate-link error:', err)
-      return NextResponse.json({ error: 'Failed to generate linking URL' }, { status: 500 })
-    }
-  }
-
   // Disconnect a platform
   if (action === 'disconnect') {
     if (!platform) {
