@@ -6,8 +6,27 @@ import SharePagePreview from './_components/SharePagePreview'
 // RotatingWords removed — using static hero title
 import ClickToPlayVideo from './_components/ClickToPlayVideo'
 import IndustryMegaMenu from './_components/IndustryMegaMenu'
+import { createAdminClient } from './_lib/supabase/admin'
 
-export default function HomePage() {
+const FALLBACK_VIDEO = 'https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/site-assets/hero-video.mp4'
+const HERO_VIDEO_ID = 'ef7cd8fd-247e-438b-91e5-35bed0be98f0'
+
+async function getHeroVideoUrl(): Promise<string> {
+  try {
+    const admin = createAdminClient()
+    const { data } = await admin
+      .from('videos')
+      .select('video_url')
+      .eq('id', HERO_VIDEO_ID)
+      .single()
+    return data?.video_url || FALLBACK_VIDEO
+  } catch {
+    return FALLBACK_VIDEO
+  }
+}
+
+export default async function HomePage() {
+  const heroVideoUrl = await getHeroVideoUrl()
   return (
     <>
       {/* ───── Coming Soon Banner ───── */}
@@ -58,7 +77,7 @@ export default function HomePage() {
           </div>
           <div className="hero-right">
             <ClickToPlayVideo
-              src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/site-assets/hero-video.mp4"
+              src={heroVideoUrl}
               style={{ boxShadow: '0 20px 60px rgba(27,58,92,0.25)' }}
             />
           </div>
