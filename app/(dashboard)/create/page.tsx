@@ -512,7 +512,7 @@ export default function CreatePage() {
       {purpose && (
         <div style={{ width: '100%', marginBottom: 20, animation: 'fadeInUp 0.3s ease' }}>
           <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 10 }}>
-            Add your content
+            How do you want to submit the video content?
           </label>
 
           {/* Source type pills */}

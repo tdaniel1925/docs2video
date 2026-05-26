@@ -120,11 +120,13 @@ function DiscardDraftButton({ videoId }: { videoId: string }) {
       'use server'
       const { createAdminClient: createAdmin } = await import('../../_lib/supabase/admin')
       const { createClient: createServerClient } = await import('../../_lib/supabase/server')
+      const { revalidatePath } = await import('next/cache')
       const supabase = await createServerClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       const admin = createAdmin()
       await admin.from('videos').delete().eq('id', videoId).eq('user_id', user.id).eq('status', 'draft')
+      revalidatePath('/dashboard')
     }}>
       <button
         type="submit"
