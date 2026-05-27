@@ -505,10 +505,12 @@ export async function POST(request: Request) {
         totalPages: scenes.length,
       }
 
-      // For each scene, build 3 frame prompts instead of 1 (flipbook mode)
-      const framePrompts = scene.framePrompts || [scene.slidePrompt, scene.slidePrompt, scene.slidePrompt]
+      // Frame count depends on detail level: quick=1 (static), standard=2, detailed=3
+      const dl = (body as any).detailLevel || 'standard'
+      const maxFrames = dl === 'quick' ? 1 : dl === 'detailed' ? 3 : 2
+      const allFramePrompts = scene.framePrompts || [scene.slidePrompt, scene.slidePrompt, scene.slidePrompt]
+      const framePrompts = allFramePrompts.slice(0, maxFrames)
       return framePrompts.map((fp: string) => {
-        // Apply style, brand colors, and sizing to each frame prompt
         return `${stylePrompt}\n\n${fp}\n\nBrand colors: primary ${brandColors.primary}, secondary ${brandColors.secondary}. Use these colors throughout. DO NOT draw any text, logos, brand names, or UI elements. Pure illustrated scene only.`
       })
     })

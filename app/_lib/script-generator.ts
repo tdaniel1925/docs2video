@@ -206,12 +206,29 @@ export async function generateScript(
 
   const insurancePromptBuilder = getPrompt('script_generation_insurance', promptVersion)
 
-  const promptBody = isInsurance
+  let promptBody = isInsurance
     ? insurancePromptBuilder(data as ExtractedPolicyData, brandName, detailed, assetCount ?? 0)
     : genericPromptBuilder(data as ExtractedData, brandName, detailed, assetCount ?? 0, uploadMode, industry)
 
+  // Replace {{BRAND_NAME}} placeholder with actual brand name
+  if (brandName) {
+    promptBody = promptBody.replace(/\{\{BRAND_NAME\}\}/g, brandName)
+  }
+
   // Build additional prompt sections based on new parameters
   const additionalSections: string[] = []
+
+  // Inject contact info so the LLM can reference it in narration
+  if (contactInfo) {
+    const contactParts: string[] = []
+    if (contactInfo.phone) contactParts.push(`Phone: ${contactInfo.phone}`)
+    if (contactInfo.email) contactParts.push(`Email: ${contactInfo.email}`)
+    if ((contactInfo as any).website) contactParts.push(`Website: ${(contactInfo as any).website}`)
+    if (contactInfo.calendly) contactParts.push(`Booking: ${contactInfo.calendly}`)
+    if (contactParts.length > 0) {
+      additionalSections.push(`CONTACT INFORMATION (use in closing scene):\n${contactParts.join('\n')}\nMention the business name "${brandName || 'the company'}" at the opening and closing. Include the above contact details naturally in the final scene.`)
+    }
+  }
 
   // Inject deep analysis as the primary content guide
   if (deepAnalysis) {

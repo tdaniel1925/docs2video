@@ -9,6 +9,12 @@ export interface ExtractedData {
   additionalNotes: string[]
   disclaimers?: string[]
   industry?: string
+  companyName?: string | null
+  contactInfo?: {
+    phone?: string | null
+    email?: string | null
+    website?: string | null
+  }
 }
 
 /**
