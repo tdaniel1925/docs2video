@@ -32,7 +32,7 @@ import type { ExtractedData } from '../app/_lib/extract-types'
 // Brand settings
 // ---------------------------------------------------------------------------
 const BRAND_NAME = 'Docs2Video'
-const STYLE_ID = 'blue-steps' as const
+const STYLE_ID = 'corporate-clean' as const
 const VOICE_ID = 'nova'
 const COLORS = {
   primary: '#1B3A5C',

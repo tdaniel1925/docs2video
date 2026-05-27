@@ -56,7 +56,7 @@ export async function POST(request: Request) {
               policyData: { rawText: item.documentText ?? '', sourceUrl: item.documentUrl ?? '' },
               brandId: null,
               voiceId: 'nova',
-              styleId: 'executive',
+              styleId: 'corporate-clean',
             },
           },
         })
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
           videoId: video.id,
           policyData: { rawText: item.documentText ?? '', sourceUrl: item.documentUrl ?? '' },
           voiceId: 'nova',
-          styleId: 'executive',
+          styleId: 'corporate-clean',
         }),
       })
 

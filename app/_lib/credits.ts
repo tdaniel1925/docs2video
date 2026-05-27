@@ -25,6 +25,7 @@ export const CREDIT_COSTS = {
   stylePreview: 50,
   scriptRegen: 25,
   aiChatEdit: 25,
+  videoIllustrated: 750,  // 3 frames per scene = 3x image generation
 } as const
 
 export type CreditAction = keyof typeof CREDIT_COSTS

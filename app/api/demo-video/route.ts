@@ -140,7 +140,7 @@ export async function POST(request: Request) {
       const slideBuffers: Buffer[] = []
       for (let i = 0; i < scenes.length; i++) {
         const buf = await generateSlide(
-          demoData, i, 'blue-steps',
+          demoData, i, 'corporate-clean',
           displayName, brandData.logoUrl, colors,
           scenes[i].slidePrompt, false, demoContactInfo,
           logoBuffer

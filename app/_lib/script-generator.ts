@@ -98,6 +98,49 @@ function getVoiceDescription(voiceId?: string): string | null {
   return map[voiceId] ?? null
 }
 
+function generateFramePrompts(scene: VideoScene, stylePrompt: string, sceneIndex: number, totalScenes: number): string[] {
+  const isFirst = sceneIndex === 0
+  const isLast = sceneIndex === totalScenes - 1
+
+  // Visual metaphor library
+  const metaphors: Record<string, string[]> = {
+    protection: ['shield materializing', 'umbrella opening in rain', 'fortress walls rising', 'safety net catching'],
+    growth: ['seed growing into tree', 'sunrise over mountains', 'staircase being built upward', 'garden blooming'],
+    value: ['treasure chest opening', 'gold coins stacking', 'diamond being polished', 'vault door opening'],
+    time: ['hourglass flowing', 'seasons changing', 'clock hands moving', 'calendar pages flipping'],
+    security: ['lock clicking shut', 'family inside warm home', 'bridge connecting two cliffs', 'anchor holding steady'],
+    cost: ['balanced scale', 'piggy bank filling', 'investment seeds being planted', 'foundation being laid'],
+    features: ['toolkit opening', 'Swiss army knife unfolding', 'puzzle pieces connecting', 'building blocks stacking'],
+    summary: ['aerial view of completed puzzle', 'sunrise over completed city', 'family walking toward horizon', 'open door with warm light'],
+  }
+
+  // Detect metaphor from scene content
+  const narrationLower = scene.narration.toLowerCase()
+  let metaphorKey = 'summary'
+  if (narrationLower.includes('death benefit') || narrationLower.includes('protection') || narrationLower.includes('coverage')) metaphorKey = 'protection'
+  else if (narrationLower.includes('growth') || narrationLower.includes('grows') || narrationLower.includes('cash value') || narrationLower.includes('increase')) metaphorKey = 'growth'
+  else if (narrationLower.includes('premium') || narrationLower.includes('cost') || narrationLower.includes('payment') || narrationLower.includes('price')) metaphorKey = 'cost'
+  else if (narrationLower.includes('feature') || narrationLower.includes('rider') || narrationLower.includes('benefit') || narrationLower.includes('include')) metaphorKey = 'features'
+  else if (narrationLower.includes('welcome') || narrationLower.includes('today') || narrationLower.includes('introduction') || isFirst) metaphorKey = 'security'
+  else if (narrationLower.includes('contact') || narrationLower.includes('thank') || narrationLower.includes('next step') || isLast) metaphorKey = 'summary'
+
+  const metaphorOptions = metaphors[metaphorKey]
+  const chosenMetaphor = metaphorOptions[sceneIndex % metaphorOptions.length]
+
+  const baseStyle = `${stylePrompt} 1920x1080 landscape format. Fill entire canvas edge to edge. DO NOT generate any logos, brand marks, or company names. Leave the bottom 100 pixels of the canvas empty/dark for a branded bar overlay.`
+
+  // Frame 1: Setup — establish the scene/metaphor, minimal data
+  const frame1 = `${baseStyle} Scene setup: ${chosenMetaphor} — the beginning. ${isFirst ? 'Opening scene.' : ''} Show the visual metaphor starting — the environment is being established. Mood is anticipatory. ${scene.slidePrompt ? 'Context: ' + scene.slidePrompt : ''} No data numbers yet, just the scene.`
+
+  // Frame 2: Reveal — key data appears within the scene
+  const frame2 = `${baseStyle} Scene reveal: ${chosenMetaphor} — the main moment. The visual metaphor is now in its key state. KEY DATA appears integrated into the scene: "${scene.narration.match(/\$[\d,]+|\d+%|\d+ (?:years?|months?)/gi)?.join(', ') || scene.title}". Numbers and data are large, clear, and prominent within the illustration. This is the hero frame.`
+
+  // Frame 3: Resolution — full picture with data overlay
+  const frame3 = `${baseStyle} Scene resolution: ${chosenMetaphor} — the completion. The visual metaphor reaches its fulfilling conclusion. All key information is visible. ${isLast ? 'This is the closing scene — include contact/CTA elements: "Ready to discuss?" and "Contact your advisor".' : `A clean data summary card in the corner shows: "${scene.title}".`} Warm, resolved, complete feeling.`
+
+  return [frame1, frame2, frame3]
+}
+
 export async function generateScript(
   data: ExtractedPolicyData | ExtractedData,
   brandName: string | null,
@@ -486,6 +529,13 @@ FIELD RULES:
       if (scene.narration) {
         scene.narration = scene.narration.replace(forwardPhrases, '').replace(/\s{2,}/g, ' ').trim()
       }
+    }
+
+    // Generate frame prompts for flipbook mode
+    const stylePromptForFrames = '' // Will be filled by generate-video route
+    for (let i = 0; i < scenes.length; i++) {
+      scenes[i].framePrompts = generateFramePrompts(scenes[i], stylePromptForFrames, i, scenes.length)
+      scenes[i].visualMetaphor = scenes[i].framePrompts![0].match(/Scene setup: (.+?) —/)?.[1] || 'visual story'
     }
 
     return scenes

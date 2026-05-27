@@ -1,28 +1,27 @@
 import { SLIDE_STYLES } from './types'
 
-// Map color hue ranges to template families
+// Map color hue ranges to illustrated styles
 const STYLE_BY_HUE: [number, number, string][] = [
-  [0, 30, 'executive'],      // reds/warm → executive
-  [30, 60, 'steampunk'],     // oranges → steampunk
-  [60, 90, 'vintage-craft'], // yellows → vintage
-  [90, 160, 'flat-vector'],  // greens → flat vector
-  [160, 200, 'blue-steps'],  // teals → blue steps
-  [200, 260, 'neon-cyber'],  // blues → neon cyber
-  [260, 300, 'watercolor'],  // purples → watercolor
-  [300, 360, 'social-grid'], // magentas → social grid
+  [0, 30, 'warm-story'],         // reds/warm → warm story
+  [30, 60, 'warm-story'],        // oranges → warm story
+  [60, 120, 'playful-cartoon'],  // yellows/greens → playful
+  [120, 180, 'watercolor'],      // greens/teals → watercolor
+  [180, 240, 'corporate-clean'], // blues → corporate clean
+  [240, 300, 'dark-cinematic'],  // purples → dark cinematic
+  [300, 360, 'bold-infographic'],// magentas → bold infographic
 ]
 
 const STYLE_BY_INDUSTRY: Record<string, string> = {
-  insurance: 'executive',
-  finance: 'executive',
-  'real-estate': 'social-grid',
-  legal: 'line-art',
-  healthcare: 'blue-steps',
-  education: 'flat-cartoon',
-  technology: 'neon-cyber',
-  consulting: 'flat-vector',
-  marketing: 'colorful-steps',
-  default: 'executive',
+  insurance: 'warm-story',
+  finance: 'corporate-clean',
+  'real-estate': 'dark-cinematic',
+  legal: 'corporate-clean',
+  healthcare: 'watercolor',
+  education: 'playful-cartoon',
+  technology: 'bold-infographic',
+  consulting: 'corporate-clean',
+  marketing: 'playful-cartoon',
+  default: 'corporate-clean',
 }
 
 function hexToHue(hex: string): number {
@@ -64,10 +63,10 @@ export function autoSelectStyle(
   }
 
   // Fallback
-  return 'blue-steps'
+  return 'corporate-clean'
 }
 
 export function autoSelectFromBrand(brand: { primary_color?: string; industry?: string; tone?: string } | null): string {
-  if (!brand) return 'blue-steps'
+  if (!brand) return 'corporate-clean'
   return autoSelectStyle(brand.primary_color, brand.industry)
 }

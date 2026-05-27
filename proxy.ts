@@ -31,7 +31,7 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   // Redirect unauthenticated users away from protected pages
-  if (!user && !publicPaths.includes(pathname) && !pathname.startsWith('/auth') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/demo') && !pathname.startsWith('/api/try-demo') && !pathname.startsWith('/watch') && !pathname.startsWith('/for') && !pathname.startsWith('/try') && !pathname.startsWith('/demo') && !pathname.startsWith('/share-demo') && !pathname.startsWith('/demo-prezi') && !pathname.startsWith('/terms') && !pathname.startsWith('/privacy') && !pathname.startsWith('/cookies')) {
+  if (!user && !publicPaths.includes(pathname) && !pathname.startsWith('/auth') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/demo') && !pathname.startsWith('/api/try-demo') && !pathname.startsWith('/api/test-seedance') && !pathname.startsWith('/test-seedance-full') && !pathname.startsWith('/api/test-seedance-full') && !pathname.startsWith('/test-kenburns') && !pathname.startsWith('/api/test-kenburns') && !pathname.startsWith('/test-flipbook') && !pathname.startsWith('/api/test-flipbook') && !pathname.startsWith('/watch') && !pathname.startsWith('/for') && !pathname.startsWith('/try') && !pathname.startsWith('/demo') && !pathname.startsWith('/share-demo') && !pathname.startsWith('/demo-prezi') && !pathname.startsWith('/test-seedance') && !pathname.startsWith('/terms') && !pathname.startsWith('/privacy') && !pathname.startsWith('/cookies')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

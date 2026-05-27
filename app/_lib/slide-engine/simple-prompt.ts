@@ -133,6 +133,11 @@ export const STYLE_PROMPTS: Record<string, string> = {
   'newspaper': 'Newspaper style — broadsheet column layout, bold headlines, article format, black and white with spot color, daily news aesthetic.',
   'travel-magazine': 'Travel magazine style — stunning destination imagery, elegant typography overlay, wanderlust aesthetic, luxury travel editorial.',
   'luxury': 'Luxury style — premium dark background, gold foil accents, elegant serif typography, high-end brand aesthetic, exclusive feel.',
+  'warm-story': 'Warm, cozy illustration style. Soft golden lighting, nature scenes, families, organic shapes. Rich earth tones with warm amber, terracotta, and cream. Characters have friendly, simple features. Scenes feel like a storybook — inviting, safe, hopeful. Subtle textures like watercolor wash or soft grain.',
+  'corporate-clean': 'Clean corporate flat vector illustration style. Professional blue (#1B365D) and teal palette on white/light gray backgrounds. Simple geometric shapes, clean icons, organized grid layouts. Characters are minimal, faceless silhouettes or simple figures. Data-forward with clean typography. Feels polished, trustworthy, Fortune 500.',
+  'bold-infographic': 'Bold high-contrast infographic style. Dark navy or black background with vibrant accent colors — electric blue, bright orange, vivid green. Massive numbers that dominate the frame. Strong visual hierarchy with thick borders and color blocks. Data visualization as art. Feels powerful, impactful, impossible to ignore.',
+  'dark-cinematic': 'Cinematic dark illustration style. Deep navy (#0A1628) and charcoal backgrounds with rich gold (#C5A55A) and champagne accents. Dramatic lighting with glows and light rays. Elegant serif typography for headings. Scenes feel like movie posters — epic scale, dramatic composition. Subtle texture and depth. Feels luxurious, prestigious, powerful.',
+  'playful-cartoon': 'Bright playful cartoon illustration style. Vibrant primary colors — red, blue, yellow, green on white backgrounds. Friendly round characters with big expressions. Fun shapes, speech bubbles, stars, confetti. Simple but engaging compositions. Data presented in colorful cards and badges. Feels young, energetic, approachable, fun.',
 }
 
 /**

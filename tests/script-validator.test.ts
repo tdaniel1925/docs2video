@@ -57,7 +57,7 @@ describe('validateScript', () => {
   })
 
   it('scene missing slidePrompt and slideData fails', () => {
-    const scenes = makeValidScript()
+    const scenes = makeValidScript() as any[]
     delete scenes[0].slidePrompt
     const result = validateScript(scenes)
     expect(result.ok).toBe(false)
@@ -65,7 +65,7 @@ describe('validateScript', () => {
   })
 
   it('scene with slideData instead of slidePrompt passes', () => {
-    const scenes = makeValidScript()
+    const scenes = makeValidScript() as any[]
     delete scenes[0].slidePrompt
     scenes[0].slideData = { headline: 'Test', bullets: ['a', 'b'] }
     const result = validateScript(scenes)

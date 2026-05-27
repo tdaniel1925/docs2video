@@ -154,7 +154,7 @@ function structuralComparison(actual: VideoScene[], golden: VideoScene[], fixtur
   const goldenBeats = golden.map((s: VideoScene) => s.beat)
 
   // Check required beats are present
-  const requiredBeats = ['hook', 'action']
+  const requiredBeats: VideoScene['beat'][] = ['hook', 'action']
   for (const beat of requiredBeats) {
     if (!actualBeats.includes(beat)) {
       return { pass: false, reason: `Missing required beat: ${beat}` }

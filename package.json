@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.2",
+    "@fal-ai/client": "^1.10.1",
     "@google/genai": "^2.0.0",
     "@mendable/firecrawl-js": "^4.24.2",
     "@stripe/react-stripe-js": "^6.3.0",

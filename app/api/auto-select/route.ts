@@ -104,7 +104,7 @@ Pick the template that BEST matches the content type, industry, and tone. Pick t
     const parsed = JSON.parse(cleaned)
 
     return NextResponse.json({
-      templateId: parsed.templateId || 'executive',
+      templateId: parsed.templateId || 'corporate-clean',
       voiceId: parsed.voiceId || 'nova',
       slideCount: parsed.slideCount || 8,
       mood: parsed.mood || 'professional',
@@ -113,7 +113,7 @@ Pick the template that BEST matches the content type, industry, and tone. Pick t
     console.error('[auto-select] Error:', err)
     // Fallback defaults
     return NextResponse.json({
-      templateId: isInsurance ? 'executive' : 'flat-vector',
+      templateId: isInsurance ? 'warm-story' : 'corporate-clean',
       voiceId: isInsurance ? 'onyx' : 'nova',
       slideCount: 8,
       mood: 'professional',

@@ -122,7 +122,7 @@ RULES:
               policyData,
               brandId: null,
               voiceId: 'nova',
-              styleId: 'executive',
+              styleId: 'corporate-clean',
               detailed: false,
             },
             _course_meta: {

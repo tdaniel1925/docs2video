@@ -168,7 +168,7 @@ export async function POST(request: Request) {
               policyData,
               brandId,
               voiceId: 'nova',
-              styleId: 'executive',
+              styleId: 'corporate-clean',
               purpose: `Create a sales demo video showing what Docs2Video can do for ${companyName}`,
               isDemoVideo: true,
             },

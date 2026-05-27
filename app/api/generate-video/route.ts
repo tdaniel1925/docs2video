@@ -437,7 +437,7 @@ export async function POST(request: Request) {
     }
     await admin.from('videos').update({ progress_detail: 'Preparing slide designs...', progress_pct: 16 }).eq('id', videoId)
 
-    const templateId = (styleId ?? brand?.deck_style_id ?? (policyData as any)?.classification?.recommendedTemplate ?? 'blue-steps') as string
+    const templateId = (styleId ?? brand?.deck_style_id ?? (policyData as any)?.classification?.recommendedTemplate ?? 'corporate-clean') as string
     const logoUrl = brand?.logo_file_url ?? brand?.logo_url ?? null
     const brandGuide = brand?.brand_guide_data as Record<string, string> | null
     const brandColors = {
@@ -505,7 +505,12 @@ export async function POST(request: Request) {
         totalPages: scenes.length,
       }
 
-      return buildSimpleSlidePrompt(input)
+      // For each scene, build 3 frame prompts instead of 1 (flipbook mode)
+      const framePrompts = scene.framePrompts || [scene.slidePrompt, scene.slidePrompt, scene.slidePrompt]
+      return framePrompts.map((fp: string) => {
+        // Apply style and brand colors to each frame prompt
+        return `${stylePrompt}\n\n${fp}\n\nBrand colors: primary ${brandColors.primary}, secondary ${brandColors.secondary}. Use these colors throughout.`
+      })
     })
 
     // STAGE 3: Hand off to VPS with pre-built prompts

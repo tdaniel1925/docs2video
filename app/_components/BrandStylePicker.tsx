@@ -17,7 +17,7 @@ interface BrandStylePickerProps {
 export default function BrandStylePicker({
   onSelect,
   initialBrandId = null,
-  initialStyleId = 'executive',
+  initialStyleId = 'corporate-clean',
   showBrand = true,
   showStyle = true,
   compact = false,

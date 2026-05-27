@@ -208,7 +208,7 @@ export async function POST(request: Request) {
         const slideBuffer = await generateSlide(
           extractedData as any,
           i,
-          'executive',
+          'corporate-clean',
           companyInfo.companyName ?? null,
           null, // logo composited separately
           colors,

@@ -177,27 +177,27 @@ export async function classifyFromText(
     }
 
     const templateMap: Record<string, string> = {
-      life_insurance_illustration: 'executive', annuity_contract: 'executive',
-      health_insurance_eob: 'commercial-pro', auto_home_policy: 'commercial-pro',
-      insurance_claims_denial: 'commercial-pro', disability_policy: 'executive',
-      long_term_care: 'executive', bank_statement: 'commercial-pro',
-      credit_report: 'commercial-pro', mortgage_statement: 'executive',
-      tax_return: 'commercial-pro', investment_statement: 'glassmorphism',
-      loan_agreement: 'executive', retirement_plan: 'executive',
-      earnings_report: 'executive', annual_report: 'executive',
-      business_plan: 'glassmorphism', pitch_deck: 'glassmorphism',
-      profit_loss: 'commercial-pro', balance_sheet: 'commercial-pro',
-      marketing_report: 'neubrutalism', sales_proposal: 'commercial-pro',
-      lease_agreement: 'legal-brief', employment_contract: 'legal-brief',
-      nda_noncompete: 'legal-brief', terms_of_service: 'legal-brief',
-      divorce_decree: 'legal-brief', court_document: 'legal-brief',
-      lab_results: 'medical-journal', treatment_plan: 'medical-journal',
-      medical_bill: 'medical-journal', prescription_info: 'medical-journal',
-      social_security_statement: 'commercial-pro', property_tax_assessment: 'commercial-pro',
-      immigration_document: 'legal-brief', benefits_statement: 'commercial-pro',
-      transcript: 'commercial-pro', course_material: 'chalkboard',
-      research_paper: 'medical-journal', presentation: 'executive',
-      report: 'commercial-pro', newsletter: 'watercolor', unknown: 'executive',
+      life_insurance_illustration: 'warm-story', annuity_contract: 'corporate-clean',
+      health_insurance_eob: 'corporate-clean', auto_home_policy: 'corporate-clean',
+      insurance_claims_denial: 'bold-infographic', disability_policy: 'warm-story',
+      long_term_care: 'warm-story', bank_statement: 'corporate-clean',
+      credit_report: 'bold-infographic', mortgage_statement: 'corporate-clean',
+      tax_return: 'corporate-clean', investment_statement: 'dark-cinematic',
+      loan_agreement: 'corporate-clean', retirement_plan: 'warm-story',
+      earnings_report: 'bold-infographic', annual_report: 'corporate-clean',
+      business_plan: 'dark-cinematic', pitch_deck: 'dark-cinematic',
+      profit_loss: 'bold-infographic', balance_sheet: 'bold-infographic',
+      marketing_report: 'playful-cartoon', sales_proposal: 'corporate-clean',
+      lease_agreement: 'corporate-clean', employment_contract: 'corporate-clean',
+      nda_noncompete: 'corporate-clean', terms_of_service: 'corporate-clean',
+      divorce_decree: 'corporate-clean', court_document: 'corporate-clean',
+      lab_results: 'watercolor', treatment_plan: 'watercolor',
+      medical_bill: 'watercolor', prescription_info: 'watercolor',
+      social_security_statement: 'corporate-clean', property_tax_assessment: 'corporate-clean',
+      immigration_document: 'corporate-clean', benefits_statement: 'warm-story',
+      transcript: 'corporate-clean', course_material: 'playful-cartoon',
+      research_paper: 'watercolor', presentation: 'corporate-clean',
+      report: 'corporate-clean', newsletter: 'watercolor', unknown: 'corporate-clean',
     }
 
     return {
@@ -212,7 +212,7 @@ export async function classifyFromText(
       actionItems: Array.isArray(parsed.actionItems) ? parsed.actionItems : [],
       keyQuestion: parsed.keyQuestion || 'What does this document mean for you?',
       industry: categoryToIndustry[typeInfo.category] || 'general',
-      recommendedTemplate: templateMap[docType] || 'executive',
+      recommendedTemplate: templateMap[docType] || 'corporate-clean',
     }
   } catch (err) {
     console.error('[classifyFromText] Classification failed:', err instanceof Error ? err.message : 'unknown')
@@ -228,7 +228,7 @@ export async function classifyFromText(
       actionItems: [],
       keyQuestion: 'What does this document mean for you?',
       industry: 'general',
-      recommendedTemplate: 'executive',
+      recommendedTemplate: 'corporate-clean',
     }
   }
 }
@@ -265,7 +265,7 @@ export async function classifyDocument(pdfBase64: string, mimeType: string = 'ap
       actionItems: [],
       keyQuestion: 'What does this document mean for you?',
       industry: 'general',
-      recommendedTemplate: 'executive',
+      recommendedTemplate: 'corporate-clean',
     }
   }
 
@@ -305,24 +305,24 @@ export async function classifyDocument(pdfBase64: string, mimeType: string = 'ap
     // Auto-select template based on document type
     const templateMap: Record<string, string> = {
       // Insurance — professional executive look
-      life_insurance_illustration: 'executive',
-      annuity_contract: 'executive',
+      life_insurance_illustration: 'corporate-clean',
+      annuity_contract: 'corporate-clean',
       health_insurance_eob: 'commercial-pro',
       auto_home_policy: 'commercial-pro',
       insurance_claims_denial: 'commercial-pro',
-      disability_policy: 'executive',
-      long_term_care: 'executive',
+      disability_policy: 'corporate-clean',
+      long_term_care: 'corporate-clean',
       // Finance — clean data-focused
       bank_statement: 'commercial-pro',
       credit_report: 'commercial-pro',
-      mortgage_statement: 'executive',
+      mortgage_statement: 'corporate-clean',
       tax_return: 'commercial-pro',
       investment_statement: 'glassmorphism',
-      loan_agreement: 'executive',
-      retirement_plan: 'executive',
+      loan_agreement: 'corporate-clean',
+      retirement_plan: 'corporate-clean',
       // Business — varies by tone
-      earnings_report: 'executive',
-      annual_report: 'executive',
+      earnings_report: 'corporate-clean',
+      annual_report: 'corporate-clean',
       business_plan: 'glassmorphism',
       pitch_deck: 'glassmorphism',
       profit_loss: 'commercial-pro',
@@ -351,10 +351,10 @@ export async function classifyDocument(pdfBase64: string, mimeType: string = 'ap
       course_material: 'chalkboard',
       research_paper: 'medical-journal',
       // General
-      presentation: 'executive',
+      presentation: 'corporate-clean',
       report: 'commercial-pro',
       newsletter: 'watercolor',
-      unknown: 'executive',
+      unknown: 'corporate-clean',
     }
 
     return {
@@ -369,7 +369,7 @@ export async function classifyDocument(pdfBase64: string, mimeType: string = 'ap
       actionItems: Array.isArray(parsed.actionItems) ? parsed.actionItems : [],
       keyQuestion: parsed.keyQuestion || 'What does this document mean for you?',
       industry: categoryToIndustry[typeInfo.category] || 'general',
-      recommendedTemplate: templateMap[docType] || 'executive',
+      recommendedTemplate: templateMap[docType] || 'corporate-clean',
     }
   } catch {
     // If classification fails, return a safe default
@@ -385,7 +385,7 @@ export async function classifyDocument(pdfBase64: string, mimeType: string = 'ap
       actionItems: [],
       keyQuestion: 'What does this document mean for you?',
       industry: 'general',
-      recommendedTemplate: 'executive',
+      recommendedTemplate: 'corporate-clean',
     }
   }
 }
