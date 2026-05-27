@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import WizardProgress from '../_components/WizardProgress'
 import CreditCost from '../_components/CreditCost'
+import QuickPreview from '../../../_components/QuickPreview'
 
 export default function ScriptPage() {
   const router = useRouter()
@@ -35,6 +36,14 @@ export default function ScriptPage() {
   const [draftLoading, setDraftLoading] = useState(isWizard)
   const [draftData, setDraftData] = useState<any>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
+
+  // Quick preview state
+  const [showQuickPreview, setShowQuickPreview] = useState(false)
+  const [quickPreviewData, setQuickPreviewData] = useState<{
+    scenes: any[]; slides: (string | null)[]; totalScenes: number; allScenes: any[]
+  } | null>(null)
+  const [quickPreviewLoading, setQuickPreviewLoading] = useState(false)
+  const [quickPreviewApproving, setQuickPreviewApproving] = useState(false)
 
   // Auto-save scenes to localStorage — debounced for typing, instant for other actions
   const autoSave = useCallback((updatedScenes: any[], sceneIdx: number, instant?: boolean) => {
@@ -390,6 +399,70 @@ export default function ScriptPage() {
     }
   }
 
+  // Quick Preview: generate a fast 3-slide preview
+  async function handleQuickPreview() {
+    setQuickPreviewLoading(true)
+    setError(null)
+    try {
+      const state = isWizard ? createState : JSON.parse(localStorage.getItem('d2v_create') || '{}')
+      const res = await fetch('/api/quick-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          policyData: {
+            ...state.extractedData,
+            intentType: state.intentType,
+          },
+          brandId: state.selectedBrand || state.autoBrandId || undefined,
+          styleId: (state as any)?.styleId || undefined,
+          customStylePrompt: (state as any)?.customStylePrompt || undefined,
+          purpose: state.purpose,
+          industry: state.extractedData?.industry || 'general',
+          detailLevel,
+          narrationStyle,
+          voiceId: (state as any)?.voiceId || 'nova',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Preview generation failed')
+
+      setQuickPreviewData(data)
+      setShowQuickPreview(true)
+
+      // Also populate scenes with the full script from the preview
+      if (data.allScenes && data.allScenes.length > 0) {
+        setScenes(data.allScenes)
+        if (isWizard) {
+          await fetch('/api/videos/draft', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              videoId,
+              updates: { scenes: data.allScenes, detailLevel, narrationStyle },
+            }),
+          })
+        } else {
+          state.scenes = data.allScenes
+          state.detailLevel = detailLevel
+          state.narrationStyle = narrationStyle
+          localStorage.setItem('d2v_create', JSON.stringify(state))
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Preview generation failed')
+    } finally {
+      setQuickPreviewLoading(false)
+    }
+  }
+
+  // Approve quick preview: go straight to generation
+  async function handleApprovePreview() {
+    setQuickPreviewApproving(true)
+    setShowQuickPreview(false)
+    // Scenes are already loaded from preview — use the normal continue flow
+    handleContinue()
+  }
+
   // Determine wizard step number for progress bar
   const wizardStep = outputType === 'video' ? 4 : 3
   const backPath = isWizard
@@ -520,17 +593,53 @@ export default function ScriptPage() {
                 </div>
                 <p style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 16 }}>This usually takes 10-20 seconds</p>
               </div>
+            ) : quickPreviewLoading ? (
+              <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                <style>{`
+                  @keyframes previewPulse {
+                    0%, 100% { transform: scale(1); opacity: 0.7; }
+                    50% { transform: scale(1.05); opacity: 1; }
+                  }
+                `}</style>
+                <div style={{ animation: 'previewPulse 2s ease infinite', marginBottom: 20 }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>&#128064;</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Generating quick preview</div>
+                  <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>Writing script and creating 3 preview slides</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
+                  {[0, 1, 2].map(i => (
+                    <div key={i} style={{
+                      width: 8, height: 8, borderRadius: '50%', background: 'var(--mint)',
+                      animation: `dotBounce 1.4s infinite ${i * 0.2}s`,
+                    }} />
+                  ))}
+                </div>
+                <p style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 16 }}>This usually takes 30-60 seconds</p>
+              </div>
             ) : (
-              <button
-                onClick={handleGenerate}
-                style={{
-                  width: '100%', padding: '18px', borderRadius: 10, border: 'none',
-                  background: 'var(--ink)', color: 'white', fontSize: 17, fontWeight: 700,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >
-                Generate Script &rarr;
-              </button>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  onClick={handleQuickPreview}
+                  style={{
+                    flex: 1, padding: '18px', borderRadius: 10,
+                    border: '2px solid var(--mint)',
+                    background: 'rgba(168,240,212,0.08)', color: 'var(--ink)', fontSize: 15, fontWeight: 700,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Quick Preview
+                </button>
+                <button
+                  onClick={handleGenerate}
+                  style={{
+                    flex: 1, padding: '18px', borderRadius: 10, border: 'none',
+                    background: 'var(--ink)', color: 'white', fontSize: 17, fontWeight: 700,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Generate Script &rarr;
+                </button>
+              </div>
             )}
           </>
         )}
@@ -825,29 +934,58 @@ export default function ScriptPage() {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-              <button onClick={() => router.push(backPath)} style={{
-                padding: '16px 28px', borderRadius: 10, border: '2px solid var(--border)',
-                background: 'white', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: 'var(--ink-soft)', fontFamily: 'inherit',
-              }}>
-                &larr; Back
-              </button>
-              <button
-                onClick={handleContinue}
-                disabled={submitting}
-                style={{
-                  flex: 1, padding: '16px 28px', borderRadius: 10, border: 'none',
-                  background: submitting ? 'var(--ink-light)' : 'var(--ink)', color: 'white', fontSize: 17, fontWeight: 700,
-                  cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-                  opacity: submitting ? 0.7 : 1,
-                  transition: 'opacity 0.2s',
-                }}
-              >
-                {isWizard
-                  ? (submitting ? 'Generating...' : 'Generate')
-                  : 'Continue to options \u2192'}
-              </button>
-            </div>
+            {/* Quick Preview display */}
+            {showQuickPreview && quickPreviewData && (
+              <div style={{ marginTop: 24 }}>
+                <QuickPreview
+                  scenes={quickPreviewData.scenes}
+                  slides={quickPreviewData.slides}
+                  totalScenes={quickPreviewData.totalScenes}
+                  onApprove={handleApprovePreview}
+                  onEditScript={() => setShowQuickPreview(false)}
+                  approving={quickPreviewApproving}
+                />
+              </div>
+            )}
+
+            {!showQuickPreview && (
+              <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+                <button onClick={() => router.push(backPath)} style={{
+                  padding: '16px 28px', borderRadius: 10, border: '2px solid var(--border)',
+                  background: 'white', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: 'var(--ink-soft)', fontFamily: 'inherit',
+                }}>
+                  &larr; Back
+                </button>
+                {quickPreviewData && !showQuickPreview && (
+                  <button
+                    onClick={() => setShowQuickPreview(true)}
+                    style={{
+                      padding: '16px 20px', borderRadius: 10,
+                      border: '2px solid var(--mint)',
+                      background: 'rgba(168,240,212,0.08)', color: 'var(--ink)',
+                      fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    View Preview
+                  </button>
+                )}
+                <button
+                  onClick={handleContinue}
+                  disabled={submitting}
+                  style={{
+                    flex: 1, padding: '16px 28px', borderRadius: 10, border: 'none',
+                    background: submitting ? 'var(--ink-light)' : 'var(--ink)', color: 'white', fontSize: 17, fontWeight: 700,
+                    cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                    opacity: submitting ? 0.7 : 1,
+                    transition: 'opacity 0.2s',
+                  }}
+                >
+                  {isWizard
+                    ? (submitting ? 'Generating...' : 'Generate')
+                    : 'Continue to options \u2192'}
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

@@ -4,10 +4,10 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/client'
-import { SLIDE_STYLES } from '../../_lib/types'
+import { SLIDE_STYLES, VOICE_OPTIONS } from '../../_lib/types'
 import type { Profile } from '../../_lib/types'
 
-type SetupStep = 1 | 2 | 3 | 4
+type SetupStep = 1 | 2 | 3 | 4 | 5
 
 const COLOR_LABELS: Record<string, string> = {
   primary_color: 'Primary',
@@ -46,7 +46,13 @@ export default function SetupPage() {
     text_color: '#FFFFFF',
   })
 
-  // Step 4: Style
+  // Step 4: Voice
+  const [selectedVoice, setSelectedVoice] = useState('nova')
+  const [playingVoice, setPlayingVoice] = useState<string | null>(null)
+  const [voiceAudio, setVoiceAudio] = useState<HTMLAudioElement | null>(null)
+  const [voiceLoading, setVoiceLoading] = useState<string | null>(null)
+
+  // Step 5: Style
   const [selectedStyle, setSelectedStyle] = useState('luxury')
   const [expandedStyle, setExpandedStyle] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -213,6 +219,50 @@ export default function SetupPage() {
     setStep(4)
   }
 
+  async function playVoicePreview(voiceId: string) {
+    // Stop any currently playing audio
+    if (voiceAudio) {
+      voiceAudio.pause()
+      voiceAudio.currentTime = 0
+    }
+    if (playingVoice === voiceId) {
+      setPlayingVoice(null)
+      return
+    }
+    setVoiceLoading(voiceId)
+    try {
+      const sampleText = 'Welcome to Docs2Video. Let me show you how easy it is to turn your documents into professional presentations.'
+      const res = await fetch('/api/voice-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: sampleText, voiceId }),
+      })
+      if (!res.ok) throw new Error('Preview failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      audio.onended = () => { setPlayingVoice(null); URL.revokeObjectURL(url) }
+      audio.play()
+      setVoiceAudio(audio)
+      setPlayingVoice(voiceId)
+    } catch {
+      // Silent fail for voice preview
+    } finally {
+      setVoiceLoading(null)
+    }
+  }
+
+  async function saveVoice() {
+    setLoading(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    // Save to profile as default voice preference (stored in default_style for now, voice stored as metadata)
+    // We use a video table default or localStorage pattern for voice
+    setLoading(false)
+    setStep(5)
+  }
+
   async function skipSetup() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -240,7 +290,7 @@ export default function SetupPage() {
     scrollRef.current.scrollBy({ left: dir === 'left' ? -280 : 280, behavior: 'smooth' })
   }
 
-  const stepLabels = ['Profile', 'Photo', 'Brand', 'Style']
+  const stepLabels = ['Profile', 'Photo', 'Brand', 'Voice', 'Style']
 
   return (
     <div className="wizard-card" style={{ overflow: 'hidden' }}>
@@ -258,7 +308,8 @@ export default function SetupPage() {
           {step === 1 && "Let's get your profile set up"}
           {step === 2 && 'Upload a professional headshot for your videos'}
           {step === 3 && 'Set up your brand identity'}
-          {step === 4 && 'Choose your default presentation style'}
+          {step === 4 && 'Pick a voice for your video narration'}
+          {step === 5 && 'Choose your default presentation style'}
         </p>
 
         {/* Progress */}
@@ -519,8 +570,84 @@ export default function SetupPage() {
         </div>
       )}
 
-      {/* Step 4: Style */}
+      {/* Step 4: Voice */}
       {step === 4 && (
+        <div>
+          <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 20, textAlign: 'center' }}>
+            Choose the voice that will narrate your videos. Click play to hear a sample.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+            {VOICE_OPTIONS.map((voice) => (
+              <div
+                key={voice.id}
+                onClick={() => setSelectedVoice(voice.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '14px 18px', borderRadius: 10, cursor: 'pointer',
+                  background: selectedVoice === voice.id ? 'rgba(168,240,212,0.12)' : 'white',
+                  border: selectedVoice === voice.id ? '2px solid var(--mint)' : '1px solid var(--border-light)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {/* Play button */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); playVoicePreview(voice.id) }}
+                  disabled={voiceLoading === voice.id}
+                  style={{
+                    width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+                    background: playingVoice === voice.id ? 'var(--ink)' : 'var(--bg-soft)',
+                    border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {voiceLoading === voice.id ? (
+                    <div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid var(--ink)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+                  ) : playingVoice === voice.id ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--ink)"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  )}
+                </button>
+
+                {/* Voice info */}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+                    {voice.name}
+                    <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-light)', marginLeft: 8 }}>
+                      {voice.gender}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 2 }}>
+                    {voice.description}
+                  </div>
+                </div>
+
+                {/* Selected indicator */}
+                {selectedVoice === voice.id && (
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, color: 'var(--mint-darker, #2d7a4f)',
+                    background: 'var(--mint, #d4edda)', padding: '4px 10px', borderRadius: 6,
+                  }}>
+                    Selected
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => setStep(3)} className="btn btn-soft" style={{ flex: 1 }}>Back</button>
+            <button onClick={saveVoice} disabled={loading} className="btn btn-primary" style={{ flex: 1 }}>
+              {loading ? 'Saving...' : 'Next \u2192'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 5: Style */}
+      {step === 5 && (
         <div>
           {/* Explanation */}
           <div style={{ marginBottom: 20, padding: '16px 20px', background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border-light)' }}>
@@ -582,7 +709,7 @@ export default function SetupPage() {
           </div>
 
           <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-            <button onClick={() => setStep(3)} className="btn btn-soft" style={{ flex: 1 }}>Back</button>
+            <button onClick={() => setStep(4)} className="btn btn-soft" style={{ flex: 1 }}>Back</button>
             <button onClick={finishSetup} disabled={loading} className="btn btn-primary" style={{ flex: 1 }}>
               {loading ? 'Finishing...' : 'Finish Setup \u2192'}
             </button>

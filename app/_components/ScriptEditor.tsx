@@ -135,6 +135,41 @@ export default function ScriptEditor({
                   >
                     {redoingSlide === i ? 'Redoing...' : 'Redo'}
                   </button>
+                  {/* Reorder up/down */}
+                  {i > 0 && (
+                    <button
+                      className="btn btn-soft btn-sm"
+                      onClick={() => {
+                        const updated = [...scenes]
+                        const updatedSlides = [...slides]
+                        ;[updated[i - 1], updated[i]] = [updated[i], updated[i - 1]]
+                        ;[updatedSlides[i - 1], updatedSlides[i]] = [updatedSlides[i], updatedSlides[i - 1]]
+                        onScenesChange(updated)
+                        onSlidesChange(updatedSlides)
+                      }}
+                      style={{ fontSize: 11, padding: '4px 8px', borderRadius: 6 }}
+                      title="Move up"
+                    >
+                      &#9650;
+                    </button>
+                  )}
+                  {i < scenes.length - 1 && (
+                    <button
+                      className="btn btn-soft btn-sm"
+                      onClick={() => {
+                        const updated = [...scenes]
+                        const updatedSlides = [...slides]
+                        ;[updated[i], updated[i + 1]] = [updated[i + 1], updated[i]]
+                        ;[updatedSlides[i], updatedSlides[i + 1]] = [updatedSlides[i + 1], updatedSlides[i]]
+                        onScenesChange(updated)
+                        onSlidesChange(updatedSlides)
+                      }}
+                      style={{ fontSize: 11, padding: '4px 8px', borderRadius: 6 }}
+                      title="Move down"
+                    >
+                      &#9660;
+                    </button>
+                  )}
                   {scenes.length > 2 && (
                     <button
                       className="btn btn-danger btn-sm"
