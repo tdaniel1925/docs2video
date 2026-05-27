@@ -439,7 +439,7 @@ const pageStyles = `
   .wp-paid-card-title { font-weight: 700; font-size: 14px; color: var(--ink, #1B3A5C); }
   .wp-paid-card-sub { font-size: 12px; color: var(--ink-soft, #3D5A7A); }
 
-  /* Calendly embed */
+  /* Calendly embed (legacy — now uses simple link) */
   .wp-calendly {
     background: #fff;
     border: 1px solid var(--border-light, #E8EDF2);
@@ -743,6 +743,7 @@ export default function PublicWatchPage() {
   const musicRef = useRef<HTMLAudioElement>(null)
   const viewTracked = useRef(false)
   const playTracked = useRef(false)
+  const milestonesTracked = useRef<Set<number>>(new Set())
 
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
   const [videoDuration, setVideoDuration] = useState(0)
@@ -843,12 +844,23 @@ export default function PublicWatchPage() {
     const idx = Math.min(Math.floor(videoRef.current.currentTime / segmentDuration), slideCount - 1)
     setCurrentSlideIndex(idx)
 
+    // Track watch milestones (25%, 50%, 75%)
+    if (video && videoDuration > 0) {
+      const pct = (videoRef.current.currentTime / videoDuration) * 100
+      for (const milestone of [25, 50, 75]) {
+        if (pct >= milestone && !milestonesTracked.current.has(milestone)) {
+          milestonesTracked.current.add(milestone)
+          trackEvent(video.id, 'progress', { percent: milestone })
+        }
+      }
+    }
+
     // Trigger lead capture at 60% playback
     if (!leadTriggered.current && videoDuration > 0 && videoRef.current.currentTime / videoDuration >= 0.6) {
       leadTriggered.current = true
       setShowLeadCapture(true)
     }
-  }, [video, videoDuration])
+  }, [video, videoDuration, trackEvent])
 
   const jumpToSlide = useCallback(
     (index: number) => {
@@ -1042,6 +1054,10 @@ export default function PublicWatchPage() {
                 onEnded={() => {
                   if (musicRef.current) musicRef.current.pause()
                   setVideoEnded(true)
+                  if (video && !milestonesTracked.current.has(100)) {
+                    milestonesTracked.current.add(100)
+                    trackEvent(video.id, 'complete', { percent: 100 })
+                  }
                 }}
                 onSeeking={() => {
                   if (musicRef.current && videoRef.current) {
@@ -1437,16 +1453,22 @@ export default function PublicWatchPage() {
               <span className="wp-quote-total-label">Total</span>
               <span className="wp-quote-total-value">{formatCents(quote.total)}</span>
             </div>
-            {payError && <div className="wp-pay-error">{payError}</div>}
             <div className="wp-quote-actions">
               {quote.total === 0 ? (
                 <div style={{ flex: 1, textAlign: 'center', padding: '12px 0', fontSize: 14, fontWeight: 600, color: 'var(--ink-soft, #3D5A7A)' }}>
                   This is a complimentary service
                 </div>
-              ) : hasStripe ? (
-                <button onClick={handlePay} disabled={payLoading} className="wp-pay-btn">
-                  {payLoading ? 'Processing...' : `Accept & Pay ${formatCents(quote.total)}`}
-                </button>
+              ) : paymentLnk ? (
+                <a
+                  href={paymentLnk}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => video && trackEvent(video.id, 'payment_click')}
+                  className="wp-pay-btn"
+                  style={{ flex: 1, textAlign: 'center', textDecoration: 'none', display: 'block' }}
+                >
+                  Pay {formatCents(quote.total)}
+                </a>
               ) : (
                 <a href={`mailto:${agentEmail}`} className="wp-pay-alt-btn" style={{ flex: 1 }}>
                   Contact {agentName} to pay
@@ -1483,21 +1505,23 @@ export default function PublicWatchPage() {
       )}
 
       {/* ============================================================ */}
-      {/*  BELOW MAIN — Calendly embed                                  */}
+      {/*  BELOW MAIN — Book a meeting link                               */}
       {/* ============================================================ */}
       {hasCalendly && (
         <div className="wp-center wp-section" id="calendly-section">
-          <div className="wp-calendly">
-            <div className="wp-calendly-header">
-              <IconCalendar />
-              Book a Meeting with {agentName}
-            </div>
-            <iframe
-              src={calendlyUrl}
-              title="Book a meeting"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-            />
-          </div>
+          <a
+            href={calendlyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => video && trackEvent(video.id, 'booking_click')}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              width: '100%', height: 52, borderRadius: 10, background: 'var(--mint, #3BB5C8)', color: '#fff',
+              fontSize: 16, fontWeight: 700, textDecoration: 'none', transition: 'opacity 0.15s',
+            }}
+          >
+            <IconCalendar /> Book a Meeting with {agentName}
+          </a>
         </div>
       )}
 

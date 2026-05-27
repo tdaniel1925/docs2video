@@ -5,7 +5,7 @@ import { sendVideoViewedEmail, sendVideoViewedSms } from '../../_lib/notificatio
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-const VALID_EVENTS = ['view', 'play', 'chat_message', 'download', 'book_meeting'] as const
+const VALID_EVENTS = ['view', 'play', 'progress', 'complete', 'chat_message', 'download', 'book_meeting', 'booking_click', 'payment_click', 'social_share'] as const
 
 export async function POST(request: Request) {
   try {
