@@ -59,6 +59,60 @@ export async function POST(req: NextRequest) {
       </div>
     ` : ''
 
+    // Find or create client for activity logging
+    const { createAdminClient } = await import('../../_lib/supabase/admin')
+    const admin = createAdminClient()
+    try {
+      const normalizedEmail = clientEmail.toLowerCase().trim()
+      const { data: existingClient } = await admin
+        .from('clients')
+        .select('id, total_videos_sent')
+        .eq('user_id', user.id)
+        .eq('email', normalizedEmail)
+        .single()
+
+      let cid = existingClient?.id
+      if (!cid) {
+        const { data: newClient } = await admin
+          .from('clients')
+          .insert({
+            user_id: user.id,
+            name: clientName || normalizedEmail,
+            email: normalizedEmail,
+            source: 'email',
+            status: 'active',
+            total_videos_sent: 1,
+            first_contact_at: new Date().toISOString(),
+            last_activity_at: new Date().toISOString(),
+          })
+          .select('id')
+          .single()
+        cid = newClient?.id
+      } else {
+        await admin
+          .from('clients')
+          .update({
+            total_videos_sent: (existingClient!.total_videos_sent ?? 0) + 1,
+            last_activity_at: new Date().toISOString(),
+            status: 'active',
+          })
+          .eq('id', cid)
+      }
+
+      if (cid) {
+        await admin.from('client_activities').insert({
+          client_id: cid,
+          user_id: user.id,
+          type: 'email_sent',
+          title: `Video email sent: ${videoTitle}`,
+          description: `Sent "${videoTitle}" to ${normalizedEmail}`,
+          metadata: { video_id: videoId, video_title: videoTitle },
+        })
+      }
+    } catch (actErr) {
+      console.error('[send-video-email] Activity log error:', actErr)
+    }
+
     await getResend().emails.send({
       from: 'Docs2Video <notifications@docs2video.com>',
       to: clientEmail,

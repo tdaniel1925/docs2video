@@ -1,152 +1,135 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
+
 export const maxDuration = 30
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const admin = createAdminClient()
+  const url = new URL(req.url)
+  const search = url.searchParams.get('search') ?? ''
+  const status = url.searchParams.get('status') ?? ''
+  const sort = url.searchParams.get('sort') ?? 'last_activity_at'
+  const order = url.searchParams.get('order') ?? 'desc'
 
-  // Get all completed videos by this user that have been sent (have sent_emails) or viewed
-  const { data: videos } = await supabase
-    .from('videos')
-    .select('id, title, status, created_at')
-    .eq('user_id', user.id)
-    .eq('status', 'completed')
-    .order('created_at', { ascending: false })
-
-  if (!videos || videos.length === 0) {
-    return NextResponse.json({ clients: [] })
-  }
-
-  const videoIds = videos.map(v => v.id)
-
-  // Get sent emails for these videos
-  const { data: sentEmails } = await supabase
-    .from('sent_emails')
-    .select('to_email, to_name, video_id, created_at')
-    .in('video_id', videoIds)
-    .order('created_at', { ascending: false })
-
-  // Get analytics for these videos (views, plays, chats)
-  let analyticsRows: { video_id: string; event_type: string; created_at: string }[] = []
-  try {
-    const { data } = await admin
-      .from('video_analytics')
-      .select('video_id, event_type, created_at')
-      .in('video_id', videoIds)
-    if (data) analyticsRows = data
-  } catch {
-    // Table might not exist
-  }
-
-  // Get follow-up plans
-  const { data: followUpPlans } = await supabase
-    .from('follow_up_plans')
-    .select('client_name, client_email, video_id')
+  let query = admin
+    .from('clients')
+    .select('*')
     .eq('user_id', user.id)
 
-  // Aggregate by client email
-  const clientMap = new Map<string, {
-    name: string
-    email: string
-    videosSent: number
-    videoIds: string[]
-    lastWatched: string | null
-    totalViews: number
-    totalPlays: number
-    totalChats: number
-  }>()
-
-  // From sent emails
-  for (const email of (sentEmails ?? [])) {
-    const key = email.to_email.toLowerCase()
-    if (!clientMap.has(key)) {
-      clientMap.set(key, {
-        name: email.to_name ?? '',
-        email: email.to_email,
-        videosSent: 0,
-        videoIds: [],
-        lastWatched: null,
-        totalViews: 0,
-        totalPlays: 0,
-        totalChats: 0,
-      })
-    }
-    const client = clientMap.get(key)!
-    if (!client.videoIds.includes(email.video_id!)) {
-      client.videoIds.push(email.video_id!)
-      client.videosSent++
-    }
-    if (!client.name && email.to_name) client.name = email.to_name
+  if (search) {
+    query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,company.ilike.%${search}%`)
   }
 
-  // From follow-up plans
-  for (const plan of (followUpPlans ?? [])) {
-    if (!plan.client_email) continue
-    const key = plan.client_email.toLowerCase()
-    if (!clientMap.has(key)) {
-      clientMap.set(key, {
-        name: plan.client_name ?? '',
-        email: plan.client_email,
-        videosSent: 0,
-        videoIds: [],
-        lastWatched: null,
-        totalViews: 0,
-        totalPlays: 0,
-        totalChats: 0,
-      })
-    }
-    const client = clientMap.get(key)!
-    if (!client.name && plan.client_name) client.name = plan.client_name
-    if (plan.video_id && !client.videoIds.includes(plan.video_id)) {
-      client.videoIds.push(plan.video_id)
-      client.videosSent++
-    }
+  if (status && status !== 'all') {
+    query = query.eq('status', status)
   }
 
-  // Enrich with analytics
-  for (const row of analyticsRows) {
-    // Find which client this video was sent to
-    for (const [, client] of clientMap) {
-      if (client.videoIds.includes(row.video_id)) {
-        if (row.event_type === 'view') client.totalViews++
-        if (row.event_type === 'play') client.totalPlays++
-        if (row.event_type === 'chat_message') client.totalChats++
-        if (row.event_type === 'view' || row.event_type === 'play') {
-          if (!client.lastWatched || row.created_at > client.lastWatched) {
-            client.lastWatched = row.created_at
-          }
-        }
+  const sortCol = ['name', 'last_activity_at', 'created_at', 'total_videos_sent', 'total_views'].includes(sort)
+    ? sort
+    : 'last_activity_at'
+
+  query = query.order(sortCol, { ascending: order === 'asc', nullsFirst: false })
+
+  const { data: clients, error } = await query
+
+  if (error) {
+    console.error('[clients GET]', error)
+    return NextResponse.json({ error: 'Failed to load clients' }, { status: 500 })
+  }
+
+  // Get recent activity counts (last 7 days) for each client
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const clientIds = (clients ?? []).map(c => c.id)
+
+  let activityCounts: Record<string, number> = {}
+  if (clientIds.length > 0) {
+    const { data: activities } = await admin
+      .from('client_activities')
+      .select('client_id')
+      .in('client_id', clientIds)
+      .gte('created_at', sevenDaysAgo)
+
+    if (activities) {
+      for (const a of activities) {
+        activityCounts[a.client_id] = (activityCounts[a.client_id] ?? 0) + 1
       }
     }
   }
 
-  // Build response
-  const clients = Array.from(clientMap.values()).map(c => {
-    let status: 'new' | 'watched' | 'engaged' = 'new'
-    if (c.totalChats > 0) status = 'engaged'
-    else if (c.totalPlays > 0 || c.totalViews > 0) status = 'watched'
+  const enriched = (clients ?? []).map(c => ({
+    ...c,
+    recent_activity_count: activityCounts[c.id] ?? 0,
+  }))
 
-    return {
-      name: c.name,
-      email: c.email,
-      videosSent: c.videosSent,
-      videoIds: c.videoIds,
-      lastWatched: c.lastWatched,
-      status,
-      totalViews: c.totalViews,
-      totalPlays: c.totalPlays,
-      totalChats: c.totalChats,
+  return NextResponse.json({ clients: enriched })
+}
+
+export async function POST(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+  const admin = createAdminClient()
+  const body = await req.json()
+  const { name, email, company, phone, industry, tags, notes } = body
+
+  if (!name || !name.trim()) {
+    return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+  }
+
+  // Check duplicate by email
+  if (email) {
+    const { data: existing } = await admin
+      .from('clients')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('email', email.toLowerCase().trim())
+      .single()
+
+    if (existing) {
+      return NextResponse.json({ error: 'A client with this email already exists', existingId: existing.id }, { status: 409 })
     }
+  }
+
+  const now = new Date().toISOString()
+  const { data: client, error } = await admin
+    .from('clients')
+    .insert({
+      user_id: user.id,
+      name: name.trim(),
+      email: email?.toLowerCase().trim() || null,
+      company: company?.trim() || null,
+      phone: phone?.trim() || null,
+      industry: industry?.trim() || null,
+      tags: tags ?? [],
+      notes: notes?.trim() || null,
+      source: 'manual',
+      status: 'lead',
+      first_contact_at: now,
+      last_activity_at: now,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('[clients POST]', error)
+    return NextResponse.json({ error: 'Failed to create client' }, { status: 500 })
+  }
+
+  // Log client_created activity
+  await admin.from('client_activities').insert({
+    client_id: client.id,
+    user_id: user.id,
+    type: 'client_created',
+    title: 'Client created',
+    description: `${client.name} was added as a new client`,
+    metadata: { source: 'manual' },
   })
 
-  // Sort: engaged first, then watched, then new
-  const statusOrder = { engaged: 0, watched: 1, new: 2 }
-  clients.sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
-
-  return NextResponse.json({ clients })
+  return NextResponse.json({ client }, { status: 201 })
 }

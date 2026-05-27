@@ -116,6 +116,71 @@ export async function POST(request: Request) {
       }
     }
 
+    // Log activity to client record if viewer matches a client
+    if (eventType === 'view' || eventType === 'play') {
+      try {
+        const { data: video } = await supabase
+          .from('videos')
+          .select('user_id, client_id, title')
+          .eq('id', videoId)
+          .single()
+
+        if (video) {
+          // Check if video has a client_id directly, or find via sent_emails
+          let clientId = video.client_id
+          if (!clientId) {
+            const { data: sentEmail } = await supabase
+              .from('sent_emails')
+              .select('to_email')
+              .eq('video_id', videoId)
+              .limit(1)
+              .single()
+
+            if (sentEmail?.to_email) {
+              const { data: client } = await supabase
+                .from('clients')
+                .select('id')
+                .eq('user_id', video.user_id)
+                .eq('email', sentEmail.to_email.toLowerCase())
+                .single()
+              clientId = client?.id
+            }
+          }
+
+          if (clientId) {
+            const actType = eventType === 'play' ? 'video_played' : 'video_viewed'
+            await supabase.from('client_activities').insert({
+              client_id: clientId,
+              user_id: video.user_id,
+              type: actType,
+              title: `Video ${eventType === 'play' ? 'played' : 'viewed'}: ${video.title ?? 'Untitled'}`,
+              metadata: { video_id: videoId },
+            })
+
+            // Update client view count
+            const { data: clientData } = await supabase
+              .from('clients')
+              .select('total_views')
+              .eq('id', clientId)
+              .single()
+
+            if (clientData) {
+              await supabase
+                .from('clients')
+                .update({
+                  total_views: (clientData.total_views ?? 0) + 1,
+                  last_activity_at: new Date().toISOString(),
+                  status: 'engaged',
+                })
+                .eq('id', clientId)
+            }
+          }
+        }
+      } catch (clientActErr) {
+        console.error('[track-view] Client activity log error:', clientActErr)
+      }
+    }
+
     // Send notification email + SMS to video owner (view events only)
     if (eventType === 'view') {
       try {

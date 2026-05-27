@@ -143,9 +143,19 @@
 Core: profiles, videos, brands, infographics, custom_templates
 Content: creations, video_analytics, chat_messages
 Commerce: quotes, email_connections, sent_emails
+CRM: clients, client_activities (+ videos.client_id FK)
 Social: social_shares, affiliates, referrals
 Admin: campaigns, notifications, jobs, feedback
 Auth: managed by Supabase Auth
+
+### Client Management System (added 2026-05-25)
+- **clients** table: full CRM with name, email, company, phone, industry, tags, status (lead/active/engaged/converted/inactive), source tracking, revenue/video/view counters
+- **client_activities** table: unified timeline (email_sent, video_viewed, video_played, note_added, client_created, quote_sent, etc.)
+- **videos.client_id**: FK to clients table for direct assignment
+- **API routes**: `/api/clients` (list+create), `/api/clients/[id]` (detail+update+delete), `/api/clients/[id]/activities` (timeline+notes), `/api/clients/[id]/videos` (assigned+sent videos), `/api/clients/import` (CSV), `/api/clients/export` (CSV)
+- **Pages**: `/clients` (list with stats, search, status filters, add form, CSV import/export), `/clients/[id]` (detail with tabs: activity, videos, emails, payments)
+- **Activity wiring**: send-video-email and send-email routes auto-create/update client records and log activities; track-view logs video_viewed/video_played activities to matching clients
+- **Migration**: `supabase-clients-migration.sql` (run against Supabase to create tables + RLS)
 
 ---
 
