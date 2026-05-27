@@ -508,8 +508,8 @@ export async function POST(request: Request) {
       // For each scene, build 3 frame prompts instead of 1 (flipbook mode)
       const framePrompts = scene.framePrompts || [scene.slidePrompt, scene.slidePrompt, scene.slidePrompt]
       return framePrompts.map((fp: string) => {
-        // Apply style and brand colors to each frame prompt
-        return `${stylePrompt}\n\n${fp}\n\nBrand colors: primary ${brandColors.primary}, secondary ${brandColors.secondary}. Use these colors throughout.`
+        // Apply style, brand colors, and sizing to each frame prompt
+        return `${stylePrompt}\n\n${fp}\n\nBrand colors: primary ${brandColors.primary}, secondary ${brandColors.secondary}. Use these colors throughout. DO NOT draw any text, logos, brand names, or UI elements. Pure illustrated scene only.`
       })
     })
 
@@ -527,6 +527,8 @@ export async function POST(request: Request) {
         userId: user.id,
         slidePrompts,
         logoUrl,
+        brandName: brand?.name || null,
+        brandColors,
         musicPrompt: musicPrompt || (aiMusic ? 'Professional ambient background music, subtle and warm' : ''),
         industry: industry || '',
         narrationStyle: narrationStyle || 'solo',

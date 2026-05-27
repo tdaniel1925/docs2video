@@ -1458,9 +1458,9 @@ export default function PublicWatchPage() {
                 <div style={{ flex: 1, textAlign: 'center', padding: '12px 0', fontSize: 14, fontWeight: 600, color: 'var(--ink-soft, #3D5A7A)' }}>
                   This is a complimentary service
                 </div>
-              ) : paymentLnk ? (
+              ) : pipelineInput?.paymentLink ? (
                 <a
-                  href={paymentLnk}
+                  href={pipelineInput.paymentLink}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => video && trackEvent(video.id, 'payment_click')}
