@@ -1,3 +1,4 @@
+// Video generation pipeline — flipbook illustrated mode
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
