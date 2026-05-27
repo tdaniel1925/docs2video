@@ -51,38 +51,11 @@ export async function POST(request: Request) {
   const styleDescription = `${colorDesc} ${industryDesc} ${toneDesc} Create a visually striking, premium design that matches this brand identity. Bold typography, clean layout, layered depth with subtle shadows and gradients.`
 
   try {
-    const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/style-preview-from-brand`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-secret': VIDEO_ASSEMBLY_SECRET,
-      },
-      body: JSON.stringify({
-        styleDescription,
-        companyName: companyName || 'Your Company',
-        userId: user.id,
-      }),
-      signal: AbortSignal.timeout(240000),
-    })
-
-    // If VPS doesn't have this endpoint, fall back to generating via OpenAI directly
-    if (vpsRes.status === 404) {
-      return await generatePreviewsDirect(styleDescription, companyName || 'Your Company')
-    }
-
-    if (!vpsRes.ok) {
-      const errText = await vpsRes.text().catch(() => 'Unknown error')
-      console.error('[style-preview-from-brand] VPS error:', vpsRes.status, errText)
-      // Fall back to direct generation
-      return await generatePreviewsDirect(styleDescription, companyName || 'Your Company', logoUrl)
-    }
-
-    const data = await vpsRes.json()
-    return NextResponse.json(data)
+    // Generate illustrated previews directly via OpenAI (not VPS — VPS still has old slide-style prompts)
+    return await generatePreviewsDirect(styleDescription, companyName || 'Your Company', logoUrl)
   } catch (err) {
     console.error('[style-preview-from-brand] Error:', err)
-    // Fall back to direct generation
-    return await generatePreviewsDirect(styleDescription, companyName || 'Your Company', logoUrl)
+    return NextResponse.json({ error: 'Preview generation failed' }, { status: 500 })
   }
 }
 
@@ -94,14 +67,14 @@ async function generatePreviewsDirect(styleDescription: string, companyName: str
     const [coverRes, contentRes] = await Promise.all([
       openai.images.generate({
         model: 'gpt-image-2',
-        prompt: `Create a presentation COVER slide in this style: ${styleDescription}. Title: "${companyName}", subtitle: "Company Overview". 1920x1080 landscape. Fill entire canvas. Keep top-right corner clear with a light or white background area (at least 220x140px) so a logo can be overlaid with good contrast.`,
+        prompt: `Create an illustrated scene for a video explainer in this style: ${styleDescription}. Scene: A welcoming, establishing shot that introduces "${companyName}". Show a warm, inviting visual metaphor — like opening a door, sunrise over a landscape, or a friendly guide welcoming the viewer. Rich illustrated artwork filling the entire 1920x1080 canvas. No text, no UI elements, no slide layouts — pure illustrated scene. Leave bottom 100px as a clean solid bar area for branding overlay.`,
         size: '1536x1024',
         quality: 'high',
         n: 1,
       }),
       openai.images.generate({
         model: 'gpt-image-2',
-        prompt: `Create a presentation CONTENT slide in this style: ${styleDescription}. Title: "KEY HIGHLIGHTS". Show 3 data sections with placeholder metrics. 1920x1080 landscape. Fill entire canvas. Keep top-right corner clear with a light or white background area (at least 220x140px) so a logo can be overlaid with good contrast.`,
+        prompt: `Create an illustrated scene for a video explainer in this style: ${styleDescription}. Scene: A visual metaphor showing growth, protection, or progress — like a shield protecting a family, a tree growing strong, or a path leading forward. Rich illustrated artwork filling the entire 1920x1080 canvas. No text, no UI elements, no slide layouts — pure illustrated scene. Leave bottom 100px as a clean solid bar area for branding overlay.`,
         size: '1536x1024',
         quality: 'high',
         n: 1,

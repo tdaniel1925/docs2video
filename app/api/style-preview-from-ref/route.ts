@@ -32,28 +32,48 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Send to VPS — it handles all OpenAI calls (no Vercel timeout issues)
-    const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/style-preview`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-secret': VIDEO_ASSEMBLY_SECRET,
-      },
-      body: JSON.stringify({
-        referenceImageBase64,
-        userId: user.id,
-      }),
-      signal: AbortSignal.timeout(240000), // 4 min timeout for the VPS call
+    // Generate illustrated previews directly via OpenAI
+    const OpenAI = (await import('openai')).default
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+    // First, analyze the reference image style
+    const analysisRes = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Describe the visual style of this image in 2-3 sentences. Focus on: color palette, mood, artistic technique (watercolor, flat vector, cinematic, etc.), and overall feeling. Be specific about colors.' },
+          { type: 'image_url', image_url: { url: `data:image/png;base64,${referenceImageBase64}` } },
+        ],
+      }],
+      max_tokens: 200,
     })
+    const styleDesc = analysisRes.choices[0]?.message?.content || 'Professional, modern illustration style'
 
-    if (!vpsRes.ok) {
-      const errText = await vpsRes.text().catch(() => 'Unknown error')
-      console.error('[style-preview-from-ref] VPS error:', vpsRes.status, errText)
-      return NextResponse.json({ error: `Style preview failed: ${errText}` }, { status: vpsRes.status })
-    }
+    const [coverRes, contentRes] = await Promise.all([
+      openai.images.generate({
+        model: 'gpt-image-2',
+        prompt: `Create an illustrated scene for a video explainer in this exact style: ${styleDesc}. Scene: A welcoming, establishing shot — a warm visual metaphor like opening a door, a sunrise, or a friendly guide. Rich illustrated artwork filling the entire 1920x1080 canvas. No text, no UI elements, no slide layouts — pure illustrated scene. Leave bottom 100px as a clean solid bar area for branding overlay.`,
+        size: '1536x1024',
+        quality: 'high',
+        n: 1,
+      }),
+      openai.images.generate({
+        model: 'gpt-image-2',
+        prompt: `Create an illustrated scene for a video explainer in this exact style: ${styleDesc}. Scene: A visual metaphor showing growth or protection — like a shield guarding a family, a tree growing strong, or a path leading to a bright future. Rich illustrated artwork filling the entire 1920x1080 canvas. No text, no UI elements, no slide layouts — pure illustrated scene. Leave bottom 100px as a clean solid bar area for branding overlay.`,
+        size: '1536x1024',
+        quality: 'high',
+        n: 1,
+      }),
+    ])
 
-    const data = await vpsRes.json()
-    return NextResponse.json(data)
+    const cover = coverRes.data?.[0]?.b64_json ? `data:image/png;base64,${coverRes.data[0].b64_json}` : null
+    const content = contentRes.data?.[0]?.b64_json ? `data:image/png;base64,${contentRes.data[0].b64_json}` : null
+
+    return NextResponse.json({
+      previews: [cover, content].filter(Boolean),
+      styleDescription: styleDesc,
+    })
   } catch (err) {
     console.error('[style-preview-from-ref] Error:', err)
     const message = err instanceof Error ? err.message : 'Preview generation failed'

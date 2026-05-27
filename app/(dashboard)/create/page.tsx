@@ -142,7 +142,7 @@ export default function CreatePage() {
         })
         setStyleProgress(prev => {
           if (prev === 'Analyzing visual style...') return 'Extracting colors and layout...'
-          if (prev === 'Extracting colors and layout...') return 'Generating preview slides...'
+          if (prev === 'Extracting colors and layout...') return 'Illustrating preview scenes...'
           return prev
         })
       }, 3000)
@@ -752,7 +752,7 @@ export default function CreatePage() {
       {purpose && (
         <div style={{ width: '100%', marginBottom: 20, animation: 'fadeInUp 0.3s ease' }}>
           <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 10 }}>
-            Choose your slide style
+            Choose your illustration style
           </label>
 
           {/* Tabs */}

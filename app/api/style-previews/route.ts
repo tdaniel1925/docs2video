@@ -19,32 +19,19 @@ export async function POST(request: Request) {
 
   // Simple preview mode: generate cover + content sample slides
   if (body.prompt && body.name && !body.policyData) {
-    const coverPrompt = `Create a professional COVER/TITLE slide for a presentation, 1920x1088 pixels.
+    const coverPrompt = `Create an illustrated scene for a video explainer, 1920x1088 pixels.
 
-DESIGN STYLE:
+ILLUSTRATION STYLE:
 ${body.prompt}
-Glossy, polished finish — subtle glass reflections, soft glows, depth with layered shadows.
 
-Show a cover slide with:
-- Large title: "Quarterly Business Review"
-- Subtitle: "Q2 2025 Performance Summary"
-- Do NOT include any logo, company name, or brand mark — leave the top-right corner empty
-- Clean, bold layout with the style described above
-- 80px padding on all edges`
+Scene: A welcoming, establishing shot that introduces the topic. Show a warm, inviting visual metaphor — like opening a door to reveal something wonderful, a sunrise over a hopeful landscape, or a friendly guide welcoming the viewer into a story. Rich illustrated artwork filling the entire canvas. No text, no UI elements, no slide layouts, no logos — pure illustrated scene. Leave bottom 100px as a clean solid bar area for branding overlay.`
 
-    const contentPrompt = `Create a professional CONTENT slide for a presentation, 1920x1088 pixels.
+    const contentPrompt = `Create an illustrated scene for a video explainer, 1920x1088 pixels.
 
-DESIGN STYLE:
+ILLUSTRATION STYLE:
 ${body.prompt}
-Glossy, polished finish — subtle glass reflections, soft glows, depth with layered shadows.
 
-Show a content slide with:
-- Title: "Revenue Growth"
-- 3 key metrics: "$2.4M Revenue (+18%)", "1,240 New Clients", "94% Retention Rate"
-- 2-3 bullet points explaining the data
-- Do NOT include any logo, company name, or brand mark — leave the top-right corner empty
-- Clean, professional data layout with the style described above
-- 80px padding on all edges`
+Scene: A visual metaphor showing growth, progress, or achievement — like a tree growing strong with deep roots, a shield protecting what matters most, or a path leading toward a bright future. Rich illustrated artwork filling the entire canvas. No text, no UI elements, no slide layouts, no logos — pure illustrated scene. Leave bottom 100px as a clean solid bar area for branding overlay.`
 
     try {
       // Generate 2 previews with OpenAI — same engine as actual slides

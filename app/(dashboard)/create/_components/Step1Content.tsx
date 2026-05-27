@@ -278,9 +278,9 @@ export default function Step1Content() {
         setProgressPct(60)
         const progressSteps = [
           { msg: 'Extracting brand colors and typography...', delay: 3000, pct: 68 },
-          { msg: 'Designing cover slide...', delay: 8000, pct: 75 },
-          { msg: 'Designing content slide...', delay: 20000, pct: 85 },
-          { msg: 'Adding logo and finishing...', delay: 35000, pct: 92 },
+          { msg: 'Illustrating opening scene...', delay: 8000, pct: 75 },
+          { msg: 'Illustrating content scene...', delay: 20000, pct: 85 },
+          { msg: 'Adding branding and finishing...', delay: 35000, pct: 92 },
         ]
         const timers = progressSteps.map(s => setTimeout(() => { setStageMsg(s.msg); setProgressPct(s.pct) }, s.delay))
         const cleanupTimers = () => timers.forEach(t => clearTimeout(t))
@@ -685,7 +685,7 @@ export default function Step1Content() {
               <img
                 key={idx}
                 src={img}
-                alt={idx === 0 ? 'Cover slide preview' : 'Content slide preview'}
+                alt={idx === 0 ? 'Opening scene preview' : 'Content scene preview'}
                 style={{
                   width: 300,
                   maxWidth: '48%',
@@ -697,10 +697,10 @@ export default function Step1Content() {
             ))}
           </div>
           <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
-            Here&apos;s how your slides will look
+            Here&apos;s how your video will look
           </div>
           <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 24 }}>
-            Generated to match <strong>{suggestedSiteName}</strong>&apos;s brand style
+            Illustrated scenes matched to <strong>{suggestedSiteName}</strong>&apos;s brand style
           </p>
             {error && (
               <div style={{
