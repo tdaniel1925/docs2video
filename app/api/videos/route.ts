@@ -25,11 +25,12 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const body = await request.json()
-  const { policyData, brandId, voiceId, assets } = body as {
+  const { policyData, brandId, voiceId, assets, clientId } = body as {
     policyData: ExtractedPolicyData | ExtractedData
     brandId: string | null
     voiceId: string
     assets?: { url: string; tag: string }[]
+    clientId?: string
   }
 
   // --- Free trial / pay-per-video gate ---
@@ -132,17 +133,20 @@ export async function POST(request: Request) {
     ? `${(policyData as ExtractedPolicyData).carrier} - ${(policyData as ExtractedPolicyData).policyType} Explainer`
     : `${(policyData as ExtractedData).title || (policyData as any).companyName || 'Video'} Explainer`
 
+  const insertData: Record<string, unknown> = {
+    user_id: user.id,
+    brand_id: brandId,
+    title,
+    voice_id: voiceId,
+    status: 'pending',
+    is_trial: isTrial,
+    script: { _pipeline_input: { policyData, brandId, voiceId, assets } },
+  }
+  if (clientId) insertData.client_id = clientId
+
   const { data: video, error } = await supabase
     .from('videos')
-    .insert({
-      user_id: user.id,
-      brand_id: brandId,
-      title,
-      voice_id: voiceId,
-      status: 'pending',
-      is_trial: isTrial,
-      script: { _pipeline_input: { policyData, brandId, voiceId, assets } },
-    })
+    .insert(insertData)
     .select()
     .single()
 

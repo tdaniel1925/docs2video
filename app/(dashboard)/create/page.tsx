@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/client'
 import { SLIDE_STYLES } from '../../_lib/types'
 import { autoSelectStyle, autoSelectFromBrand } from '../../_lib/style-picker'
@@ -31,6 +31,8 @@ export default function CreatePage() {
   }
 
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const clientId = searchParams.get('clientId')
   const [purpose, setPurpose] = useState('')
   const [method, setMethod] = useState<InputMethod>(null)
   const [urlInput, setUrlInput] = useState('')
@@ -64,9 +66,18 @@ export default function CreatePage() {
   const [styleProgressPct, setStyleProgressPct] = useState(0)
   const [styleSearchQuery, setStyleSearchQuery] = useState('')
   const [styleMatchedSite, setStyleMatchedSite] = useState<string | null>(null)
+  const [clientName, setClientName] = useState<string | null>(null)
   const styleFileRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const purposeRef = useRef<HTMLTextAreaElement>(null)
+
+  // Load client name if creating for a specific client
+  useEffect(() => {
+    if (!clientId) return
+    fetch(`/api/clients/${clientId}`).then(r => r.json()).then(d => {
+      if (d.client?.name) setClientName(d.client.name)
+    }).catch(() => {})
+  }, [clientId])
 
   // Load brands + check credits
   useEffect(() => {
@@ -274,7 +285,7 @@ export default function CreatePage() {
       const createRes = await fetch('/api/videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ policyData, brandId: effectiveBrand, voiceId: 'nova' }),
+        body: JSON.stringify({ policyData, brandId: effectiveBrand, voiceId: 'nova', clientId: clientId || undefined }),
       })
       const createData = await createRes.json()
       if (!createRes.ok) { setError(createData.error || 'Failed to create video'); setStage('idle'); return }
@@ -441,6 +452,16 @@ export default function CreatePage() {
       </div>
 
       {/* Heading */}
+      {clientName && (
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          padding: '6px 14px', borderRadius: 8, marginBottom: 12,
+          background: 'rgba(199,232,168,0.15)', border: '1px solid var(--mint)',
+          fontSize: 13, fontWeight: 600, color: 'var(--ink)',
+        }}>
+          Creating video for <strong>{clientName}</strong>
+        </div>
+      )}
       <h1 style={{
         fontSize: 38, fontWeight: 800, letterSpacing: '-0.03em',
         textAlign: 'center', marginBottom: 8, color: 'var(--ink)',
