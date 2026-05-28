@@ -528,44 +528,14 @@ export async function POST(request: Request) {
     const flatPrompts = flatSlides.map((s: { prompt: string }) => s.prompt)
     const flatNarrations = flatSlides.map((s: { narration: string }) => s.narration)
 
-    // STAGE 2.5: Generate premium cover + closing slides via Sharp composite
+    // Cover/closing slides will be generated on VPS alongside other images
+    const coverImageBase64: string | null = null
+    const closingImageBase64: string | null = null
     const videoTitle = scenes[0]?.title || (policyData as any)?.title || purpose || 'Presentation'
-    const effectiveBrandName = brand?.name || (body as any).companyName || null
     const contactForClosing = {
       phone: brandGuide?.phone || (policyData as any)?.contactPhone || (policyData as any)?.contactInfo?.phone || undefined,
       email: brandGuide?.email || (policyData as any)?.contactEmail || (policyData as any)?.contactInfo?.email || undefined,
       website: (policyData as any)?.contactWebsite || (policyData as any)?.contactInfo?.website || undefined,
-    }
-
-    await admin.from('videos').update({ progress_detail: 'Designing cover page...', progress_pct: 17 }).eq('id', videoId)
-
-    let coverImageBase64: string | null = null
-    let closingImageBase64: string | null = null
-    try {
-      const [coverBuf, closingBuf] = await Promise.all([
-        generateCoverSlide({
-          title: videoTitle,
-          companyName: effectiveBrandName,
-          logoUrl,
-          brandColors,
-          stylePrompt,
-          type: 'cover',
-        }),
-        generateCoverSlide({
-          title: videoTitle,
-          companyName: effectiveBrandName,
-          logoUrl,
-          brandColors,
-          stylePrompt,
-          type: 'closing',
-          contactInfo: contactForClosing,
-        }),
-      ])
-      coverImageBase64 = coverBuf.toString('base64')
-      closingImageBase64 = closingBuf.toString('base64')
-      console.log(`[video ${videoId}] Cover + closing slides generated (${(coverBuf.length / 1024).toFixed(0)}KB + ${(closingBuf.length / 1024).toFixed(0)}KB)`)
-    } catch (coverErr) {
-      console.error(`[video ${videoId}] Cover generation failed, VPS will generate normally:`, coverErr instanceof Error ? coverErr.message : 'unknown')
     }
 
     // STAGE 3: Hand off to VPS with flat 1:1 slide:narration arrays
@@ -582,8 +552,8 @@ export async function POST(request: Request) {
         userId: user.id,
         slidePrompts: flatPrompts,
         slideNarrations: flatNarrations,
-        coverImageBase64,
-        closingImageBase64,
+        videoTitle,
+        contactForClosing,
         logoUrl,
         brandName: brand?.name || (body as any).companyName || null,
         brandColors,
