@@ -127,16 +127,17 @@ function generateFramePrompts(scene: VideoScene, stylePrompt: string, sceneIndex
   const metaphorOptions = metaphors[metaphorKey]
   const chosenMetaphor = metaphorOptions[sceneIndex % metaphorOptions.length]
 
-  const baseStyle = `${stylePrompt} 1920x1080 landscape format. Fill entire canvas edge to edge. ABSOLUTELY NO TEXT of any kind — no words, no numbers, no percentages, no labels, no titles, no logos, no brand names, no UI elements. Pure illustrated artwork only.`
+  const baseStyle = `${stylePrompt} 1920x1080 landscape format. Fill entire canvas edge to edge. DO NOT include any logos or brand names. You MAY include a short headline (2-5 words max) and key numbers/stats as bold text integrated into the illustration design. Leave the bottom 100 pixels dark/empty for a branded bar overlay.`
 
-  // Frame 1: Setup — establish the scene/metaphor
-  const frame1 = `${baseStyle} Scene setup: ${chosenMetaphor} — the beginning. ${isFirst ? 'Opening scene.' : ''} Show the visual metaphor starting — the environment is being established. Mood is anticipatory. Pure illustration, no text.`
+  // Frame 1: Setup — establish the scene with headline
+  const frame1 = `${baseStyle} Scene setup: ${chosenMetaphor} — the beginning. ${isFirst ? 'Opening scene.' : ''} Show the visual metaphor starting. Include a bold headline: "${scene.title}". ${scene.slidePrompt ? 'Context: ' + scene.slidePrompt : ''}`
 
-  // Frame 2: Reveal — the metaphor reaches its key moment
-  const frame2 = `${baseStyle} Scene reveal: ${chosenMetaphor} — the main moment. The visual metaphor is now in its most impactful state. This is the hero frame — dramatic, vivid, emotionally resonant. Pure illustration, no text.`
+  // Frame 2: Reveal — key data integrated into the scene
+  const dataPoints = scene.narration.match(/\$[\d,]+|\d+%|\d+ (?:years?|months?)/gi)?.slice(0, 3)?.join(', ') || ''
+  const frame2 = `${baseStyle} Scene reveal: ${chosenMetaphor} — the main moment. The visual metaphor is in its most impactful state. ${dataPoints ? 'Show these key numbers prominently: ' + dataPoints + '.' : ''} This is the hero frame — dramatic, vivid, emotionally resonant.`
 
-  // Frame 3: Resolution — the metaphor completes
-  const frame3 = `${baseStyle} Scene resolution: ${chosenMetaphor} — the completion. The visual metaphor reaches its fulfilling conclusion. ${isLast ? 'Warm, hopeful ending — a path forward, an open door, or a bright horizon.' : 'Warm, resolved, complete feeling.'} Pure illustration, no text.`
+  // Frame 3: Resolution — conclusion
+  const frame3 = `${baseStyle} Scene resolution: ${chosenMetaphor} — the completion. The visual metaphor reaches its fulfilling conclusion. ${isLast ? 'Closing scene — show a warm, hopeful ending with a sense of invitation and next steps.' : 'Warm, resolved, complete feeling.'}`
 
   return [frame1, frame2, frame3]
 }

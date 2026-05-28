@@ -512,7 +512,7 @@ export async function POST(request: Request) {
       const allFramePrompts = scene.framePrompts || [scene.slidePrompt, scene.slidePrompt, scene.slidePrompt]
       const framePrompts = allFramePrompts.slice(0, maxFrames)
       return framePrompts.map((fp: string) => {
-        return `${stylePrompt}\n\n${fp}\n\nBrand colors: primary ${brandColors.primary}, secondary ${brandColors.secondary}. Use these colors throughout. DO NOT draw any text, logos, brand names, or UI elements. Pure illustrated scene only.`
+        return `${stylePrompt}\n\n${fp}\n\nNarration context (illustrate this): "${scene.narration?.slice(0, 200)}"\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette. Use them for backgrounds, accents, shapes, and key elements. DO NOT use random colors — match the brand.`
       })
     })
 
