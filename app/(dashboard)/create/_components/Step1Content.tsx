@@ -200,6 +200,18 @@ export default function Step1Content() {
     if (method === 'upload' && !fileRef.current?.files?.[0]) { setError('Select a file to continue'); return }
 
     setStage('extracting')
+    setProgressPct(5)
+    setStageMsg('Starting...')
+
+    // Simulate progress while waiting for API calls
+    const progressTimer = setInterval(() => {
+      setProgressPct(prev => {
+        if (prev < 30) return prev + 3
+        if (prev < 60) return prev + 2
+        if (prev < 85) return prev + 1
+        return Math.min(prev + 0.5, 95)
+      })
+    }, 1000)
 
     try {
       // Extract content based on method
@@ -266,6 +278,7 @@ export default function Step1Content() {
       if (!extractedData) throw new Error('No content could be extracted')
 
       // For URL scrape with brand info, generate real preview slides
+      clearInterval(progressTimer)
       if (method === 'url' && autoBrandInfo) {
         const bi = autoBrandInfo as Record<string, unknown>
         const siteName = (bi.name as string) || (bi.companyName as string) ||
@@ -316,8 +329,12 @@ export default function Step1Content() {
       }
 
       // Create draft video record
+      clearInterval(progressTimer)
+      setProgressPct(98)
       await createDraftAndRedirect(extractedData, autoBrandInfo)
     } catch (err) {
+      clearInterval(progressTimer)
+      setProgressPct(0)
       setError(err instanceof Error ? err.message : 'Something went wrong')
       setStage('idle')
     }
