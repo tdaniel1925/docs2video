@@ -67,6 +67,8 @@ export default function CreatePage() {
   const [styleSearchQuery, setStyleSearchQuery] = useState('')
   const [styleMatchedSite, setStyleMatchedSite] = useState<string | null>(null)
   const [clientName, setClientName] = useState<string | null>(null)
+  const [companyName, setCompanyName] = useState('')
+  const [noContactInfo, setNoContactInfo] = useState(false)
   const styleFileRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const purposeRef = useRef<HTMLTextAreaElement>(null)
@@ -203,6 +205,13 @@ export default function CreatePage() {
     if (method === 'text' && textInput.trim().length < 50) { setError('Paste at least 50 characters'); return }
     if (method === 'upload' && !fileRef.current?.files?.[0]) { setError('Select a file to continue'); return }
 
+    // Validate company name — needed for branded bar on video
+    if (!selectedBrand && !companyName.trim() && !noContactInfo && method !== 'url') {
+      setShowOptions(true)
+      setError('Add a company name for the video bar, or check "No contact info needed"')
+      return
+    }
+
     // For file uploads, we need a different flow — upload first, then use the existing extract route
     if (method === 'upload') {
       await handleUploadFlow()
@@ -306,6 +315,8 @@ export default function CreatePage() {
           industry: extractedData?.industry || 'general',
           bookingUrl: bookingUrl.trim() || undefined,
           paymentLink: paymentLink.trim() || undefined,
+          companyName: companyName.trim() || undefined,
+          noContactBar: noContactInfo || undefined,
         }),
       })
       const genData = await genRes.json()
@@ -325,6 +336,13 @@ export default function CreatePage() {
   async function handleUploadFlow() {
     const file = fileRef.current?.files?.[0]
     if (!file) { setError('No file selected. Please choose a file first.'); return }
+
+    // Validate company name
+    if (!selectedBrand && !companyName.trim() && !noContactInfo) {
+      setShowOptions(true)
+      setError('Add a company name for the video bar, or check "No contact info needed"')
+      return
+    }
 
     setStage('extracting')
     setStageMsg('Reading your document...')
@@ -377,6 +395,8 @@ export default function CreatePage() {
           industry: extractData?.industry || 'general',
           bookingUrl: bookingUrl.trim() || undefined,
           paymentLink: paymentLink.trim() || undefined,
+          companyName: companyName.trim() || undefined,
+          noContactBar: noContactInfo || undefined,
         }),
       })
       const genData = await genRes.json()
@@ -695,6 +715,37 @@ export default function CreatePage() {
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Company name — for video bottom bar */}
+              {!selectedBrand && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
+                    Company name <span style={{ fontWeight: 500, color: 'var(--ink-light)' }}>(shown on video bar)</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={companyName}
+                    onChange={e => { setCompanyName(e.target.value); setNoContactInfo(false) }}
+                    placeholder="e.g. Apex Financial Group"
+                    disabled={noContactInfo}
+                    style={{
+                      width: '100%', padding: '8px 12px', borderRadius: 8,
+                      border: '1px solid var(--border-light)', fontSize: 13, fontFamily: 'inherit',
+                      outline: 'none', marginBottom: 8,
+                      opacity: noContactInfo ? 0.5 : 1,
+                    }}
+                  />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-light)', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={noContactInfo}
+                      onChange={e => { setNoContactInfo(e.target.checked); if (e.target.checked) setCompanyName('') }}
+                      style={{ width: 16, height: 16, cursor: 'pointer' }}
+                    />
+                    No contact info needed — skip the branded bar
+                  </label>
                 </div>
               )}
 
