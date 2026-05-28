@@ -30,13 +30,16 @@ export default function CreditCost({
 
   const cost = calculateVideoCost({ outputType, detailLevel, narrationStyle })
 
+  const [isAdminUser, setIsAdminUser] = useState(false)
+
   useEffect(() => {
     async function fetchBalance() {
       try {
         const res = await fetch('/api/credits/balance')
         if (!res.ok) throw new Error('Failed to fetch balance')
-        const data: BalanceData = await res.json()
+        const data = await res.json()
         setBalanceData(data)
+        if (data.isAdmin) setIsAdminUser(true)
       } catch (err) {
         setError('Could not load credit balance')
         console.error('[CreditCost]', err)
@@ -56,7 +59,7 @@ export default function CreditCost({
   }
 
   const remaining = balanceData.balance
-  const sufficient = remaining >= cost
+  const sufficient = isAdminUser || remaining >= cost
 
   return (
     <div style={styles.container}>

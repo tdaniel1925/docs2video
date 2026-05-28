@@ -30,10 +30,17 @@ export async function GET() {
       balance = await getBalance(user.id)
     }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single()
+
     return NextResponse.json({
       balance: balance.total,
       monthly: balance.monthly,
       topup: balance.topup,
+      isAdmin: profile?.is_admin || false,
     })
   } catch (err) {
     console.error('[credits/balance] Failed to get balance:', err)
