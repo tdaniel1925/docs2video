@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { generateScript } from '../../_lib/script-generator'
+import { generateScript, splitNarration } from '../../_lib/script-generator'
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
 import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
@@ -511,13 +511,24 @@ export async function POST(request: Request) {
       const maxFrames = dl === 'quick' ? 1 : dl === 'detailed' ? 3 : 2
       const allFramePrompts = scene.framePrompts || [scene.slidePrompt, scene.slidePrompt, scene.slidePrompt]
       const framePrompts = allFramePrompts.slice(0, maxFrames)
-      return framePrompts.map((fp: string) => {
-        return `${stylePrompt}\n\n${fp}\n\nNarration context (illustrate this): "${scene.narration?.slice(0, 200)}"\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette. Use them for backgrounds, accents, shapes, and key elements. DO NOT use random colors — match the brand.`
-      })
+
+      // Split narration into chunks matching frame count (1 audio per slide)
+      const narrationChunks = splitNarration(scene.narration || '', maxFrames)
+
+      return framePrompts.map((fp: string, fi: number) => ({
+        prompt: `${stylePrompt}\n\n${fp}\n\nNarration context (illustrate THIS part): "${narrationChunks[fi]?.slice(0, 200)}"\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette. Use them for backgrounds, accents, shapes, and key elements. DO NOT use random colors — match the brand.`,
+        narration: narrationChunks[fi] || '',
+        title: scene.title,
+      }))
     })
 
-    // STAGE 3: Hand off to VPS with pre-built prompts
-    console.log(`[video ${videoId}] Handing off to VPS: ${scenes.length} scenes, voice=${voiceId}, style=${templateId}`)
+    // Flatten: each slide gets its own prompt + narration (1:1 mapping)
+    const flatSlides = slidePrompts.flat()
+    const flatPrompts = flatSlides.map((s: { prompt: string }) => s.prompt)
+    const flatNarrations = flatSlides.map((s: { narration: string }) => s.narration)
+
+    // STAGE 3: Hand off to VPS with flat 1:1 slide:narration arrays
+    console.log(`[video ${videoId}] Handing off to VPS: ${scenes.length} scenes → ${flatPrompts.length} slides, voice=${voiceId}, style=${templateId}`)
     await admin.from('videos').update({ progress_detail: 'Sending to video server...', progress_pct: 18 }).eq('id', videoId)
 
     const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate`, {
@@ -528,7 +539,8 @@ export async function POST(request: Request) {
         voiceId,
         scenes,
         userId: user.id,
-        slidePrompts,
+        slidePrompts: flatPrompts,
+        slideNarrations: flatNarrations,
         logoUrl,
         brandName: brand?.name || null,
         brandColors,

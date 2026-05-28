@@ -98,6 +98,56 @@ function getVoiceDescription(voiceId?: string): string | null {
   return map[voiceId] ?? null
 }
 
+/**
+ * Split narration into chunks matching frame count.
+ * Splits on sentence boundaries so each frame's audio makes sense standalone.
+ */
+export function splitNarration(narration: string, frameCount: number): string[] {
+  if (frameCount <= 1) return [narration]
+
+  // Split into sentences
+  const sentences = narration.match(/[^.!?]+[.!?]+/g) || [narration]
+  if (sentences.length <= frameCount) {
+    // Not enough sentences — distribute evenly
+    const chunks: string[] = []
+    const perChunk = Math.max(1, Math.ceil(sentences.length / frameCount))
+    for (let i = 0; i < frameCount; i++) {
+      const start = i * perChunk
+      const chunk = sentences.slice(start, start + perChunk).join(' ').trim()
+      chunks.push(chunk || sentences[sentences.length - 1]?.trim() || narration)
+    }
+    return chunks
+  }
+
+  // More sentences than frames — distribute evenly by character count
+  const totalChars = sentences.reduce((sum, s) => sum + s.length, 0)
+  const targetPerChunk = totalChars / frameCount
+  const chunks: string[] = []
+  let current = ''
+
+  for (const sentence of sentences) {
+    current += sentence
+    if (current.length >= targetPerChunk && chunks.length < frameCount - 1) {
+      chunks.push(current.trim())
+      current = ''
+    }
+  }
+  // Push remaining
+  if (current.trim()) {
+    chunks.push(current.trim())
+  }
+
+  // Ensure we have exactly frameCount chunks
+  while (chunks.length < frameCount) chunks.push(chunks[chunks.length - 1])
+  while (chunks.length > frameCount) {
+    // Merge last two
+    const last = chunks.pop()!
+    chunks[chunks.length - 1] += ' ' + last
+  }
+
+  return chunks
+}
+
 function generateFramePrompts(scene: VideoScene, stylePrompt: string, sceneIndex: number, totalScenes: number): string[] {
   const isFirst = sceneIndex === 0
   const isLast = sceneIndex === totalScenes - 1
