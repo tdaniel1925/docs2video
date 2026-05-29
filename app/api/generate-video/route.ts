@@ -2,8 +2,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { generateScript, splitNarration } from '../../_lib/script-generator'
-import { generateCoverSlide } from '../../_lib/cover-generator'
+import { generateScript } from '../../_lib/script-generator'
+// Cover/closing slides generated on VPS
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
 import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
@@ -507,30 +507,12 @@ export async function POST(request: Request) {
         totalPages: scenes.length,
       }
 
-      // Frame count depends on detail level: quick=1 (static), standard=2, detailed=3
-      const dl = (body as any).detailLevel || 'standard'
-      const maxFrames = dl === 'quick' ? 1 : dl === 'detailed' ? 3 : 2
-      const allFramePrompts = scene.framePrompts || [scene.slidePrompt, scene.slidePrompt, scene.slidePrompt]
-      const framePrompts = allFramePrompts.slice(0, maxFrames)
-
-      // Split narration into chunks matching frame count (1 audio per slide)
-      const narrationChunks = splitNarration(scene.narration || '', maxFrames)
-
-      return framePrompts.map((fp: string, fi: number) => ({
-        prompt: `${stylePrompt}\n\n${fp}\n\nNarration context (illustrate THIS part): "${narrationChunks[fi]?.slice(0, 200)}"\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette. Use them for backgrounds, accents, shapes, and key elements. DO NOT use random colors — match the brand.`,
-        narration: narrationChunks[fi] || '',
-        title: scene.title,
-      }))
+      // 1 slide per scene — single prompt with full narration context
+      const fp = scene.framePrompts?.[0] || scene.slidePrompt || scene.title
+      return `${stylePrompt}\n\n${fp}\n\nNarration context (illustrate this): "${scene.narration?.slice(0, 300)}"\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette.`
     })
 
-    // Flatten: each slide gets its own prompt + narration (1:1 mapping)
-    const flatSlides = slidePrompts.flat()
-    const flatPrompts = flatSlides.map((s: { prompt: string }) => s.prompt)
-    const flatNarrations = flatSlides.map((s: { narration: string }) => s.narration)
-
-    // Cover/closing slides will be generated on VPS alongside other images
-    const coverImageBase64: string | null = null
-    const closingImageBase64: string | null = null
+    // Video metadata for VPS
     const videoTitle = scenes[0]?.title || (policyData as any)?.title || purpose || 'Presentation'
     const contactForClosing = {
       phone: brandGuide?.phone || (policyData as any)?.contactPhone || (policyData as any)?.contactInfo?.phone || undefined,
@@ -538,8 +520,8 @@ export async function POST(request: Request) {
       website: (policyData as any)?.contactWebsite || (policyData as any)?.contactInfo?.website || undefined,
     }
 
-    // STAGE 3: Hand off to VPS with flat 1:1 slide:narration arrays
-    console.log(`[video ${videoId}] Handing off to VPS: ${scenes.length} scenes → ${flatPrompts.length} slides, voice=${voiceId}, style=${templateId}`)
+    // STAGE 3: Hand off to VPS — 1 slide per scene, 1 audio per scene
+    console.log(`[video ${videoId}] Handing off to VPS: ${scenes.length} scenes = ${slidePrompts.length} slides, voice=${voiceId}, style=${templateId}`)
     await admin.from('videos').update({ progress_detail: 'Sending to video server...', progress_pct: 18 }).eq('id', videoId)
 
     const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate`, {
@@ -550,8 +532,7 @@ export async function POST(request: Request) {
         voiceId,
         scenes,
         userId: user.id,
-        slidePrompts: flatPrompts,
-        slideNarrations: flatNarrations,
+        slidePrompts,
         videoTitle,
         contactForClosing,
         logoUrl,
