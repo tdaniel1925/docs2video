@@ -254,6 +254,18 @@ export async function generateScript(
     }
   }
 
+  // For insurance: reinforce carrier name ban and focus on policy features
+  if (isInsurance) {
+    const carrierName = (data as any).carrier || ''
+    additionalSections.push(`CRITICAL INSURANCE RULES (MUST FOLLOW):
+1. NEVER say "${carrierName}" or any carrier/company name. Use "the carrier" or "your carrier" instead.
+2. NEVER mention the product name "${(data as any).policyType || ''}". Say "your policy" or "this policy" instead.
+3. Focus on EXPLAINING POLICY FEATURES AND BENEFITS to the policyholder — not on describing the carrier.
+4. The viewer is the POLICYHOLDER. Explain what their policy does for THEM: death benefit, cash value, riders, premiums.
+5. Do NOT summarize the carrier's marketing. Instead, explain: "Here's what this means for your family's financial security."
+6. Use specific numbers from the data (death benefit amount, premium, cash value projections) — these are the viewer's numbers.`)
+  }
+
   // Inject deep analysis as the primary content guide
   if (deepAnalysis) {
     additionalSections.push(`STRATEGIC BRIEF (USE THIS AS YOUR PRIMARY GUIDE — cover ALL these points in the script):\n${deepAnalysis}`)
@@ -569,6 +581,50 @@ FIELD RULES:
     for (const scene of scenes) {
       if (scene.narration) {
         scene.narration = scene.narration.replace(forwardPhrases, '').replace(/\s{2,}/g, ' ').trim()
+      }
+    }
+
+    // Post-parse: strip carrier/company names from insurance narrations
+    if (isInsurance && (data as any).carrier) {
+      const carrierName = (data as any).carrier as string
+      if (carrierName && carrierName.length > 2) {
+        // Build variations: "Pacific Life", "PacificLife", "Pacific life"
+        const variations = [
+          carrierName,
+          carrierName.toLowerCase(),
+          carrierName.toUpperCase(),
+          carrierName.replace(/\s+/g, ''),
+        ]
+        // Also handle common carrier name patterns
+        const productName = (data as any).policyType as string || ''
+        if (productName) variations.push(productName)
+
+        for (const scene of scenes) {
+          if (scene.narration) {
+            for (const v of variations) {
+              if (v.length > 2) {
+                const regex = new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+                scene.narration = scene.narration.replace(regex, v === productName ? 'this policy' : 'the carrier')
+              }
+            }
+            // Clean up awkward phrasing from replacement
+            scene.narration = scene.narration
+              .replace(/from the carrier the carrier/gi, 'from the carrier')
+              .replace(/the carrier's the carrier/gi, "the carrier's")
+              .replace(/\s{2,}/g, ' ')
+              .trim()
+          }
+          // Also strip from slide data
+          if (scene.slideData?.headline) {
+            for (const v of variations) {
+              if (v.length > 2) {
+                scene.slideData.headline = scene.slideData.headline.replace(new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), v === productName ? 'Your Policy' : '')
+              }
+            }
+            scene.slideData.headline = scene.slideData.headline.replace(/\s{2,}/g, ' ').trim()
+          }
+        }
+        console.log(`[script-gen] Stripped carrier name "${carrierName}" from narration`)
       }
     }
 
