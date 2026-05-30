@@ -12,6 +12,7 @@ const STEPS = [
 const ADVANCED_STEPS = [
   { path: '/create', label: 'Goal' },
   { path: '/create/source', label: 'Content' },
+  { path: '/create/styling', label: 'Style' },
   { path: '/create/review', label: 'Review' },
   { path: '/create/script', label: 'Script' },
   { path: '/create/options', label: 'Options' },
@@ -22,7 +23,7 @@ export default function CreateLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname()
 
   // Detect if user is in the advanced flow (source/review/script/options pages)
-  const isAdvancedFlow = ['/create/source', '/create/extracting', '/create/review', '/create/script', '/create/options'].some(p => pathname === p)
+  const isAdvancedFlow = ['/create/source', '/create/extracting', '/create/styling', '/create/review', '/create/script', '/create/options'].some(p => pathname === p)
   const steps = isAdvancedFlow ? ADVANCED_STEPS : STEPS
 
   // Map extracting to Content step (it's part of that flow)

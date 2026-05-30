@@ -111,7 +111,14 @@ export default function Step1Content() {
       if (overrides?.skipToStep) {
         router.push(`/create/${overrides.skipToStep}?id=${draftData.videoId}`)
       } else {
-        router.push(`/create/brand?id=${draftData.videoId}`)
+        // Save extracted data to localStorage for the styling step
+        const createState = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+        createState.videoId = draftData.videoId
+        createState.extractedData = extractedData
+        createState.outputType = outputType
+        createState.purpose = purpose.trim()
+        localStorage.setItem('d2v_create', JSON.stringify(createState))
+        router.push(`/create/styling`)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -277,56 +284,8 @@ export default function Step1Content() {
 
       if (!extractedData) throw new Error('No content could be extracted')
 
-      // For URL scrape with brand info, generate real preview slides
+      // All methods go straight to draft creation → styling step
       clearInterval(progressTimer)
-      if (method === 'url' && autoBrandInfo) {
-        const bi = autoBrandInfo as Record<string, unknown>
-        const siteName = (bi.name as string) || (bi.companyName as string) ||
-          new URL(urlInput.trim().startsWith('http') ? urlInput.trim() : `https://${urlInput.trim()}`).hostname
-        setSuggestedSiteName(siteName)
-        setPendingExtractedData(extractedData)
-        setPendingAutoBrandInfo(autoBrandInfo)
-        setStage('generating-preview')
-        setStageMsg('Analyzing brand style...')
-        setProgressPct(60)
-        const progressSteps = [
-          { msg: 'Extracting brand colors and typography...', delay: 3000, pct: 68 },
-          { msg: 'Illustrating opening scene...', delay: 8000, pct: 75 },
-          { msg: 'Illustrating content scene...', delay: 20000, pct: 85 },
-          { msg: 'Adding branding and finishing...', delay: 35000, pct: 92 },
-        ]
-        const timers = progressSteps.map(s => setTimeout(() => { setStageMsg(s.msg); setProgressPct(s.pct) }, s.delay))
-        const cleanupTimers = () => timers.forEach(t => clearTimeout(t))
-
-        try {
-          const previewRes = await fetch('/api/style-preview-from-brand', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              primaryColor: bi.primary_color || bi.primaryColor || null,
-              secondaryColor: bi.secondary_color || bi.secondaryColor || null,
-              companyName: siteName,
-              industry: bi.industry || null,
-              tone: bi.tone || null,
-              logoUrl: bi.logoFileUrl || bi.logoUrl || null,
-            }),
-          })
-          const previewData = await previewRes.json()
-          cleanupTimers()
-          if (previewRes.ok && previewData.previews?.length > 0) {
-            setPreviewImages(previewData.previews)
-            setPreviewStyleDesc(previewData.styleDescription || '')
-            setProgressPct(100)
-            setStage('style-suggest')
-          } else {
-            await createDraftAndRedirect(extractedData, autoBrandInfo)
-          }
-        } catch {
-          cleanupTimers()
-          await createDraftAndRedirect(extractedData, autoBrandInfo)
-        }
-        return
-      }
 
       // Create draft video record
       clearInterval(progressTimer)
