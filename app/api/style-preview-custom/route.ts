@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
     // Step 2: Generate cover preview
     const coverRes = await genai.models.generateContent({
-      model: 'gemini-3.1-flash-image',
+      model: 'gemini-3-pro-image',
       contents: 'Generate this image: ' + styleDescription + ' 1920x1080 landscape. VIDEO COVER SLIDE. Display: Company name "' + (companyName || 'YOUR COMPANY').toUpperCase() + '" large, bold, centered, prominent. Title: "' + (videoTitle || 'Professional Video Presentation') + '" below. Subtitle: "A Personalized Video Presentation" smaller. Beautiful typography integrated into the artwork. No logos.',
       config: { responseModalities: ['IMAGE', 'TEXT'] },
     })
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 
     // Step 3: Generate content preview
     const contentRes = await genai.models.generateContent({
-      model: 'gemini-3.1-flash-image',
+      model: 'gemini-3-pro-image',
       contents: 'Generate this image: ' + styleDescription + ' 1920x1080 landscape. HEADLINE: "Key Highlights". Create a professional infographic showing: headline at top, a large key metric "$250,000" prominently displayed, three stat boxes at bottom: "10-Year Plan" | "$99/month" | "Guaranteed". Visual elements matching the style. Icons and data visualization.',
       config: { responseModalities: ['IMAGE', 'TEXT'] },
     })
