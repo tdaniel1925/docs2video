@@ -512,16 +512,45 @@ export async function POST(request: Request) {
       return `${stylePrompt}\n\n${fp}\n\nNarration context (illustrate this): "${scene.narration?.slice(0, 300)}"\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette.`
     })
 
-    // Video metadata for VPS
+    // Video metadata
     const videoTitle = scenes[0]?.title || (policyData as any)?.title || purpose || 'Presentation'
+    const effectiveBrandName = brand?.name || (body as any).companyName || null
     const contactForClosing = {
       phone: brandGuide?.phone || (policyData as any)?.contactPhone || (policyData as any)?.contactInfo?.phone || undefined,
       email: brandGuide?.email || (policyData as any)?.contactEmail || (policyData as any)?.contactInfo?.email || undefined,
       website: (policyData as any)?.contactWebsite || (policyData as any)?.contactInfo?.website || undefined,
     }
 
-    // STAGE 3: Hand off to VPS — 1 slide per scene, 1 audio per scene
-    console.log(`[video ${videoId}] Handing off to VPS: ${scenes.length} scenes = ${slidePrompts.length} slides, voice=${voiceId}, style=${templateId}`)
+    // Build cover narration (short intro)
+    const coverNarration = effectiveBrandName
+      ? `Welcome. This is a presentation from ${effectiveBrandName}. ${videoTitle}.`
+      : `Welcome to this presentation. ${videoTitle}.`
+
+    // Build closing narration (short outro with contact info)
+    const contactParts: string[] = []
+    if (contactForClosing.website) contactParts.push(`Visit ${contactForClosing.website}`)
+    if (contactForClosing.phone) contactParts.push(`or call ${contactForClosing.phone}`)
+    if (contactForClosing.email) contactParts.push(`or email ${contactForClosing.email}`)
+    const closingNarration = effectiveBrandName
+      ? `Thank you for watching. ${contactParts.length > 0 ? `To learn more, ${contactParts.join(' ')}.` : `We appreciate your time.`} ${effectiveBrandName} looks forward to serving you.`
+      : `Thank you for watching. ${contactParts.length > 0 ? `To learn more, ${contactParts.join(' ')}.` : `We appreciate your time.`}`
+
+    // Prepend cover + append closing to scenes for VPS
+    // VPS treats ALL slides the same — cover/closing are just the first/last
+    const coverScene = { title: videoTitle, narration: coverNarration, slidePrompt: 'cover' }
+    const closingScene = { title: 'Thank You', narration: closingNarration, slidePrompt: 'closing' }
+    const allScenes = [coverScene, ...scenes, closingScene]
+
+    // Build cover slide prompt
+    const coverPrompt = `COVER_SLIDE:${effectiveBrandName || videoTitle}:${videoTitle}`
+    // Build closing slide prompt
+    const closingPrompt = `CLOSING_SLIDE:${effectiveBrandName || 'Thank You'}:${[contactForClosing.website, contactForClosing.phone, contactForClosing.email].filter(Boolean).join('|')}`
+
+    // Prepend/append to slidePrompts
+    const allSlidePrompts = [coverPrompt, ...slidePrompts, closingPrompt]
+
+    // STAGE 3: Hand off to VPS — all slides have matching narration
+    console.log(`[video ${videoId}] Handing off to VPS: ${allScenes.length} total slides (cover + ${scenes.length} content + closing), voice=${voiceId}`)
     await admin.from('videos').update({ progress_detail: 'Sending to video server...', progress_pct: 18 }).eq('id', videoId)
 
     const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate`, {
@@ -530,13 +559,13 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         videoId,
         voiceId,
-        scenes,
+        scenes: allScenes,
         userId: user.id,
-        slidePrompts,
+        slidePrompts: allSlidePrompts,
         videoTitle,
         contactForClosing,
         logoUrl,
-        brandName: brand?.name || (body as any).companyName || null,
+        brandName: effectiveBrandName,
         brandColors,
         noContactBar: (body as any).noContactBar || false,
         musicPrompt: musicPrompt || (aiMusic ? 'Professional ambient background music, subtle and warm' : ''),
