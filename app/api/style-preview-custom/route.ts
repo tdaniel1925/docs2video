@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   try {
     // Step 1: Analyze the reference image style
     const analysisRes = await genai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: [{
         role: 'user',
         parts: [
