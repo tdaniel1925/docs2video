@@ -39,6 +39,11 @@ export default function StylingPage() {
   const [showCustomPrompt, setShowCustomPrompt] = useState(false)
   const [referenceFile, setReferenceFile] = useState<File | null>(null)
   const [referencePreview, setReferencePreview] = useState<string | null>(null)
+  const [customPreviews, setCustomPreviews] = useState<string[]>([])
+  const [customStyleDesc, setCustomStyleDesc] = useState('')
+  const [generatingCustom, setGeneratingCustom] = useState(false)
+  const [customError, setCustomError] = useState<string | null>(null)
+  const [companyNameInput, setCompanyNameInput] = useState('')
 
   // Load saved templates from localStorage
   useEffect(() => {
@@ -210,43 +215,152 @@ export default function StylingPage() {
           ))}
         </div>
 
-        {/* Upload reference image */}
-        <div style={{ marginTop: 12 }}>
-          <button
-            onClick={() => {
-              const input = document.createElement('input')
-              input.type = 'file'
-              input.accept = 'image/*'
-              input.onchange = e => {
-                const file = (e.target as HTMLInputElement).files?.[0]
-                if (file) handleReferenceUpload(file)
-              }
-              input.click()
-            }}
+        {/* Create Your Own Style */}
+        <div style={{
+          marginTop: 20, padding: '20px', borderRadius: 10,
+          border: '1.5px solid var(--border-light)', background: 'var(--bg-soft)',
+        }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>
+            Create Your Own Style
+          </div>
+          <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 16, lineHeight: 1.4 }}>
+            Upload any image as a reference &mdash; a design you love, a brand asset, a screenshot &mdash; and AI will generate preview slides matching that visual style. Costs 50 credits.
+          </p>
+
+          {/* Company name for preview */}
+          <input
+            type="text"
+            value={companyNameInput}
+            onChange={e => setCompanyNameInput(e.target.value)}
+            placeholder="Company name (for preview slides)"
             style={{
-              width: '100%', padding: '14px', borderRadius: 10,
-              border: '1.5px dashed var(--border)', background: 'var(--bg-soft)',
-              fontSize: 13, fontWeight: 600, color: 'var(--ink-light)',
-              cursor: 'pointer', fontFamily: 'inherit',
+              width: '100%', padding: '10px 14px', borderRadius: 8,
+              border: '1.5px solid var(--border-light)', fontSize: 13, fontFamily: 'inherit',
+              outline: 'none', marginBottom: 10,
             }}
-          >
-            {referencePreview ? 'Change reference image' : 'Or upload a reference image for custom style'}
-          </button>
+            onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+            onBlur={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
+          />
+
+          {/* Upload + Generate */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
+            <button
+              onClick={() => {
+                const input = document.createElement('input')
+                input.type = 'file'
+                input.accept = 'image/*'
+                input.onchange = e => {
+                  const file = (e.target as HTMLInputElement).files?.[0]
+                  if (file) handleReferenceUpload(file)
+                }
+                input.click()
+              }}
+              style={{
+                flex: 1, padding: '12px', borderRadius: 8,
+                border: '1.5px dashed var(--border)', background: 'white',
+                fontSize: 13, fontWeight: 600, color: 'var(--ink-light)',
+                cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
+              }}
+            >
+              {referencePreview ? 'Change image' : 'Upload reference image'}
+            </button>
+            <button
+              onClick={async () => {
+                if (!referencePreview) return
+                setGeneratingCustom(true)
+                setCustomError(null)
+                setCustomPreviews([])
+                try {
+                  const base64 = referencePreview.split(',')[1]
+                  const res = await fetch('/api/style-preview-custom', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      referenceImageBase64: base64,
+                      companyName: companyNameInput.trim() || undefined,
+                    }),
+                  })
+                  const data = await res.json()
+                  if (!res.ok) { setCustomError(data.error || 'Failed'); return }
+                  setCustomPreviews(data.previews || [])
+                  setCustomStyleDesc(data.styleDescription || '')
+                  setCustomStylePrompt(data.styleDescription || '')
+                  setSelectedStyle('custom')
+                } catch (err) {
+                  setCustomError(err instanceof Error ? err.message : 'Failed')
+                } finally {
+                  setGeneratingCustom(false)
+                }
+              }}
+              disabled={!referencePreview || generatingCustom}
+              style={{
+                padding: '12px 20px', borderRadius: 8, border: 'none',
+                background: referencePreview && !generatingCustom ? 'var(--ink)' : 'var(--border)',
+                color: 'white', fontSize: 13, fontWeight: 700,
+                cursor: referencePreview && !generatingCustom ? 'pointer' : 'default',
+                fontFamily: 'inherit', whiteSpace: 'nowrap',
+              }}
+            >
+              {generatingCustom ? 'Generating...' : 'Generate Preview (50 credits)'}
+            </button>
+          </div>
+
+          {/* Reference thumbnail */}
           {referencePreview && (
-            <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
               <img src={referencePreview} alt="Reference" style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)' }} />
               <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Style will be matched to this image</span>
             </div>
           )}
+
+          {/* Error */}
+          {customError && (
+            <div style={{ marginTop: 10, padding: '10px 14px', borderRadius: 8, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 13 }}>
+              {customError}
+            </div>
+          )}
+
+          {/* Generated previews */}
+          {customPreviews.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Preview &mdash; your custom style:</div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {customPreviews.map((img, i) => (
+                  <img
+                    key={i}
+                    src={img}
+                    alt={i === 0 ? 'Cover preview' : 'Content preview'}
+                    style={{ flex: 1, maxWidth: '48%', borderRadius: 8, border: '2px solid var(--mint)' }}
+                  />
+                ))}
+              </div>
+              {customStyleDesc && (
+                <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-light)', lineHeight: 1.4, fontStyle: 'italic' }}>
+                  Detected style: {customStyleDesc.slice(0, 200)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Loading state */}
+          {generatingCustom && (
+            <div style={{ marginTop: 16, textAlign: 'center', padding: '20px' }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>Generating preview slides...</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-light)' }}>This takes 15-30 seconds</div>
+              <div style={{ marginTop: 12, width: '100%', height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ width: '60%', height: '100%', background: 'var(--mint)', borderRadius: 3, animation: 'shimmer 2s infinite' }} />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Custom style prompt */}
+        {/* Advanced: custom style prompt */}
         <div style={{ marginTop: 12 }}>
           <button
             onClick={() => setShowCustomPrompt(!showCustomPrompt)}
             style={{ background: 'none', border: 'none', fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
           >
-            {showCustomPrompt ? '▾ Hide custom style prompt' : '▸ Advanced: describe your own style'}
+            {showCustomPrompt ? '▾ Hide style description' : '▸ Advanced: edit style description'}
           </button>
           {showCustomPrompt && (
             <textarea

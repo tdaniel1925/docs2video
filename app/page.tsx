@@ -238,36 +238,27 @@ export default async function HomePage() {
         <section className="section" id="templates" style={{background:'var(--ink)',color:'white',borderRadius:10,padding:'64px 48px',margin:'0 -24px'}}>
           <div style={{textAlign:'center',marginBottom:16}}>
             <div style={{fontSize:12,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--mint)',marginBottom:12}}>What sets us apart</div>
-            <h2 className="section-title" style={{color:'white'}}>60+ professional styles. <em style={{color:'var(--mint)'}}>No other tool comes close.</em></h2>
+            <h2 className="section-title" style={{color:'white'}}>Stunning AI-illustrated styles. <em style={{color:'var(--mint)'}}>Every video is a work of art.</em></h2>
             <p style={{fontSize:16,color:'rgba(255,255,255,0.7)',maxWidth:650,margin:'12px auto 0',lineHeight:1.7}}>
-              Other explainer tools give you one generic look. Docs2Video ships with 60+ designer templates &mdash; from executive boardroom to hand-drawn doodle &mdash; plus an AI template maker that creates custom styles from any image.
+              Choose from curated illustration styles or upload any image as a reference. Every slide is a custom piece of AI-generated artwork &mdash; not a generic template.
             </p>
           </div>
 
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))',gap:12,maxWidth:1100,margin:'32px auto'}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3, 1fr)',gap:16,maxWidth:900,margin:'32px auto'}}>
             {[
-              {src:'/style-previews/executive.png', label:'Executive'},
-              {src:'/style-previews/watercolor.png', label:'Watercolor'},
-              {src:'/style-previews/flat-cartoon.png', label:'Flat Cartoon'},
-              {src:'/style-previews/isometric.png', label:'Isometric'},
-              {src:'/style-previews/doodle.png', label:'Doodle'},
-              {src:'/style-previews/neon-cyber.png', label:'Neon Cyber'},
-              {src:'/style-previews/art-deco.png', label:'Art Deco'},
-              {src:'/style-previews/line-art.png', label:'Line Art'},
-              {src:'/style-previews/vintage-editorial.png', label:'Vintage Editorial'},
-              {src:'/style-previews/glassmorphism.png', label:'Glassmorphism'},
-              {src:'/style-previews/botanical-warm.png', label:'Botanical'},
-              {src:'/style-previews/comic-book.png', label:'Comic Book'},
-              {src:'/style-previews/chalkboard.png', label:'Chalkboard'},
-              {src:'/style-previews/marble-gold.png', label:'Marble & Gold'},
-              {src:'/style-previews/gradient-mesh.png', label:'Gradient Mesh'},
-              {src:'/style-previews/neubrutalism.png', label:'Neubrutalism'},
-              {src:'/style-previews/steampunk.png', label:'Steampunk'},
-              {src:'/style-previews/felt-craft.png', label:'Felt Craft'},
+              {src:'/style-previews/warm-story.png', label:'Warm Story', desc:'Cozy illustrations, families, nature'},
+              {src:'/style-previews/corporate-clean.png', label:'Corporate Clean', desc:'Professional flat vector, data-forward'},
+              {src:'/style-previews/bold-infographic.png', label:'Bold Infographic', desc:'High contrast, big numbers, impactful'},
+              {src:'/style-previews/watercolor.png', label:'Watercolor', desc:'Soft painted scenes, artistic, gentle'},
+              {src:'/style-previews/dark-cinematic.png', label:'Dark Cinematic', desc:'Navy & gold, dramatic, luxurious'},
+              {src:'/style-previews/playful-cartoon.png', label:'Playful Cartoon', desc:'Bright colors, friendly characters, fun'},
             ].map((t) => (
               <div key={t.label} style={{borderRadius:10,overflow:'hidden',border:'1px solid rgba(255,255,255,0.1)',transition:'transform 0.2s'}} className="activity-row">
                 <img src={t.src} alt={t.label} loading="lazy" style={{width:'100%',aspectRatio:'16/9',objectFit:'cover',display:'block'}} />
-                <div style={{padding:'8px 10px',fontSize:12,fontWeight:600,color:'rgba(255,255,255,0.85)',textAlign:'center'}}>{t.label}</div>
+                <div style={{padding:'10px 12px'}}>
+                  <div style={{fontSize:14,fontWeight:700,color:'white',marginBottom:2}}>{t.label}</div>
+                  <div style={{fontSize:12,color:'rgba(255,255,255,0.6)'}}>{t.desc}</div>
+                </div>
               </div>
             ))}
           </div>
