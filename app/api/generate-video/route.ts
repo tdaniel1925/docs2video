@@ -26,7 +26,7 @@ const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().r
 
 export const maxDuration = 300
 
-// Format narration for TTS — convert numbers to spoken words
+// Format narration for TTS — convert numbers, URLs, emails to spoken words
 function formatForTTS(text: string): string {
   const dw: Record<string, string> = { '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine' }
   return text
@@ -35,6 +35,14 @@ function formatForTTS(text: string): string {
     // Percentages: 7.5% → seven point five percent
     .replace(/(\d+)\.(\d+)%/g, (_, a: string, b: string) => {
       return `${a.split('').map(d => dw[d] || d).join(' ')} point ${b.split('').map(d => dw[d] || d).join(' ')} percent`
+    })
+    // URLs: www.example.com → example dot com
+    .replace(/(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})(?:\/\S*)?/g, (_, domain: string) => {
+      return domain.replace(/\./g, ' dot ')
+    })
+    // Email addresses: info@example.com → info at example dot com
+    .replace(/([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})/g, (_, user: string, domain: string) => {
+      return `${user} at ${domain.replace(/\./g, ' dot ')}`
     })
 }
 
@@ -524,19 +532,19 @@ export async function POST(request: Request) {
       website: (policyData as any)?.contactWebsite || (policyData as any)?.contactInfo?.website || undefined,
     }
 
-    // Build cover narration (short intro)
-    const coverNarration = effectiveBrandName
+    // Build cover narration (short intro) — formatted for natural speech
+    const coverNarration = formatForTTS(effectiveBrandName
       ? `Welcome. This is a presentation from ${effectiveBrandName}. ${videoTitle}.`
-      : `Welcome to this presentation. ${videoTitle}.`
+      : `Welcome to this presentation. ${videoTitle}.`)
 
-    // Build closing narration (short outro with contact info)
+    // Build closing narration (short outro with contact info) — formatted for natural speech
     const contactParts: string[] = []
     if (contactForClosing.website) contactParts.push(`Visit ${contactForClosing.website}`)
     if (contactForClosing.phone) contactParts.push(`or call ${contactForClosing.phone}`)
     if (contactForClosing.email) contactParts.push(`or email ${contactForClosing.email}`)
-    const closingNarration = effectiveBrandName
+    const closingNarration = formatForTTS(effectiveBrandName
       ? `Thank you for watching. ${contactParts.length > 0 ? `To learn more, ${contactParts.join(' ')}.` : `We appreciate your time.`} ${effectiveBrandName} looks forward to serving you.`
-      : `Thank you for watching. ${contactParts.length > 0 ? `To learn more, ${contactParts.join(' ')}.` : `We appreciate your time.`}`
+      : `Thank you for watching. ${contactParts.length > 0 ? `To learn more, ${contactParts.join(' ')}.` : `We appreciate your time.`}`)
 
     // Prepend cover + append closing to scenes for VPS
     // VPS treats ALL slides the same — cover/closing are just the first/last

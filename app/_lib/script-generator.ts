@@ -152,7 +152,7 @@ function generateFramePrompts(scene: VideoScene, stylePrompt: string, sceneIndex
   const dataPoints = scene.narration.match(/\$[\d,]+|\d+%|\d+ (?:years?|months?)/gi)?.slice(0, 3)?.join(', ') || ''
 
   // Single frame prompt — driven by the actual narration content, not generic metaphors
-  const frame = `${stylePrompt} 1920x1080 landscape. Fill entire canvas edge to edge. DO NOT include any logos or brand names.
+  const frame = `${stylePrompt} 1920x1080 landscape. Fill entire canvas edge to edge. DO NOT include any logos or brand names. IMPORTANT: Keep the bottom 100 pixels of the image clean and empty (solid dark color) — a branded bar will be overlaid there. All text and visual elements must be above the 980px line.
 
 HEADLINE: "${scene.title}"
 ${dataPoints ? 'KEY DATA to show prominently: ' + dataPoints : ''}
