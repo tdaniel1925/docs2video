@@ -28,6 +28,7 @@ export default function OptionsPage() {
   const [error, setError] = useState<string | null>(null)
   const [bookingUrl, setBookingUrl] = useState('')
   const [paymentLink, setPaymentLink] = useState('')
+  const [barText, setBarText] = useState('')
   const [playingVoice, setPlayingVoice] = useState<string | null>(null)
   const [generatingPreview, setGeneratingPreview] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -36,6 +37,9 @@ export default function OptionsPage() {
     const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
     setCreateState(state)
     if (state.selectedBrand || state.autoBrandId) setSelectedBrand(state.selectedBrand || state.autoBrandId)
+    // Default bar text from contact info
+    const parts = [state.extractedData?.companyName, state.contactWebsite || state.extractedData?.contactInfo?.website, state.contactPhone || state.extractedData?.contactInfo?.phone].filter(Boolean)
+    if (parts.length > 0) setBarText(parts.join('  |  '))
 
     const supabase = createClient()
     supabase.from('brands').select('*').order('is_default', { ascending: false }).then(({ data }) => {
@@ -125,6 +129,7 @@ export default function OptionsPage() {
           industry: state.extractedData?.industry || 'general',
           bookingUrl: bookingUrl.trim() || undefined,
           paymentLink: paymentLink.trim() || undefined,
+          barText: barText.trim() || undefined,
         }),
       })
       const genData = await genRes.json()
@@ -361,6 +366,26 @@ export default function OptionsPage() {
             />
           </div>
         </div>
+
+        {/* Bottom bar text — video only */}
+        {outputFormat === 'video' && (
+        <>
+        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Bottom bar text <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-light)' }}>(optional)</span></h3>
+        <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 12 }}>This text appears in a bar at the bottom of each slide. Edit or clear it.</p>
+        <input
+          type="text"
+          value={barText}
+          onChange={e => setBarText(e.target.value)}
+          placeholder="e.g. Acme Corp  |  acme.com  |  (555) 123-4567"
+          style={{
+            width: '100%', padding: '14px 16px', borderRadius: 10, border: '1px solid var(--border)',
+            fontSize: 14, fontFamily: 'inherit', outline: 'none', marginBottom: 32,
+          }}
+          onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+          onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
+        />
+        </>
+        )}
 
         {error && (
           <div style={{ padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 14, marginBottom: 20 }}>

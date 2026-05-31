@@ -111,7 +111,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, styleReferenceUrl, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, narrationStyle, assetUrls, purpose, uploadMode, industry } = body as {
+  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, styleReferenceUrl, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, narrationStyle, assetUrls, purpose, uploadMode, industry, barText } = body as {
     videoId: string
     policyData: ExtractedPolicyData | ExtractedData
     brandId: string | null
@@ -130,6 +130,7 @@ export async function POST(request: Request) {
     purpose?: string
     uploadMode?: string
     industry?: string
+    barText?: string
   }
 
   // --- GUARD: Duplicate submission prevention ---
@@ -260,7 +261,7 @@ export async function POST(request: Request) {
       scenes = preGenScenes.map((s: any) => ({
         ...s,
         title: cleanText(s.title || ''),
-        narration: formatForTTS(cleanText(s.narration || '')),
+        narration: cleanText(s.narration || ''),
         dialogue: s.dialogue?.map((d: any) => ({
           ...d,
           text: cleanText(d.text || ''),
@@ -365,8 +366,7 @@ export async function POST(request: Request) {
         throw new Error('Script generation produced no scenes. Try providing more content or a clearer purpose.')
       }
 
-      // Format narration for TTS
-      scenes = scenes.map((s: any) => ({ ...s, narration: s.narration ? formatForTTS(s.narration) : s.narration }))
+      // Narration stays original here — formatForTTS applied only when building VPS payload
 
       await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15, prompt_versions: { ...DEFAULT_PROMPT_VERSIONS } }).eq('id', videoId)
     }
@@ -550,7 +550,9 @@ export async function POST(request: Request) {
     // VPS treats ALL slides the same — cover/closing are just the first/last
     const coverScene = { title: videoTitle, narration: coverNarration, slidePrompt: 'cover' }
     const closingScene = { title: 'Thank You', narration: closingNarration, slidePrompt: 'closing' }
-    const allScenes = [coverScene, ...scenes, closingScene]
+    // Apply formatForTTS only for VPS scenes (narration stays original in slidePrompts for image context)
+    const ttsScenes = scenes.map((s: any) => ({ ...s, narration: s.narration ? formatForTTS(s.narration) : s.narration }))
+    const allScenes = [coverScene, ...ttsScenes, closingScene]
 
     // Build cover slide prompt
     const coverPrompt = `COVER_SLIDE:${effectiveBrandName || videoTitle}:${videoTitle}`
@@ -579,6 +581,7 @@ export async function POST(request: Request) {
         brandName: effectiveBrandName,
         brandColors,
         noContactBar: (body as any).noContactBar || false,
+        barText: barText || undefined,
         musicPrompt: musicPrompt || (aiMusic ? 'Professional ambient background music, subtle and warm' : ''),
         industry: industry || '',
         narrationStyle: narrationStyle || 'solo',

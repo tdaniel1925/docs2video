@@ -25,10 +25,8 @@ type InputMethod = 'url' | 'upload' | 'text' | 'idea' | null
 type Stage = 'idle' | 'extracting' | 'generating' | 'done'
 
 export default function CreatePage() {
-  const useNewFlow = process.env.NEXT_PUBLIC_USE_NEW_CREATE_FLOW === 'true'
-  if (useNewFlow) {
-    return <Step1Content />
-  }
+  // Always use the new create flow
+  return <Step1Content />
 
   const router = useRouter()
   const searchParams = useSearchParams()

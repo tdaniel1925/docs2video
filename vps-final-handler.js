@@ -36,6 +36,7 @@ const handler = `app.post('/generate', authCheck, async (req, res) => {
   const brandName = req.body.brandName || null
   const brandColors = req.body.brandColors || { primary: '#1B365D', secondary: '#4A90D9', text: '#FFFFFF' }
   const noContactBar = req.body.noContactBar || false
+  const customBarText = req.body.barText || null
   const videoTitle = req.body.videoTitle || scenes[0]?.title || 'Presentation'
   const contactForClosing = req.body.contactForClosing || {}
 
@@ -231,19 +232,19 @@ const handler = `app.post('/generate', authCheck, async (req, res) => {
       if (audioBuffers[i] && audioBuffers[i].length > 100) {
         await runFfmpeg(['-loop', '1', '-i', slidePath, '-i', audioPath, '-c:v', 'libx264', '-tune', 'stillimage', '-c:a', 'aac', '-b:a', '192k', '-pix_fmt', 'yuv420p', '-vf', vf, '-af', 'adelay=300|300', '-shortest', '-y', clipPath])
       } else {
-        await runFfmpeg(['-loop', '1', '-i', slidePath, '-t', '5', '-c:v', 'libx264', '-tune', 'stillimage', '-pix_fmt', 'yuv420p', '-vf', vf, '-an', '-y', clipPath])
+        // Add silent audio so xfade audio concat works (all clips need an audio stream)
+        await runFfmpeg(['-loop', '1', '-i', slidePath, '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-t', '5', '-c:v', 'libx264', '-tune', 'stillimage', '-c:a', 'aac', '-b:a', '192k', '-pix_fmt', 'yuv420p', '-vf', vf, '-shortest', '-y', clipPath])
       }
 
       // Contact bar on middle slides only (skip cover=0, closing=last, opted-out)
       if (!noContactBar && i > 0 && i < slideBuffers.length - 1 && brandName) {
-        const barText = [brandName, contactForClosing.website, contactForClosing.phone, contactForClosing.email].filter(Boolean).join('  |  ').replace(/'/g, '')
+        const barText = (customBarText || [brandName, contactForClosing.website, contactForClosing.phone, contactForClosing.email].filter(Boolean).join('  |  ')).replace(/'/g, '')
         if (barText) {
           const barClip = join(workDir, 'bar_' + i + '.mp4')
           try {
             const hexColor = (brandColors.primary || '#1B365D').replace('#', '')
             const barArgs = ['-i', clipPath, '-filter_complex', "[0:v]drawbox=x=0:y=ih-80:w=iw:h=80:color=0x" + hexColor + "@0.85:t=fill,drawtext=text='" + barText + "':fontsize=20:fontcolor=white:x=(w-text_w)/2:y=h-50:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf[v]", '-map', '[v]']
-            if (audioBuffers[i] && audioBuffers[i].length > 100) barArgs.push('-map', '0:a', '-c:a', 'copy')
-            else barArgs.push('-an')
+            barArgs.push('-map', '0:a', '-c:a', 'copy')
             barArgs.push('-c:v', 'libx264', '-preset', 'fast', '-pix_fmt', 'yuv420p', '-y', barClip)
             await runFfmpeg(barArgs)
             await require('fs').promises.rename(barClip, clipPath)
