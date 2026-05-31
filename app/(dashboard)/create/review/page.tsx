@@ -272,66 +272,7 @@ export default function ReviewPage() {
           )
         })()}
 
-        {/* Logo upload card */}
-        <div style={{
-          padding: '28px', borderRadius: 16, background: 'white',
-          border: '2px solid var(--mint)', marginBottom: 24,
-        }}>
-          <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Your logo</h3>
-          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>
-            Upload your logo — it will appear on every slide and colors will be extracted automatically.
-          </p>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            {logoPreview ? (
-              <div style={{
-                width: 100, height: 100, borderRadius: 12, border: '1px solid var(--border-light)',
-                background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 8,
-              }}>
-                <img src={logoPreview} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-              </div>
-            ) : (
-              <div
-                onClick={() => document.getElementById('logo-upload')?.click()}
-                style={{
-                  width: 100, height: 100, borderRadius: 12, border: '2px dashed var(--border)',
-                  background: 'var(--bg-soft)', display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                }}
-              >
-                <div style={{ fontSize: 24, marginBottom: 4 }}>+</div>
-                <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>Upload</div>
-              </div>
-            )}
-
-            <div>
-              <label style={{ cursor: 'pointer' }}>
-                <span style={{
-                  display: 'inline-block', padding: '10px 20px', borderRadius: 10,
-                  background: logoPreview ? 'var(--bg-soft)' : 'var(--ink)', color: logoPreview ? 'var(--ink)' : 'white',
-                  fontSize: 14, fontWeight: 600, border: logoPreview ? '1px solid var(--border)' : 'none',
-                }}>
-                  {uploading ? 'Uploading...' : logoPreview ? 'Change logo' : 'Upload logo'}
-                </span>
-                <input
-                  id="logo-upload"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  style={{ display: 'none' }}
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f) }}
-                />
-              </label>
-              {!logoPreview && (
-                <button
-                  onClick={handleContinue}
-                  style={{ marginLeft: 12, background: 'none', border: 'none', fontSize: 14, color: 'var(--ink-light)', cursor: 'pointer', fontFamily: 'inherit' }}
-                >
-                  Skip for now
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        {/* Logo upload removed — video branding is text-only */}
 
         {/* Theme preview card */}
         {createState.suggestedTheme && !themeAccepted && (

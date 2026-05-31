@@ -113,6 +113,7 @@ export default function StylingPage() {
     state.customPrimary = colors.primary
     state.customSecondary = colors.secondary
     state.customStylePrompt = customStylePrompt || undefined
+    state.companyName = companyNameInput.trim() || undefined
     localStorage.setItem('d2v_create', JSON.stringify(state))
     router.push('/create/review')
   }

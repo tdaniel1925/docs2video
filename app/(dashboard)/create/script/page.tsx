@@ -383,6 +383,12 @@ export default function ScriptPage() {
           musicPrompt: (createState as any)?.aiMusic ? 'Professional ambient background music, subtle and warm' : undefined,
           styleId: (createState as any)?.styleId || undefined,
           customStylePrompt: (createState as any)?.customStylePrompt || undefined,
+          companyName: (createState as any)?.companyName || undefined,
+          noContactBar: (createState as any)?.noContactBar || undefined,
+          brandColors: (createState as any)?.customPrimary ? {
+            primary: (createState as any).customPrimary,
+            secondary: (createState as any).customSecondary || '#4A90D9',
+          } : undefined,
         }),
       })
       if (!genRes.ok) {

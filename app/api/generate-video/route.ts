@@ -440,11 +440,14 @@ export async function POST(request: Request) {
     await admin.from('videos').update({ progress_detail: 'Preparing slide designs...', progress_pct: 16 }).eq('id', videoId)
 
     const templateId = (styleId ?? brand?.deck_style_id ?? (policyData as any)?.classification?.recommendedTemplate ?? 'corporate-clean') as string
-    const logoUrl = brand?.logo_file_url ?? brand?.logo_url ?? null
+    // Logo not used in video pipeline — branding is text-only
+    const logoUrl = null
     const brandGuide = brand?.brand_guide_data as Record<string, string> | null
+    // Custom colors from styling page take priority over brand colors
+    const bodyColors = (body as any).brandColors as { primary?: string; secondary?: string } | undefined
     const brandColors = {
-      primary: brand?.primary_color ?? '#1B365D',
-      secondary: brand?.secondary_color ?? '#4A90D9',
+      primary: bodyColors?.primary || brand?.primary_color || '#1B365D',
+      secondary: bodyColors?.secondary || brand?.secondary_color || '#4A90D9',
     }
 
     // Build style prompt: custom theme > brand-colored style > template default
