@@ -33,46 +33,65 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code fence
   "source": "string or null — the source or origin of the content if identifiable",
   "companyName": "string or null — the exact company/organization name as written on the site (preserve apostrophes, capitalization)",
   "contactInfo": {
-    "phone": "string or null — any phone number found anywhere on the page including footer",
-    "email": "string or null — any email address found anywhere on the page including footer",
+    "phone": "string or null — see CONTACT OWNERSHIP rules below",
+    "email": "string or null — see CONTACT OWNERSHIP rules below",
     "website": "string or null — the main website URL",
-    "address": "string or null — any physical address found"
+    "address": "string or null — physical address of the entity the content is ABOUT"
   },
   "keyMetrics": [
-    { "label": "string", "value": "string", "highlight": true/false }
+    { "label": "string", "value": "string", "qualifier": "string or null — context like 'projected', 'as of Q4 2025', 'guaranteed', 'estimated', 'annual'", "highlight": true/false }
   ],
   "sections": [
     { "title": "string", "content": "string" }
   ],
   "bulletPoints": ["string"],
-  "additionalNotes": ["string"]
+  "additionalNotes": ["string"],
+  "truncated": false
 }
 
+CONTACT OWNERSHIP (critical — a wrong number in a client video is dangerous):
+- Extract ONLY the contact details that belong to the ENTITY THE CONTENT IS ABOUT.
+- If the page has multiple phone numbers and it's unclear which belongs to the primary entity (e.g. footer host line, parent company, partner, generic 1-800 support), return null for phone. A null is safe; a wrong number is not.
+- Same logic for email: if multiple addresses appear or ownership is ambiguous, return null.
+- The website field should be the main site URL (this is usually unambiguous).
+- NEVER guess or infer contact info that isn't explicitly stated.
+
 Rules:
-- CONTACT INFO: Carefully scan the ENTIRE text including headers, footers, sidebars for phone numbers, email addresses, and physical addresses. Check the very bottom of the content — footers often have contact info.
 - COMPANY NAME: Extract the exact company name with correct spelling, apostrophes, and capitalization
 - Extract any numbers, percentages, dollar amounts, dates, or quantifiable data as keyMetrics
+- For each metric, include a "qualifier" noting its context (projected vs actual, time period, guaranteed vs illustrated, etc.). If no qualifier applies, use null.
 - Mark the 2-3 most important metrics with "highlight": true
 - Break the content into logical sections with clear titles
 - Pull out key takeaways or action items as bulletPoints
 - Include any caveats, disclaimers, or supplementary info in additionalNotes
 - If the text is short, still create a meaningful structure
 - Be smart about understanding context — infer the topic and purpose
-- keyMetrics should have concise labels and values (e.g. label: "Revenue", value: "$1.2M")
+- keyMetrics should have concise labels and values (e.g. label: "Revenue", value: "$1.2M", qualifier: "FY 2025")
 - Aim for 3-8 keyMetrics, 2-5 sections, and 3-10 bulletPoints
 
 The user content below will be wrapped between ${SOURCE_DELIMITER_OPEN} and ${SOURCE_DELIMITER_CLOSE} delimiters.
 ${SOURCE_TRUST_FOOTER}`
 
-export const CONTENT_STRUCTURING_SYSTEM_PROMPT = `Extract and structure content into JSON. Return:
+export const CONTENT_STRUCTURING_SYSTEM_PROMPT = `Extract and structure content into JSON. Return ONLY valid JSON (no markdown, no code fences):
 {
   "title": "Main title",
-  "subtitle": "Subtitle or tagline",
+  "subtitle": "Subtitle or tagline, or null",
+  "source": "Source or origin, or null",
+  "companyName": "Company name if mentioned, or null",
+  "contactInfo": {
+    "phone": "Phone number ONLY if it clearly belongs to the entity the content is about, otherwise null",
+    "email": "Email ONLY if it clearly belongs to the entity, otherwise null",
+    "website": "Website URL or null"
+  },
+  "keyMetrics": [{ "value": "stat value", "label": "stat label", "qualifier": "context like 'projected', 'annual', 'Q4 2025', or null", "highlight": false }],
   "sections": [{ "title": "Section name", "content": "Section content" }],
-  "keyMetrics": [{ "value": "stat value", "label": "stat label" }],
-  "contactInfo": { "phone": null, "email": null, "website": null },
-  "companyName": "Company name if mentioned"
+  "bulletPoints": ["Key takeaway or finding"],
+  "additionalNotes": ["Any caveats, disclaimers, or supplementary info"],
+  "truncated": false
 }
+
+CONTACT OWNERSHIP: Extract ONLY contacts belonging to the entity the content is ABOUT. If ownership is ambiguous (multiple numbers, unclear which entity), return null. A null is safe; a wrong number in a client video is dangerous.
+
 Only include real data found in the content. Never invent contact info.
 
 The user content below will be wrapped between ${SOURCE_DELIMITER_OPEN} and ${SOURCE_DELIMITER_CLOSE} delimiters.

@@ -201,6 +201,19 @@ export async function extractDocumentData(pdfBase64: string, mimeType: string = 
           result.insurance = geminiInsurance
         }
       }
+
+      // STAGE PRECEDENCE: When both Stage 1 (Gemini generic) and Stage 2 (Opus insurance) produce data:
+      // - Insurance-specific fields (deathBenefit, projections, carrier, etc.): Stage 2 (Opus) WINS — it's the specialized extractor.
+      // - Generic fields (title, sections, keyMetrics, bulletPoints): Stage 1 (Gemini generic) wins — it's designed for general content.
+      // - On direct conflict (companyName vs carrier): prefer Stage 2 for insurance docs (higher-confidence specialized pass).
+      // - Log any conflicts for audit.
+      if (result.insurance && result.general.companyName && result.insurance.carrier) {
+        const genericName = (result.general.companyName || '').toLowerCase().trim()
+        const insuranceName = result.insurance.carrier.toLowerCase().trim()
+        if (genericName && insuranceName && genericName !== insuranceName && !genericName.includes(insuranceName) && !insuranceName.includes(genericName)) {
+          console.warn(`[extract] PRECEDENCE CONFLICT: general.companyName="${result.general.companyName}" vs insurance.carrier="${result.insurance.carrier}" — using insurance.carrier as authoritative`)
+        }
+      }
     }
     return result
   } catch (err) {

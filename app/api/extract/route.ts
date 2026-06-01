@@ -72,18 +72,23 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
       }
 
       // Structure the content using AI
+      const isTextTruncated = contentToStructure.length > 15000
+      const truncatedContent = isTextTruncated
+        ? `${contentToStructure.slice(0, 12000)}\n\n[... content truncated — ${contentToStructure.length - 15000} chars omitted ...]\n\n${contentToStructure.slice(-3000)}`
+        : contentToStructure
       const structureRes = await claude.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 4096,
         system: CONTENT_STRUCTURING_SYSTEM_PROMPT,
         messages: [{
           role: 'user',
-          content: `${purpose ? `Purpose: ${purpose}\n\n` : ''}Content:\n${wrapUserData(contentToStructure.slice(0, 15000))}\n\nReturn ONLY valid JSON, no markdown code fences.`,
+          content: `${purpose ? `Purpose: ${purpose}\n\n` : ''}Content:\n${wrapUserData(truncatedContent)}\n\nReturn ONLY valid JSON, no markdown code fences.`,
         }],
       })
 
       const rawText = structureRes.content[0]?.type === 'text' ? structureRes.content[0].text : '{}'
       const structured = JSON.parse(rawText.replace(/^```json?\n?/i, '').replace(/\n?```$/i, '').trim())
+      if (isTextTruncated) structured.truncated = true
 
       // FIX 10: Validate AI output has required fields
       if (!structured.title) structured.title = purpose || idea || 'Untitled'
@@ -133,6 +138,10 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
         return NextResponse.json({ error: 'File appears to be empty' }, { status: 400 })
       }
       const purposeField = formData.get('purpose') as string | null
+      const isFileTruncated = text.length > 15000
+      const truncatedText = isFileTruncated
+        ? `${text.slice(0, 12000)}\n\n[... content truncated — ${text.length - 15000} chars omitted ...]\n\n${text.slice(-3000)}`
+        : text
       const claude = getClaude()
       const structureRes = await claude.messages.create({
         model: 'claude-sonnet-4-20250514',
@@ -140,11 +149,12 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
         system: CONTENT_STRUCTURING_SYSTEM_PROMPT,
         messages: [{
           role: 'user',
-          content: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Content:\n${wrapUserData(text.slice(0, 15000))}\n\nReturn ONLY valid JSON, no markdown code fences.`,
+          content: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Content:\n${wrapUserData(truncatedText)}\n\nReturn ONLY valid JSON, no markdown code fences.`,
         }],
       })
       const rawText = structureRes.content[0]?.type === 'text' ? structureRes.content[0].text : '{}'
       const structured = JSON.parse(rawText.replace(/^```json?\n?/i, '').replace(/\n?```$/i, '').trim())
+      if (isFileTruncated) structured.truncated = true
       return NextResponse.json(structured)
     } catch (err) {
       return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to process text file' }, { status: 500 })

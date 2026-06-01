@@ -3,7 +3,7 @@ export interface ExtractedData {
   title: string
   subtitle: string | null
   source: string | null
-  keyMetrics: { label: string; value: string; highlight?: boolean }[]
+  keyMetrics: { label: string; value: string; qualifier?: string | null; highlight?: boolean }[]
   sections: { title: string; content: string }[]
   bulletPoints: string[]
   additionalNotes: string[]
@@ -14,7 +14,9 @@ export interface ExtractedData {
     phone?: string | null
     email?: string | null
     website?: string | null
+    address?: string | null
   }
+  truncated?: boolean
 }
 
 /**

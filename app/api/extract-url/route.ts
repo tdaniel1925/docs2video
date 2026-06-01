@@ -167,8 +167,17 @@ export async function POST(request: Request) {
     }
     console.log(`[extract-url] Direct contact extraction: phone=${directContactInfo.phone}, email=${directContactInfo.email}`)
 
-    // Use the EXACT text from Firecrawl (no AI guessing about page content)
-    const truncated = markdown.slice(0, 50000)
+    // Truncation strategy: keep first 40k + last 10k (footer has contact/disclaimers)
+    const isTruncated = markdown.length > 50000
+    let truncated: string
+    if (isTruncated) {
+      const head = markdown.slice(0, 40000)
+      const tail = markdown.slice(-10000)
+      truncated = `${head}\n\n[... content truncated — ${markdown.length - 50000} chars omitted ...]\n\n${tail}`
+      console.log(`[extract-url] Content truncated: ${markdown.length} → 50000 chars (kept first 40k + last 10k)`)
+    } else {
+      truncated = markdown
+    }
     const htmlForTheme = html.slice(0, 30000)
 
     // Run content structuring and theme analysis in parallel with Claude Opus
@@ -196,6 +205,9 @@ export async function POST(request: Request) {
     const data: ExtractedData = JSON.parse(cleaned)
     if (!data.source) {
       data.source = parsedUrl.hostname
+    }
+    if (isTruncated) {
+      data.truncated = true
     }
 
     // Fix company name — extract from HTML as ground truth (AI often strips apostrophes)
