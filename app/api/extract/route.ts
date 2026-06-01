@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { logError } from '../../_lib/error-logger'
-import OpenAI from 'openai'
+import Anthropic from '@anthropic-ai/sdk'
 import { CONTENT_STRUCTURING_SYSTEM_PROMPT } from '../../_lib/prompts'
 import { sanitizeSourceData, wrapUserData } from '../../_lib/prompt-safety'
 import { classifyFromText } from '../../_lib/document-classifier'
@@ -10,8 +10,8 @@ import { classifyFromText } from '../../_lib/document-classifier'
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
-function getOpenAI() {
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+function getClaude() {
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 }
 
 export async function POST(request: Request & { nextUrl?: URL }) {
@@ -52,43 +52,38 @@ export async function POST(request: Request & { nextUrl?: URL }) {
         return NextResponse.json({ error: 'No content provided' }, { status: 400 })
       }
 
-      const OpenAILib = (await import('openai')).default
-      const openai = new OpenAILib({ apiKey: process.env.OPENAI_API_KEY! })
+      const claude = getClaude()
 
       let contentToStructure = ''
       if (text) {
         contentToStructure = text
       } else if (idea) {
         // Generate content from idea using AI
-        const ideaRes = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
+        const ideaRes = await claude.messages.create({
+          model: 'claude-opus-4-20250514',
+          max_tokens: 2000,
           messages: [{
             role: 'user',
             content: `Write comprehensive content about: "${idea}"${audience ? ` for audience: ${audience}` : ''}${purpose ? `. Purpose: ${purpose}` : ''}.
 Include: overview, key points, benefits, relevant statistics or examples, and a conclusion. Write 500-1000 words of factual, useful content.`,
           }],
-          temperature: 0.7,
-          max_tokens: 2000,
         })
-        contentToStructure = ideaRes.choices[0]?.message?.content || idea
+        contentToStructure = ideaRes.content[0]?.type === 'text' ? ideaRes.content[0].text : idea
       }
 
       // Structure the content using AI
-      const structureRes = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+      const structureRes = await claude.messages.create({
+        model: 'claude-opus-4-20250514',
+        max_tokens: 4096,
+        system: CONTENT_STRUCTURING_SYSTEM_PROMPT,
         messages: [{
-          role: 'system',
-          content: CONTENT_STRUCTURING_SYSTEM_PROMPT,
-        }, {
           role: 'user',
-          content: `${purpose ? `Purpose: ${purpose}\n\n` : ''}Content:\n${wrapUserData(contentToStructure.slice(0, 15000))}`,
+          content: `${purpose ? `Purpose: ${purpose}\n\n` : ''}Content:\n${wrapUserData(contentToStructure.slice(0, 15000))}\n\nReturn ONLY valid JSON, no markdown code fences.`,
         }],
-        temperature: 0.3,
-        max_tokens: 3000,
-        response_format: { type: 'json_object' },
       })
 
-      const structured = JSON.parse(structureRes.choices[0]?.message?.content || '{}')
+      const rawText = structureRes.content[0]?.type === 'text' ? structureRes.content[0].text : '{}'
+      const structured = JSON.parse(rawText.replace(/^```json?\n?/i, '').replace(/\n?```$/i, '').trim())
 
       // FIX 10: Validate AI output has required fields
       if (!structured.title) structured.title = purpose || idea || 'Untitled'
@@ -138,22 +133,18 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
         return NextResponse.json({ error: 'File appears to be empty' }, { status: 400 })
       }
       const purposeField = formData.get('purpose') as string | null
-      const OpenAILib = (await import('openai')).default
-      const openai = new OpenAILib({ apiKey: process.env.OPENAI_API_KEY! })
-      const structureRes = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+      const claude = getClaude()
+      const structureRes = await claude.messages.create({
+        model: 'claude-opus-4-20250514',
+        max_tokens: 4096,
+        system: CONTENT_STRUCTURING_SYSTEM_PROMPT,
         messages: [{
-          role: 'system',
-          content: CONTENT_STRUCTURING_SYSTEM_PROMPT,
-        }, {
           role: 'user',
-          content: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Content:\n${wrapUserData(text.slice(0, 15000))}`,
+          content: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Content:\n${wrapUserData(text.slice(0, 15000))}\n\nReturn ONLY valid JSON, no markdown code fences.`,
         }],
-        temperature: 0.3,
-        max_tokens: 3000,
-        response_format: { type: 'json_object' },
       })
-      const structured = JSON.parse(structureRes.choices[0]?.message?.content || '{}')
+      const rawText = structureRes.content[0]?.type === 'text' ? structureRes.content[0].text : '{}'
+      const structured = JSON.parse(rawText.replace(/^```json?\n?/i, '').replace(/\n?```$/i, '').trim())
       return NextResponse.json(structured)
     } catch (err) {
       return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to process text file' }, { status: 500 })

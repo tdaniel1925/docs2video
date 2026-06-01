@@ -148,19 +148,25 @@ const handler = `app.post('/generate', authCheck, async (req, res) => {
 
     async function generateCoverSlide(promptStr, genai) {
       const isCover = promptStr.startsWith('COVER_SLIDE:')
-      const parts = promptStr.split(':')
+      // Parse: TYPE:company:info|STYLE:hint
+      const styleIdx = promptStr.indexOf('|STYLE:')
+      const mainPart = styleIdx > -1 ? promptStr.substring(0, styleIdx) : promptStr
+      const styleHint = styleIdx > -1 ? promptStr.substring(styleIdx + 7) : ''
+      const parts = mainPart.split(':')
       const companyText = (parts[1] || brandName || videoTitle || '').trim()
       const extraInfo = parts[2] || ''
 
-      const styleHint = slidePrompts.length > 2 ? (typeof slidePrompts[1] === 'string' ? slidePrompts[1].slice(0, 150) : '') : ''
+      const styleInstruction = styleHint ? 'Match this visual style: ' + styleHint + '. ' : ''
 
       let coverPrompt = ''
       if (isCover) {
-        coverPrompt = 'Create a premium sophisticated video title card. 1920x1080 landscape. Dynamic gradient background using brand colors primary ' + brandColors.primary + ' and secondary ' + brandColors.secondary + '. Include layered translucent shapes, glossy elements, soft glowing light effects, flowing visual accents. Display this text EXACTLY as written, large and centered: Company name: "' + companyText.toUpperCase() + '" in large bold prominent text. Below: "' + (extraInfo || videoTitle) + '" in medium text. Below: "A Personalized Video Presentation" in smaller text. Text MUST be readable and prominent. No logos. No brand marks.'
+        coverPrompt = styleInstruction + 'Create a premium sophisticated video title card. 1920x1080 landscape. Dynamic gradient background using brand colors primary ' + brandColors.primary + ' and secondary ' + brandColors.secondary + '. Display this text EXACTLY as written, large and centered: Company name: "' + companyText.toUpperCase() + '" in large bold prominent text. Below: "' + (extraInfo || videoTitle) + '" in medium text. Below: "A Personalized Video Presentation" in smaller text. Text MUST be readable and prominent. No logos. No brand marks. No fictional emblems.'
       } else {
-        const contactParts = extraInfo.split('|').filter(Boolean)
+        const contactIdx = extraInfo.indexOf('|STYLE:')
+        const contactRaw = contactIdx > -1 ? extraInfo.substring(0, contactIdx) : extraInfo
+        const contactParts = contactRaw.split('|').filter(Boolean)
         const contactStr = contactParts.join('  |  ')
-        coverPrompt = 'Create a premium video closing card. 1920x1080 landscape. Dynamic gradient using brand colors primary ' + brandColors.primary + ' and secondary ' + brandColors.secondary + '. Warm inviting feel. Display EXACTLY: "THANK YOU" large bold centered. Below: "Ready to take the next step?" medium. ' + (companyText ? 'Company: "' + companyText.toUpperCase() + '" prominent. ' : '') + (contactStr ? 'Contact: "' + contactStr + '" at bottom. ' : '') + 'Beautiful typography. No logos.'
+        coverPrompt = styleInstruction + 'Create a premium video closing card. 1920x1080 landscape. Dynamic gradient using brand colors primary ' + brandColors.primary + ' and secondary ' + brandColors.secondary + '. Warm inviting feel. Display EXACTLY: "THANK YOU" large bold centered. Below: "Ready to take the next step?" medium. ' + (companyText ? 'Company: "' + companyText.toUpperCase() + '" prominent. ' : '') + (contactStr ? 'Contact: "' + contactStr + '" at bottom. ' : '') + 'Beautiful typography. No logos. No brand marks. No fictional emblems.'
       }
 
       console.log('[' + videoId + '] Cover ' + (isCover ? 'OPEN' : 'CLOSE') + ': company="' + companyText + '"')
@@ -237,7 +243,7 @@ const handler = `app.post('/generate', authCheck, async (req, res) => {
       }
 
       // Contact bar on middle slides only (skip cover=0, closing=last, opted-out)
-      if (!noContactBar && i > 0 && i < slideBuffers.length - 1 && brandName) {
+      if (!noContactBar && i > 0 && i < slideBuffers.length - 1) {
         const barText = (customBarText || [brandName, contactForClosing.website, contactForClosing.phone, contactForClosing.email].filter(Boolean).join('  |  ')).replace(/'/g, '')
         if (barText) {
           const barClip = join(workDir, 'bar_' + i + '.mp4')

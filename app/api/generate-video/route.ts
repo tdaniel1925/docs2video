@@ -520,7 +520,7 @@ export async function POST(request: Request) {
 
       // 1 slide per scene — single prompt with narration context
       const fp = scene.slidePrompt || scene.title
-      return `${stylePrompt}\n\n${fp}\n\nNarration context (illustrate this): "${scene.narration?.slice(0, 300)}"\n\nSTYLE RULES: Create a visually striking, polished slide. Use ONE strong focal visual or metaphor — do NOT pack multiple icons, charts, and infographic elements into the same frame. Leave breathing room and negative space. Think cinematic poster, not busy infographic. Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}.`
+      return `${stylePrompt}\n\n${fp}\n\nNarration context (illustrate this): "${scene.narration?.slice(0, 300)}"\n\nSTYLE RULES: Create a visually striking, polished slide. Use ONE strong focal visual or metaphor — do NOT pack multiple icons, charts, and infographic elements into the same frame. Leave breathing room and negative space. Think cinematic poster, not busy infographic. No logos, no brand marks, no fictional emblems or seals. Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}.`
     })
 
     // Video metadata
@@ -554,10 +554,11 @@ export async function POST(request: Request) {
     const ttsScenes = scenes.map((s: any) => ({ ...s, narration: s.narration ? formatForTTS(s.narration) : s.narration }))
     const allScenes = [coverScene, ...ttsScenes, closingScene]
 
-    // Build cover slide prompt
-    const coverPrompt = `COVER_SLIDE:${effectiveBrandName || videoTitle}:${videoTitle}`
+    // Build cover slide prompt — include stylePrompt so cover matches content slides
+    const styleHintForCover = stylePrompt.slice(0, 300).replace(/[|:]/g, ' ')
+    const coverPrompt = `COVER_SLIDE:${effectiveBrandName || videoTitle}:${videoTitle}|STYLE:${styleHintForCover}`
     // Build closing slide prompt
-    const closingPrompt = `CLOSING_SLIDE:${effectiveBrandName || 'Thank You'}:${[contactForClosing.website, contactForClosing.phone, contactForClosing.email].filter(Boolean).join('|')}`
+    const closingPrompt = `CLOSING_SLIDE:${effectiveBrandName || 'Thank You'}:${[contactForClosing.website, contactForClosing.phone, contactForClosing.email].filter(Boolean).join('|')}|STYLE:${styleHintForCover}`
 
     // Prepend/append to slidePrompts
     const allSlidePrompts = [coverPrompt, ...slidePrompts, closingPrompt]

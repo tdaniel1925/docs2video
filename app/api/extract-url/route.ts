@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
-import OpenAI from 'openai'
+import Anthropic from '@anthropic-ai/sdk'
 import FirecrawlApp from '@mendable/firecrawl-js'
 import sharp from 'sharp'
 import type { ExtractedData } from '../../_lib/extract-types'
@@ -12,10 +12,10 @@ import { classifyFromText } from '../../_lib/document-classifier'
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
-let _openai: OpenAI | null = null
-function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-  return _openai
+let _claude: Anthropic | null = null
+function getClaude() {
+  if (!_claude) _claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+  return _claude
 }
 
 let _firecrawl: InstanceType<typeof FirecrawlApp> | null = null
@@ -171,26 +171,26 @@ export async function POST(request: Request) {
     const truncated = markdown.slice(0, 50000)
     const htmlForTheme = html.slice(0, 30000)
 
-    // Run content structuring and theme analysis in parallel with OpenAI
-    const openai = getOpenAI()
+    // Run content structuring and theme analysis in parallel with Claude Opus
+    const claude = getClaude()
     const [contentResponse, themeResponse] = await Promise.all([
-      openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+      claude.messages.create({
+        model: 'claude-opus-4-20250514',
+        max_tokens: 4096,
         messages: [
-          { role: 'user', content: `${EXTRACTION_PROMPT}\n\nHere is the EXACT text from ${parsedUrl.hostname} (extracted by web scraper — do NOT add any information not present here):\n\n${wrapUserData(truncated)}` },
+          { role: 'user', content: `${EXTRACTION_PROMPT}\n\nHere is the EXACT text from ${parsedUrl.hostname} (extracted by web scraper — do NOT add any information not present here):\n\n${wrapUserData(truncated)}\n\nReturn ONLY valid JSON, no markdown code fences.` },
         ],
-        temperature: 0.3,
       }),
-      openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+      claude.messages.create({
+        model: 'claude-opus-4-20250514',
+        max_tokens: 2048,
         messages: [
-          { role: 'user', content: `${THEME_PROMPT}\n\nHere is the HTML/CSS from ${parsedUrl.hostname}:\n\n${wrapUserData(htmlForTheme)}` },
+          { role: 'user', content: `${THEME_PROMPT}\n\nHere is the HTML/CSS from ${parsedUrl.hostname}:\n\n${wrapUserData(htmlForTheme)}\n\nReturn ONLY valid JSON, no markdown code fences.` },
         ],
-        temperature: 0.5,
       }),
     ])
 
-    const raw = contentResponse.choices[0]?.message?.content?.trim() ?? ''
+    const raw = (contentResponse.content[0]?.type === 'text' ? contentResponse.content[0].text : '').trim()
     const cleaned = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
 
     const data: ExtractedData = JSON.parse(cleaned)
@@ -222,7 +222,7 @@ export async function POST(request: Request) {
     // Parse theme suggestion
     let suggestedTheme = null
     try {
-      const themeRaw = themeResponse.choices[0]?.message?.content?.trim() ?? ''
+      const themeRaw = (themeResponse.content[0]?.type === 'text' ? themeResponse.content[0].text : '').trim()
       const themeCleaned = themeRaw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
       suggestedTheme = JSON.parse(themeCleaned)
     } catch {
