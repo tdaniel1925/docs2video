@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import OpenAI from 'openai'
+import Anthropic from '@anthropic-ai/sdk'
 import FirecrawlApp from '@mendable/firecrawl-js'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
@@ -8,10 +8,10 @@ import { buildScriptChatSystemPrompt, DEFAULT_PROMPT_VERSIONS } from '../../_lib
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-let _openai: OpenAI | null = null
-function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-  return _openai
+let _claude: Anthropic | null = null
+function getClaude() {
+  if (!_claude) _claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+  return _claude
 }
 
 let _firecrawl: InstanceType<typeof FirecrawlApp> | null = null
@@ -62,13 +62,11 @@ export async function POST(request: Request) {
     }
   }
 
-  const response = await getOpenAI().chat.completions.create({
-    model: 'gpt-4o-mini',
+  const response = await getClaude().messages.create({
+    model: 'claude-opus-4-20250514',
+    max_tokens: 8192,
+    system: buildScriptChatSystemPrompt(scenes.length, purpose, sourceRef, webContent, urlToScrape),
     messages: [
-      {
-        role: 'system',
-        content: buildScriptChatSystemPrompt(scenes.length, purpose, sourceRef, webContent, urlToScrape),
-      },
       // Include conversation history for context
       ...((history || []) as { role: string; text: string }[]).map((h: { role: string; text: string }) => ({
         role: h.role as 'user' | 'assistant',
@@ -79,11 +77,9 @@ export async function POST(request: Request) {
         content: `Current script:\n${JSON.stringify(scenes, null, 2)}\n\nUser request: ${message}`,
       },
     ],
-    temperature: 0.5,
-    max_tokens: 8000,
   })
 
-  const text = response.choices[0]?.message?.content?.trim() ?? ''
+  const text = (response.content[0]?.type === 'text' ? response.content[0].text : '').trim()
   const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
 
   // Helper: save a script revision (non-blocking, best-effort)

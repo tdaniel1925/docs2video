@@ -316,20 +316,20 @@ export const INDUSTRIES: Record<IndustryId, IndustryConfig> = {
 
 /**
  * LLM-based industry classification (F17).
- * Uses gpt-4o-mini to classify a document into an industry.
+ * Uses Claude to classify a document into an industry.
  * Falls back to regex-based detectIndustry on failure.
- * Cost: ~$0.0001 per call.
  */
 export async function classifyIndustryLLM(title: string, content: string): Promise<IndustryId> {
   const industryIds = Object.keys(INDUSTRIES).filter(id => id !== 'general')
   const snippet = content.slice(0, 500)
 
   try {
-    const { default: OpenAI } = await import('openai')
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+    const { default: Anthropic } = await import('@anthropic-ai/sdk')
+    const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    const response = await claude.messages.create({
+      model: 'claude-opus-4-20250514',
+      max_tokens: 50,
       messages: [{
         role: 'user',
         content: `Classify this document into one of these industries: ${industryIds.join(', ')}. If none fit, return "general".
@@ -339,11 +339,9 @@ Content preview: ${snippet}
 
 Return ONLY the industry ID, nothing else.`,
       }],
-      temperature: 0,
-      max_tokens: 20,
     })
 
-    const result = response.choices[0]?.message?.content?.trim().toLowerCase().replace(/[^a-z_]/g, '') ?? ''
+    const result = (response.content[0]?.type === 'text' ? response.content[0].text : '').trim().toLowerCase().replace(/[^a-z_]/g, '')
 
     if (result in INDUSTRIES) {
       return result as IndustryId

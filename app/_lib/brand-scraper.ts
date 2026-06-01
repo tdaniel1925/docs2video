@@ -1,10 +1,10 @@
-import OpenAI from 'openai'
+import Anthropic from '@anthropic-ai/sdk'
 import { buildBrandAnalysisPrompt } from './prompts'
 
-let _openai: OpenAI | null = null
-function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-  return _openai
+let _claude: Anthropic | null = null
+function getClaude() {
+  if (!_claude) _claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+  return _claude
 }
 
 export const FETCH_HEADERS = {
@@ -359,13 +359,13 @@ export async function scrapeBrand(url: string, firecrawlContent?: { markdown: st
     !!logo.buffer,
   )
 
-  const response = await getOpenAI().chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [{ role: 'user', content: prompt }],
-    temperature: 0.3,
+  const response = await getClaude().messages.create({
+    model: 'claude-opus-4-20250514',
+    max_tokens: 4096,
+    messages: [{ role: 'user', content: prompt + '\n\nReturn ONLY valid JSON, no markdown code fences.' }],
   })
 
-  const text = response.choices[0]?.message?.content?.trim() ?? ''
+  const text = (response.content[0]?.type === 'text' ? response.content[0].text : '').trim()
   const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
 
   let brandData: Record<string, unknown>

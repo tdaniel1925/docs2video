@@ -1,14 +1,23 @@
-import OpenAI from 'openai'
+import Anthropic from '@anthropic-ai/sdk'
 import type { ExtractedPolicyData, VideoScene } from './types'
 import { type ExtractedData, isInsuranceData } from './extract-types'
 import { detectIndustry, classifyIndustryLLM, INDUSTRIES, type IndustryId } from './industries'
 import { getPrompt } from './prompts'
 import { fitSourceData } from './source-data-fitter'
 
-let _openai: OpenAI | null = null
-function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-  return _openai
+let _claude: Anthropic | null = null
+function getClaude() {
+  if (!_claude) _claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+  return _claude
+}
+
+function parseClaudeText(response: Anthropic.Message): string {
+  const block = response.content[0]
+  return (block?.type === 'text' ? block.text : '').trim()
+}
+
+function cleanJson(text: string): string {
+  return text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim()
 }
 
 export async function generateDemoScript(
@@ -64,14 +73,14 @@ Return ONLY valid JSON array (no markdown, no code fences):
   }
 ]`
 
-  const response = await getOpenAI().chat.completions.create({
-    model: 'gpt-4o-mini',
+  const response = await getClaude().messages.create({
+    model: 'claude-opus-4-20250514',
+    max_tokens: 4096,
     messages: [{ role: 'user', content: prompt }],
-    temperature: 0.7,
   })
 
-  const text = response.choices[0]?.message?.content?.trim() ?? ''
-  const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
+  const text = parseClaudeText(response)
+  const cleaned = cleanJson(text)
 
   try {
     const scenes = JSON.parse(cleaned) as VideoScene[]
@@ -195,8 +204,9 @@ export async function generateScript(
 
   let deepAnalysis = ''
   try {
-    const analysisResponse = await getOpenAI().chat.completions.create({
-      model: 'gpt-4o-mini',
+    const analysisResponse = await getClaude().messages.create({
+      model: 'claude-opus-4-20250514',
+      max_tokens: 4096,
       messages: [{
         role: 'user',
         content: (() => {
@@ -216,9 +226,8 @@ export async function generateScript(
           )
         })(),
       }],
-      temperature: 0.3,
     })
-    deepAnalysis = analysisResponse.choices[0]?.message?.content?.trim() ?? ''
+    deepAnalysis = parseClaudeText(analysisResponse)
     console.log(`[script-gen] Deep analysis: ${deepAnalysis.length} chars`)
   } catch (err) {
     console.error('[script-gen] Deep analysis failed, proceeding without:', err instanceof Error ? err.message : 'unknown')
@@ -513,14 +522,14 @@ FIELD RULES:
 - "slidePrompt": visual concept only (e.g. "growth chart on dark background") — NOT content text
 - "beat": one of "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"`
 
-    const response = await getOpenAI().chat.completions.create({
-      model: 'gpt-4o-mini',
+    const response = await getClaude().messages.create({
+      model: 'claude-opus-4-20250514',
+      max_tokens: 8192,
       messages: [{ role: 'user', content: podcastPrompt }],
-      temperature: 0.7,
     })
 
-    const text = response.choices[0]?.message?.content?.trim() ?? ''
-    const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
+    const text = parseClaudeText(response)
+    const cleaned = cleanJson(text)
 
     try {
       const scenes = JSON.parse(cleaned) as VideoScene[]
@@ -561,14 +570,14 @@ FIELD RULES:
 - "slidePrompt": visual concept only (e.g. "dark background with growth chart icon") — NOT content text
 - "beat": one of "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"`
 
-  const response = await getOpenAI().chat.completions.create({
-    model: 'gpt-4o-mini',
+  const response = await getClaude().messages.create({
+    model: 'claude-opus-4-20250514',
+    max_tokens: 8192,
     messages: [{ role: 'user', content: prompt }],
-    temperature: 0.7,
   })
 
-  const text = response.choices[0]?.message?.content?.trim() ?? ''
-  const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
+  const text = parseClaudeText(response)
+  const cleaned = cleanJson(text)
 
   try {
     const scenes = JSON.parse(cleaned) as VideoScene[]
