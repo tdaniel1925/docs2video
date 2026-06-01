@@ -214,7 +214,7 @@ export async function generateScript(
           if (wasTruncated) {
             console.warn(`[script-gen] Source data truncated for strategic analysis. Dropped: ${droppedSections.join(', ')}`)
           }
-          return getPrompt('strategic_analysis', process.env.PROMPT_VERSION_OVERRIDE || undefined)(
+          return getPrompt('strategic_analysis')(
             intentGuidance,
             JSON.stringify(fitted),
             {
@@ -233,11 +233,8 @@ export async function generateScript(
     console.error('[script-gen] Deep analysis failed, proceeding without:', err instanceof Error ? err.message : 'unknown')
   }
 
-  // Use PROMPT_VERSION_OVERRIDE env var to opt-in to newer prompt versions
-  const promptVersion = process.env.PROMPT_VERSION_OVERRIDE || undefined
-  const genericPromptBuilder = getPrompt('script_generation_generic', promptVersion)
-
-  const insurancePromptBuilder = getPrompt('script_generation_insurance', promptVersion)
+  const genericPromptBuilder = getPrompt('script_generation_generic')
+  const insurancePromptBuilder = getPrompt('script_generation_insurance')
 
   let promptBody = isInsurance
     ? insurancePromptBuilder(data as ExtractedPolicyData, brandName, detailed, assetCount ?? 0)

@@ -20,17 +20,7 @@ export const PROMPT_REGISTRY = {
 
 export type PromptCategory = keyof typeof PROMPT_REGISTRY
 
-// getPrompt — version parameter kept for API compatibility but ignored (only V2 exists)
-export function getPrompt<K extends keyof typeof PROMPT_REGISTRY>(
-  category: K,
-  _version?: string
-) {
-  const builder = PROMPT_REGISTRY[category]
-  if (!builder) throw new Error(`Unknown prompt: ${String(category)}`)
-  return builder
-}
-
-// Default prompt versions — exported for backward compat (script-generator.ts references it)
+// Frozen version record — saved to DB for audit trail (which prompt versions generated a video)
 export const DEFAULT_PROMPT_VERSIONS = {
   script_generation_insurance: 'v2',
   script_generation_generic: 'v2',
@@ -41,6 +31,12 @@ export const DEFAULT_PROMPT_VERSIONS = {
   extraction_content: 'v1',
   script_chat: 'v1',
 } as const
+
+export function getPrompt<K extends keyof typeof PROMPT_REGISTRY>(category: K) {
+  const builder = PROMPT_REGISTRY[category]
+  if (!builder) throw new Error(`Unknown prompt: ${String(category)}`)
+  return builder
+}
 
 // Re-exports
 export { buildGenericScriptPromptV2 } from './script-generator-v2'
