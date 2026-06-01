@@ -395,24 +395,55 @@ export async function POST(request: Request) {
       console.warn(`[video ${videoId}] Failed to save script revision:`, revErr instanceof Error ? revErr.message : 'unknown')
     }
 
-    // --- GUARD: Insurance reconciliation/sanity gate ---
+    // --- GUARD: Insurance reconciliation/sanity gate (tiered) ---
     const isInsurance = 'policyType' in (policyData as any)
     if (isInsurance) {
       const sanityFlags = (policyData as any).sanityFlags as string[] | undefined
-      if (sanityFlags?.some((f: string) => f.startsWith('RECONCILIATION_FAILED') || f.startsWith('OPUS_EXTRACTION_FAILED'))) {
-        inFlightVideos.delete(videoId)
-        const flagSummary = sanityFlags.join('; ')
-        console.error(`[video ${videoId}] Insurance data blocked by reconciliation: ${flagSummary}`)
-        await admin.from('videos').update({
-          status: 'review_required',
-          progress_detail: `Insurance data requires review: ${flagSummary}`,
-          progress_pct: 0,
-        }).eq('id', videoId)
-        return NextResponse.json({ error: 'Insurance data could not be verified against the source document. Please review the extracted data before generating a video.', reviewRequired: true }, { status: 422 })
-      }
       if (sanityFlags?.length) {
-        // review-level flags: log but allow to continue
-        console.warn(`[video ${videoId}] Insurance data has review flags (allowing): ${sanityFlags.join('; ')}`)
+        // TIER 1: Impossible values — extraction errors, never legitimate products. Block outright.
+        const TIER1_PREFIXES = [
+          'RECONCILIATION_FAILED', 'OPUS_EXTRACTION_FAILED',
+          'CV_YEAR_EXCEEDS_MAX', 'SV_YEAR_EXCEEDS_MAX',
+          'PREMIUM_NEGATIVE', 'DB_NEGATIVE', 'AGE_ABSURD', 'LOAN_RATE_ABSURD',
+          'MISSING_POLICY_TYPE', 'MISSING_CARRIER', 'MISSING_INSURED_NAME', 'NO_CV_PROJECTIONS',
+        ]
+        const tier1Flags = sanityFlags.filter((f: string) => TIER1_PREFIXES.some(p => f.startsWith(p)))
+
+        // TIER 2: Unusual but possibly legitimate — requires human approval before shipping.
+        const TIER2_PREFIXES = [
+          'CV_GUARANTEED_DIP', 'CV_CURRENT_DIP', 'SV_GUARANTEED_DIP', 'SV_CURRENT_DIP',
+          'SV_EXCEEDS_CV', 'SV_EXCEEDS_CV_CURRENT',
+          'DB_PREMIUM_RATIO_LOW', 'DB_PREMIUM_RATIO_HIGH',
+          'PREMIUM_EXTREME', 'DB_EXTREME',
+          'RECONCILIATION_REVIEW',
+        ]
+        const tier2Flags = sanityFlags.filter((f: string) => TIER2_PREFIXES.some(p => f.startsWith(p)))
+
+        if (tier1Flags.length > 0) {
+          // BLOCK: impossible values — bad reads, not unusual products
+          inFlightVideos.delete(videoId)
+          const flagSummary = tier1Flags.join('; ')
+          console.error(`[video ${videoId}] Insurance BLOCKED (Tier 1 — impossible values): ${flagSummary}`)
+          await admin.from('videos').update({
+            status: 'review_required',
+            progress_detail: `Extraction errors detected: ${flagSummary}`,
+            progress_pct: 0,
+          }).eq('id', videoId)
+          return NextResponse.json({ error: 'Insurance data contains extraction errors that must be corrected before generating a video. Please review the extracted data.', reviewRequired: true, tier: 1, flags: tier1Flags }, { status: 422 })
+        }
+
+        if (tier2Flags.length > 0) {
+          // HOLD: unusual values — human must approve before shipping
+          inFlightVideos.delete(videoId)
+          const flagSummary = tier2Flags.join('; ')
+          console.warn(`[video ${videoId}] Insurance HELD for review (Tier 2 — unusual values): ${flagSummary}`)
+          await admin.from('videos').update({
+            status: 'review_required',
+            progress_detail: `Unusual values flagged for review: ${flagSummary}`,
+            progress_pct: 0,
+          }).eq('id', videoId)
+          return NextResponse.json({ error: 'Insurance data contains unusual values that need human verification before generating a video. A reviewer can approve and release this.', reviewRequired: true, tier: 2, flags: tier2Flags }, { status: 422 })
+        }
       }
     }
 
