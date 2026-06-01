@@ -82,7 +82,7 @@ export async function extractInsuranceWithOpus(
 
   try {
     const response = await claude.messages.create({
-      model: 'claude-opus-4-20250514',
+      model: 'claude-opus-4-20250808',
       max_tokens: 8192,
       messages: [{
         role: 'user',

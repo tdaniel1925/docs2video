@@ -74,7 +74,7 @@ Return ONLY valid JSON array (no markdown, no code fences):
 ]`
 
   const response = await getClaude().messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-20250808',
     max_tokens: 4096,
     messages: [{ role: 'user', content: prompt }],
   })
@@ -205,7 +205,7 @@ export async function generateScript(
   let deepAnalysis = ''
   try {
     const analysisResponse = await getClaude().messages.create({
-      model: 'claude-opus-4-20250514',
+      model: 'claude-opus-4-20250808',
       max_tokens: 4096,
       messages: [{
         role: 'user',
@@ -527,7 +527,7 @@ FIELD RULES:
 - "beat": one of "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"`
 
     const response = await getClaude().messages.create({
-      model: 'claude-opus-4-20250514',
+      model: 'claude-opus-4-20250808',
       max_tokens: 8192,
       messages: [{ role: 'user', content: podcastPrompt }],
     })
@@ -575,7 +575,7 @@ FIELD RULES:
 - "beat": one of "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"`
 
   const response = await getClaude().messages.create({
-    model: 'claude-opus-4-20250514',
+    model: 'claude-opus-4-20250808',
     max_tokens: 8192,
     messages: [{ role: 'user', content: prompt }],
   })

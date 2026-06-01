@@ -328,7 +328,7 @@ export async function classifyIndustryLLM(title: string, content: string): Promi
     const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
     const response = await claude.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-20250808',
       max_tokens: 50,
       messages: [{
         role: 'user',
