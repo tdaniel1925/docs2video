@@ -5,6 +5,7 @@ import { SLIDE_STYLES } from './types'
 import { buildStructuredPrompt } from './prompt-builder'
 import { INDUSTRIES, detectIndustry, type IndustryId } from './industries'
 import { classifyDocument, type DocumentClassification } from './document-classifier'
+import { extractInsuranceWithOpus } from './insurance-extractor'
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -146,9 +147,22 @@ export async function extractDocumentData(pdfBase64: string, mimeType: string = 
       throw new Error('Could not extract meaningful data from this document. The file may be image-only, password-protected, or in an unsupported format.')
     }
 
-    // Only include insurance data if it was detected and has meaningful values
-    if (parsed.insurance && parsed.insurance.deathBenefit > 0) {
-      result.insurance = parsed.insurance as ExtractedPolicyData
+    // Insurance extraction: if classified as insurance, use Claude Opus for high-accuracy column-aware extraction
+    const isInsuranceDoc = classification?.category === 'insurance' ||
+      classification?.documentType === 'life_insurance_illustration' ||
+      (parsed.insurance && parsed.insurance.deathBenefit > 0)
+
+    if (isInsuranceDoc) {
+      console.log(`[extract] Insurance detected — running Claude Opus extraction for column-aware accuracy`)
+      const opusResult = await extractInsuranceWithOpus(pdfBase64, mimeType)
+      if (opusResult) {
+        result.insurance = opusResult
+        console.log(`[extract] Opus insurance extraction succeeded: ${opusResult.policyType}, DB=${opusResult.deathBenefit}`)
+      } else if (parsed.insurance && parsed.insurance.deathBenefit > 0) {
+        // Fallback to Gemini extraction if Opus fails
+        console.warn(`[extract] Opus failed, falling back to Gemini insurance extraction`)
+        result.insurance = parsed.insurance as ExtractedPolicyData
+      }
     }
     return result
   } catch (err) {

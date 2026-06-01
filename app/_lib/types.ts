@@ -117,16 +117,28 @@ export interface ExtractedPolicyData {
     year: number
     guaranteed: number
     current: number
+    sourcePage?: string
   }[]
   surrenderValueProjections: {
     year: number
     guaranteed: number
     current: number
+    sourcePage?: string
   }[]
   riders: string[]
   loanRate: number | null
   additionalNotes: string[]
   disclaimers?: string[]
+  // Column provenance metadata (added by Claude Opus extraction)
+  guaranteed_column_label?: string
+  current_column_label?: string
+  column_mapping_rationale?: string
+  rawColumns?: { label: string; mappedTo: 'guaranteed' | 'current' | 'unmapped' }[]
+  maxIllustratedYear?: number
+  extractionConfidence?: number
+  lowConfidenceFields?: string[]
+  // Sanity check flags (added by deterministic validation)
+  sanityFlags?: string[]
 }
 
 export interface DialogueLine {
