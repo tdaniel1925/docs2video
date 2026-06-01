@@ -11,7 +11,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 300
 
 function getClaude() {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || '' })
 }
 
 export async function POST(request: Request & { nextUrl?: URL }) {

@@ -8,7 +8,11 @@ import { sendNotification, createJob, updateJobProgress } from '../../_lib/notif
 export const runtime = 'nodejs'
 export const maxDuration = 600
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+let _anthropic: Anthropic | null = null
+function getAnthropic() {
+  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || '' })
+  return _anthropic
+}
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -113,7 +117,7 @@ export async function POST(request: Request) {
         content: m.content,
       }))
 
-      const response = await anthropic.messages.create({
+      const response = await getAnthropic().messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 1024,
         system: SOFIA_PROMPT,

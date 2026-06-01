@@ -14,7 +14,7 @@ export const maxDuration = 300
 
 let _claude: Anthropic | null = null
 function getClaude() {
-  if (!_claude) _claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+  if (!_claude) _claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || '' })
   return _claude
 }
 

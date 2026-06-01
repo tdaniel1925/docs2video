@@ -3,7 +3,11 @@ import type { ExtractedPolicyData } from './types'
 
 let _claude: Anthropic | null = null
 function getClaude() {
-  if (!_claude) _claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+  if (!_claude) {
+    const key = process.env.ANTHROPIC_API_KEY
+    if (!key) throw new Error('ANTHROPIC_API_KEY environment variable is not set')
+    _claude = new Anthropic({ apiKey: key })
+  }
   return _claude
 }
 

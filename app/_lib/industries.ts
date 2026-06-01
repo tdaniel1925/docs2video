@@ -325,7 +325,7 @@ export async function classifyIndustryLLM(title: string, content: string): Promi
 
   try {
     const { default: Anthropic } = await import('@anthropic-ai/sdk')
-    const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+    const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || '' })
 
     const response = await claude.messages.create({
       model: 'claude-sonnet-4-6',
