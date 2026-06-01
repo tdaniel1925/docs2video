@@ -395,8 +395,28 @@ export async function POST(request: Request) {
       console.warn(`[video ${videoId}] Failed to save script revision:`, revErr instanceof Error ? revErr.message : 'unknown')
     }
 
-    // --- GUARD: Pre-flight script validation ---
+    // --- GUARD: Insurance reconciliation/sanity gate ---
     const isInsurance = 'policyType' in (policyData as any)
+    if (isInsurance) {
+      const sanityFlags = (policyData as any).sanityFlags as string[] | undefined
+      if (sanityFlags?.some((f: string) => f.startsWith('RECONCILIATION_FAILED') || f.startsWith('OPUS_EXTRACTION_FAILED'))) {
+        inFlightVideos.delete(videoId)
+        const flagSummary = sanityFlags.join('; ')
+        console.error(`[video ${videoId}] Insurance data blocked by reconciliation: ${flagSummary}`)
+        await admin.from('videos').update({
+          status: 'review_required',
+          progress_detail: `Insurance data requires review: ${flagSummary}`,
+          progress_pct: 0,
+        }).eq('id', videoId)
+        return NextResponse.json({ error: 'Insurance data could not be verified against the source document. Please review the extracted data before generating a video.', reviewRequired: true }, { status: 422 })
+      }
+      if (sanityFlags?.length) {
+        // review-level flags: log but allow to continue
+        console.warn(`[video ${videoId}] Insurance data has review flags (allowing): ${sanityFlags.join('; ')}`)
+      }
+    }
+
+    // --- GUARD: Pre-flight script validation ---
     const validation = validateScript(scenes, {
       industry: industry ?? (isInsurance ? 'insurance' : undefined),
       contactInfo: undefined,

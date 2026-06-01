@@ -6,6 +6,7 @@ import { buildStructuredPrompt } from './prompt-builder'
 import { INDUSTRIES, detectIndustry, type IndustryId } from './industries'
 import { classifyDocument, type DocumentClassification } from './document-classifier'
 import { extractInsuranceWithOpus } from './insurance-extractor'
+import { reconcileInsuranceExtraction, type ReconciliationResult } from './insurance-reconciler'
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -88,7 +89,7 @@ Rules for insurance (if applicable):
 - Include any important riders or features in the riders array
 - disclaimers: Extract ALL disclaimer, disclosure, legal notice, and compliance text found anywhere in the document. Include the full text of each disclaimer exactly as written. If none found, use an empty array.`
 
-export async function extractDocumentData(pdfBase64: string, mimeType: string = 'application/pdf', preserveAllPages: boolean = false): Promise<{ general: ExtractedData; insurance?: ExtractedPolicyData; classification?: DocumentClassification }> {
+export async function extractDocumentData(pdfBase64: string, mimeType: string = 'application/pdf', preserveAllPages: boolean = false): Promise<{ general: ExtractedData; insurance?: ExtractedPolicyData; classification?: DocumentClassification; reconciliation?: ReconciliationResult }> {
   // PASS 1: Classify the document (fast, cheap — Gemini Flash)
   let classification: DocumentClassification | undefined
   try {
@@ -159,6 +160,27 @@ export async function extractDocumentData(pdfBase64: string, mimeType: string = 
       if (opusResult) {
         result.insurance = opusResult
         console.log(`[extract] Opus insurance extraction succeeded: ${opusResult.policyType}, DB=${opusResult.deathBenefit}, confidence=${opusResult.extractionConfidence}`)
+
+        // RECONCILIATION: Gemini 2.5 Pro cross-checks Opus output against the PDF (different model family)
+        console.log(`[extract] Running Gemini reconciliation pass...`)
+        const reconciliation = await reconcileInsuranceExtraction(pdfBase64, mimeType, opusResult)
+        ;(result as any).reconciliation = reconciliation
+
+        if (reconciliation.overallVerdict === 'fail') {
+          console.error(`[extract] RECONCILIATION FAILED — mismatches: ${reconciliation.mismatches.map(m => m.field).join(', ')}`)
+          result.insurance.sanityFlags = [
+            ...(result.insurance.sanityFlags || []),
+            `RECONCILIATION_FAILED: ${reconciliation.mismatches.length} mismatches found. ${reconciliation.mismatches.map(m => `${m.field}: ${m.issue}`).join('; ')}`,
+          ]
+        } else if (reconciliation.overallVerdict === 'review') {
+          console.warn(`[extract] Reconciliation flagged for REVIEW — ${reconciliation.unverifiable.length} unverifiable, ${reconciliation.mismatches.length} minor mismatches`)
+          result.insurance.sanityFlags = [
+            ...(result.insurance.sanityFlags || []),
+            `RECONCILIATION_REVIEW: ${reconciliation.unverifiable.length} unverifiable fields, ${reconciliation.mismatches.length} minor discrepancies`,
+          ]
+        } else {
+          console.log(`[extract] Reconciliation PASSED — all numbers verified`)
+        }
       } else {
         // Opus failed — route to REVIEW state. Do NOT silently auto-proceed on Gemini's metadata-less output.
         // Gemini output is included but flagged as unverified — must pass through reconciliation + sanity checks.
