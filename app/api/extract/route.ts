@@ -60,7 +60,7 @@ export async function POST(request: Request & { nextUrl?: URL }) {
       } else if (idea) {
         // Generate content from idea using AI
         const ideaRes = await claude.messages.create({
-          model: 'claude-opus-4-20250514',
+          model: 'claude-sonnet-4-20250514',
           max_tokens: 2000,
           messages: [{
             role: 'user',
@@ -73,7 +73,7 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
 
       // Structure the content using AI
       const structureRes = await claude.messages.create({
-        model: 'claude-opus-4-20250514',
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 4096,
         system: CONTENT_STRUCTURING_SYSTEM_PROMPT,
         messages: [{
@@ -135,7 +135,7 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
       const purposeField = formData.get('purpose') as string | null
       const claude = getClaude()
       const structureRes = await claude.messages.create({
-        model: 'claude-opus-4-20250514',
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 4096,
         system: CONTENT_STRUCTURING_SYSTEM_PROMPT,
         messages: [{

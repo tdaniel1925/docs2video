@@ -74,7 +74,7 @@ Return ONLY valid JSON array (no markdown, no code fences):
 ]`
 
   const response = await getClaude().messages.create({
-    model: 'claude-opus-4-20250514',
+    model: 'claude-sonnet-4-20250514',
     max_tokens: 4096,
     messages: [{ role: 'user', content: prompt }],
   })

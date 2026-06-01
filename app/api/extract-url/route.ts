@@ -175,14 +175,14 @@ export async function POST(request: Request) {
     const claude = getClaude()
     const [contentResponse, themeResponse] = await Promise.all([
       claude.messages.create({
-        model: 'claude-opus-4-20250514',
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 4096,
         messages: [
           { role: 'user', content: `${EXTRACTION_PROMPT}\n\nHere is the EXACT text from ${parsedUrl.hostname} (extracted by web scraper — do NOT add any information not present here):\n\n${wrapUserData(truncated)}\n\nReturn ONLY valid JSON, no markdown code fences.` },
         ],
       }),
       claude.messages.create({
-        model: 'claude-opus-4-20250514',
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 2048,
         messages: [
           { role: 'user', content: `${THEME_PROMPT}\n\nHere is the HTML/CSS from ${parsedUrl.hostname}:\n\n${wrapUserData(htmlForTheme)}\n\nReturn ONLY valid JSON, no markdown code fences.` },

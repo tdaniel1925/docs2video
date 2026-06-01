@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   }
 
   const response = await getClaude().messages.create({
-    model: 'claude-opus-4-20250514',
+    model: 'claude-sonnet-4-20250514',
     max_tokens: 8192,
     system: buildScriptChatSystemPrompt(scenes.length, purpose, sourceRef, webContent, urlToScrape),
     messages: [
