@@ -80,6 +80,18 @@ H7. CONTACT PLACEMENT
 H8. EVERY SCENE MUST HAVE NARRATION
 - There must be NO silent scenes. Every scene MUST have narration text, title, slidePrompt, beat, and duration.
 
+H9. BANNED PHRASES (using any of these invalidates the scene)
+- "it's important to note that" — just state the fact
+- "as you can see" — the viewer knows they're watching
+- "let's take a look at" — just transition to it
+- "the data shows" / "the evidence suggests" — state the conclusion directly
+- "it's worth noting" — if it's worth noting, just note it
+- "as we mentioned" / "as we discussed" — don't reference yourself
+- "moving on to" / "in conclusion" / "at the end of the day" — let the content flow naturally
+- "in today's presentation" / "in this video" — jump straight into content
+- "it goes without saying" — then don't say it
+Starting a sentence with "Now," "So," "Additionally," or "Furthermore" is also banned.
+
 ===== POLICY DATA =====
 
 ${wrapUserData(policyDataBlock)}

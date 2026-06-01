@@ -251,24 +251,16 @@ export async function generateScript(
   // Build additional prompt sections based on new parameters
   const additionalSections: string[] = []
 
-  // Inject contact info so the LLM can reference it in narration
-  if (contactInfo) {
-    const contactParts: string[] = []
-    if (contactInfo.phone) contactParts.push(`Phone: ${contactInfo.phone}`)
-    if (contactInfo.email) contactParts.push(`Email: ${contactInfo.email}`)
-    if ((contactInfo as any).website) contactParts.push(`Website: ${(contactInfo as any).website}`)
-    if (contactInfo.calendly) contactParts.push(`Booking: ${contactInfo.calendly}`)
-    if (contactParts.length > 0) {
-      additionalSections.push(`CONTACT INFORMATION (use in closing scene):\n${contactParts.join('\n')}\nMention the business name "${brandName || 'the company'}" at the opening and closing. Include the above contact details naturally in the final scene.`)
-    }
-  }
+  // Contact info injection — single source of truth (matches H2/H6 in templates)
+  // Rule: contact info ONLY in final scene; include ONLY if it exists verbatim in source; otherwise closing is exactly "Thank you for watching."
+  // Do NOT mention brand name at opening — H5 says "jump straight into the topic".
 
   // For insurance: reinforce carrier name ban and focus on policy features
   if (isInsurance) {
     const carrierName = (data as any).carrier || ''
     additionalSections.push(`CRITICAL INSURANCE RULES (MUST FOLLOW):
 1. NEVER say "${carrierName}" or any carrier/company name. Use "the carrier" or "your carrier" instead.
-2. NEVER mention the product name "${(data as any).policyType || ''}". Say "your policy" or "this policy" instead.
+2. The generic policy type (e.g. "IUL", "Universal Life", "Whole Life") IS allowed — saying "your IUL policy" is fine. Only the CARRIER NAME is banned.
 3. Focus on EXPLAINING POLICY FEATURES AND BENEFITS to the policyholder — not on describing the carrier.
 4. The viewer is the POLICYHOLDER. Explain what their policy does for THEM: death benefit, cash value, riders, premiums.
 5. Do NOT summarize the carrier's marketing. Instead, explain: "Here's what this means for your family's financial security."
@@ -297,10 +289,15 @@ export async function generateScript(
       classRules.push(`RED FLAGS TO ADDRESS (important things the viewer should know):\n${classification.redFlags.map(f => `- ${f}`).join('\n')}\nInclude these naturally in the narration — don't ignore them.`)
     }
 
-    // FIX 2: Confidence gating — only apply hard rules if confidence is sufficient
+    // Carrier-name ban — ALWAYS fires regardless of confidence (compliance-critical)
+    if (classification.category === 'insurance') {
+      classRules.push(`INSURANCE CARRIER BAN (LEGAL — ALWAYS ENFORCED):\n- NEVER mention the insurance carrier/company name\n- Include required disclaimers about illustrations not being guarantees\n- Projected values are NOT guaranteed — say "projected" or "estimated"\n- Focus on what the policy DOES for the client, not the carrier brand`)
+    }
+
+    // FIX 2: Confidence gating — only apply industry-specific style rules if confidence is sufficient
     const confidence = (classification as any).confidence ?? 0.5
     if (confidence < 0.5) {
-      // Low confidence: skip industry-specific hard rules, keep tone/perspective/redFlags
+      // Low confidence: skip industry-specific style rules, keep tone/perspective/redFlags/carrier ban
       classRules.push(`Note: Document type was not confidently identified. Apply general best practices.`)
     } else {
       // Confidence >= 0.5: apply sensitivity and hard rules
@@ -322,9 +319,9 @@ export async function generateScript(
         classRules.push(`ACTION ITEMS FOR CLOSING SCENE:\n${classification.actionItems.map(a => `- ${a}`).join('\n')}\nInclude these as concrete next steps in the final scene.`)
       }
 
-      // Industry-specific hard rules
+      // Industry-specific style rules (carrier ban already applied above, unconditionally)
       if (classification.category === 'insurance') {
-        classRules.push(`INSURANCE RULES:\n- NEVER mention the insurance carrier/company name\n- Include required disclaimers about illustrations not being guarantees\n- Projected values are NOT guaranteed — say "projected" or "estimated"\n- Focus on what the policy DOES for the client, not the carrier brand`)
+        // Carrier ban already applied above — no duplicate needed here
       } else if (classification.category === 'healthcare') {
         classRules.push(`HEALTHCARE RULES:\n- Use patient-friendly language, avoid medical jargon\n- Do NOT make diagnostic claims\n- Explain what results MEAN, not just what they ARE\n- Be empathetic and reassuring in tone`)
       } else if (classification.category === 'legal') {
@@ -416,17 +413,22 @@ export async function generateScript(
     additionalSections.push(`BRAND TONE (OVERRIDES INDUSTRY DEFAULT): The brand's actual voice is "${brandTone}". This takes priority over the industry tone above. Match this specific tone throughout the narration — the brand knows its audience better than a generic industry setting.`)
   }
 
+  // Single contact-info injection — consistent with template H2/H6
   if (contactInfo && (contactInfo.phone || contactInfo.email || contactInfo.calendly || (contactInfo as any)?.website)) {
     const parts: string[] = []
     if (contactInfo.phone) parts.push(`Phone: ${contactInfo.phone}`)
     if (contactInfo.email) parts.push(`Email: ${contactInfo.email}`)
     if ((contactInfo as any)?.website) parts.push(`Website: ${(contactInfo as any).website}`)
     if (contactInfo.calendly) parts.push('Booking link available on the share page')
-    additionalSections.push(`CONTACT INFO (MUST be included in the closing scene narration AND on the closing slide):
+    additionalSections.push(`CONTACT INFO (FINAL SCENE ONLY — this is the single source of truth):
 ${parts.join('\n')}
-The narrator should mention these naturally in the last scene. Display them on the closing slide.
-For phone numbers in narration: spell out naturally ("five five five, one two three, four five six seven")
-For websites in narration: just say "visit their website" — the URL will be on the slide.`)
+Rules:
+- Include these ONLY in the final scene narration. NEVER mention contact details in earlier scenes.
+- Use ONE clear call to action — pick the strongest channel.
+- For phone numbers: spell out naturally ("five five five, one two three, four five six seven").
+- For websites: say "visit their website" — the URL will be on the slide.
+- If ${brandName ? `mentioning the brand, use "${brandName}"` : 'no brand name is available, skip it'}.
+- If none of these contact details existed, the closing would be exactly "Thank you for watching." — but since they DO exist, use them.`)
   }
 
   const additionalBlock = additionalSections.length > 0 ? '\n\n' + additionalSections.join('\n\n') : ''
