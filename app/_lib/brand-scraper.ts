@@ -360,7 +360,7 @@ export async function scrapeBrand(url: string, firecrawlContent?: { markdown: st
   )
 
   const response = await getClaude().messages.create({
-    model: 'claude-sonnet-4-20250808',
+    model: 'claude-sonnet-4-6',
     max_tokens: 4096,
     messages: [{ role: 'user', content: prompt + '\n\nReturn ONLY valid JSON, no markdown code fences.' }],
   })

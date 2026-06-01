@@ -114,7 +114,7 @@ export async function POST(request: Request) {
       }))
 
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250808',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1024,
         system: SOFIA_PROMPT,
         messages: anthropicMessages,

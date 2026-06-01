@@ -60,7 +60,7 @@ export async function POST(request: Request & { nextUrl?: URL }) {
       } else if (idea) {
         // Generate content from idea using AI
         const ideaRes = await claude.messages.create({
-          model: 'claude-sonnet-4-20250808',
+          model: 'claude-sonnet-4-6',
           max_tokens: 2000,
           messages: [{
             role: 'user',
@@ -77,7 +77,7 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
         ? `${contentToStructure.slice(0, 12000)}\n\n[... TRUNCATED: chars 12001–${contentToStructure.length - 3000} omitted (${contentToStructure.length - 15000} chars). Data tables in the middle section may be missing. ...]\n\n${contentToStructure.slice(-3000)}`
         : contentToStructure
       const structureRes = await claude.messages.create({
-        model: 'claude-sonnet-4-20250808',
+        model: 'claude-sonnet-4-6',
         max_tokens: 4096,
         system: CONTENT_STRUCTURING_SYSTEM_PROMPT,
         messages: [{
@@ -144,7 +144,7 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
         : text
       const claude = getClaude()
       const structureRes = await claude.messages.create({
-        model: 'claude-sonnet-4-20250808',
+        model: 'claude-sonnet-4-6',
         max_tokens: 4096,
         system: CONTENT_STRUCTURING_SYSTEM_PROMPT,
         messages: [{
