@@ -1,14 +1,17 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { classifyDocument } from '../../_lib/document-classifier'
+import { extractInsuranceWithOpus } from '../../_lib/insurance-extractor'
+import { reconcileInsuranceExtraction } from '../../_lib/insurance-reconciler'
+import { runInsuranceSanityChecks } from '../../_lib/insurance-sanity-checks'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
 /**
  * Proxy: accepts file upload (FormData), converts to base64,
- * forwards to VPS /extract-document for OpenAI extraction.
- * Also classifies the document for intelligent script generation.
+ * forwards to VPS /extract-document for generic extraction (Claude Sonnet).
+ * Also classifies the document and runs insurance-specific extraction if needed.
  */
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -29,7 +32,7 @@ export async function POST(request: Request) {
     const base64 = Buffer.from(arrayBuffer).toString('base64')
     const mimeType = file.type || 'application/pdf'
 
-    // Run extraction and classification in parallel
+    // Run generic extraction (VPS) and classification (Gemini Flash) in parallel
     const [vpsRes, classification] = await Promise.all([
       fetch(`${VIDEO_ASSEMBLY_URL}/extract-document`, {
         method: 'POST',
@@ -54,7 +57,58 @@ export async function POST(request: Request) {
     if (classification) {
       result.classification = classification
       result.industry = classification.industry
-      console.log(`[extract-doc] Classified: ${classification.documentType} (${classification.category}/${classification.sensitivity}) → ${classification.redFlags?.length || 0} red flags`)
+      console.log(`[extract-doc] Classified: ${classification.documentType} (${classification.category}/${(classification as any).sensitivity}) → ${classification.redFlags?.length || 0} red flags`)
+    }
+
+    // INSURANCE PATH: If classified as insurance, run Claude Opus extraction + reconciliation + sanity checks
+    const isInsuranceDoc = classification?.category === 'insurance' ||
+      classification?.documentType === 'life_insurance_illustration' ||
+      (result.insurance && result.insurance.deathBenefit > 0)
+
+    if (isInsuranceDoc) {
+      console.log(`[extract-doc] Insurance detected — running Claude Opus extraction`)
+      const opusResult = await extractInsuranceWithOpus(base64, mimeType)
+
+      if (opusResult) {
+        result.insurance = opusResult
+        console.log(`[extract-doc] Opus extraction succeeded: ${opusResult.policyType}, DB=${opusResult.deathBenefit}, confidence=${opusResult.extractionConfidence}`)
+
+        // Reconciliation: Gemini 2.5 Pro cross-checks Opus output against source PDF
+        console.log(`[extract-doc] Running Gemini reconciliation pass...`)
+        const reconciliation = await reconcileInsuranceExtraction(base64, mimeType, opusResult)
+        result.reconciliation = reconciliation
+
+        if (reconciliation.overallVerdict === 'fail') {
+          console.error(`[extract-doc] RECONCILIATION FAILED — ${reconciliation.mismatches.map((m: any) => m.field).join(', ')}`)
+          result.insurance.sanityFlags = [
+            ...(result.insurance.sanityFlags || []),
+            `RECONCILIATION_FAILED: ${reconciliation.mismatches.length} mismatches. ${reconciliation.mismatches.map((m: any) => `${m.field}: ${m.issue}`).join('; ')}`,
+          ]
+        } else if (reconciliation.overallVerdict === 'review') {
+          console.warn(`[extract-doc] Reconciliation flagged for REVIEW`)
+          result.insurance.sanityFlags = [
+            ...(result.insurance.sanityFlags || []),
+            `RECONCILIATION_REVIEW: ${reconciliation.unverifiable.length} unverifiable, ${reconciliation.mismatches.length} minor discrepancies`,
+          ]
+        } else {
+          console.log(`[extract-doc] Reconciliation PASSED`)
+        }
+
+        // Deterministic sanity checks
+        const sanityFlags = runInsuranceSanityChecks(result.insurance)
+        if (sanityFlags.length > 0) {
+          result.insurance.sanityFlags = [...(result.insurance.sanityFlags || []), ...sanityFlags]
+          console.warn(`[extract-doc] Sanity checks: ${sanityFlags.length} flags`)
+        }
+      } else {
+        // Opus failed — flag for review, no silent auto-proceed
+        console.warn(`[extract-doc] Opus extraction failed — flagging for REVIEW`)
+        result.insurance = {
+          extractionConfidence: 0,
+          lowConfidenceFields: ['ALL — Opus extraction failed'],
+          sanityFlags: ['OPUS_EXTRACTION_FAILED: Column metadata unavailable. Requires human review.'],
+        }
+      }
     }
 
     return NextResponse.json(result)
