@@ -49,11 +49,10 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code fence
   "truncated": false
 }
 
-CONTACT OWNERSHIP (critical — a wrong number in a client video is dangerous):
+CONTACT OWNERSHIP (critical — a wrong detail in a client video is dangerous):
 - Extract ONLY the contact details that belong to the ENTITY THE CONTENT IS ABOUT.
-- If the page has multiple phone numbers and it's unclear which belongs to the primary entity (e.g. footer host line, parent company, partner, generic 1-800 support), return null for phone. A null is safe; a wrong number is not.
-- Same logic for email: if multiple addresses appear or ownership is ambiguous, return null.
-- The website field should be the main site URL (this is usually unambiguous).
+- For ALL four fields (phone, email, website, address): if multiple values appear and it's unclear which belongs to the primary entity (e.g. footer host line, parent company, partner, generic 1-800 support, co-located business), return null for that field. A null is safe; a wrong value is not.
+- Website is usually unambiguous (the page's own domain), but if the content is ABOUT a different entity than the hosting site, use the entity's website or null.
 - NEVER guess or infer contact info that isn't explicitly stated.
 
 Rules:
@@ -90,7 +89,7 @@ export const CONTENT_STRUCTURING_SYSTEM_PROMPT = `Extract and structure content 
   "truncated": false
 }
 
-CONTACT OWNERSHIP: Extract ONLY contacts belonging to the entity the content is ABOUT. If ownership is ambiguous (multiple numbers, unclear which entity), return null. A null is safe; a wrong number in a client video is dangerous.
+CONTACT OWNERSHIP: For ALL four fields (phone, email, website, address), extract ONLY contacts belonging to the entity the content is ABOUT. If ownership is ambiguous (multiple values, unclear which entity), return null for that field. A null is safe; a wrong value in a client video is dangerous.
 
 Only include real data found in the content. Never invent contact info.
 

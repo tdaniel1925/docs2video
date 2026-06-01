@@ -173,7 +173,7 @@ export async function POST(request: Request) {
     if (isTruncated) {
       const head = markdown.slice(0, 40000)
       const tail = markdown.slice(-10000)
-      truncated = `${head}\n\n[... content truncated — ${markdown.length - 50000} chars omitted ...]\n\n${tail}`
+      truncated = `${head}\n\n[... TRUNCATED: chars 40001–${markdown.length - 10000} omitted (${markdown.length - 50000} chars). Data tables in the middle section may be missing. ...]\n\n${tail}`
       console.log(`[extract-url] Content truncated: ${markdown.length} → 50000 chars (kept first 40k + last 10k)`)
     } else {
       truncated = markdown

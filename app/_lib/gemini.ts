@@ -202,10 +202,12 @@ export async function extractDocumentData(pdfBase64: string, mimeType: string = 
         }
       }
 
-      // STAGE PRECEDENCE: When both Stage 1 (Gemini generic) and Stage 2 (Opus insurance) produce data:
-      // - Insurance-specific fields (deathBenefit, projections, carrier, etc.): Stage 2 (Opus) WINS — it's the specialized extractor.
-      // - Generic fields (title, sections, keyMetrics, bulletPoints): Stage 1 (Gemini generic) wins — it's designed for general content.
-      // - On direct conflict (companyName vs carrier): prefer Stage 2 for insurance docs (higher-confidence specialized pass).
+      // STAGE PRECEDENCE: When both Stage 1 and Stage 2 produce data:
+      // Stage 1 = Gemini 2.5 Pro (PDF via extractDocumentData) or Claude Sonnet (URL/text via extract routes)
+      // Stage 2 = Claude Opus (insurance-specific extraction via insurance-extractor.ts)
+      // - Insurance-specific fields (deathBenefit, projections, carrier, etc.): Stage 2 (Opus) WINS.
+      // - Generic fields (title, sections, keyMetrics, bulletPoints): Stage 1 wins.
+      // - On direct conflict (companyName vs carrier): prefer Stage 2 for insurance docs.
       // - Log any conflicts for audit.
       if (result.insurance && result.general.companyName && result.insurance.carrier) {
         const genericName = (result.general.companyName || '').toLowerCase().trim()

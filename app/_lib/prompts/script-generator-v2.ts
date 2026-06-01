@@ -7,7 +7,10 @@ export function buildGenericScriptPromptV2(data: ExtractedData, brandName: strin
   const industry = userIndustry || (data as any).industry || detectIndustry(data.title, JSON.stringify(data))
   const config = INDUSTRIES[industry as IndustryId] || INDUSTRIES.general
 
-  const metricsText = (data.keyMetrics ?? []).map(m => `- ${m.label}: ${m.value}`).join('\n')
+  const metricsText = (data.keyMetrics ?? []).map(m => {
+    const qual = (m as any).qualifier ? ` (${(m as any).qualifier})` : ''
+    return `- ${m.label}: ${m.value}${qual}`
+  }).join('\n')
   const sectionsText = (data.sections ?? []).map(s => `- ${s.title}: ${s.content}`).join('\n')
   const bulletText = (data.bulletPoints ?? []).map(b => `- ${b}`).join('\n')
 

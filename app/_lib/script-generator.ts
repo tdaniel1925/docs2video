@@ -248,6 +248,11 @@ export async function generateScript(
   // Build additional prompt sections based on new parameters
   const additionalSections: string[] = []
 
+  // Truncation warning — source data may be incomplete
+  if ((data as any).truncated) {
+    additionalSections.push(`DATA COMPLETENESS WARNING: The source document was too long and was truncated during extraction. Some facts, contact info, or disclaimers from the middle of the document may be missing. Do NOT assume completeness — only use facts explicitly present in the data below. If contact info seems incomplete, do NOT guess or fill in gaps.`)
+  }
+
   // Contact info injection — single source of truth (matches H2/H6 in templates)
   // Rule: contact info ONLY in final scene; include ONLY if it exists verbatim in source; otherwise closing is exactly "Thank you for watching."
   // Do NOT mention brand name at opening — H5 says "jump straight into the topic".

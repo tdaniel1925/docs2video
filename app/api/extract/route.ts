@@ -74,7 +74,7 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
       // Structure the content using AI
       const isTextTruncated = contentToStructure.length > 15000
       const truncatedContent = isTextTruncated
-        ? `${contentToStructure.slice(0, 12000)}\n\n[... content truncated — ${contentToStructure.length - 15000} chars omitted ...]\n\n${contentToStructure.slice(-3000)}`
+        ? `${contentToStructure.slice(0, 12000)}\n\n[... TRUNCATED: chars 12001–${contentToStructure.length - 3000} omitted (${contentToStructure.length - 15000} chars). Data tables in the middle section may be missing. ...]\n\n${contentToStructure.slice(-3000)}`
         : contentToStructure
       const structureRes = await claude.messages.create({
         model: 'claude-sonnet-4-20250514',
@@ -140,7 +140,7 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
       const purposeField = formData.get('purpose') as string | null
       const isFileTruncated = text.length > 15000
       const truncatedText = isFileTruncated
-        ? `${text.slice(0, 12000)}\n\n[... content truncated — ${text.length - 15000} chars omitted ...]\n\n${text.slice(-3000)}`
+        ? `${text.slice(0, 12000)}\n\n[... TRUNCATED: chars 12001–${text.length - 3000} omitted (${text.length - 15000} chars). Data tables in the middle section may be missing. ...]\n\n${text.slice(-3000)}`
         : text
       const claude = getClaude()
       const structureRes = await claude.messages.create({
