@@ -20,14 +20,27 @@ export interface ExtractedData {
 /**
  * Strict insurance detection — prevents non-insurance documents from being
  * treated as insurance just because a 'deathBenefit' key exists with value 0/null.
+ * Also runs deterministic sanity checks and attaches flags to the data.
  */
-export function isInsuranceData(data: unknown): data is { policyType: string; carrier: string; insuredName: string; deathBenefit: number; annualPremium: number; [key: string]: unknown } {
+export function isInsuranceData(data: unknown): data is { policyType: string; carrier: string; insuredName: string; deathBenefit: number; annualPremium: number; sanityFlags?: string[]; [key: string]: unknown } {
   if (!data || typeof data !== 'object') return false
   const d = data as Record<string, unknown>
-  return (
+  const isInsurance = (
     typeof d.deathBenefit === 'number' &&
     d.deathBenefit > 0 &&
     typeof d.policyType === 'string' &&
-    d.policyType.length > 0
+    (d.policyType as string).length > 0
   )
+  if (isInsurance) {
+    // Run deterministic sanity checks and attach flags
+    // Lazy import to avoid circular dependency
+    const { runInsuranceSanityChecks } = require('./insurance-sanity-checks')
+    const newFlags = runInsuranceSanityChecks(d as any) as string[]
+    const existing = (d.sanityFlags as string[] | undefined) || []
+    d.sanityFlags = [...existing, ...newFlags]
+    if (newFlags.length > 0) {
+      console.warn(`[isInsuranceData] Sanity checks flagged ${newFlags.length} issues: ${newFlags.join('; ')}`)
+    }
+  }
+  return isInsurance
 }

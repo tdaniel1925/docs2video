@@ -7,6 +7,7 @@ import { INDUSTRIES, detectIndustry, type IndustryId } from './industries'
 import { classifyDocument, type DocumentClassification } from './document-classifier'
 import { extractInsuranceWithOpus } from './insurance-extractor'
 import { reconcileInsuranceExtraction, type ReconciliationResult } from './insurance-reconciler'
+import { runInsuranceSanityChecks } from './insurance-sanity-checks'
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -180,6 +181,13 @@ export async function extractDocumentData(pdfBase64: string, mimeType: string = 
           ]
         } else {
           console.log(`[extract] Reconciliation PASSED — all numbers verified`)
+        }
+
+        // Deterministic sanity checks (no model — pure code)
+        const sanityFlags = runInsuranceSanityChecks(result.insurance)
+        if (sanityFlags.length > 0) {
+          result.insurance.sanityFlags = [...(result.insurance.sanityFlags || []), ...sanityFlags]
+          console.warn(`[extract] Sanity checks flagged ${sanityFlags.length} issues: ${sanityFlags.join('; ')}`)
         }
       } else {
         // Opus failed — route to REVIEW state. Do NOT silently auto-proceed on Gemini's metadata-less output.
