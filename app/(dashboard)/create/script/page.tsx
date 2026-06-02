@@ -365,12 +365,8 @@ export default function ScriptPage() {
       })
       if (!patchRes.ok) throw new Error('Failed to save script')
 
-      // 2. Trigger generation — route based on output type
-      const genEndpoint = outputType === 'pptx' ? '/api/generate-pptx'
-        : outputType === 'pdf' ? '/api/generate-pdf'
-        : '/api/generate-video'
-
-      const genRes = await fetch(genEndpoint, {
+      // 2. Trigger generation
+      const genRes = await fetch('/api/generate-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
