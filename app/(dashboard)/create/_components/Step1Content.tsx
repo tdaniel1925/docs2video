@@ -339,7 +339,7 @@ export default function Step1Content() {
         <textarea
           value={purpose}
           onChange={(e) => setPurpose(e.target.value)}
-          placeholder="Create a video that explains what this company does"
+          placeholder={outputType === 'video' ? 'e.g. "Explain our services to potential clients" or "Train new agents on this product"' : outputType === 'pptx' ? 'e.g. "Summarize this report for executives" or "Create a sales pitch deck"' : 'e.g. "Turn this document into a client-ready PDF" or "Create a printable summary"'}
           rows={3}
           style={{
             width: '100%',
