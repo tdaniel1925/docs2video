@@ -3,7 +3,7 @@ import { createClient } from '../../_lib/supabase/server'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+export const maxDuration = 300
 
 const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
         detailLevel: detailLevel || 'standard',
         narrationStyle: narrationStyle || 'solo',
       }),
-      signal: AbortSignal.timeout(55000),
+      signal: AbortSignal.timeout(280000),
     })
 
     const data = await vpsRes.json()

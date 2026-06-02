@@ -38,7 +38,7 @@ export async function POST(request: Request) {
         purpose: purpose || undefined,
         mimeType,
       }),
-      signal: AbortSignal.timeout(55000),
+      signal: AbortSignal.timeout(280000), // 280s — stay within Vercel 300s maxDuration
     })
 
     const result = await vpsRes.json()
