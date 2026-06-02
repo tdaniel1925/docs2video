@@ -48,7 +48,9 @@ export async function POST(request: Request) {
     return NextResponse.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Extraction failed'
-    if (message.includes('TimeoutError') || message.includes('aborted')) {
+    const errName = err instanceof Error ? err.name : ''
+    console.error(`[extract-doc] Error: name=${errName} message=${message}`)
+    if (message.includes('TimeoutError') || message.includes('aborted') || errName === 'TimeoutError' || errName === 'AbortError') {
       return NextResponse.json({ error: 'Document extraction took too long. Try a smaller file or paste the text directly.' }, { status: 504 })
     }
     return NextResponse.json({ error: message }, { status: 500 })
