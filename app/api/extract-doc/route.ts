@@ -73,26 +73,21 @@ export async function POST(request: Request) {
         result.insurance = opusResult
         console.log(`[extract-doc] Opus extraction succeeded: ${opusResult.policyType}, DB=${opusResult.deathBenefit}, confidence=${opusResult.extractionConfidence}`)
 
-        // Reconciliation: Gemini 2.5 Pro cross-checks Opus output against source PDF
-        console.log(`[extract-doc] Running Gemini reconciliation pass...`)
-        const reconciliation = await reconcileInsuranceExtraction(base64, mimeType, opusResult)
-        result.reconciliation = reconciliation
-
-        if (reconciliation.overallVerdict === 'fail') {
-          console.error(`[extract-doc] RECONCILIATION FAILED — ${reconciliation.mismatches.map((m: any) => m.field).join(', ')}`)
-          result.insurance.sanityFlags = [
-            ...(result.insurance.sanityFlags || []),
-            `RECONCILIATION_FAILED: ${reconciliation.mismatches.length} mismatches. ${reconciliation.mismatches.map((m: any) => `${m.field}: ${m.issue}`).join('; ')}`,
-          ]
-        } else if (reconciliation.overallVerdict === 'review') {
-          console.warn(`[extract-doc] Reconciliation flagged for REVIEW`)
-          result.insurance.sanityFlags = [
-            ...(result.insurance.sanityFlags || []),
-            `RECONCILIATION_REVIEW: ${reconciliation.unverifiable.length} unverifiable, ${reconciliation.mismatches.length} minor discrepancies`,
-          ]
-        } else {
-          console.log(`[extract-doc] Reconciliation PASSED`)
-        }
+        // Reconciliation: fire-and-forget (async) — don't block extraction response
+        // VPS + Opus already takes ~170s of the 300s Vercel limit; reconciliation would exceed it.
+        // Results are logged and will be checked at video generation time via sanityFlags.
+        console.log(`[extract-doc] Scheduling async Gemini reconciliation (non-blocking)...`)
+        reconcileInsuranceExtraction(base64, mimeType, opusResult).then(reconciliation => {
+          if (reconciliation.overallVerdict === 'fail') {
+            console.error(`[extract-doc] ASYNC RECONCILIATION FAILED — ${reconciliation.mismatches.map((m: any) => m.field).join(', ')}`)
+          } else if (reconciliation.overallVerdict === 'review') {
+            console.warn(`[extract-doc] ASYNC Reconciliation: REVIEW — ${reconciliation.unverifiable.length} unverifiable`)
+          } else {
+            console.log(`[extract-doc] ASYNC Reconciliation PASSED`)
+          }
+        }).catch(err => {
+          console.error(`[extract-doc] ASYNC Reconciliation error:`, err instanceof Error ? err.message : 'unknown')
+        })
 
         // Deterministic sanity checks
         const sanityFlags = runInsuranceSanityChecks(result.insurance)
