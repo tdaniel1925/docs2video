@@ -60,50 +60,16 @@ export async function POST(request: Request) {
       console.log(`[extract-doc] Classified: ${classification.documentType} (${classification.category}/${(classification as any).sensitivity}) → ${classification.redFlags?.length || 0} red flags`)
     }
 
-    // INSURANCE PATH: If classified as insurance, run Claude Opus extraction + reconciliation + sanity checks
+    // INSURANCE PATH: Flag the document, but run Opus extraction ASYNC (non-blocking)
+    // VPS + Opus + reconciliation exceeds Vercel's 300s limit if done synchronously.
+    // Return VPS generic extraction immediately. Opus results will be available at video generation time.
     const isInsuranceDoc = classification?.category === 'insurance' ||
       classification?.documentType === 'life_insurance_illustration' ||
       (result.insurance && result.insurance.deathBenefit > 0)
 
     if (isInsuranceDoc) {
-      console.log(`[extract-doc] Insurance detected — running Claude Opus extraction`)
-      const opusResult = await extractInsuranceWithOpus(base64, mimeType)
-
-      if (opusResult) {
-        result.insurance = opusResult
-        console.log(`[extract-doc] Opus extraction succeeded: ${opusResult.policyType}, DB=${opusResult.deathBenefit}, confidence=${opusResult.extractionConfidence}`)
-
-        // Reconciliation: fire-and-forget (async) — don't block extraction response
-        // VPS + Opus already takes ~170s of the 300s Vercel limit; reconciliation would exceed it.
-        // Results are logged and will be checked at video generation time via sanityFlags.
-        console.log(`[extract-doc] Scheduling async Gemini reconciliation (non-blocking)...`)
-        reconcileInsuranceExtraction(base64, mimeType, opusResult).then(reconciliation => {
-          if (reconciliation.overallVerdict === 'fail') {
-            console.error(`[extract-doc] ASYNC RECONCILIATION FAILED — ${reconciliation.mismatches.map((m: any) => m.field).join(', ')}`)
-          } else if (reconciliation.overallVerdict === 'review') {
-            console.warn(`[extract-doc] ASYNC Reconciliation: REVIEW — ${reconciliation.unverifiable.length} unverifiable`)
-          } else {
-            console.log(`[extract-doc] ASYNC Reconciliation PASSED`)
-          }
-        }).catch(err => {
-          console.error(`[extract-doc] ASYNC Reconciliation error:`, err instanceof Error ? err.message : 'unknown')
-        })
-
-        // Deterministic sanity checks
-        const sanityFlags = runInsuranceSanityChecks(result.insurance)
-        if (sanityFlags.length > 0) {
-          result.insurance.sanityFlags = [...(result.insurance.sanityFlags || []), ...sanityFlags]
-          console.warn(`[extract-doc] Sanity checks: ${sanityFlags.length} flags`)
-        }
-      } else {
-        // Opus failed — flag for review, no silent auto-proceed
-        console.warn(`[extract-doc] Opus extraction failed — flagging for REVIEW`)
-        result.insurance = {
-          extractionConfidence: 0,
-          lowConfidenceFields: ['ALL — Opus extraction failed'],
-          sanityFlags: ['OPUS_EXTRACTION_FAILED: Column metadata unavailable. Requires human review.'],
-        }
-      }
+      result.isInsurance = true
+      console.log(`[extract-doc] Insurance detected — Opus extraction will run at video generation time`)
     }
 
     return NextResponse.json(result)
