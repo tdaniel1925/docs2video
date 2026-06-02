@@ -56,12 +56,14 @@ H4. OUTPUT FORMAT
 - Return ONLY valid JSON array of scenes, no markdown, no code fences.
 - JSON must parse on first try.
 
-H5. CARRIER NAME SUPPRESSION (LEGAL REQUIREMENT)
-- NEVER mention the carrier name "${data.carrier}" anywhere in the narration.
-- Do NOT say "${data.carrier}" or any specific carrier/company name.
-- Instead, use natural phrases like "this carrier", "your carrier", "the issuing carrier", or "this particular carrier".
-- Example: Instead of "your policy from ${data.carrier}", say "your ${data.policyType} policy from this carrier".
-- This must sound natural and conversational — not awkward or evasive.
+H5. CARRIER NAME SUPPRESSION (LEGAL REQUIREMENT — STRICTLY ENFORCED)
+- NEVER mention "${data.carrier}" or ANY carrier/company name, parent company, subsidiary, or brand name anywhere in the narration or slide content.
+- This includes the full legal name, abbreviations, parent companies (e.g. if the carrier is "American General", also ban "Corebridge Financial", "AIG", "American General Life Insurance Company").
+- Do NOT create scenes ABOUT the carrier — no "The Company Behind the Plan", no "About [carrier]", no financial ratings of the carrier, no carrier history, no carrier track record.
+- This video is about THE POLICY and what it does for the client — NOT about the carrier as a company.
+- Instead of carrier names, use: "this carrier", "your carrier", "the issuing carrier".
+- Example: Instead of "your policy from ${data.carrier}", say "your ${data.policyType} policy".
+- If the source data contains carrier marketing language (financial ratings, company history, awards), SKIP IT entirely. Focus only on policy features, benefits, and numbers.
 - This is a legal requirement to avoid the appearance of carrier endorsement.
 
 H6. VOICE RULES

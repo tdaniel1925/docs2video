@@ -83,7 +83,7 @@ Return ONLY valid JSON array (no markdown, no code fences):
   const cleaned = cleanJson(text)
 
   try {
-    const scenes = JSON.parse(cleaned) as VideoScene[]
+    let scenes = JSON.parse(cleaned) as VideoScene[]
     if (!Array.isArray(scenes) || scenes.length === 0) {
       throw new Error('Invalid script format')
     }
@@ -261,12 +261,14 @@ export async function generateScript(
   if (isInsurance) {
     const carrierName = (data as any).carrier || ''
     additionalSections.push(`CRITICAL INSURANCE RULES (MUST FOLLOW):
-1. NEVER say "${carrierName}" or any carrier/company name. Use "the carrier" or "your carrier" instead.
-2. The generic policy type (e.g. "IUL", "Universal Life", "Whole Life") IS allowed — saying "your IUL policy" is fine. Only the CARRIER NAME is banned.
-3. Focus on EXPLAINING POLICY FEATURES AND BENEFITS to the policyholder — not on describing the carrier.
-4. The viewer is the POLICYHOLDER. Explain what their policy does for THEM: death benefit, cash value, riders, premiums.
-5. Do NOT summarize the carrier's marketing. Instead, explain: "Here's what this means for your family's financial security."
-6. Use specific numbers from the data (death benefit amount, premium, cash value projections) — these are the viewer's numbers.`)
+1. NEVER say "${carrierName}" or ANY carrier/company/parent company name. Use "the carrier" or "your carrier" instead.
+2. Do NOT create any scene about the carrier as a company — no "About the Company", no carrier history, no financial ratings, no carrier track record, no carrier awards. SKIP all carrier marketing content from the source.
+3. The generic policy type (e.g. "IUL", "Universal Life", "Whole Life") IS allowed — saying "your IUL policy" is fine. Only the CARRIER NAME is banned.
+4. Focus on EXPLAINING POLICY FEATURES AND BENEFITS to the policyholder — not on describing the carrier.
+5. The viewer is the POLICYHOLDER. Explain what their policy does for THEM: death benefit, cash value, riders, premiums.
+6. Do NOT summarize the carrier's marketing. Instead, explain: "Here's what this means for your family's financial security."
+7. Use specific numbers from the data (death benefit amount, premium, cash value projections) — these are the viewer's numbers.
+8. If the source mentions AM Best ratings, S&P ratings, or financial strength — DO NOT include these. They are carrier marketing, not policy information.`)
   }
 
   // Inject deep analysis as the primary content guide
@@ -536,7 +538,7 @@ FIELD RULES:
     const cleaned = cleanJson(text)
 
     try {
-      const scenes = JSON.parse(cleaned) as VideoScene[]
+      let scenes = JSON.parse(cleaned) as VideoScene[]
       if (!Array.isArray(scenes) || scenes.length === 0) {
         throw new Error('Invalid script format')
       }
@@ -584,7 +586,7 @@ FIELD RULES:
   const cleaned = cleanJson(text)
 
   try {
-    const scenes = JSON.parse(cleaned) as VideoScene[]
+    let scenes = JSON.parse(cleaned) as VideoScene[]
     if (!Array.isArray(scenes) || scenes.length === 0) {
       throw new Error('Invalid script format')
     }
@@ -608,6 +610,19 @@ FIELD RULES:
           carrierName.toUpperCase(),
           carrierName.replace(/\s+/g, ''),
         ]
+        // Also catch extended legal names: "American General Life Insurance Company"
+        // and common suffixes agents see on illustrations
+        const suffixes = ['Life Insurance Company', 'Life Insurance', 'Insurance Company', 'Insurance', 'Financial', 'Life']
+        for (const suffix of suffixes) {
+          const extended = `${carrierName} ${suffix}`
+          variations.push(extended)
+        }
+        // Catch parent/subsidiary names if present in extracted data
+        const parentCompany = (data as any).parentCompany || (data as any).parent_company || ''
+        if (parentCompany && parentCompany.length > 2) {
+          variations.push(parentCompany)
+          variations.push(parentCompany.toLowerCase())
+        }
         // Also handle common carrier name patterns
         const productName = (data as any).policyType as string || ''
         if (productName) variations.push(productName)
@@ -638,6 +653,33 @@ FIELD RULES:
           }
         }
         console.log(`[script-gen] Stripped carrier name "${carrierName}" from narration`)
+
+        // Remove entire scenes that are about the carrier (not the policy)
+        const carrierScenePatterns = [
+          /the company behind/i,
+          /about (the |your |this )?(carrier|company|insurer)/i,
+          /rated at the top/i,
+          /financial (strength|rating|stability) of/i,
+          /AM Best|A\+\+ rating|S&P rating|Moody's|Fitch/i,
+          /track record that speaks/i,
+          /history of (the |this )?(carrier|company)/i,
+          /who (is|are) (the |this )?(carrier|company)/i,
+        ]
+        const beforeCount = scenes.length
+        scenes = scenes.filter((scene: any) => {
+          const title = scene.title || ''
+          const narration = scene.narration || ''
+          const isCarrierScene = carrierScenePatterns.some(p => p.test(title) || p.test(narration.slice(0, 200)))
+          if (isCarrierScene) {
+            console.log(`[script-gen] Removed carrier-focused scene: "${title}"`)
+          }
+          return !isCarrierScene
+        })
+        // Renumber remaining scenes
+        if (scenes.length < beforeCount) {
+          scenes.forEach((s: any, idx: number) => { s.scene = idx + 1 })
+          console.log(`[script-gen] Removed ${beforeCount - scenes.length} carrier-focused scene(s)`)
+        }
       }
     }
 
