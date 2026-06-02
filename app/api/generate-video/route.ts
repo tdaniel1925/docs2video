@@ -498,7 +498,7 @@ export async function POST(request: Request) {
     }
     await admin.from('videos').update({ progress_detail: 'Preparing slide designs...', progress_pct: 16 }).eq('id', videoId)
 
-    const templateId = (styleId ?? brand?.deck_style_id ?? (policyData as any)?.classification?.recommendedTemplate ?? 'corporate-clean') as string
+    const templateId = (styleId ?? brand?.deck_style_id ?? 'apex-corporate') as string
     // Logo not used in video pipeline — branding is text-only
     const logoUrl = null
     const brandGuide = brand?.brand_guide_data as Record<string, string> | null
@@ -509,15 +509,13 @@ export async function POST(request: Request) {
       secondary: bodyColors?.secondary || brand?.secondary_color || '#4A90D9',
     }
 
-    // Build style prompt: custom theme > brand-colored style > template default
+    // Build style prompt: custom theme > apex-corporate (always)
     let stylePrompt: string
     if (customStylePrompt) {
       stylePrompt = customStylePrompt
-    } else if (brand && brand.primary_color !== '#1B365D') {
-      // Brand has custom colors — generate a creative style that matches them
-      stylePrompt = `Modern, visually striking presentation style. Primary brand color: ${brand.primary_color}, secondary: ${brand.secondary_color}. Use these colors boldly — gradient backgrounds, colored accent panels, glowing highlights, subtle patterns. Mix light and dark sections for visual variety. Each slide should feel like a premium design portfolio piece — creative layouts, interesting typography hierarchy, layered depth with shadows and glass effects. NOT a boring corporate template — make it look like a designer crafted each slide by hand. Think Apple keynote meets luxury brand lookbook.`
     } else {
-      stylePrompt = getStylePrompt(templateId)
+      // Always use apex-corporate style — brand colors are injected via brandColors
+      stylePrompt = getStylePrompt('apex-corporate')
     }
 
     const slidePrompts = scenes.map((scene: any, i: number) => {
@@ -637,6 +635,9 @@ export async function POST(request: Request) {
         musicPrompt: musicPrompt || (aiMusic ? 'Professional ambient background music, subtle and warm' : ''),
         industry: industry || '',
         narrationStyle: narrationStyle || 'solo',
+        styleId: templateId || 'apex-corporate',
+        customStylePrompt: customStylePrompt || undefined,
+        templateRefUrl: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com'}/style-previews/apex-corporate.png`,
       }),
       signal: AbortSignal.timeout(10000),
     })
