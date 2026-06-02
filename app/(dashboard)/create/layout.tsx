@@ -4,40 +4,25 @@ import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
 const STEPS = [
-  { path: '/create', label: 'Create' },
-  { path: '/create/generating', label: 'Build' },
-]
-
-// Steps for advanced flow (edit script first)
-const ADVANCED_STEPS = [
-  { path: '/create', label: 'Goal' },
-  { path: '/create/source', label: 'Content' },
-  { path: '/create/styling', label: 'Style' },
-  { path: '/create/review', label: 'Review' },
+  { path: '/create', label: 'Content' },
+  { path: '/create/brand', label: 'Brand' },
+  { path: '/create/voice', label: 'Voice' },
   { path: '/create/script', label: 'Script' },
-  { path: '/create/options', label: 'Options' },
-  { path: '/create/generating', label: 'Build' },
+  { path: '/create/generating', label: 'Generate' },
 ]
 
 export default function CreateLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
-  // Detect if user is in the advanced flow (source/review/script/options pages)
-  const isAdvancedFlow = ['/create/source', '/create/extracting', '/create/styling', '/create/review', '/create/script', '/create/options'].some(p => pathname === p)
-  const steps = isAdvancedFlow ? ADVANCED_STEPS : STEPS
-
-  // Map extracting to Content step (it's part of that flow)
-  const effectivePath = pathname === '/create/extracting' ? '/create/source' : pathname
-  const currentIdx = steps.findIndex(s => effectivePath === s.path || effectivePath?.startsWith(s.path + '/'))
+  const currentIdx = STEPS.findIndex(s => pathname === s.path || pathname?.startsWith(s.path + '?'))
   const activeIdx = currentIdx >= 0 ? currentIdx : 0
 
-  // Hide step bar on generating and extracting pages
+  // Hide step bar on generating page
   const isGenerating = pathname === '/create/generating'
-  const isExtracting = pathname === '/create/extracting'
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {!isGenerating && !isExtracting && (
+      {!isGenerating && (
         <div style={{
           padding: '20px 32px 0',
           maxWidth: 900,
@@ -46,7 +31,7 @@ export default function CreateLayout({ children }: { children: React.ReactNode }
         }}>
           {/* Progress dots */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-            {steps.map((step, i) => (
+            {STEPS.map((step, i) => (
               <div key={step.path} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{
                   width: i <= activeIdx ? 32 : 10,
@@ -60,7 +45,7 @@ export default function CreateLayout({ children }: { children: React.ReactNode }
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600, letterSpacing: '0.05em' }}>
-              STEP {activeIdx + 1} OF {steps.length} &mdash; {steps[activeIdx]?.label.toUpperCase()}
+              STEP {activeIdx + 1} OF {STEPS.length} &mdash; {STEPS[activeIdx]?.label.toUpperCase()}
             </div>
             <SaveForLater />
           </div>

@@ -687,7 +687,7 @@ export default function BrandPage() {
           opacity: submitting ? 0.5 : 1,
         }}
       >
-        Skip — use generic styling
+        Skip branding
       </button>
     </div>
   )

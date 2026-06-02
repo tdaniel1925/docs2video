@@ -45,9 +45,9 @@ const NARRATION_STYLES = [
 ]
 
 const DETAIL_LEVELS = [
-  { id: 'quick' as const, title: 'Quick', description: 'Under 60 seconds. Key highlights only.' },
-  { id: 'standard' as const, title: 'Standard', description: '2-3 minutes. Covers all major points.' },
-  { id: 'detailed' as const, title: 'Detailed', description: '5+ minutes. Deep dive into every detail.' },
+  { id: 'quick' as const, title: 'Short', description: '30–60 seconds. Key highlights only.', duration: '~1 min' },
+  { id: 'standard' as const, title: 'Medium', description: '2–3 minutes. Covers all major points.', duration: '~2–3 min' },
+  { id: 'detailed' as const, title: 'Long', description: '5+ minutes. Deep dive with full detail.', duration: '5+ min' },
 ]
 
 export default function VoicePage() {
@@ -314,10 +314,16 @@ export default function VoicePage() {
                     {!allowed && <span style={{ marginRight: 4 }}>&#128274;</span>}
                     {level.title}
                   </span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: selected ? 'var(--ink)' : 'var(--ink-soft)', marginBottom: 2 }}>
+                    {level.duration}
+                  </span>
                   <span style={styles.lengthDesc}>{level.description}</span>
                   {!allowed && (
-                    <span style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 4, display: 'block' }}>
-                      {level.id === 'standard' ? 'Starter+ plan' : 'Pro+ plan'}
+                    <span
+                      onClick={(e) => { e.stopPropagation(); setShowUpgradeModal(true) }}
+                      style={{ fontSize: 11, color: '#2563eb', marginTop: 4, display: 'block', cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      Upgrade to unlock
                     </span>
                   )}
                 </button>
@@ -487,8 +493,8 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    cursor: 'not-allowed',
-    opacity: 0.5,
+    cursor: 'pointer',
+    opacity: 1,
     flexShrink: 0,
   },
 

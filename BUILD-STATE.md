@@ -1,8 +1,8 @@
 # Docs2Video — Build State
 
-**Last updated:** 2026-05-17
+**Last updated:** 2026-06-02
 **Branch:** main
-**Build:** ✅ Compiles, 1 TS error (Video.updated_at — already fixed, needs redeploy)
+**Build:** ✅ Compiles clean (1 warning)
 **Deploy:** Vercel (docs2video.com)
 
 ---
@@ -159,8 +159,30 @@ Auth: managed by Supabase Auth
 
 ---
 
+## UX Streamline (2026-06-02)
+
+### Completed
+- Deleted 4 orphaned pages (source, extracting, review, options) from old 7-step flow
+- Removed advanced flow logic from create/layout.tsx — single 5-step wizard only
+- Fixed critical routing bug: Step 1 was sending users to deleted /create/styling
+- Cleaned up all dead references to orphaned pages in script and styling pages
+- Renamed detail levels from Quick/Standard/Detailed to Short/Medium/Long with duration badges
+- Added "Upgrade to unlock" links on plan-gated video lengths
+- Fixed narration style play buttons (were hardcoded disabled)
+- Script page defaults to read-only summary view with "Edit script" toggle
+- Fixed skip button text on brand page: "Skip branding" instead of "Skip — use generic styling"
+- Removed stale localStorage writes from Step 1 (wizard uses draft API)
+
+### Remaining
+- Generate voice audio samples for all 6 voices
+- Generate narration style samples (solo vs podcast demo)
+- Add style picker with thumbnail previews
+- Dashboard "Continue draft" cards
+- Quick mode (skip brand/voice/script, auto-generate with defaults)
+
+---
+
 ## Known Issues
 
-1. Video `updated_at` type fixed in types.ts but verify on next deploy
-2. Some E2E test selectors may not match current UI (ongoing)
-3. Logo kit generation is async — may not complete before user navigates away
+1. Some E2E test selectors may not match current UI (ongoing)
+2. Logo kit generation is async — may not complete before user navigates away

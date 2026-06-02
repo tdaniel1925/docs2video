@@ -29,6 +29,7 @@ export default function ScriptPage() {
   const [chatLoading, setChatLoading] = useState(false)
   const [chatCount, setChatCount] = useState(0)
   const [templatePromptShown, setTemplatePromptShown] = useState(false)
+  const [editMode, setEditMode] = useState(false)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [previewIdx, setPreviewIdx] = useState<number | null>(null)
   const [previewImg, setPreviewImg] = useState<string | null>(null)
@@ -131,7 +132,7 @@ export default function ScriptPage() {
     const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
     if (!state.extractedData && !state.scenes) {
       // No data — redirect back
-      router.push('/create/source')
+      router.push('/create')
       return
     }
     setCreateState(state)
@@ -338,7 +339,7 @@ export default function ScriptPage() {
     state.detailLevel = detailLevel
     state.narrationStyle = narrationStyle
     localStorage.setItem('d2v_create', JSON.stringify(state))
-    router.push('/create/options')
+    router.push('/create/generating')
   }
 
   // Wizard flow: save script to draft, then trigger generation and redirect
@@ -473,7 +474,7 @@ export default function ScriptPage() {
   const wizardStep = outputType === 'video' ? 4 : 3
   const backPath = isWizard
     ? (outputType === 'video' ? `/create/voice?id=${videoId}` : `/create/brand?id=${videoId}`)
-    : '/create/review'
+    : '/create'
 
   // Loading state for wizard
   if (draftLoading) {
@@ -512,7 +513,7 @@ export default function ScriptPage() {
           <>
             {/* Back button */}
             <button onClick={() => router.push(backPath)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--ink-light)', marginBottom: 24, fontFamily: 'inherit' }}>
-              &larr; {isWizard ? 'Back to style' : 'Back to review'}
+              &larr; Back
             </button>
 
             {/* Detail level + narration style — only show in legacy (non-wizard) mode */}
@@ -653,10 +654,53 @@ export default function ScriptPage() {
         {/* Two-column: Script editor + AI chat */}
         {scenes.length > 0 && (
           <>
-            <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20, textAlign: 'center' }}>
-              {scenes.length} scenes &middot; ~{Math.round(scenes.reduce((sum: number, s: any) => sum + (s.narration?.split(/\s+/).length || 0), 0) / 2.5)}s estimated
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>
+                {scenes.length} scenes &middot; ~{Math.round(scenes.reduce((sum: number, s: any) => sum + (s.narration?.split(/\s+/).length || 0), 0) / 2.5)}s estimated
+              </div>
+              <button
+                onClick={() => setEditMode(!editMode)}
+                style={{
+                  padding: '6px 14px', borderRadius: 8,
+                  border: editMode ? '2px solid var(--mint)' : '1px solid var(--border)',
+                  background: editMode ? 'rgba(199, 232, 168, 0.1)' : 'white',
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  color: 'var(--ink)',
+                }}
+              >
+                {editMode ? '✓ Editing' : '✎ Edit script'}
+              </button>
             </div>
 
+            {/* Read-only summary view */}
+            {!editMode && (
+              <div style={{ marginBottom: 16 }}>
+                {scenes.map((scene: any, i: number) => (
+                  <div key={i} style={{
+                    padding: '14px 18px', marginBottom: 8, borderRadius: 10,
+                    background: 'white', border: '1px solid var(--border-light)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <span style={{
+                        width: 24, height: 24, borderRadius: '50%', background: 'var(--mint)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontWeight: 800, fontSize: 11, flexShrink: 0,
+                      }}>{i + 1}</span>
+                      <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', flex: 1 }}>{scene.title}</span>
+                      <span style={{ fontSize: 11, color: 'var(--ink-light)' }}>~{Math.round((scene.narration?.split(/\s+/).length || 0) / 2.5)}s</span>
+                    </div>
+                    {scene.narration && (
+                      <p style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5, margin: 0 }}>
+                        {scene.narration.length > 180 ? scene.narration.slice(0, 180) + '...' : scene.narration}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Full editor view */}
+            {editMode && (
             <div className="create-script-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'start' }}>
               {/* Left: Script editor — accordion with narration + slide content */}
               <div>
@@ -922,6 +966,7 @@ export default function ScriptPage() {
                 </div>
               </div>
             </div>
+            )}
 
             {error && (
               <div style={{ padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 14, marginTop: 16 }}>
@@ -986,9 +1031,7 @@ export default function ScriptPage() {
                     transition: 'opacity 0.2s',
                   }}
                 >
-                  {isWizard
-                    ? (submitting ? 'Generating...' : 'Generate')
-                    : 'Continue to options \u2192'}
+                  {submitting ? 'Generating...' : 'Generate \u2192'}
                 </button>
               </div>
             )}

@@ -111,14 +111,7 @@ export default function Step1Content() {
       if (overrides?.skipToStep) {
         router.push(`/create/${overrides.skipToStep}?id=${draftData.videoId}`)
       } else {
-        // Save extracted data to localStorage for the styling step
-        const createState = JSON.parse(localStorage.getItem('d2v_create') || '{}')
-        createState.videoId = draftData.videoId
-        createState.extractedData = extractedData
-        createState.outputType = outputType
-        createState.purpose = purpose.trim()
-        localStorage.setItem('d2v_create', JSON.stringify(createState))
-        router.push(`/create/styling`)
+        router.push(`/create/brand?id=${draftData.videoId}`)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -229,10 +222,9 @@ export default function Step1Content() {
         setStageMsg('Connecting to website...')
         setProgressPct(5)
         const scrapeTimers = [
-          setTimeout(() => { setStageMsg('Reading page content...'); setProgressPct(15) }, 2000),
-          setTimeout(() => { setStageMsg('Extracting brand colors and logo...'); setProgressPct(30) }, 5000),
-          setTimeout(() => { setStageMsg('Analyzing content structure...'); setProgressPct(45) }, 10000),
-          setTimeout(() => { setStageMsg('Building content summary...'); setProgressPct(55) }, 18000),
+          setTimeout(() => { setStageMsg('Reading page content...'); setProgressPct(20) }, 3000),
+          setTimeout(() => { setStageMsg('Extracting brand info...'); setProgressPct(40) }, 8000),
+          setTimeout(() => { setStageMsg('Almost there...'); setProgressPct(60) }, 15000),
         ]
         let cleanUrl = urlInput.trim()
         if (!/^https?:\/\//i.test(cleanUrl)) cleanUrl = `https://${cleanUrl}`

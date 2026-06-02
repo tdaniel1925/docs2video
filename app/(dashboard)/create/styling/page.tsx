@@ -115,7 +115,7 @@ export default function StylingPage() {
     state.customStylePrompt = customStylePrompt || undefined
     state.companyName = companyNameInput.trim() || undefined
     localStorage.setItem('d2v_create', JSON.stringify(state))
-    router.push('/create/review')
+    router.push('/create/script')
   }
 
   function handleReferenceUpload(file: File) {
