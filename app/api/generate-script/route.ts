@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
+import { generateScript } from '../../_lib/script-generator'
+import type { ExtractedPolicyData } from '../../_lib/types'
+import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
-
-const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
-const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -20,19 +20,18 @@ export async function POST(request: Request) {
 
   const body = await request.json()
   const { policyData, brandId, detailed, detailLevel, narrationStyle, voiceId, contactInfo, purpose, uploadMode, industry } = body as {
-    policyData: any
+    policyData: ExtractedPolicyData | ExtractedData
     brandId: string | null
     detailed?: boolean
     detailLevel?: 'quick' | 'standard' | 'detailed'
     narrationStyle?: 'solo' | 'podcast'
     voiceId?: string
-    contactInfo?: { phone?: string; email?: string; calendly?: string; website?: string }
+    contactInfo?: { phone?: string; email?: string; calendly?: string }
     purpose?: string
     uploadMode?: string
     industry?: string
   }
 
-  // Brand lookup (needs Supabase — stays on Vercel)
   let brandName: string | null = null
   let brandTone: string | undefined
   let colors = { primary: '#1B365D', secondary: '#4A90D9', accent: '#FFB347', background: '#0a1628', text: '#FFFFFF' }
@@ -53,37 +52,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Proxy to VPS — no timeout constraints there
-    const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-script`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
-      body: JSON.stringify({
-        policyData,
-        brandName,
-        brandTone,
-        colors,
-        detailed: detailed ?? false,
-        voiceId,
-        contactInfo,
-        purpose,
-        uploadMode,
-        industry,
-        detailLevel: detailLevel || 'standard',
-        narrationStyle: narrationStyle || 'solo',
-      }),
-      signal: AbortSignal.timeout(280000),
-    })
-
-    const data = await vpsRes.json()
-    if (!vpsRes.ok) {
-      return NextResponse.json({ error: data.error || 'Script generation failed' }, { status: vpsRes.status })
-    }
-    return NextResponse.json(data)
+    const scenes = await generateScript(policyData, brandName, colors, detailed ?? false, 0, voiceId, brandTone, contactInfo, purpose, uploadMode, industry, detailLevel, narrationStyle)
+    return NextResponse.json({ scenes })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Script generation failed'
-    if (message.includes('TimeoutError') || message.includes('aborted')) {
-      return NextResponse.json({ error: 'Script generation is taking longer than expected. Please try again.' }, { status: 504 })
-    }
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
