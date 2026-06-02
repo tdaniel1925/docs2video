@@ -127,6 +127,59 @@ export async function generateCoverOverlay(options: CoverOverlayOptions): Promis
  * Returns a 1920x1080 PNG with a 100px bar at the bottom containing the logo.
  * Gemini generates content in the top 980px; this bar fills the bottom 100px.
  */
+/**
+ * Generate a transparent overlay with a logo (or company name text) in the top-left corner.
+ * Used by styles like apex-corporate that want the brand in the top-left of every slide.
+ */
+export async function generateTopLeftLogo(
+  logoBuffer: Buffer | null,
+  brandName: string | null,
+  colors: { primary: string; text: string }
+): Promise<Buffer> {
+  const sharpMod = await import('sharp')
+  const sharp = sharpMod.default ?? sharpMod
+
+  const width = 1920
+  const height = 1080
+  const padding = 40
+
+  const composites: { input: Buffer; left: number; top: number }[] = []
+
+  if (logoBuffer) {
+    // Resize logo to fit top-left area
+    const resizedLogo = await sharp(logoBuffer)
+      .resize(200, 70, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer()
+
+    composites.push({ input: resizedLogo, left: padding, top: padding })
+  } else if (brandName) {
+    // No logo — render company name as text
+    const safeName = brandName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    const textSvg = Buffer.from(
+      `<svg width="400" height="80" xmlns="http://www.w3.org/2000/svg">
+        <text x="0" y="50" font-size="36" font-weight="800" font-family="sans-serif" fill="${colors.primary}">${safeName}</text>
+      </svg>`
+    )
+    const textBuffer = await sharp(textSvg).png().toBuffer()
+    composites.push({ input: textBuffer, left: padding, top: padding })
+  }
+
+  if (composites.length === 0) {
+    // Return fully transparent image (no logo, no name)
+    return sharp({
+      create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
+    }).png().toBuffer()
+  }
+
+  return sharp({
+    create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
+  })
+    .composite(composites)
+    .png()
+    .toBuffer()
+}
+
 export async function generateBottomBar(
   logoBuffer: Buffer,
   colors: { primary: string; background: string; text: string }

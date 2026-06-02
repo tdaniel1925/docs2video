@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { generateSlide } from '../../_lib/gemini'
 import { compositeSlide } from '../../_lib/composite'
-import { generateCoverOverlay, generateBottomBar } from '../../_lib/cover-overlay'
+import { generateCoverOverlay, generateBottomBar, generateTopLeftLogo } from '../../_lib/cover-overlay'
 import type { ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
@@ -114,31 +114,19 @@ export async function POST(request: Request) {
       null, undefined, undefined, undefined, undefined, undefined, templateRefBuffer ?? previousSlideBuffer, assetBuffer
     )
 
-    // Generate Sharp overlay for logo placement
+    // Generate Sharp overlay for logo/brand placement
     const isCover = slideIndex === 0
     const isClosing = isLastSlide ?? false
     let overlayBuffer: Buffer | null = null
-    if (logoBuffer) {
-      try {
-        if (isCover || isClosing) {
-          const isInsurance = policyData && 'policyType' in policyData
-          const title = isInsurance
-            ? `${(policyData as any).policyType} Policy Overview`
-            : (policyData as ExtractedData).title || 'Presentation'
-          const subtitle = isInsurance
-            ? `Prepared for ${(policyData as any).insuredName}`
-            : (policyData as ExtractedData).subtitle || undefined
-          overlayBuffer = await generateCoverOverlay({
-            logoBuffer, title,
-            subtitle: isCover ? subtitle : brandName ?? undefined,
-            colors, isCover,
-          })
-        } else {
-          // Middle slides get a branded bottom bar with logo
-          overlayBuffer = await generateBottomBar(logoBuffer, { primary: colors.primary, background: colors.background, text: colors.text })
-        }
-      } catch { /* proceed without overlay */ }
-    }
+
+    // Top-left logo on every slide (logo or company name fallback)
+    try {
+      overlayBuffer = await generateTopLeftLogo(
+        logoBuffer ?? null,
+        brandName,
+        { primary: colors.primary, text: colors.text }
+      )
+    } catch { /* proceed without top-left logo */ }
 
     // Composite overlay + photo onto the slide
     imageBuffer = await compositeSlide(imageBuffer, photoUrl, null, isCover, isClosing, standingPhotoUrl, null, null, undefined, overlayBuffer)
