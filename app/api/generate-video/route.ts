@@ -569,9 +569,9 @@ export async function POST(request: Request) {
         totalPages: scenes.length,
       }
 
-      // 1 slide per scene — single prompt with narration context
-      const fp = scene.slidePrompt || scene.title
-      return `${stylePrompt}\n\n${fp}\n\nNarration context (illustrate this): "${scene.narration?.slice(0, 300)}"\n\nSTYLE RULES: Create a visually striking, polished slide. Use ONE strong focal visual or metaphor — do NOT pack multiple icons, charts, and infographic elements into the same frame. Leave breathing room and negative space. Think cinematic poster, not busy infographic. No logos, no brand marks, no fictional emblems or seals. Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}.`
+      // 1 slide per scene — single prompt with full narration context
+      const fp = scene.framePrompts?.[0] || scene.slidePrompt || scene.title
+      return `${stylePrompt}\n\n${fp}\n\nNarration context (illustrate this): "${scene.narration?.slice(0, 300)}"\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette. No logos, no brand marks, no fictional emblems.`
     })
 
     // Video metadata
