@@ -28,7 +28,7 @@ function getDraftUrl(videoId: string, step: number): string {
   switch (step) {
     case 2: return `/create/brand?id=${videoId}`
     case 3: return `/create/voice?id=${videoId}`
-    case 4: return `/create/style?id=${videoId}`
+    case 4: return `/create/script?id=${videoId}`
     case 5: return `/create/script?id=${videoId}`
     default: return '/create'
   }

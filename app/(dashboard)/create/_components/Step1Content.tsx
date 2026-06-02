@@ -191,6 +191,91 @@ export default function Step1Content() {
     await createDraftAndRedirect(pendingExtractedData, pendingAutoBrandInfo)
   }
 
+  async function handleQuickMode() {
+    setError(null)
+    if (!purpose.trim()) { setError('Describe what you want first'); return }
+    if (method === 'url' && !urlInput.trim()) { setError('Paste a URL to continue'); return }
+    if (method === 'text' && textInput.trim().length < 50) { setError('Paste at least 50 characters'); return }
+    if (method === 'upload' && !fileRef.current?.files?.[0]) { setError('Select a file to continue'); return }
+
+    // Run extraction, then skip brand+voice and go straight to script
+    setStage('extracting')
+    setProgressPct(5)
+    setStageMsg('Quick mode — extracting content...')
+
+    const progressTimer = setInterval(() => {
+      setProgressPct(prev => prev < 85 ? prev + 2 : Math.min(prev + 0.5, 95))
+    }, 1000)
+
+    try {
+      let extractedData: Record<string, unknown> | null = null
+      let autoBrandInfo: Record<string, unknown> | null = null
+
+      if (method === 'url') {
+        setStageMsg('Reading website...')
+        let cleanUrl = urlInput.trim()
+        if (!/^https?:\/\//i.test(cleanUrl)) cleanUrl = `https://${cleanUrl}`
+        const res = await fetch('/api/extract-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: cleanUrl }),
+        })
+        const result = await res.json()
+        if (!res.ok) throw new Error(result.error || 'Extraction failed')
+        const { autoBrandId, autoBrandInfo: abi, ...contentData } = result
+        extractedData = contentData as Record<string, unknown>
+        if (abi) autoBrandInfo = abi as Record<string, unknown>
+        if (autoBrandId) extractedData['_autoBrandId'] = autoBrandId
+      } else if (method === 'text') {
+        setStageMsg('Analyzing text...')
+        const res = await fetch('/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: textInput.trim(), purpose: purpose.trim() }),
+        })
+        const result = await res.json()
+        if (!res.ok) throw new Error(result.error || 'Extraction failed')
+        extractedData = result
+      } else if (method === 'upload') {
+        setStageMsg('Processing file...')
+        const file = fileRef.current?.files?.[0]
+        if (!file) throw new Error('No file selected')
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('purpose', purpose.trim())
+        const res = await fetch('/api/extract-doc', { method: 'POST', body: formData })
+        const result = await res.json()
+        if (!res.ok) throw new Error(result.error || 'File processing failed')
+        extractedData = result
+      } else {
+        setStageMsg('AI is writing content...')
+        const res = await fetch('/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idea: purpose.trim(), purpose: purpose.trim() }),
+        })
+        const result = await res.json()
+        if (!res.ok) throw new Error(result.error || 'Content generation failed')
+        extractedData = result
+      }
+
+      if (!extractedData) throw new Error('No content could be extracted')
+
+      clearInterval(progressTimer)
+      setProgressPct(90)
+      setStageMsg('Creating project with defaults...')
+
+      // Skip brand+voice — go straight to script with defaults
+      const skipTo = outputType === 'video' ? 'script' : 'script'
+      await createDraftAndRedirect(extractedData, autoBrandInfo, { skipToStep: skipTo })
+    } catch (err) {
+      clearInterval(progressTimer)
+      setProgressPct(0)
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setStage('idle')
+    }
+  }
+
   async function handleNext() {
     setError(null)
 
@@ -841,25 +926,47 @@ export default function Step1Content() {
           </div>
       )}
 
-      {/* Next button */}
+      {/* Action buttons */}
       {stage !== 'style-suggest' && stage !== 'generating-preview' && (
-        <button
-          onClick={handleNext}
-          disabled={stage === 'extracting'}
-          style={{
-            width: '100%',
-            padding: '14px 24px',
-            borderRadius: 10,
-            border: 'none',
-            background: stage === 'extracting' ? 'var(--border)' : 'var(--ink)',
-            color: '#fff',
-            fontSize: 16,
-            fontWeight: 700,
-            cursor: stage === 'extracting' ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {stage === 'extracting' ? 'Processing...' : 'Next'}
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={handleNext}
+            disabled={stage === 'extracting'}
+            style={{
+              flex: 1,
+              padding: '14px 24px',
+              borderRadius: 10,
+              border: 'none',
+              background: stage === 'extracting' ? 'var(--border)' : 'var(--ink)',
+              color: '#fff',
+              fontSize: 16,
+              fontWeight: 700,
+              cursor: stage === 'extracting' ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {stage === 'extracting' ? 'Processing...' : 'Next'}
+          </button>
+          {stage === 'idle' && method && (
+            <button
+              onClick={handleQuickMode}
+              style={{
+                padding: '14px 20px',
+                borderRadius: 10,
+                border: '1.5px solid var(--border)',
+                background: 'white',
+                color: 'var(--ink-soft)',
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                whiteSpace: 'nowrap',
+              }}
+              title="Skip brand and voice setup — use defaults and go straight to script review"
+            >
+              Quick mode
+            </button>
+          )}
+        </div>
       )}
     </div>
   )
