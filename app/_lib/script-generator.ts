@@ -260,15 +260,17 @@ export async function generateScript(
   // For insurance: reinforce carrier name ban and focus on policy features
   if (isInsurance) {
     const carrierName = (data as any).carrier || ''
+    const productName = (data as any).policyType || ''
     additionalSections.push(`CRITICAL INSURANCE RULES (MUST FOLLOW):
 1. NEVER say "${carrierName}" or ANY carrier/company/parent company name. Use "the carrier" or "your carrier" instead.
-2. Do NOT create any scene about the carrier as a company — no "About the Company", no carrier history, no financial ratings, no carrier track record, no carrier awards. SKIP all carrier marketing content from the source.
-3. The generic policy type (e.g. "IUL", "Universal Life", "Whole Life") IS allowed — saying "your IUL policy" is fine. Only the CARRIER NAME is banned.
-4. Focus on EXPLAINING POLICY FEATURES AND BENEFITS to the policyholder — not on describing the carrier.
-5. The viewer is the POLICYHOLDER. Explain what their policy does for THEM: death benefit, cash value, riders, premiums.
-6. Do NOT summarize the carrier's marketing. Instead, explain: "Here's what this means for your family's financial security."
-7. Use specific numbers from the data (death benefit amount, premium, cash value projections) — these are the viewer's numbers.
-8. If the source mentions AM Best ratings, S&P ratings, or financial strength — DO NOT include these. They are carrier marketing, not policy information.`)
+2. NEVER say the branded product name "${productName}" — use the GENERIC policy type instead (e.g. "your IUL policy", "your universal life policy", "your whole life policy"). The product name is a marketing term owned by the carrier.
+3. Do NOT create any scene about the carrier as a company — no "About the Company", no carrier history, no financial ratings, no carrier track record, no carrier awards. SKIP all carrier marketing content from the source.
+4. Generic policy types ARE allowed: "IUL", "Universal Life", "Whole Life", "Term Life", "Annuity". Only carrier names and branded product names are banned.
+5. Focus on EXPLAINING POLICY FEATURES AND BENEFITS to the policyholder — not on describing the carrier.
+6. The viewer is the POLICYHOLDER. Explain what their policy does for THEM: death benefit, cash value, riders, premiums.
+7. Do NOT summarize the carrier's marketing. Instead, explain: "Here's what this means for your family's financial security."
+8. Use specific numbers from the data (death benefit amount, premium, cash value projections) — these are the viewer's numbers.
+9. If the source mentions AM Best ratings, S&P ratings, or financial strength — DO NOT include these. They are carrier marketing, not policy information.`)
   }
 
   // Inject deep analysis as the primary content guide
@@ -623,16 +625,28 @@ FIELD RULES:
           variations.push(parentCompany)
           variations.push(parentCompany.toLowerCase())
         }
-        // Also handle common carrier name patterns
+        // Strip branded product names (e.g. "QoL Max Accumulator+", "Secure Lifetime GUL 3")
+        // but KEEP generic policy types (IUL, Universal Life, Whole Life, Term Life)
+        const genericTypes = ['iul', 'ul', 'vul', 'gul', 'universal life', 'whole life', 'term life', 'variable universal life', 'indexed universal life', 'guaranteed universal life', 'annuity', 'fixed annuity', 'variable annuity']
         const productName = (data as any).policyType as string || ''
-        if (productName) variations.push(productName)
+        const productNameLower = productName.toLowerCase()
+        const isGenericType = genericTypes.some(g => productNameLower === g || productNameLower === `${g} insurance`)
+        // If the policyType is a branded product name (not generic), strip it
+        if (productName && !isGenericType && productName.length > 3) {
+          variations.push(productName)
+        }
+        // Also strip the product/plan name field if separate from policyType
+        const planName = (data as any).productName || (data as any).planName || ''
+        if (planName && planName.length > 3) {
+          variations.push(planName)
+        }
 
         for (const scene of scenes) {
           if (scene.narration) {
             for (const v of variations) {
               if (v.length > 2) {
                 const regex = new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
-                scene.narration = scene.narration.replace(regex, v === productName ? 'this policy' : 'the carrier')
+                scene.narration = scene.narration.replace(regex, 'the carrier')
               }
             }
             // Clean up awkward phrasing from replacement
