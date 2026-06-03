@@ -603,11 +603,11 @@ export async function POST(request: Request) {
     const ttsScenes = scenes.map((s: any) => ({ ...s, narration: s.narration ? formatForTTS(s.narration) : s.narration }))
     const allScenes = [coverScene, ...ttsScenes, closingScene]
 
-    // Build cover slide prompt — include stylePrompt so cover matches content slides
-    const styleHintForCover = stylePrompt.slice(0, 300).replace(/[|:]/g, ' ')
-    const coverPrompt = `COVER_SLIDE:${effectiveBrandName || videoTitle}:${videoTitle}|STYLE:${styleHintForCover}`
+    // Build cover slide prompt — same format as content slides so Gemini uses consistent style
+    const contactLine = [contactForClosing.phone, contactForClosing.email, contactForClosing.website].filter(Boolean).join(' | ')
+    const coverPrompt = `${stylePrompt}\n\nCreate a professional COVER SLIDE for a presentation titled "${videoTitle}"${effectiveBrandName ? ` by ${effectiveBrandName}` : ''}. This is the opening slide — make it bold, eye-catching, and professional. Include the title prominently. Leave the top-left corner empty for logo placement.\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette. No logos, no brand marks, no fictional emblems.`
     // Build closing slide prompt
-    const closingPrompt = `CLOSING_SLIDE:${effectiveBrandName || 'Thank You'}:${[contactForClosing.website, contactForClosing.phone, contactForClosing.email].filter(Boolean).join('|')}|STYLE:${styleHintForCover}`
+    const closingPrompt = `${stylePrompt}\n\nCreate a professional CLOSING/THANK YOU SLIDE. Display "Thank You" as the main heading.${contactLine ? ` Include contact info: ${contactLine}` : ''} This is the final slide — make it warm and conclusive. Leave the top-left corner empty for logo placement.\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette. No logos, no brand marks, no fictional emblems.`
 
     // Prepend/append to slidePrompts
     const allSlidePrompts = [coverPrompt, ...slidePrompts, closingPrompt]
