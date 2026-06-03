@@ -29,20 +29,41 @@ export const maxDuration = 300
 // Format narration for TTS — convert numbers, URLs, emails to spoken words
 function formatForTTS(text: string): string {
   const dw: Record<string, string> = { '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine' }
+
+  // Helper: spell out a string that isn't a real word (e.g. "tdaniel" → "t daniel", "jsmith123" → "j smith one two three")
+  function spellUsername(user: string): string {
+    // Split camelCase and number boundaries: "tdaniel" → "t daniel", "jsmith123" → "j smith 1 2 3"
+    return user
+      .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase
+      .replace(/([a-zA-Z])(\d)/g, '$1 $2') // letter→digit
+      .replace(/(\d)([a-zA-Z])/g, '$1 $2') // digit→letter
+      .replace(/\./g, ' dot ')
+      .replace(/_/g, ' ')
+      .replace(/-/g, ' ')
+      .toLowerCase()
+  }
+
   return text
-    // Phone numbers — use unified PHONE_REGEX
+    // Phone numbers with separators — use unified PHONE_REGEX
     .replace(PHONE_REGEX, (match) => phoneToSpoken(match))
+    // Bare 10-digit phone numbers (no separators): 4807254677 → digit by digit
+    .replace(/\b(\d{10})\b/g, (match) => {
+      // Only convert if it looks like a phone number (not a dollar amount or year)
+      return `${match.slice(0, 3).split('').map(d => dw[d]).join(' ')}, ${match.slice(3, 6).split('').map(d => dw[d]).join(' ')}, ${match.slice(6).split('').map(d => dw[d]).join(' ')}`
+    })
     // Percentages: 7.5% → seven point five percent
     .replace(/(\d+)\.(\d+)%/g, (_, a: string, b: string) => {
       return `${a.split('').map(d => dw[d] || d).join(' ')} point ${b.split('').map(d => dw[d] || d).join(' ')} percent`
     })
+    // Email addresses FIRST (before URL, since emails contain dots)
+    // info@example.com → "info at example dot com"
+    // tdaniel@tonnerow.com → "t daniel at tonnerow dot com"
+    .replace(/([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})/g, (_, user: string, domain: string) => {
+      return `${spellUsername(user)} at ${domain.replace(/\./g, ' dot ')}`
+    })
     // URLs: www.example.com → example dot com
     .replace(/(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})(?:\/\S*)?/g, (_, domain: string) => {
       return domain.replace(/\./g, ' dot ')
-    })
-    // Email addresses: info@example.com → info at example dot com
-    .replace(/([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})/g, (_, user: string, domain: string) => {
-      return `${user} at ${domain.replace(/\./g, ' dot ')}`
     })
 }
 
