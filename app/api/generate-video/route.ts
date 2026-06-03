@@ -596,6 +596,9 @@ export async function POST(request: Request) {
     // Video metadata
     const videoTitle = scenes[0]?.title || (policyData as any)?.title || purpose || 'Presentation'
     const effectiveBrandName = brand?.name || (body as any).companyName || null
+
+    // Save title to DB so it shows in the library
+    await admin.from('videos').update({ title: videoTitle }).eq('id', videoId)
     const contactForClosing = {
       phone: brandGuide?.phone || (policyData as any)?.contactPhone || (policyData as any)?.contactInfo?.phone || undefined,
       email: brandGuide?.email || (policyData as any)?.contactEmail || (policyData as any)?.contactInfo?.email || undefined,
