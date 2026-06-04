@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import OpenAI from 'openai'
+import { GoogleGenAI } from '@google/genai'
 import { PDFDocument } from 'pdf-lib'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
@@ -8,12 +8,14 @@ import { logError } from '../../_lib/error-logger'
 import { buildSimpleSlidePrompt, getStylePrompt } from '../../_lib/slide-engine/simple-prompt'
 import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 import type { Video, Brand, VideoScene } from '../../_lib/types'
+import * as fs from 'fs'
+import * as path from 'path'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
-function getOpenAI() {
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+function getGenAI() {
+  return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 }
 
 export async function POST(request: Request) {
@@ -84,22 +86,36 @@ export async function POST(request: Request) {
       secondary: brand?.secondary_color ?? '#4A90D9',
     }
 
-    // Determine style
-    const templateId = (draft?.styleId ?? brand?.deck_style_id ?? 'executive') as string
+    // Determine style — always apex-corporate
     let stylePrompt: string
     if (draft?.customStylePrompt) {
       stylePrompt = draft.customStylePrompt
-    } else if (brand && brand.primary_color !== '#1B365D') {
-      stylePrompt = `Modern, visually striking presentation style. Primary brand color: ${brand.primary_color}, secondary: ${brand.secondary_color}. Use these colors boldly.`
     } else {
-      stylePrompt = getStylePrompt(templateId)
+      stylePrompt = getStylePrompt('apex-corporate')
     }
 
     const brandGuide = brand?.brand_guide_data as Record<string, string> | null
 
-    // Generate slide images using OpenAI gpt-image-1
-    const openai = getOpenAI()
+    // Generate slide images using Gemini with apex-corporate template
+    const genai = getGenAI()
     const slideImages: Buffer[] = []
+
+    // Load template reference image
+    let templateRefBase64: string | null = null
+    try {
+      const refPath = path.join(process.cwd(), 'public', 'style-previews', 'apex-corporate.png')
+      templateRefBase64 = fs.readFileSync(refPath).toString('base64')
+    } catch { /* proceed without template ref */ }
+
+    // Load logo for Gemini
+    let logoBase64: string | null = null
+    const logoUrl = brand?.logo_file_url ?? brand?.logo_url ?? null
+    if (logoUrl) {
+      try {
+        const logoRes = await fetch(logoUrl)
+        if (logoRes.ok) logoBase64 = Buffer.from(await logoRes.arrayBuffer()).toString('base64')
+      } catch { /* proceed without logo */ }
+    }
 
     await admin.from('videos').update({
       progress_detail: 'Generating slide images...',
@@ -132,7 +148,7 @@ export async function POST(request: Request) {
         stats: slideStats,
         bullets: slideBullets,
         contactInfo,
-        narrationContext: scene.narration?.slice(0, 200),
+        narrationContext: scene.narration?.slice(0, 150),
         pageNumber: i + 1,
         totalPages: scenes.length,
       }
@@ -141,20 +157,47 @@ export async function POST(request: Request) {
 
       console.log(`[generate-pdf ${videoId}] Generating slide ${i + 1}/${scenes.length}...`)
 
-      const imgResponse = await openai.images.generate({
-        model: 'gpt-image-1',
-        prompt,
-        n: 1,
-        size: '1536x1024',
-        quality: 'medium',
-      })
+      // Build Gemini parts: template ref + logo + prompt
+      const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = []
+      if (templateRefBase64) {
+        parts.push({ text: 'REFERENCE DESIGN (match this EXACTLY): Replicate the same layout structure, geometric shapes, diagonal color blocks, icon circles, decorative elements, footer bar, and overall mood.' })
+        parts.push({ inlineData: { mimeType: 'image/png', data: templateRefBase64 } })
+      }
+      if (logoBase64) {
+        parts.push({ text: 'BRAND LOGO: Place this logo in the top-left corner of the slide.' })
+        parts.push({ inlineData: { mimeType: 'image/png', data: logoBase64 } })
+      }
+      let fullPrompt = prompt + `\n\nCRITICAL TEXT RULE: Maximum 25 words of visible text. Short headline, 2-4 bullet points, large numbers/icons. NO paragraphs.\n\nCRITICAL COLOR RULE: Use brand colors — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}.`
+      if (!logoBase64 && brand?.name) {
+        fullPrompt += `\nDisplay "${brand.name}" in the top-left corner in bold text.`
+      }
+      parts.push({ text: fullPrompt })
 
-      const b64 = imgResponse.data?.[0]?.b64_json
-      if (!b64) {
-        throw new Error(`Failed to generate image for slide ${i + 1}`)
+      let slideBuf: Buffer | null = null
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const response = await genai.models.generateContent({
+            model: 'gemini-3-pro-image-preview',
+            contents: [{ role: 'user', parts }],
+            config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '4K' } } } as any,
+          })
+          const rParts = response.candidates?.[0]?.content?.parts ?? []
+          for (const rp of rParts) {
+            if (rp.inlineData) {
+              slideBuf = Buffer.from(rp.inlineData.data!, 'base64')
+              break
+            }
+          }
+          if (slideBuf) break
+          throw new Error('No image in Gemini response')
+        } catch (err: any) {
+          console.error(`[generate-pdf ${videoId}] Slide ${i + 1} attempt ${attempt}/3:`, err.message?.slice(0, 100))
+          if (attempt < 3) await new Promise(r => setTimeout(r, 3000 * attempt))
+        }
       }
 
-      slideImages.push(Buffer.from(b64, 'base64'))
+      if (!slideBuf) throw new Error(`Failed to generate image for slide ${i + 1}`)
+      slideImages.push(slideBuf)
 
       // Update progress
       const pct = 10 + Math.round((i + 1) / scenes.length * 70)
