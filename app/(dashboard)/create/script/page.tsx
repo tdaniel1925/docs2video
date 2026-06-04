@@ -172,7 +172,7 @@ export default function ScriptPage() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Script generation failed')
+      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message || 'Script generation failed')
 
       setScenes(data.scenes)
 
@@ -197,7 +197,7 @@ export default function ScriptPage() {
         localStorage.setItem('d2v_create', JSON.stringify(state))
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate script')
+      setError(err instanceof Error ? err.message : typeof err === 'string' ? err : 'Failed to generate script')
     }
     setGenerating(false)
   }
@@ -401,7 +401,7 @@ export default function ScriptPage() {
       router.push(`/create/generating?id=${videoId}`)
     } catch (err) {
       console.error('[script] generate error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to generate. Please try again.')
+      setError(err instanceof Error ? err.message : typeof err === 'string' ? err : 'Failed to generate. Please try again.')
       setSubmitting(false)
     }
   }
@@ -456,7 +456,7 @@ export default function ScriptPage() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Preview generation failed')
+      setError(err instanceof Error ? err.message : typeof err === 'string' ? err : 'Preview generation failed')
     } finally {
       setQuickPreviewLoading(false)
     }
@@ -569,7 +569,7 @@ export default function ScriptPage() {
 
             {error && (
               <div style={{ padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 14, marginBottom: 20 }}>
-                {error}
+                {typeof error === 'string' ? error : 'Something went wrong. Please try again.'}
               </div>
             )}
 
@@ -970,7 +970,7 @@ export default function ScriptPage() {
 
             {error && (
               <div style={{ padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 14, marginTop: 16 }}>
-                {error}
+                {typeof error === 'string' ? error : 'Something went wrong. Please try again.'}
               </div>
             )}
 
