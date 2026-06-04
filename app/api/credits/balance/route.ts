@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
+import { createAdminClient } from '../../../_lib/supabase/admin'
 import { getBalance, ensureCreditBalance } from '../../../_lib/credits'
 
 export const runtime = 'nodejs'
@@ -30,7 +31,8 @@ export async function GET() {
       balance = await getBalance(user.id)
     }
 
-    const { data: profile } = await supabase
+    const admin = createAdminClient()
+    const { data: profile } = await admin
       .from('profiles')
       .select('is_admin')
       .eq('id', user.id)
