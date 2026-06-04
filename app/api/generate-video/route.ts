@@ -588,9 +588,9 @@ export async function POST(request: Request) {
         totalPages: scenes.length,
       }
 
-      // 1 slide per scene — single prompt with full narration context
+      // 1 slide per scene — headline + key points only, narration is spoken not displayed
       const fp = scene.framePrompts?.[0] || scene.slidePrompt || scene.title
-      return `${stylePrompt}\n\n${fp}\n\nNarration context (illustrate this): "${scene.narration?.slice(0, 300)}"\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette. No logos, no brand marks, no fictional emblems.`
+      return `${stylePrompt}\n\n${fp}\n\nTopic context (for visual inspiration only, do NOT put this text on the slide): "${scene.narration?.slice(0, 150)}"\n\nCRITICAL TEXT RULE: Maximum 25 words of visible text on this slide. Use a short headline (3-6 words), 2-4 bullet points (3-5 words each), and large numbers/icons. The narration provides the detail — the slide is VISUAL SUPPORT only. NO paragraphs, NO sentences, NO long text blocks.\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette. No logos, no brand marks, no fictional emblems.`
     })
 
     // Video metadata

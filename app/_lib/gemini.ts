@@ -261,7 +261,7 @@ ${structuredPrompt}
 - Use ONLY the design style described above — do not switch to a generic corporate look
 - Use the FULL canvas — do not leave empty areas, reserved zones, or placeholder boxes
 - VERIFY: Every number, dollar amount, and percentage on the slide MUST exactly match the data provided. Do not round, estimate, or change any numbers.
-- TEXT LIMIT: Maximum 50 words of visible text per slide. Use large numbers, short labels, and icons instead of paragraphs.
+- TEXT LIMIT: Maximum 25 words of visible text per slide. Short headline (3-6 words), 2-4 bullet points (3-5 words each), and large numbers/icons. NEVER put paragraphs or full sentences on a slide.
 - VISUAL STYLE GUIDANCE: ${industryConfig.slideHints}
 ${previousSlideBuffer || templateRefBuffer ? '- VISUAL CONSISTENCY: Match the exact same color palette, font style, layout grid, and visual language as the reference image provided. The slides must look like they belong to the same deck.' : ''}
 ${isInsurance ? '- LEGAL: Do NOT display any insurance carrier or company name anywhere on the slide. This is a legal requirement.' : ''}
