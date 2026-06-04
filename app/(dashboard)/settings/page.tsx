@@ -125,8 +125,8 @@ export default function SettingsPage() {
         setCalendlyUrl(p.calendly_url ?? '')
         setDefaultStyle(p.default_style ?? 'luxury')
       }
-      const { data: b } = await supabase.from('brands').select('*').eq('user_id', user.id).eq('is_default', true).single()
-      if (b) setBrand(b as Brand)
+      const { data: brands } = await supabase.from('brands').select('*').eq('user_id', user.id).order('is_default', { ascending: false }).limit(1)
+      if (brands && brands.length > 0) setBrand(brands[0] as Brand)
       loadEmailConnections()
       loadSocialAccounts()
 

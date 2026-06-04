@@ -52,10 +52,12 @@ export default function BrandPage() {
 
     const supabase = createClient()
 
-    Promise.all([
-      fetch(`/api/videos/draft?videoId=${videoId}`).then(r => r.json()),
-      supabase.from('brands').select('*').order('is_default', { ascending: false }),
-    ]).then(([draftResult, brandsResult]) => {
+    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
+      if (!authUser) { setLoading(false); return }
+      Promise.all([
+        fetch(`/api/videos/draft?videoId=${videoId}`).then(r => r.json()),
+        supabase.from('brands').select('*').eq('user_id', authUser.id).order('is_default', { ascending: false }),
+      ]).then(([draftResult, brandsResult]) => {
       // Draft
       const draft = draftResult?.draft_data || draftResult || {}
       setDraftData(draft)
@@ -88,6 +90,7 @@ export default function BrandPage() {
     }).catch(() => {
       setError('Failed to load draft data')
       setLoading(false)
+    })
     })
   }, [videoId])
 
