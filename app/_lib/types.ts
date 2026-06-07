@@ -267,6 +267,12 @@ export const VOICE_OPTIONS = [
 // Presentation styles
 export const SLIDE_STYLES = [
   {
+    id: 'isometric-3d',
+    name: 'Isometric 3D',
+    description: 'Colorful 3D objects, data as visual elements, modern and playful',
+    prompt: 'Isometric 3D infographic design on a clean white background. Data and concepts visualized as colorful 3D isometric objects — stacked coins for money, shield towers for protection, growing plants for growth, bar charts as 3D blocks, circular gauges as floating rings. Each metric gets its own 3D element with a short label below it. Bold sans-serif headline at the top. Soft realistic shadows under each element. Vibrant but professional color palette using the brand colors. Isometric grid layout with generous spacing. Clean footer bar at bottom with contact info. Feels like Slack/Asana marketing illustrations meets a financial dashboard — playful yet corporate, data-forward, premium. IMPORTANT: Leave the top-left corner area (approximately 300x100 pixels) EMPTY with just the white background — a logo will be composited there afterward.',
+  },
+  {
     id: 'apex-corporate',
     name: 'Corporate Infographic',
     description: 'Geometric shapes, diagonal cuts, icon circles, professional',
@@ -274,7 +280,7 @@ export const SLIDE_STYLES = [
   },
 ] as const
 
-// All style references resolve to apex-corporate (the only active style).
+// All style references fall back to isometric-3d (the default style).
 // Legacy style IDs (corporate-clean, warm-story, etc.) are accepted as strings
 // so existing DB records and code don't break — they all use the apex-corporate prompt.
 export type SlideStyleId = string

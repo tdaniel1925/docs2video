@@ -519,7 +519,7 @@ export async function POST(request: Request) {
     }
     await admin.from('videos').update({ progress_detail: 'Preparing slide designs...', progress_pct: 16 }).eq('id', videoId)
 
-    const templateId = (styleId ?? brand?.deck_style_id ?? 'apex-corporate') as string
+    const templateId = (styleId ?? brand?.deck_style_id ?? 'isometric-3d') as string
     // Logo not used in video pipeline — branding is text-only
     const logoUrl = null
     const brandGuide = brand?.brand_guide_data as Record<string, string> | null
@@ -530,13 +530,12 @@ export async function POST(request: Request) {
       secondary: bodyColors?.secondary || brand?.secondary_color || '#4A90D9',
     }
 
-    // Build style prompt: custom theme > apex-corporate (always)
+    // Build style prompt: custom theme > isometric-3d (default)
     let stylePrompt: string
     if (customStylePrompt) {
       stylePrompt = customStylePrompt
     } else {
-      // Always use apex-corporate style — brand colors are injected via brandColors
-      stylePrompt = getStylePrompt('apex-corporate')
+      stylePrompt = getStylePrompt(templateId)
     }
 
     const slidePrompts = scenes.map((scene: any, i: number) => {
@@ -661,7 +660,7 @@ export async function POST(request: Request) {
         narrationStyle: narrationStyle || 'solo',
         styleId: templateId || 'apex-corporate',
         customStylePrompt: customStylePrompt || undefined,
-        templateRefUrl: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com'}/style-previews/apex-corporate.png`,
+        templateRefUrl: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com'}/style-previews/${templateId}.png`,
       }),
       signal: AbortSignal.timeout(10000),
     })

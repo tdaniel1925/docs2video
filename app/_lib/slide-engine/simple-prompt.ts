@@ -139,12 +139,13 @@ export const STYLE_PROMPTS: Record<string, string> = {
   'dark-cinematic': 'Cinematic dark illustration style. Deep navy (#0A1628) and charcoal backgrounds with rich gold (#C5A55A) and champagne accents. Dramatic lighting with glows and light rays. Elegant serif typography for headings. Scenes feel like movie posters — epic scale, dramatic composition. Subtle texture and depth. Feels luxurious, prestigious, powerful.',
   'playful-cartoon': 'Bright playful cartoon illustration style. Vibrant primary colors — red, blue, yellow, green on white backgrounds. Friendly round characters with big expressions. Fun shapes, speech bubbles, stars, confetti. Simple but engaging compositions. Data presented in colorful cards and badges. Feels young, energetic, approachable, fun.',
   'apex-corporate': 'Modern corporate infographic presentation style. Clean white background with bold geometric accent shapes — diagonal color blocks cutting across corners, large circles and rounded rectangles as content containers. Flat vector icons inside colored circles. Strong visual hierarchy with large bold sans-serif headlines and organized grid sections. Footer bar spanning full width with contact info. Decorative star/burst accents and dot patterns for visual interest. Color blocks use the brand primary and secondary colors. Professional, structured, data-forward. Feels like a premium internal corporate report or investor deck — polished, authoritative, organized. IMPORTANT: Leave the top-left corner area (approximately 300x100 pixels) EMPTY with just the white background — no text, no logo, no graphics in that zone. A logo will be composited there afterward.',
+  'isometric-3d': 'Isometric 3D infographic design on a clean white background. Data and concepts visualized as colorful 3D isometric objects — stacked coins for money, shield towers for protection, growing plants for growth, bar charts as 3D blocks, circular gauges as floating rings. Each metric gets its own 3D element with a short label below it. Bold sans-serif headline at the top. Soft realistic shadows under each element. Vibrant but professional color palette using the brand colors. Isometric grid layout with generous spacing. Clean footer bar at bottom with contact info. Feels like Slack/Asana marketing illustrations meets a financial dashboard — playful yet corporate, data-forward, premium. IMPORTANT: Leave the top-left corner area (approximately 300x100 pixels) EMPTY with just the white background — a logo will be composited there afterward.',
 }
 
 /**
  * Get the style prompt for a template ID.
- * Falls back to apex-corporate style (the only active style).
+ * Falls back to isometric-3d style (the default active style).
  */
 export function getStylePrompt(id: string): string {
-  return STYLE_PROMPTS[id] || STYLE_PROMPTS['apex-corporate']
+  return STYLE_PROMPTS[id] || STYLE_PROMPTS['isometric-3d']
 }
