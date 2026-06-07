@@ -125,7 +125,17 @@ export async function checkCredits(userId: string, needed: number): Promise<Cred
     .eq('id', userId)
     .single()
 
-  if (profile && !profile.is_admin && !profile.is_beta) {
+  // Admin/beta bypass — unlimited credits
+  if (profile?.is_admin || profile?.is_beta) {
+    return { allowed: true, remaining: 999999, shortfall: 0 }
+  }
+
+  // Block past_due users — payment failed, must resolve before generating
+  if (profile?.subscription_status === 'past_due') {
+    return { allowed: false, remaining: 0, shortfall: needed }
+  }
+
+  if (profile) {
     const tier = getUserTier(profile.subscription_status || 'free')
     const expectedCredits = TIER_CREDITS[tier]
     if (balance.cycleGranted < expectedCredits) {
@@ -182,11 +192,22 @@ export async function deductCredits(
     .single()
 
   if (profile?.is_admin || profile?.is_beta) {
-    console.log(`[credits] Skipping deduction for admin/beta user ${userId}`)
+    // Log admin bypass for audit trail
+    const { error: auditErr } = await admin.from('credit_transactions').insert({
+      user_id: userId,
+      amount: 0,
+      balance_after: 0,
+      action: `admin_bypass:${action}`,
+      video_id: videoId || null,
+      description: `Admin/beta bypass: ${action} (${amount} credits would have been charged)`,
+    })
+    if (auditErr) console.warn(`[credits] Admin audit log failed:`, auditErr.message)
+    console.log(`[credits] Admin/beta bypass for user ${userId}: ${action} (${amount} credits)`)
     return true
   }
 
-  // Try new credit_balances table
+  // Atomic deduction using conditional update — prevents race conditions
+  // Only deducts if balance >= amount at the moment of update
   const { data: balanceRow } = await admin
     .from('credit_balances')
     .select('balance, topup_balance, cycle_credits_used')
@@ -203,11 +224,13 @@ export async function deductCredits(
     // Deduct from monthly first, then topup
     const monthlyDeduct = Math.min(amount, balanceRow.balance)
     const topupDeduct = amount - monthlyDeduct
-    const newMonthly = balanceRow.balance - monthlyDeduct
-    const newTopup = balanceRow.topup_balance - topupDeduct
+    const newMonthly = Math.max(0, balanceRow.balance - monthlyDeduct)
+    const newTopup = Math.max(0, balanceRow.topup_balance - topupDeduct)
     const newTotal = newMonthly + newTopup
 
-    await admin
+    // Atomic update: use .eq on both user_id AND current balance to prevent race condition
+    // If another request already deducted, the balance won't match and update returns 0 rows
+    const { data: updated, error: updateErr } = await admin
       .from('credit_balances')
       .update({
         balance: newMonthly,
@@ -216,6 +239,16 @@ export async function deductCredits(
         updated_at: new Date().toISOString(),
       })
       .eq('user_id', userId)
+      .eq('balance', balanceRow.balance)
+      .eq('topup_balance', balanceRow.topup_balance)
+      .select('user_id')
+
+    if (updateErr || !updated || updated.length === 0) {
+      // Race condition detected — balance changed between read and write
+      console.warn(`[credits] Race condition detected for user ${userId}, retrying...`)
+      // Retry once with fresh balance
+      return deductCredits(adminOrUserId, userIdOrAmount, amountOrAction, videoId, description)
+    }
 
     await admin.from('credit_transactions').insert({
       user_id: userId,

@@ -34,6 +34,19 @@ export async function POST(request: Request) {
 
   const supabase = createAdminClient()
 
+  // Idempotency: check if we've already processed this event
+  const eventId = event.id
+  const { data: existingEvent } = await supabase
+    .from('credit_transactions')
+    .select('id')
+    .eq('description', `stripe_event:${eventId}`)
+    .limit(1)
+
+  if (existingEvent && existingEvent.length > 0) {
+    console.log(`[webhook] Skipping duplicate event ${eventId} (already processed)`)
+    return NextResponse.json({ received: true, duplicate: true })
+  }
+
   try {
     switch (event.type) {
       /* ─── One-time project payment completed ─── */
@@ -69,7 +82,7 @@ export async function POST(request: Request) {
           const credits = parseInt(session.metadata.credits || '0', 10)
           const packName = session.metadata.pack_name || 'credit_pack'
           if (credits > 0) {
-            await addTopupCredits(userId, credits, packName)
+            await addTopupCredits(userId, credits, `${packName} (stripe_event:${eventId})`)
             console.log(`[webhook] Credit pack purchased: ${credits} credits for user ${userId}`)
           }
           break
@@ -186,6 +199,15 @@ export async function POST(request: Request) {
 
           if (renewProfile?.id && renewProfile.subscription_status) {
             await grantMonthlyCredits(renewProfile.id, renewProfile.subscription_status)
+            // Log event for idempotency
+            const { error: idempErr } = await supabase.from('credit_transactions').insert({
+              user_id: renewProfile.id,
+              amount: 0,
+              balance_after: 0,
+              action: 'monthly_grant_event',
+              description: `stripe_event:${eventId}`,
+            })
+            if (idempErr) console.warn(`[webhook] Idempotency log failed:`, idempErr.message)
             console.log(`[webhook] Monthly credits granted for user ${renewProfile.id} (${renewProfile.subscription_status})`)
           }
           console.log(`[webhook] Recurring payment succeeded for customer ${customerId}, amount: ${invoice.amount_paid}`)
