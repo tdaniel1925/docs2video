@@ -200,7 +200,14 @@ export async function generateScript(
     report: 'This is a DATA REPORT VIDEO. The viewer is a decision-maker. Don\'t read every number — pick the 3-5 that drive decisions. For each metric, explain: what it means, is it good or bad, and what should we do about it. Lead with the headline ("revenue is up 18%"), then support it.',
     proposal: 'This is a PROPOSAL VIDEO. The viewer is deciding whether to hire/buy from you. Lead with their problem (show you understand it). Present your approach as the obvious solution. Prove it with past results. Address "why you and not someone else?" End with specific next steps and timeline.',
   }
-  const intentGuidance = intentMap[(data as any)?.intentType || ''] || purpose ? `VIDEO PURPOSE: ${purpose}` : 'Create an informative overview of this content.'
+  let intentGuidance = intentMap[(data as any)?.intentType || ''] || purpose ? `VIDEO PURPOSE: ${purpose}` : 'Create an informative overview of this content.'
+
+  // For insurance: inject carrier/product ban into strategic analysis guidance
+  if (isInsurance) {
+    const carrierName = (data as any).carrier || ''
+    const productName = (data as any).policyType || ''
+    intentGuidance += `\n\nCRITICAL INSURANCE RULE FOR THIS ANALYSIS: Do NOT mention the carrier name "${carrierName}" or the product name "${productName}" anywhere in your analysis. Use "the carrier" and "this policy" instead. Do NOT analyze the carrier's company history, financial ratings, or brand reputation. Focus ONLY on policy features, benefits, and what the numbers mean for the policyholder.`
+  }
 
   let deepAnalysis = ''
   try {
@@ -228,6 +235,24 @@ export async function generateScript(
       }],
     })
     deepAnalysis = parseClaudeText(analysisResponse)
+
+    // Strip carrier/product names from the analysis so they don't leak into the script
+    if (isInsurance) {
+      const carrierName = (data as any).carrier || ''
+      const productName = (data as any).policyType || ''
+      if (carrierName && carrierName.length > 2) {
+        const carrierRegex = new RegExp(carrierName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+        deepAnalysis = deepAnalysis.replace(carrierRegex, 'the carrier')
+      }
+      if (productName && productName.length > 3) {
+        const genericTypes = ['iul', 'ul', 'vul', 'gul', 'universal life', 'whole life', 'term life', 'annuity']
+        if (!genericTypes.includes(productName.toLowerCase())) {
+          const productRegex = new RegExp(productName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+          deepAnalysis = deepAnalysis.replace(productRegex, 'this policy')
+        }
+      }
+    }
+
     console.log(`[script-gen] Deep analysis: ${deepAnalysis.length} chars`)
   } catch (err) {
     console.error('[script-gen] Deep analysis failed, proceeding without:', err instanceof Error ? err.message : 'unknown')
@@ -377,7 +402,12 @@ export async function generateScript(
 
   // Detail level OVERRIDES the base scene count
   if (detailLevel === 'quick') {
-    additionalSections.push(`VIDEO LENGTH: HIGHLIGHTS — 3-4 scenes, under 60 seconds. Only the top 2-3 key points. Keep narration brief.`)
+    additionalSections.push(`VIDEO LENGTH: HIGHLIGHTS (30-60 SECONDS MAX) — Requirements:
+- 3-4 scenes MAXIMUM. Do NOT exceed 4 scenes.
+- Each scene narration must be 20-30 words. NOT longer.
+- Total narration across ALL scenes must be under 150 words (approximately 60 seconds).
+- Pick only the 2-3 most impactful points. Skip everything else.
+- This is a TEASER, not a summary.`)
   } else if (detailLevel === 'detailed') {
     additionalSections.push(`VIDEO LENGTH: DETAILED — This must be a LONG, THOROUGH video. Requirements:
 - Cover EVERY data point, metric, section, and detail in the source
@@ -388,7 +418,13 @@ export async function generateScript(
 - Use as many scenes as the content requires. A 1-page document might need 4 scenes. A 50-page document might need 12. Let the source data dictate scene count, not a fixed minimum.
 - This should feel like a comprehensive training walkthrough, not a summary`)
   } else {
-    additionalSections.push(`VIDEO LENGTH: STANDARD — Cover all major points with reasonable depth. 6-12 scenes. Each scene should fully explain its topic.`)
+    additionalSections.push(`VIDEO LENGTH: STANDARD (2-3 MINUTES MAX) — Requirements:
+- 6-8 scenes MAXIMUM. Do NOT exceed 8 scenes.
+- Each scene narration must be 30-50 words. NOT longer.
+- Total narration across ALL scenes must be under 450 words (approximately 3 minutes at speaking pace).
+- Cover the major points concisely — summarize, don't elaborate.
+- If the source has many data points, pick the 5-6 most important ones. Skip the rest.
+- This is a SUMMARY video, not a detailed walkthrough.`)
   }
 
   // Every scene MUST have narration
