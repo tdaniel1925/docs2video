@@ -339,17 +339,28 @@ export async function generateScript(
       ? uniqueProducts.map(p => `"${p}"`).join(', ')
       : 'any branded product name'
 
-    additionalSections.push(`CRITICAL INSURANCE RULES (MUST FOLLOW — THIS IS A LEGAL REQUIREMENT):
-1. NEVER say ${carrierBanText} or ANY insurance carrier/company/parent company name. Use "the carrier" or "your carrier" instead.
-2. NEVER say ${productBanText} or ANY branded product name. Use the GENERIC policy type instead (e.g. "your IUL policy", "your universal life policy", "your whole life policy", "this policy").
-3. Do NOT create any scene about the carrier as a company — no "About the Company", no carrier history, no financial ratings, no carrier track record, no carrier awards. SKIP all carrier marketing content from the source.
-4. Generic policy types ARE allowed: "IUL", "Universal Life", "Whole Life", "Term Life", "Annuity". Only carrier names and branded product names are banned.
-5. Focus ONLY on EXPLAINING POLICY FEATURES AND BENEFITS to the policyholder — not on describing the carrier.
-6. The viewer is the POLICYHOLDER. Explain what their policy does for THEM: death benefit, cash value, riders, premiums.
-7. Do NOT summarize the carrier's marketing. Instead, explain: "Here's what this means for your family's financial security."
-8. Use specific numbers from the data (death benefit amount, premium, cash value projections) — these are the viewer's numbers.
-9. If the source mentions AM Best ratings, S&P ratings, or financial strength — DO NOT include these. They are carrier marketing, not policy information.
-10. This is an EDUCATIONAL video about the POLICY BENEFITS — it is NOT a sales pitch for the carrier.`)
+    additionalSections.push(`INSURANCE ILLUSTRATION VIDEO — CONVERSATION STYLE:
+
+This video is a friendly, natural conversation explaining what this policy does for the viewer. Imagine you're sitting across the table from the client, walking them through their benefits in plain English.
+
+TONE: Warm, conversational, like a trusted advisor explaining things simply. Not a sales pitch. Not a legal document. Just a helpful walkthrough of THEIR specific numbers.
+
+WHAT TO TALK ABOUT (focus on these):
+- Their specific death benefit amount and what it means for their family
+- Their premium — how much they pay and what they get for it
+- Cash value growth — how their money grows over time, with their actual projected numbers
+- Riders and living benefits — what extra protections they have
+- How the policy works in simple terms (e.g. "your money grows when the market goes up, but you're protected when it goes down")
+- What makes this type of policy different from basic term insurance
+
+WHAT TO NEVER MENTION:
+- Any company name, carrier name, or insurance brand (${carrierBanText})
+- Any branded product name (${productBanText})
+- Instead, just say "your policy", "this plan", "your coverage", or the generic type like "your IUL" or "your universal life policy"
+- Company history, financial ratings, AM Best scores, awards — skip all of that
+- Don't explain what the COMPANY does. Explain what the POLICY does for the CLIENT.
+
+The viewer should feel like they just had a clear, personal explanation of their own policy benefits — not like they watched a corporate marketing video.`)
   }
 
   // Inject deep analysis as the primary content guide
