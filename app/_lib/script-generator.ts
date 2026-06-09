@@ -297,11 +297,40 @@ export async function generateScript(
     const carrierList = carrierName ? [carrierName, ...detectedCarriers] : detectedCarriers
     const uniqueCarriers = [...new Set(carrierList.map(c => c.trim()).filter(c => c.length > 1))]
 
-    // Detect branded product names (anything that looks like a product name, not a generic type)
-    const knownProducts = ['qol max', 'accumulator', 'secure lifetime', 'power protector', 'elite iul', 'performance elite', 'rapidbuilder', 'wealthmax', 'platinum advantage', 'lifeguard', 'choicelife', 'foundation life']
-    const detectedProducts = knownProducts.filter(p => allText.includes(p))
-    const productList = productName ? [productName, ...detectedProducts] : detectedProducts
-    const uniqueProducts = [...new Set(productList.map(p => p.trim()).filter(p => p.length > 2))]
+    // Detect branded product names from the document title and content
+    // Strategy: the document title usually IS the product name for insurance illustrations
+    const genericTypes = ['iul', 'ul', 'vul', 'gul', 'universal life', 'whole life', 'term life', 'variable universal life', 'indexed universal life', 'guaranteed universal life', 'annuity', 'fixed annuity', 'variable annuity', 'life insurance', 'illustration', 'policy', 'summary', 'overview', 'benefits']
+    const docTitle = ((data as any).title || '').trim()
+    const detectedProducts: string[] = []
+    // The document title often contains the product name — extract it
+    if (docTitle && docTitle.length > 3) {
+      // Remove generic words to isolate the product name
+      let productFromTitle = docTitle
+      for (const g of genericTypes) {
+        productFromTitle = productFromTitle.replace(new RegExp(`\\b${g}\\b`, 'gi'), '').trim()
+      }
+      // Remove carrier names already detected
+      for (const c of uniqueCarriers) {
+        productFromTitle = productFromTitle.replace(new RegExp(c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '').trim()
+      }
+      productFromTitle = productFromTitle.replace(/[-—–:,]/g, ' ').replace(/\s{2,}/g, ' ').trim()
+      if (productFromTitle.length > 2) {
+        detectedProducts.push(productFromTitle)
+        // Also add the full title as a variation
+        detectedProducts.push(docTitle)
+      }
+    }
+    // Also add explicit product name field if it exists
+    if (productName && productName.length > 3) {
+      const isGeneric = genericTypes.some(g => productName.toLowerCase() === g)
+      if (!isGeneric) detectedProducts.push(productName)
+    }
+    // Known product name fragments as fallback
+    const knownProductFragments = ['qol max', 'accumulator', 'secure lifetime', 'power protector', 'performance elite', 'rapidbuilder', 'wealthmax', 'platinum advantage', 'lifeguard', 'choicelife', 'foundation life', 'pathfinder', 'builder plus']
+    for (const p of knownProductFragments) {
+      if (allText.includes(p)) detectedProducts.push(p)
+    }
+    const uniqueProducts = [...new Set(detectedProducts.map(p => p.trim()).filter(p => p.length > 2))]
 
     const carrierBanText = uniqueCarriers.length > 0
       ? uniqueCarriers.map(c => `"${c}"`).join(', ')
@@ -668,18 +697,37 @@ FIELD RULES:
       const knownCarriers = ['american general', 'corebridge financial', 'corebridge', 'pacific life', 'nationwide', 'lincoln financial', 'lincoln national', 'transamerica', 'prudential', 'metlife', 'john hancock', 'securian', 'north american', 'north american company', 'allianz', 'allianz life', 'midland national', 'athene', 'global atlantic', 'protective', 'protective life', 'penn mutual', 'minnesota life', 'great-west', 'voya', 'principal', 'mutual of omaha', 'aig', 'zurich', 'sammons', 'f&g', 'fidelity & guaranty', 'fidelity and guaranty', 'columbus life', 'western & southern', 'mass mutual', 'massmutual', 'new york life', 'guardian', 'northwestern mutual', 'state farm', 'allstate']
       const knownProducts = ['qol max', 'accumulator+', 'accumulator plus', 'secure lifetime', 'power protector', 'elite iul', 'performance elite', 'rapidbuilder', 'wealthmax', 'platinum advantage', 'lifeguard', 'choicelife', 'foundation life', 'pathfinder', 'builder plus', 'ag secure', 'vul protector']
 
-      // Also check explicit fields if they exist
-      const explicitCarrier = (data as any).carrier || (data as any).companyName || ''
-      const explicitProduct = (data as any).policyType || (data as any).productName || ''
+      // Extract product name from document title (most reliable source)
+      const genericTypesPost = ['iul', 'ul', 'vul', 'gul', 'universal life', 'whole life', 'term life', 'variable universal life', 'indexed universal life', 'guaranteed universal life', 'annuity', 'fixed annuity', 'variable annuity', 'life insurance', 'illustration', 'policy', 'summary', 'overview', 'benefits']
+      const postDocTitle = ((data as any).title || '').trim()
 
       const variations: string[] = []
-      // Add explicit names
+
+      // Extract product name from title by removing generic words and carrier names
+      if (postDocTitle && postDocTitle.length > 3) {
+        let titleProduct = postDocTitle
+        for (const g of genericTypesPost) {
+          titleProduct = titleProduct.replace(new RegExp(`\\b${g}\\b`, 'gi'), '').trim()
+        }
+        for (const c of knownCarriers) {
+          titleProduct = titleProduct.replace(new RegExp(c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '').trim()
+        }
+        titleProduct = titleProduct.replace(/[-—–:,]/g, ' ').replace(/\s{2,}/g, ' ').trim()
+        if (titleProduct.length > 2) {
+          variations.push(titleProduct)
+          variations.push(postDocTitle) // also strip full title
+        }
+      }
+
+      // Add explicit fields if they exist
+      const explicitCarrier = (data as any).carrier || (data as any).companyName || ''
+      const explicitProduct = (data as any).policyType || (data as any).productName || ''
       if (explicitCarrier && explicitCarrier.length > 2) variations.push(explicitCarrier)
       if (explicitProduct && explicitProduct.length > 3) {
-        const genericTypes = ['iul', 'ul', 'vul', 'gul', 'universal life', 'whole life', 'term life', 'variable universal life', 'indexed universal life', 'guaranteed universal life', 'annuity']
-        if (!genericTypes.includes(explicitProduct.toLowerCase())) variations.push(explicitProduct)
+        if (!genericTypesPost.includes(explicitProduct.toLowerCase())) variations.push(explicitProduct)
       }
-      // Add known carriers/products found in the narration
+
+      // Scan narration for known carriers/products
       const allNarration = scenes.map((s: any) => s.narration || '').join(' ').toLowerCase()
       for (const c of knownCarriers) {
         if (allNarration.includes(c)) variations.push(c)
