@@ -190,7 +190,11 @@ export async function generateScript(
   narrationStyle?: 'solo' | 'podcast',
   classification?: { documentType?: string; category?: string; sensitivity?: string; tone?: string; perspective?: string; redFlags?: string[]; actionItems?: string[]; keyQuestion?: string } | null,
 ): Promise<VideoScene[]> {
+  // Detect insurance from multiple signals — not just data shape
   const isInsurance = isInsuranceData(data)
+    || classification?.category === 'insurance'
+    || industry === 'insurance'
+    || ['life_insurance_illustration', 'annuity_contract', 'health_insurance_eob', 'disability_policy', 'long_term_care'].includes(classification?.documentType || '')
 
   // PASS 1: Deep analysis — understand the business before writing the script
   const intentMap: Record<string, string> = {
@@ -204,9 +208,7 @@ export async function generateScript(
 
   // For insurance: inject carrier/product ban into strategic analysis guidance
   if (isInsurance) {
-    const carrierName = (data as any).carrier || ''
-    const productName = (data as any).policyType || ''
-    intentGuidance += `\n\nCRITICAL INSURANCE RULE FOR THIS ANALYSIS: Do NOT mention the carrier name "${carrierName}" or the product name "${productName}" anywhere in your analysis. Use "the carrier" and "this policy" instead. Do NOT analyze the carrier's company history, financial ratings, or brand reputation. Focus ONLY on policy features, benefits, and what the numbers mean for the policyholder.`
+    intentGuidance += `\n\nCRITICAL INSURANCE RULE FOR THIS ANALYSIS: Do NOT mention ANY insurance carrier name, company name, or branded product name anywhere in your analysis. Use "the carrier" and "this policy" instead. Do NOT analyze the carrier's company history, financial ratings, or brand reputation. Focus ONLY on policy features, benefits, and what the numbers mean for the policyholder. If the source document mentions a company name or product name, REPLACE it with "the carrier" or "this policy" in your output.`
   }
 
   let deepAnalysis = ''
@@ -284,18 +286,41 @@ export async function generateScript(
 
   // For insurance: reinforce carrier name ban and focus on policy features
   if (isInsurance) {
-    const carrierName = (data as any).carrier || ''
+    // Extract carrier/product names from whatever fields are available
+    const carrierName = (data as any).carrier || (data as any).companyName || ''
     const productName = (data as any).policyType || ''
-    additionalSections.push(`CRITICAL INSURANCE RULES (MUST FOLLOW):
-1. NEVER say "${carrierName}" or ANY carrier/company/parent company name. Use "the carrier" or "your carrier" instead.
-2. NEVER say the branded product name "${productName}" — use the GENERIC policy type instead (e.g. "your IUL policy", "your universal life policy", "your whole life policy"). The product name is a marketing term owned by the carrier.
+
+    // Scan sections/title for carrier and product names if not explicitly set
+    const allText = JSON.stringify(data).toLowerCase()
+    const knownCarriers = ['american general', 'corebridge', 'pacific life', 'nationwide', 'lincoln financial', 'transamerica', 'prudential', 'metlife', 'john hancock', 'securian', 'north american', 'allianz', 'midland national', 'athene', 'global atlantic', 'protective', 'penn mutual', 'minnesota life', 'great-west', 'voya', 'principal', 'mutual of omaha', 'aig', 'zurich', 'sammons', 'f&g', 'fidelity & guaranty']
+    const detectedCarriers = knownCarriers.filter(c => allText.includes(c))
+    const carrierList = carrierName ? [carrierName, ...detectedCarriers] : detectedCarriers
+    const uniqueCarriers = [...new Set(carrierList.map(c => c.trim()).filter(c => c.length > 1))]
+
+    // Detect branded product names (anything that looks like a product name, not a generic type)
+    const knownProducts = ['qol max', 'accumulator', 'secure lifetime', 'power protector', 'elite iul', 'performance elite', 'rapidbuilder', 'wealthmax', 'platinum advantage', 'lifeguard', 'choicelife', 'foundation life']
+    const detectedProducts = knownProducts.filter(p => allText.includes(p))
+    const productList = productName ? [productName, ...detectedProducts] : detectedProducts
+    const uniqueProducts = [...new Set(productList.map(p => p.trim()).filter(p => p.length > 2))]
+
+    const carrierBanText = uniqueCarriers.length > 0
+      ? uniqueCarriers.map(c => `"${c}"`).join(', ')
+      : 'any insurance carrier or company name'
+    const productBanText = uniqueProducts.length > 0
+      ? uniqueProducts.map(p => `"${p}"`).join(', ')
+      : 'any branded product name'
+
+    additionalSections.push(`CRITICAL INSURANCE RULES (MUST FOLLOW — THIS IS A LEGAL REQUIREMENT):
+1. NEVER say ${carrierBanText} or ANY insurance carrier/company/parent company name. Use "the carrier" or "your carrier" instead.
+2. NEVER say ${productBanText} or ANY branded product name. Use the GENERIC policy type instead (e.g. "your IUL policy", "your universal life policy", "your whole life policy", "this policy").
 3. Do NOT create any scene about the carrier as a company — no "About the Company", no carrier history, no financial ratings, no carrier track record, no carrier awards. SKIP all carrier marketing content from the source.
 4. Generic policy types ARE allowed: "IUL", "Universal Life", "Whole Life", "Term Life", "Annuity". Only carrier names and branded product names are banned.
-5. Focus on EXPLAINING POLICY FEATURES AND BENEFITS to the policyholder — not on describing the carrier.
+5. Focus ONLY on EXPLAINING POLICY FEATURES AND BENEFITS to the policyholder — not on describing the carrier.
 6. The viewer is the POLICYHOLDER. Explain what their policy does for THEM: death benefit, cash value, riders, premiums.
 7. Do NOT summarize the carrier's marketing. Instead, explain: "Here's what this means for your family's financial security."
 8. Use specific numbers from the data (death benefit amount, premium, cash value projections) — these are the viewer's numbers.
-9. If the source mentions AM Best ratings, S&P ratings, or financial strength — DO NOT include these. They are carrier marketing, not policy information.`)
+9. If the source mentions AM Best ratings, S&P ratings, or financial strength — DO NOT include these. They are carrier marketing, not policy information.
+10. This is an EDUCATIONAL video about the POLICY BENEFITS — it is NOT a sales pitch for the carrier.`)
   }
 
   // Inject deep analysis as the primary content guide
@@ -638,71 +663,61 @@ FIELD RULES:
     }
 
     // Post-parse: strip carrier/company names from insurance narrations
-    if (isInsurance && (data as any).carrier) {
-      const carrierName = (data as any).carrier as string
-      if (carrierName && carrierName.length > 2) {
-        // Build variations: "Pacific Life", "PacificLife", "Pacific life"
-        const variations = [
-          carrierName,
-          carrierName.toLowerCase(),
-          carrierName.toUpperCase(),
-          carrierName.replace(/\s+/g, ''),
-        ]
-        // Also catch extended legal names: "American General Life Insurance Company"
-        // and common suffixes agents see on illustrations
-        const suffixes = ['Life Insurance Company', 'Life Insurance', 'Insurance Company', 'Insurance', 'Financial', 'Life']
-        for (const suffix of suffixes) {
-          const extended = `${carrierName} ${suffix}`
-          variations.push(extended)
-        }
-        // Catch parent/subsidiary names if present in extracted data
-        const parentCompany = (data as any).parentCompany || (data as any).parent_company || ''
-        if (parentCompany && parentCompany.length > 2) {
-          variations.push(parentCompany)
-          variations.push(parentCompany.toLowerCase())
-        }
-        // Strip branded product names (e.g. "QoL Max Accumulator+", "Secure Lifetime GUL 3")
-        // but KEEP generic policy types (IUL, Universal Life, Whole Life, Term Life)
-        const genericTypes = ['iul', 'ul', 'vul', 'gul', 'universal life', 'whole life', 'term life', 'variable universal life', 'indexed universal life', 'guaranteed universal life', 'annuity', 'fixed annuity', 'variable annuity']
-        const productName = (data as any).policyType as string || ''
-        const productNameLower = productName.toLowerCase()
-        const isGenericType = genericTypes.some(g => productNameLower === g || productNameLower === `${g} insurance`)
-        // If the policyType is a branded product name (not generic), strip it
-        if (productName && !isGenericType && productName.length > 3) {
-          variations.push(productName)
-        }
-        // Also strip the product/plan name field if separate from policyType
-        const planName = (data as any).productName || (data as any).planName || ''
-        if (planName && planName.length > 3) {
-          variations.push(planName)
-        }
+    // Works even when data.carrier is missing — scans narration for known carriers
+    if (isInsurance) {
+      const knownCarriers = ['american general', 'corebridge financial', 'corebridge', 'pacific life', 'nationwide', 'lincoln financial', 'lincoln national', 'transamerica', 'prudential', 'metlife', 'john hancock', 'securian', 'north american', 'north american company', 'allianz', 'allianz life', 'midland national', 'athene', 'global atlantic', 'protective', 'protective life', 'penn mutual', 'minnesota life', 'great-west', 'voya', 'principal', 'mutual of omaha', 'aig', 'zurich', 'sammons', 'f&g', 'fidelity & guaranty', 'fidelity and guaranty', 'columbus life', 'western & southern', 'mass mutual', 'massmutual', 'new york life', 'guardian', 'northwestern mutual', 'state farm', 'allstate']
+      const knownProducts = ['qol max', 'accumulator+', 'accumulator plus', 'secure lifetime', 'power protector', 'elite iul', 'performance elite', 'rapidbuilder', 'wealthmax', 'platinum advantage', 'lifeguard', 'choicelife', 'foundation life', 'pathfinder', 'builder plus', 'ag secure', 'vul protector']
+
+      // Also check explicit fields if they exist
+      const explicitCarrier = (data as any).carrier || (data as any).companyName || ''
+      const explicitProduct = (data as any).policyType || (data as any).productName || ''
+
+      const variations: string[] = []
+      // Add explicit names
+      if (explicitCarrier && explicitCarrier.length > 2) variations.push(explicitCarrier)
+      if (explicitProduct && explicitProduct.length > 3) {
+        const genericTypes = ['iul', 'ul', 'vul', 'gul', 'universal life', 'whole life', 'term life', 'variable universal life', 'indexed universal life', 'guaranteed universal life', 'annuity']
+        if (!genericTypes.includes(explicitProduct.toLowerCase())) variations.push(explicitProduct)
+      }
+      // Add known carriers/products found in the narration
+      const allNarration = scenes.map((s: any) => s.narration || '').join(' ').toLowerCase()
+      for (const c of knownCarriers) {
+        if (allNarration.includes(c)) variations.push(c)
+      }
+      for (const p of knownProducts) {
+        if (allNarration.includes(p)) variations.push(p)
+      }
+
+      if (variations.length > 0) {
+        // Dedupe and sort by length (longest first to avoid partial matches)
+        const uniqueVars = [...new Set(variations)].sort((a, b) => b.length - a.length)
 
         for (const scene of scenes) {
           if (scene.narration) {
-            for (const v of variations) {
+            for (const v of uniqueVars) {
               if (v.length > 2) {
                 const regex = new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
                 scene.narration = scene.narration.replace(regex, 'the carrier')
               }
             }
-            // Clean up awkward phrasing from replacement
             scene.narration = scene.narration
               .replace(/from the carrier the carrier/gi, 'from the carrier')
               .replace(/the carrier's the carrier/gi, "the carrier's")
+              .replace(/the carrier the carrier/gi, 'the carrier')
               .replace(/\s{2,}/g, ' ')
               .trim()
           }
-          // Also strip from slide data
           if (scene.slideData?.headline) {
-            for (const v of variations) {
+            for (const v of uniqueVars) {
               if (v.length > 2) {
-                scene.slideData.headline = scene.slideData.headline.replace(new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), v === productName ? 'Your Policy' : '')
+                scene.slideData.headline = scene.slideData.headline.replace(new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '')
               }
             }
             scene.slideData.headline = scene.slideData.headline.replace(/\s{2,}/g, ' ').trim()
           }
         }
-        console.log(`[script-gen] Stripped carrier name "${carrierName}" from narration`)
+        console.log(`[script-gen] Stripped ${uniqueVars.length} carrier/product names from narration: ${uniqueVars.join(', ')}`)
+      }
 
         // Remove entire scenes that are about the carrier (not the policy)
         const carrierScenePatterns = [
@@ -730,7 +745,6 @@ FIELD RULES:
           scenes.forEach((s: any, idx: number) => { s.scene = idx + 1 })
           console.log(`[script-gen] Removed ${beforeCount - scenes.length} carrier-focused scene(s)`)
         }
-      }
     }
 
     // Generate frame prompts for flipbook mode
