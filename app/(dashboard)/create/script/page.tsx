@@ -168,6 +168,7 @@ export default function ScriptPage() {
             website: state.contactWebsite || undefined,
           },
           industry: state.extractedData?.industry || 'general',
+          classification: state.extractedData?.classification || state.classification || null,
           outputType,
         }),
       })

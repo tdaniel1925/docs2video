@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { policyData, brandId, detailed, detailLevel, narrationStyle, voiceId, contactInfo, purpose, uploadMode, industry } = body as {
+  const { policyData, brandId, detailed, detailLevel, narrationStyle, voiceId, contactInfo, purpose, uploadMode, industry, classification } = body as {
     policyData: ExtractedPolicyData | ExtractedData
     brandId: string | null
     detailed?: boolean
@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     purpose?: string
     uploadMode?: string
     industry?: string
+    classification?: { documentType?: string; category?: string; sensitivity?: string; tone?: string; perspective?: string; redFlags?: string[]; actionItems?: string[]; keyQuestion?: string } | null
   }
 
   let brandName: string | null = null
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const scenes = await generateScript(policyData, brandName, colors, detailed ?? false, 0, voiceId, brandTone, contactInfo, purpose, uploadMode, industry, detailLevel, narrationStyle)
+    const scenes = await generateScript(policyData, brandName, colors, detailed ?? false, 0, voiceId, brandTone, contactInfo, purpose, uploadMode, industry, detailLevel, narrationStyle, classification ?? (policyData as any)?.classification ?? null)
     return NextResponse.json({ scenes })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Script generation failed'
