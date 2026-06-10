@@ -109,9 +109,9 @@ ${wrapUserData(policyDataBlock)}
 5. EVIDENCE — The deep dive. This is the bulk of the video. Walk through:
    - Premium breakdown (how much, how often, value received)
    - Cash value growth year by year (guaranteed vs illustrated)
-   ${data.surrenderValueProjections.length > 0 ? '- Surrender values and what they mean' : ''}
+   ${data.surrenderValueProjections?.length ? '- Surrender values and what they mean' : ''}
    ${data.loanRate ? `- Policy loans and the ${data.loanRate}% loan rate` : ''}
-   ${data.riders.length > 0 ? '- Each rider and what protection it provides' : ''}
+   ${data.riders?.length ? '- Each rider and what protection it provides' : ''}
    Use as many scenes as needed. One concept per scene. Use specific numbers. Be thorough.
 
 6. IMPLICATION — What this all means for the viewer. Connect the data back to their life.

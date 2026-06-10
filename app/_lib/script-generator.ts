@@ -271,7 +271,10 @@ export async function generateScript(
   const genericPromptBuilder = getPrompt('script_generation_generic')
   const insurancePromptBuilder = getPrompt('script_generation_insurance')
 
-  let promptBody = isInsurance
+  // Use insurance prompt ONLY if data has structured insurance fields (deathBenefit, policyType)
+  // Otherwise use generic prompt — the insurance conversation rules in additionalSections still apply
+  const hasStructuredInsuranceData = isInsuranceData(data)
+  let promptBody = hasStructuredInsuranceData
     ? insurancePromptBuilder(data as ExtractedPolicyData, brandName, detailed, assetCount ?? 0)
     : genericPromptBuilder(data as ExtractedData, brandName, detailed, assetCount ?? 0, uploadMode, industry)
 
