@@ -190,11 +190,19 @@ export async function generateScript(
   narrationStyle?: 'solo' | 'podcast',
   classification?: { documentType?: string; category?: string; sensitivity?: string; tone?: string; perspective?: string; redFlags?: string[]; actionItems?: string[]; keyQuestion?: string } | null,
 ): Promise<VideoScene[]> {
-  // Detect insurance from multiple signals — not just data shape
+  // Detect insurance from multiple signals — scan content if structured fields missing
+  const contentText = JSON.stringify(data).toLowerCase()
+  const insuranceKeywords = ['death benefit', 'cash value', 'surrender value', 'premium payment', 'life insurance', 'universal life', 'whole life', 'term life', 'iul', 'vul', 'gul', 'annuity', 'beneficiary', 'insured', 'policyholder', 'illustration', 'guaranteed interest', 'non-guaranteed', 'cost of insurance', 'net surrender', 'policy loan', 'rider', 'accelerated death', 'waiver of premium']
+  const insuranceHits = insuranceKeywords.filter(k => contentText.includes(k))
   const isInsurance = isInsuranceData(data)
     || classification?.category === 'insurance'
     || industry === 'insurance'
     || ['life_insurance_illustration', 'annuity_contract', 'health_insurance_eob', 'disability_policy', 'long_term_care'].includes(classification?.documentType || '')
+    || insuranceHits.length >= 3 // 3+ insurance keywords = insurance document
+
+  if (isInsurance) {
+    console.log(`[script-gen] Insurance detected (${insuranceHits.length} keywords: ${insuranceHits.slice(0, 5).join(', ')})`)
+  }
 
   // PASS 1: Deep analysis — understand the business before writing the script
   const intentMap: Record<string, string> = {
