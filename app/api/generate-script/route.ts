@@ -53,10 +53,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const scenes = await generateScript(policyData, brandName, colors, detailed ?? false, 0, voiceId, brandTone, contactInfo, purpose, uploadMode, industry, detailLevel, narrationStyle, classification ?? (policyData as any)?.classification ?? null)
+    const classificationData = classification ?? (policyData as any)?.classification ?? null
+    console.log(`[generate-script] Starting: industry=${industry}, classification=${classificationData?.category || 'none'}, detailLevel=${detailLevel}`)
+    const scenes = await generateScript(policyData, brandName, colors, detailed ?? false, 0, voiceId, brandTone, contactInfo, purpose, uploadMode, industry, detailLevel, narrationStyle, classificationData)
+    console.log(`[generate-script] Done: ${scenes.length} scenes`)
     return NextResponse.json({ scenes })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Script generation failed'
+    const stack = err instanceof Error ? err.stack?.slice(0, 300) : ''
+    console.error(`[generate-script] CRASH: ${message}`, stack)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

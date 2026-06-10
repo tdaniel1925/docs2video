@@ -172,8 +172,11 @@ export default function ScriptPage() {
           outputType,
         }),
       })
-      const data = await res.json()
+      const text = await res.text()
+      let data: any
+      try { data = JSON.parse(text) } catch { throw new Error('Server error — please try again') }
       if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message || 'Script generation failed')
+      if (!data.scenes || !Array.isArray(data.scenes)) throw new Error('No script was generated — please try again')
 
       setScenes(data.scenes)
 
