@@ -378,6 +378,7 @@ export default function ScriptPage() {
           outputType,
           policyData: createState?.extractedData || {},
           purpose: createState?.purpose || 'Create a professional video',
+          recipientName: (createState as any)?.recipientName || (draftData as any)?.recipientName || undefined,
           preGeneratedScenes: scenes,
           brandId: createState?.selectedBrand || createState?.autoBrandId || undefined,
           voiceId: (createState as any)?.voiceId || 'nova',

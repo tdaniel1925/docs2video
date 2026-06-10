@@ -471,62 +471,6 @@ export default function BrandPage() {
           />
         </div>
 
-        {/* Logo upload */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
-            Logo <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-light)' }}>(optional)</span>
-          </label>
-          <div
-            onClick={() => logoInputRef.current?.click()}
-            onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--mint)' }}
-            onDragLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
-            onDrop={handleLogoDrop}
-            style={{
-              padding: logoPreview ? '12px' : '24px 16px',
-              borderRadius: 8, border: '2px dashed var(--border)',
-              background: 'var(--bg-soft)', cursor: 'pointer', textAlign: 'center',
-              transition: 'border-color 0.2s',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
-            }}
-          >
-            {logoPreview ? (
-              <>
-                <img
-                  src={logoPreview}
-                  alt="Logo preview"
-                  style={{ width: 48, height: 48, objectFit: 'contain', borderRadius: 6 }}
-                />
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
-                    {logoFile ? logoFile.name : 'Auto-detected logo'}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>Click to change</div>
-                </div>
-              </>
-            ) : (
-              <div>
-                <div style={{ fontSize: 24, marginBottom: 4 }}>&#128247;</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)' }}>
-                  Drop your logo here or click to browse
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 2 }}>
-                  PNG, JPG, SVG
-                </div>
-              </div>
-            )}
-          </div>
-          <input
-            ref={logoInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/svg+xml,image/webp"
-            style={{ display: 'none' }}
-            onChange={e => {
-              const f = e.target.files?.[0]
-              if (f) { handleLogoChange(f); setSelectedBrandId(null) }
-            }}
-          />
-        </div>
-
         {/* Color pickers */}
         <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
           <div style={{ flex: 1 }}>

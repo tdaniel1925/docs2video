@@ -23,6 +23,7 @@ const CONTENT_METHODS: { id: InputMethod; label: string }[] = [
 export default function Step1Content() {
   const router = useRouter()
   const [outputType, setOutputType] = useState<OutputType>('video')
+  const [recipientName, setRecipientName] = useState('')
   const [purpose, setPurpose] = useState('')
   const [method, setMethod] = useState<InputMethod>(null)
   const [urlInput, setUrlInput] = useState('')
@@ -64,6 +65,7 @@ export default function Step1Content() {
         body: JSON.stringify({
           outputType,
           purpose: purpose.trim(),
+          recipientName: recipientName.trim() || undefined,
           extractedData,
           contentMethod: method || 'idea',
           autoBrandInfo,
@@ -406,6 +408,28 @@ export default function Step1Content() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Recipient name */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 8 }}>
+          Who is this for? <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-light)' }}>(optional)</span>
+        </label>
+        <input
+          type="text"
+          value={recipientName}
+          onChange={(e) => setRecipientName(e.target.value)}
+          placeholder="e.g. John Smith"
+          style={{
+            width: '100%',
+            padding: '12px 16px',
+            borderRadius: 10,
+            border: '1px solid var(--border)',
+            fontSize: 15,
+            fontFamily: 'inherit',
+            background: 'var(--bg)',
+          }}
+        />
       </div>
 
       {/* Purpose input */}

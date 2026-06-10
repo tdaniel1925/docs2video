@@ -132,7 +132,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, styleReferenceUrl, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, narrationStyle, assetUrls, purpose, uploadMode, industry, barText } = body as {
+  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, styleReferenceUrl, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, narrationStyle, assetUrls, purpose, uploadMode, industry, barText, recipientName } = body as {
     videoId: string
     policyData: ExtractedPolicyData | ExtractedData
     brandId: string | null
@@ -152,6 +152,7 @@ export async function POST(request: Request) {
     uploadMode?: string
     industry?: string
     barText?: string
+    recipientName?: string
   }
 
   // --- GUARD: Duplicate submission prevention ---
@@ -605,9 +606,10 @@ export async function POST(request: Request) {
     }
 
     // Build cover narration (short intro) — formatted for natural speech
-    const coverNarration = formatForTTS(effectiveBrandName
-      ? `Welcome. This is a presentation from ${effectiveBrandName}. ${videoTitle}.`
-      : `Welcome to this presentation. ${videoTitle}.`)
+    // Use recipient name from draft data or request body
+    const recipient = recipientName || (policyData as any)?.recipientName || (policyData as any)?.insuredName || ''
+    const greeting = recipient ? `Hello ${recipient}, thank you for your time today.` : `Thank you for your time today.`
+    const coverNarration = formatForTTS(`${greeting} ${videoTitle}.`)
 
     // Build closing narration (short outro with contact info) — formatted for natural speech
     const contactParts: string[] = []
