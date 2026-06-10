@@ -220,6 +220,8 @@ export default function AdminPage() {
         ))}
       </div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 24, flexWrap: 'wrap' }}>
+        <Link href="/admin/costs" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>API Costs</Link>
+        <Link href="/admin/revenue" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Revenue</Link>
         <Link href="/admin/campaigns" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Campaigns</Link>
         <Link href="/admin/bulk" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Bulk Generate</Link>
         <Link href="/admin/help" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Help Articles</Link>
