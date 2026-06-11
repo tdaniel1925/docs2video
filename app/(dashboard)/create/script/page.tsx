@@ -392,10 +392,8 @@ export default function ScriptPage() {
           customStylePrompt: (createState as any)?.customStylePrompt || undefined,
           companyName: (createState as any)?.companyName || undefined,
           noContactBar: (createState as any)?.noContactBar || undefined,
-          brandColors: (createState as any)?.customPrimary ? {
-            primary: (createState as any).customPrimary,
-            secondary: (createState as any).customSecondary || '#4A90D9',
-          } : undefined,
+          // Colors come solely from the selected brand (single source of truth).
+          // The styling step chooses visual STYLE only — it no longer overrides colors.
         }),
       })
       if (!genRes.ok) {

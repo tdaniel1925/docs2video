@@ -538,11 +538,15 @@ export async function POST(request: Request) {
     // Logo not used in video pipeline — branding is text-only
     const logoUrl = null
     const brandGuide = brand?.brand_guide_data as Record<string, string> | null
-    // Custom colors from styling page take priority over brand colors
+    // Colors come from the selected brand — single source of truth. body.brandColors
+    // is still honored if present (legacy drafts) but the wizard no longer sends it.
     const bodyColors = (body as any).brandColors as { primary?: string; secondary?: string } | undefined
     const brandColors = {
       primary: bodyColors?.primary || brand?.primary_color || '#1B365D',
       secondary: bodyColors?.secondary || brand?.secondary_color || '#4A90D9',
+    }
+    if (!brand?.primary_color && !bodyColors?.primary) {
+      console.warn(`[video ${videoId}] No brand colors found (brandId=${brandId ?? 'none'}) — using defaults`)
     }
 
     // Build style prompt: custom theme > isometric-3d (default)
@@ -615,7 +619,7 @@ export async function POST(request: Request) {
         ? `\n\nCONTACT BAR: Display a thin footer bar at the bottom of this slide with: ${brandContact.join(' | ')}. Use the brand primary color for the bar background with white text.`
         : '\n\nNEVER invent phone numbers, emails, or URLs — no contact info on this slide.'
 
-      return `${stylePrompt}\n\n${fp}\n\nTopic context (for visual inspiration only, do NOT put this text on the slide): "${scene.narration?.slice(0, 150)}"\n\nCRITICAL TEXT RULE: Maximum 25 words of visible text on this slide (NOT counting the contact bar). Use a short headline (3-6 words), 2-4 bullet points (3-5 words each), and large numbers/icons. The narration provides the detail — the slide is VISUAL SUPPORT only. NO paragraphs, NO sentences, NO long text blocks.\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette. No logos, no brand marks, no fictional emblems.${contactBarInstruction}`
+      return `${stylePrompt}\n\n${fp}\n\nTopic context (for visual inspiration only, do NOT put this text on the slide): "${scene.narration?.slice(0, 150)}"\n\nCRITICAL TEXT RULE: Maximum 25 words of visible text on this slide (NOT counting the contact bar). Use a short headline (3-6 words), 2-4 bullet points (3-5 words each), and large numbers/icons. The narration provides the detail — the slide is VISUAL SUPPORT only. NO paragraphs, NO sentences, NO long text blocks.\n\nCRITICAL COLOR RULE: Use these EXACT brand colors as the dominant palette — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. If the style description above mentions any other colors, IGNORE them and use these brand colors instead — the brand colors always win. No logos, no brand marks, no fictional emblems.${contactBarInstruction}`
     })
 
     // Video metadata
@@ -655,9 +659,9 @@ export async function POST(request: Request) {
 
     // Build cover slide prompt — same format as content slides so Gemini uses consistent style
     const contactLine = [contactForClosing.phone, contactForClosing.email, contactForClosing.website].filter(Boolean).join(' | ')
-    const coverPrompt = `${stylePrompt}\n\nCreate a professional COVER SLIDE for a presentation titled "${videoTitle}"${effectiveBrandName ? ` by ${effectiveBrandName}` : ''}. This is the opening slide — make it bold, eye-catching, and professional. Include the title prominently. Leave the top-left corner empty for logo placement.\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette. No logos, no brand marks, no fictional emblems. NEVER invent phone numbers, emails, or URLs — only display contact info if explicitly provided.`
+    const coverPrompt = `${stylePrompt}\n\nCreate a professional COVER SLIDE for a presentation titled "${videoTitle}"${effectiveBrandName ? ` by ${effectiveBrandName}` : ''}. This is the opening slide — make it bold, eye-catching, and professional. Include the title prominently. Leave the top-left corner empty for logo placement.\n\nCRITICAL COLOR RULE: Use these EXACT brand colors as the dominant palette — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. If the style description above mentions any other colors, IGNORE them and use these brand colors instead — the brand colors always win. No logos, no brand marks, no fictional emblems. NEVER invent phone numbers, emails, or URLs — only display contact info if explicitly provided.`
     // Build closing slide prompt
-    const closingPrompt = `${stylePrompt}\n\nCreate a professional CLOSING/THANK YOU SLIDE. Display "Thank You" as the main heading.${contactLine ? ` Include contact info: ${contactLine}` : ''} This is the final slide — make it warm and conclusive. Leave the top-left corner empty for logo placement.\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette. No logos, no brand marks, no fictional emblems. NEVER invent phone numbers, emails, or URLs — only display contact info if explicitly provided.`
+    const closingPrompt = `${stylePrompt}\n\nCreate a professional CLOSING/THANK YOU SLIDE. Display "Thank You" as the main heading.${contactLine ? ` Include contact info: ${contactLine}` : ''} This is the final slide — make it warm and conclusive. Leave the top-left corner empty for logo placement.\n\nCRITICAL COLOR RULE: Use these EXACT brand colors as the dominant palette — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. If the style description above mentions any other colors, IGNORE them and use these brand colors instead — the brand colors always win. No logos, no brand marks, no fictional emblems. NEVER invent phone numbers, emails, or URLs — only display contact info if explicitly provided.`
 
     // Prepend/append to slidePrompts
     const allSlidePrompts = [coverPrompt, ...slidePrompts, closingPrompt]
@@ -673,7 +677,7 @@ export async function POST(request: Request) {
       // title are overlaid as real text by Creatomate (mirrors VPS behavior,
       // where these prompts are ignored and text is composited with Sharp).
       const v2Prompts = [...allSlidePrompts]
-      const v2ColorRule = `Use brand colors prominently: primary ${brandColors.primary}, secondary ${brandColors.secondary}. These colors MUST dominate the palette.`
+      const v2ColorRule = `Use these EXACT brand colors as the dominant palette: primary ${brandColors.primary}, secondary ${brandColors.secondary}. If the style description mentions other colors, IGNORE them — the brand colors always win.`
       v2Prompts[0] = `${stylePrompt}\n\nCreate a stunning decorative BACKGROUND artwork for a premium video title card. Rich depth, layered composition, abstract shapes and visual metaphors. Keep the CENTER of the image (middle 60%) visually calm and uncluttered — large text will be overlaid there. ${v2ColorRule}\n\nABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO LOGOS, NO RESERVED BLANK BOXES anywhere. Pure illustrated artwork filling the entire 1920x1080 canvas.`
       v2Prompts[v2Prompts.length - 1] = `${stylePrompt}\n\nCreate a stunning decorative BACKGROUND artwork for a video closing card. Warm, hopeful, conclusive feel — soft light, path toward a bright horizon. Keep the CENTER of the image (middle 60%) visually calm and uncluttered — text will be overlaid there. ${v2ColorRule}\n\nABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO LOGOS, NO RESERVED BLANK BOXES anywhere. Pure illustrated artwork filling the entire 1920x1080 canvas.`
 

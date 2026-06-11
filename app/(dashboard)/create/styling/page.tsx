@@ -106,14 +106,15 @@ export default function StylingPage() {
 
   function handleNext() {
     if (!selectedStyle) return
-    const colors = getActiveColors()
     const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
     state.styleId = selectedStyle
-    state.colorPreset = selectedColors
-    state.customPrimary = colors.primary
-    state.customSecondary = colors.secondary
     state.customStylePrompt = customStylePrompt || undefined
     state.companyName = companyNameInput.trim() || undefined
+    // Colors come from the selected brand (single source of truth) — the styling
+    // step picks visual STYLE only. Clear any stale custom colors from old drafts.
+    delete state.customPrimary
+    delete state.customSecondary
+    delete state.colorPreset
     localStorage.setItem('d2v_create', JSON.stringify(state))
     router.push('/create/script')
   }
