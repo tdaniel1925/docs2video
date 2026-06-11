@@ -75,8 +75,11 @@ export default function Step1Content() {
       })
       const draftData = await draftRes.json()
       if (!draftRes.ok) {
-        if (draftRes.status === 402) { setError('Not enough credits. Upgrade your plan or buy more credits.'); setStage('idle'); return }
-        throw new Error(draftData.error || 'Failed to create project')
+        // Show the server's actual error — a generic "credits" message here
+        // once masked a tier-gate bug for 9 days
+        setError(draftData.error || (draftRes.status === 402 ? 'Not enough credits. Upgrade your plan or buy more credits.' : 'Failed to create project'))
+        setStage('idle')
+        return
       }
 
       // If style was pre-selected, save it to the draft and skip brand+style steps

@@ -15,6 +15,8 @@ export const CREDIT_COSTS = {
   flyer: 100,
   template: 200,
   'template-refine': 50,
+  // Deck builder (flagship product #2)
+  deck: 300,
   // New granular video actions
   videoQuick: 250,
   videoStandard: 500,

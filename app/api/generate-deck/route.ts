@@ -1,23 +1,27 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import OpenAI from 'openai'
-import { deductCredits } from '../../_lib/credits'
+import { deductCredits, checkCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { generatePptx } from '../../_lib/pptx-generator'
 import type { DeckSlide } from '../../_lib/pptx-generator'
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
 import { buildSimpleSlidePrompt, getStylePrompt } from '../../_lib/slide-engine/simple-prompt'
 import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
+import { generateSlideFromPrompt } from '../../_lib/gemini'
+import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 600
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
 
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+  const rl = rateLimit(getRateLimitKey(user.id, 'generation'), LIMITS.generation.limit, LIMITS.generation.windowMs)
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
+  }
 
   const body = await request.json()
   const {
@@ -27,7 +31,7 @@ export async function POST(request: Request) {
     primaryColor,
     secondaryColor,
     accentColor,
-    referenceImage,
+    styleId,
   } = body as {
     title: string
     slides: { headline: string; subheadline?: string; bodyPoints: string[]; stats?: { value: string; label: string }[]; slideType: 'cover' | 'content' | 'data' | 'quote' | 'closing' }[]
@@ -35,18 +39,25 @@ export async function POST(request: Request) {
     primaryColor?: string
     secondaryColor?: string
     accentColor?: string
-    referenceImage?: string
+    styleId?: string
   }
 
   if (!slideSpecs?.length) {
     return NextResponse.json({ error: 'No slides provided' }, { status: 400 })
   }
+  if (slideSpecs.length > 25) {
+    return NextResponse.json({ error: 'Decks are limited to 25 slides.' }, { status: 400 })
+  }
 
-  // Credit check: 2 credits per deck (skip for admin/beta)
+  // Credit check — deduction happens after successful generation
+  const DECK_COST = CREDIT_COSTS.deck
   const admin = createAdminClient()
-  const { data: profile } = await admin.from('profiles').select('is_admin, is_beta, credits_remaining').eq('id', user.id).single()
-  if (!profile?.is_admin && !profile?.is_beta && (!profile || profile.credits_remaining < 2)) {
-    return NextResponse.json({ error: 'Insufficient credits. Need 2 credits for a deck.' }, { status: 403 })
+  const creditCheck = await checkCredits(user.id, DECK_COST)
+  if (!creditCheck.allowed) {
+    return NextResponse.json(
+      { error: `Not enough credits. A deck costs ${DECK_COST} credits, you have ${creditCheck.remaining}.` },
+      { status: 402 }
+    )
   }
 
   // Load brand if selected
@@ -89,17 +100,11 @@ export async function POST(request: Request) {
   try {
     if (jobId) await updateJobProgress(admin, jobId, 5, 'running')
 
-    // Generate slide images with OpenAI gpt-image-2
-    const deckSlides: DeckSlide[] = []
-    const stylePrompt = getStylePrompt('executive') // default style for decks
+    // Generate slide images with Gemini — all slides in parallel
+    const stylePrompt = getStylePrompt(styleId || 'executive')
+    let completed = 0
 
-    for (let i = 0; i < slideSpecs.length; i++) {
-      const spec = slideSpecs[i]
-      const progress = 10 + Math.round((i / slideSpecs.length) * 70)
-      if (jobId) await updateJobProgress(admin, jobId, progress, 'running')
-
-      console.log(`[deck] Generating slide ${i + 1}/${slideSpecs.length}...`)
-
+    const deckSlides: DeckSlide[] = await Promise.all(slideSpecs.map(async (spec, i) => {
       const isFirst = i === 0
       const isLast = i === slideSpecs.length - 1
 
@@ -117,37 +122,28 @@ export async function POST(request: Request) {
         totalPages: slideSpecs.length,
       }
 
-      const prompt = buildSimpleSlidePrompt(input)
-
+      let backgroundImage: Buffer
       try {
-        const response = await openai.images.generate({
-          model: 'gpt-image-2',
-          prompt,
-          size: '1920x1088',
-          quality: 'high',
-          n: 1,
-        })
-
-        const imageData = response.data?.[0]
-        if (!imageData?.b64_json) throw new Error('No image returned')
-
-        deckSlides.push({
-          ...spec,
-          backgroundImage: Buffer.from(imageData.b64_json, 'base64'),
-        })
+        const buf = await generateSlideFromPrompt(buildSimpleSlidePrompt(input))
+        if (!buf) throw new Error('No image returned')
+        backgroundImage = buf
       } catch (err) {
         console.error(`[deck] Slide ${i + 1} failed:`, err)
         const sharpMod = await import('sharp')
         const sharp = sharpMod.default ?? sharpMod
-        const fallbackBg = await sharp({
+        backgroundImage = await sharp({
           create: {
             width: 1920, height: 1080, channels: 4,
             background: { r: 240, g: 244, b: 248, alpha: 1 },
           },
         }).png().toBuffer()
-        deckSlides.push({ ...spec, backgroundImage: fallbackBg })
       }
-    }
+
+      completed++
+      if (jobId) await updateJobProgress(admin, jobId, 10 + Math.round((completed / slideSpecs.length) * 70), 'running')
+      console.log(`[deck] Slide ${completed}/${slideSpecs.length} done`)
+      return { ...spec, backgroundImage }
+    }))
 
     if (jobId) await updateJobProgress(admin, jobId, 85, 'running')
     console.log(`[deck] Generating PPTX...`)
@@ -171,8 +167,9 @@ export async function POST(request: Request) {
     })
     const { data: urlData } = admin.storage.from('videos').getPublicUrl(path)
 
-    // Deduct credits
-    await deductCredits(admin, user.id, 2)
+    // Deduct credits (admin/beta bypass handled inside deductCredits)
+    const deducted = await deductCredits(user.id, DECK_COST, 'deck_generation')
+    if (!deducted) console.error(`[deck] Credit deduction failed for user ${user.id} after successful generation`)
 
     // Log creation
     await admin.from('creations').insert({
@@ -180,7 +177,7 @@ export async function POST(request: Request) {
       type: 'deck',
       title: `Deck: ${title}`,
       file_url: urlData.publicUrl,
-      credits_used: 2,
+      credits_used: DECK_COST,
     })
 
     if (jobId) await updateJobProgress(admin, jobId, 100, 'completed', { result_url: urlData.publicUrl })

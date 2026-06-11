@@ -18,6 +18,8 @@ export interface DeckGeneratorOptions {
   logoBuffer?: Buffer | null
   contactInfo?: { phone?: string; website?: string }
   templateImages?: Buffer[]
+  /** Style direction from the slide-engine template library (getStylePrompt) */
+  stylePrompt?: string
 }
 
 export async function generateDeck(
@@ -47,6 +49,7 @@ export async function generateDeck(
 
 This is a BACKGROUND ONLY — no text will be rendered. Text is overlaid in PowerPoint.
 ${refImage ? 'Match the visual style, layout feel, and design aesthetic of the attached reference slide.' : ''}
+${options.stylePrompt ? `\nSTYLE DIRECTION:\n${options.stylePrompt}\n` : ''}
 
 SLIDE PURPOSE: ${slide.layoutType} slide
 TOPIC: "${slide.content.headline}"

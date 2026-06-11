@@ -278,6 +278,7 @@ export default function DeckBuilderPage() {
           action: 'generate-deck',
           plan,
           brandId: brandId || undefined,
+          styleId: styleId || undefined,
           templateImages: useBuiltinStyle ? undefined : templateLayouts,
         }),
       })

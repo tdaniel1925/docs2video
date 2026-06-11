@@ -68,12 +68,6 @@ const GUIDES: HelpGuide[] = [
     icon: '📥',
   },
   {
-    href: '/help/social-sharing',
-    title: 'Social Sharing',
-    description: 'Generate social posts from your videos and share on LinkedIn, Twitter, and Facebook.',
-    icon: '📱',
-  },
-  {
     href: '/help/account',
     title: 'Account & Settings',
     description: 'Manage your profile, notifications, billing, and subscription settings.',

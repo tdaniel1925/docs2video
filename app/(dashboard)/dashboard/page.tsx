@@ -9,6 +9,7 @@ const TYPE_BADGE: Record<string, { label: string; color: string }> = {
   infographic: { label: 'Infographic', color: 'sky' },
   ad: { label: 'Ad', color: 'sun' },
   'brand-deck': { label: 'Deck', color: 'rose' },
+  deck: { label: 'Deck', color: 'rose' },
   logo: { label: 'Logo', color: 'sun' },
   remix: { label: 'Remix', color: 'rose' },
   'social-kit': { label: 'Social Kit', color: 'mint' },
@@ -168,15 +169,16 @@ export default async function DashboardPage() {
   const [{ data: videos }, { data: otherCreations }, { count: videoCount }, { count: videoMonthCount }] = await Promise.all([
     supabase.from('videos').select('id, title, thumbnail_url, video_url, status, progress_pct, progress_detail, created_at')
       .eq('user_id', user!.id).order('created_at', { ascending: false }).limit(8),
+    // Focused product: only decks shown alongside videos (peripheral types unlinked)
     supabase.from('creations').select('*')
-      .eq('user_id', user!.id).neq('type', 'video').order('created_at', { ascending: false }).limit(8),
+      .eq('user_id', user!.id).in('type', ['deck', 'brand-deck']).order('created_at', { ascending: false }).limit(8),
     supabase.from('videos').select('*', { count: 'exact', head: true }).eq('user_id', user!.id),
     supabase.from('videos').select('*', { count: 'exact', head: true }).eq('user_id', user!.id).gte('created_at', monthStart),
   ])
 
   const [{ count: creationCount }, { count: creationMonthCount }, { count: nonFailedVideoCount }] = await Promise.all([
-    supabase.from('creations').select('*', { count: 'exact', head: true }).eq('user_id', user!.id).neq('type', 'video'),
-    supabase.from('creations').select('*', { count: 'exact', head: true }).eq('user_id', user!.id).neq('type', 'video').gte('created_at', monthStart),
+    supabase.from('creations').select('*', { count: 'exact', head: true }).eq('user_id', user!.id).in('type', ['deck', 'brand-deck']),
+    supabase.from('creations').select('*', { count: 'exact', head: true }).eq('user_id', user!.id).in('type', ['deck', 'brand-deck']).gte('created_at', monthStart),
     supabase.from('videos').select('*', { count: 'exact', head: true }).eq('user_id', user!.id).neq('status', 'failed'),
   ])
 
@@ -291,10 +293,11 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Continue where you left off — drafts */}
-      {drafts && drafts.length > 0 && (
-        <DraftsSection drafts={drafts} />
-      )}
+      {/* Continue where you left off — drafts (video/deck outputs only) */}
+      {(() => {
+        const coreDrafts = (drafts ?? []).filter((d: any) => !d.output_type || ['video', 'pptx', 'pdf'].includes(d.output_type))
+        return coreDrafts.length > 0 ? <DraftsSection drafts={coreDrafts} /> : null
+      })()}
 
       {isFirstTime ? (
         /* ── First-time user: getting started ── */

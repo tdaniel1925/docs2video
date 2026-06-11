@@ -190,6 +190,14 @@ Auth: managed by Supabase Auth
 4. `app/_lib/music-generator.ts` and `synthesizeAllScenes` in `app/_lib/tts.ts` are dead code — music/TTS for the main pipeline run on the VPS. Candidates for removal.
 5. Webhook idempotency unique index: run `supabase-webhook-idempotency-migration.sql` against the DB.
 
+## Product Focus (2026-06-11)
+
+Owner decision: the product is **document-to-video + PPT deck maker** only.
+- Peripheral tools (social media, course builder, headshots, image remix, infographics, flyers, business cards, ads, email signatures, brand-kit, translations, affiliates) are HIDDEN from nav/dashboard/help but routes remain live at direct URLs. Restore by re-adding links in `Header.tsx`, dashboard `creations` queries, and the help index.
+- Podcast (two-voice) mode SUNSET — wizard option removed, generate-video forces solo. Was the last VPS-only feature.
+- Deck builder: 300 credits per deck (`CREDIT_COSTS.deck`), Gemini engine.
+- All style previews now Gemini (`generateSlideFromPrompt`, optional reference image param).
+
 ## Pipeline v2 — Inngest + Creatomate (2026-06-11, flag OFF)
 
 VPS-free render path behind `USE_PIPELINE_V2` env flag (default false — v1/VPS unchanged and default):

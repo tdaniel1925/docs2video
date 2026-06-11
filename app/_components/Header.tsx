@@ -18,11 +18,11 @@ const TOOLS_ITEMS = [
   { href: '/brands/new', icon: '\uD83C\uDF10', title: 'New Brand from URL', desc: 'Scrape website for brand identity' },
 ]
 
+// Focused product (2026-06-11): video + deck only — peripheral tools unlinked
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/videos', label: 'Library' },
   { href: '/clients', label: 'Clients' },
-  { href: '/social-media', label: 'Social' },
 ]
 
 export default function Header({ profile }: { profile: Profile }) {
@@ -345,7 +345,6 @@ export default function Header({ profile }: { profile: Profile }) {
           <div style={{ height: 8 }} />
           <Link href="/videos" className={pathname === '/videos' ? 'active' : ''}>Library</Link>
           <Link href="/clients" className={pathname === '/clients' ? 'active' : ''}>Clients</Link>
-          <Link href="/social-media" className={pathname === '/social-media' ? 'active' : ''}>Social Media</Link>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-light)', padding: '12px 0 4px' }}>Account</div>
           <Link href="/analytics" className={pathname === '/analytics' ? 'active' : ''}>Analytics</Link>
           <Link href="/settings" className={pathname === '/settings' ? 'active' : ''}>Settings</Link>

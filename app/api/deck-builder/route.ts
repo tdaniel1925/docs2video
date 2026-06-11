@@ -5,6 +5,9 @@ import { sendNotification, createJob, updateJobProgress } from '../../_lib/notif
 import { analyzeTemplate } from '../../_lib/template-analyzer'
 import { planDeck } from '../../_lib/deck-planner'
 import { generateDeck } from '../../_lib/deck-generator'
+import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
+import { getStylePrompt } from '../../_lib/slide-engine/simple-prompt'
 
 export const runtime = 'nodejs'
 export const maxDuration = 600
@@ -56,18 +59,34 @@ export async function POST(request: Request) {
 
   // ── GENERATE DECK ────────────────────────────────────
   if (action === 'generate-deck') {
-    const { plan, brandId, primaryColor, secondaryColor, accentColor, templateImages } = body as {
+    const { plan, brandId, primaryColor, secondaryColor, accentColor, templateImages, styleId } = body as {
       plan: { deckTitle: string; slides: any[] }
       brandId?: string
       primaryColor?: string
       secondaryColor?: string
       accentColor?: string
       templateImages?: string[] // base64 images
+      styleId?: string
     }
 
     if (!plan?.slides?.length) return NextResponse.json({ error: 'No slides in plan' }, { status: 400 })
+    if (plan.slides.length > 25) return NextResponse.json({ error: 'Decks are limited to 25 slides.' }, { status: 400 })
 
-    // TODO: Verify Stripe payment before generation
+    const rl = rateLimit(getRateLimitKey(user.id, 'generation'), LIMITS.generation.limit, LIMITS.generation.windowMs)
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
+    }
+
+    // Credit check — deduction after successful generation (admin/beta bypass
+    // handled inside checkCredits/deductCredits)
+    const DECK_COST = CREDIT_COSTS.deck
+    const creditCheck = await checkCredits(user.id, DECK_COST)
+    if (!creditCheck.allowed) {
+      return NextResponse.json(
+        { error: `Not enough credits. A deck costs ${DECK_COST} credits, you have ${creditCheck.remaining}.` },
+        { status: 402 }
+      )
+    }
 
     // Load brand
     let brand: any = null
@@ -116,6 +135,7 @@ export async function POST(request: Request) {
           logoBuffer,
           contactInfo,
           templateImages: refImages.length > 0 ? refImages : undefined,
+          stylePrompt: styleId ? getStylePrompt(styleId) : undefined,
         },
         async (pct) => {
           if (jobId) await updateJobProgress(admin, jobId, Math.round(pct * 0.9), 'running')
@@ -130,12 +150,17 @@ export async function POST(request: Request) {
       })
       const { data: urlData } = admin.storage.from('videos').getPublicUrl(path)
 
+      // Deduct credits now that generation succeeded
+      const deducted = await deductCredits(user.id, DECK_COST, 'deck_generation')
+      if (!deducted) console.error(`[deck-builder] Credit deduction failed for user ${user.id} after successful generation`)
+
       // Log creation
       await admin.from('creations').insert({
         user_id: user.id,
         type: 'deck',
         title: `Deck: ${plan.deckTitle}`,
         file_url: urlData.publicUrl,
+        credits_used: DECK_COST,
       })
 
       if (jobId) await updateJobProgress(admin, jobId, 100, 'completed', { result_url: urlData.publicUrl })
