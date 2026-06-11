@@ -11,7 +11,12 @@ export const maxDuration = 30
  * Run every 2 minutes via Vercel Cron or external cron service.
  * GET /api/cron/fix-stuck-videos
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const authHeader = request.headers.get('authorization')
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const admin = createAdminClient()
 
   // Find videos stuck in assembling/generating for more than 5 minutes
