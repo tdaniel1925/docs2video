@@ -22,6 +22,26 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 
+// Gemini slide generation — replaces gpt-image-2 (~10x cheaper at 2K, output is 1080p anyway)
+async function geminiSlide(prompt, refImageB64) {
+  const { GoogleGenAI } = await import('@google/genai')
+  const genai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+  const parts = [{ text: prompt }]
+  if (refImageB64) parts.push({ inlineData: { mimeType: 'image/png', data: refImageB64 } })
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await genai.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: [{ role: 'user', parts }],
+      config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '2K' } } },
+    })
+    const rps = (response.candidates && response.candidates[0] && response.candidates[0].content && response.candidates[0].content.parts) || []
+    for (const rp of rps) {
+      if (rp.inlineData && rp.inlineData.data) return Buffer.from(rp.inlineData.data, 'base64')
+    }
+  }
+  return null
+}
+
 
 // Cartesia TTS — natural-sounding voices with emotion control
 async function openaiTTS(text, voiceId) {
@@ -619,8 +639,8 @@ async function generateCoverSlide(opts) {
     ? 'Create a stunning vibrant illustrated background for a premium video title card. 1920x1080 landscape. ' + (stylePrompt || '') + ' Use brand colors prominently: primary ' + (brandColors?.primary || '#1B365D') + ', secondary ' + (brandColors?.secondary || '#4A90D9') + '. Rich depth, layered composition, dramatic lighting. Abstract shapes and visual metaphors. The CENTER should have lighter/clearer space for a logo. NO TEXT NO LOGOS NO WORDS. Pure illustrated artwork.'
     : 'Create a stunning illustrated background for a video closing card. 1920x1080 landscape. ' + (stylePrompt || '') + ' Use brand colors: primary ' + (brandColors?.primary || '#1B365D') + ', secondary ' + (brandColors?.secondary || '#4A90D9') + '. Warm hopeful conclusion — open door with warm light, path to bright horizon. CENTER should have clear space for logo and contact info. NO TEXT NO LOGOS NO WORDS. Pure illustrated artwork.'
 
-  const bgRes = await oi.images.generate({ model: 'gpt-image-2', prompt: bgPrompt, size: '1536x1024', quality: 'high', n: 1 })
-  let bgBuf = Buffer.from(bgRes.data[0].b64_json, 'base64')
+  let bgBuf = await geminiSlide(bgPrompt)
+  if (!bgBuf) throw new Error('Cover background generation failed')
   bgBuf = await sharp(bgBuf).resize(1920, 1080, { fit: 'cover' }).png().toBuffer()
 
   const composites = []
@@ -828,10 +848,9 @@ app.post('/generate', authCheck, async (req, res) => {
       for (let f = 0; f < frames.length; f++) {
         for (let att = 1; att <= 2; att++) {
           try {
-            const resp = await openai.images.generate({ model: 'gpt-image-2', prompt: frames[f], size: '1536x1024', quality: 'high', n: 1 })
-            const img = resp.data?.[0]
-            if (!img?.b64_json) throw new Error('No image')
-            fbufs.push(Buffer.from(img.b64_json, 'base64'))
+            const img = await geminiSlide(frames[f])
+            if (!img) throw new Error('No image')
+            fbufs.push(img)
             break
           } catch (e) {
             console.error('[' + videoId + '] Flipbook frame ' + (f+1) + ' scene ' + (idx+1) + ' attempt ' + att + ': ' + (e.message||'').slice(0,80))
@@ -849,17 +868,10 @@ app.post('/generate', authCheck, async (req, res) => {
       const prompt = slidePrompts[idx]
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          // Generate slide (no logo in prompt — Sharp composites it after)
-          const response = await openai.images.generate({
-            model: 'gpt-image-2',
-            prompt,
-            size: '1536x1024',
-            quality: 'high',
-            n: 1,
-          })
-          const imageData = response.data?.[0]
-          if (!imageData?.b64_json) throw new Error('No image in response')
-          let slideBuf = Buffer.from(imageData.b64_json, 'base64')
+          // Generate slide via Gemini (no logo in prompt — Sharp composites it after)
+          const geminiBuf = await geminiSlide(prompt)
+          if (!geminiBuf) throw new Error('No image in response')
+          let slideBuf = geminiBuf
 
           // Composite actual logo on top with Sharp
           if (logoBase64) {
