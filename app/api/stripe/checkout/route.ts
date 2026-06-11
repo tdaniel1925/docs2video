@@ -66,9 +66,27 @@ export async function POST(request: Request) {
       sessionParams.customer_email = user.email
     }
 
-    const session = await stripe.checkout.sessions.create(
-      sessionParams as Parameters<typeof stripe.checkout.sessions.create>[0]
-    )
+    let session
+    try {
+      session = await stripe.checkout.sessions.create(
+        sessionParams as Parameters<typeof stripe.checkout.sessions.create>[0]
+      )
+    } catch (err) {
+      // Self-heal stale customer IDs (e.g. test-mode leftovers): clear the
+      // dead reference and retry with email so the purchase still succeeds
+      if (err instanceof Error && err.message.includes('No such customer') && sessionParams.customer) {
+        console.warn(`[checkout] Stale stripe_customer_id for user ${user.id} — clearing and retrying`)
+        const { createAdminClient } = await import('../../../_lib/supabase/admin')
+        await createAdminClient().from('profiles').update({ stripe_customer_id: null }).eq('id', user.id)
+        delete sessionParams.customer
+        sessionParams.customer_email = user.email
+        session = await stripe.checkout.sessions.create(
+          sessionParams as Parameters<typeof stripe.checkout.sessions.create>[0]
+        )
+      } else {
+        throw err
+      }
+    }
 
     return NextResponse.json({ url: session.url })
   } catch (err: unknown) {

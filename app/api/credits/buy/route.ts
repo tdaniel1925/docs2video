@@ -56,9 +56,9 @@ export async function POST(request: Request) {
       }
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams = {
       customer: customerId,
-      mode: 'payment',
+      mode: 'payment' as const,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com'}/settings?credits=success`,
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com'}/pricing`,
@@ -70,7 +70,25 @@ export async function POST(request: Request) {
         supabase_user_id: user.id,
         user_id: user.id,
       },
-    })
+    }
+
+    let session
+    try {
+      session = await stripe.checkout.sessions.create(sessionParams)
+    } catch (err) {
+      // Self-heal stale customer IDs: replace the dead reference and retry
+      if (err instanceof Error && err.message.includes('No such customer')) {
+        console.warn(`[credits/buy] Stale stripe_customer_id for user ${user.id} — recreating`)
+        const customer = await stripe.customers.create({
+          email: user.email!,
+          metadata: { supabase_user_id: user.id },
+        })
+        await supabase.from('profiles').update({ stripe_customer_id: customer.id }).eq('id', user.id)
+        session = await stripe.checkout.sessions.create({ ...sessionParams, customer: customer.id })
+      } else {
+        throw err
+      }
+    }
 
     return NextResponse.json({ url: session.url })
   } catch (err) {
