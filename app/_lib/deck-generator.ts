@@ -87,7 +87,7 @@ CRITICAL:
       const response = await genai.models.generateContent({
         model: 'gemini-3-pro-image-preview',
         contents: [{ role: 'user', parts }],
-        config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '4K' } } } as any,
+        config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '2K' } } } as any,
       })
 
       const responseParts = response.candidates?.[0]?.content?.parts ?? []

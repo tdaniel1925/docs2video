@@ -211,14 +211,18 @@ export default function VoicePage() {
                     <span style={styles.narrationTitle}>{style.title}</span>
                     <span style={styles.narrationDesc}>{style.description}</span>
                   </div>
-                  <button
-                    style={styles.playBtn}
+                  {/* span, not button — nested <button> is invalid HTML (hydration error) */}
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    style={{ ...styles.playBtn, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                     onClick={(e) => { e.stopPropagation(); playSample(style.id === 'solo' ? `/samples/solo-${voiceId}.mp3` : '/samples/podcast-sample.mp3') }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); playSample(style.id === 'solo' ? `/samples/solo-${voiceId}.mp3` : '/samples/podcast-sample.mp3') } }}
                   >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                       <path d="M4 3L13 8L4 13V3Z" fill="currentColor" />
                     </svg>
-                  </button>
+                  </span>
                 </button>
               )
             })}

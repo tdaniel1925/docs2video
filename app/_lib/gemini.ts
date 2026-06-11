@@ -164,7 +164,8 @@ export async function generateSlideFromPrompt(prompt: string, refImage?: Buffer)
         responseFormat: {
           image: {
             aspectRatio: '16:9',
-            imageSize: '4K',
+            // 2K — output is 1920x1080 video; 4K doubled gen time for nothing
+            imageSize: '2K',
           },
         },
       } as any,
