@@ -2,7 +2,7 @@ import { parseBuffer } from 'music-metadata'
 import { inngest } from './client'
 import { createAdminClient } from '../supabase/admin'
 import { generateSlideFromPrompt } from '../gemini'
-import { synthesizeSpeech } from '../tts'
+import { synthesizeNarration } from '../tts-cartesia'
 import { buildRenderSource, startRender } from '../creatomate'
 import { addTopupCredits } from '../credits'
 import { sendNotification } from '../notify'
@@ -21,6 +21,7 @@ export interface RenderV2Event {
   videoTitle?: string
   contactLine?: string
   primaryColor?: string
+  watermark?: boolean
 }
 
 /**
@@ -58,7 +59,7 @@ export const renderVideoV2 = inngest.createFunction(
     },
   },
   async ({ event, step }) => {
-    const { videoId, userId, voiceId, scenes, slidePrompts, deductedCost, musicUrl, brandName, videoTitle, contactLine, primaryColor } =
+    const { videoId, userId, voiceId, scenes, slidePrompts, deductedCost, musicUrl, brandName, videoTitle, contactLine, primaryColor, watermark } =
       event.data as RenderV2Event
     const admin = createAdminClient()
 
@@ -88,7 +89,7 @@ export const renderVideoV2 = inngest.createFunction(
 
     const audioSteps = scenes.map((scene, i) =>
       step.run(`tts-${i}`, async () => {
-        const buf = await synthesizeSpeech(scene.narration || '', voiceId)
+        const buf = await synthesizeNarration(scene.narration || '', voiceId)
         let duration: number
         try {
           const meta = await parseBuffer(buf, 'audio/mpeg')
@@ -131,7 +132,7 @@ export const renderVideoV2 = inngest.createFunction(
           duration: audios[i].duration,
         })),
         musicUrl,
-        { brandName, title: videoTitle, contactLine, primaryColor }
+        { brandName, title: videoTitle, contactLine, primaryColor, watermark }
       )
       const { id } = await startRender(source, { videoId, userId, deductedCost })
       console.log(`[pipeline-v2 ${videoId}] Creatomate render started: ${id}`)

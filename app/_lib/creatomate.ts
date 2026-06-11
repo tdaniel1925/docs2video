@@ -30,6 +30,8 @@ export interface BrandOverlays {
   title?: string
   contactLine?: string
   primaryColor?: string
+  /** Trial users get a diagonal watermark, matching the VPS FFmpeg one */
+  watermark?: boolean
 }
 
 function textElement(opts: {
@@ -129,6 +131,26 @@ export function buildRenderSource(
         }))
       }
     }
+  }
+
+  if (overlays?.watermark) {
+    elements.push({
+      type: 'text',
+      track: 5,
+      time: 0,
+      duration: t,
+      text: 'DOCS2VIDEO TRIAL',
+      width: '100%',
+      height: '14%',
+      x_alignment: '50%',
+      y_alignment: '50%',
+      z_rotation: '-25°',
+      font_family: 'Plus Jakarta Sans',
+      font_weight: '800',
+      fill_color: 'rgba(255,255,255,0.25)',
+      stroke_color: 'rgba(0,0,0,0.15)',
+      stroke_width: '0.3 vmin',
+    })
   }
 
   if (musicUrl) {

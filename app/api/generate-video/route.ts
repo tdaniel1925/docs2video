@@ -690,6 +690,8 @@ export async function POST(request: Request) {
           videoTitle,
           contactLine: contactLine || undefined,
           primaryColor: brandColors.primary,
+          // Trial watermark for free users — same rule as the VPS
+          watermark: !isPaidUser && !isPrivileged,
         },
       })
       return NextResponse.json({ success: true, pipeline: 'v2' })
