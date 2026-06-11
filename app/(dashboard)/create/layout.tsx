@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
 const STEPS = [
+  { path: '/create/client', label: 'Client' },
   { path: '/create', label: 'Content' },
   { path: '/create/brand', label: 'Brand' },
   { path: '/create/voice', label: 'Voice' },

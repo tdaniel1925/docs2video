@@ -18,14 +18,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  let body: { outputType?: string; purpose?: string; extractedData?: Record<string, unknown>; contentMethod?: string; autoBrandInfo?: Record<string, unknown>; classification?: Record<string, unknown>; recipientName?: string }
+  let body: { outputType?: string; purpose?: string; extractedData?: Record<string, unknown>; contentMethod?: string; autoBrandInfo?: Record<string, unknown>; classification?: Record<string, unknown>; recipientName?: string; clientId?: string }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { outputType, purpose, extractedData, contentMethod, autoBrandInfo, classification, recipientName } = body
+  const { outputType, purpose, extractedData, contentMethod, autoBrandInfo, classification, recipientName, clientId } = body
   if (!outputType || !['video', 'pptx', 'pdf'].includes(outputType)) {
     return NextResponse.json({ error: 'outputType must be video, pptx, or pdf' }, { status: 400 })
   }
@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
     extractedData: extractedData || undefined,
     ...(classification ? { classification } : {}),
     ...(recipientName ? { recipientName } : {}),
+    ...(clientId ? { clientId } : {}),
   }
 
   // Store auto-detected brand info for the brand step
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
       output_type: outputType,
       draft_data: draftData,
       draft_expires_at: expiresAt,
+      ...(clientId ? { client_id: clientId } : {}),
     })
     .select('id')
     .single()

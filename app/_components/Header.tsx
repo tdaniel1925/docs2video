@@ -8,7 +8,7 @@ import { logout } from '../_actions/auth'
 import type { Profile } from '../_lib/types'
 
 const CREATE_ITEMS = [
-  { href: '/create', icon: '\uD83D\uDCF9', title: 'Video Explainer', desc: 'Narrated video + share page' },
+  { href: '/create/client', icon: '\uD83D\uDCF9', title: 'Video Explainer', desc: 'Narrated video + share page' },
   { href: '/deck-builder', icon: '\uD83D\uDCCA', title: 'Slide Deck', desc: 'PPTX presentation without audio' },
 ]
 

@@ -220,6 +220,7 @@ export interface WizardDraft {
   styleReferenceUrl?: string
   classification?: Record<string, unknown>
   recipientName?: string
+  clientId?: string
   script?: VideoScene[]
 }
 

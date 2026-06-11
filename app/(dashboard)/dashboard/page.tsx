@@ -322,7 +322,7 @@ export default async function DashboardPage() {
 
           {/* Main CTA */}
           <Link
-            href="/create"
+            href="/create/client"
             style={{
               display: 'block', textDecoration: 'none', color: 'var(--ink)',
               background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
@@ -342,7 +342,7 @@ export default async function DashboardPage() {
 
           {/* Quick start options */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-            <Link href="/create" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, textDecoration: 'none', color: 'var(--ink)', fontSize: 13, fontWeight: 600, transition: 'border-color 0.15s' }} className="activity-row">
+            <Link href="/create/client" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, textDecoration: 'none', color: 'var(--ink)', fontSize: 13, fontWeight: 600, transition: 'border-color 0.15s' }} className="activity-row">
               <span style={{ fontSize: 20 }}>&#128196;</span> Upload a PDF
             </Link>
             <Link href="/create?tab=text" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, textDecoration: 'none', color: 'var(--ink)', fontSize: 13, fontWeight: 600, transition: 'border-color 0.15s' }} className="activity-row">
@@ -359,7 +359,7 @@ export default async function DashboardPage() {
           {/* Big Create button */}
           <div style={{ marginBottom: 32 }}>
             <Link
-              href="/create"
+              href="/create/client"
               className="btn btn-primary"
               style={{
                 display: 'inline-flex',

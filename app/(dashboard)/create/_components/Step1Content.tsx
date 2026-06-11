@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useRef, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { SLIDE_STYLES } from '../../../_lib/types'
 type OutputType = 'video' | 'pptx' | 'pdf'
 type InputMethod = 'url' | 'upload' | 'text' | 'idea' | null
@@ -22,8 +22,24 @@ const CONTENT_METHODS: { id: InputMethod; label: string }[] = [
 
 export default function Step1Content() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const clientId = searchParams.get('clientId') || undefined
   const [outputType, setOutputType] = useState<OutputType>('video')
   const [recipientName, setRecipientName] = useState('')
+
+  // Came from the "Who's this for?" step with a client — pre-fill recipient name
+  useEffect(() => {
+    if (!clientId) return
+    let cancelled = false
+    fetch(`/api/clients/${clientId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const name = data?.client?.name
+        if (!cancelled && name) setRecipientName(prev => prev || name)
+      })
+      .catch(() => { /* non-fatal — user can type the name */ })
+    return () => { cancelled = true }
+  }, [clientId])
   const [purpose, setPurpose] = useState('')
   const [method, setMethod] = useState<InputMethod>(null)
   const [urlInput, setUrlInput] = useState('')
@@ -66,6 +82,7 @@ export default function Step1Content() {
           outputType,
           purpose: purpose.trim(),
           recipientName: recipientName.trim() || undefined,
+          clientId,
           extractedData,
           contentMethod: method || 'idea',
           autoBrandInfo,
