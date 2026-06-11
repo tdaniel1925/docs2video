@@ -73,7 +73,7 @@ export default function SocialShareButton({ creationId, creationType, title, ima
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
         }} onClick={() => setOpen(false)}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: 'white', borderRadius: 14, padding: '28px 32px',
+            background: 'white', borderRadius: 10, padding: '28px 32px',
             width: 420, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>

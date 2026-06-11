@@ -186,3 +186,21 @@ Auth: managed by Supabase Auth
 
 1. Some E2E test selectors may not match current UI (ongoing)
 2. Logo kit generation is async — may not complete before user navigates away
+3. ⚠️ ACTION REQUIRED: Cartesia API key `sk_car_q3LX...` was committed to git history (commit ff100f4) — rotate it in the Cartesia dashboard and set `CARTESIA_API_KEY` env var on the VPS. Code no longer hardcodes it.
+4. `app/_lib/music-generator.ts` and `synthesizeAllScenes` in `app/_lib/tts.ts` are dead code — music/TTS for the main pipeline run on the VPS. Candidates for removal.
+5. Webhook idempotency unique index: run `supabase-webhook-idempotency-migration.sql` against the DB.
+
+## Security Hardening (2026-06-11)
+
+Full-codebase review applied:
+- `GET /api/videos/[id]` now requires auth + ownership (was unauthenticated)
+- All 6 cron routes use `verifyCronAuth()` (`app/_lib/cron-auth.ts`) — constant-time compare, fails closed
+- SSRF guard (`isSafePublicUrl` in `brand-scraper.ts`) on brand scraping, logo fetching, logo-kit HEAD checks; redirects validated hop-by-hop
+- Stripe webhook: generic signature-error response, idempotency check now matches credit-pack descriptions (was never matching — replays could double-credit), credits metadata clamped
+- `credits/buy`: fixed metadata key (`supabase_user_id`) — credit packs previously NEVER granted credits via webhook; race-safe customer-ID claim
+- `generate-video`: credits auto-refunded when generation fails before VPS handoff; VPS error responses logged with status + body
+- `send-email`: rate limit (30/hr), recipient email validation, video ownership check
+- Admin data endpoint: query limits added, error detail no longer leaked
+- Repo: 75+ `vps-*` one-off patch scripts removed; canonical VPS server tracked at `vps/server.js` (env-var secrets, exits if API_SECRET unset); `vps-*`/`teaser-output/` gitignored
+- All inline border-radius values >10px clamped to 10px app-wide (circles via '50%' kept)
+- `generating` page surfaces persistent polling failures instead of spinning forever

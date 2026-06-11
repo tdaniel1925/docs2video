@@ -223,7 +223,7 @@ export default function BrandStylePicker({
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
         }} onClick={() => setShowCreateTemplate(false)}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: 'white', borderRadius: 14, padding: '28px 32px',
+            background: 'white', borderRadius: 10, padding: '28px 32px',
             width: 480, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
           }}>
             <h3 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>Create Style from Reference</h3>

@@ -42,7 +42,7 @@ export default function UnsubscribePage() {
         textAlign: 'center',
         padding: 40,
         background: '#fff',
-        borderRadius: 12,
+        borderRadius: 10,
         border: '1px solid #e2e2e2',
       }}>
         {status === 'loading' && (

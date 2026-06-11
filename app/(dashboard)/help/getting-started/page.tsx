@@ -23,7 +23,7 @@ export default function GettingStartedPage() {
 
       {/* Section 1: Creating Your Account */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
@@ -71,7 +71,7 @@ export default function GettingStartedPage() {
 
       {/* Section 2: Adding Your Payment Card */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
@@ -113,7 +113,7 @@ export default function GettingStartedPage() {
 
       {/* Section 3: Your 5 Free Videos */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
@@ -137,7 +137,7 @@ export default function GettingStartedPage() {
 
       {/* Section 4: Navigating the Dashboard */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>

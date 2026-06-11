@@ -16,7 +16,7 @@ import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 import { PHONE_REGEX, phoneToSpoken, isPhoneInSource } from '../../_lib/phone-utils'
 import { estimateVideoCost, exceedsCeiling } from '../../_lib/cost-estimator'
-import { deductCredits, calculateVideoCost, checkCredits } from '../../_lib/credits'
+import { deductCredits, calculateVideoCost, checkCredits, addTopupCredits } from '../../_lib/credits'
 
 export const runtime = 'nodejs'
 
@@ -182,6 +182,7 @@ export async function POST(request: Request) {
   }
 
   // --- Credit deduction ---
+  let deductedCost = 0
   if (!isAdmin(user.email)) {
     const videoCost = calculateVideoCost({
       outputType: (body as any).outputType || 'video',
@@ -206,6 +207,7 @@ export async function POST(request: Request) {
         { status: 402 }
       )
     }
+    deductedCost = videoCost
   }
 
   let brand: Brand | null = null
@@ -678,9 +680,12 @@ export async function POST(request: Request) {
       signal: AbortSignal.timeout(10000),
     })
 
-    const vpsData = await vpsRes.json()
-    if (!vpsData.success) {
-      throw new Error(vpsData.error || 'VPS rejected the generation request')
+    const vpsText = await vpsRes.text()
+    let vpsData: { success?: boolean; error?: string } | null = null
+    try { vpsData = JSON.parse(vpsText) } catch { /* non-JSON (e.g. proxy error page) */ }
+    if (!vpsRes.ok || !vpsData?.success) {
+      console.error(`[video ${videoId}] VPS error response (HTTP ${vpsRes.status}):`, vpsText.slice(0, 500))
+      throw new Error(vpsData?.error || `Video server error (HTTP ${vpsRes.status})`)
     }
 
     console.log(`[video ${videoId}] VPS accepted — generation running in background. Returning.`)
@@ -689,6 +694,14 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error(`[video ${videoId}] Error:`, err)
     logError('generate-video', err, { videoId, userId: user.id })
+    if (deductedCost > 0) {
+      try {
+        await addTopupCredits(user.id, deductedCost, `refund: failed video ${videoId}`)
+        console.log(`[video ${videoId}] Refunded ${deductedCost} credits after generation failure`)
+      } catch (refundErr) {
+        console.error(`[video ${videoId}] Credit refund failed:`, refundErr)
+      }
+    }
     const message = err instanceof Error ? err.message : 'Video generation failed'
     await admin.from('videos').update({ status: 'failed', error_message: message }).eq('id', videoId)
     if (jobId) await updateJobProgress(admin, jobId, 0, 'failed', { error_message: message })

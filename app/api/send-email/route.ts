@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { buildEmailTemplate, sendViaGoogle, sendViaMicrosoft, sendViaSMTP } from '../../_lib/email'
+import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import type { EmailConnection } from '../../_lib/types'
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -11,6 +14,11 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
+  const rl = rateLimit(getRateLimitKey(user.id, 'email'), LIMITS.email.limit, LIMITS.email.windowMs)
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Email rate limit exceeded. Please try again later.' }, { status: 429 })
+  }
+
   const body = await request.json()
   const { toEmail, toName, subject, videoId, infographicId, connectionId } = body as {
     toEmail: string
@@ -19,6 +27,13 @@ export async function POST(request: Request) {
     videoId?: string
     infographicId?: string
     connectionId: string
+  }
+
+  if (!toEmail || !EMAIL_RE.test(toEmail.trim())) {
+    return NextResponse.json({ error: 'Invalid recipient email address' }, { status: 400 })
+  }
+  if (!subject?.trim()) {
+    return NextResponse.json({ error: 'Subject is required' }, { status: 400 })
   }
 
   // Get email connection
@@ -46,7 +61,7 @@ export async function POST(request: Request) {
   let title = 'Your Policy Overview'
 
   if (videoId) {
-    const { data: video } = await supabase.from('videos').select('*').eq('id', videoId).single()
+    const { data: video } = await supabase.from('videos').select('*').eq('id', videoId).eq('user_id', user.id).single()
     if (video) {
       videoUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3001'}/watch/${videoId}`
       thumbnailUrl = video.thumbnail_url

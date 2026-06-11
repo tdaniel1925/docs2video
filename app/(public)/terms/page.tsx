@@ -289,7 +289,7 @@ export default function TermsOfService() {
           <p>If you have any questions, concerns, or requests regarding these Terms of Service, please contact us at:</p>
           <div style={{
             background: 'var(--surface, rgba(255,255,255,0.05))',
-            borderRadius: 12,
+            borderRadius: 10,
             padding: '24px 28px',
             border: '1px solid var(--border, rgba(255,255,255,0.1))',
             marginTop: 16,

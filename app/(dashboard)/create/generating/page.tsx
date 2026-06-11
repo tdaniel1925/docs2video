@@ -38,8 +38,25 @@ export default function GeneratingPage() {
   useEffect(() => {
     if (!videoId) return
     const supabase = createClient()
+    let failedPolls = 0
     const interval = setInterval(async () => {
-      const { data } = await supabase.from('videos').select('status, progress_pct, progress_detail, error_message, output_type, video_url').eq('id', videoId).single()
+      let data = null
+      try {
+        const res = await supabase.from('videos').select('status, progress_pct, progress_detail, error_message, output_type, video_url').eq('id', videoId).single()
+        data = res.data
+      } catch {
+        data = null
+      }
+      if (!data) {
+        // Surface a persistent connection problem instead of spinning forever
+        failedPolls++
+        if (failedPolls >= 30) {
+          clearInterval(interval)
+          setError('Lost connection while checking progress. Your video may still be generating — check My Videos in a minute.')
+        }
+        return
+      }
+      failedPolls = 0
       if (data) {
         setStatus(data.status)
         setProgressPct(data.progress_pct ?? 0)
@@ -248,7 +265,7 @@ export default function GeneratingPage() {
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12,
         animation: 'pulseGlow 2s infinite',
-        padding: '12px 24px', borderRadius: 16, background: 'rgba(168,240,212,0.08)',
+        padding: '12px 24px', borderRadius: 10, background: 'rgba(168,240,212,0.08)',
       }}>
         <span style={{ fontSize: 28 }}>{currentStage.icon}</span>
         <div>
@@ -270,7 +287,7 @@ export default function GeneratingPage() {
 
       {/* You can leave card */}
       <div style={{
-        maxWidth: 480, width: '100%', padding: '24px 28px', borderRadius: 16,
+        maxWidth: 480, width: '100%', padding: '24px 28px', borderRadius: 10,
         background: 'white', border: '2px solid var(--mint)',
         textAlign: 'center', marginBottom: 32,
       }}>

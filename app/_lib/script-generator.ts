@@ -554,7 +554,7 @@ Rules:
   // Podcast mode: generate dialogue with speaker tags
   if (narrationStyle === 'podcast') {
     // Determine conversation style based on content type
-    const detectedIndustry = industry || await classifyIndustryLLM((data as any).title || '', JSON.stringify(data))
+    const detectedIndustry = industry || await classifyIndustryLLM((data as any).title || '', JSON.stringify(data)).catch(() => 'general')
     const seriousIndustries = ['insurance', 'finance', 'legal', 'healthcare', 'medical']
     const isSerious = seriousIndustries.includes(detectedIndustry)
 

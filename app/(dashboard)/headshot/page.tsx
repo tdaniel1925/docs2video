@@ -152,7 +152,7 @@ export default function HeadshotPage() {
 
       {/* Step 1: Upload */}
       {step === 1 && (
-        <div className="wizard-card" style={{ maxWidth: 600, margin: '0 auto', padding: 32, borderRadius: 16 }}>
+        <div className="wizard-card" style={{ maxWidth: 600, margin: '0 auto', padding: 32, borderRadius: 10 }}>
           {!photo ? (
             <div
               onDragOver={e => { e.preventDefault(); setDragOver(true) }}
@@ -167,7 +167,7 @@ export default function HeadshotPage() {
                 cursor: 'pointer',
                 border: dragOver ? '2px dashed var(--mint, #A8F0D4)' : '2px dashed var(--border, #e2e8f0)',
                 background: dragOver ? 'rgba(168,240,212,0.08)' : 'transparent',
-                borderRadius: 16,
+                borderRadius: 10,
                 padding: '48px 24px',
                 transition: 'all 0.2s',
               }}
@@ -193,7 +193,7 @@ export default function HeadshotPage() {
           ) : (
             <div>
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-                <div style={{ position: 'relative', width: 200, height: 200, borderRadius: 16, overflow: 'hidden' }}>
+                <div style={{ position: 'relative', width: 200, height: 200, borderRadius: 10, overflow: 'hidden' }}>
                   <img src={photo} alt="Your photo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   <button
                     onClick={() => setPhoto(null)}
@@ -247,7 +247,7 @@ export default function HeadshotPage() {
 
       {/* Step 2: Generating */}
       {step === 2 && (
-        <div className="wizard-card" style={{ maxWidth: 600, margin: '0 auto', padding: 40, borderRadius: 16, textAlign: 'center' }}>
+        <div className="wizard-card" style={{ maxWidth: 600, margin: '0 auto', padding: 40, borderRadius: 10, textAlign: 'center' }}>
           <div style={{ marginBottom: 24 }}>
             <span className="spinner" style={{ width: 40, height: 40, display: 'inline-block' }} />
           </div>
@@ -279,7 +279,7 @@ export default function HeadshotPage() {
       {step === 3 && (
         <div>
           {/* Actions bar */}
-          <div className="wizard-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderRadius: 12, marginBottom: 24 }}>
+          <div className="wizard-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderRadius: 10, marginBottom: 24 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button onClick={handleReset} className="btn btn-soft" style={{ fontSize: 13 }}>
                 Start Over
@@ -328,7 +328,7 @@ export default function HeadshotPage() {
                         onClick={() => toggleSelect(img.idx)}
                         style={{
                           position: 'relative',
-                          borderRadius: 12,
+                          borderRadius: 10,
                           overflow: 'hidden',
                           cursor: 'pointer',
                           border: isSelected ? '3px solid #22c55e' : '3px solid transparent',

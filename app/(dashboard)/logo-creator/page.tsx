@@ -488,7 +488,7 @@ export default function LogoCreatorPage() {
                           onClick={() => handleMoodSelect(mood)}
                           style={{
                             padding: '8px 16px',
-                            borderRadius: 20,
+                            borderRadius: 10,
                             border: selectedMoods.includes(mood) ? '2px solid var(--mint-darker, #4a7c59)' : '1px solid var(--border, #e2e8f0)',
                             background: selectedMoods.includes(mood) ? 'var(--mint, #A8F0D4)' : 'white',
                             fontSize: 13,
@@ -613,7 +613,7 @@ export default function LogoCreatorPage() {
                 onClick={() => setSelectedDirection(dir.id)}
                 style={{
                   padding: 24,
-                  borderRadius: 14,
+                  borderRadius: 10,
                   border: selectedDirection === dir.id ? '3px solid var(--mint-darker, #4a7c59)' : '1px solid var(--border, #e2e8f0)',
                   background: selectedDirection === dir.id ? 'rgba(168,240,212,0.08)' : 'white',
                   cursor: 'pointer',
@@ -626,7 +626,7 @@ export default function LogoCreatorPage() {
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
                   {dir.keywords.map(kw => (
                     <span key={kw} style={{
-                      fontSize: 11, padding: '3px 10px', borderRadius: 12,
+                      fontSize: 11, padding: '3px 10px', borderRadius: 10,
                       background: 'var(--bg-soft, #f8fafc)', border: '1px solid var(--border, #e2e8f0)',
                       color: 'var(--ink-soft)',
                     }}>{kw}</span>
@@ -675,7 +675,7 @@ export default function LogoCreatorPage() {
                 key={idx}
                 onClick={() => selectConcept(idx)}
                 style={{
-                  borderRadius: 14,
+                  borderRadius: 10,
                   overflow: 'hidden',
                   border: selectedConcept === idx ? '3px solid var(--mint-darker, #4a7c59)' : '1px solid var(--border, #e2e8f0)',
                   cursor: 'pointer',
@@ -712,7 +712,7 @@ export default function LogoCreatorPage() {
             {/* Current logo large */}
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
               <div style={{
-                width: '100%', maxWidth: 420, borderRadius: 14, overflow: 'hidden',
+                width: '100%', maxWidth: 420, borderRadius: 10, overflow: 'hidden',
                 border: '1px solid var(--border, #e2e8f0)', background: '#fff',
               }}>
                 <img
@@ -832,7 +832,7 @@ export default function LogoCreatorPage() {
           <div style={{ marginBottom: 20 }}>
             <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>On white</p>
             <div style={{
-              borderRadius: 14, overflow: 'hidden', border: '1px solid var(--border, #e2e8f0)',
+              borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border, #e2e8f0)',
               background: '#ffffff', display: 'flex', justifyContent: 'center', padding: 32,
             }}>
               <img src={refineHistory[refineHistory.length - 1].image} alt="Final logo on white" style={{ maxWidth: 400, width: '100%', objectFit: 'contain' }} />
@@ -843,7 +843,7 @@ export default function LogoCreatorPage() {
           <div style={{ marginBottom: 20 }}>
             <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>On dark</p>
             <div style={{
-              borderRadius: 14, overflow: 'hidden', border: '1px solid var(--border, #e2e8f0)',
+              borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border, #e2e8f0)',
               background: '#1a1a2e', display: 'flex', justifyContent: 'center', padding: 32,
               minHeight: 200, alignItems: 'center',
             }}>

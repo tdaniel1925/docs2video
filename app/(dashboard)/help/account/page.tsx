@@ -23,7 +23,7 @@ export default function AccountHelpPage() {
 
       {/* Profile */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
@@ -50,7 +50,7 @@ export default function AccountHelpPage() {
 
       {/* Notifications */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
@@ -71,7 +71,7 @@ export default function AccountHelpPage() {
 
       {/* Billing */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
@@ -95,7 +95,7 @@ export default function AccountHelpPage() {
 
       {/* Subscription Plans */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
@@ -134,7 +134,7 @@ export default function AccountHelpPage() {
 
       {/* Setup Wizard */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>

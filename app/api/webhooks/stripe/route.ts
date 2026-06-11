@@ -29,17 +29,19 @@ export async function POST(request: Request) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     console.error('[webhook] Signature verification failed:', message)
     logError('stripe-webhook', err, { detail: 'Signature verification failed' })
-    return NextResponse.json({ error: `Webhook signature verification failed: ${message}` }, { status: 400 })
+    return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 })
   }
 
   const supabase = createAdminClient()
 
-  // Idempotency: check if we've already processed this event
+  // Idempotency: check if we've already processed this event.
+  // Matches both bare markers ("stripe_event:{id}") and credit-pack
+  // descriptions ("{packName} (stripe_event:{id})").
   const eventId = event.id
   const { data: existingEvent } = await supabase
     .from('credit_transactions')
     .select('id')
-    .eq('description', `stripe_event:${eventId}`)
+    .like('description', `%stripe_event:${eventId}%`)
     .limit(1)
 
   if (existingEvent && existingEvent.length > 0) {
@@ -81,6 +83,10 @@ export async function POST(request: Request) {
         if (session.metadata?.type === 'credit_pack') {
           const credits = parseInt(session.metadata.credits || '0', 10)
           const packName = session.metadata.pack_name || 'credit_pack'
+          if (!Number.isFinite(credits) || credits > 10000) {
+            console.error(`[webhook] Rejected credit_pack with implausible credits value: ${session.metadata.credits}`)
+            break
+          }
           if (credits > 0) {
             await addTopupCredits(userId, credits, `${packName} (stripe_event:${eventId})`)
             console.log(`[webhook] Credit pack purchased: ${credits} credits for user ${userId}`)

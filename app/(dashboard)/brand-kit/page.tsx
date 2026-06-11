@@ -407,7 +407,7 @@ export default function BrandKitPage() {
     padding: '16px 40px',
     fontSize: 16,
     fontWeight: 600,
-    borderRadius: 12,
+    borderRadius: 10,
     border: 'none',
     cursor: 'pointer',
     background: 'var(--mint, #A8F0D4)',
@@ -564,7 +564,7 @@ export default function BrandKitPage() {
             }}
             className="input"
             placeholder="Type your answer..."
-            style={{ flex: 1, padding: '14px 18px', fontSize: 15, borderRadius: 12 }}
+            style={{ flex: 1, padding: '14px 18px', fontSize: 15, borderRadius: 10 }}
             disabled={chatLoading}
           />
           <button
@@ -573,7 +573,7 @@ export default function BrandKitPage() {
             title="Voice input"
             style={{
               padding: '14px 16px',
-              borderRadius: 12,
+              borderRadius: 10,
               border: '1px solid var(--border, #e2e8f0)',
               background: isListening ? 'var(--mint, #A8F0D4)' : 'white',
               cursor: 'pointer',
@@ -587,7 +587,7 @@ export default function BrandKitPage() {
             onClick={() => sendMessage(input)}
             disabled={chatLoading || !input.trim()}
             className="btn btn-primary"
-            style={{ padding: '14px 24px', borderRadius: 12, fontSize: 15, fontWeight: 600 }}
+            style={{ padding: '14px 24px', borderRadius: 10, fontSize: 15, fontWeight: 600 }}
           >
             Send
           </button>
@@ -642,7 +642,7 @@ export default function BrandKitPage() {
                   style={{
                     width: 260,
                     padding: 24,
-                    borderRadius: 16,
+                    borderRadius: 10,
                     border:
                       selectedPalette === i
                         ? '3px solid var(--mint-darker, #4a7c59)'
@@ -718,7 +718,7 @@ export default function BrandKitPage() {
                   key={i}
                   style={{
                     height: 200,
-                    borderRadius: 16,
+                    borderRadius: 10,
                     background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
                     backgroundSize: '400px 100%',
                     animation: `bk-shimmer 1.5s ease infinite ${i * 0.2}s`,
@@ -750,7 +750,7 @@ export default function BrandKitPage() {
                     setShowRefine(false)
                   }}
                   style={{
-                    borderRadius: 16,
+                    borderRadius: 10,
                     overflow: 'hidden',
                     cursor: 'pointer',
                     border:
@@ -820,14 +820,14 @@ export default function BrandKitPage() {
                   }}
                   className="input"
                   placeholder="Tell Sofia what to change..."
-                  style={{ flex: 1, padding: '14px 18px', fontSize: 15, borderRadius: 12 }}
+                  style={{ flex: 1, padding: '14px 18px', fontSize: 15, borderRadius: 10 }}
                   disabled={refining}
                 />
                 <button
                   onClick={refineLogo}
                   disabled={refining || !refineInput.trim()}
                   className="btn btn-primary"
-                  style={{ padding: '14px 24px', borderRadius: 12 }}
+                  style={{ padding: '14px 24px', borderRadius: 10 }}
                 >
                   {refining ? '...' : 'Refine'}
                 </button>
@@ -863,7 +863,7 @@ export default function BrandKitPage() {
               style={{
                 width: 140,
                 padding: 20,
-                borderRadius: 16,
+                borderRadius: 10,
                 background: card.status === 'done' ? 'white' : 'var(--bg-soft, #f8fafc)',
                 border:
                   card.status === 'done'
@@ -955,7 +955,7 @@ export default function BrandKitPage() {
             </div>
             <div
               style={{
-                borderRadius: 16,
+                borderRadius: 10,
                 overflow: 'hidden',
                 border: '2px solid var(--border, #e2e8f0)',
                 background: 'white',
@@ -987,13 +987,13 @@ export default function BrandKitPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               {assets.cardFront && (
-                <div style={{ borderRadius: 16, overflow: 'hidden', border: '2px solid var(--border, #e2e8f0)', background: 'white' }}>
+                <div style={{ borderRadius: 10, overflow: 'hidden', border: '2px solid var(--border, #e2e8f0)', background: 'white' }}>
                   <div style={{ fontSize: 11, padding: '8px 12px', color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: 1, borderBottom: '1px solid var(--border-light, #e2e8f0)' }}>Front</div>
                   <img src={assets.cardFront} alt="Business card front" style={{ width: '100%', display: 'block' }} />
                 </div>
               )}
               {assets.cardBack && (
-                <div style={{ borderRadius: 16, overflow: 'hidden', border: '2px solid var(--border, #e2e8f0)', background: 'white' }}>
+                <div style={{ borderRadius: 10, overflow: 'hidden', border: '2px solid var(--border, #e2e8f0)', background: 'white' }}>
                   <div style={{ fontSize: 11, padding: '8px 12px', color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: 1, borderBottom: '1px solid var(--border-light, #e2e8f0)' }}>Back</div>
                   <img src={assets.cardBack} alt="Business card back" style={{ width: '100%', display: 'block' }} />
                 </div>
@@ -1017,7 +1017,7 @@ export default function BrandKitPage() {
                       Download
                     </button>
                   </div>
-                  <div style={{ borderRadius: 16, overflow: 'hidden', border: '2px solid var(--border, #e2e8f0)', background: 'white', maxHeight: img.type === 'vertical' ? 320 : undefined }}>
+                  <div style={{ borderRadius: 10, overflow: 'hidden', border: '2px solid var(--border, #e2e8f0)', background: 'white', maxHeight: img.type === 'vertical' ? 320 : undefined }}>
                     <img
                       src={img.url}
                       alt={`Social ${img.type}`}
@@ -1049,7 +1049,7 @@ export default function BrandKitPage() {
             </div>
             <div
               style={{
-                borderRadius: 16,
+                borderRadius: 10,
                 border: '2px solid var(--border, #e2e8f0)',
                 background: 'white',
                 padding: 24,
@@ -1068,7 +1068,7 @@ export default function BrandKitPage() {
                 Download
               </button>
             </div>
-            <div style={{ borderRadius: 16, overflow: 'hidden', border: '2px solid var(--border, #e2e8f0)', background: 'white' }}>
+            <div style={{ borderRadius: 10, overflow: 'hidden', border: '2px solid var(--border, #e2e8f0)', background: 'white' }}>
               <img src={assets.guideUrl} alt="Brand guide" style={{ width: '100%', display: 'block' }} />
             </div>
           </section>
@@ -1079,7 +1079,7 @@ export default function BrandKitPage() {
           style={{
             marginTop: 48,
             padding: 24,
-            borderRadius: 16,
+            borderRadius: 10,
             background: 'var(--bg-soft, #f8fafc)',
             border: '1px solid var(--border, #e2e8f0)',
             textAlign: 'center',
@@ -1100,13 +1100,13 @@ export default function BrandKitPage() {
               }}
               className="input"
               placeholder="Ask Sofia to adjust anything..."
-              style={{ flex: 1, padding: '14px 18px', fontSize: 15, borderRadius: 12 }}
+              style={{ flex: 1, padding: '14px 18px', fontSize: 15, borderRadius: 10 }}
             />
             <button
               onClick={() => sendMessage(input)}
               disabled={!input.trim()}
               className="btn btn-primary"
-              style={{ padding: '14px 24px', borderRadius: 12 }}
+              style={{ padding: '14px 24px', borderRadius: 10 }}
             >
               Send
             </button>

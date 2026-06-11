@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { generateFullLogoKit } from '../../_lib/logo-styler'
+import { isSafePublicUrl } from '../../_lib/brand-scraper'
 export const maxDuration = 300
 
 export async function POST(request: Request) {
@@ -28,6 +29,11 @@ export async function POST(request: Request) {
   }
 
   const logoUrl = brand.logo_file_url || brand.logo_url
+
+  // logoUrl is user-controlled — block internal/private targets
+  if (!(await isSafePublicUrl(logoUrl))) {
+    return NextResponse.json({ error: 'Logo URL is not reachable' }, { status: 400 })
+  }
 
   // Validate that the logo URL points to an actual image file (not text/brand name)
   const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico']

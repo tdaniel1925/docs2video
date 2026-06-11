@@ -538,7 +538,7 @@ export default function HelpPage() {
                 display: 'block',
                 background: 'white',
                 border: '1px solid var(--border-light)',
-                borderRadius: 12,
+                borderRadius: 10,
                 padding: '20px 22px',
                 textDecoration: 'none',
                 transition: 'all 0.2s ease',
@@ -674,7 +674,7 @@ export default function HelpPage() {
 
       {/* Still need help? */}
       <div style={{
-        marginTop: 32, padding: '24px 28px', borderRadius: 12,
+        marginTop: 32, padding: '24px 28px', borderRadius: 10,
         background: 'rgba(168,240,212,0.1)', border: '1px solid var(--mint)',
         textAlign: 'center',
       }}>

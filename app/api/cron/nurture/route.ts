@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
+import { verifyCronAuth } from '../../../_lib/cron-auth'
 import { Resend } from 'resend'
 
 export const runtime = 'nodejs'
@@ -51,8 +52,7 @@ interface NurtureProfile {
 }
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization')
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

@@ -450,7 +450,7 @@ export default async function DashboardPage() {
                     <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, minWidth: 120 }}>
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', gap: 6,
-                        padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                        padding: '4px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600,
                         background: item._status === 'failed' ? '#fef2f2' : 'rgba(168,240,212,0.2)',
                         color: item._status === 'failed' ? '#991b1b' : 'var(--ink)',
                         border: item._status === 'failed' ? '1px solid #fca5a5' : '1px solid var(--mint)',

@@ -81,7 +81,7 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
 
       {/* Hero progress card */}
       <div style={{
-        background: 'white', borderRadius: 16, padding: '36px 32px',
+        background: 'white', borderRadius: 10, padding: '36px 32px',
         border: '1px solid var(--border-light)', boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
         textAlign: 'center', marginBottom: 20,
       }}>
@@ -112,7 +112,7 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 12,
           background: 'rgba(168,240,212,0.12)', border: '1px solid var(--mint)',
-          borderRadius: 12, padding: '12px 24px',
+          borderRadius: 10, padding: '12px 24px',
         }}>
           <span style={{ fontSize: 24 }}>{currentStep.icon}</span>
           <div style={{ textAlign: 'left' }}>
@@ -124,7 +124,7 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
 
       {/* Stage pipeline */}
       <div style={{
-        background: 'white', borderRadius: 16, padding: '24px 28px',
+        background: 'white', borderRadius: 10, padding: '24px 28px',
         border: '1px solid var(--border-light)', marginBottom: 20,
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
@@ -180,7 +180,7 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
       {/* Fun facts / tips */}
       <div style={{
         background: 'rgba(168,240,212,0.08)', border: '1px solid rgba(168,240,212,0.2)',
-        borderRadius: 12, padding: '14px 20px', marginBottom: 20,
+        borderRadius: 10, padding: '14px 20px', marginBottom: 20,
         display: 'flex', alignItems: 'center', gap: 12,
       }}>
         <span style={{ fontSize: 18, flexShrink: 0 }}>💡</span>
@@ -199,7 +199,7 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
       {/* Retry option — shows after 5 minutes */}
       {elapsed > 300 && (
         <div style={{
-          marginTop: 20, padding: '16px 20px', borderRadius: 12,
+          marginTop: 20, padding: '16px 20px', borderRadius: 10,
           background: 'var(--surface-raised)', border: '1px solid var(--border)',
           textAlign: 'center',
         }}>
@@ -1340,7 +1340,7 @@ export default function VideoDetailPage() {
                       onClick={() => jumpToSlide(i)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 6,
-                        padding: '6px 12px', borderRadius: 20,
+                        padding: '6px 12px', borderRadius: 10,
                         border: isActive ? '1.5px solid var(--mint)' : '1px solid var(--border-light)',
                         background: isActive ? 'rgba(168,240,212,0.12)' : 'white',
                         cursor: 'pointer', fontSize: 12, fontWeight: isActive ? 700 : 500,

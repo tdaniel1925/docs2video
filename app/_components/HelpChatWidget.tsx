@@ -82,7 +82,7 @@ export default function HelpChatWidget() {
           width: 380, maxWidth: 'calc(100vw - 48px)',
           height: 500, maxHeight: 'calc(100vh - 140px)',
           background: 'white', border: '1px solid var(--border-light, #e2e8f0)',
-          borderRadius: 14, display: 'flex', flexDirection: 'column',
+          borderRadius: 10, display: 'flex', flexDirection: 'column',
           boxShadow: '0 12px 48px rgba(0,0,0,0.15)',
           zIndex: 99, overflow: 'hidden',
           animation: 'helpSlideUp 0.25s ease-out',

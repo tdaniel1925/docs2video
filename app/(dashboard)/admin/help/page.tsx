@@ -311,7 +311,7 @@ export default function AdminHelpPage() {
               style={{
                 background: 'white',
                 border: '1px solid var(--border-light)',
-                borderRadius: 12,
+                borderRadius: 10,
                 overflow: 'hidden',
                 transition: 'all 0.2s ease',
               }}
@@ -383,7 +383,7 @@ export default function AdminHelpPage() {
 
       {/* Link to user help */}
       <div style={{
-        marginTop: 32, padding: '24px 28px', borderRadius: 12,
+        marginTop: 32, padding: '24px 28px', borderRadius: 10,
         background: 'rgba(168,240,212,0.1)', border: '1px solid var(--mint)',
         textAlign: 'center',
       }}>

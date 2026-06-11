@@ -494,7 +494,7 @@ body {
   width: 280px;
   background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: 12px;
+  border-radius: 10px;
   box-shadow: 0 12px 40px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04);
   z-index: 200;
   padding: 6px;

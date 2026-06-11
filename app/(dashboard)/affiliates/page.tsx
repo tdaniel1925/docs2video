@@ -98,15 +98,15 @@ export default function AffiliatesPage() {
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 32 }}>
-            <div style={{ padding: '20px 16px', background: 'var(--bg-soft)', borderRadius: 12, textAlign: 'center' }}>
+            <div style={{ padding: '20px 16px', background: 'var(--bg-soft)', borderRadius: 10, textAlign: 'center' }}>
               <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--mint-darker, #2d7a4f)' }}>20%</div>
               <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4 }}>Commission</div>
             </div>
-            <div style={{ padding: '20px 16px', background: 'var(--bg-soft)', borderRadius: 12, textAlign: 'center' }}>
+            <div style={{ padding: '20px 16px', background: 'var(--bg-soft)', borderRadius: 10, textAlign: 'center' }}>
               <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--mint-darker, #2d7a4f)' }}>+5</div>
               <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4 }}>Credits per signup</div>
             </div>
-            <div style={{ padding: '20px 16px', background: 'var(--bg-soft)', borderRadius: 12, textAlign: 'center' }}>
+            <div style={{ padding: '20px 16px', background: 'var(--bg-soft)', borderRadius: 10, textAlign: 'center' }}>
               <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--mint-darker, #2d7a4f)' }}>30 days</div>
               <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4 }}>Cookie window</div>
             </div>

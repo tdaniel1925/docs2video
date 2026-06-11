@@ -170,7 +170,7 @@ export default function MarketingWatchPage() {
                 }
               }
             }}
-            style={{ width: '100%', display: 'block', borderRadius: 12 }}
+            style={{ width: '100%', display: 'block', borderRadius: 10 }}
           />
           {video.music_url && (
             <audio
@@ -314,7 +314,7 @@ const contentStyle: React.CSSProperties = {
 
 const videoWrapStyle: React.CSSProperties = {
   background: '#000',
-  borderRadius: 12,
+  borderRadius: 10,
   overflow: 'hidden',
   marginBottom: 32,
   border: '1px solid #e2e2e2',
@@ -328,7 +328,7 @@ const ctaSectionStyle: React.CSSProperties = {
 const discountBoxStyle: React.CSSProperties = {
   background: '#f0fdf4',
   border: '1px solid #bbf7d0',
-  borderRadius: 12,
+  borderRadius: 10,
   padding: 24,
   textAlign: 'center',
   marginBottom: 24,

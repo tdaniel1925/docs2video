@@ -526,7 +526,7 @@ export default function StylingPage() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setSaveModalOpen(false)}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }} />
           <div onClick={e => e.stopPropagation()} style={{
-            position: 'relative', background: 'white', borderRadius: 16, padding: 28,
+            position: 'relative', background: 'white', borderRadius: 10, padding: 28,
             maxWidth: 400, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
           }}>
             <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Save Style Template</h3>

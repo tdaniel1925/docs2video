@@ -123,7 +123,7 @@ export default function DemoSlidePage() {
       {/* Results Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         {providers.map(p => (
-          <div key={p.id} style={{ background: 'white', borderRadius: 12, border: '1px solid var(--border-light)', overflow: 'hidden' }}>
+          <div key={p.id} style={{ background: 'white', borderRadius: 10, border: '1px solid var(--border-light)', overflow: 'hidden' }}>
             {/* Provider header */}
             <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>

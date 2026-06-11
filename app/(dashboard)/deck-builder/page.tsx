@@ -727,7 +727,7 @@ export default function DeckBuilderPage() {
               <div
                 onClick={() => setUseBuiltinStyle(false)}
                 style={{
-                  flex: 1, padding: '20px 16px', borderRadius: 12, cursor: 'pointer',
+                  flex: 1, padding: '20px 16px', borderRadius: 10, cursor: 'pointer',
                   border: !useBuiltinStyle ? '2px solid var(--mint)' : '2px solid var(--border-light)',
                   background: !useBuiltinStyle ? 'rgba(168,240,212,0.08)' : 'white',
                   textAlign: 'center', transition: 'all 0.2s ease',
@@ -742,7 +742,7 @@ export default function DeckBuilderPage() {
               <div
                 onClick={() => { setUseBuiltinStyle(true); setTemplateFile(null); setTemplateLayouts([]) }}
                 style={{
-                  flex: 1, padding: '20px 16px', borderRadius: 12, cursor: 'pointer',
+                  flex: 1, padding: '20px 16px', borderRadius: 10, cursor: 'pointer',
                   border: useBuiltinStyle ? '2px solid var(--mint)' : '2px solid var(--border-light)',
                   background: useBuiltinStyle ? 'rgba(168,240,212,0.08)' : 'white',
                   textAlign: 'center', transition: 'all 0.2s ease',
@@ -913,7 +913,7 @@ export default function DeckBuilderPage() {
                 {plan.map((slide, i) => (
                   <div key={i} style={{
                     background: 'white', border: '1px solid var(--border-light)',
-                    borderRadius: 12, padding: '16px 18px', marginBottom: 10,
+                    borderRadius: 10, padding: '16px 18px', marginBottom: 10,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                       {/* Slide number */}

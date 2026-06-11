@@ -117,7 +117,7 @@ export default function ActivityPage() {
               {activeJobs.map(job => (
                 <div key={job.id} style={{
                   background: 'white', border: '1px solid var(--border-light)',
-                  borderRadius: 12, padding: '18px 22px', marginBottom: 10,
+                  borderRadius: 10, padding: '18px 22px', marginBottom: 10,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
                     <span style={{ fontSize: 22 }}>{TYPE_ICONS[job.type] ?? '📋'}</span>
@@ -156,7 +156,7 @@ export default function ActivityPage() {
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-light)', marginBottom: 12 }}>
                 Completed
               </div>
-              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
                 {completedJobs.map((job, i) => (
                   <div key={job.id} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
@@ -184,7 +184,7 @@ export default function ActivityPage() {
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#C03A1F', marginBottom: 12 }}>
                 Failed
               </div>
-              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
                 {failedJobs.map((job, i) => (
                   <div key={job.id} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
@@ -223,7 +223,7 @@ export default function ActivityPage() {
               <div style={{ fontSize: 13, marginTop: 4 }}>You'll see updates here when your creations are ready.</div>
             </div>
           ) : (
-            <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
               {notifications.map((n, i) => (
                 <Link
                   key={n.id}

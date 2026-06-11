@@ -146,7 +146,7 @@ export default function ImageRemixPage() {
               cursor: 'pointer',
               border: dragOver ? '2px dashed var(--mint, #A8F0D4)' : '2px dashed var(--border, #e2e8f0)',
               background: dragOver ? 'rgba(168,240,212,0.08)' : 'transparent',
-              borderRadius: 16,
+              borderRadius: 10,
               transition: 'all 0.2s',
               minHeight: 300,
             }}
@@ -173,7 +173,7 @@ export default function ImageRemixPage() {
         ) : (
           <>
             {/* Reference Image */}
-            <div className="wizard-card" style={{ padding: 16, borderRadius: 16 }}>
+            <div className="wizard-card" style={{ padding: 16, borderRadius: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-soft, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reference</span>
                 <button onClick={handleReset} className="btn" style={{ fontSize: 12, padding: '4px 12px', background: 'var(--surface-raised, #f1f5f9)', border: '1px solid var(--border, #e2e8f0)', borderRadius: 8, cursor: 'pointer' }}>
@@ -184,7 +184,7 @@ export default function ImageRemixPage() {
             </div>
 
             {/* Brand Picker */}
-            <div className="wizard-card" style={{ padding: 16, borderRadius: 16 }}>
+            <div className="wizard-card" style={{ padding: 16, borderRadius: 10 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-soft, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Brand</div>
               <BrandStylePicker
                 showStyle={false}
@@ -196,7 +196,7 @@ export default function ImageRemixPage() {
 
             {/* Remix Result */}
             {remixResult && (
-              <div className="wizard-card" style={{ padding: 16, borderRadius: 16 }}>
+              <div className="wizard-card" style={{ padding: 16, borderRadius: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--mint-darker, #4a7c59)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Remix Result</span>
                   <button onClick={handleDownload} className="btn btn-mint btn-sm">

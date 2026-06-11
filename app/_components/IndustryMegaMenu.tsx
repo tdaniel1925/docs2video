@@ -97,7 +97,7 @@ export default function IndustryMegaMenu() {
             transform: 'translateX(-50%)',
             width: 'min(780px, 90vw)',
             background: 'var(--bg-card, #fff)',
-            borderRadius: '12px',
+            borderRadius: '10px',
             boxShadow: '0 8px 32px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.08)',
             border: '1px solid rgba(255,255,255,0.08)',
             padding: '24px',

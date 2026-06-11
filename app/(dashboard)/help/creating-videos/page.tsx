@@ -29,7 +29,7 @@ export default function CreatingVideosPage() {
 
       {/* Step 1 */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
@@ -63,7 +63,7 @@ export default function CreatingVideosPage() {
 
       {/* Step 2 */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
@@ -91,7 +91,7 @@ export default function CreatingVideosPage() {
 
       {/* Step 3 */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
@@ -122,7 +122,7 @@ export default function CreatingVideosPage() {
 
       {/* Step 4 */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
@@ -153,7 +153,7 @@ export default function CreatingVideosPage() {
 
       {/* Step 5 */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
@@ -181,7 +181,7 @@ export default function CreatingVideosPage() {
 
       {/* Step 6 */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>

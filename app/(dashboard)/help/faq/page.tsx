@@ -225,7 +225,7 @@ export default function FaqPage() {
 
       {/* Still need help */}
       <div style={{
-        marginTop: 32, padding: '24px 28px', borderRadius: 12,
+        marginTop: 32, padding: '24px 28px', borderRadius: 10,
         background: 'rgba(168,240,212,0.1)', border: '1px solid var(--mint)',
         textAlign: 'center',
       }}>

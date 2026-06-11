@@ -23,7 +23,7 @@ export default function DownloadsHelpPage() {
 
       {/* MP4 Video */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
@@ -47,7 +47,7 @@ export default function DownloadsHelpPage() {
 
       {/* PDF Slides */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
@@ -68,7 +68,7 @@ export default function DownloadsHelpPage() {
 
       {/* PPTX Presentation */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
@@ -89,7 +89,7 @@ export default function DownloadsHelpPage() {
 
       {/* Script Download */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
@@ -110,7 +110,7 @@ export default function DownloadsHelpPage() {
 
       {/* Choosing the Right Format */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>

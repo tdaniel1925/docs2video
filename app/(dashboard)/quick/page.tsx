@@ -321,7 +321,7 @@ export default function QuickModePage() {
             onClick={() => fileInputRef.current?.click()}
             style={{
               border: `2px dashed ${dragOver ? 'var(--accent, #4A90D9)' : file ? 'var(--success, #22c55e)' : 'var(--border)'}`,
-              borderRadius: 16,
+              borderRadius: 10,
               padding: file ? '24px 32px' : '48px 32px',
               textAlign: 'center',
               cursor: 'pointer',

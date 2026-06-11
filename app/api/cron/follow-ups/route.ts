@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
+import { verifyCronAuth } from '../../../_lib/cron-auth'
 import { GoogleGenAI } from '@google/genai'
 
 export const runtime = 'nodejs'
@@ -15,9 +16,7 @@ const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
  * Called daily at 9 AM UTC via Vercel Cron.
  */
 export async function GET(request: Request) {
-  // Verify cron secret if configured
-  const authHeader = request.headers.get('authorization')
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

@@ -37,8 +37,23 @@ export async function POST(request: Request) {
         email: user.email!,
         metadata: { supabase_user_id: user.id },
       })
-      customerId = customer.id
-      await supabase.from('profiles').update({ stripe_customer_id: customerId }).eq('id', user.id)
+      // Only claim the slot if still empty; a parallel request may have won.
+      const { data: claimed } = await supabase
+        .from('profiles')
+        .update({ stripe_customer_id: customer.id })
+        .eq('id', user.id)
+        .is('stripe_customer_id', null)
+        .select('stripe_customer_id')
+      if (claimed && claimed.length > 0) {
+        customerId = customer.id
+      } else {
+        const { data: refreshed } = await supabase
+          .from('profiles')
+          .select('stripe_customer_id')
+          .eq('id', user.id)
+          .single()
+        customerId = refreshed?.stripe_customer_id || customer.id
+      }
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -51,6 +66,8 @@ export async function POST(request: Request) {
         type: 'credit_pack',
         pack,
         credits: String(packInfo.credits),
+        // Webhook reads supabase_user_id — without it, credits are never granted
+        supabase_user_id: user.id,
         user_id: user.id,
       },
     })

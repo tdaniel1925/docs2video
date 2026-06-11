@@ -50,7 +50,7 @@ export async function compositeSlide(
 
   if (shouldShowPhoto && photoToUse) {
     try {
-      const photoRes = await fetch(photoToUse)
+      const photoRes = await fetch(photoToUse, { signal: AbortSignal.timeout(10000) })
       if (photoRes.ok) {
         const photoBuffer = Buffer.from(await photoRes.arrayBuffer())
 

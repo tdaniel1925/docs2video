@@ -1,4 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { lookup } from 'node:dns/promises'
+import { isIP } from 'node:net'
 import { buildBrandAnalysisPrompt } from './prompts'
 
 let _claude: Anthropic | null = null
@@ -20,15 +22,59 @@ export const FETCH_HEADERS = {
   'Upgrade-Insecure-Requests': '1',
 }
 
+function isPrivateIp(ip: string): boolean {
+  if (isIP(ip) === 4) {
+    const [a, b] = ip.split('.').map(Number)
+    return (
+      a === 0 || a === 10 || a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168)
+    )
+  }
+  const lower = ip.toLowerCase()
+  if (lower.startsWith('::ffff:')) return isPrivateIp(lower.slice(7))
+  return lower === '::1' || lower === '::' ||
+    lower.startsWith('fc') || lower.startsWith('fd') || lower.startsWith('fe80')
+}
+
+/** SSRF guard: only public http(s) URLs whose host resolves to public IPs. */
+export async function isSafePublicUrl(rawUrl: string): Promise<boolean> {
+  try {
+    const url = new URL(rawUrl)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false
+    const host = url.hostname.replace(/^\[|\]$/g, '')
+    if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal')) return false
+    if (isIP(host)) return !isPrivateIp(host)
+    const addrs = await lookup(host, { all: true })
+    return addrs.length > 0 && addrs.every(a => !isPrivateIp(a.address))
+  } catch {
+    return false
+  }
+}
+
 export async function fetchPage(url: string): Promise<string | null> {
   try {
-    const res = await fetch(url, {
-      headers: FETCH_HEADERS,
-      redirect: 'follow',
-      signal: AbortSignal.timeout(8000),
-    })
-    if (!res.ok) return null
-    return await res.text()
+    // Follow redirects manually so every hop passes the SSRF guard
+    let current = url
+    for (let hop = 0; hop < 5; hop++) {
+      if (!(await isSafePublicUrl(current))) return null
+      const res = await fetch(current, {
+        headers: FETCH_HEADERS,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(8000),
+      })
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get('location')
+        if (!loc) return null
+        current = new URL(loc, current).toString()
+        continue
+      }
+      if (!res.ok) return null
+      return await res.text()
+    }
+    return null
   } catch {
     return null
   }
@@ -223,6 +269,9 @@ export async function scrapeBrand(url: string, firecrawlContent?: { markdown: st
   // Always fetch raw HTML for logo/color/font extraction — Firecrawl HTML may strip tags
   const rawHtml = await fetchPage(fullUrl)
   mainHtml = rawHtml || firecrawlContent?.html || ''
+  if (!mainHtml) {
+    console.warn(`[brand-scraper] No HTML available for ${fullUrl} — logo/color/font extraction will be skipped`)
+  }
   if (!pageText) {
     if (!mainHtml) throw new Error('Could not reach website.')
     pageText = mainHtml.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
@@ -245,6 +294,8 @@ export async function scrapeBrand(url: string, firecrawlContent?: { markdown: st
 
   async function tryLogoUrl(url: string, source: string): Promise<boolean> {
     try {
+      // Logo URLs come from scraped (attacker-influenced) HTML — apply SSRF guard
+      if (!(await isSafePublicUrl(url))) return false
       const res = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(5000) })
       if (res.ok) {
         const ct = res.headers.get('content-type') ?? ''

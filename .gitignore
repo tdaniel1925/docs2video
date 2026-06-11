@@ -69,3 +69,11 @@ video-service/docker-compose.yml
 demo-*.mp4
 test-overlay-*.png
 vps-start-container.sh
+
+# One-off VPS patch scripts (canonical server lives in vps/server.js)
+vps-*.js
+vps-*.py
+vps-*.sh
+
+# Generated teaser assets
+teaser-output/

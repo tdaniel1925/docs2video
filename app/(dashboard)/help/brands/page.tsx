@@ -23,7 +23,7 @@ export default function BrandsHelpPage() {
 
       {/* Creating from URL */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
@@ -74,7 +74,7 @@ export default function BrandsHelpPage() {
 
       {/* Manual Setup */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
@@ -104,7 +104,7 @@ export default function BrandsHelpPage() {
 
       {/* How Brands Affect Videos */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
@@ -131,7 +131,7 @@ export default function BrandsHelpPage() {
 
       {/* Managing Multiple Brands */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 12,
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>

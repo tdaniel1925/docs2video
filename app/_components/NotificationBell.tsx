@@ -135,7 +135,7 @@ export default function NotificationBell() {
           position: 'absolute', top: '100%', right: 0, marginTop: 8,
           width: 380, maxHeight: 480, overflowY: 'auto',
           background: 'white', border: '1px solid var(--border-light)',
-          borderRadius: 12, boxShadow: '0 12px 40px rgba(0,0,0,0.12)',
+          borderRadius: 10, boxShadow: '0 12px 40px rgba(0,0,0,0.12)',
           zIndex: 300,
         }}>
           {/* Header */}

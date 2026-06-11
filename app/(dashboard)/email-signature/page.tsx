@@ -447,7 +447,7 @@ export default function EmailSignaturePage() {
                     onClick={() => setSelectedIndex(i)}
                     style={{
                       border: selectedIndex === i ? `2px solid var(--mint)` : '1px solid var(--border)',
-                      borderRadius: 12,
+                      borderRadius: 10,
                       overflow: 'hidden',
                       background: 'var(--bg-card, #fff)',
                       cursor: 'pointer',

@@ -917,7 +917,7 @@ export default function SettingsPage() {
 
                 return (
                   <div key={plan.tier} style={{
-                    padding: '20px 16px', borderRadius: 12, textAlign: 'center', position: 'relative',
+                    padding: '20px 16px', borderRadius: 10, textAlign: 'center', position: 'relative',
                     background: isCurrent ? 'rgba(168,240,212,0.1)' : 'white',
                     border: isCurrent ? '2px solid var(--mint)' : '1px solid var(--border-light)',
                   }}>

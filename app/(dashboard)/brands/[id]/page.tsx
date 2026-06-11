@@ -642,7 +642,7 @@ export default function EditBrandPage() {
                 fontSize: 12,
                 fontWeight: 600,
                 padding: '5px 12px',
-                borderRadius: 20,
+                borderRadius: 10,
                 whiteSpace: 'nowrap',
               }}
             >

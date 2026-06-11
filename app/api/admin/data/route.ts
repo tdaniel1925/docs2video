@@ -15,11 +15,11 @@ export async function GET() {
     const admin = createAdminClient()
 
     const [profilesRes, videosRes, brandsRes, auditRes, analyticsRes] = await Promise.all([
-      admin.from('profiles').select('*').order('created_at', { ascending: false }),
-      admin.from('videos').select('*').order('created_at', { ascending: false }),
-      admin.from('brands').select('*').order('created_at', { ascending: false }),
+      admin.from('profiles').select('*').order('created_at', { ascending: false }).limit(1000),
+      admin.from('videos').select('*').order('created_at', { ascending: false }).limit(2000),
+      admin.from('brands').select('*').order('created_at', { ascending: false }).limit(2000),
       admin.from('admin_audit_log').select('*').order('created_at', { ascending: false }).limit(200),
-      admin.from('video_analytics').select('video_id, event_type'),
+      admin.from('video_analytics').select('video_id, event_type').limit(20000),
     ])
 
     // Build per-video analytics counts
@@ -39,6 +39,6 @@ export async function GET() {
     })
   } catch (err) {
     console.error('[admin/data] Error:', err)
-    return NextResponse.json({ error: 'Internal error', detail: err instanceof Error ? err.message : 'Unknown' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

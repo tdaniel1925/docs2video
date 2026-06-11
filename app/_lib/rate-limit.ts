@@ -40,4 +40,5 @@ export const LIMITS = {
   upload: { limit: 50, windowMs: 60 * 60 * 1000 },        // 50 uploads per hour
   api: { limit: 100, windowMs: 60 * 1000 },               // 100 requests per minute
   chat: { limit: 30, windowMs: 60 * 1000 },               // 30 chat messages per minute
+  email: { limit: 30, windowMs: 60 * 60 * 1000 },         // 30 emails per hour
 }

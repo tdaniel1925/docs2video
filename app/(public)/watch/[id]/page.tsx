@@ -1182,7 +1182,7 @@ export default function PublicWatchPage() {
                         onClick={() => jumpToSlide(i)}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 6,
-                          padding: '6px 12px', borderRadius: 20,
+                          padding: '6px 12px', borderRadius: 10,
                           border: isActive ? '1.5px solid var(--mint, #3BB5C8)' : '1px solid var(--border-light, #E8EDF2)',
                           background: isActive ? 'rgba(59,181,200,0.08)' : '#fff',
                           cursor: 'pointer', fontSize: 12, fontWeight: isActive ? 700 : 500,

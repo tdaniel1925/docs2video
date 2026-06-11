@@ -63,7 +63,7 @@ const tdStyle: React.CSSProperties = {
 export default function CookiePolicyPage() {
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh', padding: '3rem 1.5rem' }}>
-      <div style={{ maxWidth: '800px', margin: '0 auto', background: 'var(--surface)', borderRadius: '12px', border: '1px solid var(--border)', padding: '3rem 2.5rem' }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto', background: 'var(--surface)', borderRadius: '10px', border: '1px solid var(--border)', padding: '3rem 2.5rem' }}>
 
         <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--ink)', marginBottom: '0.25rem' }}>Cookie Policy</h1>
         <p style={{ color: 'var(--ink-soft)', marginBottom: '2.5rem', fontSize: '0.9rem' }}>
