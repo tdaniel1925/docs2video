@@ -204,3 +204,4 @@ Full-codebase review applied:
 - Repo: 75+ `vps-*` one-off patch scripts removed; canonical VPS server tracked at `vps/server.js` (env-var secrets, exits if API_SECRET unset); `vps-*`/`teaser-output/` gitignored
 - All inline border-radius values >10px clamped to 10px app-wide (circles via '50%' kept)
 - `generating` page surfaces persistent polling failures instead of spinning forever
+- Removed unauthenticated test scaffolding: `/api/test-{seedance,seedance-full,kenburns,flipbook}` + their public pages (they called paid AI APIs with no auth). `demo-video` is already disabled (503); `try-demo` has IP rate limiting; `demo-slide-gpt`/`template-demo` are authed.
