@@ -115,6 +115,7 @@ export default function ScriptPage() {
           voiceId: draft.voiceId || 'nova',
           aiMusic: draft.aiMusic ?? false,
           styleId: draft.styleId || undefined,
+          recipientName: draft.recipientName || undefined,
         })
       } catch (err) {
         console.error('[script] load draft error:', err)

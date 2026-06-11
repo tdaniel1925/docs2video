@@ -256,9 +256,15 @@ export default function SetupPage() {
     setLoading(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    // Save to profile as default voice preference (stored in default_style for now, voice stored as metadata)
-    // We use a video table default or localStorage pattern for voice
+    if (!user) { setLoading(false); return }
+    // Persist the chosen voice in the nurture_sent jsonb store (no migration
+    // needed) so the selection isn't silently discarded.
+    try {
+      const { data: profile } = await supabase.from('profiles').select('nurture_sent').eq('id', user.id).single()
+      await supabase.from('profiles').update({
+        nurture_sent: { ...(profile?.nurture_sent ?? {}), default_voice: selectedVoice },
+      }).eq('id', user.id)
+    } catch { /* non-fatal — voice can still be picked per-video */ }
     setLoading(false)
     setStep(5)
   }
