@@ -171,10 +171,38 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
     const arrayBuffer = await file.arrayBuffer()
     const base64 = Buffer.from(arrayBuffer).toString('base64')
     const purposeField = formData.get('purpose') as string | null
+
+    // PDFs: extract in-app with Claude (native PDF support, ~100 pages/32MB).
+    // Keeps documents off OpenAI's Files API (the VPS path uploads them there).
+    if (isPdf && arrayBuffer.byteLength <= 30 * 1024 * 1024) {
+      try {
+        const claude = getClaude()
+        const structureRes = await claude.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 4096,
+          system: CONTENT_STRUCTURING_SYSTEM_PROMPT,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+              { type: 'text', text: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Extract and structure the content of this document. Return ONLY valid JSON, no markdown code fences.` },
+            ],
+          }],
+        })
+        const rawText = structureRes.content[0]?.type === 'text' ? structureRes.content[0].text : '{}'
+        const structured = JSON.parse(rawText.replace(/^```json?\n?/i, '').replace(/\n?```$/i, '').trim())
+        return NextResponse.json(structured)
+      } catch (claudeErr) {
+        // Too many pages, parse failure, etc. — fall through to the VPS path
+        console.warn('[extract] Claude PDF extraction failed, falling back to VPS:', claudeErr instanceof Error ? claudeErr.message : claudeErr)
+      }
+    }
+
     const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
     const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
-    // Send to VPS for extraction — no Vercel timeout limits
+    // DOCX/PPTX (and PDF fallback): VPS extraction — note this uploads the
+    // document to OpenAI's Files API on the VPS side
     const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/extract-document`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
