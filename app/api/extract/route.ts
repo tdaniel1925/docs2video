@@ -198,11 +198,45 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
       }
     }
 
+    // DOCX/PPTX: extract text in-app (jszip) and structure with Claude —
+    // keeps documents off OpenAI entirely (the VPS path uploaded them).
+    if (isDocx || isPptx) {
+      try {
+        const { extractDocxText, extractPptxText } = await import('../../_lib/office-text')
+        const buf = Buffer.from(arrayBuffer)
+        const rawDocText = isDocx ? await extractDocxText(buf) : await extractPptxText(buf)
+        if (!rawDocText || rawDocText.trim().length < 10) {
+          throw new Error('Document appears to be empty or image-only')
+        }
+        const isTruncated = rawDocText.length > 15000
+        const docText = isTruncated
+          ? `${rawDocText.slice(0, 12000)}\n\n[... TRUNCATED ...]\n\n${rawDocText.slice(-3000)}`
+          : rawDocText
+        const claude = getClaude()
+        const structureRes = await claude.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 4096,
+          system: CONTENT_STRUCTURING_SYSTEM_PROMPT,
+          messages: [{
+            role: 'user',
+            content: `${purposeField ? `Purpose: ${purposeField}\n\n` : ''}Content:\n${docText}\n\nReturn ONLY valid JSON, no markdown code fences.`,
+          }],
+        })
+        const rawText = structureRes.content[0]?.type === 'text' ? structureRes.content[0].text : '{}'
+        const structured = JSON.parse(rawText.replace(/^```json?\n?/i, '').replace(/\n?```$/i, '').trim())
+        if (isTruncated) structured.truncated = true
+        return NextResponse.json(structured)
+      } catch (officeErr) {
+        // Parse failure / unusual file — fall through to the VPS path
+        console.warn('[extract] In-app Office extraction failed, falling back to VPS:', officeErr instanceof Error ? officeErr.message : officeErr)
+      }
+    }
+
     const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
     const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
-    // DOCX/PPTX (and PDF fallback): VPS extraction — note this uploads the
-    // document to OpenAI's Files API on the VPS side
+    // Last-resort fallback (oversized PDF, odd Office file): VPS extraction —
+    // this uploads the document to OpenAI's Files API on the VPS side
     const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/extract-document`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
