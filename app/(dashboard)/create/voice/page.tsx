@@ -17,21 +17,8 @@ const VOICE_OPTIONS = [
   { id: 'fable', name: 'Fable', description: 'British male' },
 ]
 
-const NARRATION_STYLES = [
-  {
-    id: 'solo' as const,
-    title: 'Solo Narrator',
-    description: 'A single professional voice tells your story',
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-        <circle cx="16" cy="12" r="5" stroke="currentColor" strokeWidth="2" />
-        <path d="M8 26c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  // Podcast (two-voice) mode sunset 2026-06-11 — VPS-only feature, removed
-  // as part of the v2 pipeline migration. Re-add here if ported to v2.
-]
+// Narrator-style picker removed 2026-06-11 — podcast (two-voice) mode was
+// sunset, leaving only solo, so the choice was pointless. All videos are solo.
 
 const DETAIL_LEVELS = [
   { id: 'quick' as const, title: 'Short', description: '30–60 seconds. Key highlights only.', duration: '~1 min' },
@@ -49,10 +36,7 @@ export default function VoicePage() {
   const [error, setError] = useState<string | null>(null)
   const [outputType, setOutputType] = useState<'video' | 'pptx' | 'pdf'>('video')
 
-  const [narrationStyle, setNarrationStyle] = useState<'solo' | 'podcast'>('solo')
   const [voiceId, setVoiceId] = useState('nova')
-  const [podcastVoice1, setPodcastVoice1] = useState('nova')
-  const [podcastVoice2, setPodcastVoice2] = useState('onyx')
   const [styleAlreadyPicked, setStyleAlreadyPicked] = useState(false)
   const [playingSample, setPlayingSample] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -94,13 +78,7 @@ export default function VoicePage() {
         }
 
         // Restore saved values
-        // Podcast mode sunset — old podcast drafts continue as solo
-        if (draft.narrationStyle === 'solo') setNarrationStyle(draft.narrationStyle)
-        if (draft.voiceId) {
-          setVoiceId(draft.voiceId)
-          if (draft.narrationStyle === 'podcast') setPodcastVoice1(draft.voiceId)
-        }
-        if (draft.podcastVoice2) setPodcastVoice2(draft.podcastVoice2)
+        if (draft.voiceId) setVoiceId(draft.voiceId)
         if (draft.detailLevel) setDetailLevel(draft.detailLevel)
         if (draft.aiMusic !== undefined) setAiMusic(draft.aiMusic)
         if (draft.styleId) setStyleAlreadyPicked(true)
@@ -145,18 +123,16 @@ export default function VoicePage() {
     setSaving(true)
     setError(null)
     try {
-      const selectedVoice = narrationStyle === 'podcast' ? podcastVoice1 : voiceId
       const res = await fetch('/api/videos/draft', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           videoId,
           updates: {
-            voiceId: selectedVoice,
-            narrationStyle,
+            voiceId,
+            narrationStyle: 'solo',
             detailLevel,
             aiMusic,
-            podcastVoice2: narrationStyle === 'podcast' ? podcastVoice2 : undefined,
             step: 3,
           },
         }),
@@ -191,100 +167,33 @@ export default function VoicePage() {
 
         {error && <div style={styles.errorBanner}>{error}</div>}
 
-        {/* Narration Style */}
+        {/* Voice Selection */}
         <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>Narrator style</h2>
-          <div style={styles.narrationGrid}>
-            {NARRATION_STYLES.map((style) => {
-              const selected = narrationStyle === style.id
+          <h2 style={styles.sectionTitle}>Choose a voice</h2>
+          <div style={styles.voiceGrid}>
+            {VOICE_OPTIONS.map((voice) => {
+              const selected = voiceId === voice.id
               return (
                 <button
-                  key={style.id}
-                  onClick={() => setNarrationStyle(style.id)}
+                  key={voice.id}
+                  onClick={() => setVoiceId(voice.id)}
                   style={{
-                    ...styles.narrationCard,
-                    ...(selected ? styles.narrationCardSelected : {}),
+                    ...styles.voiceCard,
+                    ...(selected ? styles.voiceCardSelected : {}),
                   }}
                 >
-                  <div style={styles.narrationIcon}>{style.icon}</div>
-                  <div style={styles.narrationContent}>
-                    <span style={styles.narrationTitle}>{style.title}</span>
-                    <span style={styles.narrationDesc}>{style.description}</span>
-                  </div>
-                  {/* span, not button — nested <button> is invalid HTML (hydration error) */}
+                  <span style={styles.voiceName}>{voice.name}</span>
+                  <span style={styles.voiceDesc}>{voice.description}</span>
                   <span
-                    role="button"
-                    tabIndex={0}
-                    style={{ ...styles.playBtn, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                    onClick={(e) => { e.stopPropagation(); playSample(style.id === 'solo' ? `/samples/solo-${voiceId}.mp3` : '/samples/podcast-sample.mp3') }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); playSample(style.id === 'solo' ? `/samples/solo-${voiceId}.mp3` : '/samples/podcast-sample.mp3') } }}
+                    onClick={(e) => { e.stopPropagation(); playSample(`/samples/solo-${voice.id}.mp3`) }}
+                    style={{ fontSize: 11, color: playingSample === `/samples/solo-${voice.id}.mp3` ? 'var(--mint-darker, #0d9488)' : 'var(--ink-light)', cursor: 'pointer', marginTop: 4 }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                      <path d="M4 3L13 8L4 13V3Z" fill="currentColor" />
-                    </svg>
+                    {playingSample === `/samples/solo-${voice.id}.mp3` ? '■ Stop' : '▶ Listen'}
                   </span>
                 </button>
               )
             })}
           </div>
-        </section>
-
-        {/* Voice Selection */}
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>Choose a voice</h2>
-          {narrationStyle === 'solo' ? (
-            <div style={styles.voiceGrid}>
-              {VOICE_OPTIONS.map((voice) => {
-                const selected = voiceId === voice.id
-                return (
-                  <button
-                    key={voice.id}
-                    onClick={() => setVoiceId(voice.id)}
-                    style={{
-                      ...styles.voiceCard,
-                      ...(selected ? styles.voiceCardSelected : {}),
-                    }}
-                  >
-                    <span style={styles.voiceName}>{voice.name}</span>
-                    <span style={styles.voiceDesc}>{voice.description}</span>
-                    <span
-                      onClick={(e) => { e.stopPropagation(); playSample(`/samples/solo-${voice.id}.mp3`) }}
-                      style={{ fontSize: 11, color: playingSample === `/samples/solo-${voice.id}.mp3` ? 'var(--mint-darker, #0d9488)' : 'var(--ink-light)', cursor: 'pointer', marginTop: 4 }}
-                    >
-                      {playingSample === `/samples/solo-${voice.id}.mp3` ? '■ Stop' : '▶ Listen'}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          ) : (
-            <div style={styles.podcastGrid}>
-              <div style={styles.podcastSelector}>
-                <label style={styles.podcastLabel}>Voice 1</label>
-                <select
-                  value={podcastVoice1}
-                  onChange={(e) => setPodcastVoice1(e.target.value)}
-                  style={styles.select}
-                >
-                  {VOICE_OPTIONS.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name} - {v.description}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={styles.podcastSelector}>
-                <label style={styles.podcastLabel}>Voice 2</label>
-                <select
-                  value={podcastVoice2}
-                  onChange={(e) => setPodcastVoice2(e.target.value)}
-                  style={styles.select}
-                >
-                  {VOICE_OPTIONS.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name} - {v.description}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
         </section>
 
         {/* Video Length */}
@@ -357,7 +266,7 @@ export default function VoicePage() {
           <CreditCost
             outputType={outputType}
             detailLevel={detailLevel}
-            narrationStyle={narrationStyle}
+            narrationStyle="solo"
           />
         </section>
 

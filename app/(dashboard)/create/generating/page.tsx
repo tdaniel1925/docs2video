@@ -27,6 +27,7 @@ export default function GeneratingPage() {
   const videoId = searchParams.get('id')
   const [status, setStatus] = useState('pending')
   const [progressPct, setProgressPct] = useState(0)
+  const [displayPct, setDisplayPct] = useState(0)
   const [progressDetail, setProgressDetail] = useState('')
   const [elapsed, setElapsed] = useState(0)
   const [tipIdx, setTipIdx] = useState(0)
@@ -84,6 +85,25 @@ export default function GeneratingPage() {
     const timer = setInterval(() => setElapsed(e => e + 1), 1000)
     return () => clearInterval(timer)
   }, [])
+
+  // Smooth "creep": the server emits only a few progress milestones, so the
+  // bar would otherwise sit frozen (e.g. at 18%) for minutes during slide/
+  // audio/assembly. Ease displayPct toward the next milestone so it always
+  // feels alive — but never past the real value's ceiling and never backward.
+  useEffect(() => {
+    if (status === 'completed' || status === 'failed') { setDisplayPct(progressPct); return }
+    const timer = setInterval(() => {
+      setDisplayPct(prev => {
+        // Each real milestone unlocks creeping up to the next one's floor.
+        const ceiling = progressPct >= 70 ? 97 : progressPct >= 18 ? 68 : progressPct >= 15 ? 60 : Math.max(progressPct + 8, 12)
+        const target = Math.max(progressPct, prev)
+        if (target >= ceiling) return target
+        // ease: bigger steps when far from ceiling, tiny near it
+        return Math.min(ceiling, target + Math.max(0.3, (ceiling - target) * 0.04))
+      })
+    }, 700)
+    return () => clearInterval(timer)
+  }, [progressPct, status])
 
   // Rotate tips
   useEffect(() => {
@@ -238,12 +258,17 @@ export default function GeneratingPage() {
         fontSize: 72, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--ink)',
         marginBottom: 8, lineHeight: 1,
       }}>
-        {Math.min(progressPct, 99)}%
+        {Math.round(Math.min(displayPct, 99))}%
       </div>
 
-      {/* Elapsed time */}
-      <div style={{ fontSize: 14, color: 'var(--ink-light)', marginBottom: 32 }}>
+      {/* Elapsed time + expectation */}
+      <div style={{ fontSize: 14, color: 'var(--ink-light)', marginBottom: 4 }}>
         {minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`} elapsed
+      </div>
+      <div style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 28 }}>
+        {elapsed >= 240
+          ? 'Taking a little longer than usual — hang tight, it’s still working. You can safely leave; we’ll notify you when it’s ready.'
+          : 'This usually takes about 3–5 minutes.'}
       </div>
 
       {/* Progress bar */}
@@ -256,8 +281,8 @@ export default function GeneratingPage() {
           background: 'linear-gradient(90deg, var(--mint), #4ade80)',
           backgroundSize: '200% 100%',
           animation: 'shimmer 2s infinite',
-          transition: 'width 1s ease',
-          width: `${Math.min(progressPct, 99)}%`,
+          transition: 'width 0.7s ease',
+          width: `${Math.min(displayPct, 99)}%`,
         }} />
       </div>
 

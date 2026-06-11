@@ -374,7 +374,7 @@ export default function ClientsPage() {
                           <Link href={`/clients/${client.id}`} className="btn btn-soft btn-sm" style={{ fontSize: 12, textDecoration: 'none' }}>
                             View
                           </Link>
-                          <Link href={`/create${client.id ? `?clientId=${client.id}` : ''}`} className="btn btn-soft btn-sm" style={{ fontSize: 12, textDecoration: 'none' }}>
+                          <Link href={`/create/client${client.id ? `?clientId=${client.id}` : ''}`} className="btn btn-soft btn-sm" style={{ fontSize: 12, textDecoration: 'none' }}>
                             Send Video
                           </Link>
                           {client.email && (
