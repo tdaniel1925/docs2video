@@ -17,6 +17,7 @@ import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 import { PHONE_REGEX, phoneToSpoken, isPhoneInSource } from '../../_lib/phone-utils'
 import { estimateVideoCost, exceedsCeiling } from '../../_lib/cost-estimator'
 import { deductCredits, calculateVideoCost, checkCredits, addTopupCredits } from '../../_lib/credits'
+import { inngest } from '../../_lib/inngest/client'
 
 export const runtime = 'nodejs'
 
@@ -155,6 +156,10 @@ export async function POST(request: Request) {
     recipientName?: string
   }
 
+  // Pipeline v2 (Inngest + Creatomate) — opt-in via env flag; podcast mode
+  // still uses the VPS (multi-voice dialogue not yet ported).
+  const useV2 = process.env.USE_PIPELINE_V2 === 'true' && (narrationStyle || 'solo') !== 'podcast'
+
   // --- GUARD: Duplicate submission prevention ---
   if (inFlightVideos.has(videoId)) {
     return NextResponse.json({ error: 'This video is already being generated.' }, { status: 409 })
@@ -234,12 +239,14 @@ export async function POST(request: Request) {
   try {
     if (jobId) await updateJobProgress(admin, jobId, 5, 'running')
 
-    // --- GUARD: VPS health check before doing any work ---
-    try {
-      const healthRes = await fetch(`${VIDEO_ASSEMBLY_URL}/health`, { signal: AbortSignal.timeout(5000) })
-      if (!healthRes.ok) throw new Error('VPS not healthy')
-    } catch {
-      throw new Error('Video server is temporarily offline. Please try again in a few minutes.')
+    // --- GUARD: VPS health check before doing any work (v1 only) ---
+    if (!useV2) {
+      try {
+        const healthRes = await fetch(`${VIDEO_ASSEMBLY_URL}/health`, { signal: AbortSignal.timeout(5000) })
+        if (!healthRes.ok) throw new Error('VPS not healthy')
+      } catch {
+        throw new Error('Video server is temporarily offline. Please try again in a few minutes.')
+      }
     }
 
     // STAGE 1: Generate script (or reuse pre-generated scenes)
@@ -649,6 +656,29 @@ export async function POST(request: Request) {
 
     // Prepend/append to slidePrompts
     const allSlidePrompts = [coverPrompt, ...slidePrompts, closingPrompt]
+
+    // STAGE 3 (v2): queue the Inngest + Creatomate pipeline and return.
+    // Completion is driven by the Creatomate webhook; failure by Inngest onFailure.
+    if (useV2) {
+      console.log(`[video ${videoId}] Pipeline v2: queueing ${allScenes.length} slides (cover + ${scenes.length} content + closing), voice=${voiceId}`)
+      if (aiMusic || musicPrompt) {
+        console.warn(`[video ${videoId}] Pipeline v2 does not support AI music yet — continuing without it`)
+      }
+      await admin.from('videos').update({ progress_detail: 'Queueing video pipeline...', progress_pct: 18 }).eq('id', videoId)
+      await inngest.send({
+        name: 'video/render.v2',
+        data: {
+          videoId,
+          userId: user.id,
+          voiceId,
+          scenes: allScenes.map((s: any) => ({ narration: s.narration || '' })),
+          slidePrompts: allSlidePrompts,
+          deductedCost,
+          musicUrl: musicUrl || undefined,
+        },
+      })
+      return NextResponse.json({ success: true, pipeline: 'v2' })
+    }
 
     // STAGE 3: Hand off to VPS — all slides have matching narration
     console.log(`[video ${videoId}] Handing off to VPS: ${allScenes.length} total slides (cover + ${scenes.length} content + closing), voice=${voiceId}`)

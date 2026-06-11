@@ -190,6 +190,18 @@ Auth: managed by Supabase Auth
 4. `app/_lib/music-generator.ts` and `synthesizeAllScenes` in `app/_lib/tts.ts` are dead code — music/TTS for the main pipeline run on the VPS. Candidates for removal.
 5. Webhook idempotency unique index: run `supabase-webhook-idempotency-migration.sql` against the DB.
 
+## Pipeline v2 — Inngest + Creatomate (2026-06-11, flag OFF)
+
+VPS-free render path behind `USE_PIPELINE_V2` env flag (default false — v1/VPS unchanged and default):
+- `app/_lib/inngest/client.ts` + `app/api/inngest/route.ts` — Inngest v4 setup
+- `app/_lib/inngest/render-video.ts` — `video/render.v2` function: Gemini slides (`generateSlideFromPrompt` in gemini.ts, same finished prompts the VPS gets) + OpenAI TTS, all scenes in parallel, assets to `videos/{userId}/{videoId}/v2-*`; failure → auto credit refund + notify
+- `app/_lib/creatomate.ts` — RenderScript builder (image+audio per scene, 0.5s fades, optional music track) + render API client
+- `app/api/webhooks/creatomate/route.ts` — completion webhook; verifies by re-fetching render from API (webhooks unsigned), copies MP4 to `videos/{userId}/{videoId}.mp4`, marks completed
+- Limitations: podcast mode falls back to VPS; AI music (Lyria) not supported in v2 yet (static musicUrl works)
+- Env: `CREATOMATE_API_KEY` (local only so far), `USE_PIPELINE_V2=false`, Inngest keys needed in Vercel before prod enable
+- Local test: `npx inngest-cli dev` + `USE_PIPELINE_V2=true` in .env.local
+- DO NOT enable in prod until side-by-side render comparison vs VPS passes
+
 ## Security Hardening (2026-06-11)
 
 Full-codebase review applied:

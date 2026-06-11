@@ -146,6 +146,37 @@ async function downloadImage(url: string): Promise<Buffer | null> {
   }
 }
 
+/**
+ * Pipeline v2: render a slide from a fully-built prompt (same contract as the
+ * VPS — the prompt already contains style, color, and content rules).
+ * Returns null if Gemini produces no image after a retry.
+ */
+export async function generateSlideFromPrompt(prompt: string): Promise<Buffer | null> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await genai.models.generateContent({
+      model: IMAGE_MODEL,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        responseFormat: {
+          image: {
+            aspectRatio: '16:9',
+            imageSize: '4K',
+          },
+        },
+      } as any,
+    })
+
+    const responseParts = response.candidates?.[0]?.content?.parts ?? []
+    for (const rp of responseParts) {
+      if (rp.inlineData) {
+        return Buffer.from(rp.inlineData.data!, 'base64')
+      }
+    }
+    if (attempt === 0) console.warn('[gemini] No image returned for prompt slide, retrying...')
+  }
+  return null
+}
+
 // Generate a single slide with specific style and content
 export async function generateSlide(
   data: ExtractedPolicyData | ExtractedData,
