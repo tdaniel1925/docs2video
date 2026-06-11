@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { rateLimit, getRateLimitKey } from '../../_lib/rate-limit'
+import { isPaidTier } from '../../_lib/subscription'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -18,8 +19,8 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-  const { data: profile } = await supabase.from('profiles').select('subscription_status').eq('id', user.id).single()
-  const isPaid = ['active', 'starter', 'pro', 'business', 'professional', 'enterprise', 'enterprise-plus', 'enterprise_plus'].includes(profile?.subscription_status ?? '')
+  const { data: profile } = await supabase.from('profiles').select('subscription_status, is_admin, is_beta').eq('id', user.id).single()
+  const isPaid = isPaidTier(profile?.subscription_status) || profile?.is_admin === true || profile?.is_beta === true
 
   if (!isPaid) {
     const rl = rateLimit(getRateLimitKey(user.id, 'style_preview_brand'), 3, 86400000)

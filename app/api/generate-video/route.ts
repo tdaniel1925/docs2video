@@ -17,6 +17,7 @@ import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 import { PHONE_REGEX, phoneToSpoken, isPhoneInSource } from '../../_lib/phone-utils'
 import { estimateVideoCost, exceedsCeiling } from '../../_lib/cost-estimator'
 import { deductCredits, calculateVideoCost, checkCredits, addTopupCredits } from '../../_lib/credits'
+import { isPaidTier } from '../../_lib/subscription'
 import { inngest } from '../../_lib/inngest/client'
 
 export const runtime = 'nodejs'
@@ -111,17 +112,19 @@ export async function POST(request: Request) {
   // --- Credit check ---
   const { data: profile } = await supabase
     .from('profiles')
-    .select('subscription_status, referred_by, card_on_file, free_videos_remaining')
+    .select('subscription_status, referred_by, card_on_file, free_videos_remaining, is_admin, is_beta')
     .eq('id', user.id)
     .single()
 
   const subStatus = (profile?.subscription_status ?? '').toLowerCase()
-  const isPaidUser = ['active', 'professional', 'pro', 'business', 'enterprise', 'starter'].includes(subStatus)
+  const isPaidUser = isPaidTier(subStatus)
   const hasReferralDiscount = !!profile?.referred_by
   const cardOnFile = profile?.card_on_file ?? false
   const freeRemaining = profile?.free_videos_remaining ?? 0
+  // Admin via email list OR the profiles.is_admin/is_beta DB flags
+  const isPrivileged = isAdmin(user.email) || profile?.is_admin === true || profile?.is_beta === true
 
-  if (!isAdmin(user.email)) {
+  if (!isPrivileged) {
     if (!isPaidUser && !hasReferralDiscount) {
       if (freeRemaining <= 0 && !cardOnFile) {
         return NextResponse.json(
@@ -188,7 +191,7 @@ export async function POST(request: Request) {
 
   // --- Credit deduction ---
   let deductedCost = 0
-  if (!isAdmin(user.email)) {
+  if (!isPrivileged) {
     const videoCost = calculateVideoCost({
       outputType: (body as any).outputType || 'video',
       detailLevel: (body as any).detailLevel || (detailed ? 'detailed' : 'standard'),
