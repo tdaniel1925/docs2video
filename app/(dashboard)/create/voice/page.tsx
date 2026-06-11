@@ -29,19 +29,8 @@ const NARRATION_STYLES = [
       </svg>
     ),
   },
-  {
-    id: 'podcast' as const,
-    title: 'Two-Person Conversation',
-    description: 'Two voices discuss your topic naturally',
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-        <circle cx="11" cy="12" r="4" stroke="currentColor" strokeWidth="2" />
-        <circle cx="21" cy="12" r="4" stroke="currentColor" strokeWidth="2" />
-        <path d="M4 26c0-3.9 3.1-7 7-7s7 3.1 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <path d="M14 26c0-3.9 3.1-7 7-7s7 3.1 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    ),
-  },
+  // Podcast (two-voice) mode sunset 2026-06-11 — VPS-only feature, removed
+  // as part of the v2 pipeline migration. Re-add here if ported to v2.
 ]
 
 const DETAIL_LEVELS = [
@@ -105,7 +94,8 @@ export default function VoicePage() {
         }
 
         // Restore saved values
-        if (draft.narrationStyle) setNarrationStyle(draft.narrationStyle)
+        // Podcast mode sunset — old podcast drafts continue as solo
+        if (draft.narrationStyle === 'solo') setNarrationStyle(draft.narrationStyle)
         if (draft.voiceId) {
           setVoiceId(draft.voiceId)
           if (draft.narrationStyle === 'podcast') setPodcastVoice1(draft.voiceId)

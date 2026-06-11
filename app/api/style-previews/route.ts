@@ -1,19 +1,25 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
-import { generateStylePreviews } from '../../_lib/gemini'
-import OpenAI from 'openai'
+import { generateStylePreviews, generateSlideFromPrompt } from '../../_lib/gemini'
+import { rateLimit, getRateLimitKey } from '../../_lib/rate-limit'
+import { isPaidTier } from '../../_lib/subscription'
 import type { ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+  const { data: profile } = await supabase.from('profiles').select('subscription_status, is_admin, is_beta').eq('id', user.id).single()
+  const isPaid = isPaidTier(profile?.subscription_status) || profile?.is_admin === true || profile?.is_beta === true
+  if (!isPaid) {
+    const rl = rateLimit(getRateLimitKey(user.id, 'style_previews'), 3, 86400000)
+    if (!rl.allowed) return NextResponse.json({ error: 'Free accounts can preview 3 styles per day. Upgrade for unlimited.' }, { status: 429 })
+  }
 
   const body = await request.json()
 
@@ -34,26 +40,14 @@ ${body.prompt}
 Scene: A visual metaphor showing growth, progress, or achievement — like a tree growing strong with deep roots, a shield protecting what matters most, or a path leading toward a bright future. Rich illustrated artwork filling the entire canvas. No text, no UI elements, no slide layouts, no logos — pure illustrated scene. Leave bottom 100px as a clean solid bar area for branding overlay.`
 
     try {
-      // Generate 2 previews with OpenAI — same engine as actual slides
-      const [coverRes, contentRes] = await Promise.all([
-        openai.images.generate({
-          model: 'gpt-image-2',
-          prompt: coverPrompt,
-          size: '1920x1088',
-          quality: 'high',
-          n: 1,
-        }),
-        openai.images.generate({
-          model: 'gpt-image-2',
-          prompt: contentPrompt,
-          size: '1920x1088',
-          quality: 'high',
-          n: 1,
-        }),
+      // Generate 2 previews with Gemini — same engine as actual slides
+      const [coverBuf, contentBuf] = await Promise.all([
+        generateSlideFromPrompt(coverPrompt),
+        generateSlideFromPrompt(contentPrompt),
       ])
 
-      const coverUrl = coverRes.data?.[0]?.b64_json ? `data:image/png;base64,${coverRes.data[0].b64_json}` : null
-      const contentUrl = contentRes.data?.[0]?.b64_json ? `data:image/png;base64,${contentRes.data[0].b64_json}` : null
+      const coverUrl = coverBuf ? `data:image/png;base64,${coverBuf.toString('base64')}` : null
+      const contentUrl = contentBuf ? `data:image/png;base64,${contentBuf.toString('base64')}` : null
 
       return NextResponse.json({
         previewUrl: coverUrl,

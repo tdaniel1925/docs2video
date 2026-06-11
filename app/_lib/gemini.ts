@@ -151,11 +151,15 @@ async function downloadImage(url: string): Promise<Buffer | null> {
  * VPS — the prompt already contains style, color, and content rules).
  * Returns null if Gemini produces no image after a retry.
  */
-export async function generateSlideFromPrompt(prompt: string): Promise<Buffer | null> {
+export async function generateSlideFromPrompt(prompt: string, refImage?: Buffer): Promise<Buffer | null> {
+  const parts: any[] = [{ text: prompt }]
+  if (refImage) {
+    parts.push({ inlineData: { mimeType: 'image/png', data: refImage.toString('base64') } })
+  }
   for (let attempt = 0; attempt < 2; attempt++) {
     const response = await genai.models.generateContent({
       model: IMAGE_MODEL,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      contents: [{ role: 'user', parts }],
       config: {
         responseFormat: {
           image: {

@@ -2,12 +2,10 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { rateLimit, getRateLimitKey } from '../../_lib/rate-limit'
 import { isPaidTier } from '../../_lib/subscription'
+import { generateSlideFromPrompt } from '../../_lib/gemini'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
-
-const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL
-const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
 /**
  * POST /api/style-preview-from-brand
@@ -37,10 +35,6 @@ export async function POST(request: Request) {
     logoUrl?: string
   }
 
-  if (!VIDEO_ASSEMBLY_URL) {
-    return NextResponse.json({ error: 'Video server not configured' }, { status: 500 })
-  }
-
   // Build a style description from brand data
   const colorDesc = primaryColor
     ? `Primary brand color: ${primaryColor}${secondaryColor ? `, secondary: ${secondaryColor}` : ''}. Use these colors prominently.`
@@ -52,7 +46,7 @@ export async function POST(request: Request) {
   const styleDescription = `${colorDesc} ${industryDesc} ${toneDesc} Create a visually striking, premium design that matches this brand identity. Bold typography, clean layout, layered depth with subtle shadows and gradients.`
 
   try {
-    // Generate illustrated previews directly via OpenAI (not VPS — VPS still has old slide-style prompts)
+    // Generate illustrated previews via Gemini (same engine as the video slides)
     return await generatePreviewsDirect(styleDescription, companyName || 'Your Company', logoUrl)
   } catch (err) {
     console.error('[style-preview-from-brand] Error:', err)
@@ -62,28 +56,14 @@ export async function POST(request: Request) {
 
 async function generatePreviewsDirect(styleDescription: string, companyName: string, logoUrl?: string) {
   try {
-    const OpenAI = (await import('openai')).default
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-
-    const [coverRes, contentRes] = await Promise.all([
-      openai.images.generate({
-        model: 'gpt-image-2',
-        prompt: `Create an illustrated scene for a video explainer in this style: ${styleDescription}. Scene: A welcoming, establishing shot that introduces "${companyName}". Show a warm, inviting visual metaphor — like opening a door, sunrise over a landscape, or a friendly guide welcoming the viewer. Rich illustrated artwork filling the entire 1920x1080 canvas. No text, no UI elements, no slide layouts — pure illustrated scene. Leave bottom 100px as a clean solid bar area for branding overlay.`,
-        size: '1536x1024',
-        quality: 'high',
-        n: 1,
-      }),
-      openai.images.generate({
-        model: 'gpt-image-2',
-        prompt: `Create an illustrated scene for a video explainer in this style: ${styleDescription}. Scene: A visual metaphor showing growth, protection, or progress — like a shield protecting a family, a tree growing strong, or a path leading forward. Rich illustrated artwork filling the entire 1920x1080 canvas. No text, no UI elements, no slide layouts — pure illustrated scene. Leave bottom 100px as a clean solid bar area for branding overlay.`,
-        size: '1536x1024',
-        quality: 'high',
-        n: 1,
-      }),
+    let [coverBuf, contentBuf] = await Promise.all([
+      generateSlideFromPrompt(
+        `Create an illustrated scene for a video explainer in this style: ${styleDescription}. Scene: A welcoming, establishing shot that introduces "${companyName}". Show a warm, inviting visual metaphor — like opening a door, sunrise over a landscape, or a friendly guide welcoming the viewer. Rich illustrated artwork filling the entire 1920x1080 canvas. No text, no UI elements, no slide layouts — pure illustrated scene. Leave bottom 100px as a clean solid bar area for branding overlay.`
+      ),
+      generateSlideFromPrompt(
+        `Create an illustrated scene for a video explainer in this style: ${styleDescription}. Scene: A visual metaphor showing growth, protection, or progress — like a shield protecting a family, a tree growing strong, or a path leading forward. Rich illustrated artwork filling the entire 1920x1080 canvas. No text, no UI elements, no slide layouts — pure illustrated scene. Leave bottom 100px as a clean solid bar area for branding overlay.`
+      ),
     ])
-
-    let coverBuf: Buffer | null = coverRes.data?.[0]?.b64_json ? Buffer.from(coverRes.data[0].b64_json, 'base64') : null
-    let contentBuf: Buffer | null = contentRes.data?.[0]?.b64_json ? Buffer.from(contentRes.data[0].b64_json, 'base64') : null
 
     // Composite logo onto slides if available
     console.log('[style-preview-from-brand] logoUrl received:', logoUrl ? `"${logoUrl.slice(0, 100)}..."` : 'NONE')
@@ -111,14 +91,16 @@ async function generatePreviewsDirect(styleDescription: string, companyName: str
           const lh = logoMeta.height || 50
 
           if (coverBuf) {
+            const baseW = (await sharp(coverBuf).metadata()).width || 1920
             coverBuf = await sharp(coverBuf)
-              .composite([{ input: logoResized, top: 20, left: 1536 - lw - 20 }])
+              .composite([{ input: logoResized, top: 20, left: baseW - lw - 20 }])
               .png()
               .toBuffer()
           }
           if (contentBuf) {
+            const baseW = (await sharp(contentBuf).metadata()).width || 1920
             contentBuf = await sharp(contentBuf)
-              .composite([{ input: logoResized, top: 20, left: 1536 - lw - 20 }])
+              .composite([{ input: logoResized, top: 20, left: baseW - lw - 20 }])
               .png()
               .toBuffer()
           }

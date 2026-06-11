@@ -159,9 +159,11 @@ export async function POST(request: Request) {
     recipientName?: string
   }
 
-  // Pipeline v2 (Inngest + Creatomate) — opt-in via env flag; podcast mode
-  // still uses the VPS (multi-voice dialogue not yet ported).
-  const useV2 = process.env.USE_PIPELINE_V2 === 'true' && (narrationStyle || 'solo') !== 'podcast'
+  // Podcast (two-voice) mode sunset 2026-06-11 — all videos render solo
+  const effectiveNarrationStyle = 'solo' as const
+
+  // Pipeline v2 (Inngest + Creatomate) — opt-in via env flag
+  const useV2 = process.env.USE_PIPELINE_V2 === 'true'
 
   // --- GUARD: Duplicate submission prevention ---
   if (inFlightVideos.has(videoId)) {
@@ -195,7 +197,7 @@ export async function POST(request: Request) {
     const videoCost = calculateVideoCost({
       outputType: (body as any).outputType || 'video',
       detailLevel: (body as any).detailLevel || (detailed ? 'detailed' : 'standard'),
-      narrationStyle: narrationStyle || 'solo',
+      narrationStyle: effectiveNarrationStyle,
     })
 
     const creditCheck = await checkCredits(user.id, videoCost)
@@ -389,7 +391,7 @@ export async function POST(request: Request) {
       // Script generation with 60s timeout
       try {
         scenes = await Promise.race([
-          generateScript(policyData, brand?.name ?? null, colors, detailed ?? false, 0, voiceId, (brand as any)?.tone ?? undefined, contactInfoForScript, purpose, uploadMode, industry, (body as any).detailLevel || (detailed ? 'detailed' : 'standard'), narrationStyle, (policyData as any)?.classification ?? null),
+          generateScript(policyData, brand?.name ?? null, colors, detailed ?? false, 0, voiceId, (brand as any)?.tone ?? undefined, contactInfoForScript, purpose, uploadMode, industry, (body as any).detailLevel || (detailed ? 'detailed' : 'standard'), effectiveNarrationStyle, (policyData as any)?.classification ?? null),
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Script generation timed out. This document may be too large — try pasting the key sections instead.')), 60000)),
         ])
       } catch (scriptErr) {
@@ -719,7 +721,7 @@ export async function POST(request: Request) {
         barText: barText || undefined,
         musicPrompt: musicPrompt || (aiMusic ? 'Professional ambient background music, subtle and warm' : ''),
         industry: industry || '',
-        narrationStyle: narrationStyle || 'solo',
+        narrationStyle: effectiveNarrationStyle,
         styleId: templateId || 'apex-corporate',
         customStylePrompt: customStylePrompt || undefined,
         templateRefUrl: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com'}/style-previews/${templateId}.png`,
