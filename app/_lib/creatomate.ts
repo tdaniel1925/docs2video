@@ -5,7 +5,9 @@
  * sequences the Gemini slides with the TTS audio and encodes the MP4.
  */
 
-const RENDERS_URL = 'https://api.creatomate.com/v2/renders'
+// v1 is the stable raw-source API. v2 ignores source-level output_format and
+// renders a JPEG preview — verified empirically 2026-06-11.
+const RENDERS_URL = 'https://api.creatomate.com/v1/renders'
 const SCENE_FADE_SEC = 0.5
 const CLOSING_HOLD_SEC = 0.75
 
