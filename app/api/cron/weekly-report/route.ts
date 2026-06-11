@@ -124,7 +124,7 @@ export async function GET(request: Request) {
 
     const { data: profiles } = await admin
       .from('profiles')
-      .select('id, email, full_name, is_admin')
+      .select('id, email, full_name, is_admin, nurture_sent')
       .in('id', userIds)
 
     if (!profiles) {
@@ -135,6 +135,7 @@ export async function GET(request: Request) {
     for (const profile of profiles) {
       if (profile.is_admin) continue // Skip admins
       if (!profile.email) continue
+      if ((profile as any).nurture_sent?.unsubscribed) continue // Honor opt-out
 
       const videoViews = userVideoViews[profile.id]
       if (!videoViews || videoViews.length === 0) continue
@@ -156,7 +157,10 @@ export async function GET(request: Request) {
       }).join('')
 
       try {
-        const html = weeklyReportHtml(firstName, totalViews, videoRows)
+        const html = weeklyReportHtml(firstName, totalViews, videoRows).replace(
+          '<a href="https://docs2video.com/privacy" style="color:#aaa;">Privacy Policy</a> &bull;',
+          `<a href="https://docs2video.com/privacy" style="color:#aaa;">Privacy Policy</a> &bull;\n      <a href="https://docs2video.com/api/email-prefs?uid=${profile.id}" style="color:#aaa;">Unsubscribe</a> &bull;`
+        )
         await resend.emails.send({
           from: 'Docs2Video <reports@docs2video.com>',
           to: profile.email,

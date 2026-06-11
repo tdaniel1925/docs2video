@@ -123,6 +123,8 @@ export const renderVideoV2 = inngest.createFunction(
         progress_detail: 'Assembling your video...',
         progress_pct: 70,
         slide_urls: slideUrls,
+        // Cover slide doubles as the thumbnail (library cards, share emails, poster)
+        thumbnail_url: slideUrls[0],
       }).eq('id', videoId)
 
       const source = buildRenderSource(

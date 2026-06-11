@@ -10,7 +10,7 @@ function getResend() {
   return new Resend(process.env.RESEND_API_KEY!)
 }
 
-function nurtureMail(subject: string, heading: string, body: string, ctaText: string, ctaUrl: string): string {
+function nurtureMail(subject: string, heading: string, body: string, ctaText: string, ctaUrl: string, unsubUrl: string): string {
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -32,6 +32,7 @@ function nurtureMail(subject: string, heading: string, body: string, ctaText: st
     <p style="margin:0;font-size:11px;color:#aaa;">
       Docs2Video &mdash; Turn any document into a professional video.<br/>
       <a href="https://docs2video.com/privacy" style="color:#aaa;">Privacy Policy</a> &bull;
+      <a href="${unsubUrl}" style="color:#aaa;">Unsubscribe</a> &bull;
       <a href="https://docs2video.com" style="color:#aaa;">docs2video.com</a>
     </p>
   </td></tr>
@@ -96,8 +97,14 @@ export async function GET(request: Request) {
 
     const PAID_STATUSES = ['active', 'pro', 'professional', 'starter', 'business', 'enterprise', 'enterprise-plus', 'enterprise_plus', 'agency']
 
+    // First-run backlog protection: drip the queue, don't blast it.
+    // A sudden burst from this domain would hurt sender reputation.
+    const MAX_SENDS_PER_RUN = 50
+
     for (const profile of eligible) {
+      if (sentCount >= MAX_SENDS_PER_RUN) break
       const nurtureSent: Record<string, string> = profile.nurture_sent ?? {}
+      if (nurtureSent.unsubscribed) continue
       const userVideos = videosByUser[profile.id] ?? []
       const completedVideos = userVideos.filter(v => v.status === 'completed')
       const firstName = profile.full_name?.split(' ')[0] ?? ''
@@ -209,7 +216,7 @@ export async function GET(request: Request) {
       // Send the email if one was selected
       if (emailKey) {
         try {
-          const html = nurtureMail(subject, heading, body, ctaText, ctaUrl)
+          const html = nurtureMail(subject, heading, body, ctaText, ctaUrl, `https://docs2video.com/api/email-prefs?uid=${profile.id}`)
           await resend.emails.send({
             from: 'Docs2Video <support@docs2video.com>',
             to: profile.email,

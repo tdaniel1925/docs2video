@@ -33,7 +33,7 @@ export async function proxy(request: NextRequest) {
   // Machine-to-machine endpoints — these authenticate themselves (webhook
   // signatures, cron secrets, Inngest signing keys) and must never be
   // redirected to the login page.
-  const machinePaths = ['/api/webhooks', '/api/cron', '/api/inngest', '/api/email-track', '/api/stripe/webhook']
+  const machinePaths = ['/api/webhooks', '/api/cron', '/api/inngest', '/api/email-track', '/api/email-prefs', '/api/stripe/webhook']
   if (machinePaths.some(p => pathname.startsWith(p))) {
     return response
   }

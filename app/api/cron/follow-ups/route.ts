@@ -62,14 +62,17 @@ export async function GET(request: Request) {
       .from('sent_emails')
       .select('video_id, email_type')
       .in('video_id', videoIds)
-      .in('email_type', ['follow_up_3day', 'follow_up_7day'])
+      .in('email_type', ['follow_up_1day', 'follow_up_3day', 'follow_up_7day'])
 
     const sentFollowUps = new Set(
       (existingFollowUps ?? []).map(f => `${f.video_id}:${f.email_type}`)
     )
 
     // Process each view
+    // Backlog protection — first run drains months of history gradually
+    const MAX_SENDS_PER_RUN = 25
     for (const view of views) {
+      if (sentCount >= MAX_SENDS_PER_RUN) break
       if (!quotedVideoIds.has(view.video_id)) continue
 
       const viewAge = now.getTime() - new Date(view.created_at).getTime()

@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     // and haven't been sent a referral prompt yet
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, email, full_name, referral_code, is_admin, referral_prompt_sent')
+      .select('id, email, full_name, referral_code, is_admin, referral_prompt_sent, nurture_sent')
       .eq('is_admin', false)
       .or('referral_prompt_sent.is.null,referral_prompt_sent.eq.false')
 
@@ -37,7 +37,12 @@ export async function GET(request: Request) {
 
     const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
+    // Backlog protection: drip the queue, honor opt-outs
+    const MAX_SENDS_PER_RUN = 25
+
     for (const profile of profiles) {
+      if (sentCount >= MAX_SENDS_PER_RUN) break
+      if ((profile as any).nurture_sent?.unsubscribed) continue
       try {
         // Count completed videos for this user
         const { count } = await supabase
@@ -97,7 +102,8 @@ export async function GET(request: Request) {
                 <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
                 <p style="font-size: 11px; color: #999; text-align: center;">
                   Docs2Video &mdash; Turn any document into a professional video explainer.<br/>
-                  <a href="https://docs2video.com/privacy" style="color: #999;">Privacy Policy</a>
+                  <a href="https://docs2video.com/privacy" style="color: #999;">Privacy Policy</a> &bull;
+                  <a href="https://docs2video.com/api/email-prefs?uid=${profile.id}" style="color: #999;">Unsubscribe</a>
                 </p>
               </div>
             `,
