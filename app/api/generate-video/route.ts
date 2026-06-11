@@ -590,7 +590,18 @@ export async function POST(request: Request) {
 
       // 1 slide per scene — headline + key points only, narration is spoken not displayed
       const fp = scene.framePrompts?.[0] || scene.slidePrompt || scene.title
-      return `${stylePrompt}\n\n${fp}\n\nTopic context (for visual inspiration only, do NOT put this text on the slide): "${scene.narration?.slice(0, 150)}"\n\nCRITICAL TEXT RULE: Maximum 25 words of visible text on this slide. Use a short headline (3-6 words), 2-4 bullet points (3-5 words each), and large numbers/icons. The narration provides the detail — the slide is VISUAL SUPPORT only. NO paragraphs, NO sentences, NO long text blocks.\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette. No logos, no brand marks, no fictional emblems. NEVER invent phone numbers, emails, or URLs — only display contact info if explicitly provided.`
+
+      // Build contact bar from brand data — show on every slide if available
+      const brandContact = [
+        brandGuide?.phone || (policyData as any)?.contactPhone,
+        brandGuide?.email || (policyData as any)?.contactEmail,
+        brandGuide?.website || (policyData as any)?.contactWebsite,
+      ].filter(Boolean)
+      const contactBarInstruction = brandContact.length > 0
+        ? `\n\nCONTACT BAR: Display a thin footer bar at the bottom of this slide with: ${brandContact.join(' | ')}. Use the brand primary color for the bar background with white text.`
+        : '\n\nNEVER invent phone numbers, emails, or URLs — no contact info on this slide.'
+
+      return `${stylePrompt}\n\n${fp}\n\nTopic context (for visual inspiration only, do NOT put this text on the slide): "${scene.narration?.slice(0, 150)}"\n\nCRITICAL TEXT RULE: Maximum 25 words of visible text on this slide (NOT counting the contact bar). Use a short headline (3-6 words), 2-4 bullet points (3-5 words each), and large numbers/icons. The narration provides the detail — the slide is VISUAL SUPPORT only. NO paragraphs, NO sentences, NO long text blocks.\n\nCRITICAL COLOR RULE: Use brand colors prominently — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. These colors MUST dominate the palette. No logos, no brand marks, no fictional emblems.${contactBarInstruction}`
     })
 
     // Video metadata
