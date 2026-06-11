@@ -24,6 +24,9 @@ export default function Step1Content() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const clientId = searchParams.get('clientId') || undefined
+  // If we arrived back here from a later step, a draft already exists — reuse it
+  // instead of creating a second orphaned row.
+  const existingDraftId = searchParams.get('id') || undefined
   const [outputType, setOutputType] = useState<OutputType>('video')
   const [recipientName, setRecipientName] = useState('')
 
@@ -40,6 +43,24 @@ export default function Step1Content() {
       .catch(() => { /* non-fatal — user can type the name */ })
     return () => { cancelled = true }
   }, [clientId])
+
+  // Returning to this step from a later one — restore what was entered so the
+  // form isn't blank (the draft already holds it).
+  useEffect(() => {
+    if (!existingDraftId) return
+    let cancelled = false
+    fetch(`/api/videos/draft?videoId=${existingDraftId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(video => {
+        const d = video?.draft_data
+        if (cancelled || !d) return
+        if (d.outputType) setOutputType(d.outputType)
+        if (d.purpose) setPurpose(prev => prev || d.purpose)
+        if (d.recipientName) setRecipientName(prev => prev || d.recipientName)
+      })
+      .catch(() => { /* non-fatal */ })
+    return () => { cancelled = true }
+  }, [existingDraftId])
   const [purpose, setPurpose] = useState('')
   const [method, setMethod] = useState<InputMethod>(null)
   const [urlInput, setUrlInput] = useState('')
@@ -75,28 +96,57 @@ export default function Step1Content() {
     setStageMsg('Setting up your project...')
     setStage('extracting')
     try {
-      const draftRes = await fetch('/api/videos/draft', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          outputType,
-          purpose: purpose.trim(),
-          recipientName: recipientName.trim() || undefined,
-          clientId,
-          extractedData,
-          contentMethod: method || 'idea',
-          autoBrandInfo,
-          ...(overrides?.styleId ? { styleId: overrides.styleId } : {}),
-          ...(extractedData?.classification ? { classification: extractedData.classification } : {}),
-        }),
-      })
-      const draftData = await draftRes.json()
-      if (!draftRes.ok) {
-        // Show the server's actual error — a generic "credits" message here
-        // once masked a tier-gate bug for 9 days
-        setError(draftData.error || (draftRes.status === 402 ? 'Not enough credits. Upgrade your plan or buy more credits.' : 'Failed to create project'))
-        setStage('idle')
-        return
+      let draftData: { videoId: string; error?: string }
+      if (existingDraftId) {
+        // Reuse the existing draft — update it rather than spawning a new row
+        const patchRes = await fetch('/api/videos/draft', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            videoId: existingDraftId,
+            updates: {
+              outputType,
+              purpose: purpose.trim(),
+              recipientName: recipientName.trim() || undefined,
+              clientId,
+              extractedData,
+              contentMethod: method || 'idea',
+              ...(overrides?.styleId ? { styleId: overrides.styleId } : {}),
+              ...(extractedData?.classification ? { classification: extractedData.classification } : {}),
+            },
+          }),
+        })
+        if (!patchRes.ok) {
+          const err = await patchRes.json().catch(() => ({}))
+          setError(err.error || 'Failed to update project')
+          setStage('idle')
+          return
+        }
+        draftData = { videoId: existingDraftId }
+      } else {
+        const draftRes = await fetch('/api/videos/draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            outputType,
+            purpose: purpose.trim(),
+            recipientName: recipientName.trim() || undefined,
+            clientId,
+            extractedData,
+            contentMethod: method || 'idea',
+            autoBrandInfo,
+            ...(overrides?.styleId ? { styleId: overrides.styleId } : {}),
+            ...(extractedData?.classification ? { classification: extractedData.classification } : {}),
+          }),
+        })
+        draftData = await draftRes.json()
+        if (!draftRes.ok) {
+          // Show the server's actual error — a generic "credits" message here
+          // once masked a tier-gate bug for 9 days
+          setError(draftData.error || (draftRes.status === 402 ? 'Not enough credits. Upgrade your plan or buy more credits.' : 'Failed to create project'))
+          setStage('idle')
+          return
+        }
       }
 
       // If style was pre-selected, save it to the draft and skip brand+style steps

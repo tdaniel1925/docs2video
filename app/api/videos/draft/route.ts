@@ -128,6 +128,7 @@ export async function PATCH(request: NextRequest) {
   if (updates.brandId) updatePayload.brand_id = updates.brandId
   if (updates.outputType) updatePayload.output_type = updates.outputType
   if (updates.detailLevel) updatePayload.detail_level = updates.detailLevel
+  if (updates.clientId) updatePayload.client_id = updates.clientId
 
   const { error: updateError } = await admin
     .from('videos')
