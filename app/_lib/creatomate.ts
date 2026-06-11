@@ -24,7 +24,49 @@ export interface RenderMetadata {
   deductedCost: number
 }
 
-export function buildRenderSource(scenes: RenderScene[], musicUrl?: string | null) {
+export interface BrandOverlays {
+  /** Composited as crisp text — Gemini never renders brand names */
+  brandName?: string | null
+  title?: string
+  contactLine?: string
+  primaryColor?: string
+}
+
+function textElement(opts: {
+  text: string
+  time: number
+  duration: number
+  y: string
+  height: string
+  weight: string
+  background: string
+}): Record<string, unknown> {
+  return {
+    type: 'text',
+    track: 4,
+    time: opts.time,
+    duration: opts.duration,
+    text: opts.text,
+    y: opts.y,
+    width: '76%',
+    height: opts.height,
+    x_alignment: '50%',
+    y_alignment: '50%',
+    font_family: 'Plus Jakarta Sans',
+    font_weight: opts.weight,
+    fill_color: '#FFFFFF',
+    background_color: opts.background,
+    background_border_radius: '10%',
+    background_x_padding: '28%',
+    background_y_padding: '24%',
+  }
+}
+
+export function buildRenderSource(
+  scenes: RenderScene[],
+  musicUrl?: string | null,
+  overlays?: BrandOverlays
+) {
   const elements: Record<string, unknown>[] = []
   let t = 0
 
@@ -52,6 +94,42 @@ export function buildRenderSource(scenes: RenderScene[], musicUrl?: string | nul
     })
     t += slideDuration
   })
+
+  // Brand text overlays on cover (first) and closing (last) slides —
+  // mirrors the VPS, which composites name/title as text over decorative art.
+  if (overlays && scenes.length > 0) {
+    const dark = 'rgba(10,22,40,0.55)'
+    const coverDur = scenes[0].duration + (scenes.length === 1 ? CLOSING_HOLD_SEC : 0)
+    if (overlays.brandName) {
+      elements.push(textElement({
+        text: overlays.brandName, time: 0, duration: coverDur,
+        y: '36%', height: '11%', weight: '800', background: dark,
+      }))
+    }
+    if (overlays.title) {
+      elements.push(textElement({
+        text: overlays.title, time: 0, duration: coverDur,
+        y: overlays.brandName ? '52%' : '44%', height: '8%', weight: '600', background: dark,
+      }))
+    }
+    if (scenes.length > 1) {
+      const last = scenes[scenes.length - 1]
+      const lastStart = t - (last.duration + CLOSING_HOLD_SEC)
+      const lastDur = last.duration + CLOSING_HOLD_SEC
+      if (overlays.brandName) {
+        elements.push(textElement({
+          text: overlays.brandName, time: lastStart, duration: lastDur,
+          y: '38%', height: '10%', weight: '800', background: dark,
+        }))
+      }
+      if (overlays.contactLine) {
+        elements.push(textElement({
+          text: overlays.contactLine, time: lastStart, duration: lastDur,
+          y: '53%', height: '6%', weight: '600', background: dark,
+        }))
+      }
+    }
+  }
 
   if (musicUrl) {
     elements.push({

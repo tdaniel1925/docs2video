@@ -664,6 +664,14 @@ export async function POST(request: Request) {
       if (aiMusic || musicPrompt) {
         console.warn(`[video ${videoId}] Pipeline v2 does not support AI music yet — continuing without it`)
       }
+      // Cover/closing in v2 are pure decorative backgrounds — brand name and
+      // title are overlaid as real text by Creatomate (mirrors VPS behavior,
+      // where these prompts are ignored and text is composited with Sharp).
+      const v2Prompts = [...allSlidePrompts]
+      const v2ColorRule = `Use brand colors prominently: primary ${brandColors.primary}, secondary ${brandColors.secondary}. These colors MUST dominate the palette.`
+      v2Prompts[0] = `${stylePrompt}\n\nCreate a stunning decorative BACKGROUND artwork for a premium video title card. Rich depth, layered composition, abstract shapes and visual metaphors. Keep the CENTER of the image (middle 60%) visually calm and uncluttered — large text will be overlaid there. ${v2ColorRule}\n\nABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO LOGOS, NO RESERVED BLANK BOXES anywhere. Pure illustrated artwork filling the entire 1920x1080 canvas.`
+      v2Prompts[v2Prompts.length - 1] = `${stylePrompt}\n\nCreate a stunning decorative BACKGROUND artwork for a video closing card. Warm, hopeful, conclusive feel — soft light, path toward a bright horizon. Keep the CENTER of the image (middle 60%) visually calm and uncluttered — text will be overlaid there. ${v2ColorRule}\n\nABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO LOGOS, NO RESERVED BLANK BOXES anywhere. Pure illustrated artwork filling the entire 1920x1080 canvas.`
+
       await admin.from('videos').update({ progress_detail: 'Queueing video pipeline...', progress_pct: 18 }).eq('id', videoId)
       await inngest.send({
         name: 'video/render.v2',
@@ -672,9 +680,13 @@ export async function POST(request: Request) {
           userId: user.id,
           voiceId,
           scenes: allScenes.map((s: any) => ({ narration: s.narration || '' })),
-          slidePrompts: allSlidePrompts,
+          slidePrompts: v2Prompts,
           deductedCost,
           musicUrl: musicUrl || undefined,
+          brandName: effectiveBrandName || undefined,
+          videoTitle,
+          contactLine: contactLine || undefined,
+          primaryColor: brandColors.primary,
         },
       })
       return NextResponse.json({ success: true, pipeline: 'v2' })

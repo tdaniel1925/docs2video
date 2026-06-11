@@ -17,6 +17,10 @@ export interface RenderV2Event {
   slidePrompts: string[]
   deductedCost: number
   musicUrl?: string
+  brandName?: string
+  videoTitle?: string
+  contactLine?: string
+  primaryColor?: string
 }
 
 /**
@@ -54,7 +58,7 @@ export const renderVideoV2 = inngest.createFunction(
     },
   },
   async ({ event, step }) => {
-    const { videoId, userId, voiceId, scenes, slidePrompts, deductedCost, musicUrl } =
+    const { videoId, userId, voiceId, scenes, slidePrompts, deductedCost, musicUrl, brandName, videoTitle, contactLine, primaryColor } =
       event.data as RenderV2Event
     const admin = createAdminClient()
 
@@ -126,7 +130,8 @@ export const renderVideoV2 = inngest.createFunction(
           audioUrl: audios[i].url,
           duration: audios[i].duration,
         })),
-        musicUrl
+        musicUrl,
+        { brandName, title: videoTitle, contactLine, primaryColor }
       )
       const { id } = await startRender(source, { videoId, userId, deductedCost })
       console.log(`[pipeline-v2 ${videoId}] Creatomate render started: ${id}`)
