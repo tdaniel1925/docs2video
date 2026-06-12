@@ -224,6 +224,7 @@ export default function AdminPage() {
         <Link href="/admin/revenue" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Revenue</Link>
         <Link href="/admin/campaigns" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Campaigns</Link>
         <Link href="/admin/bulk" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Bulk Generate</Link>
+        <Link href="/admin/api-keys" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>API Keys</Link>
         <Link href="/admin/help" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Help Articles</Link>
       </div>
 

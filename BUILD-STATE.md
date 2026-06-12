@@ -73,6 +73,7 @@
 | Resend | `RESEND_API_KEY` | Email delivery |
 | Twilio | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` | SMS notifications |
 | Video VPS | `VIDEO_ASSEMBLY_URL`, `VIDEO_ASSEMBLY_SECRET` | External FFmpeg server |
+| Public API | `INTERNAL_API_SECRET` | Trusted header for v1 API → internal route calls (required to enable `/api/v1`) |
 | App Config | `NEXT_PUBLIC_SITE_URL`, `ADMIN_EMAIL`, `IMAGE_MODEL` | App settings |
 
 ---
@@ -146,6 +147,7 @@ Commerce: quotes, email_connections, sent_emails
 CRM: clients, client_activities (+ videos.client_id FK)
 Social: social_shares, affiliates, referrals
 Admin: campaigns, notifications, jobs, feedback
+Public API: api_keys, api_credit_balances, api_usage_log
 Auth: managed by Supabase Auth
 
 ### Client Management System (added 2026-05-25)
@@ -156,6 +158,18 @@ Auth: managed by Supabase Auth
 - **Pages**: `/clients` (list with stats, search, status filters, add form, CSV import/export), `/clients/[id]` (detail with tabs: activity, videos, emails, payments)
 - **Activity wiring**: send-video-email and send-email routes auto-create/update client records and log activities; track-view logs video_viewed/video_played activities to matching clients
 - **Migration**: `supabase-clients-migration.sql` (run against Supabase to create tables + RLS)
+
+### Public Video-Generation API v1 (added 2026-06-12)
+- **Purpose**: let other apps generate videos/PPTX/PDF from text, URL, file upload, or an AI idea — programmatically.
+- **Auth**: `Authorization: Bearer d2v_live_…`. Admin-issued keys only; SHA-256 hash stored, raw key shown once.
+- **Credit pool**: separate metered `api_credit_balances` (NOT the UI `credit_balances`). Charged on accept, auto-refunded on failure.
+- **Endpoints**: `POST /api/v1/videos` (async → `job_id`), `GET /api/v1/videos/[id]` (poll), `GET /api/v1/credits`.
+- **Reuse**: v1 routes call the existing extraction + generate-video routes server-to-server with an `x-internal-service` trusted header (`INTERNAL_API_SECRET`) + `x-internal-user-id`. Those routes gained a guarded internal-auth branch (`resolveRequestUser` in `app/_lib/api-auth.ts`) that acts as the resolved user and skips UI-credit gates (already metered at v1 layer). No refactor of working generation logic.
+- **Webhook callback**: optional `webhook_url` in the create body; `app/_lib/api-webhook.ts` POSTs the job payload on completion/failure (fires on the Creatomate v2 path + the generate-video failure path; poll is the source of truth on the legacy VPS path).
+- **Admin UI**: `/admin/api-keys` (page) + `POST/GET /api/admin/api-keys` — create/revoke keys, top up the API pool.
+- **Migration**: `supabase-api-migration.sql` (api_keys, api_credit_balances, api_usage_log + indexes, RLS-deny).
+- **Env**: requires `INTERNAL_API_SECRET` set; API returns 503 until it is.
+- **Docs**: `API.md`.
 
 ---
 

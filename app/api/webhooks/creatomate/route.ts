@@ -3,6 +3,8 @@ import { createAdminClient } from '../../../_lib/supabase/admin'
 import { getRender } from '../../../_lib/creatomate'
 import { addTopupCredits } from '../../../_lib/credits'
 import { sendNotification } from '../../../_lib/notify'
+import { fireApiWebhook } from '../../../_lib/api-webhook'
+import { refundApiCredits } from '../../../_lib/api-auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -72,6 +74,7 @@ export async function POST(request: Request) {
         message: 'Your video has finished rendering.',
         link: `/videos/${videoId}`,
       })
+      await fireApiWebhook(videoId)
       console.log(`[creatomate-webhook] Video ${videoId} completed (render ${renderId})`)
       return NextResponse.json({ received: true })
     } catch (err) {
@@ -84,9 +87,22 @@ export async function POST(request: Request) {
   if (render.status === 'failed') {
     const message = render.error_message || 'Video rendering failed'
     console.error(`[creatomate-webhook] Render failed for video ${videoId}: ${message}`)
+
+    // API jobs are metered against the API credit pool, not UI credits.
+    const { data: vrow } = await admin
+      .from('videos')
+      .select('draft_data')
+      .eq('id', videoId)
+      .single()
+    const isApiJob = (vrow?.draft_data as any)?.source === 'api'
+
     if (deductedCost && deductedCost > 0) {
       try {
-        await addTopupCredits(userId, deductedCost, `refund: failed video ${videoId}`)
+        if (isApiJob) {
+          await refundApiCredits(userId, deductedCost)
+        } else {
+          await addTopupCredits(userId, deductedCost, `refund: failed video ${videoId}`)
+        }
       } catch (refundErr) {
         console.error(`[creatomate-webhook] Refund failed for video ${videoId}:`, refundErr)
       }
@@ -101,6 +117,7 @@ export async function POST(request: Request) {
       message,
       link: `/videos/${videoId}`,
     })
+    await fireApiWebhook(videoId)
     return NextResponse.json({ received: true })
   }
 

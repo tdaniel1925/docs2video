@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
+import { resolveRequestUser } from '../../_lib/api-auth'
 import { logError } from '../../_lib/error-logger'
 import Anthropic from '@anthropic-ai/sdk'
 import { CONTENT_STRUCTURING_SYSTEM_PROMPT } from '../../_lib/prompts'
@@ -18,10 +19,11 @@ export async function POST(request: Request & { nextUrl?: URL }) {
   const url = new URL(request.url)
   const uploadMode = url.searchParams.get('mode') || 'summarize'
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const resolved = await resolveRequestUser(request, async () => (await supabase.auth.getUser()).data.user)
+  if (!resolved) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
+  const user = { id: resolved.userId }
 
   const rl = rateLimit(getRateLimitKey(user.id, 'extraction'), LIMITS.extraction.limit, LIMITS.extraction.windowMs)
   if (!rl.allowed) {

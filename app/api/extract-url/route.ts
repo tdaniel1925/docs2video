@@ -8,6 +8,7 @@ import { scrapeBrand } from '../../_lib/brand-scraper'
 import { THEME_PROMPT, EXTRACTION_PROMPT } from '../../_lib/prompts'
 import { wrapUserData } from '../../_lib/prompt-safety'
 import { classifyFromText } from '../../_lib/document-classifier'
+import { resolveRequestUser } from '../../_lib/api-auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -44,19 +45,24 @@ function stripHtml(html: string): string {
 
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const resolved = await resolveRequestUser(request, async () => (await supabase.auth.getUser()).data.user)
+  if (!resolved) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
+  const user = { id: resolved.userId }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin, is_beta, credits_remaining')
-    .eq('id', user.id)
-    .single()
+  // Internal API calls are metered against the API credit pool at the /api/v1
+  // layer, so skip the UI credit gate here.
+  if (!resolved.isInternal) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_admin, is_beta, credits_remaining')
+      .eq('id', user.id)
+      .single()
 
-  if (!profile?.is_admin && !profile?.is_beta && (!profile || profile.credits_remaining <= 0)) {
-    return NextResponse.json({ error: 'No credits remaining' }, { status: 403 })
+    if (!profile?.is_admin && !profile?.is_beta && (!profile || profile.credits_remaining <= 0)) {
+      return NextResponse.json({ error: 'No credits remaining' }, { status: 403 })
+    }
   }
 
   const body = await request.json()

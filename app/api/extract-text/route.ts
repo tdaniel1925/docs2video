@@ -3,6 +3,7 @@ import { createClient } from '../../_lib/supabase/server'
 import { GoogleGenAI } from '@google/genai'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
+import { resolveRequestUser } from '../../_lib/api-auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -41,10 +42,11 @@ Rules:
 
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const resolved = await resolveRequestUser(request, async () => (await supabase.auth.getUser()).data.user)
+  if (!resolved) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
+  const user = { id: resolved.userId }
 
   const rl = rateLimit(getRateLimitKey(user.id, 'extraction'), LIMITS.extraction.limit, LIMITS.extraction.windowMs)
   if (!rl.allowed) {

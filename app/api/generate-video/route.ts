@@ -98,8 +98,25 @@ export function isSceneSuspiciouslyShort(scene: any): boolean {
 }
 
 export async function POST(request: Request) {
+  // --- Internal service auth (public API v1) ---
+  // The /api/v1 layer authenticates the API key, charges the SEPARATE API
+  // credit pool, then calls this route server-to-server with a trusted header
+  // and the resolved owner's user id. When that header is valid we act as that
+  // user and skip the session lookup + UI-credit deduction (already metered).
+  const internalSecret = (process.env.INTERNAL_API_SECRET || '').trim()
+  const reqInternalSecret = (request.headers.get('x-internal-service') || '').trim()
+  const internalUserId = request.headers.get('x-internal-user-id') || ''
+  const isInternalCall =
+    !!internalSecret && reqInternalSecret === internalSecret && !!internalUserId
+
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  let user: { id: string; email?: string } | null = null
+  if (isInternalCall) {
+    user = { id: internalUserId }
+  } else {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  }
   if (!user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
@@ -110,7 +127,10 @@ export async function POST(request: Request) {
   }
 
   // --- Credit check ---
-  const { data: profile } = await supabase
+  // Use the admin (service-role) client for profile/credit reads on internal
+  // calls — there is no session to scope the anon client.
+  const db = isInternalCall ? createAdminClient() : supabase
+  const { data: profile } = await db
     .from('profiles')
     .select('subscription_status, referred_by, card_on_file, free_videos_remaining, is_admin, is_beta')
     .eq('id', user.id)
@@ -121,8 +141,10 @@ export async function POST(request: Request) {
   const hasReferralDiscount = !!profile?.referred_by
   const cardOnFile = profile?.card_on_file ?? false
   const freeRemaining = profile?.free_videos_remaining ?? 0
-  // Admin via email list OR the profiles.is_admin/is_beta DB flags
-  const isPrivileged = isAdmin(user.email) || profile?.is_admin === true || profile?.is_beta === true
+  // Admin via email list OR the profiles.is_admin/is_beta DB flags.
+  // Internal API calls are already metered against the API credit pool by the
+  // /api/v1 layer, so they bypass UI-credit checks here.
+  const isPrivileged = isInternalCall || isAdmin(user.email) || profile?.is_admin === true || profile?.is_beta === true
 
   if (!isPrivileged) {
     if (!isPaidUser && !hasReferralDiscount) {
@@ -222,7 +244,7 @@ export async function POST(request: Request) {
 
   let brand: Brand | null = null
   if (brandId) {
-    const { data } = await supabase.from('brands').select('*').eq('id', brandId).single()
+    const { data } = await db.from('brands').select('*').eq('id', brandId).single()
     brand = data as Brand | null
   }
 
@@ -775,6 +797,22 @@ export async function POST(request: Request) {
       message,
       link: `/videos/${videoId}`,
     })
+    // API jobs: refund the metered API pool (UI pool was never charged) and
+    // fire the caller's webhook so external apps learn of the failure.
+    if (isInternalCall) {
+      const { data: vrow } = await admin.from('videos').select('draft_data').eq('id', videoId).single()
+      const dd = (vrow?.draft_data as any) || {}
+      if (dd.source === 'api') {
+        try {
+          const { refundApiCredits } = await import('../../_lib/api-auth')
+          const { fireApiWebhook } = await import('../../_lib/api-webhook')
+          if (dd.apiCost && dd.apiCost > 0) await refundApiCredits(user.id, dd.apiCost)
+          await fireApiWebhook(videoId)
+        } catch (e) {
+          console.error(`[video ${videoId}] API failure handling error:`, e)
+        }
+      }
+    }
     return NextResponse.json({ error: message }, { status: 500 })
   } finally {
     // Always clean up in-flight tracking
