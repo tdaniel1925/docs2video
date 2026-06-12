@@ -160,7 +160,7 @@ export function buildRenderSource(
       source: musicUrl,
       time: 0,
       duration: t,
-      volume: '15%',
+      volume: '10%',
       audio_fade_out: 2,
     })
   }

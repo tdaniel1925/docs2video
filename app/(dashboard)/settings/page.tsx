@@ -849,11 +849,24 @@ export default function SettingsPage() {
                 </div>
               </div>
               {(profile as any).stripe_customer_id && (
-                <button onClick={async () => {
-                  const res = await fetch('/api/stripe/portal', { method: 'POST' })
-                  const data = await res.json()
-                  if (data.url) window.location.href = data.url
-                }} className="btn btn-soft">Manage Billing</button>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button onClick={async () => {
+                    const res = await fetch('/api/stripe/portal', { method: 'POST' })
+                    const data = await res.json()
+                    if (data.url) window.location.href = data.url
+                  }} className="btn btn-soft">Manage billing &amp; invoices</button>
+                  {(() => {
+                    const s = profile.subscription_status?.toLowerCase() ?? ''
+                    const paidStatuses = ['active', 'starter', 'pro', 'professional', 'business', 'agency', 'enterprise', 'enterprise-plus', 'enterprise_plus', 'past_due']
+                    return paidStatuses.includes(s) ? (
+                      <button onClick={async () => {
+                        const res = await fetch('/api/stripe/portal', { method: 'POST' })
+                        const data = await res.json()
+                        if (data.url) window.location.href = data.url
+                      }} className="btn btn-soft" style={{ color: '#c03a1f' }}>Cancel subscription</button>
+                    ) : null
+                  })()}
+                </div>
               )}
             </div>
           </div>
