@@ -124,3 +124,39 @@ export async function resetPassword(formData: FormData) {
 
   return { success: 'Check your email for a password reset link.' }
 }
+
+export async function updatePassword(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not signed in.' }
+
+  const newPassword = formData.get('password') as string
+  if (!newPassword || newPassword.length < 8) {
+    return { error: 'Password must be at least 8 characters.' }
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) return { error: error.message }
+  return { success: 'Password updated.' }
+}
+
+export async function updateEmail(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not signed in.' }
+
+  const newEmail = formData.get('email') as string
+  if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(newEmail.trim())) {
+    return { error: 'Please enter a valid email address.' }
+  }
+
+  // Supabase sends confirmation links to BOTH addresses; email isn't changed
+  // until confirmed. Mirror it onto the profile after confirmation via the
+  // auth callback — here we just kick off the secure change.
+  const { error } = await supabase.auth.updateUser(
+    { email: newEmail.trim() },
+    { emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?next=/settings` }
+  )
+  if (error) return { error: error.message }
+  return { success: 'Check both your old and new inbox to confirm the change.' }
+}

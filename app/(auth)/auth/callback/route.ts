@@ -17,12 +17,17 @@ export async function GET(request: Request) {
         try {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('subscription_status')
+            .select('subscription_status, email')
             .eq('id', user.id)
             .single()
           await ensureCreditBalance(user.id, profile?.subscription_status || 'free')
+          // Keep profiles.email in sync with the auth email (covers confirmed
+          // email-change flows — send-email and notifications key off this).
+          if (user.email && profile?.email !== user.email) {
+            await supabase.from('profiles').update({ email: user.email }).eq('id', user.id)
+          }
         } catch (e) {
-          console.error('[auth/callback] Failed to ensure credit balance:', e)
+          console.error('[auth/callback] Failed to ensure credit balance / sync email:', e)
         }
       }
       return NextResponse.redirect(`${origin}${next}`)

@@ -20,9 +20,11 @@ export async function POST(request: Request) {
 
   try {
     const resend = new Resend(process.env.RESEND_API_KEY!)
+    // Route to the support inbox (env-configurable), not a personal address
+    const supportInbox = process.env.SUPPORT_EMAIL || 'support@docs2video.com'
     await resend.emails.send({
       from: 'Docs2Video <noreply@docs2video.com>',
-      to: 'trenttdaniel@gmail.com',
+      to: supportInbox,
       replyTo: email,
       subject: `[Contact] ${cleanSubject || 'General'} — ${cleanName}`,
       text: `Name: ${cleanName}\nEmail: ${email}\nSubject: ${cleanSubject || 'General'}\n\nMessage:\n${cleanMessage}`,

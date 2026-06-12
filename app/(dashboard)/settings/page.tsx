@@ -8,6 +8,7 @@ import SmtpSetupModal from '../../_components/SmtpSetupModal'
 import InlineConfirm from '../../_components/InlineConfirm'
 import { SLIDE_STYLES } from '../../_lib/types'
 import type { Profile, Brand } from '../../_lib/types'
+import { updatePassword, updateEmail } from '../../_actions/auth'
 
 type SettingsTab = 'profile' | 'brand' | 'integrations' | 'subscription'
 
@@ -92,6 +93,25 @@ export default function SettingsPage() {
   const [emailConnections, setEmailConnections] = useState<any[]>([])
   const [showSmtpModal, setShowSmtpModal] = useState(false)
   const [emailMessage, setEmailMessage] = useState<string | null>(null)
+  const [securityMsg, setSecurityMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const [securityBusy, setSecurityBusy] = useState(false)
+
+  async function handlePasswordChange(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setSecurityBusy(true); setSecurityMsg(null)
+    const res = await updatePassword(new FormData(e.currentTarget))
+    setSecurityMsg(res.error ? { kind: 'err', text: res.error } : { kind: 'ok', text: res.success || 'Password updated.' })
+    if (!res.error) e.currentTarget.reset()
+    setSecurityBusy(false)
+  }
+
+  async function handleEmailChange(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setSecurityBusy(true); setSecurityMsg(null)
+    const res = await updateEmail(new FormData(e.currentTarget))
+    setSecurityMsg(res.error ? { kind: 'err', text: res.error } : { kind: 'ok', text: res.success || 'Check your inbox to confirm.' })
+    setSecurityBusy(false)
+  }
   const [testingConnection, setTestingConnection] = useState<string | null>(null)
   const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({})
 
@@ -447,6 +467,30 @@ export default function SettingsPage() {
               </div>
             </div>
           </form>
+
+          {/* Security: change email + password */}
+          <div className="settings-card">
+            <h3>Security</h3>
+            {securityMsg && (
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, color: securityMsg.kind === 'ok' ? 'var(--mint-darker)' : '#c03a1f' }}>
+                {securityMsg.text}
+              </div>
+            )}
+            <form onSubmit={handleEmailChange} style={{ marginBottom: 20 }}>
+              <div className="form-group">
+                <label className="input-label">Change email</label>
+                <input name="email" type="email" className="input" placeholder="new@email.com" defaultValue={profile.email} />
+              </div>
+              <button type="submit" className="btn btn-soft" disabled={securityBusy}>Update email</button>
+            </form>
+            <form onSubmit={handlePasswordChange}>
+              <div className="form-group">
+                <label className="input-label">Change password</label>
+                <input name="password" type="password" className="input" placeholder="New password (min 8 characters)" autoComplete="new-password" />
+              </div>
+              <button type="submit" className="btn btn-soft" disabled={securityBusy}>Update password</button>
+            </form>
+          </div>
 
           {/* Photos */}
           <div className="settings-card">
