@@ -28,6 +28,9 @@ export default function BrandPage() {
 
   const [brands, setBrands] = useState<Brand[]>([])
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null)
+  // When the user has exactly one brand we auto-use it and hide the full
+  // picker behind a "change?" toggle, so the common case is one click.
+  const [showPicker, setShowPicker] = useState(true)
   const [draftData, setDraftData] = useState<DraftData | null>(null)
   const [outputType, setOutputType] = useState<'video' | 'pptx' | 'pdf'>('video')
   const [loading, setLoading] = useState(true)
@@ -78,11 +81,16 @@ export default function BrandPage() {
 
       // Brands
       if (brandsResult.data) {
-        setBrands(brandsResult.data as Brand[])
+        const loaded = brandsResult.data as Brand[]
+        setBrands(loaded)
         // Auto-select the auto-detected brand if present
         if (draft._autoBrandId) {
-          const match = brandsResult.data.find((b: Brand) => b.id === draft._autoBrandId)
+          const match = loaded.find((b: Brand) => b.id === draft._autoBrandId)
           if (match) setSelectedBrandId(match.id)
+        } else if (loaded.length === 1) {
+          // Exactly one brand — pre-select it and collapse the picker
+          setSelectedBrandId(loaded[0].id)
+          setShowPicker(false)
         }
       }
 
@@ -314,17 +322,46 @@ export default function BrandPage() {
         fontFamily: 'inherit',
         animation: 'fadeInUp 0.4s ease',
       }}>
-        Choose your brand
+        Brand for this video
       </h1>
       <p style={{
         fontSize: 17, color: 'var(--ink-soft)', textAlign: 'center',
         marginBottom: 32, lineHeight: 1.6, animation: 'fadeInUp 0.4s ease 0.05s both',
       }}>
-        Select a saved brand or create one for this project.
+        The video uses your brand&rsquo;s colors and contact info. Defaults to your saved brand.
       </p>
 
+      {/* Compact confirm — single brand, auto-selected */}
+      {!showPicker && selectedBrandId && (() => {
+        const b = brands.find(x => x.id === selectedBrandId)
+        if (!b) return null
+        return (
+          <div style={{
+            width: '100%', marginBottom: 24, padding: '16px 20px', borderRadius: 10,
+            border: '1.5px solid var(--mint)', background: 'rgba(199, 232, 168, 0.08)',
+            display: 'flex', alignItems: 'center', gap: 12,
+            animation: 'fadeInUp 0.4s ease 0.1s both',
+          }}>
+            {b.logo_url ? (
+              <img src={b.logo_url} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'contain', background: 'var(--bg-soft)' }} />
+            ) : (
+              <div style={{ width: 40, height: 40, borderRadius: 6, background: b.primary_color || 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: 'white' }}>
+                {b.name.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Using your brand</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{b.name}</div>
+            </div>
+            <button onClick={() => setShowPicker(true)} style={{ background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 14, fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}>
+              Change
+            </button>
+          </div>
+        )
+      })()}
+
       {/* Saved brands */}
-      {brands.length > 0 && (
+      {showPicker && brands.length > 0 && (
         <div style={{ width: '100%', marginBottom: 24, animation: 'fadeInUp 0.4s ease 0.1s both' }}>
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
@@ -413,7 +450,7 @@ export default function BrandPage() {
       )}
 
       {/* Divider / toggle link */}
-      {brands.length > 0 && !selectedBrandId && (
+      {showPicker && brands.length > 0 && !selectedBrandId && (
         <div style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 16,
           marginBottom: 24, animation: 'fadeInUp 0.4s ease 0.15s both',
@@ -427,7 +464,7 @@ export default function BrandPage() {
       )}
 
       {/* "or create new instead" link when a saved brand is selected */}
-      {selectedBrandId && (
+      {showPicker && selectedBrandId && (
         <div style={{ width: '100%', textAlign: 'center', marginBottom: 20 }}>
           <button
             onClick={() => setSelectedBrandId(null)}

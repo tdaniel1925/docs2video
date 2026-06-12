@@ -547,7 +547,10 @@ export default function SettingsPage() {
           {/* Brand/Logo */}
           {brand && (
             <div className="settings-card">
-              <h3>Brand &amp; Logo</h3>
+              <h3>Your default brand</h3>
+              <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 16px' }}>
+                This is applied automatically to every video. Manage additional brands on the <Link href="/brands" style={{ color: 'var(--mint-darker)', fontWeight: 600 }}>Brands</Link> page.
+              </p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 16 }}>
                 {brand.logo_file_url || brand.logo_url ? (
                   <img src={brand.logo_file_url ?? brand.logo_url!} alt="Logo"

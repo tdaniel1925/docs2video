@@ -75,7 +75,7 @@ export default function BrandsPage() {
       <div className="page-head">
         <div>
           <h1>Your brands</h1>
-          <p>Save your colors and logos. Apply with one click on every output.</p>
+          <p>Manage all your brands here — colors, logos, and contact info. Your default brand is applied automatically to every video; add more if you work under multiple companies.</p>
         </div>
         <Link href="/brands/new" className="btn btn-primary btn-lg">+ New brand</Link>
       </div>
