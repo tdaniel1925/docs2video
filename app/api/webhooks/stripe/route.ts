@@ -129,15 +129,21 @@ export async function POST(request: Request) {
           console.log(`[webhook] User ${userId} subscribed to ${tier}`)
 
           // Affiliate: record the first-payment commission (non-fatal).
+          // The webhook's session object doesn't include discounts, so
+          // re-fetch with them expanded to read the promotion code reliably.
           try {
-            const promoId = promoIdFromDiscounts(session)
-            if (promoId && session.amount_total) {
+            const full = await stripe.checkout.sessions.retrieve(session.id, {
+              expand: ['discounts', 'discounts.promotion_code'],
+            })
+            const promoId = promoIdFromDiscounts(full)
+            const amount = full.amount_total ?? session.amount_total
+            if (promoId && amount) {
               await recordCommission({
                 stripePromoCodeId: promoId,
                 payingUserId: userId,
                 customerId: session.customer as string,
                 stripeInvoiceId: `session:${session.id}`,
-                amountPaidCents: session.amount_total,
+                amountPaidCents: amount,
               })
             }
           } catch (e) {
@@ -254,8 +260,16 @@ export async function POST(request: Request) {
           console.log(`[webhook] Recurring payment succeeded for customer ${customerId}, amount: ${invoice.amount_paid}`)
 
           // Affiliate: record the recurring (lifetime) commission (non-fatal).
+          // Re-fetch the invoice with discounts expanded so the promotion code
+          // resolves regardless of how Stripe shaped the webhook payload.
           try {
-            const promoId = promoIdFromDiscounts(invoice)
+            let promoId: string | null = promoIdFromDiscounts(invoice)
+            if (!promoId && invoice.id) {
+              const full = await stripe.invoices.retrieve(invoice.id, {
+                expand: ['discounts', 'discounts.promotion_code'],
+              })
+              promoId = promoIdFromDiscounts(full)
+            }
             if (promoId && invoice.amount_paid && invoice.id) {
               await recordCommission({
                 stripePromoCodeId: promoId,

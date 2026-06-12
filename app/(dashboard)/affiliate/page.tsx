@@ -64,7 +64,7 @@ export default function AffiliatePage() {
   }
 
   const code = stats.affiliate!.promo_code || stats.affiliate!.referral_code
-  const link = `${SITE}/api/affiliate/r?ref=${code}`
+  const link = `${SITE}/r/${code}`
   const emailSwipe = `Subject: A faster way to turn documents into client videos
 
 Hi [Name],

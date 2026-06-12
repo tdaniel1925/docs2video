@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { createClient } from '../../../_lib/supabase/server'
 import { getStripe, SUBSCRIPTION_PRICES } from '../../../_lib/stripe'
 import type { PlanTier } from '../../../_lib/pricing'
+import { getAffiliateByCode } from '../../../_lib/affiliate'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -58,8 +60,30 @@ export async function POST(request: Request) {
           tier: planId,
         },
       },
-      // Let referred buyers enter an affiliate promo code at checkout.
-      allow_promotion_codes: true,
+    }
+
+    // Affiliate attribution: if the buyer arrived via a referral link, the
+    // d2v_ref cookie holds the code. Auto-apply that affiliate's Stripe promo
+    // code (gives the 15% buyer discount + attributes the sale). Stripe forbids
+    // combining `discounts` with `allow_promotion_codes`, so we pick one:
+    // auto-apply when we have a valid referral, otherwise allow manual entry.
+    let appliedReferral = false
+    try {
+      const refCode = (await cookies()).get('d2v_ref')?.value
+      if (refCode) {
+        const affiliate = await getAffiliateByCode(refCode)
+        // Skip self-referral and inactive affiliates.
+        if (affiliate && affiliate.status === 'active' && affiliate.user_id !== user.id && affiliate.stripe_promo_code_id) {
+          sessionParams.discounts = [{ promotion_code: affiliate.stripe_promo_code_id }]
+          appliedReferral = true
+        }
+      }
+    } catch (e) {
+      console.warn('[checkout] referral cookie handling failed (non-fatal):', e)
+    }
+    if (!appliedReferral) {
+      // Let any buyer still enter a promo code manually.
+      sessionParams.allow_promotion_codes = true
     }
 
     if (profile?.stripe_customer_id) {
