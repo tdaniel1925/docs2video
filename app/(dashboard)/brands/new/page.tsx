@@ -515,6 +515,7 @@ export default function NewBrandPage() {
 
           <div className="form-group">
             <label className="input-label">Logo URL <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
+            <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '-2px 0 8px' }}>Used on slide decks and client emails. Videos use text branding only.</p>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <input
                 name="logo_url"

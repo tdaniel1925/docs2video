@@ -568,6 +568,7 @@ export default function SettingsPage() {
                     </label>
                     <Link href={`/brands/${brand.id}`} className="btn btn-soft btn-sm">Edit Colors</Link>
                   </div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 6 }}>Logo appears on slide decks and client emails. Videos use text branding only.</div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
