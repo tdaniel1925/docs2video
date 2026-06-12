@@ -25,6 +25,18 @@ export async function isAdminDB(userId: string): Promise<boolean> {
   return data?.is_admin === true
 }
 
+/**
+ * Authoritative admin check for API routes. True if the user is in the
+ * hardcoded/email-list admins OR has profiles.is_admin = true. Most admin
+ * routes historically checked ONLY the email list, which locked out
+ * flag-based admins (e.g. Phil). Use this everywhere instead of isAdmin(email).
+ */
+export async function isAdminRequest(user: { id: string; email?: string | null } | null | undefined): Promise<boolean> {
+  if (!user) return false
+  if (isAdmin(user.email)) return true
+  return isAdminDB(user.id)
+}
+
 export async function isBetaOrAdmin(userId: string): Promise<boolean> {
   const { createAdminClient } = await import('./supabase/admin')
   const admin = createAdminClient()

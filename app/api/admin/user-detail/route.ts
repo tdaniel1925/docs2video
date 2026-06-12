@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { isAdmin } from '../../../_lib/admin'
+import { isAdmin , isAdminRequest } from '../../../_lib/admin'
 export const maxDuration = 30
 
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !isAdmin(user.email)) {
+  if (!user || !(await isAdminRequest(user))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 

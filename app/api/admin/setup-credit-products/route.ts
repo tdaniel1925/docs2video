@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
-import { isAdmin } from '../../../_lib/admin'
+import { isAdmin , isAdminRequest } from '../../../_lib/admin'
 import { getStripe } from '../../../_lib/stripe'
 export const maxDuration = 30
 
@@ -8,7 +8,7 @@ export async function POST() {
   // Admin only
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !isAdmin(user.email)) {
+  if (!user || !(await isAdminRequest(user))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 

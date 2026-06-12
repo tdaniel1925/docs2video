@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/app/_lib/supabase/admin'
 import { createClient } from '@/app/_lib/supabase/server'
-import { isAdmin } from '@/app/_lib/admin'
+import { isAdmin , isAdminRequest } from '@/app/_lib/admin'
 import { INDUSTRIES, type IndustryId } from '@/app/_lib/industries'
 import { Resend } from 'resend'
 import OpenAI from 'openai'
@@ -49,7 +49,7 @@ function buildEmailHtml(body: string, ctaUrl: string, ctaText: string): string {
 async function checkAdmin(req?: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !isAdmin(user.email)) return null
+  if (!user || !(await isAdminRequest(user))) return null
   return user
 }
 

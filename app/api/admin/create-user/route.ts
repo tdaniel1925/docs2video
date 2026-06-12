@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { isAdmin } from '../../../_lib/admin'
+import { isAdmin , isAdminRequest } from '../../../_lib/admin'
 import { logAdminAction } from '../../../_lib/audit'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
@@ -11,7 +11,7 @@ export const maxDuration = 30
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !isAdmin(user.email)) {
+  if (!user || !(await isAdminRequest(user))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

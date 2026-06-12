@@ -6,7 +6,7 @@ import { generateSlide } from '../../../../../_lib/gemini'
 import { compositeSlide } from '../../../../../_lib/composite'
 import { synthesizeSpeech } from '../../../../../_lib/tts'
 import type { ExtractedData } from '../../../../../_lib/extract-types'
-import { isAdmin } from '../../../../../_lib/admin'
+import { isAdmin , isAdminRequest } from '../../../../../_lib/admin'
 
 export const runtime = 'nodejs'
 export const maxDuration = 800
@@ -17,7 +17,7 @@ const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || 'docs2video-
 async function verifyAdmin() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !isAdmin(user.email)) return null
+  if (!user || !(await isAdminRequest(user))) return null
   return user
 }
 

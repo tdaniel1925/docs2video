@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { isAdmin } from '../../../_lib/admin'
+import { isAdmin , isAdminRequest } from '../../../_lib/admin'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -9,7 +9,7 @@ export const maxDuration = 30
 async function verifyAdmin() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !isAdmin(user.email)) return null
+  if (!user || !(await isAdminRequest(user))) return null
   return user
 }
 
