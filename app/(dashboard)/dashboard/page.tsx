@@ -293,6 +293,51 @@ export default async function DashboardPage() {
         </div>
       )}
 
+      {/* First-run guidance — only before any creation exists */}
+      {isFirstTime && (
+        <div style={{
+          padding: '24px 28px', marginBottom: 24, borderRadius: 10,
+          background: 'linear-gradient(135deg, #F4F1EC, #ecfdf5)',
+          border: '1px solid var(--border-light)',
+        }}>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink)', margin: '0 0 6px' }}>
+            Make your first video
+          </h2>
+          <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '0 0 16px', lineHeight: 1.6 }}>
+            Three steps, about five minutes — your first one is free.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+            {[
+              ['1', 'Pick who it’s for', 'Choose a client to personalize it, or skip for a general video'],
+              ['2', 'Add your content', 'Paste a website URL, upload a document, or just describe it'],
+              ['3', 'Generate', 'We write the script, design the slides, and narrate it for you'],
+            ].map(([n, title, desc]) => (
+              <div key={n} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <span style={{
+                  flexShrink: 0, width: 24, height: 24, borderRadius: 10, background: 'var(--ink)',
+                  color: 'white', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>{n}</span>
+                <div>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{title}</span>
+                  <span style={{ fontSize: 13, color: 'var(--ink-soft)', marginLeft: 8 }}>{desc}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Link href="/create/client" style={{
+              display: 'inline-block', padding: '12px 28px', borderRadius: 10,
+              background: 'var(--mint)', color: 'white', fontSize: 14, fontWeight: 700, textDecoration: 'none',
+            }}>
+              Create your first video
+            </Link>
+            <Link href="/help/getting-started" style={{ fontSize: 13, color: 'var(--ink-soft)', textDecoration: 'underline' }}>
+              Read the getting-started guide
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Continue where you left off — drafts (video/deck outputs only) */}
       {(() => {
         const coreDrafts = (drafts ?? []).filter((d: any) => !d.output_type || ['video', 'pptx', 'pdf'].includes(d.output_type))
