@@ -271,12 +271,14 @@ export async function generateScript(
   const genericPromptBuilder = getPrompt('script_generation_generic')
   const insurancePromptBuilder = getPrompt('script_generation_insurance')
 
-  // Use insurance prompt ONLY if data has structured insurance fields (deathBenefit, policyType)
-  // Otherwise use generic prompt — the insurance conversation rules in additionalSections still apply
+  // Structured insurance data → full insurance prompt (carrier ban, beat structure).
+  // Insurance detected by keywords but WITHOUT structured fields → generic prompt,
+  // but pass the insurance flag so it applies the same carrier/product ban (otherwise
+  // the carrier and product names leak into the narration — the reported bug).
   const hasStructuredInsuranceData = isInsuranceData(data)
   let promptBody = hasStructuredInsuranceData
     ? insurancePromptBuilder(data as ExtractedPolicyData, brandName, detailed, assetCount ?? 0)
-    : genericPromptBuilder(data as ExtractedData, brandName, detailed, assetCount ?? 0, uploadMode, industry)
+    : genericPromptBuilder(data as ExtractedData, brandName, detailed, assetCount ?? 0, uploadMode, industry, isInsurance)
 
   // Replace {{BRAND_NAME}} placeholder with actual brand name
   if (brandName) {

@@ -2,7 +2,7 @@ import type { ExtractedData } from '../extract-types'
 import { INDUSTRIES, detectIndustry, type IndustryId } from '../industries'
 import { wrapUserData } from '../prompt-safety'
 
-export function buildGenericScriptPromptV2(data: ExtractedData, brandName: string | null, detailed: boolean = false, assetCount: number = 0, uploadMode?: string, userIndustry?: string): string {
+export function buildGenericScriptPromptV2(data: ExtractedData, brandName: string | null, detailed: boolean = false, assetCount: number = 0, uploadMode?: string, userIndustry?: string, isInsurance: boolean = false): string {
   // Use user-selected industry if provided, otherwise fall back to auto-detection
   const industry = userIndustry || (data as any).industry || detectIndustry(data.title, JSON.stringify(data))
   const config = INDUSTRIES[industry as IndustryId] || INDUSTRIES.general
@@ -44,7 +44,8 @@ Additional Notes: ${(data as any).additionalNotes?.join(', ') || 'None'}`
 ===== HARD CONSTRAINTS (these are absolute; violating any one of these invalidates the entire output) =====
 
 H1. DATA FIDELITY ON FACTS
-- Numbers, dollar amounts, dates, names of people, names of products, names of carriers, phone numbers, emails, URLs, addresses: must appear VERBATIM in the source data below.
+- Numbers, dollar amounts, dates, names of people, ${isInsurance ? '' : 'names of products, names of carriers, '}phone numbers, emails, URLs, addresses: must appear VERBATIM in the source data below.${isInsurance ? `
+- For this insurance video, do NOT state product names or carrier names at all (see CONTINUITY rule below) — even though they appear in the source.` : ''}
 - If a fact does not appear in the source data, you may NOT include it.
 - "Fact" means: anything a viewer could verify against the source document.
 - Do NOT confuse this with insurance, financial products, or any other industry unless the data explicitly states it.
@@ -168,7 +169,9 @@ S4. MEDIUM AWARENESS
 
 S5. NARRATIVE INTELLIGENCE
 - Hook (scene 1): open with the most compelling insight, not "Hello and welcome".
-- Don't repeat the company name every sentence. Say it once at the opening, once at the close, use "they", "the team", "their" in between.
+- CONTINUITY (critical): The narration is ONE continuous talk, not independent clips. Introduce each entity — the agent/company, a product, a carrier, a person, a key term — AT MOST ONCE. After it's introduced, later scenes refer to it as already-known ("it", "they", "this plan", "your coverage") and NEVER re-explain or re-introduce it as if the viewer is hearing it for the first time. Do not restate the agent's or company's name in more than one scene.
+- Don't repeat the company/agent name. Name it at most once total (the opening is fine); everywhere else use "they", "the team", "their".${isInsurance ? `
+- INSURANCE — NO CARRIER OR PRODUCT NAMES: Do NOT name the insurance company, carrier, or branded product anywhere in the narration. Use "your policy", "this plan", "your coverage", or the generic type ("your universal life policy"). The viewer cares what the policy DOES for them, not who issued it.` : ''}
 - Don't read bullet points — the slide shows them. The narrator explains WHY each point matters.
 - Pick the 3-5 most important features, not all of them. Explain the BENEFIT, not just the feature.
 - Translate jargon the first time: "Indexed Universal Life, or IUL" then just "your policy" after that.

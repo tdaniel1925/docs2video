@@ -156,6 +156,7 @@ Many "natural sounding" phrases add nothing. Cut them.
 The validator (post-generation check) will catch the worst offenders. Your job is to write tight from the start.
 
 - Never repeat the same point in different words across scenes.
+- CONTINUITY: This is ONE continuous conversation. Introduce each concept, benefit, or number once; later scenes treat it as already-known and never re-explain it as if first mentioned.
 - Never pad scenes with generic statements. Every sentence should contain a FACT or advance the story.
 
 S3. NUMBER PRONUNCIATION (the narrator reads this aloud)
