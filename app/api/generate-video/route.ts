@@ -356,11 +356,12 @@ export async function POST(request: Request) {
         }
       })
 
-      // Inject contact info into last scene narration if available
-      const pd = policyData as any
-      const closingPhone = pd?.contactPhone || pd?.contactInfo?.phone || brand?.brand_guide_data?.phone
-      const closingEmail = pd?.contactEmail || pd?.contactInfo?.email || brand?.brand_guide_data?.email
-      const closingWebsite = pd?.contactWebsite || pd?.contactInfo?.website
+      // Inject contact info into last scene narration if available — BRAND ONLY
+      // (never scraped/extracted document contact, which is the source site's number)
+      const guide = brand?.brand_guide_data as Record<string, string> | null | undefined
+      const closingPhone = guide?.phone
+      const closingEmail = guide?.email
+      const closingWebsite = guide?.website
       if (scenes.length > 0 && (closingPhone || closingEmail || closingWebsite)) {
         const lastScene = scenes[scenes.length - 1]
         const lastWords = lastScene.narration?.trim().split(/\s+/).length || 0
@@ -380,11 +381,11 @@ export async function POST(request: Request) {
       console.log(`[video ${videoId}] Generating script...`)
       await admin.from('videos').update({ status: 'scripting', progress_detail: 'Writing your script...', progress_pct: 5 }).eq('id', videoId)
       const guideDataForScript = brand?.brand_guide_data as Record<string, string> | null
-      const pd = policyData as any
+      // BRAND ONLY — never feed scraped/extracted document contact into the script
       const contactInfoForScript = {
-        phone: guideDataForScript?.phone ?? pd?.contactPhone ?? pd?.contactInfo?.phone ?? undefined,
-        email: guideDataForScript?.email ?? pd?.contactEmail ?? pd?.contactInfo?.email ?? undefined,
-        website: pd?.contactWebsite ?? pd?.contactInfo?.website ?? undefined,
+        phone: guideDataForScript?.phone ?? undefined,
+        email: guideDataForScript?.email ?? undefined,
+        website: guideDataForScript?.website ?? undefined,
         calendly: guideDataForScript?.calendly ?? undefined,
       }
 
@@ -565,13 +566,13 @@ export async function POST(request: Request) {
       const sd = scene.slideData as { headline?: string; stats?: { label: string; value: string }[]; bullets?: string[] } | undefined
       const cleanNarration = scene.narration?.replace(/^(Host|Expert|Advisor|Client|Narrator|Clarifier|Alex|Jordan):\s*/gim, '') || ''
 
-      // Contact info for closing slide: brand guide + user-entered from review page
-      const pd = policyData as any
+      // Contact info for cover/closing slide — BRAND ONLY (never scraped/extracted
+      // document contact, which carries the source website's phone number)
       const sceneContactInfo = (isFirst || isLast)
         ? {
-            phone: brandGuide?.phone || pd?.contactPhone || (pd?.contactInfo?.phone) || undefined,
-            website: (brandGuide?.website || pd?.contactWebsite || pd?.contactInfo?.website || '')?.toLowerCase() || undefined,
-            email: (brandGuide?.email || pd?.contactEmail || pd?.contactInfo?.email || '')?.toLowerCase() || undefined,
+            phone: brandGuide?.phone || undefined,
+            website: (brandGuide?.website || '')?.toLowerCase() || undefined,
+            email: (brandGuide?.email || '')?.toLowerCase() || undefined,
             calendly: brandGuide?.calendly || undefined,
           }
         : undefined
@@ -609,15 +610,16 @@ export async function POST(request: Request) {
       // 1 slide per scene — headline + key points only, narration is spoken not displayed
       const fp = scene.framePrompts?.[0] || scene.slidePrompt || scene.title
 
-      // Build contact bar from brand data — show on every slide if available
+      // Contact bar from the agent's BRAND only — never scraped/extracted
+      // document contact (which is the source website's number, not the agent's)
       const brandContact = [
-        brandGuide?.phone || (policyData as any)?.contactPhone,
-        brandGuide?.email || (policyData as any)?.contactEmail,
-        brandGuide?.website || (policyData as any)?.contactWebsite,
+        brandGuide?.phone,
+        brandGuide?.email,
+        brandGuide?.website,
       ].filter(Boolean)
       const contactBarInstruction = brandContact.length > 0
         ? `\n\nCONTACT BAR: Display a thin footer bar at the bottom of this slide with: ${brandContact.join(' | ')}. Use the brand primary color for the bar background with white text.`
-        : '\n\nNEVER invent phone numbers, emails, or URLs — no contact info on this slide.'
+        : '\n\n⛔ NO CONTACT INFO: Do NOT render any phone number, email, or URL on this slide. None was provided; inventing one is forbidden.'
 
       return `${stylePrompt}\n\n${fp}\n\nTopic context (for visual inspiration only, do NOT put this text on the slide): "${scene.narration?.slice(0, 150)}"\n\nCRITICAL TEXT RULE: Maximum 25 words of visible text on this slide (NOT counting the contact bar). Use a short headline (3-6 words), 2-4 bullet points (3-5 words each), and large numbers/icons. The narration provides the detail — the slide is VISUAL SUPPORT only. NO paragraphs, NO sentences, NO long text blocks.\n\nCRITICAL COLOR RULE: Use these EXACT brand colors as the dominant palette — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. If the style description above mentions any other colors, IGNORE them and use these brand colors instead — the brand colors always win. No logos, no brand marks, no fictional emblems.${contactBarInstruction}`
     })
@@ -628,10 +630,13 @@ export async function POST(request: Request) {
 
     // Save title to DB so it shows in the library
     await admin.from('videos').update({ title: videoTitle }).eq('id', videoId)
+    // Contact info comes ONLY from the agent's saved brand — never from
+    // scraped/extracted document data, which carries the SOURCE site's phone
+    // (e.g. a number off the scraped website leaking onto the closing slide).
     const contactForClosing = {
-      phone: brandGuide?.phone || (policyData as any)?.contactPhone || (policyData as any)?.contactInfo?.phone || undefined,
-      email: brandGuide?.email || (policyData as any)?.contactEmail || (policyData as any)?.contactInfo?.email || undefined,
-      website: (policyData as any)?.contactWebsite || (policyData as any)?.contactInfo?.website || undefined,
+      phone: brandGuide?.phone || undefined,
+      email: brandGuide?.email || undefined,
+      website: brandGuide?.website || undefined,
     }
 
     // Build cover narration (short intro) — formatted for natural speech
@@ -659,9 +664,15 @@ export async function POST(request: Request) {
 
     // Build cover slide prompt — same format as content slides so Gemini uses consistent style
     const contactLine = [contactForClosing.phone, contactForClosing.email, contactForClosing.website].filter(Boolean).join(' | ')
-    const coverPrompt = `${stylePrompt}\n\nCreate a professional COVER SLIDE for a presentation titled "${videoTitle}"${effectiveBrandName ? ` by ${effectiveBrandName}` : ''}. This is the opening slide — make it bold, eye-catching, and professional. Include the title prominently. Leave the top-left corner empty for logo placement.\n\nCRITICAL COLOR RULE: Use these EXACT brand colors as the dominant palette — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. If the style description above mentions any other colors, IGNORE them and use these brand colors instead — the brand colors always win. No logos, no brand marks, no fictional emblems. NEVER invent phone numbers, emails, or URLs — only display contact info if explicitly provided.`
+    // Hard rule: when no contact info was provided, forbid ANY phone/email/URL
+    // outright — Gemini will otherwise hallucinate a plausible phone number on
+    // the closing slide (a serious problem on a compliance-sensitive video).
+    const noContactRule = '\n\n⛔ ABSOLUTE RULE — NO CONTACT INFO: Do NOT render any phone number, email address, website URL, or street address anywhere on this slide. Not a real one, not a placeholder, not an example. There must be ZERO digits arranged like a phone number (e.g. nothing resembling 555-123-4567) and ZERO "@" symbols or ".com" text. Contact details were NOT provided and inventing them is forbidden.'
+    const contactRule = (line: string) => `\n\nCONTACT INFO: Display EXACTLY this contact line and nothing else resembling contact info: ${line}. Do not add, modify, or invent any other phone, email, or URL.`
+    const colorRule = `\n\nCRITICAL COLOR RULE: Use these EXACT brand colors as the dominant palette — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. If the style description above mentions any other colors, IGNORE them and use these brand colors instead — the brand colors always win. No logos, no brand marks, no fictional emblems.`
+    const coverPrompt = `${stylePrompt}\n\nCreate a professional COVER SLIDE for a presentation titled "${videoTitle}"${effectiveBrandName ? ` by ${effectiveBrandName}` : ''}. This is the opening slide — make it bold, eye-catching, and professional. Include the title prominently. Leave the top-left corner empty for logo placement.${colorRule}${noContactRule}`
     // Build closing slide prompt
-    const closingPrompt = `${stylePrompt}\n\nCreate a professional CLOSING/THANK YOU SLIDE. Display "Thank You" as the main heading.${contactLine ? ` Include contact info: ${contactLine}` : ''} This is the final slide — make it warm and conclusive. Leave the top-left corner empty for logo placement.\n\nCRITICAL COLOR RULE: Use these EXACT brand colors as the dominant palette — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. If the style description above mentions any other colors, IGNORE them and use these brand colors instead — the brand colors always win. No logos, no brand marks, no fictional emblems. NEVER invent phone numbers, emails, or URLs — only display contact info if explicitly provided.`
+    const closingPrompt = `${stylePrompt}\n\nCreate a professional CLOSING/THANK YOU SLIDE. Display "Thank You" as the main heading. This is the final slide — make it warm and conclusive. Leave the top-left corner empty for logo placement.${colorRule}${contactLine ? contactRule(contactLine) : noContactRule}`
 
     // Prepend/append to slidePrompts
     const allSlidePrompts = [coverPrompt, ...slidePrompts, closingPrompt]
