@@ -280,6 +280,24 @@ export const SLIDE_STYLES = [
     description: 'Geometric shapes, diagonal cuts, icon circles, professional',
     prompt: 'Modern corporate infographic presentation style. Clean white background with bold geometric accent shapes — diagonal color blocks cutting across corners, large circles and rounded rectangles as content containers. Flat vector icons inside colored circles. Strong visual hierarchy with large bold sans-serif headlines and organized grid sections. Footer bar spanning full width with contact info. Decorative star/burst accents and dot patterns for visual interest. Color blocks use the brand primary and secondary colors. Professional, structured, data-forward. Feels like a premium internal corporate report or investor deck — polished, authoritative, organized. IMPORTANT: Leave the top-left corner area (approximately 300x100 pixels) EMPTY with just the white background — no text, no logo, no graphics in that zone. A logo will be composited there afterward.',
   },
+  {
+    id: 'warm-story',
+    name: 'Warm Story',
+    description: 'Cozy storybook illustration, golden light, friendly and human',
+    prompt: 'Warm, cozy illustration style. Soft golden lighting, nature scenes, families, organic shapes. Rich earth tones built around the brand primary and secondary colors with warm amber, terracotta, and cream. Characters have friendly, simple features. Scenes feel like a storybook — inviting, safe, hopeful. Subtle textures like watercolor wash or soft grain. Headline in a warm rounded sans-serif at the top. Key metrics shown in soft rounded cards. Clean footer bar at the bottom with contact info. Feels emotional and human — ideal for life and family-focused topics. IMPORTANT: Leave the top-left corner area (approximately 300x100 pixels) EMPTY with just the background — a logo will be composited there afterward.',
+  },
+  {
+    id: 'dark-cinematic',
+    name: 'Dark Cinematic',
+    description: 'Navy and gold, dramatic lighting, premium and prestigious',
+    prompt: 'Cinematic dark illustration style. Deep navy (#0A1628) and charcoal backgrounds with rich gold (#C5A55A) and champagne accents drawn from the brand colors. Dramatic lighting with glows and light rays. Elegant serif typography for headings. Key metrics in large gold numbers inside sophisticated cards with thin gold borders. Scenes feel like movie posters — epic scale, dramatic composition. Subtle texture and depth. Full-width footer bar at the bottom with contact info. Feels luxurious, prestigious, powerful — ideal for high-net-worth, real estate, and premium offerings. IMPORTANT: Leave the top-left corner area (approximately 300x100 pixels) EMPTY with just the background — a logo will be composited there afterward.',
+  },
+  {
+    id: 'bold-infographic',
+    name: 'Bold Infographic',
+    description: 'Massive numbers, high contrast, impossible to ignore',
+    prompt: 'Bold high-contrast infographic style. Dark navy or black background with vibrant accent colors drawn from the brand primary and secondary. Massive numbers that dominate the frame. Strong visual hierarchy with thick borders and color blocks. Data visualization as art — oversized stats, bold percentage callouts, chunky bar charts. Headline in heavy uppercase sans-serif. Full-width footer bar at the bottom with contact info. Feels powerful, impactful, impossible to ignore — ideal for sales pitches and big-number reveals. IMPORTANT: Leave the top-left corner area (approximately 300x100 pixels) EMPTY with just the background — a logo will be composited there afterward.',
+  },
 ] as const
 
 // All style references fall back to isometric-3d (the default style).
