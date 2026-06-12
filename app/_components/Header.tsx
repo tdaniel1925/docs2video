@@ -285,6 +285,13 @@ export default function Header({ profile }: { profile: Profile }) {
                 Settings
               </Link>
               <Link
+                href="/affiliate"
+                onClick={() => setMenuOpen(false)}
+                style={{ display: 'block', padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none' }}
+              >
+                Affiliate Program
+              </Link>
+              <Link
                 href="/help"
                 onClick={() => setMenuOpen(false)}
                 style={{ display: 'block', padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none' }}

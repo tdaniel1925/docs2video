@@ -58,6 +58,8 @@ export async function POST(request: Request) {
           tier: planId,
         },
       },
+      // Let referred buyers enter an affiliate promo code at checkout.
+      allow_promotion_codes: true,
     }
 
     if (profile?.stripe_customer_id) {

@@ -148,6 +148,7 @@ CRM: clients, client_activities (+ videos.client_id FK)
 Social: social_shares, affiliates, referrals
 Admin: campaigns, notifications, jobs, feedback
 Public API: api_keys, api_credit_balances, api_usage_log
+Affiliate: affiliates, referrals, affiliate_commissions, affiliate_clicks
 Auth: managed by Supabase Auth
 
 ### Client Management System (added 2026-05-25)
@@ -170,6 +171,19 @@ Auth: managed by Supabase Auth
 - **Migration**: `supabase-api-migration.sql` (api_keys, api_credit_balances, api_usage_log + indexes, RLS-deny).
 - **Env**: requires `INTERNAL_API_SECRET` set; API returns 503 until it is.
 - **Docs**: `API.md`.
+
+### Affiliate Program v1 (added 2026-06-12)
+- **Model**: 20% **recurring, lifetime** commission, **manual** payouts, **Stripe promo-code** tracking, **self-serve** enrollment. Buyer gets 15% off via the affiliate's promo code.
+- **Replaces** the old stub affiliate system (deleted `/affiliates`, `/api/affiliates`, `/api/affiliates/track` — they had enrollment + a 5-free-credits-per-signup reward but no money). The 5-credit signup bonus was intentionally dropped.
+- **Enrollment**: `enrollAffiliate()` (`app/_lib/affiliate.ts`) creates the `affiliates` row + a real Stripe **coupon (15% off, forever)** and **promotion code** (unique code, e.g. `JANE7K2P`), storing `stripe_coupon_id`/`stripe_promo_code_id`/`promo_code`. Idempotent.
+- **Attribution**: link `…/api/affiliate/r?ref=CODE` logs a click, drops a 60-day `d2v_ref` cookie, redirects home. The Stripe promo code on the paid subscription is the authoritative signal.
+- **Commission recording** (in `app/api/webhooks/stripe`): first payment on `checkout.session.completed`; recurring on `invoice.payment_succeeded` (subscription_cycle); clawback on `charge.refunded`. All NON-FATAL (a commission bug never breaks subscription provisioning). Idempotent on `stripe_invoice_id`. Self-referral guarded.
+- **Checkout**: `allow_promotion_codes: true` so referred buyers can enter a code.
+- **Ledger**: `affiliate_commissions` (status pending → approved → paid → clawed_back; 30-day refund hold before approval).
+- **Affiliate dashboard**: `/affiliate` — enroll CTA, link + promo code copy, funnel stats, banner downloads (`public/affiliate/*.svg`), email/social swipe copy. Linked from the account menu in `Header.tsx`.
+- **Admin**: `/admin/affiliates` + `/api/admin/affiliates` — list, pause/activate, approve-pending (30d+), **export payout CSV**, mark-paid. Gated by `isAdminRequest`.
+- **Migration**: `supabase-affiliate-migration.sql` (extends `affiliates`; adds `affiliate_commissions`, `affiliate_clicks`; RLS-deny). Built against the LIVE `referrals` shape (affiliate_id, referred_user_id, status, commission_amount, commission_paid).
+- **Help**: updated the "Affiliate Program" article.
 
 ---
 

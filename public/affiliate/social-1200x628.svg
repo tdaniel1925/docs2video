@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="628" viewBox="0 0 1200 628">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1B2D5B"/>
+      <stop offset="1" stop-color="#2E4A8F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="628" fill="url(#g)"/>
+  <rect x="500" y="80" width="200" height="200" rx="28" fill="#C7E8A8"/>
+  <text x="600" y="215" font-family="Plus Jakarta Sans, Arial, sans-serif" font-size="92" font-weight="800" fill="#1B2D5B" text-anchor="middle">D2V</text>
+  <text x="600" y="380" font-family="Plus Jakarta Sans, Arial, sans-serif" font-size="60" font-weight="800" fill="#ffffff" text-anchor="middle">Documents into videos</text>
+  <text x="600" y="450" font-family="Plus Jakarta Sans, Arial, sans-serif" font-size="34" fill="#C7E8A8" text-anchor="middle">PDFs, web pages &amp; notes → polished videos in minutes</text>
+  <rect x="480" y="500" width="240" height="64" rx="12" fill="#C7E8A8"/>
+  <text x="600" y="542" font-family="Plus Jakarta Sans, Arial, sans-serif" font-size="28" font-weight="800" fill="#1B2D5B" text-anchor="middle">Try Docs2Video →</text>
+</svg>

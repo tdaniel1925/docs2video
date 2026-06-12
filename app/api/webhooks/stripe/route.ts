@@ -4,6 +4,25 @@ import { createAdminClient } from '../../../_lib/supabase/admin'
 import type Stripe from 'stripe'
 import { logError } from '../../../_lib/error-logger'
 import { grantMonthlyCredits, addTopupCredits } from '../../../_lib/credits'
+import { recordCommission, clawbackByInvoice } from '../../../_lib/affiliate'
+
+/** Extract the Stripe promotion-code id from a session or invoice, if any. */
+function promoIdFromDiscounts(obj: { discounts?: unknown; discount?: unknown }): string | null {
+  // Checkout sessions expose `discounts: [{ promotion_code }]`; invoices expose
+  // `discount: { promotion_code }` and/or `discounts: [...]`.
+  const discounts = (obj as any).discounts
+  if (Array.isArray(discounts)) {
+    for (const d of discounts) {
+      const pc = d?.promotion_code
+      if (typeof pc === 'string') return pc
+      if (pc?.id) return pc.id
+    }
+  }
+  const single = (obj as any).discount?.promotion_code
+  if (typeof single === 'string') return single
+  if (single?.id) return single.id
+  return null
+}
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -108,6 +127,22 @@ export async function POST(request: Request) {
           }
           await grantMonthlyCredits(userId, tier)
           console.log(`[webhook] User ${userId} subscribed to ${tier}`)
+
+          // Affiliate: record the first-payment commission (non-fatal).
+          try {
+            const promoId = promoIdFromDiscounts(session)
+            if (promoId && session.amount_total) {
+              await recordCommission({
+                stripePromoCodeId: promoId,
+                payingUserId: userId,
+                customerId: session.customer as string,
+                stripeInvoiceId: `session:${session.id}`,
+                amountPaidCents: session.amount_total,
+              })
+            }
+          } catch (e) {
+            console.error('[webhook] affiliate first-payment commission failed (non-fatal):', e)
+          }
         }
         break
       }
@@ -217,6 +252,22 @@ export async function POST(request: Request) {
             console.log(`[webhook] Monthly credits granted for user ${renewProfile.id} (${renewProfile.subscription_status})`)
           }
           console.log(`[webhook] Recurring payment succeeded for customer ${customerId}, amount: ${invoice.amount_paid}`)
+
+          // Affiliate: record the recurring (lifetime) commission (non-fatal).
+          try {
+            const promoId = promoIdFromDiscounts(invoice)
+            if (promoId && invoice.amount_paid && invoice.id) {
+              await recordCommission({
+                stripePromoCodeId: promoId,
+                payingUserId: renewProfile?.id ?? null,
+                customerId,
+                stripeInvoiceId: invoice.id,
+                amountPaidCents: invoice.amount_paid,
+              })
+            }
+          } catch (e) {
+            console.error('[webhook] affiliate recurring commission failed (non-fatal):', e)
+          }
         }
         break
       }
@@ -236,6 +287,17 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
         }
         console.log(`[webhook] Set subscription_status to past_due for customer ${customerId}`)
+        break
+      }
+
+      /* ─── Refund / chargeback — claw back affiliate commission ─── */
+      case 'charge.refunded': {
+        const charge = event.data.object as Stripe.Charge
+        const invoiceId = (charge as any).invoice as string | null
+        if (invoiceId) {
+          await clawbackByInvoice(invoiceId)
+          console.log(`[webhook] Clawed back affiliate commission for refunded invoice ${invoiceId}`)
+        }
         break
       }
 
