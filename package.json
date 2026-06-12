@@ -11,7 +11,9 @@
     "generate-demos": "tsx -r dotenv/config scripts/generate-industry-demos.ts dotenv_config_path=.env.local",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:api": "playwright test api-smoke subscription",
+    "test:e2e:video": "playwright test video-playthrough"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.2",
