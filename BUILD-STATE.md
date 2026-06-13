@@ -185,12 +185,12 @@ Auth: managed by Supabase Auth
 - **Migration**: `supabase-affiliate-migration.sql` (extends `affiliates`; adds `affiliate_commissions`, `affiliate_clicks`; RLS-deny). Built against the LIVE `referrals` shape (affiliate_id, referred_user_id, status, commission_amount, commission_paid).
 - **Help**: updated the "Affiliate Program" article.
 
-### Go-Live Checklist — API v1 + Affiliate Program (run before launch)
-These features are code-complete and build clean but require one-time setup. Until done, the features will not function.
-- [ ] **Run `supabase-api-migration.sql`** in Supabase (creates `api_keys`, `api_credit_balances`, `api_usage_log`).
-- [ ] **Run `supabase-affiliate-migration.sql`** in Supabase (extends `affiliates`; adds `affiliate_commissions`, `affiliate_clicks`). Affiliate enrollment fails on the missing columns until this runs.
-- [ ] **Set `INTERNAL_API_SECRET`** in Vercel (long random string). `/api/v1/*` returns 503 until set.
-- [ ] **Enable the `charge.refunded` Stripe webhook event** in the Stripe dashboard so affiliate commission clawbacks fire. (Existing events already cover first/recurring payments.)
+### Go-Live Checklist — API v1 + Affiliate Program
+These features are code-complete and build clean. Setup status:
+- [x] **Run `supabase-api-migration.sql`** in Supabase (creates `api_keys`, `api_credit_balances`, `api_usage_log`). DONE 2026-06-13.
+- [x] **Run `supabase-affiliate-migration.sql`** in Supabase (extends `affiliates`; adds `affiliate_commissions`, `affiliate_clicks`). DONE 2026-06-13.
+- [x] **Set `INTERNAL_API_SECRET`** in Vercel (long random string). `/api/v1/*` returns 503 until set. DONE.
+- [x] **Enable the `charge.refunded` Stripe webhook event** in the Stripe dashboard so affiliate commission clawbacks fire. DONE 2026-06-13.
 - [ ] **Affiliate promo codes are created in whatever mode `STRIPE_SECRET_KEY` points to** — verify enrollment once in test mode, then confirm in live.
 - [ ] **Test-mode affiliate flow**: enroll → confirm coupon (15% off, forever) in Stripe → refer via `/r/CODE` in incognito → subscribe with `4242…` → confirm a pending commission in `/admin/affiliates`; verify self-referral records nothing.
 - [ ] **Issue a test API key** at `/admin/api-keys`, top up its pool, and smoke-test `POST /api/v1/videos` per `API.md`.
