@@ -164,12 +164,21 @@ Happy to answer any questions.
       {/* Banners */}
       <div className="card" style={{ padding: 20, marginBottom: 20 }}>
         <h3 style={{ marginTop: 0 }}>Banners</h3>
-        <p style={{ color: 'var(--ink-light)', fontSize: 14 }}>Download a banner and link it to your referral URL.</p>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          {['leaderboard-728x90', 'medium-300x250', 'social-1200x628'].map(b => (
-            <a key={b} href={`/affiliate/${b}.svg`} download className="btn btn-soft" style={{ textDecoration: 'none' }}>
-              ⬇ {b}.svg
-            </a>
+        <p style={{ color: 'var(--ink-light)', fontSize: 14 }}>Download a banner and link it to your referral link above.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+          {[
+            { file: 'banner-social-16x9', label: 'Social / link preview' },
+            { file: 'banner-square-4x3', label: 'Feed post' },
+            { file: 'banner-story-9x16', label: 'Story (vertical)' },
+          ].map(b => (
+            <div key={b.file} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <img src={`/affiliate/${b.file}.png`} alt={b.label}
+                style={{ width: '100%', borderRadius: 10, border: '1px solid var(--border-light)', objectFit: 'cover', maxHeight: 200 }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 13, color: 'var(--ink-light)' }}>{b.label}</span>
+                <a href={`/affiliate/${b.file}.png`} download className="btn btn-soft btn-sm" style={{ textDecoration: 'none' }}>⬇ Download</a>
+              </div>
+            </div>
           ))}
         </div>
       </div>
