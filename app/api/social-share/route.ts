@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
+import { addTopupCredits } from '../../_lib/credits'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -103,19 +104,10 @@ export async function POST(request: Request) {
       credits_amount: credited ? CREDITS_PER_SHARE : 0,
     })
 
-    // Award credits if eligible
+    // Award credits if eligible — into the REAL spendable wallet (audit #8),
+    // not the dead profiles.credits_remaining column.
     if (credited) {
-      const { data: profile } = await admin
-        .from('profiles')
-        .select('credits_remaining')
-        .eq('id', user.id)
-        .single()
-
-      const current = profile?.credits_remaining ?? 0
-      await admin.from('profiles').update({
-        credits_remaining: current + CREDITS_PER_SHARE,
-      }).eq('id', user.id)
-
+      await addTopupCredits(user.id, CREDITS_PER_SHARE, 'social_share_reward')
       console.log(`[social-share] Awarded ${CREDITS_PER_SHARE} credits to user ${user.id} for ${platform} share`)
     }
 

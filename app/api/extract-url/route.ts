@@ -9,6 +9,7 @@ import { THEME_PROMPT, EXTRACTION_PROMPT } from '../../_lib/prompts'
 import { wrapUserData } from '../../_lib/prompt-safety'
 import { classifyFromText } from '../../_lib/document-classifier'
 import { resolveRequestUser } from '../../_lib/api-auth'
+import { checkCredits } from '../../_lib/credits'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -54,13 +55,8 @@ export async function POST(request: Request) {
   // Internal API calls are metered against the API credit pool at the /api/v1
   // layer, so skip the UI credit gate here.
   if (!resolved.isInternal) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin, is_beta, credits_remaining')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile?.is_admin && !profile?.is_beta && (!profile || profile.credits_remaining <= 0)) {
+    const credit = await checkCredits(user.id, 1)
+    if (!credit.allowed) {
       return NextResponse.json({ error: 'No credits remaining' }, { status: 403 })
     }
   }

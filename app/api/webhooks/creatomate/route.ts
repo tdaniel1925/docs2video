@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { getRender } from '../../../_lib/creatomate'
-import { addTopupCredits } from '../../../_lib/credits'
+import { addTopupCredits, refundVideoCredits } from '../../../_lib/credits'
 import { sendNotification } from '../../../_lib/notify'
 import { fireApiWebhook } from '../../../_lib/api-webhook'
 import { refundApiCredits } from '../../../_lib/api-auth'
@@ -101,7 +101,8 @@ export async function POST(request: Request) {
         if (isApiJob) {
           await refundApiCredits(userId, deductedCost)
         } else {
-          await addTopupCredits(userId, deductedCost, `refund: failed video ${videoId}`)
+          // Idempotent — won't double-refund if Inngest onFailure also fired.
+          await refundVideoCredits(userId, deductedCost, videoId)
         }
       } catch (refundErr) {
         console.error(`[creatomate-webhook] Refund failed for video ${videoId}:`, refundErr)

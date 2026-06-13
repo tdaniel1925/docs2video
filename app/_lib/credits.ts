@@ -139,9 +139,6 @@ export async function getBalance(userId: string): Promise<CreditBalance> {
 }
 
 export async function checkCredits(userId: string, needed: number): Promise<CreditCheckResult> {
-  let balance = await getBalance(userId)
-
-  // If user's cycle grant is less than their tier expects, they missed their initial grant — fix it now
   const admin = createAdminClient()
   const { data: profile } = await admin
     .from('profiles')
@@ -159,15 +156,11 @@ export async function checkCredits(userId: string, needed: number): Promise<Cred
     return { allowed: false, remaining: 0, shortfall: needed }
   }
 
-  if (profile) {
-    const tier = getUserTier(profile.subscription_status || 'free')
-    const expectedCredits = TIER_CREDITS[tier]
-    if (balance.cycleGranted < expectedCredits) {
-      console.log(`[credits] Auto-granting credits for user ${userId}: has ${balance.cycleGranted} granted, tier ${tier} expects ${expectedCredits}`)
-      await grantMonthlyCredits(userId, profile.subscription_status || 'free')
-      balance = await getBalance(userId)
-    }
-  }
+  // getBalance() self-heals via ensureCreditBalance: a first-time user gets
+  // exactly one credit_balances row at their tier grant. This is now the ONLY
+  // place a first grant happens — checkCredits no longer mutates the wallet
+  // (no mid-cycle re-grant), so it's a pure "can they afford this" check.
+  const balance = await getBalance(userId)
 
   const allowed = balance.total >= needed
   return {
@@ -188,7 +181,11 @@ export async function deductCredits(
   amountOrAction?: number | string,
   videoId?: string,
   description?: string,
+  _attempt = 0,
 ): Promise<boolean> {
+  // Bound the CAS-race retry so a persistent failure can never loop forever
+  // (audit #3: previously unbounded recursion → hung requests / DB exhaustion).
+  const MAX_ATTEMPTS = 5
   // Detect old vs new call signature
   let userId: string
   let amount: number
@@ -232,11 +229,25 @@ export async function deductCredits(
 
   // Atomic deduction using conditional update — prevents race conditions
   // Only deducts if balance >= amount at the moment of update
-  const { data: balanceRow } = await admin
+  let { data: balanceRow } = await admin
     .from('credit_balances')
     .select('balance, topup_balance, cycle_credits_used')
     .eq('user_id', userId)
     .single()
+
+  // No wallet row yet (new/pre-migration account) — create one at the tier
+  // grant, then read it back. NEVER fall through to the dead legacy column
+  // (audit #7). Guard against an infinite create→read loop.
+  if (!balanceRow && _attempt === 0) {
+    const { data: prof } = await admin.from('profiles').select('subscription_status').eq('id', userId).single()
+    await ensureCreditBalance(userId, prof?.subscription_status || 'free')
+    const reread = await admin
+      .from('credit_balances')
+      .select('balance, topup_balance, cycle_credits_used')
+      .eq('user_id', userId)
+      .single()
+    balanceRow = reread.data
+  }
 
   if (balanceRow) {
     const total = balanceRow.balance + balanceRow.topup_balance
@@ -267,11 +278,20 @@ export async function deductCredits(
       .eq('topup_balance', balanceRow.topup_balance)
       .select('user_id')
 
-    if (updateErr || !updated || updated.length === 0) {
-      // Race condition detected — balance changed between read and write
-      console.warn(`[credits] Race condition detected for user ${userId}, retrying...`)
-      // Retry once with fresh balance
-      return deductCredits(adminOrUserId, userIdOrAmount, amountOrAction, videoId, description)
+    if (updateErr) {
+      // Hard failure (RLS, constraint, network) — do NOT retry; abort.
+      console.error(`[credits] deductCredits hard error for user ${userId}:`, updateErr.message)
+      return false
+    }
+    if (!updated || updated.length === 0) {
+      // Zero rows = CAS race (balance changed between read and write). Retry
+      // with a fresh read, up to MAX_ATTEMPTS.
+      if (_attempt + 1 >= MAX_ATTEMPTS) {
+        console.error(`[credits] deductCredits gave up after ${MAX_ATTEMPTS} contended attempts for user ${userId}`)
+        return false
+      }
+      console.warn(`[credits] CAS race for user ${userId}, retry ${_attempt + 1}/${MAX_ATTEMPTS}`)
+      return deductCredits(adminOrUserId, userIdOrAmount, amountOrAction, videoId, description, _attempt + 1)
     }
 
     await admin.from('credit_transactions').insert({
@@ -287,32 +307,31 @@ export async function deductCredits(
     return true
   }
 
-  // Fallback: use legacy profiles.credits_remaining
-  const { data: legacyProfile } = await admin
-    .from('profiles')
-    .select('credits_remaining')
-    .eq('id', userId)
-    .single()
-
-  const credits = legacyProfile?.credits_remaining ?? 0
-  if (credits < amount) {
-    console.log(`[credits] Insufficient (legacy): need ${amount}, have ${credits} (user ${userId})`)
-    return false
-  }
-
-  await admin
-    .from('profiles')
-    .update({ credits_remaining: credits - amount })
-    .eq('id', userId)
-
-  console.log(`[credits] Deducted ${amount} (legacy) from user ${userId}: ${credits} -> ${credits - amount}`)
-  return true
+  // No wallet row even after ensureCreditBalance — treat as no credits.
+  // We deliberately do NOT fall back to profiles.credits_remaining (dead store).
+  console.error(`[credits] deductCredits: no credit_balances row for user ${userId} after ensure — denying`)
+  return false
 }
 
 // ============================================================
 // Grant & top-up functions
 // ============================================================
 
+// A monthly cycle is considered renewable once cycle_start is older than this.
+// Guards grantMonthlyCredits against re-granting mid-cycle (webhook retries,
+// duplicate events, the old checkCredits self-heal) which previously wiped
+// spent credits and refilled the balance for free.
+const CYCLE_RENEW_MS = 25 * 24 * 60 * 60 * 1000 // ~25 days
+
+/**
+ * Grant a fresh monthly allotment. PER-CYCLE IDEMPOTENT: only performs a full
+ * reset (balance = tier credits, cycle_used = 0, new cycle_start) when this is
+ * genuinely a NEW cycle — i.e. there is no row yet, or the existing cycle_start
+ * is older than CYCLE_RENEW_MS. A duplicate/retried call within the same cycle
+ * is a no-op, so it can never silently refill mid-cycle.
+ *
+ * Top-up balance is always preserved.
+ */
 export async function grantMonthlyCredits(userId: string, subscriptionStatus: string): Promise<void> {
   const admin = createAdminClient()
   const tier = getUserTier(subscriptionStatus)
@@ -320,11 +339,21 @@ export async function grantMonthlyCredits(userId: string, subscriptionStatus: st
 
   const { data: existing } = await admin
     .from('credit_balances')
-    .select('topup_balance')
+    .select('topup_balance, cycle_start, cycle_credits_granted')
     .eq('user_id', userId)
     .single()
 
   const topup = existing?.topup_balance ?? 0
+
+  if (existing) {
+    const startMs = existing.cycle_start ? new Date(existing.cycle_start).getTime() : 0
+    const sameCycle = startMs > 0 && (Date.now() - startMs) < CYCLE_RENEW_MS
+    const alreadyGranted = (existing.cycle_credits_granted ?? 0) >= credits
+    // Same billing cycle AND already granted at least this tier's amount → no-op.
+    if (sameCycle && alreadyGranted) {
+      return
+    }
+  }
 
   await admin
     .from('credit_balances')
@@ -347,31 +376,133 @@ export async function grantMonthlyCredits(userId: string, subscriptionStatus: st
   })
 }
 
-export async function addTopupCredits(userId: string, amount: number, source: string): Promise<void> {
+/**
+ * Apply a plan UPGRADE without a free full refill. Adds only the positive delta
+ * between the new tier's allotment and the old one to the current monthly
+ * balance (so a user who already spent this cycle keeps their spend). Downgrades
+ * are a no-op on the current cycle (the lower allotment takes effect next cycle).
+ */
+export async function applyTierChange(userId: string, newSubscriptionStatus: string): Promise<void> {
   const admin = createAdminClient()
-  const balance = await getBalance(userId)
+  const newTier = getUserTier(newSubscriptionStatus)
+  const newCredits = TIER_CREDITS[newTier]
 
-  const newTopup = balance.topup + amount
-  const newTotal = balance.monthly + newTopup
+  const { data: existing } = await admin
+    .from('credit_balances')
+    .select('balance, topup_balance, cycle_credits_granted, cycle_credits_used, cycle_start')
+    .eq('user_id', userId)
+    .single()
 
+  // No row yet → just create a fresh grant for the new tier.
+  if (!existing) {
+    await grantMonthlyCredits(userId, newSubscriptionStatus)
+    return
+  }
+
+  const prevGranted = existing.cycle_credits_granted ?? 0
+  const delta = newCredits - prevGranted
+  if (delta <= 0) {
+    // Downgrade or same tier: don't touch the current cycle's balance.
+    return
+  }
+
+  const newBalance = (existing.balance ?? 0) + delta
   await admin
     .from('credit_balances')
-    .upsert({
-      user_id: userId,
-      balance: balance.monthly,
-      topup_balance: newTopup,
-      cycle_credits_granted: balance.cycleGranted,
-      cycle_credits_used: balance.cycleUsed,
+    .update({
+      balance: newBalance,
+      cycle_credits_granted: newCredits,
       updated_at: new Date().toISOString(),
     })
+    .eq('user_id', userId)
 
   await admin.from('credit_transactions').insert({
     user_id: userId,
-    amount,
-    balance_after: newTotal,
-    action: 'topup_pack',
-    description: `${source}: +${amount.toLocaleString()} credits`,
+    amount: delta,
+    balance_after: newBalance + (existing.topup_balance ?? 0),
+    action: 'tier_upgrade',
+    description: `Upgrade to ${newTier}: +${delta.toLocaleString()} credits (prorated delta)`,
   })
+}
+
+/**
+ * Add top-up credits. ATOMIC via compare-and-set on topup_balance with bounded
+ * retry (audit #6: the previous read-modify-write upsert lost concurrent
+ * top-ups — Stripe webhook retries, admin grant + refund overlap — silently
+ * destroying purchased credits). ensureCreditBalance guarantees a row exists.
+ */
+export async function addTopupCredits(userId: string, amount: number, source: string): Promise<void> {
+  if (!amount || amount <= 0) return
+  const admin = createAdminClient()
+  const MAX_ATTEMPTS = 6
+
+  // Make sure a row exists so the CAS update can match.
+  const { data: prof } = await admin.from('profiles').select('subscription_status').eq('id', userId).single()
+  await ensureCreditBalance(userId, prof?.subscription_status || 'free')
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const { data: row } = await admin
+      .from('credit_balances')
+      .select('balance, topup_balance')
+      .eq('user_id', userId)
+      .single()
+    if (!row) {
+      console.error(`[credits] addTopupCredits: no row for user ${userId} after ensure`)
+      return
+    }
+
+    const newTopup = (row.topup_balance ?? 0) + amount
+    const { data: updated, error } = await admin
+      .from('credit_balances')
+      .update({ topup_balance: newTopup, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('topup_balance', row.topup_balance) // CAS guard against concurrent top-up
+      .select('user_id')
+
+    if (error) {
+      console.error(`[credits] addTopupCredits hard error for user ${userId}:`, error.message)
+      return
+    }
+    if (updated && updated.length > 0) {
+      await admin.from('credit_transactions').insert({
+        user_id: userId,
+        amount,
+        balance_after: (row.balance ?? 0) + newTopup,
+        action: 'topup_pack',
+        description: `${source}: +${amount.toLocaleString()} credits`,
+      })
+      return
+    }
+    // Zero rows → another top-up landed first; re-read and retry.
+    console.warn(`[credits] addTopupCredits CAS race for user ${userId}, retry ${attempt + 1}/${MAX_ATTEMPTS}`)
+  }
+  console.error(`[credits] addTopupCredits gave up after ${MAX_ATTEMPTS} attempts for user ${userId}`)
+}
+
+/**
+ * Idempotent video refund. Refunds `amount` to the user's top-up balance at
+ * most ONCE per videoId, guarded by a marker in credit_transactions
+ * (description contains "refund:video:{videoId}"). This prevents a double
+ * refund when more than one failure handler fires for the same video — e.g.
+ * the Inngest onFailure AND the Creatomate webhook in pipeline v2 (audit #12).
+ */
+export async function refundVideoCredits(userId: string, amount: number, videoId: string): Promise<void> {
+  if (!amount || amount <= 0 || !videoId) return
+  const admin = createAdminClient()
+  const marker = `refund:video:${videoId}`
+
+  const { data: prior } = await admin
+    .from('credit_transactions')
+    .select('id')
+    .eq('user_id', userId)
+    .like('description', `%${marker}%`)
+    .limit(1)
+  if (prior && prior.length > 0) {
+    console.log(`[credits] Skipping duplicate refund for video ${videoId} (already refunded)`)
+    return
+  }
+
+  await addTopupCredits(userId, amount, marker)
 }
 
 export async function getUsageHistory(userId: string, limit: number = 50) {

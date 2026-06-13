@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { isAdmin , isAdminRequest } from '../../../_lib/admin'
+import { ensureCreditBalance } from '../../../_lib/credits'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -26,12 +27,15 @@ export async function POST(request: Request) {
   const { data: existing } = await supabase.from('profiles').select('id, email').eq('email', email.toLowerCase()).single()
 
   if (existing) {
-    // Upgrade existing user
+    // Upgrade existing user. is_beta = true gives genuine unlimited (bypasses
+    // all credit checks) — matches what the welcome email promises (audit #5).
     await supabase.from('profiles').update({
       subscription_status: 'enterprise',
+      is_beta: true,
       card_on_file: true,
       free_videos_remaining: 999,
     }).eq('id', existing.id)
+    await ensureCreditBalance(existing.id, 'enterprise')
 
     return NextResponse.json({ ok: true, created: false })
   }
@@ -49,14 +53,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: createErr?.message || 'Failed to create user' }, { status: 500 })
   }
 
-  // Set to enterprise tier
+  // Set to enterprise tier with unlimited (is_beta bypass). Use a recognized
+  // status — NOT 'agency', which getUserTier maps to free (audit #5).
   await supabase.from('profiles').update({
-    subscription_status: 'agency',
+    subscription_status: 'enterprise',
+    is_beta: true,
     full_name: name || null,
     onboarding_completed: true,
     card_on_file: true,
     free_videos_remaining: 999,
   }).eq('id', newUser.user.id)
+  await ensureCreditBalance(newUser.user.id, 'enterprise')
 
   // Send welcome email
   try {

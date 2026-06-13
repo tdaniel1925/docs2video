@@ -16,7 +16,7 @@ import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 import { PHONE_REGEX, phoneToSpoken, isPhoneInSource } from '../../_lib/phone-utils'
 import { estimateVideoCost, exceedsCeiling } from '../../_lib/cost-estimator'
-import { deductCredits, calculateVideoCost, checkCredits, addTopupCredits } from '../../_lib/credits'
+import { deductCredits, calculateVideoCost, checkCredits, addTopupCredits, refundVideoCredits } from '../../_lib/credits'
 import { isPaidTier } from '../../_lib/subscription'
 import { inngest } from '../../_lib/inngest/client'
 
@@ -782,7 +782,7 @@ export async function POST(request: Request) {
     logError('generate-video', err, { videoId, userId: user.id })
     if (deductedCost > 0) {
       try {
-        await addTopupCredits(user.id, deductedCost, `refund: failed video ${videoId}`)
+        await refundVideoCredits(user.id, deductedCost, videoId)
         console.log(`[video ${videoId}] Refunded ${deductedCost} credits after generation failure`)
       } catch (refundErr) {
         console.error(`[video ${videoId}] Credit refund failed:`, refundErr)

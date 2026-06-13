@@ -4,7 +4,7 @@ import { createAdminClient } from '../supabase/admin'
 import { generateSlideFromPrompt } from '../gemini'
 import { synthesizeNarration } from '../tts-cartesia'
 import { buildRenderSource, startRender } from '../creatomate'
-import { addTopupCredits } from '../credits'
+import { refundVideoCredits } from '../credits'
 import { sendNotification } from '../notify'
 
 export interface RenderV2Event {
@@ -41,7 +41,7 @@ export const renderVideoV2 = inngest.createFunction(
       console.error(`[pipeline-v2 ${videoId}] Failed permanently:`, error?.message)
       if (deductedCost && deductedCost > 0) {
         try {
-          await addTopupCredits(userId, deductedCost, `refund: failed video ${videoId}`)
+          await refundVideoCredits(userId, deductedCost, videoId)
         } catch (refundErr) {
           console.error(`[pipeline-v2 ${videoId}] Credit refund failed:`, refundErr)
         }

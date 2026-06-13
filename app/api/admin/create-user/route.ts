@@ -3,6 +3,7 @@ import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { isAdmin , isAdminRequest } from '../../../_lib/admin'
 import { logAdminAction } from '../../../_lib/audit'
+import { ensureCreditBalance } from '../../../_lib/credits'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export const runtime = 'nodejs'
@@ -57,18 +58,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: authError?.message ?? 'Failed to create auth user' }, { status: 500 })
     }
 
-    // Create or update profile
+    // Create or update profile. 'trial' is treated as free for tiering.
+    const planStatus = plan ?? 'trial'
     await admin.from('profiles').upsert({
       id: authUser.user.id,
       email,
       full_name: fullName ?? null,
       company_name: companyName ?? null,
-      subscription_status: plan ?? 'trial',
+      subscription_status: planStatus,
       is_beta: isBeta ?? false,
       is_admin: false,
       onboarding_completed: false,
-      credits_remaining: plan === 'enterprise' ? 300 : plan === 'business' ? 100 : plan === 'pro' ? 50 : plan === 'starter' ? 20 : 10,
     })
+
+    // Grant real, spendable credits at the plan's tier (credit_balances), not
+    // the dead profiles.credits_remaining column (audit #4).
+    await ensureCreditBalance(authUser.user.id, planStatus)
 
     // Log admin action
     await logAdminAction(user.id, 'create_user', authUser.user.id, {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
+import { checkCredits } from '../../_lib/credits'
 import { GoogleGenAI } from '@google/genai'
 import type { ExtractedData } from '../../_lib/extract-types'
 
@@ -52,13 +53,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin, is_beta, credits_remaining')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile?.is_admin && !profile?.is_beta && (!profile || profile.credits_remaining <= 0)) {
+  const credit = await checkCredits(user.id, 1)
+  if (!credit.allowed) {
     return NextResponse.json({ error: 'No credits remaining' }, { status: 403 })
   }
 

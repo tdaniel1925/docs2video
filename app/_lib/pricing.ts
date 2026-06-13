@@ -150,7 +150,9 @@ export function getPlan(tier: PlanTier): PlanInfo {
 
 export function getUserTier(subscriptionStatus: string | null): PlanTier {
   const status = (subscriptionStatus ?? '').toLowerCase()
-  if (['enterprise', 'enterprise-plus', 'enterprise_plus'].includes(status)) return 'enterprise'
+  // 'agency' is a real paid tier (maps to the top allotment so agency users
+  // aren't silently dropped to free — see credits audit #5).
+  if (['enterprise', 'enterprise-plus', 'enterprise_plus', 'agency'].includes(status)) return 'enterprise'
   if (['business', 'unlimited'].includes(status)) return 'business'
   if (['pro', 'professional'].includes(status)) return 'pro'
   if (['starter', 'active'].includes(status)) return 'starter'

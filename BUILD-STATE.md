@@ -149,6 +149,7 @@ Social: social_shares, affiliates, referrals
 Admin: campaigns, notifications, jobs, feedback
 Public API: api_keys, api_credit_balances, api_usage_log
 Affiliate: affiliates, referrals, affiliate_commissions, affiliate_clicks
+Credits: credit_balances (SOURCE OF TRUTH: balance + topup_balance), credit_transactions. profiles.credits_remaining is DEAD/legacy — do not read or write it.
 Auth: managed by Supabase Auth
 
 ### Client Management System (added 2026-05-25)
@@ -184,6 +185,20 @@ Auth: managed by Supabase Auth
 - **Admin**: `/admin/affiliates` + `/api/admin/affiliates` — list, pause/activate, approve-pending (30d+), **export payout CSV**, mark-paid. Gated by `isAdminRequest`.
 - **Migration**: `supabase-affiliate-migration.sql` (extends `affiliates`; adds `affiliate_commissions`, `affiliate_clicks`; RLS-deny). Built against the LIVE `referrals` shape (affiliate_id, referred_user_id, status, commission_amount, commission_paid).
 - **Help**: updated the "Affiliate Program" article.
+
+### Credits System Audit + Fixes (2026-06-13)
+Deep multi-agent audit of all 36 credit-touching files. Fixed (all build-clean):
+- **getBalance / checkCredits**: checkCredits is now PURE (no side-effect grant). First grant happens only via ensureCreditBalance (self-heal). Fixes new-user "disappearing credits".
+- **grantMonthlyCredits**: now PER-CYCLE IDEMPOTENT (guards on cycle_start < ~25d + already-granted) — no more blind overwrite that wiped spend / refilled free on upgrade or webhook retry.
+- **applyTierChange (new)**: plan upgrade adds only the positive tier delta (no free full refill); downgrade is a no-op on the current cycle. Wired into Stripe customer.subscription.updated.
+- **deductCredits**: bounded retry (max 5), aborts on hard DB error, NO legacy profiles.credits_remaining fallback (ensures a real row instead).
+- **addTopupCredits**: atomic compare-and-set on topup_balance + bounded retry (was a lost-update race).
+- **refundVideoCredits (new)**: idempotent per videoId (credit_transactions marker) — prevents double refund across generate-video / Inngest onFailure / Creatomate webhook.
+- **5 routes** (extract, extract-url, extract-text, generate-from-idea, proposal-chat) + generate (infographics) now gate/charge against credit_balances via checkCredits/deductCredits, not the dead column. Internal API calls skip the UI gate.
+- **getUserTier**: 'agency' now maps to enterprise (was silently → free).
+- **Stripe webhook**: idempotency marker written BEFORE grant; grant on upgrade via applyTierChange.
+- **Admin**: create-user + promo-user now grant via ensureCreditBalance (promo-user sets is_beta for true unlimited, recognized status); add_credits no longer writes the misleading legacy column; social-share rewards go to the real wallet via addTopupCredits.
+- Audit dropped 2 false-positive "critical" claims (no silent mid-cycle refill in normal spend; agency loop self-stabilizes).
 
 ### Go-Live Checklist — API v1 + Affiliate Program
 These features are code-complete and build clean. Setup status:

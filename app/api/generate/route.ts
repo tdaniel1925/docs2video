@@ -6,6 +6,7 @@ import { generateInfographicImage } from '../../_lib/gemini'
 import type { Brand, ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
+import { deductCredits, CREDIT_COSTS } from '../../_lib/credits'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -87,19 +88,9 @@ export async function POST(request: Request) {
       .update({ image_url: publicUrl.publicUrl, status: 'completed' })
       .eq('id', infographic.id)
 
-    // Decrement credits (skip for admin/beta)
-    const { data: currentProfile } = await admin
-      .from('profiles')
-      .select('credits_remaining, is_admin, is_beta')
-      .eq('id', user.id)
-      .single()
-
-    if (currentProfile && !currentProfile.is_admin && !currentProfile.is_beta) {
-      await admin
-        .from('profiles')
-        .update({ credits_remaining: Math.max(0, currentProfile.credits_remaining - 1) })
-        .eq('id', user.id)
-    }
+    // Deduct from the real wallet (credit_balances). deductCredits handles the
+    // admin/beta bypass internally.
+    await deductCredits(user.id, CREDIT_COSTS.infographic, 'infographic', infographic.id)
 
     return NextResponse.json({ id: infographic.id, image_url: publicUrl.publicUrl })
   } catch (err) {

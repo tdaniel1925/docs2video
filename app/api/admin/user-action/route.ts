@@ -41,8 +41,8 @@ export async function POST(request: Request) {
         if (amount > 0) {
           await addTopupCredits(userId, amount, `admin grant${reason ? ` (${reason})` : ''}`)
         }
-        // Keep the legacy column in sync for any old reads.
-        await admin.from('profiles').update({ credits_remaining: amount }).eq('id', userId)
+        // Do NOT write profiles.credits_remaining — it's the dead store and a
+        // non-additive write here would re-introduce drift (audit #8).
         break
       }
       case 'reset_credits': {

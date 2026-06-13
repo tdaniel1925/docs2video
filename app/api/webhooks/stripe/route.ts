@@ -3,7 +3,7 @@ import { getStripe, tierFromPriceId } from '../../../_lib/stripe'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import type Stripe from 'stripe'
 import { logError } from '../../../_lib/error-logger'
-import { grantMonthlyCredits, addTopupCredits } from '../../../_lib/credits'
+import { grantMonthlyCredits, addTopupCredits, applyTierChange } from '../../../_lib/credits'
 import { recordCommission, clawbackByInvoice } from '../../../_lib/affiliate'
 
 /** Extract the Stripe promotion-code id from a session or invoice, if any. */
@@ -218,13 +218,24 @@ export async function POST(request: Request) {
 
         if (subscription.status === 'active') {
           const tier = priceId ? tierFromPriceId(priceId) : 'pro'
-          const { error: updErr } = await supabase.from('profiles').update({
+          const { data: updatedProfile, error: updErr } = await supabase.from('profiles').update({
             subscription_status: tier,
             stripe_subscription_id: subscription.id,
-          }).eq('stripe_customer_id', customerId)
+          }).eq('stripe_customer_id', customerId).select('id').single()
           if (updErr) {
             console.error(`[webhook] Failed to update subscription for customer ${customerId}:`, updErr.message)
             return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
+          }
+          // Apply the credit delta for an upgrade here (audit #1). applyTierChange
+          // adds only the positive tier delta — it does NOT do a free full refill,
+          // and is a no-op for downgrades/same-tier. This replaces the old buggy
+          // path where checkCredits later saw a tier mismatch and refilled fully.
+          if (updatedProfile?.id) {
+            try {
+              await applyTierChange(updatedProfile.id, tier)
+            } catch (e) {
+              console.error(`[webhook] applyTierChange failed for ${updatedProfile.id} (non-fatal):`, e)
+            }
           }
           console.log(`[webhook] Subscription updated to ${tier} for customer ${customerId}`)
         } else if (['canceled', 'unpaid', 'past_due'].includes(subscription.status)) {
@@ -276,8 +287,9 @@ export async function POST(request: Request) {
           }
 
           if (renewProfile?.id && renewProfile.subscription_status) {
-            await grantMonthlyCredits(renewProfile.id, renewProfile.subscription_status)
-            // Log event for idempotency
+            // Write the idempotency marker BEFORE granting so a retry that
+            // arrives after a crash sees it and skips. Belt-and-suspenders with
+            // grantMonthlyCredits being per-cycle idempotent (audit #10).
             const { error: idempErr } = await supabase.from('credit_transactions').insert({
               user_id: renewProfile.id,
               amount: 0,
@@ -286,6 +298,7 @@ export async function POST(request: Request) {
               description: `stripe_event:${eventId}`,
             })
             if (idempErr) console.warn(`[webhook] Idempotency log failed:`, idempErr.message)
+            await grantMonthlyCredits(renewProfile.id, renewProfile.subscription_status)
             console.log(`[webhook] Monthly credits granted for user ${renewProfile.id} (${renewProfile.subscription_status})`)
           }
           console.log(`[webhook] Recurring payment succeeded for customer ${customerId}, amount: ${invoice.amount_paid}`)

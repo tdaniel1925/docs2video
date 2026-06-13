@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { resolveRequestUser } from '../../_lib/api-auth'
+import { checkCredits } from '../../_lib/credits'
 import { logError } from '../../_lib/error-logger'
 import Anthropic from '@anthropic-ai/sdk'
 import { CONTENT_STRUCTURING_SYSTEM_PROMPT } from '../../_lib/prompts'
@@ -30,15 +31,14 @@ export async function POST(request: Request & { nextUrl?: URL }) {
     return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
   }
 
-  // Check credits (skip for admin/beta users)
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin, is_beta, credits_remaining')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile?.is_admin && !profile?.is_beta && (!profile || profile.credits_remaining <= 0)) {
-    return NextResponse.json({ error: 'No credits remaining' }, { status: 403 })
+  // Availability gate against the REAL wallet (credit_balances), not the dead
+  // legacy profiles.credits_remaining. checkCredits handles admin/beta bypass
+  // and past_due. Internal API calls are metered at the API layer — skip.
+  if (!resolved.isInternal) {
+    const credit = await checkCredits(user.id, 1)
+    if (!credit.allowed) {
+      return NextResponse.json({ error: 'No credits remaining' }, { status: 403 })
+    }
   }
 
   // Detect content type — JSON for text/idea, formData for file uploads

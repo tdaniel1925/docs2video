@@ -4,6 +4,7 @@ import { GoogleGenAI } from '@google/genai'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { resolveRequestUser } from '../../_lib/api-auth'
+import { checkCredits } from '../../_lib/credits'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -53,14 +54,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin, is_beta, credits_remaining')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile?.is_admin && !profile?.is_beta && (!profile || profile.credits_remaining <= 0)) {
-    return NextResponse.json({ error: 'No credits remaining' }, { status: 403 })
+  if (!resolved.isInternal) {
+    const credit = await checkCredits(user.id, 1)
+    if (!credit.allowed) {
+      return NextResponse.json({ error: 'No credits remaining' }, { status: 403 })
+    }
   }
 
   const body = await request.json()
