@@ -3,6 +3,7 @@ import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { isAdmin , isAdminRequest } from '../../../_lib/admin'
 import { logAdminAction } from '../../../_lib/audit'
+import { addTopupCredits } from '../../../_lib/credits'
 export const maxDuration = 30
 
 export async function POST(request: Request) {
@@ -33,13 +34,24 @@ export async function POST(request: Request) {
         break
       }
       case 'add_credits': {
+        // Route through the real credit system (credit_balances.topup_balance),
+        // not the legacy profiles.credits_remaining column which the app no
+        // longer spends from. This is what makes admin grants actually usable.
         const amount = Number(value) || 0
-        const { data: profile } = await admin.from('profiles').select('credits_remaining').eq('id', userId).single()
-        const current = profile?.credits_remaining ?? 0
-        await admin.from('profiles').update({ credits_remaining: current + amount }).eq('id', userId)
+        if (amount > 0) {
+          await addTopupCredits(userId, amount, `admin grant${reason ? ` (${reason})` : ''}`)
+        }
+        // Keep the legacy column in sync for any old reads.
+        await admin.from('profiles').update({ credits_remaining: amount }).eq('id', userId)
         break
       }
       case 'reset_credits': {
+        // Zero out the real balance table and the legacy column.
+        await admin.from('credit_balances').update({
+          balance: 0,
+          topup_balance: 0,
+          updated_at: new Date().toISOString(),
+        }).eq('user_id', userId)
         await admin.from('profiles').update({ credits_remaining: 0 }).eq('id', userId)
         break
       }

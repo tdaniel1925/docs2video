@@ -82,13 +82,15 @@ export interface CreditCheckResult {
 }
 
 /**
- * Get user's credit balance from the new credit_balances table.
- * Falls back to profiles.credits_remaining if new table doesn't have a row yet.
+ * Get user's credit balance. Self-heals: if no credit_balances row exists yet
+ * (new signup, or pre-migration account), one is created at the user's tier
+ * grant via ensureCreditBalance — so the stale legacy profiles.credits_remaining
+ * default (10) is never shown or spent.
  */
 export async function getBalance(userId: string): Promise<CreditBalance> {
   const admin = createAdminClient()
 
-  // Try new credit_balances table first
+  // Try the credit_balances table first.
   const { data } = await admin
     .from('credit_balances')
     .select('balance, topup_balance, cycle_credits_used, cycle_credits_granted')
@@ -105,15 +107,35 @@ export async function getBalance(userId: string): Promise<CreditBalance> {
     }
   }
 
-  // Fallback: read from profiles.credits_remaining (legacy)
+  // No row yet — create one at the user's tier grant (self-heal), then re-read.
+  // This is the fix for "new user's credits disappeared": previously this path
+  // returned the misleading profiles.credits_remaining DEFAULT 10.
   const { data: profile } = await admin
     .from('profiles')
-    .select('credits_remaining, subscription_status')
+    .select('subscription_status')
     .eq('id', userId)
     .single()
 
-  const legacy = profile?.credits_remaining ?? 0
-  return { monthly: legacy, topup: 0, total: legacy, cycleUsed: 0, cycleGranted: 0 }
+  await ensureCreditBalance(userId, profile?.subscription_status || 'free')
+
+  const { data: fresh } = await admin
+    .from('credit_balances')
+    .select('balance, topup_balance, cycle_credits_used, cycle_credits_granted')
+    .eq('user_id', userId)
+    .single()
+
+  if (fresh) {
+    return {
+      monthly: fresh.balance,
+      topup: fresh.topup_balance,
+      total: fresh.balance + fresh.topup_balance,
+      cycleUsed: fresh.cycle_credits_used,
+      cycleGranted: fresh.cycle_credits_granted,
+    }
+  }
+
+  // Last-resort fallback (should not happen): zero, never the misleading 10.
+  return { monthly: 0, topup: 0, total: 0, cycleUsed: 0, cycleGranted: 0 }
 }
 
 export async function checkCredits(userId: string, needed: number): Promise<CreditCheckResult> {
