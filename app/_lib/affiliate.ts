@@ -210,12 +210,25 @@ export async function clawbackByInvoice(stripeInvoiceId: string): Promise<void> 
   }
 }
 
+/** Save where/how an affiliate wants to be paid. */
+export async function setPayoutInfo(userId: string, payoutEmail: string, payoutMethod?: string): Promise<boolean> {
+  const admin = createAdminClient()
+  const update: Record<string, unknown> = { payout_email: payoutEmail }
+  if (payoutMethod !== undefined) update.payout_method = payoutMethod
+  const { error } = await admin.from('affiliates').update(update).eq('user_id', userId)
+  if (error) {
+    console.error('[affiliate] setPayoutInfo error:', error.message)
+    return false
+  }
+  return true
+}
+
 /** Aggregate stats for the affiliate dashboard. */
 export async function getAffiliateStats(userId: string) {
   const admin = createAdminClient()
   const { data: aff } = await admin
     .from('affiliates')
-    .select('id, referral_code, promo_code, commission_rate, status, stripe_promo_code_id')
+    .select('id, referral_code, promo_code, commission_rate, status, stripe_promo_code_id, payout_email, payout_method')
     .eq('user_id', userId)
     .single()
   if (!aff) return null

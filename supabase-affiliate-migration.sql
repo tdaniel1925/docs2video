@@ -8,7 +8,9 @@
 ALTER TABLE public.affiliates
   ADD COLUMN IF NOT EXISTS stripe_coupon_id     TEXT,
   ADD COLUMN IF NOT EXISTS stripe_promo_code_id TEXT,
-  ADD COLUMN IF NOT EXISTS promo_code           TEXT;  -- human-facing code, e.g. "JANE15"
+  ADD COLUMN IF NOT EXISTS promo_code           TEXT,    -- human-facing code, e.g. "JANE15"
+  ADD COLUMN IF NOT EXISTS payout_method        TEXT;    -- how to pay: "PayPal", "Wise", "Bank", etc.
+-- payout_email already exists on the affiliates table.
 
 CREATE INDEX IF NOT EXISTS idx_affiliates_promo_code ON public.affiliates (promo_code);
 

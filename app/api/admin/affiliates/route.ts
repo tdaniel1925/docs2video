@@ -20,7 +20,7 @@ export async function GET() {
 
   const { data: affiliates } = await admin
     .from('affiliates')
-    .select('id, user_id, referral_code, promo_code, commission_rate, status, created_at')
+    .select('id, user_id, referral_code, promo_code, commission_rate, status, created_at, payout_email, payout_method')
     .order('created_at', { ascending: false })
 
   const userIds = [...new Set((affiliates ?? []).map(a => a.user_id))]
@@ -38,6 +38,7 @@ export async function GET() {
     affiliates: (affiliates ?? []).map(a => ({
       ...a,
       email: emailById.get(a.user_id) ?? null,
+      payout_ready: !!a.payout_email,
       pending_cents: sumBy(a.id, 'pending'),
       approved_cents: sumBy(a.id, 'approved'),
       paid_cents: sumBy(a.id, 'paid'),

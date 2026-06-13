@@ -12,6 +12,8 @@ interface AffRow {
   status: string
   created_at: string
   email: string | null
+  payout_email?: string | null
+  payout_method?: string | null
   pending_cents: number
   approved_cents: number
   paid_cents: number
@@ -85,6 +87,7 @@ export default function AdminAffiliatesPage() {
             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--line, #e5e0d8)' }}>
               <th style={{ padding: 10 }}>Affiliate</th>
               <th style={{ padding: 10 }}>Code</th>
+              <th style={{ padding: 10 }}>Payout</th>
               <th style={{ padding: 10 }}>Rate</th>
               <th style={{ padding: 10 }}>Pending</th>
               <th style={{ padding: 10 }}>Approved</th>
@@ -94,11 +97,16 @@ export default function AdminAffiliatesPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={8} style={{ padding: 16, color: 'var(--ink-light)' }}>No affiliates yet.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={9} style={{ padding: 16, color: 'var(--ink-light)' }}>No affiliates yet.</td></tr>}
             {rows.map(a => (
               <tr key={a.id} style={{ borderBottom: '1px solid var(--line, #efe9e0)' }}>
                 <td style={{ padding: 10 }}>{a.email || a.user_id.slice(0, 8)}</td>
                 <td style={{ padding: 10, fontFamily: 'monospace' }}>{a.promo_code || a.referral_code}</td>
+                <td style={{ padding: 10 }}>
+                  {a.payout_email
+                    ? <span title={a.payout_method || ''}>{a.payout_email}{a.payout_method ? ` (${a.payout_method})` : ''}</span>
+                    : <span className="tag rose">missing</span>}
+                </td>
                 <td style={{ padding: 10 }}>{a.commission_rate}%</td>
                 <td style={{ padding: 10 }}>{money(a.pending_cents)}</td>
                 <td style={{ padding: 10 }}>{money(a.approved_cents)}</td>
