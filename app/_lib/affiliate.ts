@@ -107,6 +107,17 @@ export async function getAffiliateByStripePromoId(stripePromoCodeId: string) {
   return data || null
 }
 
+/** Resolve a Stripe coupon id (fallback when the promo-code id isn't present). */
+export async function getAffiliateByCouponId(stripeCouponId: string) {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('affiliates')
+    .select('id, user_id, commission_rate, status')
+    .eq('stripe_coupon_id', stripeCouponId)
+    .single()
+  return data || null
+}
+
 export async function getAffiliateByCode(code: string) {
   const admin = createAdminClient()
   const { data } = await admin
@@ -125,7 +136,8 @@ export async function getAffiliateByCode(code: string) {
  * Self-referral guard: if the paying user IS the affiliate, skip silently.
  */
 export async function recordCommission(opts: {
-  stripePromoCodeId: string
+  stripePromoCodeId?: string | null
+  stripeCouponId?: string | null
   payingUserId?: string | null
   customerId?: string | null
   stripeInvoiceId: string
@@ -133,8 +145,12 @@ export async function recordCommission(opts: {
 }): Promise<{ recorded: boolean; reason?: string }> {
   try {
     if (!opts.amountPaidCents || opts.amountPaidCents <= 0) return { recorded: false, reason: 'zero amount' }
-    const affiliate = await getAffiliateByStripePromoId(opts.stripePromoCodeId)
-    if (!affiliate) return { recorded: false, reason: 'no affiliate for promo' }
+    // Resolve the affiliate by promo-code id first; fall back to the coupon id
+    // (each affiliate has a unique coupon) so attribution never depends on the
+    // exact discount payload shape Stripe returns.
+    let affiliate = opts.stripePromoCodeId ? await getAffiliateByStripePromoId(opts.stripePromoCodeId) : null
+    if (!affiliate && opts.stripeCouponId) affiliate = await getAffiliateByCouponId(opts.stripeCouponId)
+    if (!affiliate) return { recorded: false, reason: 'no affiliate for promo/coupon' }
     if (affiliate.status !== 'active') return { recorded: false, reason: `affiliate ${affiliate.status}` }
     if (opts.payingUserId && opts.payingUserId === affiliate.user_id) {
       return { recorded: false, reason: 'self-referral' }

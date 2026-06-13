@@ -24,6 +24,29 @@ function promoIdFromDiscounts(obj: { discounts?: unknown; discount?: unknown }):
   return null
 }
 
+/**
+ * Extract the Stripe coupon id from a session or invoice discount, if any.
+ * Used as a fallback when the promotion-code id isn't present — each affiliate
+ * has a unique coupon, so this still resolves the affiliate reliably.
+ */
+function couponIdFromDiscounts(obj: { discounts?: unknown; discount?: unknown }): string | null {
+  const pick = (c: unknown): string | null => {
+    if (typeof c === 'string') return c
+    if (c && typeof c === 'object' && 'id' in (c as any)) return (c as any).id
+    return null
+  }
+  const discounts = (obj as any).discounts
+  if (Array.isArray(discounts)) {
+    for (const d of discounts) {
+      // a discount may carry `coupon` directly, or nest it under promotion_code
+      const c = pick(d?.coupon) || pick(d?.promotion_code?.coupon)
+      if (c) return c
+    }
+  }
+  const single = pick((obj as any).discount?.coupon) || pick((obj as any).discount?.promotion_code?.coupon)
+  return single || null
+}
+
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
@@ -133,18 +156,26 @@ export async function POST(request: Request) {
           // re-fetch with them expanded to read the promotion code reliably.
           try {
             const full = await stripe.checkout.sessions.retrieve(session.id, {
-              expand: ['discounts', 'discounts.promotion_code'],
+              expand: ['discounts', 'discounts.promotion_code', 'discounts.coupon'],
             })
             const promoId = promoIdFromDiscounts(full)
+            const couponId = couponIdFromDiscounts(full)
             const amount = full.amount_total ?? session.amount_total
-            if (promoId && amount) {
-              await recordCommission({
+            if ((promoId || couponId) && amount) {
+              const r = await recordCommission({
                 stripePromoCodeId: promoId,
+                stripeCouponId: couponId,
                 payingUserId: userId,
                 customerId: session.customer as string,
                 stripeInvoiceId: `session:${session.id}`,
                 amountPaidCents: amount,
               })
+              if (!r.recorded && r.reason !== 'duplicate' && r.reason !== 'self-referral') {
+                console.warn(`[webhook] AFFILIATE NOT CREDITED on first payment (session ${session.id}): ${r.reason} — promo=${promoId} coupon=${couponId}`)
+              }
+            } else if (full.total_details?.amount_discount) {
+              // A discount was applied but we couldn't extract an id — flag for reconciliation.
+              console.warn(`[webhook] AFFILIATE ATTRIBUTION MISS on first payment (session ${session.id}): discount of ${full.total_details.amount_discount} applied but no promo/coupon id found`)
             }
           } catch (e) {
             console.error('[webhook] affiliate first-payment commission failed (non-fatal):', e)
@@ -264,20 +295,26 @@ export async function POST(request: Request) {
           // resolves regardless of how Stripe shaped the webhook payload.
           try {
             let promoId: string | null = promoIdFromDiscounts(invoice)
-            if (!promoId && invoice.id) {
+            let couponId: string | null = couponIdFromDiscounts(invoice)
+            if (!promoId && !couponId && invoice.id) {
               const full = await stripe.invoices.retrieve(invoice.id, {
-                expand: ['discounts', 'discounts.promotion_code'],
+                expand: ['discounts', 'discounts.promotion_code', 'discounts.coupon'],
               })
               promoId = promoIdFromDiscounts(full)
+              couponId = couponIdFromDiscounts(full)
             }
-            if (promoId && invoice.amount_paid && invoice.id) {
-              await recordCommission({
+            if ((promoId || couponId) && invoice.amount_paid && invoice.id) {
+              const r = await recordCommission({
                 stripePromoCodeId: promoId,
+                stripeCouponId: couponId,
                 payingUserId: renewProfile?.id ?? null,
                 customerId,
                 stripeInvoiceId: invoice.id,
                 amountPaidCents: invoice.amount_paid,
               })
+              if (!r.recorded && r.reason !== 'duplicate' && r.reason !== 'self-referral') {
+                console.warn(`[webhook] AFFILIATE NOT CREDITED on recurring payment (invoice ${invoice.id}): ${r.reason} — promo=${promoId} coupon=${couponId}`)
+              }
             }
           } catch (e) {
             console.error('[webhook] affiliate recurring commission failed (non-fatal):', e)
