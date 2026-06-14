@@ -125,7 +125,10 @@ export async function POST(request: Request) {
         if (session.metadata?.type === 'credit_pack') {
           const credits = parseInt(session.metadata.credits || '0', 10)
           const packName = session.metadata.pack_name || 'credit_pack'
-          if (!Number.isFinite(credits) || credits > 10000) {
+          // Sanity ceiling must sit ABOVE the largest real pack (Studio = 18,000).
+          // The old 10,000 cap silently rejected Studio purchases — customer
+          // paid and received zero credits.
+          if (!Number.isFinite(credits) || credits > 100000) {
             console.error(`[webhook] Rejected credit_pack with implausible credits value: ${session.metadata.credits}`)
             break
           }
