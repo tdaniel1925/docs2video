@@ -5,11 +5,15 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import WizardProgress from '../_components/WizardProgress'
 import CreditCost from '../_components/CreditCost'
 import QuickPreview from '../../../_components/QuickPreview'
+import BuyCreditsModal from '../../../_components/BuyCreditsModal'
 
 export default function ScriptPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const videoId = searchParams.get('id')
+
+  // Out-of-credits modal (opened when generation is blocked for low balance)
+  const [buyCredits, setBuyCredits] = useState<{ needed?: number; balance?: number } | null>(null)
 
   // Wizard mode = videoId present
   const isWizard = !!videoId
@@ -398,6 +402,13 @@ export default function ScriptPage() {
       })
       if (!genRes.ok) {
         const genData = await genRes.json().catch(() => ({}))
+        // Insufficient credits → offer a top-up instead of a dead-end error.
+        if (genRes.status === 402) {
+          const m = /Need\s+(\d+),\s*have\s+(\d+)/i.exec(genData.error || '')
+          setBuyCredits({ needed: m ? Number(m[1]) : undefined, balance: m ? Number(m[2]) : undefined })
+          setSubmitting(false)
+          return
+        }
         throw new Error(genData.error || 'Failed to start generation')
       }
 
@@ -1042,6 +1053,14 @@ export default function ScriptPage() {
           </>
         )}
       </div>
+
+      {/* Out-of-credits top-up modal */}
+      <BuyCreditsModal
+        open={buyCredits !== null}
+        onClose={() => setBuyCredits(null)}
+        needed={buyCredits?.needed}
+        balance={buyCredits?.balance}
+      />
 
       {/* Preview modal */}
       {previewIdx !== null && (

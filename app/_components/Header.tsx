@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import NotificationBell from './NotificationBell'
+import BuyCreditsModal from './BuyCreditsModal'
 import { logout } from '../_actions/auth'
 import type { Profile } from '../_lib/types'
 
@@ -31,6 +32,7 @@ export default function Header({ profile }: { profile: Profile }) {
   const [toolsOpen, setToolsOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [credits, setCredits] = useState<{ balance: number; monthly: number } | null>(null)
+  const [showBuyCredits, setShowBuyCredits] = useState(false)
   const pathname = usePathname()
   const createRef = useRef<HTMLDivElement>(null)
   const toolsRef = useRef<HTMLDivElement>(null)
@@ -216,23 +218,27 @@ export default function Header({ profile }: { profile: Profile }) {
         </button>
 
         {credits && (
-          <Link
-            href="/pricing"
+          <button
+            onClick={() => setShowBuyCredits(true)}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
-              padding: '4px 10px', borderRadius: 8, textDecoration: 'none',
+              padding: '4px 10px', borderRadius: 8, cursor: 'pointer',
               fontSize: 13, fontWeight: 600, color: creditColor,
               background: 'var(--bg-soft)', border: '1px solid var(--border-light)',
+              fontFamily: 'inherit',
             }}
-            title="Credit balance"
+            title="Credit balance — click to top up"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={creditColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
               <path d="M12 6v12M15 9.5c0-1.38-1.34-2.5-3-2.5s-3 1.12-3 2.5 1.34 2.5 3 2.5 3 1.12 3 2.5-1.34 2.5-3 2.5" />
             </svg>
             {credits.balance.toLocaleString()} credits
-          </Link>
+            <span style={{ marginLeft: 4, fontSize: 12, fontWeight: 700, color: 'var(--mint-darker, #2d8a4e)' }}>+ Top Up</span>
+          </button>
         )}
+
+        <BuyCreditsModal open={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
 
         <NotificationBell />
 

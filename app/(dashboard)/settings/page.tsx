@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/client'
 import SmtpSetupModal from '../../_components/SmtpSetupModal'
 import InlineConfirm from '../../_components/InlineConfirm'
+import BuyCreditsModal from '../../_components/BuyCreditsModal'
 import { SLIDE_STYLES } from '../../_lib/types'
 import type { Profile, Brand } from '../../_lib/types'
 import { updatePassword, updateEmail } from '../../_actions/auth'
@@ -126,6 +127,8 @@ export default function SettingsPage() {
   const [socialSaved, setSocialSaved] = useState(false)
 
   const [stripeMessage, setStripeMessage] = useState<string | null>(null)
+  const [creditBalance, setCreditBalance] = useState<number | null>(null)
+  const [showBuyCredits, setShowBuyCredits] = useState(false)
   const [calendlyUrl, setCalendlyUrl] = useState('')
   const [calendarProvider, setCalendarProvider] = useState<'calendly' | 'calcom' | 'google'>('calendly')
   const [calendarySaving, setCalendarySaving] = useState(false)
@@ -133,6 +136,13 @@ export default function SettingsPage() {
   const [defaultStyle, setDefaultStyle] = useState('corporate-clean')
   const [styleSaving, setStyleSaving] = useState(false)
   const searchParams = useSearchParams()
+
+  useEffect(() => {
+    fetch('/api/credits/balance')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && typeof d.balance === 'number') setCreditBalance(d.balance) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -870,6 +880,35 @@ export default function SettingsPage() {
       {/* ===== SUBSCRIPTION TAB ===== */}
       {tab === 'subscription' && (
         <div>
+          {/* Credits & top-ups */}
+          <div className="settings-card">
+            <h3>Credits &amp; Top-Ups</h3>
+            <p className="ssub">Buy credit packs anytime. Credits never expire and are used after your monthly allotment.</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginTop: 12 }}>
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Current balance</div>
+                <div style={{ fontSize: 28, fontWeight: 800 }}>
+                  {creditBalance === null ? '—' : creditBalance.toLocaleString()}<span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-light)' }}> credits</span>
+                </div>
+              </div>
+              <button className="btn btn-primary" onClick={() => setShowBuyCredits(true)}>Buy credits</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 16 }}>
+              {[
+                { name: 'Starter', credits: '2,500', price: '$10' },
+                { name: 'Power', credits: '7,500', price: '$25' },
+                { name: 'Studio', credits: '18,000', price: '$50' },
+              ].map(p => (
+                <button key={p.name} onClick={() => setShowBuyCredits(true)}
+                  style={{ textAlign: 'left', padding: '12px 14px', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'var(--bg-soft)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <div style={{ fontWeight: 700 }}>{p.name}</div>
+                  <div style={{ fontSize: 13, color: 'var(--ink-light)' }}>{p.credits} credits</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginTop: 4 }}>{p.price}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Current plan summary */}
           <div className="settings-card">
             <h3>Your Plan</h3>
@@ -1072,6 +1111,8 @@ export default function SettingsPage() {
           onConnected={() => { setShowSmtpModal(false); loadEmailConnections(); setEmailMessage('SMTP connected!'); setTimeout(() => setEmailMessage(null), 5000) }}
         />
       )}
+
+      <BuyCreditsModal open={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
     </div>
   )
 }
