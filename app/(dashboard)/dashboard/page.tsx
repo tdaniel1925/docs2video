@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/server'
+import { getBalance } from '../../_lib/credits'
 
 const TYPE_BADGE: Record<string, { label: string; color: string }> = {
   video: { label: 'Video', color: 'mint' },
@@ -153,6 +154,9 @@ export default async function DashboardPage() {
     .eq('id', user!.id)
     .single()
 
+  // Real spendable credit balance (credit_balances), not the legacy column.
+  const creditBalance = await getBalance(user!.id)
+
   // Fetch drafts for "Continue where you left off" section
   const { data: drafts } = await supabase
     .from('videos')
@@ -216,12 +220,7 @@ export default async function DashboardPage() {
 
   // Free trial status
   const hasReferral = !!profile?.referred_by
-  const cardOnFile = profile?.card_on_file ?? false
-  const freeVideosRemaining = profile?.free_videos_remaining ?? 0
   const isTrialUser = !isPro && !hasReferral
-  const trialVideosUsed = 5 - freeVideosRemaining
-  const trialVideosRemaining = freeVideosRemaining
-  const trialExhausted = isTrialUser && freeVideosRemaining <= 0 && !cardOnFile
 
   return (
     <div>
@@ -242,53 +241,39 @@ export default async function DashboardPage() {
         <div style={{
           display: 'flex', alignItems: 'center', gap: 12,
           padding: '12px 18px', marginBottom: 20, borderRadius: 10,
-          background: trialExhausted
+          background: creditBalance.total <= 0
             ? 'linear-gradient(135deg, #fef2f2, #fff1f2)'
             : 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
-          border: `1px solid ${trialExhausted ? '#fecaca' : '#bbf7d0'}`,
+          border: `1px solid ${creditBalance.total <= 0 ? '#fecaca' : '#bbf7d0'}`,
           fontSize: 13,
         }}>
           <div style={{ flex: 1 }}>
-            {trialExhausted ? (
+            {creditBalance.total <= 0 ? (
               <>
-                <strong style={{ color: '#991b1b' }}>Free videos used</strong>
+                <strong style={{ color: '#991b1b' }}>Out of credits</strong>
                 <span style={{ color: '#b91c1c', marginLeft: 8 }}>
-                  Add a payment method or subscribe to keep creating.
-                </span>
-              </>
-            ) : freeVideosRemaining > 0 ? (
-              <>
-                <strong style={{ color: '#166534' }}>Free videos</strong>
-                <span style={{ color: '#15803d', marginLeft: 8 }}>
-                  {freeVideosRemaining} of 5 free videos remaining
-                </span>
-              </>
-            ) : cardOnFile ? (
-              <>
-                <strong style={{ color: '#166534' }}>Pay per video</strong>
-                <span style={{ color: '#15803d', marginLeft: 8 }}>
-                  $10 per video — charged to your card on file
+                  Top up or subscribe to keep creating.
                 </span>
               </>
             ) : (
               <>
-                <strong style={{ color: '#166534' }}>Free videos</strong>
+                <strong style={{ color: '#166534' }}>Free credits</strong>
                 <span style={{ color: '#15803d', marginLeft: 8 }}>
-                  {freeVideosRemaining} of 5 free videos remaining
+                  {creditBalance.total.toLocaleString()} credits remaining
                 </span>
               </>
             )}
           </div>
           <Link
-            href="/settings"
+            href="/settings?tab=subscription"
             className="btn btn-sm"
             style={{
-              background: trialExhausted ? '#dc2626' : 'var(--mint)',
+              background: creditBalance.total <= 0 ? '#dc2626' : 'var(--mint)',
               color: 'white', fontWeight: 600, fontSize: 12, padding: '6px 14px', borderRadius: 8,
               textDecoration: 'none', whiteSpace: 'nowrap',
             }}
           >
-            {trialExhausted ? 'Choose a plan' : 'Upgrade'}
+            {creditBalance.total <= 0 ? 'Choose a plan' : 'Upgrade'}
           </Link>
         </div>
       )}
