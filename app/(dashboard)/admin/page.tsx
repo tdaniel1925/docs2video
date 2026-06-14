@@ -124,6 +124,20 @@ export default function AdminPage() {
     setBusy(null)
   }
 
+  async function impersonate(userId: string, email: string) {
+    if (!confirm(`Impersonate ${email}? You'll be logged in as them. Use 'Exit impersonation' to return.`)) return
+    setBusy(userId)
+    try {
+      const r = await fetch('/api/admin/impersonate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start', userId }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok || !d.actionLink) { alert(d.error || 'Could not impersonate'); setBusy(null); return }
+      window.location.href = d.actionLink
+    } catch { alert('Network error'); setBusy(null) }
+  }
+
   async function retryVideo(videoId: string) {
     setBusy(videoId)
     try {
@@ -325,7 +339,7 @@ export default function AdminPage() {
               <div style={{ width: 80 }}>Plan</div>
               <div style={{ width: 60 }}>Credits</div>
               <div style={{ width: 50 }}>Flags</div>
-              <div style={{ width: 200 }}>Actions</div>
+              <div style={{ width: 260 }}>Actions</div>
             </div>
             {filteredUsers.slice(0, 50).map((p, i) => (
               <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < Math.min(filteredUsers.length, 50) - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
@@ -339,7 +353,7 @@ export default function AdminPage() {
                   {p.is_admin && <span className="tag mint" style={{ fontSize: 10 }}>A</span>}
                   {p.is_beta && <span className="tag sky" style={{ fontSize: 10 }}>B</span>}
                 </div>
-                <div style={{ width: 200, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                <div style={{ width: 260, flexShrink: 0, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   <select disabled={busy === p.id} defaultValue=""
                     onChange={e => { if (e.target.value) userAction(p.id, 'change_plan', e.target.value); e.target.value = '' }}
                     style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid var(--border)', background: 'white' }}>
@@ -354,6 +368,10 @@ export default function AdminPage() {
                     onClick={() => userAction(p.id, 'add_credits', 10)}>+10</button>
                   <button className="btn btn-sm btn-soft" style={{ fontSize: 11, padding: '3px 8px' }} disabled={busy === p.id}
                     onClick={() => userAction(p.id, 'add_credits', 100)}>+100</button>
+                  {!p.is_admin && (
+                    <button className="btn btn-sm btn-soft" style={{ fontSize: 11, padding: '3px 8px' }} disabled={busy === p.id}
+                      onClick={() => impersonate(p.id, p.email)} title="Log in as this user to troubleshoot">Login as</button>
+                  )}
                 </div>
               </div>
             ))}

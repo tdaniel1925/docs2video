@@ -3,6 +3,7 @@ import { createClient } from '../_lib/supabase/server'
 import { createAdminClient } from '../_lib/supabase/admin'
 import Header from '../_components/Header'
 import HelpChatWidget from '../_components/HelpChatWidget'
+import ImpersonationBanner from '../_components/ImpersonationBanner'
 import type { Profile } from '../_lib/types'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -47,6 +48,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)' }}>
+      <ImpersonationBanner />
       <Header profile={profile as Profile} />
       <main className="container" style={{ paddingTop: 40, paddingBottom: 40 }}>
         {children}
