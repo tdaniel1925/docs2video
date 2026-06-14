@@ -26,6 +26,7 @@ export default function AdminPage() {
   const [busy, setBusy] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
   const [accessSearch, setAccessSearch] = useState('')
+  const [videoPage, setVideoPage] = useState(0)
   const [videoAnalytics, setVideoAnalytics] = useState<Record<string, { views: number; plays: number }>>({})
   const [dailyActivity, setDailyActivity] = useState<{ date: string; users: number; videos: number }[]>([])
   const [auditDateFilter, setAuditDateFilter] = useState<'7' | '30' | 'all'>('30')
@@ -266,21 +267,30 @@ export default function AdminPage() {
           <div className="settings-card" style={{ marginTop: 16 }}>
             <h3>Recent Videos</h3>
             <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
-              {videos.slice(0, 10).map((v, i) => (
-                <div key={v.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: i < 9 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
-                  <div style={{ flex: 1, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title ?? 'Untitled'}</div>
-                  <div style={{ width: 160, color: 'var(--ink-light)' }}>{userEmail(v.user_id)}</div>
-                  <div style={{ width: 80 }}>{statusTag(v.status)}</div>
-                  <div style={{ width: 60 }}>
+              {videos.slice(videoPage * 10, videoPage * 10 + 10).map((v, i, arr) => (
+                <div key={v.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
+                  <div style={{ flex: 1, minWidth: 0, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title ?? 'Untitled'}</div>
+                  <div style={{ width: 180, flexShrink: 0, color: 'var(--ink-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={userEmail(v.user_id)}>{userEmail(v.user_id)}</div>
+                  <div style={{ width: 90, flexShrink: 0 }}>{statusTag(v.status)}</div>
+                  <div style={{ width: 50, flexShrink: 0 }}>
                     {v.status === 'completed' && (
                       <a href={`/watch/${v.id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: 'var(--primary)' }}>Watch</a>
                     )}
                   </div>
-                  <div style={{ width: 100, color: 'var(--ink-light)', textAlign: 'right' }}>{fmt(v.created_at)}</div>
+                  <div style={{ width: 100, flexShrink: 0, color: 'var(--ink-light)', textAlign: 'right' }}>{fmt(v.created_at)}</div>
                 </div>
               ))}
               {videos.length === 0 && <div style={{ padding: 32, textAlign: 'center', color: 'var(--ink-light)' }}>No videos yet</div>}
             </div>
+            {videos.length > 10 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, fontSize: 13 }}>
+                <button className="btn btn-sm btn-soft" disabled={videoPage === 0} onClick={() => setVideoPage(p => Math.max(0, p - 1))}>← Prev</button>
+                <span style={{ color: 'var(--ink-light)' }}>
+                  Page {videoPage + 1} of {Math.ceil(videos.length / 10)} · {videos.length} videos
+                </span>
+                <button className="btn btn-sm btn-soft" disabled={(videoPage + 1) * 10 >= videos.length} onClick={() => setVideoPage(p => p + 1)}>Next →</button>
+              </div>
+            )}
           </div>
 
           {dailyActivity.length > 0 && (
