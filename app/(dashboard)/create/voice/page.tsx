@@ -5,8 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import WizardProgress from '../_components/WizardProgress'
 import CreditCost from '../_components/CreditCost'
 import UpgradeModal from '../../../_components/UpgradeModal'
+import BuyCreditsModal from '../../../_components/BuyCreditsModal'
 import { createClient } from '../../../_lib/supabase/client'
 import { getUserTier, type PlanTier } from '../../../_lib/pricing'
+import { calculateVideoCost } from '../../../_lib/credits'
 
 const VOICE_OPTIONS = [
   { id: 'nova', name: 'Nova', description: 'Warm female' },
@@ -53,7 +55,10 @@ export default function VoicePage() {
   const [detailLevel, setDetailLevel] = useState<'quick' | 'standard' | 'detailed'>('standard')
   const [aiMusic, setAiMusic] = useState(false)
   const [userTier, setUserTier] = useState<PlanTier>('free')
+  const [creditBalance, setCreditBalance] = useState<number | null>(null)
+  const [isUnlimited, setIsUnlimited] = useState(false) // admin/beta — no charge
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [showBuyCredits, setShowBuyCredits] = useState(false)
 
   useEffect(() => {
     if (!videoId) {
@@ -92,7 +97,9 @@ export default function VoicePage() {
     loadDraft()
   }, [videoId, router])
 
-  // Fetch user tier for detail level gating
+  // Fetch tier + real credit balance. Length is gated by AFFORDABILITY (can the
+  // user pay the credit cost), not by subscription tier — any user with enough
+  // credits can pick any length. Admin/beta are unlimited.
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -101,20 +108,29 @@ export default function VoicePage() {
         if (data) setUserTier(getUserTier(data.subscription_status))
       })
     })
+    fetch('/api/credits/balance')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) { if (typeof d.balance === 'number') setCreditBalance(d.balance); if (d.isAdmin) setIsUnlimited(true) } })
+      .catch(() => {})
   }, [])
 
+  function levelCost(level: 'quick' | 'standard' | 'detailed'): number {
+    return calculateVideoCost({ outputType: 'video', detailLevel: level, narrationStyle: aiMusic ? 'solo' : 'solo' })
+  }
+
   function isDetailLevelAllowed(level: 'quick' | 'standard' | 'detailed'): boolean {
-    if (level === 'quick') return true
-    if (level === 'standard') return userTier !== 'free'
-    // detailed requires pro+
-    return userTier === 'pro' || userTier === 'business' || userTier === 'enterprise'
+    if (isUnlimited) return true
+    // Don't block the UI before the balance loads; the server still enforces credits.
+    if (creditBalance === null) return true
+    return creditBalance >= levelCost(level)
   }
 
   function handleDetailLevelClick(level: 'quick' | 'standard' | 'detailed') {
     if (isDetailLevelAllowed(level)) {
       setDetailLevel(level)
     } else {
-      setShowUpgradeModal(true)
+      // Can't afford → offer a top-up (credit model), not a subscription upsell.
+      setShowBuyCredits(true)
     }
   }
 
@@ -223,10 +239,10 @@ export default function VoicePage() {
                   <span style={styles.lengthDesc}>{level.description}</span>
                   {!allowed && (
                     <span
-                      onClick={(e) => { e.stopPropagation(); setShowUpgradeModal(true) }}
+                      onClick={(e) => { e.stopPropagation(); setShowBuyCredits(true) }}
                       style={{ fontSize: 11, color: '#2563eb', marginTop: 4, display: 'block', cursor: 'pointer', textDecoration: 'underline' }}
                     >
-                      Upgrade to unlock
+                      Not enough credits — top up
                     </span>
                   )}
                 </button>
@@ -291,6 +307,7 @@ export default function VoicePage() {
         </div>
       </div>
       <UpgradeModal open={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
+      <BuyCreditsModal open={showBuyCredits} onClose={() => setShowBuyCredits(false)} balance={creditBalance ?? undefined} />
     </div>
   )
 }
