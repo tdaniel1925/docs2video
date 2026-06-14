@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import WizardProgress from '../_components/WizardProgress'
-import CreditCost from '../_components/CreditCost'
 import QuickPreview from '../../../_components/QuickPreview'
 import BuyCreditsModal from '../../../_components/BuyCreditsModal'
 
@@ -986,17 +985,6 @@ export default function ScriptPage() {
             {error && (
               <div style={{ padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 14, marginTop: 16 }}>
                 {typeof error === 'string' ? error : 'Something went wrong. Please try again.'}
-              </div>
-            )}
-
-            {/* Credit cost — wizard mode only */}
-            {isWizard && (
-              <div style={{ marginTop: 20 }}>
-                <CreditCost
-                  outputType={outputType}
-                  detailLevel={detailLevel}
-                  narrationStyle={narrationStyle}
-                />
               </div>
             )}
 

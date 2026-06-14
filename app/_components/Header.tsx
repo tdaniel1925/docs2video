@@ -276,6 +276,24 @@ export default function Header({ profile }: { profile: Profile }) {
                 {['pro', 'professional', 'active', 'agency'].includes(profile.subscription_status?.toLowerCase() ?? '') ? 'Pro Member' : 'Free Account'}
               </div>
               <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: 0 }} />
+
+              {/* Credits balance section */}
+              <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Credits</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>
+                    {credits ? credits.balance.toLocaleString() : '—'}
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setMenuOpen(false); setShowBuyCredits(true) }}
+                  className="btn btn-sm"
+                  style={{ background: 'var(--mint)', color: 'var(--ink)', fontWeight: 700, fontSize: 12, padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  Top Up
+                </button>
+              </div>
+              <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: 0 }} />
               <Link
                 href="/analytics"
                 onClick={() => setMenuOpen(false)}
