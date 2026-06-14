@@ -200,6 +200,20 @@ Deep multi-agent audit of all 36 credit-touching files. Fixed (all build-clean):
 - **Admin**: create-user + promo-user now grant via ensureCreditBalance (promo-user sets is_beta for true unlimited, recognized status); add_credits no longer writes the misleading legacy column; social-share rewards go to the real wallet via addTopupCredits.
 - Audit dropped 2 false-positive "critical" claims (no silent mid-cycle refill in normal spend; agency loop self-stabilizes).
 
+### Video Pipeline Hardening (2026-06-14)
+Multi-agent reliability audit → fixed all HIGH + MEDIUM. Build-clean.
+- **H1**: fix-stuck-videos cron now REFUNDS deducted credits on force-fail (was the central money bug) + notifies. Reads videos.deducted_cost.
+- **H2**: generate-video early-return guards (invalid scenes, insurance Tier1/2 review holds, script validation, daily ceiling) now refund. Insurance hold policy = REFUND NOW, recharge on approval. deducted_cost persisted on the row at deduction.
+- **H3**: duplicate-submission guard is now DB compare-and-set (UPDATE…WHERE status IN draft/failed/pending) — prevents double-charge across serverless instances; in-memory set kept as fast path.
+- **H4**: cron recovers V2 jobs via Creatomate getRender — succeeded→download+complete, failed→fail+refund; only force-fails V1 (no render id). render id persisted in render-video.ts.
+- **M1/M2**: cron force-fails on activity-staleness (progress_updated_at, no progress in 10min) not absolute created_at age.
+- **M3**: deducted_cost persisted immediately so a mid-setup kill is refundable.
+- **M4**: VPS ACK timeout 10s→25s; on abort, treat as maybe-queued (leave assembling, cron reconciles) instead of refund+fail.
+- **M6**: creatomate render id/url persisted for finalize retry.
+- **Notifications**: bell hides stale jobs (>30min) + a Dismiss (×) button per active job (POST dismiss-job). Cleared 144 stuck jobs from prod.
+- **Migration**: `supabase-pipeline-hardening-migration.sql` (videos.deducted_cost, creatomate_render_id, creatomate_render_url, progress_updated_at).
+- Audit dropped 2 false-positive criticals; V2 is the safer pipeline once these ship.
+
 ### Go-Live Checklist — API v1 + Affiliate Program
 These features are code-complete and build clean. Setup status:
 - [x] **Run `supabase-api-migration.sql`** in Supabase (creates `api_keys`, `api_credit_balances`, `api_usage_log`). DONE 2026-06-13.

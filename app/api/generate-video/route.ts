@@ -188,10 +188,29 @@ export async function POST(request: Request) {
   const useV2 = process.env.USE_PIPELINE_V2 === 'true'
 
   // --- GUARD: Duplicate submission prevention ---
+  // In-memory set = fast same-instance check. DB compare-and-set below is the
+  // real guard (serverless instances don't share memory) — audit H3.
   if (inFlightVideos.has(videoId)) {
     return NextResponse.json({ error: 'This video is already being generated.' }, { status: 409 })
   }
   inFlightVideos.add(videoId)
+
+  // DB-backed claim: only ONE request can move this video out of a non-running
+  // state. If another instance already claimed it, rowCount is 0 → 409. This
+  // prevents the double-charge + racing-jobs bug across Lambdas/cold starts.
+  {
+    const claimDb = createAdminClient()
+    const { data: claimed } = await claimDb
+      .from('videos')
+      .update({ status: 'scripting', progress_updated_at: new Date().toISOString() })
+      .eq('id', videoId)
+      .in('status', ['draft', 'failed', 'pending'])
+      .select('id')
+    if (!claimed || claimed.length === 0) {
+      inFlightVideos.delete(videoId)
+      return NextResponse.json({ error: 'This video is already being generated.' }, { status: 409 })
+    }
+  }
 
   // --- GUARD: Server-side purpose validation ---
   if (!purpose?.trim() && !preGeneratedScenes?.length) {
@@ -240,6 +259,22 @@ export async function POST(request: Request) {
       )
     }
     deductedCost = videoCost
+    // Persist the charge on the row so the stuck-video cron can refund the
+    // exact amount if this job is later force-failed (audit H1/M3).
+    await createAdminClient().from('videos').update({ deducted_cost: videoCost }).eq('id', videoId)
+  }
+
+  // Guarded-exit helper (audit H2): any early return AFTER deduction must refund
+  // and leave a terminal status, or the user is silently charged for nothing.
+  const failAndRefund = async (status: number, message: string, videoStatus: 'failed' | 'review_required' = 'failed') => {
+    inFlightVideos.delete(videoId)
+    const adminC = createAdminClient()
+    await adminC.from('videos').update({ status: videoStatus, error_message: videoStatus === 'failed' ? message : null }).eq('id', videoId)
+    if (deductedCost > 0) {
+      // refund-now policy (incl. insurance review holds: refund now, recharge on approval)
+      await refundVideoCredits(user.id, deductedCost, videoId)
+    }
+    return NextResponse.json({ error: message }, { status })
   }
 
   let brand: Brand | null = null
@@ -290,8 +325,7 @@ export async function POST(request: Request) {
         console.warn(`[video ${videoId}] Filtered ${preGeneratedScenes.length - validScenes.length} invalid pre-generated scenes (missing narration, title, or slide content)`)
       }
       if (validScenes.length === 0) {
-        inFlightVideos.delete(videoId)
-        return NextResponse.json({ error: 'All pre-generated scenes are invalid (missing narration, title, or slide content). Please regenerate your script.' }, { status: 400 })
+        return await failAndRefund(400, 'All pre-generated scenes are invalid (missing narration, title, or slide content). Please regenerate your script.')
       }
       // Replace with validated scenes
       const preGenScenes = validScenes
@@ -479,7 +513,8 @@ export async function POST(request: Request) {
         const tier2Flags = sanityFlags.filter((f: string) => TIER2_PREFIXES.some(p => f.startsWith(p)))
 
         if (tier1Flags.length > 0) {
-          // BLOCK: impossible values — bad reads, not unusual products
+          // BLOCK: impossible values — bad reads, not unusual products.
+          // Refund now (policy: refund on hold, recharge on approval) — audit H2.
           inFlightVideos.delete(videoId)
           const flagSummary = tier1Flags.join('; ')
           console.error(`[video ${videoId}] Insurance BLOCKED (Tier 1 — impossible values): ${flagSummary}`)
@@ -488,11 +523,13 @@ export async function POST(request: Request) {
             progress_detail: `Extraction errors detected: ${flagSummary}`,
             progress_pct: 0,
           }).eq('id', videoId)
+          if (deductedCost > 0) await refundVideoCredits(user.id, deductedCost, videoId)
           return NextResponse.json({ error: 'Insurance data contains extraction errors that must be corrected before generating a video. Please review the extracted data.', reviewRequired: true, tier: 1, flags: tier1Flags }, { status: 422 })
         }
 
         if (tier2Flags.length > 0) {
-          // HOLD: unusual values — human must approve before shipping
+          // HOLD: unusual values — human must approve before shipping. Refund now;
+          // re-charge happens when a reviewer approves and re-runs (audit H2).
           inFlightVideos.delete(videoId)
           const flagSummary = tier2Flags.join('; ')
           console.warn(`[video ${videoId}] Insurance HELD for review (Tier 2 — unusual values): ${flagSummary}`)
@@ -501,6 +538,7 @@ export async function POST(request: Request) {
             progress_detail: `Unusual values flagged for review: ${flagSummary}`,
             progress_pct: 0,
           }).eq('id', videoId)
+          if (deductedCost > 0) await refundVideoCredits(user.id, deductedCost, videoId)
           return NextResponse.json({ error: 'Insurance data contains unusual values that need human verification before generating a video. A reviewer can approve and release this.', reviewRequired: true, tier: 2, flags: tier2Flags }, { status: 422 })
         }
       }
@@ -521,6 +559,8 @@ export async function POST(request: Request) {
         error_message: `Script validation failed: ${validation.errors.map(e => e.message).join('; ')}`
       }).eq('id', videoId)
       if (jobId) await updateJobProgress(admin, jobId, 0, 'failed', { error_message: 'Script validation failed' })
+      // Refund — the user didn't get a video (audit H2).
+      if (deductedCost > 0) await refundVideoCredits(user.id, deductedCost, videoId)
       return NextResponse.json({
         error: 'Script validation failed',
         details: validation.errors,
@@ -546,6 +586,8 @@ export async function POST(request: Request) {
       inFlightVideos.delete(videoId)
       await admin.from('videos').update({ status: 'failed', error_message: 'Daily usage limit reached.' }).eq('id', videoId)
       if (jobId) await updateJobProgress(admin, jobId, 0, 'failed', { error_message: 'Daily usage limit reached.' })
+      // Refund — blocked by our ceiling, not the user's fault (audit H2).
+      if (deductedCost > 0) await refundVideoCredits(user.id, deductedCost, videoId)
       return NextResponse.json({ error: 'Daily usage limit reached.' }, { status: 429 })
     }
 
@@ -740,31 +782,54 @@ export async function POST(request: Request) {
     console.log(`[video ${videoId}] Handing off to VPS: ${allScenes.length} total slides (cover + ${scenes.length} content + closing), voice=${voiceId}`)
     await admin.from('videos').update({ progress_detail: 'Sending to video server...', progress_pct: 18 }).eq('id', videoId)
 
-    const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
-      body: JSON.stringify({
-        videoId,
-        voiceId,
-        scenes: allScenes,
-        userId: user.id,
-        slidePrompts: allSlidePrompts,
-        videoTitle,
-        contactForClosing,
-        logoUrl,
-        brandName: effectiveBrandName,
-        brandColors,
-        noContactBar: (body as any).noContactBar || false,
-        barText: barText || undefined,
-        musicPrompt: musicPrompt || (aiMusic ? 'Professional ambient background music, subtle and warm' : ''),
-        industry: industry || '',
-        narrationStyle: effectiveNarrationStyle,
-        styleId: templateId || 'apex-corporate',
-        customStylePrompt: customStylePrompt || undefined,
-        templateRefUrl: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com'}/style-previews/${templateId}.png`,
-      }),
-      signal: AbortSignal.timeout(10000),
+    const vpsBody = JSON.stringify({
+      videoId,
+      voiceId,
+      scenes: allScenes,
+      userId: user.id,
+      slidePrompts: allSlidePrompts,
+      videoTitle,
+      contactForClosing,
+      logoUrl,
+      brandName: effectiveBrandName,
+      brandColors,
+      noContactBar: (body as any).noContactBar || false,
+      barText: barText || undefined,
+      musicPrompt: musicPrompt || (aiMusic ? 'Professional ambient background music, subtle and warm' : ''),
+      industry: industry || '',
+      narrationStyle: effectiveNarrationStyle,
+      styleId: templateId || 'apex-corporate',
+      customStylePrompt: customStylePrompt || undefined,
+      templateRefUrl: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com'}/style-previews/${templateId}.png`,
     })
+
+    let vpsRes: Response
+    try {
+      vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
+        body: vpsBody,
+        // 25s ACK window (audit M4) — a busy VPS can take >10s just to acknowledge.
+        signal: AbortSignal.timeout(25000),
+      })
+    } catch (vpsErr) {
+      // ACK timeout / network abort: the VPS MAY have received and started the
+      // job. Do NOT refund+fail (that produced free/confusing videos). Leave the
+      // row in-progress with a fresh progress stamp so fix-stuck-videos
+      // reconciles it via the MP4's appearance (audit M4).
+      const isAbort = vpsErr instanceof Error && (vpsErr.name === 'TimeoutError' || vpsErr.name === 'AbortError')
+      if (isAbort) {
+        console.warn(`[video ${videoId}] VPS ACK timed out — treating as maybe-queued; cron will reconcile.`)
+        await admin.from('videos').update({
+          status: 'assembling',
+          progress_detail: 'Sent to video server — finishing up...',
+          progress_updated_at: new Date().toISOString(),
+        }).eq('id', videoId)
+        inFlightVideos.delete(videoId)
+        return NextResponse.json({ success: true, queued: true })
+      }
+      throw vpsErr
+    }
 
     const vpsText = await vpsRes.text()
     let vpsData: { success?: boolean; error?: string } | null = null

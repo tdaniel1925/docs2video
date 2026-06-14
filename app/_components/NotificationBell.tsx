@@ -88,6 +88,15 @@ export default function NotificationBell() {
     setUnreadCount(prev => Math.max(0, prev - 1))
   }
 
+  async function dismissJob(id: string) {
+    setActiveJobs(prev => prev.filter(j => j.id !== id)) // optimistic
+    await fetch('/api/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'dismiss-job', jobId: id }),
+    }).catch(() => {})
+  }
+
   function timeAgo(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime()
     const mins = Math.floor(diff / 60000)
@@ -169,9 +178,16 @@ export default function NotificationBell() {
               </div>
               {activeJobs.map(job => (
                 <div key={job.id} style={{ marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>{job.title ?? job.type}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.title ?? job.type}</span>
                     <span style={{ fontSize: 11, color: 'var(--ink-light)' }}>{job.progress}%</span>
+                    <button
+                      onClick={() => dismissJob(job.id)}
+                      title="Dismiss"
+                      style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-light)', fontSize: 14, lineHeight: 1, padding: '0 2px' }}
+                    >
+                      &times;
+                    </button>
                   </div>
                   <div style={{ height: 6, background: 'var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                     <div style={{

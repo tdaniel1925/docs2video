@@ -138,6 +138,12 @@ export const renderVideoV2 = inngest.createFunction(
       )
       const { id } = await startRender(source, { videoId, userId, deductedCost })
       console.log(`[pipeline-v2 ${videoId}] Creatomate render started: ${id}`)
+      // Persist the render id so fix-stuck-videos can re-query Creatomate and
+      // recover (or fail+refund) a job whose webhook never landed (audit H4).
+      await createAdminClient().from('videos').update({
+        creatomate_render_id: id,
+        progress_updated_at: new Date().toISOString(),
+      }).eq('id', videoId)
       return id
     })
 

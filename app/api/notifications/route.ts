@@ -19,10 +19,14 @@ export async function GET() {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(20),
+    // Only show GENUINELY active jobs — exclude stale ones (>30 min) so dead
+    // stuck jobs don't pile up in the bell forever (the cron fails them, but
+    // hide them here regardless).
     admin.from('jobs')
       .select('*')
       .eq('user_id', user.id)
       .in('status', ['queued', 'running'])
+      .gte('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
       .order('created_at', { ascending: false }),
     admin.from('notifications')
       .select('*', { count: 'exact', head: true })
@@ -43,12 +47,22 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-  const { action, notificationId } = await request.json() as {
-    action: 'mark-read' | 'mark-all-read'
+  const { action, notificationId, jobId } = await request.json() as {
+    action: 'mark-read' | 'mark-all-read' | 'dismiss-job'
     notificationId?: string
+    jobId?: string
   }
 
   const admin = createAdminClient()
+
+  // Let a user clear a stuck in-progress job from their notification bell.
+  if (action === 'dismiss-job' && jobId) {
+    await admin.from('jobs')
+      .update({ status: 'failed', error_message: 'Dismissed by user' })
+      .eq('id', jobId)
+      .eq('user_id', user.id)
+    return NextResponse.json({ success: true })
+  }
 
   if (action === 'mark-all-read') {
     await admin.from('notifications')
