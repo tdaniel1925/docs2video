@@ -7,6 +7,18 @@ export const maxDuration = 30
 
 const VALID_EVENTS = ['view', 'play', 'progress', 'complete', 'chat_message', 'download', 'book_meeting', 'booking_click', 'payment_click', 'social_share'] as const
 
+// Lightweight per-(ip+video+event) rate limit so a bot can't flood analytics
+// or amplify owner notifications. Resets per instance — a backstop, not a quota.
+const trackRate = new Map<string, { count: number; resetAt: number }>()
+function tooMany(key: string): boolean {
+  const now = Date.now()
+  const e = trackRate.get(key)
+  if (!e || now > e.resetAt) { trackRate.set(key, { count: 1, resetAt: now + 60_000 }); return false }
+  if (e.count >= 30) return true
+  e.count++
+  return false
+}
+
 export async function POST(request: Request) {
   try {
     const { videoId, event, metadata } = (await request.json()) as {
@@ -24,6 +36,18 @@ export async function POST(request: Request) {
 
     // Get viewer info from headers
     const viewerIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+
+    if (tooMany(`${viewerIp}:${videoId}:${eventType}`)) {
+      return NextResponse.json({ ok: true, throttled: true })
+    }
+
+    // Verify the video actually exists before writing analytics / firing owner
+    // notifications — stops flooding garbage ids to spam the owner (cost + noise).
+    const { data: exists } = await supabase.from('videos').select('id').eq('id', videoId).single()
+    if (!exists) {
+      return NextResponse.json({ ok: true }) // silently no-op; don't reveal existence
+    }
+
     const viewerDevice = request.headers.get('user-agent') ?? 'unknown'
     const referrer = request.headers.get('referer') ?? null
 

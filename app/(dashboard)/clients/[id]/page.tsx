@@ -151,9 +151,7 @@ export default function ClientDetailPage() {
         .then(d => setVideos(d.videos ?? []))
         .catch(() => {})
     } else if (tab === 'emails' && client.email) {
-      fetch(`/api/clients?_emails_for=${client.email}`)
-        .catch(() => {})
-      // Load from sent_emails via a simple fetch
+      // Load from sent_emails
       fetch(`/api/sent-emails?email=${encodeURIComponent(client.email)}`)
         .then(r => r.ok ? r.json() : { emails: [] })
         .then(d => setEmails(d.emails ?? []))

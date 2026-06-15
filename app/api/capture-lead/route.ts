@@ -24,6 +24,12 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
+// Escape user-supplied values before interpolating into the owner's HTML email
+// (prevents HTML/phishing injection into the creator's inbox).
+function esc(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
 export async function POST(request: Request) {
   try {
     const { videoId, email, name } = (await request.json()) as {
@@ -75,7 +81,10 @@ export async function POST(request: Request) {
 
         if (profile?.email && process.env.RESEND_API_KEY) {
           const resend = new Resend(process.env.RESEND_API_KEY)
-          const videoTitle = video.title ?? 'Untitled'
+          // Escape everything user-controlled before it enters the email HTML.
+          const videoTitle = esc(video.title ?? 'Untitled')
+          const safeEmail = esc(email.slice(0, 200))
+          const safeName = name ? esc(name.slice(0, 120)) : ''
           await resend.emails.send({
             from: 'Docs2Video <notifications@docs2video.com>',
             to: profile.email,
@@ -88,10 +97,10 @@ export async function POST(request: Request) {
                 </p>
                 <div style="background: #F0F4F8; border-radius: 10px; padding: 16px 20px; margin: 20px 0;">
                   <div style="font-size: 13px; color: #7A8FA3; margin-bottom: 4px;">Email</div>
-                  <div style="font-size: 15px; font-weight: 700; color: #1B3A5C;">${email}</div>
-                  ${name ? `
+                  <div style="font-size: 15px; font-weight: 700; color: #1B3A5C;">${safeEmail}</div>
+                  ${safeName ? `
                     <div style="font-size: 13px; color: #7A8FA3; margin: 12px 0 4px;">Name</div>
-                    <div style="font-size: 15px; font-weight: 700; color: #1B3A5C;">${name}</div>
+                    <div style="font-size: 15px; font-weight: 700; color: #1B3A5C;">${safeName}</div>
                   ` : ''}
                 </div>
                 <p style="color: #7A8FA3; font-size: 12px; margin-top: 24px;">

@@ -21,28 +21,20 @@ export async function POST(request: Request) {
       .eq('id', quoteId)
       .single()
 
-    if (error || !quote) {
-      return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+    const profile = quote?.profiles as { stripe_user_id: string | null; full_name: string | null; company_name: string | null } | null
+    // Single generic error for ALL non-payable states (missing, paid, draft, no
+    // video, agent has no Stripe) so an attacker can't enumerate quote ids or
+    // learn their status / whether the agent has Stripe connected.
+    const notPayable =
+      error || !quote ||
+      quote.status === 'paid' ||
+      quote.status === 'draft' ||
+      !quote.video_id ||
+      !profile?.stripe_user_id
+    if (notPayable) {
+      return NextResponse.json({ error: 'This quote is not available for payment.' }, { status: 400 })
     }
-
-    if (quote.status === 'paid') {
-      return NextResponse.json({ error: 'Quote already paid' }, { status: 400 })
-    }
-
-    if (quote.status === 'draft') {
-      return NextResponse.json({ error: 'Quote has not been sent yet' }, { status: 400 })
-    }
-
-    if (!quote.video_id) {
-      return NextResponse.json({ error: 'Quote is not linked to a video' }, { status: 400 })
-    }
-
-    const profile = quote.profiles as { stripe_user_id: string | null; full_name: string | null; company_name: string | null } | null
-    const agentStripeAccountId = profile?.stripe_user_id
-
-    if (!agentStripeAccountId) {
-      return NextResponse.json({ error: 'Agent has not connected a Stripe account' }, { status: 400 })
-    }
+    const agentStripeAccountId = profile!.stripe_user_id as string
 
     const origin = request.headers.get('origin') ?? ''
 
@@ -87,10 +79,9 @@ export async function POST(request: Request) {
       { stripeAccount: agentStripeAccountId },
     )
 
-    // Update quote status to viewed
-    if (quote.status === 'sent') {
-      await supabase.from('quotes').update({ status: 'viewed' }).eq('id', quoteId)
-    }
+    // (View-tracking intentionally NOT done here — an unauthenticated POST to
+    // the pay endpoint must not be able to flip a quote's status. View state is
+    // tracked on the watch page's own view event.)
 
     return NextResponse.json({ url: session.url })
   } catch (err: unknown) {
