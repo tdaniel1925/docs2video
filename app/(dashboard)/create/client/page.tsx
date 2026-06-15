@@ -27,7 +27,9 @@ export default function ClientStepPage() {
   const [creating, setCreating] = useState(false)
 
   const goToContent = useCallback((clientId?: string) => {
-    router.push(clientId ? `/create?clientId=${clientId}` : '/create')
+    // Carry the Step-1 decision forward explicitly: a client id, or an explicit
+    // "general" marker for Skip, so Step 2 never re-asks "Who is this for?".
+    router.push(clientId ? `/create?clientId=${clientId}` : '/create?for=general')
   }, [router])
 
   // Deep-link from the clients list ("Send Video") — skip straight through
@@ -74,7 +76,7 @@ export default function ClientStepPage() {
   }
 
   if (preselectedId) {
-    return <div style={styles.wrap}><p style={{ color: 'var(--ink-soft)' }}>Loading…</p></div>
+    return <div style={styles.wrap}><p style={{ color: 'var(--ink-soft)' }}>Setting up your video…</p></div>
   }
 
   return (
@@ -110,7 +112,15 @@ export default function ClientStepPage() {
           />
           <div style={styles.list}>
             {loading && <p style={styles.muted}>Searching…</p>}
-            {!loading && clients.length === 0 && <p style={styles.muted}>No clients found. Try a different search or add a new one.</p>}
+            {!loading && clients.length === 0 && (
+              <button
+                style={styles.clientRow}
+                onClick={() => { setNewName(search.trim()); setMode('new') }}
+              >
+                <span style={{ fontWeight: 600 }}>+ Add {search.trim() ? `"${search.trim()}"` : 'a new client'}</span>
+                <span style={styles.muted}>No matches — create this client and continue</span>
+              </button>
+            )}
             {clients.map(c => (
               <button key={c.id} style={styles.clientRow} onClick={() => goToContent(c.id)}>
                 <span style={{ fontWeight: 600 }}>{c.name}</span>
@@ -118,7 +128,10 @@ export default function ClientStepPage() {
               </button>
             ))}
           </div>
-          <button style={styles.linkBtn} onClick={() => setMode('choose')}>&larr; Back</button>
+          <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+            <button style={styles.secondaryBtn} onClick={() => setMode('choose')}>&larr; Back</button>
+            <button style={styles.linkBtn} onClick={() => goToContent()}>Skip — make a general video</button>
+          </div>
         </div>
       )}
 
@@ -129,11 +142,12 @@ export default function ClientStepPage() {
           <label style={styles.label}>Email <span style={styles.muted}>(optional)</span></label>
           <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="client@example.com" type="email" style={styles.input} />
           {error && <p style={{ color: '#c03a1f', fontSize: 13, marginTop: 8 }}>{error}</p>}
-          <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+          <div style={{ display: 'flex', gap: 12, marginTop: 16, alignItems: 'center' }}>
             <button style={styles.primaryBtn} onClick={createClient} disabled={creating}>
               {creating ? 'Adding…' : 'Add & continue'}
             </button>
-            <button style={styles.linkBtn} onClick={() => { setMode('choose'); setError(null) }}>Back</button>
+            <button style={styles.secondaryBtn} onClick={() => { setMode('choose'); setError(null) }}>&larr; Back</button>
+            <button style={styles.linkBtn} onClick={() => goToContent()}>Skip</button>
           </div>
         </div>
       )}
@@ -156,5 +170,6 @@ const styles: Record<string, React.CSSProperties> = {
   label: { fontSize: 13, fontWeight: 600, color: 'var(--ink)', margin: '10px 0 4px' },
   muted: { fontSize: 13, color: 'var(--ink-light)' },
   primaryBtn: { padding: '12px 24px', borderRadius: 10, background: 'var(--ink)', color: 'white', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' },
+  secondaryBtn: { padding: '10px 18px', borderRadius: 10, background: 'white', border: '1.5px solid var(--border-light)', color: 'var(--ink-soft)', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
   linkBtn: { padding: '12px 8px', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
 }

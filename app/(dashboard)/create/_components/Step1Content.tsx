@@ -13,54 +13,68 @@ const OUTPUT_OPTIONS: { type: OutputType; label: string; desc: string }[] = [
   { type: 'pdf', label: 'PDF Document', desc: 'Printable slide deck as PDF' },
 ]
 
-const CONTENT_METHODS: { id: InputMethod; label: string }[] = [
-  { id: 'url', label: 'Website URL' },
-  { id: 'upload', label: 'Upload file' },
-  { id: 'text', label: 'Paste text' },
-  { id: 'idea', label: 'AI writes it' },
+const CONTENT_METHODS: { id: InputMethod; label: string; desc: string }[] = [
+  { id: 'url', label: 'Website URL', desc: 'Pull from a web page' },
+  { id: 'upload', label: 'Upload file', desc: 'PDF, Word, or PowerPoint' },
+  { id: 'text', label: 'Paste text', desc: 'Paste your own content' },
+  { id: 'idea', label: 'AI writes it', desc: 'Describe it, AI drafts it' },
 ]
 
 export default function Step1Content() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const clientId = searchParams.get('clientId') || undefined
+  // Step 1 (client page) passes ?for=general when the user chose "Skip — make a
+  // general video", so Step 2 doesn't re-ask "Who is this for?".
+  const forGeneral = searchParams.get('for') === 'general'
   // If we arrived back here from a later step, a draft already exists — reuse it
   // instead of creating a second orphaned row.
   const existingDraftId = searchParams.get('id') || undefined
   const [outputType, setOutputType] = useState<OutputType>('video')
   const [recipientName, setRecipientName] = useState('')
+  const [clientName, setClientName] = useState<string | null>(null) // bound client (read-only display)
+  const [draftRestored, setDraftRestored] = useState(false) // gate client-name fetch behind draft restore
 
-  // Came from the "Who's this for?" step with a client — pre-fill recipient name
+  // Restore-on-return runs FIRST and wins (it reflects the user's last edit).
+  // The clientId name-fetch only fills in when the draft had nothing (gated on
+  // draftRestored) — avoids the two effects racing (audit #8).
   useEffect(() => {
-    if (!clientId) return
-    let cancelled = false
-    fetch(`/api/clients/${clientId}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        const name = data?.client?.name
-        if (!cancelled && name) setRecipientName(prev => prev || name)
-      })
-      .catch(() => { /* non-fatal — user can type the name */ })
-    return () => { cancelled = true }
-  }, [clientId])
-
-  // Returning to this step from a later one — restore what was entered so the
-  // form isn't blank (the draft already holds it).
-  useEffect(() => {
-    if (!existingDraftId) return
+    if (!existingDraftId) { setDraftRestored(true); return }
     let cancelled = false
     fetch(`/api/videos/draft?videoId=${existingDraftId}`)
       .then(r => r.ok ? r.json() : null)
       .then(video => {
         const d = video?.draft_data
-        if (cancelled || !d) return
-        if (d.outputType) setOutputType(d.outputType)
-        if (d.purpose) setPurpose(prev => prev || d.purpose)
-        if (d.recipientName) setRecipientName(prev => prev || d.recipientName)
+        if (cancelled) return
+        if (d) {
+          if (d.outputType) setOutputType(d.outputType)
+          if (d.purpose) setPurpose(prev => prev || d.purpose)
+          if (d.recipientName) setRecipientName(prev => prev || d.recipientName)
+        }
+        setDraftRestored(true)
+      })
+      .catch(() => { if (!cancelled) setDraftRestored(true) })
+    return () => { cancelled = true }
+  }, [existingDraftId])
+
+  // Came from "Who's this for?" with a client — fetch the bound client's name
+  // for the read-only confirmation chip. Only sets recipientName if still empty
+  // after any draft restore, so a user-edited draft value is never overwritten.
+  useEffect(() => {
+    if (!clientId || !draftRestored) return
+    let cancelled = false
+    fetch(`/api/clients/${clientId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const name = data?.client?.name
+        if (!cancelled && name) {
+          setClientName(name)
+          setRecipientName(prev => prev || name)
+        }
       })
       .catch(() => { /* non-fatal */ })
     return () => { cancelled = true }
-  }, [existingDraftId])
+  }, [clientId, draftRestored])
   const [purpose, setPurpose] = useState('')
   const [method, setMethod] = useState<InputMethod>(null)
   const [urlInput, setUrlInput] = useState('')
@@ -266,6 +280,8 @@ export default function Step1Content() {
   async function handleQuickMode() {
     setError(null)
     if (!purpose.trim()) { setError('Describe what you want first'); return }
+    // Require an explicit content source — no silent fall-through to AI (audit #3).
+    if (!method) { setError('Pick where your content comes from (or choose "AI writes it")'); return }
     if (method === 'url' && !urlInput.trim()) { setError('Paste a URL to continue'); return }
     if (method === 'text' && textInput.trim().length < 50) { setError('Paste at least 50 characters'); return }
     if (method === 'upload' && !fileRef.current?.files?.[0]) { setError('Select a file to continue'); return }
@@ -352,6 +368,8 @@ export default function Step1Content() {
     setError(null)
 
     if (!purpose.trim()) { setError('Describe what you want first'); return }
+    // Require an explicit content source — no silent fall-through to AI (audit #3).
+    if (!method) { setError('Pick where your content comes from (or choose "AI writes it")'); return }
     if (method === 'url' && !urlInput.trim()) { setError('Paste a URL to continue'); return }
     if (method === 'text' && textInput.trim().length < 50) { setError('Paste at least 50 characters'); return }
     if (method === 'upload' && !fileRef.current?.files?.[0]) { setError('Select a file to continue'); return }
@@ -455,7 +473,7 @@ export default function Step1Content() {
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>
           What are you creating?
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
           {OUTPUT_OPTIONS.map((opt) => (
             <button
               key={opt.type}
@@ -481,25 +499,33 @@ export default function Step1Content() {
       </div>
 
       {/* Recipient name */}
+      {/* Recipient — reflects the Step-1 "Who's this for?" decision; never re-asks. */}
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 8 }}>
-          Who is this for? <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-light)' }}>(optional)</span>
+          Who is this for?
         </label>
-        <input
-          type="text"
-          value={recipientName}
-          onChange={(e) => setRecipientName(e.target.value)}
-          placeholder="e.g. John Smith"
-          style={{
-            width: '100%',
-            padding: '12px 16px',
-            borderRadius: 10,
-            border: '1px solid var(--border)',
-            fontSize: 15,
-            fontFamily: 'inherit',
-            background: 'var(--bg)',
-          }}
-        />
+        {clientId ? (
+          // A client was chosen in Step 1 — show a read-only confirmation chip.
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-soft, #f7f6f2)', fontSize: 15 }}>
+            <span><strong>{clientName || recipientName || 'Selected client'}</strong></span>
+            <a href="/create/client" style={{ fontSize: 13, color: 'var(--primary, #2563eb)', textDecoration: 'none', fontWeight: 600 }}>Change</a>
+          </div>
+        ) : forGeneral ? (
+          // Skip → general video; don't re-ask for a name.
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-soft, #f7f6f2)', fontSize: 15, color: 'var(--ink-light)' }}>
+            <span>General — not for a specific person</span>
+            <a href="/create/client" style={{ fontSize: 13, color: 'var(--primary, #2563eb)', textDecoration: 'none', fontWeight: 600 }}>Change</a>
+          </div>
+        ) : (
+          // Direct entry (no Step-1 signal) — let them type a name.
+          <input
+            type="text"
+            value={recipientName}
+            onChange={(e) => setRecipientName(e.target.value)}
+            placeholder="e.g. John Smith (optional)"
+            style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--border)', fontSize: 15, fontFamily: 'inherit', background: 'var(--bg)' }}
+          />
+        )}
       </div>
 
       {/* Purpose input */}
@@ -525,28 +551,32 @@ export default function Step1Content() {
         />
       </div>
 
-      {/* Content source */}
+      {/* Content source — guided question, not a bare button row */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>
-          Add your content
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>
+          Where should the content come from?
         </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 12 }}>
+          Pick one — we&rsquo;ll use it to write your {outputType === 'video' ? 'video' : outputType === 'pptx' ? 'deck' : 'document'}.
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
           {CONTENT_METHODS.map((m) => (
             <button
               key={m.id}
               onClick={() => { setMethod(m.id); setError(null) }}
               style={{
-                padding: '8px 16px',
+                flex: '1 1 160px',
+                textAlign: 'left',
+                padding: '10px 14px',
                 borderRadius: 8,
                 border: method === m.id ? '2px solid var(--mint)' : '1px solid var(--border)',
                 background: method === m.id ? 'var(--mint-light, #f0fae4)' : 'var(--bg)',
                 cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: 600,
                 color: 'var(--ink)',
               }}
             >
-              {m.label}
+              <div style={{ fontSize: 13, fontWeight: 700 }}>{m.label}</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2 }}>{m.desc}</div>
             </button>
           ))}
         </div>
@@ -983,7 +1013,7 @@ export default function Step1Content() {
               <div style={{
                 marginTop: 16,
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
                 gap: 12,
               }}>
                 {SLIDE_STYLES.map((style) => (
@@ -1022,7 +1052,26 @@ export default function Step1Content() {
 
       {/* Action buttons */}
       {stage !== 'style-suggest' && stage !== 'generating-preview' && (
+        <>
         <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={() => router.push(clientId ? `/create/client?clientId=${clientId}` : '/create/client')}
+            disabled={stage === 'extracting'}
+            style={{
+              padding: '14px 20px',
+              borderRadius: 10,
+              border: '1.5px solid var(--border)',
+              background: 'white',
+              color: 'var(--ink-soft)',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: stage === 'extracting' ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            &larr; Back
+          </button>
           <button
             onClick={handleNext}
             disabled={stage === 'extracting'}
@@ -1055,12 +1104,17 @@ export default function Step1Content() {
                 fontFamily: 'inherit',
                 whiteSpace: 'nowrap',
               }}
-              title="Skip brand and voice setup — use defaults and go straight to script review"
             >
               Quick mode
             </button>
           )}
         </div>
+        {stage === 'idle' && method && (
+          <div style={{ fontSize: 12, color: 'var(--ink-light)', textAlign: 'right', marginTop: 6 }}>
+            Quick mode skips styling &amp; voice — uses defaults and jumps to script review.
+          </div>
+        )}
+        </>
       )}
     </div>
   )
