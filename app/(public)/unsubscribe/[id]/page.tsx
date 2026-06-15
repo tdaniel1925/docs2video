@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { createClient } from '../../../_lib/supabase/client'
 
 export default function UnsubscribePage() {
   const params = useParams()
@@ -10,19 +9,13 @@ export default function UnsubscribePage() {
 
   useEffect(() => {
     async function unsub() {
-      const supabase = createClient()
       const contactId = params.id as string
-
-      const { error } = await supabase
-        .from('campaign_contacts')
-        .update({ unsubscribed: true })
-        .eq('id', contactId)
-
-      if (error) {
-        console.error('[unsubscribe] Error:', error)
+      try {
+        // Server endpoint (service role) — anon can no longer write this table.
+        const res = await fetch(`/api/public/unsubscribe/${contactId}`, { method: 'POST' })
+        setStatus(res.ok ? 'done' : 'error')
+      } catch {
         setStatus('error')
-      } else {
-        setStatus('done')
       }
     }
     unsub()

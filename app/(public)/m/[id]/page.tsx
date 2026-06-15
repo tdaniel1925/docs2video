@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
-import { createClient } from '../../../_lib/supabase/client'
 
 interface CampaignContact {
   id: string
@@ -47,61 +46,33 @@ export default function MarketingWatchPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient()
       const contactId = params.id as string
 
-      // Fetch contact
-      const { data: contactData, error: contactErr } = await supabase
-        .from('campaign_contacts')
-        .select('*')
-        .eq('id', contactId)
-        .single()
-
-      if (contactErr || !contactData) {
+      // Read via the server endpoint (campaign tables are no longer anon-readable
+      // after the RLS security fix — the endpoint uses the service role, scoped).
+      let data: any = null
+      try {
+        const res = await fetch(`/api/public/campaign-view/${contactId}`)
+        if (!res.ok) { setNotFound(true); return }
+        data = await res.json()
+      } catch {
         setNotFound(true)
         return
       }
-      setContact(contactData)
 
-      // Fetch campaign
-      const { data: campaignData } = await supabase
-        .from('campaigns')
-        .select('discount_code, discount_pct, discount_months')
-        .eq('id', contactData.campaign_id)
-        .single()
+      if (!data?.contact) { setNotFound(true); return }
+      setContact(data.contact)
+      if (data.campaign) setCampaign(data.campaign)
+      if (data.video) setVideo(data.video)
 
-      if (campaignData) setCampaign(campaignData)
-
-      // Fetch video
-      if (contactData.video_id) {
-        const { data: videoData } = await supabase
-          .from('videos')
-          .select('id, video_url, thumbnail_url, slide_urls, music_url, title')
-          .eq('id', contactData.video_id)
-          .eq('status', 'completed')
-          .single()
-
-        if (videoData) setVideo(videoData)
-      }
-
-      // Track view — update video_watched_at
+      // Track analytics view once (server already recorded video_watched_at).
       if (!viewTracked.current) {
         viewTracked.current = true
-
-        // Update watched timestamp
-        if (!contactData.video_watched_at) {
-          await supabase
-            .from('campaign_contacts')
-            .update({ video_watched_at: new Date().toISOString() })
-            .eq('id', contactId)
-        }
-
-        // Track analytics
-        if (contactData.video_id) {
+        if (data.contact.video_id) {
           fetch('/api/track-view', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ videoId: contactData.video_id, event: 'view', metadata: { source: 'campaign', contactId } }),
+            body: JSON.stringify({ videoId: data.contact.video_id, event: 'view', metadata: { source: 'campaign', contactId } }),
           }).catch(() => {})
         }
       }

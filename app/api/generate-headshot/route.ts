@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
+import { checkCredits, deductCredits, refundVideoCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { GoogleGenAI } from '@google/genai'
 
 export const runtime = 'nodejs'
@@ -105,6 +106,16 @@ export async function POST(request: Request) {
   const mimeType = `image/${base64Match[1]}`
   const base64Data = base64Match[2]
 
+  // Charge BEFORE the 20-image fan-out (admin/beta bypass inside deductCredits).
+  const COST = CREDIT_COSTS.headshot
+  const credit = await checkCredits(user.id, COST)
+  if (!credit.allowed) {
+    return NextResponse.json({ error: `Not enough credits. Need ${COST}, have ${credit.remaining}.` }, { status: 402 })
+  }
+  if (!(await deductCredits(user.id, COST, 'headshot'))) {
+    return NextResponse.json({ error: 'Credit deduction failed. Please try again.' }, { status: 402 })
+  }
+
   const admin = createAdminClient()
   const timestamp = Date.now()
 
@@ -153,10 +164,10 @@ export async function POST(request: Request) {
     }
 
     if (images.length === 0) {
+      // Nothing produced — refund the charge (idempotent per this job key).
+      await refundVideoCredits(user.id, COST, `headshot-${timestamp}`)
       return NextResponse.json({ error: 'All headshot generations failed. Please try again.' }, { status: 500 })
     }
-
-    // TODO: Verify Stripe payment before generation
 
     // Log to creations table
     try {

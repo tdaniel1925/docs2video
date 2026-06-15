@@ -13,6 +13,8 @@ export const CREDIT_COSTS = {
   'logo-refine': 50,
   'business-card': 100,
   flyer: 100,
+  headshot: 200,    // fans out ~20 image generations
+  'social-kit': 200, // fans out 20+ image generations
   template: 200,
   'template-refine': 50,
   // Deck builder (flagship product #2)

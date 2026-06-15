@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
+import { checkCredits, deductCredits } from '../../_lib/credits'
 import { GoogleGenAI } from '@google/genai'
 
 export const runtime = 'nodejs'
@@ -113,7 +114,17 @@ RULES:
       return NextResponse.json({ error: 'No posts to schedule' }, { status: 400 })
     }
 
-    // TODO: Verify Stripe payment before generation
+    // Charge 1 credit per post before creating the campaign + generating images
+    // (admin/beta bypass handled inside deductCredits). Matches the UI's
+    // "Launch Campaign (N credits)".
+    const COST = posts.length
+    const credit = await checkCredits(user.id, COST)
+    if (!credit.allowed) {
+      return NextResponse.json({ error: `Not enough credits. Need ${COST}, have ${credit.remaining}.` }, { status: 402 })
+    }
+    if (!(await deductCredits(user.id, COST, 'social_campaign'))) {
+      return NextResponse.json({ error: 'Credit deduction failed. Please try again.' }, { status: 402 })
+    }
 
     // Save campaign
     const { data: campaign, error: campError } = await admin

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
-import { createClient } from '../../../_lib/supabase/client'
 import type { Video, Brand } from '../../../_lib/types'
 import type { ExtractedData } from '../../../_lib/extract-types'
 import { INDUSTRIES } from '../../../_lib/industries'
@@ -787,38 +786,23 @@ export default function PublicWatchPage() {
   /* ---- Data loading ---- */
   useEffect(() => {
     async function load() {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from('videos')
-        .select('*, brand:brands(*), infographic:infographics(policy_data, source_pdf_url)')
-        .eq('id', params.id as string)
-        .eq('status', 'completed')
-        .single()
-
-      if (error || !data) {
+      // Server endpoint (service role) — works for logged-out recipients and
+      // returns the agent profile + quote that the anon key can't read.
+      let data: { video?: VideoWithRelations; agent?: AgentProfile | null; quote?: Quote | null } | null = null
+      try {
+        const res = await fetch(`/api/public/watch/${params.id as string}`)
+        if (!res.ok) { setNotFound(true); return }
+        data = await res.json()
+      } catch {
         setNotFound(true)
         return
       }
 
-      const v = data as VideoWithRelations
+      if (!data?.video) { setNotFound(true); return }
+      const v = data.video as VideoWithRelations
       setVideo(v)
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, full_name, company_name, photo_url, email, phone, calendly_url, stripe_user_id, subscription_status')
-        .eq('id', v.user_id)
-        .single()
-      if (profile) setAgent(profile as AgentProfile)
-
-      const { data: quoteData } = await supabase
-        .from('quotes')
-        .select('*')
-        .eq('video_id', v.id)
-        .neq('status', 'draft')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-      if (quoteData) setQuote(quoteData as Quote)
+      if (data.agent) setAgent(data.agent as AgentProfile)
+      if (data.quote) setQuote(data.quote as Quote)
 
       if (!viewTracked.current) {
         const sessionKey = `viewed_${v.id}`

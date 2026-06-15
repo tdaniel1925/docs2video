@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
+import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { GoogleGenAI } from '@google/genai'
 
 export const runtime = 'nodejs'
@@ -94,7 +95,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Company name is required' }, { status: 400 })
   }
 
-  // TODO: Verify Stripe payment before generation
+  const COST = CREDIT_COSTS['social-kit']
+  const credit = await checkCredits(user.id, COST)
+  if (!credit.allowed) {
+    return NextResponse.json({ error: `Not enough credits. Need ${COST}, have ${credit.remaining}.` }, { status: 402 })
+  }
+  if (!(await deductCredits(user.id, COST, 'social-kit'))) {
+    return NextResponse.json({ error: 'Credit deduction failed. Please try again.' }, { status: 402 })
+  }
 
   const admin = createAdminClient()
 

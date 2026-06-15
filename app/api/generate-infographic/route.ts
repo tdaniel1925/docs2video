@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
+import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { SLIDE_STYLES } from '../../_lib/types'
 import type { Brand } from '../../_lib/types'
 
@@ -27,7 +28,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  // TODO: Verify Stripe payment before generation
+  const COST = CREDIT_COSTS.infographic
+  const credit = await checkCredits(user.id, COST)
+  if (!credit.allowed) {
+    return NextResponse.json({ error: `Not enough credits. Need ${COST}, have ${credit.remaining}.` }, { status: 402 })
+  }
+  if (!(await deductCredits(user.id, COST, 'infographic'))) {
+    return NextResponse.json({ error: 'Credit deduction failed. Please try again.' }, { status: 402 })
+  }
 
   const body = await request.json()
   const {
