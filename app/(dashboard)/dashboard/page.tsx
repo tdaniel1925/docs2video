@@ -17,8 +17,11 @@ const TYPE_BADGE: Record<string, { label: string; color: string }> = {
   template: { label: 'Template', color: 'peach' },
 }
 
-// Loom walkthrough video URL — replace with your actual Loom embed URL
-const GETTING_STARTED_VIDEO = 'https://www.loom.com/embed/YOUR_LOOM_ID'
+// Loom walkthrough video URL — set NEXT_PUBLIC_GETTING_STARTED_VIDEO to a real
+// Loom embed URL to show the onboarding card. Left unset → card is hidden
+// (avoids a dead YOUR_LOOM_ID 404 link for every new user).
+const GETTING_STARTED_VIDEO = process.env.NEXT_PUBLIC_GETTING_STARTED_VIDEO || ''
+const HAS_GETTING_STARTED_VIDEO = GETTING_STARTED_VIDEO.includes('loom.com/embed/') && !GETTING_STARTED_VIDEO.includes('YOUR_LOOM_ID')
 
 const OUTPUT_ICONS: Record<string, React.ReactNode> = {
   video: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>,
@@ -332,7 +335,8 @@ export default async function DashboardPage() {
       {isFirstTime ? (
         /* ── First-time user: getting started ── */
         <div style={{ marginTop: 8 }}>
-          {/* Getting started video */}
+          {/* Getting started video — only when a real Loom URL is configured */}
+          {HAS_GETTING_STARTED_VIDEO && (
           <Link
             href={GETTING_STARTED_VIDEO.replace('/embed/', '/share/')}
             target="_blank"
@@ -349,6 +353,7 @@ export default async function DashboardPage() {
               </div>
             </div>
           </Link>
+          )}
 
           {/* Main CTA */}
           <Link

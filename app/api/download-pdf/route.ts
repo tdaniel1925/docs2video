@@ -25,6 +25,7 @@ export async function POST(request: Request) {
       .from('videos')
       .select('slide_urls, thumbnail_url')
       .eq('id', videoId)
+      .eq('user_id', user.id) // defense-in-depth: only the owner's video
       .single()
     if (video?.slide_urls && (video.slide_urls as string[]).length > 0) {
       imageUrls = video.slide_urls as string[]

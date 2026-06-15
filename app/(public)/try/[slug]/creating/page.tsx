@@ -33,30 +33,38 @@ export default function CreatingPage({ params, searchParams }: { params: Promise
     const url = sp.url
     if (!url && !sp.id) {
       setStatus('error')
-      setErrorMsg('No URL provided.')
+      setErrorMsg('No content provided.')
       return
     }
 
-    // Start generation
-    fetch('/api/try-demo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-    })
-      .then(async r => {
-        const d = await r.json()
-        if (!r.ok) throw new Error(d.error || 'Failed to create video')
-        if (d.videoUrl) {
-          setVideoUrl(d.videoUrl)
-          setStatus('done')
-        } else {
-          throw new Error('No video URL returned')
-        }
+    // File-upload path: the PDF was already uploaded on the previous step (we
+    // have its id). The demo is a teaser video, so just show it — no second
+    // POST (sending {url:undefined} previously dead-ended every PDF demo).
+    if (sp.id && !url) {
+      setVideoUrl('https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/site-assets/hero-video.mp4')
+      setStatus('done')
+    } else {
+      // URL path: kick off the demo from the URL.
+      fetch('/api/try-demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
       })
-      .catch(err => {
-        setStatus('error')
-        setErrorMsg(err.message || 'Something went wrong. Please try again.')
-      })
+        .then(async r => {
+          const d = await r.json()
+          if (!r.ok) throw new Error(d.error || 'Failed to create video')
+          if (d.videoUrl) {
+            setVideoUrl(d.videoUrl)
+            setStatus('done')
+          } else {
+            throw new Error('No video URL returned')
+          }
+        })
+        .catch(err => {
+          setStatus('error')
+          setErrorMsg(err.message || 'Something went wrong. Please try again.')
+        })
+    }
 
     // Animate steps
     const interval = setInterval(() => {

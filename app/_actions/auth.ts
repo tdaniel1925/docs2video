@@ -23,6 +23,7 @@ export async function signup(formData: FormData) {
   const supabase = await createClient()
 
   const referredBy = formData.get('referred_by') as string | null
+  const phone = (formData.get('phone') as string | null)?.trim() || null
 
   const { data, error } = await supabase.auth.signUp({
     email: formData.get('email') as string,
@@ -31,12 +32,21 @@ export async function signup(formData: FormData) {
       data: {
         full_name: formData.get('full_name') as string,
         ...(referredBy ? { referred_by: referredBy } : {}),
+        ...(phone ? { phone } : {}),
       },
     },
   })
 
   if (error) {
     return { error: error.message }
+  }
+
+  // Persist phone to the profile (the signup trigger may not map it) so SMS
+  // view-notifications + the watch-page contact card work without re-entry.
+  if (phone && data.user) {
+    try {
+      await createAdminClient().from('profiles').update({ phone }).eq('id', data.user.id)
+    } catch { /* non-fatal */ }
   }
 
   // If referred, create referral record linking referrer to new user

@@ -101,7 +101,14 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
       }
 
-      return NextResponse.json({ id: demoId, status: 'uploaded' })
+      // Demo is a teaser — return the same pre-approved demo video as the URL
+      // path so the PDF-upload funnel completes instead of dead-ending. (The
+      // uploaded PDF is stored above for later full-pipeline use.)
+      return NextResponse.json({
+        videoUrl: 'https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/site-assets/hero-video.mp4',
+        id: demoId,
+        status: 'uploaded',
+      })
     }
 
     // For URL-based demos: create a lightweight demo video

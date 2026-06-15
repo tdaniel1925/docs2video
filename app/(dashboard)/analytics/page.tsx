@@ -54,10 +54,16 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/analytics').then(r => r.json()),
-      fetch('/api/benchmarks').then(r => r.json()).catch(() => null),
+      fetch('/api/analytics').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('/api/benchmarks').then(r => r.ok ? r.json() : null).catch(() => null),
     ]).then(([analyticsData, benchmarkData]) => {
-      setData(analyticsData)
+      // Validate shape so a new user (no data) or an error response can't crash
+      // the page (data.dailyViews.map used to throw on a white screen).
+      if (analyticsData && Array.isArray(analyticsData.dailyViews)) {
+        setData(analyticsData)
+      } else {
+        setData({ ...(analyticsData ?? {}), dailyViews: [], totals: (analyticsData?.totals ?? {}) } as AnalyticsData)
+      }
       setBenchmarks(benchmarkData)
       setLoading(false)
     }).catch(() => setLoading(false))
@@ -66,7 +72,8 @@ export default function AnalyticsPage() {
   if (loading) return <div className="page-wrap"><p>Loading analytics...</p></div>
   if (!data) return <div className="page-wrap"><p>Failed to load analytics.</p></div>
 
-  const maxDaily = Math.max(...data.dailyViews.map(d => d.count), 1)
+  const dailyViews = data.dailyViews ?? []
+  const maxDaily = Math.max(...dailyViews.map(d => d.count), 1)
 
   return (
     <div className="page-wrap">
@@ -97,11 +104,11 @@ export default function AnalyticsPage() {
       {/* Daily views chart */}
       <div className="settings-card" style={{ marginBottom: 32 }}>
         <h3 style={{ marginBottom: 16 }}>Views - Last 30 Days</h3>
-        {data.dailyViews.length === 0 ? (
+        {dailyViews.length === 0 ? (
           <p className="ssub">No views in the last 30 days.</p>
         ) : (
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 120 }}>
-            {data.dailyViews.map(d => (
+            {dailyViews.map(d => (
               <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div
                   style={{

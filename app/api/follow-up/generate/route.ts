@@ -17,6 +17,7 @@ export async function POST(request: Request) {
     .from('videos')
     .select('*, infographic:infographics(policy_data)')
     .eq('id', videoId)
+    .eq('user_id', user.id) // defense-in-depth: only the owner's video
     .single()
 
   if (!video) return NextResponse.json({ error: 'Video not found' }, { status: 404 })

@@ -43,6 +43,7 @@ export async function POST(request: Request) {
     .from('videos')
     .select('*')
     .eq('id', videoId)
+    .eq('user_id', user.id) // defense-in-depth: only the owner's video
     .single()
 
   if (fetchErr || !video) {
