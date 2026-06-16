@@ -10,7 +10,10 @@ export const maxDuration = 60
 
 // Statuses that mean a video is mid-flight. Keep in sync with generate-video /
 // render-video. (audit M1: a single shared list — kept here as the canonical one.)
-const IN_PROGRESS_STATUSES = ['assembling', 'generating_audio', 'generating_slides', 'starting', 'scripting', 'queued']
+// 'pending' added 2026-06-16: a video could be created 'pending' and never
+// transition, stranding the generating page forever ("0% / Restarting…") because
+// the cron didn't watch this status. Any non-terminal status must be here.
+const IN_PROGRESS_STATUSES = ['pending', 'starting', 'scripting', 'generating_slides', 'generating_audio', 'assembling', 'queued', 'processing', 'rendering']
 
 /**
  * Cron: reconcile stuck videos. For V2 (Creatomate) jobs it re-queries the
