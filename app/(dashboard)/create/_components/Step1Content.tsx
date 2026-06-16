@@ -7,11 +7,6 @@ type OutputType = 'video' | 'pptx' | 'pdf'
 type InputMethod = 'url' | 'upload' | 'text' | 'idea' | null
 type Stage = 'idle' | 'extracting' | 'error' | 'generating-preview' | 'style-suggest'
 
-const OUTPUT_OPTIONS: { type: OutputType; label: string; desc: string }[] = [
-  { type: 'video', label: 'Video', desc: 'Narrated explainer with slides, voice, and music' },
-  { type: 'pptx', label: 'Slide Deck', desc: 'Editable PowerPoint with speaker notes' },
-  { type: 'pdf', label: 'PDF Document', desc: 'Printable slide deck as PDF' },
-]
 
 const CONTENT_METHODS: { id: InputMethod; label: string; desc: string }[] = [
   { id: 'url', label: 'Website URL', desc: 'Pull from a web page' },
@@ -30,7 +25,11 @@ export default function Step1Content() {
   // If we arrived back here from a later step, a draft already exists — reuse it
   // instead of creating a second orphaned row.
   const existingDraftId = searchParams.get('id') || undefined
-  const [outputType, setOutputType] = useState<OutputType>('video')
+  // Output type is chosen in Step 1 (/create/start) and passed via ?type.
+  // "slides" maps to the existing pptx pipeline; the result page offers both
+  // PDF and PowerPoint downloads. Default to video.
+  const isSlides = searchParams.get('type') === 'slides'
+  const [outputType, setOutputType] = useState<OutputType>(isSlides ? 'pptx' : 'video')
   const [recipientName, setRecipientName] = useState('')
   const [clientName, setClientName] = useState<string | null>(null) // bound client (read-only display)
   const [draftRestored, setDraftRestored] = useState(false) // gate client-name fetch behind draft restore
@@ -468,38 +467,17 @@ export default function Step1Content() {
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 20px' }}>
-      {/* Output type selector */}
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>
-          What are you creating?
+      {/* Output type is chosen in Step 1 — show it as a small confirmation header. */}
+      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>
+          {outputType === 'video' ? '🎬 New video explainer' : '📊 New slide presentation'}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-          {OUTPUT_OPTIONS.map((opt) => (
-            <button
-              key={opt.type}
-              onClick={() => setOutputType(opt.type)}
-              style={{
-                padding: '20px 16px',
-                borderRadius: 10,
-                border: outputType === opt.type ? '2px solid var(--mint)' : '1px solid var(--border)',
-                background: outputType === opt.type ? 'var(--mint-light, #f0fae4)' : 'var(--bg)',
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>
-                {opt.label}
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--ink-light)', lineHeight: 1.4 }}>
-                {opt.desc}
-              </div>
-            </button>
-          ))}
-        </div>
+        <a href="/create/start" style={{ fontSize: 13, color: 'var(--primary, #2563eb)', textDecoration: 'none', fontWeight: 600 }}>Change</a>
       </div>
 
-      {/* Recipient name */}
-      {/* Recipient — reflects the Step-1 "Who's this for?" decision; never re-asks. */}
+      {/* Recipient — VIDEO ONLY. Slides are general collateral, no recipient.
+          Reflects the Step-1 "Who's this for?" decision; never re-asks. */}
+      {outputType === 'video' && (
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 8 }}>
           Who is this for?
@@ -527,6 +505,7 @@ export default function Step1Content() {
           />
         )}
       </div>
+      )}
 
       {/* Purpose input */}
       <div style={{ marginBottom: 24 }}>

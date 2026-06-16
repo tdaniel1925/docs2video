@@ -180,36 +180,50 @@ export default function GeneratingPage() {
 
   // PPTX or PDF completed — show download UI instead of redirecting
   if (status === 'completed' && outputType && outputType !== 'video') {
-    const isPptx = outputType === 'pptx'
-    const label = isPptx ? 'PPTX' : 'PDF'
-    const readyMsg = isPptx ? 'Your slide deck is ready!' : 'Your document is ready!'
+    // Slides: offer BOTH formats at export (PDF + PowerPoint) \u2014 they're the same
+    // slides, the user picks the wrapper. POST to the on-demand download routes.
+    async function downloadAs(format: 'pdf' | 'pptx') {
+      try {
+        const res = await fetch(`/api/download-${format}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId }),
+        })
+        if (!res.ok) { alert('Download failed. Please try again.'); return }
+        const blob = await res.blob()
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = `presentation.${format}`
+        a.click()
+        URL.revokeObjectURL(a.href)
+      } catch { alert('Download failed. Please try again.') }
+    }
     return (
       <div style={{
         flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         padding: '40px 24px', minHeight: '80vh',
       }}>
-        <div style={{ fontSize: 64, marginBottom: 16 }}>{isPptx ? '\uD83D\uDCCA' : '\uD83D\uDCC4'}</div>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>{'\uD83D\uDCCA'}</div>
         <h1 style={{ fontSize: 32, fontWeight: 800, color: 'var(--ink)', marginBottom: 8, letterSpacing: '-0.03em' }}>
-          {readyMsg}
+          Your slides are ready!
         </h1>
         <p style={{ fontSize: 16, color: 'var(--ink-soft)', marginBottom: 32, lineHeight: 1.6, textAlign: 'center', maxWidth: 480 }}>
-          Your {label} has been generated and is ready to download.
+          Download as a PDF or an editable-format PowerPoint.
         </p>
 
-        {videoUrl && (
-          <a
-            href={videoUrl}
-            download
-            style={{
-              display: 'inline-block', padding: '16px 40px', borderRadius: 10,
-              background: 'var(--ink)', color: 'white', fontSize: 18, fontWeight: 800,
-              textDecoration: 'none', marginBottom: 24, letterSpacing: '-0.02em',
-              transition: 'opacity 0.2s',
-            }}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button
+            onClick={() => downloadAs('pdf')}
+            style={{ padding: '16px 32px', borderRadius: 10, background: 'var(--ink)', color: 'white', fontSize: 17, fontWeight: 800, border: 'none', cursor: 'pointer', letterSpacing: '-0.02em' }}
           >
-            Download {label}
-          </a>
-        )}
+            Download PDF
+          </button>
+          <button
+            onClick={() => downloadAs('pptx')}
+            style={{ padding: '16px 32px', borderRadius: 10, background: 'white', color: 'var(--ink)', fontSize: 17, fontWeight: 800, border: '1.5px solid var(--border)', cursor: 'pointer', letterSpacing: '-0.02em' }}
+          >
+            Download PowerPoint
+          </button>
+        </div>
 
         {/* Upsell for video version */}
         <div style={{
