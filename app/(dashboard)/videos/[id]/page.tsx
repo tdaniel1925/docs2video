@@ -1462,13 +1462,6 @@ export default function VideoDetailPage() {
                 Email to Client
               </button>
               <button
-                onClick={() => setShowTranslateModal(true)}
-                className="btn btn-soft"
-                style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}
-              >
-                Translate
-              </button>
-              <button
                 onClick={async () => {
                   if (socialLoading) return
                   setSocialLoading(true)
