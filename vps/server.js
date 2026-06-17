@@ -27,53 +27,6 @@ function authCheck(req, res, next) {
 }
 
 // Health check
-
-// Extract and structure document content using OpenAI
-app.post("/extract-document", authCheck, async (req, res) => {
-  try {
-    const { fileBase64, fileName, purpose, mimeType } = req.body
-    if (!fileBase64) return res.status(400).json({ error: "No file data provided" })
-
-    const OpenAI = require("openai")
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-
-    // Upload file to OpenAI
-    const buffer = Buffer.from(fileBase64, "base64")
-    const file = new File([buffer], fileName || "document.pdf", { type: mimeType || "application/pdf" })
-    const uploaded = await openai.files.create({ file, purpose: "assistants" })
-
-    // Extract + structure in one call
-    const response = await openai.responses.create({
-      model: "gpt-4o-mini",
-      input: [
-        {
-          role: "user",
-          content: [
-            { type: "input_file", file_id: uploaded.id },
-            {
-              type: "input_text",
-              text: (purpose ? "Purpose: " + purpose + "\n\n" : "") + 'Extract and structure ALL content from this document into JSON. Return ONLY valid JSON:\n{\n  "title": "Main title or document name",\n  "subtitle": "Subtitle or tagline if any",\n  "sections": [{ "title": "Section name", "content": "Full section content" }],\n  "keyMetrics": [{ "value": "stat value", "label": "stat label" }],\n  "contactInfo": { "phone": "phone or null", "email": "email or null", "website": "website or null" },\n  "companyName": "Company name or null"\n}\nInclude ALL content. Never invent contact info.'
-            }
-          ]
-        }
-      ],
-      text: { format: { type: "json_object" } }
-    })
-
-    // Clean up
-    try {   await openai.files.del(uploaded.id) } catch(e) {}
-
-    const text = response.output_text || ""
-    const cleaned = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "")
-    const structured = JSON.parse(cleaned)
-    console.log("[extract-document] Extracted:", structured.title || "untitled", "- sections:", structured.sections?.length || 0)
-    res.json(structured)
-  } catch (err) {
-    console.error("[extract-document] Error:", err.message)
-    res.status(500).json({ error: err.message || "Extraction failed" })
-  }
-})
-
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', ffmpeg: true })
 })
@@ -290,7 +243,7 @@ app.post('/assemble', authCheck, async (req, res) => {
             '-stream_loop', '-1',
             '-i', musicPath,
             '-filter_complex',
-            `[1:a]volume=0.05,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[0:a][music]amix=inputs=2:duration=first[out]`,
+            `[1:a]volume=0.07,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[0:a][music]amix=inputs=2:duration=first[out]`,
             '-map', '0:v',
             '-map', '[out]',
             '-c:v', 'copy',
@@ -357,13 +310,7 @@ app.post('/assemble', authCheck, async (req, res) => {
         video_url: urlData.publicUrl,
         thumbnail_url: thumbUrlData.publicUrl,
         duration: Math.round(totalDuration),
-        // Real per-slide clip durations (seconds), one per slide_url, in order.
-        // The preview/watch pages map thumbnails to exact video timestamps with
-        // these; without them the UI guesses via equal division (always wrong —
-        // narration lengths differ), causing slide-desync + the last-thumbnail-
-        // not-clickable bug. Requires the slide_durations column
-        // (supabase-slide-durations-migration.sql).
-        slide_durations: durations.map(d => Math.round(d * 100) / 100),
+        // slide_durations: durations, // column doesn't exist in schema
         slide_urls: slideUrls,
         status: 'completed',
         progress_detail: null,
@@ -567,7 +514,7 @@ app.post('/convert', authCheck, async (req, res) => {
 // FULL PIPELINE — VPS does everything (no Vercel timeout risk)
 // ============================================================
 app.post('/generate', authCheck, async (req, res) => {
-  const { videoId, voiceId, scenes, userId, slidePrompts, logoUrl, musicPrompt, industry, brandName, brandColors, narrationStyle, templateRefUrl } = req.body
+  const { videoId, voiceId, scenes, userId, slidePrompts, logoUrl, musicPrompt, industry } = req.body
 
   if (!videoId || !scenes?.length || !userId || !slidePrompts?.length) {
     return res.status(400).json({ error: 'Missing videoId, scenes, userId, or slidePrompts' })
@@ -603,8 +550,7 @@ app.post('/generate', authCheck, async (req, res) => {
     // Audio runs in background — updates progress per clip
     let audiosDone = 0
     // Scenes that HAD narration but produced no audio after all retries. If any
-    // exist, we fail the whole job rather than silently shipping a silent slide
-    // (a silent slide while music keeps playing is the "missing narration" bug).
+    // exist we fail the whole job rather than silently shipping a silent slide.
     const failedNarrations = []
     const audioPromise = (async () => {
       const buffers = []
@@ -635,7 +581,6 @@ app.post('/generate', authCheck, async (req, res) => {
         if (buf) {
           buffers.push(buf)
         } else {
-          // All retries failed — keep index alignment but record the failure.
           buffers.push(Buffer.alloc(0))
           failedNarrations.push(i + 1)
         }
@@ -686,26 +631,35 @@ app.post('/generate', authCheck, async (req, res) => {
         parts.push({ text: 'REFERENCE DESIGN (match this EXACTLY): This image shows the visual style to follow. Replicate the same layout structure, geometric shapes, diagonal color blocks, icon circles, decorative elements, footer bar, and overall mood. Only change the DATA content and use the brand colors specified.' })
         parts.push({ inlineData: { mimeType: 'image/png', data: templateRefBase64 } })
       }
-      if (logoBase64) {
-        parts.push({ text: 'BRAND LOGO: Place this logo in the top-left corner of the slide (approximately 40px from top and left edges). Keep the logo in its original colors and proportions.' })
-        parts.push({ inlineData: { mimeType: 'image/png', data: logoBase64 } })
-      }
-      let fullPrompt = prompt
-      if (!logoBase64 && brandName) {
-        fullPrompt += `\nIMPORTANT: Display the company name "${brandName}" in the top-left corner of the slide in bold text using the brand primary color.`
-      }
-      parts.push({ text: fullPrompt })
+      parts.push({ text: prompt })
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           const response = await geminiSlides.models.generateContent({
             model: 'gemini-3-pro-image-preview',
             contents: [{ role: 'user', parts }],
-            config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '2K' } } },
+            config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '4K' } } },
           })
           const rParts = response.candidates?.[0]?.content?.parts ?? []
           for (const rp of rParts) {
             if (rp.inlineData) {
-              return Buffer.from(rp.inlineData.data, 'base64')
+              let slideBuf = Buffer.from(rp.inlineData.data, 'base64')
+              const sharp = require('sharp')
+              slideBuf = await sharp(slideBuf).resize(1920, 1080, { fit: 'cover' }).png().toBuffer()
+              if (logoBase64) {
+                try {
+                  const logoBuf = Buffer.from(logoBase64, 'base64')
+                  const logoResized = await sharp(logoBuf).resize(200, 70, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()
+                  slideBuf = await sharp(slideBuf).composite([{ input: logoResized, top: 40, left: 40 }]).png().toBuffer()
+                } catch (e) { console.log(`[${videoId}] Logo composite failed:`, e.message) }
+              } else if (brandName) {
+                try {
+                  const safeName = brandName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                  const textSvg = Buffer.from('<svg width="400" height="60" xmlns="http://www.w3.org/2000/svg"><text x="0" y="42" font-size="32" font-weight="800" font-family="sans-serif" fill="' + (brandColors.primary || '#1B365D') + '">' + safeName + '</text></svg>')
+                  const textBuf = await sharp(textSvg).png().toBuffer()
+                  slideBuf = await sharp(slideBuf).composite([{ input: textBuf, top: 40, left: 40 }]).png().toBuffer()
+                } catch (e) { console.log(`[${videoId}] Brand name composite failed:`, e.message) }
+              }
+              return slideBuf
             }
           }
           throw new Error('No image in Gemini response')
@@ -737,8 +691,7 @@ app.post('/generate', authCheck, async (req, res) => {
     console.log(`[${videoId}] Audio + slides both done`)
 
     // Fail loudly if any slide that SHOULD have narration ended up silent after
-    // all TTS retries. Shipping a video with missing narration (while music
-    // keeps playing) is worse than failing — the catch below refunds + notifies.
+    // all TTS retries — better to fail (and refund) than ship missing narration.
     if (failedNarrations.length > 0) {
       throw new Error(`Narration failed for slide(s) ${failedNarrations.join(', ')} after 3 attempts each`)
     }
@@ -769,19 +722,18 @@ app.post('/generate', authCheck, async (req, res) => {
       if (audioBuffers[i] && audioBuffers[i].length > 100) {
         // Probe the real audio length and show the slide for exactly that long
         // (+0.8s tail) via -t. We deliberately do NOT use -shortest: with
-        // -loop 1 (infinite image) + -tune stillimage's sparse keyframes,
-        // -shortest rounds to a GOP boundary and can drop the clip's audio
-        // entirely — which silenced the SHORTEST narration (the closing slide).
+        // -loop 1 + -tune stillimage's sparse keyframes, -shortest rounds to a
+        // GOP boundary and can drop the clip's audio entirely (it silenced the
+        // shortest narration — the closing slide).
         const realDur = await probeAudioDuration(audioPath)
         const slideDuration = realDur > 0 ? realDur + 0.8 : Math.round(audioBuffers[i].length / 16000) + 1
         await runFfmpeg(['-loop', '1', '-i', slidePath, '-i', audioPath, '-c:v', 'libx264', '-tune', 'stillimage', '-c:a', 'aac', '-b:a', '192k', '-pix_fmt', 'yuv420p', '-vf', vf, '-t', String(slideDuration), '-y', clipPath])
       } else {
-        // Silent slide — but it MUST still carry an AAC audio track. The final
-        // step concatenates clips with `-c copy`, which requires every segment
-        // to have an identical stream layout. A clip made with `-an` (no audio
-        // stream) poisons the concat: ffmpeg drops audio for every clip AFTER
-        // it, which is the "audio cuts out partway through the video" bug. So we
-        // mux in a generated silent track (anullsrc) instead of using -an.
+        // Silent slide — but it MUST still carry an AAC audio track. The concat
+        // step uses `-c copy`, which needs every segment to have the same stream
+        // layout; a clip made with `-an` (no audio) makes ffmpeg drop audio for
+        // every clip AFTER it (the "audio cuts out partway through" bug). So mux
+        // in a generated silent track instead of using -an.
         await runFfmpeg([
           '-loop', '1', '-i', slidePath,
           '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
@@ -815,11 +767,10 @@ app.post('/generate', authCheck, async (req, res) => {
     const totalDurationEst = durations.reduce((s, d) => s + d, 0)
     let finalPath = outputPath
 
-    // Only generate background music when the user actually asked for it.
-    // The caller sends a non-empty musicPrompt when music is selected and an
-    // empty string when it's declined. Previously this was gated only on the
-    // API key, so EVERY video got music whether the user wanted it or not —
-    // the "music plays when not selected" bug.
+    // Only generate background music when the user actually asked for it. The
+    // caller sends a non-empty musicPrompt when music is selected, empty when
+    // declined. Previously gated only on the API key, so EVERY video got music
+    // whether the user wanted it or not — the "music plays when not selected" bug.
     const musicRequested = !!(musicPrompt && musicPrompt.trim())
     if (GEMINI_API_KEY && musicRequested) {
       try {
@@ -856,9 +807,6 @@ app.post('/generate', authCheck, async (req, res) => {
         const musicResponse = await genai.models.generateContent({
           model: 'lyria-3-pro-preview',
           contents: lyricaPrompt,
-          config: {
-            responseModalities: ['AUDIO'],
-          },
         })
 
         // Parse Lyria response — audio can be in parts or directly on response
@@ -880,7 +828,7 @@ app.post('/generate', authCheck, async (req, res) => {
               '-stream_loop', '-1',
               '-i', musicPath,
               '-filter_complex',
-              `[1:a]volume=0.05,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[0:a][music]amix=inputs=2:duration=first[out]`,
+              `[1:a]volume=0.07,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[0:a][music]amix=inputs=2:duration=first[out]`,
               '-map', '0:v',
               '-map', '[out]',
               '-c:v', 'copy',
@@ -903,7 +851,7 @@ app.post('/generate', authCheck, async (req, res) => {
         console.error(`[${videoId}] Music generation failed, continuing without:`, musicErr.message)
       }
     } else {
-      console.log(`[${videoId}] Music not requested${GEMINI_API_KEY ? '' : ' (no GEMINI_API_KEY)'}, skipping music generation`)
+      console.log(`[${videoId}] No GEMINI_API_KEY, skipping music generation`)
     }
 
     // Read and upload
@@ -939,11 +887,9 @@ app.post('/generate', authCheck, async (req, res) => {
         thumbnail_url: thumbUrlData.publicUrl,
         duration: Math.round(totalDuration),
         // Real per-slide clip durations (seconds), one per slide_url, in order.
-        // The preview/watch pages map thumbnails to exact video timestamps with
-        // these; without them the UI guesses via equal division (always wrong —
-        // narration lengths differ), causing slide-desync + the last-thumbnail-
-        // not-clickable bug. Requires the slide_durations column
-        // (supabase-slide-durations-migration.sql).
+        // The preview/watch pages map thumbnails to exact timestamps with these
+        // instead of guessing via equal division (the slide-desync + last-
+        // thumbnail bugs). Requires the slide_durations column.
         slide_durations: durations.map(d => Math.round(d * 100) / 100),
         slide_urls: slideUrls,
         status: 'completed',
@@ -973,6 +919,42 @@ app.post('/generate', authCheck, async (req, res) => {
         progress_pct: 0,
       }).eq('id', videoId)
     } catch(e2) { console.error('Failed to update failure status:', e2.message) }
+  }
+})
+
+
+// Style preview route
+app.post('/style-preview', authCheck, async (req, res) => {
+  try {
+    const { referenceImageBase64, userId } = req.body
+    if (!referenceImageBase64) return res.status(400).json({ error: 'No reference image' })
+    console.log('[style-preview] Starting...')
+    const OpenAI = require('openai')
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+    const a = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,' + referenceImageBase64 } }, { type: 'text', text: 'Describe this visual style for recreating it: colors, typography, layout, textures, mood. 2-4 sentences.' }] }], max_tokens: 300 })
+    const style = (a.choices[0] && a.choices[0].message && a.choices[0].message.content) || 'Professional design'
+    console.log('[style-preview] Style:', style.slice(0, 80))
+    const [c, d] = await Promise.all([
+      openai.images.generate({ model: 'gpt-image-2', prompt: 'Create a COVER slide in this style: ' + style + '. Title: Quarterly Business Review, subtitle: Q2 2025. 1920x1080 landscape. Fill canvas. No logos.', size: '1536x1024', quality: 'high', n: 1 }),
+      openai.images.generate({ model: 'gpt-image-2', prompt: 'Create a CONTENT slide in this style: ' + style + '. KEY METRICS: Revenue 2.4M, Clients 1240, Retention 94 percent. 1920x1080 landscape. Fill canvas. No logos.', size: '1536x1024', quality: 'high', n: 1 })
+    ])
+    const cover = c.data[0].b64_json ? 'data:image/png;base64,' + c.data[0].b64_json : null
+    const content = d.data[0].b64_json ? 'data:image/png;base64,' + d.data[0].b64_json : null
+    let refUrl = null
+    if (userId) {
+      try {
+        const rid = require('crypto').randomUUID()
+        const sp = userId + '/style-refs/' + rid + '.png'
+        const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+        await sb.storage.from('logos').upload(sp, Buffer.from(referenceImageBase64, 'base64'), { contentType: 'image/png', upsert: true })
+        refUrl = sb.storage.from('logos').getPublicUrl(sp).data.publicUrl
+      } catch(e) { console.error('[style-preview] Save failed:', e.message) }
+    }
+    console.log('[style-preview] Done')
+    res.json({ previews: [cover, content].filter(Boolean), referenceUrl: refUrl, styleDescription: style })
+  } catch (err) {
+    console.error('[style-preview] Error:', err)
+    res.status(500).json({ error: err.message || 'Failed' })
   }
 })
 
