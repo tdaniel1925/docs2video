@@ -223,11 +223,16 @@ export async function generateScript(
   try {
     const analysisResponse = await getClaude().messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
+      // Bounded so the chained analysis+script calls fit under the function
+      // timeout. A focused ~2k-token analysis is plenty to guide the script and
+      // is much faster than a 4k one on large inputs.
+      max_tokens: 2000,
       messages: [{
         role: 'user',
         content: (() => {
-          const { fitted, wasTruncated, droppedSections } = fitSourceData(data, 30000)
+          // 12k (was 30k) — the analysis only needs the gist; feeding the whole
+          // document was the main cause of the ~4-min Pass-1 + 300s timeout.
+          const { fitted, wasTruncated, droppedSections } = fitSourceData(data, 12000)
           if (wasTruncated) {
             console.warn(`[script-gen] Source data truncated for strategic analysis. Dropped: ${droppedSections.join(', ')}`)
           }

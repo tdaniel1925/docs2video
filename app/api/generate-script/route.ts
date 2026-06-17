@@ -6,7 +6,10 @@ import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
-export const maxDuration = 300
+// Script generation makes chained Claude calls (deep analysis + script) that can
+// exceed 300s on large/detailed docs. 800s is the Vercel Pro max — headroom
+// until script-gen is moved to an Inngest background job (see TODO).
+export const maxDuration = 800
 
 export async function POST(request: Request) {
   const supabase = await createClient()
