@@ -180,25 +180,18 @@ export default function ScriptPage() {
       let data: any
       try { data = JSON.parse(text) } catch { throw new Error('Server error — please try again') }
       if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message || 'Script generation failed')
-      if (!data.scenes || !Array.isArray(data.scenes)) throw new Error('No script was generated — please try again')
 
-      setScenes(data.scenes)
-
-      if (isWizard) {
-        // Save scenes to draft
-        await fetch('/api/videos/draft', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            videoId,
-            updates: {
-              scenes: data.scenes,
-              detailLevel,
-              narrationStyle,
-            },
-          }),
-        })
+      // ── Wizard path: server runs generation in the BACKGROUND (202) and writes
+      // scenes to the draft. Poll the draft until ready/failed so the browser
+      // never hits the ~60s synchronous-response timeout. ──
+      if (data.status === 'generating' && videoId) {
+        const scenes = await pollForScenes(videoId)
+        setScenes(scenes)
+        // scenes are already persisted to the draft by the background job.
       } else {
+        // Legacy synchronous path (non-wizard): scenes returned inline.
+        if (!data.scenes || !Array.isArray(data.scenes)) throw new Error('No script was generated — please try again')
+        setScenes(data.scenes)
         state.scenes = data.scenes
         state.detailLevel = detailLevel
         state.narrationStyle = narrationStyle
@@ -208,6 +201,28 @@ export default function ScriptPage() {
       setError(err instanceof Error ? err.message : typeof err === 'string' ? err : 'Failed to generate script')
     }
     setGenerating(false)
+  }
+
+  // Poll the draft for the background script job. Resolves with scenes when
+  // ready, throws on failure or timeout (~8 min ceiling).
+  async function pollForScenes(vid: string): Promise<any[]> {
+    const start = Date.now()
+    const TIMEOUT_MS = 8 * 60 * 1000
+    while (Date.now() - start < TIMEOUT_MS) {
+      await new Promise(r => setTimeout(r, 3000))
+      try {
+        const res = await fetch(`/api/videos/draft?videoId=${vid}`)
+        if (!res.ok) continue
+        const video = await res.json()
+        const d = video?.draft_data || {}
+        if (d.scriptStatus === 'ready' && Array.isArray(d.scenes) && d.scenes.length > 0) return d.scenes
+        if (d.scriptStatus === 'failed') throw new Error(d.scriptError || 'Script generation failed')
+      } catch (e) {
+        if (e instanceof Error && e.message !== 'Failed to fetch') throw e
+        // transient network error — keep polling
+      }
+    }
+    throw new Error('Script is taking longer than expected. Check your Library in a few minutes.')
   }
 
   async function handleChat(directMsg?: string) {
@@ -612,7 +627,7 @@ export default function ScriptPage() {
                     }} />
                   ))}
                 </div>
-                <p style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 16 }}>This usually takes 10-20 seconds</p>
+                <p style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 16 }}>This usually takes under a minute — please keep this tab open</p>
               </div>
             ) : quickPreviewLoading ? (
               <div style={{ textAlign: 'center', padding: '48px 0' }}>

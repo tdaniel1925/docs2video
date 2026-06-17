@@ -1,15 +1,54 @@
 import { NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { createClient } from '../../_lib/supabase/server'
+import { createAdminClient } from '../../_lib/supabase/admin'
 import { generateScript } from '../../_lib/script-generator'
 import type { ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
-// Script generation makes chained Claude calls (deep analysis + script) that can
-// exceed 300s on large/detailed docs. 800s is the Vercel Pro max — headroom
-// until script-gen is moved to an Inngest background job (see TODO).
+// Script generation makes chained Claude calls that can run for minutes — longer
+// than Vercel's ~60s synchronous-RESPONSE gateway limit (which 504s the browser
+// even though the function itself keeps running). So for the wizard path we run
+// it in the BACKGROUND via waitUntil, return immediately, write the scenes to
+// the draft on completion, and the page polls the draft. maxDuration covers the
+// background work, not the response.
 export const maxDuration = 800
+
+interface ScriptBody {
+  videoId?: string
+  policyData: ExtractedPolicyData | ExtractedData
+  brandId: string | null
+  detailed?: boolean
+  detailLevel?: 'quick' | 'standard' | 'detailed'
+  narrationStyle?: 'solo' | 'podcast'
+  voiceId?: string
+  contactInfo?: { phone?: string; email?: string; calendly?: string }
+  purpose?: string
+  uploadMode?: string
+  industry?: string
+  classification?: any
+}
+
+// Resolve brand details (shared by both paths).
+async function resolveBrand(supabase: any, brandId: string | null) {
+  let brandName: string | null = null
+  let brandTone: string | undefined
+  let colors = { primary: '#1B365D', secondary: '#4A90D9', accent: '#FFB347', background: '#0a1628', text: '#FFFFFF' }
+  if (brandId) {
+    const { data: brand } = await supabase.from('brands').select('*').eq('id', brandId).single()
+    if (brand) {
+      brandName = brand.name
+      brandTone = (brand as any).tone ?? undefined
+      colors = {
+        primary: brand.primary_color, secondary: brand.secondary_color, accent: brand.accent_color,
+        background: brand.background_color, text: brand.text_color,
+      }
+    }
+  }
+  return { brandName, brandTone, colors }
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -21,50 +60,52 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
   }
 
-  const body = await request.json()
-  const { policyData, brandId, detailed, detailLevel, narrationStyle, voiceId, contactInfo, purpose, uploadMode, industry, classification } = body as {
-    policyData: ExtractedPolicyData | ExtractedData
-    brandId: string | null
-    detailed?: boolean
-    detailLevel?: 'quick' | 'standard' | 'detailed'
-    narrationStyle?: 'solo' | 'podcast'
-    voiceId?: string
-    contactInfo?: { phone?: string; email?: string; calendly?: string }
-    purpose?: string
-    uploadMode?: string
-    industry?: string
-    classification?: { documentType?: string; category?: string; sensitivity?: string; tone?: string; perspective?: string; redFlags?: string[]; actionItems?: string[]; keyQuestion?: string } | null
-  }
+  const body = await request.json() as ScriptBody
+  const { videoId, policyData, brandId, detailed, detailLevel, narrationStyle, voiceId, contactInfo, purpose, uploadMode, industry, classification } = body
+  const { brandName, brandTone, colors } = await resolveBrand(supabase, brandId)
+  const classificationData = classification ?? (policyData as any)?.classification ?? null
 
-  let brandName: string | null = null
-  let brandTone: string | undefined
-  let colors = { primary: '#1B365D', secondary: '#4A90D9', accent: '#FFB347', background: '#0a1628', text: '#FFFFFF' }
+  // ── BACKGROUND path (wizard: we have a draft row to write results to) ──
+  // Returns immediately so the browser never hits the ~60s response timeout;
+  // the script page polls the draft for draft_data.scriptStatus + scenes.
+  if (videoId) {
+    const admin = createAdminClient()
+    // Mark generating so the page shows progress and we can detect failure.
+    const { data: row } = await admin.from('videos').select('draft_data').eq('id', videoId).eq('user_id', user.id).single()
+    if (!row) return NextResponse.json({ error: 'Draft not found' }, { status: 404 })
+    await admin.from('videos').update({
+      draft_data: { ...(row.draft_data || {}), scriptStatus: 'generating', scriptError: null },
+    }).eq('id', videoId)
 
-  if (brandId) {
-    const { data: brand } = await supabase.from('brands').select('*').eq('id', brandId).single()
-    if (brand) {
-      brandName = brand.name
-      brandTone = (brand as any).tone ?? undefined
-      colors = {
-        primary: brand.primary_color,
-        secondary: brand.secondary_color,
-        accent: brand.accent_color,
-        background: brand.background_color,
-        text: brand.text_color,
+    waitUntil((async () => {
+      try {
+        console.log(`[generate-script:bg ${videoId}] Starting: industry=${industry}, detailLevel=${detailLevel}`)
+        const scenes = await generateScript(policyData, brandName, colors, detailed ?? false, 0, voiceId, brandTone, contactInfo, purpose, uploadMode, industry, detailLevel, narrationStyle, classificationData)
+        console.log(`[generate-script:bg ${videoId}] Done: ${scenes.length} scenes`)
+        const { data: cur } = await admin.from('videos').select('draft_data').eq('id', videoId).single()
+        await admin.from('videos').update({
+          draft_data: { ...(cur?.draft_data || {}), scenes, detailLevel, narrationStyle, scriptStatus: 'ready', scriptError: null },
+        }).eq('id', videoId)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Script generation failed'
+        console.error(`[generate-script:bg ${videoId}] CRASH: ${message}`)
+        const { data: cur } = await admin.from('videos').select('draft_data').eq('id', videoId).single()
+        await admin.from('videos').update({
+          draft_data: { ...(cur?.draft_data || {}), scriptStatus: 'failed', scriptError: message },
+        }).eq('id', videoId)
       }
-    }
+    })())
+
+    return NextResponse.json({ status: 'generating' }, { status: 202 })
   }
 
+  // ── SYNCHRONOUS path (legacy non-wizard / localStorage flow) ──
   try {
-    const classificationData = classification ?? (policyData as any)?.classification ?? null
-    console.log(`[generate-script] Starting: industry=${industry}, classification=${classificationData?.category || 'none'}, detailLevel=${detailLevel}`)
     const scenes = await generateScript(policyData, brandName, colors, detailed ?? false, 0, voiceId, brandTone, contactInfo, purpose, uploadMode, industry, detailLevel, narrationStyle, classificationData)
-    console.log(`[generate-script] Done: ${scenes.length} scenes`)
     return NextResponse.json({ scenes })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Script generation failed'
-    const stack = err instanceof Error ? err.stack?.slice(0, 300) : ''
-    console.error(`[generate-script] CRASH: ${message}`, stack)
+    console.error(`[generate-script] CRASH: ${message}`)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
