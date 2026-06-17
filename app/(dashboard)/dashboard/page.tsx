@@ -174,7 +174,7 @@ export default async function DashboardPage() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
   const [{ data: videos }, { data: otherCreations }, { count: videoCount }, { count: videoMonthCount }] = await Promise.all([
-    supabase.from('videos').select('id, title, thumbnail_url, video_url, status, progress_pct, progress_detail, created_at')
+    supabase.from('videos').select('id, title, thumbnail_url, video_url, status, progress_pct, progress_detail, created_at, deducted_cost')
       .eq('user_id', user!.id).order('created_at', { ascending: false }).limit(8),
     // Focused product: only decks shown alongside videos (peripheral types unlinked)
     supabase.from('creations').select('*')
@@ -193,7 +193,7 @@ export default async function DashboardPage() {
   const allItems = [
     ...(videos ?? []).map((v: any) => ({
       id: v.id, type: 'video', title: v.title, thumbnail_url: v.thumbnail_url,
-      file_url: v.video_url, credits_used: 3, created_at: v.created_at, _videoId: v.id,
+      file_url: v.video_url, credits_used: v.deducted_cost ?? null, created_at: v.created_at, _videoId: v.id,
       _status: v.status, _progressPct: v.progress_pct, _progressDetail: v.progress_detail,
     })),
     ...(otherCreations ?? []).map((c: any) => ({ ...c, _videoId: null })),

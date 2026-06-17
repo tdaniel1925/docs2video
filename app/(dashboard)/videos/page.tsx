@@ -79,7 +79,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
   const [{ data: videos }, { data: otherCreations }] = await Promise.all([
     supabase
       .from('videos')
-      .select('id, user_id, title, thumbnail_url, video_url, status, progress_pct, progress_detail, created_at')
+      .select('id, user_id, title, thumbnail_url, video_url, status, progress_pct, progress_detail, created_at, deducted_cost')
       .eq('user_id', user!.id)
       .order('created_at', { ascending: false }),
     supabase
@@ -99,7 +99,9 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
       title: v.title,
       thumbnail_url: v.thumbnail_url,
       file_url: v.video_url,
-      credits_used: 3,
+      // Real amount charged for this video (set at generation time). Older rows
+      // created before deducted_cost was tracked will be null → label hidden.
+      credits_used: (v as { deducted_cost?: number | null }).deducted_cost ?? null,
       created_at: v.created_at,
       _videoId: v.id,
       _status: v.status, _progressPct: v.progress_pct, _progressDetail: v.progress_detail,
