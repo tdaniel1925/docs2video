@@ -728,9 +728,19 @@ export async function POST(request: Request) {
     const noContactRule = '\n\n⛔ ABSOLUTE RULE — NO CONTACT INFO: Do NOT render any phone number, email address, website URL, or street address anywhere on this slide. Not a real one, not a placeholder, not an example. There must be ZERO digits arranged like a phone number (e.g. nothing resembling 555-123-4567) and ZERO "@" symbols or ".com" text. Contact details were NOT provided and inventing them is forbidden.'
     const contactRule = (line: string) => `\n\nCONTACT INFO: Display EXACTLY this contact line and nothing else resembling contact info: ${line}. Do not add, modify, or invent any other phone, email, or URL.`
     const colorRule = `\n\nCRITICAL COLOR RULE: Use these EXACT brand colors as the dominant palette — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. If the style description above mentions any other colors, IGNORE them and use these brand colors instead — the brand colors always win. No logos, no brand marks, no fictional emblems.`
-    const coverPrompt = `${stylePrompt}\n\nCreate a professional COVER SLIDE for a presentation titled "${videoTitle}"${effectiveBrandName ? ` by ${effectiveBrandName}` : ''}. This is the opening slide — make it bold, eye-catching, and professional. Include the title prominently. Leave the top-left corner empty for logo placement.${colorRule}${noContactRule}`
-    // Build closing slide prompt
-    const closingPrompt = `${stylePrompt}\n\nCreate a professional CLOSING/THANK YOU SLIDE. Display "Thank You" as the main heading. This is the final slide — make it warm and conclusive. Leave the top-left corner empty for logo placement.${colorRule}${contactLine ? contactRule(contactLine) : noContactRule}`
+    // Cover is a CLEAN TITLE CARD, not a data dashboard. We pass the style for
+    // visual treatment (palette, mood) but explicitly forbid the data/metric
+    // elements the style describes — otherwise Gemini fills the cover with
+    // INVENTED placeholder stats (fake dollar amounts, "loss prevention", etc.)
+    // that have nothing to do with the actual content.
+    const titleCardRule = `\n\n⛔ THIS IS A TITLE CARD, NOT AN INFOGRAPHIC: Show ONLY the title text (and brand name) as the focal point, with simple decorative background artwork in the style's palette. Do NOT include any data, statistics, dollar amounts, percentages, charts, metric callouts, coins, shields, plants, gauges, or labeled icons. Do NOT invent or display ANY numbers or figures. Keep it minimal and clean — a single bold title on an attractive background.`
+    const coverPrompt = `${stylePrompt}\n\nCreate a professional COVER / TITLE SLIDE for a presentation titled "${videoTitle}"${effectiveBrandName ? ` by ${effectiveBrandName}` : ''}. This is the opening slide — bold and eye-catching, with the title as the clear focal point. Leave the top-left corner empty for logo placement.${titleCardRule}${colorRule}${noContactRule}`
+    // The closing slide is a CALL-TO-ACTION + CONTACT card — NOT a title card and
+    // NOT a data dashboard. It should drive the viewer to act and show the real
+    // contact line (when provided). Still forbid INVENTED data/stats so Gemini
+    // doesn't fill it with fake dollar figures like it did on the cover.
+    const ctaCardRule = `\n\n⛔ THIS IS A CALL-TO-ACTION SLIDE, NOT A DATA INFOGRAPHIC: Show a clear "Thank You" heading plus a short call-to-action encouraging the viewer to get in touch / take the next step. Do NOT include any statistics, dollar amounts, percentages, charts, or metric callouts, and do NOT invent ANY numbers. Keep it clean, warm, and focused on the contact details and CTA.`
+    const closingPrompt = `${stylePrompt}\n\nCreate a professional CLOSING / CALL-TO-ACTION SLIDE. Display "Thank You" as the main heading with a brief, inviting call to action. This is the final slide — warm and conclusive. Leave the top-left corner empty for logo placement.${ctaCardRule}${colorRule}${contactLine ? contactRule(contactLine) : noContactRule}`
 
     // Prepend/append to slidePrompts
     const allSlidePrompts = [coverPrompt, ...slidePrompts, closingPrompt]
