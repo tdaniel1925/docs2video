@@ -674,18 +674,12 @@ export async function POST(request: Request) {
       // 1 slide per scene — headline + key points only, narration is spoken not displayed
       const fp = scene.framePrompts?.[0] || scene.slidePrompt || scene.title
 
-      // Contact bar from the agent's BRAND only — never scraped/extracted
-      // document contact (which is the source website's number, not the agent's)
-      const brandContact = [
-        brandGuide?.phone,
-        brandGuide?.email,
-        brandGuide?.website,
-      ].filter(Boolean)
-      const contactBarInstruction = brandContact.length > 0
-        ? `\n\nCONTACT BAR: Display a thin footer bar at the bottom of this slide with: ${brandContact.join(' | ')}. Use the brand primary color for the bar background with white text.`
-        : '\n\n⛔ NO CONTACT INFO: Do NOT render any phone number, email, or URL on this slide. None was provided; inventing one is forbidden.'
-
-      return `${stylePrompt}\n\n${fp}\n\nTopic context (for visual inspiration only, do NOT put this text on the slide): "${scene.narration?.slice(0, 150)}"\n\nCRITICAL TEXT RULE: Maximum 25 words of visible text on this slide (NOT counting the contact bar). Use a short headline (3-6 words), 2-4 bullet points (3-5 words each), and large numbers/icons. The narration provides the detail — the slide is VISUAL SUPPORT only. NO paragraphs, NO sentences, NO long text blocks.\n\nCRITICAL COLOR RULE: Use these EXACT brand colors as the dominant palette — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. If the style description above mentions any other colors, IGNORE them and use these brand colors instead — the brand colors always win. No logos, no brand marks, no fictional emblems.${contactBarInstruction}`
+      // NO contact bar / footer bar on content slides. Asking Gemini to draw a
+      // "thin footer bar with contact info" produced an empty solid stripe (the
+      // model drew the bar shape but not legible text), wasting slide space on
+      // every frame. Contact info belongs on the closing slide only, composited
+      // as real text — never drawn by the image model. (Removed 2026-06-17.)
+      return `${stylePrompt}\n\n${fp}\n\nTopic context (for visual inspiration only, do NOT put this text on the slide): "${scene.narration?.slice(0, 150)}"\n\nCRITICAL TEXT RULE: Maximum 25 words of visible text on this slide. Use a short headline (3-6 words), 2-4 bullet points (3-5 words each), and large numbers/icons. The narration provides the detail — the slide is VISUAL SUPPORT only. NO paragraphs, NO sentences, NO long text blocks.\n\nCRITICAL COLOR RULE: Use these EXACT brand colors as the dominant palette — primary: ${brandColors.primary}, secondary: ${brandColors.secondary}. If the style description above mentions any other colors, IGNORE them and use these brand colors instead — the brand colors always win. No logos, no brand marks, no fictional emblems.\n\n⛔ NO FOOTER BAR, NO CONTACT INFO: Do NOT draw any footer bar, banner, or strip along the bottom of the slide. Do NOT render any phone number, email address, or website URL anywhere on this slide.`
     })
 
     // Video metadata
