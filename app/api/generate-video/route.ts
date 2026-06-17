@@ -313,6 +313,10 @@ export async function POST(request: Request) {
 
     // STAGE 1: Generate script (or reuse pre-generated scenes)
     let scenes
+    // User-edited cover/closing scenes (from the editor, flagged _role). When
+    // present they override the auto-generated bookends so front/back are editable.
+    let editedCover: any = null
+    let editedClosing: any = null
     if (preGeneratedScenes && preGeneratedScenes.length > 0) {
       // FIX 9: Validate pre-generated scenes have minimum required fields
       const validScenes = preGeneratedScenes.filter((s: any) => {
@@ -396,6 +400,14 @@ export async function POST(request: Request) {
           console.log(`[video ${videoId}] Stripped carrier name "${carrierName}" from slide data`)
         }
       }
+
+      // Pull out user-edited cover/closing (flagged _role by the editor) so they
+      // OVERRIDE the auto-built bookends below, and remove them from the content
+      // list so they aren't treated as content scenes. (Cleaned/carrier-stripped
+      // already above.) If absent, the auto-build path runs as before.
+      editedCover = scenes.find((s: any) => s._role === 'cover') || null
+      editedClosing = scenes.find((s: any) => s._role === 'closing') || null
+      scenes = scenes.filter((s: any) => s._role !== 'cover' && s._role !== 'closing')
 
       // Remove truly empty scenes (no narration AND no slide content)
       const beforeCount = scenes.length
@@ -712,10 +724,21 @@ export async function POST(request: Request) {
       ? `Thank you for watching. ${contactParts.length > 0 ? `To learn more, ${contactParts.join(' ')}.` : `We appreciate your time.`} ${effectiveBrandName} looks forward to serving you.`
       : `Thank you for watching. ${contactParts.length > 0 ? `To learn more, ${contactParts.join(' ')}.` : `We appreciate your time.`}`)
 
-    // Prepend cover + append closing to scenes for VPS
-    // VPS treats ALL slides the same — cover/closing are just the first/last
-    const coverScene = { title: videoTitle, narration: coverNarration, slidePrompt: 'cover' }
-    const closingScene = { title: 'Thank You', narration: closingNarration, slidePrompt: 'closing' }
+    // Prepend cover + append closing to scenes for VPS.
+    // If the user edited them in the editor (editedCover/editedClosing), their
+    // narration + on-slide text WIN — we don't regenerate or re-append contact.
+    const coverScene = {
+      title: editedCover?.title || videoTitle,
+      narration: formatForTTS(editedCover?.narration?.trim() || coverNarration),
+      slidePrompt: 'cover',
+      slideData: editedCover?.slideData || undefined,
+    }
+    const closingScene = {
+      title: editedClosing?.title || 'Thank You',
+      narration: formatForTTS(editedClosing?.narration?.trim() || closingNarration),
+      slidePrompt: 'closing',
+      slideData: editedClosing?.slideData || undefined,
+    }
     // Apply formatForTTS only for VPS scenes (narration stays original in slidePrompts for image context)
     const ttsScenes = scenes.map((s: any) => ({ ...s, narration: s.narration ? formatForTTS(s.narration) : s.narration }))
     const allScenes = [coverScene, ...ttsScenes, closingScene]
@@ -734,13 +757,18 @@ export async function POST(request: Request) {
     // INVENTED placeholder stats (fake dollar amounts, "loss prevention", etc.)
     // that have nothing to do with the actual content.
     const titleCardRule = `\n\n⛔ THIS IS A TITLE CARD, NOT AN INFOGRAPHIC: Show ONLY the title text (and brand name) as the focal point, with simple decorative background artwork in the style's palette. Do NOT include any data, statistics, dollar amounts, percentages, charts, metric callouts, coins, shields, plants, gauges, or labeled icons. Do NOT invent or display ANY numbers or figures. Keep it minimal and clean — a single bold title on an attractive background.`
-    const coverPrompt = `${stylePrompt}\n\nCreate a professional COVER / TITLE SLIDE for a presentation titled "${videoTitle}"${effectiveBrandName ? ` by ${effectiveBrandName}` : ''}. This is the opening slide — bold and eye-catching, with the title as the clear focal point. Leave the top-left corner empty for logo placement.${titleCardRule}${colorRule}${noContactRule}`
+    // If the user edited the cover/closing on-slide text, render EXACTLY that.
+    const coverHeadline = (editedCover?.slideData?.headline || '').trim()
+    const closingCta = (editedClosing?.slideData?.cta || '').trim()
+    const coverTitleForSlide = coverHeadline || videoTitle
+    const coverPrompt = `${stylePrompt}\n\nCreate a professional COVER / TITLE SLIDE for a presentation titled "${coverTitleForSlide}"${effectiveBrandName ? ` by ${effectiveBrandName}` : ''}. This is the opening slide — bold and eye-catching, with the title as the clear focal point. Leave the top-left corner empty for logo placement.${titleCardRule}${colorRule}${noContactRule}`
     // The closing slide is a CALL-TO-ACTION + CONTACT card — NOT a title card and
     // NOT a data dashboard. It should drive the viewer to act and show the real
     // contact line (when provided). Still forbid INVENTED data/stats so Gemini
     // doesn't fill it with fake dollar figures like it did on the cover.
     const ctaCardRule = `\n\n⛔ THIS IS A CALL-TO-ACTION SLIDE, NOT A DATA INFOGRAPHIC: Show a clear "Thank You" heading plus a short call-to-action encouraging the viewer to get in touch / take the next step. Do NOT include any statistics, dollar amounts, percentages, charts, or metric callouts, and do NOT invent ANY numbers. Keep it clean, warm, and focused on the contact details and CTA.`
-    const closingPrompt = `${stylePrompt}\n\nCreate a professional CLOSING / CALL-TO-ACTION SLIDE. Display "Thank You" as the main heading with a brief, inviting call to action. This is the final slide — warm and conclusive. Leave the top-left corner empty for logo placement.${ctaCardRule}${colorRule}${contactLine ? contactRule(contactLine) : noContactRule}`
+    const closingCtaInstruction = closingCta ? `\n\nUse EXACTLY this call-to-action text on the slide: "${closingCta}".` : ''
+    const closingPrompt = `${stylePrompt}\n\nCreate a professional CLOSING / CALL-TO-ACTION SLIDE. Display "Thank You" as the main heading with a brief, inviting call to action. This is the final slide — warm and conclusive. Leave the top-left corner empty for logo placement.${closingCtaInstruction}${ctaCardRule}${colorRule}${contactLine ? contactRule(contactLine) : noContactRule}`
 
     // Prepend/append to slidePrompts
     const allSlidePrompts = [coverPrompt, ...slidePrompts, closingPrompt]

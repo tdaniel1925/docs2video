@@ -101,6 +101,26 @@ Return ONLY valid JSON (no markdown, no code fences):
 }
 
 CLASSIFICATION RULES:
+
+⛔ MOST IMPORTANT RULE — TOPIC IS NOT DOCUMENT TYPE:
+Classify by what the document IS, never by what industry it talks ABOUT. A
+marketing page, sales deck, product brochure, SaaS landing page, blog post, or
+pitch that is AIMED AT insurance agents (or doctors, lawyers, etc.) is NOT an
+insurance/medical/legal document — it is "sales_proposal", "marketing_report",
+"pitch_deck", "newsletter", "presentation", or "report" in the business/general
+category. Only classify as insurance/finance/legal/healthcare when the document
+ITSELF is that artifact (an actual policy, statement, contract, lab result),
+typically a personalized document addressed to a specific account/policy holder.
+Mentioning "IUL", "policy", "revenue", "premium", or industry jargon does NOT
+make it an insurance or finance document.
+Examples:
+- "SmartViews helps you find revenue hiding in your book of business" → a SaaS/
+  marketing pitch → "sales_proposal" or "marketing_report" (business), NOT insurance.
+- "Your Life Insurance Illustration — Policy #12345, Insured: Jane Doe" → an actual
+  illustration → life_insurance_illustration (insurance).
+If the document is promotional/educational/marketing rather than a personal
+financial/legal/medical record, prefer the business or general category.
+
 - An annuity contract has accumulation values, payout schedules, guaranteed rates, surrender charges — NOT death benefit projections
 - A life insurance illustration has death benefit, premium schedules, cash value projections, riders
 - A financial planning report that MENTIONS insurance products is NOT an insurance illustration — it's an investment_statement or report

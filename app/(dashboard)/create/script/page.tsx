@@ -6,6 +6,40 @@ import WizardProgress from '../_components/WizardProgress'
 import QuickPreview from '../../../_components/QuickPreview'
 import BuyCreditsModal from '../../../_components/BuyCreditsModal'
 
+// Build the default cover/closing copy and ensure the editable scene list has an
+// editable Cover (first) + Closing (last). Idempotent: if bookends already exist
+// (by _role), it leaves them. This makes the front/back slides editable like any
+// content scene; generate-video uses the edited versions (by _role) at submit.
+function addBookends(
+  scenes: any[],
+  opts: { title?: string; brandName?: string; recipientName?: string; contactLine?: string }
+): any[] {
+  if (!Array.isArray(scenes) || scenes.length === 0) return scenes
+  const hasCover = scenes.some(s => s?._role === 'cover')
+  const hasClosing = scenes.some(s => s?._role === 'closing')
+  const title = opts.title || scenes[0]?.title || 'Presentation'
+  const greeting = opts.recipientName
+    ? `Hello ${opts.recipientName}, thank you for your time today.`
+    : 'Thank you for your time today.'
+  const cover = {
+    _role: 'cover',
+    title,
+    narration: `${greeting} ${title}.`,
+    slideData: { headline: title },
+  }
+  const contactSentence = opts.contactLine ? ` To learn more, reach out: ${opts.contactLine}.` : ''
+  const closing = {
+    _role: 'closing',
+    title: 'Thank You',
+    narration: `Thank you for watching.${contactSentence} ${opts.brandName ? `${opts.brandName} looks forward to serving you.` : 'We appreciate your time.'}`.replace(/\s+/g, ' ').trim(),
+    slideData: { headline: 'Thank You', cta: 'Reach out to take the next step.' },
+  }
+  let out = scenes
+  if (!hasCover) out = [cover, ...out]
+  if (!hasClosing) out = [...out, closing]
+  return out
+}
+
 export default function ScriptPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -27,11 +61,6 @@ export default function ScriptPage() {
   const [error, setError] = useState<string | null>(null)
   const [savedScene, setSavedScene] = useState<number | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; text: string }[]>([])
-  const [chatInput, setChatInput] = useState('')
-  const [chatLoading, setChatLoading] = useState(false)
-  const [chatCount, setChatCount] = useState(0)
-  const [templatePromptShown, setTemplatePromptShown] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [previewIdx, setPreviewIdx] = useState<number | null>(null)
@@ -39,7 +68,6 @@ export default function ScriptPage() {
   const [previewLoading, setPreviewLoading] = useState(false)
   const [draftLoading, setDraftLoading] = useState(isWizard)
   const [draftData, setDraftData] = useState<any>(null)
-  const chatEndRef = useRef<HTMLDivElement>(null)
 
   // Quick preview state
   const [showQuickPreview, setShowQuickPreview] = useState(false)
@@ -98,9 +126,15 @@ export default function ScriptPage() {
         if (draft.detailLevel) setDetailLevel(draft.detailLevel)
         if (draft.narrationStyle) setNarrationStyle(draft.narrationStyle)
 
-        // If draft already has scenes, restore them
+        // If draft already has scenes, restore them (with editable cover/closing)
         if (draft.scenes && draft.scenes.length > 0) {
-          setScenes(draft.scenes)
+          const contactLine = [draft.contactPhone, draft.contactEmail, draft.contactWebsite].filter(Boolean).join(' | ')
+          setScenes(addBookends(draft.scenes, {
+            title: draft.title || video.title,
+            brandName: draft.inlineBrand?.name || undefined,
+            recipientName: draft.recipientName || undefined,
+            contactLine: contactLine || undefined,
+          }))
         }
         // Build a createState-like object from draft data for script generation
         setCreateState({
@@ -142,7 +176,12 @@ export default function ScriptPage() {
     setCreateState(state)
     if (state.detailLevel) setDetailLevel(state.detailLevel)
     if (state.narrationStyle) setNarrationStyle(state.narrationStyle)
-    if (state.scenes) setScenes(state.scenes)
+    if (state.scenes) setScenes(addBookends(state.scenes, {
+      title: state.title,
+      brandName: state.brandName || state.inlineBrand?.name,
+      recipientName: state.recipientName,
+      contactLine: [state.contactPhone, state.contactEmail, state.contactWebsite].filter(Boolean).join(' | ') || undefined,
+    }))
   }, [router, isWizard])
 
   async function handleGenerate() {
@@ -184,14 +223,20 @@ export default function ScriptPage() {
       // ── Wizard path: server runs generation in the BACKGROUND (202) and writes
       // scenes to the draft. Poll the draft until ready/failed so the browser
       // never hits the ~60s synchronous-response timeout. ──
+      const bookendOpts = {
+        title: state.title || (createState?.extractedData as any)?.title,
+        brandName: state.brandName || draftData?.inlineBrand?.name,
+        recipientName: state.recipientName || createState?.recipientName,
+        contactLine: [state.contactPhone, state.contactEmail, state.contactWebsite].filter(Boolean).join(' | ') || undefined,
+      }
       if (data.status === 'generating' && videoId) {
         const scenes = await pollForScenes(videoId)
-        setScenes(scenes)
+        setScenes(addBookends(scenes, bookendOpts))
         // scenes are already persisted to the draft by the background job.
       } else {
         // Legacy synchronous path (non-wizard): scenes returned inline.
         if (!data.scenes || !Array.isArray(data.scenes)) throw new Error('No script was generated — please try again')
-        setScenes(data.scenes)
+        setScenes(addBookends(data.scenes, bookendOpts))
         state.scenes = data.scenes
         state.detailLevel = detailLevel
         state.narrationStyle = narrationStyle
@@ -223,109 +268,6 @@ export default function ScriptPage() {
       }
     }
     throw new Error('Script is taking longer than expected. Check your Library in a few minutes.')
-  }
-
-  async function handleChat(directMsg?: string) {
-    const msg = directMsg?.trim() || chatInput.trim()
-    if (!msg || chatLoading) return
-    setChatInput('')
-
-    // Handle template save
-    if (msg === 'Yes, save as template') {
-      setChatMessages(prev => [...prev, { role: 'user', text: msg }])
-      const state = isWizard ? createState : JSON.parse(localStorage.getItem('d2v_create') || '{}')
-      const templateName = state.purpose?.slice(0, 50) || 'My template'
-      // Save to localStorage templates list
-      const templates = JSON.parse(localStorage.getItem('d2v_templates') || '[]')
-      templates.push({
-        id: Date.now().toString(),
-        name: templateName,
-        intentType: state.intentType,
-        purpose: state.purpose,
-        detailLevel,
-        narrationStyle,
-        createdAt: new Date().toISOString(),
-      })
-      localStorage.setItem('d2v_templates', JSON.stringify(templates))
-      setChatMessages(prev => [...prev, { role: 'assistant', text: `Template saved as "${templateName}". Next time you create a similar video, you can load this template from the goal page.` }])
-      return
-    }
-    if (msg === 'No thanks') {
-      setChatMessages(prev => [...prev, { role: 'user', text: msg }])
-      setChatMessages(prev => [...prev, { role: 'assistant', text: 'No problem. You can always save a template later from Settings.' }])
-      return
-    }
-
-    setChatMessages(prev => [...prev, { role: 'user', text: msg }])
-    setChatLoading(true)
-    try {
-      const state = isWizard ? createState : JSON.parse(localStorage.getItem('d2v_create') || '{}')
-      const res = await fetch('/api/script-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, scenes, purpose: state.purpose, sourceData: state.extractedData, history: chatMessages.filter(m => !m.text.startsWith('_options_')).slice(-10) }),
-      })
-      const data = await res.json()
-
-      // Handle diff-based changes (FORMAT 1)
-      if (data.changes && Array.isArray(data.changes) && data.changes.length > 0) {
-        const updated = [...scenes]
-        for (const change of data.changes) {
-          const idx = change.index
-          if (idx >= 0 && idx < updated.length) {
-            updated[idx] = {
-              ...updated[idx],
-              ...(change.title !== undefined ? { title: change.title } : {}),
-              ...(change.narration !== undefined ? { narration: change.narration } : {}),
-              ...(change.slideData !== undefined ? { slideData: change.slideData } : {}),
-              ...(change.slidePrompt !== undefined ? { slidePrompt: change.slidePrompt } : {}),
-              ...(change.duration !== undefined ? { duration: change.duration } : {}),
-            }
-          }
-        }
-        setScenes(updated)
-        autoSave(updated, data.changes[0]?.index || 0, true)
-        setChatCount(c => c + 1)
-      }
-
-      // Handle full scenes replacement (FORMAT 1B — add/delete/reorder)
-      if (data.scenes && Array.isArray(data.scenes) && data.scenes.length > 0) {
-        const validScenes = data.scenes.map((s: any, idx: number) => ({
-          ...s,
-          scene: idx + 1,
-          title: s.title || `Scene ${idx + 1}`,
-          narration: s.narration || '',
-          slideData: s.slideData || undefined,
-          slidePrompt: s.slidePrompt || '',
-          duration: s.duration || 15,
-        }))
-        setScenes(validScenes)
-        autoSave(validScenes, 0, true)
-        const newCount = chatCount + 1
-        setChatCount(newCount)
-        // After 3 AI changes, suggest saving as template
-        if (newCount === 3 && !templatePromptShown) {
-          setTemplatePromptShown(true)
-          setTimeout(() => {
-            setChatMessages(prev => [...prev, { role: 'assistant', text: '💾 You\'ve customized this script quite a bit. Want to save these preferences as a template for future videos with similar content?' }])
-            setChatMessages(prev => [...prev, { role: 'assistant', text: `_options_${JSON.stringify(['Yes, save as template', 'No thanks'])}` }])
-          }, 500)
-        }
-      }
-      if (data.reply) {
-        setChatMessages(prev => [...prev, { role: 'assistant', text: data.reply }])
-      }
-      if (data.suggestion) {
-        setChatMessages(prev => [...prev, { role: 'assistant', text: `💡 ${data.suggestion}` }])
-      }
-      if (data.options) {
-        setChatMessages(prev => [...prev, { role: 'assistant', text: `_options_${JSON.stringify(data.options)}` }])
-      }
-    } catch {
-      setChatMessages(prev => [...prev, { role: 'assistant', text: 'Something went wrong. Try again.' }])
-    }
-    setChatLoading(false)
-    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
   }
 
   async function handlePreviewSlide(idx: number) {
@@ -730,45 +672,57 @@ export default function ScriptPage() {
 
             {/* Full editor view */}
             {editMode && (
-            <div className="create-script-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'start' }}>
-              {/* Left: Script editor — accordion with narration + slide content */}
+            <div className="create-script-layout" style={{ display: 'block' }}>
+              {/* Script editor — accordion with narration + slide content */}
               <div>
                 {scenes.map((scene: any, i: number) => {
                   const sd = scene.slideData || {}
                   const bullets = sd.bullets || []
                   const stats = sd.stats || []
+                  const role = scene._role as ('cover' | 'closing' | undefined)
+                  const isBookend = role === 'cover' || role === 'closing'
                   return (
                     <div
                       key={i}
-                      draggable
-                      onDragStart={() => setDragIdx(i)}
+                      draggable={!isBookend}
+                      onDragStart={() => { if (!isBookend) setDragIdx(i) }}
                       onDragOver={e => e.preventDefault()}
                       onDrop={() => {
-                        if (dragIdx === null || dragIdx === i) return
+                        if (dragIdx === null || dragIdx === i || isBookend) return
+                        // Never move a content scene before the cover or after the closing.
+                        const firstContent = scenes.findIndex(s => s._role !== 'cover')
+                        const lastContent = scenes.length - 1 - [...scenes].reverse().findIndex(s => s._role !== 'closing')
+                        const target = Math.min(Math.max(i, firstContent), lastContent)
                         const updated = [...scenes]
                         const [moved] = updated.splice(dragIdx, 1)
-                        updated.splice(i, 0, moved)
+                        updated.splice(target, 0, moved)
                         updated.forEach((s, idx) => { s.scene = idx + 1 })
                         setScenes(updated)
-                        autoSave(updated, i, true)
+                        autoSave(updated, target, true)
                         setDragIdx(null)
                       }}
                       onDragEnd={() => setDragIdx(null)}
                       style={{
                         marginBottom: 12, borderRadius: 10, overflow: 'hidden',
                         background: 'white',
-                        border: dragIdx === i ? '2px solid var(--mint)' : '1px solid var(--border-light)',
+                        border: dragIdx === i ? '2px solid var(--mint)' : isBookend ? '1px solid var(--mint)' : '1px solid var(--border-light)',
                         opacity: dragIdx === i ? 0.6 : 1,
                         transition: 'opacity 0.2s, border-color 0.2s',
                       }}
                     >
                       {/* Scene header */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', cursor: 'grab' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', cursor: isBookend ? 'default' : 'grab' }}>
                         <span style={{
-                          width: 26, height: 26, borderRadius: '50%', background: 'var(--mint)',
+                          width: 26, height: 26, borderRadius: '50%',
+                          background: isBookend ? 'var(--ink)' : 'var(--mint)', color: isBookend ? 'white' : 'inherit',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontWeight: 800, fontSize: 12, flexShrink: 0,
                         }}>{i + 1}</span>
+                        {isBookend && (
+                          <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink)', background: 'var(--mint)', padding: '2px 8px', borderRadius: 6 }}>
+                            {role === 'cover' ? 'Cover slide' : 'Closing slide'}
+                          </span>
+                        )}
                         <input
                           type="text"
                           value={scene.title}
@@ -824,20 +778,86 @@ export default function ScriptPage() {
                             placeholder="Slide headline"
                             style={{ border: 'none', background: 'transparent', fontWeight: 700, fontSize: 14, width: '100%', outline: 'none', color: 'var(--ink)', fontFamily: 'inherit', marginBottom: 6 }}
                           />
-                          {stats.length > 0 && (
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                          {/* Closing CTA text (on-slide) — closing bookend only */}
+                          {role === 'closing' && (
+                            <input
+                              type="text"
+                              value={sd.cta || ''}
+                              onChange={e => {
+                                const updated = [...scenes]
+                                updated[i] = { ...updated[i], slideData: { ...sd, cta: e.target.value } }
+                                setScenes(updated)
+                                autoSave(updated, i)
+                              }}
+                              placeholder="Call-to-action text (e.g. Reach out to take the next step)"
+                              style={{ border: '1px solid var(--border-light)', borderRadius: 6, background: 'white', fontSize: 12, width: '100%', outline: 'none', color: 'var(--ink-soft)', fontFamily: 'inherit', marginBottom: 6, padding: '6px 8px' }}
+                            />
+                          )}
+                          {/* Stats/bullets are for content slides only, not cover/closing */}
+                          {!isBookend && stats.length > 0 && (
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                               {stats.map((st: any, j: number) => (
-                                <span key={j} style={{ padding: '2px 8px', borderRadius: 6, background: 'white', border: '1px solid var(--border)', fontSize: 12 }}>
-                                  <strong>{st.value}</strong> {st.label}
+                                <span key={j} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px', borderRadius: 6, background: 'white', border: '1px solid var(--border)', fontSize: 12 }}>
+                                  <input
+                                    type="text"
+                                    value={st.value || ''}
+                                    onChange={e => {
+                                      const updated = [...scenes]
+                                      const newStats = stats.map((s: any, k: number) => k === j ? { ...s, value: e.target.value } : s)
+                                      updated[i] = { ...updated[i], slideData: { ...sd, stats: newStats } }
+                                      setScenes(updated)
+                                      autoSave(updated, i)
+                                    }}
+                                    placeholder="value"
+                                    style={{ border: 'none', background: 'transparent', fontSize: 12, fontWeight: 700, width: 56, outline: 'none', color: 'var(--ink)', fontFamily: 'inherit' }}
+                                  />
+                                  <input
+                                    type="text"
+                                    value={st.label || ''}
+                                    onChange={e => {
+                                      const updated = [...scenes]
+                                      const newStats = stats.map((s: any, k: number) => k === j ? { ...s, label: e.target.value } : s)
+                                      updated[i] = { ...updated[i], slideData: { ...sd, stats: newStats } }
+                                      setScenes(updated)
+                                      autoSave(updated, i)
+                                    }}
+                                    placeholder="label"
+                                    style={{ border: 'none', background: 'transparent', fontSize: 12, width: 70, outline: 'none', color: 'var(--ink-soft)', fontFamily: 'inherit' }}
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      const updated = [...scenes]
+                                      const newStats = stats.filter((_: any, k: number) => k !== j)
+                                      updated[i] = { ...updated[i], slideData: { ...sd, stats: newStats } }
+                                      setScenes(updated)
+                                      autoSave(updated, i, true)
+                                    }}
+                                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-light)', fontSize: 13, lineHeight: 1, padding: 0 }}
+                                    title="Remove stat"
+                                  >&times;</button>
                                 </span>
                               ))}
                             </div>
                           )}
-                          {bullets.length > 0 ? (
+                          {!isBookend && (
+                          <button
+                            onClick={() => {
+                              const updated = [...scenes]
+                              const newStats = [...stats, { value: '', label: '' }]
+                              updated[i] = { ...updated[i], slideData: { ...sd, stats: newStats } }
+                              setScenes(updated)
+                              autoSave(updated, i, true)
+                            }}
+                            style={{ border: '1px dashed var(--border)', background: 'none', borderRadius: 6, padding: '2px 8px', fontSize: 11, color: 'var(--ink-light)', cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8 }}
+                          >+ Add stat</button>
+                          )}
+
+                          {/* Editable bullets — content slides only */}
+                          {!isBookend && bullets.length > 0 && (
                             <div>
                               {bullets.map((b: string, j: number) => (
-                                <div key={j} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: 3 }}>
-                                  <span style={{ color: 'var(--mint)', fontSize: 10, marginTop: 3 }}>&#9679;</span>
+                                <div key={j} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
+                                  <span style={{ color: 'var(--mint)', fontSize: 10 }}>&#9679;</span>
                                   <input
                                     type="text"
                                     value={typeof b === 'string' ? b : (b as any)?.text || ''}
@@ -851,11 +871,32 @@ export default function ScriptPage() {
                                     }}
                                     style={{ border: 'none', background: 'transparent', fontSize: 12, flex: 1, outline: 'none', color: 'var(--ink-soft)', fontFamily: 'inherit' }}
                                   />
+                                  <button
+                                    onClick={() => {
+                                      const updated = [...scenes]
+                                      const newBullets = bullets.filter((_: any, k: number) => k !== j)
+                                      updated[i] = { ...updated[i], slideData: { ...sd, bullets: newBullets } }
+                                      setScenes(updated)
+                                      autoSave(updated, i, true)
+                                    }}
+                                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-light)', fontSize: 14, lineHeight: 1, padding: 0 }}
+                                    title="Remove bullet"
+                                  >&times;</button>
                                 </div>
                               ))}
                             </div>
-                          ) : (
-                            <div style={{ fontSize: 12, color: 'var(--ink-light)', fontStyle: 'italic' }}>No bullet points — AI will extract from narration</div>
+                          )}
+                          {!isBookend && (
+                          <button
+                            onClick={() => {
+                              const updated = [...scenes]
+                              const newBullets = [...bullets, '']
+                              updated[i] = { ...updated[i], slideData: { ...sd, bullets: newBullets } }
+                              setScenes(updated)
+                              autoSave(updated, i, true)
+                            }}
+                            style={{ border: '1px dashed var(--border)', background: 'none', borderRadius: 6, padding: '2px 8px', fontSize: 11, color: 'var(--ink-light)', cursor: 'pointer', fontFamily: 'inherit', marginTop: 4 }}
+                          >+ Add bullet point</button>
                           )}
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
@@ -874,125 +915,6 @@ export default function ScriptPage() {
                     </div>
                   )
                 })}
-              </div>
-
-              {/* Right: AI Chat assistant */}
-              <div style={{
-                position: 'sticky', top: 80, borderRadius: 10,
-                background: 'white', border: '1px solid var(--border-light)',
-                display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 120px)',
-              }}>
-                <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border-light)' }}>
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>Script Assistant</div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>Ask AI to edit your script</div>
-                </div>
-
-                {/* Chat messages */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', minHeight: 200 }}>
-                  {chatMessages.length === 0 && (
-                    <div style={{ fontSize: 12, color: 'var(--ink-light)', lineHeight: 1.5 }}>
-                      <p style={{ marginBottom: 6, fontWeight: 600 }}>Edit:</p>
-                      {['Make all scenes shorter', 'Add a scene about pricing', 'Make the tone more casual', 'Rewrite scene 1'].map(cmd => (
-                        <div key={cmd} onClick={() => setChatInput(cmd)} style={{ padding: '5px 10px', borderRadius: 8, background: 'var(--bg-soft)', marginBottom: 4, cursor: 'pointer' }}>
-                          {cmd}
-                        </div>
-                      ))}
-                      <p style={{ marginBottom: 6, marginTop: 10, fontWeight: 600 }}>Quality:</p>
-                      {['Review the full script', 'Check for repetition', 'Is anything missing from the source?', 'Is the CTA strong enough?'].map(cmd => (
-                        <div key={cmd} onClick={() => setChatInput(cmd)} style={{ padding: '5px 10px', borderRadius: 8, background: 'var(--bg-soft)', marginBottom: 4, cursor: 'pointer' }}>
-                          {cmd}
-                        </div>
-                      ))}
-                      <p style={{ marginBottom: 6, marginTop: 10, fontWeight: 600 }}>Structure:</p>
-                      {['Which scene is the longest?', 'Merge similar scenes', 'Add transition between scenes', 'How long is this video?'].map(cmd => (
-                        <div key={cmd} onClick={() => setChatInput(cmd)} style={{ padding: '5px 10px', borderRadius: 8, background: 'var(--bg-soft)', marginBottom: 4, cursor: 'pointer' }}>
-                          {cmd}
-                        </div>
-                      ))}
-                      <p style={{ marginBottom: 6, marginTop: 10, fontWeight: 600 }}>Research:</p>
-                      {['Look up competitor info from [url]', 'Add info from https://...', 'Compare us with [competitor.com]'].map(cmd => (
-                        <div key={cmd} onClick={() => setChatInput(cmd)} style={{ padding: '5px 10px', borderRadius: 8, background: 'var(--bg-soft)', marginBottom: 4, cursor: 'pointer' }}>
-                          {cmd}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {chatMessages.map((msg, i) => {
-                    // Render clickable options
-                    if (msg.text.startsWith('_options_')) {
-                      try {
-                        const options = JSON.parse(msg.text.replace('_options_', ''))
-                        return (
-                          <div key={i} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-                            {options.map((opt: string, j: number) => (
-                              <button key={j} onClick={() => { handleChat(opt) }} style={{
-                                padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)',
-                                background: 'white', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
-                                color: 'var(--ink)', fontWeight: 600,
-                              }}>
-                                {opt}
-                              </button>
-                            ))}
-                          </div>
-                        )
-                      } catch { return null }
-                    }
-                    return (
-                      <div key={i} style={{
-                        marginBottom: 10, padding: '8px 12px', borderRadius: 10,
-                        background: msg.role === 'user' ? 'var(--ink)' : 'var(--bg-soft)',
-                        color: msg.role === 'user' ? 'white' : 'var(--ink)',
-                        fontSize: 13, lineHeight: 1.5,
-                        marginLeft: msg.role === 'user' ? 40 : 0,
-                        marginRight: msg.role === 'assistant' ? 40 : 0,
-                      }}>
-                        {msg.text}
-                      </div>
-                    )
-                  })}
-                  {chatLoading && (
-                    <div style={{ fontSize: 13, color: 'var(--ink-light)', padding: '8px 0' }}>
-                      Thinking...
-                    </div>
-                  )}
-                  <div ref={chatEndRef} />
-                </div>
-
-                {/* Chat input */}
-                <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-light)' }}>
-                  <div style={{ fontSize: 11, color: 'var(--ink-light)', marginBottom: 4 }}>
-                    Paste text or URLs as reference. Press Enter to send.
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <textarea
-                      value={chatInput}
-                      onChange={e => setChatInput(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChat() } }}
-                      placeholder="Tell AI what to change, paste content, or drop a URL..."
-                      rows={chatInput.includes('\n') || chatInput.length > 80 ? 3 : 1}
-                      style={{
-                        flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)',
-                        fontSize: 13, fontFamily: 'inherit', outline: 'none', resize: 'none',
-                        minHeight: 38, transition: 'height 0.2s',
-                      }}
-                      onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
-                      onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
-                    />
-                    <button
-                      onClick={() => handleChat()}
-                      disabled={chatLoading || !chatInput.trim()}
-                      style={{
-                        padding: '10px 16px', borderRadius: 8, border: 'none',
-                        background: chatInput.trim() ? 'var(--ink)' : 'var(--border)',
-                        color: 'white', fontSize: 13, fontWeight: 700,
-                        cursor: chatInput.trim() ? 'pointer' : 'default',
-                        fontFamily: 'inherit', alignSelf: 'flex-end',
-                      }}
-                    >
-                      &rarr;
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
             )}
