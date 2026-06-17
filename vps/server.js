@@ -134,6 +134,17 @@ function runFfmpeg(args) {
   })
 }
 
+// Probe an audio file's real duration (seconds). Returns 0 on failure.
+function probeAudioDuration(audioPath) {
+  return new Promise((resolve) => {
+    execFile('ffprobe', ['-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', audioPath], { timeout: 10000 }, (err, stdout) => {
+      if (err) return resolve(0)
+      const d = parseFloat((stdout || '').trim())
+      resolve(Number.isFinite(d) && d > 0 ? d : 0)
+    })
+  })
+}
+
 // Main assembly endpoint
 app.post('/assemble', authCheck, async (req, res) => {
   const { slides, audios, videoId, userId, musicUrl, watermarkText, isTrial } = req.body
@@ -346,7 +357,13 @@ app.post('/assemble', authCheck, async (req, res) => {
         video_url: urlData.publicUrl,
         thumbnail_url: thumbUrlData.publicUrl,
         duration: Math.round(totalDuration),
-        // slide_durations: durations, // column doesn't exist in schema
+        // Real per-slide clip durations (seconds), one per slide_url, in order.
+        // The preview/watch pages map thumbnails to exact video timestamps with
+        // these; without them the UI guesses via equal division (always wrong —
+        // narration lengths differ), causing slide-desync + the last-thumbnail-
+        // not-clickable bug. Requires the slide_durations column
+        // (supabase-slide-durations-migration.sql).
+        slide_durations: durations.map(d => Math.round(d * 100) / 100),
         slide_urls: slideUrls,
         status: 'completed',
         progress_detail: null,
@@ -585,29 +602,47 @@ app.post('/generate', authCheck, async (req, res) => {
 
     // Audio runs in background — updates progress per clip
     let audiosDone = 0
+    // Scenes that HAD narration but produced no audio after all retries. If any
+    // exist, we fail the whole job rather than silently shipping a silent slide
+    // (a silent slide while music keeps playing is the "missing narration" bug).
+    const failedNarrations = []
     const audioPromise = (async () => {
       const buffers = []
       for (let i = 0; i < scenes.length; i++) {
         const scene = scenes[i]
+        // Intentionally silent (no narration text) — push empty, not a failure.
         if (!scene.narration?.trim()) {
           buffers.push(Buffer.alloc(0))
           audiosDone++
           continue
         }
-        try {
-          const resp = await openai.audio.speech.create({
-            model: 'tts-1-hd', voice: voiceId || 'nova',
-            input: scene.narration.slice(0, 4096), response_format: 'mp3', speed: 0.95,
-          })
-          buffers.push(Buffer.from(await resp.arrayBuffer()))
-        } catch (e) {
-          console.error(`[${videoId}] TTS failed for clip ${i + 1}:`, e.message)
+        // Retry TTS up to 3x with backoff (was a single no-retry call).
+        let buf = null
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            const resp = await openai.audio.speech.create({
+              model: 'tts-1-hd', voice: voiceId || 'nova',
+              input: scene.narration.slice(0, 4096), response_format: 'mp3', speed: 0.95,
+            })
+            const b = Buffer.from(await resp.arrayBuffer())
+            if (b.length > 100) { buf = b; break }
+            throw new Error(`TTS returned ${b.length} bytes`)
+          } catch (e) {
+            console.error(`[${videoId}] TTS clip ${i + 1} attempt ${attempt}/3 failed:`, e.message)
+            if (attempt < 3) await new Promise(r => setTimeout(r, 2000 * attempt))
+          }
+        }
+        if (buf) {
+          buffers.push(buf)
+        } else {
+          // All retries failed — keep index alignment but record the failure.
           buffers.push(Buffer.alloc(0))
+          failedNarrations.push(i + 1)
         }
         audiosDone++
         console.log(`[${videoId}] Audio ${audiosDone}/${scenes.length}`)
       }
-      console.log(`[${videoId}] Audio complete: ${buffers.length} clips`)
+      console.log(`[${videoId}] Audio complete: ${buffers.length} clips${failedNarrations.length ? `, ${failedNarrations.length} FAILED` : ''}`)
       return buffers
     })()
 
@@ -701,6 +736,13 @@ app.post('/generate', authCheck, async (req, res) => {
     const audioBuffers = await audioPromise
     console.log(`[${videoId}] Audio + slides both done`)
 
+    // Fail loudly if any slide that SHOULD have narration ended up silent after
+    // all TTS retries. Shipping a video with missing narration (while music
+    // keeps playing) is worse than failing — the catch below refunds + notifies.
+    if (failedNarrations.length > 0) {
+      throw new Error(`Narration failed for slide(s) ${failedNarrations.join(', ')} after 3 attempts each`)
+    }
+
     // STAGE 3: Assemble with FFmpeg (no Sharp overlays needed — OpenAI bakes everything in)
     await updateStatus('assembling', 'Assembling your video...', 68)
     const workDir = join(tmpdir(), `d2v-${randomUUID()}`)
@@ -725,9 +767,29 @@ app.post('/generate', authCheck, async (req, res) => {
       const vf = 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2'
 
       if (audioBuffers[i] && audioBuffers[i].length > 100) {
-        await runFfmpeg(['-loop', '1', '-i', slidePath, '-i', audioPath, '-c:v', 'libx264', '-tune', 'stillimage', '-c:a', 'aac', '-b:a', '192k', '-pix_fmt', 'yuv420p', '-vf', vf, '-shortest', '-y', clipPath])
+        // Probe the real audio length and show the slide for exactly that long
+        // (+0.8s tail) via -t. We deliberately do NOT use -shortest: with
+        // -loop 1 (infinite image) + -tune stillimage's sparse keyframes,
+        // -shortest rounds to a GOP boundary and can drop the clip's audio
+        // entirely — which silenced the SHORTEST narration (the closing slide).
+        const realDur = await probeAudioDuration(audioPath)
+        const slideDuration = realDur > 0 ? realDur + 0.8 : Math.round(audioBuffers[i].length / 16000) + 1
+        await runFfmpeg(['-loop', '1', '-i', slidePath, '-i', audioPath, '-c:v', 'libx264', '-tune', 'stillimage', '-c:a', 'aac', '-b:a', '192k', '-pix_fmt', 'yuv420p', '-vf', vf, '-t', String(slideDuration), '-y', clipPath])
       } else {
-        await runFfmpeg(['-loop', '1', '-i', slidePath, '-t', '5', '-c:v', 'libx264', '-tune', 'stillimage', '-pix_fmt', 'yuv420p', '-vf', vf, '-an', '-y', clipPath])
+        // Silent slide — but it MUST still carry an AAC audio track. The final
+        // step concatenates clips with `-c copy`, which requires every segment
+        // to have an identical stream layout. A clip made with `-an` (no audio
+        // stream) poisons the concat: ffmpeg drops audio for every clip AFTER
+        // it, which is the "audio cuts out partway through the video" bug. So we
+        // mux in a generated silent track (anullsrc) instead of using -an.
+        await runFfmpeg([
+          '-loop', '1', '-i', slidePath,
+          '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
+          '-t', '5',
+          '-c:v', 'libx264', '-tune', 'stillimage', '-pix_fmt', 'yuv420p', '-vf', vf,
+          '-c:a', 'aac', '-b:a', '192k',
+          '-y', clipPath,
+        ])
       }
       clipFiles.push(clipPath)
 
@@ -753,7 +815,13 @@ app.post('/generate', authCheck, async (req, res) => {
     const totalDurationEst = durations.reduce((s, d) => s + d, 0)
     let finalPath = outputPath
 
-    if (GEMINI_API_KEY) {
+    // Only generate background music when the user actually asked for it.
+    // The caller sends a non-empty musicPrompt when music is selected and an
+    // empty string when it's declined. Previously this was gated only on the
+    // API key, so EVERY video got music whether the user wanted it or not —
+    // the "music plays when not selected" bug.
+    const musicRequested = !!(musicPrompt && musicPrompt.trim())
+    if (GEMINI_API_KEY && musicRequested) {
       try {
         await updateStatus('assembling', 'Composing background music...', 88)
         const { GoogleGenAI } = require('@google/genai')
@@ -835,7 +903,7 @@ app.post('/generate', authCheck, async (req, res) => {
         console.error(`[${videoId}] Music generation failed, continuing without:`, musicErr.message)
       }
     } else {
-      console.log(`[${videoId}] No GEMINI_API_KEY, skipping music generation`)
+      console.log(`[${videoId}] Music not requested${GEMINI_API_KEY ? '' : ' (no GEMINI_API_KEY)'}, skipping music generation`)
     }
 
     // Read and upload
@@ -870,7 +938,13 @@ app.post('/generate', authCheck, async (req, res) => {
         video_url: urlData.publicUrl,
         thumbnail_url: thumbUrlData.publicUrl,
         duration: Math.round(totalDuration),
-        // slide_durations: durations, // column doesn't exist in schema
+        // Real per-slide clip durations (seconds), one per slide_url, in order.
+        // The preview/watch pages map thumbnails to exact video timestamps with
+        // these; without them the UI guesses via equal division (always wrong —
+        // narration lengths differ), causing slide-desync + the last-thumbnail-
+        // not-clickable bug. Requires the slide_durations column
+        // (supabase-slide-durations-migration.sql).
+        slide_durations: durations.map(d => Math.round(d * 100) / 100),
         slide_urls: slideUrls,
         status: 'completed',
         progress_detail: null,

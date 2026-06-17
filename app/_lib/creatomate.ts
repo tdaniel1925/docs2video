@@ -9,7 +9,7 @@
 // renders a JPEG preview — verified empirically 2026-06-11.
 const RENDERS_URL = 'https://api.creatomate.com/v1/renders'
 const SCENE_FADE_SEC = 0.5
-const CLOSING_HOLD_SEC = 0.75
+export const CLOSING_HOLD_SEC = 0.75
 
 export interface RenderScene {
   imageUrl: string

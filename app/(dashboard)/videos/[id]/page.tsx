@@ -376,7 +376,7 @@ export default function VideoDetailPage() {
   const slideUrls = video?.slide_urls ?? []
   const slideCount = slideUrls.length
   const scenes = Array.isArray(video?.script) ? video.script : []
-  const perSlideDurations: number[] = (video as any)?.slide_durations ?? []
+  const perSlideDurations: number[] = video?.slide_durations ?? []
   const slideDuration = videoDuration > 0 && slideCount > 0 ? videoDuration / slideCount : 0
 
   // Build cumulative start times from per-slide durations (or fall back to equal division)
@@ -410,8 +410,20 @@ export default function VideoDetailPage() {
     // Use actual video duration from element, or DB duration as fallback
     const dur = videoRef.current.duration || videoDuration || (video as any)?.duration || 0
     const fallbackSlideDur = dur > 0 && slideCount > 0 ? dur / slideCount : 0
-    const seekTime = slideStartTimes[index] ?? (index * fallbackSlideDur)
-    videoRef.current.currentTime = Math.min(seekTime, dur > 0 ? dur - 0.1 : seekTime)
+    const start = slideStartTimes[index] ?? (index * fallbackSlideDur)
+    // Land a touch INTO the slide so the right frame shows. We must NOT clamp to
+    // (dur - 0.1): if the summed slide durations run slightly longer than the
+    // real video, the last slide's start lands past dur and the old clamp
+    // snapped the seek back into the PREVIOUS slide — so clicking the final
+    // thumbnail appeared to do nothing. Clamp instead against the NEXT slide's
+    // start (or the video end only for the very last slide).
+    const nextStart = slideStartTimes[index + 1]
+    const ceiling = nextStart != null
+      ? nextStart - 0.05                              // stay within this slide
+      : (dur > 0 ? Math.max(dur - 0.05, start) : start) // last slide: clamp to end but never before its own start
+    let seekTime = Math.min(start + 0.05, ceiling)
+    if (!Number.isFinite(seekTime) || seekTime < 0) seekTime = Math.max(start, 0)
+    videoRef.current.currentTime = seekTime
     setCurrentSlideIndex(index)
     if (videoRef.current.paused) videoRef.current.play().catch(() => {})
   }

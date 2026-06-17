@@ -179,6 +179,10 @@ export interface Video {
   thumbnail_url: string | null
   duration: number | null
   slide_urls: string[] | null
+  /** Per-slide clip duration in seconds, one per slide_url (in order). Lets the
+   *  preview/watch pages map thumbnails to exact video timestamps instead of
+   *  guessing via equal division. */
+  slide_durations: number[] | null
   music_url: string | null
   is_trial: boolean
   status: 'draft' | 'pending' | 'scripting' | 'generating_slides' | 'generating_audio' | 'assembling' | 'completed' | 'failed'

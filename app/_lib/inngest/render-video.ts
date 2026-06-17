@@ -3,7 +3,7 @@ import { inngest } from './client'
 import { createAdminClient } from '../supabase/admin'
 import { generateSlideFromPrompt } from '../gemini'
 import { synthesizeNarration } from '../tts-cartesia'
-import { buildRenderSource, startRender } from '../creatomate'
+import { buildRenderSource, startRender, CLOSING_HOLD_SEC } from '../creatomate'
 import { refundVideoCredits } from '../credits'
 import { sendNotification } from '../notify'
 
@@ -118,11 +118,18 @@ export const renderVideoV2 = inngest.createFunction(
     ])
 
     const renderId = await step.run('start-render', async () => {
+      // Per-slide durations that match the rendered timeline. The last slide
+      // holds CLOSING_HOLD_SEC longer in buildRenderSource, so mirror that here
+      // so preview thumbnails map to exact timestamps.
+      const slideDurations = audios.map((a, i) =>
+        Math.round((a.duration + (i === audios.length - 1 ? CLOSING_HOLD_SEC : 0)) * 100) / 100
+      )
       await admin.from('videos').update({
         status: 'assembling',
         progress_detail: 'Assembling your video...',
         progress_pct: 70,
         slide_urls: slideUrls,
+        slide_durations: slideDurations,
         // Cover slide doubles as the thumbnail (library cards, share emails, poster)
         thumbnail_url: slideUrls[0],
       }).eq('id', videoId)
