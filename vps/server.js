@@ -514,7 +514,9 @@ app.post('/convert', authCheck, async (req, res) => {
 // FULL PIPELINE — VPS does everything (no Vercel timeout risk)
 // ============================================================
 app.post('/generate', authCheck, async (req, res) => {
-  const { videoId, voiceId, scenes, userId, slidePrompts, logoUrl, musicPrompt, industry } = req.body
+  const { videoId, voiceId, scenes, userId, slidePrompts, logoUrl, musicPrompt, industry, brandName, brandColors } = req.body
+  // Brand color fallbacks so slide compositing never throws if colors are absent.
+  const safeBrandColors = brandColors || { primary: '#1B365D', secondary: '#4A90D9' }
 
   if (!videoId || !scenes?.length || !userId || !slidePrompts?.length) {
     return res.status(400).json({ error: 'Missing videoId, scenes, userId, or slidePrompts' })
@@ -654,7 +656,7 @@ app.post('/generate', authCheck, async (req, res) => {
               } else if (brandName) {
                 try {
                   const safeName = brandName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                  const textSvg = Buffer.from('<svg width="400" height="60" xmlns="http://www.w3.org/2000/svg"><text x="0" y="42" font-size="32" font-weight="800" font-family="sans-serif" fill="' + (brandColors.primary || '#1B365D') + '">' + safeName + '</text></svg>')
+                  const textSvg = Buffer.from('<svg width="400" height="60" xmlns="http://www.w3.org/2000/svg"><text x="0" y="42" font-size="32" font-weight="800" font-family="sans-serif" fill="' + (safeBrandColors.primary || '#1B365D') + '">' + safeName + '</text></svg>')
                   const textBuf = await sharp(textSvg).png().toBuffer()
                   slideBuf = await sharp(slideBuf).composite([{ input: textBuf, top: 40, left: 40 }]).png().toBuffer()
                 } catch (e) { console.log(`[${videoId}] Brand name composite failed:`, e.message) }

@@ -161,7 +161,7 @@ export async function GET(request: Request) {
 </ul>
 <p>Every view is tracked so you know exactly when a client engages.</p>`
           ctaText = 'Go to Your Videos'
-          ctaUrl = 'https://docs2video.com/library'
+          ctaUrl = 'https://docs2video.com/videos'
         }
       }
 
