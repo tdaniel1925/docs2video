@@ -242,6 +242,8 @@ export default function AdminPage() {
         <Link href="/admin/api-keys" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>API Keys</Link>
         <Link href="/admin/affiliates" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Affiliates</Link>
         <Link href="/admin/help" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Help Articles</Link>
+        <Link href="/admin/system" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>System Status</Link>
+        <Link href="/admin/logs" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Logs</Link>
       </div>
 
       {tab === 'dashboard' && (

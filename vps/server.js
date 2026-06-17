@@ -16,6 +16,24 @@ const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
+// Where to POST error alerts (the Vercel app, which has the mailer + Resend).
+const APP_URL = process.env.APP_URL || 'https://docs2video.com'
+
+// Fire-and-forget error alert. POSTs to the app's /api/internal/error-report,
+// which emails ops. Never throws and never blocks the pipeline — alerting must
+// not be able to break a render.
+async function reportError({ source, videoId, userId, stage, message, detail }) {
+  try {
+    await fetch(`${APP_URL}/api/internal/error-report`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-secret': API_SECRET },
+      body: JSON.stringify({ source, videoId, userId, stage, message, detail }),
+      signal: AbortSignal.timeout(10000),
+    })
+  } catch (e) {
+    console.error('[reportError] failed to send alert:', e?.message)
+  }
+}
 
 // Auth middleware
 function authCheck(req, res, next) {
@@ -26,9 +44,101 @@ function authCheck(req, res, next) {
   next()
 }
 
-// Health check
+// Health check — HONEST. Verifies the things that have silently broken before
+// (sharp module, required keys, ffmpeg binary) instead of always returning ok.
+// Cheap: no external API calls, safe to ping frequently.
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', ffmpeg: true })
+  const checks = {}
+  // sharp loads? (its absence after a rebuild caused blue-slide videos)
+  try { require('sharp'); checks.sharp = true } catch { checks.sharp = false }
+  checks.geminiKey = !!GEMINI_API_KEY
+  checks.openaiKey = !!OPENAI_API_KEY
+  checks.supabase = !!(process.env.SUPABASE_URL || SUPABASE_URL) && !!(process.env.SUPABASE_SERVICE_KEY || SUPABASE_KEY)
+  // ffmpeg binary resolves?
+  checks.ffmpeg = false
+  try {
+    require('child_process').execFileSync('ffmpeg', ['-version'], { timeout: 4000, stdio: 'ignore' })
+    checks.ffmpeg = true
+  } catch { checks.ffmpeg = false }
+  const ok = Object.values(checks).every(Boolean)
+  res.status(ok ? 200 : 503).json({ status: ok ? 'ok' : 'degraded', checks })
+})
+
+// Self-test — runs ONE real slide through the EXACT production path plus probes
+// of every external dependency, so a deploy can be verified in seconds and the
+// admin System Status panel can confirm the render path actually works.
+// Auth-gated (x-api-secret). Each check is isolated so one failure doesn't mask
+// the others.
+app.post('/selftest', authCheck, async (req, res) => {
+  const t0 = Date.now()
+  const checks = {}
+  const errors = []
+  const time = async (name, fn) => {
+    const s = Date.now()
+    try { await fn(); checks[name] = { ok: true, ms: Date.now() - s } }
+    catch (e) { checks[name] = { ok: false, ms: Date.now() - s, error: e?.message || String(e) }; errors.push(`${name}: ${e?.message || e}`) }
+  }
+
+  // sharp loads + can process an image
+  await time('sharp', async () => {
+    const sharp = require('sharp')
+    const buf = await sharp({ create: { width: 64, height: 36, channels: 3, background: { r: 27, g: 54, b: 93 } } }).png().toBuffer()
+    if (!buf || buf.length < 50) throw new Error('sharp produced empty output')
+  })
+
+  // Gemini: generate ONE real slide image (the exact prod model/config)
+  await time('gemini', async () => {
+    if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not set')
+    const { GoogleGenAI } = require('@google/genai')
+    const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+    const r = await g.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: [{ role: 'user', parts: [{ text: 'A simple abstract corporate background, navy blue, 16:9. No text.' }] }],
+      config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '2K' } } },
+    })
+    const parts = r.candidates?.[0]?.content?.parts ?? []
+    if (!parts.some(p => p.inlineData)) throw new Error('No image in Gemini response')
+  })
+
+  // OpenAI TTS: one short synthesis
+  await time('tts', async () => {
+    if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not set')
+    const OpenAI = require('openai')
+    const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
+    const resp = await openai.audio.speech.create({ model: 'tts-1-hd', voice: 'nova', input: 'System check.', response_format: 'mp3' })
+    const b = Buffer.from(await resp.arrayBuffer())
+    if (b.length < 100) throw new Error(`TTS returned ${b.length} bytes`)
+  })
+
+  // Supabase read/write + storage upload/delete
+  await time('supabase', async () => {
+    const sUrl = process.env.SUPABASE_URL || SUPABASE_URL
+    const sKey = process.env.SUPABASE_SERVICE_KEY || SUPABASE_KEY
+    if (!sUrl || !sKey) throw new Error('Supabase env not set')
+    const sb = createClient(sUrl, sKey, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+    const { error } = await sb.from('videos').select('id').limit(1)
+    if (error) throw new Error(`Supabase query failed: ${error.message}`)
+  })
+
+  await time('storage', async () => {
+    const sUrl = process.env.SUPABASE_URL || SUPABASE_URL
+    const sKey = process.env.SUPABASE_SERVICE_KEY || SUPABASE_KEY
+    const sb = createClient(sUrl, sKey, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+    const path = `_selftest/${randomUUID()}.txt`
+    const up = await sb.storage.from('videos').upload(path, Buffer.from('ok'), { contentType: 'text/plain', upsert: true })
+    if (up.error) throw new Error(`Upload failed: ${up.error.message}`)
+    await sb.storage.from('videos').remove([path])
+  })
+
+  // ffmpeg present
+  await time('ffmpeg', async () => {
+    await new Promise((resolve, reject) => {
+      execFile('ffmpeg', ['-version'], { timeout: 5000 }, (err) => err ? reject(new Error('ffmpeg not runnable')) : resolve())
+    })
+  })
+
+  const ok = Object.values(checks).every(c => c.ok)
+  res.status(ok ? 200 : 500).json({ ok, checks, errors, ms: Date.now() - t0 })
 })
 
 // Generate a simple fallback slide when OpenAI fails
@@ -626,9 +736,13 @@ app.post('/generate', authCheck, async (req, res) => {
     // Generate slides in parallel batches
     const slideBuffers = new Array(slidePrompts.length).fill(null)
 
+    // Track slides that fell back to the plain navy card, with the reason, so we
+    // can send ONE summary alert instead of one email per failed slide.
+    const slideFallbacks = []
     async function generateOneSlide(idx) {
       const prompt = slidePrompts[idx]
       const parts = []
+      let lastErr = null
       if (templateRefBase64) {
         parts.push({ text: 'REFERENCE DESIGN (match this EXACTLY): This image shows the visual style to follow. Replicate the same layout structure, geometric shapes, diagonal color blocks, icon circles, decorative elements, footer bar, and overall mood. Only change the DATA content and use the brand colors specified.' })
         parts.push({ inlineData: { mimeType: 'image/png', data: templateRefBase64 } })
@@ -639,7 +753,7 @@ app.post('/generate', authCheck, async (req, res) => {
           const response = await geminiSlides.models.generateContent({
             model: 'gemini-3-pro-image-preview',
             contents: [{ role: 'user', parts }],
-            config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '4K' } } },
+            config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '2K' } } },
           })
           const rParts = response.candidates?.[0]?.content?.parts ?? []
           for (const rp of rParts) {
@@ -666,10 +780,17 @@ app.post('/generate', authCheck, async (req, res) => {
           }
           throw new Error('No image in Gemini response')
         } catch (retryErr) {
-          console.error(`[${videoId}] Slide ${idx + 1} attempt ${attempt}/3 failed:`, retryErr.message?.slice(0, 150))
+          // Log the FULL error (not truncated) under a greppable tag. Every blue
+          // fallback slide is a failure in this block — this line is the only way
+          // to know the real cause (sharp missing, undefined var, Gemini reject,
+          // timeout, bad response shape). grep logs for 'SLIDE FAIL'.
+          lastErr = retryErr
+          console.error(`[${videoId}] SLIDE FAIL slide=${idx + 1} attempt=${attempt}/3:`, retryErr?.stack || retryErr?.message || retryErr)
           if (attempt < 3) await new Promise(r => setTimeout(r, 3000 * attempt))
         }
       }
+      console.error(`[${videoId}] SLIDE FALLBACK slide=${idx + 1}: all 3 attempts failed, using plain navy card`)
+      slideFallbacks.push({ slide: idx + 1, reason: lastErr?.message || String(lastErr) })
       return await generateFallbackSlide(scenes[idx]?.title || `Slide ${idx + 1}`, idx + 1, slidePrompts.length)
     }
 
@@ -686,6 +807,30 @@ app.post('/generate', authCheck, async (req, res) => {
       await updateStatus('generating_slides', `Designing slide ${done} of ${slidePrompts.length}... (audio ${audiosDone}/${scenes.length})`, slidePct)
     }
     console.log(`[${videoId}] Slides complete: ${slideBuffers.length}`)
+
+    // If any slides fell back to the blank navy card, alert ops immediately —
+    // this is the "blue screen" symptom and we want to know in real time.
+    if (slideFallbacks.length > 0) {
+      const summary = slideFallbacks.map(f => `slide ${f.slide}: ${f.reason}`).join('\n')
+      console.error(`[${videoId}] ${slideFallbacks.length}/${slideBuffers.length} slides fell back to navy card`)
+      reportError({
+        source: 'vps/slides',
+        videoId,
+        userId,
+        stage: 'slide-generation',
+        message: `${slideFallbacks.length} of ${slideBuffers.length} slides failed Gemini generation and used the blank fallback (blue screens).`,
+        detail: summary,
+      })
+
+      // Quality gate: if too many slides are blank fallbacks, the video is junk —
+      // fail it (→ refund + notify via the pipeline catch) rather than shipping a
+      // mostly-blue deck as "completed". A few fallbacks are tolerable; a majority
+      // is a broken render.
+      const FALLBACK_FAIL_RATIO = 0.3
+      if (slideFallbacks.length / slideBuffers.length > FALLBACK_FAIL_RATIO) {
+        throw new Error(`Slide generation degraded: ${slideFallbacks.length}/${slideBuffers.length} slides failed (>${Math.round(FALLBACK_FAIL_RATIO * 100)}%). Failing render so credits are refunded instead of shipping blank slides.`)
+      }
+    }
 
     // Wait for audio to finish (it ran in parallel with slides)
     await updateStatus('generating_slides', `Slides done, waiting for audio...`, 66)
@@ -913,6 +1058,7 @@ app.post('/generate', authCheck, async (req, res) => {
     await rm(workDir, { recursive: true, force: true }).catch(() => {})
   } catch (err) {
     console.error(`[${videoId}] PIPELINE FAILED:`, err.message)
+    reportError({ source: 'vps/generate', videoId, userId, stage: 'pipeline', message: err.message, detail: err.stack })
     try {
       await supabase.from('videos').update({
         status: 'failed',
