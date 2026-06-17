@@ -770,9 +770,51 @@ app.post('/generate', authCheck, async (req, res) => {
               } else if (brandName) {
                 try {
                   const safeName = brandName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                  const textSvg = Buffer.from('<svg width="400" height="60" xmlns="http://www.w3.org/2000/svg"><text x="0" y="42" font-size="32" font-weight="800" font-family="sans-serif" fill="' + (safeBrandColors.primary || '#1B365D') + '">' + safeName + '</text></svg>')
+                  // NO backing box (looks tacky). Instead, sample the slide's OWN
+                  // background color from a clean strip along the very top edge and
+                  // paint a soft feathered patch of that exact color over the
+                  // top-left corner — it blends invisibly into the slide, clearing
+                  // any artwork the model put there, so the bare name sits on clean
+                  // space that matches the slide's design. Then composite the name.
+                  const fontSize = 30
+                  const zoneW = 660, zoneH = 130
+                  // Sample bg color: average a thin strip near the top edge but offset
+                  // from the very corner (where the name/logo would sit) so we read
+                  // the real background, not a graphic. Fall back to white on error.
+                  let bg = { r: 255, g: 255, b: 255 }
+                  try {
+                    const strip = await sharp(slideBuf)
+                      .extract({ left: 700, top: 8, width: 400, height: 24 })
+                      .resize(1, 1, { fit: 'fill' })
+                      .raw().toBuffer()
+                    if (strip && strip.length >= 3) bg = { r: strip[0], g: strip[1], b: strip[2] }
+                  } catch { /* keep white fallback */ }
+                  // Feathered patch of the sampled bg color (radial fade to transparent
+                  // at the edges so there is no hard rectangle seam).
+                  const patchSvg = Buffer.from(
+                    '<svg width="' + zoneW + '" height="' + zoneH + '" xmlns="http://www.w3.org/2000/svg">' +
+                    '<defs><radialGradient id="f" cx="28%" cy="40%" r="75%">' +
+                    '<stop offset="55%" stop-color="rgb(' + bg.r + ',' + bg.g + ',' + bg.b + ')" stop-opacity="1"/>' +
+                    '<stop offset="100%" stop-color="rgb(' + bg.r + ',' + bg.g + ',' + bg.b + ')" stop-opacity="0"/>' +
+                    '</radialGradient></defs>' +
+                    '<rect width="' + zoneW + '" height="' + zoneH + '" fill="url(#f)"/>' +
+                    '</svg>'
+                  )
+                  const patchBuf = await sharp(patchSvg).png().toBuffer()
+                  // Bare name in the brand primary color, no box.
+                  const textW = Math.ceil(safeName.length * fontSize * 0.62) + 8
+                  const textSvg = Buffer.from(
+                    '<svg width="' + Math.min(textW, 620) + '" height="' + (fontSize + 12) + '" xmlns="http://www.w3.org/2000/svg">' +
+                    '<text x="0" y="' + (fontSize) + '" font-size="' + fontSize + '" font-weight="800" font-family="sans-serif" fill="' + (safeBrandColors.primary || '#1B365D') + '">' + safeName + '</text>' +
+                    '</svg>'
+                  )
                   const textBuf = await sharp(textSvg).png().toBuffer()
-                  slideBuf = await sharp(slideBuf).composite([{ input: textBuf, top: 40, left: 40 }]).png().toBuffer()
+                  slideBuf = await sharp(slideBuf)
+                    .composite([
+                      { input: patchBuf, top: 0, left: 0 },
+                      { input: textBuf, top: 44, left: 44 },
+                    ])
+                    .png().toBuffer()
                 } catch (e) { console.log(`[${videoId}] Brand name composite failed:`, e.message) }
               }
               return slideBuf
