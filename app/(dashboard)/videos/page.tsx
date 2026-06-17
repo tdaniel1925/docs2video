@@ -131,7 +131,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
           <h1>{typeFilter ? (FILTER_TITLES[typeFilter] ?? 'Your Library') : 'Your Library'}</h1>
           <p>{typeFilter ? `Filtered by ${FILTER_TABS.find(t => t.key === typeFilter)?.label?.toLowerCase() ?? typeFilter}.` : 'All your creations.'}</p>
         </div>
-        <Link href="/create/client" className="btn btn-primary btn-lg">
+        <Link href="/create/start" className="btn btn-primary btn-lg">
           + New Creation
         </Link>
       </div>
@@ -152,7 +152,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
         <div style={{ background: 'white', border: '1px dashed var(--border)', borderRadius: 10, padding: '64px 32px', textAlign: 'center' }}>
           <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>No creations yet</p>
           <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 18 }}>Create content first -- videos, flyers, logos, and more</p>
-          <Link href="/create/client" className="btn btn-primary">Create content &rarr;</Link>
+          <Link href="/create/start" className="btn btn-primary">Create content &rarr;</Link>
         </div>
       ) : (
         <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>

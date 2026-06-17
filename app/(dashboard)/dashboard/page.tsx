@@ -313,7 +313,7 @@ export default async function DashboardPage() {
             ))}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <Link href="/create/client" style={{
+            <Link href="/create/start" style={{
               display: 'inline-block', padding: '12px 28px', borderRadius: 10,
               background: 'var(--mint)', color: 'white', fontSize: 14, fontWeight: 700, textDecoration: 'none',
             }}>
@@ -357,7 +357,7 @@ export default async function DashboardPage() {
 
           {/* Main CTA */}
           <Link
-            href="/create/client"
+            href="/create/start"
             style={{
               display: 'block', textDecoration: 'none', color: 'var(--ink)',
               background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
@@ -366,18 +366,18 @@ export default async function DashboardPage() {
             }}
             className="activity-row"
           >
-            <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Create a Video Explainer</div>
+            <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Create Something New</div>
             <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20, lineHeight: 1.6 }}>
-              Upload any document, paste text, or describe an idea — and get a professional narrated video in minutes.
+              Make a narrated video explainer or a slide presentation. Upload any document, paste text, or describe an idea — ready in minutes.
             </div>
             <span className="btn btn-primary btn-lg" style={{ fontSize: 16 }}>
-              + Create Video Explainer &rarr;
+              + Create &rarr;
             </span>
           </Link>
 
           {/* Quick start options */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-            <Link href="/create/client" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, textDecoration: 'none', color: 'var(--ink)', fontSize: 13, fontWeight: 600, transition: 'border-color 0.15s' }} className="activity-row">
+            <Link href="/create/start" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, textDecoration: 'none', color: 'var(--ink)', fontSize: 13, fontWeight: 600, transition: 'border-color 0.15s' }} className="activity-row">
               <span style={{ fontSize: 20 }}>&#128196;</span> Upload a PDF
             </Link>
             <Link href="/create?tab=text" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, textDecoration: 'none', color: 'var(--ink)', fontSize: 13, fontWeight: 600, transition: 'border-color 0.15s' }} className="activity-row">
@@ -394,7 +394,7 @@ export default async function DashboardPage() {
           {/* Big Create button */}
           <div style={{ marginBottom: 32 }}>
             <Link
-              href="/create/client"
+              href="/create/start"
               className="btn btn-primary"
               style={{
                 display: 'inline-flex',
@@ -406,7 +406,7 @@ export default async function DashboardPage() {
                 borderRadius: 10,
               }}
             >
-              + Create Video Explainer
+              + Create
             </Link>
           </div>
 
