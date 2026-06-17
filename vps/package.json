@@ -1,0 +1,15 @@
+{
+  "name": "docs2video-assembler",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.0.0",
+    "@supabase/supabase-js": "^2.105.4",
+    "express": "^4.18.2",
+    "openai": "^4.73.0",
+    "sharp": "^0.35.1",
+    "ws": "^8.18.0"
+  }
+}
