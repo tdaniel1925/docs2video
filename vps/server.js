@@ -353,7 +353,9 @@ app.post('/assemble', authCheck, async (req, res) => {
             '-stream_loop', '-1',
             '-i', musicPath,
             '-filter_complex',
-            `[1:a]volume=0.07,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[0:a][music]amix=inputs=2:duration=first[out]`,
+            // normalize=0 stops amix from auto-ducking the narration; narration stays
+            // at full volume and music sits as a quiet bed underneath at ~4%.
+            `[0:a]volume=1.0[narr];[1:a]volume=0.04,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[narr][music]amix=inputs=2:duration=first:normalize=0[out]`,
             '-map', '0:v',
             '-map', '[out]',
             '-c:v', 'copy',
@@ -741,6 +743,9 @@ app.post('/generate', authCheck, async (req, res) => {
     const slideFallbacks = []
     async function generateOneSlide(idx) {
       const prompt = slidePrompts[idx]
+      // Cover (first) and closing (last) are title cards — no header band on them
+      // (the brand name is already the focal point of those designs).
+      const isBookendSlide = idx === 0 || idx === slidePrompts.length - 1
       const parts = []
       let lastErr = null
       if (templateRefBase64) {
@@ -761,61 +766,50 @@ app.post('/generate', authCheck, async (req, res) => {
               let slideBuf = Buffer.from(rp.inlineData.data, 'base64')
               const sharp = require('sharp')
               slideBuf = await sharp(slideBuf).resize(1920, 1080, { fit: 'cover' }).png().toBuffer()
-              if (logoBase64) {
+
+              // DESIGNED HEADER BAND — a thin full-width strip in the brand color
+              // across the very top, holding the logo or company name. Composited
+              // deterministically by us (not drawn by the AI), so it is in the
+              // EXACT same place on every slide, always legible, and can never
+              // overlap the artwork. The slide prompt reserves this top band, so
+              // the band reads as an intentional template element, not a patch.
+              // Skipped on cover/closing title cards.
+              if (!isBookendSlide && (logoBase64 || brandName)) {
                 try {
-                  const logoBuf = Buffer.from(logoBase64, 'base64')
-                  const logoResized = await sharp(logoBuf).resize(200, 70, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()
-                  slideBuf = await sharp(slideBuf).composite([{ input: logoResized, top: 40, left: 40 }]).png().toBuffer()
-                } catch (e) { console.log(`[${videoId}] Logo composite failed:`, e.message) }
-              } else if (brandName) {
-                try {
-                  const safeName = brandName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                  // NO backing box (looks tacky). Instead, sample the slide's OWN
-                  // background color from a clean strip along the very top edge and
-                  // paint a soft feathered patch of that exact color over the
-                  // top-left corner — it blends invisibly into the slide, clearing
-                  // any artwork the model put there, so the bare name sits on clean
-                  // space that matches the slide's design. Then composite the name.
-                  const fontSize = 30
-                  const zoneW = 660, zoneH = 130
-                  // Sample bg color: average a thin strip near the top edge but offset
-                  // from the very corner (where the name/logo would sit) so we read
-                  // the real background, not a graphic. Fall back to white on error.
-                  let bg = { r: 255, g: 255, b: 255 }
-                  try {
-                    const strip = await sharp(slideBuf)
-                      .extract({ left: 700, top: 8, width: 400, height: 24 })
-                      .resize(1, 1, { fit: 'fill' })
-                      .raw().toBuffer()
-                    if (strip && strip.length >= 3) bg = { r: strip[0], g: strip[1], b: strip[2] }
-                  } catch { /* keep white fallback */ }
-                  // Feathered patch of the sampled bg color (radial fade to transparent
-                  // at the edges so there is no hard rectangle seam).
-                  const patchSvg = Buffer.from(
-                    '<svg width="' + zoneW + '" height="' + zoneH + '" xmlns="http://www.w3.org/2000/svg">' +
-                    '<defs><radialGradient id="f" cx="28%" cy="40%" r="75%">' +
-                    '<stop offset="55%" stop-color="rgb(' + bg.r + ',' + bg.g + ',' + bg.b + ')" stop-opacity="1"/>' +
-                    '<stop offset="100%" stop-color="rgb(' + bg.r + ',' + bg.g + ',' + bg.b + ')" stop-opacity="0"/>' +
-                    '</radialGradient></defs>' +
-                    '<rect width="' + zoneW + '" height="' + zoneH + '" fill="url(#f)"/>' +
+                  const SLIDE_W = 1920
+                  const BAND_H = 88
+                  const primary = (safeBrandColors.primary || '#1B365D')
+                  // Solid brand-color band (full width) with a subtle bottom hairline.
+                  const bandSvg = Buffer.from(
+                    '<svg width="' + SLIDE_W + '" height="' + BAND_H + '" xmlns="http://www.w3.org/2000/svg">' +
+                    '<rect width="' + SLIDE_W + '" height="' + BAND_H + '" fill="' + primary + '"/>' +
+                    '<rect y="' + (BAND_H - 3) + '" width="' + SLIDE_W + '" height="3" fill="rgba(0,0,0,0.18)"/>' +
                     '</svg>'
                   )
-                  const patchBuf = await sharp(patchSvg).png().toBuffer()
-                  // Bare name in the brand primary color, no box.
-                  const textW = Math.ceil(safeName.length * fontSize * 0.62) + 8
-                  const textSvg = Buffer.from(
-                    '<svg width="' + Math.min(textW, 620) + '" height="' + (fontSize + 12) + '" xmlns="http://www.w3.org/2000/svg">' +
-                    '<text x="0" y="' + (fontSize) + '" font-size="' + fontSize + '" font-weight="800" font-family="sans-serif" fill="' + (safeBrandColors.primary || '#1B365D') + '">' + safeName + '</text>' +
-                    '</svg>'
-                  )
-                  const textBuf = await sharp(textSvg).png().toBuffer()
-                  slideBuf = await sharp(slideBuf)
-                    .composite([
-                      { input: patchBuf, top: 0, left: 0 },
-                      { input: textBuf, top: 44, left: 44 },
-                    ])
-                    .png().toBuffer()
-                } catch (e) { console.log(`[${videoId}] Brand name composite failed:`, e.message) }
+                  const bandBuf = await sharp(bandSvg).png().toBuffer()
+                  const overlays = [{ input: bandBuf, top: 0, left: 0 }]
+
+                  if (logoBase64) {
+                    // Logo sits in the band, left-aligned, vertically centered.
+                    const logoBuf = Buffer.from(logoBase64, 'base64')
+                    const logoResized = await sharp(logoBuf)
+                      .resize(null, BAND_H - 28, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                      .png().toBuffer()
+                    overlays.push({ input: logoResized, top: 14, left: 48 })
+                  } else {
+                    // Company name in white, vertically centered in the band.
+                    const safeName = brandName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    const fontSize = 34
+                    const textSvg = Buffer.from(
+                      '<svg width="' + (SLIDE_W - 96) + '" height="' + BAND_H + '" xmlns="http://www.w3.org/2000/svg">' +
+                      '<text x="0" y="' + Math.round(BAND_H / 2 + fontSize / 3) + '" font-size="' + fontSize + '" font-weight="800" font-family="sans-serif" fill="#FFFFFF">' + safeName + '</text>' +
+                      '</svg>'
+                    )
+                    const textBuf = await sharp(textSvg).png().toBuffer()
+                    overlays.push({ input: textBuf, top: 0, left: 48 })
+                  }
+                  slideBuf = await sharp(slideBuf).composite(overlays).png().toBuffer()
+                } catch (e) { console.log(`[${videoId}] Header band composite failed:`, e.message) }
               }
               return slideBuf
             }
@@ -1017,7 +1011,9 @@ app.post('/generate', authCheck, async (req, res) => {
               '-stream_loop', '-1',
               '-i', musicPath,
               '-filter_complex',
-              `[1:a]volume=0.07,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[0:a][music]amix=inputs=2:duration=first[out]`,
+              // normalize=0 stops amix from auto-ducking the narration; narration stays
+              // at full volume and music sits as a quiet bed underneath at ~4%.
+              `[0:a]volume=1.0[narr];[1:a]volume=0.04,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[narr][music]amix=inputs=2:duration=first:normalize=0[out]`,
               '-map', '0:v',
               '-map', '[out]',
               '-c:v', 'copy',
