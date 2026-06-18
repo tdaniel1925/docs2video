@@ -34,6 +34,9 @@ export default function GeneratingPage() {
   const [error, setError] = useState<string | null>(null)
   const [outputType, setOutputType] = useState<string>('video')
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const [previews, setPreviews] = useState<{ idx: number; url: string }[]>([])
+  const [totalScenes, setTotalScenes] = useState<number | null>(null)
+  const [lastUpdateAt, setLastUpdateAt] = useState<number>(Date.now())
 
   // Poll for status
   useEffect(() => {
@@ -43,7 +46,7 @@ export default function GeneratingPage() {
     const interval = setInterval(async () => {
       let data = null
       try {
-        const res = await supabase.from('videos').select('status, progress_pct, progress_detail, error_message, output_type, video_url').eq('id', videoId).single()
+        const res = await supabase.from('videos').select('status, progress_pct, progress_detail, error_message, output_type, video_url, preview_thumbs, total_scenes').eq('id', videoId).single()
         data = res.data
       } catch {
         data = null
@@ -60,10 +63,19 @@ export default function GeneratingPage() {
       failedPolls = 0
       if (data) {
         setStatus(data.status)
-        setProgressPct(data.progress_pct ?? 0)
+        setProgressPct(prev => {
+          const next = data.progress_pct ?? 0
+          if (next !== prev) setLastUpdateAt(Date.now()) // a real move resets the "stuck" timer
+          return next
+        })
         setProgressDetail(data.progress_detail ?? '')
         if (data.output_type) setOutputType(data.output_type)
         if (data.video_url) setVideoUrl(data.video_url)
+        if (Array.isArray(data.preview_thumbs)) {
+          setPreviews(data.preview_thumbs)
+          if (data.preview_thumbs.length > 0) setLastUpdateAt(Date.now()) // a new preview = progress
+        }
+        if (typeof data.total_scenes === 'number') setTotalScenes(data.total_scenes)
         if (data.status === 'completed') {
           clearInterval(interval)
           // For video output, redirect to the video page as before
@@ -94,12 +106,18 @@ export default function GeneratingPage() {
     if (status === 'completed' || status === 'failed') { setDisplayPct(progressPct); return }
     const timer = setInterval(() => {
       setDisplayPct(prev => {
-        // Each real milestone unlocks creeping up to the next one's floor.
-        const ceiling = progressPct >= 70 ? 97 : progressPct >= 18 ? 68 : progressPct >= 15 ? 60 : Math.max(progressPct + 8, 12)
+        // Creep toward a ceiling just shy of the next real milestone so the bar
+        // is never frozen. The render phase (72-90) now reports live frames, so
+        // the real progressPct usually leads — creep is just the smoothing.
+        const ceiling =
+          progressPct >= 90 ? 99 :
+          progressPct >= 72 ? Math.min(89, progressPct + 4) :  // render: track real frame %, creep slightly ahead
+          progressPct >= 30 ? 70 :                              // asset gen
+          progressPct >= 18 ? 30 :
+          Math.max(progressPct + 8, 12)
         const target = Math.max(progressPct, prev)
         if (target >= ceiling) return target
-        // ease: bigger steps when far from ceiling, tiny near it
-        return Math.min(ceiling, target + Math.max(0.3, (ceiling - target) * 0.04))
+        return Math.min(ceiling, target + Math.max(0.25, (ceiling - target) * 0.04))
       })
     }, 700)
     return () => clearInterval(timer)
@@ -115,6 +133,11 @@ export default function GeneratingPage() {
   const stageIdx = STAGES.findIndex(s => s.key === status)
   const minutes = Math.floor(elapsed / 60)
   const seconds = elapsed % 60
+  // "Still working" reassurance: no real progress change in 90s, but not done.
+  const stalled = status !== 'completed' && status !== 'failed' && (Date.now() - lastUpdateAt) > 90_000
+  // Filmstrip slots: known scene count (or what we've seen). Fill with previews.
+  const slotCount = totalScenes ?? (previews.length || 0)
+  const previewByIdx = new Map(previews.map(p => [p.idx, p.url]))
 
   if (!videoId) {
     return (
@@ -323,6 +346,44 @@ export default function GeneratingPage() {
           }} />
         ))}
       </div>
+
+      {/* Scene filmstrip — fills in as scenes are built (turns waiting into watching) */}
+      {slotCount > 0 && (
+        <div style={{ width: '100%', maxWidth: 560, marginBottom: 28 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-light)', marginBottom: 10, textAlign: 'center' }}>
+            {previews.length} of {slotCount} scenes ready
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {Array.from({ length: slotCount }).map((_, i) => {
+              const url = previewByIdx.get(i)
+              return (
+                <div key={i} style={{
+                  width: 92, height: 52, borderRadius: 8, overflow: 'hidden',
+                  border: url ? '1.5px solid var(--mint)' : '1px solid var(--border)',
+                  background: url ? 'transparent' : 'var(--border)',
+                  position: 'relative', flexShrink: 0,
+                  animation: url ? 'fadeInUp 0.4s ease' : undefined,
+                }}>
+                  {url
+                    ? <img src={url} alt={`Scene ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'var(--ink-light)' }}>{i + 1}</div>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* "Still working" reassurance when a real step is taking a while */}
+      {stalled && (
+        <div style={{
+          maxWidth: 480, width: '100%', padding: '12px 20px', borderRadius: 10,
+          background: 'rgba(168,240,212,0.12)', border: '1px solid var(--mint)',
+          textAlign: 'center', marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)',
+        }}>
+          Still working — this step (often the final render) can take a few minutes for longer videos. Nothing is stuck.
+        </div>
+      )}
 
       {/* You can leave card */}
       <div style={{

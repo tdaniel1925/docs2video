@@ -955,6 +955,20 @@ app.post('/render-v3', authCheck, async (req, res) => {
   const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
   const setProgress = (pct, detail) => sb.from('videos').update({ progress_pct: pct, progress_detail: detail, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
 
+  // Append a scene preview thumbnail so the UI filmstrip fills in as we build.
+  // Best-effort: reads current preview_thumbs, appends, writes back.
+  const previews = []
+  const pushPreview = async (idx, localPath) => {
+    try {
+      const buf = await readFile(localPath)
+      const path = `${userId}/${videoId}_preview_${idx}.png`
+      await sb.storage.from('videos').upload(path, buf, { contentType: 'image/png', upsert: true })
+      const url = sb.storage.from('videos').getPublicUrl(path).data.publicUrl
+      previews.push({ idx, url })
+      await sb.from('videos').update({ preview_thumbs: previews, progress_updated_at: new Date().toISOString() }).eq('id', videoId)
+    } catch (e) { /* previews are best-effort */ }
+  }
+
   const pub = join(REMOTION_DIR, 'public')
   const outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
   const isInfo = theme === 'infographic'
@@ -965,6 +979,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
     await mkdir(pub, { recursive: true })
     await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
     console.log(`[render-v3 ${videoId}] theme=${theme} comp=${COMP} scenes=${scenes.length}`)
+    await sb.from('videos').update({ total_scenes: scenes.length, preview_thumbs: [] }).eq('id', videoId).then(() => {}, () => {})
     await setProgress(25, 'Generating narration...')
 
     // Infographic theme: ONE ambient background image for the whole video (not
@@ -1002,6 +1017,8 @@ app.post('/render-v3', authCheck, async (req, res) => {
           // to the theme ground. Log so we can see if image-gen is broken.
           console.error(`[render-v3 ${videoId}] scene ${i} image failed: ${imgErr.message}`)
         }
+        // Live filmstrip: the cinematic scene image IS a real preview.
+        if (haveImg) await pushPreview(i, join(pub, imgName))
         const placement = (i === 0 || i === scenes.length - 1) ? 'center' : ['bottom', 'left', 'right', 'bottom'][i % 4]
         outScenes.push({ title: s.title || '', body: s.bullets?.[0], ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement })
       }
@@ -1036,10 +1053,39 @@ app.post('/render-v3', authCheck, async (req, res) => {
     await writeFile(PROPS, JSON.stringify(props))
     await setProgress(72, 'Rendering video...')
 
+    // Stream Remotion's frame progress so the bar moves during the long render
+    // (otherwise it parks at 72% for minutes). Map rendered-frames -> 72..89%.
     await new Promise((resolve, reject) => {
-      execFile('npx', ['remotion', 'render', COMP, outFile, '--log=error'],
-        { cwd: REMOTION_DIR, timeout: 20 * 60 * 1000, maxBuffer: 1024 * 1024 * 32, env: { ...process.env } },
-        (err, stdout, stderr) => err ? reject(new Error(`remotion render: ${(stderr || err.message || '').slice(0, 300)}`)) : resolve())
+      const { spawn } = require('child_process')
+      const child = spawn('npx', ['remotion', 'render', COMP, outFile, '--log=info'],
+        { cwd: REMOTION_DIR, env: { ...process.env } })
+      let stderrBuf = ''
+      let lastPct = 72, lastWrite = 0
+      const onChunk = (buf) => {
+        const text = buf.toString()
+        stderrBuf = (stderrBuf + text).slice(-2000)
+        // Remotion prints "Rendered frames 1840/3527" (and an Encoding phase).
+        const m = [...text.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop()
+        if (m) {
+          const done = parseInt(m[1], 10), total = parseInt(m[2], 10)
+          if (total > 0 && done <= total) {
+            const pct = 72 + Math.round((done / total) * 17) // 72 -> 89
+            const now = Date.now()
+            if (pct > lastPct && now - lastWrite > 1500) { // throttle DB writes
+              lastPct = pct; lastWrite = now
+              setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`)
+            }
+          }
+        }
+      }
+      child.stdout.on('data', onChunk)
+      child.stderr.on('data', onChunk)
+      const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {} ; reject(new Error('remotion render: timeout')) }, 20 * 60 * 1000)
+      child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`remotion render: ${e.message}`)) })
+      child.on('close', (code) => {
+        clearTimeout(killTimer)
+        code === 0 ? resolve() : reject(new Error(`remotion render exit ${code}: ${stderrBuf.slice(-300)}`))
+      })
     })
 
     await setProgress(90, 'Uploading...')
@@ -1294,6 +1340,19 @@ app.post('/generate', authCheck, async (req, res) => {
       return await generateFallbackSlide(scenes[idx]?.title || `Slide ${idx + 1}`, idx + 1, slidePrompts.length)
     }
 
+    // Tell the UI how many slides to expect so the filmstrip sizes correctly.
+    await supabase.from('videos').update({ total_scenes: slidePrompts.length, preview_thumbs: [] }).eq('id', videoId).then(() => {}, () => {})
+    const classicPreviews = []
+    const pushClassicPreview = async (idx, buf) => {
+      try {
+        const path = `${userId}/${videoId}_preview_${idx}.png`
+        await supabase.storage.from('videos').upload(path, buf, { contentType: 'image/png', upsert: true })
+        const url = supabase.storage.from('videos').getPublicUrl(path).data.publicUrl
+        classicPreviews.push({ idx, url })
+        await supabase.from('videos').update({ preview_thumbs: classicPreviews, progress_updated_at: new Date().toISOString() }).eq('id', videoId)
+      } catch { /* best-effort */ }
+    }
+
     const BATCH_SIZE = 2
     for (let i = 0; i < slidePrompts.length; i += BATCH_SIZE) {
       const batch = []
@@ -1302,6 +1361,8 @@ app.post('/generate', authCheck, async (req, res) => {
       }
       await Promise.all(batch)
       const done = Math.min(i + BATCH_SIZE, slidePrompts.length)
+      // Live filmstrip: upload each newly-built slide as a preview.
+      for (let j = i; j < done; j++) if (slideBuffers[j]) await pushClassicPreview(j, slideBuffers[j])
       console.log(`[${videoId}] Slides ${done}/${slidePrompts.length} done`)
       const slidePct = 22 + Math.round((done / slidePrompts.length) * 43)
       await updateStatus('generating_slides', `Designing slide ${done} of ${slidePrompts.length}... (audio ${audiosDone}/${scenes.length})`, slidePct)
