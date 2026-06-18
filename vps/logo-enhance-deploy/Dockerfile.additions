@@ -1,0 +1,29 @@
+# Dockerfile additions for the rembg logo enhancer
+# ==================================================
+# The deployed video-service image is Debian-based (it already has libreoffice,
+# poppler-utils, ffmpeg). Add these lines to /root/video-service/Dockerfile,
+# AFTER the existing apt-get install block and BEFORE `COPY . .` / `CMD`.
+#
+# rembg is a Python tool. We install python3 + pip, then rembg, then PRE-DOWNLOAD
+# the u2net model at build time so the container never fetches it at runtime
+# (offline, deterministic, fast first call). Model is ~176MB → the image grows
+# accordingly; budget for it.
+
+# --- system python ---
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3 python3-pip python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+# --- rembg (pinned) in an isolated venv, exposed on PATH ---
+# onnxruntime is the CPU inference backend; no GPU needed for single logos.
+RUN python3 -m venv /opt/rembg \
+    && /opt/rembg/bin/pip install --no-cache-dir "rembg[cli]==2.0.59" onnxruntime==1.19.2
+ENV PATH="/opt/rembg/bin:${PATH}"
+ENV U2NET_HOME="/root/.u2net"
+
+# --- pre-bake the u2net model so runtime never downloads it ---
+RUN mkdir -p /root/.u2net \
+    && python3 -c "from rembg import new_session; new_session('u2net')"
+
+# Sanity: `rembg --help` should resolve at build (uncomment to verify build):
+# RUN rembg --help > /dev/null

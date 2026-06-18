@@ -832,6 +832,54 @@ ${text}`
 })
 
 // ============================================================
+// LOGO ENHANCER — rembg (U2-Net) background removal
+// Requires python3 + rembg + the u2net model in the image (see
+// vps/logo-enhance-deploy/Dockerfile.additions). The app calls this only when
+// Sharp's flat-color knockout can't cleanly separate the logo; it falls back
+// gracefully if this endpoint or rembg is absent.
+// Contract: POST { imageBase64 } -> { pngBase64 } (transparent, bg removed).
+// ============================================================
+app.post('/process-logo', authCheck, async (req, res) => {
+  const { imageBase64 } = req.body
+  if (!imageBase64) return res.status(400).json({ error: 'Missing imageBase64' })
+
+  const workDir = join(tmpdir(), `d2v-logo-${randomUUID()}`)
+  const inPath = join(workDir, 'in.png')
+  const outPath = join(workDir, 'out.png')
+  console.log('[process-logo] starting')
+
+  try {
+    await mkdir(workDir, { recursive: true })
+    await writeFile(inPath, Buffer.from(imageBase64, 'base64'))
+
+    await new Promise((resolve, reject) => {
+      execFile(
+        'rembg',
+        ['i', '-a', '-ae', '15', inPath, outPath],
+        { timeout: 40000, env: { ...process.env, U2NET_HOME: '/root/.u2net' } },
+        (err, stdout, stderr) => {
+          if (err) {
+            console.error('[process-logo] rembg error:', err.message, (stderr || '').slice(0, 200))
+            return reject(new Error('Background removal failed'))
+          }
+          resolve(stdout)
+        }
+      )
+    })
+
+    const png = await readFile(outPath)
+    res.json({ pngBase64: png.toString('base64') })
+    console.log('[process-logo] done')
+  } catch (err) {
+    console.error('[process-logo] error:', err.message)
+    reportError({ source: 'process-logo', stage: 'rembg', message: err.message }).catch(() => {})
+    res.status(500).json({ error: 'Could not process this logo.' })
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {})
+  }
+})
+
+// ============================================================
 // FULL PIPELINE — VPS does everything (no Vercel timeout risk)
 // ============================================================
 app.post('/generate', authCheck, async (req, res) => {
