@@ -63,6 +63,10 @@ export interface Brand {
   name: string
   logo_url: string | null
   logo_file_url: string | null
+  /** Processed transparent variants for video rendering (Sharp/rembg pipeline). */
+  logo_light_url?: string | null
+  logo_dark_url?: string | null
+  logo_chip?: boolean
   primary_color: string
   secondary_color: string
   accent_color: string

@@ -49,6 +49,11 @@ export default function EditBrandPage() {
 
   // Logo upload state
   const [logoFileUrl, setLogoFileUrl] = useState<string | null>(null)
+  // Processed transparent variants for VIDEO rendering (separate from the raw
+  // logo + the styled logo kit). Saved as hidden inputs with the brand form.
+  const [logoLightUrl, setLogoLightUrl] = useState<string | null>(null)
+  const [logoDarkUrl, setLogoDarkUrl] = useState<string | null>(null)
+  const [logoChip, setLogoChip] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -115,6 +120,9 @@ export default function EditBrandPage() {
           text_color: data.text_color,
         })
         setLogoFileUrl(data.logo_file_url ?? null)
+        setLogoLightUrl(data.logo_light_url ?? null)
+        setLogoDarkUrl(data.logo_dark_url ?? null)
+        setLogoChip(!!data.logo_chip)
         if (data.deck_style_id) {
           setSelectedStyleId(data.deck_style_id)
         }
@@ -151,6 +159,24 @@ export default function EditBrandPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Upload failed')
       setLogoFileUrl(data.url)
+      // Process transparent light/dark variants for VIDEO rendering. Best-effort:
+      // a recoverable 422 means the logo couldn't be cleanly separated — we keep
+      // the raw logo for the kit but skip video variants (videos fall back to the
+      // company name), and tell the user.
+      try {
+        const vForm = new FormData()
+        vForm.append('file', file)
+        const vRes = await fetch('/api/brands/logo', { method: 'POST', body: vForm })
+        const vData = await vRes.json()
+        if (vRes.ok) {
+          setLogoLightUrl(vData.logo_light_url ?? null)
+          setLogoDarkUrl(vData.logo_dark_url ?? null)
+          setLogoChip(!!vData.logo_chip)
+        } else if (vRes.status === 422 && vData.recoverable) {
+          setLogoLightUrl(null); setLogoDarkUrl(null); setLogoChip(false)
+          setUploadError(vData.error)
+        }
+      } catch { /* video variants are best-effort */ }
       // Auto-extract colors from logo
       try {
         const colorRes = await fetch('/api/extract-logo-colors', {
@@ -196,6 +222,9 @@ export default function EditBrandPage() {
 
   function handleRemoveLogo() {
     setLogoFileUrl(null)
+    setLogoLightUrl(null)
+    setLogoDarkUrl(null)
+    setLogoChip(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -310,6 +339,15 @@ export default function EditBrandPage() {
           <div className="form-group">
             <label className="input-label">Upload Logo <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
             <input type="hidden" name="logo_file_url" value={logoFileUrl ?? ''} />
+            {/* Processed transparent variants used when rendering videos. */}
+            <input type="hidden" name="logo_light_url" value={logoLightUrl ?? ''} />
+            <input type="hidden" name="logo_dark_url" value={logoDarkUrl ?? ''} />
+            <input type="hidden" name="logo_chip" value={logoChip ? 'true' : 'false'} />
+            {logoFileUrl && logoLightUrl && (
+              <div style={{ marginTop: 6, fontSize: 12, color: 'var(--accent, #16A34A)', fontWeight: 600 }}>
+                ✓ Ready for video {logoChip ? '(shown on a subtle panel)' : ''}
+              </div>
+            )}
 
             {/* Preview */}
             {(logoFileUrl) && (

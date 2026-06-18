@@ -7,6 +7,7 @@
  * Usage: node scripts/generate-infographic.mjs public/extracted.json [sceneCount]
  */
 import { writeFile, mkdir, readFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { execFile } from 'node:child_process'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -100,7 +101,19 @@ async function main() {
     console.log(`done (${(dur + 0.9).toFixed(1)}s)`)
   }
 
-  await writeFile(join(PUBLIC, 'infographic.json'), JSON.stringify({ theme: THEME, brandName: data.companyName || data.title, scenes }, null, 2))
+  // Optional brand logo: a {light,dark,chip} object passed via the document JSON
+  // under `brandLogo`, OR local logo-light.png/logo-dark.png in public/ for tests.
+  // Production wires the brand's logo_light_url/logo_dark_url here.
+  let logo, logoChip
+  if (data.brandLogo?.light || data.brandLogo?.dark) {
+    logo = { light: data.brandLogo.light, dark: data.brandLogo.dark }
+    logoChip = !!data.brandLogo.chip
+  } else if (existsSync(join(PUBLIC, 'logo-light.png'))) {
+    logo = { light: 'logo-light.png', dark: existsSync(join(PUBLIC, 'logo-dark.png')) ? 'logo-dark.png' : undefined }
+  }
+
+  const out = { theme: THEME, brandName: data.companyName || data.title, ...(logo ? { logo, logoChip } : {}), scenes }
+  await writeFile(join(PUBLIC, 'infographic.json'), JSON.stringify(out, null, 2))
   console.log(`Wrote public/infographic.json (${scenes.length} scenes, ${Math.round(scenes.reduce((a, b) => a + b.durationInFrames, 0) / 30)}s)`)
 }
 main().catch((e) => { console.error(e.message); process.exit(1) })
