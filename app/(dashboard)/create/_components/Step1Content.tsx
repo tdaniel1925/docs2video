@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { SLIDE_STYLES } from '../../../_lib/types'
+import { uploadAndExtract } from './uploadAndExtract'
 type OutputType = 'video' | 'pptx' | 'pdf'
 type InputMethod = 'url' | 'upload' | 'text' | 'idea' | null
 type Stage = 'idle' | 'extracting' | 'error' | 'generating-preview' | 'style-suggest'
@@ -324,16 +325,12 @@ export default function Step1Content() {
         if (!res.ok) throw new Error(result.error || 'Extraction failed')
         extractedData = result
       } else if (method === 'upload') {
-        setStageMsg('Processing file...')
+        setStageMsg('Uploading file...')
         const file = fileRef.current?.files?.[0]
         if (!file) throw new Error('No file selected')
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('purpose', purpose.trim())
-        const res = await fetch('/api/extract-doc', { method: 'POST', body: formData })
-        const result = await res.json()
-        if (!res.ok) throw new Error(result.error || 'File processing failed')
-        extractedData = result
+        // Direct-to-storage upload + extract by path (bulletproof: big bytes
+        // never transit a Vercel function; validates + retries internally).
+        extractedData = await uploadAndExtract(file, purpose.trim())
       } else {
         setStageMsg('AI is writing content...')
         const res = await fetch('/api/extract', {
@@ -426,16 +423,12 @@ export default function Step1Content() {
         if (!res.ok) throw new Error(result.error || 'Extraction failed')
         extractedData = result
       } else if (method === 'upload') {
-        setStageMsg('Processing file...')
+        setStageMsg('Uploading file...')
         const file = fileRef.current?.files?.[0]
         if (!file) throw new Error('No file selected')
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('purpose', purpose.trim())
-        const res = await fetch('/api/extract-doc', { method: 'POST', body: formData })
-        const result = await res.json()
-        if (!res.ok) throw new Error(result.error || 'File processing failed')
-        extractedData = result
+        // Direct-to-storage upload + extract by path (bulletproof: big bytes
+        // never transit a Vercel function; validates + retries internally).
+        extractedData = await uploadAndExtract(file, purpose.trim())
       } else {
         setStageMsg('AI is writing content...')
         const res = await fetch('/api/extract', {
