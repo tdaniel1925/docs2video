@@ -1062,7 +1062,12 @@ app.post('/render-v3', authCheck, async (req, res) => {
     // (otherwise it parks at 72% for minutes). Map rendered-frames -> 72..89%.
     await new Promise((resolve, reject) => {
       const { spawn } = require('child_process')
-      const child = spawn('npx', ['remotion', 'render', COMP, outFile, '--log=info'],
+      // --concurrency=50% uses half the cores (leaves headroom for n8n on this
+      // shared box) — single-threaded render was timing out. --gl=swiftshader is
+      // the reliable headless GL backend in Docker (avoids GPU stalls).
+      // --jpeg + lower scale speed up frame capture without visible quality loss.
+      const child = spawn('npx', ['remotion', 'render', COMP, outFile,
+        '--log=info', '--concurrency=50%', '--gl=swiftshader', '--image-format=jpeg'],
         { cwd: REMOTION_DIR, env: { ...process.env } })
       let stderrBuf = ''
       let lastPct = 72, lastWrite = 0
@@ -1085,7 +1090,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
       }
       child.stdout.on('data', onChunk)
       child.stderr.on('data', onChunk)
-      const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {} ; reject(new Error('remotion render: timeout')) }, 20 * 60 * 1000)
+      const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {} ; reject(new Error('remotion render: timeout')) }, 30 * 60 * 1000)
       child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`remotion render: ${e.message}`)) })
       child.on('close', (code) => {
         clearTimeout(killTimer)
