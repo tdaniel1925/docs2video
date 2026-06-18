@@ -968,10 +968,29 @@ app.post('/render-v3', authCheck, async (req, res) => {
       }
     }
 
+    // Logo variants arrive as REMOTE Supabase URLs, but Remotion's staticFile()
+    // resolves LOCAL public/ files only — so download each into public/ and pass
+    // the local filename. Best-effort: a failed download just omits that variant.
+    let localLogo
+    if (logo && (logo.light || logo.dark)) {
+      const dl = async (url, name) => {
+        if (!url) return undefined
+        try {
+          const r = await fetch(url, { signal: AbortSignal.timeout(15000) })
+          if (!r.ok) return undefined
+          await writeFile(join(pub, name), Buffer.from(await r.arrayBuffer()))
+          return name
+        } catch { return undefined }
+      }
+      const light = await dl(logo.light, `r3-${videoId}-logo-light.png`)
+      const dark = await dl(logo.dark, `r3-${videoId}-logo-dark.png`)
+      if (light || dark) localLogo = { light, dark }
+    }
+
     const props = {
       theme: v3Theme(brandAccents),
       brandName: brandName || undefined,
-      ...(logo ? { logo: { light: logo.light, dark: logo.dark }, logoChip: !!logo.chip } : {}),
+      ...(localLogo ? { logo: localLogo, logoChip: !!logo.chip } : {}),
       scenes: outScenes,
     }
     await writeFile(PROPS, JSON.stringify(props))

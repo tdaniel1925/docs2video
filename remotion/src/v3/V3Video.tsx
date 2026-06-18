@@ -1,6 +1,7 @@
-import { AbsoluteFill, Series, Audio, Img, staticFile, useCurrentFrame, interpolate } from 'remotion'
+import { AbsoluteFill, Series, Audio, staticFile, useCurrentFrame, interpolate } from 'remotion'
 import type { V3Props, V3Scene } from './schema'
 import { FullScreenScene, type Placement } from './FullScreenScene'
+import { LogoWatermark, type LogoSource } from '../components/infographic/BrandLogo'
 
 /** Auto-vary placement across scenes so the video never feels one-dimensional. */
 const PLACEMENT_CYCLE: Placement[] = ['center', 'left', 'bottom', 'right', 'bottom', 'left', 'center', 'right', 'bottom', 'center']
@@ -24,7 +25,7 @@ const Transition: React.FC<{ d: number; variant: number; children: React.ReactNo
   return <AbsoluteFill style={{ opacity, transform, filter }}>{children}</AbsoluteFill>
 }
 
-export const V3Video: React.FC<V3Props> = ({ theme, scenes, music, logo }) => {
+export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, scenes, music, logo, logoChip }) => {
   const total = scenes.reduce((s, sc) => s + sc.durationInFrames, 0)
   return (
     <AbsoluteFill>
@@ -56,7 +57,7 @@ export const V3Video: React.FC<V3Props> = ({ theme, scenes, music, logo }) => {
       {music ? (
         <Audio src={staticFile(music)} volume={(f) => interpolate(f, [0, 30, total - 45, total], [0, 0.1, 0.1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })} />
       ) : null}
-      {logo ? <Img src={staticFile(logo)} style={{ position: 'absolute', bottom: 40, right: 52, height: 50, opacity: 0.9, objectFit: 'contain' }} /> : null}
+      {logo ? <LogoWatermark logo={logo as LogoSource} theme={theme} chip={logoChip} corner="bottom-right" height={50} /> : null}
     </AbsoluteFill>
   )
 }

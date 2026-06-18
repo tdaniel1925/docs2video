@@ -20,7 +20,9 @@ export const v3Schema = z.object({
   theme: themeSchema,
   brandName: z.string().optional(),
   music: z.string().optional(),
-  logo: z.string().optional(),
+  // string (single file) OR {light,dark} variants (picked by theme mode).
+  logo: z.union([z.string(), z.object({ light: z.string().optional(), dark: z.string().optional() })]).optional(),
+  logoChip: z.boolean().optional(),
   scenes: z.array(v3SceneSchema).min(1),
 })
 
