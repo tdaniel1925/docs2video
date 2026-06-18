@@ -880,6 +880,144 @@ app.post('/process-logo', authCheck, async (req, res) => {
 })
 
 // ============================================================
+// V3 RENDERER — Remotion (cinematic / infographic). The app POSTs here when the
+// admin flag video_engine_v3 is ON. See vps/render-v3-deploy/ for the full
+// bundle + Dockerfile (needs the baked remotion/ project + Chrome).
+// ============================================================
+const REMOTION_DIR = process.env.REMOTION_DIR || '/app/remotion'
+const V3_LOOK = 'Cinematic film still, 35mm anamorphic, shallow depth of field, dramatic low-key lighting with rim light and volumetric haze, muted moody grade, subtle grain, premium editorial mood. Photoreal, NOT illustration. 16:9, fills 1920x1080. ABSOLUTELY NO text, words, letters, numbers, charts, or logos.'
+
+async function v3Tts(text, voiceId, outPath) {
+  const OpenAI = require('openai')
+  const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
+  const resp = await openai.audio.speech.create({
+    model: 'tts-1-hd', voice: voiceId || 'nova', input: text || ' ', response_format: 'mp3', speed: 0.98,
+  })
+  await writeFile(outPath, Buffer.from(await resp.arrayBuffer()))
+  const dur = await probeAudioDuration(outPath)
+  return Math.round(((dur || 3) + 0.9) * 30)
+}
+
+async function v3GeminiBg(prompt, outPath) {
+  const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+  for (let a = 1; a <= 3; a++) {
+    try {
+      const r = await g.models.generateContent({
+        model: 'gemini-3-pro-image-preview',
+        contents: [{ role: 'user', parts: [{ text: `${prompt}\n\n${V3_LOOK}` }] }],
+        config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '2K' } } },
+      })
+      const img = (r.candidates?.[0]?.content?.parts ?? []).find((p) => p.inlineData)
+      if (!img) throw new Error('no image')
+      await writeFile(outPath, Buffer.from(img.inlineData.data, 'base64'))
+      return true
+    } catch (e) { if (a === 3) throw e; await new Promise((r) => setTimeout(r, 2500 * a)) }
+  }
+}
+
+function v3Theme(brandAccents) {
+  const base = {
+    name: 'Modern Fintech', ink: '#070D1A', inkSoft: '#0C1730',
+    glass: 'rgba(120,170,255,0.06)', glassEdge: 'rgba(120,170,255,0.22)',
+    textPrimary: '#EAF2FF', textMuted: '#8FA6C8',
+    accents: ['#3B82F6', '#22D3EE', '#8B5CF6'], mode: 'dark',
+  }
+  if (Array.isArray(brandAccents) && brandAccents.length) {
+    base.accents = [brandAccents[0] || base.accents[0], brandAccents[1] || base.accents[1], brandAccents[2] || base.accents[2]]
+    base.glassEdge = (brandAccents[0] || '#3B82F6') + '47'
+  }
+  return base
+}
+
+app.post('/render-v3', authCheck, async (req, res) => {
+  const { videoId, userId, voiceId, theme, brandName, brandAccents, logo, scenes } = req.body || {}
+  if (!videoId || !Array.isArray(scenes) || scenes.length === 0) {
+    return res.status(400).json({ error: 'Missing videoId or scenes' })
+  }
+  res.json({ success: true })
+
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+  const setProgress = (pct, detail) => sb.from('videos').update({ progress_pct: pct, progress_detail: detail, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
+
+  const pub = join(REMOTION_DIR, 'public')
+  const outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
+  const isInfo = theme === 'infographic'
+  const COMP = isInfo ? 'InfographicVideo' : 'V3Video'
+  const PROPS = join(pub, isInfo ? 'infographic.json' : 'v3.json')
+
+  try {
+    await mkdir(pub, { recursive: true })
+    await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
+    console.log(`[render-v3 ${videoId}] theme=${theme} comp=${COMP} scenes=${scenes.length}`)
+    await setProgress(25, 'Generating narration...')
+
+    const outScenes = []
+    for (let i = 0; i < scenes.length; i++) {
+      const s = scenes[i]
+      const audioName = `r3-${videoId}-${i}.mp3`
+      const durationInFrames = await v3Tts(s.narration || s.title || ' ', voiceId, join(pub, audioName))
+      if (isInfo) {
+        outScenes.push({ title: s.title || '', body: s.bullets?.[0], metrics: s.metrics, audio: audioName, durationInFrames })
+      } else {
+        await setProgress(30 + Math.round((i / scenes.length) * 40), `Painting scene ${i + 1}/${scenes.length}...`)
+        const imgName = `r3-${videoId}-${i}.png`
+        const imgPrompt = (s.title ? `A cinematic scene evoking: ${s.title}. ${s.narration || ''}` : (s.narration || 'abstract corporate background')).slice(0, 400)
+        await v3GeminiBg(imgPrompt, join(pub, imgName)).catch(() => {})
+        const placement = (i === 0 || i === scenes.length - 1) ? 'center' : ['bottom', 'left', 'right', 'bottom'][i % 4]
+        outScenes.push({ title: s.title || '', body: s.bullets?.[0], image: imgName, audio: audioName, durationInFrames, placement })
+      }
+    }
+
+    const props = {
+      theme: v3Theme(brandAccents),
+      brandName: brandName || undefined,
+      ...(logo ? { logo: { light: logo.light, dark: logo.dark }, logoChip: !!logo.chip } : {}),
+      scenes: outScenes,
+    }
+    await writeFile(PROPS, JSON.stringify(props))
+    await setProgress(72, 'Rendering video...')
+
+    await new Promise((resolve, reject) => {
+      execFile('npx', ['remotion', 'render', COMP, outFile, '--log=error'],
+        { cwd: REMOTION_DIR, timeout: 20 * 60 * 1000, maxBuffer: 1024 * 1024 * 32, env: { ...process.env } },
+        (err, stdout, stderr) => err ? reject(new Error(`remotion render: ${(stderr || err.message || '').slice(0, 300)}`)) : resolve())
+    })
+
+    await setProgress(90, 'Uploading...')
+    const videoBuffer = await readFile(outFile)
+    const videoStoragePath = `${userId}/${videoId}.mp4`
+    await sb.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
+    const { data: urlData } = sb.storage.from('videos').getPublicUrl(videoStoragePath)
+
+    const thumbPath = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
+    await new Promise((resolve) => execFile('ffmpeg', ['-y', '-i', outFile, '-vframes', '1', thumbPath], { timeout: 30000 }, () => resolve()))
+    let thumbUrl = null
+    try {
+      const tb = await readFile(thumbPath)
+      await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true })
+      thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl
+    } catch { /* thumbnail best-effort */ }
+
+    await sb.from('videos').update({
+      status: 'completed', video_url: urlData.publicUrl,
+      ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
+      progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
+    }).eq('id', videoId)
+    console.log(`[render-v3 ${videoId}] DONE -> ${urlData.publicUrl}`)
+  } catch (err) {
+    console.error(`[render-v3 ${videoId}] error:`, err.message)
+    reportError({ source: 'render-v3', videoId, userId, stage: theme, message: err.message }).catch(() => {})
+    await sb.from('videos').update({ status: 'failed', error_message: 'Video rendering failed. Your credits were refunded.', progress_detail: null }).eq('id', videoId).then(() => {}, () => {})
+  } finally {
+    try {
+      const { readdir, unlink } = require('fs/promises')
+      for (const f of await readdir(pub)) if (f.startsWith(`r3-${videoId}-`)) await unlink(join(pub, f)).catch(() => {})
+      await rm(outFile, { force: true }).catch(() => {})
+    } catch { /* cleanup best-effort */ }
+  }
+})
+
+// ============================================================
 // FULL PIPELINE — VPS does everything (no Vercel timeout risk)
 // ============================================================
 app.post('/generate', authCheck, async (req, res) => {

@@ -1,0 +1,28 @@
+# Dockerfile additions for the V3 Remotion renderer
+# ===================================================
+# Adds: Chrome/Chromium runtime libs (Remotion renders in headless Chrome) and
+# the baked remotion/ project with its deps installed. Add AFTER the existing
+# apt block (and the rembg block, if present) and BEFORE `COPY server.js`.
+#
+# NOTE: this assumes the build context includes the repo's remotion/ directory.
+# Because the VPS build context is /root/video-service (which does NOT contain
+# remotion/), you must FIRST copy the project there — see deploy.sh (it rsyncs
+# remotion/ source, excluding node_modules/out/public-media, into
+# /root/video-service/remotion before building).
+
+# --- headless Chrome dependencies for Remotion ---
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 \
+      libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 \
+      libpango-1.0-0 libcairo2 libatspi2.0-0 fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
+# --- bake the remotion project + install deps + the Chrome Remotion uses ---
+# remotion/ is copied into the build context by deploy.sh.
+COPY remotion /app/remotion
+RUN cd /app/remotion \
+    && npm install --no-audit --no-fund --legacy-peer-deps \
+    && npx remotion browser ensure
+ENV REMOTION_DIR="/app/remotion"
+# Remotion/Chrome run as root in-container; allow the sandbox-less launch.
+ENV REMOTION_CHROME_MODE="chrome-for-testing"
