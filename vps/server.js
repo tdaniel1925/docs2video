@@ -899,6 +899,7 @@ async function v3Tts(text, voiceId, outPath) {
 }
 
 async function v3GeminiBg(prompt, outPath) {
+  const { GoogleGenAI } = require('@google/genai')
   const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
   for (let a = 1; a <= 3; a++) {
     try {

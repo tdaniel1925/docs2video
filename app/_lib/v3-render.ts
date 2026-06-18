@@ -104,6 +104,21 @@ export function buildV3Payload(opts: {
    *  script left without stats, so they render as data viz instead of bare text. */
   keyMetrics?: { label: string; value: string; highlight?: boolean }[]
 }): V3Payload {
+  // Cap cinematic scenes: each is a Gemini image + TTS + render. 17 scenes =
+  // a 4-min video + 17 image calls (slow, rate-limit-prone). Keep the cover,
+  // a focused middle, and the closing. ~9 reads tight and films well.
+  const MAX_V3_SCENES = 9
+  if (opts.scenes.length > MAX_V3_SCENES) {
+    const first = opts.scenes[0]
+    const last = opts.scenes[opts.scenes.length - 1]
+    const middle = opts.scenes.slice(1, -1)
+    const keep = MAX_V3_SCENES - 2
+    // Evenly sample the middle so we keep a representative spread, not just the front.
+    const step = middle.length / keep
+    const sampledMiddle = Array.from({ length: keep }, (_, i) => middle[Math.floor(i * step)])
+    opts = { ...opts, scenes: [first, ...sampledMiddle, last] }
+  }
+
   const theme = pickTheme(opts.scenes, opts.classification)
 
   // Pool of real document metrics we can distribute to metric-less scenes.

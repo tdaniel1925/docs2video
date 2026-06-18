@@ -31,6 +31,10 @@ export const LowerThird: React.FC<{
   const countP = interpolate(frame, [inAt, inAt + Math.round(1.1 * fps)], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
   const display = renderMetric(parseMetric(value), countP)
 
+  // Skip the callout entirely if the metric data is malformed (guard AFTER hooks
+  // so rules-of-hooks aren't violated) — never crash the render.
+  if (!value || !label) return null
+
   return (
     <div style={{
       position: 'absolute', left: 120, bottom: 150, zIndex: 4,
