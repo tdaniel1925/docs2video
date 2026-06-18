@@ -4,6 +4,7 @@ import { type ExtractedData, isInsuranceData } from './extract-types'
 import { SLIDE_STYLES } from './types'
 import { buildStructuredPrompt } from './prompt-builder'
 import { INDUSTRIES, detectIndustry, type IndustryId } from './industries'
+import { withRetry } from './with-retry'
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -157,7 +158,9 @@ export async function generateSlideFromPrompt(prompt: string, refImage?: Buffer)
     parts.push({ inlineData: { mimeType: 'image/png', data: refImage.toString('base64') } })
   }
   for (let attempt = 0; attempt < 2; attempt++) {
-    const response = await genai.models.generateContent({
+    // withRetry handles THROWN transient errors (429/503/network); the outer
+    // loop handles the API returning a 200 with no image (a separate failure).
+    const response = await withRetry(() => genai.models.generateContent({
       model: IMAGE_MODEL,
       contents: [{ role: 'user', parts }],
       config: {
@@ -169,7 +172,7 @@ export async function generateSlideFromPrompt(prompt: string, refImage?: Buffer)
           },
         },
       } as any,
-    })
+    }), { label: 'gemini-image-prompt' })
 
     const responseParts = response.candidates?.[0]?.content?.parts ?? []
     for (const rp of responseParts) {
@@ -371,9 +374,10 @@ This is slide ${slideIndex + 1} of ${totalSlides}. ALL slides must share identic
     }
   }
 
-  // Attempt generation with one retry if no image returned
+  // Attempt generation with one retry if no image returned. withRetry handles
+  // THROWN transient errors (429/503/network); this loop handles a 200 with no image.
   for (let attempt = 0; attempt < 2; attempt++) {
-    const response = await genai.models.generateContent({
+    const response = await withRetry(() => genai.models.generateContent({
       model: IMAGE_MODEL,
       contents: [{ role: 'user', parts }],
       config: {
@@ -384,7 +388,7 @@ This is slide ${slideIndex + 1} of ${totalSlides}. ALL slides must share identic
           },
         },
       } as any,
-    })
+    }), { label: 'gemini-image-slide' })
 
     const responseParts = response.candidates?.[0]?.content?.parts ?? []
     for (const rp of responseParts) {
