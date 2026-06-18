@@ -857,51 +857,61 @@ app.post('/generate', authCheck, async (req, res) => {
             if (rp.inlineData) {
               let slideBuf = Buffer.from(rp.inlineData.data, 'base64')
               const sharp = require('sharp')
-              slideBuf = await sharp(slideBuf).resize(1920, 1080, { fit: 'cover' }).png().toBuffer()
+              const SLIDE_W = 1920, SLIDE_H = 1080
+              const showBand = !isBookendSlide && (logoBase64 || brandName)
+              const BAND_H = 88
+              const primary = (safeBrandColors.primary || '#1B365D')
 
-              // DESIGNED HEADER BAND — a thin full-width strip in the brand color
-              // across the very top, holding the logo or company name. Composited
-              // deterministically by us (not drawn by the AI), so it is in the
-              // EXACT same place on every slide, always legible, and can never
-              // overlap the artwork. The slide prompt reserves this top band, so
-              // the band reads as an intentional template element, not a patch.
-              // Skipped on cover/closing title cards.
-              if (!isBookendSlide && (logoBase64 || brandName)) {
-                try {
-                  const SLIDE_W = 1920
-                  const BAND_H = 88
-                  const primary = (safeBrandColors.primary || '#1B365D')
-                  // Solid brand-color band (full width) with a subtle bottom hairline.
-                  const bandSvg = Buffer.from(
-                    '<svg width="' + SLIDE_W + '" height="' + BAND_H + '" xmlns="http://www.w3.org/2000/svg">' +
-                    '<rect width="' + SLIDE_W + '" height="' + BAND_H + '" fill="' + primary + '"/>' +
-                    '<rect y="' + (BAND_H - 3) + '" width="' + SLIDE_W + '" height="3" fill="rgba(0,0,0,0.18)"/>' +
+              if (showBand) {
+                // The band gets its OWN dedicated strip — the slide art is fitted
+                // into the area BELOW it so the band can never cover Gemini's
+                // content (fixes title-cutoff). Art uses `contain` (no crop) onto
+                // a white canvas of the remaining height; final image is exactly
+                // 1920x1080: [band strip] on top + [art] beneath.
+                const artH = SLIDE_H - BAND_H
+                const artBuf = await sharp(slideBuf)
+                  .resize(SLIDE_W, artH, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+                  .png().toBuffer()
+
+                // Band overlays (band rect + name/logo), composited onto the band strip.
+                const bandSvg = Buffer.from(
+                  '<svg width="' + SLIDE_W + '" height="' + BAND_H + '" xmlns="http://www.w3.org/2000/svg">' +
+                  '<rect width="' + SLIDE_W + '" height="' + BAND_H + '" fill="' + primary + '"/>' +
+                  '<rect y="' + (BAND_H - 3) + '" width="' + SLIDE_W + '" height="3" fill="rgba(0,0,0,0.18)"/>' +
+                  '</svg>'
+                )
+                const bandComposites = [{ input: await sharp(bandSvg).png().toBuffer(), top: 0, left: 0 }]
+                if (logoBase64) {
+                  const logoResized = await sharp(Buffer.from(logoBase64, 'base64'))
+                    .resize(null, BAND_H - 28, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                    .png().toBuffer()
+                  bandComposites.push({ input: logoResized, top: 14, left: 48 })
+                } else {
+                  const safeName = brandName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                  const fontSize = 34
+                  const textSvg = Buffer.from(
+                    '<svg width="' + (SLIDE_W - 96) + '" height="' + BAND_H + '" xmlns="http://www.w3.org/2000/svg">' +
+                    '<text x="0" y="' + Math.round(BAND_H / 2 + fontSize / 3) + '" font-size="' + fontSize + '" font-weight="800" font-family="sans-serif" fill="#FFFFFF">' + safeName + '</text>' +
                     '</svg>'
                   )
-                  const bandBuf = await sharp(bandSvg).png().toBuffer()
-                  const overlays = [{ input: bandBuf, top: 0, left: 0 }]
+                  bandComposites.push({ input: await sharp(textSvg).png().toBuffer(), top: 0, left: 48 })
+                }
+                const bandStrip = await sharp({ create: { width: SLIDE_W, height: BAND_H, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } } })
+                  .composite(bandComposites).png().toBuffer()
 
-                  if (logoBase64) {
-                    // Logo sits in the band, left-aligned, vertically centered.
-                    const logoBuf = Buffer.from(logoBase64, 'base64')
-                    const logoResized = await sharp(logoBuf)
-                      .resize(null, BAND_H - 28, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-                      .png().toBuffer()
-                    overlays.push({ input: logoResized, top: 14, left: 48 })
-                  } else {
-                    // Company name in white, vertically centered in the band.
-                    const safeName = brandName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                    const fontSize = 34
-                    const textSvg = Buffer.from(
-                      '<svg width="' + (SLIDE_W - 96) + '" height="' + BAND_H + '" xmlns="http://www.w3.org/2000/svg">' +
-                      '<text x="0" y="' + Math.round(BAND_H / 2 + fontSize / 3) + '" font-size="' + fontSize + '" font-weight="800" font-family="sans-serif" fill="#FFFFFF">' + safeName + '</text>' +
-                      '</svg>'
-                    )
-                    const textBuf = await sharp(textSvg).png().toBuffer()
-                    overlays.push({ input: textBuf, top: 0, left: 48 })
-                  }
-                  slideBuf = await sharp(slideBuf).composite(overlays).png().toBuffer()
-                } catch (e) { console.log(`[${videoId}] Header band composite failed:`, e.message) }
+                // Stack: band strip on top, art below — onto a 1920x1080 canvas.
+                slideBuf = await sharp({ create: { width: SLIDE_W, height: SLIDE_H, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } } })
+                  .composite([
+                    { input: bandStrip, top: 0, left: 0 },
+                    { input: artBuf, top: BAND_H, left: 0 },
+                  ])
+                  .png().toBuffer()
+              } else {
+                // No band (cover/closing or no brand): fit the art to 1920x1080
+                // with `contain` (no crop) so nothing at the edges is sliced.
+                slideBuf = await sharp(slideBuf)
+                  .resize(SLIDE_W, SLIDE_H, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+                  .png().toBuffer()
               }
               return slideBuf
             }
