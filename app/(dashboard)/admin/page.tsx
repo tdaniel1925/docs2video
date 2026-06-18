@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import type { Profile, Video } from '@/app/_lib/types'
 
-type Tab = 'dashboard' | 'users' | 'videos' | 'billing' | 'access' | 'audit' | 'prospects'
+type Tab = 'dashboard' | 'users' | 'videos' | 'billing' | 'access' | 'audit' | 'prospects' | 'settings'
 
 interface AuditEntry {
   id: string
@@ -24,6 +24,7 @@ export default function AdminPage() {
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([])
   const [search, setSearch] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
+  const [settings, setSettings] = useState<Record<string, string | null>>({})
   const [filter, setFilter] = useState('')
   const [accessSearch, setAccessSearch] = useState('')
   const [videoPage, setVideoPage] = useState(0)
@@ -164,6 +165,26 @@ export default function AdminPage() {
     setBusy(null)
   }
 
+  // --- App settings / feature flags (DB-backed, toggle without redeploy) ---
+  async function loadSettings() {
+    try {
+      const r = await fetch('/api/admin/settings')
+      if (r.ok) setSettings(await r.json())
+    } catch { /* non-fatal */ }
+  }
+  async function saveSetting(key: string, value: boolean) {
+    setBusy(key)
+    setSettings(s => ({ ...s, [key]: String(value) })) // optimistic
+    try {
+      const r = await fetch('/api/admin/settings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value }),
+      })
+      if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Failed'); loadSettings() }
+    } catch { alert('Network error'); loadSettings() }
+    setBusy(null)
+  }
+
   const totalUsers = profiles.length
   const activeSubs = profiles.filter(p => ['active', 'pro', 'professional', 'starter', 'business', 'enterprise'].includes((p.subscription_status ?? '').toLowerCase())).length
   const totalVideos = videos.length
@@ -209,6 +230,7 @@ export default function AdminPage() {
     { id: 'access', label: 'Manage Access' },
     { id: 'audit', label: 'Audit Log' },
     { id: 'prospects', label: 'Prospects' },
+    { id: 'settings', label: 'Settings' },
   ]
 
   const userEmail = (userId: string) => profiles.find(p => p.id === userId)?.email ?? '—'
@@ -230,7 +252,7 @@ export default function AdminPage() {
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
         {tabs.map(t => (
-          <button key={t.id} onClick={() => { setTab(t.id); setSearch(''); setFilter('') }}
+          <button key={t.id} onClick={() => { setTab(t.id); setSearch(''); setFilter(''); if (t.id === 'settings') loadSettings() }}
             className={`btn btn-sm ${tab === t.id ? 'btn-primary' : 'btn-soft'}`}>{t.label}</button>
         ))}
       </div>
@@ -1335,6 +1357,31 @@ export default function AdminPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {tab === 'settings' && (
+        <div className="card" style={{ padding: 20, maxWidth: 720 }}>
+          <div className="section-title" style={{ marginBottom: 6 }}>Video Engine</div>
+          <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 18 }}>
+            Controls how new videos are rendered. Takes effect immediately — no redeploy.
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 16px', border: '1px solid var(--border)', borderRadius: 10 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>V3 cinematic / infographic engine</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 2 }}>
+                When ON, new videos render with the V3 Remotion engine (theme auto-selected by content + brand). When OFF, the current pipeline is used.
+              </div>
+            </div>
+            <button
+              className={`btn btn-sm ${settings.video_engine_v3 === 'true' ? 'btn-primary' : 'btn-soft'}`}
+              disabled={busy === 'video_engine_v3'}
+              onClick={() => saveSetting('video_engine_v3', settings.video_engine_v3 !== 'true')}
+              style={{ minWidth: 64 }}
+            >
+              {busy === 'video_engine_v3' ? '…' : settings.video_engine_v3 === 'true' ? 'ON' : 'OFF'}
+            </button>
+          </div>
         </div>
       )}
     </div>
