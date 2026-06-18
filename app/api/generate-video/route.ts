@@ -8,6 +8,8 @@ import { sendNotification, createJob, updateJobProgress } from '../../_lib/notif
 import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { isAdmin } from '../../_lib/admin'
+import { getFlag } from '../../_lib/app-settings'
+import { buildV3Payload } from '../../_lib/v3-render'
 import { logError } from '../../_lib/error-logger'
 import { validateScript } from '../../_lib/script-validator'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
@@ -186,6 +188,9 @@ export async function POST(request: Request) {
 
   // Pipeline v2 (Inngest + Creatomate) — opt-in via env flag
   const useV2 = process.env.USE_PIPELINE_V2 === 'true'
+  // V3 (Remotion: cinematic / infographic) — toggled from admin back office,
+  // DB-backed so it flips without a redeploy. Read once per request.
+  const useV3 = await getFlag('video_engine_v3')
 
   // --- GUARD: Duplicate submission prevention ---
   // In-memory set = fast same-instance check. DB compare-and-set below is the
@@ -808,6 +813,56 @@ export async function POST(request: Request) {
         },
       })
       return NextResponse.json({ success: true, pipeline: 'v2' })
+    }
+
+    // STAGE 3 (V3): if the admin enabled the V3 engine, render with Remotion on
+    // the VPS instead of the classic /generate path. Theme is auto-picked by
+    // content (data-heavy → infographic, else cinematic); brand colors + logo
+    // variants applied. Same ACK-timeout-safe handoff as v1.
+    if (useV3) {
+      console.log(`[video ${videoId}] V3 engine ON — building Remotion payload (${scenes.length} content scenes)`)
+      await admin.from('videos').update({ progress_detail: 'Preparing cinematic render...', progress_pct: 18 }).eq('id', videoId)
+
+      const v3Payload = buildV3Payload({
+        videoId, userId: user.id, voiceId,
+        scenes, brand, brandName: effectiveBrandName,
+        classification: (policyData as any)?.classification ?? null,
+        industry,
+      })
+      console.log(`[video ${videoId}] V3 theme=${v3Payload.theme}, logo=${v3Payload.logo ? 'yes' : 'no'}`)
+
+      let v3Res: Response
+      try {
+        v3Res = await fetch(`${VIDEO_ASSEMBLY_URL}/render-v3`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
+          body: JSON.stringify(v3Payload),
+          signal: AbortSignal.timeout(25000),
+        })
+      } catch (v3Err) {
+        const isAbort = v3Err instanceof Error && (v3Err.name === 'TimeoutError' || v3Err.name === 'AbortError')
+        if (isAbort) {
+          console.warn(`[video ${videoId}] V3 ACK timed out — treating as maybe-queued; cron will reconcile.`)
+          await admin.from('videos').update({
+            status: 'assembling', progress_detail: 'Rendering cinematic video...',
+            progress_updated_at: new Date().toISOString(),
+          }).eq('id', videoId)
+          inFlightVideos.delete(videoId)
+          return NextResponse.json({ success: true, queued: true, pipeline: 'v3' })
+        }
+        throw v3Err
+      }
+
+      const v3Text = await v3Res.text()
+      let v3Data: { success?: boolean; error?: string } | null = null
+      try { v3Data = JSON.parse(v3Text) } catch { /* non-JSON */ }
+      if (!v3Res.ok || !v3Data?.success) {
+        console.error(`[video ${videoId}] V3 error (HTTP ${v3Res.status}):`, v3Text.slice(0, 500))
+        throw new Error(v3Data?.error || `V3 render server error (HTTP ${v3Res.status})`)
+      }
+      console.log(`[video ${videoId}] V3 accepted — rendering in background.`)
+      inFlightVideos.delete(videoId)
+      return NextResponse.json({ success: true, pipeline: 'v3' })
     }
 
     // STAGE 3: Hand off to VPS — all slides have matching narration
