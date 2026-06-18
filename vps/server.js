@@ -715,6 +715,123 @@ app.post('/convert', authCheck, async (req, res) => {
 })
 
 // ============================================================
+// EXTRACT-DOCUMENT — parse an uploaded doc into structured ExtractedData.
+// (Was missing on the VPS; the app calls this for PDF/DOCX/PPTX/etc. uploads.)
+// Flow: write file -> convert to PDF if needed (libreoffice) -> pull text
+// (pdftotext) -> Gemini structures it into { title, sections, keyMetrics, ... }.
+// ============================================================
+app.post('/extract-document', authCheck, async (req, res) => {
+  const { fileBase64, fileName, purpose, mimeType } = req.body
+  if (!fileBase64 || !fileName) {
+    return res.status(400).json({ error: 'Missing fileBase64 or fileName' })
+  }
+  if (!GEMINI_API_KEY) {
+    return res.status(500).json({ error: 'GEMINI_API_KEY not configured on VPS' })
+  }
+
+  const workDir = join(tmpdir(), `d2v-extract-${randomUUID()}`)
+  console.log(`[extract-document] Starting: ${fileName}`)
+
+  try {
+    await mkdir(workDir, { recursive: true })
+    const ext = (fileName.split('.').pop() || '').toLowerCase()
+    const inputPath = join(workDir, `input.${ext || 'bin'}`)
+    await writeFile(inputPath, Buffer.from(fileBase64, 'base64'))
+
+    // 1) Get plain text. .txt/.csv read directly; everything else -> PDF -> pdftotext.
+    let text = ''
+    if (ext === 'txt' || ext === 'csv') {
+      text = (await readFile(inputPath, 'utf-8')).slice(0, 60000)
+    } else {
+      let pdfPath = inputPath
+      if (ext !== 'pdf') {
+        await new Promise((resolve, reject) => {
+          execFile('libreoffice', ['--headless', '--convert-to', 'pdf', '--outdir', workDir, inputPath], { timeout: 120000 }, (err, stdout, stderr) => {
+            if (err) { console.error('[extract-document] LibreOffice error:', err.message, stderr?.slice(0, 200)); return reject(new Error('Could not convert this file type.')) }
+            resolve(stdout)
+          })
+        })
+        pdfPath = join(workDir, 'input.pdf')
+      }
+      const txtPath = join(workDir, 'out.txt')
+      await new Promise((resolve, reject) => {
+        execFile('pdftotext', ['-layout', pdfPath, txtPath], { timeout: 60000 }, (err) => {
+          if (err) return reject(new Error('Could not read text from this document.'))
+          resolve(null)
+        })
+      })
+      text = (await readFile(txtPath, 'utf-8').catch(() => '')).slice(0, 60000)
+    }
+
+    if (!text.trim()) {
+      throw new Error('No readable text found in this document. If it is a scanned image, please paste the text instead.')
+    }
+
+    // 2) Gemini structures the text into ExtractedData.
+    const { GoogleGenAI } = require('@google/genai')
+    const genai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+    const prompt = `You are extracting the key content of a document so it can become an explainer video.${purpose ? ` The user's purpose: "${purpose}".` : ''}
+Return ONLY valid JSON (no markdown, no code fences) with this exact shape:
+{
+  "title": "a clear, human title for the document",
+  "subtitle": "one-line subtitle or null",
+  "source": null,
+  "industry": "best-guess industry (e.g. insurance, finance, healthcare, business, general)",
+  "companyName": "the company/brand name if clearly present, else null",
+  "keyMetrics": [{"label":"short label","value":"the value","highlight":true}],
+  "sections": [{"title":"section heading","content":"1-3 sentence summary of that section"}],
+  "bulletPoints": ["the most important takeaways, 3-8 of them"],
+  "additionalNotes": ["any other useful facts"],
+  "contactInfo": {"phone":null,"email":null,"website":null,"address":null}
+}
+Rules: Only include facts that actually appear in the text. Do NOT invent numbers, names, or contact info. Pull 3-8 sections and the most important metrics. Keep summaries concise.
+
+DOCUMENT TEXT:
+${text}`
+
+    let raw = ''
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const r = await genai.models.generateContent({ model: 'gemini-2.5-flash', contents: [{ role: 'user', parts: [{ text: prompt }] }] })
+        raw = r.text?.trim() || (r.candidates?.[0]?.content?.parts ?? []).map(p => p.text || '').join('').trim()
+        if (raw) break
+        throw new Error('empty response')
+      } catch (e) {
+        console.error(`[extract-document] Gemini attempt ${attempt}/3:`, e.message?.slice(0, 120))
+        if (attempt < 3) await new Promise(r => setTimeout(r, 2000 * attempt))
+      }
+    }
+    if (!raw) throw new Error('Document analysis failed. Please try again.')
+
+    const cleaned = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
+    let data
+    try { data = JSON.parse(cleaned) } catch { throw new Error('Could not structure this document. Try a different file or paste the text.') }
+
+    // Normalize to the ExtractedData shape with safe defaults.
+    const result = {
+      title: data.title || fileName.replace(/\.[^.]+$/, ''),
+      subtitle: data.subtitle ?? null,
+      source: data.source ?? null,
+      industry: data.industry || 'general',
+      companyName: data.companyName ?? null,
+      keyMetrics: Array.isArray(data.keyMetrics) ? data.keyMetrics : [],
+      sections: Array.isArray(data.sections) ? data.sections : [],
+      bulletPoints: Array.isArray(data.bulletPoints) ? data.bulletPoints : [],
+      additionalNotes: Array.isArray(data.additionalNotes) ? data.additionalNotes : [],
+      contactInfo: data.contactInfo || {},
+      truncated: text.length >= 60000,
+    }
+    console.log(`[extract-document] Done: "${result.title}", ${result.sections.length} sections, ${result.bulletPoints.length} points`)
+    res.json(result)
+  } catch (err) {
+    console.error(`[extract-document] Error:`, err.message)
+    res.status(500).json({ error: err.message || 'Document extraction failed' })
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {})
+  }
+})
+
+// ============================================================
 // FULL PIPELINE — VPS does everything (no Vercel timeout risk)
 // ============================================================
 app.post('/generate', authCheck, async (req, res) => {
