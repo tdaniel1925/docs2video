@@ -14,7 +14,8 @@ export type Placement = 'bottom' | 'left' | 'right' | 'center' | 'top'
  * dark base (readable), and kinetic text + directional Ken Burns add life.
  */
 export const FullScreenScene: React.FC<{
-  image: string
+  /** Optional: if image-gen failed the scene renders on the theme ground. */
+  image?: string
   placement: Placement
   eyebrow?: string
   title: string
@@ -59,9 +60,15 @@ export const FullScreenScene: React.FC<{
 
   return (
     <AbsoluteFill style={{ backgroundColor: theme.ink, overflow: 'hidden' }}>
-      <AbsoluteFill style={{ transform: `scale(${scale}) translateX(${panX}%)` }}>
-        <Img src={staticFile(image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-      </AbsoluteFill>
+      {image ? (
+        <AbsoluteFill style={{ transform: `scale(${scale}) translateX(${panX}%)` }}>
+          <Img src={staticFile(image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </AbsoluteFill>
+      ) : (
+        // No image (gen failed): a subtle accent gradient on the theme ground so
+        // the scene still reads cinematic rather than flat black.
+        <AbsoluteFill style={{ background: `radial-gradient(120% 120% at 50% 35%, ${theme.inkSoft} 0%, ${theme.ink} 75%)` }} />
+      )}
       {/* Cinematic grade turns a flat photo into a film frame (brand-tinted). */}
       <CinematicGrade accent={theme.accents[0]} intensity={1.4} />
       <AbsoluteFill style={{ background: grad[placement] }} />

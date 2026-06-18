@@ -34,15 +34,21 @@ function hasNumber(value: string): boolean {
 export function pickTheme(scenes: Scene[], classification: { category?: string } | null): V3Theme {
   const cat = (classification?.category || '').toLowerCase()
   // Categories that are almost always number-driven.
-  if (cat === 'insurance' || cat === 'finance') return 'infographic'
+  if (cat === 'insurance' || cat === 'finance' || cat === 'business') return 'infographic'
 
+  // Count scenes that carry real numeric data.
   let metricScenes = 0
   for (const s of scenes) {
     const stats = s.slideData?.stats ?? []
-    if (stats.length >= 2 && stats.filter((st) => hasNumber(st.value)).length >= 2) metricScenes++
+    if (stats.filter((st) => hasNumber(st.value)).length >= 1) metricScenes++
   }
-  // If a third or more of the scenes are metric-heavy, infographic wins.
-  return scenes.length > 0 && metricScenes / scenes.length >= 0.33 ? 'infographic' : 'cinematic'
+  // Infographic is the SAFER default: it needs no per-scene Gemini images (so it
+  // can't fail on image-gen / rate limits) and is faster. We only choose
+  // cinematic when the content is clearly narrative — i.e. almost no metrics.
+  // Threshold lowered to 1/4 so data-ish docs with no classification still get
+  // the robust infographic engine rather than the image-dependent cinematic one.
+  if (scenes.length === 0) return 'infographic'
+  return metricScenes / scenes.length >= 0.25 ? 'infographic' : 'cinematic'
 }
 
 /** Brand → theme accents (the renderer applies these over the base theme). */

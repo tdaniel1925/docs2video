@@ -962,9 +962,18 @@ app.post('/render-v3', authCheck, async (req, res) => {
         await setProgress(30 + Math.round((i / scenes.length) * 40), `Painting scene ${i + 1}/${scenes.length}...`)
         const imgName = `r3-${videoId}-${i}.png`
         const imgPrompt = (s.title ? `A cinematic scene evoking: ${s.title}. ${s.narration || ''}` : (s.narration || 'abstract corporate background')).slice(0, 400)
-        await v3GeminiBg(imgPrompt, join(pub, imgName)).catch(() => {})
+        let haveImg = false
+        try {
+          await v3GeminiBg(imgPrompt, join(pub, imgName))
+          await readFile(join(pub, imgName)) // confirm it actually landed on disk
+          haveImg = true
+        } catch (imgErr) {
+          // A missing image must NOT 404 the whole render — the scene falls back
+          // to the theme ground. Log so we can see if image-gen is broken.
+          console.error(`[render-v3 ${videoId}] scene ${i} image failed: ${imgErr.message}`)
+        }
         const placement = (i === 0 || i === scenes.length - 1) ? 'center' : ['bottom', 'left', 'right', 'bottom'][i % 4]
-        outScenes.push({ title: s.title || '', body: s.bullets?.[0], image: imgName, audio: audioName, durationInFrames, placement })
+        outScenes.push({ title: s.title || '', body: s.bullets?.[0], ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement })
       }
     }
 
