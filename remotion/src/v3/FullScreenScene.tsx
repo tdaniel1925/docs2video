@@ -1,8 +1,9 @@
-import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate } from 'remotion'
+import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate, Easing } from 'remotion'
 import { FONTS, TYPE, type Theme } from '../tokens'
 import { KineticText } from '../KineticText'
 import { FilmOverlay } from '../FilmOverlay'
 import { CinematicGrade } from './CinematicGrade'
+import { LowerThird } from './LowerThird'
 import { settleProgress } from '../helpers'
 
 export type Placement = 'bottom' | 'left' | 'right' | 'center' | 'top'
@@ -25,14 +26,19 @@ export const FullScreenScene: React.FC<{
   durationInFrames: number
   /** Ken Burns direction bias toward where the subject likely is. */
   kenBurns?: 'in' | 'left' | 'right'
-}> = ({ image, placement, eyebrow, title, body, accentWordIndex, theme, durationInFrames, kenBurns = 'in' }) => {
+  /** Optional key metric → cinematic lower-third callout. */
+  metric?: { label: string; value: string }
+}> = ({ image, placement, eyebrow, title, body, accentWordIndex, theme, durationInFrames, kenBurns = 'in', metric }) => {
   const frame = useCurrentFrame()
-  const t = interpolate(frame, [0, durationInFrames], [0, 1], { extrapolateRight: 'clamp' })
+  // Speed-ramped Ken Burns: ease-in-out so the camera ACCELERATES through the
+  // middle and settles — cinematic motion is about acceleration, not linear drift.
+  const tLinear = interpolate(frame, [0, durationInFrames], [0, 1], { extrapolateRight: 'clamp' })
+  const t = interpolate(tLinear, [0, 1], [0, 1], { easing: Easing.inOut(Easing.cubic) })
   const accent = theme.accents[1] ?? theme.accents[0]
 
   // Ken Burns — slower + more confident (subtle = premium).
-  const scale = 1.06 + t * 0.06
-  const panX = kenBurns === 'left' ? interpolate(t, [0, 1], [1.0, -1.0]) : kenBurns === 'right' ? interpolate(t, [0, 1], [-1.0, 1.0]) : 0
+  const scale = 1.06 + t * 0.07
+  const panX = kenBurns === 'left' ? interpolate(t, [0, 1], [1.2, -1.2]) : kenBurns === 'right' ? interpolate(t, [0, 1], [-1.2, 1.2]) : 0
 
   // Directional gradient based on placement (dark where the text is).
   const grad: Record<Placement, string> = {
@@ -55,8 +61,10 @@ export const FullScreenScene: React.FC<{
   }
   const textAlign: 'left' | 'right' | 'center' = placement === 'right' ? 'right' : (placement === 'left') ? 'left' : 'center'
   const maxW = placement === 'center' || placement === 'bottom' || placement === 'top' ? 1500 : 1000
-  const ebP = settleProgress(frame, 2)
-  const bodyP = settleProgress(frame, 22)
+  // Reveals cascade ~0.3-1.2s in so they land just AFTER the narration opens
+  // (VO-synced feel), not the instant the cut happens.
+  const ebP = settleProgress(frame, 8)
+  const bodyP = settleProgress(frame, 34)
 
   return (
     <AbsoluteFill style={{ backgroundColor: theme.ink, overflow: 'hidden' }}>
@@ -82,7 +90,7 @@ export const FullScreenScene: React.FC<{
               {eyebrow}
             </div>
           ) : null}
-          <KineticText text={title} startFrame={6} fontFamily={FONTS.display} fontWeight={900} fontSize={placement === 'center' ? TYPE.hero * 0.82 : TYPE.hero * 0.66} color="#FFFFFF" accentColor={accent} accentWordIndex={accentWordIndex} align={textAlign} lineHeight={0.98} />
+          <KineticText text={title} startFrame={14} fontFamily={FONTS.display} fontWeight={900} fontSize={placement === 'center' ? TYPE.hero * 0.82 : TYPE.hero * 0.66} color="#FFFFFF" accentColor={accent} accentWordIndex={accentWordIndex} align={textAlign} lineHeight={0.98} />
           {body ? (
             <div style={{ opacity: bodyP, transform: `translateY(${(1 - bodyP) * 14}px)`, fontFamily: FONTS.body, fontWeight: 500, fontSize: TYPE.subhead, color: '#FFFFFF', marginTop: 30, maxWidth: 980, textAlign, textShadow: '0 2px 14px rgba(0,0,0,0.6)' }}>
               {body}
@@ -90,6 +98,9 @@ export const FullScreenScene: React.FC<{
           ) : null}
         </div>
       </AbsoluteFill>
+
+      {/* Cinematic data callout — key number over the film image. */}
+      {metric ? <LowerThird label={metric.label} value={metric.value} theme={theme} durationInFrames={durationInFrames} /> : null}
 
       <FilmOverlay accent={accent} letterbox grain={0.07} />
     </AbsoluteFill>

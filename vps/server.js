@@ -1020,7 +1020,11 @@ app.post('/render-v3', authCheck, async (req, res) => {
         // Live filmstrip: the cinematic scene image IS a real preview.
         if (haveImg) await pushPreview(i, join(pub, imgName))
         const placement = (i === 0 || i === scenes.length - 1) ? 'center' : ['bottom', 'left', 'right', 'bottom'][i % 4]
-        outScenes.push({ title: s.title || '', body: s.bullets?.[0], ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement })
+        // Cinematic lower-third: the scene's headline metric, on non-cover/closing scenes.
+        const isEnd = i === 0 || i === scenes.length - 1
+        const m = (Array.isArray(s.metrics) ? s.metrics : []).find((x) => x && x.label && x.value && /\d/.test(x.value))
+        const metric = (!isEnd && m) ? { label: m.label, value: m.value } : undefined
+        outScenes.push({ title: s.title || '', body: s.bullets?.[0], ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement, ...(metric ? { metric } : {}) })
       }
     }
 

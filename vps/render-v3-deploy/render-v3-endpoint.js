@@ -138,7 +138,10 @@ app.post('/render-v3', authCheck, async (req, res) => {
           console.error(`[render-v3 ${videoId}] scene ${i} image failed: ${imgErr.message}`)
         }
         const placement = (i === 0 || i === scenes.length - 1) ? 'center' : ['bottom', 'left', 'right', 'bottom'][i % 4]
-        outScenes.push({ title: s.title || '', body: s.bullets?.[0], ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement })
+        const isEnd = i === 0 || i === scenes.length - 1
+        const m = (Array.isArray(s.metrics) ? s.metrics : []).find((x) => x && x.label && x.value && /\d/.test(x.value))
+        const metric = (!isEnd && m) ? { label: m.label, value: m.value } : undefined
+        outScenes.push({ title: s.title || '', body: s.bullets?.[0], ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement, ...(metric ? { metric } : {}) })
       }
     }
 

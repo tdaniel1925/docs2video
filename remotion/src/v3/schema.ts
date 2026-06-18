@@ -9,11 +9,13 @@ export const v3SceneSchema = z.object({
   title: z.string(),
   body: z.string().optional(),
   accentWordIndex: z.number().int().optional(),
-  image: z.string(),                 // public/ path (Gemini full-bleed)
+  image: z.string().optional(),      // public/ path (Gemini full-bleed); optional if gen failed
   placement: z.enum(['bottom', 'left', 'right', 'center', 'top']).optional(),
   kenBurns: z.enum(['in', 'left', 'right']).optional(),
   audio: z.string().optional(),      // public/ path (TTS)
   durationInFrames: z.number(),
+  /** Optional key metric shown as a cinematic lower-third callout over the image. */
+  metric: z.object({ label: z.string(), value: z.string() }).optional(),
 })
 
 export const v3Schema = z.object({

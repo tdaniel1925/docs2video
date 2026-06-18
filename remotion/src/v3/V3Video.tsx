@@ -31,7 +31,10 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, sce
     <AbsoluteFill>
       <Series>
         {scenes.map((sc: V3Scene, i) => {
-          const placement = sc.placement ?? PLACEMENT_CYCLE[i % PLACEMENT_CYCLE.length]
+          let placement = sc.placement ?? PLACEMENT_CYCLE[i % PLACEMENT_CYCLE.length]
+          // A lower-third lives bottom-left, so keep the title OUT of the bottom
+          // zone on metric scenes (otherwise they collide).
+          if (sc.metric && (placement === 'bottom' || placement === 'left')) placement = 'top'
           const kenBurns = sc.kenBurns ?? KEN[i % KEN.length]
           return (
             <Series.Sequence key={i} durationInFrames={sc.durationInFrames}>
@@ -46,6 +49,7 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, sce
                   accentWordIndex={sc.accentWordIndex}
                   theme={theme}
                   durationInFrames={sc.durationInFrames}
+                  metric={sc.metric}
                 />
               </Transition>
               {sc.audio ? <Audio src={staticFile(sc.audio)} /> : null}
