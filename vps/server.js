@@ -915,6 +915,20 @@ async function v3GeminiBg(prompt, outPath) {
   }
 }
 
+// Lighten an accent that's too dark to read on the dark V3 ground. Without this,
+// a dark brand color (e.g. navy #1B365D) becomes dark-on-dark and vanishes.
+function guardAccentDark(hex) {
+  const h = (hex || '').replace('#', '')
+  if (h.length < 6) return hex
+  let r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16)
+  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+  if (lum >= 0.42) return hex // already bright enough
+  // Lighten toward white until it reads on the dark ground.
+  const amt = 0.55
+  r = Math.round(r + (255 - r) * amt); g = Math.round(g + (255 - g) * amt); b = Math.round(b + (255 - b) * amt)
+  return '#' + [r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('')
+}
+
 function v3Theme(brandAccents) {
   const base = {
     name: 'Modern Fintech', ink: '#070D1A', inkSoft: '#0C1730',
@@ -923,8 +937,10 @@ function v3Theme(brandAccents) {
     accents: ['#3B82F6', '#22D3EE', '#8B5CF6'], mode: 'dark',
   }
   if (Array.isArray(brandAccents) && brandAccents.length) {
-    base.accents = [brandAccents[0] || base.accents[0], brandAccents[1] || base.accents[1], brandAccents[2] || base.accents[2]]
-    base.glassEdge = (brandAccents[0] || '#3B82F6') + '47'
+    // Contrast-guard each brand accent so dark brand colors stay legible.
+    const g0 = guardAccentDark(brandAccents[0]) , g1 = guardAccentDark(brandAccents[1]), g2 = guardAccentDark(brandAccents[2])
+    base.accents = [g0 || base.accents[0], g1 || base.accents[1], g2 || base.accents[2]]
+    base.glassEdge = (g0 || '#3B82F6') + '47'
   }
   return base
 }
@@ -950,6 +966,20 @@ app.post('/render-v3', authCheck, async (req, res) => {
     await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
     console.log(`[render-v3 ${videoId}] theme=${theme} comp=${COMP} scenes=${scenes.length}`)
     await setProgress(25, 'Generating narration...')
+
+    // Infographic theme: ONE ambient background image for the whole video (not
+    // per-scene). Heavily darkened behind the data so it adds depth without
+    // hurting legibility. Best-effort — no image just means the gradient ground.
+    let bgImage
+    if (isInfo) {
+      try {
+        const bgName = `r3-${videoId}-bg.png`
+        const topic = (brandName || scenes[0]?.title || industry || 'professional business').toString().slice(0, 120)
+        await v3GeminiBg(`An abstract, premium, out-of-focus background suggesting ${topic} — soft dark tones, depth, subtle light. Atmospheric, NOT busy. Will sit DARKENED behind data and charts.`, join(pub, bgName))
+        await readFile(join(pub, bgName))
+        bgImage = bgName
+      } catch (e) { console.error(`[render-v3 ${videoId}] bg image failed: ${e.message}`) }
+    }
 
     const outScenes = []
     for (let i = 0; i < scenes.length; i++) {
@@ -1000,6 +1030,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
       theme: v3Theme(brandAccents),
       brandName: brandName || undefined,
       ...(localLogo ? { logo: localLogo, logoChip: !!logo.chip } : {}),
+      ...(bgImage ? { bgImage } : {}),
       scenes: outScenes,
     }
     await writeFile(PROPS, JSON.stringify(props))

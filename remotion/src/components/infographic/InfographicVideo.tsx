@@ -36,6 +36,8 @@ export const infographicSchema = z.object({
   logo: logoSchema.optional(),
   /** Set true when a complex/multi-color logo should sit on a frosted chip. */
   logoChip: z.boolean().optional(),
+  /** Optional ambient background image (public/ path) shown darkened behind every scene. */
+  bgImage: z.string().optional(),
   scenes: z.array(infoSceneSchema).min(1),
 })
 export type InfographicProps = z.infer<typeof infographicSchema>
@@ -44,7 +46,7 @@ export function infoTotal(props: InfographicProps): number {
   return props.scenes.reduce((a, s) => a + s.durationInFrames, 0)
 }
 
-export const InfographicVideo: React.FC<InfographicProps> = ({ theme, scenes, logo, logoChip, brandName }) => {
+export const InfographicVideo: React.FC<InfographicProps> = ({ theme, scenes, logo, logoChip, brandName, bgImage }) => {
   const t = theme as Theme
   const lastIndex = scenes.length - 1
   return (
@@ -55,7 +57,7 @@ export const InfographicVideo: React.FC<InfographicProps> = ({ theme, scenes, lo
           const isLast = i === lastIndex
           return (
             <Series.Sequence key={i} durationInFrames={s.durationInFrames}>
-              <InfographicScene scene={s as SceneContent} theme={t} />
+              <InfographicScene scene={s as SceneContent} theme={t} bgImage={bgImage} />
 
               {/* Intro lockup over the opening scene; outro feature over closing. */}
               {isFirst && (logo || brandName) ? (

@@ -4,6 +4,7 @@ import { settleProgress } from '../../helpers'
 import { InfographicBackground } from './InfographicBackground'
 import { HeroMetric } from './HeroMetric'
 import { KPIGrid } from './KPIGrid'
+import { BarChart } from './BarChart'
 import { IconMetric } from './IconMetric'
 import { InfoCard } from './InfoCard'
 import { ProgressTimeline } from './ProgressTimeline'
@@ -15,7 +16,7 @@ import { pickKind, glyphFor, type SceneContent } from './layoutPicker'
  * chose for this scene's data shape. This is the unit the full InfographicVideo
  * maps over — the auto-theme equivalent of FullScreenScene.
  */
-export const InfographicScene: React.FC<{ scene: SceneContent; theme: Theme }> = ({ scene, theme }) => {
+export const InfographicScene: React.FC<{ scene: SceneContent; theme: Theme; bgImage?: string }> = ({ scene, theme, bgImage }) => {
   const frame = useCurrentFrame()
   const kind = pickKind(scene)
   const ebP = settleProgress(frame, 2)
@@ -33,7 +34,7 @@ export const InfographicScene: React.FC<{ scene: SceneContent; theme: Theme }> =
 
   return (
     <AbsoluteFill>
-      <InfographicBackground theme={theme} />
+      <InfographicBackground theme={theme} image={bgImage} />
       {Eyebrow}
       {renderKind(kind, scene, theme)}
     </AbsoluteFill>
@@ -49,6 +50,8 @@ function renderKind(kind: ReturnType<typeof pickKind>, s: SceneContent, theme: T
     }
     case 'kpis':
       return <KPIGrid theme={theme} heading={s.title} items={metrics.map((m) => ({ label: m.label, value: m.value, highlight: m.highlight }))} />
+    case 'barchart':
+      return <BarChart theme={theme} heading={s.title} bars={metrics.map((m) => ({ label: m.label, value: m.value, highlight: m.highlight }))} />
     case 'iconrow':
       return (
         <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', padding: '0 120px', flexDirection: 'column' }}>

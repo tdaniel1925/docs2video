@@ -828,6 +828,7 @@ export async function POST(request: Request) {
         scenes, brand, brandName: effectiveBrandName,
         classification: (policyData as any)?.classification ?? null,
         industry,
+        keyMetrics: (policyData as any)?.keyMetrics ?? [],
       })
       console.log(`[video ${videoId}] V3 theme=${v3Payload.theme}, logo=${v3Payload.logo ? 'yes' : 'no'}`)
 

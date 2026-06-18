@@ -14,7 +14,7 @@ import type { GlyphName } from './Glyph'
  *   descriptive sections     -> 'cards'     (InfoCard)
  *   plain headline           -> 'statement' (title card)
  */
-export type SceneKind = 'hero' | 'kpis' | 'iconrow' | 'timeline' | 'cards' | 'statement'
+export type SceneKind = 'hero' | 'kpis' | 'barchart' | 'iconrow' | 'timeline' | 'cards' | 'statement'
 
 export type Metric = { label: string; value: string; highlight?: boolean; icon?: GlyphName }
 export type StepItem = { label: string; sub?: string; icon?: GlyphName }
@@ -37,6 +37,21 @@ function isNumeric(value: string): boolean {
   return parseMetric(value).number != null
 }
 
+/** The unit signature of a value ("$"+"" , ""+"%", ""+" years") for grouping. */
+function unitOf(value: string): string {
+  const p = parseMetric(value)
+  return `${p.prefix.trim()}|${p.suffix.trim().toLowerCase()}`
+}
+
+/** Do these metrics share ONE comparable unit, so a bar chart is meaningful?
+ *  (Comparing $176,204 vs $10,000 = yes; comparing $176k vs "20 years" = no.) */
+function sameComparableUnit(metrics: Metric[]): boolean {
+  const numeric = metrics.filter((m) => isNumeric(m.value))
+  if (numeric.length < 3) return false
+  const units = new Set(numeric.map((m) => unitOf(m.value)))
+  return units.size === 1
+}
+
 /**
  * Decide the kind for a scene. Honors an explicit `kind` when the generator set
  * one; otherwise infers from the data present. Always returns something
@@ -52,10 +67,14 @@ export function pickKind(s: SceneContent): SceneKind {
   if (steps.length >= 2) return 'timeline'
 
   if (metrics.length >= 2) {
+    // 3-5 metrics in ONE comparable unit -> an actual BAR CHART (the most
+    // "infographic" layout). Comparing like-with-like is what makes bars read.
+    if (metrics.length >= 3 && metrics.length <= 5 && sameComparableUnit(metrics)) return 'barchart'
+
     // A single highlighted metric among others reads as a hero; else a grid.
     const highlights = metrics.filter((m) => m.highlight)
     if (metrics.length >= 2 && metrics.length <= 4) {
-      // 3 numeric metrics with no dominant highlight -> compact icon row.
+      // 3 numeric metrics (mixed units) with no dominant highlight -> icon row.
       if (metrics.length === 3 && highlights.length !== 1 && metrics.every((m) => isNumeric(m.value))) return 'iconrow'
       return 'kpis'
     }

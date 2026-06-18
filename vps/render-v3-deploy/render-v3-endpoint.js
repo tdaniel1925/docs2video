@@ -97,6 +97,18 @@ app.post('/render-v3', authCheck, async (req, res) => {
     console.log(`[render-v3 ${videoId}] theme=${theme} comp=${COMP} scenes=${scenes.length}`)
     await setProgress(25, 'Generating narration...')
 
+    // Infographic: one darkened ambient background for the whole video.
+    let bgImage
+    if (isInfo) {
+      try {
+        const bgName = `r3-${videoId}-bg.png`
+        const topic = (brandName || scenes[0]?.title || industry || 'professional business').toString().slice(0, 120)
+        await v3GeminiBg(`An abstract, premium, out-of-focus background suggesting ${topic} — soft dark tones, depth, subtle light. Atmospheric, NOT busy. Will sit DARKENED behind data and charts.`, join(pub, bgName))
+        await readFile(join(pub, bgName))
+        bgImage = bgName
+      } catch (e) { console.error(`[render-v3 ${videoId}] bg image failed: ${e.message}`) }
+    }
+
     const outScenes = []
     for (let i = 0; i < scenes.length; i++) {
       const s = scenes[i]
@@ -152,6 +164,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
       theme: v3Theme(brandAccents),
       brandName: brandName || undefined,
       ...(localLogo ? { logo: localLogo, logoChip: !!logo.chip } : {}),
+      ...(bgImage ? { bgImage } : {}),
       scenes: outScenes,
     }
     await writeFile(PROPS, JSON.stringify(props))

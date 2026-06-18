@@ -95,8 +95,21 @@ export function buildV3Payload(opts: {
   brandName?: string | null
   classification: { category?: string } | null
   industry?: string
+  /** The document's real extracted metrics — used to BACKFILL scenes that the
+   *  script left without stats, so they render as data viz instead of bare text. */
+  keyMetrics?: { label: string; value: string; highlight?: boolean }[]
 }): V3Payload {
   const theme = pickTheme(opts.scenes, opts.classification)
+
+  // Pool of real document metrics we can distribute to metric-less scenes.
+  const pool = (opts.keyMetrics ?? []).filter((m) => m.label && m.value && hasNumber(m.value))
+  let poolIdx = 0
+  // How many middle (non-cover/closing) scenes have no stats — spread the pool
+  // across them so several scenes become KPI/hero, not just the first.
+  const middle = opts.scenes.slice(1, Math.max(1, opts.scenes.length - 1))
+  const metricless = middle.filter((s) => !(s.slideData?.stats?.length)).length
+  const perScene = metricless > 0 ? Math.max(2, Math.ceil(pool.length / metricless)) : 0
+
   return {
     videoId: opts.videoId,
     userId: opts.userId,
@@ -106,11 +119,21 @@ export function buildV3Payload(opts: {
     brandAccents: brandAccents(opts.brand),
     logo: brandLogo(opts.brand),
     industry: opts.industry || undefined,
-    scenes: opts.scenes.map((s) => {
+    scenes: opts.scenes.map((s, idx) => {
       const stats = s.slideData?.stats ?? []
-      const metrics = stats
+      let metrics = stats
         .filter((st) => st.label && st.value)
         .map((st, i) => ({ label: st.label, value: st.value, highlight: i < 2 && hasNumber(st.value) }))
+
+      // Backfill: a middle scene with NO stats borrows real metrics from the
+      // document pool so it renders as a KPI grid / hero instead of plain text.
+      const isMiddle = idx > 0 && idx < opts.scenes.length - 1
+      if (metrics.length === 0 && isMiddle && poolIdx < pool.length) {
+        const take = pool.slice(poolIdx, poolIdx + perScene)
+        poolIdx += take.length
+        metrics = take.map((m, i) => ({ label: m.label, value: m.value, highlight: i < 2 }))
+      }
+
       return {
         title: s.slideData?.headline || s.title || '',
         narration: s.narration || '',
