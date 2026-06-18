@@ -208,6 +208,98 @@ function probeAudioDuration(audioPath) {
   })
 }
 
+/**
+ * ASSEMBLY V2 — single-filtergraph assembly (gated by env ASSEMBLY_V2).
+ *
+ * Builds the ENTIRE video in ONE ffmpeg pass instead of encoding N clips and
+ * concatenating them. This removes the whole bug class that the per-clip path
+ * suffers from: -shortest truncation, -an clips dropping audio in concat,
+ * codec/timestamp seams between independently-encoded clips.
+ *
+ * For each slide i: the image is looped for exactly its narration duration
+ * (+TAIL); narrated segments use the real audio, silent segments get an
+ * anullsrc track of the same length — so every segment is homogeneous. Video is
+ * joined with the concat filter; audio segments are concatenated into one
+ * continuous track; the result is a single re-encode (no seams).
+ *
+ * @param opts.workDir        dir with slide_<i>.png and audio_<i>.mp3 already written
+ * @param opts.slideCount     number of slides
+ * @param opts.audioBuffers   per-slide audio buffers (to know which are narrated)
+ * @param opts.outputPath     where to write the assembled mp4
+ * @returns {Promise<number[]>} per-slide durations (seconds), in order
+ */
+async function assembleSingleGraph({ workDir, slideCount, audioBuffers, outputPath }) {
+  const TAIL = 0.6 // seconds the slide lingers after its narration ends
+  const SILENT_DUR = 5 // duration for slides with no narration
+  const SR = 44100
+
+  // 1) Decide each segment's duration up front (single source of truth).
+  const durations = []
+  for (let i = 0; i < slideCount; i++) {
+    const hasAudio = audioBuffers[i] && audioBuffers[i].length > 100
+    if (hasAudio) {
+      const real = await probeAudioDuration(join(workDir, `audio_${i}.mp3`))
+      durations.push((real > 0 ? real : Math.round(audioBuffers[i].length / 16000) + 1) + TAIL)
+    } else {
+      durations.push(SILENT_DUR)
+    }
+  }
+
+  // 2) Build one ffmpeg command. Inputs: each image (looped) + each narrated audio.
+  const args = []
+  const audioInputIndex = [] // ffmpeg input index of each slide's audio, or -1
+  let inputCount = 0
+  // Image inputs first (one per slide).
+  for (let i = 0; i < slideCount; i++) {
+    args.push('-loop', '1', '-t', String(durations[i]), '-i', join(workDir, `slide_${i}.png`))
+    inputCount++
+  }
+  // Audio inputs (only for narrated slides).
+  for (let i = 0; i < slideCount; i++) {
+    if (audioBuffers[i] && audioBuffers[i].length > 100) {
+      args.push('-i', join(workDir, `audio_${i}.mp3`))
+      audioInputIndex[i] = inputCount
+      inputCount++
+    } else {
+      audioInputIndex[i] = -1
+    }
+  }
+
+  // 3) Filtergraph: normalize each image to 1920x1080, set its duration; build a
+  // matching audio segment (real audio padded to the segment length, or silence).
+  const vf = 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p'
+  const parts = []
+  const vLabels = []
+  const aLabels = []
+  for (let i = 0; i < slideCount; i++) {
+    parts.push(`[${i}:v]${vf},trim=duration=${durations[i]},setpts=PTS-STARTPTS[v${i}]`)
+    vLabels.push(`[v${i}]`)
+    if (audioInputIndex[i] >= 0) {
+      // Real narration, padded/trimmed to exactly the segment length.
+      parts.push(`[${audioInputIndex[i]}:a]aresample=${SR},apad,atrim=duration=${durations[i]},asetpts=PTS-STARTPTS[a${i}]`)
+    } else {
+      // Generated silence for the full segment length.
+      parts.push(`anullsrc=channel_layout=stereo:sample_rate=${SR}:duration=${durations[i]}[a${i}]`)
+    }
+    aLabels.push(`[a${i}]`)
+  }
+  // Concat all video + audio segments into one continuous stream each.
+  parts.push(`${vLabels.join('')}concat=n=${slideCount}:v=1:a=0[vout]`)
+  parts.push(`${aLabels.join('')}concat=n=${slideCount}:v=0:a=1[aout]`)
+
+  args.push(
+    '-filter_complex', parts.join(';'),
+    '-map', '[vout]', '-map', '[aout]',
+    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'medium',
+    '-c:a', 'aac', '-b:a', '192k',
+    '-movflags', '+faststart',
+    '-y', outputPath,
+  )
+
+  await runFfmpeg(args)
+  return durations
+}
+
 // Main assembly endpoint
 app.post('/assemble', authCheck, async (req, res) => {
   const { slides, audios, videoId, userId, musicUrl, watermarkText, isTrial } = req.body
@@ -892,59 +984,61 @@ app.post('/generate', authCheck, async (req, res) => {
       }
     }
 
-    // Create clips
-    const clipFiles = []
-    const durations = []
-    for (let i = 0; i < slideBuffers.length; i++) {
-      await updateStatus('assembling', `Encoding clip ${i + 1} of ${slideBuffers.length}...`, 68 + Math.round(((i + 1) / slideBuffers.length) * 15))
-      const clipPath = join(workDir, `clip_${i}.mp4`)
-      const slidePath = join(workDir, `slide_${i}.png`)
-      const audioPath = join(workDir, `audio_${i}.mp3`)
-      const vf = 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2'
-
-      if (audioBuffers[i] && audioBuffers[i].length > 100) {
-        // Probe the real audio length and show the slide for exactly that long
-        // (+0.8s tail) via -t. We deliberately do NOT use -shortest: with
-        // -loop 1 + -tune stillimage's sparse keyframes, -shortest rounds to a
-        // GOP boundary and can drop the clip's audio entirely (it silenced the
-        // shortest narration — the closing slide).
-        const realDur = await probeAudioDuration(audioPath)
-        const slideDuration = realDur > 0 ? realDur + 0.8 : Math.round(audioBuffers[i].length / 16000) + 1
-        await runFfmpeg(['-loop', '1', '-i', slidePath, '-i', audioPath, '-c:v', 'libx264', '-tune', 'stillimage', '-c:a', 'aac', '-b:a', '192k', '-pix_fmt', 'yuv420p', '-vf', vf, '-t', String(slideDuration), '-y', clipPath])
-      } else {
-        // Silent slide — but it MUST still carry an AAC audio track. The concat
-        // step uses `-c copy`, which needs every segment to have the same stream
-        // layout; a clip made with `-an` (no audio) makes ffmpeg drop audio for
-        // every clip AFTER it (the "audio cuts out partway through" bug). So mux
-        // in a generated silent track instead of using -an.
-        await runFfmpeg([
-          '-loop', '1', '-i', slidePath,
-          '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
-          '-t', '5',
-          '-c:v', 'libx264', '-tune', 'stillimage', '-pix_fmt', 'yuv420p', '-vf', vf,
-          '-c:a', 'aac', '-b:a', '192k',
-          '-y', clipPath,
-        ])
-      }
-      clipFiles.push(clipPath)
-
-      // Get accurate duration
-      try {
-        const dur = await new Promise((resolve) => {
-          execFile('ffprobe', ['-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', clipPath], { timeout: 10000 }, (err, stdout) => {
-            resolve(err ? 5 : parseFloat(stdout.trim()) || 5)
-          })
-        })
-        durations.push(dur)
-      } catch { durations.push(5) }
-    }
-
-    // Concatenate
-    await updateStatus('assembling', 'Joining clips together...', 85)
-    const concatFile = join(workDir, 'concat.txt')
-    await writeFile(concatFile, clipFiles.map(f => `file '${f}'`).join('\n'))
     const outputPath = join(workDir, 'output.mp4')
-    await runFfmpeg(['-f', 'concat', '-safe', '0', '-i', concatFile, '-c', 'copy', '-movflags', '+faststart', '-y', outputPath])
+    let durations = []
+
+    if (process.env.ASSEMBLY_V2 === 'true') {
+      // ── V2: single-filtergraph assembly (one ffmpeg pass, no concat seams) ──
+      await updateStatus('assembling', 'Assembling your video...', 75)
+      console.log(`[${videoId}] ASSEMBLY_V2: single-filtergraph for ${slideBuffers.length} slides`)
+      durations = await assembleSingleGraph({
+        workDir,
+        slideCount: slideBuffers.length,
+        audioBuffers,
+        outputPath,
+      })
+      console.log(`[${videoId}] ASSEMBLY_V2 done: total ${durations.reduce((s, d) => s + d, 0).toFixed(1)}s`)
+    } else {
+      // ── V1: per-clip encode + concat (legacy default) ──
+      const clipFiles = []
+      for (let i = 0; i < slideBuffers.length; i++) {
+        await updateStatus('assembling', `Encoding clip ${i + 1} of ${slideBuffers.length}...`, 68 + Math.round(((i + 1) / slideBuffers.length) * 15))
+        const clipPath = join(workDir, `clip_${i}.mp4`)
+        const slidePath = join(workDir, `slide_${i}.png`)
+        const audioPath = join(workDir, `audio_${i}.mp3`)
+        const vf = 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2'
+
+        if (audioBuffers[i] && audioBuffers[i].length > 100) {
+          const realDur = await probeAudioDuration(audioPath)
+          const slideDuration = realDur > 0 ? realDur + 0.8 : Math.round(audioBuffers[i].length / 16000) + 1
+          await runFfmpeg(['-loop', '1', '-i', slidePath, '-i', audioPath, '-c:v', 'libx264', '-tune', 'stillimage', '-c:a', 'aac', '-b:a', '192k', '-pix_fmt', 'yuv420p', '-vf', vf, '-t', String(slideDuration), '-y', clipPath])
+        } else {
+          await runFfmpeg([
+            '-loop', '1', '-i', slidePath,
+            '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
+            '-t', '5',
+            '-c:v', 'libx264', '-tune', 'stillimage', '-pix_fmt', 'yuv420p', '-vf', vf,
+            '-c:a', 'aac', '-b:a', '192k',
+            '-y', clipPath,
+          ])
+        }
+        clipFiles.push(clipPath)
+
+        try {
+          const dur = await new Promise((resolve) => {
+            execFile('ffprobe', ['-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', clipPath], { timeout: 10000 }, (err, stdout) => {
+              resolve(err ? 5 : parseFloat(stdout.trim()) || 5)
+            })
+          })
+          durations.push(dur)
+        } catch { durations.push(5) }
+      }
+
+      await updateStatus('assembling', 'Joining clips together...', 85)
+      const concatFile = join(workDir, 'concat.txt')
+      await writeFile(concatFile, clipFiles.map(f => `file '${f}'`).join('\n'))
+      await runFfmpeg(['-f', 'concat', '-safe', '0', '-i', concatFile, '-c', 'copy', '-movflags', '+faststart', '-y', outputPath])
+    }
 
     // STAGE 4: Generate background music with Lyria 3 Pro + mix
     const totalDurationEst = durations.reduce((s, d) => s + d, 0)
