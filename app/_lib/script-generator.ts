@@ -23,7 +23,18 @@ function parseClaudeText(response: Anthropic.Message): string {
 }
 
 function cleanJson(text: string): string {
-  return text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim()
+  // 1) Strip any ```json / ``` fences anywhere (not just exact start/end).
+  let t = text.replace(/```(?:json)?/gi, '').trim()
+  // 2) Extract the JSON array/object body — fence-proof and tolerant of any
+  //    prose the model adds before/after (e.g. "Here is the script:").
+  const firstArr = t.indexOf('['), firstObj = t.indexOf('{')
+  const start = firstArr === -1 ? firstObj : firstObj === -1 ? firstArr : Math.min(firstArr, firstObj)
+  if (start === -1) return t
+  // Match the closing bracket of the SAME type as the opener.
+  const opener = t[start]
+  const closer = opener === '[' ? ']' : '}'
+  const end = t.lastIndexOf(closer)
+  return end > start ? t.slice(start, end + 1).trim() : t.slice(start).trim()
 }
 
 export async function generateDemoScript(
@@ -81,7 +92,7 @@ Return ONLY valid JSON array (no markdown, no code fences):
 
   const response = await claudeCreate({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
+    max_tokens: 8192,
     messages: [{ role: 'user', content: prompt }],
   })
 
@@ -709,12 +720,19 @@ FIELD RULES:
 
   const response = await claudeCreate({
     model: 'claude-sonnet-4-6',
-    max_tokens: 8192,
+    // 16k so a long, detailed multi-scene script (per-scene stats + bullets +
+    // narration) never truncates mid-JSON — the cause of "Failed to parse script".
+    max_tokens: 16000,
     messages: [{ role: 'user', content: prompt }],
   })
 
   const text = parseClaudeText(response)
   const cleaned = cleanJson(text)
+  // If the model hit the token ceiling the JSON is truncated and unparseable —
+  // make the failure explicit (clearer than a generic parse error).
+  if ((response as any).stop_reason === 'max_tokens') {
+    console.error('[script-generator] response truncated (max_tokens) — script too long for the cap')
+  }
 
   try {
     let scenes = JSON.parse(cleaned) as VideoScene[]
