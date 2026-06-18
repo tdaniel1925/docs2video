@@ -4,11 +4,17 @@ import { type ExtractedData, isInsuranceData } from './extract-types'
 import { detectIndustry, classifyIndustryLLM, INDUSTRIES, type IndustryId } from './industries'
 import { getPrompt } from './prompts'
 import { fitSourceData } from './source-data-fitter'
+import { withRetry } from './with-retry'
 
 let _claude: Anthropic | null = null
 function getClaude() {
   if (!_claude) _claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || '' })
   return _claude
+}
+
+/** Claude message create with transient-error retry/backoff. */
+function claudeCreate(params: Anthropic.MessageCreateParamsNonStreaming): Promise<Anthropic.Message> {
+  return withRetry(() => getClaude().messages.create(params) as Promise<Anthropic.Message>, { label: 'claude' })
 }
 
 function parseClaudeText(response: Anthropic.Message): string {
@@ -73,7 +79,7 @@ Return ONLY valid JSON array (no markdown, no code fences):
   }
 ]`
 
-  const response = await getClaude().messages.create({
+  const response = await claudeCreate({
     model: 'claude-sonnet-4-6',
     max_tokens: 4096,
     messages: [{ role: 'user', content: prompt }],
@@ -212,7 +218,11 @@ export async function generateScript(
     report: 'This is a DATA REPORT VIDEO. The viewer is a decision-maker. Don\'t read every number — pick the 3-5 that drive decisions. For each metric, explain: what it means, is it good or bad, and what should we do about it. Lead with the headline ("revenue is up 18%"), then support it.',
     proposal: 'This is a PROPOSAL VIDEO. The viewer is deciding whether to hire/buy from you. Lead with their problem (show you understand it). Present your approach as the obvious solution. Prove it with past results. Address "why you and not someone else?" End with specific next steps and timeline.',
   }
-  let intentGuidance = intentMap[(data as any)?.intentType || ''] || purpose ? `VIDEO PURPOSE: ${purpose}` : 'Create an informative overview of this content.'
+  // Use the matching intent preset if present; otherwise the user's purpose;
+  // otherwise a generic fallback. (Parenthesized to fix an operator-precedence
+  // bug where a valid preset was always discarded whenever purpose was set.)
+  let intentGuidance = intentMap[(data as any)?.intentType || '']
+    || (purpose ? `VIDEO PURPOSE: ${purpose}` : 'Create an informative overview of this content.')
 
   // For insurance: inject carrier/product ban into strategic analysis guidance
   if (isInsurance) {
@@ -221,7 +231,7 @@ export async function generateScript(
 
   let deepAnalysis = ''
   try {
-    const analysisResponse = await getClaude().messages.create({
+    const analysisResponse = await claudeCreate({
       model: 'claude-sonnet-4-6',
       // Bounded so the chained analysis+script calls fit under the function
       // timeout. A focused ~2k-token analysis is plenty to guide the script and
@@ -649,7 +659,7 @@ FIELD RULES:
 - "slidePrompt": visual concept only (e.g. "growth chart on dark background") — NOT content text
 - "beat": one of "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"`
 
-    const response = await getClaude().messages.create({
+    const response = await claudeCreate({
       model: 'claude-sonnet-4-6',
       max_tokens: 8192,
       messages: [{ role: 'user', content: podcastPrompt }],
@@ -697,7 +707,7 @@ FIELD RULES:
 - "slidePrompt": visual concept only (e.g. "dark background with growth chart icon") — NOT content text
 - "beat": one of "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"`
 
-  const response = await getClaude().messages.create({
+  const response = await claudeCreate({
     model: 'claude-sonnet-4-6',
     max_tokens: 8192,
     messages: [{ role: 'user', content: prompt }],

@@ -32,6 +32,30 @@ export async function GET(request: Request) {
   const admin = createAdminClient()
   const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
 
+  // Reconcile STUCK SCRIPTS: a draft whose background script-gen was killed
+  // mid-flight stays on draft_data.scriptStatus='generating' forever (the
+  // function died before its catch could write 'failed'). Fail any that have
+  // been generating > 10 min so the wizard stops polling indefinitely.
+  let scriptsFailed = 0
+  try {
+    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+    const { data: stuckDrafts } = await admin
+      .from('videos')
+      .select('id, draft_data, updated_at, created_at')
+      .eq('status', 'draft')
+      .lt('created_at', tenMinAgo)
+      .limit(50)
+    for (const d of stuckDrafts || []) {
+      const dd = (d.draft_data || {}) as Record<string, unknown>
+      if (dd.scriptStatus === 'generating') {
+        await admin.from('videos').update({
+          draft_data: { ...dd, scriptStatus: 'failed', scriptError: 'Script generation timed out. Please try again.' },
+        }).eq('id', d.id)
+        scriptsFailed++
+      }
+    }
+  } catch { /* non-fatal — continue to video reconciliation */ }
+
   const { data: stuckVideos } = await admin
     .from('videos')
     .select('id, user_id, title, status, created_at, progress_updated_at, deducted_cost, creatomate_render_id, slide_urls, thumbnail_url')
@@ -40,7 +64,7 @@ export async function GET(request: Request) {
     .limit(25)
 
   if (!stuckVideos || stuckVideos.length === 0) {
-    return NextResponse.json({ fixed: 0, failed: 0, recovered: 0, checked: 0 })
+    return NextResponse.json({ fixed: 0, failed: 0, recovered: 0, checked: 0, scriptsFailed })
   }
 
   let fixed = 0, failed = 0, recovered = 0
@@ -139,5 +163,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ fixed, failed, recovered, checked: stuckVideos.length })
+  return NextResponse.json({ fixed, failed, recovered, checked: stuckVideos.length, scriptsFailed })
 }

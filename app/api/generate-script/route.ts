@@ -80,7 +80,13 @@ export async function POST(request: Request) {
     waitUntil((async () => {
       try {
         console.log(`[generate-script:bg ${videoId}] Starting: industry=${industry}, detailLevel=${detailLevel}`)
-        const scenes = await generateScript(policyData, brandName, colors, detailed ?? false, 0, voiceId, brandTone, contactInfo, purpose, uploadMode, industry, detailLevel, narrationStyle, classificationData)
+        // Race against a timeout so a long/hung Claude chain fails INSIDE this
+        // function (so the catch writes scriptStatus:'failed') instead of the
+        // Vercel function being killed and the draft stuck on 'generating' forever.
+        const scenes = await Promise.race([
+          generateScript(policyData, brandName, colors, detailed ?? false, 0, voiceId, brandTone, contactInfo, purpose, uploadMode, industry, detailLevel, narrationStyle, classificationData),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Script generation timed out. Please try again.')), 240000)),
+        ])
         console.log(`[generate-script:bg ${videoId}] Done: ${scenes.length} scenes`)
         const { data: cur } = await admin.from('videos').select('draft_data').eq('id', videoId).single()
         await admin.from('videos').update({

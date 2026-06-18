@@ -4,6 +4,7 @@
  * Returns document type, perspective, sensitivity, red flags, and suggested tone.
  */
 import { GoogleGenAI } from '@google/genai'
+import { withRetry } from './with-retry'
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -167,7 +168,7 @@ export async function classifyFromText(
   const promptAddition = purpose ? `\n\nThe user's stated purpose: "${purpose}"` : ''
 
   try {
-    const response = await genai.models.generateContent({
+    const response = await withRetry(() => genai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [
         {
@@ -177,7 +178,7 @@ export async function classifyFromText(
           ],
         },
       ],
-    })
+    }), { label: 'classify-text' })
 
     const text = response.text?.trim() ?? ''
     const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
@@ -289,7 +290,7 @@ export async function classifyDocument(pdfBase64: string, mimeType: string = 'ap
     }
   }
 
-  const response = await genai.models.generateContent({
+  const response = await withRetry(() => genai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: [
       {
@@ -300,7 +301,7 @@ export async function classifyDocument(pdfBase64: string, mimeType: string = 'ap
         ],
       },
     ],
-  })
+  }), { label: 'classify-doc' })
 
   const text = response.text?.trim() ?? ''
   const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
