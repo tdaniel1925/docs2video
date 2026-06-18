@@ -32,6 +32,11 @@ function hasNumber(value: string): boolean {
  * leans cinematic.
  */
 export function pickTheme(scenes: Scene[], classification: { category?: string } | null): V3Theme {
+  // 2026-06-18: infographic theme disabled — cinematic only until we improve it.
+  // (Keep the heuristic below intact so we can re-enable by removing this line.)
+  return 'cinematic'
+
+  // eslint-disable-next-line no-unreachable
   const cat = (classification?.category || '').toLowerCase()
   // Categories that are almost always number-driven.
   if (cat === 'insurance' || cat === 'finance' || cat === 'business') return 'infographic'
