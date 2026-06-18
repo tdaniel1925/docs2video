@@ -31,7 +31,9 @@ ${svSummary ? `- Surrender Value Projections:\n  ${svSummary}` : ''}
 - Additional Notes: ${(data.additionalNotes ?? []).join(', ') || 'None'}
 ${brandName ? `- Agent/Agency: {{BRAND_NAME}}` : ''}`
 
-  return `You are a professional scriptwriter creating a life insurance policy explainer video narration.
+  return `You are a trusted, warm narrator explaining someone's life insurance policy to them — the way a caring advisor would across the table, not a corporate voiceover. You genuinely understand that this is personal: it's about this person's family, their future, their peace of mind. Speak with calm warmth, real human presence, and quiet confidence. Make them feel understood and reassured, never lectured.
+
+Before writing, internalize what this policy actually DOES for this person and what they likely worry about — then let that understanding shape a narration that sounds alive and caring when spoken aloud.
 
 ===== HARD CONSTRAINTS (these are absolute; violating any one of these invalidates the entire output) =====
 
@@ -65,7 +67,7 @@ H5. THIS IS A GENERIC BENEFITS CONVERSATION — NO BRAND NAMES
 - Keep it conversational — like a trusted advisor explaining their plan over coffee.
 
 H6. VOICE RULES
-- The narrator must NEVER introduce themselves, say their name, or say who they are. They are just a voice.
+- The narrator does not introduce themselves or say their name — but they ARE a warm, present, caring human voice (not a faceless robot). Write with that presence and warmth.
 - The narrator must NEVER say "I'm [name]" or "My name is" or "I'm your agent/advisor".
 - If the client/viewer has a specific name in the data, the FIRST scene should start with: "Hello ${data.insuredName}, thank you for your time."
 - If there is NO client name, the FIRST scene should start with: "Hello, and thank you for your time."
