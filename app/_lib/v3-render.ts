@@ -94,6 +94,9 @@ export type V3Payload = {
   aiMusic?: boolean
   /** Contact line for the closing CTA scene (phone | email | website). */
   contactLine?: string
+  /** Structured contact + a closing value for the branded closing card. */
+  contact?: { phone?: string; email?: string; website?: string }
+  closingValue?: { label: string; value: string }
   /** Per-scene content; the VPS generates images (cinematic) + narration + render. */
   scenes: {
     title: string
@@ -120,6 +123,7 @@ export function buildV3Payload(opts: {
   musicPrompt?: string
   aiMusic?: boolean
   contactLine?: string
+  contact?: { phone?: string; email?: string; website?: string }
 }): V3Payload {
   // Cap cinematic scenes: each is a Gemini image + TTS + render. 17 scenes =
   // a 4-min video + 17 image calls (slow, rate-limit-prone). Keep the cover,
@@ -160,6 +164,13 @@ export function buildV3Payload(opts: {
     musicPrompt: opts.musicPrompt || undefined,
     aiMusic: opts.aiMusic || undefined,
     contactLine: opts.contactLine || undefined,
+    contact: opts.contact || undefined,
+    // Closing value: the document's most important highlighted metric (e.g. the
+    // death benefit / coverage amount) — shown big on the closing card.
+    closingValue: (() => {
+      const m = (opts.keyMetrics ?? []).find((x) => x.highlight && hasNumber(x.value)) || (opts.keyMetrics ?? []).find((x) => hasNumber(x.value))
+      return m ? { label: m.label, value: m.value } : undefined
+    })(),
     scenes: opts.scenes.map((s, idx) => {
       const stats = s.slideData?.stats ?? []
       let metrics = stats

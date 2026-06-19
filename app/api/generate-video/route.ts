@@ -880,6 +880,7 @@ export async function POST(request: Request) {
         musicPrompt: musicPrompt || undefined,
         aiMusic: aiMusic || undefined,
         contactLine: contactLine || undefined,
+        contact: { phone: contactForClosing.phone, email: contactForClosing.email, website: contactForClosing.website },
       })
       console.log(`[video ${videoId}] V3 theme=${v3Payload.theme}, logo=${v3Payload.logo ? 'yes' : 'no'}`)
 

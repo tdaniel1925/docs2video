@@ -722,7 +722,17 @@ OPENING SCENE (scene 1, beat "hook") — IMPORTANT:
 - Start warm and friendly, like a real person greeting the viewer. Briefly welcome them, say in one sentence WHAT this video is about, and WHY it matters to them — THEN transition into the content.
 - Example tone: "Welcome — in the next couple of minutes, we'll walk through your [topic] and what it means for you. Let's get started." (adapt to the real topic; never invent facts).
 - Do NOT just dive straight into data on scene 1. The viewer should feel oriented and welcomed first.
-- The narrator still never states their own name. Keep it natural, friendly, and relatable — not stiff or corporate.`
+- The narrator still never states their own name. Keep it natural, friendly, and relatable — not stiff or corporate.
+- The COVER is an INTRODUCTION only — do NOT cite specific numbers, dollar amounts, or stats on scene 1 (those belong on their own data scenes later). Citing a figure here with nothing on screen is confusing.
+
+CLOSING SCENE (LAST scene) — IMPORTANT:
+- This is the CONTACT / wrap-up. Warmly thank the viewer, invite them to reach out, and SAY the contact details aloud if provided (e.g. "Call us at [phone] or visit [website] with any questions"). If a key value like coverage/policy amount exists, you may restate it once as reassurance.
+- The slide will show the logo, contact info, and a thank-you — so the narration must MATCH that (a contact/CTA close), not introduce new topics.
+
+NARRATION ↔ SLIDE CORRESPONDENCE (every scene):
+- Each scene's narration must describe EXACTLY what is on that scene's slide — the same facts/numbers, nothing more, nothing less.
+- Never narrate a number that isn't shown on that slide, and never put a number on a slide the narration doesn't mention.
+- If the slide shows $176,204 as the death benefit, the narration for THAT scene talks about that figure — not a number from another scene.`
 
   const response = await claudeCreate({
     model: 'claude-sonnet-4-6',

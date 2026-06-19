@@ -20,6 +20,13 @@ export const v3SceneSchema = z.object({
   metrics: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
   /** Bullet points for the glass-panel slide layout. Each may carry a number. */
   bullets: z.array(z.object({ text: z.string(), value: z.string().optional() })).optional(),
+  /** When present, this scene renders the branded ClosingCard (contact + logo). */
+  closing: z.object({
+    headline: z.string().optional(),
+    cta: z.string().optional(),
+    value: z.object({ label: z.string(), value: z.string() }).optional(),
+    contact: z.object({ phone: z.string().optional(), email: z.string().optional(), website: z.string().optional() }).optional(),
+  }).optional(),
 })
 
 export const v3Schema = z.object({

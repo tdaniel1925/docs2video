@@ -970,7 +970,7 @@ function v3Theme(brandAccents) {
 }
 
 app.post('/render-v3', authCheck, async (req, res) => {
-  const { videoId, userId, voiceId, theme, brandName, brandAccents, logo, scenes, contactLine, musicUrl, musicPrompt, aiMusic } = req.body || {}
+  const { videoId, userId, voiceId, theme, brandName, brandAccents, logo, scenes, contactLine, contact, closingValue, musicUrl, musicPrompt, aiMusic } = req.body || {}
   if (!videoId || !Array.isArray(scenes) || scenes.length === 0) {
     return res.status(400).json({ error: 'Missing videoId or scenes' })
   }
@@ -1060,9 +1060,18 @@ app.post('/render-v3', authCheck, async (req, res) => {
         const textBullets = (Array.isArray(s.bullets) ? s.bullets : []).slice(0, 2).map((b) => ({ text: String(b) }))
         const metricBullets = sceneMetrics.map((x) => ({ text: x.label, value: x.value }))
         const bullets = !isEnd ? [...metricBullets, ...textBullets].slice(0, 4) : undefined
-        // Closing scene shows the contact line as its body (item 6: contact on end card).
-        const body = (isLast && contactLine) ? contactLine : s.bullets?.[0]
-        outScenes.push({ title: s.title || '', body, ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement, ...(bullets && bullets.length ? { bullets } : {}) })
+        // Last scene = branded CLOSING CARD: logo + company + contact + value.
+        let closing
+        if (isLast) {
+          const hasContact = contact && (contact.phone || contact.email || contact.website)
+          closing = {
+            headline: s.title || 'Thank You',
+            cta: s.bullets?.[0] || 'Reach out with any questions — we\'re here to help.',
+            ...(closingValue ? { value: closingValue } : {}),
+            ...(hasContact ? { contact } : {}),
+          }
+        }
+        outScenes.push({ title: s.title || '', ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement, ...(bullets && bullets.length ? { bullets } : {}), ...(closing ? { closing } : {}) })
       }
     }
 

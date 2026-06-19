@@ -2,6 +2,7 @@ import { AbsoluteFill, Series, Audio, staticFile, useCurrentFrame, interpolate, 
 import type { V3Props, V3Scene } from './schema'
 import { FullScreenScene, type Placement } from './FullScreenScene'
 import { SlidePanelScene } from './SlidePanelScene'
+import { ClosingCard } from './ClosingCard'
 import { LogoWatermark, type LogoSource } from '../components/infographic/BrandLogo'
 import { FONTS, type Theme } from '../tokens'
 
@@ -77,12 +78,25 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, sce
           if (sc.metric && (placement === 'bottom' || placement === 'left')) placement = 'top'
           const kenBurns = sc.kenBurns ?? KEN[i % KEN.length]
           // Scenes WITH bullets use the PowerPoint-style glass-panel layout;
-          // statement/hook/CTA scenes (no bullets) stay full-bleed cinematic.
+          // a scene with a `closing` payload renders the branded contact card;
+          // statement/hook scenes (no bullets) stay full-bleed cinematic.
           const hasBullets = Array.isArray(sc.bullets) && sc.bullets.length > 0
           return (
             <Series.Sequence key={i} durationInFrames={sc.durationInFrames}>
               <Transition d={sc.durationInFrames} variant={i}>
-                {hasBullets ? (
+                {sc.closing ? (
+                  <ClosingCard
+                    image={sc.image}
+                    theme={theme}
+                    brandName={brandName}
+                    logo={logo as LogoSource}
+                    headline={sc.closing.headline || sc.title}
+                    cta={sc.closing.cta || sc.body}
+                    value={sc.closing.value}
+                    contact={sc.closing.contact}
+                    durationInFrames={sc.durationInFrames}
+                  />
+                ) : hasBullets ? (
                   <SlidePanelScene
                     image={sc.image}
                     eyebrow={sc.eyebrow}
