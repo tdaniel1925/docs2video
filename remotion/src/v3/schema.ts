@@ -14,8 +14,10 @@ export const v3SceneSchema = z.object({
   kenBurns: z.enum(['in', 'left', 'right']).optional(),
   audio: z.string().optional(),      // public/ path (TTS)
   durationInFrames: z.number(),
-  /** Optional key metric shown as a cinematic lower-third callout over the image. */
+  /** Optional key metric(s) shown as cinematic lower-third callouts over the
+   *  image. `metric` (single) kept for back-compat; `metrics` shows up to 3. */
   metric: z.object({ label: z.string(), value: z.string() }).optional(),
+  metrics: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
 })
 
 export const v3Schema = z.object({

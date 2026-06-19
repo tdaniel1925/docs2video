@@ -29,7 +29,7 @@ export function isLambdaConfigured(): boolean {
   return !!(FUNCTION && SERVE_URL && process.env.REMOTION_AWS_ACCESS_KEY_ID && process.env.REMOTION_AWS_SECRET_ACCESS_KEY)
 }
 
-const LOOK = 'Cinematic film still, 35mm anamorphic, shallow depth of field, dramatic low-key lighting with rim light and volumetric haze, muted moody grade, subtle grain, premium editorial mood. Photoreal, NOT illustration. 16:9, fills 1920x1080. ABSOLUTELY NO text, words, letters, numbers, charts, or logos.'
+const LOOK = 'Premium corporate cinematic photography, BRIGHT and optimistic. Clean modern professional settings (contemporary offices, confident professionals, modern architecture, soft natural daylight, airy spaces). Polished commercial film look — shallow depth of field, gentle warm light, aspirational and trustworthy mood, crisp and high-end. Photoreal, NOT illustration. Stay strictly ON TOPIC for the described subject. AVOID: dark/gloomy/moody scenes, candlelight, dim interiors, lone figures staring out windows, antique/castle/vintage settings, heavy shadows, anything melancholy or artsy that distracts from a professional business story. 16:9, fills 1920x1080. ABSOLUTELY NO text, words, letters, numbers, charts, or logos.'
 
 const BUCKET = 'videos'
 
@@ -42,6 +42,25 @@ async function tts(text: string, voiceId: string): Promise<Buffer> {
   })
   if (!res.ok) throw new Error(`TTS ${res.status}`)
   return Buffer.from(await res.arrayBuffer())
+}
+
+/** Art-direct each scene (cinematographer step) — one Gemini-flash call returns
+ *  a bespoke, on-story image prompt per scene. Falls back to title prompts. */
+async function artDirectScenes(scenes: { title: string; narration: string }[]): Promise<string[]> {
+  const fallback = scenes.map((s) => `A real, professional business scene clearly illustrating: "${(s.title || s.narration || 'business concept').slice(0, 160)}".`)
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
+    const brief = scenes.map((s, i) => `${i}: ${s.title || ''} — ${(s.narration || '').slice(0, 160)}`).join('\n')
+    const sys = 'You are a cinematographer for a PREMIUM, BRIGHT, PROFESSIONAL corporate explainer video. For each numbered scene, write ONE specific photographic image prompt describing a real on-topic business scene: subject, modern setting, soft natural daylight, confident composition. Bright and optimistic, NEVER dark/moody/artsy/vintage. No text/logos. Return ONLY a JSON array of strings, one per scene, same order.'
+    const r = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: `${sys}\n\nSCENES:\n${brief}` }] }],
+    } as any)
+    const text = (r.candidates?.[0]?.content?.parts ?? []).map((p: any) => p.text || '').join('')
+    const arr = JSON.parse(text.slice(text.indexOf('['), text.lastIndexOf(']') + 1))
+    if (Array.isArray(arr) && arr.length === scenes.length) return arr.map((x: any, i: number) => String(x || fallback[i]))
+    return fallback
+  } catch { return fallback }
 }
 
 async function geminiBg(prompt: string): Promise<Buffer | null> {
@@ -87,6 +106,9 @@ export async function renderV3OnLambda(payload: V3Payload): Promise<void> {
   await admin.from('videos').update({ total_scenes: payload.scenes.length, preview_thumbs: [] }).eq('id', videoId).then(() => {}, () => {})
   await setProgress(25, 'Generating narration...')
 
+  // Art-direct all scenes up front (cinematographer step) for bespoke on-story prompts.
+  const artPrompts = await artDirectScenes(payload.scenes.map((s) => ({ title: s.title, narration: s.narration })))
+
   // 1) Build scenes with PUBLIC asset URLs (Lambda fetches these over HTTP).
   const previews: { idx: number; url: string }[] = []
   const outScenes: any[] = []
@@ -97,7 +119,8 @@ export async function renderV3OnLambda(payload: V3Payload): Promise<void> {
     const audioUrl = await uploadPublic(admin, `${userId}/${videoId}_a${i}.mp3`, audioBuf, 'audio/mpeg')
 
     await setProgress(30 + Math.round((i / payload.scenes.length) * 40), `Painting scene ${i + 1}/${payload.scenes.length}...`)
-    const imgPrompt = (s.title ? `A cinematic scene evoking: ${s.title}. ${s.narration || ''}` : (s.narration || 'abstract corporate background')).slice(0, 400)
+    // Use the art-directed per-scene prompt (cinematographer step).
+    const imgPrompt = artPrompts[i] || `A real, professional business scene clearly illustrating: "${(s.title || s.narration || 'business concept').slice(0, 180)}".`
     const imgBuf = await geminiBg(imgPrompt)
     let imageUrl: string | undefined
     if (imgBuf) {
@@ -106,13 +129,13 @@ export async function renderV3OnLambda(payload: V3Payload): Promise<void> {
       await admin.from('videos').update({ preview_thumbs: previews, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
     }
     const isEnd = i === 0 || i === payload.scenes.length - 1
-    const m = (s.metrics || []).find((x) => x && x.label && x.value && /\d/.test(x.value))
+    const sceneMetrics = (s.metrics || []).filter((x) => x && x.label && x.value && /\d/.test(x.value)).slice(0, 3)
     const placement = isEnd ? 'center' : ['bottom', 'left', 'right', 'bottom'][i % 4]
     outScenes.push({
       title: s.title || '', body: s.bullets?.[0],
       ...(imageUrl ? { image: imageUrl } : {}),
       audio: audioUrl, durationInFrames, placement,
-      ...(!isEnd && m ? { metric: { label: m.label, value: m.value } } : {}),
+      ...(!isEnd && sceneMetrics.length ? { metrics: sceneMetrics.map((x) => ({ label: x.label, value: x.value })) } : {}),
     })
   }
 

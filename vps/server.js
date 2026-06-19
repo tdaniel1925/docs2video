@@ -885,7 +885,7 @@ app.post('/process-logo', authCheck, async (req, res) => {
 // bundle + Dockerfile (needs the baked remotion/ project + Chrome).
 // ============================================================
 const REMOTION_DIR = process.env.REMOTION_DIR || '/app/remotion'
-const V3_LOOK = 'Cinematic film still, 35mm anamorphic, shallow depth of field, dramatic low-key lighting with rim light and volumetric haze, muted moody grade, subtle grain, premium editorial mood. Photoreal, NOT illustration. 16:9, fills 1920x1080. ABSOLUTELY NO text, words, letters, numbers, charts, or logos.'
+const V3_LOOK = 'Premium corporate cinematic photography, BRIGHT and optimistic. Clean modern professional settings (contemporary offices, confident professionals, modern architecture, soft natural daylight, airy spaces). Polished commercial film look — shallow depth of field, gentle warm light, aspirational and trustworthy mood, crisp and high-end. Photoreal, NOT illustration. Stay strictly ON TOPIC for the described subject. AVOID: dark/gloomy/moody scenes, candlelight, dim interiors, lone figures staring out windows, antique/castle/vintage settings, heavy shadows, anything melancholy or artsy that distracts from a professional business story. 16:9, fills 1920x1080. ABSOLUTELY NO text, words, letters, numbers, charts, or logos.'
 
 async function v3Tts(text, voiceId, outPath) {
   const OpenAI = require('openai')
@@ -896,6 +896,29 @@ async function v3Tts(text, voiceId, outPath) {
   await writeFile(outPath, Buffer.from(await resp.arrayBuffer()))
   const dur = await probeAudioDuration(outPath)
   return Math.round(((dur || 3) + 0.9) * 30)
+}
+
+// Art-direct each scene: ask Gemini-flash to write a SPECIFIC cinematic image
+// prompt per scene (subject, setting, lighting, camera) — like a film director.
+// This is what made the reference video's imagery good; deriving an image from
+// the bare title produces generic/off-story results. Returns string[] aligned to
+// scenes. Falls back to per-scene title prompts if the call fails.
+async function artDirectScenes(scenes) {
+  const fallback = scenes.map((s) => `A real, professional business scene clearly illustrating: "${(s.title || s.narration || 'business concept').slice(0, 160)}".`)
+  try {
+    const { GoogleGenAI } = require('@google/genai')
+    const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+    const brief = scenes.map((s, i) => `${i}: ${s.title || ''} — ${(s.narration || '').slice(0, 160)}`).join('\n')
+    const sys = `You are a cinematographer for a PREMIUM, BRIGHT, PROFESSIONAL corporate explainer video. For each numbered scene, write ONE specific, photographic image prompt describing a real on-topic business scene: subject, modern setting, soft natural daylight, confident composition. Bright and optimistic, NEVER dark/moody/artsy/vintage. No text/logos in the image. Return ONLY a JSON array of strings, one per scene, same order.`
+    const r = await g.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: `${sys}\n\nSCENES:\n${brief}` }] }],
+    })
+    const text = (r.candidates?.[0]?.content?.parts ?? []).map((p) => p.text || '').join('')
+    const arr = JSON.parse(text.slice(text.indexOf('['), text.lastIndexOf(']') + 1))
+    if (Array.isArray(arr) && arr.length === scenes.length) return arr.map((x, i) => String(x || fallback[i]))
+    return fallback
+  } catch { return fallback }
 }
 
 async function v3GeminiBg(prompt, outPath) {
@@ -997,6 +1020,10 @@ app.post('/render-v3', authCheck, async (req, res) => {
       } catch (e) { console.error(`[render-v3 ${videoId}] bg image failed: ${e.message}`) }
     }
 
+    // Art-direct all cinematic scenes up front (one Gemini-flash call) so each
+    // image gets a bespoke, on-story prompt instead of a generic title prompt.
+    const artPrompts = isInfo ? [] : await artDirectScenes(scenes)
+
     const outScenes = []
     for (let i = 0; i < scenes.length; i++) {
       const s = scenes[i]
@@ -1007,7 +1034,8 @@ app.post('/render-v3', authCheck, async (req, res) => {
       } else {
         await setProgress(30 + Math.round((i / scenes.length) * 40), `Painting scene ${i + 1}/${scenes.length}...`)
         const imgName = `r3-${videoId}-${i}.png`
-        const imgPrompt = (s.title ? `A cinematic scene evoking: ${s.title}. ${s.narration || ''}` : (s.narration || 'abstract corporate background')).slice(0, 400)
+        // Use the art-directed per-scene prompt (cinematographer step).
+        const imgPrompt = artPrompts[i] || `A real, professional business scene clearly illustrating: "${(s.title || s.narration || 'business concept').slice(0, 180)}".`
         let haveImg = false
         try {
           await v3GeminiBg(imgPrompt, join(pub, imgName))
@@ -1021,11 +1049,12 @@ app.post('/render-v3', authCheck, async (req, res) => {
         // Live filmstrip: the cinematic scene image IS a real preview.
         if (haveImg) await pushPreview(i, join(pub, imgName))
         const placement = (i === 0 || i === scenes.length - 1) ? 'center' : ['bottom', 'left', 'right', 'bottom'][i % 4]
-        // Cinematic lower-third: the scene's headline metric, on non-cover/closing scenes.
+        // Cinematic lower-thirds: show ALL the scene's real numbers (up to 3) so
+        // important figures aren't dropped — e.g. $176k death benefit AND $10k/yr.
         const isEnd = i === 0 || i === scenes.length - 1
-        const m = (Array.isArray(s.metrics) ? s.metrics : []).find((x) => x && x.label && x.value && /\d/.test(x.value))
-        const metric = (!isEnd && m) ? { label: m.label, value: m.value } : undefined
-        outScenes.push({ title: s.title || '', body: s.bullets?.[0], ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement, ...(metric ? { metric } : {}) })
+        const sceneMetrics = (Array.isArray(s.metrics) ? s.metrics : []).filter((x) => x && x.label && x.value && /\d/.test(x.value)).slice(0, 3)
+        const metrics = !isEnd && sceneMetrics.length ? sceneMetrics.map((x) => ({ label: x.label, value: x.value })) : undefined
+        outScenes.push({ title: s.title || '', body: s.bullets?.[0], ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement, ...(metrics ? { metrics } : {}) })
       }
     }
 

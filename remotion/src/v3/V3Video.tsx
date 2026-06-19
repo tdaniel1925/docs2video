@@ -89,6 +89,7 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, sce
                   theme={theme}
                   durationInFrames={sc.durationInFrames}
                   metric={sc.metric}
+                  metrics={sc.metrics}
                 />
               </Transition>
               {sc.audio ? <Audio src={staticFile(sc.audio)} /> : null}

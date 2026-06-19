@@ -26,9 +26,11 @@ export const FullScreenScene: React.FC<{
   durationInFrames: number
   /** Ken Burns direction bias toward where the subject likely is. */
   kenBurns?: 'in' | 'left' | 'right'
-  /** Optional key metric → cinematic lower-third callout. */
+  /** Optional key metric(s) → cinematic lower-third callouts. `metrics` (array)
+   *  shows up to 3; `metric` (single) kept for back-compat. */
   metric?: { label: string; value: string }
-}> = ({ image, placement, eyebrow, title, body, accentWordIndex, theme, durationInFrames, kenBurns = 'in', metric }) => {
+  metrics?: { label: string; value: string }[]
+}> = ({ image, placement, eyebrow, title, body, accentWordIndex, theme, durationInFrames, kenBurns = 'in', metric, metrics }) => {
   const frame = useCurrentFrame()
   // Speed-ramped Ken Burns: ease-in-out so the camera ACCELERATES through the
   // middle and settles — cinematic motion is about acceleration, not linear drift.
@@ -99,8 +101,11 @@ export const FullScreenScene: React.FC<{
         </div>
       </AbsoluteFill>
 
-      {/* Cinematic data callout — key number over the film image. */}
-      {metric ? <LowerThird label={metric.label} value={metric.value} theme={theme} durationInFrames={durationInFrames} /> : null}
+      {/* Cinematic data callouts — key numbers over the film image (up to 3). */}
+      {(() => {
+        const mList = (metrics && metrics.length ? metrics : metric ? [metric] : [])
+        return mList.length ? <LowerThird metrics={mList} theme={theme} durationInFrames={durationInFrames} /> : null
+      })()}
 
       <FilmOverlay accent={accent} letterbox grain={0.07} />
     </AbsoluteFill>
