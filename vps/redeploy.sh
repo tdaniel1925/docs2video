@@ -28,6 +28,10 @@ echo "==> Sanity: key markers present on disk"
 grep -c "SlidePanelScene" "$DIR/remotion/src/v3/V3Video.tsx" >/dev/null && echo "   glass-panel: ok"
 grep -c "render-editorial" "$DIR/server.js" >/dev/null && echo "   editorial endpoint: ok"
 
+echo "==> Reclaiming disk (prune old images/cache so the build doesn't run out of space)"
+docker system prune -af >/dev/null 2>&1 || true
+df -h / | tail -1
+
 echo "==> Building (${BUILD_FLAG:-fast})"
 cd "$DIR"
 if [ "$BUILD_FLAG" = "--no-cache" ]; then docker compose build --no-cache; fi
