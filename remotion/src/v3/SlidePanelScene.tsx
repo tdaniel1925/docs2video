@@ -25,11 +25,14 @@ export const SlidePanelScene: React.FC<{
 }> = ({ image, eyebrow, title, bullets, accentWordIndex, theme, durationInFrames }) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
-  const t = interpolate(interpolate(frame, [0, durationInFrames], [0, 1], { extrapolateRight: 'clamp' }), [0, 1], [0, 1], { easing: Easing.inOut(Easing.cubic) })
   const accent = theme.accents[1] ?? theme.accents[0]
 
-  // Image (right) with a gentle Ken Burns.
-  const scale = 1.06 + t * 0.06
+  // Ken Burns — clearly visible: a stronger zoom + a slow horizontal drift so
+  // the exposed right side of the image actually MOVES (6% was imperceptible
+  // behind the panel). Linear t for steady, noticeable motion.
+  const tLin = interpolate(frame, [0, durationInFrames], [0, 1], { extrapolateRight: 'clamp' })
+  const scale = 1.08 + tLin * 0.14
+  const panX = interpolate(tLin, [0, 1], [2.5, -2.5])
 
   // Panel slides in from the left.
   const panelP = spring({ frame: frame - 4, fps, config: { damping: 18, stiffness: 90, mass: 1 } })
@@ -42,7 +45,7 @@ export const SlidePanelScene: React.FC<{
     <AbsoluteFill style={{ backgroundColor: theme.ink, overflow: 'hidden' }}>
       {/* Right: cinematic image, graded. */}
       {image ? (
-        <AbsoluteFill style={{ transform: `scale(${scale})` }}>
+        <AbsoluteFill style={{ transform: `scale(${scale}) translateX(${panX}%)` }}>
           <Img src={staticFile(image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </AbsoluteFill>
       ) : (
@@ -53,33 +56,33 @@ export const SlidePanelScene: React.FC<{
       <AbsoluteFill style={{ background: 'linear-gradient(90deg, rgba(4,7,12,0.92) 0%, rgba(4,7,12,0.72) 38%, transparent 62%)' }} />
 
       {/* The glass panel with title + bullets. */}
-      <AbsoluteFill style={{ flexDirection: 'column', justifyContent: 'center', padding: '0 0 0 120px' }}>
+      <AbsoluteFill style={{ flexDirection: 'column', justifyContent: 'center', padding: '0 0 0 110px' }}>
         <div style={{
-          width: 880, maxWidth: '52%', opacity: Math.min(1, panelP * 1.4), transform: `translateX(${panelX}px)`,
-          background: 'rgba(8,12,20,0.55)', backdropFilter: 'blur(12px)',
+          width: 1000, maxWidth: '56%', opacity: Math.min(1, panelP * 1.4), transform: `translateX(${panelX}px)`,
+          background: 'rgba(8,12,20,0.58)', backdropFilter: 'blur(14px)',
           border: '1px solid rgba(255,255,255,0.10)', borderRadius: 12,
-          padding: '46px 52px', display: 'flex', flexDirection: 'column', gap: 14,
+          padding: '60px 64px', display: 'flex', flexDirection: 'column',
         }}>
           {eyebrow ? (
-            <div style={{ opacity: ebP, fontFamily: FONTS.body, fontWeight: 800, letterSpacing: 6, fontSize: TYPE.label * 0.8, color: accent, textTransform: 'uppercase', marginBottom: 4 }}>
+            <div style={{ opacity: ebP, fontFamily: FONTS.body, fontWeight: 800, letterSpacing: 7, fontSize: TYPE.label * 0.95, color: accent, textTransform: 'uppercase', marginBottom: 18 }}>
               {eyebrow}
             </div>
           ) : null}
 
-          <KineticText text={title} startFrame={10} fontFamily={FONTS.display} fontWeight={900} fontSize={TYPE.title * 0.7} color="#FFFFFF" accentColor={accent} accentWordIndex={accentWordIndex} align="left" lineHeight={1.02} />
+          <KineticText text={title} startFrame={10} fontFamily={FONTS.display} fontWeight={900} fontSize={TYPE.title * 0.92} color="#FFFFFF" accentColor={accent} accentWordIndex={accentWordIndex} align="left" lineHeight={1.06} />
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 22 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24, marginTop: 40 }}>
             {list.map((b, i) => {
               const start = 24 + i * Math.round(0.18 * fps)
               const rise = spring({ frame: frame - start, fps, config: { damping: 16, stiffness: 120, mass: 0.8 } })
               const countP = interpolate(frame, [start, start + Math.round(1.0 * fps)], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
               return (
-                <div key={i} style={{ opacity: Math.min(1, rise * 1.5), transform: `translateY(${(1 - rise) * 18}px)`, display: 'flex', alignItems: 'baseline', gap: 16 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: 3, background: accent, flexShrink: 0, transform: 'translateY(-2px)', boxShadow: `0 0 10px ${accent}` }} />
-                  <div style={{ fontFamily: FONTS.body, fontWeight: 500, fontSize: TYPE.body * 0.6, color: '#EAF1FB', lineHeight: 1.3, flex: 1 }}>
+                <div key={i} style={{ opacity: Math.min(1, rise * 1.5), transform: `translateY(${(1 - rise) * 18}px)`, display: 'flex', alignItems: 'baseline', gap: 20 }}>
+                  <div style={{ width: 12, height: 12, borderRadius: 3, background: accent, flexShrink: 0, transform: 'translateY(-3px)', boxShadow: `0 0 10px ${accent}` }} />
+                  <div style={{ fontFamily: FONTS.body, fontWeight: 500, fontSize: TYPE.body * 0.82, color: '#EAF1FB', lineHeight: 1.35, flex: 1 }}>
                     {b.text}
                     {b.value ? (
-                      <span style={{ fontFamily: FONTS.display, fontWeight: 900, color: accent, marginLeft: 10, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontFamily: FONTS.display, fontWeight: 900, color: accent, marginLeft: 12, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                         {renderMetric(parseMetric(b.value), countP)}
                       </span>
                     ) : null}

@@ -77,7 +77,7 @@ export const EditorialVideo: React.FC<EditorialProps> = ({ masthead, runningTitl
         ))}
       </Series>
       {music ? (
-        <Audio src={staticFile(music)} volume={(f) => interpolate(f, [0, 30, total - 45, total], [0, 0.09, 0.09, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })} />
+        <Audio src={staticFile(music)} volume={(f) => interpolate(f, [0, 30, total - 45, total], [0, 0.036, 0.036, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })} />
       ) : null}
     </AbsoluteFill>
   )

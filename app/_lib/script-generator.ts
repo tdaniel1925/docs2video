@@ -716,7 +716,13 @@ FIELD RULES:
 - "slideData.bullets": 2-4 specific facts from the document to display as text. Omit for cover/closing slides.
 - "narration": what the speaker says — conversational, explains the data, does NOT just read the bullets. Must be SELF-CONTAINED: introduce the topic, explain it, and wrap up WITHOUT referencing other scenes.
 - "slidePrompt": visual concept only (e.g. "dark background with growth chart icon") — NOT content text
-- "beat": one of "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"`
+- "beat": one of "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"
+
+OPENING SCENE (scene 1, beat "hook") — IMPORTANT:
+- Start warm and friendly, like a real person greeting the viewer. Briefly welcome them, say in one sentence WHAT this video is about, and WHY it matters to them — THEN transition into the content.
+- Example tone: "Welcome — in the next couple of minutes, we'll walk through your [topic] and what it means for you. Let's get started." (adapt to the real topic; never invent facts).
+- Do NOT just dive straight into data on scene 1. The viewer should feel oriented and welcomed first.
+- The narrator still never states their own name. Keep it natural, friendly, and relatable — not stiff or corporate.`
 
   const response = await claudeCreate({
     model: 'claude-sonnet-4-6',

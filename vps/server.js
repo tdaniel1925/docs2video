@@ -1163,7 +1163,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
           const mixedPath = join(REMOTION_DIR, 'out', `${videoId}-mixed.mp4`)
           await new Promise((resolve, reject) => {
             execFile('ffmpeg', ['-y', '-i', outFile, '-stream_loop', '-1', '-i', musicPath,
-              '-filter_complex', '[0:a]volume=1.0[narr];[1:a]volume=0.06,afade=t=in:st=0:d=2[bg];[narr][bg]amix=inputs=2:duration=first:dropout_transition=3[a]',
+              '-filter_complex', '[0:a]volume=1.0[narr];[1:a]volume=0.024,afade=t=in:st=0:d=2[bg];[narr][bg]amix=inputs=2:duration=first:dropout_transition=3[a]',
               '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', mixedPath],
               { timeout: 120000 }, (e) => e ? reject(e) : resolve())
           })
@@ -1272,7 +1272,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
         else { const { GoogleGenAI } = require('@google/genai'); const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY }); const mr = await g.models.generateContent({ model: 'lyria-3-pro-preview', contents: musicPrompt || 'Refined, understated instrumental background music for a premium report. No vocals. Fade out.' }).catch(() => null); const part = mr && (mr.candidates?.[0]?.content?.parts ?? []).find((p) => p.inlineData && (p.inlineData.mimeType?.includes('audio') || p.inlineData.mimeType?.includes('mpeg'))); if (part) { await writeFile(musicPath, Buffer.from(part.inlineData.data, 'base64')); have = true } }
         if (have) {
           const mixed = join(REMOTION_DIR, 'out', `${videoId}-mixed.mp4`)
-          await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-i', outFile, '-stream_loop', '-1', '-i', musicPath, '-filter_complex', '[0:a]volume=1.0[n];[1:a]volume=0.05,afade=t=in:st=0:d=2[b];[n][b]amix=inputs=2:duration=first:dropout_transition=3[a]', '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', mixed], { timeout: 120000 }, (e) => e ? reject(e) : resolve()))
+          await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-i', outFile, '-stream_loop', '-1', '-i', musicPath, '-filter_complex', '[0:a]volume=1.0[n];[1:a]volume=0.02,afade=t=in:st=0:d=2[b];[n][b]amix=inputs=2:duration=first:dropout_transition=3[a]', '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', mixed], { timeout: 120000 }, (e) => e ? reject(e) : resolve()))
           await rm(outFile, { force: true }).catch(() => {}); outFile = mixed
         }
       } catch (e) { console.error(`[render-editorial ${videoId}] music skipped: ${e.message}`) }
