@@ -10,6 +10,7 @@ import { V3Video, v3Total } from './v3/V3Video'
 import { Storyboard87, SB87_FRAMES } from './v3/Storyboard87'
 import { InfographicDemo, INFO_DEMO_FRAMES } from './components/infographic/InfographicDemo'
 import { InfographicVideo, infographicSchema, infoTotal, INFO_DEFAULT, type InfographicProps } from './components/infographic/InfographicVideo'
+import { EditorialVideo, editorialSchema, editorialTotal, EDITORIAL_DEFAULT, type EditorialProps } from './editorial/EditorialVideo'
 import { resolveTheme } from './v3/styling'
 import { v3Schema, type V3Props } from './v3/schema'
 import { EXECUTIVE_LIGHT } from './tokens'
@@ -141,6 +142,26 @@ export const RemotionRoot: React.FC = () => {
           }
         } catch {}
         return { props, durationInFrames: infoTotal(props), fps: FPS, width: 1920, height: 1080 }
+      }}
+    />
+    <Composition
+      id="EditorialVideo"
+      component={EditorialVideo}
+      schema={editorialSchema}
+      defaultProps={EDITORIAL_DEFAULT as EditorialProps}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={120}
+      calculateMetadata={async ({ props }) => {
+        try {
+          const res = await fetch(staticFile('editorial.json'))
+          if (res.ok) {
+            const data = (await res.json()) as EditorialProps
+            return { props: data, durationInFrames: editorialTotal(data), fps: FPS, width: 1920, height: 1080 }
+          }
+        } catch {}
+        return { props, durationInFrames: editorialTotal(props), fps: FPS, width: 1920, height: 1080 }
       }}
     />
     <Composition
