@@ -26,6 +26,46 @@
   /* Extended palette */
   --surface: #EDF1F5;
   --surface-raised: #E4EAF0;
+
+  /* Status / feedback colors (were hardcoded hex across pages) */
+  --success: #2A9AAD;
+  --success-bg: #E3F5F8;
+  --warning: #F5A623;
+  --warning-bg: #FFF3DD;
+  --error: #C03A1F;
+  --error-bg: #FCEAE6;
+  --error-text: #B91C1C;
+
+  /* Spacing scale — use these instead of magic numbers (8px rhythm) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Type scale */
+  --font-xs: 12px;
+  --font-sm: 13px;
+  --font-base: 14px;
+  --font-md: 15px;
+  --font-lg: 18px;
+  --font-xl: 22px;
+  --font-2xl: 28px;
+  --font-3xl: 36px;
+  --font-4xl: 48px;
+
+  /* Radius scale (house rule: max 10px) */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-pill: 10px;   /* deliberately capped at 10px — no real pills */
+
+  /* Elevation */
+  --shadow-sm: 0 1px 3px rgba(27,58,92,0.06);
+  --shadow: 0 4px 16px rgba(27,58,92,0.08);
+  --shadow-lg: 0 12px 40px rgba(27,58,92,0.12);
 }
 
 @theme inline {
@@ -49,6 +89,13 @@
   --color-orange-cta: var(--orange-cta);
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-error: var(--error);
+  --color-error-bg: var(--error-bg);
+  --color-error-text: var(--error-text);
   --font-sans: 'Plus Jakarta Sans', -apple-system, sans-serif;
   --font-serif: 'Instrument Serif', serif;
 }
@@ -331,6 +378,35 @@ body {
 }
 .card:hover { border-color: var(--border); }
 .card-clickable:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,0,0,0.06); }
+/* Card density variants — use instead of ad-hoc padding per page. */
+.card-compact { padding: var(--space-5); }
+.card-spacious { padding: var(--space-7); }
+/* settings-card was used 66x with no definition — centralize it here. */
+.settings-card {
+  background: white;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  transition: all 0.2s ease;
+}
+
+/* ============= BADGES ============= */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.badge-success { background: var(--success-bg); color: var(--success); }
+.badge-warning { background: var(--warning-bg); color: var(--warning); }
+.badge-error   { background: var(--error-bg);   color: var(--error-text); }
+.badge-neutral { background: var(--surface);    color: var(--ink-soft); }
+.badge-mint    { background: var(--sky);        color: var(--mint-darker); }
 
 /* ============= SECTION HEADERS ============= */
 .section-eyebrow {
