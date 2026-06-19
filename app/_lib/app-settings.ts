@@ -8,7 +8,7 @@
  */
 import { createAdminClient } from './supabase/admin'
 
-export type AppSettingKey = 'video_engine_v3'
+export type AppSettingKey = 'video_engine_v3' | 'video_render_target'
 
 const TTL_MS = 30_000
 type CacheEntry = { value: string | null; at: number }

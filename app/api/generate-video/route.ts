@@ -8,7 +8,7 @@ import { sendNotification, createJob, updateJobProgress } from '../../_lib/notif
 import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { isAdmin } from '../../_lib/admin'
-import { getFlag } from '../../_lib/app-settings'
+import { getFlag, getSetting } from '../../_lib/app-settings'
 import { buildV3Payload } from '../../_lib/v3-render'
 import { isLambdaConfigured, renderV3OnLambda } from '../../_lib/v3-lambda'
 import { waitUntil } from '@vercel/functions'
@@ -193,6 +193,9 @@ export async function POST(request: Request) {
   // V3 (Remotion: cinematic / infographic) — toggled from admin back office,
   // DB-backed so it flips without a redeploy. Read once per request.
   const useV3 = await getFlag('video_engine_v3')
+  // Render target: 'auto' (prefer Lambda if configured, else VPS), 'lambda'
+  // (force Lambda), or 'vps' (force VPS). Set in admin Settings. Default 'auto'.
+  const renderTarget = (await getSetting('video_render_target')) || 'auto'
 
   // --- GUARD: Duplicate submission prevention ---
   // In-memory set = fast same-instance check. DB compare-and-set below is the
@@ -841,8 +844,11 @@ export async function POST(request: Request) {
       // PREFERRED: render on Remotion Lambda (fast, parallel) when configured.
       // Runs in the background (waitUntil) — generates assets, renders, finalizes
       // the row. Falls back to the VPS path below if Lambda env isn't set.
-      if (isLambdaConfigured()) {
-        console.log(`[video ${videoId}] V3 via Lambda`)
+      // Choose renderer per the admin setting. 'vps' forces the VPS path below;
+      // 'lambda'/'auto' use Lambda when it's configured (else fall back to VPS).
+      const wantLambda = renderTarget !== 'vps' && isLambdaConfigured()
+      if (wantLambda) {
+        console.log(`[video ${videoId}] V3 via Lambda (target=${renderTarget})`)
         waitUntil((async () => {
           try {
             await renderV3OnLambda(v3Payload)

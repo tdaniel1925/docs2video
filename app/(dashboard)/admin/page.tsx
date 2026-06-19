@@ -172,7 +172,7 @@ export default function AdminPage() {
       if (r.ok) setSettings(await r.json())
     } catch { /* non-fatal */ }
   }
-  async function saveSetting(key: string, value: boolean) {
+  async function saveSetting(key: string, value: boolean | string) {
     setBusy(key)
     setSettings(s => ({ ...s, [key]: String(value) })) // optimistic
     try {
@@ -1381,6 +1381,27 @@ export default function AdminPage() {
             >
               {busy === 'video_engine_v3' ? '…' : settings.video_engine_v3 === 'true' ? 'ON' : 'OFF'}
             </button>
+          </div>
+
+          {/* Render target: where V3 videos render */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 16px', border: '1px solid var(--border)', borderRadius: 10, marginTop: 12 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>V3 render target</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 2 }}>
+                Where V3 videos render. <b>Auto</b> = Lambda if configured, else VPS. <b>Lambda</b> = fast cloud (needs AWS). <b>VPS</b> = the server (slower, no AWS limits).
+              </div>
+            </div>
+            <select
+              value={settings.video_render_target || 'auto'}
+              disabled={busy === 'video_render_target'}
+              onChange={(e) => saveSetting('video_render_target', e.target.value)}
+              className="input"
+              style={{ width: 130 }}
+            >
+              <option value="auto">Auto</option>
+              <option value="lambda">Lambda</option>
+              <option value="vps">VPS</option>
+            </select>
           </div>
         </div>
       )}
