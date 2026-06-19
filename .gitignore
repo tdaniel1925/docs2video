@@ -77,3 +77,6 @@ vps-*.sh
 
 # Generated teaser assets
 teaser-output/
+
+# Local design-template references (not app code)
+_review/
