@@ -177,7 +177,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
     // Render with Remotion (Chrome headless). --props not needed: the comps
     // auto-load public/<file>.json via calculateMetadata.
     await new Promise((resolve, reject) => {
-      execFile('npx', ['remotion', 'render', COMP, outFile, '--log=error', '--concurrency=80%', '--gl=swiftshader', '--image-format=jpeg'],
+      execFile('npx', ['remotion', 'render', COMP, outFile, '--log=error', '--concurrency=100%', '--gl=swiftshader', '--image-format=jpeg'],
         { cwd: REMOTION_DIR, timeout: 30 * 60 * 1000, maxBuffer: 1024 * 1024 * 32, env: { ...process.env } },
         (err, stdout, stderr) => err ? reject(new Error(`remotion render: ${(stderr || err.message || '').slice(0, 300)}`)) : resolve())
     })

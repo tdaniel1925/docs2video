@@ -1062,12 +1062,11 @@ app.post('/render-v3', authCheck, async (req, res) => {
     // (otherwise it parks at 72% for minutes). Map rendered-frames -> 72..89%.
     await new Promise((resolve, reject) => {
       const { spawn } = require('child_process')
-      // --concurrency=80%: render frames across most cores (box resized to ~8
-      // cores / 16GB, dedicated to video — leaves a little headroom).
-      // --gl=swiftshader is the reliable headless GL backend in Docker.
-      // --image-format=jpeg speeds up frame capture with no visible quality loss.
+      // --concurrency=100%: box is dedicated to video, use every core for max
+      // render speed. --gl=swiftshader is the reliable headless GL backend in
+      // Docker. --image-format=jpeg speeds frame capture with no visible loss.
       const child = spawn('npx', ['remotion', 'render', COMP, outFile,
-        '--log=info', '--concurrency=80%', '--gl=swiftshader', '--image-format=jpeg'],
+        '--log=info', '--concurrency=100%', '--gl=swiftshader', '--image-format=jpeg'],
         { cwd: REMOTION_DIR, env: { ...process.env } })
       let stderrBuf = ''
       let lastPct = 72, lastWrite = 0
