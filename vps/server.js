@@ -1209,6 +1209,96 @@ app.post('/render-v3', authCheck, async (req, res) => {
 })
 
 // ============================================================
+// EDITORIAL RENDERER — EPOCH magazine style (EditorialVideo composition).
+// TTS per scene + a framed Gemini image only for scenes that want one
+// (cover/lede). Writes public/editorial.json, renders, uploads. Music optional.
+// ============================================================
+app.post('/render-editorial', authCheck, async (req, res) => {
+  const { videoId, userId, voiceId, masthead, runningTitle, brandColor, scenes, musicUrl, musicPrompt, aiMusic } = req.body || {}
+  if (!videoId || !Array.isArray(scenes) || scenes.length === 0) {
+    return res.status(400).json({ error: 'Missing videoId or scenes' })
+  }
+  res.json({ success: true })
+
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+  const setProgress = (pct, detail) => sb.from('videos').update({ progress_pct: pct, progress_detail: detail, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
+  const pub = join(REMOTION_DIR, 'public')
+  let outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
+
+  try {
+    await mkdir(pub, { recursive: true }); await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
+    console.log(`[render-editorial ${videoId}] ${scenes.length} scenes`)
+    await sb.from('videos').update({ total_scenes: scenes.length, preview_thumbs: [] }).eq('id', videoId).then(() => {}, () => {})
+    await setProgress(25, 'Writing your report...')
+
+    const out = []
+    for (let i = 0; i < scenes.length; i++) {
+      const s = scenes[i]
+      const audioName = `ed-${videoId}-${i}.mp3`
+      const durationInFrames = await v3Tts(s.narration || s.title || ' ', voiceId, join(pub, audioName))
+      let image
+      if (s.wantsImage) {
+        await setProgress(30 + Math.round((i / scenes.length) * 45), `Composing page ${i + 1}/${scenes.length}...`)
+        const imgName = `ed-${videoId}-${i}.png`
+        const prompt = `A refined, editorial, professional photograph illustrating: "${(s.title || s.kicker || 'business concept').slice(0,160)}". Magazine-quality, tasteful, on-topic, NO text or logos in the image.`
+        try { await v3GeminiBg(prompt, join(pub, imgName)); await readFile(join(pub, imgName)); image = imgName } catch (e) { console.error(`[render-editorial ${videoId}] image ${i} failed: ${e.message}`) }
+      }
+      out.push({
+        archetype: s.archetype, kicker: s.kicker, title: s.title || '', dek: s.dek, body: s.body,
+        quote: s.quote, attribution: s.attribution, items: s.items, metrics: s.metrics,
+        ...(image ? { image } : {}), audio: audioName, durationInFrames,
+      })
+    }
+
+    await writeFile(join(pub, 'editorial.json'), JSON.stringify({ masthead, runningTitle, brandColor, scenes: out }))
+    await setProgress(72, 'Rendering...')
+    await new Promise((resolve, reject) => {
+      const { spawn } = require('child_process')
+      const child = spawn('npx', ['remotion', 'render', 'EditorialVideo', outFile, '--log=info', '--concurrency=100%', '--gl=swiftshader', '--image-format=jpeg'], { cwd: REMOTION_DIR, env: { ...process.env } })
+      let err = '', lastPct = 72, lastW = 0
+      const onChunk = (b) => { const x = b.toString(); err = (err + x).slice(-2000); const m = [...x.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const d = +m[1], tot = +m[2]; if (tot > 0 && d <= tot) { const p = 72 + Math.round((d / tot) * 17); const now = Date.now(); if (p > lastPct && now - lastW > 1500) { lastPct = p; lastW = now; setProgress(p, `Rendering — frame ${d.toLocaleString()} of ${tot.toLocaleString()}`) } } } }
+      child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
+      const kt = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout')) }, 30 * 60 * 1000)
+      child.on('error', (e) => { clearTimeout(kt); reject(new Error(`render: ${e.message}`)) })
+      child.on('close', (c) => { clearTimeout(kt); c === 0 ? resolve() : reject(new Error(`render exit ${c}: ${err.slice(-300)}`)) })
+    })
+
+    // Optional music mix (reuses the same Lyria + ffmpeg path as /render-v3).
+    if (musicUrl || aiMusic || musicPrompt) {
+      try {
+        await setProgress(88, 'Adding music...')
+        const musicPath = join(REMOTION_DIR, 'out', `${videoId}-music.mp3`); let have = false
+        if (musicUrl) { const r = await fetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' }); if (r.ok) { await writeFile(musicPath, Buffer.from(await r.arrayBuffer())); have = true } }
+        else { const { GoogleGenAI } = require('@google/genai'); const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY }); const mr = await g.models.generateContent({ model: 'lyria-3-pro-preview', contents: musicPrompt || 'Refined, understated instrumental background music for a premium report. No vocals. Fade out.' }).catch(() => null); const part = mr && (mr.candidates?.[0]?.content?.parts ?? []).find((p) => p.inlineData && (p.inlineData.mimeType?.includes('audio') || p.inlineData.mimeType?.includes('mpeg'))); if (part) { await writeFile(musicPath, Buffer.from(part.inlineData.data, 'base64')); have = true } }
+        if (have) {
+          const mixed = join(REMOTION_DIR, 'out', `${videoId}-mixed.mp4`)
+          await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-i', outFile, '-stream_loop', '-1', '-i', musicPath, '-filter_complex', '[0:a]volume=1.0[n];[1:a]volume=0.05,afade=t=in:st=0:d=2[b];[n][b]amix=inputs=2:duration=first:dropout_transition=3[a]', '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', mixed], { timeout: 120000 }, (e) => e ? reject(e) : resolve()))
+          await rm(outFile, { force: true }).catch(() => {}); outFile = mixed
+        }
+      } catch (e) { console.error(`[render-editorial ${videoId}] music skipped: ${e.message}`) }
+    }
+
+    await setProgress(90, 'Uploading...')
+    const buf = await readFile(outFile)
+    const path = `${userId}/${videoId}.mp4`
+    await sb.storage.from('videos').upload(path, buf, { contentType: 'video/mp4', upsert: true })
+    const url = sb.storage.from('videos').getPublicUrl(path).data.publicUrl
+    const thumb = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
+    await new Promise((resolve) => execFile('ffmpeg', ['-y', '-i', outFile, '-vframes', '1', thumb], { timeout: 30000 }, () => resolve()))
+    let thumbUrl = null
+    try { const tb = await readFile(thumb); await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true }); thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl } catch {}
+    await sb.from('videos').update({ status: 'completed', video_url: url, ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}), progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString() }).eq('id', videoId)
+    console.log(`[render-editorial ${videoId}] DONE -> ${url}`)
+  } catch (err) {
+    console.error(`[render-editorial ${videoId}] error:`, err.message)
+    reportError({ source: 'render-editorial', videoId, userId, message: err.message }).catch(() => {})
+    await sb.from('videos').update({ status: 'failed', error_message: 'Video rendering failed. Your credits were refunded.', progress_detail: null }).eq('id', videoId).then(() => {}, () => {})
+  } finally {
+    try { const { readdir, unlink } = require('fs/promises'); for (const f of await readdir(pub)) if (f.startsWith(`ed-${videoId}-`)) await unlink(join(pub, f)).catch(() => {}); await rm(outFile, { force: true }).catch(() => {}) } catch {}
+  }
+})
+
+// ============================================================
 // FULL PIPELINE — VPS does everything (no Vercel timeout risk)
 // ============================================================
 app.post('/generate', authCheck, async (req, res) => {

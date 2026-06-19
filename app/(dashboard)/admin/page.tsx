@@ -1403,6 +1403,26 @@ export default function AdminPage() {
               <option value="vps">VPS</option>
             </select>
           </div>
+
+          {/* Visual style for V3 videos */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 16px', border: '1px solid var(--border)', borderRadius: 10, marginTop: 12 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>V3 visual style</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 2 }}>
+                <b>Cinematic</b> = film backgrounds + kinetic text. <b>Editorial</b> = premium magazine layout (EPOCH), brand-colored, typographic.
+              </div>
+            </div>
+            <select
+              value={settings.video_style || 'cinematic'}
+              disabled={busy === 'video_style'}
+              onChange={(e) => saveSetting('video_style', e.target.value)}
+              className="input"
+              style={{ width: 130 }}
+            >
+              <option value="cinematic">Cinematic</option>
+              <option value="editorial">Editorial</option>
+            </select>
+          </div>
         </div>
       )}
     </div>

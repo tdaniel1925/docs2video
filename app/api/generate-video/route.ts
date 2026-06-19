@@ -11,6 +11,7 @@ import { isAdmin } from '../../_lib/admin'
 import { getFlag, getSetting } from '../../_lib/app-settings'
 import { buildV3Payload } from '../../_lib/v3-render'
 import { isLambdaConfigured, renderV3OnLambda } from '../../_lib/v3-lambda'
+import { buildEditorialPayload } from '../../_lib/editorial-render'
 import { waitUntil } from '@vercel/functions'
 import { logError } from '../../_lib/error-logger'
 import { validateScript } from '../../_lib/script-validator'
@@ -196,6 +197,8 @@ export async function POST(request: Request) {
   // Render target: 'auto' (prefer Lambda if configured, else VPS), 'lambda'
   // (force Lambda), or 'vps' (force VPS). Set in admin Settings. Default 'auto'.
   const renderTarget = (await getSetting('video_render_target')) || 'auto'
+  // Visual style for V3: 'cinematic' (default) or 'editorial' (EPOCH magazine).
+  const videoStyle = (await getSetting('video_style')) || 'cinematic'
 
   // --- GUARD: Duplicate submission prevention ---
   // In-memory set = fast same-instance check. DB compare-and-set below is the
@@ -825,6 +828,45 @@ export async function POST(request: Request) {
     // content (data-heavy → infographic, else cinematic); brand colors + logo
     // variants applied. Same ACK-timeout-safe handoff as v1.
     if (useV3) {
+      // EDITORIAL style: build magazine-archetype scenes and render the
+      // EditorialVideo composition on the VPS (/render-editorial). Separate from
+      // the cinematic path so neither affects the other.
+      if (videoStyle === 'editorial') {
+        console.log(`[video ${videoId}] V3 editorial style — structuring archetypes`)
+        await admin.from('videos').update({ progress_detail: 'Designing your report...', progress_pct: 16 }).eq('id', videoId)
+        const edPayload = await buildEditorialPayload({
+          videoId, userId: user.id, voiceId,
+          scenes, brand, brandName: effectiveBrandName,
+          extracted: policyData,
+          contactLine: contactLine || undefined,
+          musicUrl: musicUrl || undefined, musicPrompt: musicPrompt || undefined, aiMusic: aiMusic || undefined,
+        })
+        console.log(`[video ${videoId}] editorial: ${edPayload.scenes.length} scenes, archetypes=${edPayload.scenes.map(s => s.archetype).join(',')}`)
+        try {
+          const edRes = await fetch(`${VIDEO_ASSEMBLY_URL}/render-editorial`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
+            body: JSON.stringify(edPayload),
+            signal: AbortSignal.timeout(25000),
+          })
+          const edText = await edRes.text()
+          let edData: { success?: boolean; error?: string } | null = null
+          try { edData = JSON.parse(edText) } catch { /* non-JSON */ }
+          if (!edRes.ok || !edData?.success) throw new Error(edData?.error || `Editorial render error (HTTP ${edRes.status})`)
+          console.log(`[video ${videoId}] editorial accepted — rendering in background.`)
+          inFlightVideos.delete(videoId)
+          return NextResponse.json({ success: true, pipeline: 'editorial' })
+        } catch (edErr) {
+          const isAbort = edErr instanceof Error && (edErr.name === 'TimeoutError' || edErr.name === 'AbortError')
+          if (isAbort) {
+            await admin.from('videos').update({ status: 'assembling', progress_detail: 'Rendering your report...', progress_updated_at: new Date().toISOString() }).eq('id', videoId)
+            inFlightVideos.delete(videoId)
+            return NextResponse.json({ success: true, queued: true, pipeline: 'editorial' })
+          }
+          throw edErr
+        }
+      }
+
       console.log(`[video ${videoId}] V3 engine ON — building Remotion payload (${scenes.length} content scenes)`)
       await admin.from('videos').update({ progress_detail: 'Preparing cinematic render...', progress_pct: 18 }).eq('id', videoId)
 
