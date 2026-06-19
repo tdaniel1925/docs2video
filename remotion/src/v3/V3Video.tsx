@@ -1,6 +1,7 @@
 import { AbsoluteFill, Series, Audio, staticFile, useCurrentFrame, interpolate, Easing, spring, useVideoConfig } from 'remotion'
 import type { V3Props, V3Scene } from './schema'
 import { FullScreenScene, type Placement } from './FullScreenScene'
+import { SlidePanelScene } from './SlidePanelScene'
 import { LogoWatermark, type LogoSource } from '../components/infographic/BrandLogo'
 import { FONTS, type Theme } from '../tokens'
 
@@ -75,22 +76,37 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, sce
           // zone on metric scenes (otherwise they collide).
           if (sc.metric && (placement === 'bottom' || placement === 'left')) placement = 'top'
           const kenBurns = sc.kenBurns ?? KEN[i % KEN.length]
+          // Scenes WITH bullets use the PowerPoint-style glass-panel layout;
+          // statement/hook/CTA scenes (no bullets) stay full-bleed cinematic.
+          const hasBullets = Array.isArray(sc.bullets) && sc.bullets.length > 0
           return (
             <Series.Sequence key={i} durationInFrames={sc.durationInFrames}>
               <Transition d={sc.durationInFrames} variant={i}>
-                <FullScreenScene
-                  image={sc.image}
-                  placement={placement}
-                  kenBurns={kenBurns}
-                  eyebrow={sc.eyebrow}
-                  title={sc.title}
-                  body={sc.body}
-                  accentWordIndex={sc.accentWordIndex}
-                  theme={theme}
-                  durationInFrames={sc.durationInFrames}
-                  metric={sc.metric}
-                  metrics={sc.metrics}
-                />
+                {hasBullets ? (
+                  <SlidePanelScene
+                    image={sc.image}
+                    eyebrow={sc.eyebrow}
+                    title={sc.title}
+                    bullets={sc.bullets!}
+                    accentWordIndex={sc.accentWordIndex}
+                    theme={theme}
+                    durationInFrames={sc.durationInFrames}
+                  />
+                ) : (
+                  <FullScreenScene
+                    image={sc.image}
+                    placement={placement}
+                    kenBurns={kenBurns}
+                    eyebrow={sc.eyebrow}
+                    title={sc.title}
+                    body={sc.body}
+                    accentWordIndex={sc.accentWordIndex}
+                    theme={theme}
+                    durationInFrames={sc.durationInFrames}
+                    metric={sc.metric}
+                    metrics={sc.metrics}
+                  />
+                )}
               </Transition>
               {sc.audio ? <Audio src={staticFile(sc.audio)} /> : null}
             </Series.Sequence>

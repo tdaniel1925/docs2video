@@ -18,6 +18,8 @@ export const v3SceneSchema = z.object({
    *  image. `metric` (single) kept for back-compat; `metrics` shows up to 3. */
   metric: z.object({ label: z.string(), value: z.string() }).optional(),
   metrics: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
+  /** Bullet points for the glass-panel slide layout. Each may carry a number. */
+  bullets: z.array(z.object({ text: z.string(), value: z.string().optional() })).optional(),
 })
 
 export const v3Schema = z.object({

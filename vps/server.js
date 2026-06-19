@@ -885,7 +885,7 @@ app.post('/process-logo', authCheck, async (req, res) => {
 // bundle + Dockerfile (needs the baked remotion/ project + Chrome).
 // ============================================================
 const REMOTION_DIR = process.env.REMOTION_DIR || '/app/remotion'
-const V3_LOOK = 'Premium corporate cinematic photography, BRIGHT and optimistic. Clean modern professional settings (contemporary offices, confident professionals, modern architecture, soft natural daylight, airy spaces). Polished commercial film look — shallow depth of field, gentle warm light, aspirational and trustworthy mood, crisp and high-end. Photoreal, NOT illustration. Stay strictly ON TOPIC for the described subject. AVOID: dark/gloomy/moody scenes, candlelight, dim interiors, lone figures staring out windows, antique/castle/vintage settings, heavy shadows, anything melancholy or artsy that distracts from a professional business story. 16:9, fills 1920x1080. ABSOLUTELY NO text, words, letters, numbers, charts, or logos.'
+const V3_LOOK = 'High-end cinematic corporate photography with a RICH, MOODY, PREMIUM grade — like a polished Apple or Bloomberg commercial. Dramatic but expensive-looking lighting, deep controlled shadows, sophisticated color, shallow depth of field, strong sense of place. Confident and modern, NOT bright flat stock photography and NOT depressing. Specific, editorial, characterful real scenes — avoid generic stock-photo clichés. Stay strictly ON TOPIC for the described subject. AVOID: cheesy stock smiles, candlelit/antique/castle/vintage settings, lone sad figures, anything melancholy or off-story. Photoreal, NOT illustration. 16:9, fills 1920x1080. ABSOLUTELY NO text, words, letters, numbers, charts, or logos.'
 
 async function v3Tts(text, voiceId, outPath) {
   const OpenAI = require('openai')
@@ -909,7 +909,7 @@ async function artDirectScenes(scenes) {
     const { GoogleGenAI } = require('@google/genai')
     const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
     const brief = scenes.map((s, i) => `${i}: ${s.title || ''} — ${(s.narration || '').slice(0, 160)}`).join('\n')
-    const sys = `You are a cinematographer for a PREMIUM, BRIGHT, PROFESSIONAL corporate explainer video. For each numbered scene, write ONE specific, photographic image prompt describing a real on-topic business scene: subject, modern setting, soft natural daylight, confident composition. Bright and optimistic, NEVER dark/moody/artsy/vintage. No text/logos in the image. Return ONLY a JSON array of strings, one per scene, same order.`
+    const sys = `You are a cinematographer for a PREMIUM, high-end corporate explainer video with a RICH, MOODY, cinematic look (think Apple/Bloomberg commercial). For each numbered scene, write ONE specific, photographic image prompt describing a real ON-TOPIC business scene: subject, modern setting, dramatic expensive-looking lighting, deep controlled shadows, confident composition, strong sense of place. Sophisticated and modern — NOT bright flat stock photography, NOT cheesy stock smiles, NOT vintage/candlelit/sad. Be specific and editorial to avoid generic-stock clichés. No text/logos in the image. Return ONLY a JSON array of strings, one per scene, same order.`
     const r = await g.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: `${sys}\n\nSCENES:\n${brief}` }] }],
@@ -1054,10 +1054,15 @@ app.post('/render-v3', authCheck, async (req, res) => {
         const isEnd = i === 0 || i === scenes.length - 1
         const isLast = i === scenes.length - 1
         const sceneMetrics = (Array.isArray(s.metrics) ? s.metrics : []).filter((x) => x && x.label && x.value && /\d/.test(x.value)).slice(0, 3)
-        const metrics = !isEnd && sceneMetrics.length ? sceneMetrics.map((x) => ({ label: x.label, value: x.value })) : undefined
+        // Build PowerPoint-style bullets for middle scenes: each metric becomes a
+        // bullet "label: value", plus any text bullets without numbers. This is
+        // what triggers the glass-panel layout and shows ALL the numbers.
+        const textBullets = (Array.isArray(s.bullets) ? s.bullets : []).slice(0, 2).map((b) => ({ text: String(b) }))
+        const metricBullets = sceneMetrics.map((x) => ({ text: x.label, value: x.value }))
+        const bullets = !isEnd ? [...metricBullets, ...textBullets].slice(0, 4) : undefined
         // Closing scene shows the contact line as its body (item 6: contact on end card).
         const body = (isLast && contactLine) ? contactLine : s.bullets?.[0]
-        outScenes.push({ title: s.title || '', body, ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement, ...(metrics ? { metrics } : {}) })
+        outScenes.push({ title: s.title || '', body, ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement, ...(bullets && bullets.length ? { bullets } : {}) })
       }
     }
 
@@ -1141,13 +1146,18 @@ app.post('/render-v3', authCheck, async (req, res) => {
           const mr = await fetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' })
           if (mr.ok) { await writeFile(musicPath, Buffer.from(await mr.arrayBuffer())); haveMusic = true }
         } else {
-          // Lyria generate (same model the /generate pipeline uses).
+          // Lyria generate — EXACT same model + call shape as the /generate
+          // pipeline (lyria-3-pro-preview, contents as a string). The earlier
+          // 'models/lyria-002' id was wrong → silent failure → no music.
           const { GoogleGenAI } = require('@google/genai')
           const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
-          const mPrompt = musicPrompt || 'Warm, professional, uplifting corporate background music, subtle and modern, no vocals'
-          const mr = await g.models.generateContent({ model: 'models/lyria-002', contents: [{ role: 'user', parts: [{ text: mPrompt }] }] }).catch(() => null)
-          const part = mr && (mr.candidates?.[0]?.content?.parts ?? []).find((p) => p.inlineData)
-          if (part) { await writeFile(musicPath, Buffer.from(part.inlineData.data, 'base64')); haveMusic = true }
+          const mPrompt = musicPrompt || 'Create background music. Instrumental only, no vocals. Upbeat, polished, modern corporate presentation music — piano, light synth, soft percussion. Fade out at the end.'
+          console.log(`[render-v3 ${videoId}] generating music (lyria-3-pro-preview)...`)
+          const mr = await g.models.generateContent({ model: 'lyria-3-pro-preview', contents: mPrompt }).catch((e) => { console.error(`[render-v3 ${videoId}] lyria error: ${e.message}`); return null })
+          const parts = mr ? (mr.candidates?.[0]?.content?.parts ?? []) : []
+          const part = parts.find((p) => p.inlineData && (p.inlineData.mimeType?.includes('audio') || p.inlineData.mimeType?.includes('mpeg')))
+          if (part) { await writeFile(musicPath, Buffer.from(part.inlineData.data, 'base64')); haveMusic = true; console.log(`[render-v3 ${videoId}] music generated`) }
+          else console.warn(`[render-v3 ${videoId}] lyria returned no audio (${parts.length} parts)`)
         }
         if (haveMusic) {
           const mixedPath = join(REMOTION_DIR, 'out', `${videoId}-mixed.mp4`)
