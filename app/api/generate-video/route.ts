@@ -10,6 +10,8 @@ import type { ExtractedData } from '../../_lib/extract-types'
 import { isAdmin } from '../../_lib/admin'
 import { getFlag } from '../../_lib/app-settings'
 import { buildV3Payload } from '../../_lib/v3-render'
+import { isLambdaConfigured, renderV3OnLambda } from '../../_lib/v3-lambda'
+import { waitUntil } from '@vercel/functions'
 import { logError } from '../../_lib/error-logger'
 import { validateScript } from '../../_lib/script-validator'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
@@ -831,6 +833,25 @@ export async function POST(request: Request) {
         keyMetrics: (policyData as any)?.keyMetrics ?? [],
       })
       console.log(`[video ${videoId}] V3 theme=${v3Payload.theme}, logo=${v3Payload.logo ? 'yes' : 'no'}`)
+
+      // PREFERRED: render on Remotion Lambda (fast, parallel) when configured.
+      // Runs in the background (waitUntil) — generates assets, renders, finalizes
+      // the row. Falls back to the VPS path below if Lambda env isn't set.
+      if (isLambdaConfigured()) {
+        console.log(`[video ${videoId}] V3 via Lambda`)
+        waitUntil((async () => {
+          try {
+            await renderV3OnLambda(v3Payload)
+          } catch (err) {
+            const message = err instanceof Error ? err.message : 'Lambda render failed'
+            console.error(`[video ${videoId}] Lambda render CRASH: ${message}`)
+            await admin.from('videos').update({ status: 'failed', error_message: 'Video rendering failed. Your credits were refunded.', progress_detail: null }).eq('id', videoId)
+            if (deductedCost && deductedCost > 0) await refundVideoCredits(user.id, deductedCost, videoId).catch(() => {})
+          }
+        })())
+        inFlightVideos.delete(videoId)
+        return NextResponse.json({ success: true, pipeline: 'v3-lambda' })
+      }
 
       let v3Res: Response
       try {
