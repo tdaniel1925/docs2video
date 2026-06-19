@@ -1198,9 +1198,18 @@ app.post('/render-v3', authCheck, async (req, res) => {
       thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl
     } catch { /* thumbnail best-effort */ }
 
+    // Populate the SLIDES panel so viewers can jump to sections: per-scene
+    // thumbnail (preview), duration (for seek timestamps), and a chapter label.
+    const slideUrls = outScenes.map((_, i) => previews.find((p) => p.idx === i)?.url).filter(Boolean)
+    const slideDurations = outScenes.map((s) => Math.round((s.durationInFrames || 0) / 30 * 10) / 10)
+    // Labels come from the script (titles) the UI already reads — store them on
+    // the script too so the panel shows chapter names per thumbnail.
+    const scriptForPanel = outScenes.map((s) => ({ title: s.title || '', headline: s.title || '' }))
     await sb.from('videos').update({
       status: 'completed', video_url: urlData.publicUrl,
       ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
+      ...(slideUrls.length ? { slide_urls: slideUrls } : {}),
+      slide_durations: slideDurations, script: scriptForPanel,
       progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
     }).eq('id', videoId)
     console.log(`[render-v3 ${videoId}] DONE -> ${urlData.publicUrl}`)

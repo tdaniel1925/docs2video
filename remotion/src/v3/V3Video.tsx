@@ -131,7 +131,7 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, sce
       {music ? (
         <Audio src={staticFile(music)} volume={(f) => interpolate(f, [0, 30, total - 45, total], [0, 0.04, 0.04, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })} />
       ) : null}
-      {logo ? <LogoWatermark logo={logo as LogoSource} theme={theme} chip={logoChip} corner="bottom-right" height={50} /> : null}
+      {logo ? <LogoWatermark logo={logo as LogoSource} theme={theme} chip={logoChip} corner="bottom-right" height={96} opacity={0.92} /> : null}
     </AbsoluteFill>
   )
 }
