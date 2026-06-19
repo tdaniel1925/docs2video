@@ -63,13 +63,20 @@ function brandAccents(brand: Brand | null): string[] | undefined {
   return a.length ? a : undefined
 }
 
-/** Brand → logo variants for the render layer (real uploads only). */
+/** Brand → logo for the render layer (real uploads only).
+ *  Prefers processed light/dark variants; falls back to the raw uploaded logo
+ *  (logo_url / logo_file_url) so a logo STILL shows for brands created before the
+ *  variant pipeline, or when knockout produced no variants (item 7: logo missing).
+ *  The raw fallback is used on a frosted chip so it reads on the dark ground. */
 function brandLogo(brand: Brand | null): { light?: string; dark?: string; chip?: boolean } | undefined {
   if (!brand) return undefined
   const light = brand.logo_light_url || undefined
   const dark = brand.logo_dark_url || undefined
-  if (!light && !dark) return undefined
-  return { light, dark, chip: !!brand.logo_chip }
+  if (light || dark) return { light, dark, chip: !!brand.logo_chip }
+  // Fallback: raw uploaded logo, shown on a chip (we don't know its colors).
+  const raw = brand.logo_url || (brand as any).logo_file_url || undefined
+  if (raw) return { light: raw, dark: raw, chip: true }
+  return undefined
 }
 
 export type V3Payload = {
@@ -81,6 +88,12 @@ export type V3Payload = {
   brandAccents?: string[]
   logo?: { light?: string; dark?: string; chip?: boolean }
   industry?: string
+  /** Background music: a ready URL, or a prompt to generate (Lyria), or aiMusic flag. */
+  musicUrl?: string
+  musicPrompt?: string
+  aiMusic?: boolean
+  /** Contact line for the closing CTA scene (phone | email | website). */
+  contactLine?: string
   /** Per-scene content; the VPS generates images (cinematic) + narration + render. */
   scenes: {
     title: string
@@ -103,6 +116,10 @@ export function buildV3Payload(opts: {
   /** The document's real extracted metrics — used to BACKFILL scenes that the
    *  script left without stats, so they render as data viz instead of bare text. */
   keyMetrics?: { label: string; value: string; highlight?: boolean }[]
+  musicUrl?: string
+  musicPrompt?: string
+  aiMusic?: boolean
+  contactLine?: string
 }): V3Payload {
   // Cap cinematic scenes: each is a Gemini image + TTS + render. 17 scenes =
   // a 4-min video + 17 image calls (slow, rate-limit-prone). Keep the cover,
@@ -139,6 +156,10 @@ export function buildV3Payload(opts: {
     brandAccents: brandAccents(opts.brand),
     logo: brandLogo(opts.brand),
     industry: opts.industry || undefined,
+    musicUrl: opts.musicUrl || undefined,
+    musicPrompt: opts.musicPrompt || undefined,
+    aiMusic: opts.aiMusic || undefined,
+    contactLine: opts.contactLine || undefined,
     scenes: opts.scenes.map((s, idx) => {
       const stats = s.slideData?.stats ?? []
       let metrics = stats

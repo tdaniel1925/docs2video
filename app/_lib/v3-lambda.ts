@@ -129,14 +129,32 @@ export async function renderV3OnLambda(payload: V3Payload): Promise<void> {
       await admin.from('videos').update({ preview_thumbs: previews, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
     }
     const isEnd = i === 0 || i === payload.scenes.length - 1
+    const isLast = i === payload.scenes.length - 1
     const sceneMetrics = (s.metrics || []).filter((x) => x && x.label && x.value && /\d/.test(x.value)).slice(0, 3)
     const placement = isEnd ? 'center' : ['bottom', 'left', 'right', 'bottom'][i % 4]
+    // Closing scene shows the contact line (item 6).
+    const body = (isLast && payload.contactLine) ? payload.contactLine : s.bullets?.[0]
     outScenes.push({
-      title: s.title || '', body: s.bullets?.[0],
+      title: s.title || '', body,
       ...(imageUrl ? { image: imageUrl } : {}),
       audio: audioUrl, durationInFrames, placement,
       ...(!isEnd && sceneMetrics.length ? { metrics: sceneMetrics.map((x) => ({ label: x.label, value: x.value })) } : {}),
     })
+  }
+
+  // Background music (item 3): get a music URL (provided or Lyria-gen), upload it
+  // public, and pass it as the `music` prop — V3Video plays it low under the VO.
+  let musicUrl: string | undefined
+  if (payload.musicUrl) {
+    musicUrl = payload.musicUrl
+  } else if (payload.aiMusic || payload.musicPrompt) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
+      const mPrompt = payload.musicPrompt || 'Warm, professional, uplifting corporate background music, subtle and modern, no vocals'
+      const mr: any = await ai.models.generateContent({ model: 'models/lyria-002', contents: [{ role: 'user', parts: [{ text: mPrompt }] }] } as any).catch(() => null)
+      const part = mr && (mr.candidates?.[0]?.content?.parts ?? []).find((p: any) => p.inlineData)
+      if (part) musicUrl = await uploadPublic(admin, `${userId}/${videoId}_music.mp3`, Buffer.from(part.inlineData.data, 'base64'), 'audio/mpeg')
+    } catch { /* music best-effort */ }
   }
 
   // 2) Theme (dark Modern-Fintech + brand accents, contrast-guarded for legibility).
@@ -151,6 +169,7 @@ export async function renderV3OnLambda(payload: V3Payload): Promise<void> {
   const inputProps = {
     theme, brandName: payload.brandName,
     ...(payload.logo?.light || payload.logo?.dark ? { logo: { light: payload.logo.light, dark: payload.logo.dark }, logoChip: !!payload.logo.chip } : {}),
+    ...(musicUrl ? { music: musicUrl } : {}),
     scenes: outScenes,
   }
 

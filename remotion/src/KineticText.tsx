@@ -23,6 +23,19 @@ export const KineticText: React.FC<{
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
   const words = text.split(' ')
+  // Auto-pick an emphasis word when the caller didn't specify one, so EVERY
+  // headline gets color emphasis (item 1). Prefer a word with a number/$/%;
+  // else the longest meaningful word; else the last word.
+  let accentIdx = accentWordIndex
+  if (accentIdx == null && accentColor && words.length) {
+    const numIdx = words.findIndex((w) => /[\d$%]/.test(w))
+    if (numIdx >= 0) accentIdx = numIdx
+    else {
+      let best = -1, bestLen = 0
+      words.forEach((w, i) => { const l = w.replace(/[^a-z0-9]/gi, '').length; if (l > bestLen) { bestLen = l; best = i } })
+      accentIdx = best >= 0 ? best : words.length - 1
+    }
+  }
   return (
     <div style={{ fontFamily, fontWeight, fontSize, lineHeight, textShadow: TEXT_SHADOW, letterSpacing: '-0.01em', textAlign: align }}>
       {words.map((w, i) => {
@@ -31,7 +44,7 @@ export const KineticText: React.FC<{
         const s = spring({ frame: frame - delay, fps, config: { damping: 13, stiffness: 150, mass: 0.7 } })
         // ... and a separate fade/un-blur (clamped, no overshoot on opacity).
         const p = Math.max(0, Math.min(1, s))
-        const isAccent = accentWordIndex === i && !!accentColor
+        const isAccent = accentIdx === i && !!accentColor
         // Accent word: an extra scale-punch that peaks ~6 frames after it lands.
         const punch = isAccent ? spring({ frame: frame - (delay + 6), fps, config: { damping: 9, stiffness: 200, mass: 0.6 } }) : 0
         const punchScale = isAccent ? 1 + 0.12 * Math.max(0, punch) * (1 - Math.max(0, (punch - 1) * 2)) : 1

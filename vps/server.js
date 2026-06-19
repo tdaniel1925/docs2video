@@ -970,7 +970,7 @@ function v3Theme(brandAccents) {
 }
 
 app.post('/render-v3', authCheck, async (req, res) => {
-  const { videoId, userId, voiceId, theme, brandName, brandAccents, logo, scenes } = req.body || {}
+  const { videoId, userId, voiceId, theme, brandName, brandAccents, logo, scenes, contactLine, musicUrl, musicPrompt, aiMusic } = req.body || {}
   if (!videoId || !Array.isArray(scenes) || scenes.length === 0) {
     return res.status(400).json({ error: 'Missing videoId or scenes' })
   }
@@ -994,7 +994,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
   }
 
   const pub = join(REMOTION_DIR, 'public')
-  const outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
+  let outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
   const isInfo = theme === 'infographic'
   const COMP = isInfo ? 'InfographicVideo' : 'V3Video'
   const PROPS = join(pub, isInfo ? 'infographic.json' : 'v3.json')
@@ -1052,9 +1052,12 @@ app.post('/render-v3', authCheck, async (req, res) => {
         // Cinematic lower-thirds: show ALL the scene's real numbers (up to 3) so
         // important figures aren't dropped — e.g. $176k death benefit AND $10k/yr.
         const isEnd = i === 0 || i === scenes.length - 1
+        const isLast = i === scenes.length - 1
         const sceneMetrics = (Array.isArray(s.metrics) ? s.metrics : []).filter((x) => x && x.label && x.value && /\d/.test(x.value)).slice(0, 3)
         const metrics = !isEnd && sceneMetrics.length ? sceneMetrics.map((x) => ({ label: x.label, value: x.value })) : undefined
-        outScenes.push({ title: s.title || '', body: s.bullets?.[0], ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement, ...(metrics ? { metrics } : {}) })
+        // Closing scene shows the contact line as its body (item 6: contact on end card).
+        const body = (isLast && contactLine) ? contactLine : s.bullets?.[0]
+        outScenes.push({ title: s.title || '', body, ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement, ...(metrics ? { metrics } : {}) })
       }
     }
 
@@ -1125,6 +1128,41 @@ app.post('/render-v3', authCheck, async (req, res) => {
         code === 0 ? resolve() : reject(new Error(`remotion render exit ${code}: ${stderrBuf.slice(-300)}`))
       })
     })
+
+    // Background music (item 3): get a music file (provided URL or Lyria-gen),
+    // then ffmpeg-mix it UNDER the narration at low volume. Best-effort — on any
+    // failure we keep the music-less render rather than failing the whole video.
+    if (musicUrl || aiMusic || musicPrompt) {
+      try {
+        await setProgress(88, 'Adding music...')
+        const musicPath = join(REMOTION_DIR, 'out', `${videoId}-music.mp3`)
+        let haveMusic = false
+        if (musicUrl) {
+          const mr = await fetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' })
+          if (mr.ok) { await writeFile(musicPath, Buffer.from(await mr.arrayBuffer())); haveMusic = true }
+        } else {
+          // Lyria generate (same model the /generate pipeline uses).
+          const { GoogleGenAI } = require('@google/genai')
+          const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+          const mPrompt = musicPrompt || 'Warm, professional, uplifting corporate background music, subtle and modern, no vocals'
+          const mr = await g.models.generateContent({ model: 'models/lyria-002', contents: [{ role: 'user', parts: [{ text: mPrompt }] }] }).catch(() => null)
+          const part = mr && (mr.candidates?.[0]?.content?.parts ?? []).find((p) => p.inlineData)
+          if (part) { await writeFile(musicPath, Buffer.from(part.inlineData.data, 'base64')); haveMusic = true }
+        }
+        if (haveMusic) {
+          const mixedPath = join(REMOTION_DIR, 'out', `${videoId}-mixed.mp4`)
+          await new Promise((resolve, reject) => {
+            execFile('ffmpeg', ['-y', '-i', outFile, '-stream_loop', '-1', '-i', musicPath,
+              '-filter_complex', '[0:a]volume=1.0[narr];[1:a]volume=0.06,afade=t=in:st=0:d=2[bg];[narr][bg]amix=inputs=2:duration=first:dropout_transition=3[a]',
+              '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', mixedPath],
+              { timeout: 120000 }, (e) => e ? reject(e) : resolve())
+          })
+          await rm(outFile, { force: true }).catch(() => {})
+          outFile = mixedPath
+          console.log(`[render-v3 ${videoId}] music mixed`)
+        }
+      } catch (e) { console.error(`[render-v3 ${videoId}] music skipped: ${e.message}`) }
+    }
 
     await setProgress(90, 'Uploading...')
     const videoBuffer = await readFile(outFile)

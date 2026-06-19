@@ -831,6 +831,10 @@ export async function POST(request: Request) {
         classification: (policyData as any)?.classification ?? null,
         industry,
         keyMetrics: (policyData as any)?.keyMetrics ?? [],
+        musicUrl: musicUrl || undefined,
+        musicPrompt: musicPrompt || undefined,
+        aiMusic: aiMusic || undefined,
+        contactLine: contactLine || undefined,
       })
       console.log(`[video ${videoId}] V3 theme=${v3Payload.theme}, logo=${v3Payload.logo ? 'yes' : 'no'}`)
 
