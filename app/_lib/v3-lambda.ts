@@ -132,11 +132,18 @@ export async function renderV3OnLambda(payload: V3Payload): Promise<void> {
   }
 
   // 3) Kick off the Lambda render.
+  // framesPerLambda caps the fan-out: a new AWS account defaults to ~10
+  // concurrent Lambdas, and Remotion splits a render across many invocations —
+  // too many => "Rate Exceeded". 300 frames/Lambda keeps a ~1-2min video to
+  // ~6-8 Lambdas, safely under the cap. (Raise account concurrency later for
+  // more speed.) maxRetries covers transient throttles within the render.
   await setProgress(70, 'Rendering video...')
   const { renderId, bucketName } = await renderMediaOnLambda({
     region: REGION, functionName: FUNCTION!, serveUrl: SERVE_URL!,
     composition: 'V3Video', inputProps, codec: 'h264',
     imageFormat: 'jpeg', privacy: 'public',
+    framesPerLambda: 300,
+    maxRetries: 2,
   })
 
   // 4) Poll to completion (update progress 70 -> 92).
