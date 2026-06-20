@@ -102,6 +102,7 @@ export async function updateBrand(formData: FormData) {
       content_themes: parseJson('content_themes', []),
       competitor_notes: (formData.get('competitor_notes') as string) || null,
       social_links: parseJson('social_links', {}),
+      brand_guide_data: parseJson('brand_guide_data', null),
       is_default: formData.get('is_default') === 'true',
       ...profileFields(formData),
     })

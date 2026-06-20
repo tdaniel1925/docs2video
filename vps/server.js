@@ -921,6 +921,19 @@ async function artDirectScenes(scenes) {
   } catch { return fallback }
 }
 
+/**
+ * Grab a poster frame from a rendered video, seeking ~2.5s in so the still is a
+ * fully-composed cover (past any fade-from-black cold-open) instead of frame 0.
+ * Falls back to the first frame if the seek produced nothing (very short clips).
+ */
+async function grabPoster(videoFile, outPath, seekSeconds = 2.5) {
+  const run = (args) => new Promise((resolve) => execFile('ffmpeg', args, { timeout: 30000 }, (err) => resolve(!err)))
+  // Seek BEFORE -i for a fast keyframe seek.
+  await run(['-y', '-ss', String(seekSeconds), '-i', videoFile, '-frames:v', '1', '-q:v', '2', outPath])
+  try { await readFile(outPath); return } catch { /* seek landed past end → fall back */ }
+  await run(['-y', '-i', videoFile, '-frames:v', '1', '-q:v', '2', outPath])
+}
+
 async function v3GeminiBg(prompt, outPath) {
   const { GoogleGenAI } = require('@google/genai')
   const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
@@ -1213,8 +1226,11 @@ app.post('/render-v3', authCheck, async (req, res) => {
     await sb.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
     const { data: urlData } = sb.storage.from('videos').getPublicUrl(videoStoragePath)
 
+    // Poster/thumbnail: grab a frame ~2.5s IN, past the cold-open fade-from-black,
+    // so the poster is a fully-composed cover (not the half-faded title). Fall
+    // back to frame 0 if the seek lands past a very short video's end.
     const thumbPath = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
-    await new Promise((resolve) => execFile('ffmpeg', ['-y', '-i', outFile, '-vframes', '1', thumbPath], { timeout: 30000 }, () => resolve()))
+    await grabPoster(outFile, thumbPath)
     let thumbUrl = null
     try {
       const tb = await readFile(thumbPath)
@@ -1389,7 +1405,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     await sb.storage.from('videos').upload(path, buf, { contentType: 'video/mp4', upsert: true })
     const url = sb.storage.from('videos').getPublicUrl(path).data.publicUrl
     const thumb = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
-    await new Promise((resolve) => execFile('ffmpeg', ['-y', '-i', outFile, '-vframes', '1', thumb], { timeout: 30000 }, () => resolve()))
+    await grabPoster(outFile, thumb)
     let thumbUrl = null
     try { const tb = await readFile(thumb); await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true }); thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl } catch {}
 

@@ -94,6 +94,11 @@ export default function EditBrandPage() {
   const [socialLinks, setSocialLinks] = useState<Record<string, string>>({})
   const [websiteUrl, setWebsiteUrl] = useState('')
 
+  // Closing-card contact (persisted into brand_guide_data, read by generate-video)
+  const [contactPhone, setContactPhone] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [contactWebsite, setContactWebsite] = useState('')
+
   async function triggerLogoKit(brandId: string) {
     setGeneratingLogoKit(true)
     setLogoKitError(null)
@@ -159,6 +164,11 @@ export default function EditBrandPage() {
         setCompetitorNotes(data.competitor_notes ?? '')
         setSocialLinks(data.social_links ?? {})
         setWebsiteUrl(data.social_links?.website ?? '')
+        // Closing-card contact from brand_guide_data
+        const guide = (data.brand_guide_data ?? {}) as Record<string, unknown>
+        setContactPhone(typeof guide.phone === 'string' ? guide.phone : '')
+        setContactEmail(typeof guide.email === 'string' ? guide.email : '')
+        setContactWebsite(typeof guide.website === 'string' ? guide.website : '')
 
         // Auto-trigger logo kit if brand has logo but no kit
         if (data.logo_file_url && (!data.logo_kit || Object.keys(data.logo_kit).length === 0)) {
@@ -490,6 +500,34 @@ export default function EditBrandPage() {
                 <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '6px 0 0 30px' }}>
                   Off = the document title leads the cover; your name still appears in the intro and closing.
                 </p>
+              </div>
+
+              {/* Contact info — shown on the closing card */}
+              <div className="form-group">
+                <label className="input-label">Contact info <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional, for closing card)</span></label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <input
+                    type="tel"
+                    className="input"
+                    placeholder="Phone number"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                  />
+                  <input
+                    type="email"
+                    className="input"
+                    placeholder="Email address"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                  />
+                  <input
+                    type="url"
+                    className="input"
+                    placeholder="Website URL"
+                    value={contactWebsite}
+                    onChange={(e) => setContactWebsite(e.target.value)}
+                  />
+                </div>
               </div>
 
               {/* Keep secondary/accent/etc. submitting so the row stays valid */}
@@ -825,6 +863,20 @@ export default function EditBrandPage() {
           {/* ───────── End of brand guide fields ───────── */}
           </>
           )}
+
+          {/* brand_guide_data — closing-card contact lands here for BOTH modes.
+              Merge entered contact over the brand's existing guide data so we
+              preserve any scraped/company guide fields while updating contact. */}
+          <input
+            type="hidden"
+            name="brand_guide_data"
+            value={JSON.stringify({
+              ...(brand.brand_guide_data ?? {}),
+              ...(contactPhone.trim() ? { phone: contactPhone.trim() } : { phone: '' }),
+              ...(contactEmail.trim() ? { email: contactEmail.trim() } : { email: '' }),
+              ...(contactWebsite.trim() ? { website: contactWebsite.trim() } : { website: '' }),
+            })}
+          />
 
           <div className="check-row" style={{ marginTop: 20 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>

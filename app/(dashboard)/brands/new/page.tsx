@@ -147,6 +147,11 @@ export default function NewBrandPage() {
   const [photoError, setPhotoError] = useState<string | null>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
 
+  // Contact info (used on closing card; persisted into brand_guide_data)
+  const [contactPhone, setContactPhone] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [contactWebsite, setContactWebsite] = useState('')
+
   // Company logo toggle
   const [showLogo, setShowLogo] = useState(true)
   const [primaryColor, setPrimaryColor] = useState('#1B365D')
@@ -685,6 +690,34 @@ export default function NewBrandPage() {
                   Off = the document title leads the cover; your name still appears in the intro and closing.
                 </p>
               </div>
+
+              {/* Contact info — shown on the closing card */}
+              <div className="form-group">
+                <label className="input-label">Contact info <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional, for closing card)</span></label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <input
+                    type="tel"
+                    className="input"
+                    placeholder="Phone number"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                  />
+                  <input
+                    type="email"
+                    className="input"
+                    placeholder="Email address"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                  />
+                  <input
+                    type="url"
+                    className="input"
+                    placeholder="Website URL"
+                    value={contactWebsite}
+                    onChange={(e) => setContactWebsite(e.target.value)}
+                  />
+                </div>
+              </div>
             </>
           )}
 
@@ -883,9 +916,21 @@ export default function NewBrandPage() {
               <input type="hidden" name="content_themes" value={JSON.stringify(brandGuide.contentThemes ?? [])} />
               <input type="hidden" name="competitor_notes" value={brandGuide.competitorNotes ?? ''} />
               <input type="hidden" name="unique_selling_points" value={JSON.stringify(brandGuide.uniqueSellingPoints ?? [])} />
-              <input type="hidden" name="brand_guide_data" value={JSON.stringify(brandGuide)} />
             </>
           )}
+
+          {/* brand_guide_data — closing-card contact lands here for BOTH modes.
+              Merge manually-entered contact over any scraped Company brand guide. */}
+          <input
+            type="hidden"
+            name="brand_guide_data"
+            value={JSON.stringify({
+              ...(profileType === 'company' && brandGuide ? brandGuide : {}),
+              ...(contactPhone.trim() ? { phone: contactPhone.trim() } : {}),
+              ...(contactEmail.trim() ? { email: contactEmail.trim() } : {}),
+              ...(contactWebsite.trim() ? { website: contactWebsite.trim() } : {}),
+            })}
+          />
 
           {/* Hidden fields for advanced colors when section is collapsed (so they still submit) */}
           {!showAdvanced && (

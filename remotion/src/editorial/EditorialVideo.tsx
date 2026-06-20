@@ -45,10 +45,11 @@ export function editorialTotal(p: EditorialProps): number {
 }
 
 /** Cross-fade between pages (a "page turn" feel — restrained, not flashy). */
-const PageTurn: React.FC<{ d: number; children: React.ReactNode }> = ({ d, children }) => {
+const PageTurn: React.FC<{ d: number; isLast?: boolean; children: React.ReactNode }> = ({ d, isLast, children }) => {
   const f = useCurrentFrame()
   const inP = interpolate(f, [0, 10], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
-  const outP = interpolate(f, [d - 8, d], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+  // The last page HOLDS — no fade-out — so the closing decision page stays visible.
+  const outP = isLast ? 0 : interpolate(f, [d - 8, d], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
   return <AbsoluteFill style={{ opacity: inP * (1 - outP) }}>{children}</AbsoluteFill>
 }
 
@@ -77,7 +78,7 @@ export const EditorialVideo: React.FC<EditorialProps> = ({ masthead, runningTitl
       <Series>
         {scenes.map((s, i) => (
           <Series.Sequence key={i} durationInFrames={s.durationInFrames}>
-            <PageTurn d={s.durationInFrames}>{render(s as EditorialScene, i)}</PageTurn>
+            <PageTurn d={s.durationInFrames} isLast={i === scenes.length - 1}>{render(s as EditorialScene, i)}</PageTurn>
             {s.audio ? <Audio src={staticFile(s.audio)} /> : null}
           </Series.Sequence>
         ))}

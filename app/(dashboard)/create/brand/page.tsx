@@ -225,6 +225,16 @@ export default function BrandPage() {
           photo_placement: profileType === 'person' ? photoPlacement : 'auto',
         }
 
+        // Closing-card contact lives in brand_guide_data (read by generate-video).
+        // Include only the non-empty fields, for both person and company.
+        const contactGuide: Record<string, string> = {}
+        if (phone.trim()) contactGuide.phone = phone.trim()
+        if (email.trim()) contactGuide.email = email.trim()
+        if (website.trim()) contactGuide.website = website.trim()
+        if (Object.keys(contactGuide).length > 0) {
+          brandRecord.brand_guide_data = contactGuide
+        }
+
         // If saving as default, unset other defaults first
         if (saveAsDefault) {
           await supabase.from('brands').update({ is_default: false }).eq('user_id', user.id)
@@ -726,6 +736,36 @@ export default function BrandPage() {
                 Show my name on slides
               </label>
               <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '6px 0 0 24px' }}>Off = the document title leads the cover; your name still appears in the intro and closing.</p>
+            </div>
+
+            {/* Contact info — shown on the closing card */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 10 }}>
+                Contact info <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-light)' }}>(optional, for closing card)</span>
+              </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={e => { setPhone(e.target.value); setSelectedBrandId(null) }}
+                  placeholder="Phone number"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
+                />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => { setEmail(e.target.value); setSelectedBrandId(null) }}
+                  placeholder="Email address"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
+                />
+                <input
+                  type="url"
+                  value={website}
+                  onChange={e => { setWebsite(e.target.value); setSelectedBrandId(null) }}
+                  placeholder="Website URL"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
+                />
+              </div>
             </div>
           </>
         )}

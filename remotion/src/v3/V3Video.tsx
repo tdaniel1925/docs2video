@@ -13,11 +13,13 @@ const KEN: ('in' | 'left' | 'right')[] = ['in', 'right', 'in', 'left', 'in', 'ri
 /** Per-scene in/out transition that VARIES by index so cuts feel EDITED, not a
  *  slideshow: cycles fade, push-up, whip-pan (with motion blur), zoom-blur, and
  *  flash-to-white. Punchier than a plain crossfade — gives the cut energy. */
-const Transition: React.FC<{ d: number; variant: number; children: React.ReactNode }> = ({ d, variant, children }) => {
+const Transition: React.FC<{ d: number; variant: number; isLast?: boolean; children: React.ReactNode }> = ({ d, variant, isLast, children }) => {
   const f = useCurrentFrame()
   const IN = 14, OUT = 12
   const inP = interpolate(f, [0, IN], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
-  const outP = interpolate(f, [d - OUT, d], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.in(Easing.cubic) })
+  // The LAST scene HOLDS — no fade/slide out to black — so the closing card stays
+  // fully visible at the end (and seeking to the end shows real content).
+  const outP = isLast ? 0 : interpolate(f, [d - OUT, d], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.in(Easing.cubic) })
   const opacity = inP * (1 - outP)
   let transform = ''
   let filter = ''
@@ -90,7 +92,7 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, sce
           const hasBullets = Array.isArray(sc.bullets) && sc.bullets.length > 0
           return (
             <Series.Sequence key={i} durationInFrames={sc.durationInFrames}>
-              <Transition d={sc.durationInFrames} variant={i}>
+              <Transition d={sc.durationInFrames} variant={i} isLast={i === scenes.length - 1}>
                 {sc.closing ? (
                   <ClosingCard
                     image={sc.image}
