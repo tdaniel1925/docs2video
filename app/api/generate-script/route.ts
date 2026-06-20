@@ -108,6 +108,9 @@ export async function POST(request: Request) {
   }
 
   // ── SYNCHRONOUS path (legacy non-wizard / localStorage flow) ──
+  // No videoId here, so there is no draft row and no approved brief to honor —
+  // this flow predates the Review step. Brief steering happens on the wizard
+  // (background) path above and in generate-video.
   try {
     const scenes = await generateScript(policyData, brandName, colors, detailed ?? false, 0, voiceId, brandTone, contactInfo, purpose, uploadMode, industry, detailLevel, narrationStyle, classificationData)
     return NextResponse.json({ scenes })

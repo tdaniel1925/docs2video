@@ -484,10 +484,15 @@ export async function POST(request: Request) {
         calendly: guideDataForScript?.calendly ?? undefined,
       }
 
+      // The user-approved brief (from the Review step) steers what the script
+      // covers — honor it on this fallback path too, not just generate-script.
+      const { data: draftRow } = await admin.from('videos').select('draft_data').eq('id', videoId).single()
+      const approvedBrief = (draftRow?.draft_data as any)?.brief || null
+
       // Script generation with 60s timeout
       try {
         scenes = await Promise.race([
-          generateScript(policyData, brand?.name ?? null, colors, detailed ?? false, 0, voiceId, (brand as any)?.tone ?? undefined, contactInfoForScript, purpose, uploadMode, industry, (body as any).detailLevel || (detailed ? 'detailed' : 'standard'), effectiveNarrationStyle, (policyData as any)?.classification ?? null),
+          generateScript(policyData, brand?.name ?? null, colors, detailed ?? false, 0, voiceId, (brand as any)?.tone ?? undefined, contactInfoForScript, purpose, uploadMode, industry, (body as any).detailLevel || (detailed ? 'detailed' : 'standard'), effectiveNarrationStyle, (policyData as any)?.classification ?? null, approvedBrief),
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Script generation timed out. This document may be too large — try pasting the key sections instead.')), 60000)),
         ])
       } catch (scriptErr) {
