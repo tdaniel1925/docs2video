@@ -55,7 +55,7 @@ const ColdOpen: React.FC<{ text: string; theme: Theme & { logo?: LogoSource }; p
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 22, opacity: Math.min(1, rise * 1.4), transform: `translateY(${(1 - rise) * 28}px)` }}>
         {/* Presenter portrait on the cover (Person profile, cover placement). */}
         {photo ? (
-          <Img src={staticFile(photo)} style={{ width: 150, height: 150, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${accent}`, boxShadow: `0 0 26px ${accent}66`, marginBottom: 6 }} />
+          <Img src={staticFile(photo)} style={{ width: 150, height: 150, borderRadius: '50%', objectFit: 'cover', border: `5px solid #FFFFFF`, outline: `2px solid ${accent}`, boxShadow: `0 0 30px ${accent}77`, marginBottom: 6 }} />
         ) : null}
         <div style={{ fontFamily: FONTS.display, fontWeight: 900, fontSize: 96, color: '#FFFFFF', letterSpacing: '-0.02em', textAlign: 'center', maxWidth: 1400, lineHeight: 1 }}>
           {text}

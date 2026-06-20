@@ -69,7 +69,7 @@ export const ClosingCard: React.FC<{
               logo when present (people present as themselves, not a company). */}
           {presenter?.photo ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-              <Img src={staticFile(presenter.photo)} style={{ width: 132, height: 132, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${accent}`, boxShadow: `0 0 22px ${accent}55` }} />
+              <Img src={staticFile(presenter.photo)} style={{ width: 132, height: 132, borderRadius: '50%', objectFit: 'cover', border: `5px solid #FFFFFF`, outline: `2px solid ${accent}`, boxShadow: `0 0 26px ${accent}66` }} />
               {presenter.name ? (
                 <div style={{ fontFamily: FONTS.display, fontWeight: 900, fontSize: 44, color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 1 }}>{presenter.name}</div>
               ) : null}

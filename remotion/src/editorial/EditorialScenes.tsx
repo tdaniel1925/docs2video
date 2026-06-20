@@ -35,7 +35,7 @@ const Figure: React.FC<{ image?: string; caption?: string; theme: EditorialTheme
   const p = settle(frame, 8, fps)
   return (
     <div style={{ opacity: p, display: 'flex', flexDirection: 'column', gap: 10, ...style }}>
-      <div style={{ flex: 1, border: `1px solid ${theme.ink}`, overflow: 'hidden', position: 'relative', background: theme.paperEdge }}>
+      <div style={{ flex: 1, border: `6px solid ${theme.paper}`, outline: `1.5px solid ${theme.ink}`, boxShadow: '0 6px 24px rgba(0,0,0,0.18)', overflow: 'hidden', position: 'relative', background: theme.paperEdge }}>
         {image ? (
           <Img src={staticFile(image)} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'saturate(0.92) contrast(1.05)' }} />
         ) : (
@@ -95,7 +95,7 @@ const Portrait: React.FC<{ presenter: Presenter; theme: EditorialTheme; size?: n
   const caption = [presenter.name, presenter.role].filter(Boolean).join(' · ')
   return (
     <div style={{ opacity: p, transform: `translateY(${(1 - p) * 14}px)`, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' }}>
-      <div style={{ width: size, height: size, border: `1px solid ${theme.ink}`, overflow: 'hidden', background: theme.paperEdge }}>
+      <div style={{ width: size, height: size, border: `6px solid ${theme.paper}`, outline: `1.5px solid ${theme.ink}`, boxShadow: '0 6px 24px rgba(0,0,0,0.18)', overflow: 'hidden', background: theme.paperEdge }}>
         <Img src={staticFile(presenter.photo)} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'saturate(0.95) contrast(1.04)' }} />
       </div>
       {caption ? <div style={{ fontFamily: FONT_MONO, fontSize: 16, letterSpacing: '0.06em', color: theme.muted, textTransform: 'uppercase' }}>{caption}</div> : null}
