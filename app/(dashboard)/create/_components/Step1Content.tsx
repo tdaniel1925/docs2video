@@ -197,7 +197,8 @@ export default function Step1Content() {
       if (overrides?.skipToStep) {
         router.push(`/create/${overrides.skipToStep}?id=${draftData.videoId}`)
       } else {
-        router.push(`/create/brand?id=${draftData.videoId}`)
+        // After extraction → the Brief step (review what the AI will cover).
+        router.push(`/create/brief?id=${draftData.videoId}`)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -217,7 +218,7 @@ export default function Step1Content() {
     await createDraftAndRedirect(extractedData, brandInfo, {
       styleId: 'custom-brand-preview',
       customStylePrompt: previewStyleDesc,
-      skipToStep: 'brand',
+      skipToStep: 'brief',
     })
   }
 
@@ -269,7 +270,7 @@ export default function Step1Content() {
     await createDraftAndRedirect(pendingExtractedData, pendingAutoBrandInfo, {
       styleId,
       customStylePrompt: style?.prompt || '',
-      skipToStep: 'brand',
+      skipToStep: 'brief',
     })
   }
 
@@ -352,7 +353,7 @@ export default function Step1Content() {
 
       // Quick mode uses voice/length defaults, but still passes through the
       // presenter step so the user can say who they are (the whole point).
-      await createDraftAndRedirect(extractedData, autoBrandInfo, { skipToStep: 'brand' })
+      await createDraftAndRedirect(extractedData, autoBrandInfo, { skipToStep: 'brief' })
     } catch (err) {
       clearInterval(progressTimer)
       setProgressPct(0)

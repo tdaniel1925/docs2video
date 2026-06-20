@@ -73,6 +73,8 @@ export async function POST(request: Request) {
     // Mark generating so the page shows progress and we can detect failure.
     const { data: row } = await admin.from('videos').select('draft_data').eq('id', videoId).eq('user_id', user.id).single()
     if (!row) return NextResponse.json({ error: 'Draft not found' }, { status: 404 })
+    // The user-approved brief (from the Review step) steers what the script covers.
+    const approvedBrief = (row.draft_data as any)?.brief || null
     await admin.from('videos').update({
       draft_data: { ...(row.draft_data || {}), scriptStatus: 'generating', scriptError: null },
     }).eq('id', videoId)
@@ -84,7 +86,7 @@ export async function POST(request: Request) {
         // function (so the catch writes scriptStatus:'failed') instead of the
         // Vercel function being killed and the draft stuck on 'generating' forever.
         const scenes = await Promise.race([
-          generateScript(policyData, brandName, colors, detailed ?? false, 0, voiceId, brandTone, contactInfo, purpose, uploadMode, industry, detailLevel, narrationStyle, classificationData),
+          generateScript(policyData, brandName, colors, detailed ?? false, 0, voiceId, brandTone, contactInfo, purpose, uploadMode, industry, detailLevel, narrationStyle, classificationData, approvedBrief),
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Script generation timed out. Please try again.')), 240000)),
         ])
         console.log(`[generate-script:bg ${videoId}] Done: ${scenes.length} scenes`)

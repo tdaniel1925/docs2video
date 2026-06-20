@@ -249,6 +249,27 @@ export interface WizardDraft {
   photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
   // Theme chosen on the Theme step (per-video; overrides global default).
   videoStyle?: 'cinematic' | 'editorial' | 'time' | 'explainer'
+  // The "Review brief" step: what the AI understood + plans to cover. The user
+  // approves or redirects it; the approved brief steers the script generator.
+  brief?: VideoBrief
+  briefChat?: { role: 'user' | 'assistant'; text: string }[]
+}
+
+/**
+ * What the video will COVER and how to frame it — shown for approval right after
+ * extraction. Grounded in the document; the user can redirect it via chat. Fed
+ * to the script generator as strong direction (not invented content).
+ */
+export interface VideoBrief {
+  docType: string                              // e.g. "Life insurance illustration"
+  summary: string                              // 1-2 plain-language sentences
+  keyPoints: string[]                          // the points the video will feature
+  figures: { label: string; value: string }[] // real numbers it will show
+  angle: string                                // the intended takeaway / framing
+  tone?: string                                // e.g. "reassuring, plain-language"
+  emphasis?: string[]                          // what to lean into (user direction)
+  avoid?: string[]                             // what to skip (user direction)
+  approved?: boolean
 }
 
 export interface EmailConnection {

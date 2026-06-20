@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import WizardProgress from '../_components/WizardProgress'
 import QuickPreview from '../../../_components/QuickPreview'
 import BuyCreditsModal from '../../../_components/BuyCreditsModal'
 
@@ -424,11 +423,6 @@ export default function ScriptPage() {
     <div style={{
       flex: 1, padding: '40px 24px', maxWidth: scenes.length > 0 ? 1100 : 800, margin: '0 auto', width: '100%', transition: 'max-width 0.3s',
     }}>
-
-      {/* Wizard progress bar — only in wizard mode */}
-      {isWizard && (
-        <WizardProgress currentStep={wizardStep} outputType={outputType} />
-      )}
 
       <div style={{ animation: 'fadeInUp 0.4s ease' }}>
         <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 8 }}>

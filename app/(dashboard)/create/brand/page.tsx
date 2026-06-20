@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../../../_lib/supabase/client'
 import type { Brand } from '../../../_lib/types'
-import WizardProgress from '../_components/WizardProgress'
 import { downscaleImage } from '../../../_lib/image-resize'
 import { toE164 } from '../../../_lib/phone-utils'
 import { toTitleCase } from '../../../_lib/text-format'
@@ -383,7 +382,6 @@ export default function BrandPage() {
       padding: '48px 24px 40px', maxWidth: 720, margin: '0 auto', width: '100%',
     }}>
       {/* Wizard Progress */}
-      <WizardProgress currentStep={2} outputType={outputType} />
 
       {/* Back link */}
       <div style={{ width: '100%', marginTop: 8, marginBottom: 8 }}>

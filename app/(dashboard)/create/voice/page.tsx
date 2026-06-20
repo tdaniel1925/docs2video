@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import WizardProgress from '../_components/WizardProgress'
 import CreditCost from '../_components/CreditCost'
 import UpgradeModal from '../../../_components/UpgradeModal'
 import BuyCreditsModal from '../../../_components/BuyCreditsModal'
@@ -176,7 +175,6 @@ export default function VoicePage() {
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        <WizardProgress currentStep={3} outputType={outputType} />
 
         <h1 style={styles.heading}>Voice &amp; Length</h1>
         <p style={styles.subheading}>Choose how your video sounds and feels</p>

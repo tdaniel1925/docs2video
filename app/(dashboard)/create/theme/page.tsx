@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import WizardProgress from '../_components/WizardProgress'
 
 type ThemeId = 'cinematic' | 'editorial' | 'explainer'
 
@@ -93,7 +92,6 @@ export default function ThemePage() {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 40px', maxWidth: 920, margin: '0 auto', width: '100%' }}>
-      <WizardProgress currentStep={outputType === 'video' ? 5 : 4} outputType={outputType} />
 
       <div style={{ width: '100%', marginTop: 8, marginBottom: 8 }}>
         <button onClick={() => router.push(`/create/script?id=${videoId}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--ink-light)', fontFamily: 'inherit', padding: 0 }}>&larr; Back</button>

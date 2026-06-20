@@ -206,6 +206,9 @@ export async function generateScript(
   detailLevel?: 'quick' | 'standard' | 'detailed',
   narrationStyle?: 'solo' | 'podcast',
   classification?: { documentType?: string; category?: string; sensitivity?: string; tone?: string; perspective?: string; redFlags?: string[]; actionItems?: string[]; keyQuestion?: string } | null,
+  /** The user-APPROVED brief from the Review step — strong direction on what to
+   *  cover + how to frame it. Steers scene selection/tone; still grounded. */
+  brief?: { angle?: string; keyPoints?: string[]; figures?: { label: string; value: string }[]; emphasis?: string[]; avoid?: string[]; tone?: string } | null,
 ): Promise<VideoScene[]> {
   // Detect insurance from multiple signals — scan content if structured fields missing
   const contentText = JSON.stringify(data).toLowerCase()
@@ -543,6 +546,19 @@ The viewer should feel like they just had a clear, personal explanation of their
 - BAD: "Now let's take a look at your key metrics" (viewer hasn't seen the metrics slide yet when this plays)
 - GOOD: "Here are the key metrics that matter most" (viewer is already looking at the metrics slide)
 - Each scene must be self-contained: introduce its topic, explain it, and wrap it up WITHOUT referencing other scenes.`)
+
+  // ── APPROVED BRIEF (highest priority) — the user reviewed + confirmed what the
+  // video must cover and how to frame it. This OVERRIDES default angle choices.
+  if (brief && (brief.angle || brief.keyPoints?.length || brief.emphasis?.length || brief.avoid?.length)) {
+    const parts: string[] = ['APPROVED BRIEF — the user has CONFIRMED what this video must cover and how to frame it. Honor it above all other framing choices (but never invent facts not in the document):']
+    if (brief.angle) parts.push(`- ANGLE / takeaway the whole video must serve: ${brief.angle}`)
+    if (brief.keyPoints?.length) parts.push(`- MUST COVER these points: ${brief.keyPoints.join(' | ')}`)
+    if (brief.figures?.length) parts.push(`- FEATURE these figures: ${brief.figures.map(f => `${f.label} ${f.value}`).join(' | ')}`)
+    if (brief.emphasis?.length) parts.push(`- EMPHASIZE: ${brief.emphasis.join(', ')}`)
+    if (brief.avoid?.length) parts.push(`- DO NOT cover / de-emphasize: ${brief.avoid.join(', ')}`)
+    if (brief.tone) parts.push(`- TONE: ${brief.tone}`)
+    additionalSections.push(parts.join('\n'))
+  }
 
   // ── Craft rules: turn a list-of-facts into a presentable, intelligent script ──
   // These are the difference between "captions read aloud" and a real person

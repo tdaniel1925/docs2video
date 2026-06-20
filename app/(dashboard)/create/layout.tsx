@@ -3,12 +3,16 @@
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
+// Single source of truth for the wizard stepper (the per-page <WizardProgress>
+// renders were removed so only THIS bar shows). Order matches the real flow:
+// Content → Brief → Presenter → Voice → Script → Theme → Generate.
 const STEPS = [
-  { path: '/create/client', label: 'Client' },
   { path: '/create', label: 'Content' },
-  { path: '/create/brand', label: 'Brand' },
+  { path: '/create/brief', label: 'Brief' },
+  { path: '/create/brand', label: 'Presenter' },
   { path: '/create/voice', label: 'Voice' },
   { path: '/create/script', label: 'Script' },
+  { path: '/create/theme', label: 'Style' },
   { path: '/create/generating', label: 'Generate' },
 ]
 
