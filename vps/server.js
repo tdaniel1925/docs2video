@@ -1418,7 +1418,12 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     await setProgress(72, 'Rendering...')
     await new Promise((resolve, reject) => {
       const { spawn } = require('child_process')
-      const child = spawn('npx', ['remotion', 'render', 'EditorialVideo', outFile, '--log=info', '--concurrency=100%', '--gl=swiftshader', '--image-format=jpeg'], { cwd: REMOTION_DIR, env: { ...process.env } })
+      // Pass the real props explicitly so the render NEVER depends on a fragile
+      // staticFile('editorial.json') fetch inside calculateMetadata. Without this
+      // the render can fall back to composition defaultProps (the "Run the
+      // editorial generator first" placeholder) while the stills — which DO pass
+      // --props — show the correct pages.
+      const child = spawn('npx', ['remotion', 'render', 'EditorialVideo', outFile, `--props=${join(pub, 'editorial.json')}`, '--log=info', '--concurrency=100%', '--gl=swiftshader', '--image-format=jpeg'], { cwd: REMOTION_DIR, env: { ...process.env } })
       let err = '', lastPct = 72, lastW = 0
       const onChunk = (b) => { const x = b.toString(); err = (err + x).slice(-2000); const m = [...x.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const d = +m[1], tot = +m[2]; if (tot > 0 && d <= tot) { const p = 72 + Math.round((d / tot) * 17); const now = Date.now(); if (p > lastPct && now - lastW > 1500) { lastPct = p; lastW = now; setProgress(p, `Rendering — frame ${d.toLocaleString()} of ${tot.toLocaleString()}`) } } } }
       child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)

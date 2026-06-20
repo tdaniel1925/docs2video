@@ -154,14 +154,16 @@ export const RemotionRoot: React.FC = () => {
       height={1080}
       durationInFrames={120}
       calculateMetadata={async ({ props }) => {
-        // The theme PREVIEW passes a unique --props payload marked __preview so it
-        // uses those props directly (and never reads a possibly-in-flight
-        // editorial.json). Production renders DON'T set the marker, so they always
-        // read editorial.json below — NOT the composition defaultProps.
-        if (props && (props as any).__preview && Array.isArray((props as EditorialProps).scenes) && (props as EditorialProps).scenes.length > 0) {
+        // If real scenes are passed via --props (theme preview marks them
+        // __preview; the production render now passes --props=editorial.json
+        // explicitly), use them directly. This is the reliable path — it never
+        // depends on the staticFile fetch below, which can fail inside the
+        // bundle and silently fall through to the placeholder defaultProps.
+        const passed = props as EditorialProps
+        if (passed && Array.isArray(passed.scenes) && passed.scenes.length > 0) {
           return { props, durationInFrames: editorialTotal(props), fps: FPS, width: 1920, height: 1080 }
         }
-        // Production render path: read the editorial.json written to public/.
+        // Fallback: read the editorial.json written to public/ (legacy path).
         try {
           const res = await fetch(staticFile('editorial.json'))
           if (res.ok) {
