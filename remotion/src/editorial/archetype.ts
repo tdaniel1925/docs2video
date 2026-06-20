@@ -20,8 +20,11 @@ export type EditorialArchetype =
   | 'stat'       // the numbers that matter (1-3 big figures)
   | 'list'       // ordered points / principles / steps
   | 'decision'   // closing call-to-action / "what to do now"
+  | 'timeline'   // a sequence of dated milestones (horizontal dotted line)
+  | 'chart'      // a breakdown / comparison (donut or bars + legend)
+  | 'matrix'     // a decision table (rows × columns of checks)
 
-export const ALL_ARCHETYPES: EditorialArchetype[] = ['cover', 'lede', 'grid', 'pullquote', 'stat', 'list', 'decision']
+export const ALL_ARCHETYPES: EditorialArchetype[] = ['cover', 'lede', 'grid', 'pullquote', 'stat', 'list', 'decision', 'timeline', 'chart', 'matrix']
 
 /** The content a scene carries (superset; fields used per archetype). */
 export type EditorialScene = {
@@ -33,7 +36,13 @@ export type EditorialScene = {
   quote?: string                   // pull-quote text
   attribution?: string
   items?: { title: string; detail?: string }[]   // grid / list
-  metrics?: { label: string; value: string }[]    // stat
+  metrics?: { label: string; value: string }[]    // stat / chart (bar)
+  /** timeline: dated milestones (when = year/date label). */
+  timeline?: { when: string; title: string; detail?: string }[]
+  /** chart: segments of a whole (donut) or bars (value 0-100 or absolute). */
+  chart?: { kind?: 'donut' | 'bar'; segments: { label: string; value: number }[] }
+  /** matrix: a decision table — column headers + rows of cells. */
+  matrix?: { columns: string[]; rows: { label: string; cells: string[] }[] }
   image?: string                   // optional framed photo
   audio?: string
   durationInFrames: number
@@ -49,6 +58,10 @@ export function pickArchetype(s: EditorialScene, index: number, total: number): 
   const items = s.items ?? []
   const metrics = (s.metrics ?? []).filter((m) => m.label && m.value && hasNum(m.value))
 
+  const timeline = s.timeline ?? []
+  const chartSegs = s.chart?.segments ?? []
+  const matrixRows = s.matrix?.rows ?? []
+
   // Trust a valid LLM tag — but sanity-check it has the data it needs.
   if (s.archetype && ALL_ARCHETYPES.includes(s.archetype)) {
     const a = s.archetype
@@ -57,12 +70,18 @@ export function pickArchetype(s: EditorialScene, index: number, total: number): 
     else if (a === 'stat' && metrics.length === 0) { /* no numbers */ }
     else if (a === 'pullquote' && !s.quote && !s.title) { /* nothing to quote */ }
     else if (a === 'list' && items.length === 0) { /* no items */ }
+    else if (a === 'timeline' && timeline.length < 2) { /* need ≥2 milestones */ }
+    else if (a === 'chart' && chartSegs.length < 2) { /* need ≥2 segments */ }
+    else if (a === 'matrix' && (matrixRows.length < 2 || !(s.matrix?.columns?.length))) { /* need a table */ }
     else return a // tag is valid AND has the data — use it
   }
 
   // --- deterministic inference (safety net) ---
   if (index === 0) return 'cover'
   if (index === total - 1) return 'decision'
+  if (timeline.length >= 2) return 'timeline'
+  if (chartSegs.length >= 2) return 'chart'
+  if (matrixRows.length >= 2 && (s.matrix?.columns?.length ?? 0) >= 1) return 'matrix'
   if (s.quote) return 'pullquote'
   if (metrics.length >= 1 && items.length === 0) return 'stat'
   if (items.length >= 4) return 'grid'

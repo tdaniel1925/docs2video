@@ -1,14 +1,14 @@
 import { AbsoluteFill, Series, Audio, staticFile, useCurrentFrame, interpolate } from 'remotion'
 import { z } from 'zod'
-import { editorialFromBrand, type EditorialTheme } from './theme'
+import { editorialFromBrand, type EditorialTheme, type EditorialVariant } from './theme'
 import { pickArchetype, type EditorialScene } from './archetype'
-import { CoverScene, LedeScene, GridScene, PullQuoteScene, StatScene, ListScene, DecisionScene } from './EditorialScenes'
+import { CoverScene, LedeScene, GridScene, PullQuoteScene, StatScene, ListScene, DecisionScene, TimelineScene, ChartScene, MatrixScene } from './EditorialScenes'
 
 const itemSchema = z.object({ title: z.string(), detail: z.string().optional() })
 const metricSchema = z.object({ label: z.string(), value: z.string() })
 
 export const editorialSceneSchema = z.object({
-  archetype: z.enum(['cover', 'lede', 'grid', 'pullquote', 'stat', 'list', 'decision']).optional(),
+  archetype: z.enum(['cover', 'lede', 'grid', 'pullquote', 'stat', 'list', 'decision', 'timeline', 'chart', 'matrix']).optional(),
   kicker: z.string().optional(),
   title: z.string(),
   dek: z.string().optional(),
@@ -17,6 +17,9 @@ export const editorialSceneSchema = z.object({
   attribution: z.string().optional(),
   items: z.array(itemSchema).optional(),
   metrics: z.array(metricSchema).optional(),
+  timeline: z.array(z.object({ when: z.string(), title: z.string(), detail: z.string().optional() })).optional(),
+  chart: z.object({ kind: z.enum(['donut', 'bar']).optional(), segments: z.array(z.object({ label: z.string(), value: z.number() })) }).optional(),
+  matrix: z.object({ columns: z.array(z.string()), rows: z.array(z.object({ label: z.string(), cells: z.array(z.string()) })) }).optional(),
   image: z.string().optional(),
   audio: z.string().optional(),
   durationInFrames: z.number(),
@@ -29,6 +32,8 @@ export const editorialSchema = z.object({
   runningTitle: z.string().optional(),
   /** Brand primary color → editorial accent (frame, rules, kickers). */
   brandColor: z.string().optional(),
+  /** Which magazine look: 'time' (bold red) or 'editorial' (clean/warm). */
+  variant: z.enum(['editorial', 'time']).optional(),
   music: z.string().optional(),
   /** Contact line for the closing decision page. */
   contactLine: z.string().optional(),
@@ -53,8 +58,8 @@ const PageTurn: React.FC<{ d: number; isLast?: boolean; children: React.ReactNod
   return <AbsoluteFill style={{ opacity: inP * (1 - outP) }}>{children}</AbsoluteFill>
 }
 
-export const EditorialVideo: React.FC<EditorialProps> = ({ masthead, runningTitle, brandColor, music, scenes, contactLine, presenter, presenterOnCover, presenterOnClosing }) => {
-  const theme: EditorialTheme = editorialFromBrand(brandColor)
+export const EditorialVideo: React.FC<EditorialProps> = ({ masthead, runningTitle, brandColor, variant, music, scenes, contactLine, presenter, presenterOnCover, presenterOnClosing }) => {
+  const theme: EditorialTheme = editorialFromBrand(brandColor, (variant as EditorialVariant) || 'time')
   const running = (runningTitle || scenes[0]?.title || '').toUpperCase().slice(0, 32)
   const total = scenes.reduce((a, s) => a + s.durationInFrames, 0)
 
@@ -68,6 +73,9 @@ export const EditorialVideo: React.FC<EditorialProps> = ({ masthead, runningTitl
       case 'pullquote': return <PullQuoteScene {...props} />
       case 'stat': return <StatScene {...props} />
       case 'list': return <ListScene {...props} />
+      case 'timeline': return <TimelineScene {...props} />
+      case 'chart': return <ChartScene {...props} />
+      case 'matrix': return <MatrixScene {...props} />
       case 'decision': return <DecisionScene {...props} contactLine={contactLine} presenter={presenterOnClosing ? presenter : undefined} />
       default: return <LedeScene {...props} />
     }

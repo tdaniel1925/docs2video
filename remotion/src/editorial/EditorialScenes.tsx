@@ -21,8 +21,11 @@ const Rule: React.FC<{ color: string; delay: number; width?: number | string; th
 const Kicker: React.FC<{ text: string; theme: EditorialTheme; delay?: number }> = ({ text, theme, delay = 2 }) => {
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const p = settle(frame, delay, fps)
+  // Time = bold red kicker with wide tracking (newsmagazine). Editorial = quieter,
+  // muted, tighter tracking (refined).
+  const isTime = theme.variant === 'time'
   return (
-    <div style={{ opacity: p, transform: `translateY(${(1 - p) * 10}px)`, fontFamily: FONT_KICKER, fontWeight: 600, letterSpacing: '0.22em', fontSize: 26, color: theme.accent, textTransform: 'uppercase' }}>
+    <div style={{ opacity: p, transform: `translateY(${(1 - p) * 10}px)`, fontFamily: FONT_KICKER, fontWeight: isTime ? 700 : 600, letterSpacing: isTime ? '0.28em' : '0.18em', fontSize: isTime ? 26 : 22, color: isTime ? theme.accent : theme.muted, textTransform: 'uppercase' }}>
       {text}
     </div>
   )
@@ -59,18 +62,21 @@ export const EditorialFrame: React.FC<{
   frameWidth?: number
   showFolio?: boolean
   children: React.ReactNode
-}> = ({ theme, masthead, runningTitle, page, frameWidth = 16, showFolio = true, children }) => {
+}> = ({ theme, masthead, runningTitle, page, frameWidth, showFolio = true, children }) => {
+  // Frame thickness comes from the theme (Time = bold ~16px, Editorial = thin ~5px)
+  // unless a caller overrides it.
+  const fw = frameWidth ?? theme.frameWidth
   // The brand-color frame is a real `border` on ONE full-bleed box with
   // box-sizing:border-box — NOT nested AbsoluteFills with padding/inset, which
   // compounded badly and dropped the right + bottom edges (the "cut off" border).
   // A border on a single sized box renders symmetrically on all four sides.
   return (
     <AbsoluteFill style={{
-      boxSizing: 'border-box', border: `${frameWidth}px solid ${theme.accent}`,
+      boxSizing: 'border-box', border: `${fw}px solid ${theme.accent}`,
       background: theme.paper, display: 'flex', flexDirection: 'column',
     }}>
       {showFolio ? (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '26px 56px', borderBottom: `1px solid ${theme.hairline}`, fontFamily: FONT_MONO, fontSize: 17, letterSpacing: '0.12em', color: theme.muted, textTransform: 'uppercase' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '26px 56px', borderBottom: `${theme.variant === 'time' ? 2 : 1}px solid ${theme.variant === 'time' ? theme.ink : theme.hairline}`, fontFamily: FONT_MONO, fontSize: 17, letterSpacing: '0.12em', color: theme.muted, textTransform: 'uppercase' }}>
           <span style={{ fontWeight: 600, color: theme.ink }}>{masthead}</span>
           <span>{runningTitle}</span>
           <span>{String(page).padStart(2, '0')}</span>
@@ -109,7 +115,7 @@ export const CoverScene: React.FC<SceneProps & { presenter?: Presenter }> = ({ s
   const titleP = settle(frame, 8, fps)
   const hasPortrait = !!presenter?.photo
   return (
-    <AbsoluteFill style={{ boxSizing: 'border-box', border: `18px solid ${theme.accent}`, background: theme.paper, padding: '64px 72px', display: 'flex', flexDirection: 'column' }}>
+    <AbsoluteFill style={{ boxSizing: 'border-box', border: `${theme.variant === 'time' ? 18 : 8}px solid ${theme.accent}`, background: theme.paper, padding: '64px 72px', display: 'flex', flexDirection: 'column' }}>
         {/* Masthead bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: `3px solid ${theme.ink}`, paddingBottom: 18 }}>
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 88, lineHeight: 0.9, color: theme.ink, letterSpacing: '-0.01em' }}>{masthead}</div>
@@ -172,8 +178,11 @@ export const GridScene: React.FC<SceneProps> = (p) => {
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: '40px 56px', marginTop: 40, flex: 1, alignContent: 'start' }}>
           {items.map((it, i) => {
             const op = settle(frame, 16 + i * Math.round(0.1 * fps), fps)
+            // Time = numbered TILE with an accent border-top (newsmagazine module).
+            // Editorial = clean numbered item, no box.
+            const isTime = theme.variant === 'time'
             return (
-              <div key={i} style={{ opacity: op, transform: `translateY(${(1 - op) * 16}px)` }}>
+              <div key={i} style={{ opacity: op, transform: `translateY(${(1 - op) * 16}px)`, ...(isTime ? { borderTop: `3px solid ${theme.accent}`, paddingTop: 16 } : {}) }}>
                 <div style={{ fontFamily: FONT_MONO, fontSize: 18, color: theme.accent, marginBottom: 8 }}>{String(i + 1).padStart(2, '0')}</div>
                 <div style={{ fontFamily: FONT_DISPLAY, fontSize: 34, lineHeight: 1.1, color: theme.ink, marginBottom: 6 }}>{it.title}</div>
                 {it.detail ? <div style={{ fontFamily: FONT_BODY, fontSize: 22, lineHeight: 1.4, color: theme.muted }}>{it.detail}</div> : null}
@@ -293,6 +302,148 @@ export const DecisionScene: React.FC<SceneProps & { contactLine?: string; presen
           ) : null}
         </div>
         {hasPortrait ? <Portrait presenter={presenter!} theme={theme} size={320} /> : null}
+      </div>
+    </Frame>
+  )
+}
+
+/** TIMELINE — a horizontal line of dated milestones (dots draw in left→right). */
+export const TimelineScene: React.FC<SceneProps> = (p) => {
+  const { scene, theme } = p
+  const frame = useCurrentFrame(); const { fps } = useVideoConfig()
+  const steps = (scene.timeline ?? []).slice(0, 6)
+  return (
+    <Frame {...p}>
+      <div style={{ padding: '52px 56px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {scene.kicker ? <Kicker text={scene.kicker} theme={theme} /> : null}
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 72, lineHeight: 1.0, color: theme.ink, margin: '12px 0 0' }}>{scene.title}</div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+          <div style={{ position: 'relative', width: '100%' }}>
+            {/* the connecting line (draws in) */}
+            <div style={{ position: 'absolute', top: 9, left: 0, height: 3, width: `${settle(frame, 12, fps) * 100}%`, background: theme.hairline }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
+              {steps.map((st, i) => {
+                const op = settle(frame, 16 + i * Math.round(0.14 * fps), fps)
+                const last = i === steps.length - 1
+                return (
+                  <div key={i} style={{ opacity: op, flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '0 12px' }}>
+                    <div style={{ width: 20, height: 20, borderRadius: '50%', background: last ? theme.ink : theme.accent, marginBottom: 18 }} />
+                    <div style={{ fontFamily: FONT_DISPLAY, fontSize: 40, color: theme.accent, lineHeight: 1 }}>{st.when}</div>
+                    <div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, color: theme.ink, marginTop: 8, lineHeight: 1.1 }}>{st.title}</div>
+                    {st.detail ? <div style={{ fontFamily: FONT_BODY, fontSize: 19, color: theme.muted, marginTop: 6, lineHeight: 1.35 }}>{st.detail}</div> : null}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </Frame>
+  )
+}
+
+/** CHART — a donut (share of a whole) or bars (comparison) + legend. SVG, no image. */
+export const ChartScene: React.FC<SceneProps> = (p) => {
+  const { scene, theme } = p
+  const frame = useCurrentFrame(); const { fps } = useVideoConfig()
+  const segs = (scene.chart?.segments ?? []).filter((s) => s.label && s.value > 0).slice(0, 5)
+  const kind = scene.chart?.kind || (segs.length <= 4 ? 'donut' : 'bar')
+  const total = segs.reduce((a, s) => a + s.value, 0) || 1
+  const grow = settle(frame, 14, fps)
+  // Segment colors: accent, ink, muted, then tinted hairline.
+  const palette = [theme.accent, theme.ink, theme.muted, theme.hairline, theme.paperEdge]
+  return (
+    <Frame {...p}>
+      <div style={{ padding: '52px 56px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {scene.kicker ? <Kicker text={scene.kicker} theme={theme} /> : null}
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 72, lineHeight: 1.0, color: theme.ink, margin: '12px 0 0' }}>{scene.title}</div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 72 }}>
+          {kind === 'donut' ? (
+            <svg width={360} height={360} viewBox="0 0 36 36" style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
+              {(() => {
+                let acc = 0
+                return segs.map((s, i) => {
+                  const frac = (s.value / total) * grow
+                  // pathLength=100 makes the circumference exactly 100 units, so
+                  // strokeDasharray works in percentages. Offset walks each
+                  // segment around the ring (negative = clockwise from the start).
+                  const dash = `${frac * 100} ${100 - frac * 100}`
+                  const offset = -acc * 100
+                  acc += frac
+                  return (
+                    <circle key={i} cx="18" cy="18" r="15.9155" fill="transparent"
+                      pathLength={100}
+                      stroke={palette[i % palette.length]} strokeWidth="5"
+                      strokeDasharray={dash} strokeDashoffset={offset} />
+                  )
+                })
+              })()}
+            </svg>
+          ) : (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: 28, height: 320 }}>
+              {segs.map((s, i) => (
+                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 34, color: theme.accent, marginBottom: 8 }}>{s.value}</div>
+                  <div style={{ width: '70%', height: `${(s.value / Math.max(...segs.map((x) => x.value))) * 100 * grow}%`, background: palette[i % palette.length], borderRadius: 2 }} />
+                  <div style={{ fontFamily: FONT_KICKER, fontSize: 18, letterSpacing: '0.08em', color: theme.ink, textTransform: 'uppercase', marginTop: 12, textAlign: 'center' }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {kind === 'donut' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {segs.map((s, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ width: 22, height: 22, background: palette[i % palette.length], borderRadius: 3, flexShrink: 0 }} />
+                  <div style={{ fontFamily: FONT_BODY, fontSize: 26, color: theme.ink }}>{s.label}</div>
+                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 28, color: theme.accent, marginLeft: 8 }}>{Math.round((s.value / total) * 100)}%</div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </Frame>
+  )
+}
+
+/** MATRIX — a decision table (rows × columns). The Time "what to automate" grid. */
+export const MatrixScene: React.FC<SceneProps> = (p) => {
+  const { scene, theme } = p
+  const frame = useCurrentFrame(); const { fps } = useVideoConfig()
+  const cols = scene.matrix?.columns ?? []
+  const rows = (scene.matrix?.rows ?? []).slice(0, 6)
+  return (
+    <Frame {...p}>
+      <div style={{ padding: '52px 56px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {scene.kicker ? <Kicker text={scene.kicker} theme={theme} /> : null}
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 64, lineHeight: 1.0, color: theme.ink, margin: '12px 0 24px' }}>{scene.title}</div>
+        <div style={{ flex: 1 }}>
+          {/* header row */}
+          <div style={{ display: 'grid', gridTemplateColumns: `1.4fr repeat(${cols.length}, 1fr)`, gap: 0, borderBottom: `2px solid ${theme.ink}`, paddingBottom: 12 }}>
+            <div />
+            {cols.map((c, i) => (
+              <div key={i} style={{ fontFamily: FONT_KICKER, fontSize: 22, letterSpacing: '0.1em', color: theme.accent, textTransform: 'uppercase', textAlign: 'center' }}>{c}</div>
+            ))}
+          </div>
+          {rows.map((r, ri) => {
+            const op = settle(frame, 16 + ri * Math.round(0.1 * fps), fps)
+            return (
+              <div key={ri} style={{ opacity: op, display: 'grid', gridTemplateColumns: `1.4fr repeat(${cols.length}, 1fr)`, gap: 0, alignItems: 'center', borderBottom: `1px solid ${theme.hairline}`, padding: '18px 0' }}>
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 28, color: theme.ink }}>{r.label}</div>
+                {cols.map((_, ci) => {
+                  const cell = r.cells?.[ci] || ''
+                  const isCheck = /^(yes|✓|x|true|✔)$/i.test(cell.trim())
+                  return (
+                    <div key={ci} style={{ textAlign: 'center', fontFamily: FONT_BODY, fontSize: 26, color: isCheck ? theme.accent : theme.muted }}>
+                      {isCheck ? '●' : (cell || '–')}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </Frame>
   )
