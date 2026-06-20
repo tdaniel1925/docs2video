@@ -109,3 +109,61 @@ export function editorialFromBrand(brandPrimary?: string, variant: EditorialVari
 /** Convenience constructors. */
 export function timeFromBrand(brandPrimary?: string): EditorialTheme { return editorialFromBrand(brandPrimary, 'time') }
 export function explainerFromBrand(brandPrimary?: string): EditorialTheme { return editorialFromBrand(brandPrimary, 'explainer') }
+
+/* ----------------------- explainer full-color pages ----------------------- */
+
+/** Relative luminance of a #RRGGBB color (0 = black, 1 = white). */
+function luminance(hex: string): number {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.slice(0, 2), 16) / 255
+  const g = parseInt(h.slice(2, 4), 16) / 255
+  const b = parseInt(h.slice(4, 6), 16) / 255
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
+
+/** Mix a #RRGGBB color toward white (amt>0) or black (amt<0) by `amt` (0..1). */
+function shade(hex: string, amt: number): string {
+  const h = hex.replace('#', '')
+  const to = amt >= 0 ? 255 : 0
+  const t = Math.abs(amt)
+  const ch = (i: number) => {
+    const c = parseInt(h.slice(i, i + 2), 16)
+    return Math.round(c + (to - c) * t).toString(16).padStart(2, '0')
+  }
+  return `#${ch(0)}${ch(2)}${ch(4)}`
+}
+
+/**
+ * EXPLAINER per-page palette — the sample uses bold full-bleed colored pages
+ * (teal / coral / gold / navy), with text + cards flipped to contrast. Returns
+ * a theme whose `paper` is the page's accent and whose ink/muted/card colors
+ * read correctly on it (light text on dark pages, navy text on light pages).
+ * The cover (page 1) keeps the navy ink-on-cream identity, so we rotate the
+ * background colors over the CONTENT pages only.
+ */
+export function explainerPageTheme(base: EditorialTheme, page: number): EditorialTheme {
+  if (base.variant !== 'explainer') return base
+  // Full-bleed background set, matching the sample's dominant page colors.
+  const PAGE_BGS = ['#1FA88E', '#FF5A3C', '#F5B72E', '#6B5CE0', '#15233B'] // teal/coral/gold/purple/navy
+  const bg = PAGE_BGS[(Math.max(1, page) - 1) % PAGE_BGS.length]
+  const dark = luminance(bg) < 0.5
+  // Text + card colors flip for contrast against the page background.
+  const ink = dark ? '#FFFFFF' : '#15233B'           // headline/body
+  const muted = dark ? shade(bg, 0.62) : '#5C5648'   // secondary text — tinted, readable
+  const card = dark ? shade(bg, -0.16) : '#FFFFFF'   // card fill (paperEdge)
+  const hairline = dark ? shade(bg, -0.28) : shade(bg, -0.12)
+  // On a colored page the small per-item accents read best as near-white/near-ink
+  // chips rather than the four-color set (which would clash with the bg).
+  const chip = dark ? '#FFFFFF' : '#15233B'
+  return {
+    ...base,
+    accent: chip,
+    ink,
+    paper: bg,
+    muted,
+    hairline,
+    paperEdge: card,
+    accents: [chip, chip, chip, chip],
+  }
+}

@@ -1,6 +1,6 @@
 import { AbsoluteFill, Series, Audio, staticFile, useCurrentFrame, interpolate } from 'remotion'
 import { z } from 'zod'
-import { editorialFromBrand, type EditorialTheme, type EditorialVariant } from './theme'
+import { editorialFromBrand, explainerPageTheme, type EditorialTheme, type EditorialVariant } from './theme'
 import { pickArchetype, type EditorialScene } from './archetype'
 import { CoverScene, LedeScene, GridScene, PullQuoteScene, StatScene, ListScene, DecisionScene, TimelineScene, ChartScene, MatrixScene } from './EditorialScenes'
 
@@ -65,7 +65,13 @@ export const EditorialVideo: React.FC<EditorialProps> = ({ masthead, runningTitl
 
   const render = (s: EditorialScene, i: number) => {
     const a = pickArchetype(s, i, scenes.length)
-    const props = { scene: s, theme, masthead, runningTitle: running, page: i + 1 }
+    // EXPLAINER: each page gets its own bold full-bleed accent background with
+    // contrast-flipped text/cards (matches the sample). The cover keeps the
+    // navy-on-cream identity, so only content pages get a colored background.
+    const pageTheme = theme.variant === 'explainer' && a !== 'cover'
+      ? explainerPageTheme(theme, i + 1)
+      : theme
+    const props = { scene: s, theme: pageTheme, masthead, runningTitle: running, page: i + 1 }
     switch (a) {
       case 'cover': return <CoverScene {...props} presenter={presenterOnCover ? presenter : undefined} />
       case 'lede': return <LedeScene {...props} />
