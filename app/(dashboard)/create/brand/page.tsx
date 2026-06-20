@@ -262,13 +262,17 @@ export default function BrandPage() {
         step: 2,
       }
 
-      // Per-video presenter prefs (only meaningful for a Person profile, but
-      // harmless otherwise) — carried to generate-video via the draft/createState.
-      if (selectedIsPerson) {
-        updates.presenterIntro = presenterIntro.trim() || undefined
+      // Per-video presenter prefs — carried to generate-video via the draft.
+      // Covers BOTH a selected Person profile AND a Person being created inline
+      // (in which case the inline intro/placement seed the per-video values).
+      const isInlinePerson = !selectedBrandId && profileType === 'person'
+      if (selectedIsPerson || isInlinePerson) {
+        const introVal = selectedIsPerson ? presenterIntro : (presenterIntro || introLine)
+        const placementVal = selectedIsPerson ? perVideoPlacement : photoPlacement
+        updates.presenterIntro = introVal.trim() || undefined
+        updates.photoPlacement = placementVal
         updates.introduceInOpening = introduceInOpening
         updates.showContactClosing = showContactClosing
-        updates.photoPlacement = perVideoPlacement
       }
 
       // Save contact info if provided via inline form
