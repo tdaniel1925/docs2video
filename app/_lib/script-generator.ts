@@ -544,8 +544,52 @@ The viewer should feel like they just had a clear, personal explanation of their
 - GOOD: "Here are the key metrics that matter most" (viewer is already looking at the metrics slide)
 - Each scene must be self-contained: introduce its topic, explain it, and wrap it up WITHOUT referencing other scenes.`)
 
+  // ── Craft rules: turn a list-of-facts into a presentable, intelligent script ──
+  // These are the difference between "captions read aloud" and a real person
+  // walking you through something. Grounded in the data; no invented facts.
+  additionalSections.push(`NARRATIVE ARC (write the script as ONE story, not isolated blurbs):
+- Before writing scenes, silently decide the SINGLE most important takeaway the viewer must remember. Make every scene serve it.
+- Shape the whole video as an arc: HOOK (earn attention) → CONTEXT (orient them) → BUILD (develop the key points, rising toward the most important fact) → PAYOFF (the takeaway lands) → CLOSE (what to do next).
+- The most important number/fact should feel like the climax the earlier scenes were building toward — not just another bullet.`)
+
+  additionalSections.push(`FLOW & CONNECTIVE TISSUE (make it sound like a person talking):
+- Within the strict slide-sync rules above, each scene's FIRST line should feel like a natural continuation of the moment — open by grounding the viewer in what they're seeing, in a human way ("Here's where it gets important." / "This is the part that matters for you.").
+- Vary how scenes begin — never start multiple scenes the same way ("Here are…", "This is…"). Mix statements, short questions, and direct address ("you").
+- Use natural spoken cadence: contractions ("you're", "that's", "it's"), occasional one-word emphasis ("Significant."), and rhetorical questions where they help ("So what does that actually mean?").
+- AVOID robotic filler: "the data shows", "it's worth noting", "as we can see", "in this section". Talk TO the viewer, not AT a slide.`)
+
+  additionalSections.push(`MAKE NUMBERS MEAN SOMETHING (the "so what"):
+- Every metric or figure must be followed by its human consequence — why the viewer should care. State the number, then translate it.
+- Example pattern (adapt to the real, grounded data): "$176,204 in coverage — that's enough to keep your family in their home and cover what comes next." Never the number alone.
+- Prefer concrete, relatable framing over abstract restatement. A figure with no meaning attached is a wasted line.`)
+
+  additionalSections.push(`SENTENCE RHYTHM (this is the biggest "sounds human" lever for voiceover):
+- Vary sentence length deliberately: mix short, punchy lines with one longer, flowing sentence. Never make every sentence the same length — that's what makes TTS sound flat.
+- Read each line aloud in your head; if it sounds like a textbook, rewrite it the way a confident person would actually say it.
+- Lead with the point, then support it. Front-load the interesting part of each sentence.`)
+
   if (purpose) {
     additionalSections.push(`VIDEO PURPOSE (CRITICAL): The user wants this video to "${purpose}". This is the primary objective — shape the entire narrative, tone, emphasis, and call-to-action around accomplishing this goal. Every scene should serve this purpose. Prioritize information that supports this goal and de-emphasize anything that doesn't.`)
+  }
+
+  // Tone preset — pick ONE voice for the whole script based on what kind of
+  // document/audience this is, so the narration is consistently right for the
+  // listener (a patient hears reassurance; a client hears confident precision).
+  {
+    const cat = (classification?.category || industry || '').toLowerCase()
+    let preset = ''
+    if (['insurance', 'healthcare', 'medical'].some((k) => cat.includes(k))) {
+      preset = 'REASSURING EXPERT — warm, plain-language, calm and caring. Explain like a trusted professional sitting across from someone, removing worry. No jargon; if a technical term is unavoidable, define it in plain words.'
+    } else if (['finance', 'legal', 'business'].some((k) => cat.includes(k))) {
+      preset = 'CONFIDENT ADVISOR — precise, credible, benefit-framed. Speak with quiet authority. Lead with what the figures mean for the listener, not just what they are.'
+    } else if (['real-estate', 'sales', 'marketing'].some((k) => cat.includes(k))) {
+      preset = 'ENERGETIC GUIDE — upbeat and persuasive without hype. Problem → solution framing. Make the value obvious and the next step easy.'
+    } else if (['education'].some((k) => cat.includes(k))) {
+      preset = 'CLEAR TEACHER — friendly, structured, encouraging. Build understanding step by step; make the listener feel capable.'
+    } else {
+      preset = 'WARM PROFESSIONAL — clear, friendly, and direct. Like a smart colleague explaining something they genuinely want you to get.'
+    }
+    additionalSections.push(`TONE PRESET (adopt this voice throughout, unless BRAND TONE below overrides it):\n${preset}`)
   }
 
   if (narrationStyle !== 'podcast') {
@@ -868,6 +912,16 @@ NARRATION ↔ SLIDE CORRESPONDENCE (every scene):
         }
     }
 
+    // PASS 2 — the "editor": polish the narration for flow, rhythm, and the
+    // so-what, paced to each slide. Grounded (no new facts); best-effort so a
+    // failure just leaves the first-pass narration untouched.
+    if (scenes.length > 0) {
+      scenes = await editScriptNarration(scenes, { detailLevel }).catch((e) => {
+        console.error('[script-gen] editor pass skipped:', e instanceof Error ? e.message : e)
+        return scenes
+      })
+    }
+
     // Generate frame prompts for flipbook mode
     const stylePromptForFrames = '' // Will be filled by generate-video route
     for (let i = 0; i < scenes.length; i++) {
@@ -882,4 +936,73 @@ NARRATION ↔ SLIDE CORRESPONDENCE (every scene):
     }
     throw e
   }
+}
+
+/**
+ * PASS 2 — the editor. Takes the first-pass scenes and rewrites ONLY the
+ * narration for flow, rhythm, and the "so what", paced to each slide. It is
+ * STRICTLY grounded: it may only use facts/numbers already present in the
+ * scene's narration or slide data — never invents anything. Returns the same
+ * scenes with improved narration; on any failure returns the input unchanged.
+ *
+ * Why a second pass: a single generate-then-ship call is good; a generate +
+ * dedicated critique/polish pass is consistently better and is cheap.
+ */
+async function editScriptNarration(
+  scenes: VideoScene[],
+  opts: { detailLevel?: 'quick' | 'standard' | 'detailed' },
+): Promise<VideoScene[]> {
+  // Compact, grounded view of each scene for the editor (number + what's on the
+  // slide + the current narration). Keeping it small keeps the pass fast/cheap.
+  const brief = scenes.map((s, i) => {
+    const sd = (s as any).slideData || {}
+    const stats = Array.isArray(sd.stats) ? sd.stats.map((x: any) => `${x.label}: ${x.value}`).join('; ') : ''
+    const bullets = Array.isArray(sd.bullets) ? sd.bullets.join(' | ') : ''
+    return [
+      `SCENE ${i + 1}${i === 0 ? ' (OPENING)' : i === scenes.length - 1 ? ' (CLOSING)' : ''}`,
+      `headline: ${sd.headline || s.title || ''}`,
+      stats ? `on-slide numbers: ${stats}` : '',
+      bullets ? `on-slide points: ${bullets}` : '',
+      `current narration: ${s.narration || ''}`,
+    ].filter(Boolean).join('\n')
+  }).join('\n\n')
+
+  const targetWords = opts.detailLevel === 'quick' ? '20-30' : opts.detailLevel === 'detailed' ? '90-160' : '30-50'
+
+  const sys = `You are a world-class script editor for short narrated videos. You polish narration so it sounds like a confident, warm human walking the viewer through something — not captions read aloud.
+
+You will receive the scenes of a video (each with what's ON the slide + the current narration). Rewrite ONLY the narration of each scene. Return improved narration that:
+- Flows as ONE story across scenes (each scene opens grounded in what's on screen, with natural variety — never start two scenes the same way).
+- Follows every number with its human consequence (the "so what") — never a bare figure.
+- Varies sentence rhythm: mix short punchy lines with one longer line. Lead with the point.
+- Uses natural spoken cadence (contractions, the occasional short question), and AVOIDS robotic filler ("the data shows", "it's worth noting", "as we can see", "next we'll look at").
+- Is paced to the slide: roughly ${targetWords} words per scene.
+- OPENING scene = a warm welcome that orients the viewer (no specific numbers there). CLOSING scene = a warm wrap-up / contact, no new topics.
+
+ABSOLUTE RULES:
+- GROUNDED: use ONLY facts, names, and numbers already present in that scene's data/narration. Invent NOTHING. Add no new figures, no contact info, no claims.
+- Keep each scene's narration about ITS OWN slide only. Never reference "the next slide" or preview upcoming scenes.
+- Do not change which scene covers what. Same count, same order.
+
+Return ONLY a JSON array of objects: [{ "scene": <number>, "narration": "<polished narration>" }]. No markdown, no commentary.`
+
+  const resp = await claudeCreate({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 8000,
+    system: sys,
+    messages: [{ role: 'user', content: `SCENES TO POLISH:\n\n${brief}` }],
+  } as any)
+
+  const text = parseClaudeText(resp)
+  const arr = JSON.parse(text.slice(text.indexOf('['), text.lastIndexOf(']') + 1)) as { scene: number; narration: string }[]
+  if (!Array.isArray(arr) || !arr.length) return scenes
+
+  const byScene = new Map(arr.map((x) => [Number(x.scene), (x.narration || '').trim()]))
+  // Strip forward-looking phrases the editor might reintroduce, to keep slide sync.
+  const forward = /\b(next,?\s+we('ll|\s+will)|coming up|let's\s+(move|turn|shift)\s+(on\s+)?to|in\s+the\s+next\s+(slide|scene|section)|up\s+next|moving\s+on\s+to)\b/gi
+  return scenes.map((s, i) => {
+    const polished = byScene.get(i + 1) || byScene.get((s as any).scene)
+    if (!polished) return s
+    return { ...s, narration: polished.replace(forward, '').replace(/\s{2,}/g, ' ').trim() }
+  })
 }
