@@ -1243,6 +1243,20 @@ app.post('/render-editorial', authCheck, async (req, res) => {
   const pub = join(REMOTION_DIR, 'public')
   let outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
 
+  // Per-page preview thumbnails so the SLIDES panel fills with labeled,
+  // clickable pages (same mechanism as /render-v3's pushPreview).
+  const previews = []
+  const pushPreview = async (idx, localPath) => {
+    try {
+      const buf = await readFile(localPath)
+      const path = `${userId}/${videoId}_preview_${idx}.png`
+      await sb.storage.from('videos').upload(path, buf, { contentType: 'image/png', upsert: true })
+      const url = sb.storage.from('videos').getPublicUrl(path).data.publicUrl
+      previews.push({ idx, url })
+      await sb.from('videos').update({ preview_thumbs: previews, progress_updated_at: new Date().toISOString() }).eq('id', videoId)
+    } catch (e) { /* previews are best-effort */ }
+  }
+
   try {
     await mkdir(pub, { recursive: true }); await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
     console.log(`[render-editorial ${videoId}] ${scenes.length} scenes`)
@@ -1296,7 +1310,32 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       } catch (e) { console.error(`[render-editorial ${videoId}] music skipped: ${e.message}`) }
     }
 
-    await setProgress(90, 'Uploading...')
+    // Render a STILL of each page (the framed editorial layout, not just its
+    // photo) so the SLIDES panel shows true, labeled, clickable page thumbnails.
+    // Cheap — single frames. Best-effort: failures just leave that page without a
+    // thumbnail. We sample the MIDDLE frame of each scene (past the page-turn in).
+    await setProgress(89, 'Rendering page thumbnails...')
+    let acc = 0
+    for (let i = 0; i < out.length; i++) {
+      const dur = out[i].durationInFrames || 0
+      const midFrame = acc + Math.floor(dur / 2)
+      acc += dur
+      const stillPath = join(REMOTION_DIR, 'out', `${videoId}-page-${i}.png`)
+      try {
+        await new Promise((resolve, reject) => {
+          const { spawn } = require('child_process')
+          const c = spawn('npx', ['remotion', 'still', 'EditorialVideo', stillPath, `--frame=${midFrame}`, `--props=${join(pub, 'editorial.json')}`, '--gl=swiftshader', '--image-format=png'], { cwd: REMOTION_DIR, env: { ...process.env } })
+          let err = ''
+          c.stderr.on('data', (b) => { err = (err + b.toString()).slice(-500) })
+          const kt = setTimeout(() => { try { c.kill('SIGKILL') } catch {}; reject(new Error('still timeout')) }, 90000)
+          c.on('error', (e) => { clearTimeout(kt); reject(e) })
+          c.on('close', (code) => { clearTimeout(kt); code === 0 ? resolve() : reject(new Error(`still exit ${code}: ${err}`)) })
+        })
+        await pushPreview(i, stillPath)
+      } catch (e) { console.error(`[render-editorial ${videoId}] page-still ${i} failed: ${e.message}`) }
+    }
+
+    await setProgress(92, 'Uploading...')
     const buf = await readFile(outFile)
     const path = `${userId}/${videoId}.mp4`
     await sb.storage.from('videos').upload(path, buf, { contentType: 'video/mp4', upsert: true })
@@ -1305,7 +1344,18 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     await new Promise((resolve) => execFile('ffmpeg', ['-y', '-i', outFile, '-vframes', '1', thumb], { timeout: 30000 }, () => resolve()))
     let thumbUrl = null
     try { const tb = await readFile(thumb); await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true }); thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl } catch {}
-    await sb.from('videos').update({ status: 'completed', video_url: url, ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}), progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString() }).eq('id', videoId)
+
+    // Populate the SLIDES panel: per-page thumbnail, duration (seconds, for seek),
+    // and script titles (the chapter label shown under each thumbnail).
+    const slideUrls = out.map((_, i) => previews.find((p) => p.idx === i)?.url).filter(Boolean)
+    const slideDurations = out.map((s) => Math.round((s.durationInFrames || 0) / 30 * 10) / 10)
+    const scriptForPanel = out.map((s) => ({ title: s.title || '', headline: s.title || '' }))
+    await sb.from('videos').update({
+      status: 'completed', video_url: url, ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
+      ...(slideUrls.length ? { slide_urls: slideUrls } : {}),
+      slide_durations: slideDurations, script: scriptForPanel,
+      progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
+    }).eq('id', videoId)
     console.log(`[render-editorial ${videoId}] DONE -> ${url}`)
   } catch (err) {
     console.error(`[render-editorial ${videoId}] error:`, err.message)

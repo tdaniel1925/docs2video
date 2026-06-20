@@ -59,19 +59,24 @@ export const EditorialFrame: React.FC<{
   frameWidth?: number
   showFolio?: boolean
   children: React.ReactNode
-}> = ({ theme, masthead, runningTitle, page, frameWidth = 12, showFolio = true, children }) => {
+}> = ({ theme, masthead, runningTitle, page, frameWidth = 16, showFolio = true, children }) => {
+  // The brand-color frame is a real `border` on ONE full-bleed box with
+  // box-sizing:border-box — NOT nested AbsoluteFills with padding/inset, which
+  // compounded badly and dropped the right + bottom edges (the "cut off" border).
+  // A border on a single sized box renders symmetrically on all four sides.
   return (
-    <AbsoluteFill style={{ background: theme.accent, padding: frameWidth }}>
-      <AbsoluteFill style={{ inset: frameWidth, background: theme.paper, display: 'flex', flexDirection: 'column' }}>
-        {showFolio ? (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '26px 56px', borderBottom: `1px solid ${theme.hairline}`, fontFamily: FONT_MONO, fontSize: 17, letterSpacing: '0.12em', color: theme.muted, textTransform: 'uppercase' }}>
-            <span style={{ fontWeight: 600, color: theme.ink }}>{masthead}</span>
-            <span>{runningTitle}</span>
-            <span>{String(page).padStart(2, '0')}</span>
-          </div>
-        ) : null}
-        <div style={{ flex: 1, position: 'relative' }}>{children}</div>
-      </AbsoluteFill>
+    <AbsoluteFill style={{
+      boxSizing: 'border-box', border: `${frameWidth}px solid ${theme.accent}`,
+      background: theme.paper, display: 'flex', flexDirection: 'column',
+    }}>
+      {showFolio ? (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '26px 56px', borderBottom: `1px solid ${theme.hairline}`, fontFamily: FONT_MONO, fontSize: 17, letterSpacing: '0.12em', color: theme.muted, textTransform: 'uppercase' }}>
+          <span style={{ fontWeight: 600, color: theme.ink }}>{masthead}</span>
+          <span>{runningTitle}</span>
+          <span>{String(page).padStart(2, '0')}</span>
+        </div>
+      ) : null}
+      <div style={{ flex: 1, position: 'relative' }}>{children}</div>
     </AbsoluteFill>
   )
 }
@@ -85,8 +90,7 @@ export const CoverScene: React.FC<SceneProps> = ({ scene, theme, masthead }) => 
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const titleP = settle(frame, 8, fps)
   return (
-    <AbsoluteFill style={{ background: theme.accent, padding: 18 }}>
-      <AbsoluteFill style={{ inset: 18, background: theme.paper, padding: '64px 72px', display: 'flex', flexDirection: 'column' }}>
+    <AbsoluteFill style={{ boxSizing: 'border-box', border: `18px solid ${theme.accent}`, background: theme.paper, padding: '64px 72px', display: 'flex', flexDirection: 'column' }}>
         {/* Masthead bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: `3px solid ${theme.ink}`, paddingBottom: 18 }}>
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 88, lineHeight: 0.9, color: theme.ink, letterSpacing: '-0.01em' }}>{masthead}</div>
@@ -102,7 +106,6 @@ export const CoverScene: React.FC<SceneProps> = ({ scene, theme, masthead }) => 
             <div style={{ opacity: settle(frame, 26, fps), fontFamily: FONT_BODY, fontSize: 36, lineHeight: 1.35, color: theme.muted, maxWidth: 1200, fontStyle: 'italic' }}>{scene.dek}</div>
           ) : null}
         </div>
-      </AbsoluteFill>
     </AbsoluteFill>
   )
 }
