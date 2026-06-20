@@ -117,7 +117,7 @@ const Portrait: React.FC<{ presenter: Presenter; theme: EditorialTheme; size?: n
 
 /** COVER — masthead + huge headline + dek, optional framed hero or presenter. */
 export const CoverScene: React.FC<SceneProps & { presenter?: Presenter }> = ({ scene, theme, masthead, presenter }) => {
-  const { fontDisplay: FONT_DISPLAY, fontKicker: FONT_KICKER, fontBody: FONT_BODY } = theme
+  const { fontDisplay: FONT_DISPLAY, fontBody: FONT_BODY } = theme
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const titleP = settle(frame, 8, fps)
   const hasPortrait = !!presenter?.photo
