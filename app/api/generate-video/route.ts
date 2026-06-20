@@ -204,8 +204,13 @@ export async function POST(request: Request) {
   // Render target: 'auto' (prefer Lambda if configured, else VPS), 'lambda'
   // (force Lambda), or 'vps' (force VPS). Set in admin Settings. Default 'auto'.
   const renderTarget = (await getSetting('video_render_target')) || 'auto'
-  // Visual style for V3: 'cinematic' (default) or 'editorial' (EPOCH magazine).
-  const videoStyle = (await getSetting('video_style')) || 'cinematic'
+  // Visual style: a per-video choice from the wizard (body.videoStyle) WINS over
+  // the global admin default. One of 'cinematic' | 'editorial' | 'time'.
+  // ('editorial' = clean magazine, 'time' = bold red newsmagazine — both render
+  // through the editorial engine with a `variant`.)
+  const videoStyle = (body as any).videoStyle || (await getSetting('video_style')) || 'cinematic'
+  const isMagazine = videoStyle === 'editorial' || videoStyle === 'time'
+  const editorialVariant: 'editorial' | 'time' = videoStyle === 'editorial' ? 'editorial' : 'time'
 
   // --- GUARD: Duplicate submission prevention ---
   // In-memory set = fast same-instance check. DB compare-and-set below is the
@@ -865,8 +870,8 @@ export async function POST(request: Request) {
       // EDITORIAL style: build magazine-archetype scenes and render the
       // EditorialVideo composition on the VPS (/render-editorial). Separate from
       // the cinematic path so neither affects the other.
-      if (videoStyle === 'editorial') {
-        console.log(`[video ${videoId}] V3 editorial style — structuring archetypes`)
+      if (isMagazine) {
+        console.log(`[video ${videoId}] magazine style (${editorialVariant}) — structuring archetypes`)
         await admin.from('videos').update({ progress_detail: 'Designing your report...', progress_pct: 16 }).eq('id', videoId)
         const edPayload = await buildEditorialPayload({
           videoId, userId: user.id, voiceId,
@@ -875,6 +880,7 @@ export async function POST(request: Request) {
           contactLine: wantContactClosing ? (contactLine || undefined) : undefined,
           musicUrl: musicUrl || undefined, musicPrompt: musicPrompt || undefined, aiMusic: aiMusic || undefined,
           presenter, photoPlacement: photoPlacement || undefined,
+          variant: editorialVariant,
         })
         console.log(`[video ${videoId}] editorial: ${edPayload.scenes.length} scenes, archetypes=${edPayload.scenes.map(s => s.archetype).join(',')}`)
         try {

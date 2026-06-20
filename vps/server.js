@@ -1279,8 +1279,68 @@ app.post('/render-v3', authCheck, async (req, res) => {
 // TTS per scene + a framed Gemini image only for scenes that want one
 // (cover/lede). Writes public/editorial.json, renders, uploads. Music optional.
 // ============================================================
+/**
+ * THEME PREVIEW — render a few editorial/Time page STILLS from a script, with NO
+ * Gemini images and NO TTS. Used by the wizard's theme picker so users can see
+ * their real content in a style before committing. Synchronous: returns the
+ * still URLs in the response. Cheap (a few single-frame renders), no AI cost.
+ */
+app.post('/preview-editorial', authCheck, async (req, res) => {
+  const { videoId, userId, masthead, runningTitle, brandColor, variant, scenes, contactLine } = req.body || {}
+  if (!videoId || !Array.isArray(scenes) || scenes.length === 0) {
+    return res.status(400).json({ error: 'Missing videoId or scenes' })
+  }
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+  const pub = join(REMOTION_DIR, 'public')
+  const outDir = join(REMOTION_DIR, 'out')
+  try {
+    await mkdir(pub, { recursive: true }); await mkdir(outDir, { recursive: true })
+    // Build scenes with a fixed duration each — NO audio, NO images (Figure shows
+    // its striped placeholder, which is intentional + finished-looking).
+    const FR = 120
+    const out = scenes.map((s) => ({
+      archetype: s.archetype, kicker: s.kicker, title: s.title || '', dek: s.dek, body: s.body,
+      quote: s.quote, attribution: s.attribution, items: s.items, metrics: s.metrics,
+      timeline: s.timeline, chart: s.chart, matrix: s.matrix,
+      durationInFrames: FR,
+    }))
+    // A unique props file so we never clobber an in-flight editorial.json. The
+    // composition's calculateMetadata prefers --props that carry scenes.
+    const propsName = `preview-${videoId}-${variant || 'time'}.json`
+    const props = { masthead, runningTitle, brandColor, variant: variant || 'time', contactLine, scenes: out }
+    await writeFile(join(pub, propsName), JSON.stringify(props))
+
+    // Pick representative pages: cover (0), a middle content page, and the last.
+    const idxs = Array.from(new Set([0, Math.floor(out.length / 2), out.length - 1])).filter((i) => i >= 0 && i < out.length)
+    const urls = []
+    for (const i of idxs) {
+      const midFrame = i * FR + Math.floor(FR / 2)
+      const stillPath = join(outDir, `${videoId}-prev-${variant || 'time'}-${i}.png`)
+      try {
+        await new Promise((resolve, reject) => {
+          const { spawn } = require('child_process')
+          const c = spawn('npx', ['remotion', 'still', 'EditorialVideo', stillPath, `--frame=${midFrame}`, `--props=${join(pub, propsName)}`, '--gl=swiftshader', '--image-format=png'], { cwd: REMOTION_DIR, env: { ...process.env } })
+          let err = ''; c.stderr.on('data', (b) => { err = (err + b.toString()).slice(-400) })
+          const kt = setTimeout(() => { try { c.kill('SIGKILL') } catch {}; reject(new Error('still timeout')) }, 90000)
+          c.on('error', (e) => { clearTimeout(kt); reject(e) })
+          c.on('close', (code) => { clearTimeout(kt); code === 0 ? resolve() : reject(new Error(`still exit ${code}: ${err}`)) })
+        })
+        const buf = await readFile(stillPath)
+        const path = `${userId}/${videoId}_themeprev_${variant || 'time'}_${i}.png`
+        await sb.storage.from('videos').upload(path, buf, { contentType: 'image/png', upsert: true })
+        urls.push(sb.storage.from('videos').getPublicUrl(path).data.publicUrl)
+      } catch (e) { console.error(`[preview-editorial ${videoId}] still ${i} failed: ${e.message}`) }
+    }
+    await rm(join(pub, propsName), { force: true }).catch(() => {})
+    return res.json({ success: true, stills: urls })
+  } catch (err) {
+    console.error(`[preview-editorial ${videoId}] error:`, err.message)
+    return res.status(500).json({ error: err.message })
+  }
+})
+
 app.post('/render-editorial', authCheck, async (req, res) => {
-  const { videoId, userId, voiceId, masthead, runningTitle, brandColor, scenes, musicUrl, musicPrompt, aiMusic, contactLine, presenter, photoPlacement } = req.body || {}
+  const { videoId, userId, voiceId, masthead, runningTitle, brandColor, variant, scenes, musicUrl, musicPrompt, aiMusic, contactLine, presenter, photoPlacement } = req.body || {}
   if (!videoId || !Array.isArray(scenes) || scenes.length === 0) {
     return res.status(400).json({ error: 'Missing videoId or scenes' })
   }
@@ -1351,7 +1411,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     }
 
     await writeFile(join(pub, 'editorial.json'), JSON.stringify({
-      masthead, runningTitle, brandColor, scenes: out,
+      masthead, runningTitle, brandColor, variant: variant || 'time', scenes: out,
       ...(contactLine ? { contactLine } : {}),
       ...(edPresenter ? { presenter: edPresenter, presenterOnCover: edOnCover, presenterOnClosing: edOnClosing } : {}),
     }))
