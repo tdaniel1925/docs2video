@@ -22,6 +22,24 @@ const DIGIT_WORDS: Record<string, string> = {
   '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine',
 }
 
+/**
+ * Normalize a phone number to E.164 (e.g. "9366417130" -> "+19366417130").
+ * 10 digits → assume US (+1). 11 digits starting with 1 → +<digits>. A leading
+ * "+" is preserved. Anything else is returned trimmed, unchanged (don't mangle
+ * partial/odd input). Empty in → empty out.
+ */
+export function toE164(input: string): string {
+  const raw = (input || '').trim()
+  if (!raw) return ''
+  const hadPlus = raw.startsWith('+')
+  const digits = raw.replace(/\D/g, '')
+  if (!digits) return raw
+  if (hadPlus) return `+${digits}`
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  return raw // leave unrecognized lengths as typed
+}
+
 export function phoneToSpoken(phone: string): string {
   const digits = phone.replace(/\D/g, '')
   if (digits.length === 11 && digits.startsWith('1')) {

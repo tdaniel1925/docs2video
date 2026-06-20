@@ -6,6 +6,8 @@ import { createClient } from '../../../_lib/supabase/client'
 import type { Brand } from '../../../_lib/types'
 import WizardProgress from '../_components/WizardProgress'
 import { downscaleImage } from '../../../_lib/image-resize'
+import { toE164 } from '../../../_lib/phone-utils'
+import { toTitleCase } from '../../../_lib/text-format'
 
 interface DraftData {
   autoBrandInfo?: {
@@ -622,7 +624,7 @@ export default function BrandPage() {
               outline: 'none', transition: 'border-color 0.2s',
             }}
             onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
-            onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
+            onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; setCompanyName(toTitleCase(companyName)) }}
           />
         </div>
 
@@ -717,6 +719,7 @@ export default function BrandPage() {
                   type="tel"
                   value={phone}
                   onChange={e => { setPhone(e.target.value); setSelectedBrandId(null) }}
+                  onBlur={e => setPhone(toE164(e.target.value))}
                   placeholder="Phone number"
                   style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
                 />
@@ -815,7 +818,7 @@ export default function BrandPage() {
                 fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.2s',
               }}
               onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
-              onBlur={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
+              onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-light)'; setPhone(toE164(phone)) }}
             />
             <input
               type="email"
