@@ -1307,7 +1307,7 @@ app.post('/preview-editorial', authCheck, async (req, res) => {
     // A unique props file so we never clobber an in-flight editorial.json. The
     // composition's calculateMetadata prefers --props that carry scenes.
     const propsName = `preview-${videoId}-${variant || 'time'}.json`
-    const props = { masthead, runningTitle, brandColor, variant: variant || 'time', contactLine, scenes: out }
+    const props = { __preview: true, masthead, runningTitle, brandColor, variant: variant || 'time', contactLine, scenes: out }
     await writeFile(join(pub, propsName), JSON.stringify(props))
 
     // Pick representative pages: cover (0), a middle content page, and the last.

@@ -154,9 +154,11 @@ export const RemotionRoot: React.FC = () => {
       height={1080}
       durationInFrames={120}
       calculateMetadata={async ({ props }) => {
-        // Prefer props passed via --props (used by the theme PREVIEW, which sends
-        // a unique payload and must NOT read a possibly-in-flight editorial.json).
-        if (props && Array.isArray((props as EditorialProps).scenes) && (props as EditorialProps).scenes.length > 0) {
+        // The theme PREVIEW passes a unique --props payload marked __preview so it
+        // uses those props directly (and never reads a possibly-in-flight
+        // editorial.json). Production renders DON'T set the marker, so they always
+        // read editorial.json below — NOT the composition defaultProps.
+        if (props && (props as any).__preview && Array.isArray((props as EditorialProps).scenes) && (props as EditorialProps).scenes.length > 0) {
           return { props, durationInFrames: editorialTotal(props), fps: FPS, width: 1920, height: 1080 }
         }
         // Production render path: read the editorial.json written to public/.

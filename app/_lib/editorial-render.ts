@@ -39,7 +39,7 @@ export type EditorialPayload = {
   /** Contact line for the closing decision page. */
   contactLine?: string
   /** Which magazine look: 'time' (bold red) or 'editorial' (clean/warm). */
-  variant?: 'editorial' | 'time'
+  variant?: 'editorial' | 'time' | 'explainer'
   /** Presenter identity (Person profile): photo + name/role rendered per style. */
   presenter?: Presenter
   photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
@@ -100,7 +100,7 @@ export async function buildEditorialPayload(opts: {
   aiMusic?: boolean
   presenter?: Presenter | null
   photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
-  variant?: 'editorial' | 'time'
+  variant?: 'editorial' | 'time' | 'explainer'
 }): Promise<EditorialPayload> {
   // Compact brief of the grounded scenes + the doc's real metrics.
   const brief = opts.scenes.map((s, i) => {

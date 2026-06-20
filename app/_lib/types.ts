@@ -248,7 +248,7 @@ export interface WizardDraft {
   showContactClosing?: boolean
   photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
   // Theme chosen on the Theme step (per-video; overrides global default).
-  videoStyle?: 'cinematic' | 'editorial' | 'time'
+  videoStyle?: 'cinematic' | 'editorial' | 'time' | 'explainer'
 }
 
 export interface EmailConnection {

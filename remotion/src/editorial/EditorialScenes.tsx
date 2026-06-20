@@ -1,5 +1,5 @@
 import { AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig, interpolate, Easing } from 'remotion'
-import { FONT_DISPLAY, FONT_KICKER, FONT_BODY, FONT_MONO, type EditorialTheme } from './theme'
+import { type EditorialTheme } from './theme'
 import { parseMetric, renderMetric } from '../components/infographic/format'
 import type { EditorialScene } from './archetype'
 
@@ -19,6 +19,7 @@ const Rule: React.FC<{ color: string; delay: number; width?: number | string; th
 }
 
 const Kicker: React.FC<{ text: string; theme: EditorialTheme; delay?: number }> = ({ text, theme, delay = 2 }) => {
+  const { fontKicker: FONT_KICKER } = theme
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const p = settle(frame, delay, fps)
   // Time = bold red kicker with wide tracking (newsmagazine). Editorial = quieter,
@@ -34,11 +35,13 @@ const Kicker: React.FC<{ text: string; theme: EditorialTheme; delay?: number }> 
 /** A framed editorial photo with a monospace caption — or a striped placeholder
  *  if no image (so the slide always looks finished). */
 const Figure: React.FC<{ image?: string; caption?: string; theme: EditorialTheme; style?: React.CSSProperties }> = ({ image, caption, theme, style }) => {
+  const { fontMono: FONT_MONO } = theme
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const p = settle(frame, 8, fps)
+  const r = theme.radius > 0 ? theme.radius : undefined
   return (
     <div style={{ opacity: p, display: 'flex', flexDirection: 'column', gap: 10, ...style }}>
-      <div style={{ flex: 1, border: `6px solid ${theme.paper}`, outline: `1.5px solid ${theme.ink}`, boxShadow: '0 6px 24px rgba(0,0,0,0.18)', overflow: 'hidden', position: 'relative', background: theme.paperEdge }}>
+      <div style={{ flex: 1, border: `6px solid ${theme.paper}`, outline: `1.5px solid ${theme.ink}`, boxShadow: '0 6px 24px rgba(0,0,0,0.18)', overflow: 'hidden', position: 'relative', background: theme.paperEdge, borderRadius: r }}>
         {image ? (
           <Img src={staticFile(image)} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'saturate(0.92) contrast(1.05)' }} />
         ) : (
@@ -63,6 +66,7 @@ export const EditorialFrame: React.FC<{
   showFolio?: boolean
   children: React.ReactNode
 }> = ({ theme, masthead, runningTitle, page, frameWidth, showFolio = true, children }) => {
+  const { fontMono: FONT_MONO } = theme
   // Frame thickness comes from the theme (Time = bold ~16px, Editorial = thin ~5px)
   // unless a caller overrides it.
   const fw = frameWidth ?? theme.frameWidth
@@ -95,13 +99,15 @@ type Presenter = { name?: string; role?: string; photo?: string }
 /** A square, bordered editorial portrait with a mono caption ("NAME · ROLE") —
  *  the magazine way to show a byline/headshot. Reuses the Figure look. */
 const Portrait: React.FC<{ presenter: Presenter; theme: EditorialTheme; size?: number }> = ({ presenter, theme, size = 280 }) => {
+  const { fontMono: FONT_MONO } = theme
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const p = settle(frame, 10, fps)
   if (!presenter.photo) return null
   const caption = [presenter.name, presenter.role].filter(Boolean).join(' · ')
+  const r = theme.radius > 0 ? theme.radius : undefined
   return (
     <div style={{ opacity: p, transform: `translateY(${(1 - p) * 14}px)`, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' }}>
-      <div style={{ width: size, height: size, border: `6px solid ${theme.paper}`, outline: `1.5px solid ${theme.ink}`, boxShadow: '0 6px 24px rgba(0,0,0,0.18)', overflow: 'hidden', background: theme.paperEdge }}>
+      <div style={{ width: size, height: size, border: `6px solid ${theme.paper}`, outline: `1.5px solid ${theme.ink}`, boxShadow: '0 6px 24px rgba(0,0,0,0.18)', overflow: 'hidden', background: theme.paperEdge, borderRadius: r }}>
         <Img src={staticFile(presenter.photo)} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'saturate(0.95) contrast(1.04)' }} />
       </div>
       {caption ? <div style={{ fontFamily: FONT_MONO, fontSize: 16, letterSpacing: '0.06em', color: theme.muted, textTransform: 'uppercase' }}>{caption}</div> : null}
@@ -111,11 +117,12 @@ const Portrait: React.FC<{ presenter: Presenter; theme: EditorialTheme; size?: n
 
 /** COVER — masthead + huge headline + dek, optional framed hero or presenter. */
 export const CoverScene: React.FC<SceneProps & { presenter?: Presenter }> = ({ scene, theme, masthead, presenter }) => {
+  const { fontDisplay: FONT_DISPLAY, fontKicker: FONT_KICKER, fontBody: FONT_BODY } = theme
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const titleP = settle(frame, 8, fps)
   const hasPortrait = !!presenter?.photo
   return (
-    <AbsoluteFill style={{ boxSizing: 'border-box', border: `${theme.variant === 'time' ? 18 : 8}px solid ${theme.accent}`, background: theme.paper, padding: '64px 72px', display: 'flex', flexDirection: 'column' }}>
+    <AbsoluteFill style={{ boxSizing: 'border-box', border: `${theme.variant === 'time' ? 18 : theme.variant === 'editorial' ? 8 : 0}px solid ${theme.accent}`, background: theme.paper, padding: '64px 72px', display: 'flex', flexDirection: 'column' }}>
         {/* Masthead bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: `3px solid ${theme.ink}`, paddingBottom: 18 }}>
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 88, lineHeight: 0.9, color: theme.ink, letterSpacing: '-0.01em' }}>{masthead}</div>
@@ -141,6 +148,7 @@ export const CoverScene: React.FC<SceneProps & { presenter?: Presenter }> = ({ s
 /** LEDE — narrative intro with a drop-cap first letter, optional side figure. */
 export const LedeScene: React.FC<SceneProps> = (p) => {
   const { scene, theme } = p
+  const { fontDisplay: FONT_DISPLAY, fontBody: FONT_BODY } = theme
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const body = scene.body || scene.dek || ''
   const first = body.slice(0, 1), rest = body.slice(1)
@@ -166,6 +174,7 @@ export const LedeScene: React.FC<SceneProps> = (p) => {
 /** GRID — 4-6 parallel items in a clean editorial grid. */
 export const GridScene: React.FC<SceneProps> = (p) => {
   const { scene, theme } = p
+  const { fontDisplay: FONT_DISPLAY, fontBody: FONT_BODY, fontMono: FONT_MONO } = theme
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const items = (scene.items ?? []).slice(0, 6)
   const cols = items.length <= 4 ? 2 : 3
@@ -180,10 +189,18 @@ export const GridScene: React.FC<SceneProps> = (p) => {
             const op = settle(frame, 16 + i * Math.round(0.1 * fps), fps)
             // Time = numbered TILE with an accent border-top (newsmagazine module).
             // Editorial = clean numbered item, no box.
+            // Explainer = soft rounded panel with a rotating accent top border.
             const isTime = theme.variant === 'time'
+            const isExplainer = theme.variant === 'explainer'
+            const accent = theme.accents[i % theme.accents.length]
+            const tileStyle: React.CSSProperties = isExplainer
+              ? { background: theme.paperEdge, padding: 24, borderRadius: theme.radius, borderTop: `4px solid ${accent}` }
+              : isTime
+              ? { borderTop: `3px solid ${theme.accent}`, paddingTop: 16 }
+              : {}
             return (
-              <div key={i} style={{ opacity: op, transform: `translateY(${(1 - op) * 16}px)`, ...(isTime ? { borderTop: `3px solid ${theme.accent}`, paddingTop: 16 } : {}) }}>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 18, color: theme.accent, marginBottom: 8 }}>{String(i + 1).padStart(2, '0')}</div>
+              <div key={i} style={{ opacity: op, transform: `translateY(${(1 - op) * 16}px)`, ...tileStyle }}>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 18, color: isExplainer ? accent : theme.accent, marginBottom: 8 }}>{String(i + 1).padStart(2, '0')}</div>
                 <div style={{ fontFamily: FONT_DISPLAY, fontSize: 34, lineHeight: 1.1, color: theme.ink, marginBottom: 6 }}>{it.title}</div>
                 {it.detail ? <div style={{ fontFamily: FONT_BODY, fontSize: 22, lineHeight: 1.4, color: theme.muted }}>{it.detail}</div> : null}
               </div>
@@ -198,6 +215,7 @@ export const GridScene: React.FC<SceneProps> = (p) => {
 /** PULLQUOTE — one isolated statement, oversized serif. */
 export const PullQuoteScene: React.FC<SceneProps> = (p) => {
   const { scene, theme } = p
+  const { fontDisplay: FONT_DISPLAY, fontKicker: FONT_KICKER } = theme
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const q = scene.quote || scene.title
   const qP = settle(frame, 8, fps)
@@ -219,7 +237,9 @@ export const PullQuoteScene: React.FC<SceneProps> = (p) => {
 /** STAT — "By the Numbers": 1-3 big serif figures with rules + labels. */
 export const StatScene: React.FC<SceneProps> = (p) => {
   const { scene, theme } = p
+  const { fontDisplay: FONT_DISPLAY, fontKicker: FONT_KICKER } = theme
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
+  const isExplainer = theme.variant === 'explainer'
   const metrics = (scene.metrics ?? []).filter((m) => m.label && m.value).slice(0, 3)
   return (
     <Frame {...p}>
@@ -231,9 +251,13 @@ export const StatScene: React.FC<SceneProps> = (p) => {
             const start = 14 + i * Math.round(0.16 * fps)
             const op = settle(frame, start, fps)
             const countP = interpolate(frame, [start, start + Math.round(1.1 * fps)], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
+            const numColor = isExplainer ? theme.accents[i % theme.accents.length] : theme.accent
+            const blockStyle: React.CSSProperties = isExplainer && theme.radius > 0
+              ? { background: theme.paperEdge, padding: 28, borderRadius: theme.radius }
+              : {}
             return (
-              <div key={i} style={{ opacity: op }}>
-                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 132, lineHeight: 0.95, color: theme.accent, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
+              <div key={i} style={{ opacity: op, ...blockStyle }}>
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 132, lineHeight: 0.95, color: numColor, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
                   {renderMetric(parseMetric(m.value), countP)}
                 </div>
                 <div style={{ height: 2, background: theme.ink, margin: '14px 0 12px', width: '60%' }} />
@@ -250,7 +274,9 @@ export const StatScene: React.FC<SceneProps> = (p) => {
 /** LIST — ordered principles / steps with big numerals. */
 export const ListScene: React.FC<SceneProps> = (p) => {
   const { scene, theme } = p
+  const { fontDisplay: FONT_DISPLAY, fontBody: FONT_BODY } = theme
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
+  const isExplainer = theme.variant === 'explainer'
   const items = (scene.items ?? []).slice(0, 5)
   return (
     <Frame {...p}>
@@ -260,9 +286,17 @@ export const ListScene: React.FC<SceneProps> = (p) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 22, flex: 1, justifyContent: 'center' }}>
           {items.map((it, i) => {
             const op = settle(frame, 16 + i * Math.round(0.12 * fps), fps)
+            const stepColor = theme.accents[i % theme.accents.length]
+            const rowStyle: React.CSSProperties = isExplainer
+              ? { background: theme.paperEdge, borderRadius: theme.radius, padding: 22 }
+              : { borderTop: i ? `1px solid ${theme.hairline}` : 'none', paddingTop: i ? 18 : 0 }
             return (
-              <div key={i} style={{ opacity: op, transform: `translateX(${(1 - op) * -20}px)`, display: 'flex', gap: 28, alignItems: 'baseline', borderTop: i ? `1px solid ${theme.hairline}` : 'none', paddingTop: i ? 18 : 0 }}>
-                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 56, color: theme.accent, lineHeight: 1, minWidth: 70 }}>{String(i + 1).padStart(2, '0')}</div>
+              <div key={i} style={{ opacity: op, transform: `translateX(${(1 - op) * -20}px)`, display: 'flex', gap: 28, alignItems: isExplainer ? 'center' : 'baseline', ...rowStyle }}>
+                {isExplainer ? (
+                  <div style={{ flexShrink: 0, width: 64, height: 64, borderRadius: '50%', background: stepColor, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_DISPLAY, fontSize: 32, lineHeight: 1 }}>{i + 1}</div>
+                ) : (
+                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 56, color: theme.accent, lineHeight: 1, minWidth: 70 }}>{String(i + 1).padStart(2, '0')}</div>
+                )}
                 <div>
                   <div style={{ fontFamily: FONT_DISPLAY, fontSize: 38, lineHeight: 1.1, color: theme.ink }}>{it.title}</div>
                   {it.detail ? <div style={{ fontFamily: FONT_BODY, fontSize: 24, lineHeight: 1.4, color: theme.muted, marginTop: 4 }}>{it.detail}</div> : null}
@@ -279,6 +313,7 @@ export const ListScene: React.FC<SceneProps> = (p) => {
 /** DECISION — closing call to action + contact + optional presenter portrait. */
 export const DecisionScene: React.FC<SceneProps & { contactLine?: string; presenter?: Presenter }> = (p) => {
   const { scene, theme, contactLine, presenter } = p
+  const { fontDisplay: FONT_DISPLAY, fontKicker: FONT_KICKER, fontMono: FONT_MONO } = theme
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const titleP = settle(frame, 8, fps)
   const hasPortrait = !!presenter?.photo
@@ -310,7 +345,9 @@ export const DecisionScene: React.FC<SceneProps & { contactLine?: string; presen
 /** TIMELINE — a horizontal line of dated milestones (dots draw in left→right). */
 export const TimelineScene: React.FC<SceneProps> = (p) => {
   const { scene, theme } = p
+  const { fontDisplay: FONT_DISPLAY, fontBody: FONT_BODY } = theme
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
+  const isExplainer = theme.variant === 'explainer'
   const steps = (scene.timeline ?? []).slice(0, 6)
   return (
     <Frame {...p}>
@@ -325,12 +362,18 @@ export const TimelineScene: React.FC<SceneProps> = (p) => {
               {steps.map((st, i) => {
                 const op = settle(frame, 16 + i * Math.round(0.14 * fps), fps)
                 const last = i === steps.length - 1
+                const stepColor = isExplainer ? theme.accents[i % theme.accents.length] : theme.accent
+                const blockStyle: React.CSSProperties = isExplainer && theme.radius > 0
+                  ? { background: theme.paperEdge, borderRadius: theme.radius, padding: 18, marginTop: 4 }
+                  : {}
                 return (
                   <div key={i} style={{ opacity: op, flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '0 12px' }}>
-                    <div style={{ width: 20, height: 20, borderRadius: '50%', background: last ? theme.ink : theme.accent, marginBottom: 18 }} />
-                    <div style={{ fontFamily: FONT_DISPLAY, fontSize: 40, color: theme.accent, lineHeight: 1 }}>{st.when}</div>
-                    <div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, color: theme.ink, marginTop: 8, lineHeight: 1.1 }}>{st.title}</div>
-                    {st.detail ? <div style={{ fontFamily: FONT_BODY, fontSize: 19, color: theme.muted, marginTop: 6, lineHeight: 1.35 }}>{st.detail}</div> : null}
+                    <div style={{ width: 20, height: 20, borderRadius: '50%', background: last ? theme.ink : stepColor, marginBottom: 18 }} />
+                    <div style={{ ...blockStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', alignSelf: 'stretch' }}>
+                      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 40, color: stepColor, lineHeight: 1 }}>{st.when}</div>
+                      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, color: theme.ink, marginTop: 8, lineHeight: 1.1 }}>{st.title}</div>
+                      {st.detail ? <div style={{ fontFamily: FONT_BODY, fontSize: 19, color: theme.muted, marginTop: 6, lineHeight: 1.35 }}>{st.detail}</div> : null}
+                    </div>
                   </div>
                 )
               })}
@@ -345,13 +388,16 @@ export const TimelineScene: React.FC<SceneProps> = (p) => {
 /** CHART — a donut (share of a whole) or bars (comparison) + legend. SVG, no image. */
 export const ChartScene: React.FC<SceneProps> = (p) => {
   const { scene, theme } = p
+  const { fontDisplay: FONT_DISPLAY, fontKicker: FONT_KICKER, fontBody: FONT_BODY } = theme
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const segs = (scene.chart?.segments ?? []).filter((s) => s.label && s.value > 0).slice(0, 5)
   const kind = scene.chart?.kind || (segs.length <= 4 ? 'donut' : 'bar')
   const total = segs.reduce((a, s) => a + s.value, 0) || 1
   const grow = settle(frame, 14, fps)
-  // Segment colors: accent, ink, muted, then tinted hairline.
-  const palette = [theme.accent, theme.ink, theme.muted, theme.hairline, theme.paperEdge]
+  const isExplainer = theme.variant === 'explainer'
+  // Segment colors: explainer = the four-color accent set; magazine = accent, ink,
+  // muted, then tinted hairline.
+  const palette = isExplainer ? theme.accents : [theme.accent, theme.ink, theme.muted, theme.hairline, theme.paperEdge]
   return (
     <Frame {...p}>
       <div style={{ padding: '52px 56px', height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -384,7 +430,7 @@ export const ChartScene: React.FC<SceneProps> = (p) => {
               {segs.map((s, i) => (
                 <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
                   <div style={{ fontFamily: FONT_DISPLAY, fontSize: 34, color: theme.accent, marginBottom: 8 }}>{s.value}</div>
-                  <div style={{ width: '70%', height: `${(s.value / Math.max(...segs.map((x) => x.value))) * 100 * grow}%`, background: palette[i % palette.length], borderRadius: 2 }} />
+                  <div style={{ width: '70%', height: `${(s.value / Math.max(...segs.map((x) => x.value))) * 100 * grow}%`, background: palette[i % palette.length], borderRadius: theme.radius > 0 ? theme.radius : 2 }} />
                   <div style={{ fontFamily: FONT_KICKER, fontSize: 18, letterSpacing: '0.08em', color: theme.ink, textTransform: 'uppercase', marginTop: 12, textAlign: 'center' }}>{s.label}</div>
                 </div>
               ))}
@@ -393,7 +439,7 @@ export const ChartScene: React.FC<SceneProps> = (p) => {
           {kind === 'donut' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               {segs.map((s, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, ...(isExplainer && theme.radius > 0 ? { background: theme.paperEdge, borderRadius: theme.radius, padding: '10px 16px' } : {}) }}>
                   <div style={{ width: 22, height: 22, background: palette[i % palette.length], borderRadius: 3, flexShrink: 0 }} />
                   <div style={{ fontFamily: FONT_BODY, fontSize: 26, color: theme.ink }}>{s.label}</div>
                   <div style={{ fontFamily: FONT_DISPLAY, fontSize: 28, color: theme.accent, marginLeft: 8 }}>{Math.round((s.value / total) * 100)}%</div>
@@ -410,7 +456,9 @@ export const ChartScene: React.FC<SceneProps> = (p) => {
 /** MATRIX — a decision table (rows × columns). The Time "what to automate" grid. */
 export const MatrixScene: React.FC<SceneProps> = (p) => {
   const { scene, theme } = p
+  const { fontDisplay: FONT_DISPLAY, fontKicker: FONT_KICKER, fontBody: FONT_BODY } = theme
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
+  const isExplainer = theme.variant === 'explainer'
   const cols = scene.matrix?.columns ?? []
   const rows = (scene.matrix?.rows ?? []).slice(0, 6)
   return (
@@ -429,7 +477,7 @@ export const MatrixScene: React.FC<SceneProps> = (p) => {
           {rows.map((r, ri) => {
             const op = settle(frame, 16 + ri * Math.round(0.1 * fps), fps)
             return (
-              <div key={ri} style={{ opacity: op, display: 'grid', gridTemplateColumns: `1.4fr repeat(${cols.length}, 1fr)`, gap: 0, alignItems: 'center', borderBottom: `1px solid ${theme.hairline}`, padding: '18px 0' }}>
+              <div key={ri} style={{ opacity: op, display: 'grid', gridTemplateColumns: `1.4fr repeat(${cols.length}, 1fr)`, gap: 0, alignItems: 'center', ...(isExplainer && theme.radius > 0 ? { background: ri % 2 ? theme.paperEdge : 'transparent', borderRadius: theme.radius, padding: '18px 16px', marginBottom: 6 } : { borderBottom: `1px solid ${theme.hairline}`, padding: '18px 0' }) }}>
                 <div style={{ fontFamily: FONT_DISPLAY, fontSize: 28, color: theme.ink }}>{r.label}</div>
                 {cols.map((_, ci) => {
                   const cell = r.cells?.[ci] || ''

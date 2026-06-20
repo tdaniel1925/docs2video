@@ -1421,7 +1421,7 @@ export default function AdminPage() {
             >
               <option value="cinematic">Cinematic</option>
               <option value="editorial">Editorial (clean magazine)</option>
-              <option value="time">Newsmagazine (bold red)</option>
+              <option value="explainer">Explainer (friendly modern)</option>
             </select>
           </div>
         </div>

@@ -33,7 +33,7 @@ export const editorialSchema = z.object({
   /** Brand primary color → editorial accent (frame, rules, kickers). */
   brandColor: z.string().optional(),
   /** Which magazine look: 'time' (bold red) or 'editorial' (clean/warm). */
-  variant: z.enum(['editorial', 'time']).optional(),
+  variant: z.enum(['editorial', 'time', 'explainer']).optional(),
   music: z.string().optional(),
   /** Contact line for the closing decision page. */
   contactLine: z.string().optional(),

@@ -205,12 +205,14 @@ export async function POST(request: Request) {
   // (force Lambda), or 'vps' (force VPS). Set in admin Settings. Default 'auto'.
   const renderTarget = (await getSetting('video_render_target')) || 'auto'
   // Visual style: a per-video choice from the wizard (body.videoStyle) WINS over
-  // the global admin default. One of 'cinematic' | 'editorial' | 'time'.
-  // ('editorial' = clean magazine, 'time' = bold red newsmagazine — both render
-  // through the editorial engine with a `variant`.)
+  // the global admin default. One of 'cinematic' | 'editorial' | 'time' | 'explainer'.
+  // ('editorial' = clean magazine, 'time' = bold red newsmagazine, 'explainer' =
+  // friendly sans/navy educational — all three render through the editorial
+  // engine with a `variant`.)
   const videoStyle = (body as any).videoStyle || (await getSetting('video_style')) || 'cinematic'
-  const isMagazine = videoStyle === 'editorial' || videoStyle === 'time'
-  const editorialVariant: 'editorial' | 'time' = videoStyle === 'editorial' ? 'editorial' : 'time'
+  const isMagazine = videoStyle === 'editorial' || videoStyle === 'time' || videoStyle === 'explainer'
+  const editorialVariant: 'editorial' | 'time' | 'explainer' =
+    videoStyle === 'editorial' ? 'editorial' : videoStyle === 'explainer' ? 'explainer' : 'time'
 
   // --- GUARD: Duplicate submission prevention ---
   // In-memory set = fast same-instance check. DB compare-and-set below is the

@@ -7,16 +7,24 @@ or globally via the admin `video_style` setting.
 
 ## Variants
 
-| | Editorial (clean) | Newsmagazine / Time (bold) |
-|---|---|---|
-| Feel | Warm, refined, airy | Authoritative red newsmagazine |
-| Frame | Thin (~5px), brand color | Thick (~16–18px), signature red |
-| Kicker | Muted, tighter tracking | Red, bold, wide tracking |
-| Numbered items | Clean (no box) | Numbered tiles w/ accent border-top |
-| Accent | Brand primary | `#E1251B` (Time red) |
-| Default for | brand-led, gentle reports | data-led, punchy reports |
+The same engine renders three looks via `theme.variant`. Two are OFFERED in the
+wizard (Editorial, Explainer); **Newsmagazine/Time stays in the engine but is no
+longer offered** in the picker/admin (it overlapped Editorial too much).
 
-Source of truth: `theme.ts` (`EPOCH_EDITORIAL`, `EPOCH_TIME`, `editorialFromBrand(brand, variant)`).
+| | Editorial (clean) | Newsmagazine / Time (hidden) | Explainer (friendly) |
+|---|---|---|---|
+| Feel | Warm, refined, airy | Authoritative red newsmagazine | Modern, educational, approachable |
+| Fonts | Serif (DM Serif + Source Serif) | Serif | **Sans** (Space Grotesk + Archivo) |
+| Frame | Thin (~5px), brand color | Thick red (~16–18px) | **None** (clean edges) |
+| Palette | brand accent + cream | red `#E1251B` + cream | navy `#15233B` + cream `#F5F2EC` |
+| Accents | single | single red | **four-color** coral/teal/gold/purple |
+| Cards | clean | numbered tiles, square | **rounded** (radius 18) soft panels |
+| Numbered items | clean | big serif numeral | **filled accent circle** |
+| Offered? | yes | no (engine-only) | yes |
+
+Source of truth: `theme.ts` (`EPOCH_EDITORIAL`, `EPOCH_TIME`, `EXPLAINER`,
+`editorialFromBrand(brand, variant)`, `explainerFromBrand()`). Components read
+`theme.variant`, `theme.radius`, `theme.accents[]`, and the per-theme font fields.
 
 ## Palette (Time)
 - accent (red) `#E1251B` · ink `#16110F` · paper `#FBF8F3` · muted `#6E6862` · hairline `#D8CFC1` · paperEdge `#F1E9DC`
