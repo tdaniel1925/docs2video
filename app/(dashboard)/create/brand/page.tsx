@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../../../_lib/supabase/client'
 import type { Brand } from '../../../_lib/types'
 import WizardProgress from '../_components/WizardProgress'
+import { downscaleImage } from '../../../_lib/image-resize'
 
 interface DraftData {
   autoBrandInfo?: {
@@ -133,15 +134,25 @@ export default function BrandPage() {
 
   async function handlePhotoUpload(file: File) {
     setPhotoUploading(true)
+    setError(null)
     try {
+      // Downscale in the browser BEFORE upload — phone photos are 10-15MB and
+      // hit the platform's request-body limit (413). A headshot only needs
+      // ~1024px, which keeps the upload to a few hundred KB.
+      const upload = await downscaleImage(file, 1024, 0.85)
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', upload, upload.name)
       const res = await fetch('/api/brands/photo', { method: 'POST', body: fd })
+      if (!res.ok) {
+        let msg = `Photo upload failed (${res.status})`
+        try { const d = await res.json(); if (d?.error) msg = d.error } catch { /* non-JSON (e.g. platform 413) */ }
+        setError(msg)
+        return
+      }
       const data = await res.json()
-      if (res.ok) setPhotoUrl(data.url)
-      else setError(data.error || 'Photo upload failed')
-    } catch {
-      setError('Photo upload failed')
+      setPhotoUrl(data.url)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Photo upload failed')
     } finally {
       setPhotoUploading(false)
     }

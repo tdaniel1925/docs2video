@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { updateBrand, deleteBrand } from '../../../_actions/brands'
 import { createClient } from '../../../_lib/supabase/client'
+import { downscaleImage } from '../../../_lib/image-resize'
 import type { Brand } from '../../../_lib/types'
 import { SLIDE_STYLES } from '../../../_lib/types'
 import InlineConfirm from '../../../_components/InlineConfirm'
@@ -262,11 +263,16 @@ export default function EditBrandPage() {
     setPhotoUploading(true)
     setPhotoError(null)
     try {
+      const upload = await downscaleImage(file, 1024, 0.85)
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', upload, upload.name)
       const res = await fetch('/api/brands/photo', { method: 'POST', body: fd })
+      if (!res.ok) {
+        let msg = `Upload failed (${res.status})`
+        try { const d = await res.json(); if (d?.error) msg = d.error } catch { /* non-JSON */ }
+        throw new Error(msg)
+      }
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Upload failed')
       setPhotoUrl(data.url)
     } catch (err) {
       setPhotoError(err instanceof Error ? err.message : 'Upload failed')
