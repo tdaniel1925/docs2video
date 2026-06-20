@@ -123,10 +123,11 @@ export const CoverScene: React.FC<SceneProps & { presenter?: Presenter }> = ({ s
   const hasPortrait = !!presenter?.photo
   return (
     <AbsoluteFill style={{ boxSizing: 'border-box', border: `${theme.variant === 'time' ? 18 : theme.variant === 'editorial' ? 8 : 0}px solid ${theme.accent}`, background: theme.paper, padding: '64px 72px', display: 'flex', flexDirection: 'column' }}>
-        {/* Masthead bar */}
+        {/* Masthead bar — brand name only. No fabricated tagline ("The Special
+            Report" etc.); the real section label is the scene's own kicker in
+            the headline block below, shown only when the scene provides one. */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: `3px solid ${theme.ink}`, paddingBottom: 18 }}>
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 88, lineHeight: 0.9, color: theme.ink, letterSpacing: '-0.01em' }}>{masthead}</div>
-          <div style={{ fontFamily: FONT_KICKER, fontSize: 22, letterSpacing: '0.18em', color: theme.muted, textTransform: 'uppercase', paddingBottom: 8 }}>The Special Report</div>
         </div>
         {/* Headline block — portrait sits to the right when a presenter is shown. */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 56 }}>
@@ -241,12 +242,20 @@ export const StatScene: React.FC<SceneProps> = (p) => {
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const isExplainer = theme.variant === 'explainer'
   const metrics = (scene.metrics ?? []).filter((m) => m.label && m.value).slice(0, 3)
+  // Size the big numeral to the COLUMN COUNT and the LONGEST value so wide
+  // values (e.g. "$176,204" or "40 — Preferred Non-Tobacco") never overflow
+  // their cell and push the last card past the safe zone.
+  const cols = Math.max(1, metrics.length)
+  const longest = metrics.reduce((n, m) => Math.max(n, String(m.value).length), 0)
+  // Base size by columns, then shrink as the longest value grows.
+  const base = cols >= 3 ? 96 : cols === 2 ? 120 : 150
+  const numFont = Math.max(40, Math.round(base - Math.max(0, longest - 6) * 5))
   return (
     <Frame {...p}>
-      <div style={{ padding: '52px 56px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '52px 56px', height: '100%', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', overflow: 'hidden' }}>
         {scene.kicker ? <Kicker text={scene.kicker} theme={theme} /> : null}
-        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 72, lineHeight: 1.0, color: theme.ink, margin: '12px 0 0' }}>{scene.title}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${metrics.length}, 1fr)`, gap: 48, flex: 1, alignContent: 'center' }}>
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 64, lineHeight: 1.05, color: theme.ink, margin: '12px 0 0' }}>{scene.title}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gap: 40, flex: 1, alignContent: 'center' }}>
           {metrics.map((m, i) => {
             const start = 14 + i * Math.round(0.16 * fps)
             const op = settle(frame, start, fps)
@@ -256,12 +265,12 @@ export const StatScene: React.FC<SceneProps> = (p) => {
               ? { background: theme.paperEdge, padding: 28, borderRadius: theme.radius }
               : {}
             return (
-              <div key={i} style={{ opacity: op, ...blockStyle }}>
-                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 132, lineHeight: 0.95, color: numColor, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
+              <div key={i} style={{ opacity: op, minWidth: 0, overflow: 'hidden', ...blockStyle }}>
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: numFont, lineHeight: 0.98, color: numColor, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', overflowWrap: 'break-word', wordBreak: 'break-word' }}>
                   {renderMetric(parseMetric(m.value), countP)}
                 </div>
                 <div style={{ height: 2, background: theme.ink, margin: '14px 0 12px', width: '60%' }} />
-                <div style={{ fontFamily: FONT_KICKER, fontSize: 24, letterSpacing: '0.1em', color: theme.ink, textTransform: 'uppercase' }}>{m.label}</div>
+                <div style={{ fontFamily: FONT_KICKER, fontSize: 22, letterSpacing: '0.08em', color: theme.ink, textTransform: 'uppercase', overflowWrap: 'break-word' }}>{m.label}</div>
               </div>
             )
           })}
