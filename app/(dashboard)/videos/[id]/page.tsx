@@ -279,6 +279,8 @@ export default function VideoDetailPage() {
   const params = useParams()
   const router = useRouter()
   const [video, setVideo] = useState<Video | null>(null)
+  // Lightbox: index of the slide shown enlarged (thumbnails are too small to read).
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [inlineNotice, setInlineNotice] = useState<{ type: 'error' | 'success'; message: string } | null>(null)
   const [confirmAction, setConfirmAction] = useState<{ message: string; onConfirm: () => void } | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -1312,8 +1314,8 @@ export default function VideoDetailPage() {
                       src={url}
                       alt={`Slide ${i + 1}`}
                       style={{
-                        width: 120,
-                        height: 68,
+                        width: 160,
+                        height: 90,
                         objectFit: 'cover',
                         display: 'block',
                       }}
@@ -1331,6 +1333,19 @@ export default function VideoDetailPage() {
                     }}>
                       {i + 1}
                     </div>
+                    {/* Enlarge — thumbnails are small; open a readable lightbox. */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setLightboxIndex(i) }}
+                      title="Enlarge slide"
+                      style={{
+                        position: 'absolute', top: 2, right: 2,
+                        width: 22, height: 22, borderRadius: 5, border: 'none',
+                        background: 'rgba(0,0,0,0.6)', color: '#fff', cursor: 'pointer',
+                        fontSize: 12, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      ⤢
+                    </button>
                   </div>
                 ))}
               </div>
@@ -2019,6 +2034,49 @@ export default function VideoDetailPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Slide lightbox — large, readable view of a slide (thumbnails are tiny). */}
+      {lightboxIndex !== null && slideUrls[lightboxIndex] && (
+        <div
+          onClick={() => setLightboxIndex(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(8,12,16,0.88)', backdropFilter: 'blur(6px)', padding: 24 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90vw', maxHeight: '86vh', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <img
+              src={slideUrls[lightboxIndex]}
+              alt={`Slide ${lightboxIndex + 1}`}
+              style={{ maxWidth: '90vw', maxHeight: '78vh', objectFit: 'contain', borderRadius: 8, boxShadow: '0 12px 48px rgba(0,0,0,0.5)' }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, color: '#fff' }}>
+              <button
+                onClick={() => setLightboxIndex(Math.max(0, lightboxIndex - 1))}
+                disabled={lightboxIndex === 0}
+                style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', borderRadius: 8, padding: '8px 14px', cursor: lightboxIndex === 0 ? 'default' : 'pointer', opacity: lightboxIndex === 0 ? 0.4 : 1, fontSize: 14, fontFamily: 'inherit' }}
+              >
+                ← Prev
+              </button>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>
+                Slide {lightboxIndex + 1} of {slideCount}
+                {scenes[lightboxIndex]?.title ? ` · ${scenes[lightboxIndex].title}` : ''}
+              </span>
+              <button
+                onClick={() => setLightboxIndex(Math.min(slideCount - 1, lightboxIndex + 1))}
+                disabled={lightboxIndex >= slideCount - 1}
+                style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', borderRadius: 8, padding: '8px 14px', cursor: lightboxIndex >= slideCount - 1 ? 'default' : 'pointer', opacity: lightboxIndex >= slideCount - 1 ? 0.4 : 1, fontSize: 14, fontFamily: 'inherit' }}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+          <button
+            onClick={() => setLightboxIndex(null)}
+            title="Close"
+            style={{ position: 'absolute', top: 20, right: 24, width: 40, height: 40, borderRadius: 10, border: 'none', background: 'rgba(255,255,255,0.14)', color: '#fff', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}
+          >
+            ×
+          </button>
         </div>
       )}
 
