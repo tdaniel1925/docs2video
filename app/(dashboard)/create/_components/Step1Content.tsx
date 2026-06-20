@@ -207,7 +207,8 @@ export default function Step1Content() {
 
   async function handleUseThisStyle() {
     if (!pendingExtractedData) return
-    const skipTo = outputType === 'video' ? 'voice' : 'script'
+    // Always pass THROUGH the presenter step ("who's presenting?") — don't skip
+    // to voice, or the presenter/photo controls are never seen.
     const brandInfo = useBranding ? pendingAutoBrandInfo : null
     const extractedData = { ...pendingExtractedData }
     if (!useBranding) {
@@ -216,7 +217,7 @@ export default function Step1Content() {
     await createDraftAndRedirect(extractedData, brandInfo, {
       styleId: 'custom-brand-preview',
       customStylePrompt: previewStyleDesc,
-      skipToStep: skipTo,
+      skipToStep: 'brand',
     })
   }
 
@@ -264,11 +265,11 @@ export default function Step1Content() {
   async function handleSelectPresetStyle(styleId: string) {
     if (!pendingExtractedData) return
     const style = SLIDE_STYLES.find(s => s.id === styleId)
-    const skipTo = outputType === 'video' ? 'voice' : 'script'
+    // Pass THROUGH the presenter step rather than skipping to voice.
     await createDraftAndRedirect(pendingExtractedData, pendingAutoBrandInfo, {
       styleId,
       customStylePrompt: style?.prompt || '',
-      skipToStep: skipTo,
+      skipToStep: 'brand',
     })
   }
 
@@ -349,9 +350,9 @@ export default function Step1Content() {
       setProgressPct(90)
       setStageMsg('Creating project with defaults...')
 
-      // Skip brand+voice — go straight to script with defaults
-      const skipTo = outputType === 'video' ? 'script' : 'script'
-      await createDraftAndRedirect(extractedData, autoBrandInfo, { skipToStep: skipTo })
+      // Quick mode uses voice/length defaults, but still passes through the
+      // presenter step so the user can say who they are (the whole point).
+      await createDraftAndRedirect(extractedData, autoBrandInfo, { skipToStep: 'brand' })
     } catch (err) {
       clearInterval(progressTimer)
       setProgressPct(0)
