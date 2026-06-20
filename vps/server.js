@@ -922,16 +922,24 @@ async function artDirectScenes(scenes) {
 }
 
 /**
- * Grab a poster frame from a rendered video, seeking ~2.5s in so the still is a
- * fully-composed cover (past any fade-from-black cold-open) instead of frame 0.
- * Falls back to the first frame if the seek produced nothing (very short clips).
+ * Grab a poster frame from a rendered video at ~3.2s — past the cold-open
+ * (54f = 1.8s) AND the first scene's fade-in (~2.3s), so the still is a fully
+ * lit, composed cover instead of the faded title (frame 0).
+ *
+ * `-ss` goes AFTER `-i` for an ACCURATE seek (decodes to the exact timestamp),
+ * not the nearest keyframe before it — a keyframe seek could snap back into the
+ * fade. Slower, but it's one frame and correctness matters here. Falls back to
+ * an earlier seek, then frame 0, for very short clips.
  */
-async function grabPoster(videoFile, outPath, seekSeconds = 2.5) {
+async function grabPoster(videoFile, outPath, seekSeconds = 3.2) {
   const run = (args) => new Promise((resolve) => execFile('ffmpeg', args, { timeout: 30000 }, (err) => resolve(!err)))
-  // Seek BEFORE -i for a fast keyframe seek.
-  await run(['-y', '-ss', String(seekSeconds), '-i', videoFile, '-frames:v', '1', '-q:v', '2', outPath])
-  try { await readFile(outPath); return } catch { /* seek landed past end → fall back */ }
-  await run(['-y', '-i', videoFile, '-frames:v', '1', '-q:v', '2', outPath])
+  const grabAt = async (t) => {
+    await run(['-y', '-i', videoFile, '-ss', String(t), '-frames:v', '1', '-q:v', '2', outPath])
+    try { await readFile(outPath); return true } catch { return false }
+  }
+  if (await grabAt(seekSeconds)) return       // ideal: clear of all intro fades
+  if (await grabAt(1.9)) return               // shorter video: just past cold-open
+  await run(['-y', '-i', videoFile, '-frames:v', '1', '-q:v', '2', outPath]) // last resort: frame 0
 }
 
 async function v3GeminiBg(prompt, outPath) {
