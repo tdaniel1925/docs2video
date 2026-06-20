@@ -49,8 +49,8 @@ export default function BrandPage() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
 
-  // Profile type (Person | Company)
-  const [profileType, setProfileType] = useState<'person' | 'company'>('company')
+  // Profile type (Person | Company) — presenter-first: default to Person.
+  const [profileType, setProfileType] = useState<'person' | 'company'>('person')
   const [personRole, setPersonRole] = useState('')
   const [introLine, setIntroLine] = useState('')
   const [showNameOnSlides, setShowNameOnSlides] = useState(true)
@@ -99,14 +99,12 @@ export default function BrandPage() {
       if (brandsResult.data) {
         const loaded = brandsResult.data as Brand[]
         setBrands(loaded)
-        // Auto-select the auto-detected brand if present
+        // Auto-select the auto-detected brand if present. We DON'T collapse the
+        // picker anymore — "who's presenting?" must stay visible so the presenter
+        // options aren't hidden behind a one-brand auto-select.
         if (draft._autoBrandId) {
           const match = loaded.find((b: Brand) => b.id === draft._autoBrandId)
           if (match) setSelectedBrandId(match.id)
-        } else if (loaded.length === 1) {
-          // Exactly one brand — pre-select it and collapse the picker
-          setSelectedBrandId(loaded[0].id)
-          setShowPicker(false)
         }
       }
 
@@ -394,13 +392,13 @@ export default function BrandPage() {
         fontFamily: 'inherit',
         animation: 'fadeInUp 0.4s ease',
       }}>
-        Brand for this video
+        Who&rsquo;s presenting this video?
       </h1>
       <p style={{
         fontSize: 17, color: 'var(--ink-soft)', textAlign: 'center',
         marginBottom: 32, lineHeight: 1.6, animation: 'fadeInUp 0.4s ease 0.05s both',
       }}>
-        The video uses your brand&rsquo;s colors and contact info. Defaults to your saved brand.
+        Introduce yourself with your name, photo, and a friendly intro &mdash; or pick a saved profile. Company branding is optional.
       </p>
 
       {/* Compact confirm — single brand, auto-selected */}
@@ -432,9 +430,12 @@ export default function BrandPage() {
         )
       })()}
 
-      {/* Saved brands */}
+      {/* Saved profiles (people + companies, badged) */}
       {showPicker && brands.length > 0 && (
         <div style={{ width: '100%', marginBottom: 24, animation: 'fadeInUp 0.4s ease 0.1s both' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+            Use a saved profile
+          </div>
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
             gap: 12,
@@ -465,7 +466,13 @@ export default function BrandPage() {
                     </span>
                   )}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                    {b.logo_url ? (
+                    {b.profile_type === 'person' && b.photo_url ? (
+                      <img
+                        src={b.photo_url}
+                        alt={b.name}
+                        style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', background: 'var(--bg-soft)' }}
+                      />
+                    ) : b.logo_url ? (
                       <img
                         src={b.logo_url}
                         alt={`${b.name} logo`}
@@ -488,6 +495,14 @@ export default function BrandPage() {
                       <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>
                         {b.name}
                       </div>
+                      <span style={{
+                        display: 'inline-block', marginTop: 2, padding: '1px 7px', borderRadius: 6,
+                        fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                        background: b.profile_type === 'person' ? 'rgba(199, 232, 168, 0.25)' : 'var(--bg-soft)',
+                        color: 'var(--ink-soft)',
+                      }}>
+                        {b.profile_type === 'person' ? 'Person' : 'Company'}
+                      </span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -607,7 +622,7 @@ export default function BrandPage() {
         </div>
       )}
 
-      {/* Inline brand form — hidden when a saved brand is selected */}
+      {/* Inline create form — hidden when a saved profile is selected */}
       {!selectedBrandId && (
       <div style={{
         width: '100%', padding: '24px', borderRadius: 10,
@@ -616,13 +631,16 @@ export default function BrandPage() {
         marginBottom: 20,
         animation: 'fadeInUp 0.4s ease 0.2s both',
       }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 14 }}>
+          {brands.length > 0 ? 'Or set up a new one' : "Set up who's presenting"}
+        </div>
         {/* Profile type toggle */}
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
-            Profile type
+            Is this a person or a company?
           </label>
           <div style={{ display: 'flex', gap: 8 }}>
-            {(['company', 'person'] as const).map((t) => (
+            {(['person', 'company'] as const).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -952,7 +970,7 @@ export default function BrandPage() {
           opacity: submitting ? 0.5 : 1,
         }}
       >
-        Skip branding
+        Skip &mdash; no presenter or branding
       </button>
     </div>
   )
