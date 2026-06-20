@@ -13,8 +13,12 @@ set -euo pipefail
 REPO="https://github.com/tdaniel1925/docs2video.git"
 DIR="/root/video-service"
 TMP="/tmp/d2v-deploy"
-# Pass --no-cache as the first arg to force a full rebuild (use when remotion/src
-# changed). Default is a fast build (only changed COPY layers re-run).
+# DEFAULT (no args) = fast CACHED build. Because server.js + remotion/src are the
+# LAST COPY layers in the Dockerfile, a cached build already picks up ALL code
+# changes (it only re-runs those final COPY layers) — this is what you want
+# almost every time. Only pass --no-cache when a BASE dependency changed (apt
+# packages, the rembg/python install, package.json) — it rebuilds everything and
+# needs ~2x image size on disk, which can exhaust the small 37GB disk.
 BUILD_FLAG="${1:-}"
 
 echo "==> Pulling latest"
@@ -39,8 +43,20 @@ echo "   disk after prune:"; df -h / | tail -1
 
 echo "==> Building (${BUILD_FLAG:-fast})"
 cd "$DIR"
-if [ "$BUILD_FLAG" = "--no-cache" ]; then docker compose build --no-cache; fi
-docker compose up -d --build
+# NOTE: server.js + remotion/src are the LAST COPY layers in the Dockerfile, so a
+# normal CACHED build already picks up code changes — it only re-runs the cheap
+# final COPY layers. --no-cache rebuilds the heavy ffmpeg/rembg/onnxruntime
+# layers too, needing ~2x the image size on disk during export (the cause of
+# "no space left on device" on the small 37GB disk). Only use --no-cache when a
+# base dependency actually changed.
+if [ "$BUILD_FLAG" = "--no-cache" ]; then
+  # Build once with --no-cache, then `up` reuses that freshly-built image (no
+  # second rebuild — avoids doubling the disk/time).
+  docker compose build --no-cache
+  docker compose up -d
+else
+  docker compose up -d --build
+fi
 
 echo "==> Post-build cleanup (drop the now-dangling old image layers)"
 docker image prune -af >/dev/null 2>&1 || true
