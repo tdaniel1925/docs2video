@@ -34,3 +34,25 @@ export function cleanRecipientName(name: string | null | undefined): string {
   const n = (name || '').trim()
   return isPlaceholderName(n) ? '' : n
 }
+
+/**
+ * Strip placeholder/sample names that appear INSIDE prose (brief summary, key
+ * points, etc.) and read unprofessionally — e.g. "Mr. Client", "Valued Client",
+ * "John Doe". Replaces possessives ("Mr. Client's") with "your" and plain
+ * references with "you", then tidies spacing. Leaves real names untouched.
+ */
+export function scrubPlaceholderNamesInText(text: string): string {
+  if (!text) return text
+  return text
+    // possessive: "Mr. Client's loved ones" → "your loved ones"
+    .replace(/\b(?:mr\.?|mrs\.?|ms\.?|dr\.?)\s+(?:valued\s+)?(?:client|customer|insured|policyholder|policy holder|member|doe|john doe|jane doe)['’]s\b/gi, 'your')
+    .replace(/\b(?:the\s+)?(?:valued\s+client|insured|policyholder|policy holder)['’]s\b/gi, 'your')
+    // plain reference: "walks Mr. Client through" → "walks you through"
+    .replace(/\b(?:mr\.?|mrs\.?|ms\.?|dr\.?)\s+(?:valued\s+)?(?:client|customer|insured|policyholder|policy holder|member|doe|john doe|jane doe)\b/gi, 'you')
+    .replace(/\bvalued client\b/gi, 'you')
+    .replace(/\bjohn doe\b|\bjane doe\b/gi, 'you')
+    // tidy: double spaces + "for you," artifacts
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([.,;:!?])/g, '$1')
+    .trim()
+}

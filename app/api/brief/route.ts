@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../_lib/supabase/server'
 import type { VideoBrief, WizardDraft } from '../../_lib/types'
+import { scrubPlaceholderNamesInText } from '../../_lib/text-format'
 
 export const runtime = 'nodejs'
 export const maxDuration = 45
@@ -18,15 +19,18 @@ function parseBrief(text: string): VideoBrief | null {
     const json = text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)
     const b = JSON.parse(json)
     if (!b || typeof b !== 'object') return null
+    // Scrub placeholder/sample names ("Mr. Client", "Valued Client", "John Doe")
+    // that read unprofessionally even if the source doc prints them.
+    const s = scrubPlaceholderNamesInText
     return {
       docType: String(b.docType || 'Document'),
-      summary: String(b.summary || ''),
-      keyPoints: Array.isArray(b.keyPoints) ? b.keyPoints.map(String).slice(0, 8) : [],
-      figures: Array.isArray(b.figures) ? b.figures.filter((f: any) => f?.label && f?.value).map((f: any) => ({ label: String(f.label), value: String(f.value) })).slice(0, 8) : [],
-      angle: String(b.angle || ''),
+      summary: s(String(b.summary || '')),
+      keyPoints: Array.isArray(b.keyPoints) ? b.keyPoints.map((x: any) => s(String(x))).slice(0, 8) : [],
+      figures: Array.isArray(b.figures) ? b.figures.filter((f: any) => f?.label && f?.value).map((f: any) => ({ label: s(String(f.label)), value: String(f.value) })).slice(0, 8) : [],
+      angle: s(String(b.angle || '')),
       tone: b.tone ? String(b.tone) : undefined,
-      emphasis: Array.isArray(b.emphasis) ? b.emphasis.map(String) : undefined,
-      avoid: Array.isArray(b.avoid) ? b.avoid.map(String) : undefined,
+      emphasis: Array.isArray(b.emphasis) ? b.emphasis.map((x: any) => s(String(x))) : undefined,
+      avoid: Array.isArray(b.avoid) ? b.avoid.map((x: any) => s(String(x))) : undefined,
     }
   } catch { return null }
 }
@@ -34,6 +38,8 @@ function parseBrief(text: string): VideoBrief | null {
 const SYS = `You are a video producer reviewing a source document before scripting an explainer video. Produce a BRIEF: a plain-language statement of what the document is and what the video will cover.
 
 STRICT GROUNDING: use ONLY facts, names, and numbers present in the provided document data. Invent NOTHING — no figures, no claims, no contact info that isn't there.
+
+NEVER use a placeholder or sample name. If the document refers to the person as "Mr. Client", "Valued Client", "the insured", "John Doe", or any generic stand-in, DO NOT repeat it — address the reader as "you" / "your" instead (e.g. "This policy gives you lifelong protection"). Only use a real person's name if one is genuinely present.
 
 Return ONLY a JSON object:
 {

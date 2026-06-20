@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../../_lib/supabase/server'
 import type { VideoBrief, WizardDraft } from '../../../_lib/types'
+import { scrubPlaceholderNamesInText } from '../../../_lib/text-format'
 
 export const runtime = 'nodejs'
 export const maxDuration = 45
@@ -15,6 +16,8 @@ function claude() {
 const SYS = `You are refining the BRIEF for an explainer video — the statement of what the video will cover and how it's framed. The user gives you direction; apply it and return the UPDATED brief.
 
 STRICT GROUNDING: only use facts/numbers from the document data provided. Never invent figures, claims, or details. The user can re-prioritize, change tone, emphasize, or drop topics — but you cannot add facts that aren't in the document.
+
+NEVER use a placeholder/sample name ("Mr. Client", "Valued Client", "the insured", "John Doe"). Address the reader as "you" / "your" instead. Only use a real person's name if one is genuinely present in the document.
 
 Return ONLY this JSON:
 {
@@ -72,6 +75,13 @@ export async function POST(request: Request) {
     if (!newBrief || !Array.isArray(newBrief.keyPoints)) {
       return NextResponse.json({ error: 'Could not apply that change' }, { status: 502 })
     }
+    // Scrub placeholder names the model may have carried over from the document.
+    const s = scrubPlaceholderNamesInText
+    newBrief.summary = s(String(newBrief.summary || ''))
+    newBrief.angle = s(String(newBrief.angle || ''))
+    if (Array.isArray(newBrief.keyPoints)) newBrief.keyPoints = newBrief.keyPoints.map((x) => s(String(x)))
+    if (Array.isArray(newBrief.emphasis)) newBrief.emphasis = newBrief.emphasis.map((x) => s(String(x)))
+    if (Array.isArray(newBrief.avoid)) newBrief.avoid = newBrief.avoid.map((x) => s(String(x)))
     // Preserve approval state false until the user clicks continue.
     newBrief.approved = false
     const reply = parsed.reply || 'Updated the brief.'
