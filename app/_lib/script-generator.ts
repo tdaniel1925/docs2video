@@ -563,6 +563,11 @@ The viewer should feel like they just had a clear, personal explanation of their
 - Example pattern (adapt to the real, grounded data): "$176,204 in coverage — that's enough to keep your family in their home and cover what comes next." Never the number alone.
 - Prefer concrete, relatable framing over abstract restatement. A figure with no meaning attached is a wasted line.`)
 
+  additionalSections.push(`NAMES — NEVER USE A PLACEHOLDER:
+- Do NOT address the viewer with a placeholder or sample name. NEVER write "Mr. Client", "Valued Client", "Dear Client", "the client", "John Doe", "the insured", "policyholder", or any stand-in name on a slide or in narration.
+- If the source document only has a sample/placeholder name (or no name), simply DON'T name the viewer at all — speak directly to "you" and lead with the topic. A clean, name-free greeting is far more professional than a fake name.
+- Only use a real person's name if one is genuinely present in the document data — otherwise omit names entirely.`)
+
   additionalSections.push(`SENTENCE RHYTHM (this is the biggest "sounds human" lever for voiceover):
 - Vary sentence length deliberately: mix short, punchy lines with one longer, flowing sentence. Never make every sentence the same length — that's what makes TTS sound flat.
 - Read each line aloud in your head; if it sounds like a textbook, rewrite it the way a confident person would actually say it.
@@ -802,9 +807,24 @@ NARRATION ↔ SLIDE CORRESPONDENCE (every scene):
 
     // Post-parse: strip forward-looking phrases that break slide-audio sync
     const forwardPhrases = /\b(next,?\s+we('ll|\s+will)\s+(look|see|explore|cover|discuss|examine)|coming up|let's\s+(move|turn|shift)\s+(on\s+)?to|in\s+the\s+next\s+(slide|scene|section)|up\s+next|moving\s+on\s+to|now\s+let's\s+(take\s+a\s+)?look\s+at)\b/gi
+    // Post-parse: scrub placeholder/sample names ("Mr. Client", "Dear Valued
+    // Client", "John Doe"…) that look unprofessional — replace the salutation
+    // with a clean, name-free one. Belt-and-suspenders to the prompt rule.
+    const placeholderSalutation = /\b(hi|hello|hey|dear|welcome,?)\s+(mr\.?|mrs\.?|ms\.?|dear\s+)?\s*(valued\s+)?(client|customer|insured|policyholder|policy holder|member|john doe|jane doe)\b[.,!]?/gi
+    const placeholderName = /\b(mr\.?|mrs\.?|ms\.?)\s+(client|customer|insured|doe)\b|\bvalued\s+client\b|\bjohn doe\b|\bjane doe\b|\bthe insured\b/gi
+    const scrubNames = (s: string) => s
+      .replace(placeholderSalutation, 'Welcome')
+      .replace(placeholderName, 'you')
+      .replace(/\s{2,}/g, ' ').replace(/\s+([.,!?])/g, '$1').trim()
     for (const scene of scenes) {
       if (scene.narration) {
-        scene.narration = scene.narration.replace(forwardPhrases, '').replace(/\s{2,}/g, ' ').trim()
+        scene.narration = scrubNames(scene.narration.replace(forwardPhrases, '')).replace(/\s{2,}/g, ' ').trim()
+      }
+      // Also scrub any placeholder name that landed on the slide text itself.
+      const sd: any = (scene as any).slideData
+      if (sd) {
+        if (typeof sd.headline === 'string') sd.headline = scrubNames(sd.headline)
+        if (Array.isArray(sd.bullets)) sd.bullets = sd.bullets.map((b: string) => scrubNames(b))
       }
     }
 
@@ -981,6 +1001,7 @@ You will receive the scenes of a video (each with what's ON the slide + the curr
 
 ABSOLUTE RULES:
 - GROUNDED: use ONLY facts, names, and numbers already present in that scene's data/narration. Invent NOTHING. Add no new figures, no contact info, no claims.
+- NEVER address the viewer with a placeholder/sample name ("Mr. Client", "Valued Client", "Dear Client", "the client", "John Doe", "the insured"). If no real person's name is present, don't name the viewer — speak to "you".
 - Keep each scene's narration about ITS OWN slide only. Never reference "the next slide" or preview upcoming scenes.
 - Do not change which scene covers what. Same count, same order.
 

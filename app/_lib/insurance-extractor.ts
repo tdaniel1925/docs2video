@@ -48,7 +48,7 @@ Return ONLY valid JSON (no markdown, no code fences):
 {
   "policyType": "string (e.g. Whole Life, IUL, Universal Life, Term, VUL)",
   "carrier": "string (insurance company name, exactly as printed)",
-  "insuredName": "string (exactly as printed)",
+  "insuredName": "string — the insured's REAL name exactly as printed, or null. Return null if the name is missing, illegible, or a generic placeholder/sample value (e.g. 'Valued Client', 'Mr. Client', 'Client', 'John Doe', 'Jane Doe', 'Sample', 'Specimen', 'Insured', 'Policyholder', 'Test'). NEVER invent or guess a name.",
   "insuredAge": number or null,
   "deathBenefit": number (initial face amount),
   "annualPremium": number,

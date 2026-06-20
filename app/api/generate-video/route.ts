@@ -13,6 +13,7 @@ import { buildV3Payload } from '../../_lib/v3-render'
 import { isLambdaConfigured, renderV3OnLambda } from '../../_lib/v3-lambda'
 import { buildEditorialPayload } from '../../_lib/editorial-render'
 import { buildPresenter, resolvePhotoPlacement, isPersonProfile } from '../../_lib/presenter'
+import { cleanRecipientName } from '../../_lib/text-format'
 import { waitUntil } from '@vercel/functions'
 import { logError } from '../../_lib/error-logger'
 import { validateScript } from '../../_lib/script-validator'
@@ -739,8 +740,12 @@ export async function POST(request: Request) {
     const photoPlacementResolved = resolvePhotoPlacement(videoStyle, photoPlacement)
 
     // Build cover narration (short intro) — formatted for natural speech.
-    // Use recipient name from draft data or request body.
-    const recipient = recipientName || (policyData as any)?.recipientName || (policyData as any)?.insuredName || ''
+    // Use recipient name from draft data or request body — but scrub generic
+    // placeholders ("Mr. Client", "Valued Client", "John Doe", etc.) so they
+    // never reach the greeting/slides. No real name → no name (lead with topic).
+    const recipient = cleanRecipientName(
+      recipientName || (policyData as any)?.recipientName || (policyData as any)?.insuredName || ''
+    )
     // If a presenter wrote their own intro line, speak THAT (optionally greeting
     // the recipient first); otherwise fall back to the generic welcome.
     let coverNarration: string
