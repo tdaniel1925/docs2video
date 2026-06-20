@@ -970,7 +970,7 @@ function v3Theme(brandAccents) {
 }
 
 app.post('/render-v3', authCheck, async (req, res) => {
-  const { videoId, userId, voiceId, theme, brandName, brandAccents, logo, scenes, contactLine, contact, closingValue, musicUrl, musicPrompt, aiMusic } = req.body || {}
+  const { videoId, userId, voiceId, theme, brandName, brandAccents, logo, scenes, contactLine, contact, closingValue, musicUrl, musicPrompt, aiMusic, presenter, photoPlacement } = req.body || {}
   if (!videoId || !Array.isArray(scenes) || scenes.length === 0) {
     return res.status(400).json({ error: 'Missing videoId or scenes' })
   }
@@ -1094,10 +1094,34 @@ app.post('/render-v3', authCheck, async (req, res) => {
       if (light || dark) localLogo = { light, dark }
     }
 
+    // Presenter (Person profile): download the headshot into public/ (same reason
+    // as the logo) and decide cover/closing placement. 'auto' → cinematic shows
+    // the photo on both the cover and the closing card.
+    let localPresenter, presenterOnCover = false, presenterOnClosing = false
+    if (presenter && (presenter.name || presenter.photo)) {
+      let photoName
+      if (presenter.photo) {
+        try {
+          const r = await fetch(presenter.photo, { signal: AbortSignal.timeout(15000) })
+          if (r.ok) { photoName = `r3-${videoId}-presenter.png`; await writeFile(join(pub, photoName), Buffer.from(await r.arrayBuffer())) }
+        } catch { /* no photo → name/role still render */ }
+      }
+      localPresenter = { name: presenter.name || undefined, role: presenter.role || undefined, ...(photoName ? { photo: photoName } : {}) }
+      const pref = photoPlacement || 'auto'
+      if (pref === 'none') { presenterOnCover = false; presenterOnClosing = false }
+      else if (pref === 'cover') { presenterOnCover = true }
+      else if (pref === 'closing') { presenterOnClosing = true }
+      else if (pref === 'both') { presenterOnCover = true; presenterOnClosing = true }
+      else { presenterOnCover = true; presenterOnClosing = true } // auto → cinematic: both
+      // Only show the photo where one exists.
+      if (!photoName) { presenterOnCover = false; presenterOnClosing = false }
+    }
+
     const props = {
       theme: v3Theme(brandAccents),
       brandName: brandName || undefined,
       ...(localLogo ? { logo: localLogo, logoChip: !!logo.chip } : {}),
+      ...(localPresenter ? { presenter: localPresenter, presenterOnCover, presenterOnClosing } : {}),
       ...(bgImage ? { bgImage } : {}),
       scenes: outScenes,
     }
@@ -1232,7 +1256,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
 // (cover/lede). Writes public/editorial.json, renders, uploads. Music optional.
 // ============================================================
 app.post('/render-editorial', authCheck, async (req, res) => {
-  const { videoId, userId, voiceId, masthead, runningTitle, brandColor, scenes, musicUrl, musicPrompt, aiMusic } = req.body || {}
+  const { videoId, userId, voiceId, masthead, runningTitle, brandColor, scenes, musicUrl, musicPrompt, aiMusic, contactLine, presenter, photoPlacement } = req.body || {}
   if (!videoId || !Array.isArray(scenes) || scenes.length === 0) {
     return res.status(400).json({ error: 'Missing videoId or scenes' })
   }
@@ -1282,7 +1306,31 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       })
     }
 
-    await writeFile(join(pub, 'editorial.json'), JSON.stringify({ masthead, runningTitle, brandColor, scenes: out }))
+    // Presenter (Person profile): download the headshot into public/ and decide
+    // cover/closing placement ('auto' → editorial shows it on both).
+    let edPresenter, edOnCover = false, edOnClosing = false
+    if (presenter && (presenter.name || presenter.photo)) {
+      let photoName
+      if (presenter.photo) {
+        try {
+          const r = await fetch(presenter.photo, { signal: AbortSignal.timeout(15000) })
+          if (r.ok) { photoName = `ed-${videoId}-presenter.png`; await writeFile(join(pub, photoName), Buffer.from(await r.arrayBuffer())) }
+        } catch { /* name/role still render */ }
+      }
+      edPresenter = { name: presenter.name || undefined, role: presenter.role || undefined, ...(photoName ? { photo: photoName } : {}) }
+      const pref = photoPlacement || 'auto'
+      if (pref === 'cover') edOnCover = true
+      else if (pref === 'closing') edOnClosing = true
+      else if (pref === 'none') { /* neither */ }
+      else { edOnCover = true; edOnClosing = true } // both | auto
+      if (!photoName) { edOnCover = false; edOnClosing = false }
+    }
+
+    await writeFile(join(pub, 'editorial.json'), JSON.stringify({
+      masthead, runningTitle, brandColor, scenes: out,
+      ...(contactLine ? { contactLine } : {}),
+      ...(edPresenter ? { presenter: edPresenter, presenterOnCover: edOnCover, presenterOnClosing: edOnClosing } : {}),
+    }))
     await setProgress(72, 'Rendering...')
     await new Promise((resolve, reject) => {
       const { spawn } = require('child_process')

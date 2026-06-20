@@ -16,8 +16,71 @@ export default function BrandsHelpPage() {
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>Setting Up Brands</h1>
-          <p>Create and manage brands so every video, flyer, and card uses your logo, colors, and contact info.</p>
+          <h1>Profiles &amp; Personalization</h1>
+          <p>A profile is who presents your video. It can be a <strong>Person</strong> (you, with your name, role, and photo) or a <strong>Company</strong> (your logo, colors, and contact info). Pick a saved profile when you create any video.</p>
+        </div>
+      </div>
+
+      {/* Person vs Company */}
+      <div style={{
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        padding: '28px 32px', marginBottom: 20,
+      }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+          Person or Company?
+        </h2>
+        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+          <p style={{ marginBottom: 12 }}>
+            When you create a profile, choose a type at the top of the form:
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={{ color: 'var(--ink)' }}>Person</strong> — for a real presenter. You add your <strong>name</strong>, your <strong>role</strong> (e.g. "Registered Nurse"), a <strong>photo</strong> (headshot), your <strong>contact details</strong>, and an <strong>intro line</strong> the video speaks at the start. A person uses a photo, not a logo.
+          </p>
+          <p>
+            <strong style={{ color: 'var(--ink)' }}>Company</strong> — the classic brand: a <strong>logo</strong>, <strong>brand colors</strong>, a tagline, and contact info. Use this when the video should represent an organization rather than an individual.
+          </p>
+        </div>
+      </div>
+
+      {/* Personalizing a video */}
+      <div style={{
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        padding: '28px 32px', marginBottom: 20,
+      }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+          Personalizing a Video (Person profiles)
+        </h2>
+        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={{ color: 'var(--ink)' }}>Intro line</strong> — Write how you&apos;d like to be introduced, in your own words: <em>"Hi, I&apos;m Sarah Talls, a registered nurse. I&apos;ve prepared this video to walk you through your prescription plan."</em> The video speaks this at the opening.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={{ color: 'var(--ink)' }}>Introduce me in the opening / Show my contact on the closing</strong> — Toggle these per video. The closing card shows your name, role, photo, and contact.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={{ color: 'var(--ink)' }}>Where my photo appears</strong> — Choose Auto (the video style decides), Cover, Closing, Both, or None.
+          </p>
+          <p>
+            <strong style={{ color: 'var(--ink)' }}>Show my name on slides</strong> — On the profile, decide whether your name leads the cover, or the document title does (your name still appears in the intro and closing).
+          </p>
+        </div>
+      </div>
+
+      {/* Logo controls */}
+      <div style={{
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        padding: '28px 32px', marginBottom: 20,
+      }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+          Logo Controls (Company profiles)
+        </h2>
+        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={{ color: 'var(--ink)' }}>Show logo in videos</strong> — A simple on/off switch. When on, your logo appears in the lower corner and on the closing card; when off, videos render without it.
+          </p>
+          <p>
+            <strong style={{ color: 'var(--ink)' }}>Background removal</strong> — When you upload a logo, we automatically clean its background so it sits cleanly on any slide. If your logo can&apos;t be cleaned automatically, you&apos;ll see guidance to upload a transparent PNG, or you can continue without a logo and we&apos;ll use your company name instead.
+          </p>
         </div>
       </div>
 

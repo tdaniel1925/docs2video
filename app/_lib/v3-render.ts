@@ -11,6 +11,7 @@
  * scenes, which were themselves grounded in the extracted document.
  */
 import type { Brand } from './types'
+import { type Presenter, resolveDisplayName, shouldShowLogo } from './presenter'
 
 export type V3Theme = 'cinematic' | 'infographic'
 
@@ -97,6 +98,10 @@ export type V3Payload = {
   /** Structured contact + a closing value for the branded closing card. */
   contact?: { phone?: string; email?: string; website?: string }
   closingValue?: { label: string; value: string }
+  /** Presenter identity (Person profile): photo + name/role shown per style. */
+  presenter?: Presenter
+  /** Resolved photo placement preference; 'auto' lets the style decide on the VPS. */
+  photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
   /** Per-scene content; the VPS generates images (cinematic) + narration + render. */
   scenes: {
     title: string
@@ -124,6 +129,8 @@ export function buildV3Payload(opts: {
   aiMusic?: boolean
   contactLine?: string
   contact?: { phone?: string; email?: string; website?: string }
+  presenter?: Presenter | null
+  photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
 }): V3Payload {
   // Cap cinematic scenes: each is a Gemini image + TTS + render. 17 scenes =
   // a 4-min video + 17 image calls (slow, rate-limit-prone). Keep the cover,
@@ -156,9 +163,14 @@ export function buildV3Payload(opts: {
     userId: opts.userId,
     voiceId: opts.voiceId,
     theme,
-    brandName: opts.brandName || opts.brand?.name || undefined,
+    // Display name respects a Person's show_name_on_slides toggle; companies
+    // always use their name. An explicit brandName override still wins.
+    brandName: opts.brandName || resolveDisplayName(opts.brand) || undefined,
     brandAccents: brandAccents(opts.brand),
-    logo: brandLogo(opts.brand),
+    // Logo only when the profile is a company with show_logo on (never for people).
+    logo: shouldShowLogo(opts.brand) ? brandLogo(opts.brand) : undefined,
+    presenter: opts.presenter || undefined,
+    photoPlacement: opts.photoPlacement || undefined,
     industry: opts.industry || undefined,
     musicUrl: opts.musicUrl || undefined,
     musicPrompt: opts.musicPrompt || undefined,

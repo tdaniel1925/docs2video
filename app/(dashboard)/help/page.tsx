@@ -57,8 +57,8 @@ const GUIDES: HelpGuide[] = [
   },
   {
     href: '/help/brands',
-    title: 'Brands & Customization',
-    description: 'How to create brands, upload logos, use custom themes, and apply brand colors to your videos.',
+    title: 'Profiles & Personalization',
+    description: 'Set up Person or Company profiles — your name, role, photo, and intro line, or your logo, colors, and contact info — and personalize each video.',
     icon: '🎨',
   },
   {

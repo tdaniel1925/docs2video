@@ -1,4 +1,4 @@
-import { AbsoluteFill, Series, Audio, staticFile, useCurrentFrame, interpolate, Easing, spring, useVideoConfig } from 'remotion'
+import { AbsoluteFill, Series, Audio, Img, staticFile, useCurrentFrame, interpolate, Easing, spring, useVideoConfig } from 'remotion'
 import type { V3Props, V3Scene } from './schema'
 import { FullScreenScene, type Placement } from './FullScreenScene'
 import { SlidePanelScene } from './SlidePanelScene'
@@ -41,7 +41,7 @@ const Transition: React.FC<{ d: number; variant: number; children: React.ReactNo
 /** Branded cold-open: brand name (or first title) springs up on black with an
  *  accent rule, holds, then a quick fade to the first scene. ~2s of premium tone. */
 const COLD_OPEN_FRAMES = 54
-const ColdOpen: React.FC<{ text: string; theme: Theme & { logo?: LogoSource } }> = ({ text, theme }) => {
+const ColdOpen: React.FC<{ text: string; theme: Theme & { logo?: LogoSource }; photo?: string; role?: string }> = ({ text, theme, photo, role }) => {
   const f = useCurrentFrame()
   const { fps } = useVideoConfig()
   const rise = spring({ frame: f - 4, fps, config: { damping: 16, stiffness: 110, mass: 0.9 } })
@@ -51,24 +51,31 @@ const ColdOpen: React.FC<{ text: string; theme: Theme & { logo?: LogoSource } }>
   return (
     <AbsoluteFill style={{ background: '#05070C', alignItems: 'center', justifyContent: 'center', opacity: out }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 22, opacity: Math.min(1, rise * 1.4), transform: `translateY(${(1 - rise) * 28}px)` }}>
+        {/* Presenter portrait on the cover (Person profile, cover placement). */}
+        {photo ? (
+          <Img src={staticFile(photo)} style={{ width: 150, height: 150, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${accent}`, boxShadow: `0 0 26px ${accent}66`, marginBottom: 6 }} />
+        ) : null}
         <div style={{ fontFamily: FONTS.display, fontWeight: 900, fontSize: 96, color: '#FFFFFF', letterSpacing: '-0.02em', textAlign: 'center', maxWidth: 1400, lineHeight: 1 }}>
           {text}
         </div>
+        {photo && role ? (
+          <div style={{ fontFamily: FONTS.display, fontWeight: 700, letterSpacing: 3, fontSize: 26, color: accent, textTransform: 'uppercase' }}>{role}</div>
+        ) : null}
         <div style={{ height: 4, width: 220 * rule, borderRadius: 2, background: accent, boxShadow: `0 0 18px ${accent}` }} />
       </div>
     </AbsoluteFill>
   )
 }
 
-export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, scenes, music, logo, logoChip, brandName }) => {
+export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, scenes, music, logo, logoChip, brandName, presenter, presenterOnCover, presenterOnClosing }) => {
   const total = scenes.reduce((s, sc) => s + sc.durationInFrames, 0) + COLD_OPEN_FRAMES
-  const openText = brandName || scenes[0]?.title || ''
+  const openText = brandName || presenter?.name || scenes[0]?.title || ''
   return (
     <AbsoluteFill>
       <Series>
         {openText ? (
           <Series.Sequence durationInFrames={COLD_OPEN_FRAMES}>
-            <ColdOpen text={openText} theme={theme} />
+            <ColdOpen text={openText} theme={theme} photo={presenterOnCover ? presenter?.photo : undefined} role={presenter?.role} />
           </Series.Sequence>
         ) : null}
         {scenes.map((sc: V3Scene, i) => {
@@ -88,12 +95,13 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, sce
                   <ClosingCard
                     image={sc.image}
                     theme={theme}
-                    brandName={brandName}
+                    brandName={brandName || presenter?.name}
                     logo={logo as LogoSource}
                     headline={sc.closing.headline || sc.title}
                     cta={sc.closing.cta || sc.body}
                     value={sc.closing.value}
                     contact={sc.closing.contact}
+                    presenter={presenterOnClosing ? presenter : undefined}
                     durationInFrames={sc.durationInFrames}
                   />
                 ) : hasBullets ? (

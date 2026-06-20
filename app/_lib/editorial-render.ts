@@ -11,6 +11,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { withRetry } from './with-retry'
 import type { Brand } from './types'
+import { type Presenter, resolveDisplayName } from './presenter'
 
 let _claude: Anthropic | null = null
 function claude() {
@@ -35,6 +36,11 @@ export type EditorialPayload = {
   musicUrl?: string
   musicPrompt?: string
   aiMusic?: boolean
+  /** Contact line for the closing decision page. */
+  contactLine?: string
+  /** Presenter identity (Person profile): photo + name/role rendered per style. */
+  presenter?: Presenter
+  photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
   /** Editorial scenes (no audio/image yet — renderer fills those in). */
   scenes: {
     archetype?: string
@@ -83,6 +89,8 @@ export async function buildEditorialPayload(opts: {
   musicUrl?: string
   musicPrompt?: string
   aiMusic?: boolean
+  presenter?: Presenter | null
+  photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
 }): Promise<EditorialPayload> {
   // Compact brief of the grounded scenes + the doc's real metrics.
   const brief = opts.scenes.map((s, i) => {
@@ -129,12 +137,18 @@ export async function buildEditorialPayload(opts: {
     }))
   }
 
+  // Masthead respects a Person's show_name_on_slides toggle; falls back to the
+  // doc title or REPORT so the magazine header is never empty.
+  const displayName = opts.brandName || resolveDisplayName(opts.brand)
   return {
     videoId: opts.videoId, userId: opts.userId, voiceId: opts.voiceId,
-    masthead: (opts.brandName || opts.brand?.name || 'REPORT').toUpperCase().slice(0, 18),
-    runningTitle: (opts.extracted?.title || opts.brandName || '').slice(0, 40),
+    masthead: (displayName || opts.extracted?.title || 'REPORT').toUpperCase().slice(0, 18),
+    runningTitle: (opts.extracted?.title || displayName || '').slice(0, 40),
     brandColor: opts.brand?.primary_color || undefined,
     musicUrl: opts.musicUrl, musicPrompt: opts.musicPrompt, aiMusic: opts.aiMusic,
+    contactLine: opts.contactLine || undefined,
+    presenter: opts.presenter || undefined,
+    photoPlacement: opts.photoPlacement || undefined,
     scenes,
   }
 }

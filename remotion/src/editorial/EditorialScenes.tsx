@@ -84,11 +84,30 @@ export const EditorialFrame: React.FC<{
 /* ------------------------------ archetypes -------------------------------- */
 
 type SceneProps = { scene: EditorialScene; theme: EditorialTheme; masthead: string; runningTitle: string; page: number }
+type Presenter = { name?: string; role?: string; photo?: string }
 
-/** COVER — masthead + huge headline + dek, optional framed hero. */
-export const CoverScene: React.FC<SceneProps> = ({ scene, theme, masthead }) => {
+/** A square, bordered editorial portrait with a mono caption ("NAME · ROLE") —
+ *  the magazine way to show a byline/headshot. Reuses the Figure look. */
+const Portrait: React.FC<{ presenter: Presenter; theme: EditorialTheme; size?: number }> = ({ presenter, theme, size = 280 }) => {
+  const frame = useCurrentFrame(); const { fps } = useVideoConfig()
+  const p = settle(frame, 10, fps)
+  if (!presenter.photo) return null
+  const caption = [presenter.name, presenter.role].filter(Boolean).join(' · ')
+  return (
+    <div style={{ opacity: p, transform: `translateY(${(1 - p) * 14}px)`, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' }}>
+      <div style={{ width: size, height: size, border: `1px solid ${theme.ink}`, overflow: 'hidden', background: theme.paperEdge }}>
+        <Img src={staticFile(presenter.photo)} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'saturate(0.95) contrast(1.04)' }} />
+      </div>
+      {caption ? <div style={{ fontFamily: FONT_MONO, fontSize: 16, letterSpacing: '0.06em', color: theme.muted, textTransform: 'uppercase' }}>{caption}</div> : null}
+    </div>
+  )
+}
+
+/** COVER — masthead + huge headline + dek, optional framed hero or presenter. */
+export const CoverScene: React.FC<SceneProps & { presenter?: Presenter }> = ({ scene, theme, masthead, presenter }) => {
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const titleP = settle(frame, 8, fps)
+  const hasPortrait = !!presenter?.photo
   return (
     <AbsoluteFill style={{ boxSizing: 'border-box', border: `18px solid ${theme.accent}`, background: theme.paper, padding: '64px 72px', display: 'flex', flexDirection: 'column' }}>
         {/* Masthead bar */}
@@ -96,15 +115,18 @@ export const CoverScene: React.FC<SceneProps> = ({ scene, theme, masthead }) => 
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 88, lineHeight: 0.9, color: theme.ink, letterSpacing: '-0.01em' }}>{masthead}</div>
           <div style={{ fontFamily: FONT_KICKER, fontSize: 22, letterSpacing: '0.18em', color: theme.muted, textTransform: 'uppercase', paddingBottom: 8 }}>The Special Report</div>
         </div>
-        {/* Headline block */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 24 }}>
-          {scene.kicker ? <Kicker text={scene.kicker} theme={theme} /> : null}
-          <div style={{ opacity: titleP, transform: `translateY(${(1 - titleP) * 18}px)`, fontFamily: FONT_DISPLAY, fontSize: 150, lineHeight: 0.94, color: theme.ink, letterSpacing: '-0.02em', maxWidth: 1500 }}>
-            {scene.title}
+        {/* Headline block — portrait sits to the right when a presenter is shown. */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 56 }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 24 }}>
+            {scene.kicker ? <Kicker text={scene.kicker} theme={theme} /> : null}
+            <div style={{ opacity: titleP, transform: `translateY(${(1 - titleP) * 18}px)`, fontFamily: FONT_DISPLAY, fontSize: hasPortrait ? 124 : 150, lineHeight: 0.94, color: theme.ink, letterSpacing: '-0.02em', maxWidth: 1500 }}>
+              {scene.title}
+            </div>
+            {scene.dek ? (
+              <div style={{ opacity: settle(frame, 26, fps), fontFamily: FONT_BODY, fontSize: 36, lineHeight: 1.35, color: theme.muted, maxWidth: 1200, fontStyle: 'italic' }}>{scene.dek}</div>
+            ) : null}
           </div>
-          {scene.dek ? (
-            <div style={{ opacity: settle(frame, 26, fps), fontFamily: FONT_BODY, fontSize: 36, lineHeight: 1.35, color: theme.muted, maxWidth: 1200, fontStyle: 'italic' }}>{scene.dek}</div>
-          ) : null}
+          {hasPortrait ? <Portrait presenter={presenter!} theme={theme} size={360} /> : null}
         </div>
     </AbsoluteFill>
   )
@@ -245,20 +267,32 @@ export const ListScene: React.FC<SceneProps> = (p) => {
   )
 }
 
-/** DECISION — closing call to action + contact (uses dek for the contact line). */
-export const DecisionScene: React.FC<SceneProps> = (p) => {
-  const { scene, theme } = p
+/** DECISION — closing call to action + contact + optional presenter portrait. */
+export const DecisionScene: React.FC<SceneProps & { contactLine?: string; presenter?: Presenter }> = (p) => {
+  const { scene, theme, contactLine, presenter } = p
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const titleP = settle(frame, 8, fps)
+  const hasPortrait = !!presenter?.photo
+  // Prefer the explicit contactLine; fall back to the scene's dek.
+  const contact = contactLine || scene.dek
   return (
     <Frame {...p} showFolio>
-      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 96px' }}>
-        {scene.kicker ? <Kicker text={scene.kicker} theme={theme} /> : null}
-        <div style={{ opacity: titleP, transform: `translateY(${(1 - titleP) * 16}px)`, fontFamily: FONT_DISPLAY, fontSize: 104, lineHeight: 1.0, color: theme.ink, margin: '14px 0 22px', maxWidth: 1500 }}>{scene.title}</div>
-        <Rule color={theme.accent} delay={14} width={260} thickness={4} />
-        {scene.dek ? (
-          <div style={{ opacity: settle(frame, 28, fps), fontFamily: FONT_MONO, fontSize: 30, letterSpacing: '0.06em', color: theme.ink, marginTop: 30 }}>{scene.dek}</div>
-        ) : null}
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 64, padding: '0 96px' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          {scene.kicker ? <Kicker text={scene.kicker} theme={theme} /> : null}
+          <div style={{ opacity: titleP, transform: `translateY(${(1 - titleP) * 16}px)`, fontFamily: FONT_DISPLAY, fontSize: hasPortrait ? 84 : 104, lineHeight: 1.0, color: theme.ink, margin: '14px 0 22px', maxWidth: 1500 }}>{scene.title}</div>
+          <Rule color={theme.accent} delay={14} width={260} thickness={4} />
+          {/* Presenter name/role line under the rule (the byline). */}
+          {presenter?.name ? (
+            <div style={{ opacity: settle(frame, 24, fps), fontFamily: FONT_KICKER, fontSize: 26, letterSpacing: '0.12em', color: theme.ink, textTransform: 'uppercase', marginTop: 24 }}>
+              {[presenter.name, presenter.role].filter(Boolean).join(' · ')}
+            </div>
+          ) : null}
+          {contact ? (
+            <div style={{ opacity: settle(frame, 28, fps), fontFamily: FONT_MONO, fontSize: 30, letterSpacing: '0.06em', color: theme.ink, marginTop: presenter?.name ? 14 : 30 }}>{contact}</div>
+          ) : null}
+        </div>
+        {hasPortrait ? <Portrait presenter={presenter!} theme={theme} size={320} /> : null}
       </div>
     </Frame>
   )

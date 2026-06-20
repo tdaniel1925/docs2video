@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { createBrand } from '../../../_actions/brands'
 
@@ -135,6 +135,20 @@ export default function NewBrandPage() {
   const [loading, setLoading] = useState(false)
   const [brandName, setBrandName] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
+
+  // Profile type (Person | Company)
+  const [profileType, setProfileType] = useState<'person' | 'company'>('company')
+  const [personRole, setPersonRole] = useState('')
+  const [introLine, setIntroLine] = useState('')
+  const [showNameOnSlides, setShowNameOnSlides] = useState(true)
+  const [photoPlacement, setPhotoPlacement] = useState('auto')
+  const [photoUrl, setPhotoUrl] = useState('')
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [photoError, setPhotoError] = useState<string | null>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+
+  // Company logo toggle
+  const [showLogo, setShowLogo] = useState(true)
   const [primaryColor, setPrimaryColor] = useState('#1B365D')
   const [colors, setColors] = useState({
     primary_color: '#1B365D',
@@ -221,6 +235,23 @@ export default function NewBrandPage() {
     }
   }
 
+  async function handlePhotoUpload(file: File) {
+    setPhotoUploading(true)
+    setPhotoError(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/brands/photo', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      setPhotoUrl(data.url)
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setPhotoUploading(false)
+    }
+  }
+
   const SectionHeader = ({ id, title, icon }: { id: string; title: string; icon: string }) => (
     <button
       type="button"
@@ -253,9 +284,10 @@ export default function NewBrandPage() {
 
   return (
     <div>
-      <Link href="/brands" className="back-link">&larr; Back to brands</Link>
+      <Link href="/brands" className="back-link">&larr; Back to profiles</Link>
 
-      {/* Website Scraper */}
+      {/* Website Scraper — Company profiles only */}
+      {profileType === 'company' && (
       <div className="wizard-card" style={{ marginBottom: 20 }}>
         <h2 style={{ marginBottom: 4 }}>Import from <em>website</em></h2>
         <p className="wizard-sub">Enter your website URL and we&apos;ll create a comprehensive brand guide with colors, voice, content strategy, and more.</p>
@@ -489,30 +521,177 @@ export default function NewBrandPage() {
           </div>
         )}
       </div>
+      )}
 
-      {/* Brand Form */}
+      {/* Profile Form */}
       <div className="wizard-card brand-form">
-        <h2 style={{ marginBottom: 4 }}>Brand details</h2>
+        <h2 style={{ marginBottom: 4 }}>Profile details</h2>
         <p className="wizard-sub" style={{ marginBottom: 20 }}>
-          {scraped
+          {profileType === 'person'
+            ? 'Create a presenter profile — your name, photo, and how you want to be introduced.'
+            : scraped
             ? 'We pre-filled everything -- review and adjust as needed.'
-            : 'Create a brand to apply your logo and colors across all your creations. Just a name and logo is enough to get started.'}
+            : 'Create a profile to apply your logo and colors across all your creations. Just a name and logo is enough to get started.'}
         </p>
 
         <form onSubmit={handleSubmit}>
+          {/* Profile type toggle */}
+          <input type="hidden" name="profile_type" value={profileType} />
+          <div className="form-group">
+            <label className="input-label">Profile type</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {(['company', 'person'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setProfileType(t)}
+                  style={{
+                    flex: 1, padding: '12px 16px', borderRadius: 10, cursor: 'pointer',
+                    fontSize: 14, fontWeight: 700, fontFamily: 'inherit',
+                    border: profileType === t ? '2px solid var(--mint)' : '1px solid var(--border)',
+                    background: profileType === t ? 'rgba(199, 232, 168, 0.12)' : 'white',
+                    color: 'var(--ink)',
+                  }}
+                >
+                  {t === 'company' ? 'Company' : 'Person'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* === Essential Fields === */}
           <div className="form-group">
-            <label className="input-label">Brand Name <span style={{ color: '#dc2626' }}>*</span></label>
+            <label className="input-label">{profileType === 'person' ? 'Your name' : 'Brand Name'} <span style={{ color: '#dc2626' }}>*</span></label>
             <input
               name="name"
               required
               className="input"
-              placeholder="e.g., My Agency"
+              placeholder={profileType === 'person' ? 'e.g., Sarah Talls' : 'e.g., My Agency'}
               value={brandName}
               onChange={(e) => setBrandName(e.target.value)}
             />
           </div>
 
+          {/* ───────── Person fields ───────── */}
+          {profileType === 'person' && (
+            <>
+              <input type="hidden" name="photo_url" value={photoUrl} />
+              <input type="hidden" name="show_name_on_slides" value={showNameOnSlides ? 'true' : 'false'} />
+
+              <div className="form-group">
+                <label className="input-label">Role / title <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
+                <input
+                  name="person_role"
+                  className="input"
+                  placeholder="e.g., Registered Nurse"
+                  value={personRole}
+                  onChange={(e) => setPersonRole(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="input-label">Photo <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
+                {photoUrl && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                    <img src={photoUrl} alt="Presenter" style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--border)' }} />
+                    <button
+                      type="button"
+                      onClick={() => { setPhotoUrl(''); if (photoInputRef.current) photoInputRef.current.value = '' }}
+                      style={{ background: 'none', border: 'none', color: 'var(--ink-light)', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      Remove photo
+                    </button>
+                  </div>
+                )}
+                <div
+                  onClick={() => photoInputRef.current?.click()}
+                  style={{
+                    border: '2px dashed var(--border)', borderRadius: 10, padding: '20px 16px',
+                    textAlign: 'center', cursor: 'pointer',
+                  }}
+                >
+                  {photoUploading ? (
+                    <span style={{ fontSize: 14, color: 'var(--ink-soft)' }}>Uploading...</span>
+                  ) : (
+                    <span style={{ fontSize: 14, color: 'var(--ink-light)' }}>Click to upload a headshot</span>
+                  )}
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f) }}
+                    style={{ display: 'none' }}
+                  />
+                </div>
+                {photoError && <div style={{ marginTop: 8, fontSize: 13, color: '#dc2626', fontWeight: 500 }}>{photoError}</div>}
+              </div>
+
+              <div className="form-group">
+                <label className="input-label">Intro line <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
+                <textarea
+                  name="intro_line"
+                  className="input"
+                  rows={3}
+                  style={{ resize: 'vertical' }}
+                  placeholder="Hi, I'm Sarah Talls, a registered nurse. I've prepared this video to walk you through your prescription plan."
+                  value={introLine}
+                  onChange={(e) => setIntroLine(e.target.value)}
+                />
+                <p style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 6, marginBottom: 0 }}>
+                  Spoken at the start of your video — write it the way you&apos;d say it.
+                </p>
+              </div>
+
+              <div className="form-group">
+                <label className="input-label">Accent color</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <label style={{ display: 'block', position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 10, background: primaryColor, border: '2px solid var(--border)' }} />
+                    <input
+                      type="color"
+                      name="primary_color"
+                      value={primaryColor}
+                      onChange={(e) => { setPrimaryColor(e.target.value); setUserEditedAdvancedColors(false) }}
+                      style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                    />
+                  </label>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', fontFamily: 'monospace' }}>{primaryColor.toUpperCase()}</span>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="input-label">Photo placement</label>
+                <select
+                  name="photo_placement"
+                  className="input"
+                  value={photoPlacement}
+                  onChange={(e) => setPhotoPlacement(e.target.value)}
+                >
+                  <option value="auto">Auto (style decides)</option>
+                  <option value="cover">Cover</option>
+                  <option value="closing">Closing</option>
+                  <option value="both">Both</option>
+                  <option value="none">None</option>
+                </select>
+                <p style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 6, marginBottom: 0 }}>Where your photo appears in the video.</p>
+              </div>
+
+              <div className="check-row">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={showNameOnSlides} onChange={(e) => setShowNameOnSlides(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--ink)' }} />
+                  <span style={{ fontSize: 14.5, fontWeight: 500 }}>Show my name on slides</span>
+                </label>
+                <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '6px 0 0 30px' }}>
+                  Off = the document title leads the cover; your name still appears in the intro and closing.
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* ───────── Company fields ───────── */}
+          {profileType === 'company' && (
+          <>
+          <input type="hidden" name="show_logo" value={showLogo ? 'true' : 'false'} />
           <div className="form-group">
             <label className="input-label">Logo URL <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
             <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '-2px 0 8px' }}>Used on slide decks and client emails. Videos use text branding only.</p>
@@ -561,6 +740,13 @@ export default function NewBrandPage() {
             <p style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 8, marginBottom: 0 }}>
               You can upload a logo file after creating the brand.
             </p>
+            <div style={{ marginTop: 12 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+                <input type="checkbox" checked={showLogo} onChange={(e) => setShowLogo(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--ink)' }} />
+                <span style={{ fontSize: 14.5, fontWeight: 500 }}>Show logo in videos</span>
+              </label>
+              <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '6px 0 0 30px' }}>Turn off to render videos without your logo.</p>
+            </div>
           </div>
 
           <div className="form-group">
@@ -672,16 +858,18 @@ export default function NewBrandPage() {
               </div>
             )}
           </div>
+          </>
+          )}
 
           <div className="check-row">
             <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
               <input type="checkbox" name="is_default" value="true" style={{ width: 18, height: 18, accentColor: 'var(--ink)' }} />
-              <span style={{ fontSize: 14.5, fontWeight: 500 }}>Set as default brand</span>
+              <span style={{ fontSize: 14.5, fontWeight: 500 }}>Set as default profile</span>
             </label>
           </div>
 
-          {/* Hidden fields for brand guide data */}
-          {brandGuide && (
+          {/* Hidden fields for brand guide data — Company only */}
+          {profileType === 'company' && brandGuide && (
             <>
               <input type="hidden" name="tagline" value={brandGuide.tagline ?? ''} />
               <input type="hidden" name="description" value={brandGuide.description ?? ''} />
@@ -718,7 +906,7 @@ export default function NewBrandPage() {
           <div style={{ display: 'flex', gap: 10 }}>
             <Link href="/brands" className="btn btn-soft">Cancel</Link>
             <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={loading}>
-              {loading ? 'Creating...' : 'Create brand \u2192'}
+              {loading ? 'Creating...' : 'Create profile \u2192'}
             </button>
           </div>
         </form>

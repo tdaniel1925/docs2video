@@ -89,6 +89,18 @@ export interface Brand {
   reference_slides: string[] | null
   deck_style_id: string | null
   is_default: boolean
+  /** Profile unification: a brand row is either a COMPANY (the classic brand) or
+   *  a PERSON (a presenter — name, role, photo, intro line). See presenter.ts. */
+  profile_type?: 'company' | 'person'
+  person_role?: string | null
+  photo_url?: string | null
+  intro_line?: string | null
+  /** Person: drive brandName/masthead with the person's name (else doc title leads). */
+  show_name_on_slides?: boolean
+  /** Explicit logo on/off in videos (fixes "logo sometimes shows"). */
+  show_logo?: boolean
+  /** Where a presenter photo appears; 'auto' = the video style decides. */
+  photo_placement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
   created_at: string
   updated_at: string
 }
@@ -230,6 +242,11 @@ export interface WizardDraft {
   recipientName?: string
   clientId?: string
   script?: VideoScene[]
+  // Personalization (presenter) — chosen on the profile/brand step.
+  presenterIntro?: string
+  introduceInOpening?: boolean
+  showContactClosing?: boolean
+  photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
 }
 
 export interface EmailConnection {

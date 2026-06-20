@@ -22,8 +22,10 @@ export const ClosingCard: React.FC<{
   cta?: string               // a short call to action line
   value?: { label: string; value: string }   // optional closing figure
   contact?: { phone?: string; email?: string; website?: string }
+  /** Presenter (Person profile): a circular headshot + name/role at the top. */
+  presenter?: { name?: string; role?: string; photo?: string }
   durationInFrames: number
-}> = ({ image, theme, brandName, logo, headline, cta, value, contact, durationInFrames }) => {
+}> = ({ image, theme, brandName, logo, headline, cta, value, contact, presenter, durationInFrames }) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
   const accent = theme.accents[1] ?? theme.accents[0]
@@ -62,8 +64,20 @@ export const ClosingCard: React.FC<{
           padding: '56px 72px', display: 'flex', flexDirection: 'column', alignItems: 'center',
           textAlign: 'center', gap: 22, maxWidth: 1200,
         }}>
-          {/* Logo or company name */}
-          {logoSrc ? (
+          {/* Presenter headshot (Person profile) — a circular portrait with an
+              accent ring, sitting above the name/role. Takes precedence over the
+              logo when present (people present as themselves, not a company). */}
+          {presenter?.photo ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+              <Img src={staticFile(presenter.photo)} style={{ width: 132, height: 132, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${accent}`, boxShadow: `0 0 22px ${accent}55` }} />
+              {presenter.name ? (
+                <div style={{ fontFamily: FONTS.display, fontWeight: 900, fontSize: 44, color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 1 }}>{presenter.name}</div>
+              ) : null}
+              {presenter.role ? (
+                <div style={{ fontFamily: FONTS.body, fontWeight: 700, letterSpacing: 2, fontSize: TYPE.label * 0.74, color: accent, textTransform: 'uppercase' }}>{presenter.role}</div>
+              ) : null}
+            </div>
+          ) : logoSrc ? (
             <Img src={staticFile(logoSrc)} style={{ height: 84, width: 'auto', objectFit: 'contain' }} />
           ) : brandName ? (
             <div style={{ fontFamily: FONTS.display, fontWeight: 900, fontSize: 56, color: '#FFFFFF', letterSpacing: -1 }}>{brandName}</div>

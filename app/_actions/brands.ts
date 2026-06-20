@@ -3,6 +3,20 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '../_lib/supabase/server'
 
+/** Profile (Person | Company) fields shared by create + update. */
+function profileFields(formData: FormData) {
+  const type = (formData.get('profile_type') as string) === 'person' ? 'person' : 'company'
+  return {
+    profile_type: type,
+    person_role: (formData.get('person_role') as string) || null,
+    photo_url: (formData.get('photo_url') as string) || null,
+    intro_line: (formData.get('intro_line') as string) || null,
+    show_name_on_slides: formData.get('show_name_on_slides') !== 'false',
+    show_logo: formData.get('show_logo') !== 'false',
+    photo_placement: (formData.get('photo_placement') as string) || 'auto',
+  }
+}
+
 export async function createBrand(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -42,6 +56,7 @@ export async function createBrand(formData: FormData) {
     unique_selling_points: parseJson('unique_selling_points', []),
     brand_guide_data: parseJson('brand_guide_data', null),
     is_default: formData.get('is_default') === 'true',
+    ...profileFields(formData),
   })
 
   if (error) return { error: error.message }
@@ -88,6 +103,7 @@ export async function updateBrand(formData: FormData) {
       competitor_notes: (formData.get('competitor_notes') as string) || null,
       social_links: parseJson('social_links', {}),
       is_default: formData.get('is_default') === 'true',
+      ...profileFields(formData),
     })
     .eq('id', id)
     .eq('user_id', user.id)

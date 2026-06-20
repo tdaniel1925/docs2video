@@ -12,6 +12,7 @@ import { getFlag, getSetting } from '../../_lib/app-settings'
 import { buildV3Payload } from '../../_lib/v3-render'
 import { isLambdaConfigured, renderV3OnLambda } from '../../_lib/v3-lambda'
 import { buildEditorialPayload } from '../../_lib/editorial-render'
+import { buildPresenter, resolvePhotoPlacement, isPersonProfile } from '../../_lib/presenter'
 import { waitUntil } from '@vercel/functions'
 import { logError } from '../../_lib/error-logger'
 import { validateScript } from '../../_lib/script-validator'
@@ -163,7 +164,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, styleReferenceUrl, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, narrationStyle, assetUrls, purpose, uploadMode, industry, barText, recipientName } = body as {
+  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, styleReferenceUrl, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, narrationStyle, assetUrls, purpose, uploadMode, industry, barText, recipientName, presenterIntro, introduceInOpening, showContactClosing, photoPlacement } = body as {
     videoId: string
     policyData: ExtractedPolicyData | ExtractedData
     brandId: string | null
@@ -184,6 +185,11 @@ export async function POST(request: Request) {
     industry?: string
     barText?: string
     recipientName?: string
+    // Personalization (presenter): per-video overrides on top of the selected profile.
+    presenterIntro?: string
+    introduceInOpening?: boolean
+    showContactClosing?: boolean
+    photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
   }
 
   // Podcast (two-voice) mode sunset 2026-06-11 — all videos render solo
@@ -709,7 +715,11 @@ export async function POST(request: Request) {
 
     // Video metadata
     const videoTitle = scenes[0]?.title || (policyData as any)?.title || purpose || 'Presentation'
-    const effectiveBrandName = brand?.name || (body as any).companyName || null
+    // For a PERSON profile that opted out of showing their name on slides, don't
+    // force the name as the on-screen brand/masthead — let the doc title lead.
+    // (The name still appears in the spoken intro + closing card.)
+    const personHidesName = isPersonProfile(brand) && brand?.show_name_on_slides === false
+    const effectiveBrandName = personHidesName ? null : (brand?.name || (body as any).companyName || null)
 
     // Save title to DB so it shows in the library
     await admin.from('videos').update({ title: videoTitle }).eq('id', videoId)
@@ -722,20 +732,39 @@ export async function POST(request: Request) {
       website: brandGuide?.website || undefined,
     }
 
-    // Build cover narration (short intro) — formatted for natural speech
-    // Use recipient name from draft data or request body
-    const recipient = recipientName || (policyData as any)?.recipientName || (policyData as any)?.insuredName || ''
-    const greeting = recipient ? `Hello ${recipient}, thank you for your time today.` : `Thank you for your time today.`
-    const coverNarration = formatForTTS(`${greeting} ${videoTitle}.`)
+    // Presenter (Person profile) — the human who made this video. Drives a
+    // personal spoken opening + the closing card. Null for company profiles or
+    // when the person opted out of being introduced.
+    const presenter = buildPresenter(brand, { intro: presenterIntro, introduceInOpening })
+    const photoPlacementResolved = resolvePhotoPlacement(videoStyle, photoPlacement)
 
-    // Build closing narration (short outro with contact info) — formatted for natural speech
+    // Build cover narration (short intro) — formatted for natural speech.
+    // Use recipient name from draft data or request body.
+    const recipient = recipientName || (policyData as any)?.recipientName || (policyData as any)?.insuredName || ''
+    // If a presenter wrote their own intro line, speak THAT (optionally greeting
+    // the recipient first); otherwise fall back to the generic welcome.
+    let coverNarration: string
+    if (presenter?.intro) {
+      const greet = recipient ? `Hello ${recipient}. ` : ''
+      coverNarration = formatForTTS(`${greet}${presenter.intro}`)
+    } else {
+      const greeting = recipient ? `Hello ${recipient}, thank you for your time today.` : `Thank you for your time today.`
+      coverNarration = formatForTTS(`${greeting} ${videoTitle}.`)
+    }
+
+    // Build closing narration (short outro). Contact info is spoken only when the
+    // user wants it on the closing (default on). For a presenter, sign off in
+    // their voice ("...prepared by Sarah Talls"); else use the company name.
+    const wantContactClosing = showContactClosing !== false
     const contactParts: string[] = []
-    if (contactForClosing.website) contactParts.push(`Visit ${contactForClosing.website}`)
-    if (contactForClosing.phone) contactParts.push(`or call ${contactForClosing.phone}`)
-    if (contactForClosing.email) contactParts.push(`or email ${contactForClosing.email}`)
-    const closingNarration = formatForTTS(effectiveBrandName
-      ? `Thank you for watching. ${contactParts.length > 0 ? `To learn more, ${contactParts.join(' ')}.` : `We appreciate your time.`} ${effectiveBrandName} looks forward to serving you.`
-      : `Thank you for watching. ${contactParts.length > 0 ? `To learn more, ${contactParts.join(' ')}.` : `We appreciate your time.`}`)
+    if (wantContactClosing && contactForClosing.website) contactParts.push(`Visit ${contactForClosing.website}`)
+    if (wantContactClosing && contactForClosing.phone) contactParts.push(`or call ${contactForClosing.phone}`)
+    if (wantContactClosing && contactForClosing.email) contactParts.push(`or email ${contactForClosing.email}`)
+    const signoff = presenter?.name
+      ? `Prepared for you by ${presenter.name}${presenter.role ? `, ${presenter.role}` : ''}.`
+      : (effectiveBrandName ? `${effectiveBrandName} looks forward to serving you.` : '')
+    const closingNarration = formatForTTS(
+      `Thank you for watching. ${contactParts.length > 0 ? `To learn more, ${contactParts.join(' ')}.` : `We appreciate your time.`} ${signoff}`.trim())
 
     // Prepend cover + append closing to scenes for VPS.
     // If the user edited them in the editor (editedCover/editedClosing), their
@@ -838,8 +867,9 @@ export async function POST(request: Request) {
           videoId, userId: user.id, voiceId,
           scenes, brand, brandName: effectiveBrandName,
           extracted: policyData,
-          contactLine: contactLine || undefined,
+          contactLine: wantContactClosing ? (contactLine || undefined) : undefined,
           musicUrl: musicUrl || undefined, musicPrompt: musicPrompt || undefined, aiMusic: aiMusic || undefined,
+          presenter, photoPlacement: photoPlacement || undefined,
         })
         console.log(`[video ${videoId}] editorial: ${edPayload.scenes.length} scenes, archetypes=${edPayload.scenes.map(s => s.archetype).join(',')}`)
         try {
@@ -879,10 +909,11 @@ export async function POST(request: Request) {
         musicUrl: musicUrl || undefined,
         musicPrompt: musicPrompt || undefined,
         aiMusic: aiMusic || undefined,
-        contactLine: contactLine || undefined,
-        contact: { phone: contactForClosing.phone, email: contactForClosing.email, website: contactForClosing.website },
+        contactLine: wantContactClosing ? (contactLine || undefined) : undefined,
+        contact: wantContactClosing ? { phone: contactForClosing.phone, email: contactForClosing.email, website: contactForClosing.website } : undefined,
+        presenter, photoPlacement: photoPlacement || undefined,
       })
-      console.log(`[video ${videoId}] V3 theme=${v3Payload.theme}, logo=${v3Payload.logo ? 'yes' : 'no'}`)
+      console.log(`[video ${videoId}] V3 theme=${v3Payload.theme}, logo=${v3Payload.logo ? 'yes' : 'no'}, presenter=${presenter ? 'yes' : 'no'}`)
 
       // PREFERRED: render on Remotion Lambda (fast, parallel) when configured.
       // Runs in the background (waitUntil) — generates assets, renders, finalizes

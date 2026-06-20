@@ -27,6 +27,16 @@ export const v3SceneSchema = z.object({
     value: z.object({ label: z.string(), value: z.string() }).optional(),
     contact: z.object({ phone: z.string().optional(), email: z.string().optional(), website: z.string().optional() }).optional(),
   }).optional(),
+  /** When true, render the presenter photo (framed inset) on this scene's cover. */
+  showPresenterOnCover: z.boolean().optional(),
+})
+
+/** Presenter identity (Person profile): a headshot + name/role placed per style. */
+export const v3PresenterSchema = z.object({
+  name: z.string().optional(),
+  role: z.string().optional(),
+  /** public/ path to the downloaded headshot. */
+  photo: z.string().optional(),
 })
 
 export const v3Schema = z.object({
@@ -36,6 +46,11 @@ export const v3Schema = z.object({
   // string (single file) OR {light,dark} variants (picked by theme mode).
   logo: z.union([z.string(), z.object({ light: z.string().optional(), dark: z.string().optional() })]).optional(),
   logoChip: z.boolean().optional(),
+  presenter: v3PresenterSchema.optional(),
+  /** Render the presenter photo on the cold-open cover. */
+  presenterOnCover: z.boolean().optional(),
+  /** Render the presenter photo on the closing card. */
+  presenterOnClosing: z.boolean().optional(),
   scenes: z.array(v3SceneSchema).min(1),
 })
 

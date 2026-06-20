@@ -74,23 +74,23 @@ export default function BrandsPage() {
     <div>
       <div className="page-head">
         <div>
-          <h1>Your brands</h1>
-          <p>Manage all your brands here — colors, logos, and contact info. Your default brand is applied automatically to every video; add more if you work under multiple companies.</p>
+          <h1>Your profiles</h1>
+          <p>Manage all your profiles here — a Company (logo + colors) or a Person (presenter photo + intro). Your default profile is applied automatically to every video; add more if you work under multiple companies or present as different people.</p>
         </div>
-        <Link href="/brands/new" className="btn btn-primary btn-lg">+ New brand</Link>
+        <Link href="/brands/new" className="btn btn-primary btn-lg">+ New profile</Link>
       </div>
 
       {!brands.length ? (
         <div style={{ background: 'white', border: '1px dashed var(--border)', borderRadius: 10, padding: '64px 32px', textAlign: 'center' }}>
-          <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>No brands yet</p>
-          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 18 }}>Create a brand to customize your presentation colors and logo</p>
-          <Link href="/brands/new" className="btn btn-primary">Create your first brand</Link>
+          <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>No profiles yet</p>
+          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 18 }}>Create a profile to customize your presentation colors, logo, or presenter</p>
+          <Link href="/brands/new" className="btn btn-primary">Create your first profile</Link>
         </div>
       ) : (
         <>
           {/* Bulk actions bar */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div className="section-eyebrow" style={{ margin: 0 }}>Saved brands ({brands.length})</div>
+            <div className="section-eyebrow" style={{ margin: 0 }}>Saved profiles ({brands.length})</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {brands.length > 1 && (
                 <button
@@ -209,6 +209,16 @@ export default function BrandsPage() {
                     )}
                   </div>
                   <div className="b-name">{brand.name}</div>
+                  <div style={{ marginTop: 4, marginBottom: 2 }}>
+                    <span style={{
+                      display: 'inline-block', padding: '3px 10px', borderRadius: 8,
+                      fontSize: 11, fontWeight: 700, letterSpacing: '0.02em',
+                      background: brand.profile_type === 'person' ? 'rgba(199, 232, 168, 0.25)' : 'var(--bg-soft)',
+                      color: 'var(--ink-soft)',
+                    }}>
+                      {brand.profile_type === 'person' ? 'Person' : 'Company'}
+                    </span>
+                  </div>
                   {brand.is_default ? (
                     <div className="default-badge">{'\u2713'} Default</div>
                   ) : (

@@ -153,6 +153,11 @@ export default function ScriptPage() {
           aiMusic: draft.aiMusic ?? false,
           styleId: draft.styleId || undefined,
           recipientName: draft.recipientName || undefined,
+          // Personalization (presenter) — set on the profile/brand step.
+          presenterIntro: draft.presenterIntro || undefined,
+          introduceInOpening: draft.introduceInOpening,
+          showContactClosing: draft.showContactClosing,
+          photoPlacement: draft.photoPlacement || undefined,
         })
       } catch (err) {
         console.error('[script] load draft error:', err)
@@ -352,6 +357,11 @@ export default function ScriptPage() {
           customStylePrompt: (createState as any)?.customStylePrompt || undefined,
           companyName: (createState as any)?.companyName || undefined,
           noContactBar: (createState as any)?.noContactBar || undefined,
+          // Personalization (presenter) — set on the profile/brand step.
+          presenterIntro: (createState as any)?.presenterIntro || undefined,
+          introduceInOpening: (createState as any)?.introduceInOpening,
+          showContactClosing: (createState as any)?.showContactClosing,
+          photoPlacement: (createState as any)?.photoPlacement || undefined,
           // Colors come solely from the selected brand (single source of truth).
           // The styling step chooses visual STYLE only — it no longer overrides colors.
         }),
