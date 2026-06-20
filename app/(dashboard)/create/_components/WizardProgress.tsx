@@ -7,8 +7,8 @@ interface WizardProgressProps {
   outputType: 'video' | 'pptx' | 'pdf'
 }
 
-const VIDEO_STEPS = ['Content', 'Presenter', 'Voice', 'Script', 'Generate']
-const DOC_STEPS = ['Content', 'Presenter', 'Script', 'Generate']
+const VIDEO_STEPS = ['Content', 'Presenter', 'Voice', 'Script', 'Theme', 'Generate']
+const DOC_STEPS = ['Content', 'Presenter', 'Script', 'Theme', 'Generate']
 
 export default function WizardProgress({ currentStep, outputType }: WizardProgressProps) {
   const steps = outputType === 'video' ? VIDEO_STEPS : DOC_STEPS

@@ -318,68 +318,20 @@ export default function ScriptPage() {
     setSubmitting(true)
     setError(null)
     try {
-      // 1. Save script and advance step
+      // Save the script to the draft, then go to the THEME step (where the user
+      // picks a style + sees a preview, and generation is finally triggered).
       const wizardStep = outputType === 'video' ? 5 : 4
       const patchRes = await fetch('/api/videos/draft', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           videoId,
-          updates: {
-            scenes,
-            detailLevel,
-            narrationStyle,
-            step: wizardStep,
-          },
+          updates: { scenes, detailLevel, narrationStyle, step: wizardStep },
         }),
       })
       if (!patchRes.ok) throw new Error('Failed to save script')
 
-      // 2. Trigger generation
-      const genRes = await fetch('/api/generate-video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          videoId,
-          outputType,
-          policyData: createState?.extractedData || {},
-          purpose: createState?.purpose || 'Create a professional video',
-          recipientName: (createState as any)?.recipientName || (draftData as any)?.recipientName || undefined,
-          preGeneratedScenes: scenes,
-          brandId: createState?.selectedBrand || createState?.autoBrandId || undefined,
-          voiceId: (createState as any)?.voiceId || 'nova',
-          narrationStyle,
-          detailLevel,
-          industry: (createState?.extractedData as Record<string, unknown>)?.industry || 'general',
-          aiMusic: (createState as any)?.aiMusic ?? false,
-          musicPrompt: (createState as any)?.aiMusic ? 'Professional ambient background music, subtle and warm' : undefined,
-          styleId: (createState as any)?.styleId || undefined,
-          customStylePrompt: (createState as any)?.customStylePrompt || undefined,
-          companyName: (createState as any)?.companyName || undefined,
-          noContactBar: (createState as any)?.noContactBar || undefined,
-          // Personalization (presenter) — set on the profile/brand step.
-          presenterIntro: (createState as any)?.presenterIntro || undefined,
-          introduceInOpening: (createState as any)?.introduceInOpening,
-          showContactClosing: (createState as any)?.showContactClosing,
-          photoPlacement: (createState as any)?.photoPlacement || undefined,
-          // Colors come solely from the selected brand (single source of truth).
-          // The styling step chooses visual STYLE only — it no longer overrides colors.
-        }),
-      })
-      if (!genRes.ok) {
-        const genData = await genRes.json().catch(() => ({}))
-        // Insufficient credits → offer a top-up instead of a dead-end error.
-        if (genRes.status === 402) {
-          const m = /Need\s+(\d+),\s*have\s+(\d+)/i.exec(genData.error || '')
-          setBuyCredits({ needed: m ? Number(m[1]) : undefined, balance: m ? Number(m[2]) : undefined })
-          setSubmitting(false)
-          return
-        }
-        throw new Error(genData.error || 'Failed to start generation')
-      }
-
-      // 3. Redirect to generating page
-      router.push(`/create/generating?id=${videoId}`)
+      router.push(`/create/theme?id=${videoId}`)
     } catch (err) {
       console.error('[script] generate error:', err)
       setError(err instanceof Error ? err.message : typeof err === 'string' ? err : 'Failed to generate. Please try again.')

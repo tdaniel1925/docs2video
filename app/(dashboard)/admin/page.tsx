@@ -1420,7 +1420,8 @@ export default function AdminPage() {
               style={{ width: 130 }}
             >
               <option value="cinematic">Cinematic</option>
-              <option value="editorial">Editorial</option>
+              <option value="editorial">Editorial (clean magazine)</option>
+              <option value="time">Newsmagazine (bold red)</option>
             </select>
           </div>
         </div>
