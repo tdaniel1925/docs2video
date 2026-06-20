@@ -430,109 +430,61 @@ export default function BrandPage() {
         )
       })()}
 
-      {/* Saved profiles (people + companies, badged) */}
+      {/* Saved profiles — a dropdown (people + companies, badged in the label). */}
       {showPicker && brands.length > 0 && (
-        <div style={{ width: '100%', marginBottom: 24, animation: 'fadeInUp 0.4s ease 0.1s both' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+        <div style={{ width: '100%', marginBottom: 20, animation: 'fadeInUp 0.4s ease 0.1s both' }}>
+          <label htmlFor="profile-select" style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }}>
             Use a saved profile
-          </div>
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-            gap: 12,
-          }}>
-            {brands.map(b => {
-              const isSelected = selectedBrandId === b.id
-              return (
-                <button
-                  key={b.id}
-                  onClick={() => handleSelectBrand(b.id)}
-                  style={{
-                    padding: '16px', borderRadius: 10, textAlign: 'left',
-                    border: isSelected ? '2px solid var(--mint)' : '1.5px solid var(--border-light)',
-                    background: isSelected ? 'rgba(199, 232, 168, 0.08)' : 'white',
-                    cursor: 'pointer', fontFamily: 'inherit',
-                    transition: 'all 0.15s ease', position: 'relative',
-                  }}
-                  onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--mint)' }}
-                  onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--border-light)' }}
-                >
-                  {b.is_default && (
-                    <span style={{
-                      position: 'absolute', top: 8, right: 8,
-                      fontSize: 10, fontWeight: 700, color: 'var(--mint)',
-                      textTransform: 'uppercase', letterSpacing: '0.05em',
-                    }}>
-                      Default
-                    </span>
-                  )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                    {b.profile_type === 'person' && b.photo_url ? (
-                      <img
-                        src={b.photo_url}
-                        alt={b.name}
-                        style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', background: 'var(--bg-soft)' }}
-                      />
-                    ) : b.logo_url ? (
-                      <img
-                        src={b.logo_url}
-                        alt={`${b.name} logo`}
-                        style={{
-                          width: 36, height: 36, borderRadius: 6,
-                          objectFit: 'contain', background: 'var(--bg-soft)',
-                        }}
-                      />
-                    ) : (
-                      <div style={{
-                        width: 36, height: 36, borderRadius: 6,
-                        background: b.primary_color || 'var(--bg-soft)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 16, fontWeight: 800, color: 'white',
-                      }}>
-                        {b.name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>
-                        {b.name}
-                      </div>
-                      <span style={{
-                        display: 'inline-block', marginTop: 2, padding: '1px 7px', borderRadius: 6,
-                        fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
-                        background: b.profile_type === 'person' ? 'rgba(199, 232, 168, 0.25)' : 'var(--bg-soft)',
-                        color: 'var(--ink-soft)',
-                      }}>
-                        {b.profile_type === 'person' ? 'Person' : 'Company'}
-                      </span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{
-                      width: 16, height: 16, borderRadius: 4,
-                      background: b.primary_color, border: '1px solid rgba(0,0,0,0.1)',
-                    }} />
-                    {b.secondary_color && (
-                      <div style={{
-                        width: 16, height: 16, borderRadius: 4,
-                        background: b.secondary_color, border: '1px solid rgba(0,0,0,0.1)',
-                      }} />
-                    )}
-                    <span style={{ fontSize: 12, color: 'var(--ink-light)', marginLeft: 4 }}>
-                      {b.primary_color}
-                    </span>
-                  </div>
-                  <div style={{
-                    marginTop: 10, padding: '6px 12px', borderRadius: 6,
-                    background: isSelected ? 'var(--mint)' : 'var(--bg-soft)',
-                    color: isSelected ? 'var(--ink)' : 'var(--ink-soft)',
-                    fontSize: 12, fontWeight: 700, textAlign: 'center',
-                    transition: 'all 0.15s',
-                  }}>
-                    {isSelected ? 'Selected' : 'Use this brand'}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
+          </label>
+          <select
+            id="profile-select"
+            value={selectedBrandId ?? ''}
+            onChange={(e) => {
+              const id = e.target.value
+              if (id) handleSelectBrand(id)
+              else setSelectedBrandId(null)   // "Create new" → show the inline form
+            }}
+            style={{
+              width: '100%', padding: '12px 14px', borderRadius: 10, fontSize: 15,
+              fontFamily: 'inherit', fontWeight: 600, color: 'var(--ink)',
+              border: '1.5px solid var(--border-light)', background: 'white',
+              boxSizing: 'border-box', cursor: 'pointer',
+            }}
+          >
+            <option value="">+ Create a new profile</option>
+            {brands.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name} — {b.profile_type === 'person' ? 'Person' : 'Company'}{b.is_default ? ' (default)' : ''}
+              </option>
+            ))}
+          </select>
+
+          {/* Small confirmation card for the chosen profile. */}
+          {selectedBrand && (
+            <div style={{
+              marginTop: 12, display: 'flex', alignItems: 'center', gap: 12,
+              padding: '12px 14px', borderRadius: 10,
+              border: '1.5px solid var(--mint)', background: 'rgba(199, 232, 168, 0.08)',
+            }}>
+              {selectedBrand.profile_type === 'person' && selectedBrand.photo_url ? (
+                <img src={selectedBrand.photo_url} alt={selectedBrand.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', background: 'var(--bg-soft)' }} />
+              ) : selectedBrand.logo_url ? (
+                <img src={selectedBrand.logo_url} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'contain', background: 'var(--bg-soft)' }} />
+              ) : (
+                <div style={{ width: 40, height: 40, borderRadius: 6, background: selectedBrand.primary_color || 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: 'white' }}>
+                  {selectedBrand.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{selectedBrand.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>
+                  {selectedBrand.profile_type === 'person'
+                    ? (selectedBrand.person_role || 'Presenter')
+                    : 'Company branding'}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -547,22 +499,6 @@ export default function BrandPage() {
             or create one for this project
           </span>
           <div style={{ flex: 1, height: 1, background: 'var(--border-light)' }} />
-        </div>
-      )}
-
-      {/* "or create new instead" link when a saved brand is selected */}
-      {showPicker && selectedBrandId && (
-        <div style={{ width: '100%', textAlign: 'center', marginBottom: 20 }}>
-          <button
-            onClick={() => setSelectedBrandId(null)}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: 13, color: 'var(--ink-light)', fontFamily: 'inherit',
-              textDecoration: 'underline', padding: 0,
-            }}
-          >
-            or create a new brand instead
-          </button>
         </div>
       )}
 

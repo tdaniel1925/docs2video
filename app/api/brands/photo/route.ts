@@ -27,18 +27,34 @@ export async function POST(request: Request) {
   if (!ALLOWED.includes(file.type)) return NextResponse.json({ error: 'Photo must be a JPG, PNG, or WebP image.' }, { status: 400 })
   if (file.size > MAX_BYTES) return NextResponse.json({ error: `Photo too large (max ${MAX_BYTES / 1024 / 1024}MB).` }, { status: 413 })
 
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json({ error: 'Server storage is not configured (missing service role key).' }, { status: 500 })
+  }
+
+  const BUCKET = 'agent-photos'
   try {
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
     // Unique per upload so a re-upload busts any CDN cache.
     const path = `${user.id}/presenter-${Date.now()}.${ext}`
     const buffer = Buffer.from(await file.arrayBuffer())
     const admin = createAdminClient()
-    const { error } = await admin.storage.from('agent-photos').upload(path, buffer, { contentType: file.type, upsert: true })
-    if (error) throw error
-    const { data } = admin.storage.from('agent-photos').getPublicUrl(path)
+
+    let { error } = await admin.storage.from(BUCKET).upload(path, buffer, { contentType: file.type, upsert: true })
+    // Self-heal: if the bucket doesn't exist yet (migration not run), create it
+    // (public) and retry once. Service role bypasses RLS so the upload succeeds.
+    if (error && /bucket.*not.*found|not found/i.test(error.message)) {
+      await admin.storage.createBucket(BUCKET, { public: true }).catch(() => {})
+      ;({ error } = await admin.storage.from(BUCKET).upload(path, buffer, { contentType: file.type, upsert: true }))
+    }
+    if (error) {
+      console.error('[brands/photo] upload error:', error.message)
+      return NextResponse.json({ error: `Upload failed: ${error.message}` }, { status: 500 })
+    }
+    const { data } = admin.storage.from(BUCKET).getPublicUrl(path)
     return NextResponse.json({ url: data.publicUrl })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Upload failed'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('[brands/photo] error:', message)
+    return NextResponse.json({ error: `Upload failed: ${message}` }, { status: 500 })
   }
 }
