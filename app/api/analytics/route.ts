@@ -38,13 +38,13 @@ export async function GET() {
 
     const { data: recentViews } = await admin
       .from('video_views')
-      .select('viewed_at')
+      .select('opened_at')
       .in('video_id', videoIds)
-      .gte('viewed_at', thirtyDaysAgo.toISOString())
+      .gte('opened_at', thirtyDaysAgo.toISOString())
 
     const grouped: Record<string, number> = {}
     recentViews?.forEach(v => {
-      const date = v.viewed_at?.split('T')[0]
+      const date = (v as any).opened_at?.split('T')[0]
       if (date) grouped[date] = (grouped[date] ?? 0) + 1
     })
     dailyViews = Object.entries(grouped)

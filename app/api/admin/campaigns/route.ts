@@ -17,9 +17,13 @@ export async function GET() {
 
   const admin = createAdminClient()
 
+  // Exclude the email-campaign system's rows (campaign_type='email') so this
+  // page only lists its own campaigns — they share the `campaigns` table and
+  // were colliding with blank columns (audit fix).
   const { data: campaigns, error } = await admin
     .from('campaigns')
     .select('*')
+    .neq('campaign_type', 'email')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

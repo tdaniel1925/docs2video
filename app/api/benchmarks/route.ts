@@ -39,14 +39,14 @@ export async function GET() {
     .from('video_views')
     .select('id', { count: 'exact', head: true })
     .in('video_id', userVideoIds)
-    .gte('created_at', thisMonthStart)
+    .gte('opened_at', thisMonthStart)
 
   const { count: viewsLastMonth } = await admin
     .from('video_views')
     .select('id', { count: 'exact', head: true })
     .in('video_id', userVideoIds)
-    .gte('created_at', lastMonthStart)
-    .lte('created_at', lastMonthEnd)
+    .gte('opened_at', lastMonthStart)
+    .lte('opened_at', lastMonthEnd)
 
   // User's conversion rate: quotes paid / quotes sent
   const { data: userQuotes } = await admin
@@ -104,16 +104,16 @@ export async function GET() {
   // Time to first view: avg time between video creation and first view
   const { data: firstViews } = await admin
     .from('video_views')
-    .select('video_id, created_at')
+    .select('video_id, opened_at')
     .in('video_id', userVideoIds)
-    .order('created_at', { ascending: true })
+    .order('opened_at', { ascending: true })
 
   let userTimeToView: number | null = null
   if (firstViews && firstViews.length > 0) {
     const videoFirstViews = new Map<string, string>()
     for (const v of firstViews) {
       if (!videoFirstViews.has(v.video_id)) {
-        videoFirstViews.set(v.video_id, v.created_at)
+        videoFirstViews.set(v.video_id, (v as any).opened_at)
       }
     }
     const delays: number[] = []

@@ -15,71 +15,16 @@ import { useToast } from '../../_components/Toast'
 
 type SettingsTab = 'profile' | 'brand' | 'integrations' | 'subscription'
 
+// The real affiliate program lives at /affiliate (Stripe promo-code based with
+// real commission tracking). This card just points there — the previous inline
+// /api/referrals system was a stale, incompatible parallel implementation that
+// showed a second, non-functional referral link + always-zero stats (audit fix).
 function ReferralSection() {
-  const [code, setCode] = useState<string | null>(null)
-  const [stats, setStats] = useState({ total: 0, converted: 0, pending: 0, rewarded: 0 })
-  const [copied, setCopied] = useState(false)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetch('/api/referrals')
-      .then(r => r.json())
-      .then(d => {
-        setCode(d.referral_code)
-        if (d.stats) setStats(d.stats)
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }, [])
-
-  async function generateCode() {
-    const res = await fetch('/api/referrals', { method: 'POST' })
-    const d = await res.json()
-    if (d.referral_code) setCode(d.referral_code)
-  }
-
-  function copyLink() {
-    if (!code) return
-    navigator.clipboard.writeText(`https://docs2video.com/signup?ref=${code}`)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  if (loading) return <div className="settings-card"><p className="ssub">Loading referral info...</p></div>
-
   return (
     <div className="settings-card">
       <h3 style={{ marginBottom: 4 }}>Affiliate Program</h3>
-      <p className="ssub" style={{ margin: '0 0 16px' }}>Earn 20% commission by referring others.</p>
-
-      {!code ? (
-        <button className="btn btn-primary" onClick={generateCode}>Generate Referral Link</button>
-      ) : (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <code style={{ background: 'var(--surface)', padding: '8px 12px', borderRadius: 8, fontSize: 14, flex: 1 }}>
-              https://docs2video.com/signup?ref={code}
-            </code>
-            <button className="btn btn-primary" onClick={copyLink} style={{ whiteSpace: 'nowrap' }}>
-              {copied ? 'Copied!' : 'Copy Link'}
-            </button>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, textAlign: 'center' }}>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{stats.total}</div>
-              <div className="ssub">Referrals</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{stats.converted}</div>
-              <div className="ssub">Converted</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>${(stats.rewarded / 100).toFixed(0)}</div>
-              <div className="ssub">Earned</div>
-            </div>
-          </div>
-        </>
-      )}
+      <p className="ssub" style={{ margin: '0 0 16px' }}>Earn 20% recurring commission by referring others.</p>
+      <Link href="/affiliate" className="btn btn-primary">Open Affiliate Dashboard →</Link>
     </div>
   )
 }

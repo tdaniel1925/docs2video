@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { createClient } from '../../../_lib/supabase/server'
 import { getStripe } from '../../../_lib/stripe'
+import { getAffiliateByCode } from '../../../_lib/affiliate'
 export const maxDuration = 30
 
 const CREDIT_PACKS: Record<string, { credits: number; priceEnv: string }> = {
@@ -75,6 +77,25 @@ export async function POST(request: Request) {
         user_id: user.id,
       },
     }
+
+    // Affiliate attribution: auto-apply the referrer's Stripe promo code if the
+    // buyer arrived via a referral link (d2v_ref cookie). Mirrors the
+    // subscription checkout. Stripe forbids discounts + allow_promotion_codes
+    // together, so pick one.
+    let appliedReferral = false
+    try {
+      const refCode = (await cookies()).get('d2v_ref')?.value
+      if (refCode) {
+        const affiliate = await getAffiliateByCode(refCode)
+        if (affiliate && affiliate.status === 'active' && affiliate.user_id !== user.id && affiliate.stripe_promo_code_id) {
+          (sessionParams as any).discounts = [{ promotion_code: affiliate.stripe_promo_code_id }]
+          appliedReferral = true
+        }
+      }
+    } catch (e) {
+      console.warn('[credits/buy] referral cookie handling failed (non-fatal):', e)
+    }
+    if (!appliedReferral) (sessionParams as any).allow_promotion_codes = true
 
     let session
     try {

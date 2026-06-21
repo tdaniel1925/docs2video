@@ -199,7 +199,7 @@ export default function AdminUserDetailPage() {
                       }}>{v.status}</span>
                     </div>
                     {v.status === 'completed' && (
-                      <a href={`/videos/${v.id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2563EB', textDecoration: 'none', display: 'block', marginTop: 6 }}>
+                      <a href={`/watch/${v.id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2563EB', textDecoration: 'none', display: 'block', marginTop: 6 }}>
                         View &rarr;
                       </a>
                     )}

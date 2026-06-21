@@ -13,6 +13,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const videoId = searchParams.get('videoId')
+  const clientEmail = searchParams.get('clientEmail')
 
   let query = supabase
     .from('quotes')
@@ -22,6 +23,10 @@ export async function GET(request: Request) {
 
   if (videoId) {
     query = query.eq('video_id', videoId)
+  }
+  // Clients page Payments tab filters quotes by client (audit fix).
+  if (clientEmail) {
+    query = query.eq('client_email', clientEmail)
   }
 
   const { data: quotes, error } = await query
