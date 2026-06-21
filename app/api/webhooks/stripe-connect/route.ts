@@ -62,7 +62,7 @@ export async function POST(request: Request) {
         .eq('id', quoteId)
         .neq('status', 'paid') // guard against a concurrent redelivery
       if (payErr) {
-        await supabase.from('processed_stripe_events').delete().eq('event_id', event.id).then(() => {}, () => {})
+        // 500 so Stripe retries; idempotency is the status='paid' guard above.
         return NextResponse.json({ error: payErr.message }, { status: 500 })
       }
 
