@@ -7,11 +7,12 @@ import { compositeSlide } from '../../../../../_lib/composite'
 import { synthesizeSpeech } from '../../../../../_lib/tts'
 import type { ExtractedData } from '../../../../../_lib/extract-types'
 import { isAdmin , isAdminRequest } from '../../../../../_lib/admin'
+import { videoServiceUrl } from '../../../../../_lib/video-service'
 
 export const runtime = 'nodejs'
 export const maxDuration = 800
 
-const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
+const VIDEO_ASSEMBLY_URL = videoServiceUrl()
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || 'docs2video-assembly-secret-2026').trim().replace(/[\r\n]/g, '')
 
 async function verifyAdmin() {

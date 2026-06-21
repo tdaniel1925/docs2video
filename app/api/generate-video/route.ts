@@ -24,7 +24,8 @@ import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 import { PHONE_REGEX, phoneToSpoken, isPhoneInSource } from '../../_lib/phone-utils'
 import { estimateVideoCost, exceedsCeiling } from '../../_lib/cost-estimator'
 import { deductCredits, calculateVideoCost, checkCredits, addTopupCredits, refundVideoCredits } from '../../_lib/credits'
-import { isPaidTier } from '../../_lib/subscription'
+import { isPaidTier, maxConcurrentForTier } from '../../_lib/subscription'
+import { safeEqual } from '../../_lib/api-auth'
 import { inngest } from '../../_lib/inngest/client'
 
 export const runtime = 'nodejs'
@@ -113,8 +114,10 @@ export async function POST(request: Request) {
   const internalSecret = (process.env.INTERNAL_API_SECRET || '').trim()
   const reqInternalSecret = (request.headers.get('x-internal-service') || '').trim()
   const internalUserId = request.headers.get('x-internal-user-id') || ''
+  // Constant-time compare (audit L2) — this header grants impersonate-any-user
+  // + skip-billing, the most powerful auth path in the app.
   const isInternalCall =
-    !!internalSecret && reqInternalSecret === internalSecret && !!internalUserId
+    !!internalSecret && safeEqual(reqInternalSecret, internalSecret) && !!internalUserId
 
   const supabase = await createClient()
   let user: { id: string; email?: string } | null = null
@@ -153,6 +156,27 @@ export async function POST(request: Request) {
   const isPrivileged = isInternalCall || isAdmin(user.email) || profile?.is_admin === true || profile?.is_beta === true
   const subStatus = (profile?.subscription_status ?? '').toLowerCase()
   const isPaidUser = isPaidTier(subStatus)
+
+  // Per-plan concurrent-generation cap (audit L1). Previously enforced ONLY on
+  // the legacy /api/videos path; the live wizard path was uncapped. Skip for
+  // privileged/internal callers.
+  if (!isPrivileged) {
+    const maxConcurrent = maxConcurrentForTier(subStatus, {
+      isAdmin: profile?.is_admin === true,
+      isBeta: profile?.is_beta === true,
+    })
+    const { count: inProgressCount } = await db
+      .from('videos')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .in('status', ['pending', 'scripting', 'generating_audio', 'generating_slides', 'assembling'])
+    if (inProgressCount && inProgressCount >= maxConcurrent) {
+      return NextResponse.json({
+        error: `You can generate up to ${maxConcurrent === 1 ? '1 video' : `${maxConcurrent} videos`} at a time. ${inProgressCount} currently in progress.`,
+        code: 'CONCURRENT_LIMIT',
+      }, { status: 409 })
+    }
+  }
 
   const body = await request.json()
   const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, styleReferenceUrl, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, narrationStyle, assetUrls, purpose, uploadMode, industry, barText, recipientName, presenterIntro, introduceInOpening, showContactClosing, photoPlacement } = body as {

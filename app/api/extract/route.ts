@@ -4,6 +4,7 @@ import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { resolveRequestUser } from '../../_lib/api-auth'
 import { checkCredits } from '../../_lib/credits'
 import { logError } from '../../_lib/error-logger'
+import { videoServiceUrl } from '../../_lib/video-service'
 import Anthropic from '@anthropic-ai/sdk'
 import { CONTENT_STRUCTURING_SYSTEM_PROMPT } from '../../_lib/prompts'
 import { sanitizeSourceData, wrapUserData } from '../../_lib/prompt-safety'
@@ -234,7 +235,7 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
       }
     }
 
-    const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
+    const VIDEO_ASSEMBLY_URL = videoServiceUrl()
     const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
     // Last-resort fallback (oversized PDF, odd Office file): VPS extraction —

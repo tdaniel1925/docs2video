@@ -3,6 +3,7 @@ import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { isAdmin , isAdminRequest } from '../../../_lib/admin'
 import { getStripe } from '../../../_lib/stripe'
+import { videoServiceUrl } from '../../../_lib/video-service'
 
 export const maxDuration = 30
 
@@ -105,7 +106,7 @@ export async function GET() {
     // VPS health check
     let vpsStatus = 'unknown'
     try {
-      const vpsUrl = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
+      const vpsUrl = videoServiceUrl()
       const vpsRes = await fetch(`${vpsUrl}/health`, { signal: AbortSignal.timeout(5000) })
       vpsStatus = vpsRes.ok ? 'healthy' : 'degraded'
     } catch { vpsStatus = 'offline' }

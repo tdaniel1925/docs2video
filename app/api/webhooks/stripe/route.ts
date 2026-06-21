@@ -128,7 +128,9 @@ export async function POST(request: Request) {
 
         if (session.metadata?.type === 'credit_pack') {
           const credits = parseInt(session.metadata.credits || '0', 10)
-          const packName = session.metadata.pack_name || 'credit_pack'
+          // Checkout sets `pack`; older code read `pack_name` (audit L6). Accept
+          // either so the ledger description names the actual pack.
+          const packName = session.metadata.pack_name || session.metadata.pack || 'credit_pack'
           // Sanity ceiling must sit ABOVE the largest real pack (Studio = 18,000).
           // The old 10,000 cap silently rejected Studio purchases — customer
           // paid and received zero credits.
@@ -201,7 +203,11 @@ export async function POST(request: Request) {
         const userId = subscription.metadata?.supabase_user_id
         const customerId = subscription.customer as string
         const priceId = subscription.items.data[0]?.price?.id
-        const tier = priceId ? tierFromPriceId(priceId) : (subscription.metadata?.tier ?? 'pro')
+        // Fail-loud on an unknown price id (audit M1): fall back to the metadata
+        // tier, then 'pro' — never silently to 'free' (which would deny a paying
+        // customer their credits).
+        const tier = (priceId ? tierFromPriceId(priceId) : null)
+          ?? (subscription.metadata?.tier ?? 'pro')
 
         const updateData: Record<string, unknown> = {
           subscription_status: tier,
@@ -228,7 +234,9 @@ export async function POST(request: Request) {
         const priceId = subscription.items.data[0]?.price?.id
 
         if (subscription.status === 'active') {
-          const tier = priceId ? tierFromPriceId(priceId) : 'pro'
+          // Unknown price id → keep metadata tier / 'pro', never silent 'free' (M1).
+          const tier = (priceId ? tierFromPriceId(priceId) : null)
+            ?? (subscription.metadata?.tier ?? 'pro')
           const { data: updatedProfile, error: updErr } = await supabase.from('profiles').update({
             subscription_status: tier,
             stripe_subscription_id: subscription.id,

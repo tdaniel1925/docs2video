@@ -32,10 +32,15 @@ export const VIDEO_PRICE_IDS = {
 
 /**
  * Given a Stripe price ID, return the matching subscription tier.
+ * Returns null for an UNKNOWN price id (audit M1) rather than silently
+ * downgrading a paying customer to 'free' — callers must handle null (log +
+ * keep the existing tier) so a misconfigured STRIPE_PRICE_* env can't wipe a
+ * subscriber's plan.
  */
-export function tierFromPriceId(priceId: string): PlanTier {
+export function tierFromPriceId(priceId: string): PlanTier | null {
   for (const [tier, id] of Object.entries(SUBSCRIPTION_PRICES)) {
-    if (id === priceId) return tier as PlanTier
+    if (id && id === priceId) return tier as PlanTier
   }
-  return 'free'
+  console.error(`[stripe] tierFromPriceId: unknown price id ${priceId} — STRIPE_PRICE_* env may be misconfigured`)
+  return null
 }

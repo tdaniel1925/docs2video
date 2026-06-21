@@ -3,11 +3,12 @@ import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { synthesizeSpeech } from '../../_lib/tts'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
+import { videoServiceUrl } from '../../_lib/video-service'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
-const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL || 'http://5.161.215.156:4000'
+const VIDEO_ASSEMBLY_URL = videoServiceUrl()
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
 export async function POST(request: Request) {

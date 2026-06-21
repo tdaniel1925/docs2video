@@ -1,5 +1,14 @@
-import { createHash } from 'crypto'
+import { createHash, timingSafeEqual } from 'crypto'
 import { createAdminClient } from './supabase/admin'
+
+/** Constant-time string compare (audit L2). Returns false on length mismatch
+ *  without leaking timing. Use for any secret/token comparison. */
+export function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a)
+  const bb = Buffer.from(b)
+  if (ab.length !== bb.length) return false
+  return timingSafeEqual(ab, bb)
+}
 
 /**
  * Public API (v1) auth + metered credit pool + rate limiting.
@@ -77,16 +86,14 @@ export async function chargeApiCredits(userId: string, amount: number): Promise<
   return true
 }
 
-/** Refund a previously charged amount (e.g. generation failed to start). */
+/** Refund a previously charged amount (e.g. generation failed to start).
+ *  Atomic via increment_api_credits RPC (audit L3 — the old read-then-upsert
+ *  could clobber a concurrent charge and over-credit). */
 export async function refundApiCredits(userId: string, amount: number): Promise<void> {
+  if (!amount || amount <= 0) return
   const admin = createAdminClient()
-  const { data: row } = await admin.from('api_credit_balances').select('balance').eq('user_id', userId).single()
-  const current = row?.balance ?? 0
-  await admin.from('api_credit_balances').upsert({
-    user_id: userId,
-    balance: current + amount,
-    updated_at: new Date().toISOString(),
-  })
+  const { error } = await admin.rpc('increment_api_credits', { p_user_id: userId, p_amount: amount })
+  if (error) console.error(`[api-auth] refundApiCredits RPC error for ${userId}:`, error.message)
 }
 
 /** Admin top-up. */
@@ -122,7 +129,7 @@ export async function resolveRequestUser(
   const internalSecret = (process.env.INTERNAL_API_SECRET || '').trim()
   const reqSecret = (request.headers.get('x-internal-service') || '').trim()
   const internalUserId = request.headers.get('x-internal-user-id') || ''
-  if (internalSecret && reqSecret === internalSecret && internalUserId) {
+  if (internalSecret && safeEqual(reqSecret, internalSecret) && internalUserId) {
     return { userId: internalUserId, isInternal: true }
   }
   const u = await getSessionUser()

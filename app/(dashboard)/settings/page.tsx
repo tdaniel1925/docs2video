@@ -9,6 +9,7 @@ import InlineConfirm from '../../_components/InlineConfirm'
 import BuyCreditsModal from '../../_components/BuyCreditsModal'
 import { SLIDE_STYLES } from '../../_lib/types'
 import type { Profile, Brand } from '../../_lib/types'
+import { PLANS, type PlanTier } from '../../_lib/pricing'
 import { updatePassword, updateEmail } from '../../_actions/auth'
 
 type SettingsTab = 'profile' | 'brand' | 'integrations' | 'subscription'
@@ -1028,7 +1029,12 @@ export default function SettingsPage() {
                     )}
                     <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, marginTop: 4 }}>{plan.label}</div>
                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 2, marginBottom: 4 }}>
-                      <span style={{ fontSize: 28, fontWeight: 800 }}>{plan.price}</span>
+                      {/* Price driven from pricing.ts (audit L5) so the displayed
+                          amount can't drift from the canonical source. */}
+                      <span style={{ fontSize: 28, fontWeight: 800 }}>{(() => {
+                        const cents = PLANS.find(p => p.tier === (plan.tier as PlanTier))?.monthlyPrice
+                        return typeof cents === 'number' ? `$${Math.round(cents / 100)}` : plan.price
+                      })()}</span>
                       {plan.period && <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>{plan.period}</span>}
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--mint-darker, #2d7a4f)', marginBottom: 12 }}>

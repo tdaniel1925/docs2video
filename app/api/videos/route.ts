@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
+import { maxConcurrentForTier } from '../../_lib/subscription'
 import type { ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 export const maxDuration = 30
@@ -56,15 +57,12 @@ export async function POST(request: Request) {
     .eq('user_id', user.id)
     .in('status', ['pending', 'scripting', 'generating_audio', 'generating_slides', 'assembling'])
 
-  // Concurrent limits by plan
-  const isAdmin = (profile as any)?.is_admin === true
-  const isBeta = (profile as any)?.is_beta === true
-  let maxConcurrent = 1 // Free / pay-per-project
-  if (isAdmin || isBeta) maxConcurrent = 99
-  else if (subStatus === 'enterprise') maxConcurrent = 5
-  else if (subStatus === 'business') maxConcurrent = 3
-  else if (['pro', 'professional'].includes(subStatus)) maxConcurrent = 2
-  else if (['starter', 'active'].includes(subStatus)) maxConcurrent = 2
+  // Concurrent limits by plan — shared helper so every tier (incl. agency /
+  // enterprise-plus) is treated consistently with the live generate-video path.
+  const maxConcurrent = maxConcurrentForTier(subStatus, {
+    isAdmin: (profile as any)?.is_admin === true,
+    isBeta: (profile as any)?.is_beta === true,
+  })
 
   if (inProgressCount && inProgressCount >= maxConcurrent) {
     const slots = maxConcurrent === 1 ? 'video' : `${maxConcurrent} videos`

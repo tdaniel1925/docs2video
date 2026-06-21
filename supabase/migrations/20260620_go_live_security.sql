@@ -177,3 +177,29 @@ BEGIN
   RETURN true;
 END;
 $$;
+
+-- ============================================================
+-- L3 — Atomic API-credit increment (refund / admin top-up). The old
+-- refundApiCredits was read-then-upsert (TOCTOU) and could clobber a concurrent
+-- charge. Upserts the row if missing, increments in one statement.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.increment_api_credits(
+  p_user_id uuid,
+  p_amount  integer
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF p_amount IS NULL OR p_amount = 0 THEN
+    RETURN;
+  END IF;
+  INSERT INTO public.api_credit_balances (user_id, balance, updated_at)
+  VALUES (p_user_id, GREATEST(0, p_amount), now())
+  ON CONFLICT (user_id) DO UPDATE
+    SET balance = GREATEST(0, public.api_credit_balances.balance + p_amount),
+        updated_at = now();
+END;
+$$;

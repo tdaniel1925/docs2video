@@ -1,7 +1,8 @@
+import { randomUUID } from 'crypto'
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { deductCredits, checkCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { deductCredits, checkCredits, addTopupCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { generatePptx } from '../../_lib/pptx-generator'
 import type { DeckSlide } from '../../_lib/pptx-generator'
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
@@ -49,13 +50,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Decks are limited to 25 slides.' }, { status: 400 })
   }
 
-  // Credit check — deduction happens after successful generation
+  // Deduct credits UP FRONT (audit M2). The old flow checked before and
+  // deducted after generation, so N concurrent requests all passed the check,
+  // all rendered, only one deducted, yet ALL got a deck = N decks for one
+  // charge. deductCredits is an atomic CAS, so up-front deduction caps spend;
+  // we refund in the catch block if generation fails. (admin/beta bypass is
+  // handled inside deductCredits.)
   const DECK_COST = CREDIT_COSTS.deck
   const admin = createAdminClient()
-  const creditCheck = await checkCredits(user.id, DECK_COST)
-  if (!creditCheck.allowed) {
+  const deckReqId = randomUUID()
+  const deducted = await deductCredits(user.id, DECK_COST, 'deck_generation', undefined, `deck:${deckReqId}`)
+  if (!deducted) {
+    const bal = await checkCredits(user.id, DECK_COST)
     return NextResponse.json(
-      { error: `Not enough credits. A deck costs ${DECK_COST} credits, you have ${creditCheck.remaining}.` },
+      { error: `Not enough credits. A deck costs ${DECK_COST} credits, you have ${bal.remaining}.` },
       { status: 402 }
     )
   }
@@ -167,9 +175,7 @@ export async function POST(request: Request) {
     })
     const { data: urlData } = admin.storage.from('videos').getPublicUrl(path)
 
-    // Deduct credits (admin/beta bypass handled inside deductCredits)
-    const deducted = await deductCredits(user.id, DECK_COST, 'deck_generation')
-    if (!deducted) console.error(`[deck] Credit deduction failed for user ${user.id} after successful generation`)
+    // Credits already deducted up front (M2).
 
     // Log creation
     await admin.from('creations').insert({
@@ -197,6 +203,16 @@ export async function POST(request: Request) {
     console.error('[deck] Error:', err)
     const message = err instanceof Error ? err.message : 'Deck generation failed'
     if (jobId) await updateJobProgress(admin, jobId, 0, 'failed', { error_message: message })
+    // Refund the up-front deduction since generation failed (M2). Idempotent on
+    // the per-request id so a retry can't double-refund.
+    try {
+      await addTopupCredits(user.id, DECK_COST, `refund:deck:${deckReqId}`, {
+        action: 'refund_video',
+        idempotencyKey: `refund:deck:${deckReqId}`,
+      })
+    } catch (refundErr) {
+      console.error('[deck] refund after failure failed:', refundErr)
+    }
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
