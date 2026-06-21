@@ -7,8 +7,10 @@ import { createClient } from '../../../_lib/supabase/client'
 import type { Infographic, Brand } from '../../../_lib/types'
 import { VOICE_OPTIONS } from '../../../_lib/types'
 import InlineConfirm from '../../../_components/InlineConfirm'
+import { useToast } from '../../../_components/Toast'
 
 export default function InfographicDetailPage() {
+  const notify = useToast()
   const params = useParams()
   const router = useRouter()
   const [infographic, setInfographic] = useState<Infographic | null>(null)
@@ -82,7 +84,7 @@ export default function InfographicDetailPage() {
         title: infographic.title ?? 'Infographic',
       }),
     })
-    if (!res.ok) { alert('PDF generation failed'); return }
+    if (!res.ok) { notify('PDF generation failed', 'error'); return }
     const blob = await res.blob()
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -122,7 +124,7 @@ export default function InfographicDetailPage() {
       if (!res.ok) throw new Error(data.error || 'Video generation failed')
       router.push(`/videos/${data.id}`)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Video generation failed')
+      notify(err instanceof Error ? err.message : 'Video generation failed', 'error')
       setGeneratingVideo(false)
     }
   }

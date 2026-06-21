@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
+import { useToast } from '../../_components/Toast'
 
 type HeadshotImage = {
   url: string
@@ -17,6 +18,7 @@ const BATCH_LABELS = [
 ]
 
 export default function HeadshotPage() {
+  const notify = useToast()
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [photo, setPhoto] = useState<string | null>(null)
   const [name, setName] = useState('')
@@ -41,7 +43,7 @@ export default function HeadshotPage() {
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file.')
+      notify('Please upload an image file.', 'error')
       return
     }
     processFile(file)

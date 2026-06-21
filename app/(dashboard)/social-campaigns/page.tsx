@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useToast } from '../../_components/Toast'
 
 interface CampaignPost {
   dayOffset: number
@@ -46,6 +47,7 @@ const PLATFORM_COLORS: Record<string, string> = {
 }
 
 export default function SocialCampaignsPage() {
+  const notify = useToast()
   const [step, setStep] = useState<Step>('setup')
 
   // Setup
@@ -139,7 +141,7 @@ export default function SocialCampaignsPage() {
     if (!campaignId) return
     // This would be called from the done/management view
     // For now, show a message
-    alert('Publishing will begin automatically based on your schedule.')
+    notify('Publishing will begin automatically based on your schedule.', 'success')
   }
 
   const totalPosts = posts.length

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useToast } from '../../_components/Toast'
 
 // ── Types ──────────────────────────────────────────────────────────
 type Stage = 'welcome' | 'chat' | 'palette' | 'logo' | 'building' | 'complete'
@@ -65,6 +66,7 @@ const shimmerCSS = `
 `
 
 export default function BrandKitPage() {
+  const notify = useToast()
   const [stage, setStage] = useState<Stage>('welcome')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -184,7 +186,7 @@ export default function BrandKitPage() {
   const startVoice = useCallback(() => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SpeechRecognition) return alert('Voice input is not supported in this browser.')
+    if (!SpeechRecognition) { notify('Voice input is not supported in this browser.', 'error'); return }
 
     const recognition = new SpeechRecognition()
     recognition.lang = 'en-US'

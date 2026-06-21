@@ -2,6 +2,7 @@
 
 import { useState, useRef, use } from 'react'
 import Image from 'next/image'
+import { useToast } from '../../../_components/Toast'
 
 const DEMO_VIDEO_URL = 'https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/site-assets/hero-video.mp4'
 
@@ -14,6 +15,7 @@ function toTitleCase(slug: string): string {
 export default function TryPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ ref?: string; email?: string; url?: string }> }) {
   const { slug } = use(params)
   const sp = use(searchParams)
+  const notify = useToast()
   const companyName = slug && slug !== 'demo' ? toTitleCase(slug) : ''
   const headline = companyName
     ? `See what Docs2Video can do for ${companyName}`
@@ -45,7 +47,7 @@ export default function TryPage({ params, searchParams }: { params: Promise<{ sl
             window.location.href = `/try/${slug}/creating?id=${d.id}&email=${encodeURIComponent(sp.email || '')}`
           }
         })
-        .catch(() => alert('Upload failed. Please try again.'))
+        .catch(() => notify('Upload failed. Please try again.', 'error'))
       return
     }
     const params = new URLSearchParams()

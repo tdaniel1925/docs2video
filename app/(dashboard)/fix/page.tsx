@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import Link from 'next/link'
+import { useToast } from '../../_components/Toast'
 
 type FixType = 'remove-background' | 'swap-background-studio' | 'swap-background-office' | 'enhance' | 'headshot-pack' | 'remove-objects' | 'upscale' | 'brand-filter' | 'logo-cleanup'
 
@@ -20,6 +21,7 @@ const FIX_OPTIONS: { id: FixType; icon: string; title: string; desc: string }[] 
 const HEADSHOT_LABELS = ['Studio', 'Outdoor', 'Office', 'Executive', 'LinkedIn']
 
 export default function PhotoFixerPage() {
+  const notify = useToast()
   const [step, setStep] = useState<'upload' | 'choose' | 'processing' | 'result'>('upload')
   const [originalImage, setOriginalImage] = useState<string | null>(null)
   const [resultImage, setResultImage] = useState<string | null>(null)
@@ -81,8 +83,8 @@ export default function PhotoFixerPage() {
     formData.append('file', blob, 'fixed-photo.png')
     formData.append('type', 'headshot')
     const res = await fetch('/api/upload-photo', { method: 'POST', body: formData })
-    if (res.ok) alert('Profile photo updated!')
-    else alert('Failed to update profile photo')
+    if (res.ok) notify('Profile photo updated!', 'success')
+    else notify('Failed to update profile photo', 'error')
   }
 
   async function useAsBrandLogo() {
@@ -91,8 +93,8 @@ export default function PhotoFixerPage() {
     const formData = new FormData()
     formData.append('file', blob, 'fixed-logo.png')
     const res = await fetch('/api/upload-logo', { method: 'POST', body: formData })
-    if (res.ok) alert('Brand logo updated!')
-    else alert('Failed to update brand logo')
+    if (res.ok) notify('Brand logo updated!', 'success')
+    else notify('Failed to update brand logo', 'error')
   }
 
   function downloadImage(src: string, name: string) {

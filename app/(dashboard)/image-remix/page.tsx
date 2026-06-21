@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import BrandStylePicker from '../../_components/BrandStylePicker'
+import { useToast } from '../../_components/Toast'
 
 type ChatMessage = {
   role: 'user' | 'assistant'
@@ -10,6 +11,7 @@ type ChatMessage = {
 }
 
 export default function ImageRemixPage() {
+  const notify = useToast()
   const [referenceImage, setReferenceImage] = useState<string | null>(null)
   const [brandId, setBrandId] = useState<string | null>(null)
   const [remixResult, setRemixResult] = useState<string | null>(null)
@@ -44,7 +46,7 @@ export default function ImageRemixPage() {
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file.')
+      notify('Please upload an image file.', 'error')
       return
     }
     processImageFile(file)

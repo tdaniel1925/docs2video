@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '../../../_lib/supabase/client'
+import { useToast } from '../../../_components/Toast'
 
 const STAGES = [
   { key: 'pending', icon: '🚀', label: 'Starting up', desc: 'Preparing your video pipeline' },
@@ -23,6 +24,7 @@ const TIPS = [
 
 export default function GeneratingPage() {
   const router = useRouter()
+  const notify = useToast()
   const searchParams = useSearchParams()
   const videoId = searchParams.get('id')
   const [status, setStatus] = useState('pending')
@@ -211,14 +213,14 @@ export default function GeneratingPage() {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ videoId }),
         })
-        if (!res.ok) { alert('Download failed. Please try again.'); return }
+        if (!res.ok) { notify('Download failed. Please try again.', 'error'); return }
         const blob = await res.blob()
         const a = document.createElement('a')
         a.href = URL.createObjectURL(blob)
         a.download = `presentation.${format}`
         a.click()
         URL.revokeObjectURL(a.href)
-      } catch { alert('Download failed. Please try again.') }
+      } catch { notify('Download failed. Please try again.', 'error') }
     }
     return (
       <div style={{

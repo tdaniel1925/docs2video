@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import type { Profile, Video } from '@/app/_lib/types'
+import { useToast } from '../../_components/Toast'
 
 type Tab = 'dashboard' | 'users' | 'videos' | 'billing' | 'access' | 'audit' | 'prospects' | 'settings'
 
@@ -16,6 +17,7 @@ interface AuditEntry {
 }
 
 export default function AdminPage() {
+  const notify = useToast()
   const [state, setState] = useState<'loading' | 'denied' | 'error' | 'ok'>('loading')
   const [error, setError] = useState('')
   const [tab, setTab] = useState<Tab>('dashboard')
@@ -106,9 +108,9 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, campaignId }),
       })
-      if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Failed'); }
+      if (!r.ok) { const d = await r.json().catch(() => ({})); notify(d.error || 'Failed', 'error'); }
       reloadCampaigns()
-    } catch { alert('Network error') }
+    } catch { notify('Network error', 'error') }
     setCampaignBusy(null)
   }
 
@@ -119,9 +121,9 @@ export default function AdminPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, action, value }),
       })
-      if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Failed'); return }
+      if (!r.ok) { const d = await r.json().catch(() => ({})); notify(d.error || 'Failed', 'error'); return }
       reload()
-    } catch { alert('Network error') }
+    } catch { notify('Network error', 'error') }
     setBusy(null)
   }
 
@@ -134,9 +136,9 @@ export default function AdminPage() {
         body: JSON.stringify({ action: 'start', userId }),
       })
       const d = await r.json().catch(() => ({}))
-      if (!r.ok || !d.actionLink) { alert(d.error || 'Could not impersonate'); setBusy(null); return }
+      if (!r.ok || !d.actionLink) { notify(d.error || 'Could not impersonate', 'error'); setBusy(null); return }
       window.location.href = d.actionLink
-    } catch { alert('Network error'); setBusy(null) }
+    } catch { notify('Network error', 'error'); setBusy(null) }
   }
 
   async function retryVideo(videoId: string) {
@@ -146,9 +148,9 @@ export default function AdminPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ videoId }),
       })
-      if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Failed'); return }
+      if (!r.ok) { const d = await r.json().catch(() => ({})); notify(d.error || 'Failed', 'error'); return }
       reload()
-    } catch { alert('Network error') }
+    } catch { notify('Network error', 'error') }
     setBusy(null)
   }
 
@@ -159,9 +161,9 @@ export default function AdminPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, field, value }),
       })
-      if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Failed'); return }
+      if (!r.ok) { const d = await r.json().catch(() => ({})); notify(d.error || 'Failed', 'error'); return }
       reload()
-    } catch { alert('Network error') }
+    } catch { notify('Network error', 'error') }
     setBusy(null)
   }
 
@@ -180,8 +182,8 @@ export default function AdminPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, value }),
       })
-      if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Failed'); loadSettings() }
-    } catch { alert('Network error'); loadSettings() }
+      if (!r.ok) { const d = await r.json().catch(() => ({})); notify(d.error || 'Failed', 'error'); loadSettings() }
+    } catch { notify('Network error', 'error'); loadSettings() }
     setBusy(null)
   }
 
@@ -536,7 +538,7 @@ export default function AdminPage() {
                 const plan = (document.getElementById('new-user-plan') as HTMLSelectElement).value
                 const password = (document.getElementById('new-user-password') as HTMLInputElement).value
                 const isBeta = (document.getElementById('new-user-beta') as HTMLInputElement).checked
-                if (!email) { alert('Email is required'); return }
+                if (!email) { notify('Email is required', 'error'); return }
                 setBusy('creating')
                 try {
                   const r = await fetch('/api/admin/create-user', {
@@ -548,7 +550,7 @@ export default function AdminPage() {
                   if (!r.ok) throw new Error(d.error)
                   let msg = `User created: ${email}`
                   if (d.tempPassword) msg += `\nTemporary password: ${d.tempPassword}`
-                  alert(msg)
+                  notify(msg, 'success')
                   // Clear fields
                   ;(document.getElementById('new-user-email') as HTMLInputElement).value = ''
                   ;(document.getElementById('new-user-name') as HTMLInputElement).value = ''
@@ -560,7 +562,7 @@ export default function AdminPage() {
                   const data = await res.json()
                   setProfiles(data.profiles ?? [])
                 } catch (err) {
-                  alert(err instanceof Error ? err.message : 'Failed to create user')
+                  notify(err instanceof Error ? err.message : 'Failed to create user', 'error')
                 }
                 setBusy(null)
               }}
@@ -779,7 +781,7 @@ export default function AdminPage() {
                     const d = await r.json()
                     setProspects(d.prospects ?? [])
                   } catch (err) {
-                    alert(err instanceof Error ? err.message : 'Failed to generate demos')
+                    notify(err instanceof Error ? err.message : 'Failed to generate demos', 'error')
                   }
                   setGenerating(false)
                 }}
@@ -919,7 +921,7 @@ export default function AdminPage() {
                         const dd = await rr.json()
                         setProspects(dd.prospects ?? [])
                       } catch (err) {
-                        alert(err instanceof Error ? err.message : 'Send failed')
+                        notify(err instanceof Error ? err.message : 'Send failed', 'error')
                       }
                       setSendBusy(false)
                     }}
@@ -1077,7 +1079,7 @@ export default function AdminPage() {
                         const nameEl = document.getElementById('manual-name') as HTMLInputElement
                         const companyEl = document.getElementById('manual-company') as HTMLInputElement
                         const email = emailEl?.value.trim()
-                        if (!email || !email.includes('@')) { alert('Enter a valid email'); return }
+                        if (!email || !email.includes('@')) { notify('Enter a valid email', 'error'); return }
                         const line = `${email}, ${nameEl?.value.trim() || ''}, ${companyEl?.value.trim() || ''}`
                         setCampaignCsvText(prev => prev ? `${prev}\n${line}` : line)
                         if (emailEl) emailEl.value = ''
@@ -1144,7 +1146,7 @@ export default function AdminPage() {
                       const parts = line.split(',').map(p => p.trim())
                       return { email: parts[0], name: parts[1] || '', company: parts[2] || '' }
                     }).filter(c => c.email && c.email.includes('@'))
-                    if (!parsed.length) { alert('No valid contacts found.'); return }
+                    if (!parsed.length) { notify('No valid contacts found.', 'error'); return }
                     setCampaignContacts(parsed)
                     setCampaignGenerating(true)
                     try {
@@ -1154,12 +1156,12 @@ export default function AdminPage() {
                         body: JSON.stringify({ action: 'generate', industry: campaignIndustry, subIndustry: campaignSubIndustry || undefined }),
                       })
                       const d = await r.json()
-                      if (!r.ok) { alert(d.error || 'Failed to generate copy'); return }
+                      if (!r.ok) { notify(d.error || 'Failed to generate copy', 'error'); return }
                       setCampaignSubject(d.subject)
                       setCampaignBody(d.body)
                       setCampaignCtaText(d.ctaText || 'Try It Free')
                       setCampaignStep('preview')
-                    } catch (err) { alert(err instanceof Error ? err.message : 'Network error') }
+                    } catch (err) { notify(err instanceof Error ? err.message : 'Network error', 'error') }
                     setCampaignGenerating(false)
                   }}
                 >
@@ -1250,7 +1252,7 @@ export default function AdminPage() {
                           }),
                         })
                         const d = await r.json()
-                        if (!r.ok) { alert(d.error || 'Failed to create campaign'); setCampaignSending(false); return }
+                        if (!r.ok) { notify(d.error || 'Failed to create campaign', 'error'); setCampaignSending(false); return }
 
                         // Start sending immediately
                         await fetch('/api/admin/campaign-send', {
@@ -1261,7 +1263,7 @@ export default function AdminPage() {
 
                         reloadCampaigns()
                         setCampaignStep('done')
-                      } catch (err) { alert(err instanceof Error ? err.message : 'Network error') }
+                      } catch (err) { notify(err instanceof Error ? err.message : 'Network error', 'error') }
                       setCampaignSending(false)
                     }}
                   >

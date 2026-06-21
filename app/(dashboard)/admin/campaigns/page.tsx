@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/app/_lib/supabase/client'
 import { isAdmin } from '@/app/_lib/admin'
 import InlineConfirm from '@/app/_components/InlineConfirm'
+import { useToast } from '../../../_components/Toast'
 
 type Campaign = {
   id: string
@@ -158,6 +159,7 @@ function fmtDate(d: string) {
 // ── Component ───────────────────────────────────────────────────────────────
 
 export default function CampaignsPage() {
+  const notify = useToast()
   const [authState, setAuthState] = useState<'loading' | 'denied' | 'ok'>('loading')
   const [view, setView] = useState<View>('list')
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
@@ -327,7 +329,7 @@ export default function CampaignsPage() {
       const res = await fetch(`/api/admin/campaigns/${selectedCampaign.id}/send`, { method: 'POST' })
       if (res.ok) {
         const data = await res.json()
-        alert(`Sent ${data.sent} emails successfully.`)
+        notify(`Sent ${data.sent} emails successfully.`, 'success')
         loadCampaignDetail(selectedCampaign.id)
       }
     } catch { /* ignore */ }
@@ -340,7 +342,7 @@ export default function CampaignsPage() {
       const res = await fetch('/api/admin/campaigns/nurture', { method: 'POST' })
       if (res.ok) {
         const data = await res.json()
-        alert(`Processed ${data.processed} nurture emails.`)
+        notify(`Processed ${data.processed} nurture emails.`, 'success')
       }
     } catch { /* ignore */ }
     setActionLoading(null)

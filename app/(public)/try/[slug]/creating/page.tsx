@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, use } from 'react'
 import Image from 'next/image'
+import { useToast } from '../../../../_components/Toast'
 
 const STEPS = [
   'Analyzing your content...',
@@ -15,6 +16,7 @@ const STEPS = [
 export default function CreatingPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ url?: string; email?: string; id?: string }> }) {
   const { slug } = use(params)
   const sp = use(searchParams)
+  const notify = useToast()
 
   const [status, setStatus] = useState<'creating' | 'done' | 'error'>('creating')
   const [step, setStep] = useState(0)
@@ -94,7 +96,7 @@ export default function CreatingPage({ params, searchParams }: { params: Promise
       params.set('ref', 'try-demo')
       window.location.href = `/signup?${params.toString()}`
     } catch {
-      alert('Something went wrong. Please try again.')
+      notify('Something went wrong. Please try again.', 'error')
     }
     setSaving(false)
   }

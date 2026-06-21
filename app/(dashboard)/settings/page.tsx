@@ -11,6 +11,7 @@ import { SLIDE_STYLES } from '../../_lib/types'
 import type { Profile, Brand } from '../../_lib/types'
 import { PLANS, type PlanTier } from '../../_lib/pricing'
 import { updatePassword, updateEmail } from '../../_actions/auth'
+import { useToast } from '../../_components/Toast'
 
 type SettingsTab = 'profile' | 'brand' | 'integrations' | 'subscription'
 
@@ -137,6 +138,7 @@ export default function SettingsPage() {
   const [defaultStyle, setDefaultStyle] = useState('corporate-clean')
   const [styleSaving, setStyleSaving] = useState(false)
   const searchParams = useSearchParams()
+  const notify = useToast()
 
   useEffect(() => {
     fetch('/api/credits/balance')
@@ -1102,7 +1104,7 @@ export default function SettingsPage() {
               window.location.href = '/login?deleted=1'
             } else {
               const data = await res.json()
-              alert(data.error || 'Failed to delete account')
+              notify(data.error || 'Failed to delete account', 'error')
             }
           }}
         >
