@@ -88,7 +88,13 @@ export default function HelpChatWidget() {
           animation: 'helpSlideUp 0.25s ease-out',
           transformOrigin: 'bottom right',
         }}>
-          <style>{`@keyframes helpSlideUp { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }`}</style>
+          <style>{`@keyframes helpSlideUp { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+            .help-chat-html p { margin: 0 0 6px; }
+            .help-chat-html p:last-child { margin-bottom: 0; }
+            .help-chat-html ul, .help-chat-html ol { margin: 4px 0 6px; padding-left: 18px; }
+            .help-chat-html li { margin: 2px 0; }
+            .help-chat-html a { color: var(--mint-darker, #2d7a4f); font-weight: 600; }
+            .help-chat-html strong { font-weight: 700; }`}</style>
           {/* Header */}
           <div style={{
             padding: '14px 18px', borderBottom: '1px solid var(--border-light, #e2e8f0)',
@@ -141,13 +147,20 @@ export default function HelpChatWidget() {
             )}
             {messages.map((msg, i) => (
               <div key={i} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
-                <div style={{
-                  padding: '10px 14px', borderRadius: 10, fontSize: 13, lineHeight: 1.55,
-                  background: msg.role === 'user' ? 'var(--mint, #A8F0D4)' : 'var(--bg-soft, #f8fafc)',
-                  color: msg.role === 'user' ? '#0a2e1a' : 'var(--ink, #1a1a2e)',
-                  border: msg.role === 'assistant' ? '1px solid var(--border-light, #e2e8f0)' : 'none',
-                }}>
-                  {msg.content}
+                <div
+                  className={msg.role === 'assistant' ? 'help-chat-html' : undefined}
+                  style={{
+                    padding: '10px 14px', borderRadius: 10, fontSize: 13, lineHeight: 1.55,
+                    background: msg.role === 'user' ? 'var(--mint, #A8F0D4)' : 'var(--bg-soft, #f8fafc)',
+                    color: msg.role === 'user' ? '#0a2e1a' : 'var(--ink, #1a1a2e)',
+                    border: msg.role === 'assistant' ? '1px solid var(--border-light, #e2e8f0)' : 'none',
+                    ...(msg.role === 'user' ? { whiteSpace: 'pre-wrap' as const } : {}),
+                  }}
+                  // Assistant replies are HTML from our own constrained prompt
+                  // (p/strong/ul/ol/li/a only). User text stays escaped.
+                  {...(msg.role === 'assistant' ? { dangerouslySetInnerHTML: { __html: msg.content } } : {})}
+                >
+                  {msg.role === 'assistant' ? undefined : msg.content}
                 </div>
               </div>
             ))}
