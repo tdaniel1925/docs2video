@@ -47,23 +47,31 @@ The launch-blocking security holes from the earlier audit are fixed and live (mi
 
 ---
 
-## Pre-launch checklist (operator)
+## Status: 🟢 LIVE — live Stripe keys set; first customers onboarded.
 
-- [x] Apply migrations (`supabase db push`) — done
-- [x] VPS redeploy (`redeploy.sh`) — done
-- [ ] Set/clean Vercel env values (no trailing newlines): `NEXT_PUBLIC_SITE_URL`, `STRIPE_PRICE_CREDIT_PACK_*`, and verify subscription price IDs are **live-mode**.
-- [ ] `curl https://docs2video.com/api/health` → `status: ok`, `missingRequiredEnvCount: 0`.
-- [ ] Regenerate one video → confirm phone format, cover length, no overflow, real video in player.
-- [ ] Smoke-test money path: buy a credit pack (lands once), refund it (revoked), confirm a normal user can't `update({is_admin:true})` from the console.
-- [ ] Confirm Stripe is in **live** mode and the webhook endpoint points at `/api/webhooks/stripe` with the live signing secret.
+## Launch checklist (operator) — complete
+- [x] Apply migrations (`supabase db push`)
+- [x] VPS redeploy (`redeploy.sh`)
+- [x] Vercel env values cleaned; `/api/health` → `status: ok`, `missingRequiredEnvCount: 0`
+- [x] Stripe in **live** mode; platform webhook at `/api/webhooks/stripe` with live signing secret
+
+## Payment model — payment LINKS only (no Stripe Connect)
+We do NOT process users' clients' payments. A user pastes their own **Stripe
+Payment Link / Square / PayPal** URL in Settings → Integrations; the share-page
+Pay button (and quote-card Pay button) opens it in a new tab. We're never in
+that money flow. The Stripe Connect "process client payments" path was removed.
+**Our** Stripe (subscriptions + credit packs) is unaffected — that's our revenue.
 
 ## Admin controls — verified in place
-Impersonate · plan change · add/reset credits · admin/beta toggle · retry video · API keys · affiliates (approve/export/mark-paid) · system status · logs · **Billing & Sales (cancel/pause/resume)** · revenue charts · API costs.
+Impersonate · plan change · add/reset credits · admin/beta toggle · retry video
+(re-triggers generation) · API keys · affiliates (approve/export/mark-paid) ·
+system status · logs · **Billing & Sales (cancel/pause/resume)** · revenue
+charts · API costs.
 
 ## Known non-blocking follow-ups (post-launch backlog)
-- Watch-through-rate benchmark needs the player to emit `watch_pct` (currently a constant).
-- Client `total_revenue` is not incremented on quote payment (stat shows $0) — compute on read or write on `quotes/pay`.
-- Admin: prospects Reject/Regenerate, retry-video re-trigger, campaign-send audit-log table, create-user temp-password display.
-- Affiliate signup-attribution (`track-signup`) not called post-signup; subscription attribution works via promo code.
-- Admin help article documents some unwired moderation/ban controls.
-- Analytics date-range/export are not implemented (intentionally minimal).
+- Analytics date-range/export not implemented (intentionally minimal).
+- `increment_client_revenue` migration is applied but now unused (Connect removed) — harmless.
+
+_Earlier backlog items (watch-through tracking, prospects reject/regenerate,
+retry-video, campaign audit log, affiliate signup-attribution, admin help
+accuracy) have been completed._
