@@ -21,7 +21,7 @@ import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { buildSimpleSlidePrompt, getStylePrompt } from '../../_lib/slide-engine/simple-prompt'
 import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
-import { PHONE_REGEX, phoneToSpoken, isPhoneInSource } from '../../_lib/phone-utils'
+import { PHONE_REGEX, phoneToSpoken, isPhoneInSource, formatPhoneDisplay } from '../../_lib/phone-utils'
 import { estimateVideoCost, exceedsCeiling } from '../../_lib/cost-estimator'
 import { deductCredits, calculateVideoCost, checkCredits, addTopupCredits, refundVideoCredits } from '../../_lib/credits'
 import { isPaidTier, maxConcurrentForTier } from '../../_lib/subscription'
@@ -758,6 +758,10 @@ export async function POST(request: Request) {
       email: brandGuide?.email || undefined,
       website: brandGuide?.website || undefined,
     }
+    // VISUAL phone is formatted x-xxx-xxx-xxxx for the on-screen contact line +
+    // closing card (fixes raw "9366417130" showing in existing/new videos). The
+    // SPOKEN narration keeps the raw value (TTS reads digits naturally).
+    const contactDisplayPhone = contactForClosing.phone ? formatPhoneDisplay(contactForClosing.phone) : undefined
 
     // Presenter (Person profile) — the human who made this video. Drives a
     // personal spoken opening + the closing card. Null for company profiles or
@@ -817,7 +821,7 @@ export async function POST(request: Request) {
     const allScenes = [coverScene, ...ttsScenes, closingScene]
 
     // Build cover slide prompt — same format as content slides so Gemini uses consistent style
-    const contactLine = [contactForClosing.phone, contactForClosing.email, contactForClosing.website].filter(Boolean).join(' | ')
+    const contactLine = [contactDisplayPhone, contactForClosing.email, contactForClosing.website].filter(Boolean).join(' | ')
     // Hard rule: when no contact info was provided, forbid ANY phone/email/URL
     // outright — Gemini will otherwise hallucinate a plausible phone number on
     // the closing slide (a serious problem on a compliance-sensitive video).
@@ -942,7 +946,7 @@ export async function POST(request: Request) {
         musicPrompt: musicPrompt || undefined,
         aiMusic: aiMusic || undefined,
         contactLine: wantContactClosing ? (contactLine || undefined) : undefined,
-        contact: wantContactClosing ? { phone: contactForClosing.phone, email: contactForClosing.email, website: contactForClosing.website } : undefined,
+        contact: wantContactClosing ? { phone: contactDisplayPhone, email: contactForClosing.email, website: contactForClosing.website } : undefined,
         presenter, photoPlacement: photoPlacement || undefined,
       })
       console.log(`[video ${videoId}] V3 theme=${v3Payload.theme}, logo=${v3Payload.logo ? 'yes' : 'no'}, presenter=${presenter ? 'yes' : 'no'}`)
