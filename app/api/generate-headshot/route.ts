@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { checkCredits, deductCredits, refundVideoCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { checkCredits, deductCredits, addTopupCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { GoogleGenAI } from '@google/genai'
 
 export const runtime = 'nodejs'
@@ -164,8 +164,18 @@ export async function POST(request: Request) {
     }
 
     if (images.length === 0) {
-      // Nothing produced — refund the charge (idempotent per this job key).
-      await refundVideoCredits(user.id, COST, `headshot-${timestamp}`)
+      // Nothing produced — refund the charge. Headshot has no videos-table UUID,
+      // so refund via addTopupCredits with a NULL video_id and a string
+      // idempotency key (refundVideoCredits forced the job key into the uuid
+      // p_video_id param, which threw and silently dropped the refund).
+      try {
+        await addTopupCredits(user.id, COST, `refund: headshot job`, {
+          action: 'refund_video',
+          idempotencyKey: `refund:headshot:${timestamp}`,
+        })
+      } catch (refundErr) {
+        console.error('[generate-headshot] refund failed:', refundErr)
+      }
       return NextResponse.json({ error: 'All headshot generations failed. Please try again.' }, { status: 500 })
     }
 
