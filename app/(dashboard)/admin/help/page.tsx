@@ -62,9 +62,8 @@ const SECTIONS: AdminHelpSection[] = [
         heading: 'Changing Subscription Plans',
         body: [
           'From the user detail panel, find the **Subscription** section. You can:',
-          '**Upgrade or downgrade** — Select a new plan from the dropdown and click Apply. The change takes effect immediately in the system and on their Stripe subscription.',
-          '**Apply a coupon or discount** — Enter a percentage or fixed discount. This modifies their Stripe subscription price.',
-          'Plan changes made here sync automatically with Stripe. The user sees the change on their next login.',
+          '**Upgrade or downgrade** — Select a new plan and apply. The change takes effect immediately.',
+          'To cancel, pause, or resume a paying subscription, use the **Billing & Sales** page (admin nav). Coupons/discounts are managed directly in the Stripe dashboard.',
         ],
       },
       {
@@ -77,11 +76,10 @@ const SECTIONS: AdminHelpSection[] = [
         ],
       },
       {
-        heading: 'Banning Users',
+        heading: 'Restricting Access',
         body: [
-          'To ban a user, click the **Ban** button in the user detail panel. You must enter a reason for the ban.',
-          'Banned users cannot log in or access the platform. Their videos and data are preserved but inaccessible.',
-          'To unban, click **Unban** on the same panel. The user regains immediate access.',
+          'To remove a misbehaving user\'s access today, toggle **Admin/Beta** off and downgrade their plan, or disable the account in Supabase Auth.',
+          'A one-click Ban/Unban control is on the roadmap and not yet surfaced in the UI.',
         ],
       },
       {
@@ -120,10 +118,8 @@ const SECTIONS: AdminHelpSection[] = [
       {
         heading: 'Content Moderation',
         body: [
-          'Admins can moderate video content:',
-          '**Flag** — Mark a video for review. Flagged videos show a warning badge. Flagging does not remove the video but marks it for your attention.',
-          '**Unflag** — Remove the flag after review.',
-          '**Delete** — Permanently remove a video and all associated files (slides, audio, MP4). This cannot be undone. The user is not automatically notified.',
+          'Flag/unflag/delete moderation controls are on the roadmap and not yet wired into the admin UI.',
+          'To remove a problematic video today, delete it from the user\'s library (or the videos table) directly.',
         ],
       },
     ],
@@ -262,7 +258,7 @@ const SECTIONS: AdminHelpSection[] = [
         body: [
           'The audit log records all significant actions across the platform:',
           '**User actions** — Signups, logins, plan changes, video creation, video deletion.',
-          '**Admin actions** — Plan changes, credit adjustments, user bans/unbans, video moderation (flag/unflag/delete).',
+          '**Admin actions** — Plan changes, credit adjustments, admin/beta toggles, video retries, impersonation, and campaign sends.',
           '**System events** — Failed video generations, webhook errors, cron job completions.',
           'Each log entry includes a timestamp, the actor (user or admin), the action type, and details.',
         ],

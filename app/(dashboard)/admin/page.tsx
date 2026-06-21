@@ -850,7 +850,9 @@ export default function AdminPage() {
                       className="btn btn-sm btn-soft"
                       style={{ fontSize: 11 }}
                       onClick={async () => {
-                        await fetch('/api/admin/prospect-pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: p.url }) })
+                        // Pass regenerateId so the pipeline replaces the existing
+                        // row instead of inserting a duplicate.
+                        await fetch('/api/admin/prospect-pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: p.url, regenerateId: p.id }) })
                         const r = await fetch('/api/admin/prospect-pipeline')
                         const d = await r.json()
                         setProspects(d.prospects ?? [])

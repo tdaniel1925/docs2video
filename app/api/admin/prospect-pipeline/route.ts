@@ -52,7 +52,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
-    const { url } = (await request.json()) as { url: string }
+    const body = (await request.json()) as { url?: string; prospectId?: string; action?: string; regenerateId?: string }
+    const { url, action, regenerateId } = body
+    const rejectId = body.prospectId
+    const admin = createAdminClient()
+
+    // Reject branch: mark the prospect rejected and stop. Accepts either an
+    // explicit {action:'reject', prospectId} or the legacy {url:'__reject__',
+    // prospectId} sentinel the UI sends. (Previously the sentinel fell through
+    // to URL parsing and 400'd, so rejection never persisted.)
+    if ((action === 'reject' || url === '__reject__') && rejectId) {
+      const { error: rejErr } = await admin
+        .from('prospect_demos')
+        .update({ status: 'rejected' })
+        .eq('id', rejectId)
+      if (rejErr) return NextResponse.json({ error: rejErr.message }, { status: 500 })
+      return NextResponse.json({ success: true, status: 'rejected' })
+    }
+
     if (!url || typeof url !== 'string') {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 })
     }
@@ -65,7 +82,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid URL' }, { status: 400 })
     }
 
-    const admin = createAdminClient()
+    // Regenerate: delete the prior prospect row so we end with ONE fresh row
+    // for this URL instead of accumulating duplicates each time.
+    if (regenerateId) {
+      await admin.from('prospect_demos').delete().eq('id', regenerateId)
+    }
 
     // Create prospect_demos record
     const { data: prospect, error: insertErr } = await admin

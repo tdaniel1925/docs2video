@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/app/_lib/supabase/admin'
 import { createClient } from '@/app/_lib/supabase/server'
 import { isAdmin , isAdminRequest } from '@/app/_lib/admin'
+import { logAdminAction } from '@/app/_lib/audit'
 import { INDUSTRIES, type IndustryId } from '@/app/_lib/industries'
 import { Resend } from 'resend'
 import OpenAI from 'openai'
@@ -312,12 +313,11 @@ Return ONLY valid JSON (no markdown fences):
       updated_at: new Date().toISOString(),
     }).eq('id', campaignId)
 
-    // Audit log
+    // Audit log — use logAdminAction so it lands in admin_audit_log (the table
+    // the Audit Log tab reads). Was writing to a stray 'audit_log' table.
     try {
-      await admin.from('audit_log').insert({
-        admin_id: user.id,
-        action: 'campaign_send',
-        details: { campaignId, industry: campaign.industry, sent, failed, remaining: remaining ?? 0 },
+      await logAdminAction(user.id, 'campaign_send', undefined, {
+        campaignId, industry: campaign.industry, sent, failed, remaining: remaining ?? 0,
       })
     } catch {}
 

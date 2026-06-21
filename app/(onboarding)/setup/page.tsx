@@ -61,6 +61,20 @@ export default function SetupPage() {
 
   const [error, setError] = useState<string | null>(null)
 
+  // Affiliate signup attribution: if the user arrived via a referral link, the
+  // d2v_ref cookie holds the code. Report the signup once so pre-payment
+  // referrals are attributed (commission still confirmed at payment).
+  useEffect(() => {
+    const m = document.cookie.match(/(?:^|;\s*)d2v_ref=([^;]+)/)
+    const code = m ? decodeURIComponent(m[1]) : null
+    if (!code) return
+    fetch('/api/affiliate/track-signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    }).catch(() => {})
+  }, [])
+
   useEffect(() => {
     async function loadProfile() {
       const supabase = createClient()

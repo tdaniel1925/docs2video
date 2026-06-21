@@ -67,39 +67,30 @@ export async function GET() {
   const allPaid = allQuotes?.filter(q => q.status === 'paid' || q.status === 'accepted').length ?? 0
   const platformConversion = allTotal > 0 ? Math.round((allPaid / allTotal) * 100) : 22
 
-  // Watch-through rate from analytics (percentage of video watched)
+  // Watch-through rate from the player's real 'progress'/'complete' events,
+  // which carry metadata.percent (deepest point watched). We take the MAX
+  // percent seen per session row and average them. (Was reading a watch_pct
+  // field on 'play' events that no producer ever wrote → always a constant.)
+  const pctFrom = (rows: { metadata: unknown }[] | null): number => {
+    const pcts = (rows ?? [])
+      .map(a => Number((a.metadata as any)?.percent))
+      .filter(p => Number.isFinite(p) && p > 0)
+    return pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length) : 0
+  }
+
   const { data: userAnalytics } = await admin
     .from('video_analytics')
     .select('metadata')
     .in('video_id', userVideoIds)
-    .eq('event_type', 'play')
+    .in('event_type', ['progress', 'complete'])
+  const userWatchPct = pctFrom(userAnalytics)
 
-  let userWatchPct = 0
-  if (userAnalytics && userAnalytics.length > 0) {
-    const watchPcts = userAnalytics
-      .map(a => (a.metadata as any)?.watch_pct)
-      .filter((p): p is number => typeof p === 'number')
-    if (watchPcts.length > 0) {
-      userWatchPct = Math.round(watchPcts.reduce((a, b) => a + b, 0) / watchPcts.length)
-    }
-  }
-
-  // Platform watch-through average
   const { data: allAnalytics } = await admin
     .from('video_analytics')
     .select('metadata')
-    .eq('event_type', 'play')
-    .limit(500)
-
-  let platformWatchPct = 61
-  if (allAnalytics && allAnalytics.length > 0) {
-    const watchPcts = allAnalytics
-      .map(a => (a.metadata as any)?.watch_pct)
-      .filter((p): p is number => typeof p === 'number')
-    if (watchPcts.length > 0) {
-      platformWatchPct = Math.round(watchPcts.reduce((a, b) => a + b, 0) / watchPcts.length)
-    }
-  }
+    .in('event_type', ['progress', 'complete'])
+    .limit(1000)
+  const platformWatchPct = pctFrom(allAnalytics) || 61
 
   // Time to first view: avg time between video creation and first view
   const { data: firstViews } = await admin
