@@ -139,11 +139,13 @@ export async function POST(request: Request) {
             break
           }
           if (credits > 0) {
-            // Idempotency is already provided by the processed_stripe_events
-            // claim at the top of this handler, so DON'T pass an idempotencyKey
-            // here (it would collide with that same event_id and no-op the
-            // grant). The atomic RPC still commits balance + ledger together.
-            await addTopupCredits(userId, credits, packName)
+            // Gate the grant on a per-SESSION key (distinct from the top-level
+            // event claim) so it's idempotent independently of that claim. This
+            // (a) survives a hard process kill — the reconcile-credit-packs cron
+            // can later grant with the SAME pack:{sessionId} key as a no-op-or-
+            // heal, and (b) lets the two paths never double-grant. The atomic
+            // RPC commits balance + ledger + this key in one transaction.
+            await addTopupCredits(userId, credits, packName, { idempotencyKey: `pack:${session.id}` })
             console.log(`[webhook] Credit pack purchased: ${credits} credits for user ${userId}`)
           }
           break
