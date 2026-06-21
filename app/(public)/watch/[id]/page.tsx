@@ -574,8 +574,11 @@ const pageStyles = `
     background: #F7F8FA;
     border: 1px solid var(--border-light, #E8EDF2);
     border-radius: 10px;
-    padding: 20px 24px;
+    padding: 24px 28px;
     margin-top: 8px;
+    width: 100%;
+    max-height: 480px;
+    overflow-y: auto;
   }
   .wp-disclosures-heading {
     font-size: 13px;
