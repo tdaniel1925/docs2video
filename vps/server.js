@@ -898,6 +898,15 @@ async function v3Tts(text, voiceId, outPath) {
   return Math.round(((dur || 3) + 0.9) * 30)
 }
 
+// Minimum on-screen hold so a SHORT narration can't produce a flash-by slide
+// (the cover read ~1.5s). Cover gets a longer floor (it's the establishing
+// shot); every scene gets a readable minimum. 30fps.
+const MIN_SCENE_FR = 90    // 3.0s
+const MIN_COVER_FR = 135   // 4.5s
+function floorDuration(frames, isCover) {
+  return Math.max(frames || 0, isCover ? MIN_COVER_FR : MIN_SCENE_FR)
+}
+
 // Art-direct each scene: ask Gemini-flash to write a SPECIFIC cinematic image
 // prompt per scene (subject, setting, lighting, camera) — like a film director.
 // This is what made the reference video's imagery good; deriving an image from
@@ -1049,7 +1058,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
     for (let i = 0; i < scenes.length; i++) {
       const s = scenes[i]
       const audioName = `r3-${videoId}-${i}.mp3`
-      const durationInFrames = await v3Tts(s.narration || s.title || ' ', voiceId, join(pub, audioName))
+      const durationInFrames = floorDuration(await v3Tts(s.narration || s.title || ' ', voiceId, join(pub, audioName)), i === 0)
       if (isInfo) {
         outScenes.push({ title: s.title || '', body: s.bullets?.[0], metrics: s.metrics, audio: audioName, durationInFrames })
       } else {
@@ -1375,7 +1384,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     for (let i = 0; i < scenes.length; i++) {
       const s = scenes[i]
       const audioName = `ed-${videoId}-${i}.mp3`
-      const durationInFrames = await v3Tts(s.narration || s.title || ' ', voiceId, join(pub, audioName))
+      const durationInFrames = floorDuration(await v3Tts(s.narration || s.title || ' ', voiceId, join(pub, audioName)), i === 0)
       let image
       if (s.wantsImage) {
         await setProgress(30 + Math.round((i / scenes.length) * 45), `Composing page ${i + 1}/${scenes.length}...`)
