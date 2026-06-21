@@ -246,12 +246,11 @@ export default async function HomePage() {
 
           <div style={{display:'grid',gridTemplateColumns:'repeat(3, 1fr)',gap:16,maxWidth:900,margin:'32px auto'}}>
             {[
-              {src:'/style-previews/warm-story.png', label:'Warm Story', desc:'Cozy illustrations, families, nature'},
-              {src:'/style-previews/corporate-clean.png', label:'Corporate Clean', desc:'Professional flat vector, data-forward'},
-              {src:'/style-previews/bold-infographic.png', label:'Bold Infographic', desc:'High contrast, big numbers, impactful'},
-              {src:'/style-previews/watercolor.png', label:'Watercolor', desc:'Soft painted scenes, artistic, gentle'},
-              {src:'/style-previews/dark-cinematic.png', label:'Dark Cinematic', desc:'Navy & gold, dramatic, luxurious'},
-              {src:'/style-previews/playful-cartoon.png', label:'Playful Cartoon', desc:'Bright colors, friendly characters, fun'},
+              {src:'/style-previews/isometric-3d.png', label:'Isometric 3D', desc:'Colorful 3D objects, data as visuals, modern'},
+              {src:'/style-previews/apex-corporate.png', label:'Corporate Infographic', desc:'Geometric shapes, icon circles, professional'},
+              {src:'/style-previews/warm-story.png', label:'Warm Story', desc:'Cozy storybook illustration, golden light'},
+              {src:'/style-previews/dark-cinematic.png', label:'Dark Cinematic', desc:'Navy & gold, dramatic, premium'},
+              {src:'/style-previews/bold-infographic.png', label:'Bold Infographic', desc:'Massive numbers, high contrast, impactful'},
             ].map((t) => (
               <div key={t.label} style={{borderRadius:10,overflow:'hidden',border:'1px solid rgba(255,255,255,0.1)',transition:'transform 0.2s'}} className="activity-row">
                 <img src={t.src} alt={t.label} loading="lazy" style={{width:'100%',aspectRatio:'16/9',objectFit:'cover',display:'block'}} />
@@ -266,7 +265,7 @@ export default async function HomePage() {
           <div style={{textAlign:'center',marginTop:32}}>
             <div style={{display:'inline-flex',alignItems:'center',gap:24,flexWrap:'wrap',justifyContent:'center'}}>
               <div style={{textAlign:'center'}}>
-                <div style={{fontSize:42,fontWeight:800,color:'var(--mint)',lineHeight:1}}>60+</div>
+                <div style={{fontSize:42,fontWeight:800,color:'var(--mint)',lineHeight:1}}>5</div>
                 <div style={{fontSize:13,color:'rgba(255,255,255,0.6)',marginTop:4}}>Built-in styles</div>
               </div>
               <div style={{width:1,height:40,background:'rgba(255,255,255,0.15)'}} />
