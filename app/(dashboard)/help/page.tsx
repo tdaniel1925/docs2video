@@ -46,7 +46,7 @@ const GUIDES: HelpGuide[] = [
   {
     href: '/help/pricing',
     title: 'Pricing & Plans',
-    description: 'Free 2 videos, Starter $29, Pro $79, Business $199, and Enterprise $499 plans explained.',
+    description: 'Credit-based plans: Free (1,000/mo), Starter $29, Pro $79, Business $199, Enterprise $499.',
     icon: '💰',
   },
   {
@@ -187,12 +187,13 @@ const ARTICLES: HelpArticle[] = [
     category: 'billing',
     icon: '💰',
     content: [
-      '**Pay Per Video** — 1 free video, then $10 each. No monthly fee.',
-      '**Starter ($29/mo)** — 5 videos/mo included, $5 per additional.',
-      '**Pro ($79/mo)** — 20 videos/mo, priority generation, unlimited brands.',
-      '**Business ($199/mo)** — 75 videos/mo, white-label share pages.',
-      '**Enterprise ($499/mo)** — 200 videos/mo, API access, dedicated support.',
-      'All overages are $5 per video on every plan.',
+      'Plans give you a monthly credit allowance (credits are spent per creation — a standard video is 500 credits):',
+      '**Free** — 1,000 credits/mo. No card required.',
+      '**Starter ($29/mo)** — 5,000 credits/mo.',
+      '**Pro ($79/mo)** — 25,000 credits/mo, priority generation, unlimited brands.',
+      '**Business ($199/mo)** — 75,000 credits/mo, white-label share pages.',
+      '**Enterprise ($499/mo)** — 200,000 credits/mo, API access, dedicated support.',
+      'Need more mid-cycle? Buy top-up packs (never expire): Starter 2,500 ($10), Power 7,500 ($25), Studio 18,000 ($50).',
       'Manage your plan from **Settings > Subscription**.',
     ],
   },
@@ -401,7 +402,7 @@ const ARTICLES: HelpArticle[] = [
     content: [
       'Go to **Settings > Subscription**. Your current plan is displayed along with upgrade options.',
       'Click **Upgrade** next to the plan you want. Upgrades take effect immediately and you are prorated for the remaining billing period.',
-      'Available plans: **Free** (2 videos), **Starter** ($29/mo, 5 videos), **Pro** ($79/mo, 20 videos), **Business** ($199/mo, 75 videos), **Enterprise** ($499/mo, 200 videos).',
+      'Available plans (credits/month): **Free** (1,000), **Starter** ($29 — 5,000), **Pro** ($79 — 25,000), **Business** ($199 — 75,000), **Enterprise** ($499 — 200,000).',
     ],
   },
 ]
