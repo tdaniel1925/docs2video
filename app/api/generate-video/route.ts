@@ -139,30 +139,20 @@ export async function POST(request: Request) {
   const db = isInternalCall ? createAdminClient() : supabase
   const { data: profile } = await db
     .from('profiles')
-    .select('subscription_status, referred_by, card_on_file, free_videos_remaining, is_admin, is_beta')
+    .select('subscription_status, is_admin, is_beta')
     .eq('id', user.id)
     .single()
 
-  const subStatus = (profile?.subscription_status ?? '').toLowerCase()
-  const isPaidUser = isPaidTier(subStatus)
-  const hasReferralDiscount = !!profile?.referred_by
-  const cardOnFile = profile?.card_on_file ?? false
-  const freeRemaining = profile?.free_videos_remaining ?? 0
-  // Admin via email list OR the profiles.is_admin/is_beta DB flags.
+  // BILLING MODEL = CREDITS ONLY. The credit wallet (checkCredits/deductCredits
+  // below) is the single paywall. The legacy free_videos_remaining / card_on_file
+  // 403 gate was removed (audit B4: the counter was never decremented, so it
+  // either let everyone through or duplicated the credit gate). Privileged users
+  // (admin/beta/internal API) still skip the credit deduction.
   // Internal API calls are already metered against the API credit pool by the
   // /api/v1 layer, so they bypass UI-credit checks here.
   const isPrivileged = isInternalCall || isAdmin(user.email) || profile?.is_admin === true || profile?.is_beta === true
-
-  if (!isPrivileged) {
-    if (!isPaidUser && !hasReferralDiscount) {
-      if (freeRemaining <= 0 && !cardOnFile) {
-        return NextResponse.json(
-          { error: 'Free videos used. Please add a payment method to continue.' },
-          { status: 403 }
-        )
-      }
-    }
-  }
+  const subStatus = (profile?.subscription_status ?? '').toLowerCase()
+  const isPaidUser = isPaidTier(subStatus)
 
   const body = await request.json()
   const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, styleReferenceUrl, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, narrationStyle, assetUrls, purpose, uploadMode, industry, barText, recipientName, presenterIntro, introduceInOpening, showContactClosing, photoPlacement } = body as {

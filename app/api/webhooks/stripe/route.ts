@@ -76,19 +76,23 @@ export async function POST(request: Request) {
 
   const supabase = createAdminClient()
 
-  // Idempotency: check if we've already processed this event.
-  // Matches both bare markers ("stripe_event:{id}") and credit-pack
-  // descriptions ("{packName} (stripe_event:{id})").
+  // Idempotency (audit B5): atomically claim the event via a dedicated table
+  // with event_id PRIMARY KEY. INSERT ... if it conflicts, we've already
+  // processed this delivery → stop. This replaces the old non-atomic LIKE-scan
+  // over credit_transactions.description that let concurrent retries through.
   const eventId = event.id
-  const { data: existingEvent } = await supabase
-    .from('credit_transactions')
-    .select('id')
-    .like('description', `%stripe_event:${eventId}%`)
-    .limit(1)
-
-  if (existingEvent && existingEvent.length > 0) {
-    console.log(`[webhook] Skipping duplicate event ${eventId} (already processed)`)
-    return NextResponse.json({ received: true, duplicate: true })
+  const { error: claimErr } = await supabase
+    .from('processed_stripe_events')
+    .insert({ event_id: eventId, event_type: event.type })
+  if (claimErr) {
+    // Unique-violation = duplicate delivery (expected). Any other error: fail so
+    // Stripe retries rather than silently dropping a paid event.
+    if ((claimErr as any).code === '23505') {
+      console.log(`[webhook] Skipping duplicate event ${eventId} (already claimed)`)
+      return NextResponse.json({ received: true, duplicate: true })
+    }
+    console.error(`[webhook] Could not claim event ${eventId}:`, claimErr.message)
+    return NextResponse.json({ error: 'idempotency claim failed' }, { status: 500 })
   }
 
   try {
@@ -133,7 +137,11 @@ export async function POST(request: Request) {
             break
           }
           if (credits > 0) {
-            await addTopupCredits(userId, credits, `${packName} (stripe_event:${eventId})`)
+            // Idempotency is already provided by the processed_stripe_events
+            // claim at the top of this handler, so DON'T pass an idempotencyKey
+            // here (it would collide with that same event_id and no-op the
+            // grant). The atomic RPC still commits balance + ledger together.
+            await addTopupCredits(userId, credits, packName)
             console.log(`[webhook] Credit pack purchased: ${credits} credits for user ${userId}`)
           }
           break
@@ -241,16 +249,29 @@ export async function POST(request: Request) {
             }
           }
           console.log(`[webhook] Subscription updated to ${tier} for customer ${customerId}`)
-        } else if (['canceled', 'unpaid', 'past_due'].includes(subscription.status)) {
+        } else if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
+          // Dunning (audit H2): keep the user BLOCKED. Setting status to null
+          // here dropped them to the free tier, erasing the past_due block that
+          // invoice.payment_failed set, so delinquents kept generating.
+          const { error: pdErr } = await supabase.from('profiles').update({
+            subscription_status: 'past_due',
+          }).eq('stripe_customer_id', customerId)
+          if (pdErr) {
+            console.error(`[webhook] Failed to set past_due for customer ${customerId}:`, pdErr.message)
+            return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
+          }
+          console.log(`[webhook] Subscription ${subscription.status} → past_due for customer ${customerId}`)
+        } else if (subscription.status === 'canceled') {
+          // Truly canceled → clear to free tier.
           const { error: statusErr } = await supabase.from('profiles').update({
             subscription_status: null,
             stripe_subscription_id: null,
           }).eq('stripe_customer_id', customerId)
           if (statusErr) {
-            console.error(`[webhook] Failed to update subscription status for customer ${customerId}:`, statusErr.message)
+            console.error(`[webhook] Failed to clear canceled subscription for customer ${customerId}:`, statusErr.message)
             return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
           }
-          console.log(`[webhook] Subscription status ${subscription.status} for customer ${customerId}`)
+          console.log(`[webhook] Subscription canceled for customer ${customerId}`)
         }
         break
       }
@@ -357,13 +378,56 @@ export async function POST(request: Request) {
         break
       }
 
-      /* ─── Refund / chargeback — claw back affiliate commission ─── */
-      case 'charge.refunded': {
-        const charge = event.data.object as Stripe.Charge
-        const invoiceId = (charge as any).invoice as string | null
+      /* ─── Refund / chargeback — claw back commission AND revoke credits ─── */
+      case 'charge.refunded':
+      case 'charge.dispute.created':
+      case 'charge.dispute.funds_withdrawn': {
+        // For disputes the object is a Dispute (with .charge); for refunds it's
+        // a Charge. Normalize to a charge id + payment intent.
+        const obj = event.data.object as any
+        const chargeId: string | null = event.type === 'charge.refunded' ? obj.id : (obj.charge as string | null)
+        const invoiceId: string | null = obj.invoice ?? null
+
         if (invoiceId) {
           await clawbackByInvoice(invoiceId)
-          console.log(`[webhook] Clawed back affiliate commission for refunded invoice ${invoiceId}`)
+          console.log(`[webhook] Clawed back affiliate commission for ${invoiceId}`)
+        }
+
+        // Revoke credits if the underlying purchase was a credit pack (audit H1).
+        try {
+          const paymentIntentId: string | null =
+            (event.type === 'charge.refunded' ? obj.payment_intent : null) ?? null
+          // Resolve the checkout session for this charge to read its metadata.
+          let session: Stripe.Checkout.Session | undefined
+          if (paymentIntentId) {
+            const list = await stripe.checkout.sessions.list({ payment_intent: paymentIntentId, limit: 1 })
+            session = list.data[0]
+          } else if (chargeId) {
+            const ch = await stripe.charges.retrieve(chargeId)
+            if (ch.payment_intent) {
+              const list = await stripe.checkout.sessions.list({ payment_intent: ch.payment_intent as string, limit: 1 })
+              session = list.data[0]
+            }
+          }
+          if (session?.metadata?.type === 'credit_pack') {
+            const userId = session.metadata.supabase_user_id
+            const credits = parseInt(session.metadata.credits || '0', 10)
+            if (userId && credits > 0) {
+              const { error: revErr } = await supabase.rpc('revoke_topup_atomic', {
+                p_user_id: userId,
+                p_amount: credits,
+                p_description: `refund/chargeback ${chargeId || ''}: -${credits} credits`,
+                p_idempotency_key: `revoke:${chargeId || event.id}`,
+              })
+              if (revErr) {
+                console.error(`[webhook] Credit revoke failed for ${chargeId}:`, revErr.message)
+                return NextResponse.json({ error: 'revoke failed' }, { status: 500 })
+              }
+              console.log(`[webhook] Revoked ${credits} credits from user ${userId} (${event.type})`)
+            }
+          }
+        } catch (e) {
+          console.error(`[webhook] Credit revoke lookup failed for ${event.type} (non-fatal):`, e)
         }
         break
       }
@@ -375,6 +439,10 @@ export async function POST(request: Request) {
     const message = err instanceof Error ? err.message : 'Unknown webhook handler error'
     console.error(`[webhook] Handler error for ${event.type}:`, message)
     logError('stripe-webhook-handler', err, { eventType: event.type, eventId: event.id })
+    // Release the idempotency claim so Stripe's retry actually re-runs the
+    // handler (otherwise the claimed-but-unprocessed event would be skipped and
+    // a paid customer would silently get nothing). Best-effort.
+    await supabase.from('processed_stripe_events').delete().eq('event_id', eventId)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 

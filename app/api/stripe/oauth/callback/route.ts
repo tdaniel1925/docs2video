@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import { createClient } from '../../../../_lib/supabase/server'
 import { createAdminClient } from '../../../../_lib/supabase/admin'
+import { OAUTH_STATE_COOKIE } from '../route'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -8,7 +11,7 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url)
     const code = url.searchParams.get('code')
-    const state = url.searchParams.get('state') // user_id
+    const state = url.searchParams.get('state')
     const error = url.searchParams.get('error')
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
@@ -20,6 +23,24 @@ export async function GET(request: Request) {
 
     if (!code || !state) {
       return NextResponse.redirect(`${siteUrl}/settings?stripe_error=missing_params`)
+    }
+
+    // --- CSRF + identity verification (audit B2) ---
+    // 1) The `state` must match the per-session nonce cookie set in /oauth.
+    // 2) There MUST be an authenticated session; tokens are written to THAT
+    //    user, never to an id taken from the query string. This prevents an
+    //    attacker from binding their Stripe account to a victim's profile.
+    const cookieStore = await cookies()
+    const expectedState = cookieStore.get(OAUTH_STATE_COOKIE)?.value
+    if (!expectedState || expectedState !== state) {
+      console.error('[stripe/oauth/callback] state mismatch (possible CSRF)')
+      return NextResponse.redirect(`${siteUrl}/settings?stripe_error=invalid_state`)
+    }
+
+    const authed = await createClient()
+    const { data: { user } } = await authed.auth.getUser()
+    if (!user) {
+      return NextResponse.redirect(`${siteUrl}/settings?stripe_error=not_authenticated`)
     }
 
     // Exchange authorization code for access token
@@ -47,22 +68,24 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${siteUrl}/settings?stripe_error=no_account_id`)
     }
 
-    // Save to profiles
+    // Save to the AUTHENTICATED user's profile only. We persist only the
+    // connected-account id and use the platform key + Stripe-Account header for
+    // charges; the raw access token is a live secret we don't need (audit LOW).
+    void accessToken
     const supabase = createAdminClient()
     const { error: updateError } = await supabase
       .from('profiles')
-      .update({
-        stripe_user_id: stripeUserId,
-        stripe_access_token: accessToken,
-      })
-      .eq('id', state)
+      .update({ stripe_user_id: stripeUserId })
+      .eq('id', user.id)
 
     if (updateError) {
       console.error('[stripe/oauth/callback] DB update error:', updateError)
       return NextResponse.redirect(`${siteUrl}/settings?stripe_error=save_failed`)
     }
 
-    return NextResponse.redirect(`${siteUrl}/settings?stripe_connected=true`)
+    const ok = NextResponse.redirect(`${siteUrl}/settings?stripe_connected=true`)
+    ok.cookies.delete(OAUTH_STATE_COOKIE)
+    return ok
   } catch (err: unknown) {
     console.error('[stripe/oauth/callback] Error:', err)
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'

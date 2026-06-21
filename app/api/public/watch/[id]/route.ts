@@ -18,13 +18,33 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const admin = createAdminClient()
 
+  // Presentation-safe allowlist ONLY (audit H3). select('*') leaked draft_data
+  // (recipient PII, apiWebhookUrl), script/_pipeline_input (raw source docs),
+  // error_message, and the full private brand row to anyone with the UUID.
+  const VIDEO_COLS = 'id, user_id, title, status, video_url, thumbnail_url, music_url, script, scene_count, preview_thumbs, created_at, updated_at'
+  const BRAND_COLS = 'id, name, logo_url, logo_light_url, logo_dark_url, logo_chip, primary_color, secondary_color, accent_color, background_color, text_color, tagline, fonts, profile_type, person_role, photo_url, intro_line, show_logo, show_name_on_slides, photo_placement, brand_guide_data'
   const { data: video } = await admin
     .from('videos')
-    .select('*, brand:brands(*), infographic:infographics(policy_data, source_pdf_url)')
+    .select(`${VIDEO_COLS}, brand:brands(${BRAND_COLS}), infographic:infographics(policy_data, source_pdf_url)`)
     .eq('id', id)
     .eq('status', 'completed')
     .single()
   if (!video) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Sanitize the script's _pipeline_input: the share page needs only the
+  // disclaimer/industry/insurance flags from policyData, NOT the raw source
+  // document text that the generator stashed there (audit H3).
+  const script = (video as any).script
+  if (script && typeof script === 'object' && script._pipeline_input) {
+    const pd = script._pipeline_input.policyData || {}
+    script._pipeline_input = {
+      policyData: {
+        deathBenefit: pd.deathBenefit,
+        industry: pd.industry,
+        disclaimers: pd.disclaimers,
+      },
+    }
+  }
 
   const [{ data: agent }, { data: quote }] = await Promise.all([
     // Only SAFE, intentionally-public profile columns — never the whole row.

@@ -433,52 +433,42 @@ export async function applyTierChange(userId: string, newSubscriptionStatus: str
  * top-ups — Stripe webhook retries, admin grant + refund overlap — silently
  * destroying purchased credits). ensureCreditBalance guarantees a row exists.
  */
-export async function addTopupCredits(userId: string, amount: number, source: string): Promise<void> {
-  if (!amount || amount <= 0) return
+/**
+ * Add top-up credits ATOMICALLY via the add_topup_atomic Postgres function:
+ * the balance increment and the ledger row commit together, and an optional
+ * idempotency key (e.g. a Stripe event id) makes duplicate deliveries a no-op
+ * at the DB level (audit B5/H5 — replaces the non-atomic CAS + LIKE-scan).
+ * `idempotencyKey` should be set for any money event that Stripe may re-deliver.
+ */
+export async function addTopupCredits(
+  userId: string,
+  amount: number,
+  source: string,
+  opts?: { idempotencyKey?: string; action?: string; videoId?: string },
+): Promise<boolean> {
+  if (!amount || amount <= 0) return false
   const admin = createAdminClient()
-  const MAX_ATTEMPTS = 6
 
-  // Make sure a row exists so the CAS update can match.
+  // Make sure a wallet row exists so the RPC's UPDATE can match.
   const { data: prof } = await admin.from('profiles').select('subscription_status').eq('id', userId).single()
   await ensureCreditBalance(userId, prof?.subscription_status || 'free')
 
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const { data: row } = await admin
-      .from('credit_balances')
-      .select('balance, topup_balance')
-      .eq('user_id', userId)
-      .single()
-    if (!row) {
-      console.error(`[credits] addTopupCredits: no row for user ${userId} after ensure`)
-      return
-    }
-
-    const newTopup = (row.topup_balance ?? 0) + amount
-    const { data: updated, error } = await admin
-      .from('credit_balances')
-      .update({ topup_balance: newTopup, updated_at: new Date().toISOString() })
-      .eq('user_id', userId)
-      .eq('topup_balance', row.topup_balance) // CAS guard against concurrent top-up
-      .select('user_id')
-
-    if (error) {
-      console.error(`[credits] addTopupCredits hard error for user ${userId}:`, error.message)
-      return
-    }
-    if (updated && updated.length > 0) {
-      await admin.from('credit_transactions').insert({
-        user_id: userId,
-        amount,
-        balance_after: (row.balance ?? 0) + newTopup,
-        action: 'topup_pack',
-        description: `${source}: +${amount.toLocaleString()} credits`,
-      })
-      return
-    }
-    // Zero rows → another top-up landed first; re-read and retry.
-    console.warn(`[credits] addTopupCredits CAS race for user ${userId}, retry ${attempt + 1}/${MAX_ATTEMPTS}`)
+  const { data, error } = await admin.rpc('add_topup_atomic', {
+    p_user_id: userId,
+    p_amount: amount,
+    p_action: opts?.action || 'topup_pack',
+    p_description: `${source}: +${amount.toLocaleString()} credits`,
+    p_video_id: opts?.videoId || null,
+    p_idempotency_key: opts?.idempotencyKey || null,
+  })
+  if (error) {
+    console.error(`[credits] addTopupCredits RPC error for user ${userId}:`, error.message)
+    throw new Error(`addTopupCredits failed: ${error.message}`) // let Stripe webhook 500 + retry
   }
-  console.error(`[credits] addTopupCredits gave up after ${MAX_ATTEMPTS} attempts for user ${userId}`)
+  if (data === false) {
+    console.log(`[credits] addTopupCredits no-op (duplicate) for user ${userId} key=${opts?.idempotencyKey}`)
+  }
+  return data === true
 }
 
 /**
@@ -490,21 +480,18 @@ export async function addTopupCredits(userId: string, amount: number, source: st
  */
 export async function refundVideoCredits(userId: string, amount: number, videoId: string): Promise<void> {
   if (!amount || amount <= 0 || !videoId) return
-  const admin = createAdminClient()
-  const marker = `refund:video:${videoId}`
-
-  const { data: prior } = await admin
-    .from('credit_transactions')
-    .select('id')
-    .eq('user_id', userId)
-    .like('description', `%${marker}%`)
-    .limit(1)
-  if (prior && prior.length > 0) {
+  // ATOMIC + idempotent (audit H4): the refund row uses action='refund_video',
+  // which has a UNIQUE(user_id, video_id) index, and the idempotency key gates
+  // duplicate inserts. Two concurrent failure handlers for the same video → one
+  // refund. (Was a check-then-act SELECT→addTopup race that double-refunded.)
+  const applied = await addTopupCredits(userId, amount, `refund:video:${videoId}`, {
+    action: 'refund_video',
+    videoId,
+    idempotencyKey: `refund:video:${videoId}`,
+  })
+  if (!applied) {
     console.log(`[credits] Skipping duplicate refund for video ${videoId} (already refunded)`)
-    return
   }
-
-  await addTopupCredits(userId, amount, marker)
 }
 
 export async function getUsageHistory(userId: string, limit: number = 50) {
