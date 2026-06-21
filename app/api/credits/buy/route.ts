@@ -18,8 +18,12 @@ export async function POST(request: Request) {
   const packInfo = CREDIT_PACKS[pack]
   if (!packInfo) return NextResponse.json({ error: 'Invalid pack' }, { status: 400 })
 
-  const priceId = process.env[packInfo.priceEnv]
+  // Trim stray whitespace/newlines that can sneak into env values (a trailing
+  // "\n" in the price id breaks the Stripe line item; in the site URL it makes
+  // success_url an invalid URL → "Not a valid URL" on redirect).
+  const priceId = (process.env[packInfo.priceEnv] || '').trim()
   if (!priceId) return NextResponse.json({ error: 'Credit packs not configured yet' }, { status: 500 })
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').trim().replace(/\/+$/, '')
 
   try {
     const stripe = getStripe()
@@ -60,8 +64,8 @@ export async function POST(request: Request) {
       customer: customerId,
       mode: 'payment' as const,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com'}/settings?credits=success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com'}/pricing`,
+      success_url: `${siteUrl}/settings?credits=success`,
+      cancel_url: `${siteUrl}/pricing`,
       metadata: {
         type: 'credit_pack',
         pack,
@@ -90,6 +94,10 @@ export async function POST(request: Request) {
       }
     }
 
+    if (!session.url || !/^https?:\/\//.test(session.url)) {
+      console.error('[credits/buy] Stripe returned no valid checkout url')
+      return NextResponse.json({ error: 'Checkout could not be started. Please try again.' }, { status: 502 })
+    }
     return NextResponse.json({ url: session.url })
   } catch (err) {
     console.error('[credits/buy] Error:', err)

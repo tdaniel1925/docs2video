@@ -20,10 +20,12 @@ const PACKS = [
 
 export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyCreditsModalProps) {
   const [loading, setLoading] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   if (!open) return null
 
   async function buy(pack: string) {
+    setError(null)
     setLoading(pack)
     try {
       const res = await fetch('/api/credits/buy', {
@@ -31,14 +33,15 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pack }),
       })
-      const data = await res.json()
-      if (data.url) {
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.url && /^https?:\/\//.test(data.url)) {
         window.location.href = data.url
       } else {
-        alert(data.error || 'Could not start checkout. Please try again.')
+        setError(data.error || 'Could not start checkout. Please try again.')
         setLoading(null)
       }
     } catch {
+      setError('Network error — please check your connection and try again.')
       setLoading(null)
     }
   }
@@ -70,6 +73,16 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
             ? `This needs ${needed?.toLocaleString()} credits${typeof balance === 'number' ? `, and you have ${balance.toLocaleString()}` : ''}. Top up below — credits never expire and are used after your monthly allotment.`
             : 'Top up your balance. Credits never expire and are used after your monthly allotment runs out.'}
         </p>
+
+        {error && (
+          <div role="alert" style={{
+            padding: '10px 14px', borderRadius: 8, marginBottom: 16,
+            background: 'rgba(220, 38, 38, 0.08)', border: '1.5px solid rgba(220, 38, 38, 0.3)',
+            color: '#b91c1c', fontSize: 13, fontWeight: 600, lineHeight: 1.4,
+          }}>
+            {error}
+          </div>
+        )}
 
         {PACKS.map(p => (
           <div key={p.key} style={{
