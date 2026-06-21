@@ -18,6 +18,7 @@ interface AgentProfile {
   email: string
   phone?: string | null
   calendly_url: string | null
+  payment_link_url?: string | null
   stripe_user_id: string | null
   subscription_status: string | null
 }
@@ -1335,8 +1336,10 @@ export default function PublicWatchPage() {
             {/* Booking & Payment buttons */}
             {(() => {
               const pi = (video.script as any)?._pipeline_input
-              const bookingUrl = pi?.bookingUrl
-              const paymentLnk = pi?.paymentLink
+              // Prefer a quote/pipeline-specific link; fall back to the agent's
+              // saved Calendly + Stripe Payment Link from Settings → Integrations.
+              const bookingUrl = pi?.bookingUrl || agent?.calendly_url?.trim() || ''
+              const paymentLnk = pi?.paymentLink || (agent as any)?.payment_link_url?.trim() || ''
               if (!bookingUrl && !paymentLnk) return null
               return (
                 <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>

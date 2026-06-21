@@ -16,6 +16,8 @@ export interface Profile {
   stripe_user_id: string | null
   stripe_access_token: string | null
   calendly_url: string | null
+  /** Agent's Stripe Payment Link — shown as a Pay button on share pages. */
+  payment_link_url?: string | null
   card_on_file: boolean
   free_videos_remaining: number
   credits_remaining: number

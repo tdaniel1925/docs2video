@@ -88,6 +88,27 @@ export default function NotificationBell() {
     setUnreadCount(prev => Math.max(0, prev - 1))
   }
 
+  async function deleteOne(id: string) {
+    const wasUnread = notifications.find(n => n.id === id)?.read === false
+    setNotifications(prev => prev.filter(n => n.id !== id)) // optimistic
+    if (wasUnread) setUnreadCount(prev => Math.max(0, prev - 1))
+    await fetch('/api/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', notificationId: id }),
+    }).catch(() => {})
+  }
+
+  async function clearAll() {
+    setNotifications([]) // optimistic
+    setUnreadCount(0)
+    await fetch('/api/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete-all' }),
+    }).catch(() => {})
+  }
+
   async function dismissJob(id: string) {
     setActiveJobs(prev => prev.filter(j => j.id !== id)) // optimistic
     await fetch('/api/notifications', {
@@ -162,6 +183,14 @@ export default function NotificationBell() {
                   Mark all read
                 </button>
               )}
+              {notifications.length > 0 && (
+                <button onClick={clearAll} style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 12, color: '#b91c1c', fontWeight: 600,
+                }}>
+                  Clear all
+                </button>
+              )}
               <Link href="/activity" onClick={() => setOpen(false)} style={{
                 fontSize: 12, color: 'var(--ink-soft)', textDecoration: 'none', fontWeight: 600,
               }}>
@@ -219,38 +248,49 @@ export default function NotificationBell() {
               const Wrapper = n.link ? Link : 'div'
               const wrapperProps = n.link ? { href: n.link, onClick: () => { markRead(n.id); setOpen(false) } } : {}
               return (
-                <Wrapper
-                  key={n.id}
-                  {...wrapperProps as any}
-                  style={{
-                    display: 'flex', gap: 12, padding: '12px 18px',
-                    borderBottom: '1px solid var(--border-light)',
-                    background: n.read ? 'white' : 'rgba(168,240,212,0.06)',
-                    textDecoration: 'none', color: 'var(--ink)',
-                    cursor: n.link ? 'pointer' : 'default',
-                    transition: 'background 0.1s',
-                  }}
-                >
-                  <span style={{ fontSize: 18, flexShrink: 0, marginTop: 2 }}>
-                    {TYPE_ICONS[n.type] ?? '📋'}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: n.read ? 500 : 700, lineHeight: 1.4 }}>
-                      {n.title}
-                    </div>
-                    {n.message && (
-                      <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2, lineHeight: 1.4 }}>
-                        {n.message}
+                <div key={n.id} style={{ position: 'relative', borderBottom: '1px solid var(--border-light)', background: n.read ? 'white' : 'rgba(168,240,212,0.06)' }}>
+                  <Wrapper
+                    {...wrapperProps as any}
+                    style={{
+                      display: 'flex', gap: 12, padding: '12px 40px 12px 18px',
+                      textDecoration: 'none', color: 'var(--ink)',
+                      cursor: n.link ? 'pointer' : 'default',
+                    }}
+                  >
+                    <span style={{ fontSize: 18, flexShrink: 0, marginTop: 2 }}>
+                      {TYPE_ICONS[n.type] ?? '📋'}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: n.read ? 500 : 700, lineHeight: 1.4 }}>
+                        {n.title}
                       </div>
-                    )}
-                    <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 4 }}>
-                      {timeAgo(n.created_at)}
+                      {n.message && (
+                        <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2, lineHeight: 1.4 }}>
+                          {n.message}
+                        </div>
+                      )}
+                      <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 4 }}>
+                        {timeAgo(n.created_at)}
+                      </div>
                     </div>
-                  </div>
-                  {!n.read && (
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--mint)', flexShrink: 0, marginTop: 6 }} />
-                  )}
-                </Wrapper>
+                    {!n.read && (
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--mint)', flexShrink: 0, marginTop: 6 }} />
+                    )}
+                  </Wrapper>
+                  {/* Delete this notification (sits above the Link so it's clickable). */}
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteOne(n.id) }}
+                    title="Delete"
+                    aria-label="Delete notification"
+                    style={{
+                      position: 'absolute', top: 10, right: 12,
+                      border: 'none', background: 'none', cursor: 'pointer',
+                      color: 'var(--ink-light)', fontSize: 16, lineHeight: 1, padding: 2,
+                    }}
+                  >
+                    &times;
+                  </button>
+                </div>
               )
             })
           )}

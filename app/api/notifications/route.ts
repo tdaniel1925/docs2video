@@ -48,7 +48,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const { action, notificationId, jobId } = await request.json() as {
-    action: 'mark-read' | 'mark-all-read' | 'dismiss-job'
+    action: 'mark-read' | 'mark-all-read' | 'dismiss-job' | 'delete' | 'delete-all'
     notificationId?: string
     jobId?: string
   }
@@ -60,6 +60,23 @@ export async function POST(request: Request) {
     await admin.from('jobs')
       .update({ status: 'failed', error_message: 'Dismissed by user' })
       .eq('id', jobId)
+      .eq('user_id', user.id)
+    return NextResponse.json({ success: true })
+  }
+
+  // Delete a single notification (owner-scoped).
+  if (action === 'delete' && notificationId) {
+    await admin.from('notifications')
+      .delete()
+      .eq('id', notificationId)
+      .eq('user_id', user.id)
+    return NextResponse.json({ success: true })
+  }
+
+  // Clear all of this user's notifications.
+  if (action === 'delete-all') {
+    await admin.from('notifications')
+      .delete()
       .eq('user_id', user.id)
     return NextResponse.json({ success: true })
   }

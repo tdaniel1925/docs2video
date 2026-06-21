@@ -129,6 +129,9 @@ export default function SettingsPage() {
   const [socialSaved, setSocialSaved] = useState(false)
 
   const [stripeMessage, setStripeMessage] = useState<string | null>(null)
+  const [paymentLink, setPaymentLink] = useState('')
+  const [paymentLinkSaving, setPaymentLinkSaving] = useState(false)
+  const [paymentLinkSaved, setPaymentLinkSaved] = useState(false)
   const [creditBalance, setCreditBalance] = useState<number | null>(null)
   const [showBuyCredits, setShowBuyCredits] = useState(false)
   const [calendlyUrl, setCalendlyUrl] = useState('')
@@ -156,6 +159,7 @@ export default function SettingsPage() {
       if (p) {
         setProfile(p as Profile)
         setCalendlyUrl(p.calendly_url ?? '')
+        setPaymentLink((p as any).payment_link_url ?? '')
         setDefaultStyle(p.default_style ?? 'luxury')
       }
       const { data: brands } = await supabase.from('brands').select('*').eq('user_id', user.id).order('is_default', { ascending: false }).limit(1)
@@ -381,6 +385,16 @@ export default function SettingsPage() {
     await supabase.from('profiles').update({ calendly_url: calendlyUrl || null }).eq('id', profile.id)
     setCalendarySaving(false); setCalendarySaved(true)
     setTimeout(() => setCalendarySaved(false), 3000)
+  }
+
+  async function savePaymentLink() {
+    if (!profile) return
+    setPaymentLinkSaving(true)
+    const supabase = createClient()
+    const clean = paymentLink.trim()
+    await supabase.from('profiles').update({ payment_link_url: clean || null }).eq('id', profile.id)
+    setPaymentLinkSaving(false); setPaymentLinkSaved(true)
+    setTimeout(() => setPaymentLinkSaved(false), 3000)
   }
 
   async function saveDefaultStyle(styleId: string) {
@@ -799,28 +813,36 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Payments */}
+          {/* Payments — Stripe Payment Link */}
           <div className="settings-card">
-            <h3>Payments (Stripe)</h3>
-            <p className="ssub">Connect your Stripe account to collect payments from clients on your share pages.</p>
+            <h3>Payment Link (Stripe)</h3>
+            <p className="ssub">
+              Paste a Stripe Payment Link. It appears on your share pages so recipients can pay you directly.
+              {' '}
+              <a href="https://dashboard.stripe.com/payment-links" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--mint-darker)', fontWeight: 600 }}>
+                Create one in Stripe →
+              </a>
+            </p>
 
-            {stripeMessage && (
-              <div style={{ borderRadius: 10, padding: '10px 16px', fontSize: 13, marginBottom: 14, fontWeight: 600, background: 'rgba(199,232,168,0.2)', color: 'var(--mint-darker)' }}>
-                {stripeMessage}
-              </div>
-            )}
-
-            {(profile as any).stripe_user_id ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderRadius: 10, border: '1px solid var(--border-light)', background: 'rgba(199,232,168,0.08)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: 'var(--mint-darker)', fontWeight: 700 }}>&#10003;</span>
-                  <span style={{ fontSize: 14, fontWeight: 600 }}>Stripe connected</span>
-                </div>
-                <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer" className="btn btn-soft btn-sm">Manage in Stripe</a>
-              </div>
-            ) : (
-              <a href="/api/stripe/oauth" className="btn btn-primary">Connect Stripe &rarr;</a>
-            )}
+            <div className="form-group">
+              <label className="input-label">Stripe Payment Link URL</label>
+              <input
+                className="input"
+                type="url"
+                value={paymentLink}
+                onChange={e => setPaymentLink(e.target.value)}
+                placeholder="https://buy.stripe.com/..."
+              />
+              <p style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 4 }}>
+                Leave blank to hide the “Pay” button on your share pages.
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button onClick={savePaymentLink} disabled={paymentLinkSaving} className="btn btn-primary btn-sm">
+                {paymentLinkSaving ? 'Saving…' : 'Save Payment Link'}
+              </button>
+              {paymentLinkSaved && <span style={{ fontSize: 12, color: 'var(--mint-darker)', fontWeight: 600 }}>Saved!</span>}
+            </div>
           </div>
 
           {/* Calendar */}
