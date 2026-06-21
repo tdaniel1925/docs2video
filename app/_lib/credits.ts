@@ -84,12 +84,14 @@ export const TIER_OVERAGE_RATE: Record<PlanTier, number> = {
 }
 
 // Approximate explainers per tier (for pricing page)
+// Halved 2026-06-21 after the 2x credit-cost increase (standard video now
+// costs 1000 credits, quick 500). Keep in sync with CREDIT_COSTS.
 export const TIER_APPROX_VIDEOS: Record<PlanTier, { standard: number; quick: number }> = {
-  free: { standard: 2, quick: 4 },
-  starter: { standard: 10, quick: 20 },
-  pro: { standard: 50, quick: 100 },
-  business: { standard: 150, quick: 300 },
-  enterprise: { standard: 400, quick: 800 },
+  free: { standard: 1, quick: 2 },
+  starter: { standard: 5, quick: 10 },
+  pro: { standard: 25, quick: 50 },
+  business: { standard: 75, quick: 150 },
+  enterprise: { standard: 200, quick: 400 },
 }
 
 // ============================================================

@@ -37,7 +37,7 @@ export default async function HomePage() {
         color: 'var(--ink)',
       }}>
         <Link href="/signup" style={{ color: 'var(--ink)', textDecoration: 'none' }}>
-          Start free — 2 short videos included
+          Start free — 1,000 credits included
         </Link>
       </div>
 
@@ -129,7 +129,7 @@ export default async function HomePage() {
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
               </div>
               <h3>Choose your format</h3>
-              <p>Narrated explainer video, editable slide deck, multi-episode course, or data infographic &mdash; AI builds it in minutes.</p>
+              <p>Narrated explainer video, editable slide deck, or downloadable PDF &mdash; AI builds it in minutes.</p>
             </div>
             <div className="step-connector"><svg width="40" height="2"><line x1="0" y1="1" x2="40" y2="1" stroke="var(--border)" strokeWidth="2" strokeDasharray="6,4"/></svg></div>
             <div className="step-card">
@@ -138,7 +138,7 @@ export default async function HomePage() {
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
               </div>
               <h3>Share &amp; close faster</h3>
-              <p>Send a branded share page, download an editable PPTX, or embed your infographic &mdash; whatever works for your client.</p>
+              <p>Send a branded share page, download an editable PPTX, or share a PDF &mdash; whatever works for your client.</p>
             </div>
           </div>
         </section>
@@ -170,8 +170,8 @@ export default async function HomePage() {
             </div>
             <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
               <div style={{fontSize:40,marginBottom:16}}>&#128202;</div>
-              <h3>Infographic <span style={{fontSize:13,fontWeight:500,color:'var(--ink-soft)'}}>(Coming Soon)</span></h3>
-              <p>Turn data-heavy reports into beautiful visual summaries. AI extracts charts, stats, and key findings into a single shareable graphic.</p>
+              <h3>Infographic-Style Video</h3>
+              <p>Turn data-heavy reports into a bold animated infographic video &mdash; AI extracts charts, stats, and key findings and brings them to life as a video you can share.</p>
               <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$10</div>
             </div>
           </div>
@@ -208,7 +208,7 @@ export default async function HomePage() {
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
               </div>
               <h3>Choose your style</h3>
-              <p>16+ professionally designed templates or create a completely custom style with AI. Match your brand in one click.</p>
+              <p>Professionally designed styles or create a completely custom style with AI. Match your brand in one click.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon" style={{background:'var(--sky)'}}>
@@ -417,7 +417,7 @@ export default async function HomePage() {
             </div>
             <div className="comp-row">
               <div className="comp-label">Output formats</div>
-              <div className="comp-new highlight">&#10003; Video, Deck, Course, Infographic</div>
+              <div className="comp-new highlight">&#10003; Video, Deck, PDF</div>
               <div className="comp-old">Video only</div>
               <div className="comp-old">Video only</div>
               <div className="comp-old">~  Slides &amp; graphics</div>
@@ -629,27 +629,27 @@ export default async function HomePage() {
               <tbody>
                 <tr style={{borderBottom:'1px solid var(--border)'}}>
                   <td style={{padding:'12px 16px',fontWeight:600}}>Quick video (under 60s)</td>
-                  <td style={{textAlign:'center',padding:'12px 16px'}}>250</td>
-                </tr>
-                <tr style={{borderBottom:'1px solid var(--border)'}}>
-                  <td style={{padding:'12px 16px',fontWeight:600}}>Standard video (2-3 min)</td>
                   <td style={{textAlign:'center',padding:'12px 16px'}}>500</td>
                 </tr>
                 <tr style={{borderBottom:'1px solid var(--border)'}}>
+                  <td style={{padding:'12px 16px',fontWeight:600}}>Standard video (2-3 min)</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>1,000</td>
+                </tr>
+                <tr style={{borderBottom:'1px solid var(--border)'}}>
                   <td style={{padding:'12px 16px',fontWeight:600}}>Detailed video (5+ min)</td>
-                  <td style={{textAlign:'center',padding:'12px 16px'}}>750</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>1,500</td>
                 </tr>
                 <tr style={{borderBottom:'1px solid var(--border)'}}>
                   <td style={{padding:'12px 16px',fontWeight:600}}>Slide deck (PPTX)</td>
-                  <td style={{textAlign:'center',padding:'12px 16px'}}>400</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>800</td>
                 </tr>
                 <tr>
                   <td style={{padding:'12px 16px',fontWeight:600}}>PDF document</td>
-                  <td style={{textAlign:'center',padding:'12px 16px'}}>300</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>600</td>
                 </tr>
               </tbody>
             </table>
-            <p style={{textAlign:'center',fontSize:13,color:'var(--ink-light)',marginTop:16}}>Podcast narration adds 200 credits. Style previews: 50 credits (first free).</p>
+            <p style={{textAlign:'center',fontSize:13,color:'var(--ink-light)',marginTop:16}}>Podcast narration adds 400 credits. Style previews: 100 credits (first free).</p>
           </div>
         </section>
 
@@ -666,8 +666,8 @@ export default async function HomePage() {
               <div className="pricing-name">Free</div>
               <div className="pricing-price">$0</div>
               <div className="pricing-period">per month</div>
-              <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>2 short videos</div>
-              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~2 standard explainers</div>
+              <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>1,000 credits</div>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~1 standard explainer</div>
               <ul className="pricing-features">
                 <li>All features included</li>
                 <li>Full quality, no watermark</li>
@@ -681,7 +681,7 @@ export default async function HomePage() {
               <div className="pricing-price">$29</div>
               <div className="pricing-period">per month</div>
               <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>5,000 credits</div>
-              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~10 standard explainers</div>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~5 standard explainers</div>
               <ul className="pricing-features">
                 <li>Multi-voice narration</li>
                 <li>2 brand profiles</li>
@@ -696,7 +696,7 @@ export default async function HomePage() {
               <div className="pricing-price">$79</div>
               <div className="pricing-period">per month</div>
               <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>25,000 credits</div>
-              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~50 standard explainers</div>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~25 standard explainers</div>
               <ul className="pricing-features">
                 <li>Priority generation</li>
                 <li>Unlimited brands</li>
@@ -710,7 +710,7 @@ export default async function HomePage() {
               <div className="pricing-price">$199</div>
               <div className="pricing-period">per month</div>
               <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>75,000 credits</div>
-              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~150 standard explainers</div>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~75 standard explainers</div>
               <ul className="pricing-features">
                 <li>White-label share pages</li>
                 <li>Priority support</li>
@@ -724,7 +724,7 @@ export default async function HomePage() {
               <div className="pricing-price">$499</div>
               <div className="pricing-period">per month</div>
               <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>200,000 credits</div>
-              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~400 standard explainers</div>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~200 standard explainers</div>
               <ul className="pricing-features">
                 <li>API access + bulk creation</li>
                 <li>Dedicated support</li>
@@ -741,10 +741,6 @@ export default async function HomePage() {
             <div className="trust-item">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker)" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               <span>Bank-level encryption</span>
-            </div>
-            <div className="trust-item">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker)" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-              <span>SOC 2 compliant</span>
             </div>
             <div className="trust-item">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker)" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
