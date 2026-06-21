@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/server'
-
-const PAGE_SIZE = 20
+import LibraryTable, { type LibraryItem } from './LibraryTable'
 
 type Creation = {
   id: string
@@ -14,37 +13,14 @@ type Creation = {
   created_at: string
   _videoId?: string | null
   _status?: string | null
-}
-
-const TYPE_LABELS: Record<string, string> = {
-  video: 'Video',
-  flyer: 'Flyer',
-  logo: 'Logo',
-  'business-card': 'Business Card',
-  card: 'Card',
-  infographic: 'Infographic',
-  remix: 'Remix',
-  'social-kit': 'Social Kit',
-  template: 'Template',
-}
-
-const TYPE_COLORS: Record<string, string> = {
-  video: 'mint',
-  flyer: 'peach',
-  logo: 'lilac',
-  'business-card': 'sky',
-  card: 'sky',
-  infographic: 'mint',
-  remix: 'rose',
-  'social-kit': 'sun',
-  template: 'peach',
+  _progressPct?: number | null
 }
 
 // All creation types the library understands (used for filtering / "other").
 const ALL_TYPES = ['video', 'deck', 'logo', 'business-card', 'flyer', 'infographic', 'social-kit', 'other'] as const
 
-// Only these tabs are SHOWN in the focused product (video + deck). The rest of
-// the types still load/filter correctly; their tabs are just hidden.
+// Only these tabs are SHOWN in the focused product (video + deck). Other types
+// still load/filter correctly; their tabs are just hidden.
 const FILTER_TABS = [
   { key: '', label: 'All' },
   { key: 'video', label: 'Videos' },
@@ -56,60 +32,47 @@ const KNOWN_TYPES = new Set<string>(ALL_TYPES)
 const FILTER_TITLES: Record<string, string> = {
   video: 'Your Videos',
   deck: 'Your Decks',
-  logo: 'Your Logos',
-  'business-card': 'Your Cards',
-  flyer: 'Your Flyers',
-  infographic: 'Your Infographics',
-  'social-kit': 'Your Social Kits',
-  other: 'Your Other Creations',
 }
 
-export default async function VideosPage({ searchParams }: { searchParams: Promise<{ page?: string; type?: string }> }) {
-  const { page: pageParam, type: typeFilter } = await searchParams
-  const currentPage = Math.max(1, parseInt(pageParam ?? '1', 10) || 1)
-  const from = (currentPage - 1) * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
+export default async function VideosPage({ searchParams }: { searchParams: Promise<{ type?: string }> }) {
+  const { type: typeFilter } = await searchParams
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   // Query BOTH tables and merge — videos table is authoritative for videos,
-  // creations table has everything else (flyers, logos, cards, etc.)
+  // creations table has everything else (decks, flyers, logos, etc.)
   const [{ data: videos }, { data: otherCreations }] = await Promise.all([
     supabase
       .from('videos')
-      .select('id, user_id, title, thumbnail_url, video_url, status, progress_pct, progress_detail, created_at, deducted_cost')
+      .select('id, user_id, title, thumbnail_url, video_url, status, progress_pct, progress_detail, created_at, deducted_cost, draft_data')
       .eq('user_id', user!.id)
       .order('created_at', { ascending: false }),
     supabase
       .from('creations')
       .select('*')
       .eq('user_id', user!.id)
-      .neq('type', 'video') // Exclude videos since we get them from videos table
+      .neq('type', 'video')
       .order('created_at', { ascending: false }),
   ])
 
-  // Merge and sort by date
+  const videoRows = videos ?? []
+
   const allItems: Creation[] = [
-    ...(videos ?? []).map(v => ({
+    ...videoRows.map(v => ({
       id: v.id,
       user_id: v.user_id,
       type: 'video' as string,
       title: v.title,
       thumbnail_url: v.thumbnail_url,
       file_url: v.video_url,
-      // Real amount charged for this video (set at generation time). Older rows
-      // created before deducted_cost was tracked will be null → label hidden.
       credits_used: (v as { deducted_cost?: number | null }).deducted_cost ?? null,
       created_at: v.created_at,
       _videoId: v.id,
-      _status: v.status, _progressPct: v.progress_pct, _progressDetail: v.progress_detail,
+      _status: v.status,
+      _progressPct: v.progress_pct,
     })),
-    ...(otherCreations ?? []).map(c => ({
-      ...c,
-      _videoId: null as string | null,
-      _status: null as string | null,
-    })),
+    ...(otherCreations ?? []).map(c => ({ ...c, _videoId: null as string | null, _status: null as string | null })),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   // Apply type filter
@@ -119,11 +82,24 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
       : allItems.filter(item => item.type === typeFilter)
     : allItems
 
-  const total = filteredItems.length
-  const creations = filteredItems.slice(from, to + 1)
-  const totalPages = Math.ceil(total / PAGE_SIZE)
-  const showingFrom = total === 0 ? 0 : from + 1
-  const showingTo = Math.min(to + 1, total)
+  // Shape for the client table (which handles its own 25/50/100 pagination,
+  // delete, and columns). Recipient is read from the video's draft_data.
+  const draftById = new Map(videoRows.map(v => [v.id, (v as any).draft_data as any]))
+  const libraryItems: LibraryItem[] = filteredItems.map((item) => {
+    const draft = item._videoId ? draftById.get(item._videoId) : null
+    return {
+      id: item.id,
+      videoId: item._videoId ?? null,
+      type: item.type,
+      title: item.title ?? null,
+      recipient: draft?.recipientName ?? null,
+      fileUrl: item.file_url ?? null,
+      status: item._status ?? null,
+      progressPct: item._progressPct ?? null,
+      creditsUsed: item.credits_used ?? null,
+      createdAt: item.created_at,
+    }
+  })
 
   return (
     <div>
@@ -132,9 +108,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
           <h1>{typeFilter ? (FILTER_TITLES[typeFilter] ?? 'Your Library') : 'Your Library'}</h1>
           <p>{typeFilter ? `Filtered by ${FILTER_TABS.find(t => t.key === typeFilter)?.label?.toLowerCase() ?? typeFilter}.` : 'All your creations.'}</p>
         </div>
-        <Link href="/create/start" className="btn btn-primary btn-lg">
-          + New Creation
-        </Link>
+        <Link href="/create/start" className="btn btn-primary btn-lg">+ New Creation</Link>
       </div>
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -149,165 +123,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
         ))}
       </div>
 
-      {!creations?.length ? (
-        <div style={{ background: 'white', border: '1px dashed var(--border)', borderRadius: 10, padding: '64px 32px', textAlign: 'center' }}>
-          <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>No creations yet</p>
-          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 18 }}>Create content first -- videos, flyers, logos, and more</p>
-          <Link href="/create/start" className="btn btn-primary">Create content &rarr;</Link>
-        </div>
-      ) : (
-        <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
-          {(creations as Creation[]).map((item, i) => {
-            const isVideo = item.type === 'video'
-            let href = item.file_url ?? '#'
-            let linkProps: { target?: '_blank'; rel?: string } = { target: '_blank', rel: 'noopener noreferrer' }
-            if (isVideo) {
-              // Use the real video ID from the videos table
-              href = `/videos/${item._videoId ?? item.id}`
-              linkProps = {}
-            }
-
-            return (
-              <Link
-                key={item.id}
-                href={href}
-                {...linkProps}
-                className="activity-row"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 16,
-                  padding: '16px 24px',
-                  textDecoration: 'none',
-                  color: 'var(--ink)',
-                  borderBottom: i < (creations as Creation[]).length - 1 ? '1px solid var(--border-light)' : 'none',
-                  transition: 'background 0.1s ease',
-                }}
-              >
-                {/* Thumbnail / icon */}
-                <div style={{
-                  width: 44, height: 44, borderRadius: 10, flexShrink: 0,
-                  background: item.thumbnail_url ? 'var(--bg)' : ['var(--mint)', 'var(--peach)', 'var(--lilac)', 'var(--sky)'][i % 4],
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  overflow: 'hidden', position: 'relative',
-                }}>
-                  {item.thumbnail_url ? (
-                    <>
-                      <img src={item.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      {isVideo && (
-                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)' }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="8 4 20 12 8 20" /></svg>
-                        </div>
-                      )}
-                    </>
-                  ) : isVideo ? (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" /></svg>
-                  ) : (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-                  )}
-                </div>
-
-                {/* Title */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {item.title ?? 'Untitled'}
-                  </div>
-                  {item.credits_used != null && (
-                    <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2 }}>
-                      {item.credits_used} credit{item.credits_used !== 1 ? 's' : ''} used
-                    </div>
-                  )}
-                </div>
-
-                {/* Type badge */}
-                <span className={`tag ${TYPE_COLORS[item.type] ?? 'peach'}`} style={{ flexShrink: 0 }}>
-                  {TYPE_LABELS[item.type] ?? item.type}
-                </span>
-                {/* Language badge — show if title has a language suffix like (Spanish) */}
-                {(() => {
-                  const langMatch = (item.title ?? '').match(/\((Spanish|French|Portuguese|German|Korean|Japanese|Chinese \(Simplified\)|Arabic|Hindi|Italian)\)\s*$/)
-                  return langMatch ? (
-                    <span className="tag lilac" style={{ flexShrink: 0, fontSize: 11 }}>
-                      {langMatch[1]}
-                    </span>
-                  ) : null
-                })()}
-                {/* Video status badge with progress */}
-                {isVideo && item._status && item._status !== 'completed' && (
-                  <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-                    <span className={`tag ${item._status === 'failed' ? 'rose' : 'peach'}`} style={{ fontSize: 11 }}>
-                      {item._status === 'failed' ? 'Failed' : (item as any)._progressPct ? `${(item as any)._progressPct}%` : 'Processing'}
-                    </span>
-                    {(item as any)._progressDetail && item._status !== 'failed' && (
-                      <span style={{ fontSize: 10, color: 'var(--ink-light)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {(item as any)._progressDetail}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Date */}
-                <div style={{ fontSize: 13, color: 'var(--ink-light)', flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
-                  {new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </div>
-
-                {/* Arrow */}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-light)" strokeWidth="2" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6" /></svg>
-              </Link>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Pagination Controls */}
-      {total > 0 && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginTop: 24,
-          padding: '16px 24px',
-          background: 'white',
-          border: '1px solid var(--border-light)',
-          borderRadius: 10,
-        }}>
-          <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>
-            Showing {showingFrom}&ndash;{showingTo} of {total}
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {currentPage > 1 ? (
-              <Link
-                href={`/videos?page=${currentPage - 1}${typeFilter ? `&type=${typeFilter}` : ''}`}
-                className="btn btn-soft btn-sm"
-              >
-                &larr; Previous
-              </Link>
-            ) : (
-              <span
-                className="btn btn-soft btn-sm"
-                style={{ opacity: 0.4, pointerEvents: 'none' }}
-              >
-                &larr; Previous
-              </span>
-            )}
-            {currentPage < totalPages ? (
-              <Link
-                href={`/videos?page=${currentPage + 1}${typeFilter ? `&type=${typeFilter}` : ''}`}
-                className="btn btn-soft btn-sm"
-              >
-                Next &rarr;
-              </Link>
-            ) : (
-              <span
-                className="btn btn-soft btn-sm"
-                style={{ opacity: 0.4, pointerEvents: 'none' }}
-              >
-                Next &rarr;
-              </span>
-            )}
-          </div>
-        </div>
-      )}
+      <LibraryTable items={libraryItems} />
     </div>
   )
 }
