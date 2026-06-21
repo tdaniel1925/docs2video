@@ -40,19 +40,18 @@ const TYPE_COLORS: Record<string, string> = {
   template: 'peach',
 }
 
+// All creation types the library understands (used for filtering / "other").
+const ALL_TYPES = ['video', 'deck', 'logo', 'business-card', 'flyer', 'infographic', 'social-kit', 'other'] as const
+
+// Only these tabs are SHOWN in the focused product (video + deck). The rest of
+// the types still load/filter correctly; their tabs are just hidden.
 const FILTER_TABS = [
   { key: '', label: 'All' },
   { key: 'video', label: 'Videos' },
   { key: 'deck', label: 'Decks' },
-  { key: 'logo', label: 'Logos' },
-  { key: 'business-card', label: 'Cards' },
-  { key: 'flyer', label: 'Flyers' },
-  { key: 'infographic', label: 'Infographics' },
-  { key: 'social-kit', label: 'Social' },
-  { key: 'other', label: 'Other' },
 ] as const
 
-const KNOWN_TYPES = new Set<string>(FILTER_TABS.map(t => t.key).filter(Boolean))
+const KNOWN_TYPES = new Set<string>(ALL_TYPES)
 
 const FILTER_TITLES: Record<string, string> = {
   video: 'Your Videos',

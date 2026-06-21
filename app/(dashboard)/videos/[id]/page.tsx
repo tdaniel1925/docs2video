@@ -1066,7 +1066,8 @@ export default function VideoDetailPage() {
           {[
             { label: 'Views', value: analytics?.views ?? 0 },
             { label: 'Plays', value: analytics?.plays ?? 0 },
-            { label: 'Chat Messages', value: analytics?.chats ?? 0 },
+            // Only show the chat card if this video actually has chat activity.
+            ...((analytics?.chats ?? 0) > 0 ? [{ label: 'Chat Messages', value: analytics?.chats ?? 0 }] : []),
           ].map(stat => (
             <div key={stat.label} style={{
               flex: 1,

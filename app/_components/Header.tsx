@@ -19,6 +19,9 @@ const TOOLS_ITEMS = [
   { href: '/brands/new', icon: '\uD83C\uDF10', title: 'New Brand from URL', desc: 'Scrape website for brand identity' },
 ]
 
+// Tools dropdown hidden from the nav per product decision (kept for re-enable).
+const SHOW_TOOLS_NAV = false
+
 // Focused product (2026-06-11): video + deck only — peripheral tools unlinked
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -138,7 +141,8 @@ export default function Header({ profile }: { profile: Profile }) {
               )}
             </div>
 
-            {/* Tools dropdown */}
+            {/* Tools dropdown — hidden from nav per product decision (kept in code). */}
+            {SHOW_TOOLS_NAV && (
             <div ref={toolsRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
               <button
                 onClick={() => setToolsOpen(!toolsOpen)}
@@ -179,6 +183,7 @@ export default function Header({ profile }: { profile: Profile }) {
                 </div>
               )}
             </div>
+            )}
 
             {/* Other nav links */}
             {NAV_LINKS.slice(1).map((link) => (

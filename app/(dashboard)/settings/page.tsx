@@ -396,7 +396,7 @@ export default function SettingsPage() {
 
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: 'profile', label: 'Profile' },
-    { id: 'brand', label: 'Style & Branding' },
+    // 'Style & Branding' tab removed per product decision (block kept in code).
     { id: 'integrations', label: 'Integrations' },
     { id: 'subscription', label: 'Subscription' },
   ]
