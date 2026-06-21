@@ -19,7 +19,6 @@ interface AgentProfile {
   phone?: string | null
   calendly_url: string | null
   payment_link_url?: string | null
-  stripe_user_id: string | null
   subscription_status: string | null
 }
 
@@ -861,26 +860,21 @@ export default function PublicWatchPage() {
   )
 
   /* ---- Pay ---- */
-  const handlePay = useCallback(async () => {
-    if (!quote || payLoading) return
-    setPayLoading(true)
-    setPayError(null)
-    try {
-      const res = await fetch('/api/quotes/pay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quoteId: quote.id }),
-      })
-      if (!res.ok) throw new Error('Payment setup failed')
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
-      else throw new Error('No payment URL')
-    } catch (err) {
-      setPayError(err instanceof Error ? err.message : 'Payment failed')
-    } finally {
-      setPayLoading(false)
+  // Opens the agent's own payment link (Stripe Payment Link / Square / PayPal)
+  // set in Settings → Integrations, or a per-quote link from the pipeline. We do
+  // NOT process the client's payment ourselves (no Stripe Connect).
+  const handlePay = useCallback(() => {
+    if (!video) return
+    const link = (agent as any)?.payment_link_url?.trim()
+      || (video.script as any)?._pipeline_input?.paymentLink
+      || ''
+    if (!link) {
+      setPayError('No payment link is set up yet. Please contact us to pay.')
+      return
     }
-  }, [quote, payLoading])
+    trackEvent(video.id, 'payment_click')
+    window.open(link, '_blank', 'noopener,noreferrer')
+  }, [agent, video, trackEvent])
 
   /* ---- Copy link ---- */
   const handleCopyLink = useCallback(() => {
@@ -935,7 +929,12 @@ export default function PublicWatchPage() {
   const agentInitials = hasAgentIdentity ? getInitials(agentName) : ''
   const calendlyUrl = agent?.calendly_url?.trim() ?? ''
   const hasCalendly = calendlyUrl.length > 0 && calendlyUrl.startsWith('https://calendly.com/')
-  const hasStripe = !!(agent?.stripe_user_id?.trim())
+  // Can the recipient pay? True when the agent has a payment link (Stripe
+  // Payment Link / Square / PayPal) or a per-quote link. No Stripe Connect.
+  const hasStripe = !!(
+    (agent as any)?.payment_link_url?.trim()
+    || (video?.script as any)?._pipeline_input?.paymentLink
+  )
   const hasQuote = !!(quote && quote.status !== 'paid')
   const hasPaidQuote = !!(quote && quote.status === 'paid')
   const slideUrls = (video.slide_urls ?? []) as string[]

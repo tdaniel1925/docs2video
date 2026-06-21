@@ -49,7 +49,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const [{ data: agent }, { data: quote }] = await Promise.all([
     // Only SAFE, intentionally-public profile columns — never the whole row.
     admin.from('profiles')
-      .select('id, full_name, company_name, photo_url, email, phone, calendly_url, payment_link_url, stripe_user_id, subscription_status')
+      .select('id, full_name, company_name, photo_url, email, phone, calendly_url, payment_link_url, subscription_status')
       .eq('id', video.user_id)
       .single(),
     admin.from('quotes')
