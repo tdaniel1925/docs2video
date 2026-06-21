@@ -261,6 +261,7 @@ export default function AdminPage() {
       <div style={{ display: 'flex', gap: 6, marginBottom: 24, flexWrap: 'wrap' }}>
         <Link href="/admin/costs" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>API Costs</Link>
         <Link href="/admin/revenue" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Revenue</Link>
+        <Link href="/admin/billing" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Billing &amp; Sales</Link>
         <Link href="/admin/campaigns" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Campaigns</Link>
         <Link href="/admin/bulk" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Bulk Generate</Link>
         <Link href="/admin/api-keys" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>API Keys</Link>
