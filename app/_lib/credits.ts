@@ -5,32 +5,63 @@ import { getUserTier, type PlanTier } from './pricing'
 // ============================================================
 // Credit costs per action (inflated numbers — big feels generous)
 // ============================================================
+// Pricing doubled 2026-06-21 to restore healthy margin (real video cost is
+// ~$1.40 cinematic at Gemini 3 Pro Image rates; old costs left ~50% / negative
+// margin on bigger plans). Plans + monthly credit grants are unchanged, so
+// doubling these costs = each plan yields half as many videos = a 2x price
+// increase with no Stripe/plan changes. Existing paying customers are
+// grandfathered (see GRANDFATHERED_USER_IDS below).
 export const CREDIT_COSTS = {
   // Legacy actions (keep for backward compat)
-  video: 500,
-  infographic: 150,
-  logo: 200,
-  'logo-refine': 50,
-  'business-card': 100,
-  flyer: 100,
-  headshot: 200,    // fans out ~20 image generations
-  'social-kit': 200, // fans out 20+ image generations
-  template: 200,
-  'template-refine': 50,
+  video: 1000,
+  infographic: 300,
+  logo: 400,
+  'logo-refine': 100,
+  'business-card': 200,
+  flyer: 200,
+  headshot: 400,    // fans out ~20 image generations
+  'social-kit': 400, // fans out 20+ image generations
+  template: 400,
+  'template-refine': 100,
   // Deck builder (flagship product #2)
-  deck: 300,
+  deck: 600,
   // New granular video actions
-  videoQuick: 250,
-  videoStandard: 500,
-  videoDetailed: 750,
-  podcastAddon: 200,
-  pptx: 400,
-  pdf: 300,
-  stylePreview: 50,
-  scriptRegen: 25,
-  aiChatEdit: 25,
-  videoIllustrated: 750,  // 3 frames per scene = 3x image generation
+  videoQuick: 500,
+  videoStandard: 1000,
+  videoDetailed: 1500,
+  podcastAddon: 400,
+  pptx: 800,
+  pdf: 600,
+  stylePreview: 100,
+  scriptRegen: 50,
+  aiChatEdit: 50,
+  videoIllustrated: 1500,  // 3 frames per scene = 3x image generation
 } as const
+
+// Pre-existing paying customers locked at the OLD (pre-2x) rates. They keep the
+// original cost per action; everyone else pays CREDIT_COSTS above.
+const OLD_CREDIT_COSTS: Partial<Record<string, number>> = {
+  video: 500, infographic: 150, logo: 200, 'logo-refine': 50,
+  'business-card': 100, flyer: 100, headshot: 200, 'social-kit': 200,
+  template: 200, 'template-refine': 50, deck: 300,
+  videoQuick: 250, videoStandard: 500, videoDetailed: 750,
+  podcastAddon: 200, pptx: 400, pdf: 300, stylePreview: 50,
+  scriptRegen: 25, aiChatEdit: 25, videoIllustrated: 750,
+}
+
+// User IDs grandfathered at OLD rates. Add early/loyal customers here.
+export const GRANDFATHERED_USER_IDS = new Set<string>([
+  // azi / phil@valorfs.com — first paying customer (pre-2x pricing)
+  // TODO: replace with the real profiles.id (see note returned to operator).
+])
+
+/** Cost for an action, honoring grandfathered users (old rates). */
+export function costForUser(action: CreditAction, userId?: string | null): number {
+  if (userId && GRANDFATHERED_USER_IDS.has(userId)) {
+    return OLD_CREDIT_COSTS[action] ?? CREDIT_COSTS[action]
+  }
+  return CREDIT_COSTS[action]
+}
 
 export type CreditAction = keyof typeof CREDIT_COSTS
 
