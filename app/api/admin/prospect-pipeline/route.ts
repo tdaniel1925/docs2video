@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { isAdmin , isAdminRequest } from '../../../_lib/admin'
@@ -11,7 +12,7 @@ import OpenAI from 'openai'
 import FirecrawlApp from '@mendable/firecrawl-js'
 
 export const runtime = 'nodejs'
-export const maxDuration = 300
+export const maxDuration = 800
 
 let _openai: OpenAI | null = null
 function getOpenAI() {
@@ -44,68 +45,37 @@ Return ONLY valid JSON (no markdown, no code fences):
   "contactName": "string or null — founder/CEO name if found"
 }`
 
-export async function POST(request: Request) {
+/** Write a coarse status + granular progress for the live dashboard. */
+async function setProgress(
+  admin: ReturnType<typeof createAdminClient>,
+  prospectId: string,
+  status: string,
+  progress_pct: number,
+  stage_detail: string,
+) {
+  await admin.from('prospect_demos').update({
+    status, progress_pct, stage_detail, updated_at: new Date().toISOString(),
+  }).eq('id', prospectId)
+}
+
+/**
+ * Runs the full demo pipeline for one prospect IN THE BACKGROUND (via waitUntil),
+ * emitting progress_pct + stage_detail at each step so the admin page can poll
+ * live. Honors cancellation: if the row's status is flipped to 'cancelled'
+ * mid-run, it stops and skips the upload.
+ */
+async function runPipeline(prospectId: string, parsedUrl: URL, userId: string) {
+  const admin = createAdminClient()
+  const isCancelled = async () => {
+    const { data } = await admin.from('prospect_demos').select('status').eq('id', prospectId).single()
+    return data?.status === 'cancelled'
+  }
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !(await isAdminRequest(user))) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
-
-    const body = (await request.json()) as { url?: string; prospectId?: string; action?: string; regenerateId?: string }
-    const { url, action, regenerateId } = body
-    const rejectId = body.prospectId
-    const admin = createAdminClient()
-
-    // Reject branch: mark the prospect rejected and stop. Accepts either an
-    // explicit {action:'reject', prospectId} or the legacy {url:'__reject__',
-    // prospectId} sentinel the UI sends. (Previously the sentinel fell through
-    // to URL parsing and 400'd, so rejection never persisted.)
-    if ((action === 'reject' || url === '__reject__') && rejectId) {
-      const { error: rejErr } = await admin
-        .from('prospect_demos')
-        .update({ status: 'rejected' })
-        .eq('id', rejectId)
-      if (rejErr) return NextResponse.json({ error: rejErr.message }, { status: 500 })
-      return NextResponse.json({ success: true, status: 'rejected' })
-    }
-
-    if (!url || typeof url !== 'string') {
-      return NextResponse.json({ error: 'URL is required' }, { status: 400 })
-    }
-
-    // Validate URL
-    let parsedUrl: URL
-    try {
-      parsedUrl = new URL(url.startsWith('http') ? url : `https://${url}`)
-    } catch {
-      return NextResponse.json({ error: 'Invalid URL' }, { status: 400 })
-    }
-
-    // Regenerate: delete the prior prospect row so we end with ONE fresh row
-    // for this URL instead of accumulating duplicates each time.
-    if (regenerateId) {
-      await admin.from('prospect_demos').delete().eq('id', regenerateId)
-    }
-
-    // Create prospect_demos record
-    const { data: prospect, error: insertErr } = await admin
-      .from('prospect_demos')
-      .insert({ url: parsedUrl.href, status: 'scraping' })
-      .select()
-      .single()
-
-    if (insertErr || !prospect) {
-      return NextResponse.json({ error: 'Failed to create prospect record' }, { status: 500 })
-    }
-
-    const prospectId = prospect.id
-
-    try {
-      // Step 1: Scrape website with Firecrawl
-      const scrapeResult = await getFirecrawl().scrape(parsedUrl.href, {
-        formats: ['markdown', 'html'],
-      })
+    // Step 1: Scrape
+    await setProgress(admin, prospectId, 'scraping', 8, 'Scanning the website…')
+    const scrapeResult = await getFirecrawl().scrape(parsedUrl.href, {
+      formats: ['markdown', 'html'],
+    })
 
       const markdown = (scrapeResult as any)?.markdown || (scrapeResult as any)?.data?.markdown || ''
       const html = (scrapeResult as any)?.html || (scrapeResult as any)?.data?.html || ''
@@ -113,8 +83,10 @@ export async function POST(request: Request) {
       if (!markdown && !html) {
         throw new Error('No content scraped from website')
       }
+      if (await isCancelled()) return
 
       // Step 2: Extract company info with OpenAI
+      await setProgress(admin, prospectId, 'scraping', 20, 'Analyzing the company…')
       const extractionResponse = await getOpenAI().chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
@@ -172,7 +144,7 @@ export async function POST(request: Request) {
       const { data: brand } = await admin
         .from('brands')
         .insert({
-          user_id: user.id,
+          user_id: userId,
           name: companyInfo.companyName ?? parsedUrl.hostname,
           url: parsedUrl.href,
           logo_url: logoImageUrl,
@@ -193,8 +165,11 @@ export async function POST(request: Request) {
         brand_id: brand?.id ?? null,
         logo_url: logoImageUrl,
         status: 'scripting',
+        progress_pct: 30,
+        stage_detail: 'Writing the personalized script…',
         updated_at: new Date().toISOString(),
       }).eq('id', prospectId)
+      if (await isCancelled()) return
 
       // Step 5: Generate sales script
       const scenes = await generateDemoScript(
@@ -211,8 +186,11 @@ export async function POST(request: Request) {
       await admin.from('prospect_demos').update({
         script: scenes,
         status: 'generating',
+        progress_pct: 40,
+        stage_detail: 'Designing slides…',
         updated_at: new Date().toISOString(),
       }).eq('id', prospectId)
+      if (await isCancelled()) return
 
       // Step 6: Generate slides (3-4 slides)
       const slideScenes = scenes.slice(0, 4)
@@ -226,6 +204,10 @@ export async function POST(request: Request) {
 
       const slideBuffers: Buffer[] = []
       for (let i = 0; i < slideScenes.length; i++) {
+        if (await isCancelled()) return
+        await setProgress(admin, prospectId, 'generating',
+          40 + Math.round(((i) / slideScenes.length) * 25),
+          `Generating slide ${i + 1} of ${slideScenes.length}…`)
         const slideBuffer = await generateSlide(
           extractedData as any,
           i,
@@ -251,23 +233,27 @@ export async function POST(request: Request) {
         slideBuffers.push(composited)
       }
 
-      await admin.from('prospect_demos').update({
-        status: 'assembling',
-        updated_at: new Date().toISOString(),
-      }).eq('id', prospectId)
+      if (await isCancelled()) return
+      await setProgress(admin, prospectId, 'assembling', 70, 'Recording the voiceover…')
 
       // Step 7: Generate audio
       const audioBuffers: Buffer[] = []
-      for (const scene of slideScenes) {
-        const audio = await synthesizeSpeech(scene.narration, 'nova')
+      for (let i = 0; i < slideScenes.length; i++) {
+        await setProgress(admin, prospectId, 'assembling',
+          70 + Math.round((i / slideScenes.length) * 12),
+          `Recording narration ${i + 1} of ${slideScenes.length}…`)
+        const audio = await synthesizeSpeech(slideScenes[i].narration, 'nova')
         audioBuffers.push(audio)
       }
+      if (await isCancelled()) return
 
       // Step 8: Assemble video
+      await setProgress(admin, prospectId, 'assembling', 85, 'Assembling the video…')
       const { videoBuffer, durations } = await assembleVideo(slideBuffers, audioBuffers)
       const totalDuration = Math.round(durations.reduce((sum, d) => sum + d, 0))
 
       // Step 9: Upload video to Supabase storage
+      await setProgress(admin, prospectId, 'assembling', 92, 'Uploading the finished video…')
       const videoPath = `prospect-demos/${prospectId}.mp4`
       await admin.storage.from('videos').upload(videoPath, videoBuffer, {
         contentType: 'video/mp4',
@@ -283,29 +269,93 @@ export async function POST(request: Request) {
       })
       const { data: thumbUrlData } = admin.storage.from('videos').getPublicUrl(thumbnailPath)
 
+      // Final guard: if cancelled during upload, don't flip to ready.
+      if (await isCancelled()) return
+
       // Step 10: Update record as ready for review
-      const { data: finalRecord } = await admin.from('prospect_demos').update({
+      await admin.from('prospect_demos').update({
         video_url: videoUrlData.publicUrl,
         thumbnail_url: thumbUrlData.publicUrl,
         duration: totalDuration,
         status: 'ready_for_review',
-        updated_at: new Date().toISOString(),
-      }).eq('id', prospectId).select().single()
-
-      return NextResponse.json(finalRecord)
-    } catch (err: any) {
-      // Update record as failed
-      await admin.from('prospect_demos').update({
-        status: 'failed',
-        error_message: err?.message ?? 'Unknown error',
+        progress_pct: 100,
+        stage_detail: 'Ready for review',
         updated_at: new Date().toISOString(),
       }).eq('id', prospectId)
+  } catch (err: any) {
+    // Background failure → mark the row failed with the error for the dashboard.
+    await admin.from('prospect_demos').update({
+      status: 'failed',
+      error_message: err?.message ?? 'Unknown error',
+      stage_detail: 'Generation failed',
+      updated_at: new Date().toISOString(),
+    }).eq('id', prospectId)
+  }
+}
 
-      return NextResponse.json({
-        error: err?.message ?? 'Pipeline failed',
-        prospectId,
-      }, { status: 500 })
+export async function POST(request: Request) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user || !(await isAdminRequest(user))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
+
+    const body = (await request.json()) as {
+      url?: string; urls?: string[]; prospectId?: string; action?: string; regenerateId?: string
+    }
+    const { url, urls, action, regenerateId } = body
+    const targetId = body.prospectId
+    const admin = createAdminClient()
+
+    // Reject / Cancel branches: flip status and stop. Cancel signals an
+    // in-flight runPipeline to abort at its next checkpoint.
+    if ((action === 'reject' || url === '__reject__') && targetId) {
+      const { error } = await admin.from('prospect_demos').update({ status: 'rejected' }).eq('id', targetId)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ success: true, status: 'rejected' })
+    }
+    if (action === 'cancel' && targetId) {
+      const { error } = await admin.from('prospect_demos')
+        .update({ status: 'cancelled', stage_detail: 'Cancelled', updated_at: new Date().toISOString() })
+        .eq('id', targetId)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ success: true, status: 'cancelled' })
+    }
+
+    // Accept either a single url or a batch (urls[]). Normalize to a list.
+    const rawList = (urls && urls.length ? urls : url ? [url] : [])
+      .map((u) => (u || '').trim()).filter(Boolean)
+    if (rawList.length === 0) {
+      return NextResponse.json({ error: 'URL is required' }, { status: 400 })
+    }
+
+    // Regenerate: delete the prior row so we end with ONE fresh row per URL.
+    if (regenerateId) {
+      await admin.from('prospect_demos').delete().eq('id', regenerateId)
+    }
+
+    // Create a queued row per URL, then kick off generation in the background.
+    // POST returns immediately; the admin page polls GET for live progress.
+    const created: any[] = []
+    for (const raw of rawList) {
+      let parsedUrl: URL
+      try { parsedUrl = new URL(raw.startsWith('http') ? raw : `https://${raw}`) }
+      catch { created.push({ url: raw, error: 'Invalid URL' }); continue }
+
+      const { data: prospect, error: insertErr } = await admin
+        .from('prospect_demos')
+        .insert({ url: parsedUrl.href, status: 'scraping', progress_pct: 0, stage_detail: 'Queued…' })
+        .select()
+        .single()
+      if (insertErr || !prospect) { created.push({ url: parsedUrl.href, error: 'Insert failed' }); continue }
+
+      created.push(prospect)
+      // Detach: run the full pipeline in the background (survives the response).
+      waitUntil(runPipeline(prospect.id, parsedUrl, user.id))
+    }
+
+    return NextResponse.json({ success: true, started: created.length, prospects: created })
   } catch (err: any) {
     return NextResponse.json({ error: err?.message ?? 'Server error' }, { status: 500 })
   }
