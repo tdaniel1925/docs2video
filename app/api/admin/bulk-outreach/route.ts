@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
 
     // Log the bulk send
     try {
-      await admin.from('audit_log').insert({
+      await admin.from('admin_audit_log').insert({
         admin_id: user.id,
         action: 'bulk_outreach',
         details: { total: contacts.length, sent: results.sent, failed: results.failed },

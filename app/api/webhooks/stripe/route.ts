@@ -111,20 +111,9 @@ export async function POST(request: Request) {
           if (custErr) console.error(`[webhook] Failed to store customer ID for user ${userId}:`, custErr.message)
         }
 
-        if (session.metadata?.type === 'project_payment') {
-          console.log(`[webhook] Project payment completed for user ${userId}, type: ${session.metadata.project_type}`)
-          if (session.metadata.project_id) {
-            const { error: projErr } = await supabase.from('projects').update({
-              payment_status: 'paid',
-              stripe_session_id: session.id,
-            }).eq('id', session.metadata.project_id)
-            if (projErr) {
-              console.error(`[webhook] Failed to mark project ${session.metadata.project_id} as paid:`, projErr.message)
-              return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
-            }
-          }
-          break
-        }
+        // (Removed: legacy 'project_payment' branch — per-project billing was
+        // replaced by user-level credits; the `projects` table never existed in
+        // prod, so this only ever errored. No checkout sets project_payment now.)
 
         if (session.metadata?.type === 'credit_pack') {
           const credits = parseInt(session.metadata.credits || '0', 10)
