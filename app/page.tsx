@@ -154,25 +154,21 @@ export default async function HomePage() {
               <div style={{fontSize:40,marginBottom:16}}>&#128249;</div>
               <h3>Video Explainer</h3>
               <p>AI-narrated video with branded slides, professional voiceover, and a shareable watch page with calendar booking and payments.</p>
-              <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$10</div>
             </div>
             <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
               <div style={{fontSize:40,marginBottom:16}}>&#128221;</div>
               <h3>Slide Deck</h3>
               <p>Editable PPTX with AI-generated backgrounds and structured text. Download it, customize it, present it &mdash; no design skills needed.</p>
-              <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$10</div>
             </div>
             <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
               <div style={{fontSize:40,marginBottom:16}}>&#127891;</div>
               <h3>Video Course <span style={{fontSize:13,fontWeight:500,color:'var(--ink-soft)'}}>(Coming Soon)</span></h3>
               <p>Multi-episode narrated series. Turn training manuals, onboarding docs, or educational content into a binge-worthy course.</p>
-              <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$249</div>
             </div>
             <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
               <div style={{fontSize:40,marginBottom:16}}>&#128202;</div>
               <h3>Infographic-Style Video</h3>
               <p>Turn data-heavy reports into a bold animated infographic video &mdash; AI extracts charts, stats, and key findings and brings them to life as a video you can share.</p>
-              <div style={{fontSize:24,fontWeight:800,color:'var(--mint-darker, #0d9488)',marginTop:16}}>$10</div>
             </div>
           </div>
         </section>
@@ -244,25 +240,7 @@ export default async function HomePage() {
             </p>
           </div>
 
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3, 1fr)',gap:16,maxWidth:900,margin:'32px auto'}}>
-            {[
-              {src:'/style-previews/isometric-3d.png', label:'Isometric 3D', desc:'Colorful 3D objects, data as visuals, modern'},
-              {src:'/style-previews/apex-corporate.png', label:'Corporate Infographic', desc:'Geometric shapes, icon circles, professional'},
-              {src:'/style-previews/warm-story.png', label:'Warm Story', desc:'Cozy storybook illustration, golden light'},
-              {src:'/style-previews/dark-cinematic.png', label:'Dark Cinematic', desc:'Navy & gold, dramatic, premium'},
-              {src:'/style-previews/bold-infographic.png', label:'Bold Infographic', desc:'Massive numbers, high contrast, impactful'},
-            ].map((t) => (
-              <div key={t.label} style={{borderRadius:10,overflow:'hidden',border:'1px solid rgba(255,255,255,0.1)',transition:'transform 0.2s'}} className="activity-row">
-                <img src={t.src} alt={t.label} loading="lazy" style={{width:'100%',aspectRatio:'16/9',objectFit:'cover',display:'block'}} />
-                <div style={{padding:'10px 12px'}}>
-                  <div style={{fontSize:14,fontWeight:700,color:'white',marginBottom:2}}>{t.label}</div>
-                  <div style={{fontSize:12,color:'rgba(255,255,255,0.6)'}}>{t.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{textAlign:'center',marginTop:32}}>
+          <div style={{textAlign:'center',marginTop:40}}>
             <div style={{display:'inline-flex',alignItems:'center',gap:24,flexWrap:'wrap',justifyContent:'center'}}>
               <div style={{textAlign:'center'}}>
                 <div style={{fontSize:42,fontWeight:800,color:'var(--mint)',lineHeight:1}}>5</div>
