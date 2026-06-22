@@ -70,7 +70,7 @@ export default async function HomePage() {
             <h1 className="hero-title">Turn any document into a professional <em>explainer video</em></h1>
             <p className="hero-sub">Upload a PDF, paste text, or describe an idea. Get a branded narrated video with a shareable client page &mdash; in minutes, not hours.</p>
             <div style={{display:'flex',gap:12,alignItems:'center',marginTop:28,flexWrap:'wrap'}}>
-              <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 2 short videos &rarr;</Link>
+              <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 1,000 free credits &rarr;</Link>
               <a href="#how-it-works" className="btn btn-outlined">Watch demo</a>
             </div>
             <div className="hero-trust" style={{marginTop:20,fontSize:13,color:'var(--ink-soft)'}}>Cancel anytime &middot; No commitment</div>
@@ -92,16 +92,16 @@ export default async function HomePage() {
           </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))',gap:24,maxWidth:800,margin:'0 auto'}}>
             <div style={{textAlign:'center',padding:32,background:'var(--surface)',borderRadius:12,border:'1px solid var(--border)'}}>
-              <div style={{fontSize:48,fontWeight:800,color:'var(--mint-darker, #0d9488)',lineHeight:1}}>73%</div>
-              <div style={{fontSize:14,color:'var(--ink-soft)',marginTop:8}}>of PDFs are never fully read</div>
+              <div style={{fontSize:28,fontWeight:800,color:'var(--mint-darker, #0d9488)',lineHeight:1.2}}>Skimmed, not read</div>
+              <div style={{fontSize:14,color:'var(--ink-soft)',marginTop:8}}>Long PDFs rarely get read end to end</div>
             </div>
             <div style={{textAlign:'center',padding:32,background:'var(--surface)',borderRadius:12,border:'1px solid var(--border)'}}>
-              <div style={{fontSize:48,fontWeight:800,color:'var(--mint-darker, #0d9488)',lineHeight:1}}>2.7x</div>
-              <div style={{fontSize:14,color:'var(--ink-soft)',marginTop:8}}>higher engagement with video</div>
+              <div style={{fontSize:28,fontWeight:800,color:'var(--mint-darker, #0d9488)',lineHeight:1.2}}>Video gets watched</div>
+              <div style={{fontSize:14,color:'var(--ink-soft)',marginTop:8}}>A short video holds attention a document can&apos;t</div>
             </div>
             <div style={{textAlign:'center',padding:32,background:'var(--surface)',borderRadius:12,border:'1px solid var(--border)'}}>
-              <div style={{fontSize:48,fontWeight:800,color:'var(--mint-darker, #0d9488)',lineHeight:1}}>41%</div>
-              <div style={{fontSize:14,color:'var(--ink-soft)',marginTop:8}}>faster close rate with video explainers</div>
+              <div style={{fontSize:28,fontWeight:800,color:'var(--mint-darker, #0d9488)',lineHeight:1.2}}>Faster yes</div>
+              <div style={{fontSize:14,color:'var(--ink-soft)',marginTop:8}}>Clients act when they actually understand</div>
             </div>
           </div>
         </section>
@@ -385,7 +385,7 @@ export default async function HomePage() {
                 </svg>
               </div>
               <div style={{fontSize:18,fontWeight:800,color:'var(--ink)',marginBottom:8}}>Quotes &amp; payments</div>
-              <div style={{fontSize:14,color:'var(--ink-soft)',lineHeight:1.7}}>Attach a line-item quote. Your client reviews, accepts, and pays via their Stripe &mdash; no separate invoice tool needed.</div>
+              <div style={{fontSize:14,color:'var(--ink-soft)',lineHeight:1.7}}>Attach a line-item quote and your payment link. Your client reviews and pays in one click &mdash; no separate invoice tool needed.</div>
             </div>
           </div>
           <div style={{textAlign:'center'}}>
@@ -467,31 +467,6 @@ export default async function HomePage() {
         </section>
 
 
-        {/* ───── Stats Strip ───── */}
-        <section className="stats-strip">
-          <div className="stats-strip-inner">
-            <div className="strip-stat">
-              <div className="strip-num">10K+</div>
-              <div className="strip-label">Documents converted</div>
-            </div>
-            <div className="strip-divider" />
-            <div className="strip-stat">
-              <div className="strip-num">2,500+</div>
-              <div className="strip-label">Professionals</div>
-            </div>
-            <div className="strip-divider" />
-            <div className="strip-stat">
-              <div className="strip-num">4.9/5</div>
-              <div className="strip-label">Average rating</div>
-            </div>
-            <div className="strip-divider" />
-            <div className="strip-stat">
-              <div className="strip-num">&lt;90s</div>
-              <div className="strip-label">Average generation time</div>
-            </div>
-          </div>
-        </section>
-
         {/* ───── Use Cases ───── */}
         <section className="section">
           <div style={{textAlign:'center',marginBottom:50}}>
@@ -560,7 +535,7 @@ export default async function HomePage() {
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
               </div>
               <h3>Mortgage</h3>
-              <p>Turn loan estimates and closing disclosures into clear borrower explainers that reduce callbacks by 60%.</p>
+              <p>Turn loan estimates and closing disclosures into clear borrower explainers that cut down on callbacks.</p>
               <div className="uc-example">Loan estimate &rarr; Borrower summary video</div>
             </div>
           </div>
@@ -586,7 +561,7 @@ export default async function HomePage() {
             <div className="comp-row">
               <div className="comp-label">Time to create</div>
               <div className="comp-old">2-4 hours in PowerPoint</div>
-              <div className="comp-new highlight">90 seconds</div>
+              <div className="comp-new highlight">A few minutes</div>
             </div>
             <div className="comp-row">
               <div className="comp-label">Client comprehension</div>
@@ -747,7 +722,7 @@ export default async function HomePage() {
             </div>
             <div className="trust-item">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <span>99.9% uptime</span>
+              <span>Cancel anytime</span>
             </div>
           </div>
         </section>
@@ -787,14 +762,14 @@ export default async function HomePage() {
         {/* ───── Final CTA ───── */}
         <section className="final-cta">
           <h2>Stop sending documents <em>nobody reads</em></h2>
-          <p className="final-cta-sub">Join 2,500+ professionals who use Docs2Video to turn complex documents into professional explainer videos their clients actually watch.</p>
+          <p className="final-cta-sub">Use Docs2Video to turn complex documents into professional explainer videos your clients actually watch.</p>
           <div className="final-cta-buttons">
-            <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 2 short videos &rarr;</Link>
+            <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 1,000 free credits &rarr;</Link>
           </div>
           <div className="final-cta-perks">
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-              2 short videos included
+              1,000 free credits included
             </span>
             <span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
@@ -815,7 +790,7 @@ export default async function HomePage() {
           <div className="footer-grid">
             <div className="footer-brand">
               <div className="logo"><img src="/logo.png" alt="Docs2Video" style={{height:60}} /></div>
-              <p>Turn any document into a branded, narrated explainer video your clients will actually watch. Powered by AI. Ready in 90 seconds.</p>
+              <p>Turn any document into a branded, narrated explainer video your clients will actually watch. Powered by AI. Ready in minutes.</p>
               <div className="footer-contact">
                 <a href="mailto:support@docs2video.com">support@docs2video.com</a>
               </div>
