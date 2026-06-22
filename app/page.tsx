@@ -143,13 +143,13 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* ───── 4 Services ───── */}
+        {/* ───── Services ───── */}
         <section className="section" id="features">
           <div style={{textAlign:'center',marginBottom:50}}>
-            <div className="section-eyebrow">Four formats, one platform</div>
-            <h2 className="section-title">One document. <em>Four ways to share it.</em></h2>
+            <div className="section-eyebrow">Two formats, one platform</div>
+            <h2 className="section-title">One document. <em>Two ways to share it.</em></h2>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))',gap:24,maxWidth:1100,margin:'0 auto'}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))',gap:24,maxWidth:720,margin:'0 auto'}}>
             <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
               <div style={{fontSize:40,marginBottom:16}}>&#128249;</div>
               <h3>Video Explainer</h3>
@@ -159,16 +159,6 @@ export default async function HomePage() {
               <div style={{fontSize:40,marginBottom:16}}>&#128221;</div>
               <h3>Slide Deck</h3>
               <p>Editable PPTX with AI-generated backgrounds and structured text. Download it, customize it, present it &mdash; no design skills needed.</p>
-            </div>
-            <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
-              <div style={{fontSize:40,marginBottom:16}}>&#127891;</div>
-              <h3>Video Course <span style={{fontSize:13,fontWeight:500,color:'var(--ink-soft)'}}>(Coming Soon)</span></h3>
-              <p>Multi-episode narrated series. Turn training manuals, onboarding docs, or educational content into a binge-worthy course.</p>
-            </div>
-            <div className="feature-card" style={{textAlign:'center',padding:'40px 28px'}}>
-              <div style={{fontSize:40,marginBottom:16}}>&#128202;</div>
-              <h3>Infographic-Style Video</h3>
-              <p>Turn data-heavy reports into a bold animated infographic video &mdash; AI extracts charts, stats, and key findings and brings them to life as a video you can share.</p>
             </div>
           </div>
         </section>
@@ -394,7 +384,7 @@ export default async function HomePage() {
             </div>
             <div className="comp-row">
               <div className="comp-label">Output formats</div>
-              <div className="comp-new highlight">&#10003; Video, Deck, PDF</div>
+              <div className="comp-new highlight">&#10003; Video + Slide Deck</div>
               <div className="comp-old">Video only</div>
               <div className="comp-old">Video only</div>
               <div className="comp-old">~  Slides &amp; graphics</div>
