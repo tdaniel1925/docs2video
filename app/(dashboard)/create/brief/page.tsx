@@ -16,6 +16,8 @@ export default function BriefPage() {
   const [input, setInput] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [answering, setAnswering] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   // Build (or load) the brief on mount.
@@ -44,6 +46,25 @@ export default function BriefPage() {
     } catch (e) {
       setChat((c) => [...c, { role: 'assistant', text: `Sorry — ${e instanceof Error ? e.message : 'that didn’t work'}.` }])
     } finally { setSending(false) }
+  }
+
+  // Submit answers to the AI's clarifying questions → re-grounds the brief.
+  async function submitAnswers() {
+    if (!videoId || answering) return
+    const filled = Object.fromEntries(Object.entries(answers).filter(([, v]) => v && v.trim()))
+    if (Object.keys(filled).length === 0) return
+    setAnswering(true); setError(null)
+    try {
+      const res = await fetch('/api/brief', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId, answers: filled }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || 'Could not apply answers')
+      if (d.brief) { setBrief(d.brief); setAnswers({}) }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not apply answers')
+    } finally { setAnswering(false) }
   }
 
   async function approve(skip = false) {
@@ -105,6 +126,45 @@ export default function BriefPage() {
             {brief.emphasis?.length ? <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 8 }}><strong>Emphasis:</strong> {brief.emphasis.join(', ')}</div> : null}
             {brief.avoid?.length ? <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 4 }}><strong>Skipping:</strong> {brief.avoid.join(', ')}</div> : null}
           </div>
+
+          {/* Clarifying questions — only shown when the AI is genuinely unsure */}
+          {brief.clarifyingQuestions?.length ? (
+            <div style={{ width: '100%', background: '#fffdf5', border: '1.5px solid #f5e6a8', borderRadius: 10, padding: 20, marginBottom: 18 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#92711a', marginBottom: 4 }}>A couple of quick questions to nail this</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>Answering these makes the script much more accurate. Optional — you can skip and continue.</div>
+              {brief.clarifyingQuestions.map((q) => (
+                <div key={q.id} style={{ marginBottom: 18 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>{q.question}</div>
+                  {q.why ? <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8 }}>{q.why}</div> : <div style={{ height: 6 }} />}
+                  {q.options?.length ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                      {q.options.map((opt) => {
+                        const active = answers[q.id] === opt
+                        return (
+                          <button key={opt} type="button" onClick={() => setAnswers((a) => ({ ...a, [q.id]: opt }))}
+                            style={{ fontSize: 13, fontWeight: 600, padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
+                              border: active ? '1.5px solid var(--ink)' : '1.5px solid var(--border-light)',
+                              background: active ? 'var(--ink)' : 'white', color: active ? 'white' : 'var(--ink)' }}>
+                            {opt}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : null}
+                  <input
+                    value={answers[q.id] && !q.options?.includes(answers[q.id]) ? answers[q.id] : (q.options ? '' : (answers[q.id] || ''))}
+                    onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
+                    placeholder={q.options?.length ? 'Or type your own…' : 'Type your answer…'}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
+                  />
+                </div>
+              ))}
+              <button onClick={submitAnswers} disabled={answering || Object.values(answers).every((v) => !v?.trim())}
+                style={{ padding: '11px 20px', borderRadius: 8, border: 'none', background: '#92711a', color: 'white', fontSize: 14, fontWeight: 700, cursor: answering ? 'default' : 'pointer', fontFamily: 'inherit', opacity: (answering || Object.values(answers).every((v) => !v?.trim())) ? 0.55 : 1 }}>
+                {answering ? 'Updating the brief…' : 'Update brief with my answers'}
+              </button>
+            </div>
+          ) : null}
 
           {/* Chat */}
           <div style={{ width: '100%', background: 'white', border: '1.5px solid var(--border-light)', borderRadius: 10, padding: 16, marginBottom: 20 }}>

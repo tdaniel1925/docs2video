@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../_lib/supabase/server'
-import type { VideoBrief, WizardDraft } from '../../_lib/types'
+import type { VideoBrief, WizardDraft, ClarifyingQuestion } from '../../_lib/types'
 import { scrubPlaceholderNamesInText } from '../../_lib/text-format'
 
 export const runtime = 'nodejs'
@@ -31,6 +31,17 @@ function parseBrief(text: string): VideoBrief | null {
       tone: b.tone ? String(b.tone) : undefined,
       emphasis: Array.isArray(b.emphasis) ? b.emphasis.map((x: any) => s(String(x))) : undefined,
       avoid: Array.isArray(b.avoid) ? b.avoid.map((x: any) => s(String(x))) : undefined,
+      clarifyingQuestions: Array.isArray(b.clarifyingQuestions)
+        ? b.clarifyingQuestions
+            .filter((q: any) => q?.question)
+            .slice(0, 3)
+            .map((q: any, i: number): ClarifyingQuestion => ({
+              id: String(q.id || `q${i}`),
+              question: s(String(q.question)),
+              why: q.why ? s(String(q.why)) : undefined,
+              options: Array.isArray(q.options) ? q.options.map((o: any) => String(o)).slice(0, 5) : undefined,
+            }))
+        : undefined,
     }
   } catch { return null }
 }
@@ -87,6 +98,14 @@ CORRECTLY IDENTIFY THE SOURCE: this input came from ${noun === 'website' ? 'a WE
 
 NEVER use a placeholder or sample name. If the source refers to the person as "Mr. Client", "Valued Client", "the insured", "John Doe", or any generic stand-in, DO NOT repeat it — address the reader as "you" / "your" instead (e.g. "This policy gives you lifelong protection"). Only use a real person's name if one is genuinely present.
 
+BE INTELLIGENT — ASK ONLY WHEN GENUINELY UNSURE. Before finalizing, judge your CONFIDENCE on the dimensions that actually change the script:
+  • WHO/FROM: whose video is this — is it FROM a company/person TO a prospect, or ABOUT them? (e.g. a company name appearing throughout usually means it's that company's video for their prospects).
+  • AUDIENCE: who watches (new prospect, existing client, internal team)?
+  • GOAL/CTA: what should the viewer do after (book a call, sign, just understand)?
+  • EMPHASIS: if the source weights several topics heavily, which should lead?
+  • TONE: reassuring/plain vs. polished/corporate.
+For each dimension you are CONFIDENT about, just reflect it in the brief (do NOT ask). ONLY for dimensions that are genuinely ambiguous or where critical info is missing, add a short clarifying question (max 3 total, most-impactful first). If everything is clear, return an EMPTY clarifyingQuestions array. Do not ask about things the source already answers. Questions must be specific to THIS source (reference the real company/person/topic by name), not generic.
+
 Return ONLY a JSON object:
 {
   "docType": "${docTypeHint}",
@@ -94,7 +113,10 @@ Return ONLY a JSON object:
   "keyPoints": ["the 3-6 most important points the video should make"],
   "figures": [{"label":"...","value":"..."}],  // the real numbers worth featuring (exact units)
   "angle": "the single intended takeaway / how the video should be framed",
-  "tone": "the right tone for this audience (e.g. 'reassuring, plain-language')"
+  "tone": "the right tone for this audience (e.g. 'reassuring, plain-language')",
+  "clarifyingQuestions": [   // 0-3 items, ONLY where you are genuinely unsure
+    { "id": "audience", "question": "Who is this video for — a new prospect, or an existing client of <RealName>?", "why": "It changes the tone and CTA.", "options": ["New prospect","Existing client","Internal team"] }
+  ]
 }
 No markdown, no commentary — just the JSON.`
 }
@@ -104,8 +126,12 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-  const { videoId, regenerate } = (await request.json().catch(() => ({}))) as { videoId?: string; regenerate?: boolean }
+  const { videoId, regenerate, answers } = (await request.json().catch(() => ({}))) as {
+    videoId?: string; regenerate?: boolean; answers?: Record<string, string>
+  }
   if (!videoId) return NextResponse.json({ error: 'videoId required' }, { status: 400 })
+  // Submitting answers always re-grounds the brief with them.
+  const hasAnswers = answers && Object.keys(answers).length > 0
 
   // Load the draft (must belong to this user).
   const { data: video } = await supabase
@@ -118,8 +144,9 @@ export async function POST(request: Request) {
 
   const draft = (video.draft_data as WizardDraft) || ({} as WizardDraft)
 
-  // Idempotent: return the existing brief unless explicitly regenerating.
-  if (draft.brief && !regenerate) return NextResponse.json({ brief: draft.brief })
+  // Idempotent: return the existing brief unless explicitly regenerating or
+  // submitting clarifying answers.
+  if (draft.brief && !regenerate && !hasAnswers) return NextResponse.json({ brief: draft.brief })
 
   const extracted = (draft.extractedData as any) || {}
   const classification = (draft.classification as any) || extracted.classification || {}
@@ -137,6 +164,16 @@ export async function POST(request: Request) {
     Array.isArray(extracted.bulletPoints) && extracted.bulletPoints.length ? `POINTS:\n- ${extracted.bulletPoints.slice(0, 12).join('\n- ')}` : '',
     Array.isArray(extracted.keyMetrics) && extracted.keyMetrics.length ? `METRICS:\n${extracted.keyMetrics.slice(0, 12).map((m: any) => `${m.label}: ${m.value}`).join('\n')}` : '',
     draft.purpose ? `USER PURPOSE: ${draft.purpose}` : '',
+    // The user's answers to the prior clarifying questions — now AUTHORITATIVE.
+    hasAnswers
+      ? `USER ANSWERS (authoritative — bake these into angle/audience/tone/emphasis and DO NOT ask them again):\n${
+          (draft.brief?.clarifyingQuestions || [])
+            .map((q) => (answers![q.id] ? `- ${q.question} → ${answers![q.id]}` : null))
+            .filter(Boolean)
+            .join('\n') ||
+          Object.entries(answers!).map(([k, v]) => `- ${k}: ${v}`).join('\n')
+        }`
+      : '',
   ].filter(Boolean).join('\n\n')
 
   try {
@@ -147,6 +184,16 @@ export async function POST(request: Request) {
     const text = resp.content.filter((b) => b.type === 'text').map((b: any) => b.text).join('')
     const brief = parseBrief(text)
     if (!brief) return NextResponse.json({ error: 'Could not build a brief' }, { status: 502 })
+
+    // When the user just answered questions, record those answers on the brief
+    // and clear any that were resolved so they aren't re-asked.
+    if (hasAnswers) {
+      const answered = (draft.brief?.clarifyingQuestions || []).map((q) => ({ ...q, answer: answers![q.id] || q.answer }))
+      // Keep only NEW questions the model raised that weren't already answered.
+      const newQs = (brief.clarifyingQuestions || []).filter((q) => !answers![q.id])
+      brief.clarifyingQuestions = newQs
+      ;(brief as any).answeredQuestions = answered.filter((q) => q.answer)
+    }
 
     const merged: WizardDraft = { ...draft, brief }
     await supabase.from('videos').update({ draft_data: merged }).eq('id', videoId).eq('user_id', user.id)

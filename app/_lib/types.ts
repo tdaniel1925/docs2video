@@ -272,6 +272,18 @@ export interface VideoBrief {
   emphasis?: string[]                          // what to lean into (user direction)
   avoid?: string[]                             // what to skip (user direction)
   approved?: boolean
+  // Confidence-gated clarifying questions: the AI only populates these when it
+  // is genuinely unsure about a dimension that would change the script (who the
+  // video is for/from, audience, goal/CTA, emphasis, tone). Empty = confident.
+  clarifyingQuestions?: ClarifyingQuestion[]
+}
+
+export interface ClarifyingQuestion {
+  id: string                 // stable key, e.g. "audience"
+  question: string           // the question to show the user
+  why?: string               // 1-line reason it matters (optional)
+  options?: string[]         // quick-pick chips (optional; free-text always allowed)
+  answer?: string            // the user's chosen/typed answer (filled in by UI)
 }
 
 export interface EmailConnection {
