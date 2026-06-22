@@ -70,7 +70,7 @@ export default function BriefPage() {
 
       {building ? (
         <div style={{ textAlign: 'center', color: 'var(--ink-soft)', padding: '48px 0' }}>
-          <div className="spinner" style={{ margin: '0 auto 14px' }} /> Reading your document…
+          <div className="spinner" style={{ margin: '0 auto 14px' }} /> Reading your content…
         </div>
       ) : brief ? (
         <>

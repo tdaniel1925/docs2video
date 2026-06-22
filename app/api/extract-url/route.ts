@@ -94,53 +94,77 @@ export async function POST(request: Request) {
     let markdown = mainResult?.markdown || mainResult?.data?.markdown || ''
     let html = mainResult?.html || mainResult?.data?.html || ''
 
-    // Extract nav links from both HTML and markdown, then scrape key pages
+    // ── Discover the site's important pages, then scrape them in parallel so we
+    //    get a full picture of the site (not just the homepage) and stay fast. ──
     const baseOrigin = parsedUrl.origin
-    const navKeywords = /\b(about|pricing|services|contact|features|solutions|products|plans|testimonials|reviews|faq|how-it-works|case-studies|clients)\b/i
+    // Pages that carry the "what this company is/does" story. Broad on purpose.
+    const navKeywords = /\b(about|about-us|company|who-we-are|mission|team|pricing|plans|services|service|features|solutions|products|product|offerings|capabilities|industries|use-cases|how-it-works|process|approach|contact|testimonials|reviews|case-studies|clients|customers|portfolio|work|faq|benefits|why|overview)\b/i
     const navLinks: string[] = []
-    // From HTML
+    const pushLink = (raw: string) => {
+      const href = raw.replace(/[)>\s]+$/, '')
+      if (!href || href.includes('#') || href.includes('mailto:') || href.includes('tel:')) return
+      let fullUrl = href
+      if (!fullUrl.startsWith('http')) {
+        try { fullUrl = new URL(href, baseOrigin).href } catch { return }
+      }
+      // same-origin only, skip files/assets, dedupe (ignore trailing slash)
+      if (!fullUrl.startsWith(baseOrigin)) return
+      if (/\.(pdf|jpg|jpeg|png|gif|svg|webp|zip|mp4|css|js)(\?|$)/i.test(fullUrl)) return
+      const norm = fullUrl.replace(/\/$/, '')
+      if (fullUrl !== parsedUrl.toString().replace(/\/$/, '') &&
+          !navLinks.some((l) => l.replace(/\/$/, '') === norm)) {
+        navLinks.push(fullUrl)
+      }
+    }
+
+    // 1) Fast comprehensive discovery: try sitemap.xml (gives the real page list).
+    try {
+      const sm = await getFirecrawl().scrape(`${baseOrigin}/sitemap.xml`, { formats: ['rawHtml', 'html'] }).catch(() => null) as any
+      const smXml = sm?.rawHtml || sm?.html || sm?.data?.rawHtml || ''
+      if (smXml) {
+        const locs = (smXml.match(/<loc>([^<]+)<\/loc>/gi) || [])
+          .map((m: string) => m.replace(/<\/?loc>/gi, '').trim())
+        // Prefer story pages from the sitemap first, then any same-origin page.
+        for (const loc of locs) if (navKeywords.test(loc)) pushLink(loc)
+        for (const loc of locs) pushLink(loc)
+      }
+    } catch { /* no sitemap — fall back to link scraping */ }
+
+    // 2) Also harvest nav links from the homepage HTML + markdown (story pages first).
     const htmlLinkMatches = html.match(/href=["']([^"']+)["']/gi) || []
-    // From markdown [text](url)
     const mdLinkMatches = markdown.match(/\]\(([^)]+)\)/g) || []
     const allHrefs = [
       ...htmlLinkMatches.map((m: string) => m.match(/href=["']([^"']+)["']/)?.[1]).filter(Boolean),
       ...mdLinkMatches.map((m: string) => m.match(/\]\(([^)]+)\)/)?.[1]).filter(Boolean),
-    ]
-    for (const rawHref of allHrefs) {
-      const href = (rawHref as string).replace(/[)>\s]+$/, '') // clean trailing chars
-      if (href && navKeywords.test(href) && !href.includes('#') && !href.includes('mailto:')) {
-        let fullUrl = href
-        if (!fullUrl.startsWith('http')) {
-          try { fullUrl = new URL(href, baseOrigin).href } catch { continue }
-        }
-        if (fullUrl.startsWith(baseOrigin) && !navLinks.includes(fullUrl)) {
-          navLinks.push(fullUrl)
-        }
-      }
-    }
+    ] as string[]
+    for (const href of allHrefs) if (navKeywords.test(href)) pushLink(href)
 
-    // Always try /contact if not already found
-    const contactUrl = `${baseOrigin}/contact/`
+    // Always include /contact if we haven't picked it up.
     if (!navLinks.some((l: string) => l.includes('contact'))) {
-      navLinks.unshift(contactUrl) // prioritize contact page
+      navLinks.unshift(`${baseOrigin}/contact/`)
     }
 
-    // Scrape up to 3 nav pages in parallel
-    if (navLinks.length > 0) {
-      console.log(`[extract-url] Scraping ${Math.min(navLinks.length, 3)} nav pages: ${navLinks.slice(0, 5).join(', ')}`)
+    // 3) Scrape up to 8 discovered pages in parallel (fast; whole site picture).
+    const MAX_PAGES = 8
+    const toScrape = navLinks.slice(0, MAX_PAGES)
+    if (toScrape.length > 0) {
+      console.log(`[extract-url] Scraping ${toScrape.length} site pages in parallel: ${toScrape.join(', ')}`)
       const navResults = await Promise.allSettled(
-        navLinks.slice(0, 5).map(url =>
+        toScrape.map(url =>
           getFirecrawl().scrape(url, { formats: ['markdown'] }).catch(() => null)
         )
       )
+      let pagesAdded = 0
       for (const r of navResults) {
         if (r.status === 'fulfilled' && r.value) {
           const navMd = (r.value as any)?.markdown || (r.value as any)?.data?.markdown || ''
           if (navMd.length > 50) {
             markdown += `\n\n---\n\n${navMd}`
+            pagesAdded++
           }
         }
       }
+      console.log(`[extract-url] Merged ${pagesAdded} additional page(s); homepage + ${pagesAdded} = full-site context`)
     }
 
     if (!markdown || markdown.length < 50) {
@@ -353,7 +377,7 @@ export async function POST(request: Request) {
     // FIX 4: Classify the extracted content
     let classification = null
     try {
-      classification = await classifyFromText(truncated)
+      classification = await classifyFromText(truncated, undefined, 'website')
     } catch (classErr) {
       console.error('[extract-url] Classification failed, continuing without:', classErr instanceof Error ? classErr.message : 'unknown')
     }

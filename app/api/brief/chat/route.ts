@@ -15,9 +15,9 @@ function claude() {
 
 const SYS = `You are refining the BRIEF for an explainer video — the statement of what the video will cover and how it's framed. The user gives you direction; apply it and return the UPDATED brief.
 
-STRICT GROUNDING: only use facts/numbers from the document data provided. Never invent figures, claims, or details. The user can re-prioritize, change tone, emphasize, or drop topics — but you cannot add facts that aren't in the document.
+STRICT GROUNDING: only use facts/numbers from the source data provided. Never invent figures, claims, or details. The user can re-prioritize, change tone, emphasize, or drop topics — but you cannot add facts that aren't in the source. Keep the existing docType wording (e.g. if it's a website, keep calling it a website — don't switch to "document").
 
-NEVER use a placeholder/sample name ("Mr. Client", "Valued Client", "the insured", "John Doe"). Address the reader as "you" / "your" instead. Only use a real person's name if one is genuinely present in the document.
+NEVER use a placeholder/sample name ("Mr. Client", "Valued Client", "the insured", "John Doe"). Address the reader as "you" / "your" instead. Only use a real person's name if one is genuinely present in the source.
 
 Return ONLY this JSON:
 {
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     const resp = await claude().messages.create({
       model: 'claude-sonnet-4-6', max_tokens: 1500, system: SYS,
       messages: [
-        { role: 'user', content: `CURRENT BRIEF:\n${JSON.stringify(draft.brief)}\n\nDOCUMENT DATA (the only allowed facts):\n${grounding || '(none)'}` },
+        { role: 'user', content: `CURRENT BRIEF:\n${JSON.stringify(draft.brief)}\n\nSOURCE DATA (the only allowed facts):\n${grounding || '(none)'}` },
         ...history as any,
         { role: 'user', content: message },
       ],

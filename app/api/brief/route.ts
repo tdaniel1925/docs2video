@@ -23,7 +23,7 @@ function parseBrief(text: string): VideoBrief | null {
     // that read unprofessionally even if the source doc prints them.
     const s = scrubPlaceholderNamesInText
     return {
-      docType: String(b.docType || 'Document'),
+      docType: String(b.docType || 'Source'),
       summary: s(String(b.summary || '')),
       keyPoints: Array.isArray(b.keyPoints) ? b.keyPoints.map((x: any) => s(String(x))).slice(0, 8) : [],
       figures: Array.isArray(b.figures) ? b.figures.filter((f: any) => f?.label && f?.value).map((f: any) => ({ label: s(String(f.label)), value: String(f.value) })).slice(0, 8) : [],
@@ -35,15 +35,61 @@ function parseBrief(text: string): VideoBrief | null {
   } catch { return null }
 }
 
-const SYS = `You are a video producer reviewing a source document before scripting an explainer video. Produce a BRIEF: a plain-language statement of what the document is and what the video will cover.
+/**
+ * Describe the input source in plain words based on how it was provided, so the
+ * brief never calls a scanned website "this document". `contentMethod`:
+ *   url  → a website that was scanned
+ *   file → an uploaded document
+ *   text → pasted content
+ *   ai   → an idea/topic the user described
+ */
+function describeSource(contentMethod?: string): {
+  noun: string            // "website" | "document" | "content" | "topic"
+  dataLabel: string       // header for the input block
+  docTypeHint: string     // what docType should describe
+} {
+  switch (contentMethod) {
+    case 'url':
+      return {
+        noun: 'website',
+        dataLabel: 'SCANNED WEBSITE CONTENT',
+        docTypeHint: "what this website is (e.g. 'Company website — financial advisory firm')",
+      }
+    case 'text':
+      return {
+        noun: 'content',
+        dataLabel: 'PASTED CONTENT',
+        docTypeHint: "what this content is (e.g. 'Product description', 'Service overview')",
+      }
+    case 'ai':
+      return {
+        noun: 'topic',
+        dataLabel: 'TOPIC / IDEA',
+        docTypeHint: "what this is about (e.g. 'Explainer on retirement planning')",
+      }
+    case 'file':
+    default:
+      return {
+        noun: 'document',
+        dataLabel: 'DOCUMENT DATA',
+        docTypeHint: "what kind of document this is (e.g. 'Life insurance illustration')",
+      }
+  }
+}
 
-STRICT GROUNDING: use ONLY facts, names, and numbers present in the provided document data. Invent NOTHING — no figures, no claims, no contact info that isn't there.
+function buildSystemPrompt(src: ReturnType<typeof describeSource>): string {
+  const { noun, docTypeHint } = src
+  return `You are a video producer reviewing a source ${noun} before scripting an explainer video. Produce a BRIEF: a plain-language statement of what the ${noun} is and what the video will cover.
 
-NEVER use a placeholder or sample name. If the document refers to the person as "Mr. Client", "Valued Client", "the insured", "John Doe", or any generic stand-in, DO NOT repeat it — address the reader as "you" / "your" instead (e.g. "This policy gives you lifelong protection"). Only use a real person's name if one is genuinely present.
+STRICT GROUNDING: use ONLY facts, names, and numbers present in the provided ${noun} data. Invent NOTHING — no figures, no claims, no contact info that isn't there.
+
+CORRECTLY IDENTIFY THE SOURCE: this input came from ${noun === 'website' ? 'a WEBSITE that was scanned — refer to it as "this website" / "the site", never "this document"' : noun === 'content' ? 'PASTED content — refer to it as "this content", never "this document" unless the content clearly is one' : noun === 'topic' ? 'a TOPIC the user described — frame the brief around that topic' : 'an uploaded document'}.
+
+NEVER use a placeholder or sample name. If the source refers to the person as "Mr. Client", "Valued Client", "the insured", "John Doe", or any generic stand-in, DO NOT repeat it — address the reader as "you" / "your" instead (e.g. "This policy gives you lifelong protection"). Only use a real person's name if one is genuinely present.
 
 Return ONLY a JSON object:
 {
-  "docType": "what kind of document this is, in plain words (e.g. 'Life insurance illustration')",
+  "docType": "${docTypeHint}",
   "summary": "1-2 friendly sentences: what this is and who it's for",
   "keyPoints": ["the 3-6 most important points the video should make"],
   "figures": [{"label":"...","value":"..."}],  // the real numbers worth featuring (exact units)
@@ -51,6 +97,7 @@ Return ONLY a JSON object:
   "tone": "the right tone for this audience (e.g. 'reassuring, plain-language')"
 }
 No markdown, no commentary — just the JSON.`
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -76,6 +123,10 @@ export async function POST(request: Request) {
 
   const extracted = (draft.extractedData as any) || {}
   const classification = (draft.classification as any) || extracted.classification || {}
+  // Identify the input source so the brief calls a scanned website a "website",
+  // pasted text "content", etc. — never blindly "this document".
+  const src = describeSource((draft as any).contentMethod)
+  const sys = buildSystemPrompt(src)
 
   // Compact, grounded input for the model.
   const input = [
@@ -90,8 +141,8 @@ export async function POST(request: Request) {
 
   try {
     const resp = await claude().messages.create({
-      model: 'claude-sonnet-4-6', max_tokens: 1500, system: SYS,
-      messages: [{ role: 'user', content: `DOCUMENT DATA:\n\n${input || '(no structured data extracted)'}` }],
+      model: 'claude-sonnet-4-6', max_tokens: 1500, system: sys,
+      messages: [{ role: 'user', content: `${src.dataLabel}:\n\n${input || '(no structured data extracted)'}` }],
     })
     const text = resp.content.filter((b) => b.type === 'text').map((b: any) => b.text).join('')
     const brief = parseBrief(text)

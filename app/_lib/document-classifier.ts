@@ -163,9 +163,19 @@ ACTION ITEMS RULES:
 export async function classifyFromText(
   content: string,
   purpose?: string,
+  sourceType?: 'website' | 'text' | 'document',
 ): Promise<DocumentClassification> {
   const truncated = content.slice(0, 30000)
   const promptAddition = purpose ? `\n\nThe user's stated purpose: "${purpose}"` : ''
+  // Tell the classifier what the input actually IS so it doesn't label a scanned
+  // website or pasted text as if it were an uploaded document.
+  const sourceNote =
+    sourceType === 'website'
+      ? `\n\nIMPORTANT: This text was SCANNED FROM A WEBSITE (multiple pages of a company/organization's site), NOT an uploaded document. Classify what the website/business is about. In keyQuestion and any wording, refer to it as "this website" or "this company", never "this document".`
+      : sourceType === 'text'
+      ? `\n\nIMPORTANT: This is PASTED content, not an uploaded document file. Refer to it as "this content" rather than "this document".`
+      : ''
+  const sourceLabel = sourceType === 'website' ? 'website text' : sourceType === 'text' ? 'content' : 'document text'
 
   try {
     const response = await withRetry(() => genai.models.generateContent({
@@ -174,7 +184,7 @@ export async function classifyFromText(
         {
           role: 'user',
           parts: [
-            { text: `${CLASSIFICATION_PROMPT}${promptAddition}\n\nHere is the document text to classify:\n\n${truncated}` },
+            { text: `${CLASSIFICATION_PROMPT}${promptAddition}${sourceNote}\n\nHere is the ${sourceLabel} to classify:\n\n${truncated}` },
           ],
         },
       ],
