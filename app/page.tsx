@@ -318,7 +318,7 @@ export default async function HomePage() {
         <section className="section" id="share-page">
           <div style={{textAlign:'center',marginBottom:40}}>
             <div className="section-eyebrow">The share page</div>
-            <h2 className="section-title">One link replaces <em>five tools</em></h2>
+            <h2 className="section-title">One link replaces <em>three tools</em></h2>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(3, 1fr)',gap:24,maxWidth:1000,margin:'0 auto 48px'}}>
             <div style={{background:'white',borderRadius:10,padding:32,border:'1px solid var(--border-light)',transition:'transform 0.2s, box-shadow 0.2s'}} className="activity-row">
