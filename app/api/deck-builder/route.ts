@@ -5,7 +5,7 @@ import { sendNotification, createJob, updateJobProgress } from '../../_lib/notif
 import { analyzeTemplate } from '../../_lib/template-analyzer'
 import { planDeck } from '../../_lib/deck-planner'
 import { generateDeck } from '../../_lib/deck-generator'
-import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { checkCredits, deductCredits, costForUser } from '../../_lib/credits'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { getStylePrompt } from '../../_lib/slide-engine/simple-prompt'
 
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
 
     // Credit check — deduction after successful generation (admin/beta bypass
     // handled inside checkCredits/deductCredits)
-    const DECK_COST = CREDIT_COSTS.deck
+    const DECK_COST = costForUser('deck', user.id) // honors grandfathered customers
     const creditCheck = await checkCredits(user.id, DECK_COST)
     if (!creditCheck.allowed) {
       return NextResponse.json(

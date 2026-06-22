@@ -280,6 +280,7 @@ export async function POST(request: Request) {
       outputType: (body as any).outputType || 'video',
       detailLevel: (body as any).detailLevel || (detailed ? 'detailed' : 'standard'),
       narrationStyle: effectiveNarrationStyle,
+      userId: user.id, // honors grandfathered (old-rate) customers like Aziz
     })
 
     const creditCheck = await checkCredits(user.id, videoCost)

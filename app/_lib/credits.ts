@@ -51,8 +51,9 @@ const OLD_CREDIT_COSTS: Partial<Record<string, number>> = {
 
 // User IDs grandfathered at OLD rates. Add early/loyal customers here.
 export const GRANDFATHERED_USER_IDS = new Set<string>([
-  // azi / phil@valorfs.com — first paying customer (pre-2x pricing)
-  // TODO: replace with the real profiles.id (see note returned to operator).
+  // Aziz Ali (azizali.insurance@gmail.com) — first paying customer, locked at
+  // pre-2x pricing as of 2026-06-21.
+  '777c8d8c-7835-4007-a683-5eaad0f99969',
 ])
 
 /** Cost for an action, honoring grandfathered users (old rates). */
@@ -547,24 +548,27 @@ export function calculateVideoCost(options: {
   outputType: 'video' | 'pptx' | 'pdf'
   detailLevel?: 'quick' | 'standard' | 'detailed'
   narrationStyle?: 'solo' | 'podcast'
+  userId?: string | null
 }): number {
-  const { outputType, detailLevel = 'standard', narrationStyle = 'solo' } = options
+  const { outputType, detailLevel = 'standard', narrationStyle = 'solo', userId } = options
+  // Grandfathered users (e.g. Aziz) pay the OLD pre-2x rates via costForUser.
+  const cost = (action: CreditAction) => costForUser(action, userId)
 
-  if (outputType === 'pptx') return CREDIT_COSTS.pptx
-  if (outputType === 'pdf') return CREDIT_COSTS.pdf
+  if (outputType === 'pptx') return cost('pptx')
+  if (outputType === 'pdf') return cost('pdf')
 
-  let cost = 0
+  let total = 0
   switch (detailLevel) {
-    case 'quick': cost = CREDIT_COSTS.videoQuick; break
-    case 'detailed': cost = CREDIT_COSTS.videoDetailed; break
-    default: cost = CREDIT_COSTS.videoStandard; break
+    case 'quick': total = cost('videoQuick'); break
+    case 'detailed': total = cost('videoDetailed'); break
+    default: total = cost('videoStandard'); break
   }
 
   if (narrationStyle === 'podcast') {
-    cost += CREDIT_COSTS.podcastAddon
+    total += cost('podcastAddon')
   }
 
-  return cost
+  return total
 }
 
 // Ensure a user has a credit balance row (call on signup or first login)

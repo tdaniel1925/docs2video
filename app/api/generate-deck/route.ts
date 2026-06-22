@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto'
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { deductCredits, checkCredits, addTopupCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { deductCredits, checkCredits, addTopupCredits, costForUser } from '../../_lib/credits'
 import { generatePptx } from '../../_lib/pptx-generator'
 import type { DeckSlide } from '../../_lib/pptx-generator'
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   // charge. deductCredits is an atomic CAS, so up-front deduction caps spend;
   // we refund in the catch block if generation fails. (admin/beta bypass is
   // handled inside deductCredits.)
-  const DECK_COST = CREDIT_COSTS.deck
+  const DECK_COST = costForUser('deck', user.id) // honors grandfathered customers
   const admin = createAdminClient()
   const deckReqId = randomUUID()
   const deducted = await deductCredits(user.id, DECK_COST, 'deck_generation', undefined, `deck:${deckReqId}`)
