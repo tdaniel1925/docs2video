@@ -23,13 +23,28 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   // error_message, and the full private brand row to anyone with the UUID.
   const VIDEO_COLS = 'id, user_id, title, status, video_url, thumbnail_url, music_url, script, scene_count, preview_thumbs, created_at, updated_at'
   const BRAND_COLS = 'id, name, logo_url, logo_light_url, logo_dark_url, logo_chip, primary_color, secondary_color, accent_color, background_color, text_color, tagline, fonts, profile_type, person_role, photo_url, intro_line, show_logo, show_name_on_slides, photo_placement, brand_guide_data'
-  const { data: video } = await admin
+  // Fetch by id only (no brittle exact status match). Use maybeSingle so a
+  // to-many join (e.g. >1 infographic row) can't throw and 404 a real video.
+  const { data: video, error: videoErr } = await admin
     .from('videos')
     .select(`${VIDEO_COLS}, brand:brands(${BRAND_COLS}), infographic:infographics(policy_data, source_pdf_url)`)
     .eq('id', id)
-    .eq('status', 'completed')
-    .single()
+    .maybeSingle()
+  if (videoErr) {
+    console.error('[public/watch] query error:', videoErr.message)
+  }
   if (!video) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // A share link is "available" once the video has actually rendered (has a
+  // playable URL). Don't hard-require status === 'completed' — videos that the
+  // owner already shared can sit in completed/complete/review_required/ready
+  // while still being fully watchable. Only block clearly-unfinished states.
+  const status = String((video as any).status || '')
+  const hasPlayable = !!(video as any).video_url
+  const BLOCKED_STATES = ['pending', 'queued', 'scraping', 'scripting', 'generating_slides', 'generating_audio', 'assembling', 'processing', 'generating', 'draft', 'failed']
+  if (!hasPlayable && BLOCKED_STATES.includes(status)) {
+    return NextResponse.json({ error: 'Not ready' }, { status: 404 })
+  }
 
   // Sanitize the script's _pipeline_input: the share page needs only the
   // disclaimer/industry/insurance flags from policyData, NOT the raw source
