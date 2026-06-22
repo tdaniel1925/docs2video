@@ -4,7 +4,6 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '../../../_lib/supabase/client'
-import SendEmailModal from '../../../_components/SendEmailModal'
 import ScriptEditor from '../../../_components/ScriptEditor'
 import type { Video, Brand } from '../../../_lib/types'
 
@@ -286,11 +285,16 @@ export default function VideoDetailPage() {
   const [deleting, setDeleting] = useState(false)
   const [downloadingPDF, setDownloadingPDF] = useState(false)
   const [downloadingPPTX, setDownloadingPPTX] = useState(false)
-  const [showEmailModal, setShowEmailModal] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
   const [shareEmail, setShareEmail] = useState('')
   const [shareName, setShareName] = useState('')
+  // Editable client-email composer (Share with Client). Body is editable plain
+  // text; on copy we render a nice HTML email (with a 'View Your Video Now'
+  // button) + a plain-text fallback so it pastes well into Gmail/Outlook.
+  const [shareEmailBody, setShareEmailBody] = useState('')
+  const [shareEmailBodyTouched, setShareEmailBodyTouched] = useState(false)
+  const [shareEmailCopied, setShareEmailCopied] = useState(false)
   const pipelineStarted = useRef(false)
   const [userPlan, setUserPlan] = useState<string>('trial')
   // Editor state
@@ -942,6 +946,71 @@ export default function VideoDetailPage() {
     setTimeout(() => setCopied(false), 3000)
   }
 
+  // ── Editable client-email composer (Share with Client) ──
+  const watchUrl = () => `${typeof window !== 'undefined' ? window.location.origin : ''}/watch/${params.id}`
+
+  // The default, friendly message body (editable). The watch link is NOT inlined
+  // here — the modal renders a "View Your Video Now" button + raw link separately.
+  function defaultShareBody(): string {
+    const name = shareName.trim() || 'there'
+    const pd = (video?.script as any)?._pipeline_input?.policyData
+    if (pd?.deathBenefit) {
+      return `Hi ${name},\n\nI've put together a short video overview of your policy illustration that walks you through the key details in plain language.\n\nIt only takes a couple of minutes — click the button below to watch.\n\nLet me know if you have any questions after watching.`
+    }
+    return `Hi ${name},\n\nI've put together a personalized video for you that walks through everything in plain language — it only takes a couple of minutes.\n\nClick the button below to watch it now.\n\nLet me know if you have any questions!`
+  }
+
+  const insuranceDisclaimer = `Important Disclosure: This video is for educational and informational purposes only and is not intended as legal, tax, or financial advice. Policy guarantees are based on the claims-paying ability of the issuing insurance company. Non-guaranteed values are subject to change. The policy contract and official carrier-issued illustration govern all policy values and guarantees. This video is not endorsed by or affiliated with any insurance carrier and is not a solicitation to purchase insurance. Please review all official policy materials and consult with your licensed professional before making any decisions.`
+
+  function escapeHtml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  }
+
+  // Build the rich HTML email: message body + "View Your Video Now" button + raw
+  // link at the bottom (+ insurance disclaimer when applicable).
+  function buildShareEmailHtml(body: string): string {
+    const url = watchUrl()
+    const isIns = !!(video?.script as any)?._pipeline_input?.policyData?.deathBenefit
+    const bodyHtml = escapeHtml(body).replace(/\n/g, '<br/>')
+    return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;color:#1a2b1f;font-size:15px;line-height:1.6;">
+  <p style="margin:0 0 20px;">${bodyHtml}</p>
+  <p style="text-align:center;margin:28px 0;">
+    <a href="${url}" style="display:inline-block;background:#0d9488;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;padding:14px 32px;border-radius:8px;">View Your Video Now →</a>
+  </p>
+  <p style="font-size:13px;color:#5b6b60;margin:24px 0 0;">Or paste this link into your browser:<br/><a href="${url}" style="color:#0d9488;">${url}</a></p>${isIns ? `\n  <p style="font-size:11px;color:#8a968d;margin-top:24px;line-height:1.5;">${escapeHtml(insuranceDisclaimer)}</p>` : ''}
+</div>`
+  }
+
+  // Plain-text fallback for clients/clipboards that don't take rich HTML.
+  function buildShareEmailText(body: string): string {
+    const url = watchUrl()
+    const isIns = !!(video?.script as any)?._pipeline_input?.policyData?.deathBenefit
+    return `${body}\n\n► View Your Video Now: ${url}\n\nOr paste this link into your browser:\n${url}${isIns ? `\n\n${insuranceDisclaimer}` : ''}`
+  }
+
+  async function copyShareEmail() {
+    const body = shareEmailBody || defaultShareBody()
+    const html = buildShareEmailHtml(body)
+    const text = buildShareEmailText(body)
+    try {
+      // Rich copy: HTML + plain fallback so it pastes styled into Gmail/Outlook.
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': new Blob([html], { type: 'text/html' }),
+            'text/plain': new Blob([text], { type: 'text/plain' }),
+          }),
+        ])
+      } else {
+        await navigator.clipboard.writeText(text)
+      }
+    } catch {
+      await navigator.clipboard.writeText(text)
+    }
+    setShareEmailCopied(true)
+    setTimeout(() => setShareEmailCopied(false), 2500)
+  }
+
   if (!video) {
     return (
       <div style={{ color: 'var(--ink-light)', padding: '64px', textAlign: 'center' }}>
@@ -1427,7 +1496,7 @@ export default function VideoDetailPage() {
                 marginTop: 8,
               }}
             >
-              <button onClick={() => setShowShareModal(true)} className="btn btn-mint" style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}>
+              <button onClick={() => { setShareEmailBody(''); setShareEmailBodyTouched(false); setShareEmailCopied(false); setShowShareModal(true) }} className="btn btn-mint" style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}>
                 Share with Client
               </button>
               <button onClick={copyShareLink} className={`btn ${copied ? 'btn-mint' : 'btn-soft'}`} style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8, transition: 'all 0.2s ease' }}>
@@ -1481,13 +1550,6 @@ export default function VideoDetailPage() {
                 style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}
               >
                 Duplicate
-              </button>
-              <button
-                onClick={() => setShowEmailModal(true)}
-                className="btn btn-soft"
-                style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}
-              >
-                Email to Client
               </button>
               <button
                 onClick={async () => {
@@ -2090,53 +2152,56 @@ export default function VideoDetailPage() {
               <button onClick={() => setShowShareModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-light)' }}>&times;</button>
             </div>
 
-            {/* Share link */}
-            <div style={{ marginBottom: 20 }}>
-              <label className="input-label">Share link</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input className="input" readOnly value={`${typeof window !== 'undefined' ? window.location.origin : ''}/watch/${video.id}`} style={{ flex: 1, fontSize: 13 }} />
-                <button onClick={() => {
-                  navigator.clipboard.writeText(`${window.location.origin}/watch/${video.id}`)
-                  setShareCopied(true)
-                  setTimeout(() => setShareCopied(false), 2000)
-                }} className="btn btn-soft btn-sm" style={{ flexShrink: 0 }}>
-                  {shareCopied ? 'Copied' : 'Copy'}
-                </button>
+            <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: -8, marginBottom: 18, lineHeight: 1.5 }}>
+              Edit the message below, then copy the whole email and paste it into Gmail, Outlook, or any email app. The link is added automatically as a <strong>&ldquo;View Your Video Now&rdquo;</strong> button.
+            </p>
+
+            {/* Client name → personalizes the greeting */}
+            <div className="form-group">
+              <label className="input-label">Client name (optional)</label>
+              <input
+                className="input"
+                placeholder="e.g. Sarah"
+                value={shareName}
+                onChange={e => {
+                  setShareName(e.target.value)
+                  // Re-seed the greeting only if the user hasn't hand-edited the body.
+                  if (!shareEmailBodyTouched) setShareEmailBody('')
+                }}
+              />
+            </div>
+
+            {/* Editable email message */}
+            <div className="form-group">
+              <label className="input-label">Email message</label>
+              <textarea
+                className="input"
+                rows={7}
+                value={shareEmailBody || defaultShareBody()}
+                onChange={e => { setShareEmailBody(e.target.value); setShareEmailBodyTouched(true) }}
+                style={{ resize: 'vertical', lineHeight: 1.5, fontSize: 14 }}
+              />
+            </div>
+
+            {/* What gets appended automatically */}
+            <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '14px 16px', marginBottom: 18, textAlign: 'center' }}>
+              <span style={{ display: 'inline-block', background: '#0d9488', color: '#fff', fontWeight: 700, fontSize: 13, padding: '9px 20px', borderRadius: 8 }}>View Your Video Now →</span>
+              <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 10, wordBreak: 'break-all' }}>
+                Link: {watchUrl()}
               </div>
             </div>
 
-            {/* Quick email */}
-            <div style={{ marginBottom: 20 }}>
-              <label className="input-label">Send via email</label>
-              <div className="form-group">
-                <input className="input" placeholder="Client name" value={shareName} onChange={e => setShareName(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <input className="input" type="email" placeholder="Client email address" value={shareEmail} onChange={e => setShareEmail(e.target.value)} />
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {/* mailto fallback */}
-                <a
-                  href={`mailto:${shareEmail}?subject=${encodeURIComponent(`Your Explainer: ${video.title ?? 'Video'}`)}&body=${encodeURIComponent(`Hi ${shareName || 'there'},\n\nI've put together a personalized explainer for you. Watch it here:\n\n${typeof window !== 'undefined' ? window.location.origin : ''}/watch/${video.id}\n\nLet me know if you have any questions!`)}`}
-                  className="btn btn-primary"
-                  style={{ flex: 1, textAlign: 'center' }}
-                  onClick={() => shareEmail && setShowShareModal(false)}
-                >
-                  Open in Email App
-                </a>
-                {/* Connected email */}
-                <button
-                  onClick={() => { setShowShareModal(false); setShowEmailModal(true) }}
-                  className="btn btn-soft"
-                  style={{ flexShrink: 0 }}
-                >
-                  Send via Connected Email
-                </button>
-              </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={copyShareEmail} className="btn btn-primary" style={{ flex: 1 }}>
+                {shareEmailCopied ? '✓ Copied — paste into your email' : 'Copy Email'}
+              </button>
+              <button onClick={() => setShowShareModal(false)} className="btn btn-soft" style={{ flexShrink: 0 }}>
+                Done
+              </button>
             </div>
 
-            <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 16, fontSize: 12, color: 'var(--ink-light)', textAlign: 'center' }}>
-              Your client will see your branded explainer video with an option to book a meeting.
+            <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 16, marginTop: 16, fontSize: 12, color: 'var(--ink-light)', textAlign: 'center' }}>
+              Your client opens a branded page with your video — and you&rsquo;ll get notified when they watch it.
             </div>
           </div>
         </div>
@@ -2270,14 +2335,6 @@ export default function VideoDetailPage() {
         </div>
       )}
 
-      {showEmailModal && video && (
-        <SendEmailModal
-          videoId={video.id}
-          title={video.title ?? 'Explainer'}
-          clientName={shareName}
-          onClose={() => setShowEmailModal(false)}
-        />
-      )}
     </div>
   )
 }
