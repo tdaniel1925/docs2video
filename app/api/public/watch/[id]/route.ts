@@ -21,7 +21,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   // Presentation-safe allowlist ONLY (audit H3). select('*') leaked draft_data
   // (recipient PII, apiWebhookUrl), script/_pipeline_input (raw source docs),
   // error_message, and the full private brand row to anyone with the UUID.
-  const VIDEO_COLS = 'id, user_id, title, status, video_url, thumbnail_url, music_url, script, scene_count, preview_thumbs, created_at, updated_at'
+  // NOTE: do NOT add columns that may not exist in every environment — a single
+  // missing column 400s the whole query and 404s EVERY share link. 'scene_count'
+  // was removed for exactly this reason (column absent in prod → all links dead).
+  const VIDEO_COLS = 'id, user_id, title, status, video_url, thumbnail_url, music_url, script, preview_thumbs, created_at, updated_at'
   const BRAND_COLS = 'id, name, logo_url, logo_light_url, logo_dark_url, logo_chip, primary_color, secondary_color, accent_color, background_color, text_color, tagline, fonts, profile_type, person_role, photo_url, intro_line, show_logo, show_name_on_slides, photo_placement, brand_guide_data'
   // Fetch by id only (no brittle exact status match). Use maybeSingle so a
   // to-many join (e.g. >1 infographic row) can't throw and 404 a real video.
