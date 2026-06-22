@@ -1188,7 +1188,8 @@ export default function PublicWatchPage() {
               )
             })()}
 
-            {/* Action buttons */}
+            {/* Action buttons — client only downloads the video. Script/slides/
+                PPTX/share/social removed per product decision. */}
             <div className="wp-actions">
               {video.video_url && (
                 <button
@@ -1202,137 +1203,6 @@ export default function PublicWatchPage() {
                   Download Video
                 </button>
               )}
-
-              {slideCount > 0 && (
-                <button
-                  className="wp-action-btn"
-                  onClick={() => {
-                    trackEvent(video.id, 'download', { type: 'slides' })
-                    window.open(slideUrls[0], '_blank')
-                  }}
-                >
-                  <IconDownload />
-                  Download Slides
-                </button>
-              )}
-
-              {hasPdf ? (
-                <button
-                  className="wp-action-btn"
-                  onClick={() => {
-                    trackEvent(video.id, 'download', { type: 'pdf' })
-                    window.open(video.infographic!.source_pdf_url!, '_blank')
-                  }}
-                >
-                  <IconDownload />
-                  Download PDF
-                </button>
-              ) : (
-                <button
-                  className="wp-action-btn"
-                  onClick={() => {
-                    trackEvent(video.id, 'download', { type: 'script' })
-                    const scriptData = video.script as any
-                    let scriptText = ''
-                    if (Array.isArray(scriptData)) {
-                      scriptText = scriptData.map((s: any, i: number) =>
-                        `Slide ${i + 1}: ${s.title || s.scene || ''}\n${s.narration || ''}\n`
-                      ).join('\n---\n\n')
-                    }
-                    if (!scriptText) scriptText = 'No script available.'
-                    const blob = new Blob([scriptText], { type: 'text/plain' })
-                    const url = URL.createObjectURL(blob)
-                    const a = document.createElement('a')
-                    a.href = url
-                    a.download = `${video.title || 'script'}.txt`
-                    a.click()
-                    URL.revokeObjectURL(url)
-                  }}
-                >
-                  <IconDownload />
-                  Download Script
-                </button>
-              )}
-
-              {/* PPTX download */}
-              {slideCount > 0 && (
-                <button
-                  className="wp-action-btn"
-                  onClick={async () => {
-                    trackEvent(video.id, 'download', { type: 'pptx' })
-                    try {
-                      const res = await fetch('/api/download-pptx', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ videoId: video.id }),
-                      })
-                      if (!res.ok) throw new Error('Failed')
-                      const blob = await res.blob()
-                      const url = URL.createObjectURL(blob)
-                      const a = document.createElement('a')
-                      a.href = url
-                      a.download = `${video.title || 'presentation'}.pptx`
-                      a.click()
-                      URL.revokeObjectURL(url)
-                    } catch { /* skip */ }
-                  }}
-                >
-                  <IconDownload />
-                  Download PPTX
-                </button>
-              )}
-
-              <button
-                className={`wp-action-btn${copied ? ' copied' : ''}`}
-                onClick={handleCopyLink}
-              >
-                {copied ? <IconCheck /> : <IconShare />}
-                {copied ? 'Link Copied' : 'Share'}
-              </button>
-
-              {/* Social share buttons */}
-              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                <button
-                  className="wp-action-btn"
-                  style={{ flex: 1, fontSize: 12, padding: '8px 0' }}
-                  onClick={() => {
-                    trackEvent(video.id, 'social_share', { platform: 'facebook' })
-                    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank', 'width=600,height=400')
-                  }}
-                >
-                  Facebook
-                </button>
-                <button
-                  className="wp-action-btn"
-                  style={{ flex: 1, fontSize: 12, padding: '8px 0' }}
-                  onClick={() => {
-                    trackEvent(video.id, 'social_share', { platform: 'twitter' })
-                    window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(video.title || 'Check out this video')}`, '_blank', 'width=600,height=400')
-                  }}
-                >
-                  X / Twitter
-                </button>
-                <button
-                  className="wp-action-btn"
-                  style={{ flex: 1, fontSize: 12, padding: '8px 0' }}
-                  onClick={() => {
-                    trackEvent(video.id, 'social_share', { platform: 'linkedin' })
-                    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`, '_blank', 'width=600,height=400')
-                  }}
-                >
-                  LinkedIn
-                </button>
-                <button
-                  className="wp-action-btn"
-                  style={{ flex: 1, fontSize: 12, padding: '8px 0' }}
-                  onClick={() => {
-                    trackEvent(video.id, 'social_share', { platform: 'email' })
-                    window.open(`mailto:?subject=${encodeURIComponent(video.title || 'Check out this video')}&body=${encodeURIComponent(window.location.href)}`)
-                  }}
-                >
-                  Email
-                </button>
-              </div>
             </div>
 
             {/* Booking & Payment buttons */}
