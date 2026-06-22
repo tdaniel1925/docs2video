@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { sendVideoViewedEmail, sendVideoViewedSms } from '../../_lib/notifications'
+import { sendVideoViewedEmail, sendVideoViewedSms, buildVideoViewedHtml, type ViewDetails } from '../../_lib/notifications'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -50,6 +50,32 @@ export async function POST(request: Request) {
 
     const viewerDevice = request.headers.get('user-agent') ?? 'unknown'
     const referrer = request.headers.get('referer') ?? null
+
+    // ── Richer view context for owner notifications (all best-effort) ──
+    const ua = viewerDevice.toLowerCase()
+    const deviceLabel = ua.includes('ipad') || ua.includes('tablet') ? 'Tablet'
+      : (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) ? 'Mobile'
+      : 'Desktop'
+    const browser = ua.includes('edg/') ? 'Edge'
+      : ua.includes('chrome') && !ua.includes('edg/') ? 'Chrome'
+      : ua.includes('firefox') ? 'Firefox'
+      : ua.includes('safari') ? 'Safari'
+      : null
+    const os = ua.includes('iphone') || ua.includes('ipad') || ua.includes('ios') ? 'iOS'
+      : ua.includes('android') ? 'Android'
+      : ua.includes('mac os') || ua.includes('macintosh') ? 'macOS'
+      : ua.includes('windows') ? 'Windows'
+      : ua.includes('linux') ? 'Linux'
+      : null
+    // Vercel injects geo headers at the edge (no extra API needed).
+    const geoCity = request.headers.get('x-vercel-ip-city')
+    const geoRegion = request.headers.get('x-vercel-ip-country-region')
+    const geoCountry = request.headers.get('x-vercel-ip-country')
+    const location = [geoCity && decodeURIComponent(geoCity), geoRegion, geoCountry]
+      .filter(Boolean).join(', ') || null
+    // Clean referrer to a hostname (full URLs are noisy).
+    let referrerHost: string | null = null
+    if (referrer) { try { referrerHost = new URL(referrer).hostname } catch { referrerHost = referrer.slice(0, 60) } }
 
     // Insert into video_analytics table
     await supabase.from('video_analytics').insert({
@@ -223,6 +249,39 @@ export async function POST(request: Request) {
 
           const videoTitle = video.title ?? 'Untitled'
 
+          // Total views of this video + whether THIS ip has viewed before.
+          const { count: totalViews } = await supabase
+            .from('video_analytics')
+            .select('id', { count: 'exact', head: true })
+            .eq('video_id', videoId)
+            .eq('event_type', 'view')
+          const { count: priorFromIp } = await supabase
+            .from('video_analytics')
+            .select('id', { count: 'exact', head: true })
+            .eq('video_id', videoId)
+            .eq('event_type', 'view')
+            .eq('viewer_ip', viewerIp)
+          // Attribute the viewer to a client name if we can.
+          let viewerName: string | null = null
+          const { data: q } = await supabase
+            .from('quotes').select('client_name').eq('video_id', videoId).neq('status', 'draft')
+            .order('created_at', { ascending: false }).limit(1).maybeSingle()
+          viewerName = q?.client_name ?? null
+
+          const details: ViewDetails = {
+            viewerIp,
+            viewerName,
+            device: deviceLabel,
+            browser,
+            os,
+            location,
+            referrer: referrerHost,
+            viewNumber: totalViews ?? null,
+            isReturningViewer: (priorFromIp ?? 0) > 1,
+            viewedAt: new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+            videoId,
+          }
+
           // Send email via connected provider if available, otherwise fall back to Resend
           if (profile?.email) {
             const { data: connection } = await supabase
@@ -234,20 +293,8 @@ export async function POST(request: Request) {
 
             if (connection) {
               const { sendViaSMTP, sendViaGoogle, sendViaMicrosoft } = await import('../../_lib/email')
-              const subject = `Someone viewed your video: ${videoTitle}`
-              const html = `
-                <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
-                  <h2 style="color:#0F1A12;margin:0 0 12px;">New Video View</h2>
-                  <p style="color:#4B574F;font-size:14px;line-height:1.6;">
-                    Someone just opened your video <strong>"${videoTitle}"</strong>.
-                  </p>
-                  <p style="color:#8A968D;font-size:12px;margin-top:16px;">
-                    Viewer IP: ${viewerIp}<br/>
-                    Device: ${viewerDevice.slice(0, 100)}
-                  </p>
-                  <p style="color:#8A968D;font-size:11px;margin-top:20px;">Powered by Docs2Video</p>
-                </div>
-              `
+              const subject = `${viewerName ? viewerName + ' viewed' : 'Someone viewed'} your video: ${videoTitle}`
+              const html = buildVideoViewedHtml(videoTitle, details)
 
               if (connection.provider === 'smtp') {
                 await sendViaSMTP(connection, profile.email, subject, html)
@@ -258,13 +305,13 @@ export async function POST(request: Request) {
               }
             } else {
               // Fallback: send via Resend
-              await sendVideoViewedEmail(profile.email, videoTitle, viewerIp)
+              await sendVideoViewedEmail(profile.email, videoTitle, details)
             }
           }
 
           // Send SMS to creator if they have a phone number
           if (profile?.phone) {
-            await sendVideoViewedSms(profile.phone, videoTitle)
+            await sendVideoViewedSms(profile.phone, videoTitle, details)
           }
         }
       } catch (notifyErr) {

@@ -129,34 +129,80 @@ export async function sendVideoReadyEmail(
 /**
  * Email the video creator when a client views their shared video.
  */
+/** Rich, optional context about a single video view (all fields best-effort). */
+export interface ViewDetails {
+  viewerIp?: string
+  viewerName?: string | null   // client name if we can attribute the view
+  device?: string | null       // 'Mobile' | 'Desktop' | 'Tablet'
+  browser?: string | null      // e.g. 'Chrome', 'Safari'
+  os?: string | null           // e.g. 'iOS', 'Windows'
+  location?: string | null     // e.g. 'Austin, TX, US'
+  referrer?: string | null     // where they came from
+  viewNumber?: number | null   // Nth total view of this video
+  isReturningViewer?: boolean  // has this IP/client viewed before
+  viewedAt?: string | null     // human time string
+  videoId?: string | null      // for the dashboard deep-link
+}
+
+/** Build the labeled stat rows shared by every view-notification email. */
+function viewStatRows(d: ViewDetails): string {
+  const rows: Array<[string, string]> = []
+  if (d.viewerName) rows.push(['Viewer', d.viewerName])
+  if (d.location) rows.push(['Location', d.location])
+  if (d.device) rows.push(['Device', [d.device, d.os, d.browser].filter(Boolean).join(' · ')])
+  if (d.viewedAt) rows.push(['Viewed', d.viewedAt])
+  if (typeof d.viewNumber === 'number') {
+    rows.push(['Total views', `${d.viewNumber}${d.isReturningViewer ? ' (returning viewer)' : ' (first time)'}`])
+  }
+  if (d.referrer) rows.push(['Came from', d.referrer])
+  if (d.viewerIp) rows.push(['IP', d.viewerIp])
+  return rows
+    .map(([k, v]) =>
+      `<tr><td style="padding:4px 12px 4px 0;color:#8A968D;font-size:12px;white-space:nowrap;">${k}</td><td style="padding:4px 0;color:#3a3a3a;font-size:13px;font-weight:600;">${v}</td></tr>`
+    )
+    .join('')
+}
+
+/** Standalone HTML body so connected-provider sends match the Resend fallback. */
+export function buildVideoViewedHtml(videoTitle: string, d: ViewDetails = {}): string {
+  const who = d.viewerName ? `<strong>${d.viewerName}</strong>` : 'Someone'
+  const link = d.videoId ? `https://docs2video.com/videos/${d.videoId}` : 'https://docs2video.com/dashboard'
+  return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <h1 style="font-size:22px;font-weight:800;color:#1a1a1a;margin:0;">${d.isReturningViewer ? 'A viewer came back' : 'Your video was just viewed'}</h1>
+      </div>
+      <p style="font-size:15px;line-height:1.6;color:#444;margin:0 0 20px;">
+        ${who} just opened your video <strong>&ldquo;${videoTitle}&rdquo;</strong>. ${d.isReturningViewer ? 'They are re-watching — a strong buying signal.' : 'They may reach out with questions soon.'}
+      </p>
+      <table style="border-collapse:collapse;margin:0 0 24px;width:100%;background:#F7F8F6;border-radius:8px;padding:8px;">
+        ${viewStatRows(d) || '<tr><td style="padding:8px;color:#8A968D;font-size:12px;">View recorded.</td></tr>'}
+      </table>
+      <p style="text-align:center;margin:0 0 28px;">
+        <a href="${link}" style="display:inline-block;background:#0d9488;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 26px;border-radius:8px;">View full analytics →</a>
+      </p>
+      <hr style="border:none;border-top:1px solid #eee;margin:0 0 16px;" />
+      <p style="font-size:11px;color:#999;text-align:center;">
+        Docs2Video &mdash; Turn any document into a professional video explainer.<br/>
+        <a href="https://docs2video.com/privacy" style="color:#999;">Privacy Policy</a>
+      </p>
+    </div>
+  `
+}
+
 export async function sendVideoViewedEmail(
   to: string,
   videoTitle: string,
-  viewerIp: string
+  details: ViewDetails | string = {}
 ) {
+  // Back-compat: old callers passed a bare IP string.
+  const d: ViewDetails = typeof details === 'string' ? { viewerIp: details } : details
   try {
     await getResend().emails.send({
       from: 'Docs2Video <notifications@docs2video.com>',
       to,
-      subject: `Your video "${videoTitle}" was just viewed`,
-      html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
-          <div style="text-align: center; margin-bottom: 32px;">
-            <h1 style="font-size: 22px; font-weight: 800; color: #1a1a1a; margin: 0;">Someone viewed your video</h1>
-          </div>
-          <p style="font-size: 15px; line-height: 1.6; color: #444;">
-            A client just opened your video <strong>&ldquo;${videoTitle}&rdquo;</strong>. They may reach out with questions soon.
-          </p>
-          <p style="font-size: 12px; color: #999; margin-top: 16px;">
-            Viewer IP: ${viewerIp}
-          </p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
-          <p style="font-size: 11px; color: #999; text-align: center;">
-            Docs2Video &mdash; Turn any document into a professional video explainer.<br/>
-            <a href="https://docs2video.com/privacy" style="color: #999;">Privacy Policy</a>
-          </p>
-        </div>
-      `,
+      subject: `${d.viewerName ? d.viewerName + ' viewed' : 'Someone viewed'} your video "${videoTitle}"`,
+      html: buildVideoViewedHtml(videoTitle, d),
     })
     console.log(`[notify] Video viewed email sent to ${to}`)
   } catch (err) {
@@ -169,12 +215,17 @@ export async function sendVideoViewedEmail(
  */
 export async function sendVideoViewedSms(
   to: string,
-  videoTitle: string
+  videoTitle: string,
+  details: ViewDetails = {}
 ) {
   try {
     const client = getTwilioClient()
+    const who = details.viewerName || 'A client'
+    const where = details.location ? ` from ${details.location}` : ''
+    const onWhat = details.device ? ` on ${details.device}` : ''
+    const again = details.isReturningViewer ? ' (returning viewer)' : ''
     await client.messages.create({
-      body: `Your video "${videoTitle}" was just viewed by a client. Log in to Docs2Video to see details.`,
+      body: `${who}${where} just viewed your video "${videoTitle}"${onWhat}${again}. See details in Docs2Video.`,
       from: process.env.TWILIO_PHONE_NUMBER!,
       to,
     })
