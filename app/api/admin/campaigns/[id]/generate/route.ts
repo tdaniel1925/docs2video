@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { createClient } from '../../../../../_lib/supabase/server'
 import { createAdminClient } from '../../../../../_lib/supabase/admin'
 import { generateScript } from '../../../../../_lib/script-generator'
@@ -67,9 +68,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'No pending contacts to generate videos for' }, { status: 400 })
   }
 
-  // Process each contact sequentially
-  const results: { contactId: string; status: string; error?: string }[] = []
+  // Run the per-contact generation in the BACKGROUND so the request returns
+  // immediately; the UI polls campaign detail for live per-contact status.
+  // Each contact's linked video already writes progress_pct/progress_detail.
+  waitUntil(generateAll(admin, user.id, campaign, contacts))
+  return NextResponse.json({ success: true, started: contacts.length })
+}
 
+async function generateAll(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  campaign: any,
+  contacts: any[],
+) {
   for (const contact of contacts) {
     try {
       // Mark as generating
@@ -79,7 +90,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const { data: video, error: videoErr } = await admin
         .from('videos')
         .insert({
-          user_id: user.id,
+          user_id: userId,
           title: `Campaign: ${contact.name} at ${contact.company || 'Prospect'}`,
           voice_id: 'nova',
           status: 'pending',
@@ -160,7 +171,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         slides: slideBuffers.map(b => b.toString('base64')),
         audios: audioBuffers.map(b => b.toString('base64')),
         videoId: video.id,
-        userId: user.id,
+        userId: userId,
       })
 
       const vpsResult = await new Promise<{ ok: boolean; status: number; data: any }>((resolve, reject) => {
@@ -199,7 +210,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // Upload slides
       const slideUrls: string[] = []
       for (let i = 0; i < slideBuffers.length; i++) {
-        const slidePath = `${user.id}/${video.id}/slide_${i}.png`
+        const slidePath = `${userId}/${video.id}/slide_${i}.png`
         await admin.storage.from('videos').upload(slidePath, slideBuffers[i], { contentType: 'image/png', upsert: true })
         const { data: slideUrl } = admin.storage.from('videos').getPublicUrl(slidePath)
         slideUrls.push(slideUrl.publicUrl)
@@ -218,15 +229,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
       // Mark contact as ready for review
       await admin.from('campaign_contacts').update({ video_status: 'review' }).eq('id', contact.id)
-      results.push({ contactId: contact.id, status: 'review' })
 
     } catch (err) {
       console.error(`[campaign-generate] Error for contact ${contact.id}:`, err)
-      const message = err instanceof Error ? err.message : 'Generation failed'
-      await admin.from('campaign_contacts').update({ video_status: 'pending' }).eq('id', contact.id)
-      results.push({ contactId: contact.id, status: 'error', error: message })
+      // Mark FAILED (not back to pending) so the row is visible + retryable.
+      await admin.from('campaign_contacts').update({ video_status: 'failed' }).eq('id', contact.id)
     }
   }
-
-  return NextResponse.json({ results })
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/app/_lib/supabase/client'
 import { isAdmin } from '@/app/_lib/admin'
 import InlineConfirm from '@/app/_components/InlineConfirm'
@@ -36,6 +36,11 @@ type Contact = {
   nurture_stage: number
   unsubscribed: boolean
   created_at: string
+  // Live generation progress (from the linked video), added by the detail GET.
+  video_progress_pct?: number | null
+  video_stage?: string | null
+  video_thumbnail_url?: string | null
+  video_url?: string | null
 }
 
 type View = 'list' | 'detail'
@@ -138,6 +143,7 @@ function statusTag(status: string): React.CSSProperties {
     approved: { bg: 'var(--mint, #d4f5e9)', fg: '#166534' },
     skipped: { bg: '#f3f4f6', fg: '#6b7280' },
     sent: { bg: '#dbeafe', fg: '#1e40af' },
+    failed: { bg: '#fee2e2', fg: '#b91c1c' },
   }
   const c = colors[status] || colors.pending
   return {
@@ -227,6 +233,28 @@ export default function CampaignsPage() {
     setLoading(false)
   }, [])
 
+  // Silent refresh (no spinner) used by the live poller.
+  const refreshContacts = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/campaigns/${id}`)
+      if (res.ok) { const data = await res.json(); setContacts(data.contacts ?? []) }
+    } catch { /* keep last */ }
+  }, [])
+
+  // Live polling: while any contact is generating, refetch every 3s so the admin
+  // can watch per-contact progress without manual refresh.
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const anyGenerating = contacts.some((c) => c.video_status === 'generating')
+  useEffect(() => {
+    const id = selectedCampaign?.id
+    if (anyGenerating && id) {
+      if (!pollRef.current) pollRef.current = setInterval(() => refreshContacts(id), 3000)
+    } else if (pollRef.current) {
+      clearInterval(pollRef.current); pollRef.current = null
+    }
+    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null } }
+  }, [anyGenerating, selectedCampaign?.id, refreshContacts])
+
   // ── Actions ─────────────────────────────────────────────────────────
 
   async function handleCreateCampaign(e: React.FormEvent) {
@@ -308,7 +336,7 @@ export default function CampaignsPage() {
     setActionLoading(null)
   }
 
-  async function handleApproveAction(contactId: string, action: 'approve' | 'skip' | 'regenerate') {
+  async function handleApproveAction(contactId: string, action: 'approve' | 'skip' | 'regenerate' | 'retry') {
     if (!selectedCampaign) return
     setActionLoading(`${action}-${contactId}`)
     try {
@@ -529,10 +557,13 @@ export default function CampaignsPage() {
                     <th style={thStyle}>Video Status</th>
                     <th style={thStyle}>Watched</th>
                     <th style={thStyle}>Signed Up</th>
+                    <th style={thStyle}></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {contacts.map(c => (
+                  {contacts.map(c => {
+                    const pct = Math.max(0, Math.min(100, c.video_progress_pct ?? 0))
+                    return (
                     <tr key={c.id}>
                       <td style={{ ...tdStyle, fontWeight: 600 }}>{c.name}</td>
                       <td style={tdStyle}>{c.email}</td>
@@ -540,13 +571,32 @@ export default function CampaignsPage() {
                       <td style={tdStyle}>{c.industry ?? '--'}</td>
                       <td style={tdStyle}>
                         <span style={statusTag(c.video_status)}>{c.video_status}</span>
+                        {c.video_status === 'generating' && (
+                          <div style={{ marginTop: 6, minWidth: 130 }}>
+                            <div style={{ height: 5, background: '#eef1ee', borderRadius: 4, overflow: 'hidden' }}>
+                              <div style={{ width: `${pct}%`, height: '100%', background: '#0d9488', transition: 'width 0.4s' }} />
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 3 }}>{c.video_stage || 'Working…'} · {pct}%</div>
+                          </div>
+                        )}
                       </td>
                       <td style={tdStyle}>{c.video_watched_at ? fmtDate(c.video_watched_at) : '--'}</td>
                       <td style={tdStyle}>{c.signed_up_at ? fmtDate(c.signed_up_at) : '--'}</td>
+                      <td style={tdStyle}>
+                        {c.video_status === 'failed' && (
+                          <button onClick={() => handleApproveAction(c.id, 'retry')} disabled={actionLoading === `retry-${c.id}`}
+                            style={{ ...btnPrimary, fontSize: 12, padding: '5px 10px' }}>
+                            {actionLoading === `retry-${c.id}` ? '…' : 'Retry'}
+                          </button>
+                        )}
+                        {c.video_status === 'review' && c.video_url && (
+                          <a href={c.video_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2563EB', textDecoration: 'none' }}>Preview</a>
+                        )}
+                      </td>
                     </tr>
-                  ))}
+                  )})}
                   {contacts.length === 0 && (
-                    <tr><td colSpan={7} style={{ ...tdStyle, textAlign: 'center', color: 'var(--ink-light)' }}>No contacts yet. Add some above.</td></tr>
+                    <tr><td colSpan={8} style={{ ...tdStyle, textAlign: 'center', color: 'var(--ink-light)' }}>No contacts yet. Add some above.</td></tr>
                   )}
                 </tbody>
               </table>

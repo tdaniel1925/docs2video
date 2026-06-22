@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { id } = await params
   const body = await request.json()
-  const { contactId, action } = body as { contactId: string; action: 'approve' | 'skip' | 'regenerate' }
+  const { contactId, action } = body as { contactId: string; action: 'approve' | 'skip' | 'regenerate' | 'retry' }
 
   if (!contactId || !action) {
     return NextResponse.json({ error: 'contactId and action are required' }, { status: 400 })
@@ -39,10 +39,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await admin.from('campaign_contacts').update({ video_status: 'approved' }).eq('id', contactId)
   } else if (action === 'skip') {
     await admin.from('campaign_contacts').update({ video_status: 'skipped' }).eq('id', contactId)
-  } else if (action === 'regenerate') {
-    // Reset to pending so it can be regenerated
+  } else if (action === 'regenerate' || action === 'retry') {
+    // Reset to pending so it can be regenerated (retry == same path for a failed one).
     await admin.from('campaign_contacts').update({ video_status: 'pending', video_id: null }).eq('id', contactId)
   }
 
-  return NextResponse.json({ ok: true, status: action === 'regenerate' ? 'pending' : action === 'approve' ? 'approved' : 'skipped' })
+  return NextResponse.json({ ok: true, status: (action === 'regenerate' || action === 'retry') ? 'pending' : action === 'approve' ? 'approved' : 'skipped' })
 }
