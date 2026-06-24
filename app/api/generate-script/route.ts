@@ -6,6 +6,7 @@ import { generateScript } from '../../_lib/script-generator'
 import type { ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
+import { logError } from '../../_lib/error-logger'
 
 export const runtime = 'nodejs'
 // Script generation makes chained Claude calls that can run for minutes — longer
@@ -117,6 +118,7 @@ export async function POST(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Script generation failed'
     console.error(`[generate-script] CRASH: ${message}`)
+    logError('generate-script', err, { userId: user?.id })
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

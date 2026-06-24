@@ -6,6 +6,7 @@ import sharp from 'sharp'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { scrapeBrand } from '../../_lib/brand-scraper'
 import { THEME_PROMPT, EXTRACTION_PROMPT } from '../../_lib/prompts'
+import { logError } from '../../_lib/error-logger'
 import { wrapUserData } from '../../_lib/prompt-safety'
 import { classifyFromText } from '../../_lib/document-classifier'
 import { resolveRequestUser } from '../../_lib/api-auth'
@@ -385,6 +386,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...data, suggestedTheme, autoBrandId, autoLogoUrl, autoBrandInfo, classification })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'URL extraction failed'
+    logError('extract-url', err, { url: (typeof url === 'string' ? url : undefined) })
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../_lib/supabase/server'
 import type { VideoBrief, WizardDraft, ClarifyingQuestion } from '../../_lib/types'
 import { scrubPlaceholderNamesInText } from '../../_lib/text-format'
+import { logError } from '../../_lib/error-logger'
 
 export const runtime = 'nodejs'
 export const maxDuration = 45
@@ -223,6 +224,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ brief })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to build brief'
+    logError('brief', err, { videoId, userId: user?.id })
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
