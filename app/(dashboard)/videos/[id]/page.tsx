@@ -380,17 +380,26 @@ export default function VideoDetailPage() {
 
   // Compute slide count and timestamps
   const slideUrls = video?.slide_urls ?? []
-  const slideCount = slideUrls.length
   const scenes = Array.isArray(video?.script) ? video.script : []
   const perSlideDurations: number[] = video?.slide_durations ?? []
-  const slideDuration = videoDuration > 0 && slideCount > 0 ? videoDuration / slideCount : 0
+  // Chapter chips are keyed to SCENES (the script), and slide_durations is keyed
+  // to scenes too — NOT to slide_urls (which can be empty even when scenes exist,
+  // e.g. cinematic/aurora videos that don't upload per-slide images). Use the
+  // scene/duration count as the source of truth so timestamps render.
+  const slideCount = scenes.length || slideUrls.length
+  // True runtime: prefer the loaded <video> duration; else the DB column; else
+  // the sum of per-scene durations (which is always present for rendered videos).
+  const durationsSum = perSlideDurations.reduce((a, d) => a + (Number.isFinite(d) ? d : 0), 0)
+  const effectiveDuration = videoDuration > 0 ? videoDuration
+    : (Number.isFinite(video?.duration) && (video?.duration ?? 0) > 0) ? (video!.duration as number)
+    : durationsSum
+  const slideDuration = effectiveDuration > 0 && slideCount > 0 ? effectiveDuration / slideCount : 0
 
   // Build cumulative start times from per-slide durations (or fall back to equal division)
   const slideStartTimes = useMemo(() => {
-    // Only trust per-slide durations if EVERY value is a finite, non-negative
-    // number — otherwise one bad duration poisons the cumulative sum and the
-    // chips show NaN/Infinity. Fall back to equal division in that case.
-    const durationsValid = perSlideDurations.length === slideCount &&
+    // Trust per-scene durations if every value is finite & >=0 (NaN/Infinity would
+    // poison the cumulative sum). Keyed to the durations array length, not slideCount.
+    const durationsValid = perSlideDurations.length > 0 &&
       perSlideDurations.every((d) => Number.isFinite(d) && d >= 0)
     if (durationsValid) {
       const starts: number[] = [0]
@@ -1428,17 +1437,18 @@ export default function VideoDetailPage() {
               </div>
             )}
 
-            {/* Chapter markers */}
-            {scenes.length > 0 && videoDuration > 0 && (
+            {/* Chapter markers — show whenever we have scenes (timing comes from
+                slide_durations / effectiveDuration, which exist even before the
+                <video> element reports its duration). */}
+            {scenes.length > 0 && (
               <div style={{
                 display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 0',
               }}>
                 {scenes.map((scene: any, i: number) => {
                   // Guard against NaN/Infinity: `??` only catches null/undefined,
-                  // so a bad slideStartTimes value (or slideCount=0 → divide-by-0)
-                  // would render "NaN:NaN"/"Infinity:NaN". Use even spacing as the
-                  // fallback and force a finite, non-negative number.
-                  const evenSpaced = slideCount > 0 ? (videoDuration / slideCount) * i : 0
+                  // so a bad value would render "NaN:NaN"/"Infinity:NaN". Use even
+                  // spacing (off effectiveDuration) as the fallback, forced finite.
+                  const evenSpaced = slideCount > 0 ? (effectiveDuration / slideCount) * i : 0
                   const raw = slideStartTimes[i]
                   const ts = Number.isFinite(raw) ? (raw as number) : evenSpaced
                   const timestamp = Number.isFinite(ts) && ts >= 0 ? ts : 0
