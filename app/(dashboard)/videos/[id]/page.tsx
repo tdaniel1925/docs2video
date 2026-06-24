@@ -387,15 +387,22 @@ export default function VideoDetailPage() {
 
   // Build cumulative start times from per-slide durations (or fall back to equal division)
   const slideStartTimes = useMemo(() => {
-    if (perSlideDurations.length === slideCount) {
+    // Only trust per-slide durations if EVERY value is a finite, non-negative
+    // number — otherwise one bad duration poisons the cumulative sum and the
+    // chips show NaN/Infinity. Fall back to equal division in that case.
+    const durationsValid = perSlideDurations.length === slideCount &&
+      perSlideDurations.every((d) => Number.isFinite(d) && d >= 0)
+    if (durationsValid) {
       const starts: number[] = [0]
       for (let i = 0; i < perSlideDurations.length - 1; i++) {
         starts.push(starts[i] + perSlideDurations[i])
       }
       return starts
     }
-    // Fallback: equal division
-    return Array.from({ length: slideCount }, (_, i) => i * slideDuration)
+    // Fallback: equal division (slideDuration is 0 when count/duration unknown,
+    // which renders 0:00 — acceptable, never NaN/Infinity).
+    const safeDur = Number.isFinite(slideDuration) && slideDuration >= 0 ? slideDuration : 0
+    return Array.from({ length: slideCount }, (_, i) => i * safeDur)
   }, [perSlideDurations, slideCount, slideDuration])
 
   // Update current slide based on video time
@@ -1427,7 +1434,14 @@ export default function VideoDetailPage() {
                 display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 0',
               }}>
                 {scenes.map((scene: any, i: number) => {
-                  const timestamp = slideStartTimes[i] ?? (videoDuration / slideCount * i)
+                  // Guard against NaN/Infinity: `??` only catches null/undefined,
+                  // so a bad slideStartTimes value (or slideCount=0 → divide-by-0)
+                  // would render "NaN:NaN"/"Infinity:NaN". Use even spacing as the
+                  // fallback and force a finite, non-negative number.
+                  const evenSpaced = slideCount > 0 ? (videoDuration / slideCount) * i : 0
+                  const raw = slideStartTimes[i]
+                  const ts = Number.isFinite(raw) ? (raw as number) : evenSpaced
+                  const timestamp = Number.isFinite(ts) && ts >= 0 ? ts : 0
                   const mins = Math.floor(timestamp / 60)
                   const secs = Math.floor(timestamp % 60)
                   const isActive = i === currentSlideIndex
