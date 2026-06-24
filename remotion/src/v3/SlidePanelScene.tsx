@@ -22,7 +22,10 @@ export const SlidePanelScene: React.FC<{
   accentWordIndex?: number
   theme: Theme
   durationInFrames: number
-}> = ({ image, eyebrow, title, bullets, accentWordIndex, theme, durationInFrames }) => {
+  /** Fluid look: skip per-scene image + opaque ground; the shared backdrop
+   *  behind the Series shows through on the right of the glass panel. */
+  transparentBg?: boolean
+}> = ({ image, eyebrow, title, bullets, accentWordIndex, theme, durationInFrames, transparentBg }) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
   const accent = theme.accents[1] ?? theme.accents[0]
@@ -53,16 +56,17 @@ export const SlidePanelScene: React.FC<{
   const listTop = veryDense ? 26 : dense ? 32 : 40
 
   return (
-    <AbsoluteFill style={{ backgroundColor: theme.ink, overflow: 'hidden' }}>
-      {/* Right: cinematic image, graded. */}
-      {image ? (
+    <AbsoluteFill style={{ backgroundColor: transparentBg ? 'transparent' : theme.ink, overflow: 'hidden' }}>
+      {/* Right: cinematic image, graded. (Skipped in fluid mode — the shared
+          backdrop behind the Series provides the imagery.) */}
+      {transparentBg ? null : image ? (
         <AbsoluteFill style={{ transform: `scale(${scale}) translateX(${panX}%)` }}>
           <Img src={staticFile(image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </AbsoluteFill>
       ) : (
         <AbsoluteFill style={{ background: `radial-gradient(120% 120% at 70% 40%, ${theme.inkSoft} 0%, ${theme.ink} 75%)` }} />
       )}
-      <CinematicGrade accent={theme.accents[0]} intensity={1.5} />
+      {transparentBg ? null : <CinematicGrade accent={theme.accents[0]} intensity={1.5} />}
       {/* Left-side darkening so the panel always reads. */}
       <AbsoluteFill style={{ background: 'linear-gradient(90deg, rgba(4,7,12,0.92) 0%, rgba(4,7,12,0.72) 38%, transparent 62%)' }} />
 

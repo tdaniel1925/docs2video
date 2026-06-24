@@ -4,7 +4,42 @@ import { FullScreenScene, type Placement } from './FullScreenScene'
 import { SlidePanelScene } from './SlidePanelScene'
 import { ClosingCard } from './ClosingCard'
 import { LogoWatermark, type LogoSource } from '../components/infographic/BrandLogo'
+import { ThemedBackground } from '../AuroraBackground'
+import { FilmOverlay } from '../FilmOverlay'
 import { FONTS, type Theme } from '../tokens'
+
+/**
+ * ONE continuous background for the whole video (sits behind the Series, driven
+ * by the global frame so it never resets at a cut). This is what makes every
+ * scene read as the same world — the core of the "fluid, authored" look.
+ *  - aurora           → code-rendered drifting mesh (theme accents), $0
+ *  - editorial-cinema → a single shared image with a slow continuous Ken Burns
+ */
+const SharedBackdrop: React.FC<{ look: 'aurora' | 'editorial-cinema'; theme: Theme; backdrop?: string; totalFrames: number }> = ({ look, theme, backdrop, totalFrames }) => {
+  const f = useCurrentFrame()
+  if (look === 'editorial-cinema' && backdrop) {
+    // One slow push across the ENTIRE video (continuous, not per-scene).
+    const t = interpolate(f, [0, totalFrames], [0, 1], { extrapolateRight: 'clamp' })
+    const scale = 1.04 + t * 0.10
+    return (
+      <AbsoluteFill style={{ backgroundColor: theme.ink, overflow: 'hidden' }}>
+        <AbsoluteFill style={{ transform: `scale(${scale})` }}>
+          <Img src={staticFile(backdrop)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </AbsoluteFill>
+        {/* Darken so foreground text/cards stay readable over any scene. */}
+        <AbsoluteFill style={{ background: 'rgba(5,7,12,0.55)' }} />
+        <FilmOverlay accent={theme.accents[0]} grain={0.06} />
+      </AbsoluteFill>
+    )
+  }
+  // Aurora ($0): drifting brand-colored mesh + subtle grain, continuous.
+  return (
+    <AbsoluteFill>
+      <ThemedBackground theme={theme} />
+      <FilmOverlay accent={theme.accents[0]} grain={0.05} />
+    </AbsoluteFill>
+  )
+}
 
 /** Auto-vary placement across scenes so the video never feels one-dimensional. */
 const PLACEMENT_CYCLE: Placement[] = ['center', 'left', 'bottom', 'right', 'bottom', 'left', 'center', 'right', 'bottom', 'center']
@@ -69,11 +104,14 @@ const ColdOpen: React.FC<{ text: string; theme: Theme & { logo?: LogoSource }; p
   )
 }
 
-export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, scenes, music, logo, logoChip, brandName, presenter, presenterOnCover, presenterOnClosing }) => {
+export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, scenes, music, logo, logoChip, brandName, presenter, presenterOnCover, presenterOnClosing, look, backdrop }) => {
   const total = scenes.reduce((s, sc) => s + sc.durationInFrames, 0) + COLD_OPEN_FRAMES
   const openText = brandName || presenter?.name || scenes[0]?.title || ''
+  // Fluid looks share ONE continuous backdrop; scenes render transparent on top.
+  const fluid = look === 'aurora' || look === 'editorial-cinema'
   return (
-    <AbsoluteFill>
+    <AbsoluteFill style={{ backgroundColor: theme.ink }}>
+      {fluid ? <SharedBackdrop look={look as 'aurora' | 'editorial-cinema'} theme={theme} backdrop={backdrop} totalFrames={total} /> : null}
       <Series>
         {openText ? (
           <Series.Sequence durationInFrames={COLD_OPEN_FRAMES}>
@@ -90,12 +128,18 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, sce
           // a scene with a `closing` payload renders the branded contact card;
           // statement/hook scenes (no bullets) stay full-bleed cinematic.
           const hasBullets = Array.isArray(sc.bullets) && sc.bullets.length > 0
+          // In fluid looks the shared backdrop IS the imagery — never render a
+          // per-scene image (that's the Frankenstein source). In fluid mode also
+          // soften the cuts to pure cross-dissolves (variant 0) so the one
+          // continuous backdrop reads as truly uninterrupted.
+          const sceneImage = fluid ? undefined : sc.image
+          const transitionVariant = fluid ? 0 : i
           return (
             <Series.Sequence key={i} durationInFrames={sc.durationInFrames}>
-              <Transition d={sc.durationInFrames} variant={i} isLast={i === scenes.length - 1}>
+              <Transition d={sc.durationInFrames} variant={transitionVariant} isLast={i === scenes.length - 1}>
                 {sc.closing ? (
                   <ClosingCard
-                    image={sc.image}
+                    image={sceneImage}
                     theme={theme}
                     brandName={brandName || presenter?.name}
                     logo={logo as LogoSource}
@@ -105,20 +149,22 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, sce
                     contact={sc.closing.contact}
                     presenter={presenterOnClosing ? presenter : undefined}
                     durationInFrames={sc.durationInFrames}
+                    transparentBg={fluid}
                   />
                 ) : hasBullets ? (
                   <SlidePanelScene
-                    image={sc.image}
+                    image={sceneImage}
                     eyebrow={sc.eyebrow}
                     title={sc.title}
                     bullets={sc.bullets!}
                     accentWordIndex={sc.accentWordIndex}
                     theme={theme}
                     durationInFrames={sc.durationInFrames}
+                    transparentBg={fluid}
                   />
                 ) : (
                   <FullScreenScene
-                    image={sc.image}
+                    image={sceneImage}
                     placement={placement}
                     kenBurns={kenBurns}
                     eyebrow={sc.eyebrow}
@@ -129,6 +175,7 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, sce
                     durationInFrames={sc.durationInFrames}
                     metric={sc.metric}
                     metrics={sc.metrics}
+                    transparentBg={fluid}
                   />
                 )}
               </Transition>

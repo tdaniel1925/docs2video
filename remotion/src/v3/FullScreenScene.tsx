@@ -30,7 +30,11 @@ export const FullScreenScene: React.FC<{
    *  shows up to 3; `metric` (single) kept for back-compat. */
   metric?: { label: string; value: string }
   metrics?: { label: string; value: string }[]
-}> = ({ image, placement, eyebrow, title, body, accentWordIndex, theme, durationInFrames, kenBurns = 'in', metric, metrics }) => {
+  /** Fluid looks: don't paint an opaque ground or per-scene image — let the
+   *  ONE continuous shared backdrop (mesh or single image) behind the Series
+   *  show through, so every scene reads as the same world. */
+  transparentBg?: boolean
+}> = ({ image, placement, eyebrow, title, body, accentWordIndex, theme, durationInFrames, kenBurns = 'in', metric, metrics, transparentBg }) => {
   const frame = useCurrentFrame()
   // Speed-ramped Ken Burns: ease-in-out so the camera ACCELERATES through the
   // middle and settles — cinematic motion is about acceleration, not linear drift.
@@ -69,8 +73,12 @@ export const FullScreenScene: React.FC<{
   const bodyP = settleProgress(frame, 34)
 
   return (
-    <AbsoluteFill style={{ backgroundColor: theme.ink, overflow: 'hidden' }}>
-      {image ? (
+    <AbsoluteFill style={{ backgroundColor: transparentBg ? 'transparent' : theme.ink, overflow: 'hidden' }}>
+      {transparentBg ? (
+        // Fluid look: the shared backdrop (behind the Series) provides the world.
+        // Just lay the readability gradient so text stays legible everywhere.
+        null
+      ) : image ? (
         <AbsoluteFill style={{ transform: `scale(${scale}) translateX(${panX}%)` }}>
           <Img src={staticFile(image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </AbsoluteFill>
@@ -79,8 +87,9 @@ export const FullScreenScene: React.FC<{
         // the scene still reads cinematic rather than flat black.
         <AbsoluteFill style={{ background: `radial-gradient(120% 120% at 50% 35%, ${theme.inkSoft} 0%, ${theme.ink} 75%)` }} />
       )}
-      {/* Cinematic grade turns a flat photo into a film frame (brand-tinted). */}
-      <CinematicGrade accent={theme.accents[0]} intensity={1.4} />
+      {/* Cinematic grade turns a flat photo into a film frame (brand-tinted).
+          Skip on transparent scenes so we don't double-darken the shared backdrop. */}
+      {transparentBg ? null : <CinematicGrade accent={theme.accents[0]} intensity={1.4} />}
       <AbsoluteFill style={{ background: grad[placement] }} />
 
       <AbsoluteFill style={{ display: 'flex', flexDirection: 'column', ...align[placement] }}>

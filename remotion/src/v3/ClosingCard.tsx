@@ -25,7 +25,10 @@ export const ClosingCard: React.FC<{
   /** Presenter (Person profile): a circular headshot + name/role at the top. */
   presenter?: { name?: string; role?: string; photo?: string }
   durationInFrames: number
-}> = ({ image, theme, brandName, logo, headline, cta, value, contact, presenter, durationInFrames }) => {
+  /** Fluid look: shared backdrop behind the Series provides the ground — skip
+   *  the per-card image + opaque ground + grade so we don't double-darken. */
+  transparentBg?: boolean
+}> = ({ image, theme, brandName, logo, headline, cta, value, contact, presenter, durationInFrames, transparentBg }) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
   const accent = theme.accents[1] ?? theme.accents[0]
@@ -44,17 +47,18 @@ export const ClosingCard: React.FC<{
   const contactLines = [contact?.phone, contact?.email, contact?.website].filter(Boolean) as string[]
 
   return (
-    <AbsoluteFill style={{ backgroundColor: theme.ink, overflow: 'hidden' }}>
-      {image ? (
+    <AbsoluteFill style={{ backgroundColor: transparentBg ? 'transparent' : theme.ink, overflow: 'hidden' }}>
+      {transparentBg ? null : image ? (
         <AbsoluteFill style={{ transform: `scale(${scale})` }}>
           <Img src={staticFile(image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </AbsoluteFill>
       ) : (
         <AbsoluteFill style={{ background: `radial-gradient(120% 120% at 50% 40%, ${theme.inkSoft} 0%, ${theme.ink} 75%)` }} />
       )}
-      <CinematicGrade accent={theme.accents[0]} intensity={1.5} />
-      {/* Centered darkening so the card always reads. */}
-      <AbsoluteFill style={{ background: 'radial-gradient(120% 120% at 50% 50%, rgba(4,7,12,0.55) 0%, rgba(4,7,12,0.86) 100%)' }} />
+      {transparentBg ? null : <CinematicGrade accent={theme.accents[0]} intensity={1.5} />}
+      {/* Centered darkening so the card always reads. Lighter in fluid mode since
+          the shared backdrop is already dim. */}
+      <AbsoluteFill style={{ background: transparentBg ? 'radial-gradient(120% 120% at 50% 50%, rgba(4,7,12,0.25) 0%, rgba(4,7,12,0.55) 100%)' : 'radial-gradient(120% 120% at 50% 50%, rgba(4,7,12,0.55) 0%, rgba(4,7,12,0.86) 100%)' }} />
 
       <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', padding: '0 120px' }}>
         <div style={{

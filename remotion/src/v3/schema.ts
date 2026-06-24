@@ -43,6 +43,14 @@ export const v3Schema = z.object({
   theme: themeSchema,
   brandName: z.string().optional(),
   music: z.string().optional(),
+  /** Visual look:
+   *  - 'aurora'          → continuous code-rendered ThemedBackground ($0, no images)
+   *  - 'editorial-cinema'→ ONE shared backdrop image behind every scene
+   *  - 'image-per-scene' → legacy: each scene has its own sc.image (default)
+   *  Both fluid looks share ONE continuous background across all scenes. */
+  look: z.enum(['aurora', 'editorial-cinema', 'image-per-scene']).optional(),
+  /** The single shared backdrop image for 'editorial-cinema' (public/ path). */
+  backdrop: z.string().optional(),
   // string (single file) OR {light,dark} variants (picked by theme mode).
   logo: z.union([z.string(), z.object({ light: z.string().optional(), dark: z.string().optional() })]).optional(),
   logoChip: z.boolean().optional(),
