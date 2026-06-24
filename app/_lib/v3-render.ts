@@ -13,7 +13,7 @@
 import type { Brand } from './types'
 import { type Presenter, resolveDisplayName, shouldShowLogo } from './presenter'
 
-export type V3Theme = 'cinematic' | 'infographic'
+export type V3Theme = 'cinematic' | 'infographic' | 'aurora'
 
 type Scene = {
   title?: string
@@ -131,6 +131,9 @@ export function buildV3Payload(opts: {
   contact?: { phone?: string; email?: string; website?: string }
   presenter?: Presenter | null
   photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
+  /** The user's chosen visual style. 'aurora' = the fluid code-rendered look
+   *  (no per-scene Gemini); otherwise pickTheme decides cinematic/infographic. */
+  videoStyle?: string
 }): V3Payload {
   // Cap cinematic scenes: each is a Gemini image + TTS + render. 17 scenes =
   // a 4-min video + 17 image calls (slow, rate-limit-prone). Keep the cover,
@@ -147,7 +150,9 @@ export function buildV3Payload(opts: {
     opts = { ...opts, scenes: [first, ...sampledMiddle, last] }
   }
 
-  const theme = pickTheme(opts.scenes, opts.classification)
+  // 'aurora' is an explicit user choice (the fluid, no-image look) — it overrides
+  // the automatic cinematic/infographic pick.
+  const theme: V3Theme = opts.videoStyle === 'aurora' ? 'aurora' : pickTheme(opts.scenes, opts.classification)
 
   // Pool of real document metrics we can distribute to metric-less scenes.
   const pool = (opts.keyMetrics ?? []).filter((m) => m.label && m.value && hasNumber(m.value))

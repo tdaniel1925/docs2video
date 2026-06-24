@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-type ThemeId = 'cinematic' | 'editorial' | 'explainer'
+type ThemeId = 'aurora' | 'cinematic' | 'editorial' | 'explainer'
 
 // Static sample images live in /public/style-samples/<id>-{cover,data,closing}.png
 // (rendered once — no live preview, so picking a style is instant + adds no
 // production time). Newsmagazine ('time') exists in the engine but is no longer
 // offered (it overlapped Editorial too much).
 const THEMES: { id: ThemeId; name: string; tagline: string }[] = [
+  { id: 'aurora', name: 'Aurora', tagline: 'Modern motion-graphics — one flowing branded backdrop, kinetic type, no stock imagery. Clean, cohesive, premium.' },
   { id: 'cinematic', name: 'Cinematic', tagline: 'Film-style imagery, kinetic text, motion. Best for story-led, emotive videos.' },
   { id: 'editorial', name: 'Editorial', tagline: 'Clean, warm magazine layout. Refined serif typography on your brand color.' },
   { id: 'explainer', name: 'Explainer', tagline: 'Friendly modern deck — navy + color accents, big rounded cards, charts. Great for how-it-works.' },

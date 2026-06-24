@@ -949,6 +949,7 @@ export async function POST(request: Request) {
         contactLine: wantContactClosing ? (contactLine || undefined) : undefined,
         contact: wantContactClosing ? { phone: contactDisplayPhone, email: contactForClosing.email, website: contactForClosing.website } : undefined,
         presenter, photoPlacement: photoPlacement || undefined,
+        videoStyle,
       })
       console.log(`[video ${videoId}] V3 theme=${v3Payload.theme}, logo=${v3Payload.logo ? 'yes' : 'no'}, presenter=${presenter ? 'yes' : 'no'}`)
 

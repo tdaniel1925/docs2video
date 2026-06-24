@@ -1026,6 +1026,9 @@ app.post('/render-v3', authCheck, async (req, res) => {
   const pub = join(REMOTION_DIR, 'public')
   let outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
   const isInfo = theme === 'infographic'
+  // 'aurora' = the fluid look: ONE continuous code-rendered backdrop, NO per-scene
+  // Gemini images (cohesive + ~$0). Still the V3Video composition.
+  const isAurora = theme === 'aurora'
   const COMP = isInfo ? 'InfographicVideo' : 'V3Video'
   const PROPS = join(pub, isInfo ? 'infographic.json' : 'v3.json')
 
@@ -1052,7 +1055,8 @@ app.post('/render-v3', authCheck, async (req, res) => {
 
     // Art-direct all cinematic scenes up front (one Gemini-flash call) so each
     // image gets a bespoke, on-story prompt instead of a generic title prompt.
-    const artPrompts = isInfo ? [] : await artDirectScenes(scenes)
+    // Aurora skips this entirely — it renders on the shared code backdrop, no images.
+    const artPrompts = (isInfo || isAurora) ? [] : await artDirectScenes(scenes)
 
     const outScenes = []
     for (let i = 0; i < scenes.length; i++) {
@@ -1062,22 +1066,26 @@ app.post('/render-v3', authCheck, async (req, res) => {
       if (isInfo) {
         outScenes.push({ title: s.title || '', body: s.bullets?.[0], metrics: s.metrics, audio: audioName, durationInFrames })
       } else {
-        await setProgress(30 + Math.round((i / scenes.length) * 40), `Painting scene ${i + 1}/${scenes.length}...`)
         const imgName = `r3-${videoId}-${i}.png`
-        // Use the art-directed per-scene prompt (cinematographer step).
-        const imgPrompt = artPrompts[i] || `A real, professional business scene clearly illustrating: "${(s.title || s.narration || 'business concept').slice(0, 180)}".`
         let haveImg = false
-        try {
-          await v3GeminiBg(imgPrompt, join(pub, imgName))
-          await readFile(join(pub, imgName)) // confirm it actually landed on disk
-          haveImg = true
-        } catch (imgErr) {
-          // A missing image must NOT 404 the whole render — the scene falls back
-          // to the theme ground. Log so we can see if image-gen is broken.
-          console.error(`[render-v3 ${videoId}] scene ${i} image failed: ${imgErr.message}`)
+        if (!isAurora) {
+          await setProgress(30 + Math.round((i / scenes.length) * 40), `Painting scene ${i + 1}/${scenes.length}...`)
+          // Use the art-directed per-scene prompt (cinematographer step).
+          const imgPrompt = artPrompts[i] || `A real, professional business scene clearly illustrating: "${(s.title || s.narration || 'business concept').slice(0, 180)}".`
+          try {
+            await v3GeminiBg(imgPrompt, join(pub, imgName))
+            await readFile(join(pub, imgName)) // confirm it actually landed on disk
+            haveImg = true
+          } catch (imgErr) {
+            // A missing image must NOT 404 the whole render — the scene falls back
+            // to the theme ground. Log so we can see if image-gen is broken.
+            console.error(`[render-v3 ${videoId}] scene ${i} image failed: ${imgErr.message}`)
+          }
+          // Live filmstrip: the cinematic scene image IS a real preview.
+          if (haveImg) await pushPreview(i, join(pub, imgName))
+        } else {
+          await setProgress(30 + Math.round((i / scenes.length) * 40), `Composing scene ${i + 1}/${scenes.length}...`)
         }
-        // Live filmstrip: the cinematic scene image IS a real preview.
-        if (haveImg) await pushPreview(i, join(pub, imgName))
         const placement = (i === 0 || i === scenes.length - 1) ? 'center' : ['bottom', 'left', 'right', 'bottom'][i % 4]
         // Cinematic lower-thirds: show ALL the scene's real numbers (up to 3) so
         // important figures aren't dropped — e.g. $176k death benefit AND $10k/yr.
@@ -1150,6 +1158,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
     const props = {
       theme: v3Theme(brandAccents),
       brandName: brandName || undefined,
+      ...(isAurora ? { look: 'aurora' } : {}),
       ...(localLogo ? { logo: localLogo, logoChip: !!logo.chip } : {}),
       ...(localPresenter ? { presenter: localPresenter, presenterOnCover, presenterOnClosing } : {}),
       ...(bgImage ? { bgImage } : {}),
