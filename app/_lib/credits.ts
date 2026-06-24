@@ -68,7 +68,10 @@ export type CreditAction = keyof typeof CREDIT_COSTS
 
 // Monthly credit grants per tier
 export const TIER_CREDITS: Record<PlanTier, number> = {
-  free: 1000,
+  // Free trial = 2000 so a new user can actually make videos: a standard video
+  // costs 1000 (post-2x), so 1000 only allowed ONE and any add-on/detailed put
+  // it over budget → "not enough credits" on signup. 2000 = ~2 standard videos.
+  free: 2000,
   starter: 5000,
   pro: 25000,
   business: 75000,
@@ -88,7 +91,7 @@ export const TIER_OVERAGE_RATE: Record<PlanTier, number> = {
 // Halved 2026-06-21 after the 2x credit-cost increase (standard video now
 // costs 1000 credits, quick 500). Keep in sync with CREDIT_COSTS.
 export const TIER_APPROX_VIDEOS: Record<PlanTier, { standard: number; quick: number }> = {
-  free: { standard: 1, quick: 2 },
+  free: { standard: 2, quick: 4 },
   starter: { standard: 5, quick: 10 },
   pro: { standard: 25, quick: 50 },
   business: { standard: 75, quick: 150 },
