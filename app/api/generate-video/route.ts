@@ -276,6 +276,27 @@ export async function POST(request: Request) {
   // --- Credit deduction ---
   let deductedCost = 0
   if (!isPrivileged) {
+    // CARD-ON-FILE GATE: free/trial users must save a card before producing
+    // (collected via /setup-payment → Stripe SetupIntent → confirm-card). Paid
+    // subscribers and admins/beta (isPrivileged, handled above) are exempt.
+    // The client catches code:'card_required' and routes to /setup-payment.
+    {
+      const { data: gateProfile } = await createAdminClient()
+        .from('profiles')
+        .select('card_on_file, subscription_status')
+        .eq('id', user.id)
+        .single()
+      const status = gateProfile?.subscription_status || 'free'
+      const isPaid = ['starter', 'pro', 'business', 'enterprise', 'agency'].includes(status)
+      if (!isPaid && !gateProfile?.card_on_file) {
+        inFlightVideos.delete(videoId)
+        return NextResponse.json(
+          { error: 'Add a card to start your free trial.', code: 'card_required' },
+          { status: 402 }
+        )
+      }
+    }
+
     const videoCost = calculateVideoCost({
       outputType: (body as any).outputType || 'video',
       detailLevel: (body as any).detailLevel || (detailed ? 'detailed' : 'standard'),

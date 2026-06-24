@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 
@@ -9,6 +9,8 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 
 function CardForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const next = searchParams.get('next')
   const stripe = useStripe()
   const elements = useElements()
   const [loading, setLoading] = useState(false)
@@ -68,14 +70,16 @@ function CardForm() {
       return
     }
 
-    router.push('/setup')
+    // Return to wherever the user was sent from (e.g. the produce flow), or
+    // fall back to onboarding.
+    router.push(next || '/setup')
   }
 
   return (
     <>
       <h1>Add your payment method</h1>
       <p className="auth-sub">
-        Your first 5 videos are completely free — no charge until you&apos;ve used them.
+        Start your free trial — your 2,000 free credits unlock as soon as your card is on file. No charge today.
       </p>
 
       <div style={{
@@ -91,10 +95,10 @@ function CardForm() {
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
             <polyline points="22 4 12 14.01 9 11.01" />
           </svg>
-          <strong style={{ color: '#166534' }}>5 free videos included</strong>
+          <strong style={{ color: '#166534' }}>2,000 free credits included</strong>
         </div>
         <p style={{ color: '#15803d', marginTop: 6, marginBottom: 0 }}>
-          After your free videos, each additional video is $10. Cancel anytime.
+          Enough for your first videos — a standard video is 1,000 credits. Top up or upgrade anytime. Cancel anytime.
         </p>
       </div>
 
@@ -130,7 +134,7 @@ function CardForm() {
           disabled={loading || !stripe || !clientSecret}
           className="btn btn-primary btn-lg btn-full"
         >
-          {loading ? 'Saving card...' : 'Continue to setup \u2192'}
+          {loading ? 'Saving card...' : (next ? 'Save card & continue \u2192' : 'Continue to setup \u2192')}
         </button>
       </form>
 
@@ -146,8 +150,10 @@ function CardForm() {
 
 export default function SetupPaymentPage() {
   return (
-    <Elements stripe={stripePromise}>
-      <CardForm />
-    </Elements>
+    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /></div>}>
+      <Elements stripe={stripePromise}>
+        <CardForm />
+      </Elements>
+    </Suspense>
   )
 }

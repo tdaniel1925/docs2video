@@ -76,6 +76,12 @@ export default function ThemePage() {
       })
       if (!genRes.ok) {
         const g = await genRes.json().catch(() => ({}))
+        // Free/trial users must save a card before producing — route to the
+        // card-capture page, returning here afterward to finish generation.
+        if (g.code === 'card_required' || genRes.status === 402) {
+          router.push(`/setup-payment?next=${encodeURIComponent(`/create/theme?id=${videoId}`)}`)
+          return
+        }
         throw new Error(g.error || 'Failed to start generation')
       }
       router.push(`/create/generating?id=${videoId}`)
