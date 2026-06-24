@@ -160,9 +160,19 @@ export default function BriefPage() {
                 </div>
               ))}
               <button onClick={submitAnswers} disabled={answering || Object.values(answers).every((v) => !v?.trim())}
-                style={{ padding: '11px 20px', borderRadius: 8, border: 'none', background: '#92711a', color: 'white', fontSize: 14, fontWeight: 700, cursor: answering ? 'default' : 'pointer', fontFamily: 'inherit', opacity: (answering || Object.values(answers).every((v) => !v?.trim())) ? 0.55 : 1 }}>
-                {answering ? 'Updating the brief…' : 'Update brief with my answers'}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '11px 20px', borderRadius: 8, border: 'none', background: '#92711a', color: 'white', fontSize: 14, fontWeight: 700, cursor: answering ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: (answering || Object.values(answers).every((v) => !v?.trim())) ? 0.7 : 1 }}>
+                {answering ? (
+                  <>
+                    <span style={{ width: 15, height: 15, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                    Rewriting your brief…
+                  </>
+                ) : 'Update brief with my answers'}
               </button>
+              {answering ? (
+                <div style={{ fontSize: 12, color: '#92711a', marginTop: 10 }}>
+                  Applying your answers and re-checking the brief — this takes a few seconds.
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -186,8 +196,9 @@ export default function BriefPage() {
                 disabled={sending}
                 style={{ flex: 1, padding: '11px 14px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
               />
-              <button onClick={() => send()} disabled={sending || !input.trim()} style={{ padding: '11px 18px', borderRadius: 8, border: 'none', background: 'var(--ink)', color: 'white', fontSize: 14, fontWeight: 700, cursor: sending ? 'default' : 'pointer', fontFamily: 'inherit', opacity: sending ? 0.6 : 1 }}>
-                {sending ? '…' : 'Send'}
+              <button onClick={() => send()} disabled={sending || !input.trim()} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 18px', borderRadius: 8, border: 'none', background: 'var(--ink)', color: 'white', fontSize: 14, fontWeight: 700, cursor: sending ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: sending ? 0.7 : 1 }}>
+                {sending ? <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} /> : null}
+                {sending ? 'Updating…' : 'Send'}
               </button>
             </div>
           </div>
@@ -197,7 +208,8 @@ export default function BriefPage() {
       )}
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        <button onClick={() => approve(false)} disabled={submitting || building} style={{ padding: '14px 28px', borderRadius: 10, border: 'none', background: 'var(--ink)', color: 'white', fontSize: 16, fontWeight: 700, cursor: submitting ? 'default' : 'pointer', fontFamily: 'inherit', opacity: (submitting || building) ? 0.6 : 1 }}>
+        <button onClick={() => approve(false)} disabled={submitting || building} style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '14px 28px', borderRadius: 10, border: 'none', background: 'var(--ink)', color: 'white', fontSize: 16, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: (submitting || building) ? 0.7 : 1 }}>
+          {submitting ? <span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} /> : null}
           {submitting ? 'Continuing…' : 'Looks good — continue →'}
         </button>
         <button onClick={() => approve(true)} disabled={submitting} style={{ background: 'none', border: 'none', fontSize: 14, color: 'var(--ink-light)', textDecoration: 'underline', cursor: 'pointer', fontFamily: 'inherit' }}>
