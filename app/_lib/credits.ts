@@ -587,3 +587,40 @@ export async function ensureCreditBalance(userId: string, subscriptionStatus: st
     await grantMonthlyCredits(userId, subscriptionStatus)
   }
 }
+
+/**
+ * Free-trial-then-auto-bill trigger. Call AFTER a successful credit deduction.
+ * If the user's balance just hit zero AND they have a trialing Stripe
+ * subscription (created at signup), end the trial NOW so Stripe charges the
+ * saved card and the chosen plan begins. Fully guarded + best-effort: any
+ * failure is logged and never blocks the user's action. Idempotent — only acts
+ * while the subscription is still 'trialing'.
+ */
+export async function endTrialIfDepleted(userId: string): Promise<void> {
+  try {
+    const balance = await getBalance(userId)
+    if (balance.total > 0) return // still has credits — nothing to do
+
+    const admin = createAdminClient()
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('stripe_subscription_id, subscription_status')
+      .eq('id', userId)
+      .single()
+    const subId = profile?.stripe_subscription_id
+    // Only trial users have a sub to convert; paid users already bill normally.
+    if (!subId || profile?.subscription_status !== 'trial') return
+
+    const { stripe } = await import('./stripe')
+    const sub = await stripe.subscriptions.retrieve(subId)
+    if (sub.status !== 'trialing') return // already converted/canceled — no-op
+
+    // End the trial immediately → Stripe charges the saved card now. The
+    // invoice.payment_succeeded / subscription.updated webhook then flips the
+    // user to the paid tier and grants the plan's monthly credits.
+    await stripe.subscriptions.update(subId, { trial_end: 'now' })
+    console.log(`[credits] Trial ended on depletion for user ${userId} (sub ${subId}) — charging saved card`)
+  } catch (err) {
+    console.error(`[credits] endTrialIfDepleted failed for user ${userId}:`, err instanceof Error ? err.message : err)
+  }
+}

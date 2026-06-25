@@ -23,7 +23,7 @@ import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 import { PHONE_REGEX, phoneToSpoken, isPhoneInSource, formatPhoneDisplay } from '../../_lib/phone-utils'
 import { estimateVideoCost, exceedsCeiling } from '../../_lib/cost-estimator'
-import { deductCredits, calculateVideoCost, checkCredits, addTopupCredits, refundVideoCredits } from '../../_lib/credits'
+import { deductCredits, calculateVideoCost, checkCredits, addTopupCredits, refundVideoCredits, endTrialIfDepleted } from '../../_lib/credits'
 import { isPaidTier, maxConcurrentForTier } from '../../_lib/subscription'
 import { safeEqual } from '../../_lib/api-auth'
 import { inngest } from '../../_lib/inngest/client'
@@ -325,6 +325,10 @@ export async function POST(request: Request) {
     // Persist the charge on the row so the stuck-video cron can refund the
     // exact amount if this job is later force-failed (audit H1/M3).
     await createAdminClient().from('videos').update({ deducted_cost: videoCost }).eq('id', videoId)
+    // Free-trial-then-auto-bill: if that deduction emptied a trial user's free
+    // credits, end their Stripe trial now so the saved card is charged and their
+    // chosen plan begins. Best-effort, never blocks generation.
+    endTrialIfDepleted(user.id).catch(() => {})
   }
 
   // Guarded-exit helper (audit H2): any early return AFTER deduction must refund

@@ -200,11 +200,13 @@ export async function POST(request: Request) {
         const tier = (priceId ? tierFromPriceId(priceId) : null)
           ?? (subscription.metadata?.tier ?? 'pro')
 
-        const updateData: Record<string, unknown> = {
-          subscription_status: tier,
-          stripe_customer_id: customerId,
-          stripe_subscription_id: subscription.id,
-        }
+        // Free-trial-then-auto-bill: a subscription created in 'trialing' state is
+        // our signup trial — the user must STAY on the trial allotment (free 2,000
+        // credits) and NOT be upgraded until the first charge actually succeeds.
+        // Only store the IDs; the tier flips when trialing → active (charge ok).
+        const updateData: Record<string, unknown> = subscription.status === 'trialing'
+          ? { subscription_status: 'trial', stripe_customer_id: customerId, stripe_subscription_id: subscription.id }
+          : { subscription_status: tier, stripe_customer_id: customerId, stripe_subscription_id: subscription.id }
 
         const { error: createErr } = userId
           ? await supabase.from('profiles').update(updateData).eq('id', userId)
@@ -228,6 +230,11 @@ export async function POST(request: Request) {
           // Unknown price id → keep metadata tier / 'pro', never silent 'free' (M1).
           const tier = (priceId ? tierFromPriceId(priceId) : null)
             ?? (subscription.metadata?.tier ?? 'pro')
+          // Was this the trial converting to paid (first successful charge)?
+          const { data: prevProfile } = await supabase.from('profiles')
+            .select('id, subscription_status').eq('stripe_customer_id', customerId).single()
+          const wasTrial = prevProfile?.subscription_status === 'trial'
+
           const { data: updatedProfile, error: updErr } = await supabase.from('profiles').update({
             subscription_status: tier,
             stripe_subscription_id: subscription.id,
@@ -236,18 +243,29 @@ export async function POST(request: Request) {
             console.error(`[webhook] Failed to update subscription for customer ${customerId}:`, updErr.message)
             return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
           }
-          // Apply the credit delta for an upgrade here (audit #1). applyTierChange
-          // adds only the positive tier delta — it does NOT do a free full refill,
-          // and is a no-op for downgrades/same-tier. This replaces the old buggy
-          // path where checkCredits later saw a tier mismatch and refilled fully.
           if (updatedProfile?.id) {
             try {
-              await applyTierChange(updatedProfile.id, tier)
+              if (wasTrial) {
+                // Trial → paid: the user just paid for a fresh cycle, so grant the
+                // FULL plan allotment (not a delta off their depleted trial balance).
+                await grantMonthlyCredits(updatedProfile.id, tier)
+                console.log(`[webhook] Trial converted to paid ${tier} for ${updatedProfile.id} — full grant`)
+              } else {
+                // Normal upgrade/downgrade: add only the positive tier delta (audit #1).
+                await applyTierChange(updatedProfile.id, tier)
+              }
             } catch (e) {
-              console.error(`[webhook] applyTierChange failed for ${updatedProfile.id} (non-fatal):`, e)
+              console.error(`[webhook] credit grant failed for ${updatedProfile.id} (non-fatal):`, e)
             }
           }
           console.log(`[webhook] Subscription updated to ${tier} for customer ${customerId}`)
+        } else if (subscription.status === 'trialing') {
+          // Still on the signup free trial — keep them on the trial allotment.
+          // The tier + credits are applied only when it transitions to 'active'.
+          await supabase.from('profiles').update({
+            subscription_status: 'trial', stripe_subscription_id: subscription.id,
+          }).eq('stripe_customer_id', customerId)
+          console.log(`[webhook] Subscription trialing for customer ${customerId} (no charge yet)`)
         } else if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
           // Dunning (audit H2): keep the user BLOCKED. Setting status to null
           // here dropped them to the free tier, erasing the past_due block that

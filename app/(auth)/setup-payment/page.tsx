@@ -17,6 +17,9 @@ function CardForm() {
   const [error, setError] = useState<string | null>(null)
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [customerId, setCustomerId] = useState<string | null>(null)
+  // Plan the trial converts to when the free credits run out (Stripe bills the
+  // saved card then). Defaults to Starter — the easiest first yes.
+  const [plan, setPlan] = useState<'starter' | 'pro' | 'business'>('starter')
 
   useEffect(() => {
     async function createIntent() {
@@ -58,7 +61,7 @@ function CardForm() {
       const confirmRes = await fetch('/api/confirm-card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerId }),
+        body: JSON.stringify({ customerId, plan }),
       })
       if (!confirmRes.ok) {
         const data = await confirmRes.json()
@@ -103,6 +106,33 @@ function CardForm() {
       </div>
 
       <form onSubmit={handleSubmit}>
+        {/* Plan picker — what the trial converts to once the free credits run out. */}
+        <div className="form-group">
+          <label className="input-label">Choose your plan (billed only after your free credits run out)</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {([
+              { id: 'starter', name: 'Starter', price: '$29/mo', sub: '5,000 credits' },
+              { id: 'pro', name: 'Pro', price: '$79/mo', sub: '25,000 credits' },
+              { id: 'business', name: 'Business', price: '$199/mo', sub: '75,000 credits' },
+            ] as const).map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setPlan(p.id)}
+                style={{
+                  flex: 1, textAlign: 'left', padding: '12px 14px', borderRadius: 8, cursor: 'pointer',
+                  border: plan === p.id ? '2px solid #16a34a' : '1px solid var(--border)',
+                  background: plan === p.id ? '#f0fdf4' : 'white',
+                }}
+              >
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a2e' }}>{p.name}</div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#16a34a' }}>{p.price}</div>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>{p.sub}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="form-group">
           <label className="input-label">Card details</label>
           <div style={{
