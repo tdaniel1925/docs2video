@@ -596,10 +596,29 @@ export async function ensureCreditBalance(userId: string, subscriptionStatus: st
  * failure is logged and never blocks the user's action. Idempotent — only acts
  * while the subscription is still 'trialing'.
  */
+/**
+ * Pure decision: should we end the Stripe trial now? Extracted so the billing
+ * logic is unit-testable without mocking Stripe/Supabase. End the trial ONLY
+ * when ALL hold: the balance is depleted (≤0), the user is on the 'trial'
+ * status, they have a subscription id, and Stripe still reports it 'trialing'.
+ */
+export function shouldEndTrial(input: {
+  balanceTotal: number
+  subscriptionStatus: string | null | undefined
+  stripeSubscriptionId: string | null | undefined
+  stripeSubStatus: string | null | undefined
+}): boolean {
+  if (input.balanceTotal > 0) return false
+  if (input.subscriptionStatus !== 'trial') return false
+  if (!input.stripeSubscriptionId) return false
+  if (input.stripeSubStatus !== 'trialing') return false
+  return true
+}
+
 export async function endTrialIfDepleted(userId: string): Promise<void> {
   try {
     const balance = await getBalance(userId)
-    if (balance.total > 0) return // still has credits — nothing to do
+    if (balance.total > 0) return // fast exit — still has credits
 
     const admin = createAdminClient()
     const { data: profile } = await admin
@@ -608,12 +627,16 @@ export async function endTrialIfDepleted(userId: string): Promise<void> {
       .eq('id', userId)
       .single()
     const subId = profile?.stripe_subscription_id
-    // Only trial users have a sub to convert; paid users already bill normally.
     if (!subId || profile?.subscription_status !== 'trial') return
 
     const { stripe } = await import('./stripe')
     const sub = await stripe.subscriptions.retrieve(subId)
-    if (sub.status !== 'trialing') return // already converted/canceled — no-op
+    if (!shouldEndTrial({
+      balanceTotal: balance.total,
+      subscriptionStatus: profile?.subscription_status,
+      stripeSubscriptionId: subId,
+      stripeSubStatus: sub.status,
+    })) return // already converted/canceled or otherwise ineligible — no-op
 
     // End the trial immediately → Stripe charges the saved card now. The
     // invoice.payment_succeeded / subscription.updated webhook then flips the

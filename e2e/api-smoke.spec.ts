@@ -90,12 +90,14 @@ test.describe('API smoke — authenticated routes', () => {
 
 test.describe('API smoke — auth + webhook guards (no login)', () => {
   test('protected route rejects unauthenticated request', async ({ request }) => {
-    const res = await request.post('/api/videos/draft', { data: { outputType: 'video' } })
+    // maxRedirects:0 so we assert the auth redirect/401 itself, not the followed
+    // login page (which would be a 200 and mask the real guard).
+    const res = await request.post('/api/videos/draft', { data: { outputType: 'video' }, maxRedirects: 0 })
     expect([401, 302, 307]).toContain(res.status())
   })
 
   test('video GET requires auth/ownership', async ({ request }) => {
-    const res = await request.get('/api/videos/00000000-0000-0000-0000-000000000000')
+    const res = await request.get('/api/videos/00000000-0000-0000-0000-000000000000', { maxRedirects: 0 })
     expect([401, 404, 302, 307]).toContain(res.status())
   })
 

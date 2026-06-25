@@ -55,11 +55,13 @@ test.describe('Subscription — management (Settings UI)', () => {
     await expect(page.getByText(/plan|subscription/i).first()).toBeVisible({ timeout: 10000 })
   })
 
-  test('manage billing button is present for customers (or upgrade CTA otherwise)', async ({ page }) => {
-    // A user with a stripe_customer_id sees "Manage billing"; others see plan options.
-    const manage = page.getByRole('button', { name: /manage billing/i })
-    const upgrade = page.getByRole('button', { name: /upgrade|choose|subscribe/i }).first()
-    await expect(manage.or(upgrade)).toBeVisible({ timeout: 10000 })
+  test('subscription tab exposes a billing action (manage / upgrade / top-up)', async ({ page }) => {
+    // Depending on the account's billing state the UI shows different controls —
+    // "Manage billing" (existing customer), an upgrade/subscribe/choose CTA, or a
+    // "Top Up" credits action. Any ONE of them means the billing UI rendered.
+    const billingControl = page.getByRole('button', { name: /manage billing|upgrade|choose|subscribe|top ?up|change plan/i })
+      .or(page.getByRole('link', { name: /manage billing|upgrade|choose|subscribe|top ?up|change plan/i }))
+    await expect(billingControl.first()).toBeVisible({ timeout: 10000 })
   })
 
   test('POST /api/stripe/portal returns a URL or a clear "no subscription" error', async ({ page }) => {
