@@ -56,6 +56,7 @@ export default function VoicePage() {
   const [userTier, setUserTier] = useState<PlanTier>('free')
   const [creditBalance, setCreditBalance] = useState<number | null>(null)
   const [isUnlimited, setIsUnlimited] = useState(false) // admin/beta — no charge
+  const [billingUserId, setBillingUserId] = useState<string | null>(null) // for grandfathered pricing
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [showBuyCredits, setShowBuyCredits] = useState(false)
 
@@ -109,12 +110,13 @@ export default function VoicePage() {
     })
     fetch('/api/credits/balance')
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) { if (typeof d.balance === 'number') setCreditBalance(d.balance); if (d.isAdmin) setIsUnlimited(true) } })
+      .then(d => { if (d) { if (typeof d.balance === 'number') setCreditBalance(d.balance); if (d.isAdmin) setIsUnlimited(true); if (d.userId) setBillingUserId(d.userId) } })
       .catch(() => {})
   }, [])
 
   function levelCost(level: 'quick' | 'standard' | 'detailed'): number {
-    return calculateVideoCost({ outputType: 'video', detailLevel: level, narrationStyle: aiMusic ? 'solo' : 'solo' })
+    // Pass userId so grandfathered users see their real (old-rate) cost.
+    return calculateVideoCost({ outputType: 'video', detailLevel: level, narrationStyle: 'solo', userId: billingUserId || undefined })
   }
 
   function isDetailLevelAllowed(level: 'quick' | 'standard' | 'detailed'): boolean {

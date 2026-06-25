@@ -175,9 +175,9 @@ const ARTICLES: HelpArticle[] = [
     icon: '🪙',
     content: [
       'Videos and slide decks are paid for with credits from your plan:',
-      '• **Video Explainer** — from 250 credits',
-      '• **Slide Deck** (PPTX) — 300 credits',
-      '• **Custom Template** — $5 upgrade',
+      '• **Video Explainer** — Quick 500 · Standard 1,000 · Detailed 1,500 credits (podcast narration adds 400)',
+      '• **Slide Deck** — 600 credits · **PowerPoint (PPTX)** — 800 · **PDF** — 600',
+      '• **Infographic** — 300 credits',
       'Subscription plans include a monthly credit allowance (see Plans). You can buy more credits anytime from Settings.',
     ],
   },
@@ -187,8 +187,8 @@ const ARTICLES: HelpArticle[] = [
     category: 'billing',
     icon: '💰',
     content: [
-      'Plans give you a monthly credit allowance (credits are spent per creation — a standard video is 500 credits):',
-      '**Free** — 1,000 credits/mo. No card required.',
+      'Plans give you a monthly credit allowance (credits are spent per creation — a standard video is 1,000 credits):',
+      '**Free** — 2,000 credits to try. Card required to start.',
       '**Starter ($29/mo)** — 5,000 credits/mo.',
       '**Pro ($79/mo)** — 25,000 credits/mo, priority generation, unlimited brands.',
       '**Business ($199/mo)** — 75,000 credits/mo, white-label share pages.',

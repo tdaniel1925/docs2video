@@ -43,6 +43,10 @@ export async function GET() {
       monthly: balance.monthly,
       topup: balance.topup,
       isAdmin: profile?.is_admin || false,
+      // The client needs this to compute the user's ACTUAL cost (grandfathered
+      // users pay old rates) so the displayed "this will use N credits" matches
+      // what generate-video actually charges.
+      userId: user.id,
     })
   } catch (err) {
     console.error('[credits/balance] Failed to get balance:', err)

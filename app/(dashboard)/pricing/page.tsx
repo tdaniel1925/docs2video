@@ -121,7 +121,7 @@ export default function PricingPage() {
                 ~{plan.approxStandardVideos} standard explainers
               </div>
               <div style={{ fontSize: 11, color: 'var(--ink-light)', marginBottom: 16 }}>
-                or ~{plan.approxQuickVideos} quick videos, ~{Math.floor(plan.monthlyCredits / 300)} slide decks
+                or ~{plan.approxQuickVideos} quick videos, ~{Math.floor(plan.monthlyCredits / 600)} slide decks
               </div>
 
               <div style={{ flex: 1, marginBottom: 16 }}>

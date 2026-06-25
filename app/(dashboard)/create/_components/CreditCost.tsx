@@ -15,6 +15,7 @@ interface BalanceData {
   balance: number
   monthly: number
   topup: number
+  userId?: string
 }
 
 export default function CreditCost({
@@ -28,7 +29,9 @@ export default function CreditCost({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const cost = calculateVideoCost({ outputType, detailLevel, narrationStyle })
+  // Pass userId so grandfathered users see their ACTUAL (old-rate) cost — the
+  // displayed "this will use N credits" must match what generate-video charges.
+  const cost = calculateVideoCost({ outputType, detailLevel, narrationStyle, userId: balanceData?.userId })
 
   const [isAdminUser, setIsAdminUser] = useState(false)
 

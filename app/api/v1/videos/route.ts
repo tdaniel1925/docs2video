@@ -90,7 +90,8 @@ export async function POST(request: Request) {
 
   const outputType: OutputType = body.outputType || 'video'
   const detailLevel: DetailLevel = body.detailLevel || 'standard'
-  const cost = calculateVideoCost({ outputType, detailLevel, narrationStyle: 'solo' })
+  // Pass userId so a grandfathered account is charged its real rate via the API too.
+  const cost = calculateVideoCost({ outputType, detailLevel, narrationStyle: 'solo', userId: caller.userId })
 
   // --- Metered API credit check + charge (separate from UI credits) ---
   const balance = await getApiBalance(caller.userId)

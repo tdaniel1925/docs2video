@@ -37,7 +37,7 @@ export const PLANS: PlanInfo[] = [
     videosPerMonth: 2,
     extraVideoPrice: 1000, // $10
     regenCreditsPerVideo: 2,
-    monthlyCredits: 1000,
+    monthlyCredits: 2000, // matches TIER_CREDITS.free (a standard video = 1000)
     approxStandardVideos: 2,
     approxQuickVideos: 4,
     overageRatePer1000: 0, // free users can't buy overages
@@ -58,8 +58,8 @@ export const PLANS: PlanInfo[] = [
     extraVideoPrice: 500, // $5
     regenCreditsPerVideo: 3,
     monthlyCredits: 5000,
-    approxStandardVideos: 10,
-    approxQuickVideos: 20,
+    approxStandardVideos: 5,  // 5000 / 1000 per standard video
+    approxQuickVideos: 10,    // 5000 / 500 per quick video
     overageRatePer1000: 500,
   },
   {
@@ -78,8 +78,8 @@ export const PLANS: PlanInfo[] = [
     extraVideoPrice: 500, // $5
     regenCreditsPerVideo: 5,
     monthlyCredits: 25000,
-    approxStandardVideos: 50,
-    approxQuickVideos: 100,
+    approxStandardVideos: 25,  // 25000 / 1000
+    approxQuickVideos: 50,     // 25000 / 500
     overageRatePer1000: 500,
   },
   {
@@ -98,8 +98,8 @@ export const PLANS: PlanInfo[] = [
     extraVideoPrice: 500, // $5
     regenCreditsPerVideo: 10,
     monthlyCredits: 75000,
-    approxStandardVideos: 150,
-    approxQuickVideos: 300,
+    approxStandardVideos: 75,   // 75000 / 1000
+    approxQuickVideos: 150,     // 75000 / 500
     overageRatePer1000: 400,
   },
   {
@@ -120,8 +120,8 @@ export const PLANS: PlanInfo[] = [
     extraVideoPrice: 500, // $5
     regenCreditsPerVideo: -1, // unlimited
     monthlyCredits: 200000,
-    approxStandardVideos: 400,
-    approxQuickVideos: 800,
+    approxStandardVideos: 200,  // 200000 / 1000
+    approxQuickVideos: 400,     // 200000 / 500
     overageRatePer1000: 300,
   },
 ]
