@@ -18,6 +18,16 @@ export const v3SceneSchema = z.object({
    *  image. `metric` (single) kept for back-compat; `metrics` shows up to 3. */
   metric: z.object({ label: z.string(), value: z.string() }).optional(),
   metrics: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
+  /** When set, render ONE enormous hero figure (the reference "$0.019 / 594 /
+   *  2-3×" look): a giant value filling the left, with a small label + optional
+   *  caption. Use for a single dominant stat scene. */
+  heroMetric: z.object({
+    value: z.string(),
+    label: z.string().optional(),
+    caption: z.string().optional(),
+    /** 'hero' = warm/primary (default, "the good number"); 'neutral' = cool. */
+    tone: z.enum(['hero', 'neutral', 'warn']).optional(),
+  }).optional(),
   /** Bullet points for the glass-panel slide layout. Each may carry a number. */
   bullets: z.array(z.object({ text: z.string(), value: z.string().optional() })).optional(),
   /** When present, this scene renders the branded ClosingCard (contact + logo). */
@@ -59,6 +69,14 @@ export const v3Schema = z.object({
   presenterOnCover: z.boolean().optional(),
   /** Render the presenter photo on the closing card. */
   presenterOnClosing: z.boolean().optional(),
+  /** Persistent on-screen chrome shown over EVERY scene (the cohesive "frame"
+   *  that makes a video read as one product): a top-left eyebrow, an optional
+   *  top-right tag (date/source), and up to 3 footer proof chips. */
+  frame: z.object({
+    eyebrow: z.string().optional(),
+    tag: z.string().optional(),
+    footer: z.array(z.string()).optional(),
+  }).optional(),
   scenes: z.array(v3SceneSchema).min(1),
 })
 

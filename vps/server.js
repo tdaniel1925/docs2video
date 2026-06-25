@@ -1000,7 +1000,7 @@ function v3Theme(brandAccents) {
 }
 
 app.post('/render-v3', authCheck, async (req, res) => {
-  const { videoId, userId, voiceId, theme, brandName, brandAccents, logo, scenes, contactLine, contact, closingValue, musicUrl, musicPrompt, aiMusic, presenter, photoPlacement } = req.body || {}
+  const { videoId, userId, voiceId, theme, brandName, brandAccents, logo, scenes, contactLine, contact, closingValue, musicUrl, musicPrompt, aiMusic, presenter, photoPlacement, frame } = req.body || {}
   if (!videoId || !Array.isArray(scenes) || scenes.length === 0) {
     return res.status(400).json({ error: 'Missing videoId or scenes' })
   }
@@ -1064,7 +1064,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
       const audioName = `r3-${videoId}-${i}.mp3`
       const durationInFrames = floorDuration(await v3Tts(s.narration || s.title || ' ', voiceId, join(pub, audioName)), i === 0)
       if (isInfo) {
-        outScenes.push({ title: s.title || '', body: s.bullets?.[0], metrics: s.metrics, audio: audioName, durationInFrames })
+        outScenes.push({ title: s.title || '', body: s.bullets?.[0], metrics: s.metrics, ...(s.heroMetric && s.heroMetric.value ? { heroMetric: s.heroMetric } : {}), audio: audioName, durationInFrames })
       } else {
         const imgName = `r3-${videoId}-${i}.png`
         let haveImg = false
@@ -1109,7 +1109,9 @@ app.post('/render-v3', authCheck, async (req, res) => {
             ...(hasContact ? { contact } : {}),
           }
         }
-        outScenes.push({ title: s.title || '', ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement, ...(bullets && bullets.length ? { bullets } : {}), ...(closing ? { closing } : {}) })
+        // A hero-number scene shows ONE giant figure instead of bullets/metrics.
+        const heroMetric = s.heroMetric && s.heroMetric.value ? s.heroMetric : undefined
+        outScenes.push({ title: s.title || '', ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement, ...(heroMetric ? { heroMetric } : (bullets && bullets.length ? { bullets } : {})), ...(closing ? { closing } : {}) })
       }
     }
 
@@ -1158,6 +1160,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
     const props = {
       theme: v3Theme(brandAccents),
       brandName: brandName || undefined,
+      ...(frame ? { frame } : {}),
       ...(isAurora ? { look: 'aurora' } : {}),
       ...(localLogo ? { logo: localLogo, logoChip: !!logo.chip } : {}),
       ...(localPresenter ? { presenter: localPresenter, presenterOnCover, presenterOnClosing } : {}),

@@ -1,4 +1,4 @@
-import { AbsoluteFill, Series, Audio, Img, staticFile, useCurrentFrame, interpolate, Easing, spring, useVideoConfig } from 'remotion'
+import { AbsoluteFill, Series, Sequence, Audio, Img, staticFile, useCurrentFrame, interpolate, Easing, spring, useVideoConfig } from 'remotion'
 import type { V3Props, V3Scene } from './schema'
 import { FullScreenScene, type Placement } from './FullScreenScene'
 import { SlidePanelScene } from './SlidePanelScene'
@@ -6,6 +6,7 @@ import { ClosingCard } from './ClosingCard'
 import { LogoWatermark, type LogoSource } from '../components/infographic/BrandLogo'
 import { ThemedBackground } from '../AuroraBackground'
 import { FilmOverlay } from '../FilmOverlay'
+import { DesignFrame } from './DesignFrame'
 import { FONTS, type Theme } from '../tokens'
 
 /**
@@ -104,11 +105,16 @@ const ColdOpen: React.FC<{ text: string; theme: Theme & { logo?: LogoSource }; p
   )
 }
 
-export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, scenes, music, logo, logoChip, brandName, presenter, presenterOnCover, presenterOnClosing, look, backdrop }) => {
+export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, scenes, music, logo, logoChip, brandName, presenter, presenterOnCover, presenterOnClosing, look, backdrop, frame }) => {
   const total = scenes.reduce((s, sc) => s + sc.durationInFrames, 0) + COLD_OPEN_FRAMES
   const openText = brandName || presenter?.name || scenes[0]?.title || ''
   // Fluid looks share ONE continuous backdrop; scenes render transparent on top.
   const fluid = look === 'aurora' || look === 'editorial-cinema'
+  // Persistent chrome over every real scene (not the branded cold-open). Defaults
+  // the eyebrow to the brand so even videos that pass no `frame` get the cohesive
+  // top-left brand mark + edge glow that makes the reference graphics feel authored.
+  const frameConfig = { brandName, ...(frame || {}) }
+  const hasFrame = !!(frameConfig.eyebrow || frameConfig.brandName || frameConfig.tag || (frameConfig.footer && frameConfig.footer.length))
   return (
     <AbsoluteFill style={{ backgroundColor: theme.ink }}>
       {fluid ? <SharedBackdrop look={look as 'aurora' | 'editorial-cinema'} theme={theme} backdrop={backdrop} totalFrames={total} /> : null}
@@ -175,6 +181,7 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, sce
                     durationInFrames={sc.durationInFrames}
                     metric={sc.metric}
                     metrics={sc.metrics}
+                    heroMetric={sc.heroMetric}
                     transparentBg={fluid}
                   />
                 )}
@@ -184,6 +191,14 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, sce
           )
         })}
       </Series>
+
+      {/* Persistent design frame — overlays every scene AFTER the cold-open so the
+          branded title card stays clean. zIndex:10 keeps the chrome above content. */}
+      {hasFrame ? (
+        <Sequence from={COLD_OPEN_FRAMES}>
+          <DesignFrame theme={theme} config={frameConfig} />
+        </Sequence>
+      ) : null}
 
       {music ? (
         <Audio src={staticFile(music)} volume={(f) => interpolate(f, [0, 30, total - 45, total], [0, 0.04, 0.04, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })} />

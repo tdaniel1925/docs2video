@@ -106,6 +106,23 @@ export const ALL_THEMES: Theme[] = [
   IHOSTPOKER, EXECUTIVE_LIGHT, WARM_TRUST, BOLD_EDITORIAL, MODERN_FINTECH, MINIMAL_MONO, AURORA,
 ]
 
+/**
+ * ROLE-BASED color semantics derived from a Theme. This is what makes the
+ * reference "benchmark" look read as designed: warm = the hero / the thing
+ * being sold / "good"; cool = neutral / comparison. Color MEANS something.
+ * Falls back gracefully to the theme's own accents so every existing theme
+ * gains the roles for free.
+ */
+export function roles(theme: Theme): { hero: string; neutral: string; warn: string } {
+  // accents[0] is the brand's primary — treat it as the hero (warm) by default.
+  // accents[2] is usually the cooler/secondary — use it for the neutral role.
+  return {
+    hero: theme.accents[0],
+    neutral: theme.accents[2] ?? theme.accents[1] ?? theme.accents[0],
+    warn: theme.accents[1] ?? theme.accents[0],
+  }
+}
+
 export const FONTS = {
   display: 'Archivo',
   body: 'Inter',

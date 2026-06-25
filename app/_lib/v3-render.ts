@@ -102,6 +102,10 @@ export type V3Payload = {
   presenter?: Presenter
   /** Resolved photo placement preference; 'auto' lets the style decide on the VPS. */
   photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
+  /** Persistent on-screen chrome over every scene — the cohesive "frame" look:
+   *  a top-left eyebrow (brand), an optional top-right tag (date), and up to 3
+   *  footer proof chips. Makes a video read as one authored product. */
+  frame?: { eyebrow?: string; tag?: string; footer?: string[] }
   /** Per-scene content; the VPS generates images (cinematic) + narration + render. */
   scenes: {
     title: string
@@ -109,6 +113,8 @@ export type V3Payload = {
     beat?: string
     metrics?: { label: string; value: string; highlight?: boolean }[]
     bullets?: string[]
+    /** One enormous hero figure for a single dominant-stat scene (reference look). */
+    heroMetric?: { value: string; label?: string; caption?: string; tone?: 'hero' | 'neutral' | 'warn' }
   }[]
 }
 
@@ -163,14 +169,35 @@ export function buildV3Payload(opts: {
   const metricless = middle.filter((s) => !(s.slideData?.stats?.length)).length
   const perScene = metricless > 0 ? Math.max(2, Math.ceil(pool.length / metricless)) : 0
 
+  const displayName = opts.brandName || resolveDisplayName(opts.brand) || undefined
+
+  // Persistent frame chrome (auto): eyebrow = brand, tag = current month/year,
+  // footer = the document's top 3 proof points (highlighted metric labels). This
+  // is what makes every scene read as one cohesive, authored piece.
+  const proofChips = (opts.keyMetrics ?? [])
+    .filter((m) => m.label && hasNumber(m.value))
+    .slice(0, 3)
+    .map((m) => m.label)
+  const now = new Date()
+  const monthYear = `${now.toLocaleString('en-US', { month: 'long' })} ${now.getFullYear()}`
+  const frame = (displayName || proofChips.length)
+    ? { eyebrow: displayName, tag: monthYear, footer: proofChips.length ? proofChips : undefined }
+    : undefined
+
+  // Pick ONE middle scene to become a giant hero-number: the scene whose top
+  // metric is the document's single most important highlighted figure.
+  const heroPick = (opts.keyMetrics ?? []).find((x) => x.highlight && hasNumber(x.value))
+  let heroAssigned = false
+
   return {
     videoId: opts.videoId,
     userId: opts.userId,
     voiceId: opts.voiceId,
     theme,
+    frame,
     // Display name respects a Person's show_name_on_slides toggle; companies
     // always use their name. An explicit brandName override still wins.
-    brandName: opts.brandName || resolveDisplayName(opts.brand) || undefined,
+    brandName: displayName,
     brandAccents: brandAccents(opts.brand),
     // Logo only when the profile is a company with show_logo on (never for people).
     logo: shouldShowLogo(opts.brand) ? brandLogo(opts.brand) : undefined,
@@ -203,11 +230,26 @@ export function buildV3Payload(opts: {
         metrics = take.map((m, i) => ({ label: m.label, value: m.value, highlight: i < 2 }))
       }
 
+      // Promote ONE middle scene to a giant hero-number: the first middle scene
+      // whose top metric matches the document's single most important figure, OR
+      // the first middle scene that has a numeric metric but no bullets (a clean
+      // single-stat moment). Only one scene gets it, so the video has a clear peak.
+      let heroMetric: { value: string; label?: string; caption?: string; tone?: 'hero' | 'neutral' | 'warn' } | undefined
+      const noBullets = !(s.slideData?.bullets?.length)
+      if (!heroAssigned && isMiddle && noBullets && metrics.length && heroPick) {
+        const top = metrics.find((m) => m.value === heroPick.value) || metrics[0]
+        if (top && hasNumber(top.value)) {
+          heroMetric = { value: top.value, label: s.slideData?.headline || s.title || top.label, caption: top.label, tone: 'hero' }
+          heroAssigned = true
+        }
+      }
+
       return {
         title: s.slideData?.headline || s.title || '',
         narration: s.narration || '',
         beat: s.beat,
-        ...(metrics.length ? { metrics } : {}),
+        // A hero scene shows the giant number INSTEAD of a metric grid (avoids clash).
+        ...(heroMetric ? { heroMetric } : metrics.length ? { metrics } : {}),
         ...(s.slideData?.bullets?.length ? { bullets: s.slideData.bullets } : {}),
       }
     }),

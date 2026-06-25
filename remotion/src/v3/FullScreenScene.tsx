@@ -4,6 +4,7 @@ import { KineticText } from '../KineticText'
 import { FilmOverlay } from '../FilmOverlay'
 import { CinematicGrade } from './CinematicGrade'
 import { LowerThird } from './LowerThird'
+import { HeroMetric } from './HeroMetric'
 import { settleProgress } from '../helpers'
 
 export type Placement = 'bottom' | 'left' | 'right' | 'center' | 'top'
@@ -30,11 +31,14 @@ export const FullScreenScene: React.FC<{
    *  shows up to 3; `metric` (single) kept for back-compat. */
   metric?: { label: string; value: string }
   metrics?: { label: string; value: string }[]
+  /** One enormous hero figure (reference "$0.019 / 594 / 2-3×" look). When set,
+   *  it REPLACES the centered title block with a left-anchored giant number. */
+  heroMetric?: { value: string; label?: string; caption?: string; tone?: 'hero' | 'neutral' | 'warn' }
   /** Fluid looks: don't paint an opaque ground or per-scene image — let the
    *  ONE continuous shared backdrop (mesh or single image) behind the Series
    *  show through, so every scene reads as the same world. */
   transparentBg?: boolean
-}> = ({ image, placement, eyebrow, title, body, accentWordIndex, theme, durationInFrames, kenBurns = 'in', metric, metrics, transparentBg }) => {
+}> = ({ image, placement, eyebrow, title, body, accentWordIndex, theme, durationInFrames, kenBurns = 'in', metric, metrics, heroMetric, transparentBg }) => {
   const frame = useCurrentFrame()
   // Speed-ramped Ken Burns: ease-in-out so the camera ACCELERATES through the
   // middle and settles — cinematic motion is about acceleration, not linear drift.
@@ -92,26 +96,40 @@ export const FullScreenScene: React.FC<{
       {transparentBg ? null : <CinematicGrade accent={theme.accents[0]} intensity={1.4} />}
       <AbsoluteFill style={{ background: grad[placement] }} />
 
-      <AbsoluteFill style={{ display: 'flex', flexDirection: 'column', ...align[placement] }}>
-        {/* Inner block: textAlign applies to ALL children so eyebrow/title/body
-            stack and align together (fixes "block centered but lines not centered"). */}
-        <div style={{ maxWidth: maxW, textAlign, display: 'flex', flexDirection: 'column', alignItems: textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start' }}>
+      {heroMetric ? (
+        // HERO-NUMBER layout: one enormous figure anchored left (reference look).
+        // The eyebrow still rides on top; an optional title sits above as a kicker.
+        <AbsoluteFill style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start', padding: '0 130px' }}>
           {eyebrow ? (
-            <div style={{ opacity: ebP, transform: `translateY(${(1 - ebP) * 14}px)`, fontFamily: FONTS.body, fontWeight: 800, letterSpacing: 8, fontSize: TYPE.label, color: accent, textTransform: 'uppercase', marginBottom: 24, textAlign, textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>
+            <div style={{ opacity: ebP, transform: `translateY(${(1 - ebP) * 14}px)`, fontFamily: FONTS.body, fontWeight: 800, letterSpacing: 8, fontSize: TYPE.label, color: accent, textTransform: 'uppercase', marginBottom: 20, textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>
               {eyebrow}
             </div>
           ) : null}
-          <KineticText text={title} startFrame={14} fontFamily={FONTS.display} fontWeight={900} fontSize={placement === 'center' ? TYPE.hero * 0.82 : TYPE.hero * 0.66} color="#FFFFFF" accentColor={accent} accentWordIndex={accentWordIndex} align={textAlign} lineHeight={0.98} />
-          {body ? (
-            <div style={{ opacity: bodyP, transform: `translateY(${(1 - bodyP) * 14}px)`, fontFamily: FONTS.body, fontWeight: 500, fontSize: TYPE.subhead, color: '#FFFFFF', marginTop: 30, maxWidth: 980, textAlign, textShadow: '0 2px 14px rgba(0,0,0,0.6)' }}>
-              {body}
-            </div>
-          ) : null}
-        </div>
-      </AbsoluteFill>
+          <HeroMetric value={heroMetric.value} label={heroMetric.label || title} caption={heroMetric.caption} tone={heroMetric.tone} theme={theme} />
+        </AbsoluteFill>
+      ) : (
+        <AbsoluteFill style={{ display: 'flex', flexDirection: 'column', ...align[placement] }}>
+          {/* Inner block: textAlign applies to ALL children so eyebrow/title/body
+              stack and align together (fixes "block centered but lines not centered"). */}
+          <div style={{ maxWidth: maxW, textAlign, display: 'flex', flexDirection: 'column', alignItems: textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start' }}>
+            {eyebrow ? (
+              <div style={{ opacity: ebP, transform: `translateY(${(1 - ebP) * 14}px)`, fontFamily: FONTS.body, fontWeight: 800, letterSpacing: 8, fontSize: TYPE.label, color: accent, textTransform: 'uppercase', marginBottom: 24, textAlign, textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>
+                {eyebrow}
+              </div>
+            ) : null}
+            <KineticText text={title} startFrame={14} fontFamily={FONTS.display} fontWeight={900} fontSize={placement === 'center' ? TYPE.hero * 0.82 : TYPE.hero * 0.66} color="#FFFFFF" accentColor={accent} accentWordIndex={accentWordIndex} align={textAlign} lineHeight={0.98} />
+            {body ? (
+              <div style={{ opacity: bodyP, transform: `translateY(${(1 - bodyP) * 14}px)`, fontFamily: FONTS.body, fontWeight: 500, fontSize: TYPE.subhead, color: '#FFFFFF', marginTop: 30, maxWidth: 980, textAlign, textShadow: '0 2px 14px rgba(0,0,0,0.6)' }}>
+                {body}
+              </div>
+            ) : null}
+          </div>
+        </AbsoluteFill>
+      )}
 
-      {/* Cinematic data callouts — key numbers over the film image (up to 3). */}
-      {(() => {
+      {/* Cinematic data callouts — key numbers over the film image (up to 3).
+          Suppressed when a hero figure owns the frame (avoids a number-on-number clash). */}
+      {heroMetric ? null : (() => {
         const mList = (metrics && metrics.length ? metrics : metric ? [metric] : [])
         return mList.length ? <LowerThird metrics={mList} theme={theme} durationInFrames={durationInFrames} /> : null
       })()}

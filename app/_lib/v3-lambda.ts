@@ -143,6 +143,8 @@ export async function renderV3OnLambda(payload: V3Payload): Promise<void> {
       ...(imageUrl ? { image: imageUrl } : {}),
       audio: audioUrl, durationInFrames, placement,
       ...(bullets.length ? { bullets } : {}),
+      // A hero-number scene shows ONE giant figure instead of bullets/metrics.
+      ...((s as any).heroMetric ? { heroMetric: (s as any).heroMetric } : {}),
     })
   }
 
@@ -174,6 +176,7 @@ export async function renderV3OnLambda(payload: V3Payload): Promise<void> {
   }
   const inputProps = {
     theme, brandName: payload.brandName,
+    ...(payload.frame ? { frame: payload.frame } : {}),
     ...(payload.logo?.light || payload.logo?.dark ? { logo: { light: payload.logo.light, dark: payload.logo.dark }, logoChip: !!payload.logo.chip } : {}),
     ...(musicUrl ? { music: musicUrl } : {}),
     scenes: outScenes,
