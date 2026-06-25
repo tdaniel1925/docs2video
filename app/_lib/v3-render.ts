@@ -28,6 +28,20 @@ function hasNumber(value: string): boolean {
 }
 
 /**
+ * Is this metric a HEADLINE figure worth featuring big (hero number / closing
+ * card)? Must be money or a large number, and NOT age / year / term / count —
+ * those read absurdly as a hero stat (e.g. "AGE 40" on a thank-you card).
+ */
+function isHeadlineFigure(m: { label?: string; value: string }): boolean {
+  const BAD = /\bage\b|\byear|\bterm\b|\bduration\b|\bmonths?\b|\bdays?\b|\bquantity\b|\bcount\b|\bnumber of\b/i
+  if (BAD.test(m.label || '')) return false
+  const v = m.value || ''
+  const isMoney = /[$£€]|,\d{3}|\b\d+(\.\d+)?\s?(k|m|b|thousand|million|billion)\b/i.test(v)
+  const n = parseFloat(v.replace(/[^\d.]/g, ''))
+  return isMoney || (isFinite(n) && n >= 1000)
+}
+
+/**
  * Count how much of the content is numeric/metric-shaped. Data-heavy decks
  * (insurance illustrations, financial reports) lean infographic; story/marketing
  * leans cinematic.
@@ -184,9 +198,10 @@ export function buildV3Payload(opts: {
     ? { eyebrow: displayName, tag: monthYear, footer: proofChips.length ? proofChips : undefined }
     : undefined
 
-  // Pick ONE middle scene to become a giant hero-number: the scene whose top
-  // metric is the document's single most important highlighted figure.
-  const heroPick = (opts.keyMetrics ?? []).find((x) => x.highlight && hasNumber(x.value))
+  // Pick ONE middle scene to become a giant hero-number: the document's single
+  // most important HEADLINE figure (money/large; never age/year/count).
+  const heroPick = (opts.keyMetrics ?? []).find((x) => x.highlight && isHeadlineFigure(x))
+    || (opts.keyMetrics ?? []).find(isHeadlineFigure)
   let heroAssigned = false
 
   return {
@@ -209,12 +224,10 @@ export function buildV3Payload(opts: {
     aiMusic: opts.aiMusic || undefined,
     contactLine: opts.contactLine || undefined,
     contact: opts.contact || undefined,
-    // Closing value: the document's most important highlighted metric (e.g. the
-    // death benefit / coverage amount) — shown big on the closing card.
-    closingValue: (() => {
-      const m = (opts.keyMetrics ?? []).find((x) => x.highlight && hasNumber(x.value)) || (opts.keyMetrics ?? []).find((x) => hasNumber(x.value))
-      return m ? { label: m.label, value: m.value } : undefined
-    })(),
+    // The closing card shows ONLY the presenter's contact info (logo/name +
+    // phone/email/website) — no big figure. A stray metric here (e.g. "AGE 40")
+    // reads absurdly on a "thank you" card, and the user wants contact-only.
+    closingValue: undefined,
     scenes: opts.scenes.map((s, idx) => {
       const stats = s.slideData?.stats ?? []
       let metrics = stats
