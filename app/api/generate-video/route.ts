@@ -988,6 +988,9 @@ export async function POST(request: Request) {
           } catch (err) {
             const message = err instanceof Error ? err.message : 'Lambda render failed'
             console.error(`[video ${videoId}] Lambda render CRASH: ${message}`)
+            // Capture the REAL reason in error_logs — otherwise a render failure
+            // refunds silently and leaves nothing to diagnose (the "no logs" bug).
+            logError('generate-video:lambda', err, { videoId, userId: user.id })
             await admin.from('videos').update({ status: 'failed', error_message: 'Video rendering failed. Your credits were refunded.', progress_detail: null }).eq('id', videoId)
             if (deductedCost && deductedCost > 0) await refundVideoCredits(user.id, deductedCost, videoId).catch(() => {})
           }
