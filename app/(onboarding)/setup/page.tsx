@@ -145,15 +145,30 @@ export default function SetupPage() {
   }
 
   async function handlePhotoUpload(file: File, type: 'headshot' | 'midlevel' | 'standing' = 'headshot') {
-    setPhotoUploading(type)
     setError(null)
+    // Guard BEFORE upload: the hosting platform rejects bodies over ~4.5MB with a
+    // plaintext error (which used to surface as "Unexpected token 'R'... not valid
+    // JSON"). Catch oversized files here with a clear, actionable message.
+    if (file.size > 4 * 1024 * 1024) {
+      setError('That image is too large. Please use a photo under 4MB (try compressing it).')
+      return
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('Photo must be a JPG, PNG, or WebP image.')
+      return
+    }
+    setPhotoUploading(type)
     const formData = new FormData()
     formData.append('file', file)
     formData.append('type', type)
     try {
       const res = await fetch('/api/upload-photo', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      // Read as text first so a non-JSON platform error (e.g. 413 Request Entity
+      // Too Large) becomes a readable message instead of a JSON parse crash.
+      const raw = await res.text()
+      let data: any = {}
+      try { data = raw ? JSON.parse(raw) : {} } catch { data = { error: raw.slice(0, 140) } }
+      if (!res.ok) throw new Error(data.error || `Upload failed (HTTP ${res.status})`)
       if (type === 'headshot') setPhotoUrl(data.url)
       else if (type === 'midlevel') setPhotoMidlevelUrl(data.url)
       else if (type === 'standing') setPhotoStandingUrl(data.url)
@@ -164,14 +179,20 @@ export default function SetupPage() {
   }
 
   async function handleLogoUpload(file: File) {
-    setLogoUploading(true)
     setError(null)
+    if (file.size > 4 * 1024 * 1024) {
+      setError('That logo is too large. Please use an image under 4MB.')
+      return
+    }
+    setLogoUploading(true)
     const formData = new FormData()
     formData.append('file', file)
     try {
       const res = await fetch('/api/upload-logo', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      const raw = await res.text()
+      let data: any = {}
+      try { data = raw ? JSON.parse(raw) : {} } catch { data = { error: raw.slice(0, 140) } }
+      if (!res.ok) throw new Error(data.error || `Upload failed (HTTP ${res.status})`)
       setLogoUrl(data.url)
       // Auto-extract colors from logo
       try {
