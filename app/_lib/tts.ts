@@ -20,6 +20,27 @@ function getClient(): OpenAI {
   return client
 }
 
+/**
+ * Normalize text so TTS SPEAKS symbols instead of mangling them — ElevenLabs
+ * reads a literal "$176,204" badly. Convert money/percent before synthesis.
+ */
+export function speakable(text: string): string {
+  if (!text) return text
+  let t = String(text)
+  t = t.replace(/\$\s?([\d,]+(?:\.\d+)?)\s?(k|m|b|thousand|million|billion)?/gi, (_m, num: string, unit?: string) => {
+    const n = num.replace(/,/g, '')
+    const u = (unit || '').toLowerCase()
+    const word = u === 'k' || u === 'thousand' ? ' thousand'
+      : u === 'm' || u === 'million' ? ' million'
+      : u === 'b' || u === 'billion' ? ' billion' : ''
+    return `${n}${word} dollars`
+  })
+  t = t.replace(/(\d(?:[\d,.]*\d)?)\s?%/g, '$1 percent')
+  t = t.replace(/\$/g, ' dollars ')
+  t = t.replace(/\s&\s/g, ' and ')
+  return t.replace(/\s+/g, ' ').trim()
+}
+
 /** ElevenLabs TTS → mp3 Buffer. Throws on any error so the caller can fall back. */
 async function elevenSpeak(text: string): Promise<Buffer> {
   if (!ELEVEN_API_KEY) throw new Error('ELEVENLABS_API_KEY not set')

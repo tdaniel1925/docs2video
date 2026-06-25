@@ -904,17 +904,45 @@ async function elevenSpeak(text) {
   return buf
 }
 
+// Normalize text so TTS SPEAKS symbols instead of mangling them. ElevenLabs in
+// particular reads a literal "$176,204" badly (voices the "$" or drops it). We
+// convert money/percent/common symbols to words BEFORE synthesis so any engine
+// says "one hundred seventy-six thousand two hundred four dollars".
+function speakable(text) {
+  if (!text) return text
+  let t = String(text)
+  // Money: $1,234  $1.2M  $5K  $176,204.50 → "<spoken number> dollars"
+  t = t.replace(/\$\s?([\d,]+(?:\.\d+)?)\s?(k|m|b|thousand|million|billion)?/gi, (_, num, unit) => {
+    const n = num.replace(/,/g, '')
+    const u = (unit || '').toLowerCase()
+    const word = u === 'k' || u === 'thousand' ? ' thousand'
+      : u === 'm' || u === 'million' ? ' million'
+      : u === 'b' || u === 'billion' ? ' billion' : ''
+    // Keep the digits (engines speak grouped numbers fine); just drop the comma
+    // noise and append the unit word + "dollars".
+    return `${n}${word} dollars`
+  })
+  // Percent: 94%  3.5 % → "94 percent"
+  t = t.replace(/(\d(?:[\d,.]*\d)?)\s?%/g, '$1 percent')
+  // Leftover bare symbols that read as garbage.
+  t = t.replace(/\$/g, ' dollars ')
+  t = t.replace(/\s&\s/g, ' and ')
+  t = t.replace(/\s+/g, ' ').trim()
+  return t
+}
+
 async function ttsToBuffer(text, voiceId) {
+  const spoken = speakable(text) || ' '
   // PRIMARY: ElevenLabs.
   if (ELEVEN_API_KEY) {
-    try { return await elevenSpeak(text || ' ') }
+    try { return await elevenSpeak(spoken) }
     catch (e) { console.warn(`[tts] ElevenLabs failed, falling back to OpenAI: ${e.message}`) }
   }
   // FALLBACK: OpenAI TTS-HD (honors the user's selected voice).
   const OpenAI = require('openai')
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
   const resp = await openai.audio.speech.create({
-    model: 'tts-1-hd', voice: voiceId || 'nova', input: text || ' ', response_format: 'mp3', speed: 0.98,
+    model: 'tts-1-hd', voice: voiceId || 'nova', input: spoken, response_format: 'mp3', speed: 0.98,
   })
   return Buffer.from(await resp.arrayBuffer())
 }
