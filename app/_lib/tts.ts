@@ -38,7 +38,10 @@ export function speakable(text: string): string {
   t = t.replace(/(\d(?:[\d,.]*\d)?)\s?%/g, '$1 percent')
   t = t.replace(/\$/g, ' dollars ')
   t = t.replace(/\s&\s/g, ' and ')
-  return t.replace(/\s+/g, ' ').trim()
+  t = t.replace(/\s+/g, ' ').trim()
+  // Trailing punctuation so the engine doesn't clip the last word.
+  if (t && !/[.!?]$/.test(t)) t += '.'
+  return t
 }
 
 /** ElevenLabs TTS → mp3 Buffer. Throws on any error so the caller can fall back. */
@@ -84,6 +87,10 @@ export async function synthesizeSpeech(
     // Non-strict: split at sentence boundary, synthesize each chunk, concatenate
     return await synthesizeLongText(text, voiceId)
   }
+
+  // Normalize money/percent/symbols + add a trailing pause so any engine speaks
+  // it correctly and doesn't clip the last word.
+  text = speakable(text)
 
   // PRIMARY: ElevenLabs (Rachel). On any failure, fall through to OpenAI.
   if (ELEVEN_API_KEY) {

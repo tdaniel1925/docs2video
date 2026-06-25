@@ -928,6 +928,10 @@ function speakable(text) {
   t = t.replace(/\$/g, ' dollars ')
   t = t.replace(/\s&\s/g, ' and ')
   t = t.replace(/\s+/g, ' ').trim()
+  // Guarantee a sentence-final punctuation + trailing pause so TTS engines
+  // (esp. ElevenLabs turbo) don't clip the LAST word — any end-of-clip
+  // truncation now eats the trailing silence instead of a real syllable.
+  if (t && !/[.!?]$/.test(t)) t += '.'
   return t
 }
 
