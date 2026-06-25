@@ -100,13 +100,10 @@ app.post('/selftest', authCheck, async (req, res) => {
     if (!parts.some(p => p.inlineData)) throw new Error('No image in Gemini response')
   })
 
-  // OpenAI TTS: one short synthesis
+  // TTS: exercise the REAL chain (ElevenLabs primary → OpenAI fallback), so a
+  // green check means renders can actually voice scenes regardless of provider.
   await time('tts', async () => {
-    if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not set')
-    const OpenAI = require('openai')
-    const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
-    const resp = await openai.audio.speech.create({ model: 'tts-1-hd', voice: 'nova', input: 'System check.', response_format: 'mp3' })
-    const b = Buffer.from(await resp.arrayBuffer())
+    const b = await ttsToBuffer('System check.', 'nova')
     if (b.length < 100) throw new Error(`TTS returned ${b.length} bytes`)
   })
 
@@ -887,13 +884,43 @@ app.post('/process-logo', authCheck, async (req, res) => {
 const REMOTION_DIR = process.env.REMOTION_DIR || '/app/remotion'
 const V3_LOOK = 'High-end cinematic corporate photography with a RICH, MOODY, PREMIUM grade — like a polished Apple or Bloomberg commercial. Dramatic but expensive-looking lighting, deep controlled shadows, sophisticated color, shallow depth of field, strong sense of place. Confident and modern, NOT bright flat stock photography and NOT depressing. Specific, editorial, characterful real scenes — avoid generic stock-photo clichés. Stay strictly ON TOPIC for the described subject. AVOID: cheesy stock smiles, candlelit/antique/castle/vintage settings, lone sad figures, anything melancholy or off-story. Photoreal, NOT illustration. 16:9, fills 1920x1080. ABSOLUTELY NO text, words, letters, numbers, charts, or logos.'
 
-async function v3Tts(text, voiceId, outPath) {
+// Voice engine: ElevenLabs (Rachel) is PRIMARY; OpenAI TTS-HD is the FALLBACK.
+// Either provider being out of quota no longer kills a render — we try the other.
+const ELEVEN_API_KEY = process.env.ELEVENLABS_API_KEY
+const ELEVEN_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM' // Rachel
+const ELEVEN_MODEL = process.env.ELEVENLABS_MODEL || 'eleven_turbo_v2_5'
+
+async function elevenSpeak(text) {
+  if (!ELEVEN_API_KEY) throw new Error('ELEVENLABS_API_KEY not set')
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE_ID}?output_format=mp3_44100_128`, {
+    method: 'POST',
+    headers: { 'xi-api-key': ELEVEN_API_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+    body: JSON.stringify({ text, model_id: ELEVEN_MODEL, voice_settings: { stability: 0.5, similarity_boost: 0.75 } }),
+    signal: AbortSignal.timeout(30000),
+  })
+  if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}`)
+  const buf = Buffer.from(await res.arrayBuffer())
+  if (buf.length < 100) throw new Error(`ElevenLabs tiny audio: ${buf.length} bytes`)
+  return buf
+}
+
+async function ttsToBuffer(text, voiceId) {
+  // PRIMARY: ElevenLabs.
+  if (ELEVEN_API_KEY) {
+    try { return await elevenSpeak(text || ' ') }
+    catch (e) { console.warn(`[tts] ElevenLabs failed, falling back to OpenAI: ${e.message}`) }
+  }
+  // FALLBACK: OpenAI TTS-HD (honors the user's selected voice).
   const OpenAI = require('openai')
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
   const resp = await openai.audio.speech.create({
     model: 'tts-1-hd', voice: voiceId || 'nova', input: text || ' ', response_format: 'mp3', speed: 0.98,
   })
-  await writeFile(outPath, Buffer.from(await resp.arrayBuffer()))
+  return Buffer.from(await resp.arrayBuffer())
+}
+
+async function v3Tts(text, voiceId, outPath) {
+  await writeFile(outPath, await ttsToBuffer(text, voiceId))
   const dur = await probeAudioDuration(outPath)
   return Math.round(((dur || 3) + 0.9) * 30)
 }
@@ -1582,11 +1609,8 @@ app.post('/generate', authCheck, async (req, res) => {
         let buf = null
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
-            const resp = await openai.audio.speech.create({
-              model: 'tts-1-hd', voice: voiceId || 'nova',
-              input: scene.narration.slice(0, 4096), response_format: 'mp3', speed: 0.95,
-            })
-            const b = Buffer.from(await resp.arrayBuffer())
+            // ElevenLabs primary, OpenAI fallback (see ttsToBuffer).
+            const b = await ttsToBuffer(scene.narration.slice(0, 4096), voiceId)
             if (b.length > 100) { buf = b; break }
             throw new Error(`TTS returned ${b.length} bytes`)
           } catch (e) {

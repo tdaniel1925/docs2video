@@ -2,6 +2,15 @@ import OpenAI from 'openai'
 
 const TTS_MAX_CHARS = 4096
 
+// Voice engine order: ElevenLabs is PRIMARY (Rachel), OpenAI TTS-HD is the
+// FALLBACK. This keeps renders working even when one provider is out of quota.
+// ElevenLabs uses its own voice IDs (not 'nova'/'alloy'), so we use one good
+// default for everyone — Rachel, a warm female voice (matches the female-default
+// rule). The user-selected OpenAI voiceId is still honored on the fallback path.
+const ELEVEN_API_KEY = process.env.ELEVENLABS_API_KEY
+const ELEVEN_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM' // Rachel
+const ELEVEN_MODEL = process.env.ELEVENLABS_MODEL || 'eleven_turbo_v2_5'
+
 let client: OpenAI | null = null
 
 function getClient(): OpenAI {
@@ -9,6 +18,27 @@ function getClient(): OpenAI {
     client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
   }
   return client
+}
+
+/** ElevenLabs TTS → mp3 Buffer. Throws on any error so the caller can fall back. */
+async function elevenSpeak(text: string): Promise<Buffer> {
+  if (!ELEVEN_API_KEY) throw new Error('ELEVENLABS_API_KEY not set')
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 30000)
+  try {
+    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE_ID}?output_format=mp3_44100_128`, {
+      method: 'POST',
+      headers: { 'xi-api-key': ELEVEN_API_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+      body: JSON.stringify({ text, model_id: ELEVEN_MODEL, voice_settings: { stability: 0.5, similarity_boost: 0.75 } }),
+      signal: controller.signal as any,
+    })
+    if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}`)
+    const buf = Buffer.from(await res.arrayBuffer())
+    if (buf.length < 100) throw new Error(`ElevenLabs returned tiny audio: ${buf.length} bytes`)
+    return buf
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 export async function synthesizeSpeech(
@@ -34,10 +64,20 @@ export async function synthesizeSpeech(
     return await synthesizeLongText(text, voiceId)
   }
 
+  // PRIMARY: ElevenLabs (Rachel). On any failure, fall through to OpenAI.
+  if (ELEVEN_API_KEY) {
+    try {
+      return await elevenSpeak(text)
+    } catch (err) {
+      const m = err instanceof Error ? err.message : String(err)
+      console.warn(`[tts] ElevenLabs failed, falling back to OpenAI: ${m}`)
+    }
+  }
+
   const openai = getClient()
   let lastError: Error | null = null
 
-  // Retry up to 3 times with backoff + 30s timeout per attempt
+  // FALLBACK: OpenAI TTS-HD — retry up to 3 times with backoff + 30s timeout.
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const controller = new AbortController()
@@ -74,8 +114,8 @@ export async function synthesizeSpeech(
     }
   }
 
-  // All 3 attempts failed — throw instead of silently substituting silence
-  throw new Error(`TTS failed after 3 attempts: ${lastError?.message || 'Unknown error'}`)
+  // Both providers failed — throw instead of silently substituting silence.
+  throw new Error(`TTS failed (ElevenLabs + OpenAI). Last OpenAI error: ${lastError?.message || 'Unknown error'}`)
 }
 
 async function synthesizeLongText(text: string, voiceId: string): Promise<Buffer> {
