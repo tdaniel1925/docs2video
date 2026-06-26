@@ -7,6 +7,8 @@ interface CreditCostProps {
   outputType: 'video' | 'pptx' | 'pdf'
   detailLevel?: 'quick' | 'standard' | 'detailed'
   narrationStyle?: 'solo' | 'podcast'
+  /** Total uploaded documents (multi-file projects cost +150 per extra file). */
+  fileCount?: number
   showConfirm?: boolean
   onConfirm?: () => void
 }
@@ -22,6 +24,7 @@ export default function CreditCost({
   outputType,
   detailLevel = 'standard',
   narrationStyle = 'solo',
+  fileCount,
   showConfirm = false,
   onConfirm,
 }: CreditCostProps) {
@@ -31,7 +34,7 @@ export default function CreditCost({
 
   // Pass userId so grandfathered users see their ACTUAL (old-rate) cost — the
   // displayed "this will use N credits" must match what generate-video charges.
-  const cost = calculateVideoCost({ outputType, detailLevel, narrationStyle, userId: balanceData?.userId })
+  const cost = calculateVideoCost({ outputType, detailLevel, narrationStyle, userId: balanceData?.userId, fileCount })
 
   const [isAdminUser, setIsAdminUser] = useState(false)
 

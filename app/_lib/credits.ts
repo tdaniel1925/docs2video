@@ -547,13 +547,21 @@ export async function getUsageHistory(userId: string, limit: number = 50) {
 // Video cost calculator
 // ============================================================
 
+/** Surcharge per EXTRA uploaded file (beyond the first) on a multi-document
+ *  project. Each extra file = one more extraction + the cross-doc combine pass,
+ *  so multi-upload videos cost more to produce. Exposed so the UI can show the
+ *  exact same number it charges (display = charge). */
+export const MULTI_FILE_SURCHARGE = 150
+
 export function calculateVideoCost(options: {
   outputType: 'video' | 'pptx' | 'pdf'
   detailLevel?: 'quick' | 'standard' | 'detailed'
   narrationStyle?: 'solo' | 'podcast'
   userId?: string | null
+  /** Total uploaded documents on the project (1 = single file, no surcharge). */
+  fileCount?: number
 }): number {
-  const { outputType, detailLevel = 'standard', narrationStyle = 'solo', userId } = options
+  const { outputType, detailLevel = 'standard', narrationStyle = 'solo', userId, fileCount } = options
   // Grandfathered users (e.g. Aziz) pay the OLD pre-2x rates via costForUser.
   const cost = (action: CreditAction) => costForUser(action, userId)
 
@@ -570,6 +578,10 @@ export function calculateVideoCost(options: {
   if (narrationStyle === 'podcast') {
     total += cost('podcastAddon')
   }
+
+  // Multi-upload surcharge: +150 per file beyond the first (extractions + combine).
+  const extraFiles = Math.max(0, (fileCount ?? 1) - 1)
+  total += extraFiles * MULTI_FILE_SURCHARGE
 
   return total
 }

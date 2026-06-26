@@ -297,11 +297,22 @@ export async function POST(request: Request) {
       }
     }
 
+    // Multi-upload surcharge: count the uploaded docs on the draft so a video
+    // built from several files is charged +150 per extra file (extractions +
+    // combine pass). Single-file/url/text/idea projects have fileCount 1 → no add.
+    let fileCount = 1
+    if (videoId) {
+      const { data: fcRow } = await createAdminClient().from('videos').select('draft_data').eq('id', videoId).single()
+      const docs = (fcRow?.draft_data as any)?.extractedDocs
+      if (Array.isArray(docs) && docs.length > 1) fileCount = docs.length
+    }
+
     const videoCost = calculateVideoCost({
       outputType: (body as any).outputType || 'video',
       detailLevel: (body as any).detailLevel || (detailed ? 'detailed' : 'standard'),
       narrationStyle: effectiveNarrationStyle,
       userId: user.id, // honors grandfathered (old-rate) customers like Aziz
+      fileCount,
     })
 
     const creditCheck = await checkCredits(user.id, videoCost)

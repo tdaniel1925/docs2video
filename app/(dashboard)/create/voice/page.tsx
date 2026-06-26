@@ -57,6 +57,7 @@ export default function VoicePage() {
   const [creditBalance, setCreditBalance] = useState<number | null>(null)
   const [isUnlimited, setIsUnlimited] = useState(false) // admin/beta — no charge
   const [billingUserId, setBillingUserId] = useState<string | null>(null) // for grandfathered pricing
+  const [fileCount, setFileCount] = useState(1) // multi-upload surcharge driver
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [showBuyCredits, setShowBuyCredits] = useState(false)
 
@@ -87,6 +88,10 @@ export default function VoicePage() {
         if (draft.detailLevel) setDetailLevel(draft.detailLevel)
         if (draft.aiMusic !== undefined) setAiMusic(draft.aiMusic)
         if (draft.styleId) setStyleAlreadyPicked(true)
+        // Multi-upload projects carry a +150/extra-file surcharge in the preview.
+        if (Array.isArray(draft.extractedDocs) && draft.extractedDocs.length > 1) {
+          setFileCount(draft.extractedDocs.length)
+        }
       } catch (err) {
         console.error('[voice] load error:', err)
         setError('Could not load your draft. Please go back and try again.')
@@ -283,6 +288,7 @@ export default function VoicePage() {
             outputType={outputType}
             detailLevel={detailLevel}
             narrationStyle="solo"
+            fileCount={fileCount}
           />
         </section>
 
