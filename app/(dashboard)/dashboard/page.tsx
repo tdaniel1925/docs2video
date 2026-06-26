@@ -268,7 +268,7 @@ export default async function DashboardPage() {
             )}
           </div>
           <Link
-            href="/settings?tab=subscription"
+            href="/pricing"
             className="btn btn-sm"
             style={{
               background: creditBalance.total <= 0 ? '#dc2626' : 'var(--mint)',
