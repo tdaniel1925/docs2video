@@ -173,18 +173,18 @@ export async function GET(request: Request) {
         !nurtureSent['upgrade']
       ) {
         emailKey = 'upgrade'
-        subject = `You've made ${completedVideos.length} video${completedVideos.length > 1 ? 's' : ''} — unlock more`
-        heading = 'Ready for unlimited videos?'
+        subject = `You've made ${completedVideos.length} video${completedVideos.length > 1 ? 's' : ''} — 50% off your first month`
+        heading = 'Ready for more? Here’s 50% off month one.'
         body = `<p>${greeting}</p>
-<p>You've created <strong>${completedVideos.length} video${completedVideos.length > 1 ? 's' : ''}</strong> on the free plan and used all your free credits. Upgrade to keep creating:</p>
+<p>You've created <strong>${completedVideos.length} video${completedVideos.length > 1 ? 's' : ''}</strong> on the free plan and used all your free credits. As a thank-you, take <strong>50% off your first month</strong> on any plan with code <strong>WELCOME50</strong> — it applies automatically when you upgrade from this email:</p>
 <ul style="color:#444;line-height:2;">
-  <li><strong>Pro</strong> &mdash; $79/mo, 25,000 credits</li>
-  <li><strong>Business</strong> &mdash; $199/mo, 75,000 credits</li>
-  <li><strong>Enterprise</strong> &mdash; $499/mo, 200,000 credits</li>
+  <li><strong>Pro</strong> &mdash; <s>$79</s> <strong>$39.50</strong> first month, then $79/mo &mdash; 25,000 credits</li>
+  <li><strong>Business</strong> &mdash; <s>$199</s> <strong>$99.50</strong> first month, then $199/mo &mdash; 75,000 credits</li>
+  <li><strong>Enterprise</strong> &mdash; <s>$499</s> <strong>$249.50</strong> first month, then $499/mo &mdash; 200,000 credits</li>
 </ul>
-<p>All plans include premium styles, HD exports, and client sharing tools.</p>`
-        ctaText = 'View Plans'
-        ctaUrl = 'https://docs2video.com/pricing'
+<p>All plans include premium styles, HD exports, and client sharing tools. Cancel anytime.</p>`
+        ctaText = 'Claim 50% off — upgrade now'
+        ctaUrl = 'https://docs2video.com/pricing?promo=WELCOME50'
       }
 
       // (d) Subscriber, no video created in 14+ days
@@ -245,9 +245,73 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
+  // ── Lead nurture: people who ran a landing-page DEMO (gave an email in
+  // demo_videos) but never created an account. Offer 50% off the first month to
+  // sign up. Idempotent via demo_videos.nurture_sent; skip anyone who has since
+  // registered (converted, or whose email already matches a profile).
+  const LEAD_MAX_SENDS_PER_RUN = 50
+  let leadsSent = 0
+  try {
+    const { data: leads } = await admin
+      .from('demo_videos')
+      .select('id, email, domain, created_at, nurture_sent, converted_at')
+      .not('email', 'is', null)
+      .is('converted_at', null)
+
+    // Emails that already belong to a real account → never nurture as a "lead".
+    const { data: allProfiles } = await admin.from('profiles').select('email')
+    const knownEmails = new Set(
+      (allProfiles ?? []).map((p: { email: string | null }) => (p.email || '').toLowerCase()).filter(Boolean)
+    )
+    // De-dupe leads by email (a person may have tried multiple demos).
+    const seenLead = new Set<string>()
+
+    for (const lead of (leads ?? [])) {
+      if (leadsSent >= LEAD_MAX_SENDS_PER_RUN) break
+      const email = (lead.email || '').toLowerCase()
+      if (!email || seenLead.has(email)) continue
+      seenLead.add(email)
+      if (knownEmails.has(email)) continue  // already has an account
+      const sent: Record<string, string> = lead.nurture_sent ?? {}
+      if (sent.unsubscribed || sent.lead_signup) continue
+
+      // Wait ~24h after the demo so it doesn't feel instant/spammy.
+      const hoursSince = (now.getTime() - new Date(lead.created_at).getTime()) / 3.6e6
+      if (hoursSince < 24) continue
+
+      const company = lead.domain ? lead.domain.replace(/^https?:\/\//, '').replace(/\/.*$/, '') : ''
+      const subject = 'Your demo + 50% off your first month'
+      const heading = 'Liked your demo? Make it yours.'
+      const body = `<p>Hi there,</p>
+<p>Thanks for trying Docs2Video${company ? ` for ${company}` : ''}! Create a free account and you can turn any document into a narrated video in minutes.</p>
+<p>As a welcome, take <strong>50% off your first month</strong> on any plan with code <strong>WELCOME50</strong> — it applies automatically from the button below.</p>
+<ul style="color:#444;line-height:2;">
+  <li>Free account &mdash; 2,000 credits to start, no card needed</li>
+  <li><strong>Pro</strong> &mdash; <s>$79</s> <strong>$39.50</strong> first month, 25,000 credits</li>
+</ul>`
+      const ctaText = 'Create your account — 50% off'
+      const ctaUrl = 'https://docs2video.com/signup?promo=WELCOME50'
+
+      try {
+        const html = nurtureMail(subject, heading, body, ctaText, ctaUrl, `https://docs2video.com/api/email-prefs?lead=${lead.id}`)
+        await resend.emails.send({ from: 'Docs2Video <support@docs2video.com>', to: email, subject, html })
+        await admin.from('demo_videos').update({ nurture_sent: { ...sent, lead_signup: now.toISOString() } }).eq('id', lead.id)
+        leadsSent++
+        console.log(`[cron/nurture] Sent "lead_signup" to ${email}`)
+      } catch (sendErr) {
+        const msg = sendErr instanceof Error ? sendErr.message : 'Unknown'
+        errors.push(`lead ${email}: ${msg}`)
+        console.error(`[cron/nurture] Failed lead_signup to ${email}:`, sendErr)
+      }
+    }
+  } catch (err) {
+    console.error('[cron/nurture] Lead nurture pass failed (non-fatal):', err)
+  }
+
   return NextResponse.json({
     message: 'Nurture cron complete',
     sent: sentCount,
+    leadsSent,
     errors: errors.length > 0 ? errors : undefined,
   })
 }

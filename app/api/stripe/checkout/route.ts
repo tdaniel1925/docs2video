@@ -20,7 +20,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  const { planId } = (await request.json()) as { planId?: string }
+  const { planId, promo } = (await request.json()) as { planId?: string; promo?: string }
+
+  // Marketing promo codes we will AUTO-APPLY when the upgrade email links in with
+  // ?promo=CODE (the user shouldn't have to retype it). Allowlisted so a guessed
+  // querystring can't apply an arbitrary code. Maps code -> Stripe promotion_code id.
+  const AUTO_PROMOS: Record<string, string> = {
+    WELCOME50: 'promo_1TmecCFnyKCNDapH0cD2Au8F', // 50% off first month
+  }
 
   // Starter is retired — no new Starter subscriptions (existing ones grandfathered).
   if (!planId || !['pro', 'business', 'enterprise'].includes(planId)) {
@@ -83,8 +90,16 @@ export async function POST(request: Request) {
       console.warn('[checkout] referral cookie handling failed (non-fatal):', e)
     }
     if (!appliedReferral) {
-      // Let any buyer still enter a promo code manually.
-      sessionParams.allow_promotion_codes = true
+      // A marketing promo from the upgrade email (?promo=CODE) auto-applies if it's
+      // on the allowlist. Stripe forbids `discounts` + `allow_promotion_codes`
+      // together, so an auto-applied promo replaces the manual-entry box.
+      const autoPromoId = promo ? AUTO_PROMOS[promo.toUpperCase()] : undefined
+      if (autoPromoId) {
+        sessionParams.discounts = [{ promotion_code: autoPromoId }]
+      } else {
+        // Let any buyer still enter a promo code manually.
+        sessionParams.allow_promotion_codes = true
+      }
     }
 
     if (profile?.stripe_customer_id) {

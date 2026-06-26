@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
     let url: string | null = null
     let fileBuffer: Buffer | null = null
     let fileName: string | null = null
+    let email: string | null = null
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData()
@@ -63,9 +64,17 @@ export async function POST(req: NextRequest) {
         fileBuffer = Buffer.from(await file.arrayBuffer())
         fileName = file.name
       }
+      email = (formData.get('email') as string | null) || null
     } else {
       const body = await req.json()
       url = body.url
+      email = body.email || null
+    }
+
+    // Normalize/validate the optional email (lead capture for follow-up).
+    if (email) {
+      email = email.trim().toLowerCase()
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) email = null
     }
 
     if (!url && !fileBuffer) {
@@ -101,6 +110,16 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
       }
 
+      // Capture the lead if they gave an email (best-effort; demo still works
+      // if the table/columns aren't there yet).
+      if (email) {
+        await admin.from('try_demos').insert({
+          id: demoId, source_url: null, company_name: 'PDF upload', email,
+          status: 'uploaded', is_trial: true, detail_level: 'quick',
+          created_at: new Date().toISOString(),
+        }).then(() => {}, (e: unknown) => console.warn('[try-demo] lead insert (file) failed:', e instanceof Error ? e.message : e))
+      }
+
       // Demo is a teaser — return the same pre-approved demo video as the URL
       // path so the PDF-upload funnel completes instead of dead-ending. (The
       // uploaded PDF is stored above for later full-pipeline use.)
@@ -117,6 +136,7 @@ export async function POST(req: NextRequest) {
       id: demoId,
       source_url: url,
       company_name: companyName,
+      email,  // optional lead-capture for follow-up nurture
       brand_data: brandData ? {
         colors: brandData.primaryColor ? [brandData.primaryColor, brandData.secondaryColor].filter(Boolean) : [],
         logo_url: brandData.logoUrl,

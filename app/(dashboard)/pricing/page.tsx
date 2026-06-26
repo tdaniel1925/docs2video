@@ -9,8 +9,13 @@ export default function PricingPage() {
   const [addonActive, setAddonActive] = useState(false)
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [promo, setPromo] = useState<string | null>(null)
 
   useEffect(() => {
+    // A promo code arriving from the upgrade email (?promo=WELCOME50) is carried
+    // into the checkout call so the discount auto-applies.
+    const p = new URLSearchParams(window.location.search).get('promo')
+    if (p) setPromo(p.toUpperCase())
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
@@ -30,7 +35,7 @@ export default function PricingPage() {
     try {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId: tier }),
+        body: JSON.stringify({ planId: tier, ...(promo ? { promo } : {}) }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to start checkout')
@@ -73,6 +78,12 @@ export default function PricingPage() {
         One pool of credits for videos, slide decks, and PDFs. A standard video is 1,000 credits.
         Cancel anytime; credits reset each cycle. Top up whenever you need more.
       </p>
+
+      {promo && (
+        <div style={{ maxWidth: 520, margin: '0 auto 28px', padding: '12px 16px', borderRadius: 10, background: 'var(--mint)', border: '1px solid #86efac', color: 'var(--ink)', fontSize: 14, textAlign: 'center', fontWeight: 600 }}>
+          🎉 Your <strong>{promo}</strong> discount will be applied automatically at checkout.
+        </div>
+      )}
 
       {error && (
         <div style={{ maxWidth: 520, margin: '0 auto 28px', padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 14, textAlign: 'center' }}>
