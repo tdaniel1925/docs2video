@@ -30,6 +30,8 @@ export default function SocialMediaPage() {
   const [postingFrequency, setPostingFrequency] = useState('3x/week')
   const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([])
   const [hasProfile, setHasProfile] = useState(false)
+  const [addonActive, setAddonActive] = useState(false)
+  const [addonLoading, setAddonLoading] = useState(false)
   const [brandSaving, setBrandSaving] = useState(false)
   const [brandSaved, setBrandSaved] = useState(false)
 
@@ -62,13 +64,14 @@ export default function SocialMediaPage() {
 
       // Load profile social settings
       try {
-        const { data: p } = await supabase.from('profiles').select('social_voice, social_topics, posting_schedule, ayrshare_profile_key').eq('id', user.id).single()
+        const { data: p } = await supabase.from('profiles').select('social_voice, social_topics, posting_schedule, zernio_profile_id, social_addon_active').eq('id', user.id).single()
         if (p) {
           setSocialVoice((p as any).social_voice ?? 'professional')
           setSocialTopics((p as any).social_topics ?? [])
           const schedule = (p as any).posting_schedule
           if (schedule?.frequency) setPostingFrequency(schedule.frequency)
-          setHasProfile(!!(p as any).ayrshare_profile_key)
+          setHasProfile(!!(p as any).zernio_profile_id)
+          setAddonActive(!!(p as any).social_addon_active)
         }
       } catch { /* columns may not exist yet */ }
 
@@ -142,6 +145,17 @@ export default function SocialMediaPage() {
     setSelectedPlatforms(prev =>
       prev.includes(platform) ? prev.filter(p => p !== platform) : [...prev, platform]
     )
+  }
+
+  async function subscribeToAddon() {
+    setAddonLoading(true)
+    try {
+      const res = await fetch('/api/social-addon/checkout', { method: 'POST' })
+      const data = await res.json()
+      if (data.url) { window.location.href = data.url; return }
+      alert(data.error || 'Could not start checkout')
+    } catch { alert('Could not start checkout') }
+    setAddonLoading(false)
   }
 
   async function generateCaptions() {
@@ -242,6 +256,31 @@ export default function SocialMediaPage() {
     { id: 'create', label: 'Create Post' },
     { id: 'content', label: 'From Your Content' },
   ]
+
+  // Add-on gate: the AI Social feature requires the $50/mo add-on.
+  if (!addonActive) {
+    return (
+      <div style={{ maxWidth: 560, margin: '0 auto', textAlign: 'center', padding: '80px 20px' }}>
+        <h1 style={{ marginBottom: 8 }}>AI Social — Auto-Post to Your Channels</h1>
+        <p style={{ color: 'var(--ink-soft)', marginBottom: 24, fontSize: 15 }}>
+          Connect your social accounts and let AI create captions + branded images
+          (and post your videos) straight to all your channels — scheduled automatically.
+        </p>
+        <div style={{ background: 'var(--bg-soft, #f7f6f2)', border: '1px solid var(--border)', borderRadius: 10, padding: 20, marginBottom: 24, textAlign: 'left' }}>
+          <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 6 }}>$50<span style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink-light)' }}>/month</span></div>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.7 }}>
+            <li>Connect X, Instagram, Facebook, LinkedIn, YouTube + more</li>
+            <li>AI writes captions; AI generates branded images</li>
+            <li>Auto-post your videos (incl. YouTube) on a schedule</li>
+            <li>Content generation uses your normal credits</li>
+          </ul>
+        </div>
+        <button onClick={subscribeToAddon} disabled={addonLoading} className="btn btn-primary btn-lg">
+          {addonLoading ? 'Starting checkout…' : 'Add AI Social — $50/mo'}
+        </button>
+      </div>
+    )
+  }
 
   if (!hasProfile) {
     return (

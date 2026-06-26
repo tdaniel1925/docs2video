@@ -151,30 +151,27 @@ export default function SettingsPage() {
     } catch { /* ignore */ }
   }
 
-  async function connectSocial() {
+  // Connect ONE platform via Zernio's headless OAuth (redirects the user to the
+  // provider, then back to /settings/social/callback to finalize).
+  async function connectSocial(platform = 'twitter') {
     setSocialLoading(true)
     setSocialError(null)
     try {
-      // Step 1: Create profile if needed
-      const createRes = await fetch('/api/social-accounts', {
+      const res = await fetch('/api/social-accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create-profile' }),
+        body: JSON.stringify({ action: 'connect', platform }),
       })
-      const createData = await createRes.json()
-      if (!createRes.ok) { setSocialError(createData.error || 'Failed to create social profile'); setSocialLoading(false); return }
-
-      // Step 2: Open Ayrshare connect page with profile key
-      const profileKey = createData.profileKey
-      if (profileKey) {
-        window.open(`https://app.ayrshare.com/social-accounts?profileKey=${profileKey}`, '_blank', 'width=600,height=700')
-        setSocialConnected(true)
-        // Poll for updates after user connects
-        setTimeout(() => loadSocialAccounts(), 10000)
-        setTimeout(() => loadSocialAccounts(), 20000)
-      } else {
-        setSocialError('No profile key returned. Please try again.')
+      const data = await res.json()
+      if (!res.ok) {
+        setSocialError(data.code === 'addon_required'
+          ? 'Add the AI Social add-on first (in Social).'
+          : (data.error || 'Failed to start connection'))
+        setSocialLoading(false)
+        return
       }
+      if (data.authUrl) { window.location.href = data.authUrl; return }
+      setSocialError('No connect URL returned. Please try again.')
     } catch { setSocialError('Connection failed. Please check your internet and try again.') }
     setSocialLoading(false)
   }
@@ -597,9 +594,16 @@ export default function SettingsPage() {
             )}
 
             {!socialConnected ? (
-              <button className="btn btn-primary" onClick={connectSocial} disabled={socialLoading}>
-                {socialLoading ? 'Connecting...' : 'Connect Social Media'}
-              </button>
+              <div>
+                <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 10 }}>Connect each account you want to post to:</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {(['twitter', 'linkedin', 'facebook', 'instagram', 'youtube', 'tiktok'] as const).map((pl) => (
+                    <button key={pl} className="btn btn-soft btn-sm" onClick={() => connectSocial(pl)} disabled={socialLoading} style={{ textTransform: 'capitalize' }}>
+                      {socialLoading ? '…' : `Connect ${pl === 'twitter' ? 'X' : pl}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ) : (
               <>
                 {socialPlatforms.length > 0 ? (
@@ -631,8 +635,8 @@ export default function SettingsPage() {
                 ) : (
                   <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 12 }}>Profile created. Click below to connect your social accounts.</p>
                 )}
-                <button className="btn btn-soft" onClick={connectSocial} disabled={socialLoading}>
-                  {socialLoading ? 'Opening...' : 'Add / Manage Accounts'}
+                <button className="btn btn-soft" onClick={() => connectSocial('twitter')} disabled={socialLoading}>
+                  {socialLoading ? 'Opening...' : 'Connect another account'}
                 </button>
               </>
             )}
