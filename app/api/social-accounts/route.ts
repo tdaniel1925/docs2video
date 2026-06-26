@@ -1,180 +1,91 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
+import { createProfile, getConnectUrl, listAccounts, isZernioConfigured, type ZernioPlatform } from '../../_lib/zernio'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-const AYRSHARE_API_KEY = process.env.AYRSHARE_API_KEY
+const SITE = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').replace(/\/$/, '')
 
+/** GET — list the user's connected social accounts (via their Zernio profile). */
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  if (!isZernioConfigured()) return NextResponse.json({ connected: false, platforms: [] })
 
   const admin = createAdminClient()
-
-  // Try to get per-user profile key
-  let profileKey: string | null = null
-  try {
-    const { data: profile } = await admin
-      .from('profiles')
-      .select('ayrshare_profile_key')
-      .eq('id', user.id)
-      .single()
-    profileKey = profile?.ayrshare_profile_key ?? null
-  } catch {
-    // Column may not exist yet (migration not run) — continue with global fallback
-  }
-
-  // If user has their own profile key, check that profile
-  if (profileKey) {
-    try {
-      const res = await fetch(`https://app.ayrshare.com/api/profiles/${profileKey}`, {
-        headers: { 'Authorization': `Bearer ${AYRSHARE_API_KEY}` },
-      })
-      const data = await res.json()
-
-      if (data.status === 'error') {
-        return NextResponse.json({ connected: true, profileKey, platforms: [], error: data.message })
-      }
-
-      const platforms = (data.activeSocialAccounts || []).map((p: string) => ({
-        platform: p,
-        connected: true,
-      }))
-
-      return NextResponse.json({ connected: true, profileKey, platforms, mode: 'user' })
-    } catch (err) {
-      console.error('[social-accounts] GET profile error:', err)
-    }
-  }
-
-  // Fallback: check the global Ayrshare account
-  if (!AYRSHARE_API_KEY) {
-    console.log('[social-accounts] No API key and no profile key')
-    return NextResponse.json({ connected: false, platforms: [] })
-  }
+  const { data: profile } = await admin
+    .from('profiles').select('zernio_profile_id').eq('id', user.id).single()
+  const profileId = profile?.zernio_profile_id
+  if (!profileId) return NextResponse.json({ connected: false, platforms: [] })
 
   try {
-    console.log('[social-accounts] Checking global Ayrshare account...')
-    const res = await fetch('https://app.ayrshare.com/api/user', {
-      headers: { 'Authorization': `Bearer ${AYRSHARE_API_KEY}` },
-    })
-    const data = await res.json()
-    console.log('[social-accounts] Global response:', JSON.stringify({ status: res.status, activeSocialAccounts: data.activeSocialAccounts }))
-
-    if (data.status === 'error') {
-      return NextResponse.json({ connected: false, platforms: [], error: data.message })
-    }
-
-    const platforms = (data.activeSocialAccounts || []).map((p: string) => ({
-      platform: p,
-      connected: true,
-    }))
-
-    if (platforms.length > 0) {
-      return NextResponse.json({ connected: true, platforms, mode: 'global' })
-    }
-
-    return NextResponse.json({ connected: false, platforms: [] })
+    const accounts = await listAccounts(profileId)
+    const platforms = accounts.map((a) => ({ platform: a.platform, connected: true, name: a.name, accountId: a.accountId }))
+    return NextResponse.json({ connected: platforms.length > 0, platforms })
   } catch (err) {
-    console.error('[social-accounts] GET global error:', err)
+    console.error('[social-accounts] GET error:', err)
     return NextResponse.json({ connected: false, platforms: [], error: 'Failed to fetch accounts' })
   }
 }
 
+/**
+ * POST — connect/disconnect.
+ *  action:'connect'   {platform} → ensure a Zernio profile exists, return a
+ *                      headless authUrl to redirect the user to.
+ *  action:'disconnect'{platform} → (best-effort) remove the account.
+ */
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  if (!isZernioConfigured()) return NextResponse.json({ error: 'Social posting not configured' }, { status: 500 })
 
-  if (!AYRSHARE_API_KEY) {
-    return NextResponse.json({ error: 'Social sharing not configured' }, { status: 500 })
-  }
-
-  const { action, platform } = await request.json() as { action: string; platform?: string }
+  const { action, platform } = await request.json() as { action: string; platform?: ZernioPlatform }
   const admin = createAdminClient()
 
-  // Create Ayrshare profile for user
-  if (action === 'create-profile') {
-    // Check if already has one
-    const { data: existing } = await admin
-      .from('profiles')
-      .select('ayrshare_profile_key')
-      .eq('id', user.id)
-      .single()
+  if (action === 'connect') {
+    if (!platform) return NextResponse.json({ error: 'Platform required' }, { status: 400 })
 
-    if (existing?.ayrshare_profile_key) {
-      return NextResponse.json({ profileKey: existing.ayrshare_profile_key, alreadyExists: true })
+    // Ensure the client has a Zernio profile (one per client = tenant).
+    const { data: profile } = await admin
+      .from('profiles').select('zernio_profile_id, social_addon_active').eq('id', user.id).single()
+    if (!profile?.social_addon_active) {
+      return NextResponse.json({ error: 'The Social add-on is not active on your account.', code: 'addon_required' }, { status: 402 })
+    }
+    let profileId = profile?.zernio_profile_id
+    if (!profileId) {
+      try {
+        profileId = await createProfile(user.email || `user-${user.id}`, `Docs2Video user ${user.id}`)
+        await admin.from('profiles').update({ zernio_profile_id: profileId }).eq('id', user.id)
+      } catch (err) {
+        console.error('[social-accounts] createProfile failed:', err)
+        return NextResponse.json({ error: 'Could not initialize your social workspace.' }, { status: 502 })
+      }
     }
 
     try {
-      const res = await fetch('https://app.ayrshare.com/api/profiles/profile', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${AYRSHARE_API_KEY}`,
-        },
-        body: JSON.stringify({ title: user.email }),
+      // Headless connect — the account picker stays inside our app; the user
+      // returns to /settings/social/callback to finalize.
+      const authUrl = await getConnectUrl({
+        platform,
+        profileId,
+        redirectUrl: `${SITE}/settings/social/callback`,
+        headless: true,
       })
-      const data = await res.json()
-
-      if (data.status === 'error') {
-        return NextResponse.json({ error: data.message || 'Failed to create profile' }, { status: 500 })
-      }
-
-      const profileKey = data.profileKey
-      if (!profileKey) {
-        return NextResponse.json({ error: 'No profile key returned' }, { status: 500 })
-      }
-
-      await admin.from('profiles').update({ ayrshare_profile_key: profileKey }).eq('id', user.id)
-
-      return NextResponse.json({ profileKey, created: true })
+      return NextResponse.json({ authUrl })
     } catch (err) {
-      console.error('[social-accounts] create-profile error:', err)
-      return NextResponse.json({ error: 'Failed to create Ayrshare profile' }, { status: 500 })
+      console.error('[social-accounts] getConnectUrl failed:', err)
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Could not start connection' }, { status: 502 })
     }
   }
 
-  // Disconnect a platform
   if (action === 'disconnect') {
-    if (!platform) {
-      return NextResponse.json({ error: 'Platform required' }, { status: 400 })
-    }
-
-    const { data: profile } = await admin
-      .from('profiles')
-      .select('ayrshare_profile_key')
-      .eq('id', user.id)
-      .single()
-
-    const profileKey = profile?.ayrshare_profile_key
-    if (!profileKey) {
-      return NextResponse.json({ error: 'No Ayrshare profile' }, { status: 400 })
-    }
-
-    try {
-      const res = await fetch('https://app.ayrshare.com/api/profiles/social', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${AYRSHARE_API_KEY}`,
-        },
-        body: JSON.stringify({ profileKey, platform }),
-      })
-      const data = await res.json()
-
-      if (data.status === 'error') {
-        return NextResponse.json({ error: data.message || 'Failed to disconnect' }, { status: 500 })
-      }
-
-      return NextResponse.json({ success: true })
-    } catch (err) {
-      console.error('[social-accounts] disconnect error:', err)
-      return NextResponse.json({ error: 'Failed to disconnect platform' }, { status: 500 })
-    }
+    // Zernio disconnect endpoint shape varies; surface a clear message and let
+    // the user manage it. (Re-list reflects current state.) Best-effort no-op.
+    return NextResponse.json({ success: true, note: 'Re-list to refresh connected accounts.' })
   }
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 })

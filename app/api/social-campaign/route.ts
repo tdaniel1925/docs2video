@@ -3,6 +3,7 @@ import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { checkCredits, deductCredits } from '../../_lib/credits'
 import { GoogleGenAI } from '@google/genai'
+import { createPost, listAccounts, isZernioConfigured, type ZernioPlatform } from '../../_lib/zernio'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -286,13 +287,11 @@ RULES:
     return NextResponse.json({ generated: readyCount, remaining: pendingCount })
   }
 
-  // Publish a post via AyrShare
+  // Publish a campaign post via Zernio
   if (action === 'publish-post') {
     const { postId } = body as { postId: string }
-    const AYRSHARE_API_KEY = process.env.AYRSHARE_API_KEY
-
-    if (!AYRSHARE_API_KEY) {
-      return NextResponse.json({ error: 'AyrShare not configured' }, { status: 500 })
+    if (!isZernioConfigured()) {
+      return NextResponse.json({ error: 'Social posting not configured' }, { status: 500 })
     }
 
     const { data: post } = await admin
@@ -305,36 +304,36 @@ RULES:
       return NextResponse.json({ error: 'Post not ready' }, { status: 400 })
     }
 
+    // Resolve the user's Zernio profile + the account for this post's platform.
+    const { data: prof } = await admin
+      .from('profiles').select('zernio_profile_id').eq('id', user.id).single()
+    const profileId = prof?.zernio_profile_id
+    if (!profileId) return NextResponse.json({ error: 'Connect your social accounts first.' }, { status: 400 })
+    let accountId: string | undefined
     try {
-      const ayrRes = await fetch('https://app.ayrshare.com/api/post', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${AYRSHARE_API_KEY}`,
-        },
-        body: JSON.stringify({
-          post: post.caption,
-          platforms: [post.platform],
-          mediaUrls: post.image_url ? [post.image_url] : undefined,
-          scheduleDate: post.scheduled_at,
-        }),
+      const accounts = await listAccounts(profileId)
+      accountId = accounts.find((a) => a.platform === post.platform)?.accountId
+    } catch { /* handled below */ }
+    if (!accountId) return NextResponse.json({ error: `Your ${post.platform} account isn't connected.` }, { status: 400 })
+
+    try {
+      const result = await createPost({
+        profileId,
+        content: post.caption,
+        platforms: [{ platform: post.platform as ZernioPlatform, accountId }],
+        ...(post.image_url ? { mediaUrls: [post.image_url] } : {}),
+        ...(post.scheduled_at ? { scheduledFor: post.scheduled_at, timezone: 'UTC' } : { publishNow: true }),
       })
-
-      const ayrData = await ayrRes.json()
-
-      if (ayrData.status === 'error') {
-        return NextResponse.json({ error: ayrData.message || 'Publishing failed' }, { status: 500 })
-      }
 
       await admin.from('social_campaign_posts').update({
         status: 'scheduled',
-        ayrshare_post_id: ayrData.id || ayrData.postIds?.[0] || null,
+        ayrshare_post_id: result.id || null, // legacy column; stores Zernio post id
       }).eq('id', postId)
 
       return NextResponse.json({ success: true })
     } catch (err) {
       console.error('[social-campaign] Publish error:', err)
-      return NextResponse.json({ error: 'Failed to publish' }, { status: 500 })
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to publish' }, { status: 500 })
     }
   }
 

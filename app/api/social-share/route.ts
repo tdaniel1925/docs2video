@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { addTopupCredits } from '../../_lib/credits'
+import { createPost, listAccounts, isZernioConfigured, type ZernioPlatform } from '../../_lib/zernio'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-const AYRSHARE_API_KEY = process.env.AYRSHARE_API_KEY
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'docs2video.com'
 const CREDITS_PER_SHARE = 2
 const MAX_SHARE_CREDITS_PER_MONTH = 5
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-  if (!AYRSHARE_API_KEY) {
+  if (!isZernioConfigured()) {
     return NextResponse.json({ error: 'Social sharing not configured' }, { status: 500 })
   }
 
@@ -34,14 +34,24 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
 
-  // Check if user has their own Ayrshare profile key
+  // The user's Zernio profile + the connected account for this platform.
   const { data: userProfile } = await admin
     .from('profiles')
-    .select('ayrshare_profile_key')
+    .select('zernio_profile_id')
     .eq('id', user.id)
     .single()
-
-  const useProfileKey = userProfile?.ayrshare_profile_key
+  const profileId = userProfile?.zernio_profile_id
+  if (!profileId) {
+    return NextResponse.json({ error: 'Connect your social accounts first in Settings.' }, { status: 400 })
+  }
+  let accountId: string | undefined
+  try {
+    const accounts = await listAccounts(profileId)
+    accountId = accounts.find((a) => a.platform === platform)?.accountId
+  } catch { /* handled below */ }
+  if (!accountId) {
+    return NextResponse.json({ error: `Your ${platform} account isn't connected.` }, { status: 400 })
+  }
 
   // Check monthly share credit limit
   const now = new Date()
@@ -63,35 +73,16 @@ export async function POST(request: Request) {
   const shareUrl = `https://${APP_DOMAIN}`
 
   try {
-    // Post via AyrShare
-    const postBody: Record<string, unknown> = {
-      post: shareText + `\n\n${shareUrl}`,
-      platforms: [platform],
-      mediaUrls: imageUrl ? [imageUrl] : undefined,
-    }
-
-    // Use user's own profile key if they have one connected
-    if (useProfileKey) {
-      postBody.profileKey = useProfileKey
-    }
-
-    const ayrRes = await fetch('https://app.ayrshare.com/api/post', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AYRSHARE_API_KEY}`,
-      },
-      body: JSON.stringify(postBody),
+    // Post via Zernio to the user's connected account for this platform.
+    const result = await createPost({
+      profileId,
+      content: shareText + `\n\n${shareUrl}`,
+      platforms: [{ platform: platform as ZernioPlatform, accountId }],
+      ...(imageUrl ? { mediaUrls: [imageUrl] } : {}),
+      publishNow: true,
     })
 
-    const ayrData = await ayrRes.json()
-
-    if (ayrData.status === 'error') {
-      return NextResponse.json({ error: ayrData.message || 'Posting failed' }, { status: 500 })
-    }
-
-    // Record the share
-    const postId = ayrData.id || ayrData.postIds?.[0] || null
+    const postId = result.id || null
     const credited = canEarnMore
 
     await admin.from('social_shares').insert({
