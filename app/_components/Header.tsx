@@ -15,12 +15,13 @@ const CREATE_ITEMS = [
 
 const TOOLS_ITEMS = [
   { href: '/create', icon: '\uD83C\uDFAC', title: 'Pro Mode', desc: 'Full control over every detail' },
+  { href: '/flyers', icon: '\uD83D\uDCC4', title: 'Flyer Creator', desc: 'AI print + social flyers' },
   { href: '/brands', icon: '\uD83C\uDFA8', title: 'Brands', desc: 'Manage colors, logos, brand guides' },
   { href: '/brands/new', icon: '\uD83C\uDF10', title: 'New Brand from URL', desc: 'Scrape website for brand identity' },
 ]
 
-// Tools dropdown hidden from the nav per product decision (kept for re-enable).
-const SHOW_TOOLS_NAV = false
+// Tools dropdown shown again (2026-06-25) now the Flyer Creator is exposed.
+const SHOW_TOOLS_NAV = true
 
 // Focused product (2026-06-11): video + deck only — peripheral tools unlinked
 const NAV_LINKS = [

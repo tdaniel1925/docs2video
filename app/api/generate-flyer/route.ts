@@ -5,11 +5,48 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { SLIDE_STYLES } from '../../_lib/types'
 import type { Brand } from '../../_lib/types'
+import Anthropic from '@anthropic-ai/sdk'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+
+/**
+ * Hard rules that turn Gemini's default "photo of a flyer on a desk" into a
+ * FLAT, full-bleed, print-ready artwork. Without these it renders a mockup
+ * (paper + shadow + table), which is useless for printing.
+ */
+const FLAT_PRINT_RULES = `CRITICAL OUTPUT FORMAT — this is the FLAT PRINTED ARTWORK ITSELF, not a photo of it:
+- Full-bleed: the design fills the ENTIRE canvas, edge to edge, all four corners. No borders, margins, or empty frame around it.
+- Absolutely NO mockup: no desk, table, hand, wall, easel, paper sheet, drop shadow, page curl, 3D perspective, or photographed scene. Straight-on, flat, 2D graphic design only.
+- It must look like a file opened in a design app, ready to send to a printer.`
+
+/**
+ * AI art-direction pass — invents a BESPOKE visual concept for this specific
+ * flyer (like the cinematographer step for video scenes), so flyers are
+ * genuinely creative instead of a safe template. Returns a short directive
+ * the image model follows. Best-effort: falls back to a strong generic brief.
+ */
+async function artDirectFlyer(input: {
+  eventName: string; details: string; styleName: string; brandName?: string
+}): Promise<string> {
+  const fallback = `A bold, award-winning editorial poster concept for "${input.eventName}": one striking central visual metaphor, dramatic oversized typography, confident asymmetric layout, rich layered color, strong negative space. Magazine-quality, not a clip-art template.`
+  try {
+    const key = process.env.ANTHROPIC_API_KEY
+    if (!key) return fallback
+    const anthropic = new Anthropic({ apiKey: key })
+    const resp = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6', max_tokens: 400,
+      system: `You are an award-winning print art director. Given a flyer's purpose, invent ONE bold, specific visual CONCEPT for it: a central metaphor/imagery idea, a composition approach, a mood, and a palette direction. Be concrete and creative — avoid generic "clean and modern". 3-4 sentences, written as a directive to an image generator. No preamble.`,
+      messages: [{ role: 'user', content: `Flyer for: "${input.eventName}". Details: ${input.details || '(none)'}. Style family: ${input.styleName}.${input.brandName ? ` Brand: ${input.brandName}.` : ''}` }],
+    })
+    const text = resp.content.filter((b) => b.type === 'text').map((b: any) => b.text).join('').trim()
+    return text || fallback
+  } catch {
+    return fallback
+  }
+}
 
 type FlyerSize = 'flyer-full' | 'flyer-half' | 'postcard' | 'poster' | 'social-square' | 'social-story' | 'biz-card-front' | 'biz-card-back'
 
@@ -108,6 +145,16 @@ export async function POST(request: Request) {
   }
 
   const style = SLIDE_STYLES.find(s => s.id === styleId) ?? SLIDE_STYLES[0]
+
+  // Art-direct ONCE for the whole flyer (same concept across all sizes). This is
+  // what makes the result genuinely creative rather than a safe template.
+  const concept = await artDirectFlyer({
+    eventName,
+    details: [date, time, venue, address, details, contactInfo].filter(Boolean).join(' · '),
+    styleName: style.name,
+    brandName: brand?.name,
+  })
+
   const admin = createAdminClient()
   const timestamp = Date.now()
   const results: { size: string; label: string; imageUrl: string; width: number; height: number }[] = []
@@ -144,33 +191,30 @@ export async function POST(request: Request) {
     if (details) eventDetailsLines.push(`- ADDITIONAL DETAILS: "${details}"`)
     if (contactInfo) eventDetailsLines.push(`- CONTACT / BOOKING INFO: "${contactInfo}"`)
 
-    const promptText = `Create a high-resolution PRINT FLYER / EVENT POSTER image. This is NOT a presentation slide — this is a print-ready marketing flyer.
+    const promptText = `Design a bold, award-winning PRINT FLYER as FLAT graphic artwork.
 
-This is a high-resolution print flyer. Bold headline, eye-catching design, all event details clearly readable. The event name should be the LARGEST text element. Date and venue should be prominently displayed. Include all details provided.
+${FLAT_PRINT_RULES}
 
-DESIGN STYLE (follow the layout, typography, visual approach, and aesthetic ONLY — colors come from the brand/logo, not the style):
+CREATIVE CONCEPT (this is the art direction — execute it boldly):
+${concept}
+
+DESIGN STYLE (typography, layout sensibility, aesthetic — colors come from the brand/logo, not the style):
 ${style.prompt}
 
 ${colorInstruction}
 
-Design for ${config.label} (${config.width}x${config.height} pixels). This is a PRINT FLYER meant to be printed at high resolution. Bold headline, eye-catching design, all event details clearly readable.
-
-FLYER CONTENT:
-- EVENT NAME (display as the LARGEST, most prominent text element): "${eventName}"
+FLYER CONTENT (use EXACTLY this text, correctly spelled, nothing else):
+- HEADLINE (the LARGEST, most dominant element): "${eventName}"
 ${eventDetailsLines.join('\n')}
 ${brand?.name ? `- BRAND / ORGANIZER: "${brand.name}"` : ''}
-${hasLogo ? '- The brand logo is provided — integrate it prominently into the flyer design.' : ''}
+${hasLogo ? '- The brand logo is provided — integrate it cleanly (corner or header), do not distort it.' : ''}
 
-STRICT RULES:
-- NO human faces, NO photos of people, NO realistic human figures
-- NO placeholder text — use ONLY the provided event details
-- The event name MUST be the largest and most prominent text element
-- Date and venue must be prominently displayed and easy to read
-- All text must be crisp, legible, and correctly spelled
-- Make it visually striking, bold, and attention-grabbing
-- Professional, polished, ready to print
-${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
-- Design dimensions: ${config.width}x${config.height} pixels (${config.label} format)`
+RULES:
+- The headline must dominate; date, venue, and contact must be clearly legible with strong hierarchy.
+- Real, correctly-spelled text only — NO lorem ipsum, NO placeholder text, NO invented details.
+- NO photorealistic human faces; stylized/illustrated figures or iconography are fine if the concept calls for it.
+- Striking, magazine-quality composition with intentional negative space — not a generic centered template.
+- Vertical ${config.label} proportions, high-resolution, print-ready, full-bleed to all four edges.`
 
     // Build content parts
     const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
