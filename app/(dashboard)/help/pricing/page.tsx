@@ -62,14 +62,17 @@ export default function PricingHelpPage() {
             </thead>
             <tbody>
               {[
-                ['Quick video (under 60s)', '250'],
-                ['Standard video (2-3 min)', '500'],
-                ['Detailed video (5+ min)', '750'],
-                ['Podcast mode add-on', '+200'],
-                ['Slide deck (PPTX)', '400'],
-                ['PDF document', '300'],
-                ['Style preview (first free)', '50'],
-                ['Script regeneration (first free)', '25'],
+                ['Quick video (under 60s)', '500'],
+                ['Standard video (2-3 min)', '1,000'],
+                ['Detailed video (5+ min)', '1,500'],
+                ['Podcast mode add-on', '+400'],
+                ['Slide deck', '600'],
+                ['PowerPoint (PPTX)', '800'],
+                ['PDF document', '600'],
+                ['Infographic', '300'],
+                ['Each extra uploaded file', '+150'],
+                ['Style preview (first free)', '100'],
+                ['Script regeneration (first free)', '50'],
               ].map(([action, cost]) => (
                 <tr key={action} style={{ borderBottom: '1px solid var(--border-light)' }}>
                   <td style={{ padding: '8px 0' }}>{action}</td>
@@ -91,30 +94,11 @@ export default function PricingHelpPage() {
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Every new account starts with <strong style={{ color: 'var(--ink)' }}>1,000 credits</strong> (enough for <strong style={{ color: 'var(--ink)' }}>2 short explainer videos</strong>). Cancel anytime.
+            Every new account starts with <strong style={{ color: 'var(--ink)' }}>2,000 credits</strong> (enough for <strong style={{ color: 'var(--ink)' }}>about 2 standard explainer videos</strong>). Cancel anytime.
           </p>
           <p>
             All features included: AI content extraction, script editing, voice narration, background music, and downloads in MP4, PPTX, and PDF formats.
           </p>
-        </div>
-      </div>
-
-      {/* Starter */}
-      <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
-        padding: '28px 32px', marginBottom: 20,
-      }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Starter — $29/month — 5,000 Credits
-        </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
-          <p style={{ marginBottom: 10 }}>
-            Approximately <strong style={{ color: 'var(--ink)' }}>10 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>20 quick videos</strong> per month.
-          </p>
-          <p style={{ marginBottom: 6 }}>{BULLET} Multi-voice podcast narration</p>
-          <p style={{ marginBottom: 6 }}>{BULLET} 2 brand profiles</p>
-          <p style={{ marginBottom: 6 }}>{BULLET} All slide templates</p>
-          <p>{BULLET} Buy extra credits: $5 per 1,000</p>
         </div>
       </div>
 
@@ -134,7 +118,7 @@ export default function PricingHelpPage() {
         </div>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Approximately <strong style={{ color: 'var(--ink)' }}>50 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>100 quick videos</strong> per month.
+            Approximately <strong style={{ color: 'var(--ink)' }}>25 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>50 quick videos</strong> per month.
           </p>
           <p style={{ marginBottom: 6 }}>{BULLET} Priority video generation</p>
           <p style={{ marginBottom: 6 }}>{BULLET} Unlimited brands</p>
@@ -153,7 +137,7 @@ export default function PricingHelpPage() {
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Approximately <strong style={{ color: 'var(--ink)' }}>150 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>300 quick videos</strong> per month.
+            Approximately <strong style={{ color: 'var(--ink)' }}>75 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>150 quick videos</strong> per month.
           </p>
           <p style={{ marginBottom: 6 }}>{BULLET} White-label share pages</p>
           <p style={{ marginBottom: 6 }}>{BULLET} Unlimited style previews</p>
@@ -172,7 +156,7 @@ export default function PricingHelpPage() {
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Approximately <strong style={{ color: 'var(--ink)' }}>400 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>800 quick videos</strong> per month.
+            Approximately <strong style={{ color: 'var(--ink)' }}>200 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>400 quick videos</strong> per month.
           </p>
           <p style={{ marginBottom: 6 }}>{BULLET} API access and bulk creation</p>
           <p style={{ marginBottom: 6 }}>{BULLET} White-label share pages</p>

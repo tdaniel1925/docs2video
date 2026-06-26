@@ -46,7 +46,7 @@ const GUIDES: HelpGuide[] = [
   {
     href: '/help/pricing',
     title: 'Pricing & Plans',
-    description: 'Credit-based plans: Free (1,000/mo), Starter $29, Pro $79, Business $199, Enterprise $499.',
+    description: 'Credit-based plans: Free (2,000), Pro $79, Business $199, Enterprise $499.',
     icon: '💰',
   },
   {
@@ -402,7 +402,7 @@ const ARTICLES: HelpArticle[] = [
     content: [
       'Go to **Settings > Subscription**. Your current plan is displayed along with upgrade options.',
       'Click **Upgrade** next to the plan you want. Upgrades take effect immediately and you are prorated for the remaining billing period.',
-      'Available plans (credits/month): **Free** (1,000), **Starter** ($29 — 5,000), **Pro** ($79 — 25,000), **Business** ($199 — 75,000), **Enterprise** ($499 — 200,000).',
+      'Available plans (credits/month): **Free** (2,000 to start), **Pro** ($79 — 25,000), **Business** ($199 — 75,000), **Enterprise** ($499 — 200,000).',
     ],
   },
 ]

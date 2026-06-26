@@ -60,33 +60,6 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
           Free plan includes short videos only. Upgrade for medium and long explainers with more detail.
         </p>
 
-        {/* Starter plan */}
-        <div style={{
-          padding: '16px 20px', borderRadius: 10,
-          border: '1.5px solid var(--border-light)', marginBottom: 12,
-          background: 'var(--bg-soft)',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>Starter</span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-soft)' }}>$29/mo</span>
-          </div>
-          <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 12, lineHeight: 1.4 }}>
-            5 videos per month, short + standard lengths
-          </p>
-          <button
-            onClick={() => handleUpgrade('starter')}
-            disabled={loading === 'starter'}
-            style={{
-              width: '100%', padding: '10px', borderRadius: 8, border: 'none',
-              background: 'var(--ink)', color: 'white', fontSize: 14, fontWeight: 700,
-              cursor: 'pointer', fontFamily: 'inherit',
-              opacity: loading === 'starter' ? 0.6 : 1,
-            }}
-          >
-            {loading === 'starter' ? 'Redirecting...' : 'Upgrade to Starter'}
-          </button>
-        </div>
-
         {/* Pro plan */}
         <div style={{
           padding: '16px 20px', borderRadius: 10,
@@ -98,7 +71,7 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
             <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-soft)' }}>$79/mo</span>
           </div>
           <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 12, lineHeight: 1.4 }}>
-            20 videos per month, all lengths, priority generation
+            25,000 credits/mo (~25 standard videos), all lengths, priority generation
           </p>
           <button
             onClick={() => handleUpgrade('pro')}

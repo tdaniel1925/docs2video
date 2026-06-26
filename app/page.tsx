@@ -582,12 +582,20 @@ export default async function HomePage() {
                   <td style={{textAlign:'center',padding:'12px 16px'}}>1,500</td>
                 </tr>
                 <tr style={{borderBottom:'1px solid var(--border)'}}>
-                  <td style={{padding:'12px 16px',fontWeight:600}}>Slide deck (PPTX)</td>
+                  <td style={{padding:'12px 16px',fontWeight:600}}>Slide deck</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>600</td>
+                </tr>
+                <tr style={{borderBottom:'1px solid var(--border)'}}>
+                  <td style={{padding:'12px 16px',fontWeight:600}}>PowerPoint (PPTX)</td>
                   <td style={{textAlign:'center',padding:'12px 16px'}}>800</td>
                 </tr>
-                <tr>
+                <tr style={{borderBottom:'1px solid var(--border)'}}>
                   <td style={{padding:'12px 16px',fontWeight:600}}>PDF document</td>
                   <td style={{textAlign:'center',padding:'12px 16px'}}>600</td>
+                </tr>
+                <tr>
+                  <td style={{padding:'12px 16px',fontWeight:600}}>Infographic</td>
+                  <td style={{textAlign:'center',padding:'12px 16px'}}>300</td>
                 </tr>
               </tbody>
             </table>
@@ -616,20 +624,6 @@ export default async function HomePage() {
                 <li>Download MP4, PDF, PPTX</li>
               </ul>
               <Link href="/signup" className="btn btn-outlined btn-full">Start free</Link>
-            </div>
-            {/* Starter */}
-            <div className="pricing-card" style={{padding:24}}>
-              <div className="pricing-name">Starter</div>
-              <div className="pricing-price">$29</div>
-              <div className="pricing-period">per month</div>
-              <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>5,000 credits</div>
-              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~5 standard explainers</div>
-              <ul className="pricing-features">
-                <li>Multi-voice narration</li>
-                <li>2 brand profiles</li>
-                <li>All slide templates</li>
-              </ul>
-              <Link href="/signup" className="btn btn-mint btn-full">Subscribe</Link>
             </div>
             {/* Pro */}
             <div className="pricing-card popular" style={{padding:24}}>

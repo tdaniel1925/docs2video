@@ -36,17 +36,18 @@ KEY FEATURES:
 - Notifications: The bell shows generation progress, completed/failed videos (with refunds), and lets you mark read, delete, or clear all.
 
 PLANS & PRICING (monthly):
-- Free — $0, 1,000 credits/mo
-- Starter — $29, 5,000 credits/mo
+- Free — $0, 2,000 credits to start
 - Pro — $79, 25,000 credits/mo
 - Business — $199, 75,000 credits/mo
 - Enterprise — $499, 200,000 credits/mo
-Top-up credit packs (never expire): Starter 2,500 credits ($10), Power 7,500 ($25), Studio 18,000 ($50). Buy via the "+ Top Up" button or Settings > Subscription.
+Top-up credit packs (never expire): Starter pack 2,500 credits ($10), Power 7,500 ($25), Studio 18,000 ($50). Buy via the "+ Top Up" button or Settings > Subscription.
+Add-on: AI Social — $50/mo to connect social accounts and auto-post AI content (generation uses normal credits).
 
 CREDIT COSTS (per creation):
-- Video (Quick): 250 · Video (Standard): 500 · Video (Detailed): 750
-- Podcast/2-voice narration add-on: +200
-- Slide Deck: 300 · PPTX export: 400 · PDF export: 300
+- Video (Quick): 500 · Video (Standard): 1,000 · Video (Detailed): 1,500
+- Podcast/2-voice narration add-on: +400
+- Slide Deck: 600 · PowerPoint (PPTX): 800 · PDF: 600 · Infographic: 300
+- Multiple uploaded files: +150 credits per extra file
 Failed generations are automatically refunded.
 
 HOW TO CREATE A VIDEO:

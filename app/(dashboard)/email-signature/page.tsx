@@ -385,7 +385,7 @@ export default function EmailSignaturePage() {
             border: '1px solid var(--border, #e2e8f0)',
             fontSize: 13, color: 'var(--ink-soft)',
           }}>
-            Email Signatures (5 styles) — <strong style={{ color: 'var(--ink)' }}>$9</strong>
+            Email Signatures (5 styles) — <strong style={{ color: 'var(--ink)' }}>1 credit</strong>
           </div>
         </div>
       )}

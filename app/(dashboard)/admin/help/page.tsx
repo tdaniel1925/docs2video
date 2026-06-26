@@ -181,7 +181,7 @@ const SECTIONS: AdminHelpSection[] = [
         heading: 'Stripe Integration',
         body: [
           'All payments flow through Stripe. The integration handles:',
-          '**Subscriptions** — Monthly plans (Starter, Pro, Business, Enterprise) are managed as Stripe subscriptions with automatic renewal.',
+          '**Subscriptions** — Monthly plans (Pro, Business, Enterprise) plus the AI Social add-on are managed as Stripe subscriptions with automatic renewal.',
           '**One-time charges** — Pay-per-video and additional video charges are processed as individual Stripe charges.',
           '**Webhooks** — Stripe webhooks update user plan status, handle failed payments, and sync subscription changes automatically.',
         ],

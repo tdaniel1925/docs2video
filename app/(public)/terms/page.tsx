@@ -81,7 +81,7 @@ export default function TermsOfService() {
         <SectionHeading num={4} title="Subscription Plans, Billing, Credits, and Refund Policy" />
         <Section>
           <h3 style={h3Style}>4.1 Subscription Plans</h3>
-          <p>Docs2Video offers the following subscription tiers: Free (Demo), Starter, Professional, and Agency. Each plan includes different usage limits, features, and capabilities as described on our pricing page. Plan details and pricing are subject to change with reasonable advance notice.</p>
+          <p>Docs2Video offers the following subscription tiers: Free, Pro, Business, and Enterprise, plus optional add-ons. Each plan includes a monthly credit allowance and features as described on our pricing page. Plan details and pricing are subject to change with reasonable advance notice.</p>
 
           <h3 style={h3Style}>4.2 Billing</h3>
           <p>Paid subscriptions are billed on a monthly recurring basis through Stripe, our third-party payment processor. By subscribing to a paid plan, you authorize us to charge the payment method on file for recurring fees until you cancel. All fees are quoted and charged in U.S. dollars unless otherwise indicated.</p>

@@ -21,7 +21,7 @@ const FAQ_ITEMS = [
   {
     question: 'How does pricing work?',
     answer:
-      'Start free with 5 videos included. After that, pay $10 per video with no subscription, or subscribe for discounts — Pro at $25/mo gets you 40% off ($6/video), and Business at $99/mo includes 50 videos with no per-project fees.',
+      'Everything runs on credits — one pool for videos, slide decks, and PDFs. A standard video is 1,000 credits. Start free with 2,000 credits (about 2 videos), then subscribe for a monthly credit allowance: Pro is $79/mo (25,000 credits), Business is $199/mo (75,000 credits), and Enterprise is $499/mo (200,000 credits). You can top up extra credits anytime, and cancel whenever you like.',
   },
   {
     question: 'Is my data secure?',

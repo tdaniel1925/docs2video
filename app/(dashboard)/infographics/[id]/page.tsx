@@ -289,7 +289,7 @@ export default function InfographicDetailPage() {
               color: 'var(--ink-light)',
               textAlign: 'center',
             }}>
-              Uses 2 credits. Takes 1-3 minutes to generate.
+              Generates a narrated video (from 500 credits). Takes 1-3 minutes.
             </p>
           </div>
         </div>

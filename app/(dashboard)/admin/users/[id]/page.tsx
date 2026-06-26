@@ -148,7 +148,7 @@ export default function AdminUserDetailPage() {
             <select disabled={busy} defaultValue="" onChange={e => { if (e.target.value) userAction('change_plan', e.target.value); e.target.value = '' }}
               style={{ fontSize: 12, padding: '5px 8px', borderRadius: 8, border: '1px solid var(--border)' }}>
               <option value="" disabled>Change Plan...</option>
-              <option value="free">Free</option><option value="starter">Starter</option>
+              <option value="free">Free</option>
               <option value="pro">Pro</option><option value="business">Business</option>
               <option value="enterprise">Enterprise</option>
             </select>

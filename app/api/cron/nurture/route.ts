@@ -178,9 +178,9 @@ export async function GET(request: Request) {
         body = `<p>${greeting}</p>
 <p>You've created <strong>${completedVideos.length} video${completedVideos.length > 1 ? 's' : ''}</strong> on the free plan and used all your free credits. Upgrade to keep creating:</p>
 <ul style="color:#444;line-height:2;">
-  <li><strong>Pro</strong> &mdash; $25/mo for discounted projects</li>
-  <li><strong>Business</strong> &mdash; $99/mo with 50 projects included</li>
-  <li><strong>Agency</strong> &mdash; $249/mo with 150 projects included</li>
+  <li><strong>Pro</strong> &mdash; $79/mo, 25,000 credits</li>
+  <li><strong>Business</strong> &mdash; $199/mo, 75,000 credits</li>
+  <li><strong>Enterprise</strong> &mdash; $499/mo, 200,000 credits</li>
 </ul>
 <p>All plans include premium styles, HD exports, and client sharing tools.</p>`
         ctaText = 'View Plans'

@@ -387,7 +387,6 @@ export default function AdminPage() {
                     style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid var(--border)', background: 'white' }}>
                     <option value="" disabled>Plan</option>
                     <option value="free">Free</option>
-                    <option value="starter">Starter</option>
                     <option value="pro">Pro</option>
                     <option value="business">Business</option>
                     <option value="enterprise">Enterprise</option>
@@ -515,7 +514,6 @@ export default function AdminPage() {
                 <label className="input-label">Plan</label>
                 <select id="new-user-plan" className="input" defaultValue="trial" style={{ appearance: 'auto' }}>
                   <option value="trial">Free Trial</option>
-                  <option value="starter">Starter</option>
                   <option value="pro">Pro</option>
                   <option value="business">Business</option>
                   <option value="enterprise">Enterprise</option>
