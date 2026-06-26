@@ -140,6 +140,14 @@ export async function POST(request: Request) {
           break
         }
 
+        // AI Social add-on ($50/mo) — flip the entitlement flag. Posting only;
+        // generation still uses the user's normal credits.
+        if (session.metadata?.type === 'social_addon') {
+          await supabase.from('profiles').update({ social_addon_active: true }).eq('id', userId)
+          console.log(`[webhook] Social add-on activated for user ${userId}`)
+          break
+        }
+
         if (session.metadata?.type === 'subscription') {
           const tier = session.metadata.tier ?? 'pro'
           const subscriptionId = session.subscription as string
@@ -297,6 +305,14 @@ export async function POST(request: Request) {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
         const customerId = subscription.customer as string
+
+        // The AI Social add-on is a SEPARATE subscription — cancelling it must
+        // only flip the add-on flag, NOT wipe the user's main plan.
+        if (subscription.metadata?.type === 'social_addon') {
+          await supabase.from('profiles').update({ social_addon_active: false }).eq('stripe_customer_id', customerId)
+          console.log(`[webhook] Social add-on cancelled for customer ${customerId}`)
+          break
+        }
 
         const { error: delErr } = await supabase.from('profiles').update({
           subscription_status: null,
