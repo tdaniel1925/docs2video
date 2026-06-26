@@ -947,14 +947,6 @@ export default function SettingsPage() {
                   features: ['No monthly fee', 'Full quality output', 'Share pages with AI chat'],
                 },
                 {
-                  tier: 'starter',
-                  label: 'Starter',
-                  price: '$29',
-                  period: '/mo',
-                  highlight: '5 videos/mo included',
-                  features: ['$5 per additional video', 'Multi-voice narration', '2 brand profiles'],
-                },
-                {
                   tier: 'pro',
                   label: 'Pro',
                   price: '$79',

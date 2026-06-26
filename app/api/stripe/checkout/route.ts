@@ -11,7 +11,7 @@ export const maxDuration = 30
 /**
  * POST /api/stripe/checkout
  * Creates a Stripe Checkout session for a subscription.
- * Accepts { planId: 'starter' | 'pro' | 'business' | 'enterprise' }.
+ * Accepts { planId: 'pro' | 'business' | 'enterprise' }. (Starter $29 retired.)
  */
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -22,7 +22,8 @@ export async function POST(request: Request) {
 
   const { planId } = (await request.json()) as { planId?: string }
 
-  if (!planId || !['starter', 'pro', 'business', 'enterprise'].includes(planId)) {
+  // Starter is retired — no new Starter subscriptions (existing ones grandfathered).
+  if (!planId || !['pro', 'business', 'enterprise'].includes(planId)) {
     return NextResponse.json({ error: 'Invalid plan.' }, { status: 400 })
   }
 
