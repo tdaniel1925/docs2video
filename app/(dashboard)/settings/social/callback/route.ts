@@ -6,7 +6,11 @@ import { listSelectablePages, selectPage, type ZernioPlatform } from '../../../.
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-const SITE = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').replace(/\/$/, '')
+function siteOrigin(request: Request): string {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL
+  if (explicit) return explicit.replace(/\/$/, '')
+  try { return new URL(request.url).origin } catch { return 'https://docs2video.com' }
+}
 
 /**
  * Headless connect CALLBACK. The user returns here from Zernio's OAuth with
@@ -22,6 +26,7 @@ export async function GET(request: Request) {
   const tempToken = url.searchParams.get('tempToken')
   const userProfileRaw = url.searchParams.get('userProfile')
 
+  const SITE = siteOrigin(request)
   const back = (status: string) => NextResponse.redirect(`${SITE}/settings?tab=social&connect=${status}`)
 
   // Must be the signed-in user (defense-in-depth; the profile is theirs).

@@ -6,7 +6,13 @@ import { createProfile, getConnectUrl, listAccounts, isZernioConfigured, type Ze
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-const SITE = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').replace(/\/$/, '')
+// Site origin for the connect callback. Derive from the request when possible
+// (matches prod/preview/local automatically); fall back to env then the domain.
+function siteOrigin(request: Request): string {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL
+  if (explicit) return explicit.replace(/\/$/, '')
+  try { return new URL(request.url).origin } catch { return 'https://docs2video.com' }
+}
 
 /** GET — list the user's connected social accounts (via their Zernio profile). */
 export async function GET() {
@@ -72,7 +78,7 @@ export async function POST(request: Request) {
       const authUrl = await getConnectUrl({
         platform,
         profileId,
-        redirectUrl: `${SITE}/settings/social/callback`,
+        redirectUrl: `${siteOrigin(request)}/settings/social/callback`,
         headless: true,
       })
       return NextResponse.json({ authUrl })
