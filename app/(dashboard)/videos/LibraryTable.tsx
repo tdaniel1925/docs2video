@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import InlineConfirm from '../../_components/InlineConfirm'
 import { useToast } from '../../_components/Toast'
+import { displayProgress } from '../../_lib/video-progress'
 
 export type LibraryItem = {
   id: string
@@ -114,7 +115,7 @@ export default function LibraryTable({ items }: { items: LibraryItem[] }) {
                     {!isVideo ? <span style={{ color: 'var(--ink-light)' }}>—</span>
                       : done ? <span className="tag mint" style={{ fontSize: 11 }}>Ready</span>
                       : item.status === 'failed' ? <span className="tag rose" style={{ fontSize: 11 }}>Failed</span>
-                      : <span className="tag peach" style={{ fontSize: 11 }}>{item.progressPct ? `${item.progressPct}%` : 'Processing'}</span>}
+                      : <span className="tag peach" style={{ fontSize: 11 }}>{item.progressPct != null ? `${displayProgress(item.progressPct)}%` : 'Processing'}</span>}
                   </td>
                   <td style={{ ...td, textAlign: 'right', color: 'var(--ink-soft)', fontVariantNumeric: 'tabular-nums' }}>
                     {item.creditsUsed != null ? item.creditsUsed : '—'}

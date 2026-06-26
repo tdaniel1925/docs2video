@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '../../../_lib/supabase/client'
+import { displayProgress } from '../../../_lib/video-progress'
 import ScriptEditor from '../../../_components/ScriptEditor'
 import type { Video, Brand } from '../../../_lib/types'
 
@@ -48,7 +49,10 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
   const currentIdx = PROGRESS_STEPS.findIndex(s => s.key === status)
   const effectiveIdx = currentIdx < 0 ? 0 : currentIdx
   const fallbackPct = Math.min(95, Math.round(((effectiveIdx + 0.5) / PROGRESS_STEPS.length) * 100))
-  const pct = progressPct != null ? Math.min(95, progressPct) : fallbackPct
+  // Same shared mapping the builder + dashboard use, so the % never disagrees
+  // across screens. Fall back to the time-based estimate only when the server
+  // hasn't emitted a real progress value yet.
+  const pct = progressPct != null ? displayProgress(progressPct) : fallbackPct
   const currentStep = PROGRESS_STEPS[effectiveIdx] ?? PROGRESS_STEPS[0]
 
   // Estimate: ~30s script + ~10s per slide audio + ~25s per slide image + ~30s music + ~60s assembly

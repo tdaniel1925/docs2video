@@ -2,6 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/server'
 import { getBalance } from '../../_lib/credits'
+import { displayProgress } from '../../_lib/video-progress'
 
 const TYPE_BADGE: Record<string, { label: string; color: string }> = {
   video: { label: 'Video', color: 'mint' },
@@ -496,7 +497,7 @@ export default async function DashboardPage() {
                         {item._status === 'failed' ? 'Failed' : (
                           <>
                             <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--mint)', animation: 'pulseGlow 2s ease infinite' }} />
-                            {item._progressPct ? `${item._progressPct}%` : 'Processing'}
+                            {item._progressPct != null ? `${displayProgress(item._progressPct)}%` : 'Processing'}
                           </>
                         )}
                       </span>

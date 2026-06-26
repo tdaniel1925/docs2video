@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '../../../_lib/supabase/client'
 import { useToast } from '../../../_components/Toast'
+import { displayProgress } from '../../../_lib/video-progress'
 
 const STAGES = [
   { key: 'pending', icon: '🚀', label: 'Starting up', desc: 'Preparing your video pipeline' },
@@ -108,16 +109,12 @@ export default function GeneratingPage() {
     if (status === 'completed' || status === 'failed') { setDisplayPct(progressPct); return }
     const timer = setInterval(() => {
       setDisplayPct(prev => {
-        // Creep toward a ceiling just shy of the next real milestone so the bar
-        // is never frozen. The render phase (72-90) now reports live frames, so
-        // the real progressPct usually leads — creep is just the smoothing.
-        const ceiling =
-          progressPct >= 90 ? 99 :
-          progressPct >= 72 ? Math.min(89, progressPct + 4) :  // render: track real frame %, creep slightly ahead
-          progressPct >= 30 ? 70 :                              // asset gen
-          progressPct >= 18 ? 30 :
-          Math.max(progressPct + 8, 12)
-        const target = Math.max(progressPct, prev)
+        // Ease toward the SHARED display target (displayProgress) so the bar is
+        // never frozen between coarse server milestones — and, crucially, lands
+        // on the SAME number the dashboard shows for this video (single source
+        // of truth in video-progress.ts). Never go backward.
+        const ceiling = displayProgress(progressPct)
+        const target = Math.max(prev, 0)
         if (target >= ceiling) return target
         return Math.min(ceiling, target + Math.max(0.25, (ceiling - target) * 0.04))
       })
@@ -297,7 +294,7 @@ export default function GeneratingPage() {
         fontSize: 72, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--ink)',
         marginBottom: 8, lineHeight: 1,
       }}>
-        {Math.round(Math.min(displayPct, 99))}%
+        {Math.round(displayPct)}%
       </div>
 
       {/* Elapsed time + expectation */}
@@ -321,7 +318,7 @@ export default function GeneratingPage() {
           backgroundSize: '200% 100%',
           animation: 'shimmer 2s infinite',
           transition: 'width 0.7s ease',
-          width: `${Math.min(displayPct, 99)}%`,
+          width: `${displayPct}%`,
         }} />
       </div>
 
