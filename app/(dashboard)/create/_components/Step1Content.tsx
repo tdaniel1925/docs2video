@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { SLIDE_STYLES } from '../../../_lib/types'
-import { uploadAndExtract } from './uploadAndExtract'
+import { uploadAndExtract, uploadAndExtractMany } from './uploadAndExtract'
 type OutputType = 'video' | 'pptx' | 'pdf'
 type InputMethod = 'url' | 'upload' | 'text' | 'idea' | null
 type Stage = 'idle' | 'extracting' | 'error' | 'generating-preview' | 'style-suggest'
@@ -80,11 +80,17 @@ export default function Step1Content() {
   const [urlInput, setUrlInput] = useState('')
   const [textInput, setTextInput] = useState('')
   const [fileName, setFileName] = useState<string | null>(null)
+  // Multi-file: names of all selected files (fileName above keeps the first for
+  // existing single-file copy). When length > 1 the combine flow kicks in.
+  const [fileNames, setFileNames] = useState<string[]>([])
   const [stage, setStage] = useState<Stage>('idle')
   const [stageMsg, setStageMsg] = useState('')
   const [progressPct, setProgressPct] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  // Carries multi-file extractions from handleNext → createDraftAndRedirect
+  // without re-threading every call site. Empty for single-file/url/text/idea.
+  const extractedDocsRef = useRef<{ fileName?: string; data: Record<string, unknown> }[]>([])
 
   // Style suggestion state (shown after URL scrape)
   const [suggestedSiteName, setSuggestedSiteName] = useState<string>('')
@@ -125,6 +131,7 @@ export default function Step1Content() {
               clientId,
               extractedData,
               contentMethod: method || 'idea',
+              ...(extractedDocsRef.current.length > 1 ? { extractedDocs: extractedDocsRef.current, combineInstruction: purpose.trim() } : {}),
               ...(overrides?.styleId ? { styleId: overrides.styleId } : {}),
               ...(extractedData?.classification ? { classification: extractedData.classification } : {}),
             },
@@ -149,6 +156,7 @@ export default function Step1Content() {
             extractedData,
             contentMethod: method || 'idea',
             autoBrandInfo,
+            ...(extractedDocsRef.current.length > 1 ? { extractedDocs: extractedDocsRef.current, combineInstruction: purpose.trim() } : {}),
             ...(overrides?.styleId ? { styleId: overrides.styleId } : {}),
             ...(extractedData?.classification ? { classification: extractedData.classification } : {}),
           }),
@@ -192,6 +200,16 @@ export default function Step1Content() {
             }),
           })
         }
+      }
+
+      // Multi-file: run the AI combine pass (reasons across all docs + the
+      // user's instruction) to produce one unified brief BEFORE the brief step.
+      if (extractedDocsRef.current.length > 1) {
+        setStageMsg('Comparing your documents…')
+        await fetch('/api/combine-docs', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId: draftData.videoId }),
+        }).catch(() => {}) // best-effort; the brief step still works if it fails
       }
 
       if (overrides?.skipToStep) {
@@ -327,12 +345,20 @@ export default function Step1Content() {
         if (!res.ok) throw new Error(result.error || 'Extraction failed')
         extractedData = result
       } else if (method === 'upload') {
-        setStageMsg('Uploading file...')
-        const file = fileRef.current?.files?.[0]
-        if (!file) throw new Error('No file selected')
-        // Direct-to-storage upload + extract by path (bulletproof: big bytes
-        // never transit a Vercel function; validates + retries internally).
-        extractedData = await uploadAndExtract(file, purpose.trim())
+        const files = Array.from(fileRef.current?.files || [])
+        if (files.length === 0) throw new Error('No file selected')
+        if (files.length === 1) {
+          setStageMsg('Uploading file...')
+          extractedData = await uploadAndExtract(files[0], purpose.trim())
+          extractedDocsRef.current = []
+        } else {
+          // Multi-file: extract each, stash the array for the combine pass.
+          const docs = await uploadAndExtractMany(files, purpose.trim(), (done, total) => {
+            setStageMsg(done < total ? `Reading file ${done + 1} of ${total}…` : 'Analyzing all files…')
+          })
+          extractedDocsRef.current = docs
+          extractedData = docs[0]?.data || {}
+        }
       } else {
         setStageMsg('AI is writing content...')
         const res = await fetch('/api/extract', {
@@ -425,12 +451,20 @@ export default function Step1Content() {
         if (!res.ok) throw new Error(result.error || 'Extraction failed')
         extractedData = result
       } else if (method === 'upload') {
-        setStageMsg('Uploading file...')
-        const file = fileRef.current?.files?.[0]
-        if (!file) throw new Error('No file selected')
-        // Direct-to-storage upload + extract by path (bulletproof: big bytes
-        // never transit a Vercel function; validates + retries internally).
-        extractedData = await uploadAndExtract(file, purpose.trim())
+        const files = Array.from(fileRef.current?.files || [])
+        if (files.length === 0) throw new Error('No file selected')
+        if (files.length === 1) {
+          setStageMsg('Uploading file...')
+          extractedData = await uploadAndExtract(files[0], purpose.trim())
+          extractedDocsRef.current = []
+        } else {
+          // Multi-file: extract each, stash the array for the combine pass.
+          const docs = await uploadAndExtractMany(files, purpose.trim(), (done, total) => {
+            setStageMsg(done < total ? `Reading file ${done + 1} of ${total}…` : 'Analyzing all files…')
+          })
+          extractedDocsRef.current = docs
+          extractedData = docs[0]?.data || {}
+        }
       } else {
         setStageMsg('AI is writing content...')
         const res = await fetch('/api/extract', {
@@ -579,8 +613,13 @@ export default function Step1Content() {
             <input
               ref={fileRef}
               type="file"
+              multiple
               accept=".pdf,.docx,.pptx,.txt,.csv,.xlsx"
-              onChange={(e) => setFileName(e.target.files?.[0]?.name || null)}
+              onChange={(e) => {
+                const names = Array.from(e.target.files || []).map((f) => f.name)
+                setFileNames(names)
+                setFileName(names[0] || null)
+              }}
               style={{ display: 'none' }}
             />
             <button
@@ -595,7 +634,14 @@ export default function Step1Content() {
                 textAlign: 'center',
               }}
             >
-              {fileName ? (
+              {fileNames.length > 1 ? (
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
+                  {fileNames.length} files selected
+                  <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-light)', marginTop: 4 }}>
+                    {fileNames.join(' · ')}
+                  </div>
+                </div>
+              ) : fileName ? (
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{fileName}</div>
               ) : (
                 <div>
@@ -603,7 +649,7 @@ export default function Step1Content() {
                     Click to upload
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>
-                    PDF, DOCX, PPTX, TXT, CSV, XLSX
+                    Up to 5 files · PDF, DOCX, PPTX, TXT, CSV, XLSX
                   </div>
                 </div>
               )}

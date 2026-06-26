@@ -50,3 +50,31 @@ export async function uploadAndExtract(file: File, purpose: string): Promise<any
   if (!exRes.ok) throw new Error(result.error || 'We could not read this document.')
   return result
 }
+
+/** Cap on files per project (cost/time bound; keeps the video focused). */
+export const MAX_FILES = 5
+
+/**
+ * Upload + extract SEVERAL documents (multi-file projects). Extracts each file
+ * via uploadAndExtract (sequentially — keeps Supabase/VPS load sane and gives a
+ * clear per-file error). Returns one entry per file in upload order. An
+ * onProgress callback lets the UI show "Reading file 2 of 3…".
+ */
+export async function uploadAndExtractMany(
+  files: File[],
+  purpose: string,
+  onProgress?: (done: number, total: number, fileName: string) => void,
+): Promise<{ fileName: string; data: any }[]> {
+  if (files.length > MAX_FILES) {
+    throw new Error(`You can upload up to ${MAX_FILES} files at once.`)
+  }
+  const out: { fileName: string; data: any }[] = []
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i]
+    onProgress?.(i, files.length, f.name)
+    const data = await uploadAndExtract(f, purpose)
+    out.push({ fileName: f.name, data })
+  }
+  onProgress?.(files.length, files.length, '')
+  return out
+}

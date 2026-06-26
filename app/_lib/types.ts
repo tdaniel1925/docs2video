@@ -222,6 +222,14 @@ export interface WizardDraft {
   purpose?: string
   contentMethod?: 'url' | 'file' | 'text' | 'ai'
   extractedData?: Record<string, unknown>
+  /** Multi-file uploads: one extracted-data object per uploaded document, in
+   *  upload order. When >1, the user's `purpose` instruction (e.g. "compare
+   *  these three") drives a combine pass that produces a unified brief. The
+   *  single `extractedData` above mirrors the first/primary doc for back-compat. */
+  extractedDocs?: { fileName?: string; data: Record<string, unknown> }[]
+  /** Free-text instruction for what to DO across multiple files ("compare these",
+   *  "merge into one overview"). Mirrors/augments `purpose` for the multi-doc case. */
+  combineInstruction?: string
   brandId?: string
   inlineBrand?: {
     name: string

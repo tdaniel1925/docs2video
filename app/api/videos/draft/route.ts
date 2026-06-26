@@ -18,14 +18,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  let body: { outputType?: string; purpose?: string; extractedData?: Record<string, unknown>; contentMethod?: string; autoBrandInfo?: Record<string, unknown>; classification?: Record<string, unknown>; recipientName?: string; clientId?: string }
+  let body: { outputType?: string; purpose?: string; extractedData?: Record<string, unknown>; contentMethod?: string; autoBrandInfo?: Record<string, unknown>; classification?: Record<string, unknown>; recipientName?: string; clientId?: string; extractedDocs?: WizardDraft['extractedDocs']; combineInstruction?: string }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { outputType, purpose, extractedData, contentMethod, autoBrandInfo, classification, recipientName, clientId } = body
+  const { outputType, purpose, extractedData, contentMethod, autoBrandInfo, classification, recipientName, clientId, extractedDocs, combineInstruction } = body
   if (!outputType || !['video', 'pptx', 'pdf'].includes(outputType)) {
     return NextResponse.json({ error: 'outputType must be video, pptx, or pdf' }, { status: 400 })
   }
@@ -36,6 +36,8 @@ export async function POST(request: NextRequest) {
     purpose,
     contentMethod: contentMethod as WizardDraft['contentMethod'],
     extractedData: extractedData || undefined,
+    ...(extractedDocs && extractedDocs.length ? { extractedDocs } : {}),
+    ...(combineInstruction ? { combineInstruction } : {}),
     ...(classification ? { classification } : {}),
     ...(recipientName ? { recipientName } : {}),
     ...(clientId ? { clientId } : {}),
