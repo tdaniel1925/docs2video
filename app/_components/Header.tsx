@@ -20,8 +20,9 @@ const TOOLS_ITEMS = [
   { href: '/brands/new', icon: '\uD83C\uDF10', title: 'New Brand from URL', desc: 'Scrape website for brand identity' },
 ]
 
-// Tools dropdown shown again (2026-06-25) now the Flyer Creator is exposed.
-const SHOW_TOOLS_NAV = true
+// Tools dropdown hidden from the nav per product decision (kept for re-enable).
+// The flyer tool still works at /flyers directly; it's just not surfaced in nav.
+const SHOW_TOOLS_NAV = false
 
 // Focused product (2026-06-11): video + deck only — peripheral tools unlinked
 const NAV_LINKS = [
@@ -373,12 +374,16 @@ export default function Header({ profile }: { profile: Profile }) {
               {item.icon} {item.title}
             </Link>
           ))}
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-light)', padding: '12px 0 4px' }}>Tools</div>
-          {TOOLS_ITEMS.map((item) => (
-            <Link key={item.href} href={item.href} className={pathname === item.href ? 'active' : ''}>
-              {item.icon} {item.title}
-            </Link>
-          ))}
+          {SHOW_TOOLS_NAV && (
+            <>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-light)', padding: '12px 0 4px' }}>Tools</div>
+              {TOOLS_ITEMS.map((item) => (
+                <Link key={item.href} href={item.href} className={pathname === item.href ? 'active' : ''}>
+                  {item.icon} {item.title}
+                </Link>
+              ))}
+            </>
+          )}
           <div style={{ height: 8 }} />
           <Link href="/videos" className={pathname === '/videos' ? 'active' : ''}>Library</Link>
           <Link href="/clients" className={pathname === '/clients' ? 'active' : ''}>Clients</Link>
