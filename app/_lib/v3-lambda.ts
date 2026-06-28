@@ -198,13 +198,31 @@ export async function renderV3OnLambda(payload: V3Payload): Promise<void> {
     maxRetries: 3,
   })
 
-  // 4) Poll to completion (update progress 70 -> 92).
+  // 4) Poll to completion (update progress 70 -> 92), with a watchdog. The loop
+  // used to be `for(;;)` with no timeout: if a chunk Lambda hangs, overallProgress
+  // plateaus and neither `done` nor `fatalErrorEncountered` ever flips, so it spun
+  // forever — the render sat frozen (e.g. "Rendering — 44%") until the serverless
+  // function itself died with NO DB update, leaving the row stuck. Now we bail if
+  // progress stalls for STALL_LIMIT or the whole render exceeds HARD_LIMIT.
+  const STALL_LIMIT_MS = 4 * 60 * 1000   // no forward progress for 4 min => stuck
+  const HARD_LIMIT_MS = 12 * 60 * 1000   // absolute cap for one render
+  const startedAt = Date.now()
+  let lastProgress = -1
+  let lastAdvanceAt = Date.now()
   for (;;) {
     await new Promise((r) => setTimeout(r, 4000))
     const p = await getRenderProgress({ renderId, bucketName, functionName: FUNCTION!, region: REGION })
     if (p.fatalErrorEncountered) throw new Error(`Lambda render error: ${p.errors?.[0]?.message?.slice(0, 200) || 'unknown'}`)
     if (p.done) break
-    await setProgress(70 + Math.round((p.overallProgress || 0) * 22), `Rendering — ${Math.round((p.overallProgress || 0) * 100)}%`)
+    const prog = p.overallProgress || 0
+    if (prog > lastProgress) { lastProgress = prog; lastAdvanceAt = Date.now() }
+    if (Date.now() - lastAdvanceAt > STALL_LIMIT_MS) {
+      throw new Error(`Lambda render stalled at ${Math.round(prog * 100)}% (no progress for ${Math.round(STALL_LIMIT_MS / 60000)} min)`)
+    }
+    if (Date.now() - startedAt > HARD_LIMIT_MS) {
+      throw new Error(`Lambda render exceeded ${Math.round(HARD_LIMIT_MS / 60000)} min — aborting`)
+    }
+    await setProgress(70 + Math.round(prog * 22), `Rendering — ${Math.round(prog * 100)}%`)
   }
 
   // 5) Copy the rendered MP4 from Remotion's S3 output into Supabase.
