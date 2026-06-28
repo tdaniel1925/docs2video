@@ -35,7 +35,7 @@ function parseBrief(text: string): VideoBrief | null {
       clarifyingQuestions: Array.isArray(b.clarifyingQuestions)
         ? b.clarifyingQuestions
             .filter((q: any) => q?.question)
-            .slice(0, 3)
+            .slice(0, 2)  // hard cap — never flood the user even if the model over-asks
             .map((q: any, i: number): ClarifyingQuestion => ({
               id: String(q.id || `q${i}`),
               question: s(String(q.question)),
@@ -105,7 +105,7 @@ BE INTELLIGENT — ASK ONLY WHEN GENUINELY UNSURE. Before finalizing, judge your
   • GOAL/CTA: what should the viewer do after (book a call, sign, just understand)?
   • EMPHASIS: if the source weights several topics heavily, which should lead?
   • TONE: reassuring/plain vs. polished/corporate.
-For each dimension you are CONFIDENT about, just reflect it in the brief (do NOT ask). ONLY for dimensions that are genuinely ambiguous or where critical info is missing, add a short clarifying question (max 3 total, most-impactful first). If everything is clear, return an EMPTY clarifyingQuestions array. Do not ask about things the source already answers. Questions must be specific to THIS source (reference the real company/person/topic by name), not generic.
+DEFAULT TO ZERO QUESTIONS. Make a confident, reasonable assumption and reflect it in the brief rather than asking — the user can always tweak the brief afterward in their own words. Only add a clarifying question when ALL of these are true: (a) you genuinely cannot tell from the source, (b) guessing wrong would materially break the script (wrong audience, wrong CTA, wrong who-it's-from), and (c) the user could actually answer it in one tap. Ask AT MOST 1 question (2 only in a true tie). If you can reasonably infer it, DO NOT ask. Most briefs should return an EMPTY clarifyingQuestions array. Never ask about anything the source already answers, never ask generic questions, and never re-ask something a KNOWN PRESENTER/BRAND or USER ANSWERS block above already settles. Questions must name the real company/person/topic.
 
 Return ONLY a JSON object:
 {
