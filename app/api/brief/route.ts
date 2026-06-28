@@ -212,10 +212,13 @@ export async function POST(request: Request) {
     // When the user just answered questions, record those answers on the brief
     // and clear any that were resolved so they aren't re-asked.
     if (hasAnswers) {
+      // The user just answered the AI's questions. Do NOT re-interrogate them:
+      // the model tends to re-emit the same questions with fresh ids on each
+      // re-ground (so id-based dedup never matched and they kept reappearing).
+      // Once answered, clear questions entirely — any further tweaks go through
+      // the free-form "Want changes? Tell me" box.
       const answered = (draft.brief?.clarifyingQuestions || []).map((q) => ({ ...q, answer: answers![q.id] || q.answer }))
-      // Keep only NEW questions the model raised that weren't already answered.
-      const newQs = (brief.clarifyingQuestions || []).filter((q) => !answers![q.id])
-      brief.clarifyingQuestions = newQs
+      brief.clarifyingQuestions = []
       ;(brief as any).answeredQuestions = answered.filter((q) => q.answer)
     }
 
