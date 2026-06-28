@@ -25,11 +25,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..')
 const REGION = process.env.AWS_REGION || 'us-east-1'
 
-// Lambda sizing: V3 renders are CPU-bound. 2048MB ≈ ~1.2 vCPU; bump RAM for more
-// CPU. 120s per-render timeout is plenty for a chunk (Lambda splits the work).
-const RAM = 2048
+// Lambda sizing: V3 renders are CPU-bound. More RAM = more vCPU = faster frames.
+// 3008MB ≈ ~2 vCPU. Per-invocation TIMEOUT was 120s, which several chunk Lambdas
+// blew through on heavy renders (confirmed in CloudWatch: "Task timed out after
+// 120.06s" ×8) — that froze the whole render at ~44%. Raised to 300s (5 min, the
+// Remotion-recommended ceiling) so a slow chunk finishes instead of being killed.
+const RAM = 3008
 const DISK = 2048
-const TIMEOUT = 120
+const TIMEOUT = 300
 
 async function main() {
   if (!process.env.REMOTION_AWS_ACCESS_KEY_ID || !process.env.REMOTION_AWS_SECRET_ACCESS_KEY) {
