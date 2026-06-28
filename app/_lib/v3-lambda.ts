@@ -79,10 +79,43 @@ async function geminiBg(prompt: string): Promise<Buffer | null> {
   return null
 }
 
-/** ffprobe-free duration estimate from mp3 byte length (tts-1-hd ≈ 24kbps mono). */
+/**
+ * Real mp3 duration by summing MPEG frame durations from the header stream —
+ * accurate for ANY bitrate (CBR or VBR), no ffprobe needed. The old version
+ * estimated from byte length assuming 24kbps (OpenAI tts-1-hd); after switching
+ * to ElevenLabs (128kbps mp3) that over-estimated ~5x, so the slide held long
+ * after the audio ended. This measures the actual audio length instead.
+ */
+function mp3DurationSeconds(buf: Buffer): number {
+  const BR = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320] // MPEG1 L3 kbps
+  const SR = [44100, 48000, 32000]
+  let i = 0, total = 0
+  // skip ID3v2 tag if present
+  if (buf.length > 10 && buf.toString('ascii', 0, 3) === 'ID3') {
+    const sz = ((buf[6] & 0x7f) << 21) | ((buf[7] & 0x7f) << 14) | ((buf[8] & 0x7f) << 7) | (buf[9] & 0x7f)
+    i = 10 + sz
+  }
+  while (i + 4 <= buf.length) {
+    if (buf[i] !== 0xff || (buf[i + 1] & 0xe0) !== 0xe0) { i++; continue } // not a frame sync
+    const brIdx = (buf[i + 2] & 0xf0) >> 4
+    const srIdx = (buf[i + 2] & 0x0c) >> 2
+    const pad = (buf[i + 2] & 0x02) >> 1
+    const kbps = BR[brIdx], sr = SR[srIdx]
+    if (!kbps || !sr) { i++; continue }
+    const frameLen = Math.floor((144 * kbps * 1000) / sr) + pad
+    if (frameLen < 1) { i++; continue }
+    total += 1152 / sr // MPEG1 L3 = 1152 samples/frame
+    i += frameLen
+  }
+  return total
+}
+
 function estimateFrames(mp3: Buffer): number {
-  const seconds = Math.max(2, mp3.length / (24000 / 8))
-  return Math.round((seconds + 0.9) * 30)
+  let seconds = mp3DurationSeconds(mp3)
+  // Fallback if parsing yields nothing (corrupt/empty) — assume 128kbps.
+  if (!seconds || seconds < 0.3) seconds = Math.max(2, mp3.length / (128000 / 8))
+  // Small tail so the slide doesn't cut the instant the voice stops.
+  return Math.round((seconds + 0.6) * 30)
 }
 
 async function uploadPublic(admin: any, path: string, buf: Buffer, contentType: string): Promise<string> {

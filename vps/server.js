@@ -954,14 +954,16 @@ async function ttsToBuffer(text, voiceId) {
 async function v3Tts(text, voiceId, outPath) {
   await writeFile(outPath, await ttsToBuffer(text, voiceId))
   const dur = await probeAudioDuration(outPath)
-  return Math.round(((dur || 3) + 0.9) * 30)
+  // Small 0.4s tail (was 0.9s) so the slide advances soon after the voice stops
+  // — the longer tail read as "audio ended but the slide is still up."
+  return Math.round(((dur || 3) + 0.4) * 30)
 }
 
 // Minimum on-screen hold so a SHORT narration can't produce a flash-by slide
 // (the cover read ~1.5s). Cover gets a longer floor (it's the establishing
 // shot); every scene gets a readable minimum. 30fps.
-const MIN_SCENE_FR = 90    // 3.0s
-const MIN_COVER_FR = 135   // 4.5s
+const MIN_SCENE_FR = 60    // 2.0s — lower floor so a short narration doesn't hold a silent slide
+const MIN_COVER_FR = 120   // 4.0s — cover is the establishing shot, keep it longer
 function floorDuration(frames, isCover) {
   return Math.max(frames || 0, isCover ? MIN_COVER_FR : MIN_SCENE_FR)
 }
