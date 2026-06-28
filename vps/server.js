@@ -1260,7 +1260,9 @@ app.post('/render-v3', authCheck, async (req, res) => {
       }
       child.stdout.on('data', onChunk)
       child.stderr.on('data', onChunk)
-      const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {} ; reject(new Error('remotion render: timeout')) }, 30 * 60 * 1000)
+      // 60 min: a long video (9+ scenes / 16k+ frames) renders CPU-bound and was
+      // hitting the old 30-min cap at ~85% (frame 13.6k/16k). Give it room.
+      const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {} ; reject(new Error('remotion render: timeout (>60min)')) }, 60 * 60 * 1000)
       child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`remotion render: ${e.message}`)) })
       child.on('close', (code) => {
         clearTimeout(killTimer)
@@ -1344,7 +1346,10 @@ app.post('/render-v3', authCheck, async (req, res) => {
   } catch (err) {
     console.error(`[render-v3 ${videoId}] error:`, err.message)
     reportError({ source: 'render-v3', videoId, userId, stage: theme, message: err.message }).catch(() => {})
-    await sb.from('videos').update({ status: 'failed', error_message: 'Video rendering failed. Your credits were refunded.', progress_detail: null }).eq('id', videoId).then(() => {}, () => {})
+    // User sees the friendly line (error_message); admins get the REAL cause in
+    // progress_detail (existing column, no migration) so failures are diagnosable
+    // without SSH. reportError() above also pushes it to error_logs.
+    await sb.from('videos').update({ status: 'failed', error_message: 'Video rendering failed. Your credits were refunded.', progress_detail: `[fail] render-v3: ${err.message}`.slice(0, 500) }).eq('id', videoId).then(() => {}, () => {})
   } finally {
     try {
       const { readdir, unlink } = require('fs/promises')
@@ -1507,7 +1512,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       let err = '', lastPct = 72, lastW = 0
       const onChunk = (b) => { const x = b.toString(); err = (err + x).slice(-2000); const m = [...x.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const d = +m[1], tot = +m[2]; if (tot > 0 && d <= tot) { const p = 72 + Math.round((d / tot) * 17); const now = Date.now(); if (p > lastPct && now - lastW > 1500) { lastPct = p; lastW = now; setProgress(p, `Rendering — frame ${d.toLocaleString()} of ${tot.toLocaleString()}`) } } } }
       child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
-      const kt = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout')) }, 30 * 60 * 1000)
+      const kt = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout (>60min)')) }, 60 * 60 * 1000)
       child.on('error', (e) => { clearTimeout(kt); reject(new Error(`render: ${e.message}`)) })
       child.on('close', (c) => { clearTimeout(kt); c === 0 ? resolve() : reject(new Error(`render exit ${c}: ${err.slice(-300)}`)) })
     })
