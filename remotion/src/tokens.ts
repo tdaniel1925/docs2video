@@ -145,7 +145,10 @@ export const MIN_VIDEO_FONT = 42
 /** Headline drop-shadow/glow so text pops off any background (legibility + depth). */
 export const TEXT_SHADOW = '0 4px 24px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.5)'
 
-export const FPS = 30
+// 24fps (was 30): ~20% fewer frames per render with no visible quality loss for
+// slide/data-explainer motion — cuts render time proportionally on the VPS. All
+// durations are computed as seconds×FPS, so video length is unchanged.
+export const FPS = 24
 export const MOTION = {
   settle: [0.16, 1, 0.3, 1] as const,
   entranceFrames: Math.round(0.7 * FPS),
