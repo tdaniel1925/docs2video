@@ -20,6 +20,7 @@ import { renderMediaOnLambda, getRenderProgress } from '@remotion/lambda/client'
 import { createAdminClient } from './supabase/admin'
 import { GoogleGenAI } from '@google/genai'
 import type { V3Payload } from './v3-render'
+import { synthesizeSpeech } from './tts'
 
 const REGION = (process.env.REMOTION_AWS_REGION || 'us-east-1') as any
 const FUNCTION = process.env.REMOTION_LAMBDA_FUNCTION
@@ -33,15 +34,13 @@ const LOOK = 'High-end cinematic corporate photography with a RICH, MOODY, PREMI
 
 const BUCKET = 'videos'
 
+// TTS for the Lambda path. Uses the SHARED engine (ElevenLabs primary → OpenAI
+// fallback, with retries + money/percent normalization) — same as the VPS path.
+// The old version called OpenAI directly with NO fallback, so an OpenAI 429
+// killed the whole render at the narration step even though ElevenLabs is the
+// configured voice. Routes through synthesizeSpeech so both paths behave alike.
 async function tts(text: string, voiceId: string): Promise<Buffer> {
-  const res = await fetch('https://api.openai.com/v1/audio/speech', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'tts-1-hd', voice: voiceId || 'nova', input: text || ' ', response_format: 'mp3', speed: 0.98 }),
-    signal: AbortSignal.timeout(60000),
-  })
-  if (!res.ok) throw new Error(`TTS ${res.status}`)
-  return Buffer.from(await res.arrayBuffer())
+  return synthesizeSpeech(text || ' ', voiceId || 'nova')
 }
 
 /** Art-direct each scene (cinematographer step) — one Gemini-flash call returns
