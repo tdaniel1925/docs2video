@@ -97,6 +97,17 @@ export default function BrandPage() {
         if (info.logo_url) setLogoPreview(info.logo_url)
       }
 
+      // Restore what the user already entered on this step (so hitting Back from a
+      // later step doesn't wipe their work). These were PATCHed to the draft on the
+      // way forward; the auto-detected block above only covers the scraped values.
+      if (draft.contactPhone) setPhone(draft.contactPhone)
+      if (draft.contactEmail) setEmail(draft.contactEmail)
+      if (draft.contactWebsite) setWebsite(draft.contactWebsite)
+      if (draft.presenterIntro) setPresenterIntro(draft.presenterIntro)
+      if (draft.photoPlacement) { setPhotoPlacement(draft.photoPlacement); setPerVideoPlacement(draft.photoPlacement) }
+      if (typeof draft.introduceInOpening === 'boolean') setIntroduceInOpening(draft.introduceInOpening)
+      if (typeof draft.showContactClosing === 'boolean') setShowContactClosing(draft.showContactClosing)
+
       // Brands
       if (brandsResult.data) {
         const loaded = brandsResult.data as Brand[]
@@ -224,7 +235,9 @@ export default function BrandPage() {
           name: companyName.trim(),
           primary_color: primaryColor,
           secondary_color: secondaryColor,
-          logo_url: profileType === 'person' ? null : logoUrl,
+          // Logo applies to BOTH person and company — a person presenting still
+          // wants their brand/company logo on the video (real uploaded logo only).
+          logo_url: logoUrl,
           is_default: saveAsDefault,
           profile_type: profileType,
           person_role: profileType === 'person' ? (personRole.trim() || null) : null,
@@ -784,17 +797,6 @@ export default function BrandPage() {
         </div>
         )}
 
-        {/* Show logo toggle — Company only */}
-        {profileType === 'company' && (
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, color: 'var(--ink-soft)' }}>
-              <input type="checkbox" checked={showLogo} onChange={e => setShowLogo(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--mint)' }} />
-              Show logo in videos
-            </label>
-            <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '6px 0 0 24px' }}>Turn off to render videos without your logo.</p>
-          </div>
-        )}
-
         {/* Contact info — Company only */}
         {profileType === 'company' && (
         <div style={{ marginBottom: 0 }}>
@@ -847,6 +849,41 @@ export default function BrandPage() {
           </div>
         </div>
         )}
+
+        {/* Logo upload — shown for BOTH person and company. Real uploaded logo
+            only (no AI-drawn logos). Placed in the video's intro/corner/outro. */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
+            Logo <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-light)' }}>(optional — shown in the video)</span>
+          </label>
+          {logoPreview ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <img src={logoPreview} alt="Logo" style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'contain', background: 'var(--bg-soft)', border: '1px solid var(--border-light)', padding: 4 }} />
+              <button
+                type="button"
+                onClick={() => { setLogoFile(null); setLogoPreview(null); if (logoInputRef.current) logoInputRef.current.value = '' }}
+                style={{ background: 'none', border: 'none', color: 'var(--ink-light)', fontSize: 13, cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}
+              >Remove logo</button>
+            </div>
+          ) : (
+            <div
+              onClick={() => logoInputRef.current?.click()}
+              onDrop={handleLogoDrop}
+              onDragOver={e => e.preventDefault()}
+              style={{
+                border: '1.5px dashed var(--border)', borderRadius: 10, padding: '20px',
+                textAlign: 'center', cursor: 'pointer', background: 'var(--bg-soft)',
+              }}
+            >
+              <span style={{ fontSize: 14, color: 'var(--ink-light)' }}>Click or drop to upload your logo (PNG with transparency works best)</span>
+              <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={e => { const f = e.target.files?.[0]; if (f) handleLogoChange(f) }} style={{ display: 'none' }} />
+            </div>
+          )}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--ink-soft)', marginTop: 10 }}>
+            <input type="checkbox" checked={showLogo} onChange={e => setShowLogo(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--mint)' }} />
+            Show logo in videos
+          </label>
+        </div>
 
         {/* Save as default checkbox */}
         <div style={{ marginTop: 16 }}>
