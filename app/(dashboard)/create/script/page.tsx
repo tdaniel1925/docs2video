@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import QuickPreview from '../../../_components/QuickPreview'
 import BuyCreditsModal from '../../../_components/BuyCreditsModal'
+import SceneEditChat from '../../../_components/SceneEditChat'
 
 // Build the default cover/closing copy and ensure the editable scene list has an
 // editable Cover (first) + Closing (last). Idempotent: if bookends already exist
@@ -855,7 +856,18 @@ export default function ScriptPage() {
                           >+ Add bullet point</button>
                           )}
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                          <SceneEditChat
+                            scene={scene}
+                            outputType={outputType}
+                            sourceData={createState?.extractedData}
+                            onApply={(updatedScene) => {
+                              const updated = [...scenes]
+                              updated[i] = updatedScene
+                              setScenes(updated)
+                              autoSave(updated, i, true)
+                            }}
+                          />
                           <button
                             onClick={(e) => { e.stopPropagation(); handlePreviewSlide(i) }}
                             style={{
