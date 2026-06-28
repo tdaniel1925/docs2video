@@ -1235,7 +1235,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
     // (otherwise it parks at 72% for minutes). Map rendered-frames -> 72..89%.
     await new Promise((resolve, reject) => {
       const { spawn } = require('child_process')
-      // --concurrency=8: ONE Chrome tab per worker. --concurrency=100% on the
+      // --concurrency=12: ONE Chrome tab per worker. --concurrency=100% on the
       // 16-core box opened 16 tabs and crashed Chrome mid-render (WebSocket died /
       // exit 1) — too many concurrent browsers for the box's /dev/shm + RAM. 8 is
       // still fast on 16 cores and stays well within memory.
@@ -1243,7 +1243,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
       // --image-format=jpeg speeds frame capture with no visible loss;
       // --disable-web-security avoids cross-origin asset stalls.
       const child = spawn('npx', ['remotion', 'render', COMP, outFile,
-        '--log=info', '--concurrency=8', '--gl=swiftshader', '--image-format=jpeg'],
+        '--log=info', '--concurrency=12', '--gl=swiftshader', '--image-format=jpeg'],
         { cwd: REMOTION_DIR, env: { ...process.env } })
       let stderrBuf = ''
       let lastPct = 72, lastWrite = 0
@@ -1514,7 +1514,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       // the render can fall back to composition defaultProps (the "Run the
       // editorial generator first" placeholder) while the stills — which DO pass
       // --props — show the correct pages.
-      const child = spawn('npx', ['remotion', 'render', 'EditorialVideo', outFile, `--props=${join(pub, 'editorial.json')}`, '--log=info', '--concurrency=8', '--gl=swiftshader', '--image-format=jpeg'], { cwd: REMOTION_DIR, env: { ...process.env } })
+      const child = spawn('npx', ['remotion', 'render', 'EditorialVideo', outFile, `--props=${join(pub, 'editorial.json')}`, '--log=info', '--concurrency=12', '--gl=swiftshader', '--image-format=jpeg'], { cwd: REMOTION_DIR, env: { ...process.env } })
       let err = '', lastPct = 72, lastW = 0
       const onChunk = (b) => { const x = b.toString(); err = (err + x).slice(-2000); const m = [...x.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const d = +m[1], tot = +m[2]; if (tot > 0 && d <= tot) { const p = 72 + Math.round((d / tot) * 17); const now = Date.now(); if (p > lastPct && now - lastW > 1500) { lastPct = p; lastW = now; setProgress(p, `Rendering — frame ${d.toLocaleString()} of ${tot.toLocaleString()}`) } } } }
       child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
