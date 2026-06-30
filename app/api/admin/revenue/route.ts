@@ -68,7 +68,7 @@ export async function GET() {
         customer: c.customer,
         description: c.description || c.metadata?.type || 'Payment',
         date: new Date(c.created * 1000).toISOString(),
-        email: c.billing_details?.email || c.receipt_email || '',
+        email: c.receipt_email || c.billing_details?.email || '',
       }))
 
     // Net revenue (after Stripe fees)

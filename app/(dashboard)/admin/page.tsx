@@ -32,6 +32,7 @@ export default function AdminPage() {
   const [videoPage, setVideoPage] = useState(0)
   const [videoAnalytics, setVideoAnalytics] = useState<Record<string, { views: number; plays: number }>>({})
   const [dailyActivity, setDailyActivity] = useState<{ date: string; users: number; videos: number }[]>([])
+  const [realMrr, setRealMrr] = useState<string | null>(null) // live Stripe MRR string from /api/admin/stats
   const [auditDateFilter, setAuditDateFilter] = useState<'7' | '30' | 'all'>('30')
   const [auditSearch, setAuditSearch] = useState('')
   const [prospectUrls, setProspectUrls] = useState('')
@@ -74,6 +75,7 @@ export default function AdminPage() {
       .catch(e => { setError(e.message); setState('error') })
     fetch('/api/admin/stats').then(r => r.json()).then(d => {
       if (d.dailyActivity) setDailyActivity(d.dailyActivity)
+      if (d.mrr) setRealMrr(d.mrr) // real Stripe MRR (e.g. "$1,234.00")
     }).catch(() => {})
     // Load prospect demos on mount
     fetch('/api/admin/prospect-pipeline').then(r => r.json()).then(d => {
@@ -262,6 +264,7 @@ export default function AdminPage() {
         <Link href="/admin/costs" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>API Costs</Link>
         <Link href="/admin/revenue" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Revenue</Link>
         <Link href="/admin/billing" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Billing &amp; Sales</Link>
+        <Link href="/admin/billing-health" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Billing Health</Link>
         <Link href="/admin/campaigns" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Campaigns</Link>
         <Link href="/admin/prospects" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Prospects</Link>
         <Link href="/admin/bulk" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Bulk Generate</Link>
@@ -277,7 +280,7 @@ export default function AdminPage() {
           <div className="stats-row">
             <div className="stat-card mint"><div className="stat-label">Total Users</div><div className="stat-value">{totalUsers}</div></div>
             <div className="stat-card"><div className="stat-label">Active Subscribers</div><div className="stat-value">{activeSubs}</div></div>
-            <div className="stat-card peach"><div className="stat-label">Est. MRR</div><div className="stat-value">${mrr.toLocaleString()}</div></div>
+            <div className="stat-card peach"><div className="stat-label">{realMrr ? 'MRR' : 'Est. MRR'}</div><div className="stat-value">{realMrr ?? `$${mrr.toLocaleString()}`}</div></div>
             <div className="stat-card"><div className="stat-label">This Week</div><div className="stat-value">{thisWeek} videos</div></div>
           </div>
           <div className="stats-row">
@@ -455,7 +458,7 @@ export default function AdminPage() {
       {tab === 'billing' && (
         <div>
           <div className="stats-row">
-            <div className="stat-card mint"><div className="stat-label">Estimated MRR</div><div className="stat-value">${mrr.toLocaleString()}</div></div>
+            <div className="stat-card mint"><div className="stat-label">{realMrr ? 'MRR (live Stripe)' : 'Estimated MRR'}</div><div className="stat-value">{realMrr ?? `$${mrr.toLocaleString()}`}</div></div>
             <div className="stat-card"><div className="stat-label">Cards on File</div><div className="stat-value">{profiles.filter(p => p.card_on_file).length}</div></div>
             <div className="stat-card peach"><div className="stat-label">This Week</div><div className="stat-value">{thisWeek} videos</div></div>
           </div>

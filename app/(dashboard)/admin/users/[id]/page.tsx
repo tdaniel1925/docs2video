@@ -14,6 +14,16 @@ interface CreditTransaction {
   created_at: string
 }
 
+interface StripeStatus {
+  hasCustomer: boolean
+  subscription: string | null
+  plan: string | null
+  currentPeriodEnd: string | null
+  cancelAtPeriodEnd: boolean
+  lastPaymentAt: string | null
+  mismatch: boolean
+}
+
 export default function AdminUserDetailPage() {
   const params = useParams()
   const userId = params.id as string
@@ -24,6 +34,7 @@ export default function AdminUserDetailPage() {
   const [emailConnections, setEmailConnections] = useState<EmailConnection[]>([])
   const [referrals, setReferrals] = useState<{ id: string; email: string; full_name: string | null }[]>([])
   const [creditHistory, setCreditHistory] = useState<CreditTransaction[]>([])
+  const [stripe, setStripe] = useState<StripeStatus | null>(null)
   const [busy, setBusy] = useState(false)
   const [activeTab, setActiveTab] = useState<'videos' | 'credits' | 'quotes' | 'email' | 'referrals'>('videos')
 
@@ -37,6 +48,7 @@ export default function AdminUserDetailPage() {
       setQuotes(d.quotes ?? [])
       setEmailConnections(d.emailConnections ?? [])
       setReferrals(d.referrals ?? [])
+      setStripe(d.stripe ?? null)
       setCreditHistory(ch.transactions ?? [])
       setState('ok')
     }).catch(() => setState('error'))
@@ -64,7 +76,7 @@ export default function AdminUserDetailPage() {
         body: JSON.stringify({ userId, action, value }),
       })
       const r = await fetch(`/api/admin/user-detail?id=${userId}`)
-      if (r.ok) { const d = await r.json(); setProfile(d.profile) }
+      if (r.ok) { const d = await r.json(); setProfile(d.profile); setStripe(d.stripe ?? null) }
     } catch {}
     setBusy(false)
   }
@@ -158,6 +170,47 @@ export default function AdminUserDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Live Stripe status — the real billing truth, so the admin can spot when
+          the subscription_status flag doesn't match a real paying Stripe sub. */}
+      {stripe && (
+        <div style={{ ...s.card, marginBottom: 20, ...(stripe.mismatch ? { border: '2px solid #DC2626', background: '#fef2f2' } : {}) }}>
+          <h3 style={{ ...s.cardTitle, display: 'flex', alignItems: 'center', gap: 8, marginBottom: stripe.mismatch ? 8 : 12 }}>
+            Stripe Billing
+            <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: '#635bff', color: 'white' }}>LIVE</span>
+          </h3>
+          {stripe.mismatch && (
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#DC2626', marginBottom: 12 }}>
+              ⚠ MISMATCH — the plan flag (<span style={{ textTransform: 'capitalize' }}>{profile.subscription_status || 'free'}</span>) does not match Stripe
+              {stripe.subscription ? ` (Stripe sub: ${stripe.subscription})` : ' (no active Stripe subscription)'}. Fix the plan or refund accordingly.
+            </div>
+          )}
+          {!stripe.hasCustomer ? (
+            <p style={{ fontSize: 13, color: 'var(--ink-light)' }}>No Stripe customer record — this user has never started checkout.</p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, fontSize: 13 }}>
+              <div>
+                <div style={s.label}>Subscription</div>
+                <div style={{ fontWeight: 700, textTransform: 'capitalize', color: stripe.subscription ? (stripe.subscription === 'active' || stripe.subscription === 'trialing' ? '#059669' : '#D97706') : 'var(--ink-light)' }}>
+                  {stripe.subscription || 'None'}
+                </div>
+              </div>
+              <div>
+                <div style={s.label}>Stripe Plan</div>
+                <div style={{ fontWeight: 700, textTransform: 'capitalize' }}>{stripe.plan || '—'}</div>
+              </div>
+              <div>
+                <div style={s.label}>Renews / Ends</div>
+                <div style={{ fontWeight: 700 }}>{stripe.currentPeriodEnd ? fmt(stripe.currentPeriodEnd) : '—'}{stripe.cancelAtPeriodEnd ? ' (cancels)' : ''}</div>
+              </div>
+              <div>
+                <div style={s.label}>Last Payment</div>
+                <div style={{ fontWeight: 700 }}>{stripe.lastPaymentAt ? fmt(stripe.lastPaymentAt) : 'Never'}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--border-light)' }}>

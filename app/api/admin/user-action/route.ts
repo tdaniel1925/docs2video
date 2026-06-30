@@ -3,7 +3,7 @@ import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { isAdmin , isAdminRequest } from '../../../_lib/admin'
 import { logAdminAction } from '../../../_lib/audit'
-import { addTopupCredits } from '../../../_lib/credits'
+import { addTopupCredits, applyTierChange } from '../../../_lib/credits'
 export const maxDuration = 30
 
 export async function POST(request: Request) {
@@ -31,6 +31,11 @@ export async function POST(request: Request) {
       case 'change_plan': {
         const plan = (value as string) || null
         await admin.from('profiles').update({ subscription_status: plan }).eq('id', userId)
+        // Grant the credits that match the new plan. Without this, flipping a user
+        // to e.g. 'pro' set the flag but left them on the free 2,000-credit grant
+        // (the Angela bug). applyTierChange adds the upgrade delta to match the
+        // tier (no-op on downgrade/same-tier, so it's safe to always call).
+        if (plan) await applyTierChange(userId, plan).catch((e) => console.error('[admin] applyTierChange failed:', e))
         break
       }
       case 'add_credits': {
@@ -46,13 +51,14 @@ export async function POST(request: Request) {
         break
       }
       case 'reset_credits': {
-        // Zero out the real balance table and the legacy column.
+        // Zero out the REAL wallet only. (Don't touch the dead
+        // profiles.credits_remaining column — nothing reads it now that the admin
+        // shows the real balance; writing it just re-introduces the drift.)
         await admin.from('credit_balances').update({
           balance: 0,
           topup_balance: 0,
           updated_at: new Date().toISOString(),
         }).eq('user_id', userId)
-        await admin.from('profiles').update({ credits_remaining: 0 }).eq('id', userId)
         break
       }
       case 'toggle_ban': {

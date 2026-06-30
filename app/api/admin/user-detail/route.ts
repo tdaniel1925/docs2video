@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { isAdmin , isAdminRequest } from '../../../_lib/admin'
+import { getStripe, tierFromPriceId } from '../../../_lib/stripe'
 export const maxDuration = 30
 
 export async function GET(request: Request) {
@@ -39,7 +40,51 @@ export async function GET(request: Request) {
     // value (e.g. 10) while the wallet had thousands.
     const realCredits = (balanceRes.data?.balance ?? 0) + (balanceRes.data?.topup_balance ?? 0)
 
+    // LIVE Stripe truth — so the admin can see whether the subscription_status
+    // flag actually matches a real paying subscription (the Angela case: flagged
+    // 'pro' but no Stripe sub). Best-effort; never fails the request.
+    let stripeStatus: {
+      hasCustomer: boolean; subscription: string | null; plan: string | null;
+      currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean; lastPaymentAt: string | null; mismatch: boolean
+    } = { hasCustomer: false, subscription: null, plan: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, lastPaymentAt: null, mismatch: false }
+    const custId = profileRes.data.stripe_customer_id as string | undefined
+    if (custId) {
+      try {
+        const stripe = getStripe()
+        const subs = await stripe.subscriptions.list({ customer: custId, status: 'all', limit: 5 })
+        const active = subs.data.find(s => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due')
+        const flag = (profileRes.data.subscription_status as string | null) || null
+        const paidFlag = ['pro', 'professional', 'business', 'enterprise', 'agency'].includes((flag || '').toLowerCase())
+        let plan: string | null = null
+        let periodEndUnix = 0
+        if (active) {
+          const item = active.items.data[0]
+          const priceId = item?.price?.id
+          plan = (priceId ? tierFromPriceId(priceId) : null) || (active.metadata?.tier as string) || null
+          // current_period_end lives on the item in newer Stripe API versions;
+          // fall back to the subscription-level field for older versions.
+          periodEndUnix = (item as any)?.current_period_end ?? (active as any).current_period_end ?? 0
+        }
+        // Recent successful charge (last payment).
+        const charges = await stripe.charges.list({ customer: custId, limit: 1 }).catch(() => null)
+        const lastPaid = charges?.data.find(c => c.status === 'succeeded')
+        stripeStatus = {
+          hasCustomer: true,
+          subscription: active ? active.status : null,
+          plan,
+          currentPeriodEnd: periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null,
+          cancelAtPeriodEnd: !!active?.cancel_at_period_end,
+          lastPaymentAt: lastPaid ? new Date(lastPaid.created * 1000).toISOString() : null,
+          // Mismatch = flagged paid but Stripe has no active sub (or vice-versa).
+          mismatch: paidFlag !== !!active,
+        }
+      } catch (e) {
+        console.warn('[admin/user-detail] Stripe lookup failed (non-fatal):', e instanceof Error ? e.message : e)
+      }
+    }
+
     return NextResponse.json({
+      stripe: stripeStatus,
       profile: { ...profileRes.data, credits_remaining: realCredits },
       videos: videosRes.data ?? [],
       quotes: quotesRes.data ?? [],
