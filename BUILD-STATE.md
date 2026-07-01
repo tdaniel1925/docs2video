@@ -1,9 +1,21 @@
 # Docs2Video — Build State
 
-**Last updated:** 2026-06-02
+**Last updated:** 2026-07-01 (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
 **Branch:** main
-**Build:** ✅ Compiles clean (1 warning)
+**Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com)
+
+## 2026-07-01 — Full code review + top-10 hardening (commit ea77d13)
+
+Full-codebase review in `CODE-REVIEW-2026-07-01.md`. Fixed in one pass:
+- **Refunds:** VPS-failed renders now actually refund (cron sweeps `failed` + `deducted_cost>0`; refund zeroes the marker); refund idempotency is per-charge so retried videos refund correctly.
+- **Render isolation:** per-video `--props` for /render-v3 AND /render-editorial (shared props file = cross-video content leak); render queue (one Chrome fleet at a time); TTS pool of 3 + ElevenLabs retry (no mixed narrators); allSettled asset fan-out (no orphaned files); 120s Gemini timeouts; editorial page thumbnails via ffmpeg frame-grab instead of N Chrome boots.
+- **Stripe webhook:** `social_addon` guarded in ALL handlers (was silently upgrading free→Pro and blocking accounts on a failed $50 invoice); renewal grants derive tier from the invoice price id (dunning recovery no longer grants free tier).
+- **Security:** committed fallback API secret removed everywhere (VPS fails closed); LIVE keys stripped from video-service/docker-compose.yml (**ROTATE: API_SECRET, Supabase service-role, Gemini, OpenAI**); constant-time VPS auth; brands RLS migration (`supabase/migrations/20260701_brands_rls.sql` — **run manually in prod**) + owner-scoping on all 14 brand fetches; DOMPurify on chatbot HTML.
+- **Correctness:** generate-video claim requires ownership; `prompt_versions` (column missing in prod) split out of the critical script persist, which is now error-checked.
+- **Tests:** +25 unit tests (webhook guards, tierFromPriceId, displayProgress, video cost/grandfathering).
+
+**Known debt (from the review, not yet fixed):** Lambda render path drift + maxDuration overrun (A1/B10); resubscribe-within-cycle grants zero credits (B11); non-atomic applyTierChange/grantMonthlyCredits (B13); insurance recharge-on-approve missing (B14); Stripe pagination capped at 100 in billing/revenue/stats reports (P3); shared `requireAdmin()` sweep (Q3); per-instance rate limiters on unauthenticated endpoints (S6); stale `video-service/` duplicate server tree (A3).
 
 ---
 
