@@ -15,7 +15,9 @@ Full-codebase review in `CODE-REVIEW-2026-07-01.md`. Fixed in one pass:
 - **Correctness:** generate-video claim requires ownership; `prompt_versions` (column missing in prod) split out of the critical script persist, which is now error-checked.
 - **Tests:** +25 unit tests (webhook guards, tierFromPriceId, displayProgress, video cost/grandfathering).
 
-**Known debt (from the review, not yet fixed):** Lambda render path drift + maxDuration overrun (A1/B10); resubscribe-within-cycle grants zero credits (B11); non-atomic applyTierChange/grantMonthlyCredits (B13); insurance recharge-on-approve missing (B14); Stripe pagination capped at 100 in billing/revenue/stats reports (P3); shared `requireAdmin()` sweep (Q3); per-instance rate limiters on unauthenticated endpoints (S6); stale `video-service/` duplicate server tree (A3).
+**2026-07-01 (second pass, commit 3944e69) — ALL deferred findings fixed:** B10 (Lambda parallel assets + maxDuration 800), B11 (forceNewCycle grants on checkout/trial-conversion), B13 (CAS-atomic tier/monthly grants), B14 (recharge-on-approve via retry-video chargeOwner), B15/B16 (change_plan allowlist + reset ledger), B18 (MPEG2-aware mp3 parser), B21 (banned-user gate), B22 (completed-after-refund re-deduct in cron), P3 (listAllStripe pagination in billing/revenue/stats), Q3 (requireAdmin across all 38 admin routes + debug-videos; isAdmin split to client-safe admin-emails.ts), S6 (durable rate_limit_hit RPC + try-demo/capture-lead/track-view wired — **run supabase/migrations/20260701_rate_limits.sql in prod**), A3 (stale video-service/ tree deleted; compose template at vps/docker-compose.yml).
+
+**Remaining architectural debt (intentionally deferred):** A1 — full Lambda↔VPS scene-composition reunification (Lambda still hardcodes the Modern-Fintech theme, no editorial/aurora/infographic/closing-card parity; the admin render-target toggle changes the LOOK, not just the venue). Big refactor; do it before making Lambda the default target. Also: per-frame effect cost in Remotion comps (~16fps ceiling, P1), giant client pages (Q2), inline-style burn-down (Q1).
 
 ---
 
