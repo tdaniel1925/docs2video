@@ -1119,34 +1119,39 @@ app.post('/render-v3', authCheck, async (req, res) => {
     // Aurora skips this entirely — it renders on the shared code backdrop, no images.
     const artPrompts = (isInfo || isAurora) ? [] : await artDirectScenes(scenes)
 
+    // Generate the two SLOW per-scene assets — TTS narration and the cinematic
+    // Gemini image — for ALL scenes IN PARALLEL up front. These were serial
+    // (per-scene AND TTS-then-image within a scene), which was the bulk of the
+    // pre-render wall-clock (~16s/image × N scenes, back-to-back). They're
+    // independent (per-index filenames), so fan them out and pay ~max not ~sum.
+    // The heavy compute stays; only the waiting overlaps. The assembly loop below
+    // is unchanged CPU work that reads these pre-computed results.
+    const assets = await Promise.all(scenes.map(async (s, i) => {
+      const audioName = `r3-${videoId}-${i}.mp3`
+      const imgName = `r3-${videoId}-${i}.png`
+      const wantImg = !isInfo && !isAurora
+      const [durRaw, haveImg] = await Promise.all([
+        v3Tts(s.narration || s.title || ' ', voiceId, join(pub, audioName)),
+        (async () => {
+          if (!wantImg) return false
+          const imgPrompt = artPrompts[i] || `A real, professional business scene clearly illustrating: "${(s.title || s.narration || 'business concept').slice(0, 180)}".`
+          try { await v3GeminiBg(imgPrompt, join(pub, imgName)); await readFile(join(pub, imgName)); return true }
+          catch (imgErr) { console.error(`[render-v3 ${videoId}] scene ${i} image failed: ${imgErr.message}`); return false }
+        })(),
+      ])
+      return { audioName, imgName, durationInFrames: floorDuration(durRaw, i === 0), haveImg }
+    }))
+    // Live filmstrip previews (best-effort, cheap) — after assets exist.
+    for (let i = 0; i < assets.length; i++) { if (assets[i].haveImg) await pushPreview(i, join(pub, assets[i].imgName)) }
+    await setProgress(70, 'Composing scenes...')
+
     const outScenes = []
     for (let i = 0; i < scenes.length; i++) {
       const s = scenes[i]
-      const audioName = `r3-${videoId}-${i}.mp3`
-      const durationInFrames = floorDuration(await v3Tts(s.narration || s.title || ' ', voiceId, join(pub, audioName)), i === 0)
+      const { audioName, imgName, durationInFrames, haveImg } = assets[i]
       if (isInfo) {
         outScenes.push({ title: s.title || '', body: s.bullets?.[0], metrics: s.metrics, ...(s.heroMetric && s.heroMetric.value ? { heroMetric: s.heroMetric } : {}), audio: audioName, durationInFrames })
       } else {
-        const imgName = `r3-${videoId}-${i}.png`
-        let haveImg = false
-        if (!isAurora) {
-          await setProgress(30 + Math.round((i / scenes.length) * 40), `Painting scene ${i + 1}/${scenes.length}...`)
-          // Use the art-directed per-scene prompt (cinematographer step).
-          const imgPrompt = artPrompts[i] || `A real, professional business scene clearly illustrating: "${(s.title || s.narration || 'business concept').slice(0, 180)}".`
-          try {
-            await v3GeminiBg(imgPrompt, join(pub, imgName))
-            await readFile(join(pub, imgName)) // confirm it actually landed on disk
-            haveImg = true
-          } catch (imgErr) {
-            // A missing image must NOT 404 the whole render — the scene falls back
-            // to the theme ground. Log so we can see if image-gen is broken.
-            console.error(`[render-v3 ${videoId}] scene ${i} image failed: ${imgErr.message}`)
-          }
-          // Live filmstrip: the cinematic scene image IS a real preview.
-          if (haveImg) await pushPreview(i, join(pub, imgName))
-        } else {
-          await setProgress(30 + Math.round((i / scenes.length) * 40), `Composing scene ${i + 1}/${scenes.length}...`)
-        }
         const placement = (i === 0 || i === scenes.length - 1) ? 'center' : ['bottom', 'left', 'right', 'bottom'][i % 4]
         // Cinematic lower-thirds: show ALL the scene's real numbers (up to 3) so
         // important figures aren't dropped — e.g. $176k death benefit AND $10k/yr.
@@ -1462,24 +1467,35 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     await sb.from('videos').update({ total_scenes: scenes.length, preview_thumbs: [] }).eq('id', videoId).then(() => {}, () => {})
     await setProgress(25, 'Writing your report...')
 
-    const out = []
-    for (let i = 0; i < scenes.length; i++) {
-      const s = scenes[i]
+    // Build every scene's assets (TTS + optional Gemini image) IN PARALLEL.
+    // These were serial per-scene AND serial-within-scene, so a 6-scene report
+    // paid ~6×(TTS + ~16s Gemini) back-to-back — the bulk of the pre-render
+    // wall-clock. They're independent (per-index filenames), so fan them out and
+    // pay ~max instead of ~sum. Order is preserved via the indexed array.
+    let assetsDone = 0
+    const out = await Promise.all(scenes.map(async (s, i) => {
       const audioName = `ed-${videoId}-${i}.mp3`
-      const durationInFrames = floorDuration(await v3Tts(s.narration || s.title || ' ', voiceId, join(pub, audioName)), i === 0)
-      let image
-      if (s.wantsImage) {
-        await setProgress(30 + Math.round((i / scenes.length) * 45), `Composing page ${i + 1}/${scenes.length}...`)
-        const imgName = `ed-${videoId}-${i}.png`
-        const prompt = `A refined, editorial, professional photograph illustrating: "${(s.title || s.kicker || 'business concept').slice(0,160)}". Magazine-quality, tasteful, on-topic, NO text or logos in the image.`
-        try { await v3GeminiBg(prompt, join(pub, imgName)); await readFile(join(pub, imgName)); image = imgName } catch (e) { console.error(`[render-editorial ${videoId}] image ${i} failed: ${e.message}`) }
-      }
-      out.push({
+      const imgName = `ed-${videoId}-${i}.png`
+      const [durRaw, image] = await Promise.all([
+        // TTS
+        v3Tts(s.narration || s.title || ' ', voiceId, join(pub, audioName)),
+        // Optional editorial image (best-effort — failure just drops the image)
+        (async () => {
+          if (!s.wantsImage) return undefined
+          const prompt = `A refined, editorial, professional photograph illustrating: "${(s.title || s.kicker || 'business concept').slice(0,160)}". Magazine-quality, tasteful, on-topic, NO text or logos in the image.`
+          try { await v3GeminiBg(prompt, join(pub, imgName)); await readFile(join(pub, imgName)); return imgName }
+          catch (e) { console.error(`[render-editorial ${videoId}] image ${i} failed: ${e.message}`); return undefined }
+        })(),
+      ])
+      const durationInFrames = floorDuration(durRaw, i === 0)
+      assetsDone++
+      await setProgress(30 + Math.round((assetsDone / scenes.length) * 42), `Composing page ${assetsDone}/${scenes.length}...`)
+      return {
         archetype: s.archetype, kicker: s.kicker, title: s.title || '', dek: s.dek, body: s.body,
         quote: s.quote, attribution: s.attribution, items: s.items, metrics: s.metrics,
         ...(image ? { image } : {}), audio: audioName, durationInFrames,
-      })
-    }
+      }
+    }))
 
     // Presenter (Person profile): download the headshot into public/ and decide
     // cover/closing placement ('auto' → editorial shows it on both).
@@ -1542,17 +1558,19 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     // photo) so the SLIDES panel shows true, labeled, clickable page thumbnails.
     // Cheap — single frames. Best-effort: failures just leave that page without a
     // thumbnail. We sample the MIDDLE frame of each scene (past the page-turn in).
+    // Each still boots its own Chrome, so this WAS serial (one 90s-capped Chrome
+    // per page = minutes for a 6-page report). Run them in a bounded pool (3 at a
+    // time) — parallel enough to slash wall-clock, capped so we don't OOM/crash
+    // Chrome the way full concurrency did.
     await setProgress(89, 'Rendering page thumbnails...')
-    let acc = 0
-    for (let i = 0; i < out.length; i++) {
-      const dur = out[i].durationInFrames || 0
-      const midFrame = acc + Math.floor(dur / 2)
-      acc += dur
+    const midFrames = []
+    { let acc = 0; for (let i = 0; i < out.length; i++) { const dur = out[i].durationInFrames || 0; midFrames[i] = acc + Math.floor(dur / 2); acc += dur } }
+    const oneStill = async (i) => {
       const stillPath = join(REMOTION_DIR, 'out', `${videoId}-page-${i}.png`)
       try {
         await new Promise((resolve, reject) => {
           const { spawn } = require('child_process')
-          const c = spawn('npx', ['remotion', 'still', 'EditorialVideo', stillPath, `--frame=${midFrame}`, `--props=${join(pub, 'editorial.json')}`, '--gl=swiftshader', '--image-format=png'], { cwd: REMOTION_DIR, env: { ...process.env } })
+          const c = spawn('npx', ['remotion', 'still', 'EditorialVideo', stillPath, `--frame=${midFrames[i]}`, `--props=${join(pub, 'editorial.json')}`, '--gl=swiftshader', '--image-format=png'], { cwd: REMOTION_DIR, env: { ...process.env } })
           let err = ''
           c.stderr.on('data', (b) => { err = (err + b.toString()).slice(-500) })
           const kt = setTimeout(() => { try { c.kill('SIGKILL') } catch {}; reject(new Error('still timeout')) }, 90000)
@@ -1561,6 +1579,10 @@ app.post('/render-editorial', authCheck, async (req, res) => {
         })
         await pushPreview(i, stillPath)
       } catch (e) { console.error(`[render-editorial ${videoId}] page-still ${i} failed: ${e.message}`) }
+    }
+    const STILL_POOL = 3
+    for (let start = 0; start < out.length; start += STILL_POOL) {
+      await Promise.all(out.slice(start, start + STILL_POOL).map((_, k) => oneStill(start + k)))
     }
 
     await setProgress(92, 'Uploading...')
