@@ -5,6 +5,7 @@ import type Stripe from 'stripe'
 import { logError } from '../../../_lib/error-logger'
 import { grantMonthlyCredits, addTopupCredits, applyTierChange } from '../../../_lib/credits'
 import { recordCommission, clawbackByInvoice } from '../../../_lib/affiliate'
+import { subscriptionIdFromInvoice, priceIdFromInvoice, isSocialAddonSubscription } from '../../../_lib/stripe-invoice'
 
 /** Extract the Stripe promotion-code id from a session or invoice, if any. */
 function promoIdFromDiscounts(obj: { discounts?: unknown; discount?: unknown }): string | null {
@@ -199,6 +200,15 @@ export async function POST(request: Request) {
       /* ─── New subscription created ─── */
       case 'customer.subscription.created': {
         const subscription = event.data.object as Stripe.Subscription
+        // The $50 AI-Social add-on is a SEPARATE subscription (review B3).
+        // Without this guard its price id (absent from SUBSCRIPTION_PRICES)
+        // fell through the `?? 'pro'` fallback below and silently upgraded the
+        // MAIN plan — a free user buying the add-on became Pro with a full
+        // credit grant. Activation is handled by checkout.session.completed.
+        if (isSocialAddonSubscription(subscription)) {
+          console.log(`[webhook] Ignoring social_addon subscription.created for customer ${subscription.customer}`)
+          break
+        }
         const userId = subscription.metadata?.supabase_user_id
         const customerId = subscription.customer as string
         const priceId = subscription.items.data[0]?.price?.id
@@ -233,6 +243,18 @@ export async function POST(request: Request) {
         const subscription = event.data.object as Stripe.Subscription
         const customerId = subscription.customer as string
         const priceId = subscription.items.data[0]?.price?.id
+
+        // Add-on lifecycle must never touch the MAIN plan (review B3): the tier
+        // fallback below would upgrade it, and past_due would block the whole
+        // account over a failed $50 add-on. Deactivate the add-on when it
+        // lapses; full deletion is handled by subscription.deleted.
+        if (isSocialAddonSubscription(subscription)) {
+          if (['past_due', 'unpaid', 'canceled'].includes(subscription.status)) {
+            await supabase.from('profiles').update({ social_addon_active: false }).eq('stripe_customer_id', customerId)
+            console.log(`[webhook] Social add-on ${subscription.status} → deactivated for customer ${customerId}`)
+          }
+          break
+        }
 
         if (subscription.status === 'active') {
           // Unknown price id → keep metadata tier / 'pro', never silent 'free' (M1).
@@ -332,6 +354,20 @@ export async function POST(request: Request) {
         const invoice = event.data.object as Stripe.Invoice
         const customerId = invoice.customer as string
         if (invoice.billing_reason === 'subscription_cycle') {
+          // Add-on renewals must NOT grant main-plan credits (review B3): the
+          // grant below keys off the profile flag, so a $50 add-on cycle would
+          // hand out the full plan allotment every month.
+          const cycleSubId = subscriptionIdFromInvoice(invoice)
+          if (cycleSubId) {
+            try {
+              const cycleSub = await stripe.subscriptions.retrieve(cycleSubId)
+              if (isSocialAddonSubscription(cycleSub)) {
+                console.log(`[webhook] social_addon renewal for customer ${customerId} — no plan credits granted`)
+                break
+              }
+            } catch { /* unknown sub → treat as a main-plan cycle below */ }
+          }
+
           const { data: renewProfile, error: fetchErr } = await supabase
             .from('profiles')
             .select('id, subscription_status')
@@ -355,8 +391,14 @@ export async function POST(request: Request) {
               description: `stripe_event:${eventId}`,
             })
             if (idempErr) console.warn(`[webhook] Idempotency log failed:`, idempErr.message)
-            await grantMonthlyCredits(renewProfile.id, renewProfile.subscription_status)
-            console.log(`[webhook] Monthly credits granted for user ${renewProfile.id} (${renewProfile.subscription_status})`)
+            // Derive the tier from what they PAID for, not the profile flag
+            // (review B12): during dunning the flag is 'past_due', which maps
+            // to the FREE tier — a recovered payment was resetting a paying
+            // customer's cycle to 2,000 credits.
+            const paidPriceId = priceIdFromInvoice(invoice)
+            const paidTier = (paidPriceId ? tierFromPriceId(paidPriceId) : null) ?? renewProfile.subscription_status
+            await grantMonthlyCredits(renewProfile.id, paidTier)
+            console.log(`[webhook] Monthly credits granted for user ${renewProfile.id} (${paidTier})`)
           }
           console.log(`[webhook] Recurring payment succeeded for customer ${customerId}, amount: ${invoice.amount_paid}`)
 
@@ -398,6 +440,20 @@ export async function POST(request: Request) {
         const invoice = event.data.object as Stripe.Invoice
         const customerId = invoice.customer as string
         console.error(`[webhook] Payment failed for customer ${customerId}, invoice ${invoice.id}`)
+
+        // A failed $50 ADD-ON invoice must not block the whole account (review
+        // B3): only deactivate the add-on; the main plan keeps its own dunning.
+        const failedSubId = subscriptionIdFromInvoice(invoice)
+        if (failedSubId) {
+          try {
+            const failedSub = await stripe.subscriptions.retrieve(failedSubId)
+            if (isSocialAddonSubscription(failedSub)) {
+              await supabase.from('profiles').update({ social_addon_active: false }).eq('stripe_customer_id', customerId)
+              console.log(`[webhook] Social add-on payment failed → deactivated for customer ${customerId}`)
+              break
+            }
+          } catch { /* unknown sub → treat as a main-plan failure below */ }
+        }
 
         // Mark user as past_due to restrict access until payment resolves
         const { error: pastDueErr } = await supabase.from('profiles').update({

@@ -11,7 +11,13 @@ const app = express()
 app.use(express.json({ limit: '200mb' }))
 
 const PORT = process.env.PORT || 4000
-const API_SECRET = process.env.API_SECRET || 'docs2video-assembly-secret-2026'
+// FAIL CLOSED: no committed fallback secret (review S1).
+// NOTE: this folder is a STALE copy — the deployed server is vps/server.js.
+const API_SECRET = process.env.API_SECRET
+if (!API_SECRET) {
+  console.error('FATAL: API_SECRET env var is required — refusing to start.')
+  process.exit(1)
+}
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY

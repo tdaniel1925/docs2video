@@ -39,7 +39,8 @@ export async function POST(request: Request) {
   let colors = { primary: '#1B365D', secondary: '#4A90D9', accent: '#FFB347', background: '#0a1628', text: '#FFFFFF' }
 
   if (brandId) {
-    const { data: brand } = await supabase.from('brands').select('*').eq('id', brandId).single()
+    // Scope to owner (review S3): brands RLS may be off in prod — never fetch by bare id.
+    const { data: brand } = await supabase.from('brands').select('*').eq('id', brandId).eq('user_id', user.id).single()
     if (brand) {
       brandName = brand.name
       logoUrl = brand.logo_file_url ?? brand.logo_url

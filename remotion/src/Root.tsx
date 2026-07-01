@@ -132,8 +132,15 @@ export const RemotionRoot: React.FC = () => {
       height={1080}
       durationInFrames={90}
       calculateMetadata={async ({ props }) => {
-        // Load the generated infographic.json (scenes + structured metrics +
-        // narration produced by the infographic generator from extracted data).
+        // Real render payloads are passed via --props (per-video props file) and
+        // always carry per-scene audio — use them directly, NEVER the shared
+        // infographic.json (concurrent renders clobbered it: video A rendered
+        // video B's content). The staticFile fetch remains only for the legacy
+        // generator/studio workflow, whose defaultProps have no audio.
+        const passedInfo = props as InfographicProps
+        if (Array.isArray(passedInfo?.scenes) && passedInfo.scenes.some((s: any) => s?.audio)) {
+          return { props, durationInFrames: infoTotal(props), fps: FPS, width: 1920, height: 1080 }
+        }
         try {
           const res = await fetch(staticFile('infographic.json'))
           if (res.ok) {
@@ -184,8 +191,17 @@ export const RemotionRoot: React.FC = () => {
       height={1080}
       durationInFrames={90}
       calculateMetadata={async ({ props }) => {
-        // Load the generated v3.json (script + images + narration produced by
-        // scripts/generate-v3.mjs from a source topic).
+        // Real render payloads are passed via --props (per-video props file) and
+        // always carry per-scene audio — use them directly, NEVER the shared
+        // v3.json, which concurrent renders clobbered (video A rendered video
+        // B's content) and whose silent fetch-failure rendered the "Run the
+        // generator first" placeholder as a completed video. The staticFile
+        // fetch remains only for the legacy scripts/generate-v3.mjs workflow —
+        // its defaultProps placeholder scene has no audio, so it never matches.
+        const passedV3 = props as V3Props
+        if (Array.isArray(passedV3?.scenes) && passedV3.scenes.some((s: any) => s?.audio)) {
+          return { props, durationInFrames: v3Total(props), fps: FPS, width: 1920, height: 1080 }
+        }
         try {
           const res = await fetch(staticFile('v3.json'))
           if (res.ok) {

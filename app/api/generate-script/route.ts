@@ -33,12 +33,13 @@ interface ScriptBody {
 }
 
 // Resolve brand details (shared by both paths).
-async function resolveBrand(supabase: any, brandId: string | null) {
+async function resolveBrand(supabase: any, brandId: string | null, userId: string) {
   let brandName: string | null = null
   let brandTone: string | undefined
   let colors = { primary: '#1B365D', secondary: '#4A90D9', accent: '#FFB347', background: '#0a1628', text: '#FFFFFF' }
   if (brandId) {
-    const { data: brand } = await supabase.from('brands').select('*').eq('id', brandId).single()
+    // Scope to owner (review S3): brands RLS may be off in prod — never fetch by bare id.
+    const { data: brand } = await supabase.from('brands').select('*').eq('id', brandId).eq('user_id', userId).single()
     if (brand) {
       brandName = brand.name
       brandTone = (brand as any).tone ?? undefined
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
 
   const body = await request.json() as ScriptBody
   const { videoId, policyData, brandId, detailed, detailLevel, narrationStyle, voiceId, contactInfo, purpose, uploadMode, industry, classification } = body
-  const { brandName, brandTone, colors } = await resolveBrand(supabase, brandId)
+  const { brandName, brandTone, colors } = await resolveBrand(supabase, brandId, user.id)
   const classificationData = classification ?? (policyData as any)?.classification ?? null
 
   // ── BACKGROUND path (wizard: we have a draft row to write results to) ──

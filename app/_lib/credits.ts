@@ -517,18 +517,41 @@ export async function addTopupCredits(
  */
 export async function refundVideoCredits(userId: string, amount: number, videoId: string): Promise<void> {
   if (!amount || amount <= 0 || !videoId) return
-  // ATOMIC + idempotent (audit H4): the refund row uses action='refund_video',
-  // which has a UNIQUE(user_id, video_id) index, and the idempotency key gates
-  // duplicate inserts. Two concurrent failure handlers for the same video → one
-  // refund. (Was a check-then-act SELECT→addTopup race that double-refunded.)
+  const admin = createAdminClient()
+
+  // Per-CHARGE idempotency, not per-video-forever (review B4): videos are
+  // retryable — each retry deducts again, so a once-per-video key silently
+  // swallowed the SECOND legitimate refund and the user lost that charge.
+  // Charge sequence = count of deduction ledger rows for this video. Two
+  // concurrent failure handlers for the SAME charge compute the same seq →
+  // same key → the atomic RPC applies exactly one refund. A later retry adds a
+  // deduction row → seq+1 → a fresh key.
+  let seq = 1
+  try {
+    const { count } = await admin
+      .from('credit_transactions')
+      .select('id', { count: 'exact', head: true })
+      .eq('video_id', videoId)
+      .eq('action', 'video_generation')
+    if (count && count > 1) seq = count
+  } catch { /* default to charge #1 */ }
+
   const applied = await addTopupCredits(userId, amount, `refund:video:${videoId}`, {
-    action: 'refund_video',
+    // The FIRST refund keeps action='refund_video' (guarded by the
+    // UNIQUE(user_id, video_id) WHERE action='refund_video' index). Retry
+    // refunds MUST use a different action or that index rejects the insert.
+    action: seq === 1 ? 'refund_video' : 'refund_video_retry',
     videoId,
-    idempotencyKey: `refund:video:${videoId}`,
+    idempotencyKey: seq === 1 ? `refund:video:${videoId}` : `refund:video:${videoId}:${seq}`,
   })
   if (!applied) {
-    console.log(`[credits] Skipping duplicate refund for video ${videoId} (already refunded)`)
+    console.log(`[credits] Skipping duplicate refund for video ${videoId} charge #${seq} (already refunded)`)
   }
+  // Zero the outstanding-charge marker either way (review B1): "status='failed'
+  // AND deducted_cost>0" now always means charged-but-not-yet-refunded, which
+  // is exactly what the fix-stuck-videos cron sweeps. A re-charge on retry
+  // re-sets deducted_cost in generate-video.
+  await admin.from('videos').update({ deducted_cost: 0 }).eq('id', videoId)
 }
 
 export async function getUsageHistory(userId: string, limit: number = 50) {

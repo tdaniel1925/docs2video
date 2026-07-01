@@ -14,7 +14,9 @@ export const runtime = 'nodejs'
 export const maxDuration = 800
 
 const VIDEO_ASSEMBLY_URL = videoServiceUrl()
-const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || 'docs2video-assembly-secret-2026').trim().replace(/[\r\n]/g, '')
+// No committed fallback secret (review S1) — an unset env now fails the VPS
+// call loudly instead of silently using a publicly-known value.
+const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
 async function verifyAdmin() {
   const supabase = await createClient()

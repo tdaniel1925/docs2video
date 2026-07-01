@@ -92,7 +92,9 @@ export async function POST(request: Request) {
   const admin = createAdminClient()
 
   // Load brand
-  const { data: brand } = await admin.from('brands').select('*').eq('id', brandId).single()
+  // Scope to owner (review S3): brands RLS may be off in prod — never fetch by bare id.
+  // Extra important here: this uses the ADMIN client, which bypasses RLS entirely.
+  const { data: brand } = await admin.from('brands').select('*').eq('id', brandId).eq('user_id', user.id).single()
   if (!brand) return NextResponse.json({ error: 'Brand not found' }, { status: 404 })
 
   const colors = {

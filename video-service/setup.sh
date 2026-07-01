@@ -17,9 +17,10 @@ cd /opt/docs2video-assembler
 npm install
 
 # Create environment file
+# No committed secrets (review S1) — fill these in on the server.
 cat > .env << 'EOF'
 PORT=4000
-API_SECRET=docs2video-assembly-secret-2026
+API_SECRET=REPLACE_WITH_A_LONG_RANDOM_SECRET
 SUPABASE_URL=https://izccljcgxsbumgsznndd.supabase.co
 SUPABASE_SERVICE_KEY=YOUR_SERVICE_ROLE_KEY_HERE
 EOF

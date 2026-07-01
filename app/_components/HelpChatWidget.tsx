@@ -1,6 +1,18 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import DOMPurify from 'dompurify'
+
+// Sanitize assistant HTML before injection (review S4): the prompt asks the
+// model for p/strong/ul/ol/li/a only, but model output is NOT a security
+// boundary — a jailbroken/echoed <img onerror> would be XSS. Enforce the
+// allowlist here, where it can't be talked out of it.
+const sanitize = (html: string) =>
+  DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'strong', 'em', 'ul', 'ol', 'li', 'a', 'br', 'b', 'i'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+    ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|\/)/i,
+  })
 
 interface Message {
   role: 'user' | 'assistant'
@@ -157,8 +169,9 @@ export default function HelpChatWidget() {
                     ...(msg.role === 'user' ? { whiteSpace: 'pre-wrap' as const } : {}),
                   }}
                   // Assistant replies are HTML from our own constrained prompt
-                  // (p/strong/ul/ol/li/a only). User text stays escaped.
-                  {...(msg.role === 'assistant' ? { dangerouslySetInnerHTML: { __html: msg.content } } : {})}
+                  // (p/strong/ul/ol/li/a only) — sanitized through DOMPurify
+                  // regardless (review S4). User text stays escaped.
+                  {...(msg.role === 'assistant' ? { dangerouslySetInnerHTML: { __html: sanitize(msg.content) } } : {})}
                 >
                   {msg.role === 'assistant' ? undefined : msg.content}
                 </div>

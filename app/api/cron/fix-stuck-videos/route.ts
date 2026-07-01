@@ -56,6 +56,28 @@ export async function GET(request: Request) {
     }
   } catch { /* non-fatal — continue to video reconciliation */ }
 
+  // VPS-side failures (review B1): the VPS writes status='failed' ITSELF after
+  // its early ACK, so those rows never match the in-progress filter below — yet
+  // the user was told "your credits were refunded" and nothing ever refunded.
+  // refundVideoCredits zeroes deducted_cost after refunding, so a failed row
+  // with deducted_cost>0 always means charged-but-not-refunded. Sweep those.
+  // (created_at buffer lets an in-flight failAndRefund finish first; the refund
+  // itself is idempotent per-charge, so overlap is harmless.)
+  let refundedFailed = 0
+  try {
+    const { data: failedCharged } = await admin
+      .from('videos')
+      .select('id, user_id, deducted_cost')
+      .eq('status', 'failed')
+      .gt('deducted_cost', 0)
+      .lt('created_at', fiveMinAgo)
+      .limit(25)
+    for (const v of failedCharged || []) {
+      await refundVideoCredits(v.user_id, v.deducted_cost, v.id)
+      refundedFailed++
+    }
+  } catch { /* non-fatal — next run retries */ }
+
   const { data: stuckVideos } = await admin
     .from('videos')
     .select('id, user_id, title, status, created_at, progress_updated_at, deducted_cost, creatomate_render_id, slide_urls, thumbnail_url')
@@ -64,7 +86,7 @@ export async function GET(request: Request) {
     .limit(25)
 
   if (!stuckVideos || stuckVideos.length === 0) {
-    return NextResponse.json({ fixed: 0, failed: 0, recovered: 0, checked: 0, scriptsFailed })
+    return NextResponse.json({ fixed: 0, failed: 0, recovered: 0, checked: 0, scriptsFailed, refundedFailed })
   }
 
   let fixed = 0, failed = 0, recovered = 0
@@ -163,5 +185,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ fixed, failed, recovered, checked: stuckVideos.length, scriptsFailed })
+  return NextResponse.json({ fixed, failed, recovered, checked: stuckVideos.length, scriptsFailed, refundedFailed })
 }

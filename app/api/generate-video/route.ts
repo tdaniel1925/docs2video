@@ -245,6 +245,12 @@ export async function POST(request: Request) {
       .from('videos')
       .update({ status: 'scripting', progress_updated_at: new Date().toISOString() })
       .eq('id', videoId)
+      // OWNERSHIP (review B5): the claim must belong to the requesting user
+      // (or the internally-impersonated user). Without this, a request naming
+      // someone ELSE's videoId claimed their row — and a later failure could
+      // refund one charge into two different wallets (failAndRefund refunds the
+      // requester; the stuck-video cron refunds the row's user_id).
+      .eq('user_id', user.id)
       .in('status', ['draft', 'failed', 'pending'])
       .select('id')
     if (!claimed || claimed.length === 0) {
@@ -357,7 +363,10 @@ export async function POST(request: Request) {
 
   let brand: Brand | null = null
   if (brandId) {
-    const { data } = await db.from('brands').select('*').eq('id', brandId).single()
+    // Scope to the requesting user (review S3): without this, any user could
+    // read any brand by id (contact info, logos) and render under a stolen
+    // brand identity — defense-in-depth alongside the brands RLS policy.
+    const { data } = await db.from('brands').select('*').eq('id', brandId).eq('user_id', user.id).single()
     brand = data as Brand | null
   }
 
@@ -522,7 +531,16 @@ export async function POST(request: Request) {
         }
       }
 
-      await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script ready', progress_pct: 15, prompt_versions: { ...DEFAULT_PROMPT_VERSIONS } }).eq('id', videoId)
+      // prompt_versions is written SEPARATELY and best-effort (review B6): the
+      // column's migration was never run in prod, and bundling it here made the
+      // WHOLE update 400 silently — script never persisted, row stuck at
+      // 'scripting'. The critical persist below is error-checked.
+      {
+        const { error: persistErr } = await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script ready', progress_pct: 15 }).eq('id', videoId)
+        if (persistErr) throw new Error(`Failed to persist script: ${persistErr.message}`)
+        admin.from('videos').update({ prompt_versions: { ...DEFAULT_PROMPT_VERSIONS } }).eq('id', videoId)
+          .then(({ error }) => { if (error) console.warn(`[video ${videoId}] prompt_versions write skipped (column missing?):`, error.message) })
+      }
     } else {
       console.log(`[video ${videoId}] Generating script...`)
       await admin.from('videos').update({ status: 'scripting', progress_detail: 'Writing your script...', progress_pct: 5 }).eq('id', videoId)
@@ -556,7 +574,14 @@ export async function POST(request: Request) {
 
       // Narration stays original here — formatForTTS applied only when building VPS payload
 
-      await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15, prompt_versions: { ...DEFAULT_PROMPT_VERSIONS } }).eq('id', videoId)
+      // Same split as above (review B6): critical persist error-checked;
+      // prompt_versions best-effort (its column may not exist in prod).
+      {
+        const { error: persistErr } = await admin.from('videos').update({ script: scenes, status: 'generating_audio', progress_detail: 'Script complete', progress_pct: 15 }).eq('id', videoId)
+        if (persistErr) throw new Error(`Failed to persist script: ${persistErr.message}`)
+        admin.from('videos').update({ prompt_versions: { ...DEFAULT_PROMPT_VERSIONS } }).eq('id', videoId)
+          .then(({ error }) => { if (error) console.warn(`[video ${videoId}] prompt_versions write skipped (column missing?):`, error.message) })
+      }
     }
 
     // Save script revision

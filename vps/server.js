@@ -2,7 +2,7 @@ const express = require('express')
 const { execFile } = require('child_process')
 const { writeFile, mkdir, rm, readFile } = require('fs/promises')
 const { join } = require('path')
-const { randomUUID } = require('crypto')
+const { randomUUID, timingSafeEqual } = require('crypto')
 const { tmpdir } = require('os')
 const { createClient } = require('@supabase/supabase-js')
 const WebSocket = require('ws')
@@ -11,7 +11,13 @@ const app = express()
 app.use(express.json({ limit: '200mb' }))
 
 const PORT = process.env.PORT || 4000
-const API_SECRET = process.env.API_SECRET || 'docs2video-assembly-secret-2026'
+// FAIL CLOSED: no committed fallback secret (review S1). A publicly-known
+// fallback meant a missing env var silently opened every privileged endpoint.
+const API_SECRET = process.env.API_SECRET
+if (!API_SECRET) {
+  console.error('FATAL: API_SECRET env var is required — refusing to start.')
+  process.exit(1)
+}
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
@@ -35,10 +41,12 @@ async function reportError({ source, videoId, userId, stage, message, detail }) 
   }
 }
 
-// Auth middleware
+// Auth middleware — constant-time compare (review S2: `!==` short-circuits on
+// the first differing byte, leaking a timing side-channel on the shared secret).
+const SECRET_BUF = Buffer.from(API_SECRET)
 function authCheck(req, res, next) {
-  const token = req.headers['x-api-secret']
-  if (token !== API_SECRET) {
+  const token = Buffer.from(String(req.headers['x-api-secret'] || ''))
+  if (token.length !== SECRET_BUF.length || !timingSafeEqual(token, SECRET_BUF)) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
   next()
@@ -90,7 +98,7 @@ app.post('/selftest', authCheck, async (req, res) => {
   await time('gemini', async () => {
     if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not set')
     const { GoogleGenAI } = require('@google/genai')
-    const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+    const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 120000 } })
     const r = await g.models.generateContent({
       model: 'gemini-3-pro-image-preview',
       contents: [{ role: 'user', parts: [{ text: 'A simple abstract corporate background, navy blue, 16:9. No text.' }] }],
@@ -766,7 +774,7 @@ app.post('/extract-document', authCheck, async (req, res) => {
 
     // 2) Gemini structures the text into ExtractedData.
     const { GoogleGenAI } = require('@google/genai')
-    const genai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+    const genai = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 120000 } })
     const prompt = `You are extracting the key content of a document so it can become an explainer video.${purpose ? ` The user's purpose: "${purpose}".` : ''}
 Return ONLY valid JSON (no markdown, no code fences) with this exact shape:
 {
@@ -937,10 +945,22 @@ function speakable(text) {
 
 async function ttsToBuffer(text, voiceId) {
   const spoken = speakable(text) || ' '
-  // PRIMARY: ElevenLabs.
+  // PRIMARY: ElevenLabs — retry once with backoff before falling back (review
+  // B7: parallel scene fan-out can trip the plan's concurrency limit with a
+  // transient 429; without the retry each such scene silently ships with the
+  // OpenAI fallback voice → ONE video with two alternating narrators).
   if (ELEVEN_API_KEY) {
-    try { return await elevenSpeak(spoken) }
-    catch (e) { console.warn(`[tts] ElevenLabs failed, falling back to OpenAI: ${e.message}`) }
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try { return await elevenSpeak(spoken) }
+      catch (e) {
+        if (attempt === 1) {
+          console.warn(`[tts] ElevenLabs attempt 1 failed (${e.message}) — retrying in 1.5s`)
+          await new Promise((r) => setTimeout(r, 1500))
+        } else {
+          console.warn(`[tts] ElevenLabs failed twice, falling back to OpenAI: ${e.message}`)
+        }
+      }
+    }
   }
   // FALLBACK: OpenAI TTS-HD (honors the user's selected voice).
   const OpenAI = require('openai')
@@ -957,6 +977,31 @@ async function v3Tts(text, voiceId, outPath) {
   // Small 0.4s tail (was 0.9s) so the slide advances soon after the voice stops
   // — the longer tail read as "audio ended but the slide is still up."
   return Math.round(((dur || 3) + 0.4) * 30)
+}
+
+// Tiny concurrency limiter. TTS calls in the parallel asset fan-out go through
+// a pool of 3 (review B7) so a many-scene video can't blow past ElevenLabs'
+// concurrent-request limit; Gemini image calls keep full fan-out (they retry).
+function makeLimiter(max) {
+  let active = 0
+  const queue = []
+  const drain = () => { active--; if (queue.length) queue.shift()() }
+  return (fn) => new Promise((resolve, reject) => {
+    const run = () => { active++; fn().then((v) => { drain(); resolve(v) }, (e) => { drain(); reject(e) }) }
+    if (active < max) run(); else queue.push(run)
+  })
+}
+const ttsLimit = makeLimiter(3)
+
+// ONE Remotion render at a time (review B9). Each render spawns Chrome at
+// --concurrency=12; two overlapping client renders = 24 tabs on a box that
+// crashed at 16. Jobs are already async-ACKed, so queueing is invisible to the
+// app — the second job just starts when the first's Chrome fleet exits.
+let renderQueueTail = Promise.resolve()
+function withRenderSlot(fn) {
+  const result = renderQueueTail.then(fn)
+  renderQueueTail = result.then(() => {}, () => {}) // keep the chain unbroken on failure
+  return result
 }
 
 // Minimum on-screen hold so a SHORT narration can't produce a flash-by slide
@@ -977,7 +1022,7 @@ async function artDirectScenes(scenes) {
   const fallback = scenes.map((s) => `A real, professional business scene clearly illustrating: "${(s.title || s.narration || 'business concept').slice(0, 160)}".`)
   try {
     const { GoogleGenAI } = require('@google/genai')
-    const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+    const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 120000 } })
     const brief = scenes.map((s, i) => `${i}: ${s.title || ''} — ${(s.narration || '').slice(0, 160)}`).join('\n')
     const sys = `You are a cinematographer for a PREMIUM, high-end corporate explainer video with a RICH, MOODY, cinematic look (think Apple/Bloomberg commercial). For each numbered scene, write ONE specific, photographic image prompt describing a real ON-TOPIC business scene: subject, modern setting, dramatic expensive-looking lighting, deep controlled shadows, confident composition, strong sense of place. Sophisticated and modern — NOT bright flat stock photography, NOT cheesy stock smiles, NOT vintage/candlelit/sad. Be specific and editorial to avoid generic-stock clichés. No text/logos in the image. Return ONLY a JSON array of strings, one per scene, same order.`
     const r = await g.models.generateContent({
@@ -1014,7 +1059,7 @@ async function grabPoster(videoFile, outPath, seekSeconds = 3.2) {
 
 async function v3GeminiBg(prompt, outPath) {
   const { GoogleGenAI } = require('@google/genai')
-  const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+  const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 120000 } })
   for (let a = 1; a <= 3; a++) {
     try {
       const r = await g.models.generateContent({
@@ -1061,7 +1106,7 @@ function v3Theme(brandAccents) {
 }
 
 app.post('/render-v3', authCheck, async (req, res) => {
-  const { videoId, userId, voiceId, theme, brandName, brandAccents, logo, scenes, contactLine, contact, closingValue, musicUrl, musicPrompt, aiMusic, presenter, photoPlacement, frame } = req.body || {}
+  const { videoId, userId, voiceId, theme, brandName, brandAccents, logo, scenes, contactLine, contact, closingValue, musicUrl, musicPrompt, aiMusic, presenter, photoPlacement, frame, industry } = req.body || {}
   if (!videoId || !Array.isArray(scenes) || scenes.length === 0) {
     return res.status(400).json({ error: 'Missing videoId or scenes' })
   }
@@ -1091,7 +1136,12 @@ app.post('/render-v3', authCheck, async (req, res) => {
   // Gemini images (cohesive + ~$0). Still the V3Video composition.
   const isAurora = theme === 'aurora'
   const COMP = isInfo ? 'InfographicVideo' : 'V3Video'
-  const PROPS = join(pub, isInfo ? 'infographic.json' : 'v3.json')
+  // PER-VIDEO props file (review B2). The old shared v3.json/infographic.json
+  // meant two concurrent renders clobbered each other — video A rendered video
+  // B's content — and a silent staticFile fetch failure rendered the
+  // placeholder defaultProps as a "completed" video. The render now passes
+  // --props explicitly (like editorial), so it never depends on that fetch.
+  const PROPS = join(pub, `r3-${videoId}-props.json`)
 
   try {
     await mkdir(pub, { recursive: true })
@@ -1126,12 +1176,17 @@ app.post('/render-v3', authCheck, async (req, res) => {
     // independent (per-index filenames), so fan them out and pay ~max not ~sum.
     // The heavy compute stays; only the waiting overlaps. The assembly loop below
     // is unchanged CPU work that reads these pre-computed results.
-    const assets = await Promise.all(scenes.map(async (s, i) => {
+    // allSettled, NOT all (review B8): with .all, one TTS rejection rejected the
+    // fan-out immediately, the catch's cleanup ran, and the still-running sibling
+    // promises wrote their files AFTER cleanup — orphaned assets accumulated in
+    // public/ forever (slowing every future bundle). Settle everything first,
+    // THEN fail if any scene failed. TTS goes through a pool of 3 (review B7).
+    const settled = await Promise.allSettled(scenes.map(async (s, i) => {
       const audioName = `r3-${videoId}-${i}.mp3`
       const imgName = `r3-${videoId}-${i}.png`
       const wantImg = !isInfo && !isAurora
       const [durRaw, haveImg] = await Promise.all([
-        v3Tts(s.narration || s.title || ' ', voiceId, join(pub, audioName)),
+        ttsLimit(() => v3Tts(s.narration || s.title || ' ', voiceId, join(pub, audioName))),
         (async () => {
           if (!wantImg) return false
           const imgPrompt = artPrompts[i] || `A real, professional business scene clearly illustrating: "${(s.title || s.narration || 'business concept').slice(0, 180)}".`
@@ -1141,6 +1196,9 @@ app.post('/render-v3', authCheck, async (req, res) => {
       ])
       return { audioName, imgName, durationInFrames: floorDuration(durRaw, i === 0), haveImg }
     }))
+    const assetFailure = settled.find((r) => r.status === 'rejected')
+    if (assetFailure) throw assetFailure.reason
+    const assets = settled.map((r) => r.value)
     // Live filmstrip previews (best-effort, cheap) — after assets exist.
     for (let i = 0; i < assets.length; i++) { if (assets[i].haveImg) await pushPreview(i, join(pub, assets[i].imgName)) }
     await setProgress(70, 'Composing scenes...')
@@ -1238,16 +1296,20 @@ app.post('/render-v3', authCheck, async (req, res) => {
 
     // Stream Remotion's frame progress so the bar moves during the long render
     // (otherwise it parks at 72% for minutes). Map rendered-frames -> 72..89%.
-    await new Promise((resolve, reject) => {
+    // withRenderSlot: ONE render's Chrome fleet at a time (review B9).
+    await withRenderSlot(() => new Promise((resolve, reject) => {
       const { spawn } = require('child_process')
       // --concurrency=12: ONE Chrome tab per worker. --concurrency=100% on the
       // 16-core box opened 16 tabs and crashed Chrome mid-render (WebSocket died /
       // exit 1) — too many concurrent browsers for the box's /dev/shm + RAM. 8 is
       // still fast on 16 cores and stays well within memory.
+      // --props: pass the per-video props explicitly (review B2) — never rely on
+      // the composition's staticFile fetch, which can silently fall back to the
+      // "Run the generator first" placeholder defaultProps.
       // --gl=swiftshader is the reliable headless GL backend in Docker;
       // --image-format=jpeg speeds frame capture with no visible loss;
       // --disable-web-security avoids cross-origin asset stalls.
-      const child = spawn('npx', ['remotion', 'render', COMP, outFile,
+      const child = spawn('npx', ['remotion', 'render', COMP, outFile, `--props=${PROPS}`,
         '--log=info', '--concurrency=12', '--gl=swiftshader', '--image-format=jpeg'],
         { cwd: REMOTION_DIR, env: { ...process.env } })
       let stderrBuf = ''
@@ -1279,7 +1341,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
         clearTimeout(killTimer)
         code === 0 ? resolve() : reject(new Error(`remotion render exit ${code}: ${stderrBuf.slice(-300)}`))
       })
-    })
+    }))
 
     // Background music (item 3): get a music file (provided URL or Lyria-gen),
     // then ffmpeg-mix it UNDER the narration at low volume. Best-effort — on any
@@ -1297,7 +1359,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
           // pipeline (lyria-3-pro-preview, contents as a string). The earlier
           // 'models/lyria-002' id was wrong → silent failure → no music.
           const { GoogleGenAI } = require('@google/genai')
-          const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+          const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 120000 } })
           const mPrompt = musicPrompt || 'Create background music. Instrumental only, no vocals. Upbeat, polished, modern corporate presentation music — piano, light synth, soft percussion. Fade out at the end.'
           console.log(`[render-v3 ${videoId}] generating music (lyria-3-pro-preview)...`)
           const mr = await g.models.generateContent({ model: 'lyria-3-pro-preview', contents: mPrompt }).catch((e) => { console.error(`[render-v3 ${videoId}] lyria error: ${e.message}`); return null })
@@ -1472,13 +1534,16 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     // paid ~6×(TTS + ~16s Gemini) back-to-back — the bulk of the pre-render
     // wall-clock. They're independent (per-index filenames), so fan them out and
     // pay ~max instead of ~sum. Order is preserved via the indexed array.
+    // allSettled, NOT all (review B8): settle every scene's assets before
+    // failing so a single TTS rejection can't race the catch's cleanup and leave
+    // sibling-written files orphaned in public/. TTS pooled at 3 (review B7).
     let assetsDone = 0
-    const out = await Promise.all(scenes.map(async (s, i) => {
+    const outSettled = await Promise.allSettled(scenes.map(async (s, i) => {
       const audioName = `ed-${videoId}-${i}.mp3`
       const imgName = `ed-${videoId}-${i}.png`
       const [durRaw, image] = await Promise.all([
         // TTS
-        v3Tts(s.narration || s.title || ' ', voiceId, join(pub, audioName)),
+        ttsLimit(() => v3Tts(s.narration || s.title || ' ', voiceId, join(pub, audioName))),
         // Optional editorial image (best-effort — failure just drops the image)
         (async () => {
           if (!s.wantsImage) return undefined
@@ -1496,6 +1561,9 @@ app.post('/render-editorial', authCheck, async (req, res) => {
         ...(image ? { image } : {}), audio: audioName, durationInFrames,
       }
     }))
+    const edAssetFailure = outSettled.find((r) => r.status === 'rejected')
+    if (edAssetFailure) throw edAssetFailure.reason
+    const out = outSettled.map((r) => r.value)
 
     // Presenter (Person profile): download the headshot into public/ and decide
     // cover/closing placement ('auto' → editorial shows it on both).
@@ -1517,27 +1585,31 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       if (!photoName) { edOnCover = false; edOnClosing = false }
     }
 
-    await writeFile(join(pub, 'editorial.json'), JSON.stringify({
+    // PER-VIDEO props file (review B3): the old shared editorial.json was
+    // clobbered by any concurrent editorial job — video A's page stills showed
+    // video B's content.
+    const edProps = join(pub, `ed-${videoId}-props.json`)
+    await writeFile(edProps, JSON.stringify({
       masthead, runningTitle, brandColor, variant: variant || 'time', scenes: out,
       ...(contactLine ? { contactLine } : {}),
       ...(edPresenter ? { presenter: edPresenter, presenterOnCover: edOnCover, presenterOnClosing: edOnClosing } : {}),
     }))
     await setProgress(72, 'Rendering...')
-    await new Promise((resolve, reject) => {
+    // withRenderSlot: ONE render's Chrome fleet at a time (review B9).
+    await withRenderSlot(() => new Promise((resolve, reject) => {
       const { spawn } = require('child_process')
       // Pass the real props explicitly so the render NEVER depends on a fragile
-      // staticFile('editorial.json') fetch inside calculateMetadata. Without this
-      // the render can fall back to composition defaultProps (the "Run the
-      // editorial generator first" placeholder) while the stills — which DO pass
-      // --props — show the correct pages.
-      const child = spawn('npx', ['remotion', 'render', 'EditorialVideo', outFile, `--props=${join(pub, 'editorial.json')}`, '--log=info', '--concurrency=12', '--gl=swiftshader', '--image-format=jpeg'], { cwd: REMOTION_DIR, env: { ...process.env } })
+      // staticFile fetch inside calculateMetadata. Without this the render can
+      // fall back to composition defaultProps (the "Run the editorial generator
+      // first" placeholder).
+      const child = spawn('npx', ['remotion', 'render', 'EditorialVideo', outFile, `--props=${edProps}`, '--log=info', '--concurrency=12', '--gl=swiftshader', '--image-format=jpeg'], { cwd: REMOTION_DIR, env: { ...process.env } })
       let err = '', lastPct = 72, lastW = 0
       const onChunk = (b) => { const x = b.toString(); err = (err + x).slice(-2000); const m = [...x.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const d = +m[1], tot = +m[2]; if (tot > 0 && d <= tot) { const p = 72 + Math.round((d / tot) * 17); const now = Date.now(); if (p > lastPct && now - lastW > 1500) { lastPct = p; lastW = now; setProgress(p, `Rendering — frame ${d.toLocaleString()} of ${tot.toLocaleString()}`) } } } }
       child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
       const kt = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout (>60min)')) }, 60 * 60 * 1000)
       child.on('error', (e) => { clearTimeout(kt); reject(new Error(`render: ${e.message}`)) })
       child.on('close', (c) => { clearTimeout(kt); c === 0 ? resolve() : reject(new Error(`render exit ${c}: ${err.slice(-300)}`)) })
-    })
+    }))
 
     // Optional music mix (reuses the same Lyria + ffmpeg path as /render-v3).
     if (musicUrl || aiMusic || musicPrompt) {
@@ -1545,7 +1617,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
         await setProgress(88, 'Adding music...')
         const musicPath = join(REMOTION_DIR, 'out', `${videoId}-music.mp3`); let have = false
         if (musicUrl) { const r = await fetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' }); if (r.ok) { await writeFile(musicPath, Buffer.from(await r.arrayBuffer())); have = true } }
-        else { const { GoogleGenAI } = require('@google/genai'); const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY }); const mr = await g.models.generateContent({ model: 'lyria-3-pro-preview', contents: musicPrompt || 'Refined, understated instrumental background music for a premium report. No vocals. Fade out.' }).catch(() => null); const part = mr && (mr.candidates?.[0]?.content?.parts ?? []).find((p) => p.inlineData && (p.inlineData.mimeType?.includes('audio') || p.inlineData.mimeType?.includes('mpeg'))); if (part) { await writeFile(musicPath, Buffer.from(part.inlineData.data, 'base64')); have = true } }
+        else { const { GoogleGenAI } = require('@google/genai'); const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 120000 } }); const mr = await g.models.generateContent({ model: 'lyria-3-pro-preview', contents: musicPrompt || 'Refined, understated instrumental background music for a premium report. No vocals. Fade out.' }).catch(() => null); const part = mr && (mr.candidates?.[0]?.content?.parts ?? []).find((p) => p.inlineData && (p.inlineData.mimeType?.includes('audio') || p.inlineData.mimeType?.includes('mpeg'))); if (part) { await writeFile(musicPath, Buffer.from(part.inlineData.data, 'base64')); have = true } }
         if (have) {
           const mixed = join(REMOTION_DIR, 'out', `${videoId}-mixed.mp4`)
           await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-i', outFile, '-stream_loop', '-1', '-i', musicPath, '-filter_complex', '[0:a]volume=1.0[n];[1:a]volume=0.02,afade=t=in:st=0:d=2[b];[n][b]amix=inputs=2:duration=first:dropout_transition=3[a]', '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', mixed], { timeout: 120000 }, (e) => e ? reject(e) : resolve()))
@@ -1554,35 +1626,27 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       } catch (e) { console.error(`[render-editorial ${videoId}] music skipped: ${e.message}`) }
     }
 
-    // Render a STILL of each page (the framed editorial layout, not just its
-    // photo) so the SLIDES panel shows true, labeled, clickable page thumbnails.
-    // Cheap — single frames. Best-effort: failures just leave that page without a
-    // thumbnail. We sample the MIDDLE frame of each scene (past the page-turn in).
-    // Each still boots its own Chrome, so this WAS serial (one 90s-capped Chrome
-    // per page = minutes for a 6-page report). Run them in a bounded pool (3 at a
-    // time) — parallel enough to slash wall-clock, capped so we don't OOM/crash
-    // Chrome the way full concurrency did.
+    // Page thumbnails for the SLIDES panel: extract the MIDDLE frame of each
+    // scene from the ALREADY-RENDERED MP4 with ffmpeg (review P2). The old
+    // approach spawned `remotion still` per page — a fresh Chrome boot each
+    // (90s-capped), minutes of extra wall-clock for pixel-identical images that
+    // are already in the video. The music mix uses -c:v copy, so the video
+    // stream (and frame timing) is unchanged — extracting from outFile is exact.
     await setProgress(89, 'Rendering page thumbnails...')
-    const midFrames = []
-    { let acc = 0; for (let i = 0; i < out.length; i++) { const dur = out[i].durationInFrames || 0; midFrames[i] = acc + Math.floor(dur / 2); acc += dur } }
-    const oneStill = async (i) => {
-      const stillPath = join(REMOTION_DIR, 'out', `${videoId}-page-${i}.png`)
-      try {
-        await new Promise((resolve, reject) => {
-          const { spawn } = require('child_process')
-          const c = spawn('npx', ['remotion', 'still', 'EditorialVideo', stillPath, `--frame=${midFrames[i]}`, `--props=${join(pub, 'editorial.json')}`, '--gl=swiftshader', '--image-format=png'], { cwd: REMOTION_DIR, env: { ...process.env } })
-          let err = ''
-          c.stderr.on('data', (b) => { err = (err + b.toString()).slice(-500) })
-          const kt = setTimeout(() => { try { c.kill('SIGKILL') } catch {}; reject(new Error('still timeout')) }, 90000)
-          c.on('error', (e) => { clearTimeout(kt); reject(e) })
-          c.on('close', (code) => { clearTimeout(kt); code === 0 ? resolve() : reject(new Error(`still exit ${code}: ${err}`)) })
-        })
-        await pushPreview(i, stillPath)
-      } catch (e) { console.error(`[render-editorial ${videoId}] page-still ${i} failed: ${e.message}`) }
-    }
-    const STILL_POOL = 3
-    for (let start = 0; start < out.length; start += STILL_POOL) {
-      await Promise.all(out.slice(start, start + STILL_POOL).map((_, k) => oneStill(start + k)))
+    {
+      let acc = 0
+      for (let i = 0; i < out.length; i++) {
+        const dur = out[i].durationInFrames || 0
+        const midSec = (acc + Math.floor(dur / 2)) / 30
+        acc += dur
+        const stillPath = join(REMOTION_DIR, 'out', `${videoId}-page-${i}.png`)
+        try {
+          await new Promise((resolve, reject) => execFile('ffmpeg',
+            ['-y', '-ss', midSec.toFixed(3), '-i', outFile, '-frames:v', '1', '-q:v', '2', stillPath],
+            { timeout: 30000 }, (e) => e ? reject(e) : resolve()))
+          await pushPreview(i, stillPath)
+        } catch (e) { console.error(`[render-editorial ${videoId}] page-still ${i} failed: ${e.message}`) }
+      }
     }
 
     await setProgress(92, 'Uploading...')
@@ -1610,7 +1674,9 @@ app.post('/render-editorial', authCheck, async (req, res) => {
   } catch (err) {
     console.error(`[render-editorial ${videoId}] error:`, err.message)
     reportError({ source: 'render-editorial', videoId, userId, message: err.message }).catch(() => {})
-    await sb.from('videos').update({ status: 'failed', error_message: 'Video rendering failed. Your credits were refunded.', progress_detail: null }).eq('id', videoId).then(() => {}, () => {})
+    // Keep the diagnostic in progress_detail (same as render-v3) so failures
+    // are diagnosable from the admin without SSH.
+    await sb.from('videos').update({ status: 'failed', error_message: 'Video rendering failed. Your credits were refunded.', progress_detail: `[fail] render-editorial: ${err.message}`.slice(0, 500) }).eq('id', videoId).then(() => {}, () => {})
   } finally {
     try { const { readdir, unlink } = require('fs/promises'); for (const f of await readdir(pub)) if (f.startsWith(`ed-${videoId}-`)) await unlink(join(pub, f)).catch(() => {}); await rm(outFile, { force: true }).catch(() => {}) } catch {}
   }
@@ -1977,7 +2043,7 @@ app.post('/generate', authCheck, async (req, res) => {
       try {
         await updateStatus('assembling', 'Composing background music...', 88)
         const { GoogleGenAI } = require('@google/genai')
-        const genai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+        const genai = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 120000 } })
 
         // Build music prompt based on industry/mood
         const durationMin = Math.floor(totalDurationEst / 60)

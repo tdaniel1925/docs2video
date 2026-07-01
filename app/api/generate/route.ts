@@ -34,7 +34,8 @@ export async function POST(request: Request) {
   // Fetch brand if provided
   let brand: Brand | null = null
   if (brandId) {
-    const { data } = await supabase.from('brands').select('*').eq('id', brandId).single()
+    // Scope to owner (review S3): brands RLS may be off in prod — never fetch by bare id.
+    const { data } = await supabase.from('brands').select('*').eq('id', brandId).eq('user_id', user.id).single()
     brand = data as Brand | null
   }
 
