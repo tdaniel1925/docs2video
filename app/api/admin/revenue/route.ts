@@ -1,19 +1,16 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { getStripe } from '../../../_lib/stripe'
+import { requireAdmin } from '../../../_lib/admin'
+import { getStripe, listAllStripe } from '../../../_lib/stripe'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
 export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  const user = await requireAdmin()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const admin = createAdminClient()
-  const { data: profile } = await admin.from('profiles').select('is_admin').eq('id', user.id).single()
-  if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
     const stripe = getStripe()
@@ -22,11 +19,16 @@ export async function GET() {
     const now = Math.floor(Date.now() / 1000)
     const thirtyDaysAgo = now - (30 * 24 * 60 * 60)
 
-    const [charges, subscriptions, balanceTransactions] = await Promise.all([
-      stripe.charges.list({ created: { gte: thirtyDaysAgo }, limit: 100 }),
-      stripe.subscriptions.list({ status: 'active', limit: 100 }),
-      stripe.balanceTransactions.list({ created: { gte: thirtyDaysAgo }, limit: 100, type: 'charge' }),
+    // Paginated (review P3): a single limit:100 page silently under-reported
+    // revenue/MRR past 100 charges/subscriptions.
+    const [chargeList, subList, btList] = await Promise.all([
+      listAllStripe((p) => stripe.charges.list({ created: { gte: thirtyDaysAgo }, ...p } as any)),
+      listAllStripe((p) => stripe.subscriptions.list({ status: 'active', ...p } as any)),
+      listAllStripe((p) => stripe.balanceTransactions.list({ created: { gte: thirtyDaysAgo }, type: 'charge', ...p } as any)),
     ])
+    const charges = { data: chargeList as any[] }
+    const subscriptions = { data: subList as any[] }
+    const balanceTransactions = { data: btList as any[] }
 
     // Calculate MRR from active subscriptions
     const mrr = subscriptions.data.reduce((sum, sub) => {

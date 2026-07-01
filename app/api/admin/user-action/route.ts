@@ -1,17 +1,13 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { isAdmin , isAdminRequest } from '../../../_lib/admin'
+import { requireAdmin } from '../../../_lib/admin'
 import { logAdminAction } from '../../../_lib/audit'
 import { addTopupCredits, applyTierChange } from '../../../_lib/credits'
 export const maxDuration = 30
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !(await isAdminRequest(user))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
+  const user = await requireAdmin()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const { action, userId, value, reason } = await request.json() as {
     action: 'change_plan' | 'add_credits' | 'reset_credits' | 'toggle_ban'
@@ -29,8 +25,22 @@ export async function POST(request: Request) {
   try {
     switch (action) {
       case 'change_plan': {
-        const plan = (value as string) || null
-        await admin.from('profiles').update({ subscription_status: plan }).eq('id', userId)
+        // Allowlist (review B15): the value is an arbitrary string from the UI
+        // and the prod subscription_status CHECK constraint is a hand-maintained
+        // list (it has rejected values before). An invalid value must fail HERE,
+        // loudly — not leave the flag unchanged while credits are granted anyway.
+        const ALLOWED_PLANS = ['free', 'trial', 'starter', 'pro', 'business', 'agency', 'enterprise']
+        const raw = ((value as string) || '').toLowerCase().trim()
+        const plan = raw === 'free' || raw === '' ? null : raw
+        if (plan && !ALLOWED_PLANS.includes(plan)) {
+          return NextResponse.json({ error: `Invalid plan "${raw}"` }, { status: 400 })
+        }
+        const { error: planErr } = await admin.from('profiles').update({ subscription_status: plan }).eq('id', userId)
+        if (planErr) {
+          // e.g. the CHECK constraint rejected the value — do NOT grant credits
+          // for a plan the user isn't actually on (review B15).
+          return NextResponse.json({ error: `Plan update failed: ${planErr.message}` }, { status: 500 })
+        }
         // Grant the credits that match the new plan. Without this, flipping a user
         // to e.g. 'pro' set the flag but left them on the free 2,000-credit grant
         // (the Angela bug). applyTierChange adds the upgrade delta to match the
@@ -54,11 +64,30 @@ export async function POST(request: Request) {
         // Zero out the REAL wallet only. (Don't touch the dead
         // profiles.credits_remaining column — nothing reads it now that the admin
         // shows the real balance; writing it just re-introduces the drift.)
-        await admin.from('credit_balances').update({
+        // Read the balance first so the ledger row records what was wiped, and
+        // reset cycle_credits_granted (review B16): leaving it at the old tier's
+        // number made a follow-up change_plan compute delta<=0 and grant NOTHING
+        // — the exact Angela-bug recurrence path.
+        const { data: wallet } = await admin.from('credit_balances')
+          .select('balance, topup_balance').eq('user_id', userId).maybeSingle()
+        const wiped = (wallet?.balance ?? 0) + (wallet?.topup_balance ?? 0)
+        const { error: resetErr } = await admin.from('credit_balances').update({
           balance: 0,
           topup_balance: 0,
+          cycle_credits_granted: 0,
           updated_at: new Date().toISOString(),
         }).eq('user_id', userId)
+        if (resetErr) {
+          return NextResponse.json({ error: `Reset failed: ${resetErr.message}` }, { status: 500 })
+        }
+        // Ledger the reset so it's visible in credit history / billing audits.
+        await admin.from('credit_transactions').insert({
+          user_id: userId,
+          amount: -wiped,
+          balance_after: 0,
+          action: 'admin_reset',
+          description: `Admin reset: -${wiped.toLocaleString()} credits${reason ? ` (${reason})` : ''}`,
+        }).then(({ error }) => { if (error) console.warn('[admin] reset ledger failed:', error.message) })
         break
       }
       case 'toggle_ban': {

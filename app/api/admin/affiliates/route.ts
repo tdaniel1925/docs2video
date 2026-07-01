@@ -1,21 +1,13 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { isAdminRequest } from '../../../_lib/admin'
+import { requireAdmin } from '../../../_lib/admin'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-async function verifyAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !(await isAdminRequest(user))) return null
-  return user
-}
-
 /** GET /api/admin/affiliates — affiliates + pending-payout summary. */
 export async function GET() {
-  if (!(await verifyAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  if (!(await requireAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   const admin = createAdminClient()
 
   const { data: affiliates } = await admin
@@ -54,7 +46,7 @@ export async function GET() {
  * { action: 'mark-paid', batch }                       — approved -> paid for a batch label
  */
 export async function POST(request: Request) {
-  if (!(await verifyAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  if (!(await requireAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   const admin = createAdminClient()
   const body = await request.json() as { action: string; affiliateId?: string; status?: string; batch?: string }
 

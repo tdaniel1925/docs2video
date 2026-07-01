@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/app/_lib/supabase/client'
-import { isAdmin } from '@/app/_lib/admin'
+import { isAdmin } from '@/app/_lib/admin-emails'
 import InlineConfirm from '@/app/_components/InlineConfirm'
 import { useToast } from '../../../_components/Toast'
 

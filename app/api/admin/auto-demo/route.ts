@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { isAdmin , isAdminRequest } from '../../../_lib/admin'
+import { requireAdmin } from '../../../_lib/admin'
 import { scrapeBrand } from '../../../_lib/brand-scraper'
 import OpenAI from 'openai'
 import FirecrawlApp from '@mendable/firecrawl-js'
@@ -36,11 +35,8 @@ Return ONLY valid JSON (no markdown, no code fences):
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !(await isAdminRequest(user))) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
+    const user = await requireAdmin()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
     const { urls } = (await request.json()) as { urls: string[] }
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
@@ -211,11 +207,8 @@ export async function POST(request: Request) {
 // DELETE: Remove a demo video
 export async function DELETE(request: Request) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !(await isAdminRequest(user))) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
+    const user = await requireAdmin()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
     const { videoId } = (await request.json()) as { videoId: string }
     if (!videoId) {
@@ -248,11 +241,8 @@ export async function DELETE(request: Request) {
 // GET: List demo videos created by admin
 export async function GET(request: Request) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !(await isAdminRequest(user))) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
+    const user = await requireAdmin()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
     const admin = createAdminClient()
     const { data: demos } = await admin

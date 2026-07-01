@@ -31,6 +31,29 @@ export const VIDEO_PRICE_IDS = {
 }
 
 /**
+ * Drain a Stripe list endpoint past the 100-item page cap (review P3): the
+ * admin billing/revenue/stats reports called `.list({ limit: 100 })` once, so
+ * MRR and revenue silently under-reported as soon as there were >100
+ * subscriptions/charges. Bounded at maxPages as a runaway guard.
+ */
+export async function listAllStripe<T extends { id: string }>(
+  list: (params: Record<string, unknown>) => Promise<{ data: T[]; has_more: boolean }>,
+  params: Record<string, unknown> = {},
+  maxPages = 20,
+): Promise<T[]> {
+  const out: T[] = []
+  let startingAfter: string | undefined
+  for (let page = 0; page < maxPages; page++) {
+    const res = await list({ ...params, limit: 100, ...(startingAfter ? { starting_after: startingAfter } : {}) })
+    out.push(...res.data)
+    if (!res.has_more || res.data.length === 0) return out
+    startingAfter = res.data[res.data.length - 1].id
+  }
+  console.warn(`[stripe] listAllStripe hit the ${maxPages}-page cap (${out.length} items) — results may be truncated`)
+  return out
+}
+
+/**
  * Given a Stripe price ID, return the matching subscription tier.
  * Returns null for an UNKNOWN price id (audit M1) rather than silently
  * downgrading a paying customer to 'free' — callers must handle null (log +

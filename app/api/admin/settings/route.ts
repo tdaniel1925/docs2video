@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
-import { isAdminRequest } from '../../../_lib/admin'
+import { requireAdmin } from '../../../_lib/admin'
 import { getSetting, setSetting, type AppSettingKey } from '../../../_lib/app-settings'
 
 export const runtime = 'nodejs'
@@ -11,9 +10,8 @@ const EDITABLE: AppSettingKey[] = ['video_engine_v3', 'video_render_target', 'vi
 
 /** GET /api/admin/settings → { video_engine_v3: 'true'|'false', ... } */
 export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!(await isAdminRequest(user))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const user = await requireAdmin()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const entries = await Promise.all(EDITABLE.map(async (k) => [k, await getSetting(k)] as const))
   return NextResponse.json(Object.fromEntries(entries))
@@ -21,9 +19,8 @@ export async function GET() {
 
 /** POST /api/admin/settings  { key, value } → persist one whitelisted setting. */
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!(await isAdminRequest(user)) || !user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const user = await requireAdmin()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   let body: { key?: string; value?: unknown }
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }) }

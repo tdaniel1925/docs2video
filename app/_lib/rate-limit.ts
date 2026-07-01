@@ -1,5 +1,43 @@
 // Simple in-memory rate limiter (works for single-instance deployments)
-// For production with multiple instances, use Redis or Upstash
+// For production with multiple instances, use checkRateLimit below.
+
+import { createAdminClient } from './supabase/admin'
+
+/**
+ * Shared, cross-instance rate limiting (review S6). The in-memory limiter
+ * below lives in module scope — on Vercel's serverless model every
+ * instance/cold-start gets a fresh map, so caps like "10 demos/day global"
+ * were illusory on UNAUTHENTICATED spend endpoints (try-demo, capture-lead):
+ * an attacker rotating instances could burn AI/render spend freely.
+ *
+ * Backed by the atomic `rate_limit_hit` Postgres function
+ * (supabase/migrations/20260701_rate_limits.sql). FAILS OPEN when the function
+ * is missing or the DB errors — availability beats strictness on these
+ * endpoints, and prod migrations are applied by hand, so the code must not
+ * hard-depend on it. Logged so the gap is visible until the SQL is run.
+ */
+export async function checkRateLimit(
+  key: string,
+  max: number,
+  windowSecs: number,
+): Promise<{ allowed: boolean }> {
+  try {
+    const admin = createAdminClient()
+    const { data, error } = await admin.rpc('rate_limit_hit', {
+      p_key: key,
+      p_max: max,
+      p_window_secs: windowSecs,
+    })
+    if (error) {
+      console.warn(`[rate-limit] rate_limit_hit unavailable (${error.message}) — failing OPEN for ${key}`)
+      return { allowed: true }
+    }
+    return { allowed: data === true }
+  } catch (e) {
+    console.warn(`[rate-limit] error — failing OPEN for ${key}:`, e instanceof Error ? e.message : e)
+    return { allowed: true }
+  }
+}
 
 const requests = new Map<string, { count: number; resetAt: number }>()
 

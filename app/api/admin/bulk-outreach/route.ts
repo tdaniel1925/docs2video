@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/app/_lib/supabase/admin'
-import { createClient } from '@/app/_lib/supabase/server'
+import { requireAdmin } from '@/app/_lib/admin'
 import { Resend } from 'resend'
 
 export const maxDuration = 300
@@ -62,17 +62,10 @@ function buildEmailHtml(body: string, landingUrl: string, videoUrl: string): str
 export async function POST(req: NextRequest) {
   try {
     // Auth check — admin only
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const user = await requireAdmin()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
     const admin = createAdminClient()
-    const { data: profile } = await admin.from('profiles').select('is_admin').eq('id', user.id).single()
-    if (!profile?.is_admin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-    }
 
     const body = await req.json()
     const { contacts, videoUrl, subjectTemplate, bodyTemplate } = body as {

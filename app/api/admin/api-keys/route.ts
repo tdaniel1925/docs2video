@@ -1,22 +1,14 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { isAdminRequest } from '../../../_lib/admin'
+import { requireAdmin } from '../../../_lib/admin'
 import { generateApiKey, addApiCredits } from '../../../_lib/api-auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-async function verifyAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !(await isAdminRequest(user))) return null
-  return user
-}
-
 /** GET /api/admin/api-keys — list all keys (with owner email + API balance). */
 export async function GET() {
-  if (!(await verifyAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  if (!(await requireAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   const admin = createAdminClient()
 
   const { data: keys } = await admin
@@ -48,7 +40,7 @@ export async function GET() {
  * { action: 'topup', email, amount } → adds credits to the API pool.
  */
 export async function POST(request: Request) {
-  if (!(await verifyAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  if (!(await requireAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   const admin = createAdminClient()
   const body = await request.json() as { action: string; email?: string; name?: string; keyId?: string; amount?: number }
 

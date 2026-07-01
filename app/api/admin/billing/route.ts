@@ -1,20 +1,12 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { isAdminRequest } from '../../../_lib/admin'
-import { getStripe } from '../../../_lib/stripe'
+import { requireAdmin } from '../../../_lib/admin'
+import { getStripe, listAllStripe } from '../../../_lib/stripe'
 import { tierFromPriceId } from '../../../_lib/stripe'
 import type Stripe from 'stripe'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
-
-async function requireAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  return (await isAdminRequest(user)) ? user : null
-}
 
 /**
  * GET /api/admin/billing
@@ -28,7 +20,8 @@ export async function GET() {
   try {
     const stripe = getStripe()
     // Pull all non-terminal subscriptions (active, trialing, past_due, paused).
-    const subs = await stripe.subscriptions.list({ status: 'all', limit: 100, expand: ['data.customer'] })
+    // Paginated (review P3): one limit:100 page under-counted MRR past 100 subs.
+    const subs = { data: await listAllStripe((p) => stripe.subscriptions.list({ status: 'all', expand: ['data.customer'], ...p } as any)) as any[] }
 
     const db = createAdminClient()
     // Map stripe_customer_id -> profile for email/name + app subscription_status.

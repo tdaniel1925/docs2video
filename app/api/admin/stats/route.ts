@@ -1,19 +1,14 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { isAdmin , isAdminRequest } from '../../../_lib/admin'
-import { getStripe } from '../../../_lib/stripe'
+import { requireAdmin } from '../../../_lib/admin'
+import { getStripe, listAllStripe } from '../../../_lib/stripe'
 import { videoServiceUrl } from '../../../_lib/video-service'
 
 export const maxDuration = 30
 
 export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user || !(await isAdminRequest(user))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
+  const user = await requireAdmin()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   try {
     const admin = createAdminClient()
@@ -41,17 +36,18 @@ export async function GET() {
     let activeSubscriptions = 0
     try {
       const stripe = getStripe()
-      // Get active subscriptions for MRR
-      const activeSubs = await stripe.subscriptions.list({ status: 'active', limit: 100 })
-      activeSubscriptions = activeSubs.data.length
-      for (const sub of activeSubs.data) {
+      // Paginated (review P3): one limit:100 page silently under-reported past
+      // 100 subs/charges.
+      const activeSubs = await listAllStripe((p) => stripe.subscriptions.list({ status: 'active', ...p } as any))
+      activeSubscriptions = activeSubs.length
+      for (const sub of activeSubs as any[]) {
         for (const item of sub.items.data) {
           mrr += (item.price?.unit_amount ?? 0) * (item.quantity ?? 1)
         }
       }
       // Get total revenue (last 90 days of successful charges)
-      const charges = await stripe.charges.list({ limit: 100, created: { gte: Math.floor(Date.now() / 1000) - 90 * 86400 } })
-      for (const charge of charges.data) {
+      const charges = await listAllStripe((p) => stripe.charges.list({ created: { gte: Math.floor(Date.now() / 1000) - 90 * 86400 }, ...p } as any))
+      for (const charge of charges as any[]) {
         if (charge.paid && !charge.refunded) totalRevenue += charge.amount
       }
     } catch (stripeErr) {

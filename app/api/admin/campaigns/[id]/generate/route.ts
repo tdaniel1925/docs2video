@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
-import { createClient } from '../../../../../_lib/supabase/server'
 import { createAdminClient } from '../../../../../_lib/supabase/admin'
 import { generateScript } from '../../../../../_lib/script-generator'
 import { generateSlide } from '../../../../../_lib/gemini'
 import { compositeSlide } from '../../../../../_lib/composite'
 import { synthesizeSpeech } from '../../../../../_lib/tts'
 import type { ExtractedData } from '../../../../../_lib/extract-types'
-import { isAdmin , isAdminRequest } from '../../../../../_lib/admin'
+import { requireAdmin } from '../../../../../_lib/admin'
 import { videoServiceUrl } from '../../../../../_lib/video-service'
 
 export const runtime = 'nodejs'
@@ -17,13 +16,6 @@ const VIDEO_ASSEMBLY_URL = videoServiceUrl()
 // No committed fallback secret (review S1) — an unset env now fails the VPS
 // call loudly instead of silently using a publicly-known value.
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
-
-async function verifyAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !(await isAdminRequest(user))) return null
-  return user
-}
 
 function buildCampaignPrompt(contact: { name: string; company?: string; industry?: string }, campaign: { discount_code: string; discount_pct: number; discount_months: number }): string {
   return `You are creating a 60-second personalized marketing video for a prospective customer.
@@ -49,7 +41,7 @@ Keep it under 90 seconds total. Warm, professional, personalized tone.`
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await verifyAdmin()
+  const user = await requireAdmin()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const { id } = await params

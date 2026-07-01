@@ -1,38 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/app/_lib/supabase/admin'
 import { scrapeBrand } from '@/app/_lib/brand-scraper'
+import { checkRateLimit } from '@/app/_lib/rate-limit'
 import crypto from 'crypto'
 
 export const maxDuration = 300
-
-// Simple in-memory rate limiter — 1 per IP per 24 hours
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-// Global daily cap
-let globalDemoCount = 0
-let globalResetAt = Date.now() + 86400000
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now()
-
-  // Reset global counter daily
-  if (now > globalResetAt) {
-    globalDemoCount = 0
-    globalResetAt = now + 86400000
-  }
-  // Global cap: 10 demos per day
-  if (globalDemoCount >= 10) return true
-
-  const entry = rateLimitMap.get(ip)
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + 86400000 }) // 24 hour window
-    globalDemoCount++
-    return false
-  }
-  if (entry.count >= 1) return true // max 1 per IP per 24 hours
-  entry.count++
-  globalDemoCount++
-  return false
-}
 
 function getClientIp(req: NextRequest): string {
   return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -43,7 +15,14 @@ function getClientIp(req: NextRequest): string {
 export async function POST(req: NextRequest) {
   try {
     const ip = getClientIp(req)
-    if (isRateLimited(ip)) {
+    // Durable cross-instance limit (review S6) — in-memory maps reset per serverless instance.
+    // Per-IP: max 1 per 24 hours. Global cap: 10 demos per day. IP is checked
+    // first so an IP-limited request doesn't burn a global slot.
+    const perIp = await checkRateLimit(`try-demo:ip:${ip}`, 1, 86400)
+    const global = perIp.allowed
+      ? await checkRateLimit('try-demo:global:daily', 10, 86400)
+      : { allowed: false }
+    if (!perIp.allowed || !global.allowed) {
       return NextResponse.json(
         { error: 'Rate limit exceeded. Please try again later.' },
         { status: 429 }

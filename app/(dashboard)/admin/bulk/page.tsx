@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../../../_lib/supabase/client'
-import { isAdmin } from '../../../_lib/admin'
+import { isAdmin } from '../../../_lib/admin-emails'
 import Link from 'next/link'
 
 interface BulkItem {

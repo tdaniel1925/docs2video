@@ -1,16 +1,12 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
-import { isAdmin , isAdminRequest } from '../../../_lib/admin'
+import { requireAdmin } from '../../../_lib/admin'
 import { getStripe } from '../../../_lib/stripe'
 export const maxDuration = 30
 
 export async function POST() {
   // Admin only
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !(await isAdminRequest(user))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
+  const user = await requireAdmin()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const stripe = getStripe()
   const results: Record<string, string> = {}

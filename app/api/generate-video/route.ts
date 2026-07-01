@@ -34,7 +34,12 @@ const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL
 if (!VIDEO_ASSEMBLY_URL) console.error('[generate-video] VIDEO_ASSEMBLY_URL env var is not set!')
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
-export const maxDuration = 300
+// 800s (review B10): the Lambda path's asset gen + 12-min poll watchdog ran
+// inside waitUntil, which is still bounded by maxDuration — at 300s an 8-scene
+// Lambda job was routinely killed mid-poll with no failure write (the row sat
+// until the cron force-failed + refunded ~40min later while the MP4 quietly
+// finished in S3). 800 covers asset gen (now parallel) + the 12-min hard cap.
+export const maxDuration = 800
 
 // Format narration for TTS — convert numbers, URLs, emails to spoken words
 function formatForTTS(text: string): string {
@@ -136,6 +141,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
   }
 
+  const body = await request.json()
+
   // --- Credit check ---
   // Use the admin (service-role) client for profile/credit reads on internal
   // calls — there is no session to scope the anon client.
@@ -153,7 +160,12 @@ export async function POST(request: Request) {
   // (admin/beta/internal API) still skip the credit deduction.
   // Internal API calls are already metered against the API credit pool by the
   // /api/v1 layer, so they bypass UI-credit checks here.
-  const isPrivileged = isInternalCall || isAdmin(user.email) || profile?.is_admin === true || profile?.is_beta === true
+  // chargeOwner (review B14): an internal re-trigger can request that the
+  // OWNER be charged normally — the insurance-review flow refunds on hold and
+  // must RE-charge on approval. Without this, every admin-approved held video
+  // rendered free (internal calls skipped the deduction entirely).
+  const internalChargeOwner = isInternalCall && (body as any).chargeOwner === true
+  const isPrivileged = (isInternalCall && !internalChargeOwner) || isAdmin(user.email) || profile?.is_admin === true || profile?.is_beta === true
   const subStatus = (profile?.subscription_status ?? '').toLowerCase()
   const isPaidUser = isPaidTier(subStatus)
 
@@ -178,7 +190,6 @@ export async function POST(request: Request) {
     }
   }
 
-  const body = await request.json()
   const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, styleReferenceUrl, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, narrationStyle, assetUrls, purpose, uploadMode, industry, barText, recipientName, presenterIntro, introduceInOpening, showContactClosing, photoPlacement } = body as {
     videoId: string
     policyData: ExtractedPolicyData | ExtractedData

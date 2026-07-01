@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
-import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { isAdmin , isAdminRequest } from '../../../_lib/admin'
+import { requireAdmin } from '../../../_lib/admin'
 import { generateDemoScript } from '../../../_lib/script-generator'
 import { generateSlide } from '../../../_lib/gemini'
 import { compositeSlide } from '../../../_lib/composite'
@@ -295,11 +294,8 @@ async function runPipeline(prospectId: string, parsedUrl: URL, userId: string) {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !(await isAdminRequest(user))) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
+    const user = await requireAdmin()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
     const body = (await request.json()) as {
       url?: string; urls?: string[]; prospectId?: string; action?: string; regenerateId?: string
@@ -363,11 +359,8 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !(await isAdminRequest(user))) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
+    const user = await requireAdmin()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
     const admin = createAdminClient()
     const { data, error } = await admin

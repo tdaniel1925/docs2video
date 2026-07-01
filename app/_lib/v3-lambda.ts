@@ -86,9 +86,18 @@ async function geminiBg(prompt: string): Promise<Buffer | null> {
  * to ElevenLabs (128kbps mp3) that over-estimated ~5x, so the slide held long
  * after the audio ended. This measures the actual audio length instead.
  */
-function mp3DurationSeconds(buf: Buffer): number {
-  const BR = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320] // MPEG1 L3 kbps
-  const SR = [44100, 48000, 32000]
+export function mp3DurationSeconds(buf: Buffer): number {
+  // Version-aware tables (review B18): the old parser assumed MPEG1 Layer III,
+  // but the OpenAI TTS fallback emits 24kHz MPEG2 — different bitrate table,
+  // half the samples/frame, half the frame-length coefficient. Assuming MPEG1
+  // there mis-measured durations ~2x, so scenes held long past (or cut before)
+  // the audio whenever the fallback voice fired. ElevenLabs (44.1k MPEG1) was
+  // unaffected.
+  const BR_V1 = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320] // MPEG1 L3 kbps
+  const BR_V2 = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160]     // MPEG2/2.5 L3 kbps
+  const SR_V1 = [44100, 48000, 32000]
+  const SR_V2 = [22050, 24000, 16000]
+  const SR_V25 = [11025, 12000, 8000]
   let i = 0, total = 0
   // skip ID3v2 tag if present
   if (buf.length > 10 && buf.toString('ascii', 0, 3) === 'ID3') {
@@ -97,14 +106,21 @@ function mp3DurationSeconds(buf: Buffer): number {
   }
   while (i + 4 <= buf.length) {
     if (buf[i] !== 0xff || (buf[i + 1] & 0xe0) !== 0xe0) { i++; continue } // not a frame sync
+    const verBits = (buf[i + 1] & 0x18) >> 3 // 3=MPEG1, 2=MPEG2, 0=MPEG2.5, 1=reserved
+    if (verBits === 1) { i++; continue }
+    const isV1 = verBits === 3
     const brIdx = (buf[i + 2] & 0xf0) >> 4
     const srIdx = (buf[i + 2] & 0x0c) >> 2
     const pad = (buf[i + 2] & 0x02) >> 1
-    const kbps = BR[brIdx], sr = SR[srIdx]
+    const kbps = (isV1 ? BR_V1 : BR_V2)[brIdx]
+    const sr = (isV1 ? SR_V1 : verBits === 2 ? SR_V2 : SR_V25)[srIdx]
     if (!kbps || !sr) { i++; continue }
-    const frameLen = Math.floor((144 * kbps * 1000) / sr) + pad
+    // Layer III: MPEG1 = 1152 samples/frame (coeff 144); MPEG2/2.5 = 576 (coeff 72).
+    const coeff = isV1 ? 144 : 72
+    const samples = isV1 ? 1152 : 576
+    const frameLen = Math.floor((coeff * kbps * 1000) / sr) + pad
     if (frameLen < 1) { i++; continue }
-    total += 1152 / sr // MPEG1 L3 = 1152 samples/frame
+    total += samples / sr
     i += frameLen
   }
   return total
@@ -122,6 +138,19 @@ async function uploadPublic(admin: any, path: string, buf: Buffer, contentType: 
   await admin.storage.from(BUCKET).upload(path, new Uint8Array(buf), { contentType, upsert: true })
   return admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl
 }
+
+// Tiny concurrency limiter (same pattern as the VPS): TTS through a pool of 3
+// so a many-scene video can't blow past ElevenLabs' concurrent-request limit.
+function makeLimiter(max: number) {
+  let active = 0
+  const queue: Array<() => void> = []
+  const drain = () => { active--; if (queue.length) queue.shift()!() }
+  return <T>(fn: () => Promise<T>) => new Promise<T>((resolve, reject) => {
+    const run = () => { active++; fn().then((v) => { drain(); resolve(v) }, (e) => { drain(); reject(e) }) }
+    if (active < max) run(); else queue.push(run)
+  })
+}
+const ttsLimit = makeLimiter(3)
 
 /**
  * Render a V3 video on Lambda. Builds inputProps with public asset URLs, kicks
@@ -142,24 +171,30 @@ export async function renderV3OnLambda(payload: V3Payload): Promise<void> {
   const artPrompts = await artDirectScenes(payload.scenes.map((s) => ({ title: s.title, narration: s.narration })))
 
   // 1) Build scenes with PUBLIC asset URLs (Lambda fetches these over HTTP).
+  // ALL scenes' slow assets (TTS + Gemini image + uploads) run IN PARALLEL
+  // (review B10) — the serial loop was ~20-30s per scene back-to-back, which is
+  // why 8-scene Lambda jobs outlived the Vercel function. allSettled so one
+  // failure can't strand sibling work mid-flight; TTS pooled at 3 (same
+  // ElevenLabs-concurrency reasoning as the VPS path).
   const previews: { idx: number; url: string }[] = []
-  const outScenes: any[] = []
-  for (let i = 0; i < payload.scenes.length; i++) {
-    const s = payload.scenes[i]
-    const audioBuf = await tts(s.narration || s.title || ' ', voiceId)
+  let assetsDone = 0
+  const settled = await Promise.allSettled(payload.scenes.map(async (s, i) => {
+    const audioBuf = await ttsLimit(() => tts(s.narration || s.title || ' ', voiceId))
     const durationInFrames = estimateFrames(audioBuf)
-    const audioUrl = await uploadPublic(admin, `${userId}/${videoId}_a${i}.mp3`, audioBuf, 'audio/mpeg')
-
-    await setProgress(30 + Math.round((i / payload.scenes.length) * 40), `Painting scene ${i + 1}/${payload.scenes.length}...`)
-    // Use the art-directed per-scene prompt (cinematographer step).
-    const imgPrompt = artPrompts[i] || `A real, professional business scene clearly illustrating: "${(s.title || s.narration || 'business concept').slice(0, 180)}".`
-    const imgBuf = await geminiBg(imgPrompt)
-    let imageUrl: string | undefined
-    if (imgBuf) {
-      imageUrl = await uploadPublic(admin, `${userId}/${videoId}_s${i}.png`, imgBuf, 'image/png')
-      previews.push({ idx: i, url: imageUrl })
-      await admin.from('videos').update({ preview_thumbs: previews, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
-    }
+    const [audioUrl, imageUrl] = await Promise.all([
+      uploadPublic(admin, `${userId}/${videoId}_a${i}.mp3`, audioBuf, 'audio/mpeg'),
+      (async (): Promise<string | undefined> => {
+        const imgPrompt = artPrompts[i] || `A real, professional business scene clearly illustrating: "${(s.title || s.narration || 'business concept').slice(0, 180)}".`
+        const imgBuf = await geminiBg(imgPrompt) // best-effort: null just drops the image
+        if (!imgBuf) return undefined
+        const url = await uploadPublic(admin, `${userId}/${videoId}_s${i}.png`, imgBuf, 'image/png')
+        previews.push({ idx: i, url })
+        await admin.from('videos').update({ preview_thumbs: previews, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
+        return url
+      })(),
+    ])
+    assetsDone++
+    await setProgress(30 + Math.round((assetsDone / payload.scenes.length) * 40), `Painting scene ${assetsDone}/${payload.scenes.length}...`)
     const isEnd = i === 0 || i === payload.scenes.length - 1
     const isLast = i === payload.scenes.length - 1
     const sceneMetrics = (s.metrics || []).filter((x) => x && x.label && x.value && /\d/.test(x.value)).slice(0, 3)
@@ -170,15 +205,18 @@ export async function renderV3OnLambda(payload: V3Payload): Promise<void> {
     const bullets = !isEnd ? [...metricBullets, ...textBullets].slice(0, 4) : []
     // Closing scene shows the contact line (item 6).
     const body = (isLast && payload.contactLine) ? payload.contactLine : s.bullets?.[0]
-    outScenes.push({
+    return {
       title: s.title || '', body,
       ...(imageUrl ? { image: imageUrl } : {}),
       audio: audioUrl, durationInFrames, placement,
       ...(bullets.length ? { bullets } : {}),
       // A hero-number scene shows ONE giant figure instead of bullets/metrics.
       ...((s as any).heroMetric ? { heroMetric: (s as any).heroMetric } : {}),
-    })
-  }
+    }
+  }))
+  const assetFailure = settled.find((r) => r.status === 'rejected')
+  if (assetFailure) throw (assetFailure as PromiseRejectedResult).reason
+  const outScenes: any[] = settled.map((r) => (r as PromiseFulfilledResult<any>).value)
 
   // Background music (item 3): get a music URL (provided or Lyria-gen), upload it
   // public, and pass it as the `music` prop — V3Video plays it low under the VO.

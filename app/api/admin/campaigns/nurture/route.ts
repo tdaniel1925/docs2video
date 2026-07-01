@@ -1,18 +1,10 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { createClient } from '../../../../_lib/supabase/server'
 import { createAdminClient } from '../../../../_lib/supabase/admin'
-import { isAdmin , isAdminRequest } from '../../../../_lib/admin'
+import { requireAdmin } from '../../../../_lib/admin'
 export const maxDuration = 300
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://docs2video.com'
-
-async function verifyAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !(await isAdminRequest(user))) return null
-  return user
-}
 
 function buildNurtureEmail(stage: number, contact: { id: string; name: string; email: string }, campaign: { discount_code: string; discount_pct: number; discount_months: number }): { subject: string; html: string } {
   const watchUrl = `${BASE_URL}/m/${contact.id}`
@@ -85,7 +77,7 @@ function buildNurtureEmail(stage: number, contact: { id: string; name: string; e
 }
 
 export async function POST() {
-  const user = await verifyAdmin()
+  const user = await requireAdmin()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const admin = createAdminClient()

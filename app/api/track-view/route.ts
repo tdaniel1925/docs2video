@@ -1,23 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
+import { checkRateLimit } from '../../_lib/rate-limit'
 import { sendVideoViewedEmail, sendVideoViewedSms, buildVideoViewedHtml, type ViewDetails } from '../../_lib/notifications'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
 const VALID_EVENTS = ['view', 'play', 'progress', 'complete', 'chat_message', 'download', 'book_meeting', 'booking_click', 'payment_click', 'social_share'] as const
-
-// Lightweight per-(ip+video+event) rate limit so a bot can't flood analytics
-// or amplify owner notifications. Resets per instance — a backstop, not a quota.
-const trackRate = new Map<string, { count: number; resetAt: number }>()
-function tooMany(key: string): boolean {
-  const now = Date.now()
-  const e = trackRate.get(key)
-  if (!e || now > e.resetAt) { trackRate.set(key, { count: 1, resetAt: now + 60_000 }); return false }
-  if (e.count >= 30) return true
-  e.count++
-  return false
-}
 
 export async function POST(request: Request) {
   try {
@@ -37,7 +26,11 @@ export async function POST(request: Request) {
     // Get viewer info from headers
     const viewerIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
 
-    if (tooMany(`${viewerIp}:${videoId}:${eventType}`)) {
+    // Durable cross-instance limit (review S6) — in-memory maps reset per serverless instance.
+    // Per-(ip+video+event): max 30 per 60s, so a bot can't flood analytics or
+    // amplify owner notifications. Same silent-throttle response as before.
+    const { allowed } = await checkRateLimit(`track-view:ip:${viewerIp}:${videoId}:${eventType}`, 30, 60)
+    if (!allowed) {
       return NextResponse.json({ ok: true, throttled: true })
     }
 

@@ -195,6 +195,13 @@ export async function checkCredits(userId: string, needed: number): Promise<Cred
     return { allowed: false, remaining: 0, shortfall: needed }
   }
 
+  // Block banned users outright (review B21): 'banned' previously fell through
+  // getUserTier → 'free', so a banned account could keep generating on the
+  // free allotment. Ban means NO generation, regardless of balance.
+  if (profile?.subscription_status === 'banned') {
+    return { allowed: false, remaining: 0, shortfall: needed }
+  }
+
   // getBalance() self-heals via ensureCreditBalance: a first-time user gets
   // exactly one credit_balances row at their tier grant. This is now the ONLY
   // place a first grant happens — checkCredits no longer mutates the wallet
@@ -369,9 +376,23 @@ const CYCLE_RENEW_MS = 25 * 24 * 60 * 60 * 1000 // ~25 days
  * is older than CYCLE_RENEW_MS. A duplicate/retried call within the same cycle
  * is a no-op, so it can never silently refill mid-cycle.
  *
- * Top-up balance is always preserved.
+ * `forceNewCycle` (review B11): a completed CHECKOUT is always a fresh paid
+ * subscription — without this, a user who cancelled and re-subscribed within
+ * ~25 days paid full price and received ZERO credits (the same-cycle guard
+ * swallowed the grant). Callers set it only when real money just moved.
+ *
+ * Top-up balance is always preserved — via a compare-and-set on topup_balance
+ * (review B13): the old blind upsert wrote back a STALE topup value, silently
+ * destroying a credit-pack purchase that landed between the read and the write
+ * (webhook grant racing a renewal grant is a realistic overlap).
  */
-export async function grantMonthlyCredits(userId: string, subscriptionStatus: string): Promise<void> {
+export async function grantMonthlyCredits(
+  userId: string,
+  subscriptionStatus: string,
+  opts?: { forceNewCycle?: boolean },
+  _attempt = 0,
+): Promise<void> {
+  const MAX_ATTEMPTS = 4
   const admin = createAdminClient()
   const tier = getUserTier(subscriptionStatus)
   const credits = TIER_CREDITS[tier]
@@ -384,7 +405,7 @@ export async function grantMonthlyCredits(userId: string, subscriptionStatus: st
 
   const topup = existing?.topup_balance ?? 0
 
-  if (existing) {
+  if (existing && !opts?.forceNewCycle) {
     const startMs = existing.cycle_start ? new Date(existing.cycle_start).getTime() : 0
     const sameCycle = startMs > 0 && (Date.now() - startMs) < CYCLE_RENEW_MS
     const alreadyGranted = (existing.cycle_credits_granted ?? 0) >= credits
@@ -394,17 +415,46 @@ export async function grantMonthlyCredits(userId: string, subscriptionStatus: st
     }
   }
 
-  await admin
-    .from('credit_balances')
-    .upsert({
-      user_id: userId,
-      balance: credits,
-      topup_balance: topup,
-      cycle_start: new Date().toISOString(),
-      cycle_credits_granted: credits,
-      cycle_credits_used: 0,
-      updated_at: new Date().toISOString(),
-    })
+  if (existing) {
+    // CAS on topup_balance: zero rows = a concurrent top-up landed → re-read
+    // and retry so the fresh grant can't clobber purchased credits.
+    const { data: updated, error: casErr } = await admin
+      .from('credit_balances')
+      .update({
+        balance: credits,
+        cycle_start: new Date().toISOString(),
+        cycle_credits_granted: credits,
+        cycle_credits_used: 0,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId)
+      .eq('topup_balance', topup)
+      .select('user_id')
+    if (casErr) {
+      console.error(`[credits] grantMonthlyCredits hard error for ${userId}:`, casErr.message)
+      return
+    }
+    if (!updated || updated.length === 0) {
+      if (_attempt + 1 >= MAX_ATTEMPTS) {
+        console.error(`[credits] grantMonthlyCredits gave up after ${MAX_ATTEMPTS} contended attempts for ${userId}`)
+        return
+      }
+      console.warn(`[credits] grantMonthlyCredits CAS race for ${userId}, retry ${_attempt + 1}/${MAX_ATTEMPTS}`)
+      return grantMonthlyCredits(userId, subscriptionStatus, opts, _attempt + 1)
+    }
+  } else {
+    await admin
+      .from('credit_balances')
+      .upsert({
+        user_id: userId,
+        balance: credits,
+        topup_balance: topup,
+        cycle_start: new Date().toISOString(),
+        cycle_credits_granted: credits,
+        cycle_credits_used: 0,
+        updated_at: new Date().toISOString(),
+      })
+  }
 
   await admin.from('credit_transactions').insert({
     user_id: userId,
@@ -421,7 +471,8 @@ export async function grantMonthlyCredits(userId: string, subscriptionStatus: st
  * balance (so a user who already spent this cycle keeps their spend). Downgrades
  * are a no-op on the current cycle (the lower allotment takes effect next cycle).
  */
-export async function applyTierChange(userId: string, newSubscriptionStatus: string): Promise<void> {
+export async function applyTierChange(userId: string, newSubscriptionStatus: string, _attempt = 0): Promise<void> {
+  const MAX_ATTEMPTS = 4
   const admin = createAdminClient()
   const newTier = getUserTier(newSubscriptionStatus)
   const newCredits = TIER_CREDITS[newTier]
@@ -446,7 +497,10 @@ export async function applyTierChange(userId: string, newSubscriptionStatus: str
   }
 
   const newBalance = (existing.balance ?? 0) + delta
-  await admin
+  // CAS on the read balance (review B13): the old blind update could overwrite
+  // a concurrent deduction — restoring credits the user had just spent. Zero
+  // rows = the balance moved under us → re-read and retry.
+  const { data: updated, error: casErr } = await admin
     .from('credit_balances')
     .update({
       balance: newBalance,
@@ -454,6 +508,20 @@ export async function applyTierChange(userId: string, newSubscriptionStatus: str
       updated_at: new Date().toISOString(),
     })
     .eq('user_id', userId)
+    .eq('balance', existing.balance ?? 0)
+    .select('user_id')
+  if (casErr) {
+    console.error(`[credits] applyTierChange hard error for ${userId}:`, casErr.message)
+    return
+  }
+  if (!updated || updated.length === 0) {
+    if (_attempt + 1 >= MAX_ATTEMPTS) {
+      console.error(`[credits] applyTierChange gave up after ${MAX_ATTEMPTS} contended attempts for ${userId}`)
+      return
+    }
+    console.warn(`[credits] applyTierChange CAS race for ${userId}, retry ${_attempt + 1}/${MAX_ATTEMPTS}`)
+    return applyTierChange(userId, newSubscriptionStatus, _attempt + 1)
+  }
 
   await admin.from('credit_transactions').insert({
     user_id: userId,

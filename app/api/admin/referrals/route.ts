@@ -1,18 +1,10 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { isAdmin , isAdminRequest } from '../../../_lib/admin'
+import { requireAdmin } from '../../../_lib/admin'
 export const maxDuration = 30
 
-async function checkAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !(await isAdminRequest(user))) return null
-  return user
-}
-
 export async function GET() {
-  const user = await checkAdmin()
+  const user = await requireAdmin()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const admin = createAdminClient()
@@ -65,7 +57,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const user = await checkAdmin()
+  const user = await requireAdmin()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const body = await request.json()

@@ -1,17 +1,14 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
+import { requireAdmin } from '../../../_lib/admin'
 
 export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  const user = await requireAdmin()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const admin = createAdminClient()
-  const { data: profile } = await admin.from('profiles').select('is_admin').eq('id', user.id).single()
-  if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const url = new URL(request.url)
   const userId = url.searchParams.get('userId')

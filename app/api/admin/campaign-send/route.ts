@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/app/_lib/supabase/admin'
-import { createClient } from '@/app/_lib/supabase/server'
-import { isAdmin , isAdminRequest } from '@/app/_lib/admin'
+import { requireAdmin } from '@/app/_lib/admin'
 import { logAdminAction } from '@/app/_lib/audit'
 import { INDUSTRIES, type IndustryId } from '@/app/_lib/industries'
 import { Resend } from 'resend'
@@ -47,16 +46,9 @@ function buildEmailHtml(body: string, ctaUrl: string, ctaText: string): string {
 </html>`
 }
 
-async function checkAdmin(req?: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !(await isAdminRequest(user))) return null
-  return user
-}
-
 // GET: List campaigns with stats
 export async function GET() {
-  const user = await checkAdmin()
+  const user = await requireAdmin()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const admin = createAdminClient()
@@ -80,7 +72,7 @@ export async function GET() {
 
 // POST: Create campaign, generate copy, send, pause, resume, stop
 export async function POST(req: NextRequest) {
-  const user = await checkAdmin()
+  const user = await requireAdmin()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const body = await req.json()

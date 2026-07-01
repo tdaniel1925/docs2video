@@ -1,0 +1,27 @@
+# SECRETS: never commit literal values here (review S1 — this file previously
+# contained the live API_SECRET, Supabase service-role key, Gemini key, and
+# OpenAI key in plaintext; ALL FOUR MUST BE ROTATED). Values come from a .env
+# file next to this compose file ON THE SERVER (gitignored), via ${VAR} refs.
+services:
+  video-service:
+    build: .
+    container_name: docs2video-service
+    restart: unless-stopped
+    # Headless Chrome shares memory via /dev/shm; Docker's 64MB default makes
+    # Chrome crash mid-render with many tabs ("WebSocket died / exit 1"). 2GB
+    # gives the parallel render tabs room.
+    shm_size: 2gb
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - API_SECRET=${API_SECRET}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - IMAGE_MODEL=gemini-3-pro-image-preview
+    tmpfs:
+      - /tmp:size=2G

@@ -1,16 +1,12 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { isAdmin , isAdminRequest } from '../../../_lib/admin'
+import { requireAdmin } from '../../../_lib/admin'
 import { logAdminAction } from '../../../_lib/audit'
 export const maxDuration = 30
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !(await isAdminRequest(user))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
+  const user = await requireAdmin()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const { videoId } = await request.json() as { videoId: string }
   if (!videoId) {
@@ -25,10 +21,18 @@ export async function POST(request: Request) {
     // forever with nothing picking it up).
     const { data: video, error: loadErr } = await admin
       .from('videos')
-      .select('id, user_id, draft_data')
+      .select('id, user_id, draft_data, status, deducted_cost')
       .eq('id', videoId)
       .single()
     if (loadErr || !video) throw loadErr || new Error('Video not found')
+
+    // Recharge on approval (review B14): a review_required video was refunded
+    // when it was held ("refund now, recharge on approval"). Approving/retrying
+    // it is the recharge moment — pass chargeOwner so generate-video runs the
+    // normal deduction for the OWNER. Plain failed-video retries stay free ONLY
+    // if the charge is still outstanding (deducted_cost > 0 = not yet refunded);
+    // once refunded, a retry must charge again or the video is free.
+    const chargeOwner = video.status === 'review_required' || !(video.deducted_cost && video.deducted_cost > 0)
 
     // Reset to a claimable state.
     const { error: resetErr } = await admin
@@ -59,6 +63,7 @@ export async function POST(request: Request) {
       uploadMode: draft.uploadMode,
       industry: draft.industry,
       preGeneratedScenes: draft.scenes ?? undefined,
+      chargeOwner,
     }
 
     // Fire-and-forget — generate-video runs the pipeline in waitUntil.
@@ -72,7 +77,7 @@ export async function POST(request: Request) {
       body: JSON.stringify(genBody),
     }).catch((e) => console.error('[admin/retry-video] re-trigger failed:', e))
 
-    await logAdminAction(user.id, 'retry_video', video.user_id, { videoId })
+    await logAdminAction(user.id, 'retry_video', video.user_id, { videoId, chargeOwner })
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error('[admin/retry-video] Error:', err)

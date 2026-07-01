@@ -161,7 +161,10 @@ export async function POST(request: Request) {
             console.error(`[webhook] Failed to update subscription for user ${userId}:`, subErr.message)
             return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
           }
-          await grantMonthlyCredits(userId, tier)
+          // forceNewCycle (review B11): a completed checkout = real money just
+          // moved. Without it, cancel-then-resubscribe within ~25 days hit the
+          // same-cycle guard and the paying customer received ZERO credits.
+          await grantMonthlyCredits(userId, tier, { forceNewCycle: true })
           console.log(`[webhook] User ${userId} subscribed to ${tier}`)
 
           // Affiliate: record the first-payment commission (non-fatal).
@@ -277,8 +280,11 @@ export async function POST(request: Request) {
             try {
               if (wasTrial) {
                 // Trial → paid: the user just paid for a fresh cycle, so grant the
-                // FULL plan allotment (not a delta off their depleted trial balance).
-                await grantMonthlyCredits(updatedProfile.id, tier)
+                // FULL plan allotment (not a delta off their depleted trial
+                // balance). forceNewCycle: their first charge just succeeded
+                // (review B11 — the trial's cycle_start is <25 days old by
+                // definition, so the same-cycle guard would swallow this grant).
+                await grantMonthlyCredits(updatedProfile.id, tier, { forceNewCycle: true })
                 console.log(`[webhook] Trial converted to paid ${tier} for ${updatedProfile.id} — full grant`)
               } else {
                 // Normal upgrade/downgrade: add only the positive tier delta (audit #1).

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { isAdminRequest } from '../../../_lib/admin'
+import { requireAdmin } from '../../../_lib/admin'
 import { fetchRecentVercelErrors, vercelLogsConfigured } from '../../../_lib/vercel-logs'
 
 export const runtime = 'nodejs'
@@ -13,9 +12,8 @@ export const maxDuration = 30
  * Admin-only.
  */
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!(await isAdminRequest(user))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const user = await requireAdmin()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const url = new URL(request.url)
   const showResolved = url.searchParams.get('resolved') === 'true'
@@ -39,9 +37,8 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!(await isAdminRequest(user))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const user = await requireAdmin()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   let body: { id?: string; resolved?: boolean }
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }

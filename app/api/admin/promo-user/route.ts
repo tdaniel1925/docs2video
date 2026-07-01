@@ -1,21 +1,13 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { isAdmin , isAdminRequest } from '../../../_lib/admin'
+import { requireAdmin } from '../../../_lib/admin'
 import { ensureCreditBalance } from '../../../_lib/credits'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-async function verifyAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !(await isAdminRequest(user))) return null
-  return user
-}
-
 export async function POST(request: Request) {
-  const admin = await verifyAdmin()
+  const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const { email, name } = await request.json() as { email: string; name?: string | null }
@@ -97,7 +89,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const admin = await verifyAdmin()
+  const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const { email } = await request.json() as { email: string }

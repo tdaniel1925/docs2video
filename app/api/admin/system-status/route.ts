@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { isAdminRequest } from '../../../_lib/admin'
+import { requireAdmin } from '../../../_lib/admin'
 import { runSystemChecks } from '../../../_lib/system-checks'
 
 export const runtime = 'nodejs'
@@ -13,9 +12,8 @@ export const maxDuration = 150 // render_path selftest can take a while
  * Admin-only.
  */
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!(await isAdminRequest(user))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const user = await requireAdmin()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const admin = createAdminClient()
   const { data: latest } = await admin
@@ -35,9 +33,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!(await isAdminRequest(user))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const user = await requireAdmin()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const result = await runSystemChecks('manual')
   return NextResponse.json(result)

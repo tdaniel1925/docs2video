@@ -1,24 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
+import { checkRateLimit } from '../../_lib/rate-limit'
 import { Resend } from 'resend'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
-
-// Simple in-memory rate limit: max 5 captures per video per hour
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-
-function isRateLimited(videoId: string): boolean {
-  const now = Date.now()
-  const entry = rateLimitMap.get(videoId)
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(videoId, { count: 1, resetAt: now + 60 * 60 * 1000 })
-    return false
-  }
-  if (entry.count >= 5) return true
-  entry.count++
-  return false
-}
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -46,7 +32,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
     }
 
-    if (isRateLimited(videoId)) {
+    // Durable cross-instance limit (review S6) — in-memory maps reset per serverless instance.
+    // Keyed per video (max 5 captures per video per hour), matching the old semantics.
+    const { allowed } = await checkRateLimit(`capture-lead:video:${videoId}`, 5, 3600)
+    if (!allowed) {
       return NextResponse.json({ error: 'Too many submissions' }, { status: 429 })
     }
 

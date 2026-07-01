@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { verifyCronAuth } from '../../../_lib/cron-auth'
 import { getRender } from '../../../_lib/creatomate'
-import { refundVideoCredits } from '../../../_lib/credits'
+import { refundVideoCredits, deductCredits } from '../../../_lib/credits'
 import { sendNotification } from '../../../_lib/notify'
 
 export const runtime = 'nodejs'
@@ -78,6 +78,51 @@ export async function GET(request: Request) {
     }
   } catch { /* non-fatal — next run retries */ }
 
+  // Completed-after-refund (review B22): a slow render can finish AFTER the
+  // staleness sweep refunded it — the user then has BOTH the delivered video
+  // and their money back. Detect recent completed rows whose ledger shows a
+  // refund with no recharge, and re-deduct the refunded amount. Idempotent via
+  // the 'recharge_video' ledger row; bounded to the last 24h.
+  let recharged = 0
+  try {
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { data: recentCompleted } = await admin
+      .from('videos')
+      .select('id, user_id, video_url, updated_at')
+      .eq('status', 'completed')
+      .eq('deducted_cost', 0)
+      .not('video_url', 'is', null)
+      .gt('updated_at', dayAgo)
+      .limit(10)
+    for (const v of recentCompleted || []) {
+      const { data: txs } = await admin
+        .from('credit_transactions')
+        .select('action, amount, created_at')
+        .eq('video_id', v.id)
+        .in('action', ['refund_video', 'refund_video_retry', 'recharge_video'])
+        .order('created_at', { ascending: false })
+      const lastRefund = (txs || []).find(t => t.action === 'refund_video' || t.action === 'refund_video_retry')
+      const alreadyRecharged = (txs || []).some(t => t.action === 'recharge_video')
+      if (!lastRefund || alreadyRecharged) continue
+      const amount = Math.abs(lastRefund.amount || 0)
+      if (amount <= 0) continue
+      const ok = await deductCredits(v.user_id, amount, 'recharge_video', v.id,
+        `Recharge: video completed after refund (+video kept, ${amount} credits re-charged)`)
+      if (ok) {
+        await admin.from('videos').update({ deducted_cost: amount }).eq('id', v.id)
+        recharged++
+        await sendNotification(admin, v.user_id, {
+          type: 'video_ready',
+          title: 'Your video completed',
+          message: 'A video that was refunded finished rendering after all — the credits were re-applied since the video was delivered.',
+          link: `/videos/${v.id}`,
+        }).catch(() => {})
+      }
+      // Insufficient balance → deduct returns false; retried next runs until
+      // they have credits (harmless no-op attempts, gated by the ledger check).
+    }
+  } catch { /* non-fatal */ }
+
   const { data: stuckVideos } = await admin
     .from('videos')
     .select('id, user_id, title, status, created_at, progress_updated_at, deducted_cost, creatomate_render_id, slide_urls, thumbnail_url')
@@ -86,7 +131,7 @@ export async function GET(request: Request) {
     .limit(25)
 
   if (!stuckVideos || stuckVideos.length === 0) {
-    return NextResponse.json({ fixed: 0, failed: 0, recovered: 0, checked: 0, scriptsFailed, refundedFailed })
+    return NextResponse.json({ fixed: 0, failed: 0, recovered: 0, checked: 0, scriptsFailed, refundedFailed, recharged })
   }
 
   let fixed = 0, failed = 0, recovered = 0
@@ -185,5 +230,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ fixed, failed, recovered, checked: stuckVideos.length, scriptsFailed, refundedFailed })
+  return NextResponse.json({ fixed, failed, recovered, checked: stuckVideos.length, scriptsFailed, refundedFailed, recharged })
 }
