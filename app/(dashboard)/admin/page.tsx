@@ -1390,26 +1390,8 @@ export default function AdminPage() {
             </button>
           </div>
 
-          {/* Render target: where V3 videos render */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 16px', border: '1px solid var(--border)', borderRadius: 10, marginTop: 12 }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>V3 render target</div>
-              <div style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 2 }}>
-                Where V3 videos render. <b>Auto</b> = Lambda if configured, else VPS. <b>Lambda</b> = fast cloud (needs AWS). <b>VPS</b> = the server (slower, no AWS limits).
-              </div>
-            </div>
-            <select
-              value={settings.video_render_target || 'auto'}
-              disabled={busy === 'video_render_target'}
-              onChange={(e) => saveSetting('video_render_target', e.target.value)}
-              className="input"
-              style={{ width: 130 }}
-            >
-              <option value="auto">Auto</option>
-              <option value="lambda">Lambda</option>
-              <option value="vps">VPS</option>
-            </select>
-          </div>
+          {/* (Render-target selector removed 2026-07-01 — the Remotion Lambda
+              path was deleted; the VPS is the only renderer.) */}
 
           {/* Visual style for V3 videos */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 16px', border: '1px solid var(--border)', borderRadius: 10, marginTop: 12 }}>

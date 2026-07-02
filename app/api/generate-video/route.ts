@@ -10,7 +10,6 @@ import type { ExtractedData } from '../../_lib/extract-types'
 import { isAdmin } from '../../_lib/admin'
 import { getFlag, getSetting } from '../../_lib/app-settings'
 import { buildV3Payload } from '../../_lib/v3-render'
-import { isLambdaConfigured, renderV3OnLambda } from '../../_lib/v3-lambda'
 import { buildEditorialPayload } from '../../_lib/editorial-render'
 import { buildPresenter, resolvePhotoPlacement, isPersonProfile } from '../../_lib/presenter'
 import { cleanRecipientName } from '../../_lib/text-format'
@@ -226,9 +225,8 @@ export async function POST(request: Request) {
   // V3 (Remotion: cinematic / infographic) — toggled from admin back office,
   // DB-backed so it flips without a redeploy. Read once per request.
   const useV3 = await getFlag('video_engine_v3')
-  // Render target: 'auto' (prefer Lambda if configured, else VPS), 'lambda'
-  // (force Lambda), or 'vps' (force VPS). Set in admin Settings. Default 'auto'.
-  const renderTarget = (await getSetting('video_render_target')) || 'auto'
+  // (Render target setting removed 2026-07-01 — VPS is the only renderer now;
+  // the Remotion Lambda path was deleted. See git history for v3-lambda.ts.)
   // Visual style: a per-video choice from the wizard (body.videoStyle) WINS over
   // the global admin default. One of 'cinematic' | 'editorial' | 'time' | 'explainer'.
   // ('editorial' = clean magazine, 'time' = bold red newsmagazine, 'explainer' =
@@ -1025,30 +1023,10 @@ export async function POST(request: Request) {
       })
       console.log(`[video ${videoId}] V3 theme=${v3Payload.theme}, logo=${v3Payload.logo ? 'yes' : 'no'}, presenter=${presenter ? 'yes' : 'no'}`)
 
-      // PREFERRED: render on Remotion Lambda (fast, parallel) when configured.
-      // Runs in the background (waitUntil) — generates assets, renders, finalizes
-      // the row. Falls back to the VPS path below if Lambda env isn't set.
-      // Choose renderer per the admin setting. 'vps' forces the VPS path below;
-      // 'lambda'/'auto' use Lambda when it's configured (else fall back to VPS).
-      const wantLambda = renderTarget !== 'vps' && isLambdaConfigured()
-      if (wantLambda) {
-        console.log(`[video ${videoId}] V3 via Lambda (target=${renderTarget})`)
-        waitUntil((async () => {
-          try {
-            await renderV3OnLambda(v3Payload)
-          } catch (err) {
-            const message = err instanceof Error ? err.message : 'Lambda render failed'
-            console.error(`[video ${videoId}] Lambda render CRASH: ${message}`)
-            // Capture the REAL reason in error_logs — otherwise a render failure
-            // refunds silently and leaves nothing to diagnose (the "no logs" bug).
-            logError('generate-video:lambda', err, { videoId, userId: user.id })
-            await admin.from('videos').update({ status: 'failed', error_message: 'Video rendering failed. Your credits were refunded.', progress_detail: null }).eq('id', videoId)
-            if (deductedCost && deductedCost > 0) await refundVideoCredits(user.id, deductedCost, videoId).catch(() => {})
-          }
-        })())
-        inFlightVideos.delete(videoId)
-        return NextResponse.json({ success: true, pipeline: 'v3-lambda' })
-      }
+      // Remotion Lambda render path REMOVED 2026-07-01 (user decision: VPS
+      // only). It had drifted from the VPS look (hardcoded theme, no
+      // editorial/aurora/closing parity — review A1) and was unused. Restore
+      // from git history (app/_lib/v3-lambda.ts) if ever needed.
 
       let v3Res: Response
       try {

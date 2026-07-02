@@ -6,7 +6,7 @@ export const runtime = 'nodejs'
 
 // Settings exposed to the admin back office. Whitelisted so the route can't be
 // used to write arbitrary keys.
-const EDITABLE: AppSettingKey[] = ['video_engine_v3', 'video_render_target', 'video_style']
+const EDITABLE: AppSettingKey[] = ['video_engine_v3', 'video_style']
 
 /** GET /api/admin/settings → { video_engine_v3: 'true'|'false', ... } */
 export async function GET() {
