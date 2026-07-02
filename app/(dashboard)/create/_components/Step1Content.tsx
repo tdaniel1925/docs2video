@@ -9,6 +9,17 @@ type InputMethod = 'url' | 'upload' | 'text' | 'idea' | null
 type Stage = 'idle' | 'extracting' | 'error' | 'generating-preview' | 'style-suggest'
 
 
+// Parse an API response defensively. When a serverless function times out or
+// crashes, Vercel returns a PLAIN-TEXT error page ("An error occurred…") — a
+// blind res.json() then surfaces "Unexpected token 'A' … is not valid JSON" to
+// the user. Read as text, try JSON, and fall back to a friendly message.
+async function parseApiResponse(res: Response, friendly: string): Promise<Record<string, unknown>> {
+  const text = await res.text()
+  try { return JSON.parse(text) } catch {
+    throw new Error(friendly)
+  }
+}
+
 const CONTENT_METHODS: { id: InputMethod; label: string; desc: string }[] = [
   { id: 'url', label: 'Website URL', desc: 'Pull from a web page' },
   { id: 'upload', label: 'Upload file', desc: 'PDF, Word, or PowerPoint' },
@@ -328,8 +339,8 @@ export default function Step1Content() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: cleanUrl }),
         })
-        const result = await res.json()
-        if (!res.ok) throw new Error(result.error || 'Extraction failed')
+        const result = await parseApiResponse(res, 'That website took too long to read (it may be blocking automated access). Try again — or copy the page text and use "Paste text" instead.')
+        if (!res.ok) throw new Error((result.error as string) || 'Extraction failed')
         const { autoBrandId, autoBrandInfo: abi, ...contentData } = result
         extractedData = contentData as Record<string, unknown>
         if (abi) autoBrandInfo = abi as Record<string, unknown>
@@ -341,8 +352,8 @@ export default function Step1Content() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: textInput.trim(), purpose: purpose.trim() }),
         })
-        const result = await res.json()
-        if (!res.ok) throw new Error(result.error || 'Extraction failed')
+        const result = await parseApiResponse(res, 'Analysis took too long. Try again, or shorten the pasted text.')
+        if (!res.ok) throw new Error((result.error as string) || 'Extraction failed')
         extractedData = result
       } else if (method === 'upload') {
         const files = Array.from(fileRef.current?.files || [])
@@ -433,9 +444,9 @@ export default function Step1Content() {
           body: JSON.stringify({ url: cleanUrl }),
         })
         scrapeTimers.forEach(t => clearTimeout(t))
-        const result = await res.json()
-        if (!res.ok) throw new Error(result.error || 'Extraction failed')
-        const { suggestedTheme, autoBrandId, autoLogoUrl, autoBrandInfo: abi, ...contentData } = result
+        const result = await parseApiResponse(res, 'That website took too long to read (it may be blocking automated access). Try again — or copy the page text and use "Paste text" instead.')
+        if (!res.ok) throw new Error((result.error as string) || 'Extraction failed')
+        const { suggestedTheme, autoBrandId, autoLogoUrl, autoBrandInfo: abi, ...contentData } = result as any
         extractedData = contentData as Record<string, unknown>
         if (abi) autoBrandInfo = abi as Record<string, unknown>
         if (autoBrandId) extractedData['_autoBrandId'] = autoBrandId
@@ -447,8 +458,8 @@ export default function Step1Content() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: textInput.trim(), purpose: purpose.trim() }),
         })
-        const result = await res.json()
-        if (!res.ok) throw new Error(result.error || 'Extraction failed')
+        const result = await parseApiResponse(res, 'Analysis took too long. Try again, or shorten the pasted text.')
+        if (!res.ok) throw new Error((result.error as string) || 'Extraction failed')
         extractedData = result
       } else if (method === 'upload') {
         const files = Array.from(fileRef.current?.files || [])

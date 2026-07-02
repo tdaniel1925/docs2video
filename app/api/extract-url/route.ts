@@ -27,6 +27,18 @@ function getFirecrawl() {
   return _firecrawl
 }
 
+// Bound every external call. Firecrawl has NO client timeout — a bot-blocking
+// site (e.g. a 403-ing ColdFusion page) made it hang until the function hit
+// Vercel's maxDuration, and Vercel then returned its PLAIN-TEXT error page,
+// which the wizard couldn't parse ("Unexpected token 'A' … is not valid JSON").
+// With per-call timeouts the route always answers with real JSON first.
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)), ms)),
+  ])
+}
+
 function stripHtml(html: string): string {
   // Remove script and style tags and their content
   let text = html.replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -85,12 +97,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid URL. Please provide a valid http or https URL.' }, { status: 400 })
   }
 
+  const startedAt = Date.now()
   try {
     // Scrape main page + key nav pages for comprehensive content
     console.log(`[extract-url] Firecrawl scraping ${parsedUrl.toString()}...`)
-    const mainResult = await getFirecrawl().scrape(parsedUrl.toString(), {
-      formats: ['markdown', 'html'],
-    }) as any
+    let mainResult: any
+    try {
+      mainResult = await withTimeout(getFirecrawl().scrape(parsedUrl.toString(), {
+        formats: ['markdown', 'html'],
+      }) as Promise<any>, 90_000, 'Website scrape')
+    } catch (scrapeErr) {
+      console.error('[extract-url] Main scrape failed:', scrapeErr instanceof Error ? scrapeErr.message : scrapeErr)
+      return NextResponse.json({
+        error: 'This site is blocking automated access or responding too slowly. Try again in a moment — or copy the page text and use "Paste text" instead.',
+      }, { status: 400 })
+    }
 
     let markdown = mainResult?.markdown || mainResult?.data?.markdown || ''
     let html = mainResult?.html || mainResult?.data?.html || ''
@@ -120,7 +141,7 @@ export async function POST(request: Request) {
 
     // 1) Fast comprehensive discovery: try sitemap.xml (gives the real page list).
     try {
-      const sm = await getFirecrawl().scrape(`${baseOrigin}/sitemap.xml`, { formats: ['rawHtml', 'html'] }).catch(() => null) as any
+      const sm = await withTimeout(getFirecrawl().scrape(`${baseOrigin}/sitemap.xml`, { formats: ['rawHtml', 'html'] }) as Promise<any>, 20_000, 'Sitemap scrape').catch(() => null) as any
       const smXml = sm?.rawHtml || sm?.html || sm?.data?.rawHtml || ''
       if (smXml) {
         const locs = (smXml.match(/<loc>([^<]+)<\/loc>/gi) || [])
@@ -146,13 +167,15 @@ export async function POST(request: Request) {
     }
 
     // 3) Scrape up to 8 discovered pages in parallel (fast; whole site picture).
+    // Skip entirely if the main scrape already burned most of the clock — the
+    // homepage content alone still produces a usable video.
     const MAX_PAGES = 8
-    const toScrape = navLinks.slice(0, MAX_PAGES)
+    const toScrape = Date.now() - startedAt < 120_000 ? navLinks.slice(0, MAX_PAGES) : []
     if (toScrape.length > 0) {
       console.log(`[extract-url] Scraping ${toScrape.length} site pages in parallel: ${toScrape.join(', ')}`)
       const navResults = await Promise.allSettled(
         toScrape.map(url =>
-          getFirecrawl().scrape(url, { formats: ['markdown'] }).catch(() => null)
+          withTimeout(getFirecrawl().scrape(url, { formats: ['markdown'] }) as Promise<any>, 30_000, 'Page scrape').catch(() => null)
         )
       )
       let pagesAdded = 0
@@ -214,7 +237,7 @@ export async function POST(request: Request) {
 
     // Run content structuring and theme analysis in parallel with Claude Opus
     const claude = getClaude()
-    const [contentResponse, themeResponse] = await Promise.all([
+    const [contentResponse, themeResponse] = await withTimeout(Promise.all([
       claude.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 4096,
@@ -229,7 +252,7 @@ export async function POST(request: Request) {
           { role: 'user', content: `${THEME_PROMPT}\n\nHere is the HTML/CSS from ${parsedUrl.hostname}:\n\n${wrapUserData(htmlForTheme)}\n\nReturn ONLY valid JSON, no markdown code fences.` },
         ],
       }),
-    ])
+    ]), 120_000, 'Content analysis')
 
     const raw = (contentResponse.content[0]?.type === 'text' ? contentResponse.content[0].text : '').trim()
     const cleaned = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
@@ -279,7 +302,7 @@ export async function POST(request: Request) {
     let autoBrandInfo: Record<string, unknown> | null = null
     try {
       console.log('[extract-url] Scraping brand from URL...')
-      const brandAnalysis = await scrapeBrand(url, { markdown, html })
+      const brandAnalysis = await withTimeout(scrapeBrand(url, { markdown, html }), 60_000, 'Brand analysis')
       autoBrandInfo = {
         primary_color: brandAnalysis.primaryColor || null,
         secondary_color: brandAnalysis.secondaryColor || null,
@@ -378,7 +401,7 @@ export async function POST(request: Request) {
     // FIX 4: Classify the extracted content
     let classification = null
     try {
-      classification = await classifyFromText(truncated, undefined, 'website')
+      classification = await withTimeout(classifyFromText(truncated, undefined, 'website'), 45_000, 'Classification')
     } catch (classErr) {
       console.error('[extract-url] Classification failed, continuing without:', classErr instanceof Error ? classErr.message : 'unknown')
     }
