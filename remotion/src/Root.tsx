@@ -17,6 +17,7 @@ import { EXECUTIVE_LIGHT } from './tokens'
 import { explainerSchema, type ExplainerProps } from './schema'
 import { SAMPLE } from './sample-data'
 import { FPS, AURORA } from './tokens'
+import { MotionSample, MOTION_DEFAULT, MOTION_SAMPLE_FRAMES, type MotionSampleProps } from './motion/MotionSample'
 
 loadArchivo()
 loadInter()
@@ -50,6 +51,15 @@ const withAssets = async (props: ExplainerProps): Promise<ExplainerProps> => {
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+    <Composition
+      id="MotionSample"
+      component={MotionSample}
+      defaultProps={MOTION_DEFAULT as MotionSampleProps}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={MOTION_SAMPLE_FRAMES}
+    />
     <Composition
       id="AuroraExplainer"
       component={AuroraExplainer}
