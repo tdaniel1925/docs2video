@@ -1,4 +1,5 @@
 import { useCurrentFrame, useVideoConfig, spring, interpolate, Easing } from 'remotion'
+import { fitText } from '@remotion/layout-utils'
 import { FONTS, roles, type Theme } from '../tokens'
 
 /**
@@ -16,11 +17,19 @@ export const HeroMetric: React.FC<{
   caption?: string
   tone?: 'hero' | 'neutral' | 'warn'
   theme: Theme
-}> = ({ value, label, caption, tone = 'hero', theme }) => {
+  /** Widest the figure may render — long values scale DOWN to fit, never clip. */
+  maxWidth?: number
+}> = ({ value, label, caption, tone = 'hero', theme, maxWidth = 1560 }) => {
   const f = useCurrentFrame()
   const { fps } = useVideoConfig()
   const r = roles(theme)
   const color = tone === 'neutral' ? r.neutral : tone === 'warn' ? r.warn : r.hero
+
+  // Fit-to-width: a short "2-3×" still lands at the full 320px, but a long
+  // "$176,204.18" shrinks until it fits — the number must NEVER clip at the
+  // frame edge. 0.97 leaves breathing room for the -0.03em tracking.
+  const { fontSize: fitted } = fitText({ text: value, withinWidth: maxWidth, fontFamily: FONTS.display, fontWeight: 900 })
+  const valueSize = Math.min(320, fitted * 0.97)
 
   const rise = spring({ frame: f - 6, fps, config: { damping: 18, stiffness: 120, mass: 1 } })
   const labelP = interpolate(f, [14, 30], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
@@ -31,7 +40,7 @@ export const HeroMetric: React.FC<{
   const fill = `linear-gradient(180deg, ${color} 0%, ${lighten(color, 0.35)} 100%)`
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: 920 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth }}>
       {/* small kicker label ABOVE the number ("YOU'RE OVERPAYING BY") */}
       {caption ? (
         <div style={{ opacity: capP, transform: `translateY(${(1 - capP) * 10}px)`, fontFamily: FONTS.display, fontWeight: 800, fontSize: 40, letterSpacing: 1, color: theme.textMuted, textTransform: 'uppercase', marginBottom: 8 }}>
@@ -44,7 +53,8 @@ export const HeroMetric: React.FC<{
         opacity: Math.min(1, rise * 1.3),
         transform: `translateY(${(1 - rise) * 36}px)`,
         fontFamily: FONTS.display, fontWeight: 900,
-        fontSize: 320, lineHeight: 0.9, letterSpacing: '-0.03em',
+        fontSize: valueSize, lineHeight: 0.9, letterSpacing: '-0.03em',
+        whiteSpace: 'nowrap',
         backgroundImage: fill, WebkitBackgroundClip: 'text', backgroundClip: 'text',
         WebkitTextFillColor: 'transparent', color: 'transparent',
         filter: `drop-shadow(0 0 60px ${hexA(color, 0.45)})`,
