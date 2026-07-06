@@ -1,9 +1,35 @@
 # Docs2Video — Build State
 
-**Last updated:** 2026-07-01 (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
+**Last updated:** 2026-07-04 (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
 **Branch:** main
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com)
+
+## 2026-07-05 — Apex (reachtheapex.net) integration, Path B (spec: DOCS2VIDEO-INTEGRATION-SPEC)
+
+D2V keeps its own Stripe; attributed sales are reported to the Apex MLM comp engine over signed webhooks. Affiliates owned by Apex reps are flagged `payout_via='apex'` — commission rows recorded for audit, never paid locally.
+
+- **`app/_lib/apex.ts`** — HMAC sign/verify (shared `APEX_WEBHOOK_SECRET`, SHA-256 hex in `x-webhook-signature`), `sendApexSaleEvent()` (withRetry, 10s timeout, non-fatal), `provisionApexAffiliate()` (slug→referral_code, creates auth user by email + Stripe coupon/promo, `payout_via='apex'`).
+- **`app/api/partner/apex/affiliate`** — signed provisioning endpoint Apex calls lazily per rep. 409 if the code belongs to an existing direct affiliate.
+- **Stripe webhook** — at the 3 commission touchpoints, freshly recorded commissions for apex affiliates emit `sale.created` (session id), `sale.renewed` (invoice id), `sale.refunded` (from clawback rows). Dedupe rides commission idempotency + Apex's (external_source, external_ref) unique.
+- **Payout suppression** — admin export-csv and mark-paid exclude `payout_via='apex'`; GET includes the flag.
+- **`/r/{code}`** — regex relaxed to `^[A-Z0-9][A-Z0-9-]{2,31}$` (Apex slugs contain hyphens).
+- **SQL to run manually in prod** (migration drift!): `supabase-apex-integration.sql` (adds `affiliates.payout_via`).
+- **Env needed:** `APEX_WEBHOOK_SECRET` (shared with Apex's `integrations.webhook_secret` row), optional `APEX_INTEGRATION_URL` override.
+- **Apex repo side** (already present there): products d2v-starter/pro/business/enterprise, `prismgraphs` integrations row, `processD2VSale/Refund`; added: `/api/dashboard/docs2video-link` (lazy provisioning), D2V link in ai-chat links tool + ReferralInfoTab.
+- **RESOLVED 2026-07-05:** the suspected tier mismatch was stale docs, not code — `pricing.ts` (source of truth) has exactly free/starter/pro/business/enterprise at $0/29/79/199/499, matching the spec table and Apex's `TIER_TO_SLUG` + seeded product rows (verified live in Apex prod DB: 2900/9bv, 7900/21bv, 19900/50bv, 49900/122bv). CLAUDE.md's old 6-tier table was corrected.
+- **GO-LIVE DONE 2026-07-05:** `supabase-apex-integration.sql` run on D2V prod (payout_via verified); `APEX_WEBHOOK_SECRET` set in Vercel (production) + `.env.local`, value = Apex's `integrations.webhook_secret` for prismgraphs.
+- **E2E TEST PASSED 2026-07-05** (`scripts/apex-e2e-test.ts`, Stripe test mode, local Apex dev server, real prod DBs, test data cleaned up after): provisioning → affiliate payout_via='apex' + test promo ✓; sale.created/renewed → Apex orders (external_ref, paid, BV 21) + PV/GV 158 ✓; refund → order refunded + clawback row + PV/GV back to 79 ✓; duplicate event → idempotent 200 ✓; engine-eligibility filter matched 1 paid order ✓.
+- **Found+fixed Apex-side bug during E2E:** `processOrderClawback` reversed member PV/GV by total_bv on top of `processD2VRefund`'s price-based reversal (double dip, PV came out 58 instead of 79). Fixed in Apex `clawback-processor.ts` — volume reversal now skipped for external-source orders.
+- **Still needed to be live:** deploy D2V (git push → Vercel) and deploy the Apex repo (includes the clawback fix); Stripe *live-mode* promo attribution not yet exercised (E2E used test mode).
+
+## 2026-07-04 — Admin back office rebuilt with sidebar navigation
+
+- New `app/(dashboard)/admin/layout.tsx`: persistent left sidebar wrapping all 14 admin routes. Groups: Overview (the 8 index tabs), Money (Costs/Revenue/Billing & Sales/Billing Health), Growth (Campaigns/Prospect Pipeline/Bulk Generate/Affiliates), Platform (API Keys/Help Articles/System Status/Logs).
+- Admin index tabs now URL-driven: `/admin?tab=users` etc. (`useSearchParams`, validated against a whitelist, wrapped in `Suspense`). Deep links to specific tabs now work; the old in-page button rows were removed.
+- Tab switching side effects (search/filter reset, settings load) moved to a `useEffect` on the tab value.
+- Sidebar styles added to `globals.css` (`.admin-shell`, `.admin-sidebar`, `.admin-nav-*`) — cream/mint palette, 10px radius, sticky ≥900px, wraps to a horizontal block on mobile.
+- No route or auth changes; `npx tsc --noEmit` clean.
 
 ## 2026-07-01 — Full code review + top-10 hardening (commit ea77d13)
 

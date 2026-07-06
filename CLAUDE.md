@@ -17,7 +17,7 @@
 - This file is the source of truth for project state across sessions
 
 ### 3. Payments — Stripe ONLY
-- User subscriptions: Stripe (6 tiers from Free to Enterprise+)
+- User subscriptions: Stripe (5 tiers from Free to Enterprise — see pricing.ts)
 - Client payments: Agent's own Stripe via OAuth Connect
 - Per-project charges: Stripe
 - NO Paddle, NO other payment processors
@@ -86,16 +86,18 @@
 
 ---
 
-## Pricing (6 tiers)
+## Pricing (5 tiers — source of truth: `app/_lib/pricing.ts`)
 
-| Tier | Price | Projects |
-|------|-------|----------|
-| Free | $0/mo | $10/each |
-| Pro | $25/mo | $6/each |
-| Business | $99/mo | 50 included |
-| Agency | $249/mo | 150 included |
-| Enterprise | $499/mo | Unlimited |
-| Enterprise+ | $799/mo | Unlimited + API |
+| Tier | Price | Videos/mo |
+|------|-------|-----------|
+| Free | $0/mo | 2 (trial) |
+| Starter | $29/mo | 5 |
+| Pro | $79/mo | 20 (25k credits) |
+| Business | $199/mo | 75 |
+| Enterprise | $499/mo | 200 |
+
+Extra videos $5 each on paid tiers ($10 on Free). These tiers map 1:1 to the
+Apex integration products (`d2v-starter/pro/business/enterprise`).
 
 ---
 

@@ -12,7 +12,7 @@ export async function GET() {
 
   const { data: affiliates } = await admin
     .from('affiliates')
-    .select('id, user_id, referral_code, promo_code, commission_rate, status, created_at, payout_email, payout_method')
+    .select('id, user_id, referral_code, promo_code, commission_rate, status, created_at, payout_email, payout_method, payout_via')
     .order('created_at', { ascending: false })
 
   const userIds = [...new Set((affiliates ?? []).map(a => a.user_id))]
@@ -71,11 +71,16 @@ export async function POST(request: Request) {
   }
 
   if (body.action === 'export-csv') {
-    const { data } = await admin
+    const { data: allRows } = await admin
       .from('affiliate_commissions')
       .select('id, affiliate_id, referred_user_id, commission_cents, created_at')
       .eq('status', 'approved')
       .order('affiliate_id')
+    // Apex reps (payout_via='apex') are paid through the Apex comp plan —
+    // recorded here for audit, never in the local payout file.
+    const { data: apexAffs } = await admin.from('affiliates').select('id').eq('payout_via', 'apex')
+    const apexIds = new Set((apexAffs ?? []).map(a => a.id))
+    const data = (allRows ?? []).filter(c => !apexIds.has(c.affiliate_id))
     const affIds = [...new Set((data ?? []).map(c => c.affiliate_id))]
     const { data: affs } = await admin.from('affiliates').select('id, user_id, payout_email, referral_code').in('id', affIds.length ? affIds : ['x'])
     const userIds = [...new Set((affs ?? []).map(a => a.user_id))]
@@ -100,11 +105,18 @@ export async function POST(request: Request) {
 
   if (body.action === 'mark-paid') {
     const batch = body.batch || `batch-${new Date().toISOString().slice(0, 10)}`
-    const { data } = await admin
+    // Exclude Apex-paid affiliates — their approved rows stay 'approved'
+    // forever as an audit trail; the Apex comp plan is the payer of record.
+    const { data: apexAffs } = await admin.from('affiliates').select('id').eq('payout_via', 'apex')
+    const apexIds = (apexAffs ?? []).map(a => a.id)
+    let query = admin
       .from('affiliate_commissions')
       .update({ status: 'paid', paid_at: new Date().toISOString(), payout_batch: batch })
       .eq('status', 'approved')
-      .select('id')
+    if (apexIds.length) {
+      query = query.not('affiliate_id', 'in', `(${apexIds.join(',')})`)
+    }
+    const { data } = await query.select('id')
     return NextResponse.json({ ok: true, paid: data?.length ?? 0, batch })
   }
 

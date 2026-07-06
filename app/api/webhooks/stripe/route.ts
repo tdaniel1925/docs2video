@@ -5,6 +5,7 @@ import type Stripe from 'stripe'
 import { logError } from '../../../_lib/error-logger'
 import { grantMonthlyCredits, addTopupCredits, applyTierChange } from '../../../_lib/credits'
 import { recordCommission, clawbackByInvoice } from '../../../_lib/affiliate'
+import { sendApexSaleEvent } from '../../../_lib/apex'
 import { subscriptionIdFromInvoice, priceIdFromInvoice, isSocialAddonSubscription } from '../../../_lib/stripe-invoice'
 
 /** Extract the Stripe promotion-code id from a session or invoice, if any. */
@@ -188,6 +189,20 @@ export async function POST(request: Request) {
               })
               if (!r.recorded && r.reason !== 'duplicate' && r.reason !== 'self-referral') {
                 console.warn(`[webhook] AFFILIATE NOT CREDITED on first payment (session ${session.id}): ${r.reason} — promo=${promoId} coupon=${couponId}`)
+              }
+              // Apex rep sale → forward to the Apex comp plan (Path B).
+              // Rides recordCommission's idempotency: only a freshly recorded
+              // commission emits, so Stripe webhook retries can't double-send.
+              if (r.recorded && r.affiliate?.payoutVia === 'apex') {
+                await sendApexSaleEvent({
+                  event: 'sale.created',
+                  orderId: `session:${session.id}`,
+                  affiliateCode: r.affiliate.code,
+                  amountCents: amount,
+                  tier,
+                  customerEmail: full.customer_details?.email,
+                  customerName: full.customer_details?.name,
+                })
               }
             } else if (full.total_details?.amount_discount) {
               // A discount was applied but we couldn't extract an id — flag for reconciliation.
@@ -433,6 +448,19 @@ export async function POST(request: Request) {
               if (!r.recorded && r.reason !== 'duplicate' && r.reason !== 'self-referral') {
                 console.warn(`[webhook] AFFILIATE NOT CREDITED on recurring payment (invoice ${invoice.id}): ${r.reason} — promo=${promoId} coupon=${couponId}`)
               }
+              // Apex rep renewal → monthly recurring order in the Apex comp plan.
+              if (r.recorded && r.affiliate?.payoutVia === 'apex') {
+                const renewedPriceId = priceIdFromInvoice(invoice)
+                const renewedTier = (renewedPriceId ? tierFromPriceId(renewedPriceId) : null) ?? 'unknown'
+                await sendApexSaleEvent({
+                  event: 'sale.renewed',
+                  orderId: invoice.id,
+                  affiliateCode: r.affiliate.code,
+                  amountCents: invoice.amount_paid,
+                  tier: renewedTier,
+                  customerEmail: invoice.customer_email,
+                })
+              }
             }
           } catch (e) {
             console.error('[webhook] affiliate recurring commission failed (non-fatal):', e)
@@ -484,8 +512,20 @@ export async function POST(request: Request) {
         const invoiceId: string | null = obj.invoice ?? null
 
         if (invoiceId) {
-          await clawbackByInvoice(invoiceId)
+          const clawed = await clawbackByInvoice(invoiceId)
           console.log(`[webhook] Clawed back affiliate commission for ${invoiceId}`)
+          // Apex rep sale refunded → reverse the order/PV/GV on the Apex side.
+          for (const c of clawed) {
+            if (c.payoutVia === 'apex' && c.affiliateCode) {
+              await sendApexSaleEvent({
+                event: 'sale.refunded',
+                orderId: invoiceId,
+                affiliateCode: c.affiliateCode,
+                amountCents: c.amountCents,
+                tier: 'unknown', // Apex resolves the order by external_ref
+              })
+            }
+          }
         }
 
         // Revoke credits if the underlying purchase was a credit pack (audit H1).

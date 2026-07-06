@@ -24,7 +24,8 @@ export async function GET(
 
   const res = NextResponse.redirect(`${origin}/?ref=${encodeURIComponent(code)}`)
 
-  if (code && /^[A-Z0-9]{4,16}$/.test(code)) {
+  // Hyphens allowed for Apex rep slugs (docs2video.com/r/{apex-slug}).
+  if (code && /^[A-Z0-9][A-Z0-9-]{2,31}$/.test(code)) {
     const affiliate = await getAffiliateByCode(code)
     if (affiliate && affiliate.status === 'active') {
       res.cookies.set(COOKIE_NAME, code, {

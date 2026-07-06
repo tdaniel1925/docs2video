@@ -101,7 +101,7 @@ export async function getAffiliateByStripePromoId(stripePromoCodeId: string) {
   const admin = createAdminClient()
   const { data } = await admin
     .from('affiliates')
-    .select('id, user_id, commission_rate, status')
+    .select('id, user_id, commission_rate, status, referral_code, payout_via')
     .eq('stripe_promo_code_id', stripePromoCodeId)
     .single()
   return data || null
@@ -112,7 +112,7 @@ export async function getAffiliateByCouponId(stripeCouponId: string) {
   const admin = createAdminClient()
   const { data } = await admin
     .from('affiliates')
-    .select('id, user_id, commission_rate, status')
+    .select('id, user_id, commission_rate, status, referral_code, payout_via')
     .eq('stripe_coupon_id', stripeCouponId)
     .single()
   return data || null
@@ -142,7 +142,12 @@ export async function recordCommission(opts: {
   customerId?: string | null
   stripeInvoiceId: string
   amountPaidCents: number
-}): Promise<{ recorded: boolean; reason?: string }> {
+}): Promise<{
+  recorded: boolean
+  reason?: string
+  /** Set when recorded — lets the webhook forward Apex-payable sales upstream. */
+  affiliate?: { id: string; code: string; payoutVia: string }
+}> {
   try {
     if (!opts.amountPaidCents || opts.amountPaidCents <= 0) return { recorded: false, reason: 'zero amount' }
     // Resolve the affiliate by promo-code id first; fall back to the coupon id
@@ -206,23 +211,46 @@ export async function recordCommission(opts: {
 
     // Rollups (total_earned etc.) are recomputed on read in the dashboard, so
     // no extra write is needed here.
-    return { recorded: true }
+    return {
+      recorded: true,
+      affiliate: {
+        id: affiliate.id,
+        code: (affiliate as { referral_code?: string }).referral_code ?? '',
+        payoutVia: (affiliate as { payout_via?: string }).payout_via ?? 'direct',
+      },
+    }
   } catch (e) {
     console.error('[affiliate] recordCommission error:', e)
     return { recorded: false, reason: 'exception' }
   }
 }
 
-/** Mark all commissions tied to an invoice as clawed back (refund/chargeback). */
-export async function clawbackByInvoice(stripeInvoiceId: string): Promise<void> {
+/**
+ * Mark all commissions tied to an invoice as clawed back (refund/chargeback).
+ * Returns the affected rows joined with their affiliate's code/payout_via so
+ * the webhook can forward refunds for Apex-payable affiliates.
+ */
+export async function clawbackByInvoice(stripeInvoiceId: string): Promise<
+  { amountCents: number; affiliateCode: string; payoutVia: string }[]
+> {
   try {
     const admin = createAdminClient()
-    await admin.from('affiliate_commissions')
+    const { data } = await admin.from('affiliate_commissions')
       .update({ status: 'clawed_back' })
       .eq('stripe_invoice_id', stripeInvoiceId)
       .neq('status', 'paid') // don't claw back money already sent
+      .select('amount_cents, affiliates ( referral_code, payout_via )')
+    return (data ?? []).map(r => {
+      const aff = r.affiliates as unknown as { referral_code?: string; payout_via?: string } | null
+      return {
+        amountCents: r.amount_cents || 0,
+        affiliateCode: aff?.referral_code ?? '',
+        payoutVia: aff?.payout_via ?? 'direct',
+      }
+    })
   } catch (e) {
     console.error('[affiliate] clawbackByInvoice error:', e)
+    return []
   }
 }
 
