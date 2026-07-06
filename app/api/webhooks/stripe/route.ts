@@ -178,13 +178,21 @@ export async function POST(request: Request) {
             const promoId = promoIdFromDiscounts(full)
             const couponId = couponIdFromDiscounts(full)
             const amount = full.amount_total ?? session.amount_total
+            // Key the commission to the session's REAL invoice when one exists
+            // (subscription-mode sessions always have one). Refunds arrive with
+            // the invoice id — a `session:` key would never match, so the
+            // clawback (and the Apex sale.refunded forward) would silently miss
+            // first payments. `session:` remains the fallback for payment-mode.
+            const firstPaymentRef =
+              (typeof full.invoice === 'string' ? full.invoice : full.invoice?.id) ??
+              `session:${session.id}`
             if ((promoId || couponId) && amount) {
               const r = await recordCommission({
                 stripePromoCodeId: promoId,
                 stripeCouponId: couponId,
                 payingUserId: userId,
                 customerId: session.customer as string,
-                stripeInvoiceId: `session:${session.id}`,
+                stripeInvoiceId: firstPaymentRef,
                 amountPaidCents: amount,
               })
               if (!r.recorded && r.reason !== 'duplicate' && r.reason !== 'self-referral') {
@@ -193,10 +201,12 @@ export async function POST(request: Request) {
               // Apex rep sale → forward to the Apex comp plan (Path B).
               // Rides recordCommission's idempotency: only a freshly recorded
               // commission emits, so Stripe webhook retries can't double-send.
+              // orderId MUST equal the id refunds will carry (the invoice id) so
+              // Apex's external_ref lookup matches on sale.refunded.
               if (r.recorded && r.affiliate?.payoutVia === 'apex') {
                 await sendApexSaleEvent({
                   event: 'sale.created',
-                  orderId: `session:${session.id}`,
+                  orderId: firstPaymentRef,
                   affiliateCode: r.affiliate.code,
                   amountCents: amount,
                   tier,
