@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Suspense } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import type { Profile, Video } from '@/app/_lib/types'
 import { useToast } from '../../_components/Toast'
 
@@ -16,11 +17,15 @@ interface AuditEntry {
   created_at: string
 }
 
-export default function AdminPage() {
+const VALID_TABS: Tab[] = ['dashboard', 'users', 'videos', 'billing', 'access', 'audit', 'prospects', 'settings']
+
+function AdminPageInner() {
   const notify = useToast()
+  const searchParams = useSearchParams()
+  const tabParam = searchParams.get('tab') as Tab | null
+  const tab: Tab = tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'dashboard'
   const [state, setState] = useState<'loading' | 'denied' | 'error' | 'ok'>('loading')
   const [error, setError] = useState('')
-  const [tab, setTab] = useState<Tab>('dashboard')
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [videos, setVideos] = useState<Video[]>([])
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([])
@@ -86,6 +91,14 @@ export default function AdminPage() {
       setCampaigns(d.campaigns ?? [])
     }).catch(() => {})
   }, [])
+
+  // Sidebar navigation drives the tab via ?tab= — reset per-tab inputs on change
+  useEffect(() => {
+    setSearch('')
+    setFilter('')
+    if (tab === 'settings') loadSettings()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab])
 
   function reload() {
     fetch('/api/admin/data').then(r => r.json()).then(d => {
@@ -226,17 +239,6 @@ export default function AdminPage() {
   if (state === 'denied') return <div style={{ padding: 64, textAlign: 'center' }}><h2>Access Denied</h2><p style={{ color: 'var(--ink-light)' }}>You don&apos;t have admin access.</p></div>
   if (state === 'error') return <div style={{ padding: 64, textAlign: 'center' }}><h2>Error</h2><p style={{ color: 'var(--ink-light)' }}>{error}</p></div>
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'users', label: `Users (${totalUsers})` },
-    { id: 'videos', label: `Videos (${totalVideos})` },
-    { id: 'billing', label: 'Billing' },
-    { id: 'access', label: 'Manage Access' },
-    { id: 'audit', label: 'Audit Log' },
-    { id: 'prospects', label: 'Prospects' },
-    { id: 'settings', label: 'Settings' },
-  ]
-
   const userEmail = (userId: string) => profiles.find(p => p.id === userId)?.email ?? '—'
   const fmt = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   const fmtTime = (d: string) => new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -253,27 +255,6 @@ export default function AdminPage() {
   return (
     <div>
       <div className="page-head"><div><h1>Admin</h1></div></div>
-
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => { setTab(t.id); setSearch(''); setFilter(''); if (t.id === 'settings') loadSettings() }}
-            className={`btn btn-sm ${tab === t.id ? 'btn-primary' : 'btn-soft'}`}>{t.label}</button>
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 24, flexWrap: 'wrap' }}>
-        <Link href="/admin/costs" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>API Costs</Link>
-        <Link href="/admin/revenue" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Revenue</Link>
-        <Link href="/admin/billing" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Billing &amp; Sales</Link>
-        <Link href="/admin/billing-health" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Billing Health</Link>
-        <Link href="/admin/campaigns" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Campaigns</Link>
-        <Link href="/admin/prospects" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Prospects</Link>
-        <Link href="/admin/bulk" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Bulk Generate</Link>
-        <Link href="/admin/api-keys" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>API Keys</Link>
-        <Link href="/admin/affiliates" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Affiliates</Link>
-        <Link href="/admin/help" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Help Articles</Link>
-        <Link href="/admin/system" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>System Status</Link>
-        <Link href="/admin/logs" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>Logs</Link>
-      </div>
 
       {tab === 'dashboard' && (
         <div>
@@ -1416,6 +1397,14 @@ export default function AdminPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function AdminPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 64, textAlign: 'center', color: 'var(--ink-light)' }}>Loading admin...</div>}>
+      <AdminPageInner />
+    </Suspense>
   )
 }
 
