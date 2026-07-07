@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../_lib/supabase/server'
+import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -25,6 +27,20 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+  const rl = rateLimit(getRateLimitKey(user.id, 'scene-edit'), LIMITS.generation.limit, LIMITS.generation.windowMs)
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Rate limit exceeded. Please wait a bit before generating again.' }, { status: 429 })
+  }
+
+  const COST = CREDIT_COSTS['scene-edit']
+  const credit = await checkCredits(user.id, COST)
+  if (!credit.allowed) {
+    return NextResponse.json({ error: `Not enough credits. Need ${COST}, have ${credit.remaining}.` }, { status: 402 })
+  }
+  if (!(await deductCredits(user.id, COST, 'scene-edit'))) {
+    return NextResponse.json({ error: 'Failed to deduct credits.' }, { status: 402 })
+  }
 
   const { scene, instruction, sourceData, history, outputType } = await request.json() as {
     scene: any

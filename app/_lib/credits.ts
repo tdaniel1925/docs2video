@@ -36,6 +36,13 @@ export const CREDIT_COSTS = {
   scriptRegen: 50,
   aiChatEdit: 50,
   videoIllustrated: 1500,  // 3 frames per scene = 3x image generation
+  // Image-gen routes that previously charged NOTHING (un-metered spend). Priced
+  // by how many paid image generations each fans out.
+  'brand-kit': 400,        // fans out ~7 image generations (4 logos + 3 social)
+  'logo-chat': 100,        // single logo refine/edit
+  'demo-slide': 100,       // single slide image
+  'scene-edit': 100,       // single scene image edit
+  'upscale-logo': 100,     // single upscale
 } as const
 
 // Pre-existing paying customers locked at the OLD (pre-2x) rates. They keep the

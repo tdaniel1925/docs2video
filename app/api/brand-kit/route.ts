@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
+import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import Anthropic from '@anthropic-ai/sdk'
 import { GoogleGenAI } from '@google/genai'
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
@@ -106,6 +108,24 @@ export async function POST(request: Request) {
 
   const body = await request.json()
   const { action } = body as { action: string }
+
+  // ── Cost controls: gate the PAID image-generation actions only. The 'chat'
+  // and 'generate-palettes' actions use the cheap text model and stay free.
+  if (action === 'generate' || action === 'refine' || action === 'generate-assets') {
+    const rl = rateLimit(getRateLimitKey(user.id, 'brand-kit'), LIMITS.generation.limit, LIMITS.generation.windowMs)
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Rate limit exceeded. Please wait a bit before generating again.' }, { status: 429 })
+    }
+
+    const COST = CREDIT_COSTS['brand-kit']
+    const credit = await checkCredits(user.id, COST)
+    if (!credit.allowed) {
+      return NextResponse.json({ error: `Not enough credits. Need ${COST}, have ${credit.remaining}.` }, { status: 402 })
+    }
+    if (!(await deductCredits(user.id, COST, 'brand-kit'))) {
+      return NextResponse.json({ error: 'Failed to deduct credits.' }, { status: 402 })
+    }
+  }
 
   // ── CHAT ─────────────────────────────────────────────────────────
   if (action === 'chat') {

@@ -3,6 +3,8 @@ import { GoogleGenAI } from '@google/genai'
 import PptxGenJS from 'pptxgenjs'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
+import { checkCredits, deductCredits, CREDIT_COSTS } from '../../../_lib/credits'
+import { rateLimit, getRateLimitKey, LIMITS } from '../../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -23,6 +25,20 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+  const rl = rateLimit(getRateLimitKey(user.id, 'template-demo'), LIMITS.generation.limit, LIMITS.generation.windowMs)
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Rate limit exceeded. Please wait a bit before generating again.' }, { status: 429 })
+  }
+
+  const COST = CREDIT_COSTS['demo-slide']
+  const credit = await checkCredits(user.id, COST)
+  if (!credit.allowed) {
+    return NextResponse.json({ error: `Not enough credits. Need ${COST}, have ${credit.remaining}.` }, { status: 402 })
+  }
+  if (!(await deductCredits(user.id, COST, 'demo-slide'))) {
+    return NextResponse.json({ error: 'Failed to deduct credits.' }, { status: 402 })
+  }
 
   try {
     const body = await request.json()
