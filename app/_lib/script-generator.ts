@@ -537,15 +537,15 @@ The viewer should feel like they just had a clear, personal explanation of their
   // Every scene MUST have narration
   additionalSections.push(`CRITICAL: Every scene MUST have narration text. There must be NO silent scenes. If a scene has a slide, it MUST have narration explaining that slide. The number of audio clips must EXACTLY match the number of scenes.`)
 
-  // Slide-audio sync: narration must match its own slide
+  // Slide-audio sync: no FORWARD previews (the actual sync bug). Backward
+  // references and connective transitions are ALLOWED — they're what makes the
+  // narration feel like one story instead of disjointed slide-reading.
   additionalSections.push(`SLIDE-AUDIO SYNC RULES (CRITICAL FOR VIDEO QUALITY):
-- Each scene's narration must ONLY describe content that appears on THAT scene's slide. Never preview, tease, or introduce the next slide's topic.
-- Do NOT say things like "next we'll look at..." or "coming up..." or "let's move on to..." — the slide transition handles that automatically.
-- The narration should START by addressing what the viewer is ALREADY seeing on screen, not what they're about to see.
-- If a scene covers "Key Metrics", every word of that scene's narration must be about those metrics — not about the previous or next topic.
-- BAD: "Now let's take a look at your key metrics" (viewer hasn't seen the metrics slide yet when this plays)
-- GOOD: "Here are the key metrics that matter most" (viewer is already looking at the metrics slide)
-- Each scene must be self-contained: introduce its topic, explain it, and wrap it up WITHOUT referencing other scenes.`)
+- Never PREVIEW the next slide's topic before its slide is on screen. No "next we'll look at...", "coming up...", "let's move on to..." — the slide transition handles that.
+- Each scene's narration should open grounded in what the viewer is ALREADY seeing on that slide.
+- BAD: "Now let's take a look at your key metrics" (the metrics slide isn't up yet when this plays)
+- GOOD: "Here are the key metrics that matter most" (viewer is already looking at them)
+- Referring BACK to earlier scenes is encouraged ("remember that $176,204 figure?", "that's exactly why this part matters") — it keeps the video feeling like one continuous story.`)
 
   // ── APPROVED BRIEF (highest priority) — the user reviewed + confirmed what the
   // video must cover and how to frame it. This OVERRIDES default angle choices.
@@ -755,11 +755,83 @@ FIELD RULES:
     }
   }
 
-  // Solo narrator mode (default)
-  const prompt = `${promptBody}${additionalBlock}
+  // ── Solo narrator mode (default): NARRATIVE-FIRST TWO-PASS ──
+  //
+  // PASS A (the storyteller, Opus): write the ENTIRE narration as one
+  // continuous monologue — the story a trusted expert would tell across the
+  // table — with a real arc and real transitions. No JSON, no slides.
+  //
+  // PASS B (the segmenter, Sonnet): split that story at its natural topic
+  // boundaries and derive each slide FROM its segment. Because every slide is
+  // built from its own segment, narration matches its slide BY CONSTRUCTION —
+  // sync is preserved without banning connective tissue. This mirrors the
+  // podcast mode's "write the whole conversation first, then divide" approach,
+  // which never had the disjointedness problem.
+  let narrativeStory = ''
+  try {
+    const storyPrompt = `${promptBody}${additionalBlock}
 
-Return ONLY valid JSON array (no markdown, no code fences):
-[
+FIRST PASS — WRITE THE NARRATION AS ONE CONTINUOUS STORY (PLAIN TEXT ONLY):
+For THIS response, set aside any instruction above about returning JSON or defining scenes, slides, or fields — a later step handles that. Right now you are ONLY the narrator.
+
+Write the complete voiceover narration as ONE flowing monologue, exactly the way a trusted expert would walk the viewer through this in person:
+- Open warm: greet the viewer, say in one sentence what this is and why it matters to them — no specific figures yet.
+- Build ONE arc: decide the single most important takeaway, and make every part of the story lead toward it. The biggest number/fact should land as the payoff the earlier parts were building to.
+- CONNECT everything: each topic must flow from the previous one ("and that's exactly why...", "which brings us to the part most people miss...", "remember that figure? here's where it goes to work"). This story will be split into slides later, so DO write transitions — never write isolated blurbs.
+- Translate every figure into its human consequence — state the number, then what it means for THEM.
+- Stay grounded: every fact, number, and name must appear in the DOCUMENT DATA above. The DATA INTEGRITY rules remain absolute in this pass.
+- Close per the closing/contact rules above.
+- HONOR the VIDEO LENGTH word budget above for the TOTAL story length.
+
+Output: the narration text only. No headings, no scene markers, no JSON, no commentary.`
+
+    const storyResponse = await claudeCreate({
+      model: 'claude-opus-4-8',
+      max_tokens: 8000,
+      messages: [{ role: 'user', content: storyPrompt }],
+    })
+    narrativeStory = parseClaudeText(storyResponse)
+    // Sanity: a usable story is prose, not JSON, and long enough to segment.
+    if (narrativeStory.length < 200 || /^[[{]/.test(narrativeStory)) {
+      throw new Error(`story pass returned unusable output (${narrativeStory.length} chars)`)
+    }
+    console.log(`[script-gen] Narrative story (opus): ${narrativeStory.split(/\s+/).length} words`)
+  } catch (err) {
+    // Non-fatal: fall back to the legacy single-pass path below.
+    console.error('[script-gen] Narrative pass failed — falling back to single-pass:', err instanceof Error ? err.message : 'unknown')
+    narrativeStory = ''
+  }
+
+  const segmentationPrompt = narrativeStory ? `You are segmenting a FINISHED video narration into scenes with matching slides. The narration below was written as one continuous story — your job is to cut it at its natural topic boundaries and build a slide for each segment. You are an editor, not a writer.
+
+THE FINISHED NARRATION (segment this — do NOT rewrite it):
+"""
+${narrativeStory}
+"""
+
+DOCUMENT DATA (the source of truth for exact figures to show on slides):
+${JSON.stringify(fitSourceData(data, 10000).fitted)}
+
+SEGMENTATION RULES:
+- Cut ONLY at topic boundaries — each scene covers ONE topic. Typical scene: 30-90 words of narration (roughly 12-35 seconds). Derive the scene count from the story's natural sections; do not force a count.
+- Each scene's "narration" is the segment text VERBATIM. You may not rewrite, summarize, add, or drop sentences. The concatenated narrations must reproduce the full story (joined with spaces).
+- Before returning, VERIFY: every sentence of the story appears in exactly one scene's narration. Dropping or condensing even one sentence is a FAILURE — the story was already written to the target length.
+- EXCEPTION (slide sync): if a segment's final sentence introduces the NEXT topic, move that sentence to the START of the next scene's narration instead — the viewer must already see a topic's slide when its narration plays.
+- First scene = the story's opening (beat "hook"). Last scene = the story's close (beat "action").
+
+SLIDE DERIVATION (each scene's slideData comes FROM its segment):
+- "headline": 2-5 word title for what THIS segment is about.
+- "stats": metrics the segment discusses, with EXACT formatted values from DOCUMENT DATA (e.g. "$176,204" — the narration may say numbers in words; the slide shows the precise figure). Omit if the segment has no metrics.
+- "bullets": 2-4 short facts from the segment, phrased for a slide (not full sentences). Omit for the opening and closing scenes.
+- Never put a figure on a slide that its segment doesn't discuss, and never show a figure from a different segment.
+- "slidePrompt": visual concept only (e.g. "dark background with growth chart icon") — NOT content text.
+- "duration": narration word count divided by 2.5, rounded (seconds).
+- "beat": one of "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action".
+
+Return ONLY valid JSON array (no markdown, no code fences):` : `${promptBody}${additionalBlock}
+
+Return ONLY valid JSON array (no markdown, no code fences):`
+  const sceneJsonExample = `[
   {
     "scene": 1,
     "beat": "hook",
@@ -769,17 +841,23 @@ Return ONLY valid JSON array (no markdown, no code fences):
       "stats": [{ "label": "Metric Name", "value": "$1.2M" }],
       "bullets": ["Key fact from the document", "Another specific data point"]
     },
-    "narration": "what the narrator SAYS — a conversational explanation of the slideData, NOT a repeat of it. Must ONLY discuss THIS slide's content — never preview or introduce the next slide.",
+    "narration": "the words the narrator speaks during this scene",
     "slidePrompt": "brief visual concept for the slide background/style",
     "duration": estimated seconds
   }
-]
+]`
+
+  // Story branch: the segmenter gets only its rules + the JSON shape — the
+  // writing rules below would tempt it to rewrite the (already final) story.
+  const prompt = narrativeStory ? `${segmentationPrompt}
+${sceneJsonExample}` : `${segmentationPrompt}
+${sceneJsonExample}
 
 FIELD RULES:
 - "slideData.headline": short title for the slide (2-5 words). This headline ANCHORS the narration — every word in this scene's narration must relate to this headline.
 - "slideData.stats": key metrics WITH their values from the document data — use for numbers, percentages, dollar amounts. Omit if no stats for this scene.
 - "slideData.bullets": 2-4 specific facts from the document to display as text. Omit for cover/closing slides.
-- "narration": what the speaker says — conversational, explains the data, does NOT just read the bullets. Must be SELF-CONTAINED: introduce the topic, explain it, and wrap up WITHOUT referencing other scenes.
+- "narration": what the speaker says — conversational, explains the data, does NOT just read the bullets. Each scene should flow from the previous one (backward references and connective transitions are encouraged) but must never PREVIEW the next scene's topic.
 - "slidePrompt": visual concept only (e.g. "dark background with growth chart icon") — NOT content text
 - "beat": one of "hook", "disclaimer", "disclaimer-close", "context", "stakes", "evidence", "implication", "action"
 
@@ -795,9 +873,9 @@ CLOSING SCENE (LAST scene) — IMPORTANT:
 - The slide will show the logo, contact info, and a thank-you — so the narration must MATCH that (a contact/CTA close), not introduce new topics.
 
 NARRATION ↔ SLIDE CORRESPONDENCE (every scene):
-- Each scene's narration must describe EXACTLY what is on that scene's slide — the same facts/numbers, nothing more, nothing less.
-- Never narrate a number that isn't shown on that slide, and never put a number on a slide the narration doesn't mention.
-- If the slide shows $176,204 as the death benefit, the narration for THAT scene talks about that figure — not a number from another scene.`
+- Numbers must align: never narrate a figure that isn't shown on that scene's slide, and never put a figure on a slide the narration doesn't mention.
+- If the slide shows $176,204 as the death benefit, the narration for THAT scene talks about that figure — not a number from another scene.
+- Beyond the numbers, the narration is a STORY, not a caption — explain, connect, and give meaning; don't restate the slide.`
 
   const response = await claudeCreate({
     model: 'claude-sonnet-4-6',
@@ -841,6 +919,21 @@ NARRATION ↔ SLIDE CORRESPONDENCE (every scene):
       if (sd) {
         if (typeof sd.headline === 'string') sd.headline = scrubNames(sd.headline)
         if (Array.isArray(sd.bullets)) sd.bullets = sd.bullets.map((b: string) => scrubNames(b))
+      }
+    }
+
+    // Two-pass path: verify the segmenter kept the story intact, and compute
+    // durations deterministically from word count (the model's estimates were
+    // observed wildly off — 33 words marked 44s).
+    if (narrativeStory) {
+      const storyWords = narrativeStory.split(/\s+/).filter(Boolean).length
+      const segWords = scenes.reduce((a, s) => a + (s.narration || '').split(/\s+/).filter(Boolean).length, 0)
+      if (segWords < storyWords * 0.8) {
+        console.warn(`[script-gen] segmentation dropped narration: story ${storyWords}w → scenes ${segWords}w — check verbatim rule`)
+      }
+      for (const scene of scenes) {
+        const w = (scene.narration || '').split(/\s+/).filter(Boolean).length
+        scene.duration = Math.max(4, Math.round(w / 2.5))
       }
     }
 
@@ -948,10 +1041,13 @@ NARRATION ↔ SLIDE CORRESPONDENCE (every scene):
         }
     }
 
-    // PASS 2 — the "editor": polish the narration for flow, rhythm, and the
-    // so-what, paced to each slide. Grounded (no new facts); best-effort so a
-    // failure just leaves the first-pass narration untouched.
-    if (scenes.length > 0) {
+    // Editor polish pass — LEGACY PATH ONLY. It rewrites narration per-scene
+    // to fixed word budgets ("about ITS OWN slide only"), which fixes the old
+    // single-pass output but would shred the narrative-first story: that
+    // narration was already written as one flowing monologue by the story pass
+    // and segmented verbatim. Re-editing it per-scene reintroduces the exact
+    // disjointedness the two-pass flow exists to eliminate.
+    if (scenes.length > 0 && !narrativeStory) {
       scenes = await editScriptNarration(scenes, { detailLevel }).catch((e) => {
         console.error('[script-gen] editor pass skipped:', e instanceof Error ? e.message : e)
         return scenes

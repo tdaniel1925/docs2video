@@ -5,6 +5,23 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com)
 
+## 2026-07-07 — Narrative-first two-pass script generation (fixes "disjointed slide reading")
+
+Root cause: solo-narrator prompt ordered scenes to be "SELF-CONTAINED... WITHOUT referencing other scenes" and to narrate "EXACTLY what is on that scene's slide — nothing more, nothing less" (added for slide-sync), which overrode the storytelling/arc rules → 8 isolated blurbs. Also, narration was written in the same pass as slide layout JSON, and a per-scene "editor" pass re-fragmented whatever flow survived.
+
+Fix in `script-generator.ts` (solo mode; podcast unchanged; output shape unchanged so TTS/slides/render untouched):
+- **Pass A (storyteller, `claude-opus-4-8`)**: writes the ENTIRE narration as one continuous monologue — arc, transitions, "so what" — grounded by the same data-integrity rules. ~+$0.05/script.
+- **Pass B (segmenter, Sonnet)**: cuts the story at topic boundaries VERBATIM and derives each slide FROM its segment → narration matches its slide by construction; forward-preview sentences are moved to the next scene instead of banned.
+- Sync rules softened everywhere: only forward previews banned; backward references/transitions encouraged.
+- Editor polish pass now runs on the LEGACY path only (it would shred the story). Durations computed in code (words/2.5) on the story path — model estimates were wildly off.
+- Fallback: if the story pass fails, legacy single-pass runs (with the self-contained rules removed there too).
+- Verified live (`scripts/test-narrative-script.ts`): 336-word story → 7 scenes, 100% verbatim retention, correct durations, flowing narration with callbacks and build.
+- Existing videos keep old scripts — regenerate to get the new narration.
+
+## 2026-07-06 — Hero-number clipping fix (deployed to VPS)
+
+Dynamic stat values rendered at fixed sizes (`v3/HeroMetric.tsx` 320px, `scenes/StatScene.tsx` 260px) clipped long figures like "$176,204.18" at the frame edge. Both now measure with `@remotion/layout-utils` `fitText` and scale down to fit (≤1560/1600px width), capped at original size; `whiteSpace: nowrap`. Swept all other template families — only remaining large fixed text is a static decorative quote glyph (editorial). Deployed via `vps/redeploy.sh` (SSH key: `~/.ssh/apex_deploy`, now set in ~/.ssh/config as IdentityFile); verified `fitText` present in the RUNNING container. Existing videos need a re-render to pick up the fix.
+
 ## 2026-07-05 — Apex (reachtheapex.net) integration, Path B (spec: DOCS2VIDEO-INTEGRATION-SPEC)
 
 D2V keeps its own Stripe; attributed sales are reported to the Apex MLM comp engine over signed webhooks. Affiliates owned by Apex reps are flagged `payout_via='apex'` — commission rows recorded for audit, never paid locally.
