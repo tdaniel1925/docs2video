@@ -1502,7 +1502,17 @@ app.post('/generate-slides', authCheck, async (req, res) => {
       const deps = {
         geminiImage: (prompt, outPath) => v3GeminiBg(prompt, outPath),
         tts: (fn) => ttsLimit(fn),
-        stageMusic: async (_mood, outPath) => { if (musicUrl) { const r = await fetch(musicUrl, { signal: AbortSignal.timeout(45000) }); if (r.ok) await writeFile(outPath, Buffer.from(await r.arrayBuffer())) } else throw new Error('no musicUrl') },
+        // ALWAYS produce dir-music.mp3 — the renderer's beat grid uses
+        // useAudioData(dir-music.mp3) and a missing file cancels the render.
+        // Use the provided track if any, else synthesize a short SILENT mp3 so
+        // the file exists (useBeats handles a silent/empty track gracefully).
+        stageMusic: async (_mood, outPath) => {
+          if (musicUrl) {
+            try { const r = await fetch(musicUrl, { signal: AbortSignal.timeout(45000) }); if (r.ok) { await writeFile(outPath, Buffer.from(await r.arrayBuffer())); return } } catch {}
+          }
+          // silent fallback (ffmpeg is on the box): 5s of quiet, looped by the renderer.
+          await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-t', '5', '-q:a', '9', outPath], { timeout: 30000 }, (e) => e ? reject(e) : resolve()))
+        },
       }
       const { plan, assetNames } = await generateSlidePlan({
         pub, source, preparer: preparer || 'docs2video', recipient, music, glass, footer, forcedAccent: accent,
