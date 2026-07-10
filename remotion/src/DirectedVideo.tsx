@@ -98,8 +98,19 @@ export const directedMetadata: CalculateMetadataFunction<DirectedProps> = async 
   // The plan is passed via --props (dir-plan wrapped) OR fetched from public/.
   let plan = props?.plan
   if (!plan || !Array.isArray(plan.scenes) || plan.scenes.length === 0) {
-    const res = await fetch(staticFile('dir-plan.json'))
-    plan = (await res.json()) as DirPlan
+    // No plan on props — try public/dir-plan.json. This is ABSENT during a bare
+    // `remotion compositions` listing (and before the generator runs), so guard
+    // every failure and fall back to safe placeholder metadata instead of
+    // throwing (a throwing calculateMetadata breaks the whole composition list).
+    try {
+      const res = await fetch(staticFile('dir-plan.json'))
+      if (res.ok) plan = (await res.json()) as DirPlan
+    } catch { /* no plan file — use placeholder below */ }
+  }
+  if (!plan || !Array.isArray(plan.scenes) || plan.scenes.length === 0) {
+    // placeholder: a valid, renderable-but-empty composition so listing/preview
+    // never crash. A real render always passes a full plan via --props.
+    return { durationInFrames: 30, props: { plan: { title: '', scenes: [] } as unknown as DirPlan, starts: [], total: 30, intensity: 'premium', bpm: 128 }, fps: FPS, width: 1920, height: 1080 }
   }
   // Scene starts snap to the beat grid so every cut lands ON a beat. We give each
   // scene enough beats to cover its VO, rounding UP to a whole beat.
