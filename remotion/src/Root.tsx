@@ -18,6 +18,22 @@ import { explainerSchema, type ExplainerProps } from './schema'
 import { SAMPLE } from './sample-data'
 import { FPS, AURORA } from './tokens'
 import { MotionSample, MOTION_DEFAULT, MOTION_SAMPLE_FRAMES, type MotionSampleProps } from './motion/MotionSample'
+import { KineticDemo, KINETIC_FRAMES } from './KineticDemo'
+import { CommercialDemo, commercialMetadata, type CommercialProps } from './CommercialDemo'
+import { KineticDoc, kineticDocMetadata, type KineticDocProps } from './KineticDoc'
+import { AppCommercial, appMetadata, type AppProps } from './AppCommercial'
+import { CinematicHeroShowcase, CINE_FRAMES } from './cinematic/CinematicHeroShowcase'
+import { AnimatedExplainer, EXPLAINER_FRAMES } from './explainer/AnimatedExplainer'
+import { AppCommercialV2, appV2Metadata } from './AppCommercialV2'
+import { AppCommercialV3, appV3Metadata } from './AppCommercialV3'
+import { AppCommercialV4, appV4Metadata } from './AppCommercialV4'
+import { ValorCommercial, valorMetadata, type ValorProps } from './ValorCommercial'
+import { ApexCommercial, apexMetadata, type ApexProps } from './ApexCommercial'
+import { DirectedVideo, directedMetadata, type DirectedProps } from './DirectedVideo'
+import { BeatHook, hookFrames, type HookProps } from './kinetic/BeatHook'
+import { LookTest, LOOKTEST_FRAMES } from './looks/LookTest'
+import { GlassCompare, GLASS_FRAMES } from './cinematic/GlassCompare'
+import type { LookName } from './looks/Looks'
 
 loadArchivo()
 loadInter()
@@ -51,6 +67,160 @@ const withAssets = async (props: ExplainerProps): Promise<ExplainerProps> => {
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+    <Composition
+      id="AnimatedExplainer"
+      component={AnimatedExplainer}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={EXPLAINER_FRAMES}
+    />
+    <Composition
+      id="CinematicHeroShowcase"
+      component={CinematicHeroShowcase}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={CINE_FRAMES}
+    />
+    <Composition id="GlassFigSubtle" component={GlassCompare} defaultProps={{ style: 'subtle' as const, mode: 'figure' as const }} fps={FPS} width={1920} height={1080} durationInFrames={GLASS_FRAMES} />
+    <Composition id="GlassFigVivid" component={GlassCompare} defaultProps={{ style: 'vivid' as const, mode: 'figure' as const }} fps={FPS} width={1920} height={1080} durationInFrames={GLASS_FRAMES} />
+    <Composition id="GlassChartSubtle" component={GlassCompare} defaultProps={{ style: 'subtle' as const, mode: 'chart' as const }} fps={FPS} width={1920} height={1080} durationInFrames={GLASS_FRAMES} />
+    <Composition id="GlassChartVivid" component={GlassCompare} defaultProps={{ style: 'vivid' as const, mode: 'chart' as const }} fps={FPS} width={1920} height={1080} durationInFrames={GLASS_FRAMES} />
+    <Composition
+      id="LookTestLedger"
+      component={LookTest}
+      defaultProps={{ look: 'ledger' as LookName, value: 116371, label: 'Year 10 Illustrated Value' }}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={LOOKTEST_FRAMES}
+    />
+    <Composition
+      id="LookTestBokeh"
+      component={LookTest}
+      defaultProps={{ look: 'bokeh' as LookName, value: 176204, label: 'Death Benefit' }}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={LOOKTEST_FRAMES}
+    />
+    <Composition
+      id="HookPremium"
+      component={BeatHook}
+      defaultProps={{ intensity: 'premium', image: 'hook-img.png' } as HookProps}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={hookFrames('premium', true)}
+    />
+    <Composition
+      id="HookHighEnergy"
+      component={BeatHook}
+      defaultProps={{ intensity: 'highenergy', image: 'hook-img.png' } as HookProps}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={hookFrames('highenergy', true)}
+    />
+    <Composition
+      id="DirectedVideo"
+      component={DirectedVideo}
+      defaultProps={{ plan: { title: '', palette: { bg: '#0a1626', accent: '#cda234', accent2: '#2a4568', text: '#f4f6fb' }, scenes: [] }, starts: [], total: 300 } as DirectedProps}
+      calculateMetadata={directedMetadata}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={300}
+    />
+    <Composition
+      id="ApexCommercial"
+      component={ApexCommercial}
+      defaultProps={{ starts: [15, 130, 300, 440, 580, 720], total: 1000 } as ApexProps}
+      calculateMetadata={apexMetadata}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={1000}
+    />
+    <Composition
+      id="ValorCommercial"
+      component={ValorCommercial}
+      defaultProps={{ starts: [15, 130, 300, 440, 580, 720], total: 1000 } as ValorProps}
+      calculateMetadata={valorMetadata}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={1000}
+    />
+    <Composition
+      id="AppCommercialV4"
+      component={AppCommercialV4}
+      defaultProps={{ starts: [15, 130, 300, 440, 580, 720, 860], total: 1000 } as AppProps}
+      calculateMetadata={appV4Metadata}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={1000}
+    />
+    <Composition
+      id="AppCommercialV3"
+      component={AppCommercialV3}
+      defaultProps={{ starts: [15, 130, 300, 440, 580, 720, 860], total: 1000 } as AppProps}
+      calculateMetadata={appV3Metadata}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={1000}
+    />
+    <Composition
+      id="AppCommercialV2"
+      component={AppCommercialV2}
+      defaultProps={{ starts: [15, 130, 300, 440, 580, 720, 860], total: 1000 } as AppProps}
+      calculateMetadata={appV2Metadata}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={1000}
+    />
+    <Composition
+      id="AppCommercial"
+      component={AppCommercial}
+      defaultProps={{ starts: [15, 130, 300, 440, 580, 720, 860], total: 1000 } as AppProps}
+      calculateMetadata={appMetadata}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={1000}
+    />
+    <Composition
+      id="KineticDoc"
+      component={KineticDoc}
+      defaultProps={{ starts: [15, 130, 260, 380, 500, 620, 760, 880], total: 1000, scenes: [] } as KineticDocProps}
+      calculateMetadata={kineticDocMetadata}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={1000}
+    />
+    <Composition
+      id="CommercialDemo"
+      component={CommercialDemo}
+      defaultProps={{ starts: [18, 100, 200, 340, 470, 580], total: 1400 } as CommercialProps}
+      calculateMetadata={commercialMetadata}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={1400}
+    />
+    <Composition
+      id="KineticDemo"
+      component={KineticDemo}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={KINETIC_FRAMES}
+    />
     <Composition
       id="MotionSample"
       component={MotionSample}

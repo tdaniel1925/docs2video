@@ -24,13 +24,23 @@ BUILD_FLAG="${1:-}"
 echo "==> Pulling latest"
 rm -rf "$TMP" && git clone --depth 1 "$REPO" "$TMP"
 
-echo "==> Copying server.js + remotion/src (the part that's been getting missed)"
+echo "==> Copying server.js + slides.js + remotion/src (the part that's been getting missed)"
 cp "$TMP/vps/server.js" "$DIR/server.js"
+cp "$TMP/vps/slides.js" "$DIR/slides.js"
 rm -rf "$DIR/remotion/src" && cp -r "$TMP/remotion/src" "$DIR/remotion/src"
+# remotion/package.json must ride along so new deps (@remotion/transitions, paths)
+# get installed on the next image build. NOTE: since COPY remotion precedes
+# npm install in the Dockerfile, a package.json change needs a --no-cache build.
+cp "$TMP/remotion/package.json" "$DIR/remotion/package.json"
+cp "$TMP/remotion/package-lock.json" "$DIR/remotion/package-lock.json" 2>/dev/null || true
 
 echo "==> Sanity: key markers present on disk"
 grep -c "SlidePanelScene" "$DIR/remotion/src/v3/V3Video.tsx" >/dev/null && echo "   glass-panel: ok"
 grep -c "render-editorial" "$DIR/server.js" >/dev/null && echo "   editorial endpoint: ok"
+grep -c "generate-slides" "$DIR/server.js" >/dev/null && echo "   slide pipeline endpoint: ok"
+grep -c "generateSlidePlan" "$DIR/slides.js" >/dev/null && echo "   slides.js module: ok"
+test -f "$DIR/remotion/src/DirectedVideo.tsx" && echo "   DirectedVideo composition: ok"
+grep -c "@remotion/transitions" "$DIR/remotion/package.json" >/dev/null && echo "   transitions dep: ok"
 
 echo "==> Reclaiming disk BEFORE build (repeated --no-cache builds fill the disk)"
 echo "   disk before:"; df -h / | tail -1
@@ -67,6 +77,11 @@ echo "==> Verifying the RUNNING container has the new code"
 sleep 6
 docker compose exec -T video-service grep -c "SlidePanelScene" /app/remotion/src/v3/V3Video.tsx >/dev/null \
   && echo "   container glass-panel: ok" || echo "   !! container MISSING glass-panel — run with --no-cache"
-docker compose exec -T video-service sh -c "cd /app/remotion && npx remotion compositions 2>/dev/null | grep -E 'V3Video|EditorialVideo'" || echo "   !! compositions missing"
+docker compose exec -T video-service test -f /app/slides.js \
+  && echo "   container slides.js: ok" || echo "   !! container MISSING slides.js — run with --no-cache"
+docker compose exec -T video-service sh -c "cd /app/remotion && npx remotion compositions 2>/dev/null | grep -E 'V3Video|EditorialVideo|DirectedVideo'" || echo "   !! compositions missing"
+# the slide renderer needs @remotion/transitions installed IN the image:
+docker compose exec -T video-service test -d /app/remotion/node_modules/@remotion/transitions \
+  && echo "   container transitions dep: ok" || echo "   !! MISSING @remotion/transitions — run: bash redeploy.sh --no-cache"
 
-echo "==> Done. Generate a video to verify."
+echo "==> Done. Generate a slide video to verify (POST /generate-slides)."

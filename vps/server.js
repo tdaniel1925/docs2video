@@ -1433,6 +1433,244 @@ app.post('/render-v3', authCheck, async (req, res) => {
 })
 
 // ============================================================
+// SLIDE PIPELINE — /generate-slides. The FULL slide-deck pipeline on the VPS:
+// read source (doc via pdftotext/libreoffice, text direct — URL crawl TODO once
+// Playwright is in the image) → comprehend + write + word-timed VO + backdrops
+// (vps/slides.js) → render DirectedVideo → upload. Vercel just triggers this.
+// Requires ANTHROPIC_API_KEY on the VPS.
+// ============================================================
+const { generateSlidePlan } = require('./slides')
+
+// read a document's text using the same tools as /extract-document.
+async function readDocText(fileBase64, fileName) {
+  const workDir = join(tmpdir(), `d2v-slides-${randomUUID()}`)
+  await mkdir(workDir, { recursive: true })
+  const ext = (fileName.split('.').pop() || '').toLowerCase()
+  const inputPath = join(workDir, `input.${ext || 'bin'}`)
+  await writeFile(inputPath, Buffer.from(fileBase64, 'base64'))
+  if (ext === 'txt' || ext === 'csv') return (await readFile(inputPath, 'utf-8')).slice(0, 120000)
+  let pdfPath = inputPath
+  if (ext !== 'pdf') {
+    await new Promise((resolve, reject) => execFile('libreoffice', ['--headless', '--convert-to', 'pdf', '--outdir', workDir, inputPath], { timeout: 120000 }, (err) => err ? reject(new Error('Could not convert this file type.')) : resolve()))
+    pdfPath = join(workDir, 'input.pdf')
+  }
+  const txtPath = join(workDir, 'out.txt')
+  await new Promise((resolve, reject) => execFile('pdftotext', ['-layout', pdfPath, txtPath], { timeout: 60000 }, (err) => err ? reject(new Error('Could not read text from this document.')) : resolve()))
+  return (await readFile(txtPath, 'utf-8')).slice(0, 120000)
+}
+
+app.post('/generate-slides', authCheck, async (req, res) => {
+  const { videoId, userId, fileBase64, fileName, text, url, preparer, recipient, music, glass, footer, accent, logoUrl, musicUrl } = req.body || {}
+  if (!videoId) return res.status(400).json({ error: 'Missing videoId' })
+  if (!fileBase64 && !text && !url) return res.status(400).json({ error: 'Provide fileBase64, text, or url' })
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured on VPS' })
+  res.json({ success: true })
+
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+  const setProgress = (pct, detail) => sb.from('videos').update({ progress_pct: pct, progress_detail: detail, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
+  const pub = join(REMOTION_DIR, 'public')
+  let outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
+  const PROPS = join(pub, `dv-${videoId}-props.json`)
+  const staged = []
+
+  await withRenderSlot(async () => {
+    try {
+      await mkdir(pub, { recursive: true }); await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
+      await setProgress(10, 'Reading source...')
+      // 1) get source text
+      let source
+      if (url) {
+        // URL crawl needs Playwright/Chrome-navigation — not wired yet on the VPS.
+        throw new Error('URL sources not yet supported on the VPS (Playwright pending); use a document or pasted text.')
+      } else if (fileBase64) {
+        source = { kind: 'pdf', text: await readDocText(fileBase64, fileName || 'input.pdf') }
+      } else {
+        source = { kind: 'text', text: String(text).slice(0, 120000) }
+      }
+      if (!source.text || source.text.trim().length < 60) throw new Error('Not enough readable text in the source.')
+
+      // stage logo if provided (so the plan can reference brand-logo.png)
+      if (logoUrl) { try { const r = await fetch(logoUrl, { signal: AbortSignal.timeout(30000) }); if (r.ok) { const p = join(pub, 'brand-logo.png'); await writeFile(p, Buffer.from(await r.arrayBuffer())); staged.push(p) } } catch {} }
+
+      await setProgress(20, 'Understanding your document...')
+      // 2) generate plan + assets via the ported pipeline
+      const deps = {
+        geminiImage: (prompt, outPath) => v3GeminiBg(prompt, outPath),
+        tts: (fn) => ttsLimit(fn),
+        stageMusic: async (_mood, outPath) => { if (musicUrl) { const r = await fetch(musicUrl, { signal: AbortSignal.timeout(45000) }); if (r.ok) await writeFile(outPath, Buffer.from(await r.arrayBuffer())) } else throw new Error('no musicUrl') },
+      }
+      const { plan, assetNames } = await generateSlidePlan({
+        pub, source, preparer: preparer || 'docs2video', recipient, music, glass, footer, forcedAccent: accent,
+        shots: [], deps, log: (m) => setProgress(40, m),
+      })
+      staged.push(...assetNames.map((n) => join(pub, n)))
+      await writeFile(PROPS, JSON.stringify({ plan })); staged.push(PROPS)
+
+      await setProgress(55, 'Rendering slides...')
+      await new Promise((resolve, reject) => {
+        const { spawn } = require('child_process')
+        const child = spawn('npx', ['remotion', 'render', 'DirectedVideo', outFile, `--props=${PROPS}`, '--log=info', '--concurrency=8', '--gl=swiftshader', '--image-format=jpeg'], { cwd: REMOTION_DIR, env: { ...process.env } })
+        let stderrBuf = '', lastPct = 55, lastWrite = 0
+        const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); const m = [...t.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const done = parseInt(m[1], 10), total = parseInt(m[2], 10); if (total > 0 && done <= total) { const pct = 55 + Math.round((done / total) * 34); const now = Date.now(); if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`) } } } }
+        child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
+        const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout (>60min)')) }, 60 * 60 * 1000)
+        child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`render: ${e.message}`)) })
+        child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`render exit ${code}: ${stderrBuf.slice(-300)}`)) })
+      })
+
+      await setProgress(90, 'Uploading...')
+      const videoBuffer = await readFile(outFile)
+      await sb.storage.from('videos').upload(`${userId}/${videoId}.mp4`, videoBuffer, { contentType: 'video/mp4', upsert: true })
+      const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
+      const thumbPath = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
+      await grabPoster(outFile, thumbPath)
+      let thumbUrl = null
+      try { const tb = await readFile(thumbPath); await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true }); thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl } catch {}
+      await rm(thumbPath, { force: true }).catch(() => {})
+      await sb.from('videos').update({ status: 'completed', video_url: urlData.publicUrl, ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}), progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString() }).eq('id', videoId)
+      console.log(`[generate-slides ${videoId}] DONE -> ${urlData.publicUrl}`)
+    } catch (err) {
+      console.error(`[generate-slides ${videoId}] error:`, err.message)
+      reportError({ source: 'generate-slides', videoId, userId, stage: 'slides', message: err.message }).catch(() => {})
+      await sb.from('videos').update({ status: 'failed', error_message: 'Video generation failed. Your credits were refunded.', progress_detail: `[fail] generate-slides: ${err.message}`.slice(0, 500) }).eq('id', videoId).then(() => {}, () => {})
+    } finally {
+      for (const f of staged) await rm(f, { force: true }).catch(() => {})
+      await rm(outFile, { force: true }).catch(() => {})
+    }
+  })
+})
+
+// ============================================================
+// DIRECTED (SLIDE-DECK) RENDERER — the DirectedVideo composition. Unlike the
+// other endpoints, generation (comprehend → write → VO → dir-plan.json + assets)
+// happens UPSTREAM on the app; the VPS only RENDERS. The caller sends the finished
+// `plan` (dir-plan.json) plus `assets` (VO mp3s, backdrops, music, logo) as
+// {name,url}; we download them into public/ under their EXACT plan filenames,
+// write the plan to a --props file, render, and upload the mp4.
+//
+// Concurrency note: DirectedVideo hardcodes staticFile('dir-vo-<id>.mp3') etc.,
+// so two concurrent renders would collide on those fixed names. withRenderSlot
+// serializes renders (ONE Chrome fleet at a time), and we hold that slot across
+// staging + render + cleanup, so fixed names are safe. Concurrency stays at 8 —
+// higher crashed Chrome on this box's /dev/shm (see /render-v3 note).
+// ============================================================
+app.post('/render-directed', authCheck, async (req, res) => {
+  const { videoId, userId, plan, assets, musicUrl } = req.body || {}
+  if (!videoId || !plan || !Array.isArray(plan.scenes) || plan.scenes.length === 0) {
+    return res.status(400).json({ error: 'Missing videoId or plan.scenes' })
+  }
+  res.json({ success: true })
+
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+  const setProgress = (pct, detail) => sb.from('videos').update({ progress_pct: pct, progress_detail: detail, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
+
+  const pub = join(REMOTION_DIR, 'public')
+  let outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
+  const PROPS = join(pub, `dv-${videoId}-props.json`)
+  // track everything we write so cleanup is exact (fixed names are shared across
+  // videos, but renders are serialized, so we remove them right after this render).
+  const staged = []
+
+  // Everything from staging through cleanup runs INSIDE the render slot so no
+  // other DirectedVideo render can touch the fixed dir-* filenames concurrently.
+  await withRenderSlot(async () => {
+    try {
+      await mkdir(pub, { recursive: true })
+      await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
+      console.log(`[render-directed ${videoId}] scenes=${plan.scenes.length} assets=${(assets || []).length}`)
+      await setProgress(30, 'Staging assets...')
+
+      // Download each asset into public/ under its EXACT plan filename (dir-vo-1.mp3,
+      // dir-bd-2.png, dir-music.mp3, brand-logo.png, dir-img-3.png, ...).
+      for (const a of (assets || [])) {
+        if (!a || !a.name || !a.url) continue
+        const dest = join(pub, a.name)
+        const r = await fetch(a.url, { signal: AbortSignal.timeout(45000), redirect: 'follow' })
+        if (!r.ok) throw new Error(`asset ${a.name} download failed: ${r.status}`)
+        await writeFile(dest, Buffer.from(await r.arrayBuffer()))
+        staged.push(dest)
+      }
+      // A separate musicUrl (optional) overrides/fills dir-music.mp3.
+      if (musicUrl) {
+        const dest = join(pub, 'dir-music.mp3')
+        const r = await fetch(musicUrl, { signal: AbortSignal.timeout(45000), redirect: 'follow' })
+        if (r.ok) { await writeFile(dest, Buffer.from(await r.arrayBuffer())); if (!staged.includes(dest)) staged.push(dest) }
+      }
+
+      // Sanity: every scene's VO must be present (the metadata fn reads durations).
+      for (const s of plan.scenes) {
+        const vo = join(pub, `dir-vo-${s.id}.mp3`)
+        try { await readFile(vo) } catch { throw new Error(`missing VO asset dir-vo-${s.id}.mp3 for scene ${s.id}`) }
+      }
+
+      // Write the plan as the --props payload. DirectedVideo's calculateMetadata
+      // accepts { plan } via props and never falls back to the staticFile fetch.
+      await writeFile(PROPS, JSON.stringify({ plan }))
+      staged.push(PROPS)
+      await setProgress(50, 'Rendering slides...')
+
+      await new Promise((resolve, reject) => {
+        const { spawn } = require('child_process')
+        // concurrency 8 = proven-safe on this 16-core box (higher crashed Chrome
+        // via /dev/shm). --props isolation: never rely on staticFile fetch.
+        const child = spawn('npx', ['remotion', 'render', 'DirectedVideo', outFile, `--props=${PROPS}`,
+          '--log=info', '--concurrency=8', '--gl=swiftshader', '--image-format=jpeg'],
+          { cwd: REMOTION_DIR, env: { ...process.env } })
+        let stderrBuf = '', lastPct = 50, lastWrite = 0
+        const onChunk = (buf) => {
+          const text = buf.toString(); stderrBuf = (stderrBuf + text).slice(-2000)
+          const m = [...text.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop()
+          if (m) {
+            const done = parseInt(m[1], 10), total = parseInt(m[2], 10)
+            if (total > 0 && done <= total) {
+              const pct = 50 + Math.round((done / total) * 39) // 50 -> 89
+              const now = Date.now()
+              if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`) }
+            }
+          }
+        }
+        child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
+        const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {} ; reject(new Error('remotion render: timeout (>60min)')) }, 60 * 60 * 1000)
+        child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`remotion render: ${e.message}`)) })
+        child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`remotion render exit ${code}: ${stderrBuf.slice(-300)}`)) })
+      })
+
+      await setProgress(90, 'Uploading...')
+      const videoBuffer = await readFile(outFile)
+      const videoStoragePath = `${userId}/${videoId}.mp4`
+      await sb.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
+      const { data: urlData } = sb.storage.from('videos').getPublicUrl(videoStoragePath)
+
+      // Poster (past the cover fade-in).
+      const thumbPath = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
+      await grabPoster(outFile, thumbPath)
+      let thumbUrl = null
+      try {
+        const tb = await readFile(thumbPath)
+        await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true })
+        thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl
+      } catch { /* best-effort */ }
+      await rm(thumbPath, { force: true }).catch(() => {})
+
+      await sb.from('videos').update({
+        status: 'completed', video_url: urlData.publicUrl,
+        ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
+        progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
+      }).eq('id', videoId)
+      console.log(`[render-directed ${videoId}] DONE -> ${urlData.publicUrl}`)
+    } catch (err) {
+      console.error(`[render-directed ${videoId}] error:`, err.message)
+      reportError({ source: 'render-directed', videoId, userId, stage: 'slides', message: err.message }).catch(() => {})
+      await sb.from('videos').update({ status: 'failed', error_message: 'Video rendering failed. Your credits were refunded.', progress_detail: `[fail] render-directed: ${err.message}`.slice(0, 500) }).eq('id', videoId).then(() => {}, () => {})
+    } finally {
+      // remove exactly what we staged (fixed dir-* names are shared, so clean now).
+      for (const f of staged) await rm(f, { force: true }).catch(() => {})
+      await rm(outFile, { force: true }).catch(() => {})
+    }
+  })
+})
+
+// ============================================================
 // EDITORIAL RENDERER — EPOCH magazine style (EditorialVideo composition).
 // TTS per scene + a framed Gemini image only for scenes that want one
 // (cover/lede). Writes public/editorial.json, renders, uploads. Music optional.
