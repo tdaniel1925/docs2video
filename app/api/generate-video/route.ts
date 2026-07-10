@@ -228,11 +228,11 @@ export async function POST(request: Request) {
   // (Render target setting removed 2026-07-01 — VPS is the only renderer now;
   // the Remotion Lambda path was deleted. See git history for v3-lambda.ts.)
   // Visual style: a per-video choice from the wizard (body.videoStyle) WINS over
-  // the global admin default. One of 'cinematic' | 'editorial' | 'time' | 'explainer'.
+  // the global admin default. One of 'slides' | 'cinematic' | 'editorial' | 'time' | 'explainer'.
+  // 'slides' = the animated explainer DECK (DirectedVideo, the new DEFAULT).
   // ('editorial' = clean magazine, 'time' = bold red newsmagazine, 'explainer' =
-  // friendly sans/navy educational — all three render through the editorial
-  // engine with a `variant`.)
-  const videoStyle = (body as any).videoStyle || (await getSetting('video_style')) || 'cinematic'
+  // friendly sans/navy educational — those three render through the editorial engine.)
+  const videoStyle = (body as any).videoStyle || (await getSetting('video_style')) || 'slides'
   const isMagazine = videoStyle === 'editorial' || videoStyle === 'time' || videoStyle === 'explainer'
   const editorialVariant: 'editorial' | 'time' | 'explainer' =
     videoStyle === 'editorial' ? 'editorial' : videoStyle === 'explainer' ? 'explainer' : 'time'
@@ -958,11 +958,60 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, pipeline: 'v2' })
     }
 
-    // STAGE 3 (V3): if the admin enabled the V3 engine, render with Remotion on
-    // the VPS instead of the classic /generate path. Theme is auto-picked by
-    // content (data-heavy → infographic, else cinematic); brand colors + logo
-    // variants applied. Same ACK-timeout-safe handoff as v1.
-    if (useV3) {
+    // STAGE 3 (V3 / SLIDES): render with Remotion on the VPS instead of the
+    // classic /generate path. Entered when the V3 engine flag is on OR the style
+    // is 'slides' (the new default, its own engine — independent of the V3 flag).
+    if (useV3 || videoStyle === 'slides') {
+      // SLIDE-DECK style (the new default): the animated explainer deck
+      // (DirectedVideo). The VPS reads the source, comprehends it, writes the
+      // deck, generates VO, and renders — so we hand it the extracted document
+      // data as text plus brand/presenter/contact/recipient. On any failure to
+      // start, we FALL THROUGH to the existing pipeline (no video is ever lost).
+      const isSlides = videoStyle === 'slides'
+      if (isSlides) {
+        try {
+          console.log(`[video ${videoId}] slide-deck style — handing to VPS /generate-slides`)
+          await admin.from('videos').update({ progress_detail: 'Building your slide deck...', progress_pct: 16 }).eq('id', videoId)
+          const slidesPayload = {
+            videoId, userId: user.id, voiceId,
+            text: JSON.stringify(policyData),   // the extracted document data (structured); the VPS comprehends it
+            preparer: effectiveBrandName || (body as any).companyName || 'docs2video',
+            recipient: recipientName || undefined,
+            music: undefined, musicUrl: musicUrl || undefined,
+            glass: 'vivid',
+            footer: wantContactClosing && contactLine ? contactLine : undefined,
+            logoUrl: (brand?.logo_light_url || brand?.logo_url) || undefined,   // white logo preferred for dark slide bg
+            presenter: presenter ? { name: presenter.name, role: presenter.role, photoUrl: presenter.photo } : undefined,
+            photoPlacement: photoPlacement || undefined,
+          }
+          const slRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-slides`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
+            body: JSON.stringify(slidesPayload),
+            signal: AbortSignal.timeout(25000),
+          })
+          const slText = await slRes.text()
+          let slData: { success?: boolean; error?: string } | null = null
+          try { slData = JSON.parse(slText) } catch { /* non-JSON */ }
+          if (!slRes.ok || !slData?.success) throw new Error(slData?.error || `Slides render error (HTTP ${slRes.status})`)
+          console.log(`[video ${videoId}] slides accepted — rendering in background.`)
+          inFlightVideos.delete(videoId)
+          return NextResponse.json({ success: true, pipeline: 'slides' })
+        } catch (slErr) {
+          const isAbort = slErr instanceof Error && (slErr.name === 'TimeoutError' || slErr.name === 'AbortError')
+          if (isAbort) {
+            // ACK timeout ≠ failure — the VPS likely accepted it and is working.
+            console.log(`[video ${videoId}] slides ACK timed out — assuming accepted.`)
+            inFlightVideos.delete(videoId)
+            return NextResponse.json({ success: true, pipeline: 'slides' })
+          }
+          // Real failure to START → fall through to the existing V3 pipeline so
+          // the user still gets a video (the chosen safety net).
+          console.error(`[video ${videoId}] slides failed to start (${(slErr as Error).message}) — falling back to V3 pipeline`)
+          await admin.from('videos').update({ progress_detail: 'Rendering (fallback style)...', progress_pct: 16 }).eq('id', videoId)
+        }
+      }
+
       // EDITORIAL style: build magazine-archetype scenes and render the
       // EditorialVideo composition on the VPS (/render-editorial). Separate from
       // the cinematic path so neither affects the other.

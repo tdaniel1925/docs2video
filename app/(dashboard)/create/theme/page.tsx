@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-type ThemeId = 'aurora' | 'cinematic' | 'editorial' | 'explainer'
+type ThemeId = 'slides' | 'aurora' | 'cinematic' | 'editorial' | 'explainer'
 
 // Static sample images live in /public/style-samples/<id>-{cover,data,closing}.png
 // (rendered once — no live preview, so picking a style is instant + adds no
 // production time). Newsmagazine ('time') exists in the engine but is no longer
 // offered (it overlapped Editorial too much).
 const THEMES: { id: ThemeId; name: string; tagline: string }[] = [
+  { id: 'slides', name: 'Slide Deck', tagline: 'Animated explainer deck — topic headings with bullets, data cards, charts, screenshots and icons that reveal in sync with the voice. Reads the whole document. (Recommended)' },
   { id: 'aurora', name: 'Aurora', tagline: 'Modern motion-graphics — one flowing branded backdrop, kinetic type, no stock imagery. Clean, cohesive, premium.' },
   { id: 'cinematic', name: 'Cinematic', tagline: 'Film-style imagery, kinetic text, motion. Best for story-led, emotive videos.' },
   { id: 'editorial', name: 'Editorial', tagline: 'Clean, warm magazine layout. Refined serif typography on your brand color.' },
@@ -24,7 +25,7 @@ export default function ThemePage() {
 
   const [draft, setDraft] = useState<any>(null)
   const [outputType, setOutputType] = useState<'video' | 'pptx' | 'pdf'>('video')
-  const [selected, setSelected] = useState<ThemeId>('cinematic')
+  const [selected, setSelected] = useState<ThemeId>('slides')
   const [loading, setLoading] = useState(true)
   const [lightbox, setLightbox] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -113,13 +114,21 @@ export default function ThemePage() {
       <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 28 }}>
         {THEMES.map((t) => {
           const isSel = selected === t.id
+          const isNew = t.id === 'slides'
           return (
             <button key={t.id} onClick={() => setSelected(t.id)} style={{
-              padding: '20px', borderRadius: 10, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+              position: 'relative', padding: '20px', borderRadius: 10, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
               border: isSel ? '2px solid var(--mint)' : '1.5px solid var(--border-light)',
               background: isSel ? 'rgba(199, 232, 168, 0.10)' : 'white', transition: 'all 0.15s',
             }}>
-              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--ink)', marginBottom: 6 }}>{t.name}</div>
+              {isNew ? (
+                <span style={{
+                  position: 'absolute', top: 12, right: 12, fontSize: 10, fontWeight: 800, letterSpacing: '0.08em',
+                  textTransform: 'uppercase', color: 'var(--ink)', background: 'var(--mint)',
+                  padding: '3px 8px', borderRadius: 6, lineHeight: 1,
+                }}>New · Recommended</span>
+              ) : null}
+              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--ink)', marginBottom: 6, paddingRight: isNew ? 8 : 0 }}>{t.name}</div>
               <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.45 }}>{t.tagline}</div>
             </button>
           )

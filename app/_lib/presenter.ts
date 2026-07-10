@@ -7,7 +7,7 @@
 
 import type { Brand } from './types'
 
-export type VideoStyle = 'cinematic' | 'editorial' | 'classic' | 'infographic'
+export type VideoStyle = 'slides' | 'cinematic' | 'editorial' | 'classic' | 'infographic'
 export type PhotoPlacementPref = 'auto' | 'cover' | 'closing' | 'both' | 'none'
 
 /** The runtime presenter handed to payload builders + renderers. */

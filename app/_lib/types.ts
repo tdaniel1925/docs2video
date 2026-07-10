@@ -258,7 +258,7 @@ export interface WizardDraft {
   showContactClosing?: boolean
   photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
   // Theme chosen on the Theme step (per-video; overrides global default).
-  videoStyle?: 'cinematic' | 'editorial' | 'time' | 'explainer'
+  videoStyle?: 'slides' | 'cinematic' | 'editorial' | 'time' | 'explainer' | 'aurora'
   // The "Review brief" step: what the AI understood + plans to cover. The user
   // approves or redirects it; the approved brief steers the script generator.
   brief?: VideoBrief
