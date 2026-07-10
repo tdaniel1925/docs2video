@@ -24,9 +24,12 @@ BUILD_FLAG="${1:-}"
 echo "==> Pulling latest"
 rm -rf "$TMP" && git clone --depth 1 "$REPO" "$TMP"
 
-echo "==> Copying server.js + slides.js + remotion/src (the part that's been getting missed)"
+echo "==> Copying server.js + slides.js + Dockerfile + remotion/src (the part that's been getting missed)"
 cp "$TMP/vps/server.js" "$DIR/server.js"
 cp "$TMP/vps/slides.js" "$DIR/slides.js"
+# the Dockerfile itself must be synced — it now COPYs slides.js into the image
+# (server.js requires ./slides; without it the container crash-loops on startup).
+cp "$TMP/vps/Dockerfile" "$DIR/Dockerfile"
 rm -rf "$DIR/remotion/src" && cp -r "$TMP/remotion/src" "$DIR/remotion/src"
 # remotion/package.json must ride along so new deps (@remotion/transitions, paths)
 # get installed on the next image build. NOTE: since COPY remotion precedes

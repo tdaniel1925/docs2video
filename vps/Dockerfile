@@ -38,8 +38,10 @@ RUN cd /app/remotion \
     && npx remotion browser ensure
 ENV REMOTION_DIR="/app/remotion"
 
-# Copy server code
+# Copy server code (server.js requires ./slides for the slide-deck pipeline —
+# both MUST be in the image or the process crashes on startup with MODULE_NOT_FOUND).
 COPY server.js ./
+COPY slides.js ./
 
 EXPOSE 4000
 
