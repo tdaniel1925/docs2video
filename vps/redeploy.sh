@@ -30,6 +30,11 @@ cp "$TMP/vps/slides.js" "$DIR/slides.js"
 # the Dockerfile itself must be synced — it now COPYs slides.js into the image
 # (server.js requires ./slides; without it the container crash-loops on startup).
 cp "$TMP/vps/Dockerfile" "$DIR/Dockerfile"
+# docker-compose.yml must sync too — it maps env vars (e.g. ANTHROPIC_API_KEY)
+# into the container. A stale compose file = the container silently lacks the key.
+# NOTE: this preserves the box's .env (which the ${VAR} refs resolve against);
+# only the compose file's structure/env-list is updated from git.
+cp "$TMP/vps/docker-compose.yml" "$DIR/docker-compose.yml"
 rm -rf "$DIR/remotion/src" && cp -r "$TMP/remotion/src" "$DIR/remotion/src"
 # remotion/package.json must ride along so new deps (@remotion/transitions, paths)
 # get installed on the next image build. NOTE: since COPY remotion precedes
