@@ -258,14 +258,26 @@ const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan[
     <GlassPanel at={sceneStart + 10} style={glassStyle} palette={GP} pad={SL(44)}>
       <ChartVisual chart={resolveTokens(chartB.chart, { accent: P.accent, accent2: P.accent2, muted: MUTED })} at={sceneStart + 22} palette={{ ...P, muted: MUTED } as any} />
     </GlassPanel>
-  ) : figB ? (
-    <GlassPanel at={sceneStart + 10} style={glassStyle} palette={GP} pad={SL(60)}>
+  ) : figB ? (() => {
+    // AUTO-FIT the figure number to the panel's inner width so big values
+    // (e.g. $485,000) never spill outside the glass box. Measure the full
+    // rendered string and cap the Odometer size to what fits.
+    const figPad = SL(52), panelW = SL(440), figInner = panelW - figPad * 2
+    const fg = figB.figure
+    const shown = `${fg.prefix || ''}${Math.round(fg.value).toLocaleString('en-US')}${fg.suffix || ''}`
+    const fit = fitText({ text: shown, withinWidth: figInner, fontFamily: MONT, fontWeight: 800 })
+    const figSize = Math.min(SL(130), Math.floor(fit.fontSize))
+    return (
+    <GlassPanel at={sceneStart + 10} style={glassStyle} palette={GP} pad={figPad} width={panelW}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontFamily: MONT, fontWeight: 800, fontSize: SL(28), letterSpacing: '0.2em', textTransform: 'uppercase', color: P.accent, marginBottom: SL(18) }}>{figB.figure.label}</div>
-        <Odometer value={figB.figure.value} at={sceneStart + 18} size={SL(130)} color={P.text} prefix={figB.figure.prefix} suffix={figB.figure.suffix} />
+        <div style={{ fontFamily: MONT, fontWeight: 800, fontSize: SL(26), letterSpacing: '0.16em', textTransform: 'uppercase', color: P.accent, marginBottom: SL(18) }}>{fg.label}</div>
+        <div style={{ width: figInner, display: 'flex', justifyContent: 'center', overflow: 'hidden' }}>
+          <Odometer value={fg.value} at={sceneStart + 18} size={figSize} color={P.text} prefix={fg.prefix} suffix={fg.suffix} />
+        </div>
       </div>
     </GlassPanel>
-  ) : null
+    )
+  })() : null
 
   // ---- LAYOUT DISPATCH — clean, overlap-proof cases. Padding is TIGHTER than
   // before (content uses more of the frame); gaps + zones scale with SCALE. ----
@@ -513,16 +525,25 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ plan, starts, total, in
 
         {/* FIGURE scene: odometer number inside a GLASS panel on the photo bg
             (only for standalone figure scenes; slides handle their own figures) */}
-        {isFigure && !isIntro && !isSlide && (
+        {isFigure && !isIntro && !isSlide && (() => {
+          // auto-fit the big number to a bounded panel so it can't spill the frame
+          const fg = sc.visual.figure!
+          const panelW = 1100, inner = panelW - 72 * 2
+          const shown = `${fg.prefix || ''}${Math.round(fg.value).toLocaleString('en-US')}${fg.suffix || ''}`
+          const figSize = Math.min(150, Math.floor(fitText({ text: shown, withinWidth: inner, fontFamily: MONT, fontWeight: 800 }).fontSize))
+          return (
           <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', padding: '0 100px' }}>
-            <GlassPanel at={(S[idx] ?? 0) + 8} style={glassStyle} palette={GP} pad={72}>
+            <GlassPanel at={(S[idx] ?? 0) + 8} style={glassStyle} palette={GP} pad={72} width={panelW}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 34, letterSpacing: '0.22em', textTransform: 'uppercase', color: P.accent, marginBottom: 22, opacity: spring({ frame: localF, fps, config: { damping: 16, stiffness: 150 } }) }}>{sc.visual.figure!.label || sc.on_screen}</div>
-                <Odometer value={sc.visual.figure!.value} at={(S[idx] ?? 0) + 14} size={150} color={P.text} prefix={sc.visual.figure!.prefix} suffix={sc.visual.figure!.suffix} />
+                <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 34, letterSpacing: '0.22em', textTransform: 'uppercase', color: P.accent, marginBottom: 22, opacity: spring({ frame: localF, fps, config: { damping: 16, stiffness: 150 } }) }}>{fg.label || sc.on_screen}</div>
+                <div style={{ width: inner, display: 'flex', justifyContent: 'center', overflow: 'hidden' }}>
+                  <Odometer value={fg.value} at={(S[idx] ?? 0) + 14} size={figSize} color={P.text} prefix={fg.prefix} suffix={fg.suffix} />
+                </div>
               </div>
             </GlassPanel>
           </AbsoluteFill>
-        )}
+          )
+        })()}
 
         {/* SLIDE scene: topic heading + supporting blocks (bullets/cards/chart/
             figure/screenshot) that reveal in sync with the voice. This is the
