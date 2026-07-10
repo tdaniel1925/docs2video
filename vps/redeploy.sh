@@ -36,6 +36,11 @@ cp "$TMP/vps/Dockerfile" "$DIR/Dockerfile"
 # only the compose file's structure/env-list is updated from git.
 cp "$TMP/vps/docker-compose.yml" "$DIR/docker-compose.yml"
 rm -rf "$DIR/remotion/src" && cp -r "$TMP/remotion/src" "$DIR/remotion/src"
+# STATIC ASSETS the renderer reads at render time (SFX wavs — DirectedVideo's
+# Sfx component loads sfx/*.wav; a missing wav ENOENTs and cancels the render).
+# These live in git under remotion/public/sfx and must reach the build context.
+mkdir -p "$DIR/remotion/public/sfx"
+cp -f "$TMP"/remotion/public/sfx/*.wav "$DIR/remotion/public/sfx/" 2>/dev/null || true
 # remotion/package.json must ride along so new deps (@remotion/transitions, paths)
 # get installed on the next image build. NOTE: since COPY remotion precedes
 # npm install in the Dockerfile, a package.json change needs a --no-cache build.
@@ -49,6 +54,7 @@ grep -c "generate-slides" "$DIR/server.js" >/dev/null && echo "   slide pipeline
 grep -c "generateSlidePlan" "$DIR/slides.js" >/dev/null && echo "   slides.js module: ok"
 test -f "$DIR/remotion/src/DirectedVideo.tsx" && echo "   DirectedVideo composition: ok"
 grep -c "@remotion/transitions" "$DIR/remotion/package.json" >/dev/null && echo "   transitions dep: ok"
+SFXN=$(ls "$DIR"/remotion/public/sfx/*.wav 2>/dev/null | wc -l); [ "$SFXN" -ge 5 ] && echo "   sfx wavs: ok ($SFXN)" || echo "   !! sfx wavs MISSING ($SFXN) — render will crash on ENOENT"
 
 echo "==> Reclaiming disk BEFORE build (repeated --no-cache builds fill the disk)"
 echo "   disk before:"; df -h / | tail -1
@@ -91,5 +97,8 @@ docker compose exec -T video-service sh -c "cd /app/remotion && npx remotion com
 # the slide renderer needs @remotion/transitions installed IN the image:
 docker compose exec -T video-service test -d /app/remotion/node_modules/@remotion/transitions \
   && echo "   container transitions dep: ok" || echo "   !! MISSING @remotion/transitions — run: bash redeploy.sh --no-cache"
+# SFX wavs must be IN the image (DirectedVideo's Sfx loads sfx/*.wav; missing = render crash):
+CSFX=$(docker compose exec -T video-service sh -c 'ls /app/remotion/public/sfx/*.wav 2>/dev/null | wc -l' | tr -d '\r')
+[ "${CSFX:-0}" -ge 5 ] && echo "   container sfx wavs: ok ($CSFX)" || echo "   !! container MISSING sfx wavs ($CSFX) — run: bash redeploy.sh --no-cache"
 
 echo "==> Done. Generate a slide video to verify (POST /generate-slides)."

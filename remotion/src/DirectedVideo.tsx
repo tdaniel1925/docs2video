@@ -452,7 +452,7 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ plan, starts, total, in
       {/* SFX layer — TASTEFUL and VARIED. Quiet accents, not slaps. Not every
           scene gets a hit (restraint makes the ones that do land). No two
           consecutive scenes use the same sound. Silent when intensity='calm'. */}
-      {intensity !== 'calm' && (() => {
+      {intensity !== 'calm' && (plan as any).noSfx !== true && (() => {
         // base volume much lower than before (was 0.6) — accents, not slaps.
         const VOL = intensity === 'highenergy' ? 0.34 : 0.24
         const whooshCycle = ['whoosh-short', 'whoosh', 'whoosh-short']

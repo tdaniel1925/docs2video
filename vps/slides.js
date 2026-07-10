@@ -219,6 +219,10 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
       onCover: pl === 'cover' || pl === 'both', onClosing: pl === 'closing' || pl === 'both' || pl === 'auto' }
   }
   if (palette) doc.palette = palette
+  // SFX safety: the renderer's Sfx component loads sfx/*.wav and a missing file
+  // cancels the render. If the wavs aren't present, disable SFX in the plan so
+  // the render never crashes on them (deploy should provide them, this is a net).
+  try { const { existsSync } = require('fs'); if (!existsSync(join(pub, 'sfx', 'impact-soft.wav'))) doc.noSfx = true } catch { doc.noSfx = true }
 
   await writeFile(join(pub, 'dir-plan.json'), JSON.stringify(doc, null, 2))
   const assetNames = ['dir-plan.json', ...scenes.map((s) => `dir-vo-${s.id}.mp3`), ...scenes.filter((s) => s.backdrop).map((s) => s.backdrop), 'dir-music.mp3']
