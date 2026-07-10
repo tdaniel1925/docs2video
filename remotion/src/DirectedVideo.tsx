@@ -69,12 +69,15 @@ export type DirScene = {
 // Loaded as dir-cap-{id}.json = { words:[{w,start,end}], durationSec }.
 export type Caption = { words: { w: string; start: number; end: number }[]; durationSec: number }
 export type DirChrome = { company?: string; logo?: string; recipient?: string; footer?: string; glass?: GlassStyle }
+export type DirPresenter = { name?: string; role?: string; photo?: string; onCover?: boolean; onClosing?: boolean }
 export type DirPlan = {
   title: string
   look?: LookName
   backdrops?: string[]   // pool of cinematic backdrops; scenes reference by rotation
   chrome?: DirChrome     // persistent frame: logo, recipient tag, footer, glass style
+  presenter?: DirPresenter  // optional agent headshot for cover/closing (real person, not identity-neutral)
   intro?: { line1?: string; line2?: string; preparer?: string; recipient?: string }
+  cta?: { line?: string; contact?: string }
   palette?: { bg: string; accent: string; accent2: string; text: string }   // legacy; look wins if present
   scenes: DirScene[]
 }
@@ -498,6 +501,10 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ plan, starts, total, in
         ) : (
           <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '0 160px', flexDirection: 'column', gap: 30 }}>
             <AbsoluteFill style={{ background: `radial-gradient(760px 520px at 50% 46%, ${hex(P.accent, 0.14)}, transparent 62%)` }} />
+            {/* optional presenter headshot on the cover (real agent, opt-in) */}
+            {plan.presenter?.photo && plan.presenter?.onCover && (
+              <Img src={staticFile(plan.presenter.photo)} style={{ width: 168, height: 168, borderRadius: '50%', objectFit: 'cover', border: `5px solid ${P.text}`, outline: `2px solid ${P.accent}`, boxShadow: `0 0 32px ${hex(P.accent, 0.5)}`, opacity: spring({ frame: localF, fps, config: { damping: 20, stiffness: 80 } }) }} />
+            )}
             <div style={{ fontFamily: SANS, fontWeight: 900, fontSize: 116, lineHeight: 1.02, letterSpacing: '0.01em', color: P.text, textShadow: '0 4px 30px rgba(0,0,0,0.6)', opacity: spring({ frame: localF, fps, config: { damping: 20, stiffness: 70 } }), transform: `scale(${0.9 + spring({ frame: localF, fps, config: { damping: 20, stiffness: 70 } }) * 0.1})` }}>{plan.chrome?.company || plan.intro?.line1}</div>
             <div style={{ width: 260 * clamp((localF - 18) / 16, 0, 1), height: 3, background: `linear-gradient(90deg, transparent, ${legibleOn(P.accent, P.bg, P)}, transparent)`, boxShadow: `0 0 16px ${hex(P.accent, 0.6)}` }} />
             <div style={{ fontFamily: SANS, fontWeight: 600, fontSize: 36, letterSpacing: '0.06em', color: MUTED, opacity: spring({ frame: localF - 20, fps, config: { damping: 18, stiffness: 100 } }), maxWidth: 1300 }}>{plan.intro?.line2 || plan.intro?.line1}</div>
@@ -539,7 +546,7 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ plan, starts, total, in
           // company name — with the CTA line + contact info. Always a clean
           // sign-off card, never bullets. Contact obeys the "final scene only,
           // verbatim from source" rule (comes from plan.cta.contact/footer).
-          <LogoClose logo={plan.chrome?.logo} company={plan.chrome?.company} palette={GP} localFrame={localF} total={total} cta={(plan as any).cta?.line || sc.on_screen} contact={(plan as any).cta?.contact || plan.chrome?.footer?.split('·').filter((p: string) => /@|\.com|\d{3}|book|call|visit/i.test(p))[0]?.trim()} />
+          <LogoClose logo={plan.chrome?.logo} company={plan.chrome?.company} palette={GP} localFrame={localF} total={total} presenter={plan.presenter?.onClosing !== false ? plan.presenter : undefined} cta={plan.cta?.line || sc.on_screen} contact={plan.cta?.contact || plan.chrome?.footer?.split('·').filter((p: string) => /@|\.com|\d{3}|book|call|visit/i.test(p))[0]?.trim()} />
         ) : isImg ? (
           // IMAGE scene stays CLEAN (restraint) — just a lower-third caption.
           <LowerThird text={sc.on_screen} at={(S[idx] ?? 0) + 12} palette={GP} size={82} />

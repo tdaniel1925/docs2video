@@ -1460,7 +1460,7 @@ async function readDocText(fileBase64, fileName) {
 }
 
 app.post('/generate-slides', authCheck, async (req, res) => {
-  const { videoId, userId, fileBase64, fileName, text, url, preparer, recipient, music, glass, footer, accent, logoUrl, musicUrl } = req.body || {}
+  const { videoId, userId, fileBase64, fileName, text, url, preparer, recipient, music, glass, footer, accent, logoUrl, musicUrl, presenter, photoPlacement } = req.body || {}
   if (!videoId) return res.status(400).json({ error: 'Missing videoId' })
   if (!fileBase64 && !text && !url) return res.status(400).json({ error: 'Provide fileBase64, text, or url' })
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured on VPS' })
@@ -1491,6 +1491,11 @@ app.post('/generate-slides', authCheck, async (req, res) => {
 
       // stage logo if provided (so the plan can reference brand-logo.png)
       if (logoUrl) { try { const r = await fetch(logoUrl, { signal: AbortSignal.timeout(30000) }); if (r.ok) { const p = join(pub, 'brand-logo.png'); await writeFile(p, Buffer.from(await r.arrayBuffer())); staged.push(p) } } catch {} }
+      // stage presenter headshot if provided → brand-presenter.png (real agent photo)
+      let presenterForPlan = null
+      if (presenter && (presenter.photoUrl || presenter.photo) && (presenter.photoUrl || presenter.photo).startsWith('http')) {
+        try { const r = await fetch(presenter.photoUrl || presenter.photo, { signal: AbortSignal.timeout(30000) }); if (r.ok) { const p = join(pub, 'brand-presenter.png'); await writeFile(p, Buffer.from(await r.arrayBuffer())); staged.push(p); presenterForPlan = { name: presenter.name, role: presenter.role, photo: 'brand-presenter.png' } } } catch {}
+      }
 
       await setProgress(20, 'Understanding your document...')
       // 2) generate plan + assets via the ported pipeline
@@ -1501,7 +1506,7 @@ app.post('/generate-slides', authCheck, async (req, res) => {
       }
       const { plan, assetNames } = await generateSlidePlan({
         pub, source, preparer: preparer || 'docs2video', recipient, music, glass, footer, forcedAccent: accent,
-        shots: [], deps, log: (m) => setProgress(40, m),
+        shots: [], presenter: presenterForPlan, photoPlacement, deps, log: (m) => setProgress(40, m),
       })
       staged.push(...assetNames.map((n) => join(pub, n)))
       await writeFile(PROPS, JSON.stringify({ plan })); staged.push(PROPS)

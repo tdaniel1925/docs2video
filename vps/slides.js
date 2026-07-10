@@ -159,7 +159,7 @@ function figFromKeyNumber(kn) {
  * render + upload. `deps` injects the VPS's existing helpers (gemini image, tts
  * limiter) so we don't duplicate them.
  */
-async function generateSlidePlan({ pub, source, preparer, recipient, music, glass, footer, forcedAccent, shots, deps, log }) {
+async function generateSlidePlan({ pub, source, preparer, recipient, music, glass, footer, forcedAccent, shots, presenter, photoPlacement, deps, log }) {
   const say = log || (() => {})
   const kind = source.kind // 'website' | 'pdf' | 'text'
   say(`comprehending ${kind} (${source.text.length} chars)...`)
@@ -211,6 +211,13 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   const chrome = { company: preparer, logo, recipient: recipient || (u.audiences && u.audiences[0] && u.audiences[0].name), footer: footer || 'docs2video.com', glass: glass || 'vivid' }
   const ctaContact = (w.cta && w.cta.contact) || (source.url ? new URL(source.url).hostname.replace(/^www\./, '') : null)
   const doc = { title: w.title, look, chrome, intro: { ...w.intro, preparer, recipient }, cta: { line: (w.cta && w.cta.line) || 'Get started today', contact: ctaContact }, scenes }
+  // presenter headshot (opt-in). photoPlacement: cover|closing|both|none|auto.
+  // The photo is staged as brand-presenter.png by the caller; we set placement flags.
+  if (presenter && presenter.photo) {
+    const pl = photoPlacement || 'closing'
+    doc.presenter = { name: presenter.name, role: presenter.role, photo: presenter.photo,
+      onCover: pl === 'cover' || pl === 'both', onClosing: pl === 'closing' || pl === 'both' || pl === 'auto' }
+  }
   if (palette) doc.palette = palette
 
   await writeFile(join(pub, 'dir-plan.json'), JSON.stringify(doc, null, 2))
