@@ -43,6 +43,9 @@ const CutFlash: React.FC<{ at: number }> = ({ at }) => {
   return <AbsoluteFill style={{ background: '#fff', opacity: o * 0.14, pointerEvents: 'none' }} />
 }
 
+// VO clip durations (sec) — for building the music-ducking envelope.
+const VO_DUR = [2.4, 2.2, 2.9, 4.9, 7.2, 5.2]
+
 export const CommercialFull: React.FC = () => {
   const { durationInFrames } = useVideoConfig()
   // compute each scene's start frame
@@ -51,13 +54,36 @@ export const CommercialFull: React.FC = () => {
   for (const s of SCENES) { starts.push(t); t += sec(s.dur) }
   const total = t + sec(1)
 
+  // DUCKING envelope: music sits LOUD (0.42) except while VO is speaking, where
+  // it dips to 0.16 with a smooth ramp in/out (0.3s) so the voice is always
+  // clearly on top. This is the standard commercial mix — music serves the voice.
+  const voWindows = starts.map((s, i) => ({ start: s + 8, end: s + 8 + sec(VO_DUR[i]) }))
+  // SMOOTH ducking — build one continuous "voice activity" curve (0=silent,
+  // 1=speaking) with soft ramps, then map it to a music level. Because it's one
+  // continuous interpolation with no per-window Math.min jumps, there are no
+  // discontinuities → no pops/clicks. The level GLIDES between loud and ducked.
+  const musicDuck = (f: number): number => {
+    const LOUD = 0.40, DUCK = 0.15, RAMP = 14   // longer ramp = gentler, no pop
+    // voice activity: max over windows of a smooth trapezoid (0..1)
+    let voice = 0
+    for (const w of voWindows) {
+      const up = interpolate(f, [w.start - RAMP, w.start], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+      const down = interpolate(f, [w.end, w.end + RAMP], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+      voice = Math.max(voice, Math.min(up, down))
+    }
+    // ease the voice curve so the transition is smooth (no linear kink)
+    const eased = voice * voice * (3 - 2 * voice)   // smoothstep
+    const level = LOUD + (DUCK - LOUD) * eased
+    const fade = interpolate(f, [0, 12, total - 40, total - 8], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+    return level * fade
+  }
+
   return (
     <AbsoluteFill style={{ background: '#000' }}>
-      {/* MUSIC BED — one warm corporate bed under the whole spot, ducked + fades */}
-      <Audio loop src={staticFile('music/bed-uplifting-128.wav')} volume={(f) => {
-        const fi = 20, fo = total - 40, fe = total - 8
-        return interpolate(f, [0, fi, fo, fe], [0, 0.22, 0.22, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
-      }} />
+      {/* MUSIC — a BESPOKE ElevenLabs track composed for this spot (builds to the
+          hero moment, resolves for the CTA). Louder than a flat bed since it's
+          intentional; still ducks under the VO. */}
+      <Audio src={staticFile('comm-music.mp3')} volume={musicDuck} />
 
       {/* SCENES — each in its own Sequence at its start frame, with a short
           cross-hold. VO plays synced to the scene. */}
@@ -72,7 +98,7 @@ export const CommercialFull: React.FC = () => {
 
       {/* per-scene VO (louder than music; the voice carries the spot) */}
       {SCENES.map((s, i) => (
-        <Sequence key={'vo' + i} from={starts[i] + 8}><Audio src={staticFile(`${s.vo}.mp3`)} volume={0.95} /></Sequence>
+        <Sequence key={'vo' + i} from={starts[i] + 8}><Audio src={staticFile(`${s.vo}.mp3`)} volume={1.0} /></Sequence>
       ))}
 
       {/* SFX hits + cut flashes on each scene boundary */}
