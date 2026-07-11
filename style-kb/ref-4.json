@@ -1,0 +1,31 @@
+{
+  "url": "https://www.youtube.com/watch?v=Bcpu-jqAL6w",
+  "summary": "An epic, high-intensity sports commercial that contrasts gritty athletic struggle with a dramatic operatic score and an existential voiceover.",
+  "pacing": "Starts with deliberate, tense cuts, rapidly accelerating in rhythm as the stakes rise, culminating in a sudden, silent pause before a punchy resolution.",
+  "cuts_per_10s": 8,
+  "palette": [
+    "high-contrast cinematic grading",
+    "warm golden street tones",
+    "cool stadium blues",
+    "deep shadows",
+    "bold red and black"
+  ],
+  "typography": "Heavy, bold, all-caps sans-serif text in high-impact red, popping on screen with sudden force alongside a clean graphic logo.",
+  "motion_language": "Explosive physical movement, extreme slow-motion speed ramps to emphasize impact, and dynamic low-angle tracking shots.",
+  "footage_vs_graphics": "95% cinematic live-action footage, 5% high-contrast flat graphic text and logo at the tail end.",
+  "music_mood": "Dramatic operatic choral chanting building to an intense, overwhelming crescendo, ending in sudden silence followed by a sharp bass hit.",
+  "structure": [
+    "Introduction of the existential question ('Why do it?') over raw amateur sports shots.",
+    "Transition to professional athletes showing peak focus and preparation.",
+    "Montage of high-impact athletic actions (jumps, hits, slides) building tension.",
+    "Climax showcasing the inherent risk of failure and physical sacrifice.",
+    "Sudden drop to silence/black screen with the ultimate counter-question.",
+    "Bold typographic slogan drop accompanied by a characterful audio cue."
+  ],
+  "what_makes_it_work": [
+    "Perfect synchronization of rapid speed-ramped action shots to a rising operatic choral crescendo.",
+    "Constructing a narrative of athletic sacrifice that subverts typical victory tropes by focusing on the risk of losing.",
+    "An abrupt audio-visual drop to silence that forces the viewer to process the tension before delivering the iconic slogan."
+  ],
+  "reproduce_as_style": "Epic Existentialism: Fast-paced, high-contrast athletic action cut to a swelling operatic chorus, featuring dramatic slow-mo speed ramps, a questioning voiceover, and a sudden-silence transition into a bold, minimal red-and-black title card."
+}

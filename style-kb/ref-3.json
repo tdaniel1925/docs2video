@@ -1,0 +1,28 @@
+{
+  "url": "https://www.youtube.com/watch?v=kQcq3rpne78",
+  "summary": "A minimalist, playful split-screen comparison campaign translating abstract software benefits into highly choreographed physical theater.",
+  "pacing": "Deliberate and rhythmic, utilizing long unbroken takes per vignette with a sudden acceleration of energy as subjects cross the center line.",
+  "cuts_per_10s": 0.7,
+  "palette": [
+    "Neutral flat gray (representing 'your phone')",
+    "Soft premium pastels: gold, lilac, sky blue, sage green, salmon (representing 'iPhone')"
+  ],
+  "typography": "Clean, white geometric sans-serif (SF Pro) positioned low-center in each frame; fades in cleanly with no extra flare to prioritize readability.",
+  "motion_language": "Choreographed physical comedy and athletic stunts; characters start with clumsy, staggered, or hindered motion on the left and instantly transition to smooth, fluid, or rapid motion upon crossing the threshold.",
+  "footage_vs_graphics": "90% live-action studio footage with seamless invisible compositing, 10% minimal graphic flat-color splits and brand typography.",
+  "music_mood": "Quirky, acoustic, piano-driven minimalist tracks with a steady metronomic pulse that accelerates or brightens as the visual transition occurs.",
+  "structure": [
+    "Introduce the stark split-screen setup with 'your phone' on the gray left and 'iPhone' on the pastel right.",
+    "Show a character struggling with an awkward, slow, or insecure physical action on the left side.",
+    "Direct the character to cross the center line into the pastel-colored zone.",
+    "Instantly transform their movement into a smooth, fast, or secure performance.",
+    "Display a minimalist key benefit keyword (e.g., 'smoother', 'faster', 'more secure') next to the character.",
+    "Resolve on a clean Apple logo screen with a simple website CTA."
+  ],
+  "what_makes_it_work": [
+    "Physical Metaphor: Demystifying complex tech specs (like data migration, security, and refresh rates) by turning them into gravity-defying choreography and stunt work.",
+    "The Magic Threshold: Treating the split-screen line as a physical barrier that alters the physics and coordination of anyone who steps through it.",
+    "Color Contrast Framing: Using an unappealing, sterile gray background for the competitor to make the warm, inviting iPhone pastel side feel like an immediate relief."
+  ],
+  "reproduce_as_style": "The Kinetic Threshold: A split-screen concept where a central vertical line acts as a transformative barrier, changing the motion speed, comfort, or style of actors as they cross from a sterile environment into a vibrant, high-performance color field."
+}

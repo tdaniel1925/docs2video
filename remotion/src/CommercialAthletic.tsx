@@ -122,11 +122,36 @@ const Grain: React.FC = () => {
 
 export const athleticDuration = SHOTS.reduce((a, sh) => a + sh.dur, 0)
 
+// VO cues: [file, atSec, durSec] — synced to the shots (words land on footage).
+const VO = [
+  { f: 'ath-vo-1', at: 1.2, dur: 1.63 },   // "Every day, you show up." (over typing/running)
+  { f: 'ath-vo-2', at: 4.4, dur: 1.30 },   // "You put in the work." (grind montage)
+  { f: 'ath-vo-3', at: 11.2, dur: 2.23 },  // "Your future doesn't happen by accident." (family)
+  { f: 'ath-vo-4', at: 13.9, dur: 3.99 },  // "It's earned. Protected. Guaranteed." (skyline)
+  { f: 'ath-vo-5', at: 16.6, dur: 3.62 },  // "Meridian Financial..." (brand card)
+]
+
 export const CommercialAthletic: React.FC = () => {
   // shot start frames
   const starts: number[] = []; let t = 0
   for (const sh of SHOTS) { starts.push(t); t += sh.dur }
   const total = t
+
+  // smooth music ducking under the VO (smoothstep — no pops)
+  const musicDuck = (f: number): number => {
+    const LOUD = 0.5, DUCK = 0.2, RAMP = 12
+    let voice = 0
+    for (const v of VO) {
+      const a = v.at * FPS, b = (v.at + v.dur) * FPS
+      const up = interpolate(f, [a - RAMP, a], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+      const dn = interpolate(f, [b, b + RAMP], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+      voice = Math.max(voice, Math.min(up, dn))
+    }
+    const eased = voice * voice * (3 - 2 * voice)
+    const level = LOUD + (DUCK - LOUD) * eased
+    const fade = interpolate(f, [0, 12, total - 24, total - 6], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+    return level * fade
+  }
 
   return (
     <AbsoluteFill style={{ background: '#000' }}>
@@ -137,9 +162,12 @@ export const CommercialAthletic: React.FC = () => {
         </Sequence>
       ))}
       <Grain />
-      {/* MUSIC — placeholder bed for now (ElevenLabs Music track will swap in once
-          billing is fixed). Louder + no VO ducking yet since VO also pending. */}
-      <Audio loop src={staticFile('music/bed-corporate-128.wav')} volume={(f) => interpolate(f, [0, 15, total - 30, total - 6], [0, 0.5, 0.5, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })} />
+      {/* MUSIC — bespoke ElevenLabs dark-driving track, ducked under the VO */}
+      <Audio src={staticFile('ath-music.mp3')} volume={musicDuck} />
+      {/* VO — punchy lines synced to the footage */}
+      {VO.map((v, i) => (
+        <Sequence key={i} from={Math.round(v.at * FPS)}><Audio src={staticFile(`${v.f}.mp3`)} volume={1.0} /></Sequence>
+      ))}
     </AbsoluteFill>
   )
 }
