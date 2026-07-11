@@ -1514,7 +1514,7 @@ app.post('/generate-slides', authCheck, async (req, res) => {
           await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-t', '5', '-q:a', '9', outPath], { timeout: 30000 }, (e) => e ? reject(e) : resolve()))
         },
       }
-      const { plan, assetNames } = await generateSlidePlan({
+      const { plan, assetNames, sceneMeta } = await generateSlidePlan({
         pub, source, preparer: preparer || 'docs2video', recipient, music, glass, footer, forcedAccent: accent,
         shots: [], presenter: presenterForPlan, photoPlacement, deps, log: (m) => setProgress(40, m),
       })
@@ -1537,13 +1537,64 @@ app.post('/generate-slides', authCheck, async (req, res) => {
       const videoBuffer = await readFile(outFile)
       await sb.storage.from('videos').upload(`${userId}/${videoId}.mp4`, videoBuffer, { contentType: 'video/mp4', upsert: true })
       const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
+
+      // POSTER — a frame past the cover fade-in.
       const thumbPath = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
       await grabPoster(outFile, thumbPath)
       let thumbUrl = null
       try { const tb = await readFile(thumbPath); await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true }); thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl } catch {}
       await rm(thumbPath, { force: true }).catch(() => {})
-      await sb.from('videos').update({ status: 'completed', video_url: urlData.publicUrl, ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}), progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString() }).eq('id', videoId)
-      console.log(`[generate-slides ${videoId}] DONE -> ${urlData.publicUrl}`)
+
+      // PER-SCENE THUMBNAILS for the SLIDES panel — grab one frame per scene from
+      // the finished mp4 at each scene's midpoint (no extra render). Uploads to
+      // storage; slide_urls drives the clickable panel + the Fix-a-Scene picker.
+      await setProgress(93, 'Building slide panel...')
+      const slideUrls = []
+      for (const m of (sceneMeta || [])) {
+        try {
+          const fp = join(REMOTION_DIR, 'out', `${videoId}-slide-${m.index}.jpg`)
+          await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-ss', String(m.midSec), '-i', outFile, '-frames:v', '1', '-q:v', '4', fp], { timeout: 30000 }, (e) => e ? reject(e) : resolve()))
+          const buf = await readFile(fp)
+          const path = `${userId}/${videoId}_slide_${m.index}.jpg`
+          await sb.storage.from('videos').upload(path, buf, { contentType: 'image/jpeg', upsert: true })
+          slideUrls[m.index] = sb.storage.from('videos').getPublicUrl(path).data.publicUrl
+          await rm(fp, { force: true }).catch(() => {})
+        } catch (e) { console.error(`[generate-slides ${videoId}] slide thumb ${m.index} failed: ${e.message}`) }
+      }
+      const slideUrlsClean = slideUrls.filter(Boolean)
+      const slideDurations = (sceneMeta || []).map((m) => Math.round((m.endSec - m.startSec) * 10) / 10)
+      const scriptForPanel = (sceneMeta || []).map((m) => ({ title: m.label, headline: m.label }))
+
+      // PERSIST THE PLAN + scene index (for Fix-a-Scene: re-render one scene later
+      // without redoing the whole video). Stored as a JSON asset alongside the video.
+      // The per-scene VO clips (dir-vo-*.mp3) are ALSO kept so a single scene can be
+      // re-recorded + spliced. slide_plan_url points the editor at the plan.
+      let planUrl = null
+      try {
+        const planPayload = JSON.stringify({ plan, sceneMeta, starts: (sceneMeta || []).map((m) => m.startSec), voFiles: (sceneMeta || []).map((m) => m.voFile) })
+        await sb.storage.from('videos').upload(`${userId}/${videoId}_plan.json`, Buffer.from(planPayload), { contentType: 'application/json', upsert: true })
+        planUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_plan.json`).data.publicUrl
+        // keep the per-scene VO clips in storage for later single-scene re-records
+        for (const m of (sceneMeta || [])) {
+          try { const vb = await readFile(join(pub, m.voFile)); await sb.storage.from('videos').upload(`${userId}/${videoId}_${m.voFile}`, vb, { contentType: 'audio/mpeg', upsert: true }) } catch {}
+        }
+      } catch (e) { console.error(`[generate-slides ${videoId}] plan persist failed: ${e.message}`) }
+
+      // MAIN update: only CONFIRMED-existing columns, so a missing optional column
+      // can never fail the whole completion write (a known footgun — a bad column
+      // 400s the entire update, leaving the video stuck 'processing').
+      await sb.from('videos').update({
+        status: 'completed', video_url: urlData.publicUrl,
+        ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
+        ...(slideUrlsClean.length ? { slide_urls: slideUrlsClean } : {}),
+        slide_durations: slideDurations, script: scriptForPanel,
+        progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
+      }).eq('id', videoId)
+      // OPTIONAL columns (may not exist in this schema) — separate best-effort
+      // writes so their absence never breaks the completion above.
+      sb.from('videos').update({ total_scenes: (sceneMeta || []).length }).eq('id', videoId).then(() => {}, () => {})
+      if (planUrl) sb.from('videos').update({ slide_plan_url: planUrl }).eq('id', videoId).then(() => {}, () => {})
+      console.log(`[generate-slides ${videoId}] DONE -> ${urlData.publicUrl} (${slideUrlsClean.length} slide thumbs)`)
     } catch (err) {
       console.error(`[generate-slides ${videoId}] error:`, err.message)
       reportError({ source: 'generate-slides', videoId, userId, stage: 'slides', message: err.message }).catch(() => {})

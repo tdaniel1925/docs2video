@@ -194,10 +194,20 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   for (const s of scenes) {
     const timed = await deps.tts(() => ttsTimed(s.narration, join(pub, `dir-vo-${s.id}.mp3`)))
     const durF = Math.round(timed.durationSec * FPS)
+    s._voFrames = durF   // capture for the beat-grid start computation below
     const toFrame = (cue) => { const sec = cueSec(timed.words, cue); return sec == null ? null : Math.round(sec * FPS) }
     const ordered = (arr) => { let prev = 12; arr.forEach((it, i) => { let f = toFrame(it.cue); const evenly = Math.round(12 + (durF - 24) * (i / Math.max(1, arr.length))); if (f == null || f < prev + 4) f = Math.max(prev + 8, evenly); it.cueFrame = f; prev = f; delete it.cue }) }
     for (const b of (s.blocks || [])) { if (b.type === 'bullets') ordered(b.items); if (b.type === 'cards') ordered(b.cards); if (b.type === 'screenshot') (b.pins || []).forEach((p) => { p.cueFrame = toFrame(p.cue); delete p.cue }) }
   }
+
+  // BEAT-GRID scene starts — MUST match remotion's directedMetadata exactly, so
+  // the server can grab a real thumbnail at each scene's midpoint from the final
+  // mp4 (and the Fix-a-Scene feature can target frame ranges). bpm=128, GAP=0.35s.
+  const BEATF = (60 / 128) * FPS, GAP = Math.round(0.35 * FPS)
+  const starts = []; let t = Math.round(BEATF)
+  for (const s of scenes) { starts.push(Math.round(t)); const beats = Math.max(2, Math.ceil(((s._voFrames || 60) + GAP) / BEATF)); t += beats * BEATF }
+  const total = Math.round(t + 4 * BEATF)
+  scenes.forEach((s) => delete s._voFrames)
 
   // music
   if (deps.stageMusic) { try { await deps.stageMusic(music, join(pub, 'dir-music.mp3')) } catch (e) { say(`music skipped: ${e.message.slice(0, 40)}`) } }
@@ -226,7 +236,18 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
 
   await writeFile(join(pub, 'dir-plan.json'), JSON.stringify(doc, null, 2))
   const assetNames = ['dir-plan.json', ...scenes.map((s) => `dir-vo-${s.id}.mp3`), ...scenes.filter((s) => s.backdrop).map((s) => s.backdrop), 'dir-music.mp3']
-  return { plan: doc, assetNames, understanding: u }
+  // per-scene timing + chapter labels for the SLIDES panel + Fix-a-Scene:
+  //   startSec = when each scene begins, midSec = a good thumbnail moment,
+  //   label = the heading (or CTA/intro text), voFile = the scene's isolated VO.
+  const sceneMeta = scenes.map((s, i) => ({
+    id: s.id, index: i,
+    startSec: Math.round((starts[i] / FPS) * 10) / 10,
+    endSec: Math.round(((starts[i + 1] ?? total) / FPS) * 10) / 10,
+    midSec: Math.round((((starts[i] + (starts[i + 1] ?? total)) / 2) / FPS) * 10) / 10,
+    label: (s.layout && s.layout.heading) || s.on_screen || (s.beat === 'cta' ? (doc.cta.line) : s.beat === 'intro' ? doc.title : `Scene ${i + 1}`),
+    narration: s.narration, voFile: `dir-vo-${s.id}.mp3`,
+  }))
+  return { plan: doc, assetNames, understanding: u, starts, total, sceneMeta }
 }
 
 module.exports = { generateSlidePlan, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette }
