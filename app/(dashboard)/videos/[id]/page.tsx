@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '../../../_lib/supabase/client'
 import { displayProgress } from '../../../_lib/video-progress'
 import ScriptEditor from '../../../_components/ScriptEditor'
+import FixScene from './FixScene'
 import type { Video, Brand } from '../../../_lib/types'
 
 // Feature flags — now driven by user's subscription plan
@@ -308,6 +309,7 @@ export default function VideoDetailPage() {
   const [reRendering, setReRendering] = useState(false)
   const [reRenderProgress, setReRenderProgress] = useState('')
   const [changedAudioIndexes, setChangedAudioIndexes] = useState<Set<number>>(new Set())
+  const [showFixScene, setShowFixScene] = useState(false)  // Fix-a-Scene modal (slide-deck videos)
 
   // Translate state
   const [showTranslateModal, setShowTranslateModal] = useState(false)
@@ -1666,6 +1668,14 @@ export default function VideoDetailPage() {
               }}>
                 Slides ({slideCount})
               </div>
+              {/* Fix-a-Scene: only for slide-deck videos (which persist a plan) */}
+              {(video as any)?.slide_plan_url && video?.status === 'completed' && (
+                <button onClick={() => setShowFixScene(true)} style={{
+                  marginTop: 8, width: '100%', padding: '8px 12px', borderRadius: 8, cursor: 'pointer',
+                  border: '1.5px solid var(--mint)', background: 'rgba(199,232,168,0.14)', color: 'var(--ink)',
+                  fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
+                }}>✏️ Fix a scene (glitch, wording, or pronunciation)</button>
+              )}
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -2129,6 +2139,19 @@ export default function VideoDetailPage() {
       )}
 
       {/* Slide lightbox — large, readable view of a slide (thumbnails are tiny). */}
+      {/* Fix-a-Scene modal */}
+      {showFixScene && video && (
+        <FixScene
+          videoId={video.id}
+          planUrl={(video as any).slide_plan_url}
+          slideUrls={slideUrls}
+          script={scenes as any}
+          sceneFixCost={50}
+          onClose={() => setShowFixScene(false)}
+          onStarted={() => { setShowFixScene(false); if (typeof window !== 'undefined') window.location.reload() }}
+        />
+      )}
+
       {lightboxIndex !== null && slideUrls[lightboxIndex] && (
         <div
           onClick={() => setLightboxIndex(null)}

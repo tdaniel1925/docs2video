@@ -43,6 +43,11 @@ export const CREDIT_COSTS = {
   'demo-slide': 100,       // single slide image
   'scene-edit': 100,       // single scene image edit
   'upscale-logo': 100,     // single upscale
+  // Fix-a-Scene on a slide-deck video: re-renders the video with ONE edited
+  // scene (skips comprehension/writing/backdrops/other VO). Only charged when the
+  // user CHANGES content (edit-text) — fixing our glitches (re-record, bad
+  // pronunciation) is FREE (the app passes amount 0 for those).
+  'slide-scene-fix': 50,
 } as const
 
 // Pre-existing paying customers locked at the OLD (pre-2x) rates. They keep the

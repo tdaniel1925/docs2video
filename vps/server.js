@@ -1607,6 +1607,144 @@ app.post('/generate-slides', authCheck, async (req, res) => {
 })
 
 // ============================================================
+// FIX-A-SCENE — re-record/edit ONE scene of a slide-deck video and re-render,
+// WITHOUT redoing comprehension/writing/backdrops/other-scenes' VO. We reuse the
+// persisted plan + all the other scenes' VO clips; only the edited scene gets a
+// fresh VO. The scene re-fits to the new VO length (subsequent scenes shift), so
+// we rebuild the plan's timing and re-render the whole composition — but the
+// EXPENSIVE parts (Claude/Gemini/crawl + N-1 TTS calls) are skipped.
+//
+// Actions: 'rerecord' (same text — fixes glitches, FREE), 'edit-text' (new
+// narration — content change, billed by the app), 'fix-pronunciation' (add a
+// say-as hint, FREE). Optional 'preview:true' returns just the new VO clip URL
+// without rendering, so the user can hear the fix before committing.
+// ============================================================
+app.post('/re-render-scene', authCheck, async (req, res) => {
+  const { videoId, userId, sceneId, action, newText, pronounce, previewOnly } = req.body || {}
+  if (!videoId || sceneId == null || !action) return res.status(400).json({ error: 'Missing videoId, sceneId, or action' })
+  if (!process.env.ANTHROPIC_API_KEY && action === 'edit-text') { /* edit-text doesn't need Claude, but keep parity */ }
+
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+  const setProgress = (pct, detail) => sb.from('videos').update({ progress_pct: pct, progress_detail: detail, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
+  const { generateSceneVO } = require('./slides')
+
+  // PREVIEW path is cheap + synchronous-ish: regen one VO, return its URL. No render.
+  // (still ACK first so the caller isn't blocked on TTS.)
+  res.json({ success: true, previewOnly: !!previewOnly })
+
+  const pub = join(REMOTION_DIR, 'public')
+  const staged = []
+  let outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
+
+  const run = async () => {
+    try {
+      // 1) fetch the persisted plan for this video
+      const planKey = `${userId}/${videoId}_plan.json`
+      const planDl = await sb.storage.from('videos').download(planKey)
+      if (planDl.error || !planDl.data) throw new Error('no saved plan for this video (was it made before Fix-a-Scene?)')
+      const saved = JSON.parse(Buffer.from(await planDl.data.arrayBuffer()).toString('utf8'))
+      const plan = saved.plan
+      const scene = plan.scenes.find((s) => String(s.id) === String(sceneId))
+      if (!scene) throw new Error(`scene ${sceneId} not found in plan`)
+
+      // 2) determine the new narration text for the edited scene
+      let narration = scene.narration
+      if (action === 'edit-text' && newText) narration = String(newText).slice(0, 1200)
+      // (rerecord keeps the same text; fix-pronunciation keeps text + adds a hint)
+      scene.narration = narration
+
+      // 3) regenerate JUST this scene's VO (with word timings + pronunciation),
+      // re-resolving its block cues. generateSceneVO handles speakable() +
+      // optional pronunciation override.
+      if (!previewOnly) await setProgress(15, 'Re-recording the scene...')
+      const voName = `dir-vo-${scene.id}.mp3`
+      const timed = await generateSceneVO({ pub, text: narration, outName: voName, pronounce, tts: (fn) => ttsLimit(fn) })
+      staged.push(join(pub, voName))
+      // re-resolve this scene's block cues against the NEW timings
+      const FPS = 30, durF = Math.round(timed.durationSec * FPS)
+      const { cueSec } = require('./slides')
+      const toFrame = (cue) => { const s = cueSec(timed.words, cue); return s == null ? null : Math.round(s * FPS) }
+      // (blocks already have baked cueFrames from the original build; only re-time
+      // if we still have the original cue strings — we don't persist those, so we
+      // keep the existing cueFrames but clamp them to the new duration.)
+      for (const b of (scene.blocks || [])) {
+        const items = b.type === 'bullets' ? b.items : b.type === 'cards' ? b.cards : null
+        if (items) items.forEach((it, i) => { if (typeof it.cueFrame === 'number') it.cueFrame = Math.min(it.cueFrame, Math.max(12, durF - 20)); else it.cueFrame = Math.round(12 + (durF - 24) * (i / Math.max(1, items.length))) })
+      }
+
+      // PREVIEW: upload the clip, stash its URL for the UI, and STOP (no render).
+      if (previewOnly) {
+        const vb = await readFile(join(pub, voName))
+        await sb.storage.from('videos').upload(`${userId}/${videoId}_preview_vo.mp3`, vb, { contentType: 'audio/mpeg', upsert: true })
+        const url = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_preview_vo.mp3`).data.publicUrl
+        // stash on the row so the client can poll for it (best-effort column)
+        sb.from('videos').update({ scene_preview_url: url }).eq('id', videoId).then(() => {}, () => {})
+        console.log(`[re-render-scene ${videoId}] preview VO ready for scene ${sceneId}`)
+        for (const f of staged) await rm(f, { force: true }).catch(() => {})
+        return
+      }
+
+      // 4) COMMIT: bring down the OTHER scenes' VO + backdrops + music + logo/
+      // presenter so the full render has every asset, then re-render + re-fit.
+      await setProgress(30, 'Preparing assets...')
+      await mkdir(pub, { recursive: true }); await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
+      const pull = async (storageName, localName) => {
+        try { const dl = await sb.storage.from('videos').download(`${userId}/${storageName}`); if (dl.data) { const p = join(pub, localName); await writeFile(p, Buffer.from(await dl.data.arrayBuffer())); staged.push(p); return true } } catch {} return false
+      }
+      // other scenes' VO clips (we persisted them as {videoId}_dir-vo-{id}.mp3)
+      for (const s of plan.scenes) {
+        if (String(s.id) === String(sceneId)) continue
+        await pull(`${videoId}_dir-vo-${s.id}.mp3`, `dir-vo-${s.id}.mp3`)
+      }
+      // music (silent fallback if missing), logo, presenter, backdrops
+      if (!(await pull(`${videoId}_dir-music.mp3`, 'dir-music.mp3'))) {
+        const mp = join(pub, 'dir-music.mp3'); await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-t', '5', '-q:a', '9', mp], { timeout: 30000 }, (e) => e ? reject(e) : resolve())); staged.push(mp)
+      }
+      if (plan.chrome && plan.chrome.logo) await pull(`${videoId}_${plan.chrome.logo}`, plan.chrome.logo)
+      if (plan.presenter && plan.presenter.photo) await pull(`${videoId}_${plan.presenter.photo}`, plan.presenter.photo)
+      for (const s of plan.scenes) { if (s.backdrop) await pull(`${videoId}_${s.backdrop}`, s.backdrop) }
+
+      // 5) write the updated plan as props + re-render the whole composition
+      const PROPS = join(pub, `dv-${videoId}-reedit-props.json`)
+      await writeFile(PROPS, JSON.stringify({ plan })); staged.push(PROPS)
+      await setProgress(45, 'Re-rendering...')
+      const reOut = join(REMOTION_DIR, 'out', `${videoId}-reedit.mp4`)
+      await withRenderSlot(() => new Promise((resolve, reject) => {
+        const { spawn } = require('child_process')
+        const child = spawn('npx', ['remotion', 'render', 'DirectedVideo', reOut, `--props=${PROPS}`, '--log=info', '--concurrency=8', '--gl=swiftshader', '--image-format=jpeg'], { cwd: REMOTION_DIR, env: { ...process.env } })
+        let stderrBuf = '', lastPct = 45, lastWrite = 0
+        const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); const m = [...t.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const done = parseInt(m[1], 10), tot = parseInt(m[2], 10); if (tot > 0 && done <= tot) { const pct = 45 + Math.round((done / tot) * 44); const now = Date.now(); if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Re-rendering — frame ${done} of ${tot}`) } } } }
+        child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
+        const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('re-render timeout')) }, 60 * 60 * 1000)
+        child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`re-render: ${e.message}`)) })
+        child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`re-render exit ${code}: ${stderrBuf.slice(-300)}`)) })
+      }))
+      staged.push(reOut)
+
+      // 6) upload the new mp4 (overwrite), refresh the edited scene's thumbnail,
+      // update the persisted plan + the edited scene's stored VO clip.
+      await setProgress(92, 'Publishing...')
+      const vbuf = await readFile(reOut)
+      await sb.storage.from('videos').upload(`${userId}/${videoId}.mp4`, vbuf, { contentType: 'video/mp4', upsert: true })
+      const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
+      // persist the edited scene's new VO + the updated plan
+      try { const vb = await readFile(join(pub, voName)); await sb.storage.from('videos').upload(`${userId}/${videoId}_${voName}`, vb, { contentType: 'audio/mpeg', upsert: true }) } catch {}
+      try { saved.plan = plan; await sb.storage.from('videos').upload(planKey, Buffer.from(JSON.stringify(saved)), { contentType: 'application/json', upsert: true }) } catch {}
+      await sb.from('videos').update({ status: 'completed', video_url: urlData.publicUrl, progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString() }).eq('id', videoId)
+      console.log(`[re-render-scene ${videoId}] scene ${sceneId} re-rendered -> ${urlData.publicUrl}`)
+    } catch (err) {
+      console.error(`[re-render-scene ${videoId}] error:`, err.message)
+      reportError({ source: 're-render-scene', videoId, userId, stage: action, message: err.message }).catch(() => {})
+      await sb.from('videos').update({ status: 'completed', progress_detail: `[fail] scene re-render: ${err.message}`.slice(0, 500) }).eq('id', videoId).then(() => {}, () => {})
+    } finally {
+      for (const f of staged) await rm(f, { force: true }).catch(() => {})
+      await rm(outFile, { force: true }).catch(() => {})
+    }
+  }
+  run()
+})
+
+// ============================================================
 // DIRECTED (SLIDE-DECK) RENDERER — the DirectedVideo composition. Unlike the
 // other endpoints, generation (comprehend → write → VO → dir-plan.json + assets)
 // happens UPSTREAM on the app; the VPS only RENDERS. The caller sends the finished

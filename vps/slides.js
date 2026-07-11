@@ -250,4 +250,20 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   return { plan: doc, assetNames, understanding: u, starts, total, sceneMeta }
 }
 
-module.exports = { generateSlidePlan, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette }
+/**
+ * generateSceneVO — regenerate ONE scene's voiceover (Fix-a-Scene). Handles an
+ * optional pronunciation override (e.g. {word:'Reg FD', say:'Regulation F D'})
+ * by injecting it into the speakable pass for this clip only. Returns the timed
+ * result ({words, durationSec}) so cues can be re-resolved.
+ */
+async function generateSceneVO({ pub, text, outName, pronounce, tts }) {
+  // apply an ad-hoc pronunciation override on top of the standard normalization
+  let spoken = text
+  if (pronounce && pronounce.word && pronounce.say) {
+    try { spoken = spoken.replace(new RegExp(pronounce.word.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), pronounce.say) } catch {}
+  }
+  const run = () => ttsTimed(spoken, join(pub, outName))
+  return tts ? await tts(run) : await run()
+}
+
+module.exports = { generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette }

@@ -7,7 +7,11 @@
 -- swallowed, so nothing breaks; the Fix-a-Scene UI just won't have the plan URL).
 
 alter table if exists public.videos
-  add column if not exists slide_plan_url text;
+  add column if not exists slide_plan_url text,
+  add column if not exists scene_preview_url text,
+  add column if not exists total_scenes int;
 
 comment on column public.videos.slide_plan_url is
   'URL to the stored slide-deck plan JSON (plan + sceneMeta + per-scene VO refs) for single-scene re-render.';
+comment on column public.videos.scene_preview_url is
+  'Fix-a-Scene: URL to the most recent preview voiceover clip (before committing a scene re-render).';
