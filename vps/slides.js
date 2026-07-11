@@ -13,6 +13,8 @@ const { join } = require('path')
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 const GEMINI_KEY = process.env.GEMINI_API_KEY
 const ELEVEN_KEY = process.env.ELEVENLABS_API_KEY
+const CF_ACCOUNT = process.env.CLOUDFLARE_ACCOUNT_ID
+const CF_TOKEN = process.env.CLOUDFLARE_API_KEY   // Workers AI API token (named _API_KEY in env)
 const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM'
 const ELEVEN_MODEL = process.env.ELEVENLABS_MODEL || 'eleven_turbo_v2_5'
 const DOC_MODEL = process.env.DOC_MODEL || 'gemini-flash-latest'
@@ -30,6 +32,28 @@ async function claude(system, user, maxTokens) {
   if (!r.ok) throw new Error(`Anthropic ${r.status}: ${(await r.text()).slice(0, 200)}`)
   const j = await r.json()
   return j.content[0].text
+}
+
+// ---------- Cloudflare Workers AI (FLUX) image generation ----------
+// The DEFAULT backdrop generator for slides: fast (~2s), free tier, reliable.
+// FLUX.1 [schnell] returns a base64 image. Falls back to caller's error handling
+// (which skips the backdrop → animated bg) on any failure. `writeFile` provided.
+const { writeFile: _wf } = require('fs/promises')
+const CF_IMG_MODEL = process.env.CF_IMAGE_MODEL || '@cf/black-forest-labs/flux-1-schnell'
+function cloudflareAvailable() { return !!(CF_ACCOUNT && CF_TOKEN) }
+async function cloudflareImage(prompt, outPath) {
+  if (!cloudflareAvailable()) throw new Error('cloudflare not configured')
+  const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT}/ai/run/${CF_IMG_MODEL}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${CF_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: prompt.slice(0, 2000), steps: 6 }),
+    signal: AbortSignal.timeout(60000),
+  })
+  if (!r.ok) throw new Error(`cloudflare ${r.status}: ${(await r.text()).slice(0, 120)}`)
+  const j = await r.json()
+  const b64 = j && j.result && j.result.image
+  if (!b64) throw new Error('cloudflare: no image in response')
+  await _wf(outPath, Buffer.from(b64, 'base64'))
 }
 function extractJson(t) { const s = t.indexOf('{'); const e = t.lastIndexOf('}'); return JSON.parse(t.slice(s, e + 1)) }
 const money = (n) => '$' + Math.round(n).toLocaleString('en-US')
@@ -278,4 +302,4 @@ async function generateSceneVO({ pub, text, outName, pronounce, tts }) {
   return tts ? await tts(run) : await run()
 }
 
-module.exports = { generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette }
+module.exports = { generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable }

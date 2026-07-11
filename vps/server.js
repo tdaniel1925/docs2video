@@ -1498,9 +1498,16 @@ app.post('/generate-slides', authCheck, async (req, res) => {
       }
 
       await setProgress(20, 'Understanding your document...')
-      // 2) generate plan + assets via the ported pipeline
+      // 2) generate plan + assets via the ported pipeline.
+      // BACKDROP IMAGE PROVIDER: prefer Cloudflare FLUX (fast ~2s, free tier,
+      // reliable) when configured; fall back to Gemini. Either way, a failure is
+      // caught upstream → the scene uses the animated background (never crashes).
+      const { cloudflareImage, cloudflareAvailable } = require('./slides')
+      const imageGen = cloudflareAvailable()
+        ? async (prompt, outPath) => { try { return await cloudflareImage(prompt, outPath) } catch (e) { return await v3GeminiBg(prompt, outPath) } }
+        : (prompt, outPath) => v3GeminiBg(prompt, outPath)
       const deps = {
-        geminiImage: (prompt, outPath) => v3GeminiBg(prompt, outPath),
+        geminiImage: imageGen,
         tts: (fn) => ttsLimit(fn),
         // ALWAYS produce dir-music.mp3 — the renderer's beat grid uses
         // useAudioData(dir-music.mp3) and a missing file cancels the render.
