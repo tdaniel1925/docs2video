@@ -159,7 +159,7 @@ function figFromKeyNumber(kn) {
  * render + upload. `deps` injects the VPS's existing helpers (gemini image, tts
  * limiter) so we don't duplicate them.
  */
-async function generateSlidePlan({ pub, source, preparer, recipient, music, glass, footer, forcedAccent, shots, presenter, photoPlacement, deps, log }) {
+async function generateSlidePlan({ pub, source, preparer, recipient, music, glass, footer, forcedAccent, shots, presenter, photoPlacement, photos, deps, log }) {
   const say = log || (() => {})
   const kind = source.kind // 'website' | 'pdf' | 'text'
   say(`comprehending ${kind} (${source.text.length} chars)...`)
@@ -182,23 +182,35 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
     return { id: s.id, beat: s.beat, narration: s.narration, on_screen: (s.layout && s.layout.heading) || s.on_screen || '', layout: s.layout, blocks, visual, backdrop: undefined, _bp: s.backdrop_prompt }
   })
 
-  // backdrops (best-effort) + VO with cue resolution
+  // ASSETS — VO + (optional) backdrops, generated CONCURRENTLY (not one-by-one)
+  // so the wall-clock is ~max, not ~sum. VO goes through deps.tts (a pool of ~3,
+  // respecting ElevenLabs' concurrency); images fan out fully (they retry). Each
+  // scene resolves its OWN cues against its OWN VO result. This is the big
+  // speedup (~3-4 min off a typical video) with zero quality change.
   const NEUTRAL = ' Identity-neutral: NO people, NO faces. Dark, moody, cinematic, defocused, heavily shadowed. No text, no logos.'
-  for (const sc of scenes) {
-    if (sc.beat === 'intro' || sc.beat === 'cta') { delete sc._bp; continue }
-    if (deps.geminiImage && sc._bp) {
-      try { await deps.geminiImage(sc._bp + NEUTRAL, join(pub, `dir-bd-${sc.id}.png`)); sc.backdrop = `dir-bd-${sc.id}.png` } catch (e) { say(`bd${sc.id} skipped: ${e.message.slice(0, 40)}`) }
+  // PHOTOS are now OPT-IN: default = the animated code background (instant, $0).
+  // Only generate photographic backdrops when `photos` is requested AND we have
+  // an image generator. (Intro/cta never get backdrops.)
+  const wantPhotos = !!photos && !!deps.geminiImage
+
+  // fire VO + backdrops for every scene at once; await all.
+  await Promise.all(scenes.map(async (s) => {
+    // VO (pooled) — capture duration + resolve this scene's cues
+    const voP = deps.tts(() => ttsTimed(s.narration, join(pub, `dir-vo-${s.id}.mp3`))).then((timed) => {
+      const durF = Math.round(timed.durationSec * FPS)
+      s._voFrames = durF
+      const toFrame = (cue) => { const sec = cueSec(timed.words, cue); return sec == null ? null : Math.round(sec * FPS) }
+      const ordered = (arr) => { let prev = 12; arr.forEach((it, i) => { let f = toFrame(it.cue); const evenly = Math.round(12 + (durF - 24) * (i / Math.max(1, arr.length))); if (f == null || f < prev + 4) f = Math.max(prev + 8, evenly); it.cueFrame = f; prev = f; delete it.cue }) }
+      for (const b of (s.blocks || [])) { if (b.type === 'bullets') ordered(b.items); if (b.type === 'cards') ordered(b.cards); if (b.type === 'screenshot') (b.pins || []).forEach((p) => { p.cueFrame = toFrame(p.cue); delete p.cue }) }
+    })
+    // backdrop (optional, best-effort)
+    let bdP = Promise.resolve()
+    if (wantPhotos && s._bp && s.beat !== 'intro' && s.beat !== 'cta') {
+      bdP = deps.geminiImage(s._bp + NEUTRAL, join(pub, `dir-bd-${s.id}.png`)).then(() => { s.backdrop = `dir-bd-${s.id}.png` }, (e) => say(`bd${s.id} skipped: ${(e.message || '').slice(0, 40)}`))
     }
-    delete sc._bp
-  }
-  for (const s of scenes) {
-    const timed = await deps.tts(() => ttsTimed(s.narration, join(pub, `dir-vo-${s.id}.mp3`)))
-    const durF = Math.round(timed.durationSec * FPS)
-    s._voFrames = durF   // capture for the beat-grid start computation below
-    const toFrame = (cue) => { const sec = cueSec(timed.words, cue); return sec == null ? null : Math.round(sec * FPS) }
-    const ordered = (arr) => { let prev = 12; arr.forEach((it, i) => { let f = toFrame(it.cue); const evenly = Math.round(12 + (durF - 24) * (i / Math.max(1, arr.length))); if (f == null || f < prev + 4) f = Math.max(prev + 8, evenly); it.cueFrame = f; prev = f; delete it.cue }) }
-    for (const b of (s.blocks || [])) { if (b.type === 'bullets') ordered(b.items); if (b.type === 'cards') ordered(b.cards); if (b.type === 'screenshot') (b.pins || []).forEach((p) => { p.cueFrame = toFrame(p.cue); delete p.cue }) }
-  }
+    await Promise.all([voP, bdP])
+    delete s._bp
+  }))
 
   // BEAT-GRID scene starts — MUST match remotion's directedMetadata exactly, so
   // the server can grab a real thumbnail at each scene's midpoint from the final

@@ -983,6 +983,9 @@ export async function POST(request: Request) {
             logoUrl: (brand?.logo_light_url || brand?.logo_url) || undefined,   // white logo preferred for dark slide bg
             presenter: presenter ? { name: presenter.name, role: presenter.role, photoUrl: presenter.photo } : undefined,
             photoPlacement: photoPlacement || undefined,
+            // PHOTOS opt-in: default OFF (animated bg = instant + $0 + ~2-3 min
+            // faster). On → photographic Gemini backdrops. From the wizard flag.
+            photos: !!(body as any).slidePhotos,
           }
           const slRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-slides`, {
             method: 'POST',

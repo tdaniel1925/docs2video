@@ -26,6 +26,7 @@ export default function ThemePage() {
   const [draft, setDraft] = useState<any>(null)
   const [outputType, setOutputType] = useState<'video' | 'pptx' | 'pdf'>('video')
   const [selected, setSelected] = useState<ThemeId>('slides')
+  const [slidePhotos, setSlidePhotos] = useState(false)  // Slide Deck: photographic backdrops (opt-in; default off = ~2-3 min faster)
   const [loading, setLoading] = useState(true)
   const [lightbox, setLightbox] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -73,6 +74,7 @@ export default function ThemePage() {
           introduceInOpening: draft.introduceInOpening,
           showContactClosing: draft.showContactClosing,
           photoPlacement: draft.photoPlacement || undefined,
+          slidePhotos,   // Slide Deck: photographic backdrops (opt-in; default off = faster)
         }),
       })
       if (!genRes.ok) {
@@ -160,6 +162,19 @@ export default function ThemePage() {
           })}
         </div>
       </div>
+
+      {/* Slide Deck: optional photographic backgrounds (default off = ~2-3 min faster) */}
+      {selected === 'slides' ? (
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, width: '100%', maxWidth: 640, marginBottom: 16, padding: '12px 16px', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white', cursor: 'pointer' }}>
+          <input type="checkbox" checked={slidePhotos} onChange={(e) => setSlidePhotos(e.target.checked)} style={{ marginTop: 3, width: 18, height: 18, cursor: 'pointer' }} />
+          <span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Add photographic backgrounds</span>
+            <span style={{ display: 'block', fontSize: 13, color: 'var(--ink-soft)', marginTop: 2, lineHeight: 1.4 }}>
+              Generates cinematic photo backdrops behind each slide. Looks richer, but adds ~2–3 minutes. Off = a clean animated background (faster, and free).
+            </span>
+          </span>
+        </label>
+      ) : null}
 
       {error ? <div style={{ color: '#b91c1c', fontSize: 14, marginBottom: 16 }}>{error}</div> : null}
 
