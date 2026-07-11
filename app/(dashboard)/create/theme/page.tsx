@@ -85,7 +85,7 @@ export default function ThemePage() {
         }
         throw new Error(g.error || 'Failed to start generation')
       }
-      router.push(`/create/generating?id=${videoId}`)
+      router.push(`/create/generating?id=${videoId}&style=${selected}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to generate')
       setSubmitting(false)
@@ -130,6 +130,11 @@ export default function ThemePage() {
               ) : null}
               <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--ink)', marginBottom: 6, paddingRight: isNew ? 8 : 0 }}>{t.name}</div>
               <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.45 }}>{t.tagline}</div>
+              {isNew ? (
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', marginTop: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span aria-hidden>⏱</span> Takes ~10 min — but the extra depth is worth it
+                </div>
+              ) : null}
             </button>
           )
         })}

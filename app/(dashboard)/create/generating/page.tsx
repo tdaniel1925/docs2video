@@ -40,6 +40,10 @@ export default function GeneratingPage() {
   const [previews, setPreviews] = useState<{ idx: number; url: string }[]>([])
   const [totalScenes, setTotalScenes] = useState<number | null>(null)
   const [lastUpdateAt, setLastUpdateAt] = useState<number>(Date.now())
+  // style comes from the URL (?style=slides) — set by the theme step. Slide-deck
+  // videos take longer (they read the whole doc + render an animated deck), so we
+  // set expectations accurately + show a sample of what they'll get.
+  const isSlides = (searchParams.get('style') || '') === 'slides'
 
   // Poll for status
   useEffect(() => {
@@ -132,8 +136,10 @@ export default function GeneratingPage() {
   const stageIdx = STAGES.findIndex(s => s.key === status)
   const minutes = Math.floor(elapsed / 60)
   const seconds = elapsed % 60
-  // "Still working" reassurance: no real progress change in 90s, but not done.
-  const stalled = status !== 'completed' && status !== 'failed' && (Date.now() - lastUpdateAt) > 90_000
+  // "Still working" reassurance: no real progress change for a while, but not done.
+  // Slide-deck renders legitimately sit on one step (the render) for minutes, so
+  // give them a longer grace window before the "still working" note appears.
+  const stalled = status !== 'completed' && status !== 'failed' && (Date.now() - lastUpdateAt) > (isSlides ? 180_000 : 90_000)
   // Filmstrip slots: known scene count (or what we've seen). Fill with previews.
   const slotCount = totalScenes ?? (previews.length || 0)
   const previewByIdx = new Map(previews.map(p => [p.idx, p.url]))
@@ -301,11 +307,35 @@ export default function GeneratingPage() {
       <div style={{ fontSize: 14, color: 'var(--ink-light)', marginBottom: 4 }}>
         {minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`} elapsed
       </div>
-      <div style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 28 }}>
-        {elapsed >= 240
-          ? 'Taking a little longer than usual — hang tight, it’s still working. You can safely leave; we’ll notify you when it’s ready.'
-          : 'This usually takes about 3–5 minutes.'}
+      <div style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: isSlides ? 20 : 28, maxWidth: 460, textAlign: 'center', lineHeight: 1.5 }}>
+        {isSlides
+          ? (elapsed >= 600
+              ? 'Almost there — the animated deck is rendering. You can safely leave; we’ll notify you when it’s ready.'
+              : 'Slide Deck reads your whole document and renders an animated, narrated deck — so it takes about 10 minutes. It’s worth the wait. Feel free to leave; we’ll email you when it’s ready.')
+          : (elapsed >= 240
+              ? 'Taking a little longer than usual — hang tight, it’s still working. You can safely leave; we’ll notify you when it’s ready.'
+              : 'This usually takes about 3–5 minutes.')}
       </div>
+
+      {/* Slide Deck: show a sample of what a slide from THEIRS will look like, so
+          the ~10 min wait feels purposeful (they can see the payoff coming). */}
+      {isSlides && status !== 'completed' && (
+        <div style={{ width: '100%', maxWidth: 520, marginBottom: 28, padding: '16px 18px', borderRadius: 12, background: 'rgba(199, 232, 168, 0.10)', border: '1.5px solid var(--mint)' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 10, textAlign: 'center' }}>
+            While you wait — here’s the kind of slide you’re getting:
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            {['cover', 'data', 'closing'].map((kind) => (
+              <a key={kind} href={`/style-samples/slides-${kind}.png`} target="_blank" rel="noreferrer" style={{ display: 'block', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-light)', cursor: 'zoom-in' }}>
+                <img src={`/style-samples/slides-${kind}.png`} alt={`Sample ${kind} slide`} style={{ width: '100%', display: 'block' }} />
+              </a>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 8, textAlign: 'center' }}>
+            Tap any frame to see it full-size · yours will use your content, brand &amp; voice
+          </div>
+        </div>
+      )}
 
       {/* Progress bar */}
       <div style={{
