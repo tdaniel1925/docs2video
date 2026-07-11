@@ -31,6 +31,7 @@ import { ValorCommercial, valorMetadata, type ValorProps } from './ValorCommerci
 import { ApexCommercial, apexMetadata, type ApexProps } from './ApexCommercial'
 import { DirectedVideo, directedMetadata, type DirectedProps } from './DirectedVideo'
 import { HeroReveal, KineticHype, CinematicOpen, SplitCompare, StatGrid, CTAClose } from './CommercialProto'
+import { CommercialFull, commercialDuration } from './CommercialFull'
 import { BeatHook, hookFrames, type HookProps } from './kinetic/BeatHook'
 import { LookTest, LOOKTEST_FRAMES } from './looks/LookTest'
 import { GlassCompare, GLASS_FRAMES } from './cinematic/GlassCompare'
@@ -141,6 +142,7 @@ export const RemotionRoot: React.FC = () => {
     <Composition id="ProtoSplitCompare" component={SplitCompare} fps={FPS} width={1920} height={1080} durationInFrames={100} />
     <Composition id="ProtoStatGrid" component={StatGrid} fps={FPS} width={1920} height={1080} durationInFrames={100} />
     <Composition id="ProtoCTAClose" component={CTAClose} fps={FPS} width={1920} height={1080} durationInFrames={110} />
+    <Composition id="CommercialFull" component={CommercialFull} fps={FPS} width={1920} height={1080} durationInFrames={commercialDuration} />
     <Composition
       id="ApexCommercial"
       component={ApexCommercial}
