@@ -6,7 +6,7 @@ import { loadFont as loadMont } from '@remotion/google-fonts/Montserrat'
 import { loadFont as loadSans } from '@remotion/google-fonts/SourceSans3'
 import { EASE } from './motion/MotionKit'
 import { LineChart, BarPair, CountUp, legibleOn, type Series } from './charts/Charts'
-import { Odometer } from './charts/Odometer'
+import { Odometer, fitOdometerSize } from './charts/Odometer'
 import { LOOKS, type LookName } from './looks/Looks'
 import { GlassPanel, PersistentFrame, LowerThird, type GlassStyle, type GPalette } from './cinematic/Glass'
 import { FilmGrade } from './cinematic/FilmGrade'
@@ -264,9 +264,8 @@ const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan[
     // rendered string and cap the Odometer size to what fits.
     const figPad = SL(52), panelW = SL(440), figInner = panelW - figPad * 2
     const fg = figB.figure
-    const shown = `${fg.prefix || ''}${Math.round(fg.value).toLocaleString('en-US')}${fg.suffix || ''}`
-    const fit = fitText({ text: shown, withinWidth: figInner, fontFamily: MONT, fontWeight: 800 })
-    const figSize = Math.min(SL(130), Math.floor(fit.fontSize))
+    // odometer true-width fit (fitText under-measures the flip-digit cells → clipping)
+    const figSize = fitOdometerSize(fg.value, fg.prefix, fg.suffix, Math.floor(figInner * 0.94), SL(130))
     return (
     <GlassPanel at={sceneStart + 10} style={glassStyle} palette={GP} pad={figPad} width={panelW}>
       <div style={{ textAlign: 'center' }}>
@@ -529,8 +528,7 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ plan, starts, total, in
           // auto-fit the big number to a bounded panel so it can't spill the frame
           const fg = sc.visual.figure!
           const panelW = 1100, inner = panelW - 72 * 2
-          const shown = `${fg.prefix || ''}${Math.round(fg.value).toLocaleString('en-US')}${fg.suffix || ''}`
-          const figSize = Math.min(150, Math.floor(fitText({ text: shown, withinWidth: inner, fontFamily: MONT, fontWeight: 800 }).fontSize))
+          const figSize = fitOdometerSize(fg.value, fg.prefix, fg.suffix, Math.floor(inner * 0.94), 150)
           return (
           <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', padding: '0 100px' }}>
             <GlassPanel at={(S[idx] ?? 0) + 8} style={glassStyle} palette={GP} pad={72} width={panelW}>

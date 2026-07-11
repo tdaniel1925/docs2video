@@ -3,7 +3,7 @@ import { Img, staticFile, useCurrentFrame, useVideoConfig, spring } from 'remoti
 import { fitText } from '@remotion/layout-utils'
 import { loadFont as loadMont } from '@remotion/google-fonts/Montserrat'
 import { loadFont as loadSans } from '@remotion/google-fonts/SourceSans3'
-import { Odometer } from '../charts/Odometer'
+import { Odometer, fitOdometerSize } from '../charts/Odometer'
 import { legibleOn, type Palette } from '../charts/Charts'
 import type { GPalette } from '../cinematic/Glass'
 
@@ -103,14 +103,16 @@ export const DataCards: React.FC<{ cards: Card[]; sceneStart: number; palette: G
   const cardW = many ? (n >= 5 ? Math.min(sc(292), Math.floor((1720 - (n - 1) * 18) / n)) : sc(320)) : sc(400)
   const padX = many ? sc(24) : sc(34)
   const innerW = cardW - padX * 2
-  // AUTO-FIT each number to the card's inner width — this is the fix for numbers
-  // spilling out. We measure the FULL rendered string (prefix+value+suffix) and
-  // pick the largest font that fits, capped so short values ($0) don't balloon.
+  // AUTO-FIT each number to the card's inner width. Numeric values render via the
+  // Odometer (fixed-width digit cells that are WIDER than plain-text kerning), so
+  // we size them with the odometer's TRUE width (fitOdometerSize) — using fitText
+  // here under-measured and clipped big numbers like $307,111. Non-numeric text
+  // still uses fitText. A safety margin (0.94) keeps a hair of breathing room.
   const capBig = many ? sc(60) : sc(82)
   const fitNum = (raw: string) => {
     const num = parseNum(raw)
-    const shown = num != null ? `${num.prefix}${Math.round(num.value).toLocaleString('en-US')}${num.suffix}` : raw
-    const { fontSize } = fitText({ text: shown, withinWidth: innerW, fontFamily: MONT, fontWeight: 800 })
+    if (num != null) return { num, size: fitOdometerSize(num.value, num.prefix, num.suffix, Math.floor(innerW * 0.94), capBig) }
+    const { fontSize } = fitText({ text: raw, withinWidth: Math.floor(innerW * 0.94), fontFamily: MONT, fontWeight: 800 })
     return { num, size: Math.min(capBig, Math.floor(fontSize)) }
   }
   return (

@@ -5,6 +5,29 @@ import { EASE } from '../motion/MotionKit'
 const { fontFamily: MONT } = loadMont()
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
+// Per-em width factors for the Odometer's OWN layout (must match the render below):
+// each DIGIT cell is a fixed `size * 0.62`; separators/affixes render at natural
+// text width. These let us compute the odometer's TRUE rendered width so auto-fit
+// never clips (fitText measures plain kerning, which is narrower than the cells).
+const OD_DIGIT = 0.62, OD_SEP = 0.30, OD_DOLLAR = 0.56, OD_PCT = 0.66, OD_CHAR = 0.58
+
+/** True rendered width of the odometer for a given font `size` + value/affixes. */
+export function odometerWidth(size: number, value: number, prefix = '', suffix = '', decimals?: number): number {
+  const dp = decimals ?? (Number.isInteger(value) ? 0 : (value * 100 % 1 === 0 && value % 1 !== 0 ? 2 : 1))
+  const shown = value.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp })
+  let w = 0
+  for (const ch of shown) w += (ch === ',' || ch === '.') ? OD_SEP : OD_DIGIT
+  const affix = (s: string) => { let a = 0; for (const ch of s) a += ch === '$' ? OD_DOLLAR : ch === '%' ? OD_PCT : OD_CHAR; return a }
+  return (w + affix(prefix) + affix(suffix)) * size
+}
+
+/** Largest font size whose odometer fits `maxWidth`, capped at `cap`. */
+export function fitOdometerSize(value: number, prefix = '', suffix = '', maxWidth = 400, cap = 130, decimals?: number): number {
+  const unit = odometerWidth(1, value, prefix, suffix, decimals)   // width per 1px of size
+  const fit = unit > 0 ? maxWidth / unit : cap
+  return Math.max(24, Math.min(cap, Math.floor(fit)))
+}
+
 /**
  * Odometer — classy number reveal. Each digit lives on a vertical strip (0-9)
  * that ROLLS to its final value and settles, like a mechanical counter / the
