@@ -25,6 +25,11 @@ echo "==> Pulling latest"
 rm -rf "$TMP" && git clone --depth 1 "$REPO" "$TMP"
 
 echo "==> Copying server.js + slides.js + Dockerfile + remotion/src (the part that's been getting missed)"
+# SELF-UPDATE: copy the newest redeploy.sh into place so this script never goes
+# stale on disk (the footgun that made adding commercial.js a multi-step ordeal —
+# the running copy couldn't copy the new module because IT was old). This affects
+# the NEXT run; the current run finishes with whatever logic it started with.
+cp "$TMP/vps/redeploy.sh" "$DIR/redeploy.sh" 2>/dev/null || true
 cp "$TMP/vps/server.js" "$DIR/server.js"
 cp "$TMP/vps/slides.js" "$DIR/slides.js"
 # commercial.js — the commercial pipeline module (server.js requires ./commercial;
