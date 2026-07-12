@@ -33,6 +33,13 @@ import { DirectedVideo, directedMetadata, type DirectedProps } from './DirectedV
 import { HeroReveal, KineticHype, CinematicOpen, SplitCompare, StatGrid, CTAClose } from './CommercialProto'
 import { CommercialFull, commercialDuration } from './CommercialFull'
 import { CommercialAthletic, athleticDuration } from './CommercialAthletic'
+// NOTE: ~18 experimental commercial/demo compositions (CommercialApex, Bloxify,
+// Docs2Video{Cinematic,Comic,Kinetic}, DynamicsDemo, LivingStillDemo, etc.) were
+// R&D and are intentionally NOT registered here — they stay local-only so the
+// production VPS bundle carries only shipping compositions. The two spec-driven
+// TEMPLATES below (the productionized result of that R&D) are what ships.
+import { TemplateFintech, fintechSchema, fintechDuration, type FintechProps } from './templates/TemplateFintech'
+import { TemplateCommercial, commercialSchema, commercialDuration as tcDuration, type CommercialProps as TCProps } from './templates/TemplateCommercial'
 import { BeatHook, hookFrames, type HookProps } from './kinetic/BeatHook'
 import { LookTest, LOOKTEST_FRAMES } from './looks/LookTest'
 import { GlassCompare, GLASS_FRAMES } from './cinematic/GlassCompare'
@@ -65,6 +72,39 @@ const withAssets = async (props: ExplainerProps): Promise<ExplainerProps> => {
   }
   if (Object.keys(backgrounds).length > 0) merged = { ...merged, backgrounds }
   return merged
+}
+
+// demo props for the parameterized template (reuses existing SmartViewz assets to
+// prove ANY brand plugs in via --props). The VPS/director will produce this JSON.
+const FINTECH_DEMO: FintechProps = {
+  brand: { bg: '#111111', bg2: '#1a1a1a', panel: '#1e1e1e', accent: '#ddb166', accentHi: '#f0d29a', cyan: '#22d3ee', green: '#22c55e', cream: '#f5f0e8', mute: '#9fa2ad', white: '#ffffff' },
+  wordmark: { pre: 'Smart', post: 'Viewz' },
+  logoLetter: 'S',
+  assetDir: 'smartviewz',
+  music: { file: 'music.mp3', frames: Math.round(41.98 * 30) },
+  introFrames: 90,
+  duck: { loud: 0.2, duck: 0.08 },
+  beats: [
+    { dur: 2.85, vo: 'sv-1', kind: 'shot', img: 'gen/chaos.png', pre: "Running your agency on ", hot: "yesterday's data." },
+    { dur: 5.14, vo: 'sv-3', kind: 'meet', sub: 'The AI Intelligence Platform' },
+    { dur: 7.0, vo: 'sv-5', kind: 'stats', kicker: 'Your agency, live', hot: 'Every metric, real time.', stats: [{ value: 2.8, prefix: '$', suffix: 'M', label: 'Premium', decimals: 1 }, { value: 387, label: 'Agents' }, { value: 1842, label: 'Policies' }] },
+    { dur: 5.5, vo: 'sv-6', kind: 'chat', chat: { q: 'Which contracts expire this week?', a: '3 contracts expire this week — $1.2M at risk.' } },
+    { dur: 5.4, vo: 'sv-9', kind: 'cta', cta: { headline: 'See everything. Miss nothing.', button: 'Start Free Trial', url: 'smartviewz.com' } },
+  ],
+}
+
+// spec-driven engine demo (reuses smartviewz assets; styleId picks the look)
+const TC_DEMO: TCProps = {
+  styleId: 'fintech',
+  brand: { bg: '#111111', bg2: '#1a1a1a', panel: '#1e1e1e', accent: '#ddb166', accentHi: '#f0d29a', accent2: '#22d3ee', cream: '#f5f0e8', mute: '#9fa2ad', white: '#ffffff' },
+  wordmark: { pre: 'Smart', post: 'Viewz' }, logoLetter: 'S', assetDir: 'smartviewz',
+  music: { file: 'music.mp3', frames: Math.round(41.98 * 30) }, introFrames: 90, duck: { loud: 0.2, duck: 0.08 }, bug: true,
+  beats: [
+    { dur: 2.85, vo: 'sv-1', kind: 'shot', img: 'gen/chaos.png', pre: 'Running your agency on ', hot: "yesterday's data." },
+    { dur: 5.14, vo: 'sv-3', kind: 'meet', sub: 'The AI Intelligence Platform' },
+    { dur: 7.0, vo: 'sv-5', kind: 'stats', kicker: 'Your agency, live', hot: 'Every metric, real time.', stats: [{ value: 2.8, prefix: '$', suffix: 'M', label: 'Premium', decimals: 1 }, { value: 387, label: 'Agents' }, { value: 1842, label: 'Policies' }] },
+    { dur: 5.4, vo: 'sv-9', kind: 'cta', cta: { headline: 'See everything. Miss nothing.', button: 'Start Free Trial', url: 'smartviewz.com' } },
+  ],
 }
 
 export const RemotionRoot: React.FC = () => {
@@ -145,6 +185,32 @@ export const RemotionRoot: React.FC = () => {
     <Composition id="ProtoCTAClose" component={CTAClose} fps={FPS} width={1920} height={1080} durationInFrames={110} />
     <Composition id="CommercialFull" component={CommercialFull} fps={FPS} width={1920} height={1080} durationInFrames={commercialDuration} />
     <Composition id="CommercialAthletic" component={CommercialAthletic} fps={FPS} width={1920} height={1080} durationInFrames={athleticDuration} />
+    {/* (18 experimental commercial/demo compositions intentionally unregistered —
+        see the import note above; they stay local-only, off the production bundle.) */}
+    {/* PARAMETERIZED template — renders ANY brand from --props (VPS pipeline step 1) */}
+    <Composition
+      id="TemplateFintech"
+      component={TemplateFintech}
+      schema={fintechSchema}
+      defaultProps={FINTECH_DEMO}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={fintechDuration(FINTECH_DEMO)}
+      calculateMetadata={({ props }) => ({ durationInFrames: fintechDuration(props as FintechProps), fps: FPS, width: 1920, height: 1080 })}
+    />
+    {/* THE SPEC-DRIVEN ENGINE — one composition, all 10 styles, any brand from --props */}
+    <Composition
+      id="TemplateCommercial"
+      component={TemplateCommercial}
+      schema={commercialSchema}
+      defaultProps={TC_DEMO}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={tcDuration(TC_DEMO)}
+      calculateMetadata={({ props }) => ({ durationInFrames: tcDuration(props as TCProps), fps: FPS, width: 1920, height: 1080 })}
+    />
     <Composition
       id="ApexCommercial"
       component={ApexCommercial}

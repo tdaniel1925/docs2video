@@ -27,6 +27,9 @@ rm -rf "$TMP" && git clone --depth 1 "$REPO" "$TMP"
 echo "==> Copying server.js + slides.js + Dockerfile + remotion/src (the part that's been getting missed)"
 cp "$TMP/vps/server.js" "$DIR/server.js"
 cp "$TMP/vps/slides.js" "$DIR/slides.js"
+# commercial.js — the commercial pipeline module (server.js requires ./commercial;
+# without it the container crash-loops on startup with MODULE_NOT_FOUND).
+cp "$TMP/vps/commercial.js" "$DIR/commercial.js"
 # the Dockerfile itself must be synced — it now COPYs slides.js into the image
 # (server.js requires ./slides; without it the container crash-loops on startup).
 cp "$TMP/vps/Dockerfile" "$DIR/Dockerfile"
@@ -41,6 +44,11 @@ rm -rf "$DIR/remotion/src" && cp -r "$TMP/remotion/src" "$DIR/remotion/src"
 # These live in git under remotion/public/sfx and must reach the build context.
 mkdir -p "$DIR/remotion/public/sfx"
 cp -f "$TMP"/remotion/public/sfx/*.wav "$DIR/remotion/public/sfx/" 2>/dev/null || true
+# MUSIC BEDS the commercial pipeline stages (bed-<mood>-128.wav — TemplateCommercial
+# loops one via MusicBed; a missing bed falls back to a silent track). Force-added
+# to git so they reach the build context (public/music is otherwise gitignored).
+mkdir -p "$DIR/remotion/public/music"
+cp -f "$TMP"/remotion/public/music/*.wav "$DIR/remotion/public/music/" 2>/dev/null || true
 # remotion/package.json must ride along so new deps (@remotion/transitions, paths)
 # get installed on the next image build. NOTE: since COPY remotion precedes
 # npm install in the Dockerfile, a package.json change needs a --no-cache build.
@@ -52,9 +60,13 @@ grep -c "SlidePanelScene" "$DIR/remotion/src/v3/V3Video.tsx" >/dev/null && echo 
 grep -c "render-editorial" "$DIR/server.js" >/dev/null && echo "   editorial endpoint: ok"
 grep -c "generate-slides" "$DIR/server.js" >/dev/null && echo "   slide pipeline endpoint: ok"
 grep -c "generateSlidePlan" "$DIR/slides.js" >/dev/null && echo "   slides.js module: ok"
+grep -c "generate-commercial" "$DIR/server.js" >/dev/null && echo "   commercial pipeline endpoint: ok"
+grep -c "generateCommercial" "$DIR/commercial.js" >/dev/null && echo "   commercial.js module: ok"
+test -f "$DIR/remotion/src/templates/TemplateCommercial.tsx" && echo "   TemplateCommercial composition: ok"
 test -f "$DIR/remotion/src/DirectedVideo.tsx" && echo "   DirectedVideo composition: ok"
 grep -c "@remotion/transitions" "$DIR/remotion/package.json" >/dev/null && echo "   transitions dep: ok"
 SFXN=$(ls "$DIR"/remotion/public/sfx/*.wav 2>/dev/null | wc -l); [ "$SFXN" -ge 5 ] && echo "   sfx wavs: ok ($SFXN)" || echo "   !! sfx wavs MISSING ($SFXN) — render will crash on ENOENT"
+MUSN=$(ls "$DIR"/remotion/public/music/*.wav 2>/dev/null | wc -l); [ "$MUSN" -ge 3 ] && echo "   music beds: ok ($MUSN)" || echo "   !! music beds LOW ($MUSN) — commercials fall back to silent track"
 
 echo "==> Reclaiming disk BEFORE build (repeated --no-cache builds fill the disk)"
 echo "   disk before:"; df -h / | tail -1
@@ -93,12 +105,18 @@ docker compose exec -T video-service grep -c "SlidePanelScene" /app/remotion/src
   && echo "   container glass-panel: ok" || echo "   !! container MISSING glass-panel — run with --no-cache"
 docker compose exec -T video-service test -f /app/slides.js \
   && echo "   container slides.js: ok" || echo "   !! container MISSING slides.js — run with --no-cache"
-docker compose exec -T video-service sh -c "cd /app/remotion && npx remotion compositions 2>/dev/null | grep -E 'V3Video|EditorialVideo|DirectedVideo'" || echo "   !! compositions missing"
+docker compose exec -T video-service sh -c "cd /app/remotion && npx remotion compositions 2>/dev/null | grep -E 'V3Video|EditorialVideo|DirectedVideo|TemplateCommercial'" || echo "   !! compositions missing"
+# commercial pipeline module must be in the image (server.js requires ./commercial):
+docker compose exec -T video-service test -f /app/commercial.js \
+  && echo "   container commercial.js: ok" || echo "   !! container MISSING commercial.js — run with --no-cache"
 # the slide renderer needs @remotion/transitions installed IN the image:
 docker compose exec -T video-service test -d /app/remotion/node_modules/@remotion/transitions \
   && echo "   container transitions dep: ok" || echo "   !! MISSING @remotion/transitions — run: bash redeploy.sh --no-cache"
 # SFX wavs must be IN the image (DirectedVideo's Sfx loads sfx/*.wav; missing = render crash):
 CSFX=$(docker compose exec -T video-service sh -c 'ls /app/remotion/public/sfx/*.wav 2>/dev/null | wc -l' | tr -d '\r')
 [ "${CSFX:-0}" -ge 5 ] && echo "   container sfx wavs: ok ($CSFX)" || echo "   !! container MISSING sfx wavs ($CSFX) — run: bash redeploy.sh --no-cache"
+# music beds for commercials (missing = commercials use a silent fallback track):
+CMUS=$(docker compose exec -T video-service sh -c 'ls /app/remotion/public/music/*.wav 2>/dev/null | wc -l' | tr -d '\r')
+[ "${CMUS:-0}" -ge 3 ] && echo "   container music beds: ok ($CMUS)" || echo "   !! container music beds LOW ($CMUS) — run: bash redeploy.sh --no-cache"
 
-echo "==> Done. Generate a slide video to verify (POST /generate-slides)."
+echo "==> Done. Verify: POST /generate-slides (slides) or /generate-commercial (commercial)."

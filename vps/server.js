@@ -1,7 +1,7 @@
 const express = require('express')
 const { execFile } = require('child_process')
 const { writeFile, mkdir, rm, readFile } = require('fs/promises')
-const { join } = require('path')
+const { join, dirname } = require('path')
 const { randomUUID, timingSafeEqual } = require('crypto')
 const { tmpdir } = require('os')
 const { createClient } = require('@supabase/supabase-js')
@@ -1430,6 +1430,204 @@ app.post('/render-v3', authCheck, async (req, res) => {
       await rm(outFile, { force: true }).catch(() => {})
     } catch { /* cleanup best-effort */ }
   }
+})
+
+// ============================================================
+// COMMERCIAL PIPELINE — /render-commercial. Renders a PARAMETERIZED commercial
+// template (e.g. TemplateFintech) from a props payload, mirroring /render-v3:
+// authCheck → async ack → stage per-video assets into public/ → write props →
+// withRenderSlot(spawn remotion --props) → upload mp4 → mark completed.
+//
+// Payload: {
+//   videoId, userId, template: 'TemplateFintech',
+//   props: {...},                    // the composition props (matches the schema)
+//   assets: { 'sub/path.png': 'https://...' },  // files to stage into public/<assetDir>/
+// }
+// The props.assetDir names the per-video public subfolder the template reads from.
+// ============================================================
+app.post('/render-commercial', authCheck, async (req, res) => {
+  const { videoId, userId, template, props, assets } = req.body || {}
+  const COMPS = new Set(['TemplateFintech', 'TemplateCommercial'])   // allow-list of parameterized templates
+  if (!videoId || !template || !COMPS.has(template) || !props || !props.assetDir) {
+    return res.status(400).json({ error: 'Missing/invalid videoId, template, props, or props.assetDir' })
+  }
+  res.json({ success: true })
+
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+  const setProgress = (pct, detail) => sb.from('videos').update({ progress_pct: pct, progress_detail: detail, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
+
+  const pub = join(REMOTION_DIR, 'public')
+  const assetDir = join(pub, props.assetDir)     // per-video subfolder (props.assetDir should be unique, e.g. `c-${videoId}`)
+  const PROPS = join(pub, `commercial-${videoId}-props.json`)
+  let outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
+
+  try {
+    await mkdir(assetDir, { recursive: true })
+    await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
+    console.log(`[render-commercial ${videoId}] template=${template} assetDir=${props.assetDir}`)
+    await setProgress(20, 'Staging assets...')
+
+    // stage each asset URL into public/<assetDir>/<subpath> (parallel, best-effort)
+    const entries = Object.entries(assets || {})
+    await Promise.all(entries.map(async ([sub, url]) => {
+      const dest = join(assetDir, sub)
+      await mkdir(dirname(dest), { recursive: true })
+      const r = await fetch(url, { signal: AbortSignal.timeout(60000) })
+      if (!r.ok) throw new Error(`asset fetch ${sub}: ${r.status}`)
+      await writeFile(dest, Buffer.from(await r.arrayBuffer()))
+    }))
+    console.log(`[render-commercial ${videoId}] staged ${entries.length} assets`)
+
+    await writeFile(PROPS, JSON.stringify(props))
+    await setProgress(60, 'Rendering commercial...')
+
+    await withRenderSlot(() => new Promise((resolve, reject) => {
+      const { spawn } = require('child_process')
+      const child = spawn('npx', ['remotion', 'render', template, outFile, `--props=${PROPS}`,
+        '--log=info', '--concurrency=12', '--gl=swiftshader', '--image-format=jpeg'],
+        { cwd: REMOTION_DIR, env: { ...process.env } })
+      let stderrBuf = '', lastPct = 60, lastWrite = 0
+      const onChunk = (buf) => {
+        const text = buf.toString(); stderrBuf = (stderrBuf + text).slice(-2000)
+        const m = [...text.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop()
+        if (m) { const done = +m[1], total = +m[2]
+          if (total > 0 && done <= total) { const pct = 60 + Math.round((done / total) * 30); const now = Date.now()
+            if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`) } } }
+      }
+      child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
+      child.on('close', (code) => code === 0 ? resolve() : reject(new Error(`remotion exit ${code}: ${stderrBuf.slice(-400)}`)))
+      child.on('error', reject)
+    }))
+
+    await setProgress(92, 'Uploading...')
+    const videoBuffer = await readFile(outFile)
+    const videoStoragePath = `${userId}/${videoId}.mp4`
+    await sb.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
+    const { data: urlData } = sb.storage.from('videos').getPublicUrl(videoStoragePath)
+
+    const thumbPath = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
+    await grabPoster(outFile, thumbPath)
+    let thumbUrl = null
+    try { const tb = await readFile(thumbPath); await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true }); thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl } catch {}
+
+    await sb.from('videos').update({
+      status: 'completed', video_url: urlData.publicUrl,
+      ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
+      progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
+    }).eq('id', videoId)
+    console.log(`[render-commercial ${videoId}] DONE -> ${urlData.publicUrl}`)
+  } catch (err) {
+    console.error(`[render-commercial ${videoId}] error:`, err.message)
+    reportError({ source: 'render-commercial', videoId, userId, stage: template, message: err.message }).catch(() => {})
+    await sb.from('videos').update({ status: 'failed', error_message: 'Commercial rendering failed. Your credits were refunded.', progress_detail: `[fail] render-commercial: ${err.message}`.slice(0, 500) }).eq('id', videoId).then(() => {}, () => {})
+  } finally {
+    try {
+      const { rm: rmDir } = require('fs/promises')
+      await rmDir(assetDir, { recursive: true, force: true }).catch(() => {})
+      await rm(PROPS, { force: true }).catch(() => {})
+      await rm(outFile, { force: true }).catch(() => {})
+    } catch {}
+  }
+})
+
+// ============================================================
+// COMMERCIAL PIPELINE — /generate-commercial. URL (or text) → a fully-produced,
+// brand-matched ~30-40s commercial. The FULL director runs on the VPS (which has
+// ANTHROPIC_API_KEY, ElevenLabs, image gen): comprehend → DIRECT (styleId+beats)
+// → per-beat VO + literal hero images → props JSON → render TemplateCommercial →
+// upload. Vercel just triggers this. Reuses vps/commercial.js (ports
+// scripts/director/make-commercial.ts). Requires ANTHROPIC_API_KEY on the VPS.
+// ============================================================
+const { generateCommercial } = require('./commercial')
+
+app.post('/generate-commercial', authCheck, async (req, res) => {
+  const { videoId, userId, url, text, brandName, music, style, musicUrl } = req.body || {}
+  if (!videoId) return res.status(400).json({ error: 'Missing videoId' })
+  if (!url && !text) return res.status(400).json({ error: 'Provide url or text' })
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured on VPS' })
+  res.json({ success: true })
+
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+  const setProgress = (pct, detail) => sb.from('videos').update({ progress_pct: pct, progress_detail: detail, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
+  const pub = join(REMOTION_DIR, 'public')
+  let outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
+  const staged = []
+  let assetDirAbs = null, propsPath = null
+
+  await withRenderSlot(async () => {
+    try {
+      await mkdir(pub, { recursive: true }); await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
+      await setProgress(8, 'Studying the brand...')
+
+      // BACKDROP IMAGE PROVIDER: prefer Cloudflare FLUX (fast, free), fall back to
+      // Gemini. A failure just means that shot beat renders without a hero image.
+      const { cloudflareImage: cfImg, cloudflareAvailable: cfAvail } = require('./slides')
+      const imageGen = cfAvail()
+        ? async (prompt, outPath) => { try { return await cfImg(prompt, outPath) } catch { return await v3GeminiBg(prompt, outPath) } }
+        : (prompt, outPath) => v3GeminiBg(prompt, outPath)
+
+      const deps = {
+        geminiImage: imageGen,
+        tts: (fn) => ttsLimit(fn),
+        // MUSIC: MusicBed loops it to cover the whole video, so length just needs
+        // to be known. Prefer a caller-provided track, then a baked bed matching
+        // the mood (public/music/bed-<mood>-128.wav), else a short silent mp3 so
+        // the file always exists.
+        stageMusic: async (mood, outPath) => {
+          if (musicUrl) { try { const r = await fetch(musicUrl, { signal: AbortSignal.timeout(45000) }); if (r.ok) { await writeFile(outPath, Buffer.from(await r.arrayBuffer())); return } } catch {} }
+          const bed = join(pub, 'music', `bed-${mood}-128.wav`)
+          try { await readFile(bed); const { copyFile } = require('fs/promises'); await copyFile(bed, outPath); return } catch {}
+          await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-t', '5', '-q:a', '9', outPath], { timeout: 30000 }, (e) => e ? reject(e) : resolve()))
+        },
+      }
+
+      const { props, propsPath: pp, assetDir, assetNames, styleId, totalSec } = await generateCommercial({
+        pub, url, text, brandName, music, forceStyle: style, videoId, deps, log: (m) => setProgress(35, m),
+      })
+      propsPath = pp
+      assetDirAbs = join(pub, assetDir)
+      staged.push(propsPath, ...assetNames.map((n) => join(assetDirAbs, n)))
+      console.log(`[generate-commercial ${videoId}] style=${styleId} beats=${props.beats.length} ~${totalSec.toFixed(1)}s`)
+
+      await setProgress(58, 'Rendering commercial...')
+      await new Promise((resolve, reject) => {
+        const { spawn } = require('child_process')
+        const child = spawn('npx', ['remotion', 'render', 'TemplateCommercial', outFile, `--props=${propsPath}`, '--log=info', '--concurrency=12', '--gl=swiftshader', '--image-format=jpeg'], { cwd: REMOTION_DIR, env: { ...process.env } })
+        let stderrBuf = '', lastPct = 58, lastWrite = 0
+        const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); const m = [...t.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const done = parseInt(m[1], 10), total = parseInt(m[2], 10); if (total > 0 && done <= total) { const pct = 58 + Math.round((done / total) * 32); const now = Date.now(); if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`) } } } }
+        child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
+        const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout (>60min)')) }, 60 * 60 * 1000)
+        child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`render: ${e.message}`)) })
+        child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`render exit ${code}: ${stderrBuf.slice(-300)}`)) })
+      })
+
+      await setProgress(92, 'Uploading...')
+      const videoBuffer = await readFile(outFile)
+      await sb.storage.from('videos').upload(`${userId}/${videoId}.mp4`, videoBuffer, { contentType: 'video/mp4', upsert: true })
+      const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
+
+      const thumbPath = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
+      await grabPoster(outFile, thumbPath)
+      let thumbUrl = null
+      try { const tb = await readFile(thumbPath); await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true }); thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl } catch {}
+      await rm(thumbPath, { force: true }).catch(() => {})
+
+      await sb.from('videos').update({
+        status: 'completed', video_url: urlData.publicUrl,
+        ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
+        progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
+      }).eq('id', videoId)
+      console.log(`[generate-commercial ${videoId}] DONE -> ${urlData.publicUrl}`)
+    } catch (err) {
+      console.error(`[generate-commercial ${videoId}] error:`, err.message)
+      reportError({ source: 'generate-commercial', videoId, userId, stage: 'commercial', message: err.message }).catch(() => {})
+      await sb.from('videos').update({ status: 'failed', error_message: 'Commercial generation failed. Your credits were refunded.', progress_detail: `[fail] generate-commercial: ${err.message}`.slice(0, 500) }).eq('id', videoId).then(() => {}, () => {})
+    } finally {
+      for (const f of staged) await rm(f, { force: true }).catch(() => {})
+      if (assetDirAbs) { try { const { rm: rmDir } = require('fs/promises'); await rmDir(assetDirAbs, { recursive: true, force: true }).catch(() => {}) } catch {} }
+      await rm(outFile, { force: true }).catch(() => {})
+    }
+  })
 })
 
 // ============================================================
