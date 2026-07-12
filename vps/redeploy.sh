@@ -44,11 +44,6 @@ rm -rf "$DIR/remotion/src" && cp -r "$TMP/remotion/src" "$DIR/remotion/src"
 # These live in git under remotion/public/sfx and must reach the build context.
 mkdir -p "$DIR/remotion/public/sfx"
 cp -f "$TMP"/remotion/public/sfx/*.wav "$DIR/remotion/public/sfx/" 2>/dev/null || true
-# MUSIC BEDS the commercial pipeline stages (bed-<mood>-128.wav — TemplateCommercial
-# loops one via MusicBed; a missing bed falls back to a silent track). Force-added
-# to git so they reach the build context (public/music is otherwise gitignored).
-mkdir -p "$DIR/remotion/public/music"
-cp -f "$TMP"/remotion/public/music/*.wav "$DIR/remotion/public/music/" 2>/dev/null || true
 # remotion/package.json must ride along so new deps (@remotion/transitions, paths)
 # get installed on the next image build. NOTE: since COPY remotion precedes
 # npm install in the Dockerfile, a package.json change needs a --no-cache build.
@@ -66,7 +61,6 @@ test -f "$DIR/remotion/src/templates/TemplateCommercial.tsx" && echo "   Templat
 test -f "$DIR/remotion/src/DirectedVideo.tsx" && echo "   DirectedVideo composition: ok"
 grep -c "@remotion/transitions" "$DIR/remotion/package.json" >/dev/null && echo "   transitions dep: ok"
 SFXN=$(ls "$DIR"/remotion/public/sfx/*.wav 2>/dev/null | wc -l); [ "$SFXN" -ge 5 ] && echo "   sfx wavs: ok ($SFXN)" || echo "   !! sfx wavs MISSING ($SFXN) — render will crash on ENOENT"
-MUSN=$(ls "$DIR"/remotion/public/music/*.wav 2>/dev/null | wc -l); [ "$MUSN" -ge 3 ] && echo "   music beds: ok ($MUSN)" || echo "   !! music beds LOW ($MUSN) — commercials fall back to silent track"
 
 echo "==> Reclaiming disk BEFORE build (repeated --no-cache builds fill the disk)"
 echo "   disk before:"; df -h / | tail -1
@@ -115,8 +109,5 @@ docker compose exec -T video-service test -d /app/remotion/node_modules/@remotio
 # SFX wavs must be IN the image (DirectedVideo's Sfx loads sfx/*.wav; missing = render crash):
 CSFX=$(docker compose exec -T video-service sh -c 'ls /app/remotion/public/sfx/*.wav 2>/dev/null | wc -l' | tr -d '\r')
 [ "${CSFX:-0}" -ge 5 ] && echo "   container sfx wavs: ok ($CSFX)" || echo "   !! container MISSING sfx wavs ($CSFX) — run: bash redeploy.sh --no-cache"
-# music beds for commercials (missing = commercials use a silent fallback track):
-CMUS=$(docker compose exec -T video-service sh -c 'ls /app/remotion/public/music/*.wav 2>/dev/null | wc -l' | tr -d '\r')
-[ "${CMUS:-0}" -ge 3 ] && echo "   container music beds: ok ($CMUS)" || echo "   !! container music beds LOW ($CMUS) — run: bash redeploy.sh --no-cache"
 
 echo "==> Done. Verify: POST /generate-slides (slides) or /generate-commercial (commercial)."

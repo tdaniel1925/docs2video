@@ -1569,14 +1569,12 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
       const deps = {
         geminiImage: imageGen,
         tts: (fn) => ttsLimit(fn),
-        // MUSIC: MusicBed loops it to cover the whole video, so length just needs
-        // to be known. Prefer a caller-provided track, then a baked bed matching
-        // the mood (public/music/bed-<mood>-128.wav), else a short silent mp3 so
-        // the file always exists.
-        stageMusic: async (mood, outPath) => {
+        // MUSIC FALLBACK ONLY (primary is ElevenLabs Music in commercial.js).
+        // If that API fails, prefer a caller-provided track, else write a short
+        // SILENT mp3 so the file exists and the render never dies — we retry
+        // rather than ship a generic bed on a paid commercial.
+        stageMusic: async (_mood, outPath) => {
           if (musicUrl) { try { const r = await fetch(musicUrl, { signal: AbortSignal.timeout(45000) }); if (r.ok) { await writeFile(outPath, Buffer.from(await r.arrayBuffer())); return } } catch {} }
-          const bed = join(pub, 'music', `bed-${mood}-128.wav`)
-          try { await readFile(bed); const { copyFile } = require('fs/promises'); await copyFile(bed, outPath); return } catch {}
           await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-t', '5', '-q:a', '9', outPath], { timeout: 30000 }, (e) => e ? reject(e) : resolve()))
         },
       }

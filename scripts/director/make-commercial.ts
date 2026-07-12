@@ -190,9 +190,7 @@ async function main() {
     writeFileSync(musicOut, Buffer.from(await res.arrayBuffer()))
     console.log(`   music: ElevenLabs Music (${(ms / 1000).toFixed(0)}s)`)
   } catch (e) {
-    const bed = join(PUB, 'music', `bed-${music}-128.wav`)
-    if (existsSync(bed)) { copyFileSync(bed, musicOut); console.log(`   music: ElevenLabs failed → bed-${music}-128`) }
-    else console.log(`   ! music failed and no fallback bed for "${music}"`)
+    console.log(`   ! ElevenLabs Music failed (${e instanceof Error ? e.message : e}) — retry recommended (no music written)`)
   }
   const musicFrames = existsSync(musicOut) ? Math.round(ffprobeDur(musicOut) * 30) : 900
 

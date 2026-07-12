@@ -200,10 +200,12 @@ async function generateCommercial({ pub, url, text, brandName, music, forceStyle
   }
 
   // 6) MUSIC — a REAL track from ElevenLabs Music, prompted for THIS brand and
-  // generated at the video's EXACT length (the project's approach — not a canned
-  // bed). Video length is known now (intro + sum of beat durs + tail), so we ask
-  // for that many ms. MusicBed still loops it as a safety net if it comes back a
-  // touch short. On any API failure, fall back to a staged mood bed.
+  // generated at the video's EXACT length (the project's approach — every video
+  // gets its own custom score). Video length is known now (intro + sum of beat
+  // durs + tail). MusicBed loops it as a safety net if it comes back a touch
+  // short. If the API fails, `deps.stageMusic` writes a short SILENT track (the
+  // ffmpeg last-resort) so the render never dies — we retry rather than ship a
+  // generic bed on a paid commercial.
   const videoSec = (90 + beats.reduce((t, b) => t + b.dur * FPS, 0) + 6) / FPS
   const musicOut = join(dir, 'music.mp3')
   const musicPrompt = spec.musicPrompt || 'Modern cinematic commercial track, confident and premium, clear kick drum pulse, driving bass, builds energy toward the end.'
@@ -213,13 +215,8 @@ async function generateCommercial({ pub, url, text, brandName, music, forceStyle
     await elevenMusic(musicPrompt, videoSec * 1000, musicOut)   // +0ms extra; MusicBed loop covers any rounding
     assetNames.push('music.mp3'); musicOk = true
   } catch (e) {
-    say(`ElevenLabs Music failed (${e.message}) — falling back to a bed`)
-    const MOOD_BY_STYLE = {
-      fintech: 'tension', tech: 'tension', data: 'tension', redblueprint: 'tension',
-      upbeat: 'athletic', casino: 'athletic', playful: 'athletic', emerald: 'athletic',
-      luxury: 'cinematic', clean: 'cinematic',
-    }
-    if (deps.stageMusic) { try { await deps.stageMusic(music || MOOD_BY_STYLE[styleId] || 'tension', musicOut); assetNames.push('music.mp3'); musicOk = true } catch (e2) { say(`bed fallback failed: ${e2.message}`) } }
+    say(`ElevenLabs Music failed (${e.message}) — using a silent track (retry recommended)`)
+    if (deps.stageMusic) { try { await deps.stageMusic('silent', musicOut); assetNames.push('music.mp3'); musicOk = true } catch (e2) { say(`silent fallback failed: ${e2.message}`) } }
   }
   const musicFrames = musicOk ? (Math.round((await ffprobeDur(musicOut)) * FPS) || 900) : 900
 
