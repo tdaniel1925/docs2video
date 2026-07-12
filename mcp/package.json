@@ -1,0 +1,12 @@
+{
+  "name": "docs2video-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server for docs2video — generate brand-matched commercials from a URL (agency single-key).",
+  "bin": { "docs2video-mcp": "server.mjs" },
+  "scripts": { "start": "node server.mjs" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  }
+}
