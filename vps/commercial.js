@@ -82,7 +82,7 @@ async function direct(u, brandName) {
       "vo": "one natural spoken sentence for THIS beat (conversational, contractions, speak to 'you'; NO ellipsis '...'; say numbers naturally)",
       "kicker": "(optional) tiny label above the headline",
       "pre": "(shot/quote) headline text before the hot phrase",
-      "hot": "(shot/quote) the 1-3 word phrase to light up in accent color",
+      "hot": "(shot/quote) the 1-3 word phrase to light up in accent color. The renderer concatenates pre + hot + post, so write them as ONE sentence broken at word boundaries — e.g. pre 'Your data is ' (trailing space) + hot 'sitting idle', NOT pre 'Your data is' + hot 'sitting idle'",
       "post": "(optional) headline text after hot",
       "sub": "(meet/shot) small subtitle line",
       "img_prompt": "(shot ONLY) a cinematic, dark, photorealistic, IDENTITY-NEUTRAL 16:9 backdrop that LITERALLY illustrates this beat's words — no people/faces, no text, no logos",

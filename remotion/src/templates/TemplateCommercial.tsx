@@ -21,6 +21,12 @@ const { fontFamily: ARCHIVO } = loadArchivoBlack()
 const { fontFamily: BALOO } = loadBaloo()
 const { fontFamily: PLAYFAIR } = loadPlayfair()
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
+// join headline segments (pre + hot + post) with exactly one space where two
+// non-empty segments meet — the director sometimes omits the trailing/leading
+// space, which rendered as "Your data issitting idle". These add a space only
+// when the boundary lacks one, so intentional punctuation ("$5," + "M") is safe.
+const preSp = (pre = '', hot = '') => (pre && hot && !/\s$/.test(pre) && !/^[\s.,!?;:)]/.test(hot) ? pre + ' ' : pre)
+const postSp = (post = '', hot = '') => (post && hot && !/^\s/.test(post) && !/[\s(]$/.test(hot) ? ' ' + post : post)
 const FPS = 30
 const s = (sec: number) => Math.round(sec * FPS)
 
@@ -124,7 +130,7 @@ const Head: React.FC<{ kicker?: string; pre?: string; hot?: string; post?: strin
       <div style={{ opacity: o, transform: `translateY(${y}px)`, textAlign: 'center', maxWidth: 1500 }}>
         {kicker && <div style={{ fontFamily: st.mono, fontWeight: 600, fontSize: 20, letterSpacing: '0.28em', textTransform: 'uppercase', color: b.accent, marginBottom: 18 }}>{kicker}</div>}
         <div style={{ fontFamily: st.display, fontWeight: st.heavy ? 700 : 500, fontSize: size, color: b.cream, lineHeight: st.upper ? 1.0 : 1.14, paddingBottom: '0.04em', letterSpacing: '-0.01em', textTransform: st.upper ? 'uppercase' : 'none', textShadow: '0 4px 30px rgba(0,0,0,0.9)' }}>
-          {pre}{hot && <span style={{ color: b.accentHi, textShadow: `0 0 22px ${b.accent}55` }}>{hot}</span>}{post}
+          {preSp(pre, hot)}{hot && <span style={{ color: b.accentHi, textShadow: `0 0 22px ${b.accent}55` }}>{hot}</span>}{postSp(post, hot)}
         </div>
         {sub && <div style={{ fontFamily: st.body, fontWeight: 500, fontSize: size * 0.4, color: b.mute, marginTop: 14 }}>{sub}</div>}
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 22 }}><div style={{ width: 130 * rule, height: 2, background: `linear-gradient(90deg, transparent, ${b.accent}, transparent)`, boxShadow: `0 0 12px ${b.accent}` }} /></div>
@@ -235,7 +241,7 @@ const QuoteBeat: React.FC<{ hold: number; pre?: string; hot?: string; post?: str
       <Bokeh color={b.accent} count={5} big />
       <Alive intensity={0.5}><AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: '0 140px' }}>
         <div style={{ fontFamily: st.display, fontWeight: st.heavy ? 700 : 600, fontSize: size, color: b.cream, textAlign: 'center', lineHeight: 1.12, paddingBottom: '0.04em', textTransform: st.upper ? 'uppercase' : 'none' }}>
-          {pre}{hot && <span style={{ color: b.accentHi }}>{hot}</span>}{post}
+          {preSp(pre, hot)}{hot && <span style={{ color: b.accentHi }}>{hot}</span>}{postSp(post, hot)}
         </div>
       </AbsoluteFill></Alive>
     </AbsoluteFill>
