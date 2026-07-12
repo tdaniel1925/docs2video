@@ -76,8 +76,10 @@ export async function POST(request: Request) {
   const { data: row, error: insErr } = await admin
     .from('videos')
     .insert({
+      // 'pending' (not 'processing') — the videos_status_check constraint rejects
+      // 'processing'/'rendering'; the VPS flips this to completed/failed at the end.
       user_id: caller.userId,
-      status: 'processing',
+      status: 'pending',
       progress_pct: 5,
       progress_detail: 'Starting…',
       title,

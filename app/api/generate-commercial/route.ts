@@ -58,7 +58,8 @@ export async function POST(request: Request) {
   // create the videos row the UI polls for progress.
   const { data: video, error: insErr } = await admin
     .from('videos')
-    .insert({ user_id: user.id, status: 'processing', progress_pct: 5, progress_detail: 'Starting…', title: (brandName || (url ? new URL(url).hostname.replace(/^www\./, '') : 'Commercial')).toString().slice(0, 120) })
+    // 'pending' — the videos_status_check constraint rejects 'processing'.
+    .insert({ user_id: user.id, status: 'pending', progress_pct: 5, progress_detail: 'Starting…', title: (brandName || (url ? new URL(url).hostname.replace(/^www\./, '') : 'Commercial')).toString().slice(0, 120) })
     .select('id')
     .single()
   if (insErr || !video) {
