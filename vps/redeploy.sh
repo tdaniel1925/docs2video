@@ -44,11 +44,14 @@ cp "$TMP/vps/Dockerfile" "$DIR/Dockerfile"
 # only the compose file's structure/env-list is updated from git.
 cp "$TMP/vps/docker-compose.yml" "$DIR/docker-compose.yml"
 rm -rf "$DIR/remotion/src" && cp -r "$TMP/remotion/src" "$DIR/remotion/src"
-# STATIC ASSETS the renderer reads at render time (SFX wavs — DirectedVideo's
-# Sfx component loads sfx/*.wav; a missing wav ENOENTs and cancels the render).
+# STATIC ASSETS the renderer reads at render time (SFX — the Sfx components load
+# sfx/*.wav AND sfx/*.mp3; a missing file ENOENTs and cancels the render. The
+# TemplateCommercial 'luxury'/'aurora' styles use .mp3 SFX like shimmer.mp3 —
+# copying only *.wav (the old bug) killed every luxury commercial).
 # These live in git under remotion/public/sfx and must reach the build context.
 mkdir -p "$DIR/remotion/public/sfx"
 cp -f "$TMP"/remotion/public/sfx/*.wav "$DIR/remotion/public/sfx/" 2>/dev/null || true
+cp -f "$TMP"/remotion/public/sfx/*.mp3 "$DIR/remotion/public/sfx/" 2>/dev/null || true
 # remotion/package.json must ride along so new deps (@remotion/transitions, paths)
 # get installed on the next image build. NOTE: since COPY remotion precedes
 # npm install in the Dockerfile, a package.json change needs a --no-cache build.

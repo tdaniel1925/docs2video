@@ -191,9 +191,29 @@ async function fetchLogo(html, pageUrl, dir) {
       if (ko) finalBuf = ko
     }
   } catch { /* keep original on any failure */ }
+  // SANITIZE + DOWNSCALE: scraped "logos" are sometimes huge hero/OG images
+  // (Compass gave a 5100x3300, 20MB PNG). A giant image crashes Chrome's decoder
+  // in the intro + per-frame corner bug and kills the render (EncodingError).
+  // Cap the longest side and re-encode to a clean PNG. A real logo is small; this
+  // is lossless for legit logos and life-saving for oversized scrapes.
+  finalBuf = await sanitizeLogo(finalBuf)
   const outAbs = path.join(dir, 'logo.png')
   await writeFile(outAbs, finalBuf)
   return { rel: 'logo.png', color }
+}
+
+// Re-encode any candidate logo to a safe, render-friendly PNG (max 800px longest
+// side, alpha preserved). Returns the original buffer if sharp can't process it
+// (better a stale logo than a crashed pipeline — the beat still renders).
+async function sanitizeLogo(buf) {
+  try {
+    const sharp = require('sharp')
+    const meta = await sharp(buf).metadata()
+    const longest = Math.max(meta.width || 0, meta.height || 0)
+    let img = sharp(buf).ensureAlpha()
+    if (longest > 800) img = img.resize(800, 800, { fit: 'inside', withoutEnlargement: true })
+    return await img.png({ compressionLevel: 9 }).toBuffer()
+  } catch { return buf }
 }
 
 // Does this PNG have a solid, mostly-opaque background that should be removed?
@@ -671,6 +691,7 @@ async function generateCommercial({ pub, url, text, brandName, music, forceStyle
         logoColor = await logoDominantColor(img.buffer)
         let buf = img.buffer
         try { if (await needsKnockout(buf)) { const ko = await knockoutLogo(buf, dir); if (ko) buf = ko } } catch {}
+        buf = await sanitizeLogo(buf)   // cap size + re-encode (see fetchLogo note)
         const { writeFile } = require('fs/promises'); await writeFile(join(dir, 'logo.png'), buf)
         logoRel = 'logo.png'; assetNames.push(logoRel); say('Using provided logo.')
       }
