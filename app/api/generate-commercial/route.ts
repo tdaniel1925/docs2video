@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
   let body: any
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
-  const { url, text, brandName, music, style, musicUrl } = body || {}
+  const { url, text, brandName, music, style, musicUrl, logoUrl, goal } = body || {}
   if (!url && !text) return NextResponse.json({ error: 'Provide a url or text' }, { status: 400 })
 
   const admin = createAdminClient()
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
     const res = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-commercial`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
-      body: JSON.stringify({ videoId, userId: user.id, url, text, brandName, music, style, musicUrl }),
+      body: JSON.stringify({ videoId, userId: user.id, url, text, brandName, music, style, musicUrl, logoUrl, goal }),
       signal: AbortSignal.timeout(30000),
     })
     if (!res.ok) throw new Error(`VPS ${res.status}: ${(await res.text()).slice(0, 160)}`)

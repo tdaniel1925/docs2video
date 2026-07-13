@@ -23,21 +23,23 @@ export const maxDuration = 60
 
 const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').replace(/\/$/, '')
 const AGENCY_KEY = (process.env.MCP_AGENCY_API_KEY || '').trim()
-const STYLES = ['fintech', 'luxury', 'tech', 'upbeat', 'emerald', 'redblueprint', 'data', 'playful', 'casino', 'clean']
+const STYLES = ['fintech', 'luxury', 'tech', 'upbeat', 'emerald', 'redblueprint', 'data', 'playful', 'casino', 'clean', 'glitchcore', 'cinematic', 'noir', 'retro', 'vibrant', 'editorial', 'brutalist', 'aurora', 'sport', 'corporate', 'neon', 'organic']
 const PROTOCOL_VERSION = '2025-06-18'
 
 const TOOLS = [
   {
     name: 'create_commercial',
     description:
-      'Generate a brand-matched, fully-produced ~30-40s commercial video from a website URL. The pipeline crawls the site, understands the brand, writes the script + voiceover, extracts brand colors, and generates its own voice, imagery, and custom music — the user only supplies a URL. Returns a job_id immediately; use check_commercial to get the finished video (~2-3 min).',
+      'Generate a brand-matched, fully-produced ~30-40s commercial video from a website URL (or pasted text). The pipeline understands the brand, writes the script + voiceover, extracts brand colors + logo, and generates voice, imagery, and custom music. IMPORTANT: if the user has a specific goal for the video (e.g. "show the product AND how reps earn from it", "recruit new agents", "drive sign-ups"), pass it in `goal` — that drives the whole video, and the source is used only for facts. Returns a job_id immediately; use check_commercial to get the finished video (~2-3 min).',
     inputSchema: {
       type: 'object',
       properties: {
         url: { type: 'string', description: "Website to make a commercial for, e.g. 'https://acme.com'. Required unless `text` is given." },
         text: { type: 'string', description: 'Alternative to url: raw brand/product text.' },
+        goal: { type: 'string', description: "Optional but POWERFUL. A plain-English brief of what this video should accomplish and emphasize — the PRIMARY driver of the video's angle/structure. Use it whenever the user wants something specific or different from what the page emphasizes, e.g. 'Showcase SmartViewz AND show how Apex reps earn recurring income selling it.' The source is then used only for accurate facts." },
         brandName: { type: 'string', description: 'Optional. Force the brand name shown (else derived from the site).' },
-        style: { type: 'string', enum: STYLES, description: 'Optional. Force one of the 10 visual styles; omit to auto-pick.' },
+        style: { type: 'string', enum: STYLES, description: 'Optional. Force one of the visual/motion styles; omit to auto-pick.' },
+        logoUrl: { type: 'string', description: "Optional. URL of a logo image to use (else auto-scraped from the site). Backgrounds are auto-removed." },
       },
     },
   },
@@ -70,7 +72,7 @@ async function runTool(name: string, args: any) {
   if (name === 'create_commercial') {
     if (!args?.url && !args?.text) throw new Error('Provide a `url` (or `text`).')
     const style = args.style && STYLES.includes(args.style) ? args.style : undefined
-    const started = await apiV1('/api/v1/commercials', { method: 'POST', body: { url: args.url, text: args.text, brandName: args.brandName, style } })
+    const started = await apiV1('/api/v1/commercials', { method: 'POST', body: { url: args.url, text: args.text, brandName: args.brandName, style, logoUrl: args.logoUrl, goal: args.goal } })
     return `Commercial started.\n\njob_id: ${started.job_id}\nstatus: ${started.status}\ncredits: ${started.credits_charged}\n\nUse check_commercial with this job_id to get the video when it's ready (~2-3 min).`
   }
   if (name === 'check_commercial') {

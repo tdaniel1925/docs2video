@@ -1541,7 +1541,7 @@ app.post('/render-commercial', authCheck, async (req, res) => {
 const { generateCommercial } = require('./commercial')
 
 app.post('/generate-commercial', authCheck, async (req, res) => {
-  const { videoId, userId, url, text, brandName, music, style, musicUrl } = req.body || {}
+  const { videoId, userId, url, text, brandName, music, style, musicUrl, logoUrl, goal } = req.body || {}
   if (!videoId) return res.status(400).json({ error: 'Missing videoId' })
   if (!url && !text) return res.status(400).json({ error: 'Provide url or text' })
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured on VPS' })
@@ -1580,7 +1580,7 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
       }
 
       const { props, propsPath: pp, assetDir, assetNames, styleId, totalSec } = await generateCommercial({
-        pub, url, text, brandName, music, forceStyle: style, videoId, deps, log: (m) => setProgress(35, m),
+        pub, url, text, brandName, music, forceStyle: style, logoUrl, goal, videoId, deps, log: (m) => setProgress(35, m),
       })
       propsPath = pp
       assetDirAbs = join(pub, assetDir)

@@ -49,6 +49,15 @@ music/
 # temp files
 refs/
 
+# scratch: copy/brief text dumps, sample PDFs, ad-hoc render + screenshot dumps
+*-copy.txt
+*-text.txt
+*-brief.pdf
+comprehension.json
+motion-sample.mp4
+pics/
+demo-annuity.pdf
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -1,4 +1,7 @@
 import { Composition, staticFile } from 'remotion'
+import { TornPaperTest, TORN_FRAMES } from './TornPaperTest'
+import { CommercialApexTorn, APEX_TORN_FRAMES } from './CommercialApexTorn'
+import { CommercialApexPhonk, APEX_PHONK_FRAMES } from './CommercialApexPhonk'
 import { loadFont as loadArchivo } from '@remotion/google-fonts/Archivo'
 import { loadFont as loadInter } from '@remotion/google-fonts/Inter'
 import { AuroraExplainer, totalFrames } from './AuroraExplainer'
@@ -211,6 +214,9 @@ export const RemotionRoot: React.FC = () => {
       durationInFrames={tcDuration(TC_DEMO)}
       calculateMetadata={({ props }) => ({ durationInFrames: tcDuration(props as TCProps), fps: FPS, width: 1920, height: 1080 })}
     />
+    <Composition id="TornPaperTest" component={TornPaperTest} fps={FPS} width={1920} height={1080} durationInFrames={TORN_FRAMES} />
+    <Composition id="CommercialApexTorn" component={CommercialApexTorn} fps={FPS} width={1920} height={1080} durationInFrames={APEX_TORN_FRAMES} />
+    <Composition id="CommercialApexPhonk" component={CommercialApexPhonk} fps={FPS} width={1920} height={1080} durationInFrames={APEX_PHONK_FRAMES} />
     <Composition
       id="ApexCommercial"
       component={ApexCommercial}

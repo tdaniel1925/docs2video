@@ -19,7 +19,7 @@ const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().r
 // Flat price for a produced commercial (same as the UI route COMMERCIAL_COST).
 const COMMERCIAL_COST = 600
 
-const STYLE_IDS = ['fintech', 'luxury', 'tech', 'upbeat', 'emerald', 'redblueprint', 'data', 'playful', 'casino', 'clean']
+const STYLE_IDS = ['fintech', 'luxury', 'tech', 'upbeat', 'emerald', 'redblueprint', 'data', 'playful', 'casino', 'clean', 'glitchcore', 'cinematic', 'noir', 'retro', 'vibrant', 'editorial', 'brutalist', 'aurora', 'sport', 'corporate', 'neon', 'organic']
 
 interface Body {
   url?: string
@@ -28,6 +28,8 @@ interface Body {
   style?: string
   music?: string
   musicUrl?: string
+  logoUrl?: string      // optional: user-supplied / brand logo (overrides auto-scrape)
+  goal?: string         // optional: plain-English brief of what the video should accomplish
   webhook_url?: string
 }
 
@@ -104,7 +106,7 @@ export async function POST(request: Request) {
     const r = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-commercial`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
-      body: JSON.stringify({ videoId: jobId, userId: caller.userId, url, text, brandName, music, style, musicUrl }),
+      body: JSON.stringify({ videoId: jobId, userId: caller.userId, url, text, brandName, music, style, musicUrl, logoUrl: body.logoUrl, goal: body.goal }),
       signal: AbortSignal.timeout(30000),
     })
     if (!r.ok) throw new Error(`VPS ${r.status}: ${(await r.text()).slice(0, 160)}`)
