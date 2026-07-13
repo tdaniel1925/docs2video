@@ -10,7 +10,7 @@
  * palette) so we don't duplicate the API plumbing. Only NEW piece here is the
  * director prompt + the beat→props mapping.
  */
-const { writeFile } = require('fs/promises')
+const { writeFile, stat } = require('fs/promises')
 const { join } = require('path')
 const { execFile } = require('child_process')
 const { claude, comprehend, ttsTimed, cloudflareImage, cloudflareAvailable } = require('./slides')
@@ -750,8 +750,22 @@ async function generateCommercial({ pub, url, text, brandName, music, forceStyle
     }
     let img, shot
     if (be.kind === 'shot' && be.img_prompt && imageGen) {
-      try { await imageGen(be.img_prompt + ' Cinematic, photorealistic, dark, moody, 16:9. No people, no faces, no text, no logos.', join(dir, 'gen', `shot${i + 1}.png`)); img = `gen/shot${i + 1}.png`; assetNames.push(`gen/shot${i + 1}.png`) }
-      catch (e) { say(`img ${i + 1} failed: ${e.message}`) }
+      const outImg = join(dir, 'gen', `shot${i + 1}.png`)
+      try {
+        await imageGen(be.img_prompt + ' Cinematic, photorealistic, dark, moody, 16:9. No people, no faces, no text, no logos.', outImg)
+        // VERIFY the file actually landed and isn't empty — imageGen can resolve
+        // without writing a usable file (provider error / safety block / truncated
+        // download). Referencing a missing/empty file makes Remotion's static-file
+        // reader ENOENT and kills the whole render (read-file.js exit 1).
+        let ok = false
+        try { const st = await stat(outImg); ok = st.isFile() && st.size > 1024 } catch { ok = false }
+        if (ok) { img = `gen/shot${i + 1}.png`; assetNames.push(`gen/shot${i + 1}.png`) }
+        else { say(`img ${i + 1} produced no usable file — demoting shot beat to text`); be.kind = 'quote' }
+      } catch (e) { say(`img ${i + 1} failed: ${e.message} — demoting shot beat to text`); be.kind = 'quote' }
+    } else if (be.kind === 'shot') {
+      // a shot beat with no prompt or no image generator can't render an image —
+      // demote so we never emit a shot beat that points at a nonexistent file.
+      say(`shot beat ${i + 1} has no image — demoting to text`); be.kind = 'quote'
     } else if (be.kind === 'showcase' && shotRel) {
       shot = shotRel; showcaseUsed = true
     }

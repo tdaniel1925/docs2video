@@ -22,6 +22,11 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # Cloudflare Workers AI (FLUX) — the commercial director's image generator.
+      # Without these the container's cloudflareAvailable() is false, every "shot"
+      # beat gets no image, and (pre-fix) the render died on a missing file.
+      - CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID}
+      - CLOUDFLARE_API_KEY=${CLOUDFLARE_API_KEY}
       - IMAGE_MODEL=gemini-3-pro-image-preview
     tmpfs:
       - /tmp:size=2G
