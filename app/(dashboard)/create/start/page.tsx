@@ -30,6 +30,12 @@ export default function CreateStartPage() {
           <div style={styles.cardTitle}>Slides</div>
           <div style={styles.cardDesc}>A polished presentation from your content. Download as PDF or PowerPoint when it&rsquo;s ready.</div>
         </button>
+
+        <button style={styles.card} onClick={() => router.push('/create/commercial')}>
+          <div style={styles.cardIcon}>🎥</div>
+          <div style={styles.cardTitle}>Commercial</div>
+          <div style={styles.cardDesc}>Paste your website — we produce a fully-directed, brand-matched commercial with voiceover, visuals, and music.</div>
+        </button>
       </div>
     </div>
   )

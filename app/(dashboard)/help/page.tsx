@@ -32,6 +32,12 @@ const GUIDES: HelpGuide[] = [
     icon: '🎬',
   },
   {
+    href: '/help/commercials',
+    title: 'Creating Commercials',
+    description: 'Turn a website, PDF, your own text, or just an idea into a fully-directed, brand-matched commercial with voiceover, visuals, and music.',
+    icon: '🎥',
+  },
+  {
     href: '/help/sharing-videos',
     title: 'Sharing Videos with Clients',
     description: 'Share pages, copy links, download options, and how clients interact with your videos.',
