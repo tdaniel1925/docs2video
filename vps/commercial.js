@@ -297,6 +297,30 @@ async function nameBrandColors(pngBuffer) {
 // etc). microlink renders the page in a real browser and returns its title +
 // description + og data — enough for the director to understand the brand when
 // the raw HTML is empty. Returns a text blob or null. ----
+// JUNK/BOT-WALL DETECTOR — a raw fetch often returns a platform interstitial or
+// anti-bot page instead of the real site (e.g. realtyfirmglobal.com is built on
+// Lofty and serves a 357-char "Lofty does not support embedding... clickjacking
+// ... contact bugreport@moatable.com" notice). That boilerplate is JUST over the
+// thin-content threshold, so without this check the director "understands the
+// brand" as the PLATFORM (Lofty) and ships a confident WRONG-BRAND video. Any
+// text matching these patterns is not real brand content — treat as unreadable.
+function isJunkContent(text) {
+  if (!text) return true
+  const t = String(text).toLowerCase()
+  const PATTERNS = [
+    'does not support embedding', 'inside iframes', 'iframes or framesets',
+    'clickjacking', 'bugreport@moatable', 'lofty does not',
+    'press & hold', 'px-captcha', 'perimeterx', 'unusual traffic',
+    'enable javascript', 'please enable cookies', 'access denied',
+    'are you a robot', 'verify you are human', 'human verification',
+    'checking your browser', 'cloudflare', 'captcha', 'ddos protection',
+  ]
+  // short AND matching a wall pattern = junk. (A long real page might legitimately
+  // mention "captcha" in copy, so require it to be short-ish to count as a wall.)
+  const short = t.length < 1200
+  return short && PATTERNS.some((p) => t.includes(p))
+}
+
 async function fetchRenderedMeta(pageUrl) {
   try {
     const r = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(pageUrl)}&meta=true&screenshot=false`, { signal: AbortSignal.timeout(30000) })
@@ -306,6 +330,9 @@ async function fetchRenderedMeta(pageUrl) {
     if (!d) return null
     const parts = [d.title, d.description, d.author, d.publisher].filter(Boolean)
     const txt = parts.join('. ').trim()
+    // microlink's PRERENDER can also return the wall; its plain meta usually gets
+    // the real og:title/description. Reject junk so we never feed a wall downstream.
+    if (isJunkContent(txt)) return null
     return txt.length >= 40 ? txt : null
   } catch { return null }
 }
@@ -661,14 +688,22 @@ async function generateCommercial({ pub, url, text, brandName, music, forceStyle
   if (url) { const html = await fetchText(url); sourceText = htmlToText(html); try { domain = new URL(url).hostname.replace(/^www\./, '') } catch {}; var homeHtml = html }
   else if (text) { sourceText = String(text).slice(0, 60000); var homeHtml = '' }
   else throw new Error('Provide url or text')
-  // JS-heavy SPA sites (dominos.com etc.) return near-zero text from a raw fetch.
-  // Fall back to microlink's browser-rendered title + description.
-  if (url && (!sourceText || sourceText.trim().length < 200)) {
-    say('Page is JS-rendered — reading it with a browser...')
+  // A raw fetch may return a PLATFORM INTERSTITIAL / bot-wall instead of the real
+  // site (e.g. Lofty's anti-iframe notice) — that's junk, not brand content, even
+  // if it's over the length threshold. If the raw text is junk OR thin, fall back
+  // to microlink's browser-rendered title + description (which gets the real
+  // og:title/description). JS-heavy SPAs (dominos.com) also land here.
+  if (url && (!sourceText || sourceText.trim().length < 200 || isJunkContent(sourceText))) {
+    if (isJunkContent(sourceText)) say('That page served a bot/platform wall — reading its real metadata instead...')
+    else say('Page is JS-rendered — reading it with a browser...')
     const meta = await fetchRenderedMeta(url)
-    if (meta) sourceText = (sourceText + ' ' + meta).trim()
+    // If the raw was junk, REPLACE it (don't concatenate the wall text); else append.
+    if (meta) sourceText = isJunkContent(sourceText) ? meta : (sourceText + ' ' + meta).trim()
+    else if (isJunkContent(sourceText)) sourceText = ''   // wall + no meta = nothing usable
   }
-  if (!sourceText || sourceText.trim().length < 40) throw new Error('Not enough readable content at that URL — the site may block automated access.')
+  if (!sourceText || sourceText.trim().length < 40 || isJunkContent(sourceText)) {
+    throw new Error('Not enough readable content at that URL — the site may block automated access.')
+  }
 
   // 2) COMPREHEND
   say('Understanding the brand...')
