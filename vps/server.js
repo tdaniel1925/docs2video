@@ -1541,14 +1541,23 @@ app.post('/render-commercial', authCheck, async (req, res) => {
 const { generateCommercial } = require('./commercial')
 
 app.post('/generate-commercial', authCheck, async (req, res) => {
-  const { videoId, userId, url, text, brandName, music, style, musicUrl, logoUrl, goal } = req.body || {}
+  const { videoId, userId, url, text, brandName, music, style, musicUrl, logoUrl, goal, prospectId } = req.body || {}
   if (!videoId) return res.status(400).json({ error: 'Missing videoId' })
   if (!url && !text) return res.status(400).json({ error: 'Provide url or text' })
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured on VPS' })
   res.json({ success: true })
 
   const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
-  const setProgress = (pct, detail) => sb.from('videos').update({ progress_pct: pct, progress_detail: detail, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
+  // When invoked by the admin prospect pipeline, mirror progress + result into
+  // the prospect_demos row too (the admin dashboard polls that table). The video
+  // itself is still produced identically; this is a side-channel status mirror.
+  const mirrorProspect = (fields) => prospectId
+    ? sb.from('prospect_demos').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', prospectId).then(() => {}, () => {})
+    : Promise.resolve()
+  const setProgress = (pct, detail) => {
+    mirrorProspect({ status: 'generating', progress_pct: pct, stage_detail: detail })
+    return sb.from('videos').update({ progress_pct: pct, progress_detail: detail, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
+  }
   const pub = join(REMOTION_DIR, 'public')
   let outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
   const staged = []
@@ -1582,6 +1591,9 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
       const { props, propsPath: pp, assetDir, assetNames, styleId, totalSec } = await generateCommercial({
         pub, url, text, brandName, music, forceStyle: style, logoUrl, goal, videoId, deps, log: (m) => setProgress(35, m),
       })
+      // resolved company name for the prospect mirror (director's brand > caller > hostname)
+      const resolvedCompany = (props.brand && props.brand.name) || brandName ||
+        (url ? (() => { try { return new URL(url).hostname.replace(/^www\./, '') } catch { return null } })() : null)
       propsPath = pp
       assetDirAbs = join(pub, assetDir)
       staged.push(propsPath, ...assetNames.map((n) => join(assetDirAbs, n)))
@@ -1615,11 +1627,20 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
         ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
         progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
       }).eq('id', videoId)
+      // Mirror the finished result into prospect_demos → 'ready_for_review' (the
+      // status the admin dashboard shows before an admin sends it to the lead).
+      await mirrorProspect({
+        status: 'ready_for_review', progress_pct: 100, stage_detail: 'Ready for review',
+        video_url: urlData.publicUrl, ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
+        ...(resolvedCompany ? { company_name: resolvedCompany } : {}),
+        duration: Math.round(totalSec || 0),
+      })
       console.log(`[generate-commercial ${videoId}] DONE -> ${urlData.publicUrl}`)
     } catch (err) {
       console.error(`[generate-commercial ${videoId}] error:`, err.message)
       reportError({ source: 'generate-commercial', videoId, userId, stage: 'commercial', message: err.message }).catch(() => {})
       await sb.from('videos').update({ status: 'failed', error_message: 'Commercial generation failed. Your credits were refunded.', progress_detail: `[fail] generate-commercial: ${err.message}`.slice(0, 500) }).eq('id', videoId).then(() => {}, () => {})
+      await mirrorProspect({ status: 'failed', stage_detail: 'Generation failed', error_message: err.message.slice(0, 500) })
     } finally {
       for (const f of staged) await rm(f, { force: true }).catch(() => {})
       if (assetDirAbs) { try { const { rm: rmDir } = require('fs/promises'); await rmDir(assetDirAbs, { recursive: true, force: true }).catch(() => {}) } catch {} }

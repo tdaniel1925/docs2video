@@ -1,37 +1,28 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { requireAdmin } from '../../../_lib/admin'
+import { videoServiceUrl } from '../../../_lib/video-service'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
 /**
- * Admin prospect pipeline.
+ * Admin prospect pipeline — paste prospect website URLs, each becomes a directed
+ * sales-demo commercial for outreach.
  *
- * NOTE (2026-07): The generation step is being MIGRATED to run on the VPS (like
- * the customer commercial/slide pipelines) instead of assembling video in-process
- * on Vercel. The old in-process path imported _lib/video (ffmpeg-static),
- * _lib/gemini, _lib/composite, _lib/tts + _lib/script-generator, which bundled
- * FFmpeg + native deps into this serverless function — 3.55GB, past Vercel's
- * 250MB limit, blocking ALL deploys.
+ * Generation runs ON THE VPS (the same director as the customer commercial
+ * pipeline), NOT in-process on Vercel. Vercel is a thin orchestrator: it creates
+ * a prospect_demos row (the admin dashboard polls it) + a videos row (the VPS
+ * writes to it), then fires the VPS /generate-commercial with prospectId. The VPS
+ * MIRRORS its progress + final result (video_url, thumbnail, company_name,
+ * duration → status ready_for_review) back into prospect_demos.
  *
- * This version keeps the admin dashboard's list/reject/cancel working and creates
- * the prospect rows, but marks new generations as pending the VPS migration
- * (see the follow-up task) rather than running FFmpeg here. No heavy imports.
+ * This replaced the old in-process pipeline (assembleVideo/ffmpeg-static + gemini
+ * + tts) that bundled 3.55GB into this function and blocked all Vercel deploys.
  */
 
-/** Write a coarse status + granular progress for the live dashboard. */
-async function setProgress(
-  admin: ReturnType<typeof createAdminClient>,
-  prospectId: string,
-  status: string,
-  progress_pct: number,
-  stage_detail: string,
-) {
-  await admin.from('prospect_demos').update({
-    status, progress_pct, stage_detail, updated_at: new Date().toISOString(),
-  }).eq('id', prospectId)
-}
+const VIDEO_ASSEMBLY_URL = videoServiceUrl()
+const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
 export async function POST(request: Request) {
   try {
@@ -71,30 +62,59 @@ export async function POST(request: Request) {
       await admin.from('prospect_demos').delete().eq('id', regenerateId)
     }
 
-    // Create a queued row per URL. Generation now runs on the VPS (migration in
-    // progress) — mark the row so the dashboard shows a clear status instead of
-    // spinning forever or running FFmpeg here.
+    // Fail fast if the VPS is down (so the admin gets a clear error, not a row
+    // that spins forever).
+    try {
+      const health = await fetch(`${VIDEO_ASSEMBLY_URL}/health`, { signal: AbortSignal.timeout(6000) })
+      if (!health.ok) throw new Error(`health ${health.status}`)
+    } catch {
+      return NextResponse.json({ error: 'The video service is temporarily unavailable. Please try again shortly.' }, { status: 503 })
+    }
+
     const created: any[] = []
     for (const raw of rawList) {
       let parsedUrl: URL
       try { parsedUrl = new URL(raw.startsWith('http') ? raw : `https://${raw}`) }
       catch { created.push({ url: raw, error: 'Invalid URL' }); continue }
 
+      // 1) prospect_demos row (the admin dashboard polls this).
       const { data: prospect, error: insertErr } = await admin
         .from('prospect_demos')
-        .insert({ url: parsedUrl.href, status: 'pending', progress_pct: 0, stage_detail: 'Queued — generation is moving to the VPS pipeline.' })
+        .insert({ url: parsedUrl.href, status: 'generating', progress_pct: 5, stage_detail: 'Queued…' })
         .select()
         .single()
       if (insertErr || !prospect) { created.push({ url: parsedUrl.href, error: 'Insert failed' }); continue }
 
-      // Temporary: until the VPS migration lands, leave the row in a clear
-      // pending state rather than assembling video in-process.
-      await setProgress(admin, prospect.id, 'pending', 0,
-        'Generation temporarily paused while the prospect pipeline moves to the VPS.')
+      // 2) videos row the VPS writes progress to (owned by the admin's user).
+      const { data: video, error: vErr } = await admin
+        .from('videos')
+        .insert({ user_id: user.id, status: 'pending', progress_pct: 5, progress_detail: 'Starting…', title: `Prospect: ${parsedUrl.hostname.replace(/^www\./, '')}`.slice(0, 120) })
+        .select('id')
+        .single()
+      if (vErr || !video) {
+        await admin.from('prospect_demos').update({ status: 'failed', stage_detail: 'Could not start', error_message: 'videos row insert failed' }).eq('id', prospect.id)
+        created.push({ url: parsedUrl.href, error: 'Video row insert failed' }); continue
+      }
+
+      // 3) Fire the VPS director (async — it 200s immediately, works in the
+      //    background, and mirrors progress/result into prospect_demos).
+      try {
+        const res = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-commercial`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
+          body: JSON.stringify({ videoId: video.id, userId: user.id, url: parsedUrl.href, music: true, prospectId: prospect.id }),
+          signal: AbortSignal.timeout(30000),
+        })
+        if (!res.ok) throw new Error(`VPS ${res.status}`)
+      } catch (e: any) {
+        await admin.from('prospect_demos').update({ status: 'failed', stage_detail: 'Could not start generation', error_message: e?.message?.slice(0, 300) ?? 'trigger failed' }).eq('id', prospect.id)
+        created.push({ url: parsedUrl.href, error: 'Could not start generation' }); continue
+      }
+
       created.push(prospect)
     }
 
-    return NextResponse.json({ success: true, started: created.length, prospects: created })
+    return NextResponse.json({ success: true, started: created.filter((c) => !c.error).length, prospects: created })
   } catch (err: any) {
     return NextResponse.json({ error: err?.message ?? 'Server error' }, { status: 500 })
   }
