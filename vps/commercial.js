@@ -169,14 +169,23 @@ async function fetchLogo(html, pageUrl, dir) {
   const { writeFile } = require('fs/promises')
   const cands = findLogoCandidates(html, pageUrl)
   let best = null
-  for (const u of cands.slice(0, 8)) {
+  for (let i = 0; i < Math.min(cands.length, 8); i++) {
+    const u = cands[i]
     const img = await downloadImage(u)
     if (!img) continue
     // score: prefer bigger + wider (wordmark logos are wide); heavily penalize
     // favicon-sized icons (<64px) so they're only used if nothing else exists.
     const w = img.width, h = img.height
     const tiny = Math.min(w, h) < 64
-    const score = (tiny ? 0 : 1000) + img.area / 1000 + (w > h ? 200 : 0)
+    // AFFILIATION-BADGE PENALTY: dental/business sites festoon their pages with
+    // membership badges (McKinney Chamber, ADA, Dental Society, BBB, awards) that
+    // ARE logos but NOT the brand's own — the old size-only scorer picked the
+    // widest one (the Chamber badge for Waterview Dentistry). Heavily demote any
+    // candidate whose URL looks like a 3rd-party badge, and reward earlier
+    // (header-position) candidates, which is where a site's REAL logo lives.
+    const badge = /chamber|associat|\bada\b|-ada-|society|\bbbb\b|better.business|accredit|member|award|badge|partner|certifi|endorse|affiliat|google.review|yelp|facebook|verified/i.test(u)
+    const orderBonus = Math.max(0, 400 - i * 120)   // 1st cand +400, 2nd +280, ...
+    const score = (tiny ? 0 : 1000) + img.area / 1000 + (w > h ? 200 : 0) + orderBonus + (badge ? -5000 : 0)
     if (!best || score > best.score) best = { ...img, url: u, score }
   }
   if (!best) return { rel: null, color: null }
