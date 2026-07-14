@@ -407,9 +407,12 @@ const SplitBeat: React.FC<{ hold: number; split: NonNullable<CommercialProps['be
   const rIn = interpolate(frame, [10, 24], [100, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
   const bothO = split.both ? interpolate(frame, [hold - 40, hold - 28], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) : 0
   const Side = ({ label, sub, color, tx }: any) => (
-    <div style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', transform: `translateX(${tx}px)`, gap: 8 }}>
-      <div style={{ fontFamily: st.body, fontWeight: 800, fontSize: 24, letterSpacing: '0.3em', color, textTransform: 'uppercase' }}>{sub}</div>
-      <div style={{ fontFamily: st.display, fontWeight: 700, fontSize: 92, color: b.white, textTransform: 'uppercase', textShadow: `0 0 34px ${color}55` }}>{label}</div>
+    <div style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', transform: `translateX(${tx}px)`, gap: 8, padding: '0 6%', boxSizing: 'border-box' }}>
+      <div style={{ fontFamily: st.body, fontWeight: 800, fontSize: 24, letterSpacing: '0.3em', color, textTransform: 'uppercase', textAlign: 'center', maxWidth: '100%' }}>{sub}</div>
+      {/* textAlign:center + maxWidth so a long headline WRAPS within its half and
+          stays centered — without them, a wrapped multi-line headline left-aligns
+          and reads as shoved to the frame edge (the "ANOTHER MID NIGHT" bug). */}
+      <div style={{ fontFamily: st.display, fontWeight: 700, fontSize: 92, lineHeight: 1.0, color: b.white, textTransform: 'uppercase', textShadow: `0 0 34px ${color}55`, textAlign: 'center', maxWidth: '100%', wordBreak: 'break-word' }}>{label}</div>
     </div>
   )
   return (
