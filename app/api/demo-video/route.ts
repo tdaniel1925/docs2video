@@ -3,10 +3,12 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { scrapeBrand } from '../../_lib/brand-scraper'
 import { generateDemoScript } from '../../_lib/script-generator'
-import { generateSlide } from '../../_lib/gemini'
-import { synthesizeSpeech } from '../../_lib/tts'
-import { assembleVideo } from '../../_lib/video'
 import { sendDemoReadyEmail, sendDemoReadySms } from '../../_lib/notifications'
+// NOTE: the heavy media libs (generateSlide/synthesizeSpeech/assembleVideo) were
+// removed as imports — this route returns 503 before any of them would run, but
+// STATIC imports still get bundled by Vercel's tracer, pulling ffmpeg-static +
+// native deps into the function (part of the 3.55GB deploy-blocker). They'll be
+// re-added as VPS calls when this route is rebuilt on the VPS pipeline.
 
 export const runtime = 'nodejs'
 export const maxDuration = 300

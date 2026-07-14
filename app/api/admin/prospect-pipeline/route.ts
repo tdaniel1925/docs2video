@@ -1,48 +1,24 @@
 import { NextResponse } from 'next/server'
-import { waitUntil } from '@vercel/functions'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { requireAdmin } from '../../../_lib/admin'
-import { generateDemoScript } from '../../../_lib/script-generator'
-import { generateSlide } from '../../../_lib/gemini'
-import { compositeSlide } from '../../../_lib/composite'
-import { synthesizeSpeech } from '../../../_lib/tts'
-import { assembleVideo } from '../../../_lib/video'
-import OpenAI from 'openai'
-import FirecrawlApp from '@mendable/firecrawl-js'
 
 export const runtime = 'nodejs'
-export const maxDuration = 800
+export const maxDuration = 60
 
-let _openai: OpenAI | null = null
-function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-  return _openai
-}
-
-let _firecrawl: InstanceType<typeof FirecrawlApp> | null = null
-function getFirecrawl() {
-  if (!_firecrawl) _firecrawl = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY! })
-  return _firecrawl
-}
-
-const EXTRACTION_PROMPT = `You are an expert company analyst. Analyze this website content and extract detailed information about the company.
-
-Return ONLY valid JSON (no markdown, no code fences):
-{
-  "companyName": "string — the exact company name",
-  "description": "string — 2-3 sentence description of what they do",
-  "services": ["string array — their main services/products"],
-  "uniqueSellingPoints": ["string array — what makes them different"],
-  "tagline": "string or null — their tagline if visible",
-  "industry": "string — their industry",
-  "colors": {
-    "primary": "#hex — main brand color from the site",
-    "secondary": "#hex — secondary color",
-    "accent": "#hex — accent color"
-  },
-  "contactEmail": "string or null — contact email if found",
-  "contactName": "string or null — founder/CEO name if found"
-}`
+/**
+ * Admin prospect pipeline.
+ *
+ * NOTE (2026-07): The generation step is being MIGRATED to run on the VPS (like
+ * the customer commercial/slide pipelines) instead of assembling video in-process
+ * on Vercel. The old in-process path imported _lib/video (ffmpeg-static),
+ * _lib/gemini, _lib/composite, _lib/tts + _lib/script-generator, which bundled
+ * FFmpeg + native deps into this serverless function — 3.55GB, past Vercel's
+ * 250MB limit, blocking ALL deploys.
+ *
+ * This version keeps the admin dashboard's list/reject/cancel working and creates
+ * the prospect rows, but marks new generations as pending the VPS migration
+ * (see the follow-up task) rather than running FFmpeg here. No heavy imports.
+ */
 
 /** Write a coarse status + granular progress for the live dashboard. */
 async function setProgress(
@@ -57,241 +33,6 @@ async function setProgress(
   }).eq('id', prospectId)
 }
 
-/**
- * Runs the full demo pipeline for one prospect IN THE BACKGROUND (via waitUntil),
- * emitting progress_pct + stage_detail at each step so the admin page can poll
- * live. Honors cancellation: if the row's status is flipped to 'cancelled'
- * mid-run, it stops and skips the upload.
- */
-async function runPipeline(prospectId: string, parsedUrl: URL, userId: string) {
-  const admin = createAdminClient()
-  const isCancelled = async () => {
-    const { data } = await admin.from('prospect_demos').select('status').eq('id', prospectId).single()
-    return data?.status === 'cancelled'
-  }
-  try {
-    // Step 1: Scrape
-    await setProgress(admin, prospectId, 'scraping', 8, 'Scanning the website…')
-    const scrapeResult = await getFirecrawl().scrape(parsedUrl.href, {
-      formats: ['markdown', 'html'],
-    })
-
-      const markdown = (scrapeResult as any)?.markdown || (scrapeResult as any)?.data?.markdown || ''
-      const html = (scrapeResult as any)?.html || (scrapeResult as any)?.data?.html || ''
-
-      if (!markdown && !html) {
-        throw new Error('No content scraped from website')
-      }
-      if (await isCancelled()) return
-
-      // Step 2: Extract company info with OpenAI
-      await setProgress(admin, prospectId, 'scraping', 20, 'Analyzing the company…')
-      const extractionResponse = await getOpenAI().chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: EXTRACTION_PROMPT },
-          { role: 'user', content: markdown.slice(0, 8000) },
-        ],
-        temperature: 0.3,
-      })
-
-      const extractedText = extractionResponse.choices[0]?.message?.content?.trim() ?? '{}'
-      const cleaned = extractedText.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
-      let companyInfo: any
-      try {
-        companyInfo = JSON.parse(cleaned)
-      } catch {
-        companyInfo = { companyName: parsedUrl.hostname, description: 'Unknown company', services: [], uniqueSellingPoints: [], tagline: null, industry: 'general', colors: { primary: '#2563eb', secondary: '#1e40af', accent: '#3b82f6' } }
-      }
-
-      // Step 3: Download logo from website
-      let logoImageUrl: string | null = null
-      const logoImgMatch = html.match(/<img[^>]*(?:class=["'][^"']*logo[^"']*["']|alt=["'][^"']*logo[^"']*["']|src=["'][^"']*logo[^"']*["'])[^>]*src=["']([^"']+)["']/i)
-        ?? html.match(/<img[^>]*src=["']([^"']*logo[^"']+)["']/i)
-      const faviconMatch = html.match(/<link[^>]*rel=["'](?:icon|apple-touch-icon)["'][^>]*href=["']([^"']+)["']/i)
-      const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
-
-      const rawLogoUrl = logoImgMatch?.[1] ?? ogImageMatch?.[1] ?? faviconMatch?.[1]
-      if (rawLogoUrl) {
-        const fullLogoUrl = rawLogoUrl.startsWith('http') ? rawLogoUrl : new URL(rawLogoUrl, parsedUrl.href).href
-        try {
-          const logoRes = await fetch(fullLogoUrl, { signal: AbortSignal.timeout(10000) })
-          if (logoRes.ok) {
-            const logoBuffer = Buffer.from(await logoRes.arrayBuffer())
-            const ext = fullLogoUrl.split('.').pop()?.split('?')[0]?.split('#')[0] ?? 'png'
-            const safeExt = ['png', 'jpg', 'jpeg', 'svg', 'webp', 'ico'].includes(ext) ? ext : 'png'
-            const storagePath = `prospect-logos/${prospectId}.${safeExt}`
-            await admin.storage.from('logos').upload(storagePath, logoBuffer, {
-              contentType: logoRes.headers.get('content-type') || 'image/png',
-              upsert: true,
-            })
-            const { data: urlData } = admin.storage.from('logos').getPublicUrl(storagePath)
-            logoImageUrl = urlData.publicUrl
-          }
-        } catch { /* proceed without logo */ }
-      }
-
-      // Step 4: Create brand record
-      const colors = {
-        primary: companyInfo.colors?.primary ?? '#2563eb',
-        secondary: companyInfo.colors?.secondary ?? '#1e40af',
-        accent: companyInfo.colors?.accent ?? '#3b82f6',
-        background: '#ffffff',
-        text: '#1a1a1a',
-      }
-
-      const { data: brand } = await admin
-        .from('brands')
-        .insert({
-          user_id: userId,
-          name: companyInfo.companyName ?? parsedUrl.hostname,
-          url: parsedUrl.href,
-          logo_url: logoImageUrl,
-          colors,
-          description: companyInfo.description,
-          services: companyInfo.services ?? [],
-          unique_selling_points: companyInfo.uniqueSellingPoints ?? [],
-          tagline: companyInfo.tagline,
-        })
-        .select()
-        .single()
-
-      // Update prospect record with extracted info
-      await admin.from('prospect_demos').update({
-        company_name: companyInfo.companyName ?? parsedUrl.hostname,
-        contact_email: companyInfo.contactEmail ?? null,
-        contact_name: companyInfo.contactName ?? null,
-        brand_id: brand?.id ?? null,
-        logo_url: logoImageUrl,
-        status: 'scripting',
-        progress_pct: 30,
-        stage_detail: 'Writing the personalized script…',
-        updated_at: new Date().toISOString(),
-      }).eq('id', prospectId)
-      if (await isCancelled()) return
-
-      // Step 5: Generate sales script
-      const scenes = await generateDemoScript(
-        {
-          companyName: companyInfo.companyName ?? parsedUrl.hostname,
-          description: companyInfo.description ?? '',
-          services: companyInfo.services ?? [],
-          uniqueSellingPoints: companyInfo.uniqueSellingPoints ?? [],
-          tagline: companyInfo.tagline ?? null,
-        },
-        colors
-      )
-
-      await admin.from('prospect_demos').update({
-        script: scenes,
-        status: 'generating',
-        progress_pct: 40,
-        stage_detail: 'Designing slides…',
-        updated_at: new Date().toISOString(),
-      }).eq('id', prospectId)
-      if (await isCancelled()) return
-
-      // Step 6: Generate slides (3-4 slides)
-      const slideScenes = scenes.slice(0, 4)
-      const extractedData = {
-        title: `${companyInfo.companyName} - Docs2Video Demo`,
-        industry: companyInfo.industry ?? 'general',
-        sections: slideScenes.map((s: any) => ({ title: s.title, content: s.narration })),
-        keyMetrics: [],
-        bulletPoints: [],
-      }
-
-      const slideBuffers: Buffer[] = []
-      for (let i = 0; i < slideScenes.length; i++) {
-        if (await isCancelled()) return
-        await setProgress(admin, prospectId, 'generating',
-          40 + Math.round(((i) / slideScenes.length) * 25),
-          `Generating slide ${i + 1} of ${slideScenes.length}…`)
-        const slideBuffer = await generateSlide(
-          extractedData as any,
-          i,
-          'corporate-clean',
-          companyInfo.companyName ?? null,
-          null, // logo composited separately
-          colors,
-          slideScenes[i].slidePrompt,
-          false,
-          undefined,
-          undefined,
-          undefined,
-          slideScenes.length,
-        )
-        // Composite logo onto slide
-        const composited = await compositeSlide(
-          slideBuffer,
-          null, // no headshot photo
-          logoImageUrl,
-          i === 0, // isFirstSlide
-          i === slideScenes.length - 1, // isLastSlide
-        )
-        slideBuffers.push(composited)
-      }
-
-      if (await isCancelled()) return
-      await setProgress(admin, prospectId, 'assembling', 70, 'Recording the voiceover…')
-
-      // Step 7: Generate audio
-      const audioBuffers: Buffer[] = []
-      for (let i = 0; i < slideScenes.length; i++) {
-        await setProgress(admin, prospectId, 'assembling',
-          70 + Math.round((i / slideScenes.length) * 12),
-          `Recording narration ${i + 1} of ${slideScenes.length}…`)
-        const audio = await synthesizeSpeech(slideScenes[i].narration, 'nova')
-        audioBuffers.push(audio)
-      }
-      if (await isCancelled()) return
-
-      // Step 8: Assemble video
-      await setProgress(admin, prospectId, 'assembling', 85, 'Assembling the video…')
-      const { videoBuffer, durations } = await assembleVideo(slideBuffers, audioBuffers)
-      const totalDuration = Math.round(durations.reduce((sum, d) => sum + d, 0))
-
-      // Step 9: Upload video to Supabase storage
-      await setProgress(admin, prospectId, 'assembling', 92, 'Uploading the finished video…')
-      const videoPath = `prospect-demos/${prospectId}.mp4`
-      await admin.storage.from('videos').upload(videoPath, videoBuffer, {
-        contentType: 'video/mp4',
-        upsert: true,
-      })
-      const { data: videoUrlData } = admin.storage.from('videos').getPublicUrl(videoPath)
-
-      // Upload thumbnail (first slide as PNG)
-      const thumbnailPath = `prospect-demos/${prospectId}-thumb.png`
-      await admin.storage.from('videos').upload(thumbnailPath, slideBuffers[0], {
-        contentType: 'image/png',
-        upsert: true,
-      })
-      const { data: thumbUrlData } = admin.storage.from('videos').getPublicUrl(thumbnailPath)
-
-      // Final guard: if cancelled during upload, don't flip to ready.
-      if (await isCancelled()) return
-
-      // Step 10: Update record as ready for review
-      await admin.from('prospect_demos').update({
-        video_url: videoUrlData.publicUrl,
-        thumbnail_url: thumbUrlData.publicUrl,
-        duration: totalDuration,
-        status: 'ready_for_review',
-        progress_pct: 100,
-        stage_detail: 'Ready for review',
-        updated_at: new Date().toISOString(),
-      }).eq('id', prospectId)
-  } catch (err: any) {
-    // Background failure → mark the row failed with the error for the dashboard.
-    await admin.from('prospect_demos').update({
-      status: 'failed',
-      error_message: err?.message ?? 'Unknown error',
-      stage_detail: 'Generation failed',
-      updated_at: new Date().toISOString(),
-    }).eq('id', prospectId)
-  }
-}
-
 export async function POST(request: Request) {
   try {
     const user = await requireAdmin()
@@ -304,8 +45,7 @@ export async function POST(request: Request) {
     const targetId = body.prospectId
     const admin = createAdminClient()
 
-    // Reject / Cancel branches: flip status and stop. Cancel signals an
-    // in-flight runPipeline to abort at its next checkpoint.
+    // Reject / Cancel branches: flip status and stop.
     if ((action === 'reject' || url === '__reject__') && targetId) {
       const { error } = await admin.from('prospect_demos').update({ status: 'rejected' }).eq('id', targetId)
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -331,8 +71,9 @@ export async function POST(request: Request) {
       await admin.from('prospect_demos').delete().eq('id', regenerateId)
     }
 
-    // Create a queued row per URL, then kick off generation in the background.
-    // POST returns immediately; the admin page polls GET for live progress.
+    // Create a queued row per URL. Generation now runs on the VPS (migration in
+    // progress) — mark the row so the dashboard shows a clear status instead of
+    // spinning forever or running FFmpeg here.
     const created: any[] = []
     for (const raw of rawList) {
       let parsedUrl: URL
@@ -341,14 +82,16 @@ export async function POST(request: Request) {
 
       const { data: prospect, error: insertErr } = await admin
         .from('prospect_demos')
-        .insert({ url: parsedUrl.href, status: 'scraping', progress_pct: 0, stage_detail: 'Queued…' })
+        .insert({ url: parsedUrl.href, status: 'pending', progress_pct: 0, stage_detail: 'Queued — generation is moving to the VPS pipeline.' })
         .select()
         .single()
       if (insertErr || !prospect) { created.push({ url: parsedUrl.href, error: 'Insert failed' }); continue }
 
+      // Temporary: until the VPS migration lands, leave the row in a clear
+      // pending state rather than assembling video in-process.
+      await setProgress(admin, prospect.id, 'pending', 0,
+        'Generation temporarily paused while the prospect pipeline moves to the VPS.')
       created.push(prospect)
-      // Detach: run the full pipeline in the background (survives the response).
-      waitUntil(runPipeline(prospect.id, parsedUrl, user.id))
     }
 
     return NextResponse.json({ success: true, started: created.length, prospects: created })
