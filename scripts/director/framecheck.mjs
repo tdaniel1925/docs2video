@@ -49,20 +49,31 @@ function perFrameFlash() {
   const ys = [...raw.matchAll(/lavfi\.signalstats\.YAVG=([\d.]+)/g)].map((m) => parseFloat(m[1]))
   if (ys.length < 10) return { ok: false, luma: [], flashes: [], note: 'per-frame luma unavailable' }
   const flashes = []
-  // TWO flash shapes (I originally only caught the first — and MISSED the real
-  // bug, which was the second):
-  //   (a) SPIKE: a 1-3 frame lone bright/dark frame that reverses (flicker).
-  //   (b) HARD CUT/FLASH: any single frame-to-frame luma jump > HARD, regardless
-  //       of duration — e.g. a Wipe transition blowing the frame to near-white
-  //       (44→249) then back 1.5s later. A wide flash isn't a "spike" but it's
-  //       still a jarring flash. This is what the burgundy→white Wipe did.
-  const SPIKE = 22, HARD = 60
+  // A real FLASH is a jump that comes BACK (a lone bright/dark frame or a wide
+  // blowout that reverses) — NOT a clean hard CUT between a dark scene and a
+  // bright one that STAYS bright. Distinguishing them avoids false-positives on
+  // normal scene cuts (BCBS: a dark beat cut to a bright sunset shot, 17→78,
+  // stayed 78 — that's a cut, not a flash).
+  const SPIKE = 22, HARD = 60, NEAR_WHITE = 205, WINDOW = 8, RETURN_FRAC = 0.55
   for (let i = 1; i < ys.length - 1; i++) {
     const dPrev = ys[i] - ys[i - 1], dNext = ys[i] - ys[i + 1]
+    // (a) 1-3 frame flicker: differs from BOTH neighbors same-direction
     if (Math.abs(dPrev) > SPIKE && Math.abs(dNext) > SPIKE && Math.sign(dPrev) === Math.sign(dNext)) {
-      flashes.push({ frame: i, t: i / fps, luma: ys[i], prev: ys[i - 1], next: ys[i + 1], kind: 'flicker' })
-    } else if (Math.abs(dPrev) > HARD) {
-      flashes.push({ frame: i, t: i / fps, luma: ys[i], prev: ys[i - 1], next: ys[i + 1], kind: 'hard-jump' })
+      flashes.push({ frame: i, t: i / fps, luma: ys[i], prev: ys[i - 1], next: ys[i + 1], kind: 'flicker' }); continue
+    }
+    // (b) a big jump — only a FLASH if it REVERSES within WINDOW frames (returns
+    // toward the pre-jump level) or peaks near-white. A sustained jump = a cut.
+    if (Math.abs(dPrev) > HARD) {
+      const from = ys[i - 1], to = ys[i]
+      let reverses = false
+      for (let j = i + 1; j <= Math.min(ys.length - 1, i + WINDOW); j++) {
+        // did luma come back at least RETURN_FRAC of the way toward `from`?
+        if (Math.abs(ys[j] - from) < Math.abs(to - from) * (1 - RETURN_FRAC)) { reverses = true; break }
+      }
+      if (reverses || to >= NEAR_WHITE) {
+        flashes.push({ frame: i, t: i / fps, luma: ys[i], prev: ys[i - 1], next: ys[i + 1], kind: to >= NEAR_WHITE ? 'white-flash' : 'reversing-jump' })
+      }
+      // else: sustained jump = a clean scene CUT — not flagged
     }
   }
   // collapse adjacent flash frames into single events

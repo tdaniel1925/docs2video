@@ -1624,10 +1624,19 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
             const out = (stdout || (err && err.stdout) || '').toString()
             const ys = [...out.matchAll(/lavfi\.signalstats\.YAVG=([\d.]+)/g)].map((m) => parseFloat(m[1]))
             if (ys.length < 10) return resolve(-1)
+            // A real flash REVERSES (flicker) or blows near-white — a clean hard
+            // CUT between a dark and bright scene that STAYS bright is not a flash
+            // (avoid false-positives; BCBS: 17→78 stayed 78 = a cut).
+            const SPIKE = 22, HARD = 60, NEAR_WHITE = 205, WIN = 8, RET = 0.55
             let n = 0
             for (let i = 1; i < ys.length - 1; i++) {
               const dp = ys[i] - ys[i - 1], dn = ys[i] - ys[i + 1]
-              if ((Math.abs(dp) > 22 && Math.abs(dn) > 22 && Math.sign(dp) === Math.sign(dn)) || Math.abs(dp) > 60) n++
+              if (Math.abs(dp) > SPIKE && Math.abs(dn) > SPIKE && Math.sign(dp) === Math.sign(dn)) { n++; continue }
+              if (Math.abs(dp) > HARD) {
+                const from = ys[i - 1], to = ys[i]; let rev = false
+                for (let j = i + 1; j <= Math.min(ys.length - 1, i + WIN); j++) { if (Math.abs(ys[j] - from) < Math.abs(to - from) * (1 - RET)) { rev = true; break } }
+                if (rev || to >= NEAR_WHITE) n++
+              }
             }
             resolve(n)
           })
