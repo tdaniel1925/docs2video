@@ -406,15 +406,26 @@ const SplitBeat: React.FC<{ hold: number; split: NonNullable<CommercialProps['be
   const lIn = interpolate(frame, [4, 18], [-100, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
   const rIn = interpolate(frame, [10, 24], [100, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
   const bothO = split.both ? interpolate(frame, [hold - 40, hold - 28], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) : 0
-  const Side = ({ label, sub, color, tx }: any) => (
-    <div style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', transform: `translateX(${tx}px)`, gap: 8, padding: '0 6%', boxSizing: 'border-box' }}>
-      <div style={{ fontFamily: st.body, fontWeight: 800, fontSize: 24, letterSpacing: '0.3em', color, textTransform: 'uppercase', textAlign: 'center', maxWidth: '100%' }}>{sub}</div>
-      {/* textAlign:center + maxWidth so a long headline WRAPS within its half and
-          stays centered — without them, a wrapped multi-line headline left-aligns
-          and reads as shoved to the frame edge (the "ANOTHER MID NIGHT" bug). */}
-      <div style={{ fontFamily: st.display, fontWeight: 700, fontSize: 92, lineHeight: 1.0, color: b.white, textTransform: 'uppercase', textShadow: `0 0 34px ${color}55`, textAlign: 'center', maxWidth: '100%', wordBreak: 'break-word' }}>{label}</div>
+  // scale the headline down as it gets longer so a long word ("ANOTHER") can't be
+  // wider than the half — an over-wide child defeats alignItems:center and pins it
+  // to the frame edge (the "ANOTHER MID NIGHT" bug). Also make every text box span
+  // the FULL half width (width:100%) so textAlign:center always centers within the
+  // half regardless of wrap/overflow.
+  const longest = (s: string) => (s || '').split(/\s+/).reduce((m, w) => Math.max(m, w.length), 0)
+  const Side = ({ label, sub, color, tx }: any) => {
+    const maxWord = longest(label)
+    const fs = maxWord >= 9 ? 64 : maxWord >= 7 ? 78 : 92   // shrink for long words
+    return (
+    <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', transform: `translateX(${tx}px)`, gap: 8, padding: '0 5%', boxSizing: 'border-box' }}>
+      <div style={{ width: '100%', fontFamily: st.body, fontWeight: 800, fontSize: 24, letterSpacing: '0.3em', color, textTransform: 'uppercase', textAlign: 'center' }}>{sub}</div>
+      {/* width:100% + textAlign:center + wordBreak so the headline WRAPS within its
+          half and stays centered — without them a wrapped/over-wide headline
+          left-aligns and reads as shoved to the frame edge (the "ANOTHER MID
+          NIGHT" bug). */}
+      <div style={{ width: '100%', fontFamily: st.display, fontWeight: 700, fontSize: fs, lineHeight: 1.02, color: b.white, textTransform: 'uppercase', textShadow: `0 0 34px ${color}55`, textAlign: 'center', wordBreak: 'break-word' }}>{label}</div>
     </div>
-  )
+    )
+  }
   return (
     <AbsoluteFill style={{ background: `linear-gradient(135deg, ${b.bg}, ${b.bg2})` }}>
       <AbsoluteFill style={{ flexDirection: 'row' }}>
