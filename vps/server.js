@@ -1611,6 +1611,36 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
         child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`render exit ${code}: ${stderrBuf.slice(-300)}`)) })
       })
 
+      // ---- QA GATE: per-frame flash/flicker scan on the rendered mp4 (catches
+      // the motion bug that stills miss — a transition blowing the frame to a
+      // solid color, e.g. a 44→249 white flash). ROLLOUT: detect + LOG only (a
+      // brand-new gate shouldn't kill real videos on false positives). Flip
+      // HARD_BLOCK_FLASH once trusted.
+      const HARD_BLOCK_FLASH = false
+      try {
+        const flashN = await new Promise((resolve) => {
+          const { execFile } = require('child_process')
+          execFile('ffmpeg', ['-loglevel', 'error', '-i', outFile, '-vf', 'signalstats,metadata=print:file=-', '-f', 'null', '-'], { maxBuffer: 1 << 28, timeout: 120000 }, (err, stdout) => {
+            const out = (stdout || (err && err.stdout) || '').toString()
+            const ys = [...out.matchAll(/lavfi\.signalstats\.YAVG=([\d.]+)/g)].map((m) => parseFloat(m[1]))
+            if (ys.length < 10) return resolve(-1)
+            let n = 0
+            for (let i = 1; i < ys.length - 1; i++) {
+              const dp = ys[i] - ys[i - 1], dn = ys[i] - ys[i + 1]
+              if ((Math.abs(dp) > 22 && Math.abs(dn) > 22 && Math.sign(dp) === Math.sign(dn)) || Math.abs(dp) > 60) n++
+            }
+            resolve(n)
+          })
+        })
+        if (flashN > 0) {
+          console.warn(`[generate-commercial ${videoId}] QA: ${flashN} flash/flicker event(s) in the render`)
+          if (HARD_BLOCK_FLASH) throw new Error(`QA gate: ${flashN} flash/flicker event(s) — video withheld`)
+        } else if (flashN === 0) console.log(`[generate-commercial ${videoId}] QA: flash scan clean`)
+      } catch (qaErr) {
+        if (HARD_BLOCK_FLASH) throw qaErr
+        console.warn(`[generate-commercial ${videoId}] QA scan error (non-blocking): ${qaErr.message}`)
+      }
+
       await setProgress(92, 'Uploading...')
       const videoBuffer = await readFile(outFile)
       await sb.storage.from('videos').upload(`${userId}/${videoId}.mp4`, videoBuffer, { contentType: 'video/mp4', upsert: true })

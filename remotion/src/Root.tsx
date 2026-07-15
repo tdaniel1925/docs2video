@@ -2,6 +2,11 @@ import { Composition, staticFile } from 'remotion'
 import { TornPaperTest, TORN_FRAMES } from './TornPaperTest'
 import { CommercialApexTorn, APEX_TORN_FRAMES } from './CommercialApexTorn'
 import { CommercialApexPhonk, APEX_PHONK_FRAMES } from './CommercialApexPhonk'
+import { ApexEditorial, APEX_EDITORIAL_FRAMES } from './ApexEditorial'
+import { ApexKinetic, APEX_KINETIC_FRAMES } from './ApexKinetic'
+import { ApexGrid, APEX_GRID_FRAMES } from './ApexGrid'
+import { ApexVox, APEX_VOX_FRAMES } from './ApexVox'
+import { ApexFlat, APEX_FLAT_FRAMES } from './ApexFlat'
 import { loadFont as loadArchivo } from '@remotion/google-fonts/Archivo'
 import { loadFont as loadInter } from '@remotion/google-fonts/Inter'
 import { AuroraExplainer, totalFrames } from './AuroraExplainer'
@@ -217,6 +222,11 @@ export const RemotionRoot: React.FC = () => {
     <Composition id="TornPaperTest" component={TornPaperTest} fps={FPS} width={1920} height={1080} durationInFrames={TORN_FRAMES} />
     <Composition id="CommercialApexTorn" component={CommercialApexTorn} fps={FPS} width={1920} height={1080} durationInFrames={APEX_TORN_FRAMES} />
     <Composition id="CommercialApexPhonk" component={CommercialApexPhonk} fps={FPS} width={1920} height={1080} durationInFrames={APEX_PHONK_FRAMES} />
+    <Composition id="ApexEditorial" component={ApexEditorial} fps={30} width={1920} height={1080} durationInFrames={APEX_EDITORIAL_FRAMES} />
+    <Composition id="ApexKinetic" component={ApexKinetic} fps={30} width={1920} height={1080} durationInFrames={APEX_KINETIC_FRAMES} />
+    <Composition id="ApexGrid" component={ApexGrid} fps={30} width={1920} height={1080} durationInFrames={APEX_GRID_FRAMES} />
+    <Composition id="ApexVox" component={ApexVox} fps={30} width={1920} height={1080} durationInFrames={APEX_VOX_FRAMES} />
+    <Composition id="ApexFlat" component={ApexFlat} fps={30} width={1920} height={1080} durationInFrames={APEX_FLAT_FRAMES} />
     <Composition
       id="ApexCommercial"
       component={ApexCommercial}
