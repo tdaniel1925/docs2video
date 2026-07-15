@@ -126,6 +126,10 @@ export const commercialSchema = z.object({
   beats: z.array(z.object({
     dur: z.number(), vo: z.string().optional(),
     kind: z.enum(['shot', 'meet', 'stats', 'grid', 'chat', 'quote', 'split', 'cta', 'brand', 'showcase', 'bignumber', 'steps']),
+    // optional LAYOUT variant for a beat kind — lets the director vary the
+    // COMPOSITION (not just color/copy) so two videos don't share the same
+    // spatial skeleton. Ignored by kinds that don't define variants.
+    variant: z.number().int().min(0).max(3).optional(),
     img: z.string().optional(), dim: z.number().optional(),
     shot: z.string().optional(),   // (showcase) real site screenshot path in assetDir
     kicker: z.string().optional(), pre: z.string().optional(), hot: z.string().optional(), post: z.string().optional(), sub: z.string().optional(),
@@ -401,61 +405,127 @@ const QuoteBeat: React.FC<{ hold: number; pre?: string; hot?: string; post?: str
   )
 }
 
-const SplitBeat: React.FC<{ hold: number; split: NonNullable<CommercialProps['beats'][number]['split']> }> = ({ hold, split }) => {
+// SplitBeat — a two-sided comparison. THREE layout variants so two videos don't
+// share the same "two centered halves" skeleton:
+//   0 = classic LEFT | RIGHT (vertical divider)
+//   1 = stacked TOP / BOTTOM (horizontal divider)
+//   2 = diagonal OFFSET (left label upper-left, right label lower-right)
+// All share the same overflow-safe text sizing (the "ANOTHER MID NIGHT" fix).
+const SplitBeat: React.FC<{ hold: number; variant?: number; split: NonNullable<CommercialProps['beats'][number]['split']> }> = ({ hold, variant = 0, split }) => {
   const { p, st } = use(); const frame = useCurrentFrame(); const b = p.brand
-  const lIn = interpolate(frame, [4, 18], [-100, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
-  const rIn = interpolate(frame, [10, 24], [100, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
+  const aIn = interpolate(frame, [4, 18], [-100, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
+  const bIn = interpolate(frame, [10, 24], [100, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
   const bothO = split.both ? interpolate(frame, [hold - 40, hold - 28], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) : 0
-  // scale the headline down as it gets longer so a long word ("ANOTHER") can't be
-  // wider than the half — an over-wide child defeats alignItems:center and pins it
-  // to the frame edge (the "ANOTHER MID NIGHT" bug). Also make every text box span
-  // the FULL half width (width:100%) so textAlign:center always centers within the
-  // half regardless of wrap/overflow.
   const longest = (s: string) => (s || '').split(/\s+/).reduce((m, w) => Math.max(m, w.length), 0)
-  const Side = ({ label, sub, color, tx }: any) => {
+  // a comparison cell (overflow-safe: full-width text box, centered, font shrinks
+  // for long words so nothing pins to an edge)
+  const Cell = ({ label, sub, color, tx, ty, align = 'center' }: any) => {
     const maxWord = longest(label)
-    const fs = maxWord >= 9 ? 64 : maxWord >= 7 ? 78 : 92   // shrink for long words
+    const fs = maxWord >= 9 ? 62 : maxWord >= 7 ? 76 : 90
     return (
-    <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', transform: `translateX(${tx}px)`, gap: 8, padding: '0 5%', boxSizing: 'border-box' }}>
-      <div style={{ width: '100%', fontFamily: st.body, fontWeight: 800, fontSize: 24, letterSpacing: '0.3em', color, textTransform: 'uppercase', textAlign: 'center' }}>{sub}</div>
-      {/* width:100% + textAlign:center + wordBreak so the headline WRAPS within its
-          half and stays centered — without them a wrapped/over-wide headline
-          left-aligns and reads as shoved to the frame edge (the "ANOTHER MID
-          NIGHT" bug). */}
-      <div style={{ width: '100%', fontFamily: st.display, fontWeight: 700, fontSize: fs, lineHeight: 1.02, color: b.white, textTransform: 'uppercase', textShadow: `0 0 34px ${color}55`, textAlign: 'center', wordBreak: 'break-word' }}>{label}</div>
-    </div>
+      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: align === 'center' ? 'center' : align === 'left' ? 'flex-start' : 'flex-end', transform: `translate(${tx || 0}px, ${ty || 0}px)`, gap: 8, boxSizing: 'border-box' }}>
+        <div style={{ width: '100%', fontFamily: st.body, fontWeight: 800, fontSize: 24, letterSpacing: '0.3em', color, textTransform: 'uppercase', textAlign: align }}>{sub}</div>
+        <div style={{ width: '100%', fontFamily: st.display, fontWeight: 700, fontSize: fs, lineHeight: 1.02, color: b.white, textTransform: 'uppercase', textShadow: `0 0 34px ${color}55`, textAlign: align, wordBreak: 'break-word' }}>{label}</div>
+      </div>
     )
   }
-  return (
-    <AbsoluteFill style={{ background: `linear-gradient(135deg, ${b.bg}, ${b.bg2})` }}>
-      <AbsoluteFill style={{ flexDirection: 'row' }}>
-        <Side label={split.leftLabel} sub={split.leftSub} color={b.accentHi} tx={lIn} />
-        <div style={{ width: 3, height: '54%', alignSelf: 'center', background: `linear-gradient(180deg, transparent, ${b.accent}, transparent)`, boxShadow: `0 0 20px ${b.accent}` }} />
-        <Side label={split.rightLabel} sub={split.rightSub} color={b.accent2 || b.accentHi} tx={rIn} />
+  const bg = `linear-gradient(135deg, ${b.bg}, ${b.bg2})`
+  const cA = b.accentHi, cB = b.accent2 || b.accentHi
+
+  if (variant === 1) {
+    // TOP / BOTTOM stacked with a horizontal divider
+    return (
+      <AbsoluteFill style={{ background: bg, flexDirection: 'column' }}>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', padding: '0 8% 30px' }}><Cell label={split.leftLabel} sub={split.leftSub} color={cA} ty={aIn} /></div>
+        <div style={{ height: 3, width: '54%', alignSelf: 'center', background: `linear-gradient(90deg, transparent, ${b.accent}, transparent)`, boxShadow: `0 0 20px ${b.accent}` }} />
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '30px 8% 0' }}><Cell label={split.rightLabel} sub={split.rightSub} color={cB} ty={bIn} /></div>
+        {split.both && <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 60 }}><div style={{ fontFamily: st.display, fontWeight: 700, fontSize: 54, color: b.white, textTransform: 'uppercase', opacity: bothO }}>{split.both}</div></AbsoluteFill>}
       </AbsoluteFill>
-      {split.both && <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 90 }}>
-        <div style={{ fontFamily: st.display, fontWeight: 700, fontSize: 60, color: b.white, textTransform: 'uppercase', opacity: bothO }}>{split.both}</div>
-      </AbsoluteFill>}
+    )
+  }
+  if (variant === 2) {
+    // DIAGONAL OFFSET — upper-left vs lower-right, with a diagonal rule
+    return (
+      <AbsoluteFill style={{ background: bg, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '16%', left: '7%', width: 780 }}><Cell label={split.leftLabel} sub={split.leftSub} color={cA} tx={aIn} align="left" /></div>
+        <div style={{ position: 'absolute', top: '50%', left: '50%', width: 900, height: 3, background: `linear-gradient(90deg, transparent, ${b.accent}, transparent)`, transform: 'translate(-50%,-50%) rotate(24deg)', boxShadow: `0 0 20px ${b.accent}` }} />
+        <div style={{ position: 'absolute', bottom: '16%', right: '7%', width: 780 }}><Cell label={split.rightLabel} sub={split.rightSub} color={cB} tx={bIn} align="right" /></div>
+        {split.both && <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}><div style={{ fontFamily: st.display, fontWeight: 700, fontSize: 54, color: b.white, textTransform: 'uppercase', opacity: bothO }}>{split.both}</div></AbsoluteFill>}
+      </AbsoluteFill>
+    )
+  }
+  // variant 0 — classic LEFT | RIGHT
+  return (
+    <AbsoluteFill style={{ background: bg }}>
+      <AbsoluteFill style={{ flexDirection: 'row' }}>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '0 5%' }}><Cell label={split.leftLabel} sub={split.leftSub} color={cA} tx={aIn} /></div>
+        <div style={{ width: 3, height: '54%', alignSelf: 'center', background: `linear-gradient(180deg, transparent, ${b.accent}, transparent)`, boxShadow: `0 0 20px ${b.accent}` }} />
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '0 5%' }}><Cell label={split.rightLabel} sub={split.rightSub} color={cB} tx={bIn} /></div>
+      </AbsoluteFill>
+      {split.both && <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 90 }}><div style={{ fontFamily: st.display, fontWeight: 700, fontSize: 60, color: b.white, textTransform: 'uppercase', opacity: bothO }}>{split.both}</div></AbsoluteFill>}
     </AbsoluteFill>
   )
 }
 
-const CTABeat: React.FC<{ hold: number; cta: { headline: string; button: string; url: string } }> = ({ hold, cta }) => {
+// CTABeat — THREE layout variants so the closer isn't always logo-over-button-
+// over-url stacked-center:
+//   0 = classic CENTERED stack
+//   1 = LEFT-anchored editorial (logo + headline hard-left, button below)
+//   2 = SPLIT panel (accent panel holds the CTA on one side, brand on the other)
+const CTABeat: React.FC<{ hold: number; variant?: number; cta: { headline: string; button: string; url: string } }> = ({ hold, variant = 0, cta }) => {
   const { p, st } = use(); const frame = useCurrentFrame(); const { fps } = useVideoConfig(); const b = p.brand
   const up = spring({ frame: frame - 2, fps, config: { damping: 15, stiffness: 130 } })
   const line = interpolate(frame, [22, 36], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
   const btn = spring({ frame: frame - 40, fps, config: { damping: 12, stiffness: 180 } })
   const url = interpolate(frame, [58, 70], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
   const pulse = 1 + Math.sin(frame * 0.12) * 0.02
+  const upper = st.upper ? 'uppercase' : 'none'
+  const Button = () => (
+    <div style={{ opacity: clamp(btn, 0, 1), transform: `scale(${(0.7 + clamp(btn, 0, 1) * 0.3) * pulse})`, transformOrigin: 'left center', display: 'inline-block' }}>
+      <div style={{ background: `linear-gradient(180deg, ${b.accentHi}, ${b.accent})`, color: b.bg, fontFamily: st.display, fontWeight: 700, fontSize: 32, padding: '20px 54px', borderRadius: 12, boxShadow: `0 0 30px ${b.accent}66`, textTransform: upper, whiteSpace: 'nowrap' }}>{cta.button}</div>
+    </div>
+  )
+
+  if (variant === 1) {
+    // LEFT-anchored editorial
+    return (
+      <AbsoluteFill style={{ background: `radial-gradient(130% 120% at 30% 40%, ${b.bg2}, ${b.bg})` }}>
+        <Bokeh color={b.accent} count={5} big /><Ambient />
+        <div style={{ position: 'absolute', left: 130, top: '50%', transform: 'translateY(-50%)', maxWidth: 1200 }}>
+          <div style={{ transform: `scale(${0.8 + clamp(up, 0, 1) * 0.2})`, transformOrigin: 'left center' }}><Wordmark size={92} /></div>
+          <div style={{ width: 300 * line, height: 3, background: `linear-gradient(90deg, ${b.accent}, transparent)`, margin: '26px 0', boxShadow: `0 0 14px ${b.accent}` }} />
+          <div style={{ fontFamily: st.display, fontWeight: st.heavy ? 700 : 600, fontSize: 76, color: b.cream, opacity: clamp(line, 0, 1), textTransform: upper, lineHeight: 1.02 }}>{cta.headline}</div>
+          <div style={{ marginTop: 34 }}><Button /></div>
+          <div style={{ fontFamily: st.mono, fontWeight: 500, fontSize: 26, color: b.mute, letterSpacing: '0.08em', marginTop: 26, opacity: url }}>{cta.url}</div>
+        </div>
+      </AbsoluteFill>
+    )
+  }
+  if (variant === 2) {
+    // SPLIT panel — brand left on bg, CTA on an accent panel right
+    return (
+      <AbsoluteFill style={{ background: b.bg, flexDirection: 'row' }}>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ transform: `scale(${0.8 + clamp(up, 0, 1) * 0.2})` }}><Wordmark size={110} /></div>
+        </div>
+        <div style={{ width: 760, background: `linear-gradient(160deg, ${b.bg2}, ${b.bg})`, borderLeft: `4px solid ${b.accent}`, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 70px', boxSizing: 'border-box' }}>
+          <div style={{ fontFamily: st.display, fontWeight: st.heavy ? 700 : 600, fontSize: 60, color: b.cream, opacity: clamp(line, 0, 1), textTransform: upper, lineHeight: 1.05 }}>{cta.headline}</div>
+          <div style={{ marginTop: 34 }}><Button /></div>
+          <div style={{ fontFamily: st.mono, fontWeight: 500, fontSize: 26, color: b.mute, letterSpacing: '0.08em', marginTop: 26, opacity: url }}>{cta.url}</div>
+        </div>
+      </AbsoluteFill>
+    )
+  }
+  // variant 0 — classic centered stack
   return (
     <AbsoluteFill style={{ background: `radial-gradient(130% 120% at 50% 42%, ${b.bg2}, ${b.bg})` }}>
       <Bokeh color={b.accent} count={6} big /><Ambient />
       <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
         <div style={{ transform: `scale(${0.74 + clamp(up, 0, 1) * 0.26})` }}><Wordmark size={104} /></div>
         <div style={{ width: 380 * line, height: 2, background: `linear-gradient(90deg, transparent, ${b.accent}, transparent)`, marginTop: 28, boxShadow: `0 0 14px ${b.accent}` }} />
-        <div style={{ fontFamily: st.display, fontWeight: st.heavy ? 700 : 600, fontSize: 52, color: b.cream, marginTop: 26, textAlign: 'center', opacity: clamp(line, 0, 1), textTransform: st.upper ? 'uppercase' : 'none' }}>{cta.headline}</div>
+        <div style={{ fontFamily: st.display, fontWeight: st.heavy ? 700 : 600, fontSize: 52, color: b.cream, marginTop: 26, textAlign: 'center', opacity: clamp(line, 0, 1), textTransform: upper }}>{cta.headline}</div>
         <div style={{ marginTop: 34, opacity: clamp(btn, 0, 1), transform: `scale(${(0.7 + clamp(btn, 0, 1) * 0.3) * pulse})` }}>
-          <div style={{ background: `linear-gradient(180deg, ${b.accentHi}, ${b.accent})`, color: b.bg, fontFamily: st.display, fontWeight: 700, fontSize: 32, padding: '20px 54px', borderRadius: 12, boxShadow: `0 0 30px ${b.accent}66`, textTransform: st.upper ? 'uppercase' : 'none' }}>{cta.button}</div>
+          <div style={{ background: `linear-gradient(180deg, ${b.accentHi}, ${b.accent})`, color: b.bg, fontFamily: st.display, fontWeight: 700, fontSize: 32, padding: '20px 54px', borderRadius: 12, boxShadow: `0 0 30px ${b.accent}66`, textTransform: upper }}>{cta.button}</div>
         </div>
         <div style={{ fontFamily: st.mono, fontWeight: 500, fontSize: 26, color: b.mute, letterSpacing: '0.08em', marginTop: 24, opacity: url }}>{cta.url}</div>
       </AbsoluteFill>
@@ -524,12 +594,12 @@ const renderBeat = (be: CommercialProps['beats'][number], hold: number) => {
     case 'grid': return <GridBeat hold={hold} items={be.items || []} kicker={be.kicker} hot={be.hot} />
     case 'chat': return <ChatBeat hold={hold} chat={be.chat || { q: '', a: '' }} />
     case 'quote': return <QuoteBeat hold={hold} pre={be.pre} hot={be.hot} post={be.post} sub={be.sub} size={be.size} />
-    case 'split': return <SplitBeat hold={hold} split={be.split || { leftLabel: '', leftSub: '', rightLabel: '', rightSub: '' }} />
+    case 'split': return <SplitBeat hold={hold} variant={be.variant || 0} split={be.split || { leftLabel: '', leftSub: '', rightLabel: '', rightSub: '' }} />
     case 'brand': return <MeetBeat hold={hold} sub={be.sub} />
     case 'showcase': return <ShowcaseBeat hold={hold} src={be.shot} kicker={be.kicker} hot={be.hot} sub={be.sub} />
     case 'bignumber': return be.big ? <BigNumberBeat hold={hold} big={be.big} kicker={be.kicker} sub={be.sub} /> : <QuoteBeat hold={hold} pre={be.pre} hot={be.hot} sub={be.sub} />
     case 'steps': return (be.steps && be.steps.length) ? <StepsBeat hold={hold} steps={be.steps} kicker={be.kicker} hot={be.hot} /> : <GridBeat hold={hold} items={be.items || []} kicker={be.kicker} hot={be.hot} />
-    case 'cta': return <CTABeat hold={hold} cta={be.cta || { headline: '', button: '', url: '' }} />
+    case 'cta': return <CTABeat hold={hold} variant={be.variant || 0} cta={be.cta || { headline: '', button: '', url: '' }} />
   }
 }
 

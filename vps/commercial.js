@@ -800,6 +800,22 @@ async function generateCommercial({ pub, url, text, brandName, music, forceStyle
   // 5) ASSETS: per-beat VO (measured so beats fit the voice) + literal hero images
   say('Generating voice + visuals...')
   const beats = []
+  // LAYOUT VARIANTS: split + cta beats each have 3 compositions (0/1/2) in the
+  // template. Pick a per-video OFFSET seeded off the videoId so different videos
+  // get different layouts (breaks the "same spatial skeleton" sameness), but the
+  // same video is deterministic. If a kind appears twice, the second use rotates
+  // to a different variant (no-repeat within a video).
+  const seed = String(videoId || assetDir).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7)
+  const variantCount = { split: 3, cta: 3 }
+  const variantUsed = {}
+  const pickVariant = (kind) => {
+    const n = variantCount[kind]; if (!n) return undefined
+    const base = seed % n
+    const used = variantUsed[kind] || 0
+    variantUsed[kind] = used + 1
+    return (base + used) % n   // rotate on repeat so a video never reuses one
+  }
+
   for (let i = 0; i < spec.beats.length; i++) {
     const be = spec.beats[i]
     // demote a showcase beat if: cap already used, or no screenshot was captured.
@@ -838,6 +854,7 @@ async function generateCommercial({ pub, url, text, brandName, music, forceStyle
       dur: Math.round(dur * 100) / 100, vo: be.vo ? voId : undefined, kind: be.kind,
       img, shot, kicker: be.kicker, pre: be.pre, hot: be.hot, post: be.post, sub: be.sub,
       stats: be.stats, items: be.items, chat: be.chat, split: be.split, cta: be.cta, big: be.big, steps: be.steps,
+      variant: pickVariant(be.kind),
     })
   }
 
