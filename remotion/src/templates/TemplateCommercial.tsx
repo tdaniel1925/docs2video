@@ -444,12 +444,15 @@ const SplitBeat: React.FC<{ hold: number; variant?: number; split: NonNullable<C
     )
   }
   if (variant === 2) {
-    // DIAGONAL OFFSET — upper-left vs lower-right, with a diagonal rule
+    // DIAGONAL OFFSET — upper-left vs lower-right, with a diagonal rule.
+    // NOTE: the upper-left cell starts at top:24% (NOT 16%) so it clears the
+    // persistent corner LogoBug (top:46 left:58, ~130px tall) — otherwise the
+    // sublabel runs UNDER the logo (the jordyn.app collision bug).
     return (
       <AbsoluteFill style={{ background: bg, overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: '16%', left: '7%', width: 780 }}><Cell label={split.leftLabel} sub={split.leftSub} color={cA} tx={aIn} align="left" /></div>
+        <div style={{ position: 'absolute', top: '24%', left: '7%', width: 780 }}><Cell label={split.leftLabel} sub={split.leftSub} color={cA} tx={aIn} align="left" /></div>
         <div style={{ position: 'absolute', top: '50%', left: '50%', width: 900, height: 3, background: `linear-gradient(90deg, transparent, ${b.accent}, transparent)`, transform: 'translate(-50%,-50%) rotate(24deg)', boxShadow: `0 0 20px ${b.accent}` }} />
-        <div style={{ position: 'absolute', bottom: '16%', right: '7%', width: 780 }}><Cell label={split.rightLabel} sub={split.rightSub} color={cB} tx={bIn} align="right" /></div>
+        <div style={{ position: 'absolute', bottom: '18%', right: '7%', width: 780 }}><Cell label={split.rightLabel} sub={split.rightSub} color={cB} tx={bIn} align="right" /></div>
         {split.both && <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}><div style={{ fontFamily: st.display, fontWeight: 700, fontSize: 54, color: b.white, textTransform: 'uppercase', opacity: bothO }}>{split.both}</div></AbsoluteFill>}
       </AbsoluteFill>
     )
