@@ -354,14 +354,25 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   // names only the CLIENT and the AGENT, never the carrier/product.
   {
     const clientFirst = String(recipient || '').trim().split(/\s+/)[0]  // first name feels personal
-    const agentName = (presenter && presenter.name) || preparer
+    // CANONICAL agent name = the "prepared by" name the cover + CTA use (preparer).
+    // Prefer it over presenter.name so the greeting NEVER names a different agent
+    // than the rest of the deck (they come from the same brand profile in the app;
+    // this guards the case where they diverge).
+    const agentName = preparer || (presenter && presenter.name)
     const introScene = scenes.find((s) => s.beat === 'intro') || scenes[0]
     if (clientFirst && agentName && introScene) {
       const doc = regulated ? 'illustration summary' : 'summary'
-      const greet = `${clientFirst}, thank you for letting ${agentName} share this ${doc} with you. `
-      // avoid double-greeting if the writer already opened with the client's name
-      const already = new RegExp(`^\\s*${clientFirst.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(introScene.narration || '')
-      introScene.narration = already ? introScene.narration : (greet + (introScene.narration || '')).trim()
+      const greet = `${clientFirst}, thank you for letting ${agentName} share this ${doc} with you.`
+      let body = introScene.narration || ''
+      // avoid double-greeting: if the writer's intro also opens by naming the
+      // client or the agent (a "Hi — this is a walkthrough <agent> put together"
+      // self-intro), drop that leading sentence so we don't say it twice.
+      const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const namesClient = new RegExp(`^\\s*(hi[,!. ]+)?${esc(clientFirst)}\\b`, 'i').test(body)
+      const firstSentence = (body.match(/^.*?[.!?](\s|$)/) || [''])[0]
+      const selfIntro = agentName && new RegExp(esc(agentName), 'i').test(firstSentence) && /\b(this is|walkthrough|put together|prepared|here)\b/i.test(firstSentence)
+      if (selfIntro) body = body.slice(firstSentence.length).trim()  // drop the writer's redundant self-intro
+      introScene.narration = namesClient ? body : `${greet} ${body}`.trim()
     }
   }
 
