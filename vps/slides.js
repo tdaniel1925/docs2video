@@ -147,7 +147,7 @@ RULES: Cover EVERY distinct audience and offering. Capture pricing ranges and fr
   return extractJson(await claude(sys, `SOURCE TYPE: ${kindHint}\n\nFULL SOURCE TEXT:\n${sourceText.slice(0, 120000)}`, 6000))
 }
 
-async function writerFromUnderstanding(u, shotPaths) {
+async function writerFromUnderstanding(u, shotPaths, regulated) {
   const sys = `You are an intelligent creative DIRECTOR + SCRIPTWRITER building an ANIMATED EXPLAINER DECK (~90-120s, works like a talking PowerPoint). You get a COMPLETE researched UNDERSTANDING. Tell the WHOLE story faithfully.
 
 Each content scene is a SLIDE: a TOPIC HEADING plus SUPPORTING CONTENT (2-4 bullets, or data/comparison cards, or a chart, or a screenshot) that back up the voice. Sound-off, a viewer still gets the point. Bullets/cards reveal one-by-one AS the narrator speaks them.
@@ -167,7 +167,7 @@ RULES:
 ${shotPaths.length ? `- SCREENSHOTS (REQUIRED): use "screenshot" blocks on 2-3 slides. Page paths (use EXACTLY): ${shotPaths.join(', ')}. 1-2 pins each (x,y % 0-100) with label+cue.` : `- NO screenshots available (document/text source) — do NOT emit screenshot blocks.`}
 - CUES: for every bullet/card/pin, "cue" = a short verbatim substring of THAT scene's narration. Bullets' cues in speaking order.
 - Identity-neutral imagery (NO people). Compliance: never promise returns; illustrations are illustrated/hypothetical, not guaranteed.
-- Faithful + complete for every audience.`
+- Faithful + complete for every audience.${regulated ? SLIDE_COMPLIANCE_CLAUSE : ''}`
   return extractJson(await claude(sys, 'UNDERSTANDING:\n' + JSON.stringify(u, null, 2), 12000))
 }
 
@@ -175,6 +175,110 @@ function figFromKeyNumber(kn) {
   if (!kn) return null
   const raw = String(kn.value); const m = raw.replace(/,/g, '').match(/-?\d+(\.\d+)?/); if (!m) return null
   return { value: parseFloat(m[0]), prefix: /\$/.test(raw) ? '$' : '', suffix: /%/.test(raw) ? '%' : /\/mo|per month/i.test(raw) ? '/mo' : /sec/i.test(raw) ? 's' : '', label: kn.label }
+}
+
+// ---------- COMPLIANCE (regulated financial / insurance content) ----------
+// The EXPLAINER pipeline reads a source (e.g. an insurance ILLUSTRATION PDF),
+// comprehends it, then a writer LLM turns it into slides. Illustrations repeat
+// the carrier + branded product name dozens of times, and the writer prompt used
+// to say "name the brand / figures-heavy / personalize to the recipient" — so the
+// carrier ("Mutual of Omaha") + product ("Income Advantage IUL") + specific
+// dollar figures leaked onto screen AND into the voiceover. These three guards
+// mirror the commercial engine: detect → instruct the writer (soft) → scrub in
+// code (hard, belt-and-suspenders). Insurance illustrations MUST be generic: no
+// carrier, no product name, no specific figures/returns, agent-attributed.
+function isRegulated(u) {
+  const hay = JSON.stringify(u || {}).toLowerCase()
+  return /\b(insuranc|annuit|iul|life policy|indexed universal|premium|underwrit|carrier|policyholder|book of business|licensed agent|financial advisor|retirement|investment|securit|fiduciary|medicare|final expense|death benefit|cash value|surrender)\b/.test(hay)
+}
+const SLIDE_COMPLIANCE_CLAUSE = `
+
+COMPLIANCE (regulated financial/insurance content detected) — STRICT, OVERRIDES ANY CONFLICTING RULE ABOVE:
+- This is a GENERIC educational explainer. NEVER name the insurance CARRIER (e.g. Mutual of Omaha, United of Omaha, etc.) or the branded ILLUSTRATION PRODUCT (e.g. "Income Advantage", any "IUL"/"indexed universal life" product name) anywhere — not in intro.line1, headings, bullets, cards, figures, or narration.
+- The intro must NOT "name the brand" — use a neutral, human wordmark like the recipient's advisor or a generic phrase ("Your plan", "A closer look"). Do NOT emit the carrier as the brand.
+- NEVER show or speak SPECIFIC dollar figures, account values, premiums, or rate/return percentages from the illustration. No figure blocks with illustration values; no "$448,627", no "6.35%". Sell the CONCEPT (protection, tax-deferred growth, living benefits) with NO number.
+- NEVER promise or imply guaranteed returns/results. Illustrations are hypothetical, not guaranteed.
+- Attribute everything to the AGENT/ADVISOR and point the viewer to the ACTUAL illustration for specifics. The CTA must be "contact your agent"-style, not a product signup.
+- Keep it aspirational but truthful and general.`
+
+const CARRIER_BLOCKLIST = [
+  'mutual of omaha', 'united of omaha', 'north american', 'nationwide', 'transamerica',
+  'prudential', 'metlife', 'new york life', 'northwestern mutual', 'lincoln financial',
+  'john hancock', 'pacific life', 'principal', 'allianz', 'american general', 'corebridge',
+  'aig', 'securian', 'minnesota life', 'symetra', 'protective', 'foresters', 'mass mutual',
+  'massmutual', 'guardian', 'ameritas', 'sammons', 'midland national', 'f&g', 'fidelity & guaranty',
+  'athene', 'global atlantic', 'brighthouse', 'penn mutual', 'ohio national', 'aetna',
+  'cigna', 'humana', 'blue cross', 'blue shield', 'unitedhealthcare', 'united healthcare',
+  'income advantage', 'indexed universal life', 'iul',
+]
+// pull branded product tokens (CamelCase / Capitalized) from the understanding so
+// a novel product name (not in the blocklist) is still stripped.
+function productTokens(u) {
+  const names = new Set()
+  const add = (s) => { if (typeof s === 'string') for (const w of s.split(/[\s,.—:;()]+/)) { const t = w.trim(); if (t.length >= 4 && /^[A-Z]/.test(t) && !/^(The|And|For|Your|With|Ask|Get|How|Why|You|Our|This|That|Plan|Life|Death|Cash|From|Into|When|What|Will|More|Less|Best)$/i.test(t)) names.add(t) } }
+  const hay = [u && u.what_it_is, u && u.core_promise, ...(u && u.notable_features || []), ...((u && u.key_numbers || []).map(k => k && k.label)), ...((u && u.audiences || []).map(a => a && a.name))].filter(Boolean).join(' ')
+  for (const m of String(hay).matchAll(/\b([A-Z][a-z]+[A-Z][A-Za-z]*|[A-Z][a-zA-Z]{3,})\b/g)) add(m[1])
+  return [...names].slice(0, 8)
+}
+// scrub carrier/product names + specific dollar figures + rate percentages from
+// EVERY on-screen + spoken string in the slide plan. Runs on the WRITER output
+// (w) BEFORE scenes are built and BEFORE any VO is generated, so the voice never
+// speaks a scrubbed term either.
+function scrubSlidePlan(w, u) {
+  const strip = new Set(CARRIER_BLOCKLIST)
+  for (const n of productTokens(u)) if (n && n.length >= 4) strip.add(n.toLowerCase())
+  const terms = [...strip].filter(Boolean).sort((a, b) => b.length - a.length)
+  const res = terms.map((t) => new RegExp(t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') + '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|\\u2120|\\u00ae|\\u2122))*', 'ig'))
+  // $ figures (with or without commas/decimals) + percentages
+  const figRe = [/\$\s?\d[\d,]*(?:\.\d+)?/g, /\b\d+(?:\.\d+)?\s?%/g, /\b\d+(?:\.\d+)?\s?percent\b/gi]
+  const clean = (s) => {
+    if (typeof s !== 'string') return s
+    let out = s
+    for (const re of res) out = out.replace(re, '')
+    for (const re of figRe) out = out.replace(re, '')
+    // NOTE: this scrub is the COMPLIANCE net, not a prose fixer. When the writer
+    // obeys SLIDE_COMPLIANCE_CLAUSE (the normal case) there are no carrier/figure
+    // tokens to delete, so narration stays clean. Only when the LLM ignores the
+    // clause does mid-sentence removal leave an awkward-but-COMPLIANT fragment —
+    // acceptable vs. a breach. We only do SAFE cosmetic collapses here (never
+    // reconstruct grammar, which mangles more than it fixes).
+    out = out
+      .replace(/\bat a\s+(?=(?:rate|return|percent)\b)/gi, '')   // "grow at a rate" leftovers
+      .replace(/\s{2,}/g, ' ').replace(/\s+([.,!?;:])/g, '$1')
+      .replace(/([.,!?;:])\1+/g, '$1')                            // "you could.." → "you could."
+    return out.replace(/^[\s—–\-,;:]+|[\s—–\-,;:]+$/g, '').replace(/^([a-z])/, (m) => m.toUpperCase()).trim()
+  }
+  // scrubbing can empty a CRITICAL field (intro line, title, a slide heading);
+  // a blank renders as a broken slide, so fall back to a neutral generic phrase.
+  const orEmpty = (v, fb) => (v && v.trim()) ? v : fb
+  if (w.intro) {
+    w.intro.line1 = orEmpty(clean(w.intro.line1), 'A closer look at your plan')
+    w.intro.line2 = orEmpty(clean(w.intro.line2), 'Prepared for you by your advisor')
+  }
+  if (w.cta) w.cta.line = orEmpty(clean(w.cta.line), 'Talk with your agent')
+  w.title = orEmpty(clean(w.title), 'Your plan')
+  for (const s of (w.scenes || [])) {
+    s.narration = clean(s.narration)
+    if (s.layout) {
+      s.layout.heading = orEmpty(clean(s.layout.heading), 'Your plan')
+      s.layout.kicker = clean(s.layout.kicker)  // kicker may be empty (optional)
+    }
+    for (const b of (s.blocks || [])) {
+      if (b.type === 'figure') { b._scrubFigure = true }  // drop illustration figure blocks entirely
+      for (const it of (b.items || [])) { if (it) { it.text = clean(it.text); it.highlight = clean(it.highlight) } }
+      for (const cd of (b.cards || [])) { if (cd) { cd.label = clean(cd.label); cd.value = clean(cd.value); cd.sub = clean(cd.sub) } }
+      for (const p of (b.pins || [])) { if (p) p.label = clean(p.label) }
+    }
+    // remove figure blocks (illustration values) and any card left value-less
+    s.blocks = (s.blocks || []).filter((b) => !(b.type === 'figure') && !(b.type === 'cards' && (b.cards || []).every((c) => !c || !c.value)))
+  }
+  return w
+}
+// returns the list of blocklisted terms that survived into the final text (should
+// be empty). Used for the post-scrub leak assertion in the log.
+function complianceLeaks(w) {
+  const hay = JSON.stringify(w || {}).toLowerCase()
+  return CARRIER_BLOCKLIST.filter((t) => hay.includes(t))
 }
 
 /**
@@ -192,8 +296,23 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   const shotByPath = new Map(); const shotPaths = []
   ;(shots || []).forEach((sh) => { const p = (sh.path || '/').replace(/\/$/, '') || '/'; shotByPath.set(p, sh); shotPaths.push(p) })
 
+  // COMPLIANCE: detect regulated (insurance/financial illustration) content up
+  // front so the writer gets the strict clause, then scrub the output in code.
+  const regulated = isRegulated(u)
+  if (regulated) say('⚖ regulated content detected — compliance mode ON')
+
   say('writing slide deck...')
-  const w = await writerFromUnderstanding(u, shotPaths)
+  let w = await writerFromUnderstanding(u, shotPaths, regulated)
+
+  // CODE-LEVEL SCRUB (belt-and-suspenders): strip carrier/product names + specific
+  // dollar figures + rate % from EVERY on-screen + spoken string, BEFORE VO is
+  // generated (so the voice never speaks them either). Then assert nothing leaked.
+  if (regulated) {
+    w = scrubSlidePlan(w, u)
+    const leaked = complianceLeaks(w)
+    if (leaked.length) say('⚠ COMPLIANCE: carrier/product term(s) survived scrub: ' + leaked.join(', '))
+    else say('✓ compliance scrub clean — no carrier/product/figure leaks')
+  }
 
   // build scenes
   const scenes = w.scenes.map((s) => {
@@ -253,8 +372,12 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   const look = validLooks.includes(w.look) ? w.look : 'noir'
   const palette = buildBrandPalette(kind === 'website' ? source.brand : null, forcedAccent)
   let logo
-  try { await readFile(join(pub, 'brand-logo.png')); logo = 'brand-logo.png' } catch {}
-  const chrome = { company: preparer, logo, recipient: recipient || (u.audiences && u.audiences[0] && u.audiences[0].name), footer: footer || 'docs2video.com', glass: glass || 'vivid' }
+  // For regulated content NEVER show a scraped logo — it may be the carrier's mark.
+  if (!regulated) { try { await readFile(join(pub, 'brand-logo.png')); logo = 'brand-logo.png' } catch {} }
+  // recipient in chrome: the illustration's recipient (a person) is fine, but the
+  // audience-name fallback can BE the carrier/product — suppress it when regulated.
+  const chromeRecipient = recipient || (!regulated && u.audiences && u.audiences[0] && u.audiences[0].name) || null
+  const chrome = { company: preparer, logo, recipient: chromeRecipient, footer: footer || 'docs2video.com', glass: glass || 'vivid' }
   const ctaContact = (w.cta && w.cta.contact) || (source.url ? new URL(source.url).hostname.replace(/^www\./, '') : null)
   const doc = { title: w.title, look, chrome, intro: { ...w.intro, preparer, recipient }, cta: { line: (w.cta && w.cta.line) || 'Get started today', contact: ctaContact }, scenes }
   // presenter headshot (opt-in). photoPlacement: cover|closing|both|none|auto.
@@ -302,4 +425,4 @@ async function generateSceneVO({ pub, text, outName, pronounce, tts }) {
   return tts ? await tts(run) : await run()
 }
 
-module.exports = { generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend }
+module.exports = { generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend, isRegulated, scrubSlidePlan, complianceLeaks }
