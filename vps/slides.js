@@ -193,13 +193,13 @@ function isRegulated(u) {
 }
 const SLIDE_COMPLIANCE_CLAUSE = `
 
-COMPLIANCE (regulated financial/insurance content detected) — STRICT, OVERRIDES ANY CONFLICTING RULE ABOVE:
-- This is a GENERIC educational explainer. NEVER name the insurance CARRIER (e.g. Mutual of Omaha, United of Omaha, etc.) or the branded ILLUSTRATION PRODUCT (e.g. "Income Advantage", any "IUL"/"indexed universal life" product name) anywhere — not in intro.line1, headings, bullets, cards, figures, or narration.
-- The intro must NOT "name the brand" — use a neutral, human wordmark like the recipient's advisor or a generic phrase ("Your plan", "A closer look"). Do NOT emit the carrier as the brand.
-- NEVER show or speak SPECIFIC dollar figures, account values, premiums, or rate/return percentages from the illustration. No figure blocks with illustration values; no "$448,627", no "6.35%". Sell the CONCEPT (protection, tax-deferred growth, living benefits) with NO number.
-- NEVER promise or imply guaranteed returns/results. Illustrations are hypothetical, not guaranteed.
-- Attribute everything to the AGENT/ADVISOR and point the viewer to the ACTUAL illustration for specifics. The CTA must be "contact your agent"-style, not a product signup.
-- Keep it aspirational but truthful and general.`
+COMPLIANCE (regulated insurance/financial content detected) — STRICT, OVERRIDES ANY CONFLICTING RULE ABOVE:
+- This is a DETAILED explainer of the client's OWN coverage — be FACTUAL and COMPLETE so they understand what's available.
+- FIGURES ARE ENCOURAGED: DO show and speak the actual dollar amounts, account/cash values, premiums, and rate/return percentages from the illustration (e.g. "$448,627", "6.35%"). Use figure blocks + cards for the real numbers — the client needs these facts.
+- The ONE hard ban: NEVER name the insurance CARRIER (e.g. Mutual of Omaha, United of Omaha) or the branded PRODUCT (e.g. "Income Advantage", any specific "IUL"/"indexed universal life" product NAME) anywhere — intro, headings, bullets, cards, figure labels, or narration. Refer to it generically ("this policy", "your coverage", "an indexed universal life strategy" is OK as a category but not as a branded product name).
+- The intro must NOT name the carrier as the brand — use the preparing AGENT/ADVISOR's name or a neutral phrase ("Your plan", "A closer look").
+- NEVER promise or imply GUARANTEED returns/results. Numbers are illustrated/hypothetical, not guaranteed — frame them as "illustrated" / "projected".
+- Attribute to the AGENT/ADVISOR and point the viewer to the ACTUAL illustration for specifics. CTA is "contact your agent"-style, not a product signup.`
 
 const CARRIER_BLOCKLIST = [
   'mutual of omaha', 'united of omaha', 'north american', 'nationwide', 'transamerica',
@@ -220,17 +220,19 @@ function productTokens(u) {
   for (const m of String(hay).matchAll(/\b([A-Z][a-z]+[A-Z][A-Za-z]*|[A-Z][a-zA-Z]{3,})\b/g)) add(m[1])
   return [...names].slice(0, 8)
 }
-// scrub carrier/product names + specific dollar figures + rate percentages from
-// EVERY on-screen + spoken string in the slide plan. Runs on the WRITER output
-// (w) BEFORE scenes are built and BEFORE any VO is generated, so the voice never
-// speaks a scrubbed term either.
+// scrub ONLY carrier + branded-product NAMES from every on-screen + spoken string
+// in the slide plan. Runs on the WRITER output (w) BEFORE scenes are built and
+// BEFORE any VO is generated, so the voice never speaks a scrubbed name either.
+//
+// IMPORTANT — this is a DETAILED EXPLAINER of the client's actual coverage:
+// DOLLAR FIGURES + PERCENTAGES ARE KEPT (the client needs the real facts/numbers
+// to understand what's available). We strip the CARRIER NAME and PRODUCT NAME
+// only. Guarantee language is softened (never imply a guaranteed result).
 function scrubSlidePlan(w, u) {
   const strip = new Set(CARRIER_BLOCKLIST)
   for (const n of productTokens(u)) if (n && n.length >= 4) strip.add(n.toLowerCase())
   const terms = [...strip].filter(Boolean).sort((a, b) => b.length - a.length)
   const res = terms.map((t) => new RegExp(t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') + '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|\\u2120|\\u00ae|\\u2122))*', 'ig'))
-  // $ figures (with or without commas/decimals) + percentages
-  const figRe = [/\$\s?\d[\d,]*(?:\.\d+)?/g, /\b\d+(?:\.\d+)?\s?%/g, /\b\d+(?:\.\d+)?\s?percent\b/gi]
   // guarantee language: soften/strip so nothing implies a guaranteed result.
   // "guaranteed minimum floor" → "minimum floor" (keeps the concept, drops the
   // promise word); bare "guaranteed"/"risk-free"/"no risk" removed outright.
@@ -238,19 +240,14 @@ function scrubSlidePlan(w, u) {
   const clean = (s) => {
     if (typeof s !== 'string') return s
     let out = s
-    for (const re of res) out = out.replace(re, '')
-    for (const re of figRe) out = out.replace(re, '')
-    for (const re of guar) out = out.replace(re, '')
-    // NOTE: this scrub is the COMPLIANCE net, not a prose fixer. When the writer
-    // obeys SLIDE_COMPLIANCE_CLAUSE (the normal case) there are no carrier/figure
-    // tokens to delete, so narration stays clean. Only when the LLM ignores the
-    // clause does mid-sentence removal leave an awkward-but-COMPLIANT fragment —
-    // acceptable vs. a breach. We only do SAFE cosmetic collapses here (never
-    // reconstruct grammar, which mangles more than it fixes).
+    for (const re of res) out = out.replace(re, '')   // carrier + product NAMES only
+    for (const re of guar) out = out.replace(re, '')  // soften guarantee promises
+    // (dollar figures + percentages are intentionally PRESERVED — they're the
+    // coverage facts the client needs.)
+    // Only SAFE cosmetic collapses here (never reconstruct grammar).
     out = out
-      .replace(/\bat a\s+(?=(?:rate|return|percent)\b)/gi, '')   // "grow at a rate" leftovers
       .replace(/\s{2,}/g, ' ').replace(/\s+([.,!?;:])/g, '$1')
-      .replace(/([.,!?;:])\1+/g, '$1')                            // "you could.." → "you could."
+      .replace(/([.,!?;:])\1+/g, '$1')
     return out.replace(/^[\s—–\-,;:]+|[\s—–\-,;:]+$/g, '').replace(/^([a-z])/, (m) => m.toUpperCase()).trim()
   }
   // scrubbing can empty a CRITICAL field (intro line, title, a slide heading);
@@ -269,13 +266,16 @@ function scrubSlidePlan(w, u) {
       s.layout.kicker = clean(s.layout.kicker)  // kicker may be empty (optional)
     }
     for (const b of (s.blocks || [])) {
-      if (b.type === 'figure') { b._scrubFigure = true }  // drop illustration figure blocks entirely
+      // figure blocks are KEPT (the $ value is a coverage fact); scrub only its
+      // label text for a carrier/product name.
+      if (b.type === 'figure' && b.figure) { b.figure.label = clean(b.figure.label); b.figure.prefix = clean(b.figure.prefix); b.figure.suffix = b.figure.suffix }
       for (const it of (b.items || [])) { if (it) { it.text = clean(it.text); it.highlight = clean(it.highlight) } }
       for (const cd of (b.cards || [])) { if (cd) { cd.label = clean(cd.label); cd.value = clean(cd.value); cd.sub = clean(cd.sub) } }
       for (const p of (b.pins || [])) { if (p) p.label = clean(p.label) }
     }
-    // remove figure blocks (illustration values) and any card left value-less
-    s.blocks = (s.blocks || []).filter((b) => !(b.type === 'figure') && !(b.type === 'cards' && (b.cards || []).every((c) => !c || !c.value)))
+    // keep all blocks (figures/cards carry the numbers); only drop a card that
+    // was left completely value-less by name-scrubbing.
+    s.blocks = (s.blocks || []).filter((b) => !(b.type === 'cards' && (b.cards || []).every((c) => !c || (!c.value && !c.label))))
   }
   return w
 }
