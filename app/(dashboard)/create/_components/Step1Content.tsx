@@ -126,6 +126,11 @@ export default function Step1Content() {
   ) {
     setStageMsg('Setting up your project...')
     setStage('extracting')
+    // Carry the source PDF path/name (set by uploadAndExtract for pdf uploads)
+    // into the draft so the Theme step can offer a client-download toggle.
+    const sourcePdf = (extractedData?._sourcePdfPath && extractedData?._sourcePdfName)
+      ? { sourcePdfPath: extractedData._sourcePdfPath as string, sourcePdfName: extractedData._sourcePdfName as string }
+      : {}
     try {
       let draftData: { videoId: string; error?: string }
       if (existingDraftId) {
@@ -142,6 +147,7 @@ export default function Step1Content() {
               clientId,
               extractedData,
               contentMethod: method || 'idea',
+              ...sourcePdf,
               ...(extractedDocsRef.current.length > 1 ? { extractedDocs: extractedDocsRef.current, combineInstruction: purpose.trim() } : {}),
               ...(overrides?.styleId ? { styleId: overrides.styleId } : {}),
               ...(extractedData?.classification ? { classification: extractedData.classification } : {}),
@@ -167,6 +173,7 @@ export default function Step1Content() {
             extractedData,
             contentMethod: method || 'idea',
             autoBrandInfo,
+            ...sourcePdf,
             ...(extractedDocsRef.current.length > 1 ? { extractedDocs: extractedDocsRef.current, combineInstruction: purpose.trim() } : {}),
             ...(overrides?.styleId ? { styleId: overrides.styleId } : {}),
             ...(extractedData?.classification ? { classification: extractedData.classification } : {}),

@@ -191,7 +191,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, styleReferenceUrl, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, narrationStyle, assetUrls, purpose, uploadMode, industry, barText, recipientName, presenterIntro, introduceInOpening, showContactClosing, photoPlacement } = body as {
+  const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, styleReferenceUrl, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, narrationStyle, assetUrls, purpose, uploadMode, industry, barText, recipientName, presenterIntro, introduceInOpening, showContactClosing, photoPlacement, allowSourceDownload, agentNote, sourcePdfPath, sourcePdfName } = body as {
     videoId: string
     policyData: ExtractedPolicyData | ExtractedData
     brandId: string | null
@@ -217,6 +217,11 @@ export async function POST(request: Request) {
     introduceInOpening?: boolean
     showContactClosing?: boolean
     photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
+    // Share-page client options
+    allowSourceDownload?: boolean
+    agentNote?: string
+    sourcePdfPath?: string
+    sourcePdfName?: string
   }
 
   // Podcast (two-voice) mode sunset 2026-06-11 — all videos render solo
@@ -849,6 +854,16 @@ export async function POST(request: Request) {
     // "Prepared for {client}" cover line threaded into V3 + editorial below.
     const recipient = resolveClientName({ recipientName, policyData: policyData as any })
     const agentName = resolveAgentName({ preparer: effectiveBrandName, brandName: effectiveBrandName, presenter })
+    // Persist share-page options onto the videos row so the public share page can
+    // read them (welcome banner + agent note + optional source-PDF download).
+    // Only allow the PDF download when we actually have a stored path.
+    await admin.from('videos').update({
+      recipient_name: recipient || null,
+      agent_note: (agentNote || '').trim() || null,
+      source_pdf_path: sourcePdfPath || null,
+      source_pdf_name: sourcePdfName || null,
+      allow_source_download: !!(allowSourceDownload && sourcePdfPath),
+    }).eq('id', videoId).then(() => {}, () => {})
     const regulatedContent = isRegulated(policyData, (policyData as any)?.classification?.documentType, industry)
     // Base opening: the presenter's own intro line if they wrote one, else a lead
     // into the title. buildOpeningNarration prepends the client greeting.

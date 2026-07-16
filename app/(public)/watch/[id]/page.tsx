@@ -924,6 +924,10 @@ export default function PublicWatchPage() {
   // On client-facing share page, show company name first, then personal name
   const hasAgentIdentity = !!(agent?.company_name || agent?.full_name)
   const agentName = agent?.company_name ?? agent?.full_name ?? video.title ?? 'Your Personalized Presentation'
+  // The client this video was prepared for — powers the welcome banner. Prefer
+  // the recorded recipient_name; fall back to the quote's client name.
+  const clientName = ((video.recipient_name || quote?.client_name || '') as string).trim()
+  const clientFirstName = clientName.split(/\s+/)[0] || ''
   const agentEmail = agent?.email ?? ''
   const agentPhone = agent?.phone ?? ''
   const agentInitials = hasAgentIdentity ? getInitials(agentName) : ''
@@ -1010,6 +1014,25 @@ export default function PublicWatchPage() {
             </div>
           )}
         </div>
+
+        {/* ============================================================ */}
+        {/*  PERSONALIZED WELCOME BANNER + AGENT NOTE                     */}
+        {/* ============================================================ */}
+        {(clientFirstName || video.agent_note) && (
+          <div style={{ width: '100%', maxWidth: 760, margin: '0 auto 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {clientFirstName && (
+              <div style={{ padding: '14px 18px', borderRadius: 10, background: 'var(--mint-soft, rgba(199,232,168,0.18))', border: '1px solid var(--mint, #C7E8A8)', fontSize: 16, color: 'var(--ink, #1B3A5C)', fontWeight: 600, textAlign: 'center' }}>
+                Hi {clientFirstName} — {hasAgentIdentity ? <>prepared for you by <strong>{agentName}</strong></> : 'prepared just for you'}.
+              </div>
+            )}
+            {video.agent_note && (
+              <div style={{ padding: '14px 18px', borderRadius: 10, background: '#fff', border: '1px solid var(--border-light, #E8EDF2)', fontSize: 15, color: 'var(--ink-soft, #3D5A7A)', lineHeight: 1.5 }}>
+                {hasAgentIdentity && <div style={{ fontWeight: 700, color: 'var(--ink, #1B3A5C)', marginBottom: 4 }}>A note from {agentName}</div>}
+                {video.agent_note}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ============================================================ */}
         {/*  MAIN 2-COLUMN LAYOUT                                        */}
@@ -1201,6 +1224,21 @@ export default function PublicWatchPage() {
                 >
                   <IconDownload />
                   Download Video
+                </button>
+              )}
+              {/* Original source PDF — only when the agent enabled it. Streams via
+                  a server route that mints a short-lived signed URL (bucket stays
+                  private); we never expose the storage path here. */}
+              {video.allow_source_download && (
+                <button
+                  className="wp-action-btn"
+                  onClick={() => {
+                    trackEvent(video.id, 'download', { type: 'source_pdf' })
+                    window.open(`/api/watch/${video.id}/source-pdf`, '_blank')
+                  }}
+                >
+                  <IconDownload />
+                  Download Original {video.source_pdf_name ? 'PDF' : 'Document'}
                 </button>
               )}
             </div>

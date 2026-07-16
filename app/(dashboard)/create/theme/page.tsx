@@ -27,6 +27,9 @@ export default function ThemePage() {
   const [outputType, setOutputType] = useState<'video' | 'pptx' | 'pdf'>('video')
   const [selected, setSelected] = useState<ThemeId>('slides')
   const [slidePhotos, setSlidePhotos] = useState(false)  // Slide Deck: photographic backdrops (opt-in; default off = ~2-3 min faster)
+  // Client options (share page): let the client download the source PDF + a note.
+  const [allowSourceDownload, setAllowSourceDownload] = useState(false)
+  const [agentNote, setAgentNote] = useState('')
   const [loading, setLoading] = useState(true)
   const [lightbox, setLightbox] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -39,6 +42,8 @@ export default function ThemePage() {
       setDraft(d)
       setOutputType(d.outputType || v?.output_type || 'video')
       if (d.videoStyle && THEMES.some(t => t.id === d.videoStyle)) setSelected(d.videoStyle)
+      setAllowSourceDownload(!!d.allowSourceDownload)
+      setAgentNote(d.agentNote || '')
       setLoading(false)
     }).catch(() => { setError('Could not load your draft.'); setLoading(false) })
   }, [videoId])
@@ -49,7 +54,7 @@ export default function ThemePage() {
     try {
       await fetch('/api/videos/draft', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId, updates: { videoStyle: selected } }),
+        body: JSON.stringify({ videoId, updates: { videoStyle: selected, allowSourceDownload, agentNote: agentNote.trim() || undefined } }),
       })
       const genRes = await fetch('/api/generate-video', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -75,6 +80,11 @@ export default function ThemePage() {
           showContactClosing: draft.showContactClosing,
           photoPlacement: draft.photoPlacement || undefined,
           slidePhotos,   // Slide Deck: photographic backdrops (opt-in; default off = faster)
+          // Share-page client options
+          allowSourceDownload,
+          agentNote: agentNote.trim() || undefined,
+          sourcePdfPath: draft.sourcePdfPath || undefined,
+          sourcePdfName: draft.sourcePdfName || undefined,
         }),
       })
       if (!genRes.ok) {
@@ -175,6 +185,34 @@ export default function ThemePage() {
           </span>
         </label>
       ) : null}
+
+      {/* Client options (share page): optional source-PDF download + a personal note */}
+      <div style={{ width: '100%', maxWidth: 640, marginBottom: 16, padding: '16px', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white' }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 10 }}>Client options</div>
+        {/* Only offer the source-PDF download when the source WAS a pdf we stored. */}
+        {draft?.sourcePdfPath ? (
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 12 }}>
+            <input type="checkbox" checked={allowSourceDownload} onChange={(e) => setAllowSourceDownload(e.target.checked)} style={{ marginTop: 3, width: 18, height: 18, cursor: 'pointer' }} />
+            <span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>Let the client download the original PDF</span>
+              <span style={{ display: 'block', fontSize: 13, color: 'var(--ink-soft)', marginTop: 2, lineHeight: 1.4 }}>
+                Adds a “Download original document” button on the share page{draft?.sourcePdfName ? ` (${draft.sourcePdfName})` : ''}.
+              </span>
+            </span>
+          </label>
+        ) : null}
+        <label style={{ display: 'block' }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>Note to your client <span style={{ fontWeight: 400, color: 'var(--ink-soft)' }}>(optional)</span></span>
+          <textarea
+            value={agentNote}
+            onChange={(e) => setAgentNote(e.target.value.slice(0, 400))}
+            placeholder="A short personal message shown above the video on the share page…"
+            rows={3}
+            style={{ display: 'block', width: '100%', marginTop: 6, padding: '10px 12px', borderRadius: 10, border: '1.5px solid var(--border-light)', fontSize: 14, fontFamily: 'inherit', color: 'var(--ink)', resize: 'vertical', boxSizing: 'border-box' }}
+          />
+          <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>{agentNote.length}/400</span>
+        </label>
+      </div>
 
       {error ? <div style={{ color: '#b91c1c', fontSize: 14, marginBottom: 16 }}>{error}</div> : null}
 

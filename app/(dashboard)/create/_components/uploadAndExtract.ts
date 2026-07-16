@@ -48,6 +48,13 @@ export async function uploadAndExtract(file: File, purpose: string): Promise<any
   })
   const result = await exRes.json().catch(() => ({ error: 'The server returned an unexpected response.' }))
   if (!exRes.ok) throw new Error(result.error || 'We could not read this document.')
+  // Carry the stored source path forward (private 'creation-assets' bucket) so
+  // the share page can optionally offer the ORIGINAL file as a download. Only
+  // meaningful for PDFs; attached like the existing `_autoBrandId` convention.
+  if (result && typeof result === 'object' && ext === 'pdf') {
+    result._sourcePdfPath = urlData.path
+    result._sourcePdfName = file.name
+  }
   return result
 }
 

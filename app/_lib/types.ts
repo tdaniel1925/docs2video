@@ -211,6 +211,16 @@ export interface Video {
   detail_level: 'quick' | 'standard' | 'detailed'
   draft_data: WizardDraft | null
   draft_expires_at: string | null
+  // Share-page options (see 20260716_share_page_options.sql):
+  /** Agent opted to let the client download the original source PDF. */
+  allow_source_download?: boolean | null
+  /** Storage PATH of the source PDF in the private 'creation-assets' bucket. */
+  source_pdf_path?: string | null
+  source_pdf_name?: string | null
+  /** Optional short note the agent wrote to the client (share-page banner). */
+  agent_note?: string | null
+  /** The client this video was prepared for (welcome banner). */
+  recipient_name?: string | null
   created_at: string
   updated_at: string
   brand?: Brand
@@ -251,6 +261,15 @@ export interface WizardDraft {
   classification?: Record<string, unknown>
   recipientName?: string
   clientId?: string
+  // Share-page client options (set on the Theme step):
+  /** Storage path + name of the uploaded source PDF (only for pdf file uploads),
+   *  captured so the share page can offer it as a download. */
+  sourcePdfPath?: string
+  sourcePdfName?: string
+  /** Agent opted to let the client download the original PDF (default off). */
+  allowSourceDownload?: boolean
+  /** Optional short note the agent writes to the client (share-page banner). */
+  agentNote?: string
   script?: VideoScene[]
   // Personalization (presenter) — chosen on the profile/brand step.
   presenterIntro?: string
