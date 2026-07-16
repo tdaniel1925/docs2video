@@ -43,10 +43,14 @@ export function resolvePhotoPlacement(
   if (p === 'cover') return { cover: true, closing: false }
   if (p === 'closing') return { cover: false, closing: true }
   if (p === 'both') return { cover: true, closing: true }
-  // auto → by style
+  // auto → by style. A personalized explainer (slides) is often sent to a NAMED
+  // client, so the agent's face belongs on the cover next to the client's name —
+  // cover + closing, same as cinematic/editorial. Only the data-led classic /
+  // infographic covers stay photo-free.
   switch (style) {
     case 'cinematic':
     case 'editorial':
+    case 'slides':
       return { cover: true, closing: true }
     case 'classic':
     case 'infographic':

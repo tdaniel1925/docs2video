@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../_lib/supabase/server'
 import type { VideoBrief, WizardDraft, ClarifyingQuestion } from '../../_lib/types'
 import { scrubPlaceholderNamesInText } from '../../_lib/text-format'
+import { isRegulated, scrubComplianceText, productTokens, complianceLeaks, COMPLIANCE_CLAUSE } from '../../_lib/compliance'
 import { logError } from '../../_lib/error-logger'
 
 export const runtime = 'nodejs'
@@ -14,17 +15,24 @@ function claude() {
   return new Anthropic({ apiKey: key })
 }
 
-/** Pull a JSON object out of a model response (fence/prose tolerant). */
-function parseBrief(text: string): VideoBrief | null {
+/** Pull a JSON object out of a model response (fence/prose tolerant).
+ *  When `regulated`, ALSO strip carrier/product NAMES from every user-visible
+ *  field (figures/percentages are KEPT — they're coverage facts). `tokens` are
+ *  product names detected from the source so novel brands are caught too. */
+function parseBrief(text: string, regulated = false, tokens: string[] = []): VideoBrief | null {
   try {
     const json = text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)
     const b = JSON.parse(json)
     if (!b || typeof b !== 'object') return null
     // Scrub placeholder/sample names ("Mr. Client", "Valued Client", "John Doe")
-    // that read unprofessionally even if the source doc prints them.
-    const s = scrubPlaceholderNamesInText
+    // that read unprofessionally even if the source doc prints them — THEN, for
+    // regulated content, strip carrier/product names (single source of truth).
+    const s = (v: string) => {
+      const base = scrubPlaceholderNamesInText(v)
+      return regulated ? scrubComplianceText(base, tokens) : base
+    }
     return {
-      docType: String(b.docType || 'Source'),
+      docType: regulated ? 'Illustration' : String(b.docType || 'Source'),
       summary: s(String(b.summary || '')),
       keyPoints: Array.isArray(b.keyPoints) ? b.keyPoints.map((x: any) => s(String(x))).slice(0, 8) : [],
       figures: Array.isArray(b.figures) ? b.figures.filter((f: any) => f?.label && f?.value).map((f: any) => ({ label: s(String(f.label)), value: String(f.value) })).slice(0, 8) : [],
@@ -154,7 +162,6 @@ export async function POST(request: Request) {
   // Identify the input source so the brief calls a scanned website a "website",
   // pasted text "content", etc. — never blindly "this document".
   const src = describeSource((draft as any).contentMethod)
-  const sys = buildSystemPrompt(src)
 
   // Pull what we ALREADY know about who's presenting (brand/presenter), so the
   // AI doesn't ask "whose video is this" when the answer is already on record.
@@ -200,14 +207,32 @@ export async function POST(request: Request) {
       : '',
   ].filter(Boolean).join('\n\n')
 
+  // COMPLIANCE: detect a regulated insurance/financial illustration from the
+  // extracted content + classification, so the brief preview NEVER shows the
+  // carrier/product name (the leak the video already scrubbed, but the PREVIEW
+  // — the foundation the user builds from — did not). Figures stay.
+  const regulated = isRegulated(input, classification?.documentType, classification?.category, extracted?.title)
+  const sys = buildSystemPrompt(src) + (regulated ? COMPLIANCE_CLAUSE : '')
+  // product-name tokens from the extracted source for the code-level scrub net
+  const tokens = regulated
+    ? productTokens(extracted?.title, classification?.title, classification?.documentType,
+        ...(Array.isArray(extracted?.bulletPoints) ? extracted.bulletPoints : []),
+        ...(Array.isArray(extracted?.keyMetrics) ? extracted.keyMetrics.map((m: any) => m?.label) : []))
+    : []
+
   try {
     const resp = await claude().messages.create({
       model: 'claude-sonnet-4-6', max_tokens: 1500, system: sys,
       messages: [{ role: 'user', content: `${src.dataLabel}:\n\n${input || '(no structured data extracted)'}` }],
     })
     const text = resp.content.filter((b) => b.type === 'text').map((b: any) => b.text).join('')
-    const brief = parseBrief(text)
+    const brief = parseBrief(text, regulated, tokens)
     if (!brief) return NextResponse.json({ error: 'Could not build a brief' }, { status: 502 })
+    // audit: log if any blocklisted term survived (should never happen)
+    if (regulated) {
+      const leaks = complianceLeaks(brief.angle, brief.summary, ...(brief.keyPoints || []), ...(brief.figures || []).map((f) => f.label))
+      if (leaks.length) logError('brief', new Error('compliance leak: ' + leaks.join(', ')), { videoId, userId: user?.id })
+    }
 
     // When the user just answered questions, record those answers on the brief
     // and clear any that were resolved so they aren't re-asked.

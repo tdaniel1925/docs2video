@@ -11,14 +11,15 @@ const hexA = (h: string, a: number) => { const n = (h || '#000').replace('#', ''
  * sweep, a subtle scale-settle, and a glow that blooms then calms. A thin accent
  * line draws under it. This is the "Hollywood" title card.
  */
-export const LogoReveal: React.FC<{ logo: string; palette: GPalette; localFrame: number; tagline?: string }> =
-({ logo, palette, localFrame: lf, tagline }) => {
+export const LogoReveal: React.FC<{ logo: string; palette: GPalette; localFrame: number; tagline?: string; recipient?: string }> =
+({ logo, palette, localFrame: lf, tagline, recipient }) => {
   const { fps } = useVideoConfig()
   const rise = spring({ frame: lf, fps, config: { damping: 20, stiffness: 60 } })
   const bloom = clamp(lf / 18, 0, 1) * clamp(1 - (lf - 26) / 30, 0, 1)   // glow blooms then settles
   const sweep = clamp((lf - 8) / 26, 0, 1)
   const lineGrow = clamp((lf - 22) / 16, 0, 1)
   const tag = spring({ frame: lf - 30, fps, config: { damping: 18, stiffness: 90 } })
+  const rcp = spring({ frame: lf - 40, fps, config: { damping: 18, stiffness: 90 } })
   return (
     <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
       {/* radial glow behind logo */}
@@ -32,6 +33,14 @@ export const LogoReveal: React.FC<{ logo: string; palette: GPalette; localFrame:
       </div>
       <div style={{ width: 260 * lineGrow, height: 2, marginTop: 40, background: `linear-gradient(90deg, transparent, ${palette.accent}, transparent)`, boxShadow: `0 0 16px ${hexA(palette.accent, 0.6)}` }} />
       {tagline && <div style={{ marginTop: 26, fontFamily: SANS, fontWeight: 600, fontSize: 30, letterSpacing: '0.14em', color: palette.muted, opacity: tag, textShadow: '0 2px 10px rgba(0,0,0,0.6)' }}>{tagline}</div>}
+      {/* "Prepared for [Client]" — the personalized cover line. Always shown on
+          an explainer with a named recipient, under the logo + tagline. */}
+      {recipient && (
+        <div style={{ marginTop: 34, opacity: rcp, textAlign: 'center' }}>
+          <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: 17, letterSpacing: '0.28em', textTransform: 'uppercase', color: palette.accent }}>Prepared for</div>
+          <div style={{ fontFamily: SANS, fontWeight: 800, fontSize: 34, letterSpacing: '0.01em', color: palette.text, marginTop: 8, textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>{recipient}</div>
+        </div>
+      )}
     </AbsoluteFill>
   )
 }

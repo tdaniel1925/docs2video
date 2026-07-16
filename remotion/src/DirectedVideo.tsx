@@ -508,7 +508,7 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ plan, starts, total, in
         {/* COVER scene: cinematic LOGO REVEAL if a logo exists, else a proper
             title card — big brand name + tagline. Always a dedicated cover. */}
         {isIntro && (hasLogo ? (
-          <LogoReveal logo={plan.chrome!.logo!} palette={GP} localFrame={localF} tagline={plan.intro?.line2} />
+          <LogoReveal logo={plan.chrome!.logo!} palette={GP} localFrame={localF} tagline={plan.intro?.line2} recipient={plan.intro?.recipient || plan.chrome?.recipient} />
         ) : (
           <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '0 160px', flexDirection: 'column', gap: 30 }}>
             <AbsoluteFill style={{ background: `radial-gradient(760px 520px at 50% 46%, ${hex(P.accent, 0.14)}, transparent 62%)` }} />
@@ -519,6 +519,13 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ plan, starts, total, in
             <div style={{ fontFamily: SANS, fontWeight: 900, fontSize: 116, lineHeight: 1.02, letterSpacing: '0.01em', color: P.text, textShadow: '0 4px 30px rgba(0,0,0,0.6)', opacity: spring({ frame: localF, fps, config: { damping: 20, stiffness: 70 } }), transform: `scale(${0.9 + spring({ frame: localF, fps, config: { damping: 20, stiffness: 70 } }) * 0.1})` }}>{plan.chrome?.company || plan.intro?.line1}</div>
             <div style={{ width: 260 * clamp((localF - 18) / 16, 0, 1), height: 3, background: `linear-gradient(90deg, transparent, ${legibleOn(P.accent, P.bg, P)}, transparent)`, boxShadow: `0 0 16px ${hex(P.accent, 0.6)}` }} />
             <div style={{ fontFamily: SANS, fontWeight: 600, fontSize: 36, letterSpacing: '0.06em', color: MUTED, opacity: spring({ frame: localF - 20, fps, config: { damping: 18, stiffness: 100 } }), maxWidth: 1300 }}>{plan.intro?.line2 || plan.intro?.line1}</div>
+            {/* "Prepared for [Client]" — personalized cover line (photo/title cover). */}
+            {(plan.intro?.recipient || plan.chrome?.recipient) && (
+              <div style={{ marginTop: 18, opacity: spring({ frame: localF - 34, fps, config: { damping: 18, stiffness: 90 } }), textAlign: 'center' }}>
+                <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: 17, letterSpacing: '0.28em', textTransform: 'uppercase', color: P.accent }}>Prepared for</div>
+                <div style={{ fontFamily: SANS, fontWeight: 800, fontSize: 34, color: P.text, marginTop: 8, textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>{plan.intro?.recipient || plan.chrome?.recipient}</div>
+              </div>
+            )}
           </AbsoluteFill>
         ))}
 

@@ -13,7 +13,7 @@
 const { writeFile, stat } = require('fs/promises')
 const { join } = require('path')
 const { execFile } = require('child_process')
-const { claude, comprehend, ttsTimed, cloudflareImage, cloudflareAvailable } = require('./slides')
+const { claude, comprehend, ttsTimed, cloudflareImage, cloudflareAvailable, CARRIER_BLOCKLIST } = require('./slides')
 
 const FPS = 30
 const STYLE_IDS = ['fintech', 'luxury', 'tech', 'upbeat', 'emerald', 'redblueprint', 'data', 'playful', 'casino', 'clean', 'glitchcore', 'cinematic', 'noir', 'retro', 'vibrant', 'editorial', 'brutalist', 'aurora', 'sport', 'corporate', 'neon', 'organic']
@@ -408,16 +408,8 @@ function scrubGuarantees(spec) {
 // This is the CODE-LEVEL net: strip known-carrier names + any branded product
 // name(s) detected in the source + specific dollar figures, from all vo/on-screen
 // text. Must run AFTER all LLM steps (hook/critique/consistency can re-add them).
-const CARRIER_BLOCKLIST = [
-  'mutual of omaha', 'united of omaha', 'north american', 'nationwide', 'transamerica',
-  'prudential', 'metlife', 'new york life', 'northwestern mutual', 'lincoln financial',
-  'john hancock', 'pacific life', 'principal', 'allianz', 'american general', 'corebridge',
-  'aig', 'securian', 'minnesota life', 'symetra', 'protective', 'foresters', 'mass mutual',
-  'massmutual', 'guardian', 'ameritas', 'sammons', 'midland national', 'f&g', 'fidelity & guaranty',
-  'athene', 'global atlantic', 'brighthouse', 'penn mutual', 'ohio national', 'aetna',
-  'cigna', 'humana', 'blue cross', 'blue shield', 'unitedhealthcare', 'united healthcare',
-  'income advantage', 'indexed universal life', 'iul',
-]
+// NOTE: CARRIER_BLOCKLIST is imported from ./slides (the single canonical list);
+// commercials scrub figures too (they're marketing, not a coverage explainer).
 function scrubCarrierProduct(spec, u, brandName) {
   // build the strip list: blocklist + any branded product tokens from the source
   const strip = new Set(CARRIER_BLOCKLIST)

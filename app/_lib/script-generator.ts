@@ -5,6 +5,7 @@ import { detectIndustry, classifyIndustryLLM, INDUSTRIES, type IndustryId } from
 import { getPrompt } from './prompts'
 import { fitSourceData } from './source-data-fitter'
 import { withRetry } from './with-retry'
+import { CARRIER_BLOCKLIST } from './compliance'
 
 let _claude: Anthropic | null = null
 function getClaude() {
@@ -334,8 +335,9 @@ export async function generateScript(
 
     // Scan sections/title for carrier and product names if not explicitly set
     const allText = JSON.stringify(data).toLowerCase()
-    const knownCarriers = ['american general', 'corebridge', 'pacific life', 'nationwide', 'lincoln financial', 'transamerica', 'prudential', 'metlife', 'john hancock', 'securian', 'north american', 'allianz', 'midland national', 'athene', 'global atlantic', 'protective', 'penn mutual', 'minnesota life', 'great-west', 'voya', 'principal', 'mutual of omaha', 'aig', 'zurich', 'sammons', 'f&g', 'fidelity & guaranty']
-    const detectedCarriers = knownCarriers.filter(c => allText.includes(c))
+    // Use the SHARED carrier blocklist (single source of truth) so the flipbook
+    // path catches the same carriers/products as the brief + slides + commercial.
+    const detectedCarriers = CARRIER_BLOCKLIST.filter(c => allText.includes(c))
     const carrierList = carrierName ? [carrierName, ...detectedCarriers] : detectedCarriers
     const uniqueCarriers = [...new Set(carrierList.map(c => c.trim()).filter(c => c.length > 1))]
 

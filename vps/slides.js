@@ -201,15 +201,24 @@ COMPLIANCE (regulated insurance/financial content detected) — STRICT, OVERRIDE
 - NEVER promise or imply GUARANTEED returns/results. Numbers are illustrated/hypothetical, not guaranteed — frame them as "illustrated" / "projected".
 - Attribute to the AGENT/ADVISOR and point the viewer to the ACTUAL illustration for specifics. CTA is "contact your agent"-style, not a product signup.`
 
+// CANONICAL carrier/product blocklist — the SINGLE SOURCE OF TRUTH for the VPS.
+// ⚠ KEEP IN SYNC with app/_lib/compliance.ts (the Vercel copy — same list). This
+// is exported and imported by commercial.js so the VPS never has two divergent
+// lists (it used to have three across brief/slides/commercial).
 const CARRIER_BLOCKLIST = [
+  // ---- carriers ----
   'mutual of omaha', 'united of omaha', 'north american', 'nationwide', 'transamerica',
   'prudential', 'metlife', 'new york life', 'northwestern mutual', 'lincoln financial',
   'john hancock', 'pacific life', 'principal', 'allianz', 'american general', 'corebridge',
   'aig', 'securian', 'minnesota life', 'symetra', 'protective', 'foresters', 'mass mutual',
-  'massmutual', 'guardian', 'ameritas', 'sammons', 'midland national', 'f&g', 'fidelity & guaranty',
-  'athene', 'global atlantic', 'brighthouse', 'penn mutual', 'ohio national', 'aetna',
-  'cigna', 'humana', 'blue cross', 'blue shield', 'unitedhealthcare', 'united healthcare',
-  'income advantage', 'indexed universal life', 'iul',
+  'massmutual', 'guardian', 'ameritas', 'sammons', 'midland national', 'f&g',
+  'fidelity & guaranty', 'athene', 'global atlantic', 'brighthouse', 'penn mutual',
+  'ohio national', 'aetna', 'cigna', 'humana', 'blue cross', 'blue shield',
+  'unitedhealthcare', 'united healthcare', 'national western', 'nlg', 'columbus', 'meridian',
+  // ---- branded products ----
+  'income advantage', 'indexed universal life', 'iul', 'qol', 'max accumulator',
+  'select choice', 'accumulator+', 'select choice ii', 'lapse guard',
+  'guaranteed refund option',
 ]
 // pull branded product tokens (CamelCase / Capitalized) from the understanding so
 // a novel product name (not in the blocklist) is still stripped.
@@ -383,11 +392,15 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   const validLooks = ['noir', 'ledger', 'datamesh']
   const look = validLooks.includes(w.look) ? w.look : 'noir'
   const palette = buildBrandPalette(kind === 'website' ? source.brand : null, forcedAccent)
+  // The uploaded logo is the AGENT's OWN brand (the agent uploaded it), NOT the
+  // carrier's — ALWAYS show it, including on regulated illustrations. Same for
+  // the client NAME (`recipient`) and the agent photo below: they're the agent's
+  // identity, never scrubbed. Compliance only strips the CARRIER/PRODUCT NAME.
   let logo
-  // For regulated content NEVER show a scraped logo — it may be the carrier's mark.
-  if (!regulated) { try { await readFile(join(pub, 'brand-logo.png')); logo = 'brand-logo.png' } catch {} }
-  // recipient in chrome: the illustration's recipient (a person) is fine, but the
-  // audience-name fallback can BE the carrier/product — suppress it when regulated.
+  try { await readFile(join(pub, 'brand-logo.png')); logo = 'brand-logo.png' } catch {}
+  // recipient in chrome: the real client name (passed as `recipient`) always
+  // shows. Only the AUDIENCE-NAME FALLBACK can accidentally be the carrier, so
+  // that fallback (and only it) is suppressed when regulated.
   const chromeRecipient = recipient || (!regulated && u.audiences && u.audiences[0] && u.audiences[0].name) || null
   const chrome = { company: preparer, logo, recipient: chromeRecipient, footer: footer || 'docs2video.com', glass: glass || 'vivid' }
   const ctaContact = (w.cta && w.cta.contact) || (source.url ? new URL(source.url).hostname.replace(/^www\./, '') : null)
@@ -395,9 +408,12 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   // presenter headshot (opt-in). photoPlacement: cover|closing|both|none|auto.
   // The photo is staged as brand-presenter.png by the caller; we set placement flags.
   if (presenter && presenter.photo) {
-    const pl = photoPlacement || 'closing'
+    // Default to BOTH for the explainer: the agent's face belongs on the cover
+    // (next to the client's name) AND on the closing contact card. Only an
+    // explicit 'cover'/'closing'/'none' narrows it.
+    const pl = photoPlacement || 'both'
     doc.presenter = { name: presenter.name, role: presenter.role, photo: presenter.photo,
-      onCover: pl === 'cover' || pl === 'both', onClosing: pl === 'closing' || pl === 'both' || pl === 'auto' }
+      onCover: pl === 'cover' || pl === 'both' || pl === 'auto', onClosing: pl === 'closing' || pl === 'both' || pl === 'auto' }
   }
   if (palette) doc.palette = palette
   // SFX safety: the renderer's Sfx component loads sfx/*.wav and a missing file
@@ -437,4 +453,4 @@ async function generateSceneVO({ pub, text, outName, pronounce, tts }) {
   return tts ? await tts(run) : await run()
 }
 
-module.exports = { generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend, isRegulated, scrubSlidePlan, complianceLeaks }
+module.exports = { generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend, isRegulated, scrubSlidePlan, complianceLeaks, CARRIER_BLOCKLIST }

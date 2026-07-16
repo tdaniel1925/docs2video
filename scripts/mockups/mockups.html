@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,'Segoe UI',Roboto,sans-serif; }
+  body { background:#0b0d10; }
+  .shot { width:1280px; height:820px; background:#f4f6f9; overflow:hidden; position:relative; }
+  .win-top { height:52px; background:#fff; border-bottom:1px solid #e6eaf0; display:flex; align-items:center; gap:8px; padding:0 20px; }
+  .dot { width:12px; height:12px; border-radius:50%; } .r{background:#ff5f57}.y{background:#febc2e}.g{background:#28c840}
+  .url { margin-left:16px; background:#eef1f6; border-radius:8px; padding:6px 20px; color:#7c8797; font-size:14px; }
+  .brand { font-weight:800; color:#2d6a9f; font-size:19px; } .brand b{color:#f5a623}
+  .body { padding:38px 46px; }
+  h1 { font-size:30px; color:#1a2230; font-weight:800; margin-bottom:6px; } .sub{color:#7c8797;font-size:16px;margin-bottom:28px}
+  .accent { color:#2d6a9f; } .orange{color:#f5a623}
+  .btn { background:#2d6a9f; color:#fff; border-radius:9px; padding:13px 26px; font-weight:700; font-size:15px; display:inline-block; }
+  .btn.o { background:#f5a623; }
+  .card { background:#fff; border:1px solid #e6eaf0; border-radius:14px; box-shadow:0 8px 24px rgba(20,30,50,.05); }
+
+  /* 1 — upload */
+  .drop { border:3px dashed #b9c8dc; border-radius:18px; padding:70px; text-align:center; background:#fff; }
+  .drop .ic { width:90px; height:90px; border-radius:20px; background:#eaf2fb; margin:0 auto 20px; display:flex; align-items:center; justify-content:center; font-size:44px; }
+  .chips { display:flex; gap:12px; justify-content:center; margin-top:26px; }
+  .chip { background:#eef4fb; color:#2d6a9f; border-radius:8px; padding:9px 18px; font-weight:700; font-size:14px; }
+
+  /* 2 — script editor */
+  .split { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  .scene { padding:18px 22px; border-bottom:1px solid #eef1f6; }
+  .scene .t { font-weight:800; color:#1a2230; font-size:16px; margin-bottom:5px; }
+  .scene .n { color:#5a6472; font-size:14px; line-height:1.5; }
+  .scene.act { border-left:4px solid #2d6a9f; background:#f7fafd; }
+  .vwrap { background:#101722; border-radius:14px; aspect-ratio:16/9; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+  .play { width:76px; height:76px; border-radius:50%; background:rgba(255,255,255,.92); display:flex; align-items:center; justify-content:center; }
+  .play:after { content:''; border-left:24px solid #2d6a9f; border-top:15px solid transparent; border-bottom:15px solid transparent; margin-left:6px; }
+  .vlabel { position:absolute; left:18px; bottom:16px; color:#fff; font-weight:800; font-size:20px; }
+
+  /* 3 — slide grid */
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
+  .slide { aspect-ratio:16/9; border-radius:12px; background:linear-gradient(135deg,#1b3a5c,#2d6a9f); position:relative; overflow:hidden; padding:16px; color:#fff; }
+  .slide.alt { background:linear-gradient(135deg,#243447,#3a5372); }
+  .slide .num { position:absolute; top:10px; right:12px; font-size:12px; opacity:.6; }
+  .slide .big { font-size:26px; font-weight:800; margin-top:22px; } .slide .lb{font-size:11px;opacity:.7;letter-spacing:1px}
+  .slide .redo { position:absolute; bottom:10px; right:12px; font-size:11px; background:rgba(245,166,35,.9); border-radius:6px; padding:4px 9px; font-weight:700; }
+
+  /* 4 — share/track */
+  .stat-row { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:26px; }
+  .stat { padding:22px; } .stat .v{font-size:38px;font-weight:800;color:#1a2230} .stat .l{color:#7c8797;font-size:13px;margin-top:4px}
+  .stat .v.up{color:#2d9f6a}
+  .row { display:flex; align-items:center; justify-content:space-between; padding:16px 22px; border-bottom:1px solid #eef1f6; }
+  .row .who { font-weight:700; color:#1a2230; font-size:15px; }
+  .tag { border-radius:20px; padding:5px 14px; font-size:12px; font-weight:700; } .tag.w{background:#e7f6ee;color:#2d9f6a}.tag.o{background:#fdf0dc;color:#b8791a}
+
+  /* 5 — audiences */
+  .aud { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; }
+  .acard { padding:26px; display:flex; gap:18px; align-items:flex-start; }
+  .acard .ic { width:58px; height:58px; border-radius:14px; background:#eaf2fb; display:flex; align-items:center; justify-content:center; font-size:28px; flex-shrink:0; }
+  .acard h3 { font-size:19px; color:#1a2230; margin-bottom:4px; } .acard p{color:#7c8797;font-size:14px;line-height:1.5}
+</style></head><body>
+
+<!-- 1: UPLOAD -->
+<div class="shot" id="s1">
+  <div class="win-top"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="url">docs2video.com/create</span><span style="flex:1"></span><span class="brand">Docs<b>2</b>Video</span></div>
+  <div class="body">
+    <h1>Turn any document into a <span class="accent">video</span></h1>
+    <p class="sub">Drop a PDF, contract, report, or policy — our AI does the rest.</p>
+    <div class="drop" data-anchor="dropzone">
+      <div class="ic">📄</div>
+      <div style="font-size:22px;font-weight:800;color:#1a2230">Drag &amp; drop your document</div>
+      <div style="color:#7c8797;margin-top:8px;font-size:15px">or click to browse — PDF, DOCX, PPTX, up to 50MB</div>
+      <div class="chips" data-anchor="filetypes"><span class="chip">Contracts</span><span class="chip">Policies</span><span class="chip">Reports</span><span class="chip">Proposals</span></div>
+      <div style="margin-top:28px"><span class="btn" data-anchor="upload_btn">Upload &amp; Generate</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 2: SCRIPT + PREVIEW -->
+<div class="shot" id="s2">
+  <div class="win-top"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="url">docs2video.com/review</span><span style="flex:1"></span><span class="brand">Docs<b>2</b>Video</span></div>
+  <div class="body">
+    <h1>AI writes the script. <span class="accent">You stay in control.</span></h1>
+    <p class="sub">Every scene, narration, and number — editable before you render.</p>
+    <div class="split">
+      <div class="card">
+        <div class="scene act" data-anchor="script_scene"><div class="t">1 · The Investment</div><div class="n">"You just closed a deal with three layers of value built right in…"</div></div>
+        <div class="scene"><div class="t">2 · Cash Becomes Equity</div><div class="n">"You put in one hundred thousand dollars, and for that…"</div></div>
+        <div class="scene"><div class="t">3 · Shares Double Your Position</div><div class="n">"But the cash was only the beginning…"</div></div>
+        <div class="scene"><div class="t">4 · Legal Framework</div><div class="n">"And is it legally solid? Yes…"</div></div>
+      </div>
+      <div>
+        <div class="vwrap" data-anchor="preview"><div class="play"></div><div class="vlabel">The Investment</div></div>
+        <div style="margin-top:16px;display:flex;gap:10px"><span class="btn" data-anchor="approve_btn">Approve &amp; Render</span><span class="btn o">Request changes</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3: SLIDES -->
+<div class="shot" id="s3">
+  <div class="win-top"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="url">docs2video.com/slides</span><span style="flex:1"></span><span class="brand">Docs<b>2</b>Video</span></div>
+  <div class="body">
+    <h1>Designed slides, <span class="accent">generated automatically</span></h1>
+    <p class="sub">Every scene gets a branded visual. Don't like one? Regenerate it.</p>
+    <div class="grid">
+      <div class="slide" data-anchor="slide1"><div class="num">01</div><div class="lb">INVESTMENT</div><div class="big">$100,000</div><span class="redo" data-anchor="redo_btn">↻ redo</span></div>
+      <div class="slide alt"><div class="num">02</div><div class="lb">SHARES ISSUED</div><div class="big">100,000</div><span class="redo">↻ redo</span></div>
+      <div class="slide"><div class="num">03</div><div class="lb">CONSULTING</div><div class="big">100,000</div><span class="redo">↻ redo</span></div>
+      <div class="slide alt"><div class="num">04</div><div class="lb">PREFERRED</div><div class="big">1,700</div><span class="redo">↻ redo</span></div>
+      <div class="slide alt"><div class="num">05</div><div class="lb">PAR VALUE</div><div class="big">$1.00</div><span class="redo">↻ redo</span></div>
+      <div class="slide"><div class="num">06</div><div class="lb">DELIVERY</div><div class="big">5 days</div><span class="redo">↻ redo</span></div>
+      <div class="slide alt"><div class="num">07</div><div class="lb">GOVERNED BY</div><div class="big">Nevada</div><span class="redo">↻ redo</span></div>
+      <div class="slide"><div class="num">08</div><div class="lb">TICKER</div><div class="big">BQST</div><span class="redo">↻ redo</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 4: SHARE + TRACK -->
+<div class="shot" id="s4">
+  <div class="win-top"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="url">docs2video.com/analytics</span><span style="flex:1"></span><span class="brand">Docs<b>2</b>Video</span></div>
+  <div class="body">
+    <h1>Send it. <span class="accent">Then watch them watch.</span></h1>
+    <p class="sub">Branded share pages, view tracking, and payment collection — built in.</p>
+    <div class="stat-row">
+      <div class="card stat" data-anchor="views"><div class="v">1,284</div><div class="l">Total views</div></div>
+      <div class="card stat"><div class="v up">73%</div><div class="l">Avg. completion</div></div>
+      <div class="card stat"><div class="v">47</div><div class="l">Videos sent</div></div>
+      <div class="card stat" data-anchor="revenue"><div class="v up">$12.4K</div><div class="l">Collected</div></div>
+    </div>
+    <div class="card">
+      <div class="row" data-anchor="client_row"><span class="who">Henderson Family — Policy Review</span><span class="tag w">Watched 100%</span></div>
+      <div class="row"><span class="who">MMM Industries — Stock Agreement</span><span class="tag w">Watched 100%</span></div>
+      <div class="row"><span class="who">Acme Corp — Q4 Proposal</span><span class="tag o">Opened · 40%</span></div>
+      <div class="row" style="border:none"><span class="who">New Hire Onboarding — Batch 3</span><span class="tag w">Watched 100%</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 5: AUDIENCES -->
+<div class="shot" id="s5">
+  <div class="win-top"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="url">docs2video.com</span><span style="flex:1"></span><span class="brand">Docs<b>2</b>Video</span></div>
+  <div class="body">
+    <h1>Built for <span class="accent">every team</span> that sends documents</h1>
+    <p class="sub">If you email a PDF and hope it gets read — this is for you.</p>
+    <div class="aud">
+      <div class="card acard"><div class="ic">👥</div><div><h3>HR &amp; People Ops</h3><p>Turn policies, benefits guides, and onboarding docs into videos new hires actually watch.</p></div></div>
+      <div class="card acard"><div class="ic">🎓</div><div><h3>Training &amp; L&amp;D</h3><p>Convert dense manuals and SOPs into clear, narrated training modules in minutes.</p></div></div>
+      <div class="card acard"><div class="ic">💻</div><div><h3>Development &amp; Product</h3><p>Turn specs, release notes, and technical docs into shareable walkthroughs.</p></div></div>
+      <div class="card acard"><div class="ic">🛡️</div><div><h3>Insurance Agents</h3><p>Turn policy illustrations into client-ready explainers that close faster.</p></div></div>
+    </div>
+  </div>
+</div>
+
+</body></html>
