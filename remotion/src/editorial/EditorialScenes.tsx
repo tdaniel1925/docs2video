@@ -116,10 +116,11 @@ const Portrait: React.FC<{ presenter: Presenter; theme: EditorialTheme; size?: n
 }
 
 /** COVER — masthead + huge headline + dek, optional framed hero or presenter. */
-export const CoverScene: React.FC<SceneProps & { presenter?: Presenter }> = ({ scene, theme, masthead, presenter }) => {
+export const CoverScene: React.FC<SceneProps & { presenter?: Presenter; recipient?: string }> = ({ scene, theme, masthead, presenter, recipient }) => {
   const { fontDisplay: FONT_DISPLAY, fontBody: FONT_BODY } = theme
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const titleP = settle(frame, 8, fps)
+  const rcpP = settle(frame, 34, fps)
   const hasPortrait = !!presenter?.photo
   return (
     <AbsoluteFill style={{ boxSizing: 'border-box', border: `${theme.variant === 'time' ? 18 : theme.variant === 'editorial' ? 8 : 0}px solid ${theme.accent}`, background: theme.paper, padding: '64px 72px', display: 'flex', flexDirection: 'column' }}>
@@ -138,6 +139,13 @@ export const CoverScene: React.FC<SceneProps & { presenter?: Presenter }> = ({ s
             </div>
             {scene.dek ? (
               <div style={{ opacity: settle(frame, 26, fps), fontFamily: FONT_BODY, fontSize: 36, lineHeight: 1.35, color: theme.muted, maxWidth: 1200, fontStyle: 'italic' }}>{scene.dek}</div>
+            ) : null}
+            {/* "Prepared for {client}" — personalized cover line. */}
+            {recipient ? (
+              <div style={{ opacity: rcpP, marginTop: 8 }}>
+                <span style={{ fontFamily: FONT_BODY, fontWeight: 700, fontSize: 15, letterSpacing: 3, textTransform: 'uppercase', color: theme.accent }}>Prepared for </span>
+                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 30, color: theme.ink }}>{recipient}</span>
+              </div>
             ) : null}
           </div>
           {hasPortrait ? <Portrait presenter={presenter!} theme={theme} size={360} /> : null}

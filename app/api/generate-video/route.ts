@@ -13,6 +13,8 @@ import { buildV3Payload } from '../../_lib/v3-render'
 import { buildEditorialPayload } from '../../_lib/editorial-render'
 import { buildPresenter, resolvePhotoPlacement, isPersonProfile } from '../../_lib/presenter'
 import { cleanRecipientName } from '../../_lib/text-format'
+import { resolveClientName, resolveAgentName, buildOpeningNarration } from '../../_lib/personalize'
+import { isRegulated } from '../../_lib/compliance'
 import { waitUntil } from '@vercel/functions'
 import { logError } from '../../_lib/error-logger'
 import { validateScript } from '../../_lib/script-validator'
@@ -840,23 +842,25 @@ export async function POST(request: Request) {
     const presenter = buildPresenter(brand, { intro: presenterIntro, introduceInOpening })
     const photoPlacementResolved = resolvePhotoPlacement(videoStyle, photoPlacement)
 
-    // Build cover narration (short intro) — formatted for natural speech.
-    // Use recipient name from draft data or request body — but scrub generic
-    // placeholders ("Mr. Client", "Valued Client", "John Doe", etc.) so they
-    // never reach the greeting/slides. No real name → no name (lead with topic).
-    const recipient = cleanRecipientName(
-      recipientName || (policyData as any)?.recipientName || (policyData as any)?.insuredName || ''
+    // PERSONALIZED OPENING — one shared layer (app/_lib/personalize.ts) so the
+    // client-name cover + "thank you {client} for letting {agent} share this
+    // summary" greeting appears on ALL explainer styles (slides/aurora/editorial),
+    // not just the slides engine. `recipient` (the client) also drives the
+    // "Prepared for {client}" cover line threaded into V3 + editorial below.
+    const recipient = resolveClientName({ recipientName, policyData: policyData as any })
+    const agentName = resolveAgentName({ preparer: effectiveBrandName, brandName: effectiveBrandName, presenter })
+    const regulatedContent = isRegulated(policyData, (policyData as any)?.classification?.documentType, industry)
+    // Base opening: the presenter's own intro line if they wrote one, else a lead
+    // into the title. buildOpeningNarration prepends the client greeting.
+    const baseOpening = presenter?.intro ? presenter.intro : `${videoTitle}.`
+    const coverNarration = formatForTTS(
+      buildOpeningNarration({
+        client: recipient,
+        agent: agentName,
+        regulated: regulatedContent,
+        baseNarration: baseOpening,
+      })
     )
-    // If a presenter wrote their own intro line, speak THAT (optionally greeting
-    // the recipient first); otherwise fall back to the generic welcome.
-    let coverNarration: string
-    if (presenter?.intro) {
-      const greet = recipient ? `Hello ${recipient}. ` : ''
-      coverNarration = formatForTTS(`${greet}${presenter.intro}`)
-    } else {
-      const greeting = recipient ? `Hello ${recipient}, thank you for your time today.` : `Thank you for your time today.`
-      coverNarration = formatForTTS(`${greeting} ${videoTitle}.`)
-    }
 
     // Build closing narration (short outro). Contact info is spoken only when the
     // user wants it on the closing (default on). For a presenter, sign off in
@@ -1028,6 +1032,7 @@ export async function POST(request: Request) {
           contactLine: wantContactClosing ? (contactLine || undefined) : undefined,
           musicUrl: musicUrl || undefined, musicPrompt: musicPrompt || undefined, aiMusic: aiMusic || undefined,
           presenter, photoPlacement: photoPlacement || undefined,
+          recipient: recipient || undefined,   // client name → "Prepared for {client}" on the cover
           variant: editorialVariant,
         })
         console.log(`[video ${videoId}] editorial: ${edPayload.scenes.length} scenes, archetypes=${edPayload.scenes.map(s => s.archetype).join(',')}`)
@@ -1071,6 +1076,7 @@ export async function POST(request: Request) {
         contactLine: wantContactClosing ? (contactLine || undefined) : undefined,
         contact: wantContactClosing ? { phone: contactDisplayPhone, email: contactForClosing.email, website: contactForClosing.website } : undefined,
         presenter, photoPlacement: photoPlacement || undefined,
+        recipient: recipient || undefined,   // client name → "Prepared for {client}" on the cover
         videoStyle,
       })
       console.log(`[video ${videoId}] V3 theme=${v3Payload.theme}, logo=${v3Payload.logo ? 'yes' : 'no'}, presenter=${presenter ? 'yes' : 'no'}`)

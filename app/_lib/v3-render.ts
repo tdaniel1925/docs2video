@@ -116,6 +116,8 @@ export type V3Payload = {
   presenter?: Presenter
   /** Resolved photo placement preference; 'auto' lets the style decide on the VPS. */
   photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
+  /** Client name — shown as "Prepared for {name}" on the cover. */
+  recipient?: string
   /** Persistent on-screen chrome over every scene — the cohesive "frame" look:
    *  a top-left eyebrow (brand), an optional top-right tag (date), and up to 3
    *  footer proof chips. Makes a video read as one authored product. */
@@ -151,6 +153,8 @@ export function buildV3Payload(opts: {
   contact?: { phone?: string; email?: string; website?: string }
   presenter?: Presenter | null
   photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
+  /** Client name — shown as "Prepared for {name}" on the cover. */
+  recipient?: string
   /** The user's chosen visual style. 'aurora' = the fluid code-rendered look
    *  (no per-scene Gemini); otherwise pickTheme decides cinematic/infographic. */
   videoStyle?: string
@@ -218,6 +222,7 @@ export function buildV3Payload(opts: {
     logo: shouldShowLogo(opts.brand) ? brandLogo(opts.brand) : undefined,
     presenter: opts.presenter || undefined,
     photoPlacement: opts.photoPlacement || undefined,
+    recipient: opts.recipient || undefined,
     industry: opts.industry || undefined,
     musicUrl: opts.musicUrl || undefined,
     musicPrompt: opts.musicPrompt || undefined,

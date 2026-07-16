@@ -1106,7 +1106,7 @@ function v3Theme(brandAccents) {
 }
 
 app.post('/render-v3', authCheck, async (req, res) => {
-  const { videoId, userId, voiceId, theme, brandName, brandAccents, logo, scenes, contactLine, contact, closingValue, musicUrl, musicPrompt, aiMusic, presenter, photoPlacement, frame, industry } = req.body || {}
+  const { videoId, userId, voiceId, theme, brandName, brandAccents, logo, scenes, contactLine, contact, closingValue, musicUrl, musicPrompt, aiMusic, presenter, photoPlacement, frame, industry, recipient } = req.body || {}
   if (!videoId || !Array.isArray(scenes) || scenes.length === 0) {
     return res.status(400).json({ error: 'Missing videoId or scenes' })
   }
@@ -1284,6 +1284,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
     const props = {
       theme: v3Theme(brandAccents),
       brandName: brandName || undefined,
+      ...(recipient ? { recipient } : {}),   // "Prepared for {client}" on the cover
       ...(frame ? { frame } : {}),
       ...(isAurora ? { look: 'aurora' } : {}),
       ...(localLogo ? { logo: localLogo, logoChip: !!logo.chip } : {}),
@@ -2203,7 +2204,7 @@ app.post('/preview-editorial', authCheck, async (req, res) => {
 })
 
 app.post('/render-editorial', authCheck, async (req, res) => {
-  const { videoId, userId, voiceId, masthead, runningTitle, brandColor, variant, scenes, musicUrl, musicPrompt, aiMusic, contactLine, presenter, photoPlacement } = req.body || {}
+  const { videoId, userId, voiceId, masthead, runningTitle, brandColor, variant, scenes, musicUrl, musicPrompt, aiMusic, contactLine, presenter, photoPlacement, recipient } = req.body || {}
   if (!videoId || !Array.isArray(scenes) || scenes.length === 0) {
     return res.status(400).json({ error: 'Missing videoId or scenes' })
   }
@@ -2297,6 +2298,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     await writeFile(edProps, JSON.stringify({
       masthead, runningTitle, brandColor, variant: variant || 'time', scenes: out,
       ...(contactLine ? { contactLine } : {}),
+      ...(recipient ? { recipient } : {}),   // "Prepared for {client}" on the cover
       ...(edPresenter ? { presenter: edPresenter, presenterOnCover: edOnCover, presenterOnClosing: edOnClosing } : {}),
     }))
     await setProgress(72, 'Rendering...')

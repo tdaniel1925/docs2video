@@ -65,6 +65,9 @@ export const v3Schema = z.object({
   logo: z.union([z.string(), z.object({ light: z.string().optional(), dark: z.string().optional() })]).optional(),
   logoChip: z.boolean().optional(),
   presenter: v3PresenterSchema.optional(),
+  /** The client this video was prepared FOR — shown as "Prepared for {name}" on
+   *  the cold-open cover (personalization parity with the slides engine). */
+  recipient: z.string().optional(),
   /** Render the presenter photo on the cold-open cover. */
   presenterOnCover: z.boolean().optional(),
   /** Render the presenter photo on the closing card. */

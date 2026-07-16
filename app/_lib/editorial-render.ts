@@ -43,6 +43,8 @@ export type EditorialPayload = {
   /** Presenter identity (Person profile): photo + name/role rendered per style. */
   presenter?: Presenter
   photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
+  /** Client name — "Prepared for {name}" on the cover page. */
+  recipient?: string
   /** Editorial scenes (no audio/image yet — renderer fills those in). */
   scenes: {
     archetype?: string
@@ -100,6 +102,8 @@ export async function buildEditorialPayload(opts: {
   aiMusic?: boolean
   presenter?: Presenter | null
   photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
+  /** Client name — shown as "Prepared for {name}" on the cover page. */
+  recipient?: string
   variant?: 'editorial' | 'time' | 'explainer'
 }): Promise<EditorialPayload> {
   // Compact brief of the grounded scenes + the doc's real metrics.
@@ -163,6 +167,7 @@ export async function buildEditorialPayload(opts: {
     contactLine: opts.contactLine || undefined,
     presenter: opts.presenter || undefined,
     photoPlacement: opts.photoPlacement || undefined,
+    recipient: opts.recipient || undefined,
     scenes,
   }
 }

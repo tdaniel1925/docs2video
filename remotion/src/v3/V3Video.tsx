@@ -78,12 +78,15 @@ const Transition: React.FC<{ d: number; variant: number; isLast?: boolean; child
 
 /** Branded cold-open: brand name (or first title) springs up on black with an
  *  accent rule, holds, then a quick fade to the first scene. ~2s of premium tone. */
-const COLD_OPEN_FRAMES = 54
-const ColdOpen: React.FC<{ text: string; theme: Theme & { logo?: LogoSource }; photo?: string; role?: string }> = ({ text, theme, photo, role }) => {
+// ~3.5s so the client can READ their name + the agent's name before it cuts
+// (was 54 / ~1.8s — too fast for a personalized cover).
+const COLD_OPEN_FRAMES = 105
+const ColdOpen: React.FC<{ text: string; theme: Theme & { logo?: LogoSource }; photo?: string; role?: string; recipient?: string }> = ({ text, theme, photo, role, recipient }) => {
   const f = useCurrentFrame()
   const { fps } = useVideoConfig()
   const rise = spring({ frame: f - 4, fps, config: { damping: 16, stiffness: 110, mass: 0.9 } })
   const rule = interpolate(f, [10, 24], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
+  const rcp = spring({ frame: f - 26, fps, config: { damping: 18, stiffness: 90 } })
   const out = interpolate(f, [COLD_OPEN_FRAMES - 10, COLD_OPEN_FRAMES], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
   const accent = theme.accents[1] ?? theme.accents[0]
   return (
@@ -100,12 +103,19 @@ const ColdOpen: React.FC<{ text: string; theme: Theme & { logo?: LogoSource }; p
           <div style={{ fontFamily: FONTS.display, fontWeight: 700, letterSpacing: 3, fontSize: 26, color: accent, textTransform: 'uppercase' }}>{role}</div>
         ) : null}
         <div style={{ height: 4, width: 220 * rule, borderRadius: 2, background: accent, boxShadow: `0 0 18px ${accent}` }} />
+        {/* "Prepared for {client}" — the personalized cover line. */}
+        {recipient ? (
+          <div style={{ marginTop: 10, textAlign: 'center', opacity: rcp }}>
+            <div style={{ fontFamily: FONTS.display, fontWeight: 700, letterSpacing: 4, fontSize: 17, color: accent, textTransform: 'uppercase' }}>Prepared for</div>
+            <div style={{ fontFamily: FONTS.display, fontWeight: 800, fontSize: 34, color: '#FFFFFF', marginTop: 6 }}>{recipient}</div>
+          </div>
+        ) : null}
       </div>
     </AbsoluteFill>
   )
 }
 
-export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, scenes, music, logo, logoChip, brandName, presenter, presenterOnCover, presenterOnClosing, look, backdrop, frame }) => {
+export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, scenes, music, logo, logoChip, brandName, presenter, presenterOnCover, presenterOnClosing, look, backdrop, frame, recipient }) => {
   const total = scenes.reduce((s, sc) => s + sc.durationInFrames, 0) + COLD_OPEN_FRAMES
   const openText = brandName || presenter?.name || scenes[0]?.title || ''
   // Fluid looks share ONE continuous backdrop; scenes render transparent on top.
@@ -121,7 +131,7 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean }> = ({ theme, sce
       <Series>
         {openText ? (
           <Series.Sequence durationInFrames={COLD_OPEN_FRAMES}>
-            <ColdOpen text={openText} theme={theme} photo={presenterOnCover ? presenter?.photo : undefined} role={presenter?.role} />
+            <ColdOpen text={openText} theme={theme} photo={presenterOnCover ? presenter?.photo : undefined} role={presenter?.role} recipient={recipient} />
           </Series.Sequence>
         ) : null}
         {scenes.map((sc: V3Scene, i) => {

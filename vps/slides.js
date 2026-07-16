@@ -352,6 +352,8 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   // summary. We PREPEND this to the intro scene's narration (keeping whatever the
   // writer wrote after it) so it's guaranteed + consistent. Compliance-safe: it
   // names only the CLIENT and the AGENT, never the carrier/product.
+  // ⚠ KEEP IN SYNC with app/_lib/personalize.ts (buildOpeningNarration) — the
+  // Vercel V3/editorial paths use that shared copy; this is the slides mirror.
   {
     const clientFirst = String(recipient || '').trim().split(/\s+/)[0]  // first name feels personal
     // CANONICAL agent name = the "prepared by" name the cover + CTA use (preparer).

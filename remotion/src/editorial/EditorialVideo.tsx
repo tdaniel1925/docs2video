@@ -41,6 +41,8 @@ export const editorialSchema = z.object({
   presenter: z.object({ name: z.string().optional(), role: z.string().optional(), photo: z.string().optional() }).optional(),
   presenterOnCover: z.boolean().optional(),
   presenterOnClosing: z.boolean().optional(),
+  /** Client name — shown as "Prepared for {name}" on the cover page. */
+  recipient: z.string().optional(),
   scenes: z.array(editorialSceneSchema).min(1),
 })
 export type EditorialProps = z.infer<typeof editorialSchema>
@@ -58,7 +60,7 @@ const PageTurn: React.FC<{ d: number; isLast?: boolean; children: React.ReactNod
   return <AbsoluteFill style={{ opacity: inP * (1 - outP) }}>{children}</AbsoluteFill>
 }
 
-export const EditorialVideo: React.FC<EditorialProps> = ({ masthead, runningTitle, brandColor, variant, music, scenes, contactLine, presenter, presenterOnCover, presenterOnClosing }) => {
+export const EditorialVideo: React.FC<EditorialProps> = ({ masthead, runningTitle, brandColor, variant, music, scenes, contactLine, presenter, presenterOnCover, presenterOnClosing, recipient }) => {
   const theme: EditorialTheme = editorialFromBrand(brandColor, (variant as EditorialVariant) || 'time')
   const running = (runningTitle || scenes[0]?.title || '').toUpperCase().slice(0, 32)
   const total = scenes.reduce((a, s) => a + s.durationInFrames, 0)
@@ -73,7 +75,7 @@ export const EditorialVideo: React.FC<EditorialProps> = ({ masthead, runningTitl
       : theme
     const props = { scene: s, theme: pageTheme, masthead, runningTitle: running, page: i + 1 }
     switch (a) {
-      case 'cover': return <CoverScene {...props} presenter={presenterOnCover ? presenter : undefined} />
+      case 'cover': return <CoverScene {...props} presenter={presenterOnCover ? presenter : undefined} recipient={recipient} />
       case 'lede': return <LedeScene {...props} />
       case 'grid': return <GridScene {...props} />
       case 'pullquote': return <PullQuoteScene {...props} />
