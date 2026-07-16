@@ -143,10 +143,13 @@ export const ZoomInto: React.FC<{ startAt: number; focal?: [number, number]; dur
   return <AbsoluteFill style={{ transform: `scale(${1 + e * 3})`, transformOrigin: `${focal[0]}% ${focal[1]}%`, opacity: 1 - e * 0.6 }}>{children}</AbsoluteFill>
 }
 // The incoming scene emerging FROM depth (pair with FlowThrough on the outgoing).
+// Scales children IN PLACE. Must NOT use AbsoluteFill — content inside a flex
+// layout (e.g. chat bubbles, grid cards) would break out of the flow and jam to
+// the top-left corner (the chat-beat bug). A plain wrapper preserves layout.
 export const EmergeFromDepth: React.FC<{ dur?: number; children: React.ReactNode }> = ({ dur = 14, children }) => {
   const frame = useCurrentFrame()
   const e = Easing.out(Easing.cubic)(clamp(frame / dur, 0, 1))
-  return <AbsoluteFill style={{ transform: `scale(${0.6 + e * 0.4})`, opacity: e, filter: `blur(${(1 - e) * 6}px)` }}>{children}</AbsoluteFill>
+  return <div style={{ transform: `scale(${0.6 + e * 0.4})`, opacity: e, filter: `blur(${(1 - e) * 6}px)` }}>{children}</div>
 }
 
 /* ---------------- 5. LIVING STILL ("still becomes video") ----------------

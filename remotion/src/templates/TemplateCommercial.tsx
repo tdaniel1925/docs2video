@@ -353,18 +353,21 @@ const ChatBeat: React.FC<{ hold: number; chat: { q: string; a: string } }> = ({ 
   return (
     <AbsoluteFill style={{ background: `radial-gradient(120% 120% at 50% 40%, ${b.bg2}, ${b.bg})` }}>
       <Ambient />
-      <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 16 }}>
-        <div style={{ fontFamily: st.mono, fontSize: 19, letterSpacing: '0.24em', textTransform: 'uppercase', color: b.accent, marginBottom: 12 }}>{'// Ask anything'}</div>
+      {/* center the conversation in a fixed-height band (padding top/bottom keeps it
+          clear of the top corner logo + never lets a tall two-bubble column ride
+          off the top of the frame — the chat-beat overflow bug). */}
+      <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 18, padding: '150px 90px 90px' }}>
+        <div style={{ fontFamily: st.mono, fontSize: 19, letterSpacing: '0.24em', textTransform: 'uppercase', color: b.accent, marginBottom: 8 }}>{'// Ask anything'}</div>
         {/* question bubble flies in from the right */}
-        <div style={{ alignSelf: 'flex-end', marginRight: '18%' }}><Enter at={2} from="right">
-          <div style={{ background: b.panel, border: `1px solid ${b.mute}44`, borderRadius: 14, padding: 24, width: 1000 }}>
-            <div style={{ fontFamily: st.body, fontWeight: 500, fontSize: 30, color: b.cream }}>{chat.q.slice(0, qS)}{qS < chat.q.length && frame < 30 ? '▋' : ''}</div>
+        <div style={{ alignSelf: 'flex-end', maxWidth: '78%' }}><Enter at={2} from="right">
+          <div style={{ background: b.panel, border: `1px solid ${b.mute}44`, borderRadius: 14, padding: '20px 26px', maxWidth: 880 }}>
+            <div style={{ fontFamily: st.body, fontWeight: 500, fontSize: 30, color: b.cream, lineHeight: 1.3 }}>{chat.q.slice(0, qS)}{qS < chat.q.length && frame < 30 ? '▋' : ''}</div>
           </div>
         </Enter></div>
         {/* answer bubble flies in from the left when it's time to reply */}
         {frame > 32 && (
-          <div style={{ alignSelf: 'flex-start', marginLeft: '18%' }}><Enter at={34} from="left">
-            <div style={{ background: b.panel, border: `1px solid ${b.accent}44`, borderRadius: 14, padding: 24, width: 1000, boxShadow: `0 0 26px ${b.accent}18` }}>
+          <div style={{ alignSelf: 'flex-start', maxWidth: '78%' }}><Enter at={34} from="left">
+            <div style={{ background: b.panel, border: `1px solid ${b.accent}44`, borderRadius: 14, padding: '20px 26px', maxWidth: 880, boxShadow: `0 0 26px ${b.accent}18` }}>
               <div style={{ fontFamily: st.body, fontWeight: 500, fontSize: 30, color: b.cream, lineHeight: 1.35 }}>{chat.a.slice(0, aS)}{aS < chat.a.length ? '▋' : ''}</div>
             </div>
           </Enter></div>

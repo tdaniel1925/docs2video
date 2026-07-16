@@ -204,8 +204,13 @@ export const LogoBug: React.FC<{
 }> = ({ src, name, color = '#ffffff', width = 150, fontFamily, opacity = 0.85 }) => {
   const frame = useCurrentFrame()
   const o = interpolate(frame, [8, 22], [0, opacity], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+  // TOP-RIGHT corner: beat content (kickers, headlines, chat bubbles, the diagonal
+  // split cell) is almost always anchored top-LEFT or centered — the top-left is
+  // where collisions happen (chat beat, split variant, jordyn). The top-right is
+  // reliably empty across all beats, so parking the logo there eliminates the
+  // whole collision class systemically instead of patching per beat.
   return (
-    <div style={{ position: 'absolute', top: 46, left: 58, opacity: o, zIndex: 50 }}>
+    <div style={{ position: 'absolute', top: 46, right: 58, opacity: o, zIndex: 50, textAlign: 'right' }}>
       {src
         ? <Img src={staticFile(src)} style={{ width, height: 'auto', display: 'block', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.5))' }} />
         : <div style={{ fontFamily, fontWeight: 700, fontSize: 30, color, letterSpacing: '0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>{name}</div>}
