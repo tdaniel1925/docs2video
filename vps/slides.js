@@ -346,6 +346,25 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
     return { id: s.id, beat: s.beat, narration: s.narration, on_screen: (s.layout && s.layout.heading) || s.on_screen || '', layout: s.layout, blocks, visual, backdrop: undefined, _bp: s.backdrop_prompt }
   })
 
+  // PERSONALIZED OPENING — on an explainer prepared FOR a named client, the very
+  // first thing the narrator should do is address the client BY NAME and thank
+  // them for letting the agent (presenter/preparer) walk them through this
+  // summary. We PREPEND this to the intro scene's narration (keeping whatever the
+  // writer wrote after it) so it's guaranteed + consistent. Compliance-safe: it
+  // names only the CLIENT and the AGENT, never the carrier/product.
+  {
+    const clientFirst = String(recipient || '').trim().split(/\s+/)[0]  // first name feels personal
+    const agentName = (presenter && presenter.name) || preparer
+    const introScene = scenes.find((s) => s.beat === 'intro') || scenes[0]
+    if (clientFirst && agentName && introScene) {
+      const doc = regulated ? 'illustration summary' : 'summary'
+      const greet = `${clientFirst}, thank you for letting ${agentName} share this ${doc} with you. `
+      // avoid double-greeting if the writer already opened with the client's name
+      const already = new RegExp(`^\\s*${clientFirst.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(introScene.narration || '')
+      introScene.narration = already ? introScene.narration : (greet + (introScene.narration || '')).trim()
+    }
+  }
+
   // ASSETS — VO + (optional) backdrops, generated CONCURRENTLY (not one-by-one)
   // so the wall-clock is ~max, not ~sum. VO goes through deps.tts (a pool of ~3,
   // respecting ElevenLabs' concurrency); images fan out fully (they retry). Each
@@ -380,8 +399,17 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   // the server can grab a real thumbnail at each scene's midpoint from the final
   // mp4 (and the Fix-a-Scene feature can target frame ranges). bpm=128, GAP=0.35s.
   const BEATF = (60 / 128) * FPS, GAP = Math.round(0.35 * FPS)
+  // The COVER must stay on screen long enough to READ the client's name + the
+  // agent's name — hold it ~3.5s minimum (≈8 beats) on every explainer, even if
+  // the intro VO is short. Other scenes keep the 2-beat floor.
+  const COVER_MIN_BEATS = Math.ceil((3.5 * FPS) / BEATF)  // ~7.5 → 8 beats
   const starts = []; let t = Math.round(BEATF)
-  for (const s of scenes) { starts.push(Math.round(t)); const beats = Math.max(2, Math.ceil(((s._voFrames || 60) + GAP) / BEATF)); t += beats * BEATF }
+  for (const s of scenes) {
+    starts.push(Math.round(t))
+    const floor = s.beat === 'intro' ? COVER_MIN_BEATS : 2
+    const beats = Math.max(floor, Math.ceil(((s._voFrames || 60) + GAP) / BEATF))
+    t += beats * BEATF
+  }
   const total = Math.round(t + 4 * BEATF)
   scenes.forEach((s) => delete s._voFrames)
 
