@@ -231,11 +231,16 @@ function scrubSlidePlan(w, u) {
   const res = terms.map((t) => new RegExp(t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') + '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|\\u2120|\\u00ae|\\u2122))*', 'ig'))
   // $ figures (with or without commas/decimals) + percentages
   const figRe = [/\$\s?\d[\d,]*(?:\.\d+)?/g, /\b\d+(?:\.\d+)?\s?%/g, /\b\d+(?:\.\d+)?\s?percent\b/gi]
+  // guarantee language: soften/strip so nothing implies a guaranteed result.
+  // "guaranteed minimum floor" → "minimum floor" (keeps the concept, drops the
+  // promise word); bare "guaranteed"/"risk-free"/"no risk" removed outright.
+  const guar = [/\bguaranteed\s+(?=minimum|floor|rate|return|value|income)/ig, /\b(100%\s+)?guaranteed\b/ig, /\bguarantees?\b/ig, /\brisk[- ]free\b/ig, /\bno risk\b/ig, /\bget rich\b/ig]
   const clean = (s) => {
     if (typeof s !== 'string') return s
     let out = s
     for (const re of res) out = out.replace(re, '')
     for (const re of figRe) out = out.replace(re, '')
+    for (const re of guar) out = out.replace(re, '')
     // NOTE: this scrub is the COMPLIANCE net, not a prose fixer. When the writer
     // obeys SLIDE_COMPLIANCE_CLAUSE (the normal case) there are no carrier/figure
     // tokens to delete, so narration stays clean. Only when the LLM ignores the
