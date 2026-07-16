@@ -402,6 +402,54 @@ function scrubGuarantees(spec) {
   return spec
 }
 
+// ---------- CARRIER/PRODUCT SCRUB (regulated content): the prompt asks the LLM
+// not to name the carrier or branded product, but LLMs ignore negative rules when
+// the source repeats the name 100x (a Mutual of Omaha illustration leaked both).
+// This is the CODE-LEVEL net: strip known-carrier names + any branded product
+// name(s) detected in the source + specific dollar figures, from all vo/on-screen
+// text. Must run AFTER all LLM steps (hook/critique/consistency can re-add them).
+const CARRIER_BLOCKLIST = [
+  'mutual of omaha', 'united of omaha', 'north american', 'nationwide', 'transamerica',
+  'prudential', 'metlife', 'new york life', 'northwestern mutual', 'lincoln financial',
+  'john hancock', 'pacific life', 'principal', 'allianz', 'american general', 'corebridge',
+  'aig', 'securian', 'minnesota life', 'symetra', 'protective', 'foresters', 'mass mutual',
+  'massmutual', 'guardian', 'ameritas', 'sammons', 'midland national', 'f&g', 'fidelity & guaranty',
+  'athene', 'global atlantic', 'brighthouse', 'penn mutual', 'ohio national', 'aetna',
+  'cigna', 'humana', 'blue cross', 'blue shield', 'unitedhealthcare', 'united healthcare',
+  'income advantage', 'indexed universal life', 'iul',
+]
+function scrubCarrierProduct(spec, u, brandName) {
+  // build the strip list: blocklist + any branded product tokens from the source
+  const strip = new Set(CARRIER_BLOCKLIST)
+  for (const n of productNames(u, brandName)) if (n && n.length >= 3) strip.add(n.toLowerCase())
+  // longest-first so multi-word carriers are removed before sub-words. No \b
+  // anchors (they fail around the trailing optional group + the ℠/®/™ marks);
+  // a trailing optional suffix group eats "IUL", "Life Insurance Company", etc.
+  const terms = [...strip].filter(Boolean).sort((a, b) => b.length - a.length)
+  const res = terms.map((t) => new RegExp(t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') + '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|\\u2120|\\u00ae|\\u2122))*', 'ig'))
+  // also strip specific dollar figures + percentages that shouldn't appear
+  const figRe = [/\$\s?\d[\d,]*(?:\.\d+)?/g, /\b\d+(?:\.\d+)?\s?%/g]
+  const clean = (s) => {
+    if (typeof s !== 'string') return s
+    let out = s
+    for (const re of res) out = out.replace(re, '')
+    for (const re of figRe) out = out.replace(re, '')
+    return out.replace(/\s{2,}/g, ' ').replace(/\s+([.,!?;:])/g, '$1').replace(/^[\s—–-]+|[\s—–-]+$/g, '').trim()
+  }
+  const cleanBeat = (b) => {
+    b.vo = clean(b.vo); b.pre = clean(b.pre); b.hot = clean(b.hot); b.post = clean(b.post); b.sub = clean(b.sub); b.kicker = clean(b.kicker)
+    if (b.cta) { b.cta.headline = clean(b.cta.headline) }
+    for (const it of (b.items || [])) { if (it) { it.title = clean(it.title); it.desc = clean(it.desc) } }
+    for (const st of (b.stats || [])) { if (st) st.label = clean(st.label) }
+    if (b.chat) { b.chat.q = clean(b.chat.q); b.chat.a = clean(b.chat.a) }
+    for (const st of (b.steps || [])) { if (st) { st.title = clean(st.title); st.desc = clean(st.desc) } }
+  }
+  for (const b of (spec.beats || [])) cleanBeat(b)
+  // the wordmark/brand shown in intro + corner: for regulated, never show a carrier
+  if (spec.wordmark) { spec.wordmark.pre = clean(spec.wordmark.pre); spec.wordmark.post = clean(spec.wordmark.post) }
+  return spec
+}
+
 // ---------- VO ↔ ON-SCREEN CONSISTENCY: enforce (in code, on top of the prompt)
 // that the PRODUCT/BRAND NAME the voice speaks in a beat also appears on screen.
 // If a beat's VO names the product but none of its on-screen text does, inject
@@ -782,7 +830,21 @@ async function generateCommercial({ pub, url, text, brandName, music, forceStyle
   spec = await critiqueCreative(spec, brief, brandName)
   say('Checking script matches visuals...')
   spec = await reviewConsistency(spec, brandName)
-  spec = enforceConsistency(spec, u, brandName)
+  // enforceConsistency INJECTS the product/brand name onto screen for sound-off
+  // parity — but for REGULATED content that would force a carrier/product name
+  // into view (the compliance leak). Skip it when regulated.
+  const regulated = isRegulated(u)
+  if (!regulated) spec = enforceConsistency(spec, u, brandName)
+  // FINAL compliance net (regulated only): strip carrier/product names + dollar
+  // figures from all vo/on-screen text, AFTER every LLM step that could re-add them.
+  if (regulated) {
+    spec = scrubGuarantees(spec); spec = scrubCarrierProduct(spec, u, brandName)
+    // post-scrub assertion: log any carrier/product term that survived (so a leak
+    // is visible in the pipeline logs, not just discovered on screen later).
+    const allText = JSON.stringify(spec.beats || []).toLowerCase() + ' ' + JSON.stringify(spec.wordmark || {}).toLowerCase()
+    const leaked = CARRIER_BLOCKLIST.filter((t) => allText.includes(t))
+    if (leaked.length) say(`⚠ COMPLIANCE: carrier/product term(s) survived scrub: ${leaked.join(', ')}`)
+  }
   let styleId = (forceStyle && STYLE_IDS.includes(forceStyle)) ? forceStyle : spec.styleId
   if (!STYLE_IDS.includes(styleId)) styleId = 'fintech'
   say(`Intent: ${spec.intent || '?'} | style: ${styleId} | ${(spec.beats || []).length} beats`)
