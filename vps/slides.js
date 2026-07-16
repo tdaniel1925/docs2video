@@ -236,12 +236,19 @@ function scrubSlidePlan(w, u) {
   // guarantee language: soften/strip so nothing implies a guaranteed result.
   // "guaranteed minimum floor" → "minimum floor" (keeps the concept, drops the
   // promise word); bare "guaranteed"/"risk-free"/"no risk" removed outright.
-  const guar = [/\bguaranteed\s+(?=minimum|floor|rate|return|value|income)/ig, /\b(100%\s+)?guaranteed\b/ig, /\bguarantees?\b/ig, /\brisk[- ]free\b/ig, /\bno risk\b/ig, /\bget rich\b/ig]
+  // POSITIVE guarantee promises only (negated disclaimers like "non-guaranteed"
+  // are ACCURATE and handled separately → rewritten to "illustrated").
+  const guar = [
+    /\bguaranteed\s+(?=minimum|floor|rate|return|value|income)/ig,   // drop just the promise word, keep the noun
+    /\b(100%\s+)?guaranteed\b/ig, /\bguarantees?\b/ig, /\brisk[- ]free\b/ig, /\bno risk\b/ig, /\bget rich\b/ig,
+  ]
   const clean = (s) => {
     if (typeof s !== 'string') return s
     let out = s
     for (const re of res) out = out.replace(re, '')   // carrier + product NAMES only
-    for (const re of guar) out = out.replace(re, '')  // soften guarantee promises
+    // negated disclaimers → keep meaning as "illustrated"; positive promises → drop
+    out = out.replace(/\bnon[-\s]?guaranteed\b/ig, 'illustrated').replace(/\bnot\s+guaranteed\b/ig, 'illustrated')
+    for (const re of guar) out = out.replace(re, '')  // soften positive guarantee promises
     // (dollar figures + percentages are intentionally PRESERVED — they're the
     // coverage facts the client needs.)
     // Only SAFE cosmetic collapses here (never reconstruct grammar).
