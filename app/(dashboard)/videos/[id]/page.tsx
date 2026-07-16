@@ -294,6 +294,10 @@ export default function VideoDetailPage() {
   const [shareCopied, setShareCopied] = useState(false)
   const [shareEmail, setShareEmail] = useState('')
   const [shareName, setShareName] = useState('')
+  // Inline-editable video title (also the title on the public share page).
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
+  const [savingTitle, setSavingTitle] = useState(false)
   // Editable client-email composer (Share with Client). Body is editable plain
   // text; on copy we render a nice HTML email (with a 'View Your Video Now'
   // button) + a plain-text fallback so it pastes well into Gmail/Outlook.
@@ -968,6 +972,32 @@ export default function VideoDetailPage() {
     setTimeout(() => setCopied(false), 3000)
   }
 
+  // ── Inline title edit (also the title shown on the public share page) ──
+  function startEditTitle() {
+    if (!video) return
+    setTitleDraft(video.title ?? '')
+    setEditingTitle(true)
+  }
+  async function saveTitle() {
+    if (!video) return
+    const next = titleDraft.trim().slice(0, 120)
+    if (!next || next === (video.title ?? '')) { setEditingTitle(false); return }
+    setSavingTitle(true)
+    try {
+      const res = await fetch(`/api/videos/${video.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: next }),
+      })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Could not save title')
+      setVideo({ ...video, title: next } as Video)
+      setEditingTitle(false)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not save title')
+    } finally {
+      setSavingTitle(false)
+    }
+  }
+
   // ── Editable client-email composer (Share with Client) ──
   const watchUrl = () => `${typeof window !== 'undefined' ? window.location.origin : ''}/watch/${params.id}`
 
@@ -1127,9 +1157,35 @@ export default function VideoDetailPage() {
       </Link>
 
       <div style={{ marginBottom: 24 }}>
-        <h1 className="page-title" style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {video.title ?? 'Untitled'}
-        </h1>
+        {editingTitle ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <input
+              autoFocus
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false) }}
+              maxLength={120}
+              placeholder="Video title (shows on the share page)"
+              disabled={savingTitle}
+              style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', padding: '2px 10px', border: '2px solid var(--accent, #C7E8A8)', borderRadius: 10, minWidth: 320, maxWidth: '100%', flex: 1, fontFamily: 'inherit', background: 'var(--card, #fff)', color: 'inherit' }}
+            />
+            <button onClick={saveTitle} disabled={savingTitle} className="btn-primary" style={{ padding: '8px 16px', borderRadius: 10, whiteSpace: 'nowrap' }}>{savingTitle ? 'Saving…' : 'Save'}</button>
+            <button onClick={() => setEditingTitle(false)} disabled={savingTitle} className="btn-secondary" style={{ padding: '8px 14px', borderRadius: 10 }}>Cancel</button>
+          </div>
+        ) : (
+          <h1
+            className="page-title"
+            onClick={startEditTitle}
+            title="Click to edit — this title shows on the share page"
+            style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+          >
+            {video.title ?? 'Untitled'}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.45, flexShrink: 0 }}>
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </h1>
+        )}
         <div style={{ fontSize: 14, color: 'var(--ink-light)', display: 'flex', alignItems: 'center', gap: 8 }}>
           {new Date(video.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           {video.duration && ` \u00b7 ${Math.floor(video.duration / 60)}:${(video.duration % 60).toString().padStart(2, '0')}`}
