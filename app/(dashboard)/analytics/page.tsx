@@ -16,6 +16,14 @@ interface EngagementData {
   clients: { name: string | null; email: string; totalViews: number; avgWatchPct: number | null; lastViewedAt: string | null; converted: boolean }[]
 }
 
+interface VideoDetail {
+  video: { id: string; title: string | null; thumbnail_url: string | null }
+  watchFunnel: EngagementData['watchFunnel']
+  engagementFunnel: EngagementData['engagementFunnel']
+  device: { label: string; count: number }[]
+  referrer: { label: string; count: number }[]
+}
+
 /** A simple horizontal funnel bar row (stage label + count + proportional bar). */
 function FunnelRow({ label, count, max, color }: { label: string; count: number; max: number; color: string }) {
   const pct = max > 0 ? Math.round((count / max) * 100) : 0
@@ -71,7 +79,16 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [benchmarks, setBenchmarks] = useState<BenchmarkData | null>(null)
   const [engagement, setEngagement] = useState<EngagementData | null>(null)
+  const [detail, setDetail] = useState<VideoDetail | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  function openVideoDetail(videoId: string) {
+    setDetail(null); setDetailLoading(true)
+    fetch(`/api/analytics/engagement?videoId=${videoId}`)
+      .then(r => r.ok ? r.json() : null).catch(() => null)
+      .then((d) => { setDetail(d); setDetailLoading(false) })
+  }
 
   useEffect(() => {
     fetch('/api/analytics/engagement').then(r => r.ok ? r.json() : null).catch(() => null).then(setEngagement)
@@ -205,14 +222,66 @@ export default function AnalyticsPage() {
         ) : (
           <div>
             {data.topVideos.map(v => (
-              <div key={v.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border-light)' }}>
-                <span style={{ fontWeight: 500 }}>{v.title || 'Untitled'}</span>
-                <span style={{ color: 'var(--ink-light)', fontWeight: 600 }}>{v.view_count ?? 0} views</span>
-              </div>
+              <button
+                key={v.id}
+                onClick={() => openVideoDetail(v.id)}
+                className="activity-row"
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--border-light)', background: 'none', border: 'none', borderBottomWidth: 1, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}
+                title="View details"
+              >
+                <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title || 'Untitled'}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, color: 'var(--ink-light)', fontWeight: 600 }}>
+                  {v.view_count ?? 0} views
+                  <span aria-hidden style={{ fontSize: 16 }}>&rsaquo;</span>
+                </span>
+              </button>
             ))}
           </div>
         )}
+        <p className="ssub" style={{ marginTop: 10 }}>Click a video for its watch-through, engagement, and audience breakdown.</p>
       </div>
+
+      {/* Per-video detail modal */}
+      {(detail || detailLoading) && (
+        <div onClick={() => { setDetail(null); setDetailLoading(false) }} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(8,12,16,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={(e) => e.stopPropagation()} className="settings-card" style={{ maxWidth: 640, width: '100%', maxHeight: '86vh', overflowY: 'auto' }}>
+            {detailLoading ? <p className="ssub">Loading…</p> : detail ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+                  <h3 style={{ margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{detail.video.title || 'Untitled'}</h3>
+                  <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--ink-light)', lineHeight: 1 }}>&times;</button>
+                </div>
+                <h4 style={{ margin: '0 0 8px', fontSize: 14 }}>Watch-through</h4>
+                <FunnelRow label="Opened" count={detail.watchFunnel.view} max={detail.watchFunnel.view} color="var(--mint)" />
+                <FunnelRow label="Watched 25%" count={detail.watchFunnel.p25} max={detail.watchFunnel.view} color="var(--mint)" />
+                <FunnelRow label="Watched 50%" count={detail.watchFunnel.p50} max={detail.watchFunnel.view} color="var(--mint)" />
+                <FunnelRow label="Watched 75%" count={detail.watchFunnel.p75} max={detail.watchFunnel.view} color="var(--mint)" />
+                <FunnelRow label="Finished" count={detail.watchFunnel.p100} max={detail.watchFunnel.view} color="#16a34a" />
+                <h4 style={{ margin: '18px 0 8px', fontSize: 14 }}>Engagement</h4>
+                <FunnelRow label="Viewed" count={detail.engagementFunnel.view} max={detail.engagementFunnel.view} color="var(--mint)" />
+                <FunnelRow label="Played" count={detail.engagementFunnel.play} max={detail.engagementFunnel.view} color="var(--mint)" />
+                <FunnelRow label="Downloaded" count={detail.engagementFunnel.download} max={detail.engagementFunnel.view} color="var(--mint)" />
+                <FunnelRow label="Booked" count={detail.engagementFunnel.booking} max={detail.engagementFunnel.view} color="#16a34a" />
+                <FunnelRow label="Paid" count={detail.engagementFunnel.payment} max={detail.engagementFunnel.view} color="#16a34a" />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 18 }}>
+                  <div>
+                    <h4 style={{ margin: '0 0 8px', fontSize: 14 }}>Devices</h4>
+                    {detail.device.length ? detail.device.map(d => (
+                      <div key={d.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}><span style={{ color: 'var(--ink-soft)' }}>{d.label}</span><span style={{ fontWeight: 600 }}>{d.count}</span></div>
+                    )) : <p className="ssub">No data yet.</p>}
+                  </div>
+                  <div>
+                    <h4 style={{ margin: '0 0 8px', fontSize: 14 }}>Traffic source</h4>
+                    {detail.referrer.length ? detail.referrer.map(r => (
+                      <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, padding: '3px 0' }}><span style={{ color: 'var(--ink-soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</span><span style={{ fontWeight: 600 }}>{r.count}</span></div>
+                    )) : <p className="ssub">No data yet.</p>}
+                  </div>
+                </div>
+              </>
+            ) : <p className="ssub">Could not load details.</p>}
+          </div>
+        </div>
+      )}
 
       {/* Email stats */}
       <div className="settings-card" style={{ marginBottom: 32 }}>
