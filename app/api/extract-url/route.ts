@@ -380,6 +380,13 @@ export async function POST(request: Request) {
         content_themes: brandAnalysis.contentThemes || [],
         competitor_notes: brandAnalysis.competitorNotes || null,
         unique_selling_points: brandAnalysis.uniqueSellingPoints || [],
+        // Persist scraped contact into brand_guide_data — the SAME store the
+        // render path reads for the closing contact line. Without this the
+        // scraped phone/email/website was captured but never reached the brand,
+        // so a from-URL brand rendered with no contact info.
+        brand_guide_data: (directContactInfo.phone || directContactInfo.email || directContactInfo.website)
+          ? { phone: directContactInfo.phone || undefined, email: directContactInfo.email || undefined, website: directContactInfo.website || undefined }
+          : undefined,
         is_default: false,
       }).select('id').single()
 

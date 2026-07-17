@@ -383,6 +383,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status })
   }
 
+  // BRAND SOURCE OF TRUTH (canonical — do not re-derive elsewhere):
+  //   • In-video branding (name/colors/logo/tagline/tone/presenter) → the `brands`
+  //     row. Name precedence: brand.name > body.companyName. Colors: brand.* >
+  //     hardcoded defaults. Contact (phone/email/website): brand.brand_guide_data
+  //     ONLY — never the scraped/extracted doc, never profiles.
+  //   • `profiles.company_name` is a DIFFERENT concept: the AGENT's identity on
+  //     the public share page ("prepared by"), not in-video branding. Not read here.
   let brand: Brand | null = null
   if (brandId) {
     // Scope to the requesting user (review S3): without this, any user could
