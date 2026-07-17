@@ -59,46 +59,46 @@ export async function authenticateApiKey(request: Request): Promise<ApiCaller | 
   return { userId: data.user_id, keyId: data.id }
 }
 
-// ── Metered API credit pool ────────────────────────────────
+// ── Credit pool (UNIFIED) ──────────────────────────────────
+// API/MCP usage now spends the user's NORMAL subscription credits — the SAME pool
+// the in-app UI uses — so a self-serve key "just works" once the user has credits.
+// (The old separate `api_credit_balances` pool is bypassed; these three functions
+// are the single seam every v1 route already routes through, so pointing them at
+// credits.ts flips the whole API to one pool at once.) Dynamic import keeps the
+// module graph acyclic.
 
 export async function getApiBalance(userId: string): Promise<number> {
-  const admin = createAdminClient()
-  const { data } = await admin.from('api_credit_balances').select('balance').eq('user_id', userId).single()
-  return data?.balance ?? 0
+  const { getBalance } = await import('./credits')
+  const b = await getBalance(userId)
+  return b.total
 }
 
-/** Atomic-ish debit: only succeeds if the balance currently covers `amount`. */
+/** Debit the shared subscription pool; only succeeds if it covers `amount`. */
 export async function chargeApiCredits(userId: string, amount: number): Promise<boolean> {
-  const admin = createAdminClient()
-  const { data: row } = await admin.from('api_credit_balances').select('balance').eq('user_id', userId).single()
-  const current = row?.balance ?? 0
-  if (current < amount) return false
-  const { data: updated } = await admin
-    .from('api_credit_balances')
-    .update({ balance: current - amount, updated_at: new Date().toISOString() })
-    .eq('user_id', userId)
-    .eq('balance', current) // guard against concurrent debit
-    .select('user_id')
-  if (!updated || updated.length === 0) {
-    // balance moved under us — retry once
-    return chargeApiCredits(userId, amount)
-  }
-  return true
+  const { deductCredits } = await import('./credits')
+  return deductCredits(userId, amount, 'api', undefined, 'API/MCP usage')
 }
 
-/** Refund a previously charged amount (e.g. generation failed to start).
- *  Atomic via increment_api_credits RPC (audit L3 — the old read-then-upsert
- *  could clobber a concurrent charge and over-credit). */
+/** Refund a previously charged amount (e.g. generation failed to start) back to
+ *  the shared pool. Unique idempotency key per call so repeat refunds aren't
+ *  swallowed (each API charge is independently refundable). */
 export async function refundApiCredits(userId: string, amount: number): Promise<void> {
   if (!amount || amount <= 0) return
-  const admin = createAdminClient()
-  const { error } = await admin.rpc('increment_api_credits', { p_user_id: userId, p_amount: amount })
-  if (error) console.error(`[api-auth] refundApiCredits RPC error for ${userId}:`, error.message)
+  const { addTopupCredits } = await import('./credits')
+  const { randomUUID } = await import('crypto')
+  try {
+    await addTopupCredits(userId, amount, 'api-refund', { action: 'api_refund', idempotencyKey: `api-refund:${userId}:${randomUUID()}` })
+  } catch (e) {
+    console.error(`[api-auth] refundApiCredits error for ${userId}:`, e instanceof Error ? e.message : e)
+  }
 }
 
-/** Admin top-up. */
+/** Admin top-up — now adds to the shared subscription pool. */
 export async function addApiCredits(userId: string, amount: number): Promise<void> {
-  await refundApiCredits(userId, amount) // same upsert-add logic
+  if (!amount || amount <= 0) return
+  const { addTopupCredits } = await import('./credits')
+  const { randomUUID } = await import('crypto')
+  await addTopupCredits(userId, amount, 'api-grant', { action: 'admin_grant', idempotencyKey: `api-grant:${userId}:${randomUUID()}` })
 }
 
 // ── DB-backed rate limit (in-memory limiter resets per instance) ──

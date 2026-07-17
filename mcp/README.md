@@ -1,12 +1,13 @@
-# docs2video MCP server (agency single-key)
+# docs2video MCP server
 
 Lets an AI assistant (Claude Desktop, Claude Code, etc.) drive docs2video — make
 explainer videos, slide decks, and brand-matched commercials, and check on them —
 in natural language: *"make a video that explains this PDF to new clients"* or
 *"make a commercial for acme.com."*
 
-Everything is generated on, and billed to, **one agency account** (a single
-docs2video API key). A per-customer version (each user's own key) comes later.
+Use **your own** docs2video API key (generate one in **Settings → API & MCP**).
+Everything runs on your account and spends your normal subscription credits — the
+same pool the web app uses. No separate top-up needed.
 
 ## Tools
 
@@ -41,8 +42,9 @@ cinematic, editorial, explainer`. Omit to use the default.
 
 ## Setup
 
-1. **Get an agency API key** — create one in docs2video (Settings → API keys).
-   Fund its API credit pool; each commercial costs 600 credits.
+1. **Get your API key** — generate one in docs2video under **Settings → API & MCP**.
+   It spends your normal subscription credits (a commercial is 600, an explainer
+   video 500–1,500 by length) — no separate funding step.
 
 2. **Install deps** (once):
    ```bash
