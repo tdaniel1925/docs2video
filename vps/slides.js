@@ -86,6 +86,13 @@ function speakableNumbers(text) {
   t = t.replace(/\b(\d+)\.0+\b/g, '$1')
   return t
 }
+// NOTE (P4.1): this is DELIBERATELY different from app/_lib/tts.ts `speakable`.
+// The slides engine needs FULL spell-out ("four hundred forty-eight thousand")
+// + a pronunciation dictionary + acronym spacing so ElevenLabs' word-TIMESTAMPS
+// line up for per-bullet cue syncing — the Vercel `speakable` only does
+// "$X dollars / N percent" (no word-timing dependency). Not a duplicate to merge;
+// the two serve different needs. Vercel's money/percent logic is unified in
+// tts.ts (formatForTTS delegates to it).
 function speakable(text) {
   let t = text
   for (const k of Object.keys(PRON).sort((a, b) => b.length - a.length)) t = t.replace(new RegExp(`\\b${k.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'g'), PRON[k])
@@ -147,7 +154,21 @@ RULES: Cover EVERY distinct audience and offering. Capture pricing ranges and fr
   return extractJson(await claude(sys, `SOURCE TYPE: ${kindHint}\n\nFULL SOURCE TEXT:\n${sourceText.slice(0, 120000)}`, 6000))
 }
 
-async function writerFromUnderstanding(u, shotPaths, regulated) {
+async function writerFromUnderstanding(u, shotPaths, regulated, brief) {
+  // BRIEF PARITY: if the user approved a brief on the Review step, it is the
+  // authoritative steering — mirror the block generateScript uses so the slides
+  // deck matches the preview (angle / must-cover / avoid / tone).
+  let briefBlock = ''
+  if (brief && (brief.angle || (brief.keyPoints && brief.keyPoints.length) || (brief.emphasis && brief.emphasis.length) || (brief.avoid && brief.avoid.length))) {
+    const parts = ['\n\nAPPROVED BRIEF — the user CONFIRMED what this deck must cover. Treat as HIGHEST priority; it overrides default angle choices:']
+    if (brief.angle) parts.push(`- ANGLE / takeaway: ${brief.angle}`)
+    if (brief.keyPoints && brief.keyPoints.length) parts.push(`- MUST COVER: ${brief.keyPoints.join(' | ')}`)
+    if (brief.figures && brief.figures.length) parts.push(`- FEATURE these figures: ${brief.figures.map((f) => `${f.label} ${f.value}`).join(' | ')}`)
+    if (brief.emphasis && brief.emphasis.length) parts.push(`- EMPHASIZE: ${brief.emphasis.join(' | ')}`)
+    if (brief.avoid && brief.avoid.length) parts.push(`- AVOID: ${brief.avoid.join(' | ')}`)
+    if (brief.tone) parts.push(`- TONE: ${brief.tone}`)
+    briefBlock = parts.join('\n')
+  }
   const sys = `You are an intelligent creative DIRECTOR + SCRIPTWRITER building an ANIMATED EXPLAINER DECK (~90-120s, works like a talking PowerPoint). You get a COMPLETE researched UNDERSTANDING. Tell the WHOLE story faithfully.
 
 Each content scene is a SLIDE: a TOPIC HEADING plus SUPPORTING CONTENT (2-4 bullets, or data/comparison cards, or a chart, or a screenshot) that back up the voice. Sound-off, a viewer still gets the point. Bullets/cards reveal one-by-one AS the narrator speaks them.
@@ -167,7 +188,7 @@ RULES:
 ${shotPaths.length ? `- SCREENSHOTS (REQUIRED): use "screenshot" blocks on 2-3 slides. Page paths (use EXACTLY): ${shotPaths.join(', ')}. 1-2 pins each (x,y % 0-100) with label+cue.` : `- NO screenshots available (document/text source) — do NOT emit screenshot blocks.`}
 - CUES: for every bullet/card/pin, "cue" = a short verbatim substring of THAT scene's narration. Bullets' cues in speaking order.
 - Identity-neutral imagery (NO people). Compliance: never promise returns; illustrations are illustrated/hypothetical, not guaranteed.
-- Faithful + complete for every audience.${regulated ? SLIDE_COMPLIANCE_CLAUSE : ''}`
+- Faithful + complete for every audience.${briefBlock}${regulated ? SLIDE_COMPLIANCE_CLAUSE : ''}`
   return extractJson(await claude(sys, 'UNDERSTANDING:\n' + JSON.stringify(u, null, 2), 12000))
 }
 
@@ -308,7 +329,7 @@ function complianceLeaks(w) {
  * render + upload. `deps` injects the VPS's existing helpers (gemini image, tts
  * limiter) so we don't duplicate them.
  */
-async function generateSlidePlan({ pub, source, preparer, recipient, music, glass, footer, forcedAccent, shots, presenter, photoPlacement, photos, deps, log }) {
+async function generateSlidePlan({ pub, source, preparer, recipient, music, glass, footer, forcedAccent, shots, presenter, photoPlacement, photos, brief, deps, log }) {
   const say = log || (() => {})
   const kind = source.kind // 'website' | 'pdf' | 'text'
   say(`comprehending ${kind} (${source.text.length} chars)...`)
@@ -323,7 +344,8 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   if (regulated) say('⚖ regulated content detected — compliance mode ON')
 
   say('writing slide deck...')
-  let w = await writerFromUnderstanding(u, shotPaths, regulated)
+  if (brief && (brief.angle || (brief.keyPoints && brief.keyPoints.length))) say('honoring approved brief')
+  let w = await writerFromUnderstanding(u, shotPaths, regulated, brief)
 
   // CODE-LEVEL SCRUB (belt-and-suspenders): strip carrier/product names + specific
   // dollar figures + rate % from EVERY on-screen + spoken string, BEFORE VO is

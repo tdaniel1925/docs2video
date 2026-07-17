@@ -14,7 +14,8 @@ import { buildEditorialPayload } from '../../_lib/editorial-render'
 import { buildPresenter, resolvePhotoPlacement, isPersonProfile } from '../../_lib/presenter'
 import { cleanRecipientName } from '../../_lib/text-format'
 import { resolveClientName, resolveAgentName, buildOpeningNarration } from '../../_lib/personalize'
-import { isRegulated } from '../../_lib/compliance'
+import { isRegulated, scrubComplianceText, productTokens } from '../../_lib/compliance'
+import { speakable } from '../../_lib/tts'
 import { waitUntil } from '@vercel/functions'
 import { logError } from '../../_lib/error-logger'
 import { validateScript } from '../../_lib/script-validator'
@@ -42,7 +43,11 @@ const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().r
 // finished in S3). 800 covers asset gen (now parallel) + the 12-min hard cap.
 export const maxDuration = 800
 
-// Format narration for TTS — convert numbers, URLs, emails to spoken words
+// Format narration for TTS. Money/percent/symbol normalization is owned by the
+// canonical `speakable()` in app/_lib/tts.ts (it ALSO runs inside synthesizeSpeech
+// right before synthesis, so it's the single source for that). Here we add only
+// the CONTACT-specific spelling (phones/emails/URLs) that speakable doesn't do,
+// then delegate the rest to speakable — one money/percent implementation.
 function formatForTTS(text: string): string {
   const dw: Record<string, string> = { '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine' }
 
@@ -59,7 +64,7 @@ function formatForTTS(text: string): string {
       .toLowerCase()
   }
 
-  return text
+  const withContact = text
     // Phone numbers with separators — use unified PHONE_REGEX
     .replace(PHONE_REGEX, (match) => phoneToSpoken(match))
     // Bare 10-digit phone numbers (no separators): 4807254677 → digit by digit
@@ -67,13 +72,8 @@ function formatForTTS(text: string): string {
       // Only convert if it looks like a phone number (not a dollar amount or year)
       return `${match.slice(0, 3).split('').map(d => dw[d]).join(' ')}, ${match.slice(3, 6).split('').map(d => dw[d]).join(' ')}, ${match.slice(6).split('').map(d => dw[d]).join(' ')}`
     })
-    // Percentages: 7.5% → seven point five percent
-    .replace(/(\d+)\.(\d+)%/g, (_, a: string, b: string) => {
-      return `${a.split('').map(d => dw[d] || d).join(' ')} point ${b.split('').map(d => dw[d] || d).join(' ')} percent`
-    })
     // Email addresses FIRST (before URL, since emails contain dots)
     // info@example.com → "info at example dot com"
-    // tdaniel@tonnerow.com → "t daniel at tonnerow dot com"
     .replace(/([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})/g, (_, user: string, domain: string) => {
       return `${spellUsername(user)} at ${domain.replace(/\./g, ' dot ')}`
     })
@@ -81,6 +81,8 @@ function formatForTTS(text: string): string {
     .replace(/(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})(?:\/\S*)?/g, (_, domain: string) => {
       return domain.replace(/\./g, ' dot ')
     })
+  // Delegate money/percent/& to the canonical implementation.
+  return speakable(withContact)
 }
 
 // Track in-flight requests to prevent duplicates
@@ -613,6 +615,31 @@ export async function POST(request: Request) {
       }
     }
 
+    // COMPLIANCE — GUARANTEED final scrub (P4.4). Both branches converge here, so
+    // this runs on BOTH pre-generated AND freshly script-generated scenes (the
+    // latter previously relied on the prompt only → a carrier/product name could
+    // slip through). Regulated content only; names scrubbed, figures kept — same
+    // rule as the VPS slides path (app/_lib/compliance.ts single source of truth).
+    if (scenes && scenes.length && isRegulated(policyData, (policyData as any)?.classification?.documentType, industry)) {
+      const tokens = productTokens(
+        (policyData as any)?.title, (policyData as any)?.carrier, (policyData as any)?.policyType,
+        ...(Array.isArray((policyData as any)?.bulletPoints) ? (policyData as any).bulletPoints : []),
+      )
+      const clean = (s: unknown) => typeof s === 'string' ? scrubComplianceText(s, tokens) : s
+      scenes = scenes.map((sc: any) => ({
+        ...sc,
+        title: clean(sc.title),
+        narration: clean(sc.narration),
+        slidePrompt: clean(sc.slidePrompt),
+        slideData: sc.slideData ? {
+          ...sc.slideData,
+          headline: clean(sc.slideData.headline),
+          bullets: Array.isArray(sc.slideData.bullets) ? sc.slideData.bullets.map(clean) : sc.slideData.bullets,
+          stats: Array.isArray(sc.slideData.stats) ? sc.slideData.stats.map((st: any) => ({ ...st, label: clean(st.label) })) : sc.slideData.stats,
+        } : sc.slideData,
+      }))
+    }
+
     // Save script revision
     try {
       const { data: latestRevision } = await admin
@@ -1001,10 +1028,18 @@ export async function POST(request: Request) {
       // start, we FALL THROUGH to the existing pipeline (no video is ever lost).
       const isSlides = videoStyle === 'slides'
       if (isSlides) {
+        // BRIEF PARITY: the VPS slides engine re-comprehends the doc, so without
+        // this it never sees the brief the user APPROVED on the Review step —
+        // the rendered slides could diverge from the preview. Pass the approved
+        // brief so slides.js steers its writer by it, exactly like generateScript
+        // (V3/editorial) already does.
+        const { data: sbDraft } = await admin.from('videos').select('draft_data').eq('id', videoId).single()
+        const slidesBrief = (sbDraft?.draft_data as any)?.brief || null
         // Declared before the try so the retry-in-catch can reuse it.
         const slidesPayload = {
           videoId, userId: user.id, voiceId,
           text: JSON.stringify(policyData),   // the extracted document data (structured); the VPS comprehends it
+          brief: slidesBrief || undefined,    // approved brief → writer steering (parity with preview)
           preparer: effectiveBrandName || (body as any).companyName || 'docs2video',
           recipient: recipientName || undefined,
           music: undefined, musicUrl: musicUrl || undefined,

@@ -1717,7 +1717,7 @@ async function readDocText(fileBase64, fileName) {
 }
 
 app.post('/generate-slides', authCheck, async (req, res) => {
-  const { videoId, userId, fileBase64, fileName, text, url, preparer, recipient, music, glass, footer, accent, logoUrl, musicUrl, presenter, photoPlacement, photos } = req.body || {}
+  const { videoId, userId, fileBase64, fileName, text, url, preparer, recipient, music, glass, footer, accent, logoUrl, musicUrl, presenter, photoPlacement, photos, brief } = req.body || {}
   if (!videoId) return res.status(400).json({ error: 'Missing videoId' })
   if (!fileBase64 && !text && !url) return res.status(400).json({ error: 'Provide fileBase64, text, or url' })
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured on VPS' })
@@ -1780,7 +1780,7 @@ app.post('/generate-slides', authCheck, async (req, res) => {
       }
       const { plan, assetNames, sceneMeta } = await generateSlidePlan({
         pub, source, preparer: preparer || 'docs2video', recipient, music, glass, footer, forcedAccent: accent,
-        shots: [], presenter: presenterForPlan, photoPlacement, photos: !!photos, deps, log: (m) => setProgress(40, m),
+        shots: [], presenter: presenterForPlan, photoPlacement, photos: !!photos, brief, deps, log: (m) => setProgress(40, m),
       })
       staged.push(...assetNames.map((n) => join(pub, n)))
       await writeFile(PROPS, JSON.stringify({ plan })); staged.push(PROPS)

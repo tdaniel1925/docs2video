@@ -37,7 +37,11 @@ export function speakable(text: string): string {
   })
   t = t.replace(/(\d(?:[\d,.]*\d)?)\s?%/g, '$1 percent')
   t = t.replace(/\$/g, ' dollars ')
-  t = t.replace(/\s&\s/g, ' and ')
+  // Ensure a space after an injected "dollars"/"percent" when the source ran the
+  // next token right up against the number ("$X at" → "...dollars at", not
+  // "dollarsat"; "$X&" → "dollars &"). Do this BEFORE the & → "and" rewrite.
+  t = t.replace(/\b(dollars|percent)(?=[^\s.,!?])/gi, '$1 ')
+  t = t.replace(/\s?&\s?/g, ' and ')
   t = t.replace(/\s+/g, ' ').trim()
   // Trailing punctuation so the engine doesn't clip the last word.
   if (t && !/[.!?]$/.test(t)) t += '.'
