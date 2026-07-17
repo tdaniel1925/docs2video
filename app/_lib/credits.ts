@@ -25,6 +25,9 @@ export const CREDIT_COSTS = {
   'template-refine': 100,
   // Deck builder (flagship product #2)
   deck: 600,
+  // Produced commercial (URL/text → brand-matched commercial). Single source of
+  // truth — the /generate-commercial UI route + the v1 API both read this.
+  commercial: 600,
   // New granular video actions
   videoQuick: 500,
   videoStandard: 1000,

@@ -221,6 +221,9 @@ export interface Video {
   agent_note?: string | null
   /** The client this video was prepared for (welcome banner). */
   recipient_name?: string | null
+  /** Set when the video rendered in a DIFFERENT style than chosen (fallback) —
+   *  shown on the detail page so the user knows why the look differs. */
+  render_note?: string | null
   created_at: string
   updated_at: string
   brand?: Brand

@@ -227,7 +227,13 @@ export async function POST(request: Request) {
   // Podcast (two-voice) mode sunset 2026-06-11 — all videos render solo
   const effectiveNarrationStyle = 'solo' as const
 
-  // Pipeline v2 (Inngest + Creatomate) — opt-in via env flag
+  // Pipeline v2 (Inngest + Creatomate) — PARKED, NOT ACTIVE in prod.
+  // `USE_PIPELINE_V2` is unset in production, so this branch never runs; the VPS
+  // is the live renderer. It's kept (not deleted) because the fix-stuck-videos
+  // cron still reconciles any legacy Creatomate render via `creatomate_render_id`,
+  // and removing it safely means also retiring that cron path + the inngest/
+  // creatomate webhook + column. That's a deliberate later cleanup, not a quick
+  // win — do NOT assume this code is live.
   const useV2 = process.env.USE_PIPELINE_V2 === 'true'
   // V3 (Remotion: cinematic / infographic) — toggled from admin back office,
   // DB-backed so it flips without a redeploy. Read once per request.
@@ -988,24 +994,27 @@ export async function POST(request: Request) {
       // start, we FALL THROUGH to the existing pipeline (no video is ever lost).
       const isSlides = videoStyle === 'slides'
       if (isSlides) {
+        // Declared before the try so the retry-in-catch can reuse it.
+        const slidesPayload = {
+          videoId, userId: user.id, voiceId,
+          text: JSON.stringify(policyData),   // the extracted document data (structured); the VPS comprehends it
+          preparer: effectiveBrandName || (body as any).companyName || 'docs2video',
+          recipient: recipientName || undefined,
+          music: undefined, musicUrl: musicUrl || undefined,
+          glass: 'vivid',
+          footer: wantContactClosing && contactLine ? contactLine : undefined,
+          logoUrl: (brand?.logo_light_url || brand?.logo_url) || undefined,   // white logo preferred for dark slide bg
+          presenter: presenter ? { name: presenter.name, role: presenter.role, photoUrl: presenter.photo } : undefined,
+          photoPlacement: photoPlacement || undefined,
+          allowSourceDownload, agentNote: (agentNote || '').trim() || undefined,
+          sourcePdfPath: sourcePdfPath || undefined, sourcePdfName: sourcePdfName || undefined,
+          // PHOTOS opt-in: default OFF (animated bg = instant + $0 + ~2-3 min
+          // faster). On → photographic Gemini backdrops. From the wizard flag.
+          photos: !!(body as any).slidePhotos,
+        }
         try {
           console.log(`[video ${videoId}] slide-deck style — handing to VPS /generate-slides`)
           await admin.from('videos').update({ progress_detail: 'Building your slide deck...', progress_pct: 16 }).eq('id', videoId)
-          const slidesPayload = {
-            videoId, userId: user.id, voiceId,
-            text: JSON.stringify(policyData),   // the extracted document data (structured); the VPS comprehends it
-            preparer: effectiveBrandName || (body as any).companyName || 'docs2video',
-            recipient: recipientName || undefined,
-            music: undefined, musicUrl: musicUrl || undefined,
-            glass: 'vivid',
-            footer: wantContactClosing && contactLine ? contactLine : undefined,
-            logoUrl: (brand?.logo_light_url || brand?.logo_url) || undefined,   // white logo preferred for dark slide bg
-            presenter: presenter ? { name: presenter.name, role: presenter.role, photoUrl: presenter.photo } : undefined,
-            photoPlacement: photoPlacement || undefined,
-            // PHOTOS opt-in: default OFF (animated bg = instant + $0 + ~2-3 min
-            // faster). On → photographic Gemini backdrops. From the wizard flag.
-            photos: !!(body as any).slidePhotos,
-          }
           const slRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-slides`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
@@ -1027,10 +1036,34 @@ export async function POST(request: Request) {
             inFlightVideos.delete(videoId)
             return NextResponse.json({ success: true, pipeline: 'slides' })
           }
-          // Real failure to START → fall through to the existing V3 pipeline so
-          // the user still gets a video (the chosen safety net).
-          console.error(`[video ${videoId}] slides failed to start (${(slErr as Error).message}) — falling back to V3 pipeline`)
-          await admin.from('videos').update({ progress_detail: 'Rendering (fallback style)...', progress_pct: 16 }).eq('id', videoId)
+          // RETRY the chosen engine ONCE before giving up — a transient VPS blip
+          // shouldn't silently change the user's chosen look.
+          try {
+            await new Promise((r) => setTimeout(r, 1500))
+            const retry = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-slides`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
+              body: JSON.stringify(slidesPayload),
+              signal: AbortSignal.timeout(25000),
+            })
+            const rTxt = await retry.text(); let rData: { success?: boolean; error?: string } | null = null
+            try { rData = JSON.parse(rTxt) } catch {}
+            if (retry.ok && rData?.success) {
+              console.log(`[video ${videoId}] slides accepted on retry.`)
+              inFlightVideos.delete(videoId)
+              return NextResponse.json({ success: true, pipeline: 'slides' })
+            }
+          } catch (retryErr) {
+            const ab = retryErr instanceof Error && (retryErr.name === 'TimeoutError' || retryErr.name === 'AbortError')
+            if (ab) { inFlightVideos.delete(videoId); return NextResponse.json({ success: true, pipeline: 'slides' }) }
+          }
+          // Still failing → fall through so the user STILL gets a video, but RECORD
+          // the fallback so the detail page can tell them the look changed + why.
+          console.error(`[video ${videoId}] slides failed to start (${(slErr as Error).message}) — falling back to an alternate style`)
+          await admin.from('videos').update({
+            progress_detail: 'Rendering (alternate style)...', progress_pct: 16,
+            render_note: `Rendered in an alternate style — the “${videoStyle}” look was temporarily unavailable. Regenerate to try “${videoStyle}” again.`,
+          }).eq('id', videoId)
         }
       }
 

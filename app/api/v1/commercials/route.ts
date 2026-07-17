@@ -9,6 +9,7 @@ import {
   logApiUsage,
 } from '../../../_lib/api-auth'
 import { videoServiceUrl } from '../../../_lib/video-service'
+import { CREDIT_COSTS } from '../../../_lib/credits'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -16,8 +17,8 @@ export const maxDuration = 60
 const VIDEO_ASSEMBLY_URL = videoServiceUrl()
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
-// Flat price for a produced commercial (same as the UI route COMMERCIAL_COST).
-const COMMERCIAL_COST = 600
+// Flat price for a produced commercial — single source of truth in credits.ts.
+const COMMERCIAL_COST = CREDIT_COSTS.commercial
 
 const STYLE_IDS = ['fintech', 'luxury', 'tech', 'upbeat', 'emerald', 'redblueprint', 'data', 'playful', 'casino', 'clean', 'glitchcore', 'cinematic', 'noir', 'retro', 'vibrant', 'editorial', 'brutalist', 'aurora', 'sport', 'corporate', 'neon', 'organic']
 

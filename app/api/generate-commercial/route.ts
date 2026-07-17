@@ -5,7 +5,7 @@ import { logError } from '../../_lib/error-logger'
 import { videoServiceUrl } from '../../_lib/video-service'
 import { isAdmin } from '../../_lib/admin'
 import { isPaidTier } from '../../_lib/subscription'
-import { checkCredits, deductCredits, refundVideoCredits } from '../../_lib/credits'
+import { checkCredits, deductCredits, refundVideoCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -15,9 +15,8 @@ const VIDEO_ASSEMBLY_URL = videoServiceUrl()
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
 // Fixed price for a produced commercial (comprehend + Opus direction + N VO clips
-// + hero images + render). Doubled-rate era (2026-06-21). One flat cost since the
-// output shape is fixed (~30-40s, 5-7 beats) unlike the variable-length doc video.
-const COMMERCIAL_COST = 600
+// + hero images + render). Single source of truth: CREDIT_COSTS.commercial.
+const COMMERCIAL_COST = CREDIT_COSTS.commercial
 
 /**
  * Commercial-video trigger (Vercel = thin orchestrator; the VPS runs the whole
