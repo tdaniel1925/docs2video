@@ -30,10 +30,17 @@ const CONTENT_METHODS: { id: InputMethod; label: string; desc: string }[] = [
 export default function Step1Content() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const clientId = searchParams.get('clientId') || undefined
+  const clientIdParam = searchParams.get('clientId') || undefined
   // Step 1 (client page) passes ?for=general when the user chose "Skip — make a
   // general video", so Step 2 doesn't re-ask "Who is this for?".
-  const forGeneral = searchParams.get('for') === 'general'
+  const forGeneralParam = searchParams.get('for') === 'general'
+  // When the user hits BACK from a later step we arrive as /create?id=X with none
+  // of the client params — restore them from the draft so we don't re-ask "Who is
+  // this for?" and lose their earlier choice.
+  const [restoredClientId, setRestoredClientId] = useState<string | undefined>(undefined)
+  const [restoredGeneral, setRestoredGeneral] = useState(false)
+  const clientId = clientIdParam || restoredClientId
+  const forGeneral = forGeneralParam || restoredGeneral
   // If we arrived back here from a later step, a draft already exists — reuse it
   // instead of creating a second orphaned row.
   const existingDraftId = searchParams.get('id') || undefined
@@ -61,6 +68,13 @@ export default function Step1Content() {
           if (d.outputType) setOutputType(d.outputType)
           if (d.purpose) setPurpose(prev => prev || d.purpose)
           if (d.recipientName) setRecipientName(prev => prev || d.recipientName)
+          // Restore the "who is this for?" choice so Back doesn't re-ask it:
+          // a saved clientId → client; else the draft has been through Step 1
+          // already, so treat as general (no re-prompt).
+          if (!clientIdParam && !forGeneralParam) {
+            if (d.clientId) setRestoredClientId(d.clientId as string)
+            else setRestoredGeneral(true)
+          }
         }
         setDraftRestored(true)
       })

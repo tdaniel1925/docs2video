@@ -373,7 +373,7 @@ export default function BrandPage() {
       }}>
         <p style={{ fontSize: 16, color: 'var(--ink-soft)' }}>No video ID provided.</p>
         <button
-          onClick={() => router.push('/create')}
+          onClick={() => router.push(videoId ? `/create?id=${videoId}` : '/create')}
           style={{
             marginTop: 16, padding: '10px 20px', borderRadius: 8,
             border: '1px solid var(--border)', background: 'white',
@@ -399,7 +399,7 @@ export default function BrandPage() {
       {/* Back link */}
       <div style={{ width: '100%', marginTop: 8, marginBottom: 8 }}>
         <button
-          onClick={() => router.push('/create')}
+          onClick={() => router.push(videoId ? `/create?id=${videoId}` : '/create')}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
             fontSize: 14, color: 'var(--ink-light)', fontFamily: 'inherit', padding: 0,
@@ -920,7 +920,7 @@ export default function BrandPage() {
         animation: 'fadeInUp 0.4s ease 0.25s both',
       }}>
         <button
-          onClick={() => router.push('/create')}
+          onClick={() => router.push(videoId ? `/create?id=${videoId}` : '/create')}
           style={{
             padding: '16px 24px', borderRadius: 10,
             border: '1.5px solid var(--border-light)', background: 'white',
