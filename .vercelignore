@@ -1,0 +1,9 @@
+# Keep CLI uploads lean — these are never needed for the Next.js build.
+mcp/node_modules
+remotion/node_modules
+remotion/out
+remotion/public/dir-*.mp3
+remotion/public/dir-*.png
+scripts/mockups
+**/*.mp4
+.git
