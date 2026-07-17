@@ -54,6 +54,44 @@ async function callInternal(path: string, userId: string, body: unknown): Promis
 }
 
 /**
+ * GET /api/v1/videos
+ * List the caller's recent videos (read-only, no charge). Owner-scoped by API key.
+ * Query: ?limit=20 (max 50), ?status=completed|processing|failed|queued.
+ * Returns { videos: [{ id, title, status, video_url, thumbnail_url, created_at }] }.
+ */
+export async function GET(request: Request) {
+  const caller = await authenticateApiKey(request)
+  if (!caller) return NextResponse.json({ error: 'Invalid or missing API key' }, { status: 401 })
+
+  const url = new URL(request.url)
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '20', 10) || 20, 1), 50)
+  const statusFilter = url.searchParams.get('status') || undefined
+
+  const admin = createAdminClient()
+  let q = admin
+    .from('videos')
+    .select('id, title, status, video_url, thumbnail_url, created_at')
+    .eq('user_id', caller.userId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (statusFilter) q = q.eq('status', statusFilter)
+  const { data, error } = await q
+  if (error) return NextResponse.json({ error: 'Could not list videos' }, { status: 500 })
+
+  const statusMap: Record<string, string> = { draft: 'queued', queued: 'queued', processing: 'processing', scripting: 'processing', generating_slides: 'processing', generating_audio: 'processing', assembling: 'processing', rendering: 'processing', completed: 'completed', failed: 'failed' }
+  return NextResponse.json({
+    videos: (data ?? []).map((v) => ({
+      id: v.id,
+      title: v.title ?? null,
+      status: statusMap[v.status] || v.status,
+      video_url: v.video_url ?? null,
+      thumbnail_url: v.thumbnail_url ?? null,
+      created_at: v.created_at,
+    })),
+  })
+}
+
+/**
  * POST /api/v1/videos
  * Public, async video/deck/pdf generation from text, URL, file, or an AI idea.
  * Auth: Authorization: Bearer <api_key>. Charges the metered API credit pool.
