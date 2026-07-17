@@ -70,7 +70,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: 'create_video',
       description:
-        'Generate a narrated EXPLAINER video (or a slide deck / PDF) from your content. The pipeline reads the source, writes a script + voiceover, builds animated slides, and renders an MP4. Source can be pasted text, a website URL, an uploaded file (base64), or just an idea/topic for AI to build from. Bills the agency account.',
+        'Generate a narrated EXPLAINER video (or a slide deck / PDF) from content. Returns a client SHARE-PAGE link to send to the recipient, plus the MP4.\n\n' +
+        'BEFORE calling this, gather the user\'s choices like the web wizard does — do not silently use defaults for things they\'d care about:\n' +
+        '  1. WHO it\'s for: ask for the client/recipient name (drives the personalized cover + "Prepared for [name]" on the share page). Skip only if they say it\'s general.\n' +
+        '  2. The BRIEF: call preview_brief first, show the angle + key points, and let them edit it. Pass the approved brief here so the video covers exactly what they confirmed.\n' +
+        '  3. STYLE + VOICE: offer the options from list_options (styles: slides/aurora/cinematic/editorial/explainer; voices). Default style "slides", voice "nova" if they don\'t care.\n' +
+        '  4. BRAND: if they have more than one brand (list_brands), ask which; otherwise the default brand is used.\n' +
+        'If the user just wants it done fast, sensible defaults are fine — but offer the choices.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -81,13 +87,43 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           filename: { type: 'string', description: 'For source_type "file": the original filename (with extension).' },
           topic: { type: 'string', description: 'For source_type "idea": the topic to build a video about.' },
           purpose: { type: 'string', description: 'REQUIRED. What this video is for / the goal (e.g. "explain our onboarding to new clients").' },
+          recipient_name: { type: 'string', description: 'The client this is prepared FOR — appears on the cover + share page. Ask the user for this.' },
+          brief: { type: 'object', description: 'The APPROVED brief from preview_brief (angle, keyPoints, figures, avoid, tone). Steers the video to match what the user confirmed.' },
+          style: { type: 'string', enum: ['slides', 'aurora', 'cinematic', 'editorial', 'explainer'], description: 'Visual look. Default "slides". See list_options.' },
+          voice_id: { type: 'string', description: 'Narration voice id (e.g. "nova" = Sarah). See list_options.' },
+          brand_id: { type: 'string', description: 'Which brand/presenter profile to use. See list_brands. Omit to use the default brand.' },
           output_type: { type: 'string', enum: ['video', 'pptx', 'pdf'], description: 'video (default) = narrated MP4; pptx / pdf = downloadable slides.', default: 'video' },
           detail_level: { type: 'string', enum: ['quick', 'standard', 'detailed'], description: 'Length: quick (~1min) / standard (~2-3min, default) / detailed (~5-7min).', default: 'standard' },
-          recipient_name: { type: 'string', description: 'Optional. The client this is prepared FOR — appears on the cover + share page.' },
-          wait: { type: 'boolean', description: 'If true (default), wait for the render and return the video URL. If false, return a job_id to poll with check_video.', default: true },
+          wait: { type: 'boolean', description: 'If true (default), wait for the render and return the share link. If false, return a job_id to poll with check_video.', default: true },
         },
         required: ['source_type', 'purpose'],
       },
+    },
+    {
+      name: 'preview_brief',
+      description:
+        'Preview what a video WILL cover before making it — the AI\'s understanding of the source: a summary, the angle/takeaway, the key points, and the figures it will feature. Show this to the user, let them adjust it (change the angle, add must-cover points, note things to avoid), then pass the approved brief to create_video so the finished video matches. No charge.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          source_type: { type: 'string', enum: ['text', 'url', 'idea'], description: 'How the content is provided.' },
+          text: { type: 'string', description: 'For "text".' },
+          url: { type: 'string', description: 'For "url".' },
+          topic: { type: 'string', description: 'For "idea".' },
+          purpose: { type: 'string', description: 'What the video is for (steers the brief).' },
+        },
+        required: ['source_type'],
+      },
+    },
+    {
+      name: 'list_brands',
+      description: 'List the account\'s brand/presenter profiles (id, name, whether it\'s a person or company, which is default). Use to ask the user which brand to use.',
+      inputSchema: { type: 'object', properties: {}, required: [] },
+    },
+    {
+      name: 'list_options',
+      description: 'List the available voices, video styles, output types, and detail levels — so you can present valid choices to the user before creating a video.',
+      inputSchema: { type: 'object', properties: {}, required: [] },
     },
     {
       name: 'check_video',
@@ -146,6 +182,38 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 server.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: args = {} } = req.params
   try {
+    if (name === 'preview_brief') {
+      if (!args.source_type) return toolErr('Provide a `source_type` (text | url | idea).')
+      const input = { type: args.source_type }
+      if (args.source_type === 'text') { if (!args.text) return toolErr('`text` is required.'); input.text = args.text }
+      else if (args.source_type === 'url') { if (!args.url) return toolErr('`url` is required.'); input.url = args.url }
+      else if (args.source_type === 'idea') { input.topic = args.topic || args.purpose }
+      const r = await api('/api/v1/brief', { method: 'POST', body: { input, purpose: args.purpose } })
+      const b = r.brief || {}
+      const lines = [
+        `Summary: ${b.summary || '—'}`,
+        `Angle: ${b.angle || '—'}`,
+        b.keyPoints?.length ? `Key points:\n${b.keyPoints.map((k) => `  • ${k}`).join('\n')}` : '',
+        b.figures?.length ? `Figures: ${b.figures.map((f) => `${f.label} ${f.value}`).join(' · ')}` : '',
+        b.tone ? `Tone: ${b.tone}` : '',
+      ].filter(Boolean).join('\n')
+      return toolOk(`Here's what the video will cover — review and adjust, then pass the approved brief to create_video:\n\n${lines}\n\n(brief object: ${JSON.stringify(b)})`)
+    }
+
+    if (name === 'list_brands') {
+      const r = await api('/api/v1/brands')
+      const rows = r.brands || []
+      if (!rows.length) return toolOk('No brands yet — the account default will be used.')
+      return toolOk(`Brands:\n${rows.map((b) => `• ${b.name}${b.profile_type === 'person' ? ` (person${b.role ? `, ${b.role}` : ''})` : ' (company)'}${b.is_default ? ' — default' : ''}  [${b.id}]`).join('\n')}`)
+    }
+
+    if (name === 'list_options') {
+      const r = await api('/api/v1/options')
+      const voices = (r.voices || []).map((v) => `• ${v.name} (${v.gender}) — ${v.description}  [${v.id}]`).join('\n')
+      const styles = (r.styles || []).map((s) => `• ${s.name} — ${s.description}  [${s.id}]`).join('\n')
+      return toolOk(`Voices:\n${voices}\n\nStyles:\n${styles}\n\nOutput types: video, pptx, pdf   ·   Detail: quick, standard, detailed`)
+    }
+
     if (name === 'create_video') {
       if (!args.source_type) return toolErr('Provide a `source_type` (text | url | file | idea).')
       if (!args.purpose?.trim?.()) return toolErr('Provide a `purpose` (what the video is for).')
@@ -162,21 +230,25 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
           outputType: args.output_type || 'video',
           detailLevel: args.detail_level || 'standard',
           recipientName: args.recipient_name,
+          brief: args.brief,
+          videoStyle: args.style,
+          voiceId: args.voice_id,
+          brandId: args.brand_id,
         },
       })
       const jobId = started.job_id || started.id
       const wait = args.wait !== false
       if (!wait) {
-        return toolOk(`Video started.\n\njob_id: ${jobId}\nstatus: queued\ncredits: ${started.credits_charged ?? '—'}\n\nUse check_video with this job_id to get the result when it's ready.`)
+        return toolOk(`Video started.\n\njob_id: ${jobId}\nstatus: queued\ncredits: ${started.credits_charged ?? '—'}\n\nUse check_video with this job_id to get the share link when it's ready.`)
       }
       const done = await waitForJob(jobId)
-      return toolOk(`✅ Video ready.\n\nvideo: ${done.video_url}\n${done.thumbnail_url ? `thumbnail: ${done.thumbnail_url}\n` : ''}job_id: ${jobId}`)
+      return toolOk(videoResult(jobId, done))
     }
 
     if (name === 'check_video') {
       if (!args.job_id) return toolErr('Provide a `job_id`.')
       const s = await api(`/api/v1/videos/${args.job_id}`)
-      if (s.status === 'completed') return toolOk(`✅ Ready.\n\nvideo: ${s.video_url}\n${s.thumbnail_url ? `thumbnail: ${s.thumbnail_url}\n` : ''}job_id: ${args.job_id}`)
+      if (s.status === 'completed') return toolOk(videoResult(args.job_id, s))
       if (s.status === 'failed') return toolErr(`Generation failed: ${s.error || 'unknown error'}`)
       return toolOk(`Still working — status: ${s.status}, ${s.progress_pct ?? 0}% done. Check again shortly.`)
     }
@@ -209,13 +281,13 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         return toolOk(`Commercial started.\n\njob_id: ${jobId}\nstatus: queued\ncredits: ${started.credits_charged}\n\nUse check_commercial with this job_id to get the video when it's ready (~2-3 min).`)
       }
       const done = await waitForJob(jobId)
-      return toolOk(`✅ Commercial ready.\n\nvideo: ${done.video_url}\n${done.thumbnail_url ? `thumbnail: ${done.thumbnail_url}\n` : ''}job_id: ${jobId}`)
+      return toolOk(commercialResult(jobId, done))
     }
 
     if (name === 'check_commercial') {
       if (!args.job_id) return toolErr('Provide a `job_id`.')
       const s = await api(`/api/v1/videos/${args.job_id}`)
-      if (s.status === 'completed') return toolOk(`✅ Ready.\n\nvideo: ${s.video_url}\n${s.thumbnail_url ? `thumbnail: ${s.thumbnail_url}\n` : ''}job_id: ${args.job_id}`)
+      if (s.status === 'completed') return toolOk(commercialResult(args.job_id, s))
       if (s.status === 'failed') return toolErr(`Generation failed: ${s.error || 'unknown error'}`)
       return toolOk(`Still working — status: ${s.status}, ${s.progress_pct ?? 0}% done. Check again shortly.`)
     }
@@ -228,6 +300,28 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
 const toolOk = (text) => ({ content: [{ type: 'text', text }] })
 const toolErr = (text) => ({ content: [{ type: 'text', text: `Error: ${text}` }], isError: true })
+
+// A finished EXPLAINER video → lead with the client SHARE PAGE (what the agent
+// sends to the recipient), then the MP4 for download.
+function videoResult(jobId, s) {
+  const share = `${BASE_URL}/watch/${jobId}`
+  return `✅ Video ready.\n\n` +
+    `Share page (send this to your client): ${share}\n` +
+    `Download (MP4): ${s.video_url}\n` +
+    `${s.thumbnail_url ? `Thumbnail: ${s.thumbnail_url}\n` : ''}` +
+    `job_id: ${jobId}`
+}
+
+// A finished COMMERCIAL → it's an AD, not a client deliverable, so give download +
+// usage options instead of a "prepared for a client" share page.
+function commercialResult(jobId, s) {
+  return `✅ Commercial ready.\n\n` +
+    `Download (MP4): ${s.video_url}\n` +
+    `${s.thumbnail_url ? `Thumbnail: ${s.thumbnail_url}\n` : ''}` +
+    `\nThis is an ad — use it directly: download it, run it as a paid ad, or post it to social. ` +
+    `(No client share page is created for commercials.)\n` +
+    `job_id: ${jobId}`
+}
 
 const transport = new StdioServerTransport()
 await server.connect(transport)

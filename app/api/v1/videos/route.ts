@@ -34,9 +34,15 @@ interface V1Body {
   brandId?: string | null
   voiceId?: string
   styleId?: string
+  /** Visual style (slides|aurora|cinematic|editorial|explainer). Distinct from
+   *  styleId (a custom slide-template id). */
+  videoStyle?: string
   detailLevel?: DetailLevel
   outputType?: OutputType
   recipientName?: string
+  /** An approved brief (from POST /api/v1/brief) — steers what the video covers,
+   *  same as the wizard's Review step. */
+  brief?: unknown
   webhook_url?: string
 }
 
@@ -222,6 +228,9 @@ export async function POST(request: Request) {
       output_type: outputType,
       draft_data: {
         ...(body.recipientName ? { recipientName: body.recipientName } : {}),
+        // An approved brief is read by generate-video from draft_data.brief — the
+        // SAME field the wizard uses — so API/MCP videos honor it identically.
+        ...(body.brief ? { brief: body.brief } : {}),
         apiWebhookUrl: body.webhook_url || null,
         apiKeyId: caller.keyId,
         apiCost: cost,
@@ -246,6 +255,7 @@ export async function POST(request: Request) {
       brandId: body.brandId ?? null,
       voiceId: body.voiceId || undefined,
       styleId: body.styleId || undefined,
+      videoStyle: body.videoStyle || undefined,   // slides|aurora|cinematic|editorial|explainer
       purpose: body.purpose,
       detailLevel,
       detailed: detailLevel === 'detailed',

@@ -12,20 +12,32 @@ docs2video API key). A per-customer version (each user's own key) comes later.
 
 | Tool | What it does |
 |------|--------------|
-| `create_video` | Make an **explainer video** (or a `pptx`/`pdf` deck) from `text`, a `url`, an uploaded `file_base64`, or an `idea`/topic. Requires a `purpose`. Optional `output_type`, `detail_level`, `recipient_name`. Waits by default and returns the video URL; pass `wait:false` for an immediate `job_id`. |
-| `create_commercial` | Turn a `url` (or `text`) into a finished ~30-40s **commercial**. Optional `brandName`, `style`. Same wait/job_id behavior. |
-| `check_video` | Poll ANY `job_id` (video or commercial) for status / the finished URL. |
-| `check_commercial` | Alias of `check_video` for commercial jobs. |
-| `list_videos` | List the account's recent videos (read-only). Optional `limit`, `status`. |
-| `get_credits` | The account's remaining metered API credit balance. |
+| `create_video` | Make an **explainer video** (or `pptx`/`pdf` deck) from `text`, a `url`, a `file_base64`, or an `idea`. Requires `purpose`. Accepts the user's choices: `recipient_name`, `brief` (from `preview_brief`), `style`, `voice_id`, `brand_id`, `output_type`, `detail_level`. Returns a **client share-page link** + the MP4. |
+| `preview_brief` | Preview what the video WILL cover (summary, angle, key points, figures) from `text`/`url`/`idea` before making it. Show it to the user, let them adjust, then pass the approved brief to `create_video`. No charge. |
+| `list_brands` | The account's brand/presenter profiles — ask the user which to use. |
+| `list_options` | The available voices, styles, output types, detail levels. |
+| `create_commercial` | Turn a `url` (or `text`) into a finished ~30-40s **commercial**. Optional `brandName`, `style`. Returns **download + usage options** (it's an ad, not a client page). |
+| `check_video` / `check_commercial` | Poll ANY `job_id`. `check_video` returns the share-page link; `check_commercial` returns download options. |
+| `list_videos` | The account's recent videos (read-only). Optional `limit`, `status`. |
+| `get_credits` | The account's metered API credit balance. |
 
-For a **video**, provide the content (`text`/`url`/`file_base64`/`topic`) + a
-`purpose`; the pipeline reads it, writes a script + voiceover, builds animated
-slides, and renders an MP4. For a **commercial**, you only need a URL — it crawls
-the site, understands the brand, and generates voice, imagery, colors, and music.
+### The guided flow (mirrors the web wizard)
+
+`create_video`'s description tells the assistant to **interview** the user before
+generating — it will ask for the client name, run `preview_brief` for you to
+confirm the angle + key points, and offer style/voice/brand choices — so an
+MCP-made video matches what you'd get in the app. Say *"just make it"* and it
+falls back to sensible defaults (slides style, Sarah voice, default brand).
+
+**Two result shapes, by design:**
+- **Video** → a `docs2video.com/watch/[id]` **share page** to send your client
+  (personalized banner, downloads, booking) + the MP4.
+- **Commercial** → **download/usage options** (it's an ad — run it or post it; no
+  client share page).
 
 Commercial `style` (optional): `fintech, luxury, tech, upbeat, emerald,
-redblueprint, data, playful, casino, clean`. Omit it to let the director pick.
+redblueprint, data, playful, casino, clean`. Explainer `style`: `slides, aurora,
+cinematic, editorial, explainer`. Omit to use the default.
 
 ## Setup
 

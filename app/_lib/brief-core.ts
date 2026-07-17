@@ -1,0 +1,103 @@
+import Anthropic from '@anthropic-ai/sdk'
+import type { VideoBrief, ClarifyingQuestion } from './types'
+import { scrubPlaceholderNamesInText } from './text-format'
+import { scrubComplianceText } from './compliance'
+
+/* ============================================================================
+ * BRIEF CORE — the shared brief-generation logic used by BOTH the session-authed
+ * /api/brief (the wizard's Review step) and the key-authed /api/v1/brief (the MCP
+ * "preview_brief" tool). Single source so the two never drift.
+ * ==========================================================================*/
+
+export function briefClaude(): Anthropic {
+  const key = process.env.ANTHROPIC_API_KEY
+  if (!key) throw new Error('ANTHROPIC_API_KEY not configured')
+  return new Anthropic({ apiKey: key })
+}
+
+/** Pull a JSON object out of a model response (fence/prose tolerant). When
+ *  `regulated`, ALSO strip carrier/product NAMES from every user-visible field
+ *  (figures/percentages KEPT). `tokens` = product names detected from the source. */
+export function parseBrief(text: string, regulated = false, tokens: string[] = []): VideoBrief | null {
+  try {
+    const json = text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)
+    const b = JSON.parse(json)
+    if (!b || typeof b !== 'object') return null
+    const s = (v: string) => {
+      const base = scrubPlaceholderNamesInText(v)
+      return regulated ? scrubComplianceText(base, tokens) : base
+    }
+    return {
+      docType: regulated ? 'Illustration' : String(b.docType || 'Source'),
+      summary: s(String(b.summary || '')),
+      keyPoints: Array.isArray(b.keyPoints) ? b.keyPoints.map((x: any) => s(String(x))).slice(0, 8) : [],
+      figures: Array.isArray(b.figures) ? b.figures.filter((f: any) => f?.label && f?.value).map((f: any) => ({ label: s(String(f.label)), value: String(f.value) })).slice(0, 8) : [],
+      angle: s(String(b.angle || '')),
+      tone: b.tone ? String(b.tone) : undefined,
+      emphasis: Array.isArray(b.emphasis) ? b.emphasis.map((x: any) => s(String(x))) : undefined,
+      avoid: Array.isArray(b.avoid) ? b.avoid.map((x: any) => s(String(x))) : undefined,
+      clarifyingQuestions: Array.isArray(b.clarifyingQuestions)
+        ? b.clarifyingQuestions
+            .filter((q: any) => q?.question)
+            .slice(0, 2)
+            .map((q: any, i: number): ClarifyingQuestion => ({
+              id: String(q.id || `q${i}`),
+              question: s(String(q.question)),
+              why: q.why ? s(String(q.why)) : undefined,
+              options: Array.isArray(q.options) ? q.options.map((o: any) => String(o)).slice(0, 5) : undefined,
+            }))
+        : undefined,
+    }
+  } catch { return null }
+}
+
+/**
+ * Describe the input source in plain words so the brief never calls a scanned
+ * website "this document". `contentMethod`: url | file | text | ai.
+ */
+export function describeSource(contentMethod?: string): { noun: string; dataLabel: string; docTypeHint: string } {
+  switch (contentMethod) {
+    case 'url':
+      return { noun: 'website', dataLabel: 'SCANNED WEBSITE CONTENT', docTypeHint: "what this website is (e.g. 'Company website — financial advisory firm')" }
+    case 'text':
+      return { noun: 'content', dataLabel: 'PASTED CONTENT', docTypeHint: "what this content is (e.g. 'Product description', 'Service overview')" }
+    case 'ai':
+      return { noun: 'topic', dataLabel: 'TOPIC / IDEA', docTypeHint: "what this is about (e.g. 'Explainer on retirement planning')" }
+    case 'file':
+    default:
+      return { noun: 'document', dataLabel: 'DOCUMENT DATA', docTypeHint: "what kind of document this is (e.g. 'Life insurance illustration')" }
+  }
+}
+
+export function buildBriefSystemPrompt(src: ReturnType<typeof describeSource>): string {
+  const { noun, docTypeHint } = src
+  return `You are a video producer reviewing a source ${noun} before scripting an explainer video. Produce a BRIEF: a plain-language statement of what the ${noun} is and what the video will cover.
+
+STRICT GROUNDING: use ONLY facts, names, and numbers present in the provided ${noun} data. Invent NOTHING — no figures, no claims, no contact info that isn't there.
+
+CORRECTLY IDENTIFY THE SOURCE: this input came from ${noun === 'website' ? 'a WEBSITE that was scanned — refer to it as "this website" / "the site", never "this document"' : noun === 'content' ? 'PASTED content — refer to it as "this content", never "this document" unless the content clearly is one' : noun === 'topic' ? 'a TOPIC the user described — frame the brief around that topic' : 'an uploaded document'}.
+
+NEVER use a placeholder or sample name. If the source refers to the person as "Mr. Client", "Valued Client", "the insured", "John Doe", or any generic stand-in, DO NOT repeat it — address the reader as "you" / "your" instead (e.g. "This policy gives you lifelong protection"). Only use a real person's name if one is genuinely present.
+
+BE INTELLIGENT — ASK ONLY WHEN GENUINELY UNSURE. Before finalizing, judge your CONFIDENCE on the dimensions that actually change the script:
+  • WHO/FROM: whose video is this — is it FROM a company/person TO a prospect, or ABOUT them? (e.g. a company name appearing throughout usually means it's that company's video for their prospects).
+  • AUDIENCE: who watches (new prospect, existing client, internal team)?
+  • GOAL/CTA: what should the viewer do after (book a call, sign, just understand)?
+  • EMPHASIS: if the source weights several topics heavily, which should lead?
+  • TONE: reassuring/plain vs. polished/corporate.
+DEFAULT TO ZERO QUESTIONS. Make a confident, reasonable assumption and reflect it in the brief rather than asking — the user can always tweak the brief afterward in their own words. Only add a clarifying question when ALL of these are true: (a) you genuinely cannot tell from the source, (b) guessing wrong would materially break the script (wrong audience, wrong CTA, wrong who-it's-from), and (c) the user could actually answer it in one tap. Ask AT MOST 1 question (2 only in a true tie). If you can reasonably infer it, DO NOT ask. Most briefs should return an EMPTY clarifyingQuestions array. Never ask about anything the source already answers, never ask generic questions, and never re-ask something a KNOWN PRESENTER/BRAND or USER ANSWERS block above already settles. Questions must name the real company/person/topic.
+
+Return ONLY a JSON object:
+{
+  "docType": "${docTypeHint}",
+  "summary": "1-2 friendly sentences: what this is and who it's for",
+  "keyPoints": ["the 3-6 most important points the video should make"],
+  "figures": [{"label":"...","value":"..."}],  // the real numbers worth featuring (exact units)
+  "angle": "the single intended takeaway / how the video should be framed",
+  "tone": "the right tone for this audience (e.g. 'reassuring, plain-language')",
+  "clarifyingQuestions": [   // 0-3 items, ONLY where you are genuinely unsure
+    { "id": "audience", "question": "Who is this video for — a new prospect, or an existing client of <RealName>?", "why": "It changes the tone and CTA.", "options": ["New prospect","Existing client","Internal team"] }
+  ]
+}
+No markdown, no commentary — just the JSON.`
+}
