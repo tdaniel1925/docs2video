@@ -164,8 +164,13 @@ export default function FixScene({ videoId, planUrl, slideUrls = [], script = []
 
             {action === 'edit-text' && (
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>New narration for this scene:</div>
-                <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>What should this scene say?</div>
+                <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3}
+                  placeholder="Rewrite the wording, or tell us what to change — e.g. “add the word ICHRA to the headline” or paste the new script for this scene."
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
+                <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 6, lineHeight: 1.4 }}>
+                  This updates both the <b>on-screen text</b> and the <b>voiceover</b> for this scene, then re-renders it.
+                </div>
               </div>
             )}
             {action === 'fix-pronunciation' && (

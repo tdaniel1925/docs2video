@@ -1890,7 +1890,7 @@ app.post('/re-render-scene', authCheck, async (req, res) => {
 
   const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
   const setProgress = (pct, detail) => sb.from('videos').update({ progress_pct: pct, progress_detail: detail, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
-  const { generateSceneVO } = require('./slides')
+  const { generateSceneVO, claude, scrubSlidePlan, isRegulated } = require('./slides')
 
   // PREVIEW path is cheap + synchronous-ish: regen one VO, return its URL. No render.
   // (still ACK first so the caller isn't blocked on TTS.)
@@ -1908,12 +1908,69 @@ app.post('/re-render-scene', authCheck, async (req, res) => {
       if (planDl.error || !planDl.data) throw new Error('no saved plan for this video (was it made before Fix-a-Scene?)')
       const saved = JSON.parse(Buffer.from(await planDl.data.arrayBuffer()).toString('utf8'))
       const plan = saved.plan
+      const understanding = saved.understanding || plan.understanding || {}
       const scene = plan.scenes.find((s) => String(s.id) === String(sceneId))
       if (!scene) throw new Error(`scene ${sceneId} not found in plan`)
 
-      // 2) determine the new narration text for the edited scene
+      // 2) determine the new content for the edited scene.
+      // edit-text is a WORDING edit: it must update BOTH the on-screen text
+      // (heading + block copy the user is looking at) AND the spoken narration —
+      // not just the VO. We hand the user's new wording to Claude as an
+      // instruction, grounded in the existing scene, and it rewrites the visible
+      // copy + narration together. (Previously this only changed narration, so
+      // the slide looked identical and users thought nothing happened.)
       let narration = scene.narration
-      if (action === 'edit-text' && newText) narration = String(newText).slice(0, 1200)
+      if (action === 'edit-text' && newText && String(newText).trim()) {
+        const instruction = String(newText).slice(0, 1200)
+        try {
+          if (!previewOnly) await setProgress(10, 'Applying your wording edit…')
+          const regulated = isRegulated(understanding) || !!plan.regulated
+          // Only the editable text surfaces — keep cueFrame/type/structure intact.
+          const editable = {
+            heading: (scene.layout && scene.layout.heading) || '',
+            kicker: (scene.layout && scene.layout.kicker) || '',
+            narration: scene.narration || '',
+            blocks: (scene.blocks || []).map((b, i) => {
+              if (b.type === 'bullets') return { i, type: 'bullets', items: (b.items || []).map((it) => (it && it.text) || '') }
+              if (b.type === 'cards') return { i, type: 'cards', cards: (b.cards || []).map((c) => ({ value: (c && c.value) || '', label: (c && c.label) || '', sub: (c && c.sub) || '' })) }
+              if (b.type === 'figure' && b.figure) return { i, type: 'figure', label: b.figure.label || '', prefix: b.figure.prefix || '', value: b.figure.value || '', suffix: b.figure.suffix || '' }
+              return { i, type: b.type }  // screenshot/other: no editable copy
+            }),
+          }
+          const sys = `You are editing ONE slide of a narrated explainer video. Apply the user's wording instruction to BOTH the on-screen text and the spoken narration, then return the SAME JSON shape with only the text fields changed.
+RULES:
+- Return ONLY the JSON object (no markdown, no code fences, no commentary).
+- Keep the exact same structure: same block "i" indexes, same block "type"s, same number of bullets/cards. Change only the words.
+- Preserve every field the instruction does not ask to change.
+- If the user asks to add or mention a specific word/term (e.g. an acronym like "ICHRA"), put it on the slide AND in the narration exactly as written — do NOT drop it.
+- NEVER invent figures, names, or claims not in the original scene.
+- Keep narration natural and spoken; keep on-screen copy tight (headings short, bullets one idea each).${regulated ? '\n- COMPLIANCE: do NOT name any insurance carrier or branded product. Dollar figures and percentages are fine and should be kept.' : ''}`
+          const raw = await claude(sys, `Current scene:\n${JSON.stringify(editable, null, 2)}\n\nWording instruction: ${instruction}`, 2000)
+          const cleaned = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
+          const upd = JSON.parse(cleaned.slice(cleaned.indexOf('{'), cleaned.lastIndexOf('}') + 1))
+          // apply back onto the real scene, keeping structure/cueFrames intact
+          if (scene.layout) {
+            if (typeof upd.heading === 'string' && upd.heading.trim()) scene.layout.heading = upd.heading.trim()
+            if (typeof upd.kicker === 'string') scene.layout.kicker = upd.kicker
+          }
+          if (typeof upd.narration === 'string' && upd.narration.trim()) scene.narration = upd.narration.trim()
+          for (const ub of (upd.blocks || [])) {
+            const b = (scene.blocks || [])[ub.i]
+            if (!b || b.type !== ub.type) continue
+            if (ub.type === 'bullets' && Array.isArray(ub.items)) (b.items || []).forEach((it, k) => { if (it && typeof ub.items[k] === 'string') it.text = ub.items[k] })
+            if (ub.type === 'cards' && Array.isArray(ub.cards)) (b.cards || []).forEach((c, k) => { const u = ub.cards[k]; if (c && u) { if (typeof u.value === 'string') c.value = u.value; if (typeof u.label === 'string') c.label = u.label; if (typeof u.sub === 'string') c.sub = u.sub } })
+            if (ub.type === 'figure' && b.figure) { if (typeof ub.label === 'string') b.figure.label = ub.label; if (typeof ub.value === 'string') b.figure.value = ub.value; if (typeof ub.prefix === 'string') b.figure.prefix = ub.prefix; if (typeof ub.suffix === 'string') b.figure.suffix = ub.suffix }
+          }
+          // compliance scrub the edited scene (names only; keeps figures)
+          try { scrubSlidePlan({ scenes: [scene] }, understanding) } catch {}
+        } catch (e) {
+          // if the rewrite fails, fall back to treating the text as raw narration
+          // (old behavior) so the edit still lands SOMETHING rather than 0 change.
+          console.error(`[re-render-scene ${videoId}] edit-text rewrite failed, narration-only fallback:`, e.message)
+          scene.narration = instruction
+        }
+        narration = scene.narration
+      }
       // (rerecord keeps the same text; fix-pronunciation keeps text + adds a hint)
       scene.narration = narration
 
