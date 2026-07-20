@@ -17,17 +17,21 @@ const durOf = (f) => parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_e
 try { copyFileSync(join(HERE, '..', 'public', 'apex', 'logo.png'), join(OUT, 'logo.png')) } catch {}
 
 // [vo, kind]  kind 'S' = paper scene (image), else data-panel id.
+// ONE IDEA = ONE SLIDE. Each line talks ONLY about the slide it's paired with.
+// A line never starts describing the NEXT slide's topic. This keeps picture and
+// words locked so no slide overstays (e.g. the '48' line must NOT mention the
+// three steps — those belong to the steps slide's own line).
 const BEATS = [
-  ["Welcome to Apex. You just made a decision that could change everything — and this roadmap will take you from day one to your first paycheck, step by step.", 'S'],          // 0
-  ["Here's what makes Apex different. Most companies give you one way to earn. Apex gives you two — a Technology business and an Insurance business, under one roof.", 'twopaths'], // 1
-  ["On the Technology side, you put powerful A.I. tools in the hands of businesses — no license required, open to everyone.", 'S'],                                             // 2
-  ["On the Insurance side, if you're a licensed agent, you sell life insurance and earn on every policy — with your team behind you.", 'S'],                                    // 3
-  ["And here's the Apex belief that drives it all: every agent in this industry is our customer — whether they join us or not. We win by helping people win.", 'mission'],       // 4
-  ["You earn two ways: on what you personally sell, and on what your team produces. Do both, and your income compounds.", 'earn'],                                              // 5
-  ["Now, your first forty-eight hours matter most. New people who take three simple actions early are the ones who succeed.", 'first48'],                                       // 6
-  ["Step one: complete your profile and set up how you get paid. Step two: pick your path. Step three: make your list of people to talk to.", 'threesteps'],                    // 7
-  ["This series is your map. We'll cover the products, the compensation plan, how to invite, how to present, how to close, and how to build a team.", 'series'],                // 8
-  ["You don't need to know everything today. You just need to start. Let's take that first step together — welcome to Apex.", 'S'],                                            // 9
+  ["Welcome to Apex. You just made a decision that could change everything. This roadmap takes you from day one to your first paycheck.", 'S'],                    // 0 scene
+  ["Here's what makes Apex different. Most companies give you one way to earn. Apex gives you two, under one roof.", 'twopaths'],                                    // 1 twopaths
+  ["On the Technology side, you put powerful A.I. tools in the hands of businesses. No license required, open to everyone.", 'S'],                                  // 2 scene
+  ["On the Insurance side, if you're a licensed agent, you sell life insurance and earn on every policy.", 'S'],                                                    // 3 scene
+  ["And here's the belief that drives it all: every agent in this industry is our customer, whether they join us or not.", 'mission'],                              // 4 mission
+  ["So you earn two ways. On what you personally sell, and on what your team produces.", 'earn'],                                                                   // 5 earn
+  ["Now, your first forty-eight hours matter most. The people who start fast are the ones who succeed.", 'first48'],                                                // 6 first48 (ONLY the 48hr idea)
+  ["So take three simple actions right away. Complete your profile and set up how you get paid. Pick your path. And make your list of people to talk to.", 'threesteps'], // 7 threesteps (the 3 steps live HERE)
+  ["This series is your map. We'll cover the products, the plan, how to invite, present, close, and build a team.", 'series'],                                      // 8 series
+  ["You don't need to know everything today. You just need to start. Let's take that first step together.", 'S'],                                                  // 9 scene
 ]
 const LINES = BEATS.map((b) => b[0])
 const SCENE_BEATS = BEATS.map((b, i) => b[1] === 'S' ? i : -1).filter((i) => i >= 0)

@@ -23,8 +23,8 @@ const BEATS = [
   ["Your first job inside the back office is simple: complete your profile. Add your photo, your phone, and your details.", 'profile'],                                   // 4
   ["Then set up how you get paid. Add your payment information and your tax form, so your commissions reach you with no delays.", 'getpaid'],                             // 5
   ["Take a few minutes to explore your back office — your team view, your compensation, your commissions, your products, and this training center.", 'backoffice'],       // 6
-  ["Now the most important part — your first forty-eight hours. Three actions set the tone for everything that follows.", 'first48'],                                     // 7
-  ["One: finish your setup. Two: choose your path and learn your products. Three: write your list — everyone you know who wants more.", 'threesteps'],                    // 8
+  ["Now the most important part — your first forty-eight hours. This window sets the tone for everything that follows.", 'first48'],                                      // 7 first48 (ONLY the 48hr idea)
+  ["So take three actions. One: finish your setup. Two: choose your path and learn your products. Three: write your list of everyone you know.", 'threesteps'],           // 8 threesteps (the 3 actions live HERE)
   ["Do these, and you're no longer just signed up — you're in business. In the next episode, we tour your back office in detail. Let's go.", 'S'],                        // 9
 ]
 const LINES = BEATS.map((b) => b[0])
