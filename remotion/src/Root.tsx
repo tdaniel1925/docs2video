@@ -65,6 +65,8 @@ import { CompPlanDetail, COMPD_FRAMES } from './CompPlanDetail'
 import { CompVideo2Tech, COMP2_FRAMES } from './CompVideo2Tech'
 import { CompVideo3Insurance, COMP3_FRAMES } from './CompVideo3Insurance'
 import { CompVideo4Team, COMP4_FRAMES } from './CompVideo4Team'
+import { RoadmapEp1, ROAD1_FRAMES } from './RoadmapEp1'
+import { RoadmapEp2, ROAD2_FRAMES } from './RoadmapEp2'
 import type { LookName } from './looks/Looks'
 
 // compute a vertical video's total frames from its data.json (VO durations)
@@ -260,6 +262,22 @@ export const RemotionRoot: React.FC = () => {
       width={1920}
       height={1080}
       durationInFrames={COMP4_FRAMES}
+    />
+    <Composition
+      id="RoadmapEp1"
+      component={RoadmapEp1}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={ROAD1_FRAMES}
+    />
+    <Composition
+      id="RoadmapEp2"
+      component={RoadmapEp2}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={ROAD2_FRAMES}
     />
     <Composition
       id="AnimatedExplainer"
