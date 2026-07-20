@@ -127,9 +127,10 @@ const IntroScreen: React.FC<{ meta: EpisodeMeta }> = ({ meta }) => {
   const s = spring({ frame: f - 4, fps, config: { damping: 13, stiffness: 130 } })
   const badgeIn = interpolate(f, [10, 22], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: EASE.expoOut })
   const headIn = interpolate(f, [18, 32], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: EASE.expoOut })
-  const out = interpolate(f, [INTRO - INTRO_XF, INTRO], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+  // NO out-fade: the intro HOLDS solid to its last frame; the first body beat
+  // dissolves in ON TOP of it (single-layer crossfade = no title flash).
   return (
-    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 22, opacity: out }}>
+    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 22 }}>
       <Blobs />
       <div style={{ background: WHITE, borderRadius: 14, padding: '30px 54px', boxShadow: '0 26px 70px rgba(0,0,0,0.5)', transform: `translateY(${(1 - s) * 40}px) scale(${0.82 + clamp(s) * 0.18})`, opacity: clamp(s) }}><Img src={staticFile(`${meta.dir}/logo.png`)} style={{ height: 128, display: 'block' }} /></div>
       {/* episode badge (holds) */}
@@ -162,12 +163,15 @@ const CornerLogo: React.FC<{ from: number; to: number; dir: string }> = ({ from,
 
 /* ---- timeline ---- */
 const PAD = 0.5, XF = 0.4
-const Dissolve: React.FC<{ dur: number; children: React.ReactNode }> = ({ dur, children }) => { const f = useCurrentFrame(); const xf = S(XF); const inO = interpolate(f, [0, xf], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }); const outO = interpolate(f, [dur - xf, dur], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }); return <AbsoluteFill style={{ opacity: Math.min(inO, outO) }}>{children}</AbsoluteFill> }
+const Dissolve: React.FC<{ dur: number; children: React.ReactNode; noOut?: boolean }> = ({ dur, children, noOut }) => { const f = useCurrentFrame(); const xf = S(XF); const inO = interpolate(f, [0, xf], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }); const outO = noOut ? 1 : interpolate(f, [dur - xf, dur], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }); return <AbsoluteFill style={{ opacity: Math.min(inO, outO) }}>{children}</AbsoluteFill> }
 
+// NO overlap between intro/body/end — each holds solid then the next covers it.
+// bodyStart = INTRO (clean handoff, no double-fade flash). endStart = right after
+// the last beat. Audio master must use BODY_START = INTRO/FPS (4.6) to stay synced.
 export const framesFor = (vo: number[]) => {
   const segD = vo.map((d) => (d || 6) + PAD)
   const bodyFrames = Math.round((segD.reduce((a, b) => a + b, 0) - (segD.length - 1) * XF) * FPS)
-  return INTRO - INTRO_XF + bodyFrames + END - END_XF
+  return INTRO + bodyFrames + END
 }
 
 export const RoadmapEpisode: React.FC<{ data: EpisodeData; caps: Record<number, Cap>; panelMap: Record<string, React.FC>; meta: EpisodeMeta }> = ({ data, caps, panelMap, meta }) => {
@@ -176,10 +180,10 @@ export const RoadmapEpisode: React.FC<{ data: EpisodeData; caps: Record<number, 
   const FINALE = vo.length - 1
   const segD = vo.map((d) => (d || 6) + PAD)
   const bodyFrames = Math.round((segD.reduce((a, b) => a + b, 0) - (segD.length - 1) * XF) * FPS)
-  const bodyStart = INTRO - INTRO_XF
+  const bodyStart = INTRO // clean cut from intro → body (no overlap = no flash)
   let cursor = 0
   const starts = segD.map((d) => { const from = S(cursor); cursor += d - XF; return bodyStart + from })
-  const endStart = bodyStart + bodyFrames - END_XF
+  const endStart = bodyStart + bodyFrames // EndScreen starts right when body ends
   const bgScene = (i: number) => { for (let k = i; k >= 0; k--) if (!PANELS[k]) return k; return 0 }
   return (
     <AbsoluteFill style={{ background: NAVY_D }}>
@@ -191,7 +195,7 @@ export const RoadmapEpisode: React.FC<{ data: EpisodeData; caps: Record<number, 
         const finale = i === FINALE
         return (
           <Sequence key={i} from={starts[i]} durationInFrames={durF + 2}>
-            <Dissolve dur={durF}>
+            <Dissolve dur={durF} noOut={finale}>
               <AbsoluteFill>
                 {panel ? (
                   <AbsoluteFill style={{ background: NAVY_D }}>

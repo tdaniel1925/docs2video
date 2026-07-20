@@ -21,7 +21,7 @@ const FPS = 30
 const PAD = parseFloat(process.env.PAD || '0.6')
 const XF = parseFloat(process.env.XF || '0.4')
 const BODY_START = parseFloat(process.env.BODY_START || (3.2 - 0.5)) // intro - intro_xf
-const VO_OFFSET = 0.18 // matches the composition's per-scene VO nudge
+const VO_OFFSET = parseFloat(process.env.VO_OFFSET || '0.18') // per-scene VO nudge; 0 = VO lands exactly when the slide appears
 const log = (...a) => console.log('[master]', ...a)
 
 const data = JSON.parse(readFileSync(join(P, 'durations.json'), 'utf8'))
