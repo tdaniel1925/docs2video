@@ -119,42 +119,49 @@ const makeScene = (dir: string): React.FC<{ i: number }> => ({ i }) => {
   )
 }
 
-const Blobs: React.FC = () => { const f = useCurrentFrame(); const d = Math.sin(f * 0.03) * 30; return (<AbsoluteFill style={{ background: `radial-gradient(120% 100% at 50% 40%, ${NAVY}, ${NAVY_D})` }}><div style={{ position: 'absolute', width: 700, height: 700, borderRadius: '50%', background: `${RED}22`, filter: 'blur(80px)', top: 120 + d, left: '30%' }} /></AbsoluteFill>) }
-const INTRO = S(4.6), END = S(4.6), INTRO_XF = S(0.5), END_XF = S(0.5)
+const Blobs: React.FC<{ kb?: number }> = ({ kb = 0 }) => { const f = useCurrentFrame(); const d = Math.sin(f * 0.03) * 30; return (<AbsoluteFill style={{ background: `radial-gradient(120% 100% at 50% 40%, ${NAVY}, ${NAVY_D})`, transform: `scale(${1 + kb * 0.12})` }}><div style={{ position: 'absolute', width: 700, height: 700, borderRadius: '50%', background: `${RED}22`, filter: 'blur(80px)', top: 120 + d, left: '30%' }} /></AbsoluteFill>) }
+const INTRO = S(5.4), END = S(4.8), INTRO_XF = S(0.5), END_XF = S(0.5)
 
 const IntroScreen: React.FC<{ meta: EpisodeMeta }> = ({ meta }) => {
   const f = useCurrentFrame(); const { fps } = useVideoConfig()
   const s = spring({ frame: f - 4, fps, config: { damping: 13, stiffness: 130 } })
-  const badgeIn = interpolate(f, [10, 22], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: EASE.expoOut })
-  const headIn = interpolate(f, [18, 32], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: EASE.expoOut })
-  // NO out-fade: the intro HOLDS solid to its last frame; the first body beat
-  // dissolves in ON TOP of it (single-layer crossfade = no title flash).
+  // ALL intro elements fade in TOGETHER (fast, 6→20) so nothing pops in late,
+  // then HOLD rock-solid. One shared `grp` opacity fades the WHOLE group out over
+  // the intro's last 8 frames → clean intro→navy→scene handoff, no text bleeding
+  // through the rising scene (that shimmer was the flash on the pink subtitle).
+  const inO = interpolate(f, [6, 20], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: EASE.expoOut })
+  const grp = Math.min(inO, interpolate(f, [INTRO - 8, INTRO], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }))
+  // Ken Burns: slow continuous zoom-in + gentle upward drift across the whole intro.
+  const kb = interpolate(f, [0, INTRO], [0, 1], { extrapolateRight: 'clamp', easing: Easing.bezier(0.33, 0, 0.4, 1) })
+  const kbScale = 1.0 + kb * 0.08
+  const kbY = -kb * 22
   return (
-    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 22 }}>
-      <Blobs />
-      <div style={{ background: WHITE, borderRadius: 14, padding: '30px 54px', boxShadow: '0 26px 70px rgba(0,0,0,0.5)', transform: `translateY(${(1 - s) * 40}px) scale(${0.82 + clamp(s) * 0.18})`, opacity: clamp(s) }}><Img src={staticFile(`${meta.dir}/logo.png`)} style={{ height: 128, display: 'block' }} /></div>
-      {/* episode badge (holds) */}
-      <div style={{ opacity: badgeIn, transform: `translateY(${(1 - badgeIn) * 12}px)`, display: 'flex', alignItems: 'center', gap: 12, background: RED, borderRadius: 8, padding: '10px 22px' }}>
-        <Star size={20} color={WHITE} /><div style={{ fontFamily: FONT, fontWeight: 800, fontSize: 24, letterSpacing: '0.24em', color: WHITE, textTransform: 'uppercase' }}>{meta.seriesTag}</div>
-      </div>
-      {/* big episode title (holds) */}
-      <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 72, color: WHITE, opacity: headIn, transform: `translateY(${(1 - headIn) * 12}px)`, letterSpacing: '-0.02em', textAlign: 'center' }}>{meta.introHead}</div>
-      <div style={{ fontFamily: FONT, fontWeight: 800, fontSize: 30, color: '#ff9d9d', opacity: headIn }}>{meta.episodeLabel}</div>
+    <AbsoluteFill>
+      <Blobs kb={kb} />
+      <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 22, opacity: grp, transform: `scale(${kbScale}) translateY(${kbY}px)` }}>
+        <div style={{ background: WHITE, borderRadius: 14, padding: '30px 54px', boxShadow: '0 26px 70px rgba(0,0,0,0.5)', transform: `translateY(${(1 - s) * 40}px) scale(${0.82 + clamp(s) * 0.18})` }}><Img src={staticFile(`${meta.dir}/logo.png`)} style={{ height: 128, display: 'block' }} /></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: RED, borderRadius: 8, padding: '10px 22px' }}>
+          <Star size={20} color={WHITE} /><div style={{ fontFamily: FONT, fontWeight: 800, fontSize: 24, letterSpacing: '0.24em', color: WHITE, textTransform: 'uppercase' }}>{meta.seriesTag}</div>
+        </div>
+        <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 72, color: WHITE, letterSpacing: '-0.02em', textAlign: 'center' }}>{meta.introHead}</div>
+        <div style={{ fontFamily: FONT, fontWeight: 800, fontSize: 30, color: '#ff9d9d' }}>{meta.episodeLabel}</div>
+      </AbsoluteFill>
     </AbsoluteFill>
   )
 }
 const EndScreen: React.FC<{ meta: EpisodeMeta }> = ({ meta }) => {
   const f = useCurrentFrame(); const { fps } = useVideoConfig(); const s = spring({ frame: f - 4, fps, config: { damping: 14, stiffness: 140 } })
-  const tag = interpolate(f, [20, 40], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: EASE.expoOut })
-  const url = interpolate(f, [34, 54], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: EASE.expoOut })
+  // ALL end elements fade in TOGETHER (fast, 6→22) then HOLD solid to the last
+  // frame — no staggered pop-ins, no out-fade (this is the final screen).
+  const grp = interpolate(f, [6, 22], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: EASE.expoOut })
   const head = meta.endAccent && meta.endHead.includes(meta.endAccent) ? <>{meta.endHead.replace(meta.endAccent, '')}<span style={{ color: '#ff8a8a' }}>{meta.endAccent}</span></> : meta.endHead
   return (
     <AbsoluteFill>
       <Blobs />
-      <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 24, padding: '0 120px' }}>
-        <div style={{ background: WHITE, borderRadius: 14, padding: '30px 54px', boxShadow: '0 22px 60px rgba(0,0,0,0.5)', transform: `translateY(${(1 - s) * 34}px) scale(${0.86 + clamp(s) * 0.14})`, opacity: clamp(s) }}><Img src={staticFile(`${meta.dir}/logo.png`)} style={{ height: 118, display: 'block' }} /></div>
-        <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 50, color: WHITE, opacity: tag, textAlign: 'center', lineHeight: 1.15 }}>{head}</div>
-        {meta.endUrl ? <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 44, color: WHITE, opacity: url }}>{meta.endUrl}</div> : null}
+      <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 24, padding: '0 120px', opacity: grp }}>
+        <div style={{ background: WHITE, borderRadius: 14, padding: '30px 54px', boxShadow: '0 22px 60px rgba(0,0,0,0.5)', transform: `translateY(${(1 - s) * 34}px) scale(${0.86 + clamp(s) * 0.14})` }}><Img src={staticFile(`${meta.dir}/logo.png`)} style={{ height: 118, display: 'block' }} /></div>
+        <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 50, color: WHITE, textAlign: 'center', lineHeight: 1.15 }}>{head}</div>
+        {meta.endUrl ? <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 44, color: WHITE }}>{meta.endUrl}</div> : null}
       </AbsoluteFill>
     </AbsoluteFill>
   )
