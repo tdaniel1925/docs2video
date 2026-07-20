@@ -51,7 +51,36 @@ import { TemplateCommercial, commercialSchema, commercialDuration as tcDuration,
 import { BeatHook, hookFrames, type HookProps } from './kinetic/BeatHook'
 import { LookTest, LOOKTEST_FRAMES } from './looks/LookTest'
 import { GlassCompare, GLASS_FRAMES } from './cinematic/GlassCompare'
+import { CommercialD2VPulse, D2V_PULSE_FRAMES } from './CommercialD2VPulse'
+import { CommercialJordyn, JORDYN_FRAMES } from './CommercialJordyn'
+import { CommercialJordynPaper, JORDYN_PAPER_FRAMES } from './CommercialJordynPaper'
+import { CommercialJordynFlat, JORDYN_FLAT_FRAMES } from './CommercialJordynFlat'
+import { CommercialJordynLong, JORDYN_LONG_FRAMES } from './CommercialJordynLong'
+import { CommercialVertical, type VertProps } from './CommercialVertical'
+import { CommercialApexBrand, APEX_FRAMES } from './CommercialApexBrand'
+import { CommercialApexTornPaper, APEX_TORN_FRAMES as APEX_TORNPAPER_FRAMES } from './CommercialApexTornPaper'
+import { PaperChartDemo, PAPER_CHART_FRAMES } from './PaperChartDemo'
+import { CompPlanOverview, COMP1_FRAMES } from './CompPlanOverview'
+import { CompPlanDetail, COMPD_FRAMES } from './CompPlanDetail'
+import { CompVideo2Tech, COMP2_FRAMES } from './CompVideo2Tech'
+import { CompVideo3Insurance, COMP3_FRAMES } from './CompVideo3Insurance'
+import { CompVideo4Team, COMP4_FRAMES } from './CompVideo4Team'
 import type { LookName } from './looks/Looks'
+
+// compute a vertical video's total frames from its data.json (VO durations)
+const vertMetadata = async ({ props }: { props: VertProps }) => {
+  const FPS = 30, PAD = 0.8, XF = 0.4
+  const INTRO = 3.0, END = 4.5, IXF = 0.5, EXF = 0.5
+  let vo: number[] = new Array(10).fill(7)
+  try {
+    const res = await fetch(staticFile(`vert-${props.vert}/data.json`))
+    if (res.ok) { const j = await res.json(); if (Array.isArray(j.vo)) vo = j.vo }
+  } catch {}
+  const segD = vo.map((d) => (d || 7) + PAD)
+  const body = Math.round((segD.reduce((a, b) => a + b, 0) - 9 * XF) * FPS)
+  const total = Math.round((INTRO - IXF) * FPS) + body + Math.round((END - EXF) * FPS)
+  return { durationInFrames: total, fps: FPS, width: 1920, height: 1080 }
+}
 
 loadArchivo()
 loadInter()
@@ -118,6 +147,120 @@ const TC_DEMO: TCProps = {
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+    <Composition
+      id="CommercialD2VPulse"
+      component={CommercialD2VPulse}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={D2V_PULSE_FRAMES}
+    />
+    <Composition
+      id="CommercialJordyn"
+      component={CommercialJordyn}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={JORDYN_FRAMES}
+    />
+    <Composition
+      id="CommercialJordynPaper"
+      component={CommercialJordynPaper}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={JORDYN_PAPER_FRAMES}
+    />
+    <Composition
+      id="CommercialJordynFlat"
+      component={CommercialJordynFlat}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={JORDYN_FLAT_FRAMES}
+    />
+    <Composition
+      id="CommercialJordynLong"
+      component={CommercialJordynLong}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={JORDYN_LONG_FRAMES}
+    />
+    <Composition
+      id="CommercialVertical"
+      component={CommercialVertical}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={2700}
+      defaultProps={{ vert: 'insurance' }}
+      calculateMetadata={vertMetadata}
+    />
+    <Composition
+      id="CommercialApexBrand"
+      component={CommercialApexBrand}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={APEX_FRAMES}
+    />
+    <Composition
+      id="CommercialApexTornPaper"
+      component={CommercialApexTornPaper}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={APEX_TORNPAPER_FRAMES}
+    />
+    <Composition
+      id="PaperChartDemo"
+      component={PaperChartDemo}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={PAPER_CHART_FRAMES}
+    />
+    <Composition
+      id="CompPlanOverview"
+      component={CompPlanOverview}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={COMP1_FRAMES}
+    />
+    <Composition
+      id="CompPlanDetail"
+      component={CompPlanDetail}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={COMPD_FRAMES}
+    />
+    <Composition
+      id="CompVideo2Tech"
+      component={CompVideo2Tech}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={COMP2_FRAMES}
+    />
+    <Composition
+      id="CompVideo3Insurance"
+      component={CompVideo3Insurance}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={COMP3_FRAMES}
+    />
+    <Composition
+      id="CompVideo4Team"
+      component={CompVideo4Team}
+      fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={COMP4_FRAMES}
+    />
     <Composition
       id="AnimatedExplainer"
       component={AnimatedExplainer}
