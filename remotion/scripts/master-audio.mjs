@@ -40,17 +40,34 @@ log(`VO clips: ${n}, timeline ~${totalSec}s`)
 
 // 1) Build one continuous VO track: place each clip at its start time (adelay),
 //    normalize each to a consistent speech loudness, then mix them.
+// BULLETPROOF placement: CONCATENATE [silence gap][clip][silence gap][clip]...
+// The beats are sequential (never overlap), so simple concatenation puts each clip
+// at its exact absolute start with zero risk of amix/adelay re-basing the timeline
+// (the old adelay+amix approach silently slid the whole VO ~INTRO seconds early).
+// Gap before clip i = starts[i] - (end of clip i-1). First gap = BODY_START.
+const voMaster = join(P, 'voMaster.mp3')
+const parts = []                    // filter labels to concat, in order
 const inputs = []
 const filters = []
-for (let i = 0; i < n; i++) {
-  inputs.push('-i', join(P, `vo-${i}.mp3`))
-  const ms = Math.round(starts[i] * 1000)
-  // loudnorm each VO clip to a consistent -16 LUFS speech target, then delay
-  filters.push(`[${i}:a]loudnorm=I=-16:TP=-1.5:LRA=11,adelay=${ms}|${ms}[v${i}]`)
+let inIdx = 0
+let clock = 0                       // running end-time of what we've placed
+const silenceLabel = (durSec, tag) => {
+  // anullsrc silence of the given duration
+  filters.push(`anullsrc=r=44100:cl=stereo,atrim=0:${durSec.toFixed(3)}[${tag}]`)
+  return `[${tag}]`
 }
-const mixIns = Array.from({ length: n }, (_, i) => `[v${i}]`).join('')
-filters.push(`${mixIns}amix=inputs=${n}:normalize=0:dropout_transition=0,apad,atrim=0:${totalSec}[vo]`)
-const voMaster = join(P, 'voMaster.mp3')
+for (let i = 0; i < n; i++) {
+  const gap = Math.max(0, starts[i] - clock)
+  if (gap > 0.001) parts.push(silenceLabel(gap, `sil${i}`))
+  inputs.push('-i', join(P, `vo-${i}.mp3`))
+  filters.push(`[${inIdx}:a]loudnorm=I=-16:TP=-1.5:LRA=11,aresample=44100[c${i}]`)
+  parts.push(`[c${i}]`)
+  clock = starts[i] + vo[i]         // clip's real (untrimmed) length
+  inIdx++
+}
+// tail silence to reach totalSec
+if (totalSec - clock > 0.001) parts.push(silenceLabel(totalSec - clock, 'siltail'))
+filters.push(`${parts.join('')}concat=n=${parts.length}:v=0:a=1[vo]`)
 execFileSync('ffmpeg', ['-y', ...inputs, '-filter_complex', filters.join(';'), '-map', '[vo]', '-ar', '44100', '-ac', '2', voMaster], { stdio: 'ignore' })
 log('voMaster.mp3 built (continuous VO on the timeline)')
 
