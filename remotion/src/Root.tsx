@@ -67,6 +67,20 @@ import { CompVideo3Insurance, COMP3_FRAMES } from './CompVideo3Insurance'
 import { CompVideo4Team, COMP4_FRAMES } from './CompVideo4Team'
 import { RoadmapEp1, ROAD1_FRAMES } from './RoadmapEp1'
 import { RoadmapEp2, ROAD2_FRAMES } from './RoadmapEp2'
+import { RoadmapEp3, ROAD3_FRAMES } from './RoadmapEp3'
+import { RoadmapEp4, ROAD4_FRAMES } from './RoadmapEp4'
+import { RoadmapEp5, ROAD5_FRAMES } from './RoadmapEp5'
+import { RoadmapEp6, ROAD6_FRAMES } from './RoadmapEp6'
+import { RoadmapEp7, ROAD7_FRAMES } from './RoadmapEp7'
+import { RoadmapEp8, ROAD8_FRAMES } from './RoadmapEp8'
+import { RoadmapEp9, ROAD9_FRAMES } from './RoadmapEp9'
+import { RoadmapEp10, ROAD10_FRAMES } from './RoadmapEp10'
+import { RoadmapEp11, ROAD11_FRAMES } from './RoadmapEp11'
+import { RoadmapEp12, ROAD12_FRAMES } from './RoadmapEp12'
+import { RoadmapEp13, ROAD13_FRAMES } from './RoadmapEp13'
+import { RoadmapEp14, ROAD14_FRAMES } from './RoadmapEp14'
+import { RoadmapEp15, ROAD15_FRAMES } from './RoadmapEp15'
+import { RoadmapEp16, ROAD16_FRAMES } from './RoadmapEp16'
 import type { LookName } from './looks/Looks'
 
 // compute a vertical video's total frames from its data.json (VO durations)
@@ -279,6 +293,20 @@ export const RemotionRoot: React.FC = () => {
       height={1080}
       durationInFrames={ROAD2_FRAMES}
     />
+    <Composition id="RoadmapEp3" component={RoadmapEp3} fps={FPS} width={1920} height={1080} durationInFrames={ROAD3_FRAMES} />
+    <Composition id="RoadmapEp4" component={RoadmapEp4} fps={FPS} width={1920} height={1080} durationInFrames={ROAD4_FRAMES} />
+    <Composition id="RoadmapEp5" component={RoadmapEp5} fps={FPS} width={1920} height={1080} durationInFrames={ROAD5_FRAMES} />
+    <Composition id="RoadmapEp6" component={RoadmapEp6} fps={FPS} width={1920} height={1080} durationInFrames={ROAD6_FRAMES} />
+    <Composition id="RoadmapEp7" component={RoadmapEp7} fps={FPS} width={1920} height={1080} durationInFrames={ROAD7_FRAMES} />
+    <Composition id="RoadmapEp8" component={RoadmapEp8} fps={FPS} width={1920} height={1080} durationInFrames={ROAD8_FRAMES} />
+    <Composition id="RoadmapEp9" component={RoadmapEp9} fps={FPS} width={1920} height={1080} durationInFrames={ROAD9_FRAMES} />
+    <Composition id="RoadmapEp10" component={RoadmapEp10} fps={FPS} width={1920} height={1080} durationInFrames={ROAD10_FRAMES} />
+    <Composition id="RoadmapEp11" component={RoadmapEp11} fps={FPS} width={1920} height={1080} durationInFrames={ROAD11_FRAMES} />
+    <Composition id="RoadmapEp12" component={RoadmapEp12} fps={FPS} width={1920} height={1080} durationInFrames={ROAD12_FRAMES} />
+    <Composition id="RoadmapEp13" component={RoadmapEp13} fps={FPS} width={1920} height={1080} durationInFrames={ROAD13_FRAMES} />
+    <Composition id="RoadmapEp14" component={RoadmapEp14} fps={FPS} width={1920} height={1080} durationInFrames={ROAD14_FRAMES} />
+    <Composition id="RoadmapEp15" component={RoadmapEp15} fps={FPS} width={1920} height={1080} durationInFrames={ROAD15_FRAMES} />
+    <Composition id="RoadmapEp16" component={RoadmapEp16} fps={FPS} width={1920} height={1080} durationInFrames={ROAD16_FRAMES} />
     <Composition
       id="AnimatedExplainer"
       component={AnimatedExplainer}

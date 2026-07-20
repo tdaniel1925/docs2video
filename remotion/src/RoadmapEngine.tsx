@@ -102,6 +102,57 @@ export const Statement: React.FC<{ kicker?: string; foot?: React.ReactNode; chil
   <Panel kicker={kicker} foot={foot}><Lead size={54}>{children}</Lead></Panel>
 )
 
+/* ---- titled bullet list (feature lists, "who it's for", etc) ---- */
+export const Bullets: React.FC<{ items: string[]; kicker?: string; foot?: React.ReactNode }> = ({ items, kicker, foot }) => { const f = useCurrentFrame(); return (
+  <Panel kicker={kicker} foot={foot}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 22, alignItems: 'stretch', width: '100%', maxWidth: 1150, margin: '0 auto' }}>
+      {items.map((t, i) => { const p = interpolate(f - (6 + i * 7), [0, 12], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: EASE.backOut }); return (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 24, opacity: clamp(p), transform: `translateX(${(1 - p) * -26}px)` }}>
+          <div style={{ flexShrink: 0, width: 26, height: 26, borderRadius: 7, background: i % 2 ? RED : NAVY, transform: 'rotate(45deg)' }} />
+          <div style={{ fontFamily: FONT, fontWeight: 800, fontSize: 40, color: INK, textAlign: 'left', lineHeight: 1.2 }}>{t}</div>
+        </div>) })}
+    </div>
+  </Panel>
+) }
+
+/* ---- one hero stat/word + label (value, pricing, a key number) ---- */
+export const Stat: React.FC<{ big: React.ReactNode; label?: string; kicker?: string; foot?: React.ReactNode; color?: string; size?: number }> = ({ big, label, kicker, foot, color = NAVY, size = 220 }) => (
+  <Panel kicker={kicker} foot={foot}>
+    <Big color={color} size={size}>{big}</Big>
+    {label ? <div style={{ fontFamily: FONT, fontWeight: 800, fontSize: 40, color: INK, marginTop: 10 }}>{label}</div> : null}
+  </Panel>
+)
+
+/* ---- data-driven panel builder: turn a config object into a panelMap.
+   Each entry is one of:
+     { kind:'statement', kicker, foot, text }
+     { kind:'bullets',   kicker, foot, items:[...] }
+     { kind:'stat',      kicker, foot, big, label, color, size }
+     { kind:'twocol',    kicker, foot, left:{t,s}, right:{t,s}, joiner }
+     { kind:'steps',     kicker, foot, items:[...] }
+   Accent a word inside statement text with **word** (renders red). ---- */
+const renderAccents = (text: string): React.ReactNode => {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((p, i) => p.startsWith('**') && p.endsWith('**')
+    ? <span key={i} style={{ color: RED }}>{p.slice(2, -2)}</span>
+    : <React.Fragment key={i}>{p}</React.Fragment>)
+}
+export const buildPanels = (cfg: Record<string, any>): Record<string, React.FC> => {
+  const map: Record<string, React.FC> = {}
+  for (const key of Object.keys(cfg)) {
+    const c = cfg[key]
+    map[key] = () => {
+      const foot = c.foot ? renderAccents(c.foot) : undefined
+      if (c.kind === 'bullets') return <Bullets kicker={c.kicker} foot={foot} items={c.items} />
+      if (c.kind === 'stat') return <Stat kicker={c.kicker} foot={foot} big={c.big} label={c.label} color={c.color} size={c.size} />
+      if (c.kind === 'twocol') return <TwoCol kicker={c.kicker} foot={foot} left={c.left} right={c.right} joiner={c.joiner} />
+      if (c.kind === 'steps') return <Steps kicker={c.kicker} foot={foot} items={c.items} />
+      return <Statement kicker={c.kicker} foot={foot}>{renderAccents(c.text || '')}</Statement>
+    }
+  }
+  return map
+}
+
 /* ---- paper scene (STRONG Ken-Burns) ---- */
 const makeScene = (dir: string): React.FC<{ i: number }> => ({ i }) => {
   const f = useCurrentFrame(); const { durationInFrames } = useVideoConfig()
