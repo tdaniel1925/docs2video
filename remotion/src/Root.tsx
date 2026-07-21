@@ -84,6 +84,7 @@ import { RoadmapEp16, ROAD16_FRAMES } from './RoadmapEp16'
 import { TechComp, TECHCOMP_FRAMES } from './TechComp'
 import { Power53, POWER53_FRAMES } from './Power53'
 import { PosterHype, POSTER_FRAMES } from './PosterHype'
+import { Cinematic, CINE_FRAMES } from './Cinematic'
 import type { LookName } from './looks/Looks'
 
 // compute a vertical video's total frames from its data.json (VO durations)
@@ -313,6 +314,7 @@ export const RemotionRoot: React.FC = () => {
     <Composition id="TechComp" component={TechComp} fps={FPS} width={1920} height={1080} durationInFrames={TECHCOMP_FRAMES} />
     <Composition id="Power53" component={Power53} fps={FPS} width={1920} height={1080} durationInFrames={POWER53_FRAMES} />
     <Composition id="PosterHype" component={PosterHype} fps={FPS} width={1920} height={1080} durationInFrames={POSTER_FRAMES} />
+    <Composition id="Cinematic" component={Cinematic} fps={FPS} width={1920} height={1080} durationInFrames={CINE_FRAMES} />
     <Composition
       id="AnimatedExplainer"
       component={AnimatedExplainer}
