@@ -87,6 +87,7 @@ import { PosterHype, POSTER_FRAMES } from './PosterHype'
 import { Cinematic, CINE_FRAMES } from './Cinematic'
 import { Cinematic2, CINE2_FRAMES } from './Cinematic2'
 import { CinematicPexels, PEXELS_FRAMES } from './CinematicPexels'
+import { RealtyGlobal, REALTY_FRAMES } from './RealtyGlobal'
 import type { LookName } from './looks/Looks'
 
 // compute a vertical video's total frames from its data.json (VO durations)
@@ -319,6 +320,7 @@ export const RemotionRoot: React.FC = () => {
     <Composition id="Cinematic" component={Cinematic} fps={FPS} width={1920} height={1080} durationInFrames={CINE_FRAMES} />
     <Composition id="Cinematic2" component={Cinematic2} fps={FPS} width={1920} height={1080} durationInFrames={CINE2_FRAMES} />
     <Composition id="CinematicPexels" component={CinematicPexels} fps={FPS} width={1920} height={1080} durationInFrames={PEXELS_FRAMES} />
+    <Composition id="RealtyGlobal" component={RealtyGlobal} fps={FPS} width={1920} height={1080} durationInFrames={REALTY_FRAMES} />
     <Composition
       id="AnimatedExplainer"
       component={AnimatedExplainer}
