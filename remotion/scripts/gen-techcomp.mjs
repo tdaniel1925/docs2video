@@ -40,11 +40,21 @@ const BEATS = [
   ["Level one is your enrollment override. It pays thirty percent on everyone you personally bring in — always thirty, at every rank.", 'l1'],                                  // 24
   ["Beyond level one, higher ranks unlock deeper levels. Starter earns on one level. Elite earns on all seven.", 'depth'],                                                      // 25
   ["Here's the full schedule. As you climb, you unlock levels two through seven — and at Ruby and above, you earn on the entire pool.", 'schedule'],                            // 26
+  // ---- TWO TREES (added detail) ----
+  ["A quick clarification on those levels. Your income comes from two connected trees.", 'twotrees'],                                                                           // NEW
+  ["Your enrollment tree pays that thirty percent level-one override on everyone you personally sponsor.", 'enrolltree'],                                                       // NEW
+  ["Your team tree pays levels two through seven, deeper into your organization, based on your rank.", 'teamtree'],                                                             // NEW
+  ["And no one is paid twice for the same sale. Each level is counted once, cleanly.", 'nodouble'],                                                                             // NEW
   // ---- WORKED EXAMPLE ----
   ["Let's make it real with an example. Say you personally sell ten SmartViewz subscriptions in a month.", 'ex_personal'],                                                      // 27
   ["That's six hundred ninety B.V. in personal sales — your personal commission is paid on all of it.", 'ex_personal2'],                                                        // 28
   ["Now add a team. Say twenty active people each producing around three hundred B.V. a month.", 'ex_team'],                                                                    // 29
   ["That's six thousand team B.V. flowing up through your override levels — income on top of your own.", 'ex_team2'],                                                           // 30
+  // ---- 90-DAY PROGRESSION (added detail) ----
+  ["Let's look at a realistic first ninety days. Month one — you focus on your own sales and hit your first personal volume.", 'day30'],                                        // NEW
+  ["Month two — you sponsor a few people, your group volume climbs, and you promote to Bronze. That's your first rank bonus.", 'day60'],                                        // NEW
+  ["Month three — your team is producing, you reach Silver, and now you're earning three levels deep. Momentum is real.", 'day90'],                                             // NEW
+  ["Notice the pattern: personal sales fund your start, and your team turns it into something that compounds.", 'compound'],                                                    // NEW
   // ---- QUALIFY ----
   ["To earn those overrides, one simple rule: produce at least fifty personal volume each month.", 'qualify'],                                                                  // 31
   ["Sell a little, stay qualified. Miss a month, and you have a thirty-day grace period to get back on track.", 'grace'],                                                       // 32

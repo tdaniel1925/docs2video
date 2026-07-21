@@ -42,6 +42,16 @@ const panelMap = buildPanels({
   l1: { kind: 'stat', kicker: 'Level 1 · Enrollment Override', big: '30%', label: 'on everyone you personally bring in — always', color: '#c0272d', size: 240 },
   depth: { kind: 'twocol', kicker: 'Depth Grows With Rank', left: { t: '1 Level', s: 'Starter' }, right: { t: '7 Levels', s: 'Elite' }, joiner: '→', foot: 'The higher your rank, the deeper you earn.' },
   schedule: { kind: 'schedule', kicker: 'Full Override Schedule · L1–L7', foot: 'At **Ruby & above**, you earn on the entire pool.' },
+  // two trees
+  twotrees: { kind: 'twocol', kicker: 'Two Connected Trees', left: { t: 'Enrollment', s: 'Level 1' }, right: { t: 'Team', s: 'Levels 2–7' }, foot: 'Together they make your income.' },
+  enrolltree: { kind: 'stat', kicker: 'Enrollment Tree', big: '30%', label: 'on everyone you personally sponsor', color: '#c0272d', size: 220 },
+  teamtree: { kind: 'statement', kicker: 'Team Tree', text: 'Pays **Levels 2 through 7** — deeper into your organization, based on your rank.' },
+  nodouble: { kind: 'statement', kicker: 'Clean & Simple', text: 'No one is paid twice for the same sale. **Each level counted once.**' },
+  // 90 days
+  day30: { kind: 'stat', kicker: 'Month One', big: 'Sell', label: 'focus on your own volume', color: '#1e3a70', size: 200 },
+  day60: { kind: 'statement', kicker: 'Month Two', text: 'Sponsor a few people → group volume climbs → **promote to Bronze** + first bonus.', foot: 'Illustrative.' },
+  day90: { kind: 'statement', kicker: 'Month Three', text: 'Team producing → reach **Silver** → earning **three levels deep.**', foot: 'Illustrative.' },
+  compound: { kind: 'statement', kicker: 'The Pattern', text: 'Personal sales fund your start; **your team makes it compound.**' },
   // worked example
   ex_personal: { kind: 'stat', kicker: 'Example · Your Sales', big: '10', label: 'SmartViewz subscriptions in a month', color: '#1e3a70', size: 220 },
   ex_personal2: { kind: 'stat', kicker: 'Your Personal B.V.', big: '690 BV', label: 'your commission is paid on all of it', color: '#c0272d', size: 190, foot: 'Illustrative.' },
