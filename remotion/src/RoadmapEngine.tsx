@@ -102,6 +102,54 @@ export const Statement: React.FC<{ kicker?: string; foot?: React.ReactNode; chil
   <Panel kicker={kicker} foot={foot}><Lead size={54}>{children}</Lead></Panel>
 )
 
+/* ---- rank card: three exact stats (PV / GV / bonus) for one rank ---- */
+export const RankCard: React.FC<{ kicker?: string; foot?: React.ReactNode; rank: string; pv: string; gv: string; bonus?: string; leg?: string }> = ({ kicker, foot, rank, pv, gv, bonus, leg }) => { const f = useCurrentFrame(); const cell = (label: string, val: string, color: string, at: number) => { const p = interpolate(f - at, [0, 12], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: EASE.backOut }); return (<div style={{ flex: 1, background: color, borderRadius: 16, padding: '22px 14px', display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: clamp(p), transform: `translateY(${(1 - p) * 20}px)` }}><div style={{ fontFamily: FONT, fontWeight: 800, fontSize: 22, color: 'rgba(255,255,255,0.85)', letterSpacing: '0.12em' }}>{label}</div><div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 60, color: WHITE, lineHeight: 1.05 }}>{val}</div></div>) }; return (
+  <Panel kicker={kicker || rank} foot={foot}>
+    <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 76, color: NAVY, letterSpacing: '-0.02em', marginBottom: 22 }}>{rank}</div>
+    <div style={{ display: 'flex', gap: 16, justifyContent: 'center', alignItems: 'stretch' }}>
+      {cell('PERSONAL', pv, NAVY, 6)}{cell('GROUP', gv, RED, 10)}{bonus ? cell('RANK BONUS', bonus, GREEN, 14) : null}
+    </div>
+    {leg ? <div style={{ fontFamily: FONT, fontWeight: 800, fontSize: 30, color: INK, marginTop: 20 }}>{leg}</div> : null}
+  </Panel>
+) }
+
+/* ---- override schedule: the 9-rank × L1-L7 matrix (exact %s) ---- */
+const SCHED_RANKS = ['Starter', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Ruby', 'Diamond', 'Crown', 'Elite']
+const SCHED_ROWS: (string | null)[][] = [
+  ['30%', null, null, null, null, null, null],
+  ['30%', '20%', null, null, null, null, null],
+  ['30%', '20%', '18%', null, null, null, null],
+  ['30%', '20%', '18%', '15%', null, null, null],
+  ['30%', '20%', '18%', '15%', '10%', null, null],
+  ['30%', '20%', '18%', '15%', '10%', '7%', null],
+  ['30%', '20%', '18%', '15%', '8%', '6%', '3%'],
+  ['30%', '22%', '18%', '13%', '8%', '6%', '3%'],
+  ['30%', '25%', '18%', '11%', '8%', '5%', '3%'],
+]
+export const ScheduleTable: React.FC<{ kicker?: string; foot?: React.ReactNode }> = ({ kicker, foot }) => { const f = useCurrentFrame(); const th: React.CSSProperties = { fontFamily: FONT, fontWeight: 800, fontSize: 22, color: RED, padding: '4px 0', textAlign: 'center' }; return (
+  <Panel kicker={kicker} foot={foot}>
+    <div style={{ display: 'grid', gridTemplateColumns: '150px repeat(7, 1fr)', gap: '4px 6px', width: '100%', maxWidth: 1280, margin: '0 auto' }}>
+      <div style={{ ...th, color: NAVY, textAlign: 'left' }}>RANK</div>
+      {['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7'].map((l) => <div key={l} style={th}>{l}</div>)}
+      {SCHED_ROWS.map((row, r) => { const p = interpolate(f - (8 + r * 4), [0, 10], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }); const last = r === 8; return (
+        <React.Fragment key={r}>
+          <div style={{ fontFamily: FONT, fontWeight: 800, fontSize: 24, color: last ? RED : INK, textAlign: 'left', opacity: clamp(p) }}>{SCHED_RANKS[r]}</div>
+          {row.map((c, ci) => <div key={ci} style={{ fontFamily: FONT, fontWeight: c ? 800 : 400, fontSize: 24, color: c ? (ci === 0 ? NAVY : INK) : '#c9c0ae', textAlign: 'center', background: c ? (ci === 0 ? 'rgba(30,58,112,0.08)' : 'rgba(0,0,0,0.03)') : 'transparent', borderRadius: 6, padding: '3px 0', opacity: clamp(p) }}>{c || '·'}</div>)}
+        </React.Fragment>) })}
+    </div>
+  </Panel>
+) }
+
+/* ---- 9-rank ascending ladder (Starter → Elite) ---- */
+export const Ranks9: React.FC<{ kicker?: string; foot?: React.ReactNode }> = ({ kicker, foot }) => { const f = useCurrentFrame(); return (
+  <Panel kicker={kicker} foot={foot}>
+    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 12, height: 320 }}>
+      {SCHED_RANKS.map((r, i) => { const at = 6 + i * 4; const p = interpolate(f - at, [0, 12], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: EASE.backOut }); const h = 70 + i * 28; const last = i === 8; return (
+        <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, opacity: clamp(p), transform: `translateY(${(1 - p) * 20}px)` }}><div style={{ width: 92, height: h, background: last ? RED : NAVY, borderRadius: 8, boxShadow: last ? `0 0 24px ${RED}66` : 'none' }} /><div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 19, color: last ? RED : INK }}>{r}</div></div>) })}
+    </div>
+  </Panel>
+) }
+
 /* ---- titled bullet list (feature lists, "who it's for", etc) ---- */
 export const Bullets: React.FC<{ items: string[]; kicker?: string; foot?: React.ReactNode }> = ({ items, kicker, foot }) => { const f = useCurrentFrame(); return (
   <Panel kicker={kicker} foot={foot}>
@@ -147,6 +195,9 @@ export const buildPanels = (cfg: Record<string, any>): Record<string, React.FC> 
       if (c.kind === 'stat') return <Stat kicker={c.kicker} foot={foot} big={c.big} label={c.label} color={c.color} size={c.size} />
       if (c.kind === 'twocol') return <TwoCol kicker={c.kicker} foot={foot} left={c.left} right={c.right} joiner={c.joiner} />
       if (c.kind === 'steps') return <Steps kicker={c.kicker} foot={foot} items={c.items} />
+      if (c.kind === 'rankcard') return <RankCard kicker={c.kicker} foot={foot} rank={c.rank} pv={c.pv} gv={c.gv} bonus={c.bonus} leg={c.leg} />
+      if (c.kind === 'schedule') return <ScheduleTable kicker={c.kicker} foot={foot} />
+      if (c.kind === 'ranks9') return <Ranks9 kicker={c.kicker} foot={foot} />
       return <Statement kicker={c.kicker} foot={foot}>{renderAccents(c.text || '')}</Statement>
     }
   }

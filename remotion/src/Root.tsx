@@ -81,6 +81,7 @@ import { RoadmapEp13, ROAD13_FRAMES } from './RoadmapEp13'
 import { RoadmapEp14, ROAD14_FRAMES } from './RoadmapEp14'
 import { RoadmapEp15, ROAD15_FRAMES } from './RoadmapEp15'
 import { RoadmapEp16, ROAD16_FRAMES } from './RoadmapEp16'
+import { TechComp, TECHCOMP_FRAMES } from './TechComp'
 import type { LookName } from './looks/Looks'
 
 // compute a vertical video's total frames from its data.json (VO durations)
@@ -307,6 +308,7 @@ export const RemotionRoot: React.FC = () => {
     <Composition id="RoadmapEp14" component={RoadmapEp14} fps={FPS} width={1920} height={1080} durationInFrames={ROAD14_FRAMES} />
     <Composition id="RoadmapEp15" component={RoadmapEp15} fps={FPS} width={1920} height={1080} durationInFrames={ROAD15_FRAMES} />
     <Composition id="RoadmapEp16" component={RoadmapEp16} fps={FPS} width={1920} height={1080} durationInFrames={ROAD16_FRAMES} />
+    <Composition id="TechComp" component={TechComp} fps={FPS} width={1920} height={1080} durationInFrames={TECHCOMP_FRAMES} />
     <Composition
       id="AnimatedExplainer"
       component={AnimatedExplainer}
