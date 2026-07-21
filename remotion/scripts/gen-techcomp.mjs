@@ -69,8 +69,8 @@ const SCENE_PROMPTS = {
   1: `${PAPER} A red paper hand offering a glowing navy paper laptop with a paper spark to a paper business owner behind a counter, A.I. tools for businesses.`,
   7: `${PAPER} A red paper figure with two glowing streams of cream paper coins flowing into each hand, two ways to earn.`,
   23: `${PAPER} A red paper figure looking up at a tall navy paper pyramid of seven stacked paper tiers glowing softly, override levels stacked deep.`,
-  34: `${PAPER} A red paper figure climbing high on a navy paper ladder that extends beyond the frame into a bright cream sky, no ceiling.`,
-  35: `${PAPER} A triumphant red paper figure taking a confident first step onto a navy paper path of rising stepping stones toward a cream sunrise, start today.`,
+  42: `${PAPER} A red paper figure climbing high on a navy paper ladder that extends beyond the frame into a bright cream sky, no ceiling.`,
+  43: `${PAPER} A triumphant red paper figure taking a confident first step onto a navy paper path of rising stepping stones toward a cream sunrise, start today.`,
 }
 
 await generate({ dir: 'techcomp', beats: BEATS, scenePrompts: SCENE_PROMPTS,

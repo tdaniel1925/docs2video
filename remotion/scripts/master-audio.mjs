@@ -86,7 +86,10 @@ execFileSync('ffmpeg', ['-y',
   // [0]=music bed, [1]=vo sidechain key.
   // MUSIC PREP: dynaudnorm FIRST evens out the track's internal level (so the
   // compressor isn't fighting the swell), then loudnorm to a steady bed target.
-  `[0:a]dynaudnorm=f=250:g=15:p=0.9:m=6,loudnorm=I=-24:TP=-3:LRA=5,atrim=0:${totalSec},aresample=44100[bed];` +
+  // aloop FIRST so the music always FILLS the full timeline (ElevenLabs caps music
+  // at ~300s; long videos ran out ~35s early). loop=-1 = infinite, then atrim to
+  // exact length. size is samples-per-loop; 2^31-1 lets aloop hold the whole track.
+  `[0:a]aresample=44100,aloop=loop=-1:size=2147483647,dynaudnorm=f=250:g=15:p=0.9:m=6,loudnorm=I=-24:TP=-3:LRA=5,atrim=0:${totalSec}[bed];` +
   // KEY: smooth the VO envelope so the ducking follows the OVERALL speech, not
   // every syllable — this is what kills the pumping. Lowpass + slow gate-ish
   // smoothing on the sidechain key.
@@ -94,8 +97,9 @@ execFileSync('ffmpeg', ['-y',
   // GENTLE duck: low ratio + SLOW attack & LONG release so the music glides down
   // under speech and eases back up smoothly (no lurching / gain-pumping).
   `[bed][key]sidechaincompress=threshold=0.05:ratio=3:attack=120:release=900:makeup=1:link=average[ducked];` +
-  `[ducked]alimiter=limit=0.9[out]`,
+  // 3s fade-out at the very end so music resolves cleanly (was cutting off abruptly).
+  `[ducked]alimiter=limit=0.9,afade=t=out:st=${(totalSec - 3).toFixed(2)}:d=3[out]`,
   '-map', '[out]', '-ar', '44100', '-ac', '2', musicDucked,
 ], { stdio: 'ignore' })
-log('musicDucked.mp3 built (music dips under VO, never overpowers)')
+log('musicDucked.mp3 built (music loops to full length + fades out at end)')
 log('DONE — point the composition at voMaster.mp3 + musicDucked.mp3 at volume 1.0')
