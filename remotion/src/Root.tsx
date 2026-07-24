@@ -90,6 +90,7 @@ import { CinematicPexels, PEXELS_FRAMES } from './CinematicPexels'
 import { RealtyGlobal, REALTY_FRAMES } from './RealtyGlobal'
 import { GlossySlides, GLOSSY_FRAMES } from './GlossySlides'
 import { JordynReal, JORDYN2_FRAMES } from './JordynReal'
+import { InfographicSample, INFOG_FRAMES } from './InfographicSample'
 import type { LookName } from './looks/Looks'
 
 // compute a vertical video's total frames from its data.json (VO durations)
@@ -325,6 +326,7 @@ export const RemotionRoot: React.FC = () => {
     <Composition id="RealtyGlobal" component={RealtyGlobal} fps={FPS} width={1920} height={1080} durationInFrames={REALTY_FRAMES} />
     <Composition id="GlossySlides" component={GlossySlides} fps={FPS} width={1920} height={1080} durationInFrames={GLOSSY_FRAMES} />
     <Composition id="JordynReal" component={JordynReal} fps={FPS} width={1920} height={1080} durationInFrames={JORDYN2_FRAMES} />
+    <Composition id="InfographicSample" component={InfographicSample} fps={FPS} width={1920} height={1080} durationInFrames={INFOG_FRAMES} />
     <Composition
       id="AnimatedExplainer"
       component={AnimatedExplainer}
