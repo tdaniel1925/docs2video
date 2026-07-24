@@ -373,6 +373,16 @@ function go(i){
   animate(secs[i]);
   voPlay();
 }
+/* ── RECORD MODE (?record=1): the MP4 export path. Hides every player
+   control, disables in-page audio, and exposes startShow(durationsMs) —
+   the exporter drives slide timing and muxes the narration in post. ── */
+const RP=new URLSearchParams(location.search);
+if(RP.get('record')==='1'){
+  document.getElementById('nav').style.display='none';
+  voiceOn=false;
+  document.body.style.pointerEvents='none';
+  window.startShow=(durs)=>{go(0);let t=0;for(let i=1;i<durs.length&&i<secs.length;i++){t+=durs[i-1];setTimeout(((k)=>()=>go(k))(i),t);}};
+}
 document.getElementById('next').onclick=()=>{if(cur>=secs.length-1)go(0);else go(cur+1);};
 document.getElementById('prev').onclick=()=>go(cur-1);
 document.addEventListener('keydown',e=>{
@@ -383,4 +393,16 @@ go(0);
 </script></body></html>`
 
 writeFileSync(OUT, HTML)
+// VO manifest for the MP4 exporter: clip file + measured duration per slide.
+try {
+  const { execFileSync } = await import('child_process')
+  const clips = NARRATION.map((line) => {
+    const key = createHash('md5').update(line).digest('hex')
+    const file = join(VO_CACHE, `${key}.mp3`)
+    const dur = parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file]).toString().trim())
+    return { file, durMs: Math.round(dur * 1000) }
+  })
+  writeFileSync(join(HERE, '..', 'out', 'annuity-vo-manifest.json'), JSON.stringify({ clips }, null, 2))
+  console.log('[annuity v2] manifest:', clips.map((c) => (c.durMs / 1000).toFixed(1) + 's').join(' '))
+} catch (e) { console.log('[annuity v2] manifest skipped:', String(e.message).slice(0, 60)) }
 console.log('[annuity v2] wrote', OUT, '(' + Math.round(Buffer.byteLength(HTML) / 1024) + ' KB,', VO.filter(Boolean).length + '/' + NARRATION.length, 'VO clips)')
