@@ -30,6 +30,8 @@ WORKDIR /app
 # Copy package files and install dependencies
 COPY package.json package-lock.json* ./
 RUN npm install --production
+# Playwright chromium for presentation->MP4 export capture
+RUN npx playwright install --with-deps chromium
 
 # --- V3 Remotion renderer: bake the remotion/ project (synced by deploy.sh) ---
 COPY remotion /app/remotion

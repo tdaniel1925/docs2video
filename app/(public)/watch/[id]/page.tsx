@@ -760,6 +760,25 @@ export default function PublicWatchPage() {
     }
   }, [video?.music_url, musicVolume, musicMuted])
 
+  // Interactive presentations: the deck's closing slide posts action clicks
+  // up (deck PDF / video download / source PDF). Handle them here.
+  useEffect(() => {
+    if (!video || (video as any).output_type !== 'interactive') return
+    const onMsg = (e: MessageEvent) => {
+      const d = e.data
+      if (!d || d.type !== 'act') return
+      if (d.kind === 'deck') window.open(`/api/public/deck-pdf/${video.id}`, '_blank')
+      if (d.kind === 'video' && (video as any).export_video_url) window.open((video as any).export_video_url, '_blank')
+      if (d.kind === 'pdf' || d.kind === 'chat') {
+        // source PDF has its own visible button; chat ships later — scroll
+        // the actions area into view so the client finds them.
+        document.querySelector('.wp-col-right')?.scrollIntoView({ behavior: 'smooth' })
+      }
+    }
+    window.addEventListener('message', onMsg)
+    return () => window.removeEventListener('message', onMsg)
+  }, [video])
+
   // Pause music when tab is hidden, resume when visible
   useEffect(() => {
     function handleVisibility() {

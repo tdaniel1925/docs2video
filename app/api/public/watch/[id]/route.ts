@@ -41,6 +41,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   }
   if (!video) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  // MP4 export URL — read defensively in its OWN query: if migration
+  // 20260724_export_video_url hasn't run, this fails silently and the share
+  // page simply shows no video-download button (never a 404).
+  try {
+    const { data: ex } = await admin.from('videos').select('export_video_url').eq('id', id).maybeSingle()
+    if (ex?.export_video_url) (video as any).export_video_url = ex.export_video_url
+  } catch { /* column not migrated yet */ }
+
   // A share link is "available" once the video has actually rendered (has a
   // playable URL). Don't hard-require status === 'completed' — videos that the
   // owner already shared can sit in completed/complete/review_required/ready

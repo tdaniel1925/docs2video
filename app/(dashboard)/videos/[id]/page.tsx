@@ -1365,9 +1365,29 @@ export default function VideoDetailPage() {
                     </button>
                   ))}
                   {(video as any).output_type === 'interactive' ? (
-                    <button disabled title="MP4 export is coming next — derived from this exact presentation" style={{ padding: '10px 18px', borderRadius: 10, border: '1.5px dashed var(--border-light)', background: 'white', fontWeight: 700, fontSize: 13, color: 'var(--ink-light)', fontFamily: 'inherit', cursor: 'default' }}>
-                      🎬 Export video — coming soon
-                    </button>
+                    (video as any).export_video_url ? (
+                      <a href={(video as any).export_video_url} download style={{ padding: '10px 18px', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--ink)', textDecoration: 'none' }}>
+                        🎬 Download video
+                      </a>
+                    ) : (
+                      <button
+                        onClick={async (e) => {
+                          const btn = e.currentTarget
+                          btn.disabled = true; btn.textContent = 'Starting export…'
+                          const res = await fetch('/api/presentation-export-video', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ videoId: video.id }),
+                          })
+                          const dta = await res.json().catch(() => ({}))
+                          if (dta.url) { window.open(dta.url, '_blank'); btn.textContent = '🎬 Download video'; btn.disabled = false; return }
+                          if (!res.ok) { btn.textContent = dta.error || 'Export failed'; btn.disabled = false; return }
+                          btn.textContent = 'Exporting… refresh in a few minutes (≈ presentation length + 1 min)'
+                        }}
+                        style={{ padding: '10px 18px', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--ink)' }}
+                      >
+                        🎬 Export video (400 credits)
+                      </button>
+                    )
                   ) : null}
                 </div>
               </>

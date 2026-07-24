@@ -560,6 +560,15 @@ app.post('/assemble', authCheck, async (req, res) => {
 })
 
 // PPTX/PPT to PDF conversion (for Gemini extraction)
+// Presentation -> MP4 export (interactive presentations; HTML-first pipeline)
+const { exportPresentation } = require('./present-export')
+app.post('/export-presentation', authCheck, (req, res) => {
+  const sUrl = process.env.SUPABASE_URL, sKey = process.env.SUPABASE_SERVICE_KEY
+  if (!sUrl || !sKey) return res.status(500).json({ error: 'Supabase not configured' })
+  const sb = createClient(sUrl, sKey, { auth: { persistSession: false } })
+  return exportPresentation(sb)(req, res)
+})
+
 app.post('/convert-to-pdf', authCheck, async (req, res) => {
   const { fileBase64, fileName } = req.body
   if (!fileBase64 || !fileName) {
