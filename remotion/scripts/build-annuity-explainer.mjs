@@ -25,6 +25,18 @@ const ELEVEN = env.ELEVENLABS_API_KEY
 const VOICE = env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM'
 
 const fmt = (n) => '$' + Math.round(n).toLocaleString('en-US')
+// ── The presenting advisor (in the product this comes from the user's
+//    profile: uploaded photo + name + contact) ──
+const PRESENTER = {
+  name: 'Maria Alvarez, CLU®',
+  title: 'Retirement Income Specialist',
+  phone: '(832) 555-0164',
+  email: 'maria@alvarezretirement.com',
+}
+const headshotPath = join(HERE, '..', 'public', 'advisor-headshot.png')
+const HEADSHOT = existsSync(headshotPath)
+  ? 'data:image/png;base64,' + readFileSync(headshotPath).toString('base64')
+  : ''
 // ── Extracted from the PDF (figures verbatim; names scrubbed) ──
 const D = {
   client: 'Mrs. Danielle Reyes', age: 58, incomeAge: 68,
@@ -41,13 +53,13 @@ const curvePts = Array.from({ length: D.years + 1 }, (_, t) => ({
 
 // ── Advisor narration (compliant: no carrier/product names; figures kept) ──
 const NARRATION = [
-  `Welcome, ${D.client.replace('Mrs. ', 'Mrs. ')}. Your advisor prepared this short walkthrough of your retirement income plan. Take it at your own pace — and keep your full illustration nearby for every detail.`,
+  `Welcome, ${D.client}. I'm Maria Alvarez, your advisor — I prepared this short walkthrough of your retirement income plan. Take it at your own pace, and keep your full illustration nearby for every detail.`,
   `Everything begins with your rollover: four hundred eighty-five thousand dollars, moving from your 401k to start working for your retirement at age fifty-eight.`,
   `On the guaranteed side, your income base grows seven percent simple every year for ten years — climbing to a projected eight hundred twenty-four thousand five hundred dollars by age sixty-eight.`,
   `That base funds a paycheck for life: forty-nine thousand four hundred seventy dollars a year beginning at sixty-eight — about four thousand one hundred twenty-two dollars a month, guaranteed for as long as you live.`,
   `Separately, your account value is illustrated — not guaranteed — at six hundred twelve thousand three hundred dollars by year five, and seven hundred eighty-one thousand nine hundred by year ten, depending on index performance.`,
   `Your principal is protected by a zero percent floor in down markets, with growth potential up to a nine and a half percent annual cap at one hundred percent participation. A seven-year surrender period applies.`,
-  `This summary is illustrative only. Your complete illustration holds the full guarantees and disclosures — and your advisor is ready for every question. Thank you.`,
+  `This summary is illustrative only. Your complete illustration holds the full guarantees and disclosures. I'm here for every question — reach me anytime at the number below. Thank you, ${D.client}.`,
 ]
 async function tts(text) {
   const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE}?output_format=mp3_44100_64`, {
@@ -122,7 +134,9 @@ body{background:var(--paper);font-family:var(--font);color:var(--ink)}
 h1{font-family:var(--serif);font-weight:700;font-size:clamp(26px,4.4vw,52px);line-height:1.08;letter-spacing:-.01em}
 h1 .g{color:var(--gold)}
 .lead{color:var(--soft);font-size:clamp(13px,1.55vw,18px);line-height:1.55;max-width:660px;margin:12px auto 0}
-.big{position:relative;display:inline-block;font-family:var(--serif);font-weight:700;font-size:clamp(48px,9vw,108px);line-height:1;color:var(--navy);letter-spacing:-.02em;font-variant-numeric:tabular-nums;overflow:hidden}
+/* line-height + bottom padding INSIDE the overflow box, or descenders
+   ($ , y) clip — the perennial big-number rule. */
+.big{position:relative;display:inline-block;font-family:var(--serif);font-weight:700;font-size:clamp(48px,9vw,108px);line-height:1.18;color:var(--navy);letter-spacing:-.02em;font-variant-numeric:tabular-nums;overflow:hidden;padding:0 .05em .08em}
 .big .u{font-size:.38em;color:var(--faint);font-weight:400}
 .big::after{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.65) 50%,transparent 60%);transform:translateX(-130%)}
 .sec.on .big::after{animation:sweep 1.3s ease-out .9s}
@@ -202,6 +216,17 @@ h1 .g{color:var(--gold)}
 .chip{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 18px;text-align:left;box-shadow:0 6px 18px rgba(28,42,68,.06)}
 .chip .cv{font-family:var(--serif);font-weight:700;font-size:clamp(15px,1.9vw,22px);color:var(--navy)}
 .chip .cl{font-size:clamp(10px,1.05vw,12px);color:var(--faint);margin-top:2px}
+/* presenter */
+.advisor{display:inline-flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 22px 8px 8px;box-shadow:0 8px 22px rgba(28,42,68,.08);margin-top:18px;text-align:left}
+.advisor img{width:46px;height:46px;border-radius:50%;object-fit:cover;border:2px solid var(--gold-f)}
+.advisor .an{font-family:var(--serif);font-weight:700;font-size:clamp(13px,1.4vw,16px);color:var(--navy)}
+.advisor .at{font-size:clamp(10px,1.05vw,12px);color:var(--faint)}
+.advcard{display:inline-flex;align-items:center;gap:20px;background:var(--card);border:1px solid var(--gold-f);border-radius:16px;padding:18px 30px 18px 18px;box-shadow:0 16px 40px rgba(28,42,68,.12);margin-top:clamp(12px,2.4vh,22px);text-align:left}
+.advcard img{width:clamp(72px,10vh,96px);height:clamp(72px,10vh,96px);border-radius:14px;object-fit:cover;border:2px solid var(--gold-f)}
+.advcard .an{font-family:var(--serif);font-weight:700;font-size:clamp(17px,2vw,23px);color:var(--navy)}
+.advcard .at{font-size:clamp(11px,1.15vw,13px);color:var(--gold);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:2px 0 8px}
+.advcard .ac{font-size:clamp(12px,1.3vw,15px);color:var(--soft);line-height:1.6}
+.advcard .ac b{color:var(--navy)}
 /* chrome */
 #comply{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);z-index:45;font-size:clamp(9px,.95vw,11px);color:var(--faint);text-align:center;max-width:78vw}
 #bar{position:fixed;left:0;top:0;height:3px;background:var(--gold);width:0;z-index:40;transition:width .3s ease}
@@ -218,7 +243,7 @@ h1 .g{color:var(--gold)}
 <div id="vignette"></div><div id="frame"></div>
 <span class="corner c-tl"></span><span class="corner c-tr"></span><span class="corner c-bl"></span><span class="corner c-br"></span>
 <div id="bar"></div>
-<div class="cornerhead">Retirement Income Summary<span class="sm">Prepared by your advisor for ${D.client}</span></div>
+<div class="cornerhead">Retirement Income Summary<span class="sm">Prepared by ${PRESENTER.name} for ${D.client}</span></div>
 <div id="comply">A summary of your personal illustration. Values are illustrative — refer to your full illustration for complete details, guarantees, and disclosures. Consult your advisor.</div>
 <div id="app"></div>
 <div id="nav"><button class="icon" id="prev">‹</button><span class="lab" id="lab"></span><button id="next">Next ›</button><div id="dots"></div><button id="voice">🔊 Voice on</button></div>
@@ -230,6 +255,7 @@ const SLIDES=[
    <div class="kick"><span class="rule"></span>PREPARED FOR ${D.client.toUpperCase()}<span class="rule r"></span></div>
    <h1>Your Retirement<br>Income Plan<span class="g">.</span></h1>
    <div class="lead">A guided walkthrough of your personal illustration — how your rollover is designed to grow, protect, and pay you for life. Click Next to begin.</div>
+   <div class="advisor">${HEADSHOT ? `<img src="${HEADSHOT}" alt="">` : ''}<span><span class="an">${PRESENTER.name}</span><br><span class="at">${PRESENTER.title}</span></span></div>
   </div>\`},
  {html:\`<div class="wrap">
    <div class="kick"><span class="rule"></span>WHERE YOU START · AGE ${D.age}<span class="rule r"></span></div>
@@ -288,8 +314,9 @@ const SLIDES=[
    ${rosette(150, 6, 'rosette rose-hero')}
    <div class="kick"><span class="rule"></span>IMPORTANT NOTES<span class="rule r"></span></div>
    <h1 style="font-size:clamp(21px,2.9vw,36px)">Review the full illustration<span class="g">.</span></h1>
-   <div class="lead">This summary is illustrative and not a guarantee of future results. Your complete personal illustration — attached below — contains the full guarantees, assumptions, and disclosures. Your advisor prepared this for you and is the right person for every question.</div>
-   <div class="chips"><div class="chip"><div class="cv">📎 Your full illustration</div><div class="cl">the governing document — always refer to it</div></div><div class="chip"><div class="cv">💬 Talk to your advisor</div><div class="cl">to review options, riders, and next steps</div></div></div>
+   <div class="lead">This summary is illustrative and not a guarantee of future results. Your complete personal illustration — attached below — contains the full guarantees, assumptions, and disclosures. I'm the right person for every question.</div>
+   <div class="advcard">${HEADSHOT ? `<img src="${HEADSHOT}" alt="">` : ''}<span><span class="an">${PRESENTER.name}</span><div class="at">${PRESENTER.title}</div><div class="ac"><b>📞 ${PRESENTER.phone}</b><br>✉️ ${PRESENTER.email}</div></span></div>
+   <div class="chips"><div class="chip"><div class="cv">📎 Your full illustration</div><div class="cl">the governing document — always refer to it</div></div></div>
   </div>\`},
 ];
 const app=document.getElementById('app');
