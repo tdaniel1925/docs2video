@@ -103,7 +103,9 @@ const Y = (v) => PT + (1 - (v - vMin) / (vMax - vMin)) * (CH - PT - PB)
 const linePath = curvePts.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' ')
 const areaPath = `${linePath} L${X(D.years).toFixed(1)},${CH - PB} L${X(0).toFixed(1)},${CH - PB} Z`
 
-const HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Retirement Income Summary — ${D.client}</title><style>
+const HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Retirement Income Summary — ${D.client}</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
 :root{--paper:#f7f5ee;--card:#fffdf7;--ink:#1c2a44;--soft:#4d5a74;--faint:#8b94a8;--navy:#1c2a44;--gold:#a8842c;--gold-l:#c9a84c;--gold-f:#d9c07a;--green:#2f6b4f;--line:#e5e0d0;--font:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Georgia,serif;--serif:Georgia,'Times New Roman',serif}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden;caret-color:transparent;-webkit-user-select:none;user-select:none}
@@ -216,6 +218,29 @@ h1 .g{color:var(--gold)}
 .chip{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 18px;text-align:left;box-shadow:0 6px 18px rgba(28,42,68,.06)}
 .chip .cv{font-family:var(--serif);font-weight:700;font-size:clamp(15px,1.9vw,22px);color:var(--navy)}
 .chip .cl{font-size:clamp(10px,1.05vw,12px);color:var(--faint);margin-top:2px}
+/* ── THEMES: same deck, five skins — everything rides the CSS variables. ── */
+/* Warm Editorial (Jordyn) */
+body.t-warm{--paper:#faf9f5;--card:#fffdf8;--ink:#3d3929;--navy:#3d3929;--soft:#6b6759;--faint:#9c988a;--gold:#c96442;--gold-l:#e0906f;--gold-f:#eec4ae;--green:#5d6b52;--line:#e8e6dc;--serif:'Plus Jakarta Sans',sans-serif}
+/* Corporate Bold (Apex) */
+body.t-bold{--paper:#f4f6fa;--card:#ffffff;--ink:#15233f;--navy:#1e3a70;--soft:#4a5a78;--faint:#8b96ab;--gold:#c0272d;--gold-l:#e0454b;--gold-f:#f0b9bb;--green:#2f6b4f;--line:#dde3ec;--serif:'Montserrat',sans-serif}
+/* Midnight (premium dark) */
+body.t-dark{--paper:#0f1729;--card:#1a2439;--ink:#e8edf8;--navy:#eef2fb;--soft:#a9b4cc;--faint:#69758f;--gold:#d9b64c;--gold-l:#eccf7e;--gold-f:#8a7534;--green:#6fcf97;--line:rgba(255,255,255,.13);--serif:Georgia,'Times New Roman',serif}
+body.t-dark #grain{opacity:.09}
+body.t-dark #vignette{background:radial-gradient(120% 100% at 50% 42%,transparent 55%,rgba(0,0,0,.4))}
+body.t-dark .axis{stroke:rgba(255,255,255,.25)}body.t-dark .gridline{stroke:rgba(255,255,255,.08)}
+body.t-dark .bars{border-bottom-color:rgba(255,255,255,.25)}body.t-dark .bars .grid{border-top-color:rgba(255,255,255,.08)}
+body.t-dark .col .bar.b1{background:linear-gradient(180deg,#3d5387,#25355c)}
+body.t-dark .gbadge.guar{background:rgba(111,207,151,.12);border-color:rgba(111,207,151,.4)}
+/* Fresh Mint (docs2video brand) */
+body.t-mint{--paper:#f4f1ec;--card:#fffefb;--ink:#232920;--navy:#2b3427;--soft:#5c6656;--faint:#98a08f;--gold:#6da33f;--gold-l:#a5cd7c;--gold-f:#c7e8a8;--green:#2f6b4f;--line:#e4e0d5;--serif:'Plus Jakarta Sans',sans-serif}
+/* themed chart-gradient stops */
+#goldfill .gf1{stop-color:var(--gold-l);stop-opacity:.4}
+#goldfill .gf2{stop-color:var(--gold-l);stop-opacity:.03}
+/* theme selector (hidden in record & share modes) */
+#themes{position:fixed;top:16px;right:20px;z-index:60;display:flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 8px;box-shadow:0 8px 24px rgba(0,0,0,.15);align-items:center}
+#themes .tlab{font-size:10px;color:var(--faint);font-weight:700;letter-spacing:.08em;padding:0 4px}
+#themes button{border:1px solid var(--line);background:var(--paper);color:var(--soft);font:600 11px var(--font);padding:6px 12px;border-radius:99px;cursor:pointer;transition:all .18s;white-space:nowrap}
+#themes button.on{background:var(--gold);color:#fff;border-color:var(--gold)}
 /* presenter */
 .advisor{display:inline-flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 22px 8px 8px;box-shadow:0 8px 22px rgba(28,42,68,.08);margin-top:18px;text-align:left}
 .advisor img{width:46px;height:46px;border-radius:50%;object-fit:cover;border:2px solid var(--gold-f)}
@@ -254,6 +279,7 @@ body.share .shareacts{display:flex}
 <div class="cornerhead">Retirement Income Summary<span class="sm">Prepared by ${PRESENTER.name} for ${D.client}</span></div>
 <div id="comply">A summary of your personal illustration. Values are illustrative — refer to your full illustration for complete details, guarantees, and disclosures. Consult your advisor.</div>
 <div id="app"></div>
+<div id="themes"><span class="tlab">STYLE</span><button data-t="" class="on">Heritage</button><button data-t="t-warm">Warm</button><button data-t="t-bold">Bold</button><button data-t="t-dark">Midnight</button><button data-t="t-mint">Mint</button></div>
 <div id="nav"><button class="icon" id="prev">‹</button><span class="lab" id="lab"></span><button id="next">Next ›</button><div id="dots"></div><button id="voice">🔊 Voice on</button></div>
 <script>
 const VO=${JSON.stringify(VO)};
@@ -275,7 +301,7 @@ const SLIDES=[
    <span class="gbadge guar">✓ GUARANTEED</span>
    <h1 style="font-size:clamp(19px,2.7vw,32px)">Your income base climbs <span class="g">${D.rollupPct}.0% simple</span> — every year for ${D.years} years.</h1>
    <div class="curvebox"><svg viewBox="0 0 ${CW} ${CH}">
-     <defs><linearGradient id="goldfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(201,168,76,.35)"/><stop offset="100%" stop-color="rgba(201,168,76,.02)"/></linearGradient></defs>
+     <defs><linearGradient id="goldfill" x1="0" y1="0" x2="0" y2="1"><stop class="gf1" offset="0%"/><stop class="gf2" offset="100%"/></linearGradient></defs>
      ${[0.25, 0.5, 0.75].map((f) => `<line class="gridline" x1="${PX}" x2="${CW - PX}" y1="${(PT + f * (CH - PT - PB)).toFixed(0)}" y2="${(PT + f * (CH - PT - PB)).toFixed(0)}"/>`).join('')}
      <line class="axis" x1="${PX}" x2="${CW - PX}" y1="${CH - PB}" y2="${CH - PB}"/>
      ${curvePts.map((p, i) => `<text class="agelbl" x="${X(i).toFixed(0)}" y="${CH - PB + 26}" text-anchor="middle">${i === 0 ? 'Age ' + p.age : p.age}</text>`).join('')}
@@ -389,6 +415,21 @@ function go(i){
    control, disables in-page audio, and exposes startShow(durationsMs) —
    the exporter drives slide timing and muxes the narration in post. ── */
 const RP=new URLSearchParams(location.search);
+/* ── style selector: same deck, five skins. ?theme=t-warm pre-selects (the
+   product passes the user's chosen template this way); selector hides in
+   record + share modes. ── */
+const THEME_KEYS=['','t-warm','t-bold','t-dark','t-mint'];
+function setTheme(t){
+  document.body.classList.remove(...THEME_KEYS.filter(Boolean));
+  if(t)document.body.classList.add(t);
+  document.querySelectorAll('#themes button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  try{localStorage.setItem('deck-theme',t);}catch{}
+}
+document.querySelectorAll('#themes button').forEach(b=>b.onclick=()=>setTheme(b.dataset.t));
+const qTheme=RP.get('theme');
+if(qTheme!==null&&THEME_KEYS.includes(qTheme))setTheme(qTheme);
+else{try{const s=localStorage.getItem('deck-theme');if(s&&THEME_KEYS.includes(s))setTheme(s);}catch{}}
+if(RP.get('record')==='1'||RP.get('share')==='1'){document.getElementById('themes').style.display='none';}
 if(RP.get('share')==='1'){document.body.classList.add('share');}
 if(RP.get('record')==='1'){
   document.getElementById('nav').style.display='none';
