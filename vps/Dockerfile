@@ -46,6 +46,7 @@ ENV REMOTION_DIR="/app/remotion"
 COPY server.js ./
 COPY slides.js ./
 COPY commercial.js ./
+COPY present-export.js ./
 
 EXPOSE 4000
 
