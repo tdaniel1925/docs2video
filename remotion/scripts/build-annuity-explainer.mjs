@@ -227,6 +227,14 @@ h1 .g{color:var(--gold)}
 .advcard .at{font-size:clamp(11px,1.15vw,13px);color:var(--gold);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:2px 0 8px}
 .advcard .ac{font-size:clamp(12px,1.3vw,15px);color:var(--soft);line-height:1.6}
 .advcard .ac b{color:var(--navy)}
+/* share-mode action row — lives INSIDE the final slide (only when ?share=1) */
+.shareacts{display:none;gap:12px;justify-content:center;margin-top:clamp(12px,2.2vh,20px);flex-wrap:wrap}
+body.share .shareacts{display:flex}
+.sact{display:inline-flex;align-items:center;gap:10px;background:var(--card);border:1.5px solid var(--gold-f);border-radius:12px;padding:12px 20px;cursor:pointer;transition:transform .18s,box-shadow .18s;font:inherit;text-align:left}
+.sact:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(28,42,68,.14);border-color:var(--gold)}
+.sact .si{font-size:20px}
+.sact .st{font-weight:700;font-size:clamp(12px,1.25vw,14.5px);color:var(--navy)}
+.sact .sd{font-size:clamp(10px,1vw,11.5px);color:var(--faint)}
 /* chrome */
 #comply{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);z-index:45;font-size:clamp(9px,.95vw,11px);color:var(--faint);text-align:center;max-width:78vw}
 #bar{position:fixed;left:0;top:0;height:3px;background:var(--gold);width:0;z-index:40;transition:width .3s ease}
@@ -316,7 +324,11 @@ const SLIDES=[
    <h1 style="font-size:clamp(21px,2.9vw,36px)">Review the full illustration<span class="g">.</span></h1>
    <div class="lead">This summary is illustrative and not a guarantee of future results. Your complete personal illustration — attached below — contains the full guarantees, assumptions, and disclosures. I'm the right person for every question.</div>
    <div class="advcard">${HEADSHOT ? `<img src="${HEADSHOT}" alt="">` : ''}<span><span class="an">${PRESENTER.name}</span><div class="at">${PRESENTER.title}</div><div class="ac"><b>📞 ${PRESENTER.phone}</b><br>✉️ ${PRESENTER.email}</div></span></div>
-   <div class="chips"><div class="chip"><div class="cv">📎 Your full illustration</div><div class="cl">the governing document — always refer to it</div></div></div>
+   <div class="shareacts">
+     <button class="sact" onclick="parent.postMessage({type:'act',kind:'pdf'},'*')"><span class="si">📄</span><span><span class="st">Download your full illustration</span><br><span class="sd">the complete source PDF</span></span></button>
+     <button class="sact" onclick="parent.postMessage({type:'act',kind:'chat'},'*')"><span class="si">💬</span><span><span class="st">Ask about this plan</span><br><span class="sd">answers from your own document</span></span></button>
+     <button class="sact" onclick="parent.postMessage({type:'act',kind:'sched'},'*')"><span class="si">📅</span><span><span class="st">Schedule time with Maria</span><br><span class="sd">confirmed on both calendars</span></span></button>
+   </div>
   </div>\`},
 ];
 const app=document.getElementById('app');
@@ -377,6 +389,7 @@ function go(i){
    control, disables in-page audio, and exposes startShow(durationsMs) —
    the exporter drives slide timing and muxes the narration in post. ── */
 const RP=new URLSearchParams(location.search);
+if(RP.get('share')==='1'){document.body.classList.add('share');}
 if(RP.get('record')==='1'){
   document.getElementById('nav').style.display='none';
   voiceOn=false;
