@@ -1330,7 +1330,48 @@ export default function VideoDetailPage() {
               gap: 16,
             }}
           >
-            {/* Video Player */}
+            {/* Player: interactive presentations / decks preview live in an
+                iframe (the deck IS the artifact); exports below it. */}
+            {((video as any).output_type === 'interactive' || (video as any).output_type === 'deck') ? (
+              <>
+                <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-light)', aspectRatio: '16/9', background: 'white' }}>
+                  <iframe
+                    src={`${video.video_url}?v=${new Date(video.updated_at ?? video.created_at).getTime()}`}
+                    title={video.title ?? 'Presentation'}
+                    style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {(['pdf', 'pptx'] as const).map((kind) => (
+                    <button
+                      key={kind}
+                      onClick={async () => {
+                        const res = await fetch('/api/presentation-export', {
+                          method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ videoId: video.id, kind }),
+                        })
+                        if (!res.ok) return
+                        const blob = await res.blob()
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = `${(video.title ?? 'Presentation').replace(/[^a-zA-Z0-9-_ ]/g, '')}.${kind}`
+                        a.click()
+                        setTimeout(() => URL.revokeObjectURL(url), 30000)
+                      }}
+                      style={{ padding: '10px 18px', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--ink)' }}
+                    >
+                      {kind === 'pdf' ? '📄 Download PDF' : '📊 Download PowerPoint'}
+                    </button>
+                  ))}
+                  {(video as any).output_type === 'interactive' ? (
+                    <button disabled title="MP4 export is coming next — derived from this exact presentation" style={{ padding: '10px 18px', borderRadius: 10, border: '1.5px dashed var(--border-light)', background: 'white', fontWeight: 700, fontSize: 13, color: 'var(--ink-light)', fontFamily: 'inherit', cursor: 'default' }}>
+                      🎬 Export video — coming soon
+                    </button>
+                  ) : null}
+                </div>
+              </>
+            ) : (
             <div style={{
               background: '#000',
               borderRadius: 10,
@@ -1373,6 +1414,7 @@ export default function VideoDetailPage() {
                 />
               )}
             </div>
+            )}
 
             {/* Music volume control */}
             {video.music_url && (

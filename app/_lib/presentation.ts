@@ -60,6 +60,19 @@ export const PRESENTATION_TEMPLATES: PresentationTemplate[] = [
   },
 ]
 
+/** Resolved core colors for a template (exports: PPTX/PDF builders). */
+export function templateTokens(templateId: string): { paper: string; ink: string; accent: string; card: string; soft: string } {
+  const t = PRESENTATION_TEMPLATES.find((x) => x.id === templateId) ?? PRESENTATION_TEMPLATES[0]
+  const v = t.vars
+  return {
+    paper: v['--paper'] ?? '#f7f5ee',
+    ink: v['--navy'] ?? '#1c2a44',
+    accent: v['--gold'] ?? '#a8842c',
+    card: v['--card'] ?? '#fffdf7',
+    soft: v['--soft'] ?? '#4d5a74',
+  }
+}
+
 const esc = (s: string) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
