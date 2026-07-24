@@ -6,7 +6,8 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const J = join(HERE, '..', 'public', 'jordyn')
-const OUT = join(HERE, '..', 'out', 'jordyn-features.html')
+const ANIM = process.env.ANIMATED === '1' // rich-motion variant
+const OUT = join(HERE, '..', 'out', ANIM ? 'jordyn-features-animated.html' : 'jordyn-features.html')
 const illo = (k) => existsSync(join(J, `illo-${k}.png`)) ? 'data:image/png;base64,' + readFileSync(join(J, `illo-${k}.png`)).toString('base64') : ''
 const KEYS = ['hero', 'step1', 'step2', 'step3', 'email', 'phone', 'paperwork', 'clients', 'pipeline', 'automation', 'invoice', 'booking', 'memory', 'voice', 'brain', 'security', 'integrations', 'pricing', 'cta']
 const IMG = {}; for (const k of KEYS) IMG[k] = illo(k)
@@ -155,7 +156,57 @@ h2{font-weight:800;font-size:clamp(24px,3.4vw,48px);line-height:1.08;letter-spac
 .tag{position:fixed;top:14px;left:20px;z-index:40;font-weight:800;font-size:19px;color:var(--rust)}.tag .sm{color:var(--ink)}
 .hint{position:fixed;top:16px;right:20px;z-index:40;font-size:12px;color:var(--faint)}
 @media(max-width:820px){.hero,.chan,.dcard{grid-template-columns:1fr}.fgrid{grid-template-columns:repeat(3,1fr)}.steps,.sgrid,.pgrid{grid-template-columns:1fr}}
-</style></head><body>
+${ANIM ? `/* ===== RICH MOTION LAYER (animated variant) ===== */
+/* warm living gradient behind everything */
+body.anim{background:var(--cream)}
+body.anim #app::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(60% 55% at 18% 22%,rgba(201,100,66,.10),transparent 60%),radial-gradient(55% 60% at 85% 78%,rgba(138,154,123,.12),transparent 62%);
+  animation:warmdrift 16s ease-in-out infinite alternate}
+@keyframes warmdrift{from{transform:translate3d(-1.5%,-1%,0) scale(1.02)}to{transform:translate3d(2%,1.5%,0) scale(1.08)}}
+/* staggered reveal: each direct child of .wrap animates in on its own beat */
+body.anim .sec .wrap>*{opacity:0;transform:translateY(22px)}
+body.anim .sec.on .wrap>*{animation:rvUp .62s cubic-bezier(.16,1,.3,1) forwards}
+body.anim .sec.on .wrap>*:nth-child(1){animation-delay:.04s}
+body.anim .sec.on .wrap>*:nth-child(2){animation-delay:.13s}
+body.anim .sec.on .wrap>*:nth-child(3){animation-delay:.22s}
+body.anim .sec.on .wrap>*:nth-child(4){animation-delay:.31s}
+@keyframes rvUp{to{opacity:1;transform:none}}
+/* grid/step children build in with a per-item stagger set via --i */
+body.anim .fcard,body.anim .step,body.anim .scard,body.anim .pcard,body.anim .chipI{opacity:0;transform:translateY(16px) scale(.98)}
+body.anim .sec.on .fcard,body.anim .sec.on .step,body.anim .sec.on .scard,body.anim .sec.on .pcard{animation:pop .5s cubic-bezier(.16,1,.3,1) forwards;animation-delay:calc(.18s + var(--i,0)*.045s)}
+@keyframes pop{to{opacity:1;transform:none}}
+/* the marquee chips fade in but keep their own scroll */
+body.anim .sec.on .marqrow .chipI{opacity:1;transform:none}
+/* illustration: slow ken-burns drift + a light sweep on entry */
+body.anim .illo{position:relative}
+body.anim .sec.on .illo.big img,body.anim .sec.on .step .si img,body.anim .sec.on #chan-illo img{animation:kb 14s ease-out forwards}
+@keyframes kb{from{transform:scale(1.06) translateY(1%)}to{transform:scale(1.0) translateY(0)}}
+body.anim .illo::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.5) 50%,transparent 65%);transform:translateX(-120%)}
+body.anim .sec.on .illo::after{animation:sweep 1.1s ease-out .35s}
+@keyframes sweep{to{transform:translateX(120%)}}
+/* hover tilt + lift on interactive cards */
+body.anim .fcard{transition:transform .22s cubic-bezier(.16,1,.3,1),box-shadow .22s,border-color .18s}
+body.anim .fcard:hover{transform:translateY(-6px) rotateZ(-.6deg) scale(1.03)}
+body.anim .fcard:hover .fi img{transform:scale(1.08)}
+body.anim .fcard .fi img{transition:transform .35s ease}
+body.anim .scard,body.anim .pcard,body.anim .step{transition:transform .25s cubic-bezier(.16,1,.3,1),box-shadow .25s}
+body.anim .scard:hover,body.anim .step:hover{transform:translateY(-5px)}
+body.anim .pcard:hover{transform:translateY(-9px)}body.anim .pcard.hot:hover{transform:translateY(-14px)}
+/* the little check/shield/step-number gets a pop */
+body.anim .sec.on .step .n,body.anim .sec.on .scard .shield{animation:badgepop .5s cubic-bezier(.34,1.56,.64,1) both;animation-delay:.4s}
+@keyframes badgepop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}
+/* pulsing kicker dot + accent underline that draws in on the h2 */
+body.anim .kick .dot{animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(201,100,66,.5)}50%{box-shadow:0 0 0 6px rgba(201,100,66,0)}}
+/* magnetic CTA button */
+body.anim .btn{transition:transform .18s cubic-bezier(.16,1,.3,1),box-shadow .18s;will-change:transform}
+body.anim .btn:hover{box-shadow:0 14px 34px rgba(201,100,66,.4)}
+/* pill shimmer */
+body.anim .pill{position:relative;overflow:hidden}
+body.anim .sec.on .pill::after{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.6) 50%,transparent 60%);transform:translateX(-120%);animation:sweep 1.4s ease-out 1s}
+@media(prefers-reduced-motion:reduce){body.anim *{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+` : ''}
+</style></head><body class="${ANIM ? 'anim' : ''}">
 <div id="bar"></div>
 <div class="tag">Jordyn<span class="sm">.</span></div><div class="hint">Interactive · click ‹ › or arrow keys</div>
 <div id="app"></div>
@@ -222,8 +273,27 @@ function go(i){
   lab.textContent=(i+1)+' / '+secs.length+' · '+SECTIONS[i].name;
   bar.style.width=(i/(secs.length-1)*100)+'%';
   const conf=SECTIONS[i];if(INITS[conf.init])INITS[conf.init](sec);
+  ${ANIM ? `stagger(sec);` : ''}
   document.getElementById('next').textContent=(i===secs.length-1?'Restart ↻':'Next ›');
 }
+${ANIM ? `
+// assign per-item stagger indices so grids build in sequence, and re-trigger reveal
+function stagger(sec){
+  ['.fcard','.step','.scard','.pcard'].forEach(sel=>{
+    sec.querySelectorAll(sel).forEach((el,k)=>{el.style.setProperty('--i',k);});
+  });
+  // restart entry animations by forcing reflow on the freshly-shown section
+  sec.querySelectorAll('.wrap>*, .fcard,.step,.scard,.pcard,.illo').forEach(el=>{
+    el.style.animation='none';void el.offsetWidth;el.style.animation='';
+  });
+}
+// magnetic CTA buttons — follow the cursor slightly
+function magnetize(){document.querySelectorAll('.btn').forEach(b=>{
+  b.addEventListener('mousemove',e=>{const r=b.getBoundingClientRect();const x=e.clientX-r.left-r.width/2,y=e.clientY-r.top-r.height/2;b.style.transform='translate('+(x*.25)+'px,'+(y*.35)+'px)';});
+  b.addEventListener('mouseleave',()=>{b.style.transform='';});
+});}
+magnetize();
+` : ''}
 document.getElementById('next').onclick=()=>{if(cur>=secs.length-1)go(0);else go(cur+1);};
 document.getElementById('prev').onclick=()=>go(cur-1);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail();
