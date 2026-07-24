@@ -231,7 +231,7 @@ export interface Video {
 
 export interface WizardDraft {
   step: number
-  outputType: 'video' | 'pptx' | 'pdf'
+  outputType: 'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'
   purpose?: string
   contentMethod?: 'url' | 'file' | 'text' | 'ai'
   extractedData?: Record<string, unknown>
