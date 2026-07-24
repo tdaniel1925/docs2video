@@ -29,7 +29,9 @@ export default function ClientStepPage() {
   const goToContent = useCallback((clientId?: string) => {
     // Carry the Step-1 decision forward explicitly: a client id, or an explicit
     // "general" marker for Skip, so Step 2 never re-asks "Who is this for?".
-    router.push(clientId ? `/create?clientId=${clientId}` : '/create?for=general')
+    const t = searchParams.get('type')
+    const typeQs = t ? `&type=${t}` : ''
+    router.push(clientId ? `/create?clientId=${clientId}${typeQs}` : `/create?for=general${typeQs}`)
   }, [router])
 
   // Deep-link from the clients list ("Send Video") — skip straight through

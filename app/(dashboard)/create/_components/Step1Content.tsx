@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { SLIDE_STYLES } from '../../../_lib/types'
 import { uploadAndExtract, uploadAndExtractMany } from './uploadAndExtract'
-type OutputType = 'video' | 'pptx' | 'pdf'
+type OutputType = 'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'
 type InputMethod = 'url' | 'upload' | 'text' | 'idea' | null
 type Stage = 'idle' | 'extracting' | 'error' | 'generating-preview' | 'style-suggest'
 
@@ -47,8 +47,11 @@ export default function Step1Content() {
   // Output type is chosen in Step 1 (/create/start) and passed via ?type.
   // "slides" maps to the existing pptx pipeline; the result page offers both
   // PDF and PowerPoint downloads. Default to video.
-  const isSlides = searchParams.get('type') === 'slides'
-  const [outputType, setOutputType] = useState<OutputType>(isSlides ? 'pptx' : 'video')
+  const wizType = searchParams.get('type')
+  const isSlides = wizType === 'slides'
+  const [outputType, setOutputType] = useState<OutputType>(
+    wizType === 'interactive' ? 'interactive' : wizType === 'deck' ? 'deck' : isSlides ? 'pptx' : 'video'
+  )
   const [recipientName, setRecipientName] = useState('')
   const [clientName, setClientName] = useState<string | null>(null) // bound client (read-only display)
   const [draftRestored, setDraftRestored] = useState(false) // gate client-name fetch behind draft restore
@@ -217,7 +220,7 @@ export default function Step1Content() {
               customStylePrompt: overrides.customStylePrompt || undefined,
               brandId: autoBrandId || undefined,
               inlineBrand: autoBrandInfo,
-              step: outputType === 'video' ? 3 : 4,
+              step: (outputType === 'video' || outputType === 'interactive') ? 3 : 4,
             },
           }),
         })
@@ -531,7 +534,7 @@ export default function Step1Content() {
       {/* Output type is chosen in Step 1 — show it as a small confirmation header. */}
       <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>
-          {outputType === 'video' ? '🎬 New video explainer' : '📊 New slide presentation'}
+          {outputType === 'video' ? '🎬 New video explainer' : outputType === 'interactive' ? '🖱️ New interactive presentation' : outputType === 'deck' ? '📑 New slide deck' : '📊 New slide presentation'}
         </div>
         <a href="/create/start" style={{ fontSize: 13, color: 'var(--primary, #2563eb)', textDecoration: 'none', fontWeight: 600 }}>Change</a>
       </div>

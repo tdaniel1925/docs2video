@@ -18,14 +18,25 @@ const THEMES: { id: ThemeId; name: string; tagline: string }[] = [
 ]
 const SAMPLE_KINDS = ['cover', 'data', 'closing']
 
+// Interactive Presentation / Slide Deck templates — pure token sets in the
+// presentation director; swatches render live (no sample images needed).
+const PRES_TEMPLATES: { id: string; name: string; tagline: string; swatch: [string, string, string] }[] = [
+  { id: 'heritage', name: 'Heritage', tagline: 'Engraved certificate — cream, navy & gold. Gravitas for financial documents.', swatch: ['#f7f5ee', '#1c2a44', '#a8842c'] },
+  { id: 'warm', name: 'Warm Editorial', tagline: 'Cozy modern — cream & terracotta. Friendly, human, approachable.', swatch: ['#faf9f5', '#3d3929', '#c96442'] },
+  { id: 'bold', name: 'Corporate Bold', tagline: 'Clean & confident — navy and red. Sharp business energy.', swatch: ['#f4f6fa', '#1e3a70', '#c0272d'] },
+  { id: 'midnight', name: 'Midnight', tagline: 'Premium dark — deep navy & luminous gold. Evening-wealth polish.', swatch: ['#0f1729', '#eef2fb', '#d9b64c'] },
+  { id: 'mint', name: 'Fresh Mint', tagline: 'The house style — warm cream & mint green. Light and optimistic.', swatch: ['#f4f1ec', '#2b3427', '#6da33f'] },
+]
+
 export default function ThemePage() {
   const router = useRouter()
   const params = useSearchParams()
   const videoId = params.get('id')
 
   const [draft, setDraft] = useState<any>(null)
-  const [outputType, setOutputType] = useState<'video' | 'pptx' | 'pdf'>('video')
+  const [outputType, setOutputType] = useState<'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'>('video')
   const [selected, setSelected] = useState<ThemeId>('slides')
+  const [presTemplate, setPresTemplate] = useState('heritage')
   const [slidePhotos, setSlidePhotos] = useState(false)  // Slide Deck: photographic backdrops (opt-in; default off = ~2-3 min faster)
   // Client options (share page): let the client download the source PDF + a note.
   const [allowSourceDownload, setAllowSourceDownload] = useState(false)
@@ -48,9 +59,34 @@ export default function ThemePage() {
     }).catch(() => { setError('Could not load your draft.'); setLoading(false) })
   }, [videoId])
 
+  const isPres = outputType === 'interactive' || outputType === 'deck'
+
   async function handleGenerate() {
     if (!videoId || !draft) return
     setSubmitting(true); setError(null)
+    // ── Interactive Presentation / Slide Deck: the HTML-first path (Vercel-only) ──
+    if (isPres) {
+      try {
+        await fetch('/api/videos/draft', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId, updates: { presentationTemplate: presTemplate, allowSourceDownload, agentNote: agentNote.trim() || undefined } }),
+        })
+        const res = await fetch('/api/generate-presentation', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId, templateId: presTemplate, outputType }),
+        })
+        if (!res.ok) {
+          const g = await res.json().catch(() => ({}))
+          if (res.status === 402) { setError(g.error || 'Not enough credits.'); setSubmitting(false); return }
+          throw new Error(g.error || 'Failed to start generation')
+        }
+        router.push(`/create/generating?id=${videoId}&style=${presTemplate}`)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to generate')
+        setSubmitting(false)
+      }
+      return
+    }
     try {
       await fetch('/api/videos/draft', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -117,12 +153,47 @@ export default function ThemePage() {
         <button onClick={() => router.push(`/create/script?id=${videoId}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--ink-light)', fontFamily: 'inherit', padding: 0 }}>&larr; Back</button>
       </div>
 
-      <h1 style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.03em', textAlign: 'center', marginBottom: 8, color: 'var(--ink)' }}>Choose a style</h1>
+      <h1 style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.03em', textAlign: 'center', marginBottom: 8, color: 'var(--ink)' }}>
+        {isPres ? 'Choose a template' : 'Choose a style'}
+      </h1>
       <p style={{ fontSize: 17, color: 'var(--ink-soft)', textAlign: 'center', marginBottom: 28, lineHeight: 1.6 }}>
-        Pick the look for your video. The samples below show how each style renders.
+        {isPres
+          ? 'Pick the look for your presentation — you can switch templates any time after it’s generated, free.'
+          : 'Pick the look for your video. The samples below show how each style renders.'}
       </p>
 
+      {/* Presentation template gallery (interactive / deck) */}
+      {isPres ? (
+        <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 28 }}>
+          {PRES_TEMPLATES.map((t) => {
+            const isSel = presTemplate === t.id
+            const [paper, ink, accent] = t.swatch
+            return (
+              <button key={t.id} onClick={() => setPresTemplate(t.id)} style={{
+                position: 'relative', padding: 0, borderRadius: 10, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', overflow: 'hidden',
+                border: isSel ? '2px solid var(--mint)' : '1.5px solid var(--border-light)', background: 'white', transition: 'all 0.15s',
+              }}>
+                {/* live swatch preview — a mini slide rendered from the template's tokens */}
+                <div style={{ background: paper, padding: '18px 16px 14px', borderBottom: '1px solid var(--border-light)' }}>
+                  <div style={{ width: 34, height: 3, background: accent, borderRadius: 2, marginBottom: 8 }} />
+                  <div style={{ fontSize: 15, fontWeight: 800, color: ink, lineHeight: 1.15 }}>Your Title<span style={{ color: accent }}>.</span></div>
+                  <div style={{ marginTop: 7, display: 'flex', gap: 4 }}>
+                    <span style={{ flex: 2, height: 5, background: ink, opacity: .25, borderRadius: 3 }} />
+                    <span style={{ flex: 1, height: 5, background: accent, opacity: .7, borderRadius: 3 }} />
+                  </div>
+                </div>
+                <div style={{ padding: '12px 16px 14px' }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', marginBottom: 4 }}>{t.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.4 }}>{t.tagline}</div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+
       {/* Theme cards */}
+      {isPres ? null : (
       <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 28 }}>
         {THEMES.map((t) => {
           const isSel = selected === t.id
@@ -151,8 +222,10 @@ export default function ThemePage() {
           )
         })}
       </div>
+      )}
 
       {/* Static samples for the selected style */}
+      {isPres ? null : (
       <div style={{ width: '100%', background: 'white', border: '1.5px solid var(--border-light)', borderRadius: 10, padding: 20, marginBottom: 24 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
           {sel.name} — sample slides
@@ -172,9 +245,10 @@ export default function ThemePage() {
           })}
         </div>
       </div>
+      )}
 
       {/* Slide Deck: optional photographic backgrounds (default off = ~2-3 min faster) */}
-      {selected === 'slides' ? (
+      {selected === 'slides' && !isPres ? (
         <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, width: '100%', maxWidth: 640, marginBottom: 16, padding: '12px 16px', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white', cursor: 'pointer' }}>
           <input type="checkbox" checked={slidePhotos} onChange={(e) => setSlidePhotos(e.target.checked)} style={{ marginTop: 3, width: 18, height: 18, cursor: 'pointer' }} />
           <span>
@@ -186,7 +260,9 @@ export default function ThemePage() {
         </label>
       ) : null}
 
-      {/* Client options (share page): optional source-PDF download + a personal note */}
+      {/* Client options (share page): optional source-PDF download + a personal note.
+          Slide Deck is private (no share page) — hide entirely. */}
+      {outputType === 'deck' ? null : (
       <div style={{ width: '100%', maxWidth: 640, marginBottom: 16, padding: '16px', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white' }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 10 }}>Client options</div>
         {/* Only offer the source-PDF download when the source WAS a pdf we stored. */}
@@ -214,6 +290,8 @@ export default function ThemePage() {
         </label>
       </div>
 
+      )}
+
       {error ? <div style={{ color: '#b91c1c', fontSize: 14, marginBottom: 16 }}>{error}</div> : null}
 
       <button onClick={handleGenerate} disabled={submitting} style={{
@@ -221,7 +299,7 @@ export default function ThemePage() {
         background: 'var(--ink)', color: 'white', fontSize: 16, fontWeight: 700, cursor: submitting ? 'default' : 'pointer',
         fontFamily: 'inherit', opacity: submitting ? 0.6 : 1,
       }}>
-        {submitting ? 'Starting…' : `Generate with ${sel.name} →`}
+        {submitting ? 'Starting…' : isPres ? `Generate ${outputType === 'interactive' ? 'presentation' : 'deck'} with ${PRES_TEMPLATES.find(t => t.id === presTemplate)!.name} →` : `Generate with ${sel.name} →`}
       </button>
 
       {lightbox ? (

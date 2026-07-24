@@ -54,7 +54,7 @@ export default function ScriptPage() {
   const [createState, setCreateState] = useState<any>(null)
   const [detailLevel, setDetailLevel] = useState<'quick' | 'standard' | 'detailed'>('standard')
   const [narrationStyle, setNarrationStyle] = useState<'solo' | 'podcast'>('solo')
-  const [outputType, setOutputType] = useState<'video' | 'pptx' | 'pdf'>('video')
+  const [outputType, setOutputType] = useState<'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'>('video')
   const [scenes, setScenes] = useState<any[]>([])
   const [generating, setGenerating] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -320,7 +320,7 @@ export default function ScriptPage() {
     try {
       // Save the script to the draft, then go to the THEME step (where the user
       // picks a style + sees a preview, and generation is finally triggered).
-      const wizardStep = outputType === 'video' ? 5 : 4
+      const wizardStep = (outputType === 'video' || outputType === 'interactive') ? 5 : 4
       const patchRes = await fetch('/api/videos/draft', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -404,7 +404,7 @@ export default function ScriptPage() {
   }
 
   // Determine wizard step number for progress bar
-  const wizardStep = outputType === 'video' ? 4 : 3
+  const wizardStep = (outputType === 'video' || outputType === 'interactive') ? 4 : 3
   const backPath = isWizard
     ? (outputType === 'video' ? `/create/voice?id=${videoId}` : `/create/brand?id=${videoId}`)
     : '/create'

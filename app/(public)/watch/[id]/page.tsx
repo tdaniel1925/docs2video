@@ -1040,7 +1040,18 @@ export default function PublicWatchPage() {
         <div className="wp-main">
           {/* ---- LEFT COLUMN ---- */}
           <div className="wp-col-left">
-            {/* Video player */}
+            {/* Player: interactive presentations render the HTML deck in
+                share mode; everything else keeps the video element. */}
+            {(video as any).output_type === 'interactive' ? (
+              <div className="wp-video-wrap" style={{ aspectRatio: '16/9' }}>
+                <iframe
+                  src={`${video.video_url!}?share=1`}
+                  title={video.title ?? 'Presentation'}
+                  style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
+                  onLoad={() => { if (!playTracked.current && video) { playTracked.current = true; trackEvent(video.id, 'play') } }}
+                />
+              </div>
+            ) : (
             <div className="wp-video-wrap">
               <video
                 ref={videoRef}
@@ -1089,6 +1100,7 @@ export default function PublicWatchPage() {
                 />
               )}
             </div>
+            )}
 
             {/* Music volume control */}
             {video.music_url && (
