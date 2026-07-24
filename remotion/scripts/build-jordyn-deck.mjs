@@ -59,15 +59,20 @@ const HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta n
 *{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
 body{background:var(--cream);font-family:var(--font);color:var(--ink);overflow:hidden}
 #app{position:relative;width:100vw;height:100vh}
-.sec{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5vh 6vw;opacity:0;transform:translateY(24px);transition:opacity .55s ease,transform .55s cubic-bezier(.16,1,.3,1);pointer-events:none;z-index:2;overflow:hidden}
+/* padding-bottom (nav clearance) + overflow-auto so nothing hides under the nav
+   or gets cut off the top; tall sections scroll internally instead of clipping. */
+.sec{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:clamp(20px,4vh,48px) 6vw 104px;opacity:0;transform:translateY(24px);transition:opacity .55s ease,transform .55s cubic-bezier(.16,1,.3,1);pointer-events:none;z-index:2;overflow-y:auto;overflow-x:hidden}
 .sec.on{opacity:1;transform:none;pointer-events:auto}
+/* when content is taller than the viewport, top-align so the TOP is never cut off */
+.sec{justify-content:safe center}
+.sec::-webkit-scrollbar{width:8px}.sec::-webkit-scrollbar-thumb{background:rgba(61,57,41,.18);border-radius:4px}
 .wrap{width:100%;max-width:1240px;margin:0 auto}
-.kick{display:inline-flex;align-items:center;gap:9px;font-weight:700;font-size:clamp(11px,1.1vw,15px);letter-spacing:.14em;text-transform:uppercase;color:var(--rust);margin-bottom:16px}
+.kick{display:inline-flex;align-items:center;gap:9px;font-weight:700;font-size:clamp(11px,1.1vw,15px);letter-spacing:.14em;text-transform:uppercase;color:var(--rust);margin-bottom:clamp(10px,1.6vh,16px)}
 .kick .dot{width:7px;height:7px;border-radius:50%;background:var(--rust)}
 h1{font-weight:800;font-size:clamp(34px,5.6vw,78px);line-height:1.03;letter-spacing:-.025em;color:var(--ink)}
 h1 .r{color:var(--rust)}
-h2{font-weight:800;font-size:clamp(26px,3.8vw,52px);line-height:1.08;letter-spacing:-.02em}
-.lead{font-weight:400;font-size:clamp(16px,1.9vw,26px);color:var(--mute);line-height:1.5;max-width:760px;margin-top:16px}
+h2{font-weight:800;font-size:clamp(24px,3.4vw,48px);line-height:1.08;letter-spacing:-.02em}
+.lead{font-weight:400;font-size:clamp(15px,1.7vw,24px);color:var(--mute);line-height:1.45;max-width:760px;margin-top:clamp(10px,1.4vh,16px)}
 .lead .r{color:var(--rust);font-weight:600}
 .foot{font-weight:500;font-size:clamp(13px,1.4vw,19px);color:var(--faint);margin-top:20px}
 .pill{display:inline-flex;align-items:center;gap:8px;background:var(--peach);color:var(--rust-d);font-weight:600;font-size:clamp(12px,1.2vw,16px);padding:8px 16px;border-radius:9px;margin-bottom:18px}
@@ -78,23 +83,25 @@ h2{font-weight:800;font-size:clamp(26px,3.8vw,52px);line-height:1.08;letter-spac
 .hero{display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(24px,4vw,60px);align-items:center}
 .illo{background:var(--card);border:1px solid rgba(61,57,41,.08);border-radius:22px;overflow:hidden;box-shadow:0 24px 60px rgba(61,57,41,.10)}
 .illo img{width:100%;height:100%;object-fit:cover;display:block}
-.illo.big{aspect-ratio:1;max-height:62vh;margin:0 auto}
+.illo.big{aspect-ratio:1;max-height:min(56vh,520px);width:auto;max-width:100%;margin:0 auto}
 /* 3-step */
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(14px,2vw,28px);margin-top:30px;width:100%}
-.step{background:var(--card);border:1px solid rgba(61,57,41,.08);border-radius:18px;padding:clamp(16px,2vw,26px);box-shadow:0 12px 34px rgba(61,57,41,.07);text-align:left}
-.step .n{width:30px;height:30px;border-radius:9px;background:var(--peach);color:var(--rust-d);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:14px}
-.step .si{aspect-ratio:1.4;border-radius:12px;overflow:hidden;margin-bottom:14px;background:var(--cream2)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(12px,1.6vw,24px);margin-top:clamp(16px,2.5vh,28px);width:100%}
+.step{background:var(--card);border:1px solid rgba(61,57,41,.08);border-radius:18px;padding:clamp(14px,1.6vw,22px);box-shadow:0 12px 34px rgba(61,57,41,.07);text-align:left}
+.step .n{width:28px;height:28px;border-radius:8px;background:var(--peach);color:var(--rust-d);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:15px;margin-bottom:11px}
+.step .si{height:clamp(74px,15vh,150px);border-radius:12px;overflow:hidden;margin-bottom:11px;background:var(--cream2)}
 .step .si img{width:100%;height:100%;object-fit:cover}
 .step .t{font-weight:800;font-size:clamp(16px,1.6vw,22px);margin-bottom:8px}
 .step .d{font-weight:400;font-size:clamp(13px,1.25vw,17px);color:var(--mute);line-height:1.45}
 /* feature grid */
 .fhead{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px}
-.fgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:clamp(8px,1vw,14px)}
-.fcard{background:var(--card);border:1px solid rgba(61,57,41,.08);border-radius:14px;padding:14px 12px;cursor:pointer;transition:transform .18s,box-shadow .18s,border-color .18s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:9px}
+.fhead{margin-bottom:clamp(10px,1.6vh,18px)}
+.fgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:clamp(7px,.8vw,12px)}
+.fcard{background:var(--card);border:1px solid rgba(61,57,41,.08);border-radius:13px;padding:8px;cursor:pointer;transition:transform .18s,box-shadow .18s,border-color .18s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
 .fcard:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(61,57,41,.12);border-color:rgba(201,100,66,.4)}
-.fcard .fi{width:100%;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--cream2)}
+/* image height driven by viewport so all 3 rows fit above the nav */
+.fcard .fi{width:auto;height:clamp(56px,11vh,120px);aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--cream2)}
 .fcard .fi img{width:100%;height:100%;object-fit:cover}
-.fcard .ft{font-weight:700;font-size:clamp(10px,.92vw,13px);line-height:1.2;color:var(--ink)}
+.fcard .ft{font-weight:700;font-size:clamp(10px,.92vw,13px);line-height:1.18;color:var(--ink)}
 /* detail overlay */
 .detail{position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center;padding:6vh 6vw;background:rgba(61,57,41,.28);backdrop-filter:blur(3px)}
 .detail.show{display:flex}
