@@ -4,6 +4,7 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { checkCredits, deductCredits, refundVideoCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { synthesizeSpeech } from '../../_lib/tts'
 import { buildPresentationHtml, PRESENTATION_TEMPLATES, type PresentationScene } from '../../_lib/presentation'
+import { isRegulated, productTokens, scrubComplianceText } from '../../_lib/compliance'
 
 export const runtime = 'nodejs'
 // Interactive: per-scene TTS + assembly. Well under video times, but give room.
@@ -38,9 +39,37 @@ export async function POST(request: NextRequest) {
   if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const draft = (row.draft_data ?? {}) as Record<string, unknown>
-  const scenes = (draft.scenes ?? []) as PresentationScene[]
+  let scenes = (draft.scenes ?? []) as PresentationScene[]
   if (!Array.isArray(scenes) || scenes.length === 0) {
     return NextResponse.json({ error: 'No scenes yet — finish the script step first.' }, { status: 400 })
+  }
+
+  // ── COMPLIANCE: same hard rule as every other engine — a regulated
+  // illustration NEVER names the carrier or branded product, on ANY surface
+  // (slide text, narration, title). Figures stay. The scrubbed scenes are
+  // persisted below so PDF/PPTX/deck exports read clean content too. ──
+  const exData = (draft.extractedData ?? {}) as Record<string, unknown>
+  const regulated = isRegulated(exData, scenes)
+  // Harvest branded-product tokens ONLY from the document title/subtitle —
+  // scene headings are Title Case English and would poison the detector.
+  const complianceToks = regulated ? productTokens(
+    typeof exData.title === 'string' ? exData.title : '',
+    typeof exData.subtitle === 'string' ? exData.subtitle : '',
+  ) : []
+  if (regulated) {
+    const S = (v?: string) => (typeof v === 'string' && v ? scrubComplianceText(v, complianceToks) : v)
+    scenes = scenes.map((s) => ({
+      ...s,
+      title: S(s.title),
+      narration: S(s.narration) || s.narration,
+      slideData: s.slideData ? {
+        ...s.slideData,
+        headline: S(s.slideData.headline),
+        cta: S(s.slideData.cta),
+        bullets: s.slideData.bullets?.map((b) => S(b) || '').filter(Boolean),
+        stats: s.slideData.stats?.map((st) => ({ label: S(st.label), value: S(st.value) })).filter((st) => st.value),
+      } : undefined,
+    }))
   }
 
   // ── Credits: interactive 700 · deck reuses the existing deck price ──
@@ -120,17 +149,25 @@ export async function POST(request: NextRequest) {
     ].filter(Boolean).join('  ·  ') || undefined
 
     // Title comes from the source document (or the user's override) — never
-    // the placeholder "Presentation" if we can help it.
-    const ex = (draft.extractedData ?? {}) as Record<string, unknown>
-    const title = (row.title as string)
-      || (typeof ex.title === 'string' && ex.title.trim() ? ex.title.trim() : '')
+    // the placeholder "Presentation" if we can help it. Regulated titles are
+    // scrubbed; if that guts them (the title WAS the product name), fall back
+    // to a generic benefit framing.
+    let title = (row.title as string)
+      || (typeof exData.title === 'string' && exData.title.trim() ? exData.title.trim() : '')
       || scenes[0]?.slideData?.headline || scenes[0]?.title || 'Presentation'
+    let subtitle = typeof exData.subtitle === 'string' ? exData.subtitle : undefined
+    if (regulated) {
+      title = scrubComplianceText(title, complianceToks)
+      if (title.replace(/[^a-zA-Z]/g, '').length < 6) title = 'Your Personalized Illustration'
+      subtitle = subtitle ? scrubComplianceText(subtitle, complianceToks) : undefined
+      if (subtitle && subtitle.replace(/[^a-zA-Z]/g, '').length < 6) subtitle = undefined
+    }
 
     const html = buildPresentationHtml({
       title,
       scenes,
       templateId,
-      subtitle: typeof ex.subtitle === 'string' ? ex.subtitle : undefined,
+      subtitle,
       brandName,
       recipientName: draft.recipientName as string | undefined,
       presenter: {
@@ -158,7 +195,10 @@ export async function POST(request: NextRequest) {
       status: 'completed', progress_pct: 100, progress_detail: 'Done',
       output_type: outputType,
       video_url: pub.publicUrl,
-      ...(row.title ? {} : { title }),
+      ...(row.title && !regulated ? {} : { title }),
+      // Persist the scrubbed scenes so every downstream reader (PPTX/PDF
+      // exports, client deck download, re-renders) gets clean content.
+      ...(regulated ? { draft_data: { ...draft, scenes } } : {}),
       progress_updated_at: new Date().toISOString(),
     }).eq('id', videoId)
     if (fin.error) throw new Error(`Failed to finalize: ${fin.error.message}`)

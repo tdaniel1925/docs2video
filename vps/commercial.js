@@ -418,7 +418,7 @@ function scrubCarrierProduct(spec, u, brandName) {
   // anchors (they fail around the trailing optional group + the ℠/®/™ marks);
   // a trailing optional suffix group eats "IUL", "Life Insurance Company", etc.
   const terms = [...strip].filter(Boolean).sort((a, b) => b.length - a.length)
-  const res = terms.map((t) => new RegExp(t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') + '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|\\u2120|\\u00ae|\\u2122))*', 'ig'))
+  const res = terms.map((t) => new RegExp('\\b' + t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') + '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|iii|ii|iv|vi|v(?![a-z])|\\u2120|\\u00ae|\\u2122))*', 'ig'))
   // also strip specific dollar figures + percentages that shouldn't appear
   const figRe = [/\$\s?\d[\d,]*(?:\.\d+)?/g, /\b\d+(?:\.\d+)?\s?%/g]
   const clean = (s) => {
@@ -426,6 +426,7 @@ function scrubCarrierProduct(spec, u, brandName) {
     let out = s
     for (const re of res) out = out.replace(re, '')
     for (const re of figRe) out = out.replace(re, '')
+    out = out.replace(/(^|\s)\+?\s*(?:iii|ii|iv|vi)\b/gi, '$1').replace(/(^|\s)\+(?=\s|$)/g, '$1')
     return out.replace(/\s{2,}/g, ' ').replace(/\s+([.,!?;:])/g, '$1').replace(/^[\s—–-]+|[\s—–-]+$/g, '').trim()
   }
   const cleanBeat = (b) => {

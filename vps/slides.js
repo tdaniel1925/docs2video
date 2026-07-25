@@ -237,8 +237,8 @@ const CARRIER_BLOCKLIST = [
   'ohio national', 'aetna', 'cigna', 'humana', 'blue cross', 'blue shield',
   'unitedhealthcare', 'united healthcare', 'national western', 'nlg', 'columbus', 'meridian',
   // ---- branded products ----
-  'income advantage', 'indexed universal life', 'iul', 'qol', 'max accumulator',
-  'select choice', 'accumulator+', 'select choice ii', 'lapse guard',
+  'income advantage', 'indexed universal life', 'index universal life', 'iul', 'qol',
+  'max accumulator', 'select choice', 'accumulator+', 'select choice ii', 'lapse guard',
   'guaranteed refund option',
 ]
 // pull branded product tokens (CamelCase / Capitalized) from the understanding so
@@ -262,27 +262,30 @@ function scrubSlidePlan(w, u) {
   const strip = new Set(CARRIER_BLOCKLIST)
   for (const n of productTokens(u)) if (n && n.length >= 4) strip.add(n.toLowerCase())
   const terms = [...strip].filter(Boolean).sort((a, b) => b.length - a.length)
-  const res = terms.map((t) => new RegExp(t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') + '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|\\u2120|\\u00ae|\\u2122))*', 'ig'))
+  const res = terms.map((t) => new RegExp('\\b' + t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') + '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|iii|ii|iv|vi|v(?![a-z])|\\u2120|\\u00ae|\\u2122))*', 'ig'))
   // guarantee language: soften/strip so nothing implies a guaranteed result.
   // "guaranteed minimum floor" → "minimum floor" (keeps the concept, drops the
   // promise word); bare "guaranteed"/"risk-free"/"no risk" removed outright.
   // POSITIVE guarantee promises only (negated disclaimers like "non-guaranteed"
   // are ACCURATE and handled separately → rewritten to "illustrated").
   const guar = [
-    /\bguaranteed\s+(?=minimum|floor|rate|return|value|income)/ig,   // drop just the promise word, keep the noun
-    /\b(100%\s+)?guaranteed\b/ig, /\bguarantees?\b/ig, /\brisk[- ]free\b/ig, /\bno risk\b/ig, /\bget rich\b/ig,
+    [/\bguaranteed\s+(?=minimum|floor|rate|return|value|income)/ig, ''],   // drop just the promise word, keep the noun
+    [/\b(?:100%\s+)?guaranteed\b/ig, 'projected'], [/\bguarantees?\b/ig, 'assurance'],
+    [/\brisk[- ]free\b/ig, ''], [/\bno risk\b/ig, ''], [/\bget rich\b/ig, ''],
   ]
   const clean = (s) => {
     if (typeof s !== 'string') return s
     let out = s
     for (const re of res) out = out.replace(re, '')   // carrier + product NAMES only
-    // negated disclaimers → keep meaning as "illustrated"; positive promises → drop
+    // negated disclaimers → keep meaning as "illustrated"; positive promises → soften
     out = out.replace(/\bnon[-\s]?guaranteed\b/ig, 'illustrated').replace(/\bnot\s+guaranteed\b/ig, 'illustrated')
-    for (const re of guar) out = out.replace(re, '')  // soften positive guarantee promises
+    for (const [re, sub] of guar) out = out.replace(re, sub)  // soften positive guarantee promises
     // (dollar figures + percentages are intentionally PRESERVED — they're the
     // coverage facts the client needs.)
     // Only SAFE cosmetic collapses here (never reconstruct grammar).
     out = out
+      .replace(/(^|\s)\+?\s*(?:iii|ii|iv|vi)\b/gi, '$1')   // orphaned version fragments ("+ III")
+      .replace(/(^|\s)\+(?=\s|$)/g, '$1')
       .replace(/\s{2,}/g, ' ').replace(/\s+([.,!?;:])/g, '$1')
       .replace(/([.,!?;:])\1+/g, '$1')
     return out.replace(/^[\s—–\-,;:]+|[\s—–\-,;:]+$/g, '').replace(/^([a-z])/, (m) => m.toUpperCase()).trim()

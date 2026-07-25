@@ -38,8 +38,8 @@ export const CARRIER_BLOCKLIST: string[] = [
   'ohio national', 'aetna', 'cigna', 'humana', 'blue cross', 'blue shield',
   'unitedhealthcare', 'united healthcare', 'national western', 'nlg', 'columbus', 'meridian',
   // ---- branded products ----
-  'income advantage', 'indexed universal life', 'iul', 'qol', 'max accumulator',
-  'select choice', 'accumulator+', 'select choice ii', 'lapse guard',
+  'income advantage', 'indexed universal life', 'index universal life', 'iul', 'qol',
+  'max accumulator', 'select choice', 'accumulator+', 'select choice ii', 'lapse guard',
   'guaranteed refund option',
 ]
 
@@ -53,7 +53,7 @@ export function isRegulated(...hays: unknown[]): boolean {
  *  novel product name not in the blocklist is still caught. */
 export function productTokens(...sources: (string | undefined | null)[]): string[] {
   const names = new Set<string>()
-  const STOP = /^(The|And|For|Your|With|Ask|Get|How|Why|You|Our|This|That|Plan|Life|Death|Cash|From|Into|When|What|Will|More|Less|Best|Policy|Value|Rate|Index|Living|Benefit|Benefits|Growth|Market|Retirement|Illustration|Insurance)$/i
+  const STOP = /^(The|And|For|Your|With|Ask|Get|How|Why|You|Our|This|That|Plan|Life|Death|Cash|From|Into|When|What|Will|More|Less|Best|Policy|Value|Rate|Index|Living|Benefit|Benefits|Growth|Market|Retirement|Illustration|Insurance|Premium|Fixed|Interest|Flexible|Individual|Universal|Adjustable|Annual|Monthly|Daily|Income|Protection|Coverage|Client|Options|Summary|Overview|Guaranteed|Illustrated|Underwriting|Preferred|Tobacco)$/i
   const add = (s?: string | null) => {
     if (typeof s !== 'string') return
     for (const w of s.split(/[\s,.—:;()]+/)) {
@@ -75,18 +75,24 @@ function nameRegexes(extraTokens: string[] = []): RegExp[] {
   const terms = [...strip].filter(Boolean).sort((a, b) => b.length - a.length)
   return terms.map((t) =>
     new RegExp(
-      t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') +
-        '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|\\u2120|\\u00ae|\\u2122))*',
+      // \b prefix: short tokens (aig, iul, qol) must not mangle the inside of
+      // ordinary words ("straight"). Suffix group also eats version numerals
+      // so "Accumulator+ III" is removed whole.
+      '\\b' + t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') +
+        '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|iii|ii|iv|vi|v(?![a-z])|\\u2120|\\u00ae|\\u2122))*',
       'ig'
     )
   )
 }
 
-// Positive guarantee promises (dropped/softened). Negated disclaimers like
-// "non-guaranteed" are ACCURATE and handled separately (→ "illustrated").
-const GUARANTEE_RE: RegExp[] = [
-  /\bguaranteed\s+(?=minimum|floor|rate|return|value|income|refund)/gi, // keep the noun, drop the promise
-  /\b(100%\s+)?guaranteed\b/gi, /\bguarantees?\b/gi, /\brisk[- ]free\b/gi, /\bno risk\b/gi, /\bget rich\b/gi,
+// Positive guarantee promises, softened to compliant wording (deleting them
+// outright left dangling fragments like "The & Projections"). Negated
+// disclaimers like "non-guaranteed" are ACCURATE and handled separately.
+const GUARANTEE_SUBS: [RegExp, string][] = [
+  [/\bguaranteed\s+(?=minimum|floor|rate|return|value|income|refund)/gi, ''], // keep the noun, drop the promise
+  [/\b(?:100%\s+)?guaranteed\b/gi, 'projected'],
+  [/\bguarantees?\b/gi, 'assurance'],
+  [/\brisk[- ]free\b/gi, ''], [/\bno risk\b/gi, ''], [/\bget rich\b/gi, ''],
 ]
 
 /**
@@ -100,8 +106,11 @@ export function scrubComplianceText(input: string, extraTokens: string[] = []): 
   for (const re of nameRegexes(extraTokens)) out = out.replace(re, '')
   // accurate disclaimers survive as "illustrated"; positive promises drop
   out = out.replace(/\bnon[-\s]?guaranteed\b/gi, 'illustrated').replace(/\bnot\s+guaranteed\b/gi, 'illustrated')
-  for (const re of GUARANTEE_RE) out = out.replace(re, '')
+  for (const [re, sub] of GUARANTEE_SUBS) out = out.replace(re, sub)
   return out
+    // orphaned version fragments after a name removal ("+ III", "II", "+")
+    .replace(/(^|\s)\+?\s*(?:iii|ii|iv|vi)\b/gi, '$1')
+    .replace(/(^|\s)\+(?=\s|$)/g, '$1')
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+([.,!?;:])/g, '$1')
     .replace(/([.,!?;:])\1+/g, '$1')
