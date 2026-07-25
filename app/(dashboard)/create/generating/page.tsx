@@ -85,8 +85,8 @@ export default function GeneratingPage() {
         if (typeof data.total_scenes === 'number') setTotalScenes(data.total_scenes)
         if (data.status === 'completed') {
           clearInterval(interval)
-          // For video output, redirect to the video page as before
-          if (!data.output_type || data.output_type === 'video') {
+          // Video, interactive and deck all live on the detail page
+          if (!data.output_type || ['video', 'interactive', 'deck'].includes(data.output_type)) {
             router.push(`/videos/${videoId}`)
           }
         }
@@ -207,7 +207,7 @@ export default function GeneratingPage() {
   }
 
   // PPTX or PDF completed — show download UI instead of redirecting
-  if (status === 'completed' && outputType && outputType !== 'video') {
+  if (status === 'completed' && outputType && !['video', 'interactive', 'deck'].includes(outputType)) {
     // Slides: offer BOTH formats at export (PDF + PowerPoint) \u2014 they're the same
     // slides, the user picks the wrapper. POST to the on-demand download routes.
     async function downloadAs(format: 'pdf' | 'pptx') {

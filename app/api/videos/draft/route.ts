@@ -26,13 +26,13 @@ export async function POST(request: NextRequest) {
   }
 
   const { outputType, purpose, extractedData, contentMethod, autoBrandInfo, classification, recipientName, clientId, extractedDocs, combineInstruction } = body
-  if (!outputType || !['video', 'pptx', 'pdf'].includes(outputType)) {
-    return NextResponse.json({ error: 'outputType must be video, pptx, or pdf' }, { status: 400 })
+  if (!outputType || !['video', 'pptx', 'pdf', 'interactive', 'deck'].includes(outputType)) {
+    return NextResponse.json({ error: 'outputType must be video, pptx, pdf, interactive, or deck' }, { status: 400 })
   }
 
   const draftData: WizardDraft = {
     step: 1,
-    outputType: outputType as 'video' | 'pptx' | 'pdf',
+    outputType: outputType as WizardDraft['outputType'],
     purpose,
     contentMethod: contentMethod as WizardDraft['contentMethod'],
     extractedData: extractedData || undefined,

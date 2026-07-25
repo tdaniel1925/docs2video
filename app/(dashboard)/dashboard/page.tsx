@@ -329,7 +329,7 @@ export default async function DashboardPage() {
 
       {/* Continue where you left off — drafts (video/deck outputs only) */}
       {(() => {
-        const coreDrafts = (drafts ?? []).filter((d: any) => !d.output_type || ['video', 'pptx', 'pdf'].includes(d.output_type))
+        const coreDrafts = (drafts ?? []).filter((d: any) => !d.output_type || ['video', 'pptx', 'pdf', 'interactive', 'deck'].includes(d.output_type))
         return coreDrafts.length > 0 ? <DraftsSection drafts={coreDrafts} /> : null
       })()}
 
