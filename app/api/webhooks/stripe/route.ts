@@ -102,7 +102,76 @@ export async function POST(request: Request) {
       /* ─── One-time project payment completed ─── */
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
-        const userId = session.metadata?.supabase_user_id
+        let userId = session.metadata?.supabase_user_id
+
+        // Apex Path-B on-site checkout: the buyer has NO Docs2Video account yet —
+        // it is provisioned HERE, after payment (never at checkout-init), so
+        // abandoned checkouts create nothing. Create/resolve the auth user from
+        // the metadata the checkout endpoint stashed (apex_email/apex_name), then
+        // report the sale to Apex directly and send the welcome email.
+        if (!userId && session.metadata?.source === 'apex' && session.metadata?.apex_email) {
+          const apexEmail = session.metadata.apex_email
+          const apexName = session.metadata.apex_name ?? null
+          const referralSource = session.metadata.referral_source ?? null
+          try {
+            const created = await supabase.auth.admin.createUser({
+              email: apexEmail,
+              email_confirm: true,
+              user_metadata: { full_name: apexName, source: 'apex' },
+            })
+            if (created.data?.user) {
+              userId = created.data.user.id
+            } else {
+              const { data: existing } = await supabase
+                .from('profiles').select('id').eq('email', apexEmail).maybeSingle()
+              userId = existing?.id ?? undefined
+            }
+            if (userId) {
+              await supabase.from('profiles').update({
+                source: 'apex',
+                ...(apexName ? { full_name: apexName } : {}),
+                email: apexEmail,
+              }).eq('id', userId)
+
+              // Report the base-subscription sale to Apex (Path B) — directly, not
+              // via the affiliate/promo path (Apex handles the rep comp on its side).
+              if (referralSource) {
+                const invoiceRef =
+                  (typeof session.invoice === 'string' ? session.invoice : session.invoice?.id) ??
+                  `session:${session.id}`
+                await sendApexSaleEvent({
+                  event: 'sale.created',
+                  orderId: invoiceRef,
+                  affiliateCode: referralSource,
+                  amountCents: session.amount_total ?? 0,
+                  tier: session.metadata.tier ?? 'pro',
+                  customerEmail: apexEmail,
+                  customerName: apexName,
+                })
+              }
+
+              // Welcome / password-setup email — only paid buyers reach here.
+              try {
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://docs2video.com'
+                const link = await supabase.auth.admin.generateLink({
+                  type: 'recovery',
+                  email: apexEmail,
+                  options: { redirectTo: `${appUrl}/reset-password` },
+                })
+                const actionLink = link.data?.properties?.action_link
+                if (actionLink) {
+                  const { sendApexWelcomeEmail } = await import('../../../_lib/apex')
+                  await sendApexWelcomeEmail({ to: apexEmail, actionLink })
+                }
+              } catch (mailErr) {
+                console.error('[webhook] apex welcome email failed (non-fatal):', mailErr)
+              }
+            }
+          } catch (provErr) {
+            console.error('[webhook] apex account provisioning failed:', provErr)
+          }
+        }
+
         if (!userId) break
 
         // Store the stripe_customer_id on the profile if not yet saved

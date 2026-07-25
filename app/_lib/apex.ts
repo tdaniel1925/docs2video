@@ -230,3 +230,41 @@ export async function provisionApexAffiliate(opts: {
 
   return { referralCode: code, link, created: true }
 }
+
+/**
+ * Welcome / account-setup email for a buyer who subscribed to Docs2Video via
+ * Apex's on-site checkout. Sent from the Stripe webhook AFTER payment (never at
+ * checkout-init), so only paying buyers receive it. The link is a one-time
+ * password-recovery link so they can set a password and access their D2V account.
+ * Non-fatal.
+ */
+export async function sendApexWelcomeEmail(opts: {
+  to: string
+  actionLink: string
+}): Promise<void> {
+  const { Resend } = await import('resend')
+  const resend = new Resend(process.env.RESEND_API_KEY!)
+  await resend.emails.send({
+    from: 'Docs2Video <support@docs2video.com>',
+    to: opts.to,
+    subject: 'Welcome to Docs2Video — set up your account',
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
+        <h1 style="font-size: 22px; font-weight: 800; color: #1a1a1a; margin: 0 0 20px;">Your Docs2Video account is ready</h1>
+        <p style="font-size: 15px; line-height: 1.6; color: #444;">
+          Thanks for subscribing to Docs2Video through Apex. The button below finishes
+          setting up your account and lets you choose a password &mdash; it works once
+          and expires shortly.
+        </p>
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${opts.actionLink}" style="display: inline-block; background: #1a1a1a; color: #fff; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px;">
+            Set up my account &rarr;
+          </a>
+        </div>
+        <p style="font-size: 13px; line-height: 1.6; color: #888;">
+          You're receiving this because you subscribed to Docs2Video via Apex.
+        </p>
+      </div>
+    `,
+  })
+}
