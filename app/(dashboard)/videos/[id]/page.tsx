@@ -1336,7 +1336,7 @@ export default function VideoDetailPage() {
               <>
                 <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-light)', aspectRatio: '16/9', background: 'white' }}>
                   <iframe
-                    src={`${video.video_url}?v=${new Date(video.updated_at ?? video.created_at).getTime()}`}
+                    src={`/api/public/presentation/${video.id}?v=${new Date(video.updated_at ?? video.created_at).getTime()}`}
                     title={video.title ?? 'Presentation'}
                     style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
                   />

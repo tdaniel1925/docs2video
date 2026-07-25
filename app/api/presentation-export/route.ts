@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
   const { data: video } = await supabase
     .from('videos')
-    .select('id, title, output_type, video_style, draft_data')
+    .select('id, title, output_type, draft_data')
     .eq('id', videoId)
     .eq('user_id', user.id)
     .single()
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   const draft = (video.draft_data ?? {}) as Record<string, unknown>
   const scenes = (draft.scenes ?? []) as PresentationScene[]
   if (!scenes.length) return NextResponse.json({ error: 'No scenes.' }, { status: 400 })
-  const tokId = ((video.video_style as string) || (draft.presentationTemplate as string) || 'heritage')
+  const tokId = ((draft.presentationTemplate as string) || 'heritage')
   const title = (video.title as string) || 'Presentation'
   const safeName = title.replace(/[^a-zA-Z0-9-_ ]/g, '').slice(0, 60) || 'Presentation'
 

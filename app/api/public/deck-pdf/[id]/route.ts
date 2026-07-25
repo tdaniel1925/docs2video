@@ -16,7 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const admin = createAdminClient()
   const { data: video } = await admin
     .from('videos')
-    .select('id, title, status, output_type, video_style, draft_data')
+    .select('id, title, status, output_type, draft_data')
     .eq('id', id)
     .single()
   if (!video || video.status !== 'completed' || video.output_type !== 'interactive') {
@@ -30,7 +30,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const title = (video.title as string) || 'Presentation'
   const safeName = title.replace(/[^a-zA-Z0-9-_ ]/g, '').slice(0, 60) || 'Presentation'
   const bytes = await buildDeckPdf(title, scenes,
-    (video.video_style as string) || (draft.presentationTemplate as string) || 'heritage')
+    (draft.presentationTemplate as string) || 'heritage')
   return new NextResponse(new Uint8Array(bytes), {
     headers: {
       'Content-Type': 'application/pdf',

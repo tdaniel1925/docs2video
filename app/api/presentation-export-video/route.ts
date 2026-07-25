@@ -55,7 +55,12 @@ export async function POST(request: Request) {
     const res = await fetch(`${VIDEO_ASSEMBLY_URL}/export-presentation`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
-      body: JSON.stringify({ videoId, htmlUrl: video.video_url }),
+      // Proxy URL, not the raw storage URL — Supabase serves stored HTML as
+      // text/plain (anti-XSS), which would break Playwright's page scripts.
+      body: JSON.stringify({
+        videoId,
+        htmlUrl: `${(process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').replace(/\/$/, '')}/api/public/presentation/${videoId}`,
+      }),
       signal: AbortSignal.timeout(15000),
     })
     if (!res.ok) throw new Error(`Export service error (HTTP ${res.status})`)

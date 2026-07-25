@@ -137,12 +137,16 @@ export async function POST(request: NextRequest) {
     if (up.error) throw new Error(up.error.message)
     const { data: pub } = admin.storage.from('videos').getPublicUrl(path)
 
-    await admin.from('videos').update({
+    // templateId lives in draft_data.presentationTemplate (saved by the theme
+    // page) — videos.video_style does NOT exist in prod (migration drift), and
+    // an unchecked failed update here strands the row at "assembling" forever.
+    const fin = await admin.from('videos').update({
       status: 'completed', progress_pct: 100, progress_detail: 'Done',
-      output_type: outputType, video_style: templateId,
+      output_type: outputType,
       video_url: pub.publicUrl,
       progress_updated_at: new Date().toISOString(),
     }).eq('id', videoId)
+    if (fin.error) throw new Error(`Failed to finalize: ${fin.error.message}`)
 
     return NextResponse.json({ ok: true, url: pub.publicUrl, outputType, templateId })
   } catch (err) {
