@@ -27,6 +27,18 @@ function getClient(): OpenAI {
 export function speakable(text: string): string {
   if (!text) return text
   let t = String(text)
+  // Pipe separators (contact globs like "555 | a@b.com | site.com") → commas.
+  t = t.replace(/\s*\|\s*/g, ', ')
+  // Emails → "name at domain dot tld" (before URL handling — emails contain domains).
+  t = t.replace(/\b([a-z0-9._%+-]+)@([a-z0-9.-]+)\.([a-z]{2,})\b/gi, (_m, u: string, d: string, tld: string) =>
+    `${u.replace(/\./g, ' dot ')} at ${d.replace(/\./g, ' dot ')} dot ${tld}`)
+  // Bare domains/URLs → "domain dot tld" (common TLDs only, so normal sentences
+  // with periods are never touched).
+  t = t.replace(/\b(?:https?:\/\/)?(?:www\.)?([a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|ai|co|app|us|info|biz))\b/gi,
+    (_m, dom: string) => dom.replace(/\./g, ' dot '))
+  // Phone numbers → digit groups spoken one at a time ("9 3 6, 6 4 1, 7 1 3 0").
+  t = t.replace(/(?:\+?1[\s.-]?)?\(?\b(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})\b/g, (_m, a: string, b: string, c: string) =>
+    `${a.split('').join(' ')}, ${b.split('').join(' ')}, ${c.split('').join(' ')}`)
   t = t.replace(/\$\s?([\d,]+(?:\.\d+)?)\s?(k|m|b|thousand|million|billion)?/gi, (_m, num: string, unit?: string) => {
     const n = num.replace(/,/g, '')
     const u = (unit || '').toLowerCase()

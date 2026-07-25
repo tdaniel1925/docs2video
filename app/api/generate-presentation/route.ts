@@ -107,16 +107,30 @@ export async function POST(request: NextRequest) {
       || profile?.full_name || brandName
     const presenterPhoto = (brandRow?.profile_type === 'person' ? brandRow.photo_url : undefined)
       || profile?.photo_url || undefined
+    const fmtPhone = (p?: string | null) => {
+      const d = String(p ?? '').replace(/\D/g, '')
+      if (d.length === 11 && d.startsWith('1')) return `1-${d.slice(1, 4)}-${d.slice(4, 7)}-${d.slice(7)}`
+      if (d.length === 10) return `1-${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`
+      return p || undefined
+    }
     const contactLine = [
-      (draft.contactPhone as string) || profile?.phone,
+      fmtPhone((draft.contactPhone as string) || profile?.phone),
       (draft.contactEmail as string) || profile?.email,
       (draft.contactWebsite as string) || undefined,
     ].filter(Boolean).join('  ·  ') || undefined
 
+    // Title comes from the source document (or the user's override) — never
+    // the placeholder "Presentation" if we can help it.
+    const ex = (draft.extractedData ?? {}) as Record<string, unknown>
+    const title = (row.title as string)
+      || (typeof ex.title === 'string' && ex.title.trim() ? ex.title.trim() : '')
+      || scenes[0]?.slideData?.headline || scenes[0]?.title || 'Presentation'
+
     const html = buildPresentationHtml({
-      title: (row.title as string) || 'Presentation',
+      title,
       scenes,
       templateId,
+      subtitle: typeof ex.subtitle === 'string' ? ex.subtitle : undefined,
       brandName,
       recipientName: draft.recipientName as string | undefined,
       presenter: {
@@ -144,6 +158,7 @@ export async function POST(request: NextRequest) {
       status: 'completed', progress_pct: 100, progress_detail: 'Done',
       output_type: outputType,
       video_url: pub.publicUrl,
+      ...(row.title ? {} : { title }),
       progress_updated_at: new Date().toISOString(),
     }).eq('id', videoId)
     if (fin.error) throw new Error(`Failed to finalize: ${fin.error.message}`)

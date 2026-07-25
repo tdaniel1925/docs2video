@@ -9,6 +9,14 @@ export type PresentationScene = {
   title?: string
   narration: string
   _role?: 'cover' | 'closing'
+  /** Structured visual content from the wizard's script step — this is what
+   *  renders on the slide. Narration is for the EARS, slideData for the EYES. */
+  slideData?: {
+    headline?: string
+    stats?: { label?: string; value?: string }[]
+    bullets?: string[]
+    cta?: string
+  }
 }
 
 export type PresentationTemplate = {
@@ -83,12 +91,31 @@ function detectStat(text: string): { value: string; rest: string } | null {
   return { value: m[0], rest: text }
 }
 
+/** Stats that share ONE unit ($ or %) and parse numerically → animated bar
+ *  chart rows. Mixed units (an age next to a premium) stay as cards. */
+function chartable(stats: { label?: string; value?: string }[]): { label: string; num: number; disp: string }[] | null {
+  if (!stats || stats.length < 3) return null
+  const rows: { label: string; num: number; disp: string }[] = []
+  const units = new Set<string>()
+  for (const s of stats) {
+    const v = String(s.value ?? '').trim()
+    const m = v.match(/^[~≈]?\s*(\$)?([\d,]+(?:\.\d+)?)\s*(%)?$/)
+    if (!m) return null
+    units.add(m[1] ? '$' : m[3] ? '%' : '#')
+    rows.push({ label: s.label || '', num: parseFloat(m[2].replace(/,/g, '')), disp: v })
+  }
+  if (units.size !== 1 || rows.every((r) => r.num === rows[0].num)) return null
+  return rows
+}
+
 export function buildPresentationHtml(opts: {
   title: string
   scenes: PresentationScene[]
   templateId: string
   brandName?: string
   primaryColor?: string
+  /** short subtitle under the cover title (from the source document) */
+  subtitle?: string
   presenter?: { name?: string; photoUrl?: string; contactLine?: string }
   recipientName?: string
   /** base64 mp3 per scene (interactive) — omit for silent decks */
@@ -103,12 +130,15 @@ export function buildPresentationHtml(opts: {
   const slides = opts.scenes.map((s, i) => {
     const isCover = s._role === 'cover' || i === 0
     const isClosing = s._role === 'closing' || i === opts.scenes.length - 1
-    const body = esc(s.narration).slice(0, 420)
+    const sd = s.slideData ?? {}
+    const stats = (sd.stats ?? []).filter((x) => x && (x.value || x.label)).slice(0, 6)
+    const bullets = (sd.bullets ?? []).filter(Boolean).slice(0, 6)
+    const heading = sd.headline || s.title || opts.title
     if (isCover) {
       return `<div class="wrap">
         <div class="kick"><span class="rule"></span>${esc(opts.brandName || 'A PRESENTATION')}${opts.recipientName ? ' · PREPARED FOR ' + esc(opts.recipientName).toUpperCase() : ''}<span class="rule r"></span></div>
         <h1>${esc(opts.title)}<span class="g">.</span></h1>
-        <div class="lead">${body}</div>
+        ${opts.subtitle ? `<div class="lead">${esc(opts.subtitle).slice(0, 180)}</div>` : ''}
         ${P.name ? `<div class="advisor">${P.photoUrl ? `<img src="${esc(P.photoUrl)}" alt="">` : ''}<span><span class="an">${esc(P.name)}</span></span></div>` : ''}
       </div>`
     }
@@ -116,7 +146,7 @@ export function buildPresentationHtml(opts: {
       return `<div class="wrap">
         <div class="kick"><span class="rule"></span>THANK YOU<span class="rule r"></span></div>
         <h1 style="font-size:clamp(21px,2.9vw,36px)">${esc(s.title || 'Let’s talk')}<span class="g">.</span></h1>
-        <div class="lead">${body}</div>
+        <div class="lead">${esc(sd.cta || 'We appreciate your time.')}</div>
         ${P.name ? `<div class="advcard">${P.photoUrl ? `<img src="${esc(P.photoUrl)}" alt="">` : ''}<span><span class="an">${esc(P.name)}</span>${P.contactLine ? `<div class="ac">${esc(P.contactLine)}</div>` : ''}</span></div>` : ''}
         ${opts.shareActions ? `<div class="shareacts">
           <button class="sact" onclick="parent.postMessage({type:'act',kind:'pdf'},'*')">📄 <b>Download the source document</b></button>
@@ -125,19 +155,40 @@ export function buildPresentationHtml(opts: {
         </div>` : ''}
       </div>`
     }
-    const stat = detectStat(s.narration)
-    if (stat) {
-      return `<div class="wrap">
-        <div class="kick"><span class="rule"></span>${esc(s.title || 'KEY FIGURE').toUpperCase()}<span class="rule r"></span></div>
-        <div class="big">${esc(stat.value)}</div>
-        <div class="lead">${body}</div>
-      </div>`
+
+    // ── Content slides render slideData, NOT the narration ──
+    const kick = `<div class="kick"><span class="rule"></span>${String(i).padStart(2, '0')} · ${esc(s.title || '').toUpperCase()}<span class="rule r"></span></div>`
+    const h = `<h1 class="h2">${esc(heading)}</h1>`
+    const parts: string[] = [kick, h]
+
+    const chart = chartable(stats)
+    if (chart) {
+      const max = Math.max(...chart.map((r) => r.num))
+      parts.push(`<div class="chart">${chart.map((r) =>
+        `<div class="crow"><span class="cl">${esc(r.label)}</span><div class="ctrack"><div class="cbar" style="width:${Math.max(6, Math.round((r.num / max) * 100))}%"></div></div><span class="cval">${esc(r.disp)}</span></div>`
+      ).join('')}</div>`)
+    } else if (stats.length === 1 && stats[0].value) {
+      parts.push(`<div class="big">${esc(stats[0].value)}</div>${stats[0].label ? `<div class="bl">${esc(stats[0].label)}</div>` : ''}`)
+    } else if (stats.length > 1) {
+      parts.push(`<div class="statgrid">${stats.map((x) =>
+        `<div class="stat"><div class="v">${esc(x.value ?? '')}</div><div class="l">${esc(x.label ?? '')}</div></div>`
+      ).join('')}</div>`)
     }
-    return `<div class="wrap">
-      <div class="kick"><span class="rule"></span>${String(i).padStart(2, '0')}<span class="rule r"></span></div>
-      <h1 style="font-size:clamp(20px,2.9vw,34px)">${esc(s.title || opts.title)}</h1>
-      <div class="lead" style="max-width:720px">${body}</div>
-    </div>`
+
+    if (bullets.length) {
+      parts.push(`<ul class="bullets${bullets.length > 4 ? ' two' : ''}${stats.length ? ' tight' : ''}">${bullets.map((b) =>
+        `<li><span class="mk">◆</span><span>${esc(b)}</span></li>`
+      ).join('')}</ul>`)
+    }
+
+    // Nothing structured on this scene → fall back to a short summary line.
+    if (!stats.length && !bullets.length) {
+      const stat = detectStat(s.narration)
+      if (stat) parts.push(`<div class="big">${esc(stat.value)}</div>`)
+      parts.push(`<div class="lead" style="max-width:720px">${esc(s.narration).slice(0, 300)}</div>`)
+    }
+
+    return `<div class="wrap">${parts.join('\n')}</div>`
   })
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(opts.title)}</title>
@@ -167,6 +218,25 @@ h1{font-family:var(--serif);font-weight:700;font-size:clamp(26px,4.4vw,52px);lin
 h1 .g{color:var(--gold)}
 .lead{color:var(--soft);font-size:clamp(13px,1.55vw,18px);line-height:1.6;max-width:660px;margin:12px auto 0}
 .big{display:inline-block;font-family:var(--serif);font-weight:700;font-size:clamp(44px,8vw,96px);line-height:1.18;color:var(--navy);letter-spacing:-.02em;font-variant-numeric:tabular-nums;padding:0 .05em .08em}
+h1.h2{font-size:clamp(20px,3vw,36px)}
+.bl{font-size:clamp(11px,1.2vw,14px);letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:4px}
+.statgrid{display:flex;gap:clamp(8px,1.4vw,16px);justify-content:center;flex-wrap:wrap;margin-top:clamp(10px,2.2vh,20px)}
+.stat{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:12px;padding:clamp(10px,1.8vh,18px) clamp(14px,1.8vw,24px);min-width:130px;max-width:250px;text-align:left;box-shadow:0 10px 26px rgba(0,0,0,.08)}
+.stat .v{font-family:var(--serif);font-weight:700;font-size:clamp(18px,2.4vw,32px);line-height:1.18;padding-bottom:.06em;color:var(--navy);font-variant-numeric:tabular-nums}
+.stat .l{font-size:clamp(9.5px,1vw,12px);letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:4px}
+.bullets{display:grid;grid-template-columns:1fr;gap:clamp(7px,1.3vh,12px);max-width:760px;margin:clamp(10px,2.2vh,20px) auto 0;padding:0;text-align:left}
+.bullets.two{grid-template-columns:1fr 1fr;max-width:940px}
+.bullets.tight{margin-top:clamp(8px,1.6vh,14px)}
+.bullets li{list-style:none;display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:clamp(8px,1.5vh,14px) clamp(12px,1.4vw,18px);font-size:clamp(12px,1.35vw,15.5px);line-height:1.5;color:var(--soft)}
+.bullets .mk{color:var(--gold);font-size:.72em;line-height:2;flex:none}
+.chart{max-width:780px;margin:clamp(12px,2.4vh,22px) auto 0;display:grid;gap:clamp(8px,1.4vh,12px);text-align:left;width:100%}
+.crow{display:grid;grid-template-columns:minmax(90px,190px) 1fr auto;gap:12px;align-items:center}
+.crow .cl{font-size:clamp(10.5px,1.1vw,13px);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);text-align:right}
+.ctrack{background:color-mix(in srgb,var(--ink) 8%,transparent);border-radius:8px;overflow:hidden}
+.cbar{height:clamp(12px,2vh,18px);border-radius:8px;background:linear-gradient(90deg,var(--gold),var(--gold-l));transform-origin:left;transform:scaleX(0)}
+.sec.on .cbar{animation:grow 1s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes grow{to{transform:scaleX(1)}}
+.crow .cval{font-family:var(--serif);font-weight:700;font-size:clamp(13px,1.5vw,18px);color:var(--navy);font-variant-numeric:tabular-nums}
 .advisor{display:inline-flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 22px 8px 8px;box-shadow:0 8px 22px rgba(0,0,0,.09);margin-top:18px}
 .advisor img{width:46px;height:46px;border-radius:50%;object-fit:cover;border:2px solid var(--gold-f)}
 .advisor .an{font-family:var(--serif);font-weight:700;font-size:clamp(13px,1.4vw,16px);color:var(--navy)}
@@ -179,18 +249,18 @@ body.share .shareacts{display:flex}
 .sact{display:inline-flex;align-items:center;gap:8px;background:var(--card);border:1.5px solid var(--gold-f);border-radius:12px;padding:11px 18px;cursor:pointer;transition:transform .18s;font:inherit;font-size:clamp(11.5px,1.2vw,13.5px);color:var(--navy)}
 .sact:hover{transform:translateY(-3px);border-color:var(--gold)}
 #bar{position:fixed;left:0;top:0;height:3px;background:var(--gold);width:0;z-index:40;transition:width .3s ease}
-#nav{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;z-index:50;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 10px;box-shadow:0 8px 24px rgba(0,0,0,.14)}
-#nav button{background:var(--paper);border:none;color:var(--ink);font:inherit;font-weight:700;font-size:13px;height:32px;border-radius:16px;cursor:pointer;transition:all .18s;padding:0 14px}
-#nav button.icon{width:32px;padding:0}#nav button:hover{background:var(--navy);color:var(--paper)}
-#dots{display:flex;gap:5px;margin:0 4px}#dots i{width:7px;height:7px;border-radius:50%;background:color-mix(in srgb,var(--ink) 18%,transparent);cursor:pointer;transition:all .2s}#dots i.on{background:var(--gold);transform:scale(1.3)}
-#nav .lab{font-size:11px;color:var(--faint);padding:0 6px;min-width:52px;text-align:center}
+#nav{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;z-index:50;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 10px;box-shadow:0 8px 24px rgba(0,0,0,.14);white-space:nowrap;max-width:94vw}
+#nav button{flex:none;display:inline-flex;align-items:center;justify-content:center;background:var(--paper);border:none;color:var(--ink);font:inherit;font-weight:700;font-size:15px;width:32px;height:32px;line-height:1;border-radius:50%;cursor:pointer;transition:all .18s;padding:0}
+#nav button:hover{background:var(--navy);color:var(--paper)}
+#dots{display:flex;gap:5px;margin:0 4px;flex:none}#dots i{width:7px;height:7px;border-radius:50%;background:color-mix(in srgb,var(--ink) 18%,transparent);cursor:pointer;transition:all .2s}#dots i.on{background:var(--gold);transform:scale(1.3)}
+#nav .lab{flex:none;font-size:11px;font-weight:700;color:var(--faint);padding:0 4px;min-width:40px;text-align:center}
 .corner{position:fixed;top:20px;left:28px;z-index:40;font-family:var(--serif);font-weight:700;font-size:14px;color:var(--navy)}
 .corner .sm{color:var(--faint);font-family:var(--font);font-weight:400;font-size:11px;display:block}
 </style></head><body class="themed">
 <div id="glow"></div><div id="frame"></div><div id="bar"></div>
 <div class="corner">${esc(opts.title)}${P.name ? `<span class="sm">Presented by ${esc(P.name)}</span>` : ''}</div>
 <div id="app"></div>
-<div id="nav"><button class="icon" id="prev">‹</button><span class="lab" id="lab"></span><button id="next">Next ›</button><div id="dots"></div>${opts.voClips?.length ? '<button id="voice">🔊 Voice on</button>' : ''}</div>
+<div id="nav"><button id="prev" title="Previous">‹</button><span class="lab" id="lab"></span><button id="next" title="Next">›</button><div id="dots"></div>${opts.voClips?.length ? '<button id="voice" title="Voice on/off">🔊</button>' : ''}<button id="fs" title="Fullscreen">⛶</button></div>
 <script>
 const SLIDES=${JSON.stringify(slides)};
 const VO=${JSON.stringify(opts.voClips ?? [])};
@@ -205,14 +275,17 @@ let voiceOn=VO.length>0,voAudio=null;
 const voiceBtn=document.getElementById('voice');
 function voStop(){if(voAudio){voAudio.pause();voAudio=null;}}
 function voPlay(){voStop();if(!voiceOn)return;const b=VO[cur];if(!b)return;voAudio=new Audio('data:audio/mpeg;base64,'+b);voAudio.play().catch(()=>{});}
-if(voiceBtn)voiceBtn.onclick=()=>{voiceOn=!voiceOn;voiceBtn.textContent=voiceOn?'🔊 Voice on':'🔇 Voice off';if(voiceOn)voPlay();else voStop();};
+if(voiceBtn)voiceBtn.onclick=()=>{voiceOn=!voiceOn;voiceBtn.textContent=voiceOn?'🔊':'🔇';if(voiceOn)voPlay();else voStop();};
+const fsBtn=document.getElementById('fs');
+if(fsBtn)fsBtn.onclick=()=>{if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});}else{document.documentElement.requestFullscreen().catch(()=>{});}};
 function go(i){
   if(i<0)i=0;if(i>=secs.length)i=secs.length-1;cur=i;
   secs.forEach(s=>s.classList.remove('on'));dotEls.forEach(d=>d.classList.remove('on'));
   secs[i].classList.add('on');dotEls[i].classList.add('on');
   lab.textContent=(i+1)+' / '+secs.length;
   bar.style.width=(i/(Math.max(secs.length-1,1))*100)+'%';
-  document.getElementById('next').textContent=(i===secs.length-1?'Restart ↻':'Next ›');
+  document.getElementById('next').textContent=(i===secs.length-1?'↻':'›');
+  document.getElementById('next').title=(i===secs.length-1?'Restart':'Next');
   voPlay();
 }
 const RP=new URLSearchParams(location.search);

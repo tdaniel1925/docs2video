@@ -1066,6 +1066,7 @@ export default function PublicWatchPage() {
                 <iframe
                   src={`/api/public/presentation/${video.id}?share=1`}
                   title={video.title ?? 'Presentation'}
+                  allowFullScreen
                   style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
                   onLoad={() => { if (!playTracked.current && video) { playTracked.current = true; trackEvent(video.id, 'play') } }}
                 />

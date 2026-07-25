@@ -1338,6 +1338,7 @@ export default function VideoDetailPage() {
                   <iframe
                     src={`/api/public/presentation/${video.id}?v=${new Date(video.updated_at ?? video.created_at).getTime()}`}
                     title={video.title ?? 'Presentation'}
+                    allowFullScreen
                     style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
                   />
                 </div>
