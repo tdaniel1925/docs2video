@@ -25,6 +25,7 @@ const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').
 const AGENCY_KEY = (process.env.MCP_AGENCY_API_KEY || '').trim()
 const STYLES = ['fintech', 'luxury', 'tech', 'upbeat', 'emerald', 'redblueprint', 'data', 'playful', 'casino', 'clean', 'glitchcore', 'cinematic', 'noir', 'retro', 'vibrant', 'editorial', 'brutalist', 'aurora', 'sport', 'corporate', 'neon', 'organic']
 const PROTOCOL_VERSION = '2025-06-18'
+const PRES_TEMPLATES = ['heritage', 'warm', 'bold', 'midnight', 'mint', 'certificate']
 
 const TOOLS = [
   {
@@ -49,6 +50,36 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: { job_id: { type: 'string', description: 'The job_id from create_commercial.' } },
+      required: ['job_id'],
+    },
+  },
+  {
+    name: 'create_presentation',
+    description:
+      'Generate a PERSONALIZED INTERACTIVE PRESENTATION — a narrated, click-through HTML deck hosted on a share page the recipient opens in their browser (with play-through narration, PDF/deck downloads, and contact actions on the closing slide). Perfect for sending to a specific client or prospect, or for nurture campaigns. Give it a source (url or text), a purpose ("show how Jordyn benefits their business"), and optionally recipient_name to personalize the cover + greeting. Returns a job_id and the future share_url; use check_presentation until it completes (~2-4 min), then send the share_url to the recipient.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'Website or page to build the presentation from. Required unless `text` is given.' },
+        text: { type: 'string', description: 'Alternative to url: raw source text (a document, notes, product info).' },
+        purpose: { type: 'string', description: "REQUIRED. What this presentation should accomplish, e.g. 'Show Bill Propper how Jordyn saves his agency hours every week and books him a demo.'" },
+        recipient_name: { type: 'string', description: "Personalize for this person — their name appears on the cover ('Prepared for …') and in the narrated greeting." },
+        template: { type: 'string', enum: PRES_TEMPLATES, description: 'Visual template. Default heritage (engraved cream/navy/gold).' },
+        output_type: { type: 'string', enum: ['interactive', 'deck'], description: "Default 'interactive' (narrated share page). 'deck' = silent slide deck for PDF/PPTX download." },
+        contact_name: { type: 'string', description: 'Presenter name for the closing card.' },
+        contact_phone: { type: 'string', description: 'Presenter phone for the closing card + spoken outro.' },
+        contact_email: { type: 'string', description: 'Presenter email for the closing card.' },
+        partner_user_id: { type: 'string', description: 'Optional attribution id (e.g. the calling platform user).' },
+      },
+      required: ['purpose'],
+    },
+  },
+  {
+    name: 'check_presentation',
+    description: 'Check the status of a presentation started with create_presentation. When completed, returns the share_url to send to the recipient (and a client deck-PDF link for interactive presentations).',
+    inputSchema: {
+      type: 'object',
+      properties: { job_id: { type: 'string', description: 'The job_id from create_presentation.' } },
       required: ['job_id'],
     },
   },
@@ -82,6 +113,32 @@ async function runTool(name: string, args: any) {
     if (s.status === 'failed') throw new Error(`Generation failed: ${s.error || 'unknown error'}`)
     return `Still working — status: ${s.status}, ${s.progress_pct ?? 0}% done. Check again shortly.`
   }
+  if (name === 'create_presentation') {
+    if (!args?.purpose) throw new Error('Provide a `purpose`.')
+    if (!args?.url && !args?.text) throw new Error('Provide a `url` (or `text`).')
+    const started = await apiV1('/api/v1/presentations', {
+      method: 'POST',
+      body: {
+        input: args.url ? { type: 'url', url: args.url } : { type: 'text', text: args.text },
+        purpose: args.purpose,
+        recipient_name: args.recipient_name,
+        template: PRES_TEMPLATES.includes(args.template) ? args.template : undefined,
+        output_type: args.output_type === 'deck' ? 'deck' : 'interactive',
+        contact: { name: args.contact_name, phone: args.contact_phone, email: args.contact_email },
+        partner_user_id: args.partner_user_id,
+      },
+    })
+    return `Presentation started.\n\njob_id: ${started.job_id}\nstatus: ${started.status}\ncredits: ${started.credits_charged}\nshare_url (live once completed): ${started.share_url}\n\nUse check_presentation with this job_id (~2-4 min).`
+  }
+  if (name === 'check_presentation') {
+    if (!args?.job_id) throw new Error('Provide a `job_id`.')
+    const s = await apiV1(`/api/v1/videos/${args.job_id}`)
+    if (s.status === 'completed') {
+      return `✅ Ready.\n\nshare_url: ${s.share_url}\n${s.deck_pdf_url ? `client deck PDF: ${s.deck_pdf_url}\n` : ''}title: ${s.title || 'Presentation'}\njob_id: ${args.job_id}\n\nSend the share_url to the recipient — it opens the narrated interactive presentation in their browser.`
+    }
+    if (s.status === 'failed') throw new Error(`Generation failed: ${s.error || 'unknown error'}`)
+    return `Still working — status: ${s.status}, ${s.progress_pct ?? 0}% done. Check again shortly.`
+  }
   throw new Error(`Unknown tool: ${name}`)
 }
 
@@ -97,7 +154,7 @@ async function handleRpc(msg: any): Promise<any | null> {
         protocolVersion: params?.protocolVersion || PROTOCOL_VERSION,
         capabilities: { tools: {} },
         serverInfo: { name: 'docs2video', version: '1.0.0' },
-        instructions: 'Generate brand-matched commercial videos from a website URL with create_commercial, then check_commercial for the finished video.',
+        instructions: 'Generate brand-matched commercial videos (create_commercial → check_commercial) and personalized interactive presentations with narrated share pages (create_presentation → check_presentation → send the share_url to the recipient).',
       })
     case 'notifications/initialized':
     case 'notifications/cancelled':

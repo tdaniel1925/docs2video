@@ -5,6 +5,7 @@ import { checkCredits, deductCredits, refundVideoCredits, CREDIT_COSTS } from '.
 import { synthesizeSpeech } from '../../_lib/tts'
 import { buildPresentationHtml, PRESENTATION_TEMPLATES, type PresentationScene } from '../../_lib/presentation'
 import { isRegulated, productTokens, scrubComplianceText } from '../../_lib/compliance'
+import { safeEqual } from '../../_lib/api-auth'
 
 export const runtime = 'nodejs'
 // Interactive: per-scene TTS + assembly. Well under video times, but give room.
@@ -16,9 +17,22 @@ export const maxDuration = 300
  *  'interactive' narrates every scene; 'deck' is silent (PDF/PPTX exports
  *  come later from the same artifact). */
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-  const { data: auth } = await supabase.auth.getUser()
-  const user = auth.user
+  // Internal service auth (public API v1 / partner layer): the v1 route has
+  // already authenticated the API key and METERED the charge — act as the
+  // resolved owner and skip the UI-credit deduction below.
+  const internalSecret = (process.env.INTERNAL_API_SECRET || '').trim()
+  const reqInternalSecret = (request.headers.get('x-internal-service') || '').trim()
+  const internalUserId = request.headers.get('x-internal-user-id') || ''
+  const isInternalCall = !!internalSecret && safeEqual(reqInternalSecret, internalSecret) && !!internalUserId
+
+  let user: { id: string } | null = null
+  if (isInternalCall) {
+    user = { id: internalUserId }
+  } else {
+    const supabase = await createClient()
+    const { data: auth } = await supabase.auth.getUser()
+    user = auth.user
+  }
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const body = await request.json().catch(() => ({}))
@@ -72,14 +86,17 @@ export async function POST(request: NextRequest) {
     }))
   }
 
-  // ── Credits: interactive 700 · deck reuses the existing deck price ──
+  // ── Credits: interactive 700 · deck reuses the existing deck price.
+  // Internal (v1/partner) calls are already metered upstream — skip. ──
   const costKey = outputType === 'interactive' ? 'interactive' : 'deck'
   const cost = (CREDIT_COSTS as Record<string, number>)[costKey] ?? 700
-  const check = await checkCredits(user.id, cost)
-  if (!check.allowed) {
-    return NextResponse.json({ error: 'Not enough credits — you need ' + check.shortfall + ' more.', code: 'insufficient_credits' }, { status: 402 })
+  if (!isInternalCall) {
+    const check = await checkCredits(user.id, cost)
+    if (!check.allowed) {
+      return NextResponse.json({ error: 'Not enough credits — you need ' + check.shortfall + ' more.', code: 'insufficient_credits' }, { status: 402 })
+    }
+    await deductCredits(user.id, cost, `presentation_${outputType}`, videoId)
   }
-  await deductCredits(user.id, cost, `presentation_${outputType}`, videoId)
 
   const setStatus = (status: string, pct: number, detail: string) =>
     admin.from('videos').update({
@@ -205,7 +222,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, url: pub.publicUrl, outputType, templateId })
   } catch (err) {
-    await refundVideoCredits(user.id, cost, videoId).catch(() => {})
+    if (!isInternalCall) await refundVideoCredits(user.id, cost, videoId).catch(() => {})
     const message = err instanceof Error ? err.message : 'Generation failed'
     await admin.from('videos').update({ status: 'failed', error_message: message }).eq('id', videoId)
     return NextResponse.json({ error: message }, { status: 500 })

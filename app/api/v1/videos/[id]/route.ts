@@ -21,7 +21,7 @@ export async function GET(
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('videos')
-    .select('id, user_id, status, progress_pct, video_url, thumbnail_url, slide_urls, error_message, created_at')
+    .select('id, user_id, status, progress_pct, video_url, thumbnail_url, slide_urls, error_message, created_at, output_type, title')
     .eq('id', id)
     .single()
 
@@ -38,16 +38,30 @@ export async function GET(
     draft: 'queued',
     queued: 'queued',
     processing: 'processing',
+    scripting: 'processing',
+    generating_slides: 'processing',
+    generating_audio: 'processing',
+    assembling: 'processing',
     rendering: 'processing',
     completed: 'completed',
     failed: 'failed',
   }
 
+  const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').replace(/\/$/, '')
+  const outputType = (data as { output_type?: string }).output_type || 'video'
+  const isPresentation = outputType === 'interactive' || outputType === 'deck'
+
   return NextResponse.json({
     id: data.id,
     status: statusMap[data.status] || data.status,
+    output_type: outputType,
+    title: (data as { title?: string | null }).title ?? null,
     progress_pct: data.progress_pct ?? 0,
-    video_url: data.video_url ?? null,
+    // For presentations video_url holds the raw HTML artifact — the client-
+    // facing deliverable is the share page (plays inline, action buttons).
+    video_url: isPresentation ? null : (data.video_url ?? null),
+    share_url: isPresentation && data.status === 'completed' ? `${BASE_URL}/watch/${data.id}` : null,
+    deck_pdf_url: outputType === 'interactive' && data.status === 'completed' ? `${BASE_URL}/api/public/deck-pdf/${data.id}` : null,
     thumbnail_url: data.thumbnail_url ?? null,
     slide_urls: data.slide_urls ?? null,
     error: data.error_message ?? null,
