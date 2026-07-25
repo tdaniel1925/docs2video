@@ -156,39 +156,47 @@ export function buildPresentationHtml(opts: {
       </div>`
     }
 
-    // ── Content slides render slideData, NOT the narration ──
-    const kick = `<div class="kick"><span class="rule"></span>${String(i).padStart(2, '0')} · ${esc(s.title || '').toUpperCase()}<span class="rule r"></span></div>`
-    const h = `<h1 class="h2">${esc(heading)}</h1>`
-    const parts: string[] = [kick, h]
+    // ── Content slides render slideData, NOT the narration. Layout picked by
+    // shape: hero (1 stat) · split (stats + bullets, two columns) · cards ·
+    // chart · list. Ghost numeral + accent bar give each slide depth. ──
+    const num = String(i).padStart(2, '0')
+    const kick = `<div class="kick"><span class="num">${num}</span>${esc(s.title || '').toUpperCase()}<span class="rule r"></span></div>`
+    const ghost = `<div class="ghost">${num}</div>`
+    const statsHtml = (cls: string) => stats.map((x) =>
+      `<div class="stat ${cls}"><div class="v">${esc(x.value ?? '')}</div><div class="l">${esc(x.label ?? '')}</div></div>`).join('')
+    const bulletsHtml = (two: boolean) => `<ul class="bullets${two ? ' two' : ''}">${bullets.map((b) =>
+      `<li><span class="mk">◆</span><span>${esc(b)}</span></li>`).join('')}</ul>`
 
     const chart = chartable(stats)
     if (chart) {
       const max = Math.max(...chart.map((r) => r.num))
-      parts.push(`<div class="chart">${chart.map((r) =>
-        `<div class="crow"><span class="cl">${esc(r.label)}</span><div class="ctrack"><div class="cbar" style="width:${Math.max(6, Math.round((r.num / max) * 100))}%"></div></div><span class="cval">${esc(r.disp)}</span></div>`
-      ).join('')}</div>`)
-    } else if (stats.length === 1 && stats[0].value) {
-      parts.push(`<div class="big">${esc(stats[0].value)}</div>${stats[0].label ? `<div class="bl">${esc(stats[0].label)}</div>` : ''}`)
-    } else if (stats.length > 1) {
-      parts.push(`<div class="statgrid">${stats.map((x) =>
-        `<div class="stat"><div class="v">${esc(x.value ?? '')}</div><div class="l">${esc(x.label ?? '')}</div></div>`
-      ).join('')}</div>`)
+      const chartHtml = `<div class="chart">${chart.map((r) =>
+        `<div class="crow"><span class="cl">${esc(r.label)}</span><div class="ctrack"><div class="cbar" style="width:${Math.max(6, Math.round((r.num / max) * 100))}%"></div></div><span class="cval">${esc(r.disp)}</span></div>`).join('')}</div>`
+      return `<div class="wrap">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1>${chartHtml}${bullets.length ? bulletsHtml(false) : ''}</div>`
     }
-
+    if (stats.length === 1 && stats[0].value && !bullets.length) {
+      return `<div class="wrap">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1>
+        <div class="big grad">${esc(stats[0].value)}</div>${stats[0].label ? `<div class="bl">${esc(stats[0].label)}</div>` : ''}</div>`
+    }
+    if (stats.length >= 1 && bullets.length >= 2) {
+      // Split: headline over two columns — bullets left, stat stack right.
+      return `<div class="wrap wl">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1>
+        <div class="cols">
+          <div>${stats.length === 1 && stats[0].value ? `<div class="big grad" style="font-size:clamp(36px,5.6vw,68px)">${esc(stats[0].value)}</div>${stats[0].label ? `<div class="bl">${esc(stats[0].label)}</div>` : ''}` : bulletsHtml(false)}</div>
+          <div class="sidestats">${stats.length === 1 ? bulletsHtml(false) : statsHtml('slim')}</div>
+        </div></div>`
+    }
+    if (stats.length > 1) {
+      return `<div class="wrap">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1><div class="statgrid">${statsHtml('')}</div>${bullets.length ? bulletsHtml(false) : ''}</div>`
+    }
     if (bullets.length) {
-      parts.push(`<ul class="bullets${bullets.length > 4 ? ' two' : ''}${stats.length ? ' tight' : ''}">${bullets.map((b) =>
-        `<li><span class="mk">◆</span><span>${esc(b)}</span></li>`
-      ).join('')}</ul>`)
+      return `<div class="wrap wl">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1>${bulletsHtml(bullets.length > 4)}</div>`
     }
-
     // Nothing structured on this scene → fall back to a short summary line.
-    if (!stats.length && !bullets.length) {
-      const stat = detectStat(s.narration)
-      if (stat) parts.push(`<div class="big">${esc(stat.value)}</div>`)
-      parts.push(`<div class="lead" style="max-width:720px">${esc(s.narration).slice(0, 300)}</div>`)
-    }
-
-    return `<div class="wrap">${parts.join('\n')}</div>`
+    const stat = detectStat(s.narration)
+    return `<div class="wrap">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1>
+      ${stat ? `<div class="big grad">${esc(stat.value)}</div>` : ''}
+      <div class="lead" style="max-width:720px">${esc(s.narration).slice(0, 300)}</div></div>`
   })
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(opts.title)}</title>
@@ -204,27 +212,40 @@ body{background:var(--paper);font-family:var(--font);color:var(--ink)}
 #glow{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(50% 45% at 24% 20%,color-mix(in srgb,var(--gold) 10%,transparent),transparent 60%);animation:drift 18s ease-in-out infinite alternate}
 @keyframes drift{from{transform:translate3d(-1.5%,-1%,0) scale(1.02)}to{transform:translate3d(1.8%,1.4%,0) scale(1.07)}}
 #frame{position:fixed;inset:14px;z-index:2;pointer-events:none;border:1px solid color-mix(in srgb,var(--gold) 45%,transparent);border-radius:4px}
-.sec{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:clamp(16px,3.5vh,36px) 6vw 96px;opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s cubic-bezier(.16,1,.3,1);pointer-events:none;overflow:hidden;z-index:3}
+.sec{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:clamp(58px,10vh,92px) 6vw 104px;opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s cubic-bezier(.16,1,.3,1);pointer-events:none;overflow:hidden;z-index:3}
 .sec.on{opacity:1;transform:none;pointer-events:auto}
-.wrap{width:100%;max-width:1000px;margin:0 auto;text-align:center}
+.wrap{position:relative;width:100%;max-width:1020px;margin:0 auto;text-align:center}
+.wrap.wl{text-align:left}
+.wrap.wl .kick{margin-left:0}
+.ghost{position:absolute;right:-2vw;top:50%;transform:translateY(-52%);font-family:var(--serif);font-weight:700;font-size:clamp(180px,34vh,320px);line-height:1;color:color-mix(in srgb,var(--ink) 5%,transparent);pointer-events:none;user-select:none;z-index:0}
+.wrap>*:not(.ghost){position:relative;z-index:1}
 .wrap>*{opacity:0;transform:translateY(14px)}
 .sec.on .wrap>*{animation:rv .55s cubic-bezier(.16,1,.3,1) forwards}
 .sec.on .wrap>*:nth-child(2){animation-delay:.14s}.sec.on .wrap>*:nth-child(3){animation-delay:.26s}.sec.on .wrap>*:nth-child(4){animation-delay:.38s}
 @keyframes rv{to{opacity:1;transform:none}}
-.kick{display:inline-flex;align-items:center;gap:10px;font-weight:700;font-size:clamp(10px,1.1vw,13px);letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
+.kick{display:inline-flex;align-items:center;gap:10px;font-weight:700;font-size:clamp(10px,1.1vw,13px);letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:clamp(10px,1.8vh,16px)}
 .kick .rule{width:30px;height:1px;background:linear-gradient(90deg,transparent,var(--gold))}
-.kick .rule.r{background:linear-gradient(90deg,var(--gold),transparent)}
+.kick .rule.r{width:44px;background:linear-gradient(90deg,var(--gold),transparent)}
+.kick .num{background:var(--gold);color:var(--paper);border-radius:6px;padding:3px 9px;letter-spacing:.06em;font-size:.92em}
 h1{font-family:var(--serif);font-weight:700;font-size:clamp(26px,4.4vw,52px);line-height:1.08}
 h1 .g{color:var(--gold)}
 .lead{color:var(--soft);font-size:clamp(13px,1.55vw,18px);line-height:1.6;max-width:660px;margin:12px auto 0}
 .big{display:inline-block;font-family:var(--serif);font-weight:700;font-size:clamp(44px,8vw,96px);line-height:1.18;color:var(--navy);letter-spacing:-.02em;font-variant-numeric:tabular-nums;padding:0 .05em .08em}
-h1.h2{font-size:clamp(20px,3vw,36px)}
+h1.h2{font-size:clamp(21px,3.1vw,38px);padding-bottom:clamp(12px,2.2vh,20px);margin-bottom:clamp(4px,1vh,10px);position:relative}
+h1.h2::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:56px;height:3px;border-radius:2px;background:linear-gradient(90deg,var(--gold),var(--gold-l))}
+.wl h1.h2::after{left:0;transform:none}
+.big.grad{background:linear-gradient(115deg,var(--navy) 30%,var(--gold) 90%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.cols{display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(18px,3vw,44px);align-items:start;margin-top:clamp(12px,2.4vh,22px);text-align:left}
+.sidestats{display:flex;flex-direction:column;gap:clamp(8px,1.5vh,13px)}
+.stat.slim{max-width:none;width:100%;padding:clamp(9px,1.6vh,15px) clamp(14px,1.6vw,20px)}
+.cols .bullets{margin:0;max-width:none}
 .bl{font-size:clamp(11px,1.2vw,14px);letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:4px}
 .statgrid{display:flex;gap:clamp(8px,1.4vw,16px);justify-content:center;flex-wrap:wrap;margin-top:clamp(10px,2.2vh,20px)}
 .stat{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:12px;padding:clamp(10px,1.8vh,18px) clamp(14px,1.8vw,24px);min-width:130px;max-width:250px;text-align:left;box-shadow:0 10px 26px rgba(0,0,0,.08)}
 .stat .v{font-family:var(--serif);font-weight:700;font-size:clamp(18px,2.4vw,32px);line-height:1.18;padding-bottom:.06em;color:var(--navy);font-variant-numeric:tabular-nums}
 .stat .l{font-size:clamp(9.5px,1vw,12px);letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:4px}
-.bullets{display:grid;grid-template-columns:1fr;gap:clamp(7px,1.3vh,12px);max-width:760px;margin:clamp(10px,2.2vh,20px) auto 0;padding:0;text-align:left}
+.bullets{display:grid;grid-template-columns:1fr;gap:clamp(8px,1.5vh,13px);max-width:760px;margin:clamp(10px,2.2vh,20px) auto 0;padding:0;text-align:left}
+.wl>.bullets{margin-left:0;margin-right:0}
 .bullets.two{grid-template-columns:1fr 1fr;max-width:940px}
 .bullets.tight{margin-top:clamp(8px,1.6vh,14px)}
 .bullets li{list-style:none;display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:clamp(8px,1.5vh,14px) clamp(12px,1.4vw,18px);font-size:clamp(12px,1.35vw,15.5px);line-height:1.5;color:var(--soft)}
@@ -254,13 +275,14 @@ body.share .shareacts{display:flex}
 #nav button:hover{background:var(--navy);color:var(--paper)}
 #dots{display:flex;gap:5px;margin:0 4px;flex:none}#dots i{width:7px;height:7px;border-radius:50%;background:color-mix(in srgb,var(--ink) 18%,transparent);cursor:pointer;transition:all .2s}#dots i.on{background:var(--gold);transform:scale(1.3)}
 #nav .lab{flex:none;font-size:11px;font-weight:700;color:var(--faint);padding:0 4px;min-width:40px;text-align:center}
-.corner{position:fixed;top:20px;left:28px;z-index:40;font-family:var(--serif);font-weight:700;font-size:14px;color:var(--navy)}
+.corner{position:fixed;top:20px;left:28px;z-index:40;font-family:var(--serif);font-weight:700;font-size:14px;color:var(--navy);transition:opacity .4s}
 .corner .sm{color:var(--faint);font-family:var(--font);font-weight:400;font-size:11px;display:block}
+body.oncover .corner{opacity:0}
 </style></head><body class="themed">
 <div id="glow"></div><div id="frame"></div><div id="bar"></div>
 <div class="corner">${esc(opts.title)}${P.name ? `<span class="sm">Presented by ${esc(P.name)}</span>` : ''}</div>
 <div id="app"></div>
-<div id="nav"><button id="prev" title="Previous">‹</button><span class="lab" id="lab"></span><button id="next" title="Next">›</button><div id="dots"></div>${opts.voClips?.length ? '<button id="voice" title="Voice on/off">🔊</button>' : ''}<button id="fs" title="Fullscreen">⛶</button></div>
+<div id="nav"><button id="prev" title="Previous">‹</button><span class="lab" id="lab"></span><button id="next" title="Next">›</button><div id="dots"></div>${opts.voClips?.length ? '<button id="pp" title="Pause / resume narration">⏸</button><button id="voice" title="Voice on/off">🔊</button>' : ''}<button id="fs" title="Fullscreen">⛶</button></div>
 <script>
 const SLIDES=${JSON.stringify(slides)};
 const VO=${JSON.stringify(opts.voClips ?? [])};
@@ -278,6 +300,8 @@ function voPlay(){voStop();if(!voiceOn)return;const b=VO[cur];if(!b)return;voAud
 if(voiceBtn)voiceBtn.onclick=()=>{voiceOn=!voiceOn;voiceBtn.textContent=voiceOn?'🔊':'🔇';if(voiceOn)voPlay();else voStop();};
 const fsBtn=document.getElementById('fs');
 if(fsBtn)fsBtn.onclick=()=>{if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});}else{document.documentElement.requestFullscreen().catch(()=>{});}};
+const ppBtn=document.getElementById('pp');
+if(ppBtn)ppBtn.onclick=()=>{if(!voAudio)return;if(voAudio.paused){voAudio.play().catch(()=>{});ppBtn.textContent='⏸';}else{voAudio.pause();ppBtn.textContent='▶';}};
 function go(i){
   if(i<0)i=0;if(i>=secs.length)i=secs.length-1;cur=i;
   secs.forEach(s=>s.classList.remove('on'));dotEls.forEach(d=>d.classList.remove('on'));
@@ -286,6 +310,8 @@ function go(i){
   bar.style.width=(i/(Math.max(secs.length-1,1))*100)+'%';
   document.getElementById('next').textContent=(i===secs.length-1?'↻':'›');
   document.getElementById('next').title=(i===secs.length-1?'Restart':'Next');
+  document.body.classList.toggle('oncover',i===0);
+  const pp=document.getElementById('pp');if(pp)pp.textContent='⏸';
   voPlay();
 }
 const RP=new URLSearchParams(location.search);
