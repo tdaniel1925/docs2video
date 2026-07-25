@@ -38,6 +38,18 @@ export async function proxy(request: NextRequest) {
     return response
   }
 
+  // Server-to-server internal calls: the /api/v1 layer re-enters internal
+  // routes (extract-url, generate-video, generate-presentation, …) with the
+  // x-internal-service secret. The routes verify it again themselves — the
+  // middleware must not bounce them to /login. Constant-time compare.
+  const internalSecret = (process.env.INTERNAL_API_SECRET || '').trim()
+  const reqInternal = (request.headers.get('x-internal-service') || '').trim()
+  if (internalSecret && pathname.startsWith('/api/') && reqInternal.length === internalSecret.length) {
+    let diff = 0
+    for (let i = 0; i < internalSecret.length; i++) diff |= internalSecret.charCodeAt(i) ^ reqInternal.charCodeAt(i)
+    if (diff === 0) return response
+  }
+
   // Redirect unauthenticated users away from protected pages
   // NOTE: '/r/' must stay public — affiliate referral links are clicked by
   // anonymous visitors; redirecting them to /login drops the attribution.
