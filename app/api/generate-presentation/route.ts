@@ -59,31 +59,70 @@ export async function POST(request: NextRequest) {
     }).eq('id', videoId)
 
   try {
-    // ── Narration (interactive only) ──
+    // ── Narration (interactive only) — parallel with bounded concurrency.
+    // Sequential TTS blew the 300s function ceiling on long decks (the killed
+    // function stranded the row at "assembling" with no refund). ──
     let voClips: string[] | undefined
     if (outputType === 'interactive') {
-      await setStatus('generating_audio', 20, 'Recording narration')
+      await setStatus('generating_audio', 20, `Recording narration (0/${scenes.length})`)
       const voiceId = (draft.voiceId as string) || 'nova'
-      voClips = []
-      for (const s of scenes) {
-        const buf = await synthesizeSpeech(s.narration ?? '', voiceId)
-        voClips.push(buf.toString('base64'))
+      const clips: string[] = new Array(scenes.length)
+      let next = 0, done = 0
+      const worker = async () => {
+        while (true) {
+          const idx = next++
+          if (idx >= scenes.length) return
+          const buf = await synthesizeSpeech(scenes[idx].narration ?? '', voiceId)
+          clips[idx] = buf.toString('base64')
+          done++
+          if (done % 3 === 0 || done === scenes.length) {
+            await setStatus('generating_audio', 20 + Math.round((done / scenes.length) * 45), `Recording narration (${done}/${scenes.length})`)
+          }
+        }
       }
+      await Promise.all(Array.from({ length: Math.min(5, scenes.length) }, worker))
+      voClips = clips
     }
 
     // ── Assemble the presentation ──
     await setStatus('assembling', 70, 'Assembling presentation')
-    const brand = (draft.brand ?? {}) as Record<string, string | undefined>
+
+    // Resolve brand + presenter identity from their real sources: the selected
+    // brands row (company or person profile) and the user's own profile.
+    const brandId = (draft.brandId || draft.selectedBrand || draft.autoBrandId) as string | undefined
+    let brandRow: { name?: string; profile_type?: string; person_role?: string | null; photo_url?: string | null } | null = null
+    if (brandId) {
+      const { data } = await admin.from('brands')
+        .select('name, profile_type, person_role, photo_url')
+        .eq('id', brandId).eq('user_id', user.id).single()
+      brandRow = data
+    }
+    const { data: profile } = await admin.from('profiles')
+      .select('full_name, company_name, phone, email, photo_url')
+      .eq('id', user.id).single()
+
+    const inlineBrand = (draft.inlineBrand ?? {}) as { name?: string }
+    const brandName = brandRow?.name || inlineBrand.name || profile?.company_name || undefined
+    const presenterName = (brandRow?.profile_type === 'person' ? brandRow.name : undefined)
+      || profile?.full_name || brandName
+    const presenterPhoto = (brandRow?.profile_type === 'person' ? brandRow.photo_url : undefined)
+      || profile?.photo_url || undefined
+    const contactLine = [
+      (draft.contactPhone as string) || profile?.phone,
+      (draft.contactEmail as string) || profile?.email,
+      (draft.contactWebsite as string) || undefined,
+    ].filter(Boolean).join('  ·  ') || undefined
+
     const html = buildPresentationHtml({
       title: (row.title as string) || 'Presentation',
       scenes,
       templateId,
-      brandName: brand.name,
+      brandName,
       recipientName: draft.recipientName as string | undefined,
       presenter: {
-        name: brand.person_name as string | undefined ?? brand.name,
-        photoUrl: brand.photo_url as string | undefined,
-        contactLine: brand.contact_line as string | undefined,
+        name: presenterName,
+        photoUrl: presenterPhoto ?? undefined,
+        contactLine,
       },
       voClips,
       shareActions: outputType === 'interactive',
