@@ -153,7 +153,9 @@ export async function POST(request: Request) {
     .from('videos')
     .insert({
       user_id: caller.userId,
-      status: 'processing',
+      // 'draft' is the only pre-generation status the videos_status_check
+      // constraint allows at insert; the background flips to 'scripting'.
+      status: 'draft',
       output_type: outputType,
       draft_data: {
         extractedData: extracted,
