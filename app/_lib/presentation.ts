@@ -163,6 +163,49 @@ export function templateTokens(templateId: string): { paper: string; ink: string
   }
 }
 
+/** The jordyn.app house illustration library (pre-generated Gemini art in the
+ *  site's own style, served from the live site — zero per-deck image cost).
+ *  Content slides keyword-match into it; each illustration is used once. */
+const JORDYN_ILLO_BASE = 'https://jordyn.app/demo-illos/'
+const JORDYN_ILLOS: { f: string; k: string[] }[] = [
+  { f: 'illo-email.png', k: ['email', 'inbox', 'follow-up', 'followup', 'reply', 'message'] },
+  { f: 'illo-clients.png', k: ['client', 'contact', 'relationship', 'book of business', 'crm', 'customer'] },
+  { f: 'illo-brain.png', k: ['brain', 'industry', 'learn', 'knowledge', 'smart', ' ai ', 'intelligen', 'fluent'] },
+  { f: 'illo-pipeline.png', k: ['pipeline', 'case', 'deal', 'track', 'progress', 'stage'] },
+  { f: 'illo-paperwork.png', k: ['paperwork', 'document', 'proposal', 'rfp', 'letter', 'draft', 'write'] },
+  { f: 'illo-automation.png', k: ['automat', 'workflow', 'hands-free', 'busywork', 'routine', 'save'] },
+  { f: 'illo-booking.png', k: ['book', 'schedul', 'calendar', 'meeting', 'appointment', 'demo'] },
+  { f: 'illo-campaigns.png', k: ['campaign', 'market', 'nurtur', 'outreach', 'sequence', 'social'] },
+  { f: 'illo-invoice.png', k: ['invoice', 'payment', 'bill', 'stripe', 'pay', 'revenue'] },
+  { f: 'illo-phone.png', k: ['phone', 'call', 'voice', 'line', 'answer'] },
+  { f: 'illo-memory.png', k: ['memory', 'remember', 'history', 'context', 'never forget'] },
+  { f: 'illo-integrations.png', k: ['integrat', 'connect', 'tools', 'stack', 'works with'] },
+  { f: 'illo-security.png', k: ['secur', 'privacy', 'compliance', 'safe', 'protect'] },
+  { f: 'illo-pricing.png', k: ['pricing', 'cost', 'price', 'plan', 'credit'] },
+  { f: 'illo-step1.png', k: ['step one', 'first', 'setup', 'minutes', 'start'] },
+  { f: 'illo-step2.png', k: ['step two', 'second', 'build'] },
+  { f: 'illo-step3.png', k: ['step three', 'third', 'grow', 'scale'] },
+  { f: 'illo-cta.png', k: ['next step', 'ready', 'today', 'talk', 'reach out'] },
+]
+function pickJordynIllo(text: string, used: Set<string>): string | null {
+  const hay = ` ${text.toLowerCase()} `
+  let best: { f: string; score: number } | null = null
+  for (const il of JORDYN_ILLOS) {
+    if (used.has(il.f)) continue
+    const score = il.k.reduce((a, k) => a + (hay.includes(k) ? 1 : 0), 0)
+    if (score > 0 && (!best || score > best.score)) best = { f: il.f, score }
+  }
+  if (!best) {
+    // No keyword hit — fall back to a generic unused one so slides still get art.
+    const generic = ['illo-brain.png', 'illo-clients.png', 'illo-pipeline.png', 'illo-automation.png', 'illo-paperwork.png']
+      .find((f) => !used.has(f))
+    if (!generic) return null
+    best = { f: generic, score: 0 }
+  }
+  used.add(best.f)
+  return JORDYN_ILLO_BASE + best.f
+}
+
 const esc = (s: string) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
@@ -208,6 +251,9 @@ export function buildPresentationHtml(opts: {
   const t = PRESENTATION_TEMPLATES.find((x) => x.id === opts.templateId) ?? PRESENTATION_TEMPLATES[0]
   const P = opts.presenter ?? {}
   const themeVars = Object.entries(t.vars).map(([k, v]) => `${k}:${v}`).join(';')
+  // Jordyn house style pairs every slide with an on-style illustration.
+  const wantIllos = t.id === 'jordyn'
+  const usedIllos = new Set<string>()
 
   const slides = opts.scenes.map((s, i) => {
     const isCover = s._role === 'cover' || i === 0
@@ -219,13 +265,17 @@ export function buildPresentationHtml(opts: {
     if (isCover) {
       const words = esc(opts.title).split(' ').map((w, k) =>
         `<span class="wd" style="animation-delay:${(0.2 + k * 0.09).toFixed(2)}s">${w}</span>`).join(' ')
-      return `<div class="wrap">
+      const coverInner = `
         <div class="kick"><span class="rule"></span>${esc(opts.brandName || 'A PRESENTATION')}${opts.recipientName ? ' · PREPARED FOR ' + esc(opts.recipientName).toUpperCase() : ''}<span class="rule r"></span></div>
         <h1>${words}<span class="g">.</span></h1>
         ${opts.subtitle ? `<div class="lead">${esc(opts.subtitle).slice(0, 180)}</div>` : ''}
         ${P.name ? `<div class="advisor">${P.photoUrl ? `<img src="${esc(P.photoUrl)}" alt="">` : ''}<span><span class="an">${esc(P.name)}</span></span></div>` : ''}
-        ${opts.voClips?.length ? `<div><button class="startbtn" onclick="startPres()">▶&nbsp;&nbsp;Start presentation</button></div>` : ''}
-      </div>`
+        ${opts.voClips?.length ? `<div><button class="startbtn" onclick="startPres()">▶&nbsp;&nbsp;Start presentation</button></div>` : ''}`
+      if (wantIllos) {
+        usedIllos.add('illo-hero.png')
+        return `<div class="wrap wl willo"><div>${coverInner}</div><div class="illocard"><img src="${JORDYN_ILLO_BASE}illo-hero.png" alt=""></div></div>`
+      }
+      return `<div class="wrap">${coverInner}</div>`
     }
     if (isClosing) {
       return `<div class="wrap">
@@ -269,9 +319,15 @@ export function buildPresentationHtml(opts: {
         `<div class="crow"><span class="cl">${esc(r.label)}</span><div class="ctrack"><div class="cbar" style="width:${Math.max(6, Math.round((r.num / max) * 100))}%"></div></div><span class="cval">${cnt(r.disp)}</span></div>`).join('')}</div>`
       return `<div class="wrap">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1>${chartHtml}${bullets.length ? bulletsHtml(false) : ''}</div>`
     }
+    const slideText = `${s.title ?? ''} ${heading} ${bullets.join(' ')} ${s.narration ?? ''}`
+    const illo = wantIllos && !chartable(stats) ? pickJordynIllo(slideText, usedIllos) : null
+    const illoCard = illo ? `<div class="illocard"><img src="${illo}" alt=""></div>` : ''
+
     if (stats.length === 1 && stats[0].value && !bullets.length) {
-      return `<div class="wrap">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1>
-        <div class="big grad">${cnt(stats[0].value)}</div>${stats[0].label ? `<div class="bl">${esc(stats[0].label)}</div>` : ''}</div>`
+      const inner = `${kick}<h1 class="h2">${esc(heading)}</h1>
+        <div class="big grad">${cnt(stats[0].value)}</div>${stats[0].label ? `<div class="bl">${esc(stats[0].label)}</div>` : ''}`
+      if (illo) return `<div class="wrap wl willo">${ghost}<div>${inner}</div>${illoCard}</div>`
+      return `<div class="wrap">${ghost}${inner}</div>`
     }
     if (stats.length >= 1 && bullets.length >= 2) {
       // Split: headline over two columns — bullets left, stat stack right.
@@ -285,13 +341,16 @@ export function buildPresentationHtml(opts: {
       return `<div class="wrap">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1><div class="statgrid">${statsHtml('')}</div>${bullets.length ? bulletsHtml(false) : ''}</div>`
     }
     if (bullets.length) {
+      if (illo) return `<div class="wrap wl willo">${ghost}<div>${kick}<h1 class="h2">${esc(heading)}</h1>${bulletsHtml(false)}</div>${illoCard}</div>`
       return `<div class="wrap wl">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1>${bulletsHtml(bullets.length > 4)}</div>`
     }
     // Nothing structured on this scene → fall back to a short summary line.
     const stat = detectStat(s.narration)
-    return `<div class="wrap">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1>
-      ${stat ? `<div class="big grad">${esc(stat.value)}</div>` : ''}
-      <div class="lead" style="max-width:720px">${esc(s.narration).slice(0, 300)}</div></div>`
+    const fallInner = `${kick}<h1 class="h2">${esc(heading)}</h1>
+      ${stat ? `<div class="big grad">${cnt(stat.value)}</div>` : ''}
+      <div class="lead" style="max-width:720px">${esc(s.narration).slice(0, 300)}</div>`
+    if (illo) return `<div class="wrap wl willo">${ghost}<div>${fallInner}</div>${illoCard}</div>`
+    return `<div class="wrap">${ghost}${fallInner}</div>`
   })
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(opts.title)}</title>
@@ -355,6 +414,12 @@ h1.h2::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX
 .sidestats{display:flex;flex-direction:column;gap:clamp(8px,1.5vh,13px)}
 .stat.slim{max-width:none;width:100%;padding:clamp(9px,1.6vh,15px) clamp(14px,1.6vw,20px)}
 .cols .bullets{margin:0;max-width:none}
+.wrap.willo{display:grid;grid-template-columns:1.08fr .92fr;gap:clamp(20px,3.5vw,56px);align-items:center;text-align:left}
+.wrap.willo .kick{margin-left:0}
+.wrap.willo .bullets{margin-left:0;margin-right:0;max-width:none}
+.wrap.willo .lead{margin-left:0}
+.illocard{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:clamp(12px,2.2vh,24px);box-shadow:0 18px 44px color-mix(in srgb,var(--ink) 10%,transparent);display:flex;align-items:center;justify-content:center}
+.illocard img{width:100%;max-height:54vh;object-fit:contain;border-radius:12px}
 .bl{font-size:clamp(11px,1.2vw,14px);letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:4px}
 .statgrid{display:flex;gap:clamp(8px,1.4vw,16px);justify-content:center;flex-wrap:wrap;margin-top:clamp(10px,2.2vh,20px)}
 .stat{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:12px;padding:clamp(10px,1.8vh,18px) clamp(14px,1.8vw,24px);min-width:130px;max-width:250px;text-align:left;box-shadow:0 10px 26px rgba(0,0,0,.08)}
