@@ -26,6 +26,7 @@ const PRES_TEMPLATES: { id: string; name: string; tagline: string; swatch: [stri
   { id: 'bold', name: 'Corporate Bold', tagline: 'Clean & confident — navy and red. Sharp business energy.', swatch: ['#f4f6fa', '#1e3a70', '#c0272d'] },
   { id: 'midnight', name: 'Midnight', tagline: 'Premium dark — deep navy & luminous gold. Evening-wealth polish.', swatch: ['#0f1729', '#eef2fb', '#d9b64c'] },
   { id: 'mint', name: 'Fresh Mint', tagline: 'The house style — warm cream & mint green. Light and optimistic.', swatch: ['#f4f1ec', '#2b3427', '#6da33f'] },
+  { id: 'certificate', name: 'Certificate', tagline: 'Engraved stock certificate — parchment, guilloché patterns & formal navy serif.', swatch: ['#f5f0e0', '#1a1a3a', '#8a6d2f'] },
 ]
 
 export default function ThemePage() {

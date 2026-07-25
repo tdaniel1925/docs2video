@@ -27,6 +27,8 @@ export type PresentationTemplate = {
   vars: Record<string, string>
   /** swatch colors for the gallery card */
   swatch: [string, string, string]
+  /** optional template-specific decoration CSS (scoped by the author to body.t-{id}) */
+  css?: string
 }
 
 export const PRESENTATION_TEMPLATES: PresentationTemplate[] = [
@@ -65,6 +67,39 @@ export const PRESENTATION_TEMPLATES: PresentationTemplate[] = [
       '--soft': '#5c6656', '--faint': '#98a08f', '--gold': '#6da33f', '--gold-l': '#a5cd7c',
       '--gold-f': '#c7e8a8', '--line': '#e4e0d5', '--serif': "'Plus Jakarta Sans',sans-serif",
     }, swatch: ['#f4f1ec', '#2b3427', '#6da33f'],
+  },
+  {
+    // Port of the classic "stock-certificate" Gemini style: engraved parchment,
+    // guilloché security patterns, ornate double frame, formal navy serif.
+    id: 'certificate', name: 'Certificate', tagline: 'Engraved stock certificate — parchment, guilloché & seal',
+    vars: {
+      '--paper': '#f5f0e0', '--card': '#fbf8ee', '--ink': '#1a1a3a', '--navy': '#1a1a3a',
+      '--soft': '#4a4a63', '--faint': '#8b8878', '--gold': '#8a6d2f', '--gold-l': '#b3924a',
+      '--gold-f': '#d8c48c', '--line': '#d9d0b8', '--serif': "Georgia,'Times New Roman',serif",
+    }, swatch: ['#f5f0e0', '#1a1a3a', '#8a6d2f'],
+    css: `
+body.t-certificate::before{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;background-image:repeating-linear-gradient(45deg,rgba(26,26,58,.022) 0 1px,transparent 1px 7px),repeating-linear-gradient(-45deg,rgba(26,26,58,.022) 0 1px,transparent 1px 7px)}
+body.t-certificate #frame{inset:10px;border:3px double rgba(138,109,47,.85);border-radius:0;box-shadow:inset 0 0 0 5px #f5f0e0,inset 0 0 0 6px rgba(138,109,47,.5)}
+body.t-certificate #frame::before,body.t-certificate #frame::after{content:'❦';position:absolute;font-size:20px;color:rgba(138,109,47,.75);line-height:1}
+body.t-certificate #frame::before{top:8px;left:12px}
+body.t-certificate #frame::after{bottom:8px;right:12px;transform:rotate(180deg)}
+body.t-certificate #glow{background:radial-gradient(46% 42% at 22% 18%,rgba(179,146,74,.14),transparent 60%),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='none' stroke='%231a1a3a' stroke-opacity='.10'%3E%3Ccircle cx='100' cy='100' r='96'/%3E%3Ccircle cx='100' cy='100' r='72'/%3E%3Ccircle cx='100' cy='100' r='34'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(30 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(60 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(90 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(120 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(150 100 100)'/%3E%3C/g%3E%3C/svg%3E") no-repeat calc(100% + 120px) calc(100% + 120px)/440px 440px}
+body.t-certificate h1{letter-spacing:.01em}
+body.t-certificate h1.h2::after{background:none;width:auto;height:auto;content:'✦ ✦ ✦';color:var(--gold);font-size:10px;letter-spacing:9px;left:50%;transform:translateX(-50%)}
+body.t-certificate .wl h1.h2::after{left:0;transform:none}
+body.t-certificate .kick{letter-spacing:.26em}
+body.t-certificate .kick .num{border-radius:0;background:var(--navy);color:#f5f0e0}
+body.t-certificate .stat{border:1px solid rgba(138,109,47,.55);border-left:1px solid rgba(138,109,47,.55);border-radius:0;box-shadow:inset 0 0 0 3px #fbf8ee,inset 0 0 0 4px rgba(138,109,47,.3),0 10px 26px rgba(26,26,58,.07)}
+body.t-certificate .bullets li{border-radius:0;border-color:rgba(138,109,47,.4)}
+body.t-certificate .bullets .mk{content:'❧'}
+body.t-certificate .advcard{border-radius:0;border:1px solid rgba(138,109,47,.6);box-shadow:inset 0 0 0 3px #fbf8ee,inset 0 0 0 4px rgba(138,109,47,.3),0 16px 40px rgba(26,26,58,.1)}
+body.t-certificate .advcard img{border-radius:0}
+body.t-certificate .advcard .an,body.t-certificate .advisor .an{font-family:'Pinyon Script',cursive;font-weight:400;font-size:clamp(22px,2.6vw,30px)}
+body.t-certificate .startbtn{border-radius:0}
+body.t-certificate .big.grad{background:none;-webkit-background-clip:initial;background-clip:initial;color:var(--navy);border-bottom:3px double rgba(138,109,47,.7)}
+body.t-certificate #nav{border-radius:0}
+body.t-certificate #nav button{border-radius:0}
+`,
   },
 ]
 
@@ -201,7 +236,7 @@ export function buildPresentationHtml(opts: {
   })
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(opts.title)}</title>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Montserrat:wght@400;600;700;800;900&family=Pinyon+Script&display=swap" rel="stylesheet">
 <style>
 :root{--paper:#f7f5ee;--card:#fffdf7;--ink:#1c2a44;--navy:#1c2a44;--soft:#4d5a74;--faint:#8b94a8;--gold:#a8842c;--gold-l:#c9a84c;--gold-f:#d9c07a;--line:#e5e0d0;--font:-apple-system,'Segoe UI',Roboto,sans-serif;--serif:Georgia,'Times New Roman',serif}
 body.themed{${themeVars}}
@@ -279,10 +314,11 @@ body.share .shareacts{display:flex}
 #nav button:hover{background:var(--navy);color:var(--paper)}
 #dots{display:flex;gap:5px;margin:0 4px;flex:none}#dots i{width:7px;height:7px;border-radius:50%;background:color-mix(in srgb,var(--ink) 18%,transparent);cursor:pointer;transition:all .2s}#dots i.on{background:var(--gold);transform:scale(1.3)}
 #nav .lab{flex:none;font-size:11px;font-weight:700;color:var(--faint);padding:0 4px;min-width:40px;text-align:center}
-.corner{position:fixed;top:20px;left:28px;z-index:40;font-family:var(--serif);font-weight:700;font-size:14px;color:var(--navy);transition:opacity .4s}
+.corner{position:fixed;top:22px;left:34px;z-index:40;font-family:var(--serif);font-weight:700;font-size:14px;color:var(--navy);transition:opacity .4s}
 .corner .sm{color:var(--faint);font-family:var(--font);font-weight:400;font-size:11px;display:block}
 body.oncover .corner{opacity:0}
-</style></head><body class="themed">
+${t.css ?? ''}
+</style></head><body class="themed t-${t.id}">
 <div id="glow"></div><div id="frame"></div><div id="bar"></div>
 <div class="corner">${esc(opts.title)}${P.name ? `<span class="sm">Presented by ${esc(P.name)}</span>` : ''}</div>
 <div id="app"></div>
