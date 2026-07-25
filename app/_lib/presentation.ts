@@ -69,6 +69,38 @@ export const PRESENTATION_TEMPLATES: PresentationTemplate[] = [
     }, swatch: ['#f4f1ec', '#2b3427', '#6da33f'],
   },
   {
+    // HIDDEN template (not in the wizard gallery — API/partner only): the
+    // jordyn.app demo-deck look. Warm cream + clay, peach pill kickers,
+    // Georgia serif, soft rounded cards, sage second accent. Used by the
+    // Jordyn integration so its decks match the site's own demo.
+    id: 'jordyn', name: 'Jordyn', tagline: 'Warm editorial — cream, clay & peach (jordyn.app house style)',
+    vars: {
+      '--paper': '#faf9f5', '--card': '#fffdf8', '--ink': '#3d3929', '--navy': '#3d3929',
+      '--soft': '#6b6759', '--faint': '#9c988a', '--gold': '#c96442', '--gold-l': '#e0906f',
+      '--gold-f': '#f5e6df', '--line': '#e8e6dc', '--serif': "Georgia,'Times New Roman',serif",
+    }, swatch: ['#faf9f5', '#3d3929', '#c96442'],
+    css: `
+body.t-jordyn #glow{background:radial-gradient(44% 40% at 20% 16%,rgba(245,230,223,.85),transparent 62%),radial-gradient(36% 34% at 84% 82%,rgba(125,140,111,.16),transparent 65%)}
+body.t-jordyn #frame{border:none;inset:0}
+body.t-jordyn .kick{background:#f5e6df;color:#c96442;border-radius:999px;padding:8px 18px;letter-spacing:.12em}
+body.t-jordyn .kick .rule{display:none}
+body.t-jordyn .kick .num{background:#c96442;color:#fffdf8;border-radius:999px}
+body.t-jordyn h1.h2::after{background:linear-gradient(90deg,#c96442,#e0906f)}
+body.t-jordyn .stat{border-radius:16px;border-color:#e8e6dc;border-left:3px solid #c96442;box-shadow:0 14px 34px rgba(61,57,41,.09)}
+body.t-jordyn .bullets li{border-radius:14px;box-shadow:0 8px 22px rgba(61,57,41,.05)}
+body.t-jordyn .bullets .mk{color:#7d8c6f}
+body.t-jordyn .ghost{color:rgba(201,100,66,.07)}
+body.t-jordyn .cbar{background:linear-gradient(90deg,#c96442,#7d8c6f)}
+body.t-jordyn .advcard,body.t-jordyn .advisor{border-radius:18px;border-color:#f5e6df}
+body.t-jordyn .advisor{border-radius:999px}
+body.t-jordyn .advcard img{border-radius:14px;border-color:#f5e6df}
+body.t-jordyn .startbtn{background:linear-gradient(115deg,#c96442,#e0906f);border-radius:999px}
+body.t-jordyn .sact{border-radius:999px;border-color:#f5e6df}
+body.t-jordyn #nav{border-color:#e8e6dc}
+body.t-jordyn .big.grad{background:linear-gradient(115deg,#3d3929 25%,#c96442 65%,#3d3929 95%);background-size:220% 220%;-webkit-background-clip:text;background-clip:text}
+`,
+  },
+  {
     // Port of the classic "stock-certificate" Gemini style: engraved parchment,
     // guilloché security patterns, ornate double frame, formal navy serif.
     id: 'certificate', name: 'Certificate', tagline: 'Engraved stock certificate — parchment, guilloché & seal',
