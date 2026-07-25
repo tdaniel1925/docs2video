@@ -140,6 +140,7 @@ export function buildPresentationHtml(opts: {
         <h1>${esc(opts.title)}<span class="g">.</span></h1>
         ${opts.subtitle ? `<div class="lead">${esc(opts.subtitle).slice(0, 180)}</div>` : ''}
         ${P.name ? `<div class="advisor">${P.photoUrl ? `<img src="${esc(P.photoUrl)}" alt="">` : ''}<span><span class="an">${esc(P.name)}</span></span></div>` : ''}
+        ${opts.voClips?.length ? `<div><button class="startbtn" onclick="startPres()">▶&nbsp;&nbsp;Start presentation</button></div>` : ''}
       </div>`
     }
     if (isClosing) {
@@ -261,6 +262,9 @@ h1.h2::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX
 .advisor{display:inline-flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 22px 8px 8px;box-shadow:0 8px 22px rgba(0,0,0,.09);margin-top:18px}
 .advisor img{width:46px;height:46px;border-radius:50%;object-fit:cover;border:2px solid var(--gold-f)}
 .advisor .an{font-family:var(--serif);font-weight:700;font-size:clamp(13px,1.4vw,16px);color:var(--navy)}
+.startbtn{display:inline-flex;align-items:center;margin-top:clamp(16px,3vh,28px);background:linear-gradient(115deg,var(--gold),var(--gold-l));color:var(--paper);border:none;border-radius:10px;padding:clamp(12px,2vh,16px) clamp(24px,3vw,38px);font:inherit;font-weight:800;font-size:clamp(14px,1.6vw,17px);letter-spacing:.02em;cursor:pointer;box-shadow:0 14px 34px color-mix(in srgb,var(--gold) 40%,transparent);transition:transform .18s,box-shadow .18s}
+.startbtn:hover{transform:translateY(-2px);box-shadow:0 18px 40px color-mix(in srgb,var(--gold) 52%,transparent)}
+body.started .startbtn{display:none}
 .advcard{display:inline-flex;align-items:center;gap:18px;background:var(--card);border:1px solid var(--gold-f);border-radius:16px;padding:16px 26px 16px 16px;box-shadow:0 16px 40px rgba(0,0,0,.12);margin-top:clamp(12px,2.4vh,22px);text-align:left}
 .advcard img{width:clamp(64px,9vh,88px);height:clamp(64px,9vh,88px);border-radius:14px;object-fit:cover;border:2px solid var(--gold-f)}
 .advcard .an{font-family:var(--serif);font-weight:700;font-size:clamp(16px,1.9vw,22px);color:var(--navy)}
@@ -294,9 +298,13 @@ SLIDES.forEach((_,i)=>{const b=document.createElement('i');b.onclick=()=>go(i);d
 const dotEls=[...dots.children],bar=document.getElementById('bar'),lab=document.getElementById('lab');
 let cur=-1;
 let voiceOn=VO.length>0,voAudio=null;
+// Narration is gated behind the Start button: browsers block autoplay until a
+// user gesture, so without it the first slide's voice silently failed.
+let started=VO.length===0,autoAdv=false;
+window.startPres=()=>{started=true;autoAdv=true;document.body.classList.add('started');go(0);};
 const voiceBtn=document.getElementById('voice');
 function voStop(){if(voAudio){voAudio.pause();voAudio=null;}}
-function voPlay(){voStop();if(!voiceOn)return;const b=VO[cur];if(!b)return;voAudio=new Audio('data:audio/mpeg;base64,'+b);voAudio.play().catch(()=>{});}
+function voPlay(){voStop();if(!voiceOn||!started)return;const b=VO[cur];if(!b)return;voAudio=new Audio('data:audio/mpeg;base64,'+b);voAudio.onended=()=>{if(autoAdv&&cur<secs.length-1)setTimeout(()=>{if(autoAdv&&!(voAudio&&!voAudio.paused))go(cur+1);},700);};voAudio.play().catch(()=>{});}
 if(voiceBtn)voiceBtn.onclick=()=>{voiceOn=!voiceOn;voiceBtn.textContent=voiceOn?'🔊':'🔇';if(voiceOn)voPlay();else voStop();};
 const fsBtn=document.getElementById('fs');
 if(fsBtn)fsBtn.onclick=()=>{if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});}else{document.documentElement.requestFullscreen().catch(()=>{});}};
@@ -318,14 +326,19 @@ const RP=new URLSearchParams(location.search);
 if(RP.get('share')==='1'){document.body.classList.add('share');}
 if(RP.get('record')==='1'){
   document.getElementById('nav').style.display='none';
+  document.body.classList.add('started');
   voiceOn=false;document.body.style.pointerEvents='none';
   window.startShow=(durs)=>{go(0);let t=0;for(let i=1;i<durs.length&&i<secs.length;i++){t+=durs[i-1];setTimeout(((k)=>()=>go(k))(i),t);}};
 }
-document.getElementById('next').onclick=()=>{if(cur>=secs.length-1)go(0);else go(cur+1);};
-document.getElementById('prev').onclick=()=>go(cur-1);
+// Any manual navigation is a user gesture → audio is unlocked; browse mode
+// (no auto-advance) as opposed to the Start button's play-through mode.
+const unlock=()=>{if(!started){started=true;document.body.classList.add('started');}};
+document.getElementById('next').onclick=()=>{unlock();if(cur>=secs.length-1)go(0);else go(cur+1);};
+document.getElementById('prev').onclick=()=>{unlock();go(cur-1);};
+dotEls.forEach((d,i)=>{d.onclick=()=>{unlock();go(i);};});
 document.addEventListener('keydown',e=>{
-  if(e.key==='ArrowRight'||e.key==='PageDown'){e.preventDefault();if(cur>=secs.length-1)go(0);else go(cur+1);}
-  if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();go(cur-1);}
+  if(e.key==='ArrowRight'||e.key==='PageDown'){e.preventDefault();unlock();if(cur>=secs.length-1)go(0);else go(cur+1);}
+  if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();unlock();go(cur-1);}
 });
 go(0);
 </script></body></html>`
