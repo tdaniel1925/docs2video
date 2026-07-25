@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import QuickPreview from '../../../_components/QuickPreview'
 import BuyCreditsModal from '../../../_components/BuyCreditsModal'
 import SceneEditChat from '../../../_components/SceneEditChat'
+import { isRegulated, productTokens, scrubComplianceText } from '../../../_lib/compliance'
 
 // Build the default cover/closing copy and ensure the editable scene list has an
 // editable Cover (first) + Closing (last). Idempotent: if bookends already exist
@@ -17,7 +18,25 @@ function addBookends(
   if (!Array.isArray(scenes) || scenes.length === 0) return scenes
   const hasCover = scenes.some(s => s?._role === 'cover')
   const hasClosing = scenes.some(s => s?._role === 'closing')
-  const title = opts.title || scenes[0]?.title || 'Presentation'
+  let title = opts.title || scenes[0]?.title || 'Presentation'
+  // COMPLIANCE: the document title of a regulated illustration IS usually the
+  // carrier/product name — it must never seed the cover slide or its narration.
+  const regulated = isRegulated(title, scenes)
+  if (regulated) {
+    title = scrubComplianceText(title, productTokens(title))
+    if (title.replace(/[^a-zA-Z]/g, '').length < 6) title = 'Your Personalized Illustration'
+  }
+  // Existing drafts may carry a cover built before this scrub — clean it in place.
+  if (regulated && hasCover) {
+    scenes = scenes.map(s => {
+      if (s?._role !== 'cover') return s
+      const toks = productTokens(s.title)
+      const S = (v?: string) => (typeof v === 'string' && v ? scrubComplianceText(v, toks) : v)
+      let t = S(s.title) || ''
+      if (t.replace(/[^a-zA-Z]/g, '').length < 6) t = title
+      return { ...s, title: t, narration: S(s.narration) || s.narration, slideData: s.slideData ? { ...s.slideData, headline: S(s.slideData.headline) || t } : s.slideData }
+    })
+  }
   const greeting = opts.recipientName
     ? `Hello ${opts.recipientName}, thank you for your time today.`
     : 'Thank you for your time today.'
