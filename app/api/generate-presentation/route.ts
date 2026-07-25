@@ -63,7 +63,9 @@ export async function POST(request: NextRequest) {
   // (slide text, narration, title). Figures stay. The scrubbed scenes are
   // persisted below so PDF/PPTX/deck exports read clean content too. ──
   const exData = (draft.extractedData ?? {}) as Record<string, unknown>
-  const regulated = isRegulated(exData, scenes)
+  // complianceExempt: marketing/pitch sources (set by the v1 partner layer) —
+  // the scrub is for regulated ILLUSTRATION explainers, not product pitches.
+  const regulated = !draft.complianceExempt && isRegulated(exData, scenes)
   // Harvest branded-product tokens ONLY from the document title/subtitle —
   // scene headings are Title Case English and would poison the detector.
   const complianceToks = regulated ? productTokens(

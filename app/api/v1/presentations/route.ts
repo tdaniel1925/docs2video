@@ -43,6 +43,10 @@ interface V1PresentationBody {
   contact?: { name?: string; phone?: string; email?: string; website?: string }
   /** Partner attribution (e.g. the Jordyn user id) — stored for reporting. */
   partner_user_id?: string
+  /** Compliance scrub mode. 'auto' (default): scrub regulated ILLUSTRATION
+   *  content but leave url/marketing sources alone (a pitch about a product
+   *  must name the product). 'on' forces the scrub; 'off' disables it. */
+  compliance?: 'auto' | 'on' | 'off'
 }
 
 async function callInternal(path: string, userId: string, body: unknown): Promise<Response> {
@@ -166,6 +170,10 @@ export async function POST(request: Request) {
         ...(body.contact?.email ? { contactEmail: body.contact.email } : {}),
         ...(body.contact?.website ? { contactWebsite: body.contact.website } : {}),
         ...(body.partner_user_id ? { partnerUserId: body.partner_user_id } : {}),
+        // Marketing sources (url) are exempt from the carrier/product scrub by
+        // default — naming the product IS the point of a pitch deck.
+        ...(body.compliance === 'on' ? {} :
+          body.compliance === 'off' || input.type === 'url' ? { complianceExempt: true } : {}),
         apiKeyId: caller.keyId,
         apiCost: cost,
         source: 'api',
