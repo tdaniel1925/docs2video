@@ -1,0 +1,36 @@
+{
+  "scenes": [
+    {
+      "narration": "Hi Margaret — thanks for your time. This is a short walk through the illustration prepared for you.",
+      "sceneNumber": 1
+    },
+    {
+      "narration": "You're putting in $6,240 a year — that's $520 a month. You started at age 42.",
+      "sceneNumber": 2
+    },
+    {
+      "narration": "The core of it is protection. $750,000 paid directly to the people you name, generally free of income tax to them.",
+      "sceneNumber": 3
+    },
+    {
+      "narration": "Alongside that, value builds. At year ten the illustration projects $84,900. The guaranteed column shows $5,500.",
+      "sceneNumber": 4
+    },
+    {
+      "narration": "That gap matters, so I want to be plain about it. The projected column assumes the illustrated rate continues. The guaranteed column is what the contract must do. Your real values will land somewhere between the two.",
+      "sceneNumber": 5
+    },
+    {
+      "narration": "Take a look at the full illustration, and call me any time — happy to walk through any part of it with you.",
+      "sceneNumber": 6
+    }
+  ],
+  "slidePrompts": [
+    "Create a professional presentation slide, 1920x1088 pixels.\n\nSteampunk style — aged dark metal background with brass gears and mechanical elements, ornate copper frames, riveted panels, warm amber lighting, vintage industrial feel.\nColors: primary #D4A843, accent #8C5A2B.\nGlossy, polished finish — subtle glass reflections, soft glows behind key elements, depth with layered shadows.\n\nThis is a COVER/TITLE slide — bold, cinematic, first impression.\nTitle: \"Your Personal Illustration\"\nSubtitle: \"Prepared for Margaret A. Chen\"\nCONTEXT: While this slide is showing, the narrator is saying: \"Hi Margaret — thanks for your time. This is a short walk through the illustration prepared for you.\". The slide content MUST match this topic.\nSlide 1 of 6.\n\nRules: Show only the text listed above. Spell everything exactly. 80px padding. No logo. Keep top-right corner clear with a light or white background area (at least 220x140px) so a logo can be overlaid there with good contrast.",
+    "Create a professional presentation slide, 1920x1088 pixels.\n\nSteampunk style — aged dark metal background with brass gears and mechanical elements, ornate copper frames, riveted panels, warm amber lighting, vintage industrial feel.\nColors: primary #D4A843, accent #8C5A2B.\nGlossy, polished finish — subtle glass reflections, soft glows behind key elements, depth with layered shadows.\n\nTitle: \"What You Put In\"\nKey stats:\n- Annual premium: $6,240\n- Payment mode: Monthly ($520/mo)\n- Your age at issue: 42\nCONTEXT: While this slide is showing, the narrator is saying: \"You're putting in $6,240 a year — that's $520 a month. You started at age 42.\". The slide content MUST match this topic.\nSlide 2 of 6.\n\nRules: Show only the text listed above. Spell everything exactly. 80px padding. No logo. Keep top-right corner clear with a light or white background area (at least 220x140px) so a logo can be overlaid there with good contrast.",
+    "Create a professional presentation slide, 1920x1088 pixels.\n\nSteampunk style — aged dark metal background with brass gears and mechanical elements, ornate copper frames, riveted panels, warm amber lighting, vintage industrial feel.\nColors: primary #D4A843, accent #8C5A2B.\nGlossy, polished finish — subtle glass reflections, soft glows behind key elements, depth with layered shadows.\n\nTitle: \"What It Protects\"\nKey stats:\n- Benefit to your family: $750,000\nKey points:\n- Paid directly to the people you name\n- Generally income-tax free to them\nCONTEXT: While this slide is showing, the narrator is saying: \"The core of it is protection. $750,000 paid directly to the people you name, generally free of income tax to them.\". The slide content MUST match this topic.\nSlide 3 of 6.\n\nRules: Show only the text listed above. Spell everything exactly. 80px padding. No logo. Keep top-right corner clear with a light or white background area (at least 220x140px) so a logo can be overlaid there with good contrast.",
+    "Create a professional presentation slide, 1920x1088 pixels.\n\nSteampunk style — aged dark metal background with brass gears and mechanical elements, ornate copper frames, riveted panels, warm amber lighting, vintage industrial feel.\nColors: primary #D4A843, accent #8C5A2B.\nGlossy, polished finish — subtle glass reflections, soft glows behind key elements, depth with layered shadows.\n\nTitle: \"What It Builds\"\nKey stats:\n- Projected at year 10: $84,900\n- Projected at year 10: $5,500\nCONTEXT: While this slide is showing, the narrator is saying: \"Alongside that, value builds. At year ten the illustration projects $84,900. The guaranteed column shows $5,500.\". The slide content MUST match this topic.\nSlide 4 of 6.\n\nRules: Show only the text listed above. Spell everything exactly. 80px padding. No logo. Keep top-right corner clear with a light or white background area (at least 220x140px) so a logo can be overlaid there with good contrast.",
+    "Create a professional presentation slide, 1920x1088 pixels.\n\nSteampunk style — aged dark metal background with brass gears and mechanical elements, ornate copper frames, riveted panels, warm amber lighting, vintage industrial feel.\nColors: primary #D4A843, accent #8C5A2B.\nGlossy, polished finish — subtle glass reflections, soft glows behind key elements, depth with layered shadows.\n\nTitle: \"Projected Is illustrated\"\nKey points:\n- The projected column assumes the illustrated rate continues\n- The guaranteed column is what the contract must do\n- Your actual values will land somewhere between\nCONTEXT: While this slide is showing, the narrator is saying: \"That gap matters, so I want to be plain about it. The projected column assumes the illustrated rate continues. The guaranteed column is what the contract must do. Your real values will land somewhere \". The slide content MUST match this topic.\nSlide 5 of 6.\n\nRules: Show only the text listed above. Spell everything exactly. 80px padding. No logo. Keep top-right corner clear with a light or white background area (at least 220x140px) so a logo can be overlaid there with good contrast.",
+    "Create a professional presentation slide, 1920x1088 pixels.\n\nSteampunk style — aged dark metal background with brass gears and mechanical elements, ornate copper frames, riveted panels, warm amber lighting, vintage industrial feel.\nColors: primary #D4A843, accent #8C5A2B.\nGlossy, polished finish — subtle glass reflections, soft glows behind key elements, depth with layered shadows.\n\nClosing slide. \"Let’s Talk It Through\"\nPhone: 1-800-441-1417\nEmail: mchen@securefuturefinancial.com\nCONTEXT: While this slide is showing, the narrator is saying: \"Take a look at the full illustration, and call me any time — happy to walk through any part of it with you.\". The slide content MUST match this topic.\nSlide 6 of 6.\n\nRules: Show only the text listed above. Spell everything exactly. 80px padding. No logo. Keep top-right corner clear with a light or white background area (at least 220x140px) so a logo can be overlaid there with good contrast."
+  ]
+}

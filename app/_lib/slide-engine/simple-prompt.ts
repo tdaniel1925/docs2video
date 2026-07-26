@@ -16,6 +16,10 @@ export interface SimpleSlideInput {
   bullets?: { text: string }[]
   contactInfo?: { phone?: string; website?: string; email?: string; calendly?: string }
   narrationContext?: string
+  /** True when a logo will actually be composited into the top-right slot.
+   *  When false we must NOT ask the model to reserve the corner — it renders
+   *  the reservation as a literal blank plaque, and nothing ever covers it. */
+  hasLogo?: boolean
   pageNumber: number
   totalPages: number
 }
@@ -52,8 +56,20 @@ export function buildSimpleSlidePrompt(input: SimpleSlideInput): string {
   }
 
   if (brandName && type !== 'closing') contentLines.push(`"${brandName}" small at bottom.`)
-  if (input.narrationContext) contentLines.push(`CONTEXT: While this slide is showing, the narrator is saying: "${input.narrationContext.slice(0, 200)}". The slide content MUST match this topic.`)
-  contentLines.push(`Slide ${pageNumber} of ${totalPages}.`)
+
+  // Deck position is CONTEXT, never copy. It used to live in contentLines,
+  // directly under "show only the text listed above" — so the model dutifully
+  // printed "Slide 3 of 6" onto every slide of every template.
+  const context: string[] = [`This is slide ${pageNumber} of ${totalPages} in the deck.`]
+  if (input.narrationContext) {
+    context.push(`While this slide is showing, the narrator is saying: "${input.narrationContext.slice(0, 200)}". The slide content MUST match this topic.`)
+  }
+
+  // Only reserve the logo corner when a logo is actually coming. Asking for a
+  // blank light area and then compositing nothing leaves a white plaque.
+  const logoRule = input.hasLogo
+    ? ' Keep the top-right corner clear with a light or white background area (at least 220x140px) so a logo can be overlaid there with good contrast.'
+    : ''
 
   return `Create a professional presentation slide, 1920x1088 pixels.
 
@@ -63,7 +79,10 @@ Glossy, polished finish — subtle glass reflections, soft glows behind key elem
 
 ${contentLines.join('\n')}
 
-Rules: Show only the text listed above. Spell everything exactly. 80px padding. No logo. Keep top-right corner clear with a light or white background area (at least 220x140px) so a logo can be overlaid there with good contrast.`
+CONTEXT (background for you — do NOT render any of this as text on the slide):
+${context.join('\n')}
+
+Rules: Render only the slide content listed above the CONTEXT block. Spell everything exactly. 80px padding. No logo. Do not draw slide numbers, page counts, headers or footers that were not listed.${logoRule}`
 }
 
 /**

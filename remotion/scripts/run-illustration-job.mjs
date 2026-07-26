@@ -150,7 +150,9 @@ console.log('\nuser:', prof.email, prof.id)
 const ir = await fetch(`${SB_URL}/rest/v1/videos`, {
   method: 'POST', headers: sbH,
   body: JSON.stringify({
-    user_id: prof.id, status: 'processing', progress_pct: 5,
+    // videos_status_check rejects 'processing' at INSERT — the row has to be
+    // born 'draft' and get moved on by the pipeline.
+    user_id: prof.id, status: 'draft', progress_pct: 5,
     progress_detail: 'Starting…',
     title: 'VPS pipeline test — steampunk illustration',
   }),

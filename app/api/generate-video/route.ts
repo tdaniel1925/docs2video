@@ -833,6 +833,9 @@ export async function POST(request: Request) {
       }
 
       const input: SimpleSlideInput = {
+        // logoUrl is null on this path (branding is text-only), so never ask
+        // the model to reserve a corner that nothing will fill.
+        hasLogo: !!logoUrl,
         type: isFirst ? 'cover' : isLast ? 'closing' : 'content',
         stylePrompt,
         headline: sd?.headline || scene.title || (isFirst ? (policyData as any)?.title || 'Presentation' : isLast ? 'Thank You' : ''),

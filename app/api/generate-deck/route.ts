@@ -118,6 +118,8 @@ export async function POST(request: Request) {
       const isLast = i === slideSpecs.length - 1
 
       const input: SimpleSlideInput = {
+        // Only reserve the logo corner when a logo will really be composited.
+        hasLogo: !!logoUrl,
         type: isFirst ? 'cover' : isLast ? 'closing' : 'content',
         stylePrompt,
         headline: spec.headline,

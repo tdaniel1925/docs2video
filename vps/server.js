@@ -2596,19 +2596,27 @@ app.post('/generate', authCheck, async (req, res) => {
               let slideBuf = Buffer.from(rp.inlineData.data, 'base64')
               const sharp = require('sharp')
               const SLIDE_W = 1920, SLIDE_H = 1080
-              const showBand = !isBookendSlide && (logoBase64 || brandName)
+              // Band only when a LOGO will actually sit in it. Gating on
+              // brandName painted a coloured strip with nothing inside it on
+              // every slide of every deck that had a name but no logo.
+              const showBand = !isBookendSlide && !!logoBase64
               const BAND_H = 88
               const primary = (safeBrandColors.primary || '#1B365D')
 
               if (showBand) {
                 // The band gets its OWN dedicated strip — the slide art is fitted
                 // into the area BELOW it so the band can never cover Gemini's
-                // content (fixes title-cutoff). Art uses `contain` (no crop) onto
-                // a white canvas of the remaining height; final image is exactly
-                // 1920x1080: [band strip] on top + [art] beneath.
+                // content (fixes title-cutoff). Final image is exactly 1920x1080:
+                // [band strip] on top + [art] beneath.
+                //
+                // `cover`, NOT `contain`: the band steals 88px of height, so the
+                // art box is 1920x992 — aspect 1.9355 against a 16:9 slide. Under
+                // `contain` that pillarboxed every slide with 72px of white down
+                // each side. `cover` trims ~4% off the top and bottom instead,
+                // which the 80px prompt padding already protects against.
                 const artH = SLIDE_H - BAND_H
                 const artBuf = await sharp(slideBuf)
-                  .resize(SLIDE_W, artH, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+                  .resize(SLIDE_W, artH, { fit: 'cover', position: 'centre' })
                   .png().toBuffer()
 
                 // Band overlays (band rect + name/logo), composited onto the band strip.
@@ -2645,10 +2653,11 @@ app.post('/generate', authCheck, async (req, res) => {
                   ])
                   .png().toBuffer()
               } else {
-                // No band (cover/closing or no brand): fit the art to 1920x1080
-                // with `contain` (no crop) so nothing at the edges is sliced.
+                // No band: fill 1920x1080. The model returns 1376x768 (1.7917)
+                // against a 1.7778 frame, so `cover` trims well under 1% — where
+                // `contain` left thin white bars on an otherwise full-bleed slide.
                 slideBuf = await sharp(slideBuf)
-                  .resize(SLIDE_W, SLIDE_H, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+                  .resize(SLIDE_W, SLIDE_H, { fit: 'cover', position: 'centre' })
                   .png().toBuffer()
               }
               return slideBuf

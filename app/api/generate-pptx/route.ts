@@ -146,6 +146,8 @@ export async function POST(request: Request) {
       const slideStats = sd?.stats
 
       const input: SimpleSlideInput = {
+        // Only reserve the logo corner when a logo will really be composited.
+        hasLogo: !!logoUrl,
         type: isFirst ? 'cover' : isLast ? 'closing' : 'content',
         stylePrompt,
         headline: sd?.headline || scene.title || '',
