@@ -268,9 +268,16 @@ function scrubSlidePlan(w, u) {
   // promise word); bare "guaranteed"/"risk-free"/"no risk" removed outright.
   // POSITIVE guarantee promises only (negated disclaimers like "non-guaranteed"
   // are ACCURATE and handled separately → rewritten to "illustrated").
+  // ILLUSTRATION TERMS OF ART — never softened. "The guaranteed column /
+  // element / basis" NAMES the contractual-minimum ledger; it is not a promise.
+  // Rewriting it inverts the meaning ("the projected column is what the
+  // contract must do" — false), and deleting it understates the floor.
+  // MIRROR of app/_lib/compliance.ts ILLUSTRATION_SENSE — keep in sync.
+  const ILLUSTRATION_SENSE = 'column|columns|element|elements|basis|ledger|scale'
   const guar = [
     [/\bguaranteed\s+(?=minimum|floor|rate|return|value|income)/ig, ''],   // drop just the promise word, keep the noun
-    [/\b(?:100%\s+)?guaranteed\b/ig, 'projected'], [/\bguarantees?\b/ig, 'assurance'],
+    [new RegExp(`\\b(?:100%\\s+)?guaranteed\\b(?!\\s+(?:${ILLUSTRATION_SENSE})\\b)`, 'ig'), 'projected'],
+    [new RegExp(`\\bguarantees?\\b(?!\\s+(?:${ILLUSTRATION_SENSE})\\b)`, 'ig'), 'assurance'],
     [/\brisk[- ]free\b/ig, ''], [/\bno risk\b/ig, ''], [/\bget rich\b/ig, ''],
   ]
   const clean = (s) => {

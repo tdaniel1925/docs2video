@@ -85,13 +85,28 @@ function nameRegexes(extraTokens: string[] = []): RegExp[] {
   )
 }
 
+/**
+ * ILLUSTRATION TERMS OF ART — never softened.
+ *
+ * On an illustration, "the guaranteed column / element / basis" is the NAME of
+ * the contractual-minimum ledger. It is not a marketing promise, and rewriting
+ * it produces the opposite of the truth:
+ *   "the guaranteed column is what the contract must do"
+ *     → "the projected column is what the contract must do"   ← false, and the
+ *       most dangerous sentence you can put in front of a client.
+ * Deleting the word instead is also wrong — it understates the floor. So these
+ * senses pass through literally, and the softening below only catches the
+ * promissory use ("guaranteed returns", "100% guaranteed").
+ */
+const ILLUSTRATION_SENSE = 'column|columns|element|elements|basis|ledger|scale'
+
 // Positive guarantee promises, softened to compliant wording (deleting them
 // outright left dangling fragments like "The & Projections"). Negated
 // disclaimers like "non-guaranteed" are ACCURATE and handled separately.
 const GUARANTEE_SUBS: [RegExp, string][] = [
   [/\bguaranteed\s+(?=minimum|floor|rate|return|value|income|refund)/gi, ''], // keep the noun, drop the promise
-  [/\b(?:100%\s+)?guaranteed\b/gi, 'projected'],
-  [/\bguarantees?\b/gi, 'assurance'],
+  [new RegExp(`\\b(?:100%\\s+)?guaranteed\\b(?!\\s+(?:${ILLUSTRATION_SENSE})\\b)`, 'gi'), 'projected'],
+  [new RegExp(`\\bguarantees?\\b(?!\\s+(?:${ILLUSTRATION_SENSE})\\b)`, 'gi'), 'assurance'],
   [/\brisk[- ]free\b/gi, ''], [/\bno risk\b/gi, ''], [/\bget rich\b/gi, ''],
 ]
 
@@ -104,19 +119,28 @@ export function scrubComplianceText(input: string, extraTokens: string[] = []): 
   if (typeof input !== 'string' || !input) return input
   let out = input
   for (const re of nameRegexes(extraTokens)) out = out.replace(re, '')
+  // Did a NAME get removed from right after a leading article? Only then is the
+  // article dangling. Applying this unconditionally mangles ordinary prose —
+  // "The guaranteed column shows…" became "Guaranteed column shows…" on every
+  // scrubbed sentence that happened to open with an article.
+  const article = /^((?:the|a|an|your|our)\s+)/i
+  const am = input.match(article)
+  const danglingArticle = !!am && out !== input &&
+    out.slice(am[0].length).trimStart().length < input.slice(am[0].length).trimStart().length
   // accurate disclaimers survive as "illustrated"; positive promises drop
   out = out.replace(/\bnon[-\s]?guaranteed\b/gi, 'illustrated').replace(/\bnot\s+guaranteed\b/gi, 'illustrated')
   for (const [re, sub] of GUARANTEE_SUBS) out = out.replace(re, sub)
-  return out
+  out = out
     // orphaned version fragments after a name removal ("+ III", "II", "+")
     .replace(/(^|\s)\+?\s*(?:iii|ii|iv|vi)\b/gi, '$1')
     .replace(/(^|\s)\+(?=\s|$)/g, '$1')
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+([.,!?;:])/g, '$1')
     .replace(/([.,!?;:])\1+/g, '$1')
-    // a name removed right after a leading article leaves "The gives you..." —
-    // drop the now-dangling article so the sentence reads cleanly.
-    .replace(/^(the|a|an|your|our)\s+(?=[a-z])/i, '')
+  // a name removed right after a leading article leaves "The gives you..." —
+  // drop the now-dangling article so the sentence reads cleanly.
+  if (danglingArticle) out = out.replace(article, '')
+  return out
     .replace(/^[\s—–\-,;:]+|[\s—–\-,;:]+$/g, '')
     .replace(/^([a-z])/, (m) => m.toUpperCase())
     .trim()
