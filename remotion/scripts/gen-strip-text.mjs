@@ -27,27 +27,31 @@ for (const f of ['.env.local', '.env']) {
 const genai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY })
 const MODEL = env.IMAGE_MODEL || 'gemini-3-pro-image-preview'
 
-const STRIP = `Edit this presentation slide image: REMOVE ALL TEXT from it, completely.
+// Asking to "remove all text" only clears the small stuff — the model reads a
+// giant stylised headline as artwork and leaves it standing. Framing the job as
+// "produce the background plate, and the display type IS type" is what actually
+// clears the whole layer.
+const STRIP = `Produce the BLANK BACKGROUND PLATE version of this slide design.
 
-Remove every letter, word, number, currency figure, percentage and caption anywhere in the
-image — including text inside sticker badges, text inside the bottom information bar, section
-numbers, headlines, labels and any small print.
+A background plate is the artwork with the entire type layer switched off — the version a
+designer works on before any words are placed. The finished plate must contain ZERO readable
+characters anywhere. Not one letter, not one digit.
 
-Keep absolutely everything else EXACTLY as it is, pixel for pixel where possible:
-• the photographic people and their white cut-out stroke outlines
-• the background sky, gradient, halftone dot texture and paper grain
-• every coloured shape — the badges, the bars, the panels, the chart columns, the circles —
-  must all REMAIN in place at the same size, position, rotation and colour. Keep the empty
-  badge shapes and the empty bottom bar as blank coloured shapes.
-• all lighting, shadows and drop shadows
+This includes the giant stylised display headline and any enormous currency or percentage
+figure. Those are TYPE, not artwork — delete them completely. Also delete the small section
+number, all labels, all caption text, all text inside sticker badges, all text inside coloured
+panels, and all text inside the bottom bar.
 
-Where text used to be, cleanly and seamlessly fill in whatever was behind it — the sky, the
-gradient, the flat badge colour, the flat bar colour, the texture — so the result looks like a
-finished background plate that simply never had any type on it. No smudges, no ghosting, no
-blurred patches, no leftover letter fragments.
+Everything that is NOT type stays exactly where it is, unchanged: the photographed people and
+their white cut-out outlines, the sky and gradient, the halftone and grain texture, any chart
+columns, timeline bands, circles or panels, the coloured badge shapes (now empty), the bottom
+bar (now an empty solid bar), and all shadows and lighting.
 
-Do not add anything new. Do not add any text. Do not change the composition or the colours.
-Output the same 16:9 widescreen image with the type removed.`
+Where type used to sit, continue the background that was behind it — sky, gradient, texture,
+flat colour — seamlessly, with no ghosting, blur patches, smears or letter fragments. Large
+areas will simply become clean open background. That is correct and expected.
+
+Add nothing. Output the same 16:9 widescreen image, type layer removed.`
 
 async function strip(srcPath, outPath) {
   const b64 = readFileSync(srcPath).toString('base64')

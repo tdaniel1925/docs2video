@@ -1,5 +1,6 @@
 import { Composition, staticFile } from 'remotion'
  import { PlateSlide, PLATE_FRAMES, PLATE_FPS } from './PlateSlide'
+import { IllusDeck, ILLUS_FRAMES, ILLUS_FPS } from './IllusDeck'
 import { TornPaperTest, TORN_FRAMES } from './TornPaperTest'
 import { CommercialApexTorn, APEX_TORN_FRAMES } from './CommercialApexTorn'
 import { CommercialApexPhonk, APEX_PHONK_FRAMES } from './CommercialApexPhonk'
@@ -733,6 +734,15 @@ export const RemotionRoot: React.FC = () => {
       width={1920}
       height={1080}
       durationInFrames={PLATE_FRAMES}
+    />
+    {/* 6-page illustration deck: Gemini plates + live animated text + VO. */}
+    <Composition
+      id="IllusDeck"
+      component={IllusDeck}
+      fps={ILLUS_FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={ILLUS_FRAMES}
     />
     </>
   )
