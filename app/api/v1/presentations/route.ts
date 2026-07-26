@@ -37,6 +37,9 @@ interface V1PresentationBody {
   recipient_name?: string
   /** Template id (heritage|warm|bold|midnight|mint|certificate). Default heritage. */
   template?: string
+  /** Brand accent as a hex color ("#2E5F8A"). Overrides the brand's own and
+   *  the template's. Ignored if it isn't a valid hex. */
+  accent_color?: string
   /** 'interactive' (narrated share page, default) or 'deck' (silent, PDF/PPTX). */
   output_type?: 'interactive' | 'deck'
   /** Presenter contact shown on the closing card + spoken in the outro. */
@@ -166,6 +169,8 @@ export async function POST(request: Request) {
         purpose: body.purpose,
         presentationTemplate: templateId,
         ...(body.recipient_name ? { recipientName: body.recipient_name } : {}),
+        ...(/^#?[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(String(body.accent_color ?? ''))
+          ? { accentColor: body.accent_color } : {}),
         ...(body.contact?.phone ? { contactPhone: body.contact.phone } : {}),
         ...(body.contact?.email ? { contactEmail: body.contact.email } : {}),
         ...(body.contact?.website ? { contactWebsite: body.contact.website } : {}),

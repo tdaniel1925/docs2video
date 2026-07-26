@@ -83,24 +83,24 @@ export const PRESENTATION_TEMPLATES: PresentationTemplate[] = [
       '--font': "ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif",
     }, swatch: ['#faf9f5', '#3d3929', '#c96442'],
     css: `
-body.t-jordyn #glow{background:radial-gradient(44% 40% at 20% 16%,rgba(245,230,223,.85),transparent 62%),radial-gradient(36% 34% at 84% 82%,rgba(125,140,111,.16),transparent 65%)}
+body.t-jordyn #glow{background:radial-gradient(44% 40% at 20% 16%,color-mix(in srgb,var(--gold-f) 85%,transparent),transparent 62%),radial-gradient(36% 34% at 84% 82%,rgba(125,140,111,.16),transparent 65%)}
 body.t-jordyn #frame{border:none;inset:0}
-body.t-jordyn .kick{background:#f5e6df;color:#c96442;border-radius:999px;padding:8px 18px;letter-spacing:.12em}
+body.t-jordyn .kick{background:var(--gold-f);color:var(--gold);border-radius:999px;padding:8px 18px;letter-spacing:.12em}
 body.t-jordyn .kick .rule{display:none}
-body.t-jordyn .kick .num{background:#c96442;color:#fffdf8;border-radius:999px}
-body.t-jordyn h1.h2::after{background:linear-gradient(90deg,#c96442,#e0906f)}
-body.t-jordyn .stat{border-radius:16px;border-color:#e8e6dc;border-left:3px solid #c96442;box-shadow:0 14px 34px rgba(61,57,41,.09)}
+body.t-jordyn .kick .num{background:var(--gold);color:var(--card);border-radius:999px}
+body.t-jordyn h1.h2::after{background:linear-gradient(90deg,var(--gold),var(--gold-l))}
+body.t-jordyn .stat{border-radius:16px;border-color:var(--line);border-left:3px solid var(--gold);box-shadow:0 14px 34px rgba(61,57,41,.09)}
 body.t-jordyn .bullets li{border-radius:14px;box-shadow:0 8px 22px rgba(61,57,41,.05)}
 body.t-jordyn .bullets .mk{color:#7d8c6f}
-body.t-jordyn .ghost{color:rgba(201,100,66,.07)}
-body.t-jordyn .cbar{background:linear-gradient(90deg,#c96442,#7d8c6f)}
-body.t-jordyn .advcard,body.t-jordyn .advisor{border-radius:18px;border-color:#f5e6df}
+body.t-jordyn .ghost{color:color-mix(in srgb,var(--gold) 7%,transparent)}
+body.t-jordyn .cbar{background:linear-gradient(90deg,var(--gold),#7d8c6f)}
+body.t-jordyn .advcard,body.t-jordyn .advisor{border-radius:18px;border-color:var(--gold-f)}
 body.t-jordyn .advisor{border-radius:999px}
-body.t-jordyn .advcard img{border-radius:14px;border-color:#f5e6df}
-body.t-jordyn .startbtn{background:linear-gradient(115deg,#c96442,#e0906f);border-radius:999px}
-body.t-jordyn .sact{border-radius:999px;border-color:#f5e6df}
-body.t-jordyn #nav{border-color:#e8e6dc}
-body.t-jordyn .big.grad{background:linear-gradient(115deg,#3d3929 25%,#c96442 65%,#3d3929 95%);background-size:220% 220%;-webkit-background-clip:text;background-clip:text}
+body.t-jordyn .advcard img{border-radius:14px;border-color:var(--gold-f)}
+body.t-jordyn .startbtn{background:linear-gradient(115deg,var(--gold),var(--gold-l));border-radius:999px}
+body.t-jordyn .sact{border-radius:999px;border-color:var(--gold-f)}
+body.t-jordyn #nav{border-color:var(--line)}
+body.t-jordyn .big.grad{background:linear-gradient(115deg,var(--ink) 25%,var(--gold) 65%,var(--ink) 95%);background-size:220% 220%;-webkit-background-clip:text;background-clip:text}
 /* Quicksand is a rounded geometric sans — it needs a touch more tracking and
    a lighter display weight than the serif stacks the other templates use. */
 body.t-jordyn h1,body.t-jordyn h2{font-weight:600;letter-spacing:-.015em}
@@ -120,28 +120,28 @@ body.t-jordyn .an{font-weight:600;letter-spacing:-.01em}
     }, swatch: ['#f5f0e0', '#1a1a3a', '#8a6d2f'],
     css: `
 body.t-certificate::before{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;background-image:repeating-linear-gradient(45deg,rgba(26,26,58,.022) 0 1px,transparent 1px 7px),repeating-linear-gradient(-45deg,rgba(26,26,58,.022) 0 1px,transparent 1px 7px)}
-body.t-certificate #frame{inset:10px;border:3px double rgba(138,109,47,.85);border-radius:0;box-shadow:inset 0 0 0 5px #f5f0e0,inset 0 0 0 6px rgba(138,109,47,.5)}
-body.t-certificate #frame::before,body.t-certificate #frame::after{content:'❦';position:absolute;font-size:20px;color:rgba(138,109,47,.75);line-height:1}
+body.t-certificate #frame{inset:10px;border:3px double color-mix(in srgb,var(--gold) 85%,transparent);border-radius:0;box-shadow:inset 0 0 0 5px #f5f0e0,inset 0 0 0 6px color-mix(in srgb,var(--gold) 50%,transparent)}
+body.t-certificate #frame::before,body.t-certificate #frame::after{content:'❦';position:absolute;font-size:20px;color:color-mix(in srgb,var(--gold) 75%,transparent);line-height:1}
 body.t-certificate #frame::before{top:8px;left:12px}
 body.t-certificate #frame::after{bottom:8px;right:12px;transform:rotate(180deg)}
-body.t-certificate #glow{background:radial-gradient(46% 42% at 22% 18%,rgba(179,146,74,.14),transparent 60%),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='none' stroke='%231a1a3a' stroke-opacity='.10'%3E%3Ccircle cx='100' cy='100' r='96'/%3E%3Ccircle cx='100' cy='100' r='72'/%3E%3Ccircle cx='100' cy='100' r='34'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(30 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(60 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(90 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(120 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(150 100 100)'/%3E%3C/g%3E%3C/svg%3E") no-repeat calc(100% + 120px) calc(100% + 120px)/440px 440px}
+body.t-certificate #glow{background:radial-gradient(46% 42% at 22% 18%,color-mix(in srgb,var(--gold-l) 14%,transparent),transparent 60%),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='none' stroke='%231a1a3a' stroke-opacity='.10'%3E%3Ccircle cx='100' cy='100' r='96'/%3E%3Ccircle cx='100' cy='100' r='72'/%3E%3Ccircle cx='100' cy='100' r='34'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(30 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(60 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(90 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(120 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(150 100 100)'/%3E%3C/g%3E%3C/svg%3E") no-repeat calc(100% + 120px) calc(100% + 120px)/440px 440px}
 body.t-certificate h1{letter-spacing:.01em}
 body.t-certificate h1.h2::after{background:none;width:auto;height:auto;content:'✦ ✦ ✦';color:var(--gold);font-size:10px;letter-spacing:9px;left:50%;transform:translateX(-50%)}
 body.t-certificate .wl h1.h2::after{left:0;transform:none}
 body.t-certificate .kick{letter-spacing:.26em}
 body.t-certificate .kick .num{border-radius:0;background:var(--navy);color:#f5f0e0}
-body.t-certificate .stat{border:1px solid rgba(138,109,47,.55);border-left:1px solid rgba(138,109,47,.55);border-radius:0;box-shadow:inset 0 0 0 3px #fbf8ee,inset 0 0 0 4px rgba(138,109,47,.3),0 10px 26px rgba(26,26,58,.07)}
-body.t-certificate .bullets li{border-radius:0;border-color:rgba(138,109,47,.4)}
+body.t-certificate .stat{border:1px solid color-mix(in srgb,var(--gold) 55%,transparent);border-left:1px solid color-mix(in srgb,var(--gold) 55%,transparent);border-radius:0;box-shadow:inset 0 0 0 3px #fbf8ee,inset 0 0 0 4px color-mix(in srgb,var(--gold) 30%,transparent),0 10px 26px rgba(26,26,58,.07)}
+body.t-certificate .bullets li{border-radius:0;border-color:color-mix(in srgb,var(--gold) 40%,transparent)}
 body.t-certificate .bullets .mk{content:'❧'}
-body.t-certificate .advcard{border-radius:0;border:1px solid rgba(138,109,47,.6);box-shadow:inset 0 0 0 3px #fbf8ee,inset 0 0 0 4px rgba(138,109,47,.3),0 16px 40px rgba(26,26,58,.1)}
+body.t-certificate .advcard{border-radius:0;border:1px solid color-mix(in srgb,var(--gold) 60%,transparent);box-shadow:inset 0 0 0 3px #fbf8ee,inset 0 0 0 4px color-mix(in srgb,var(--gold) 30%,transparent),0 16px 40px rgba(26,26,58,.1)}
 body.t-certificate .advcard img{border-radius:0}
 body.t-certificate .advcard .an,body.t-certificate .advisor .an{font-family:'Pinyon Script',cursive;font-weight:400;font-size:clamp(22px,2.6vw,30px)}
 body.t-certificate .startbtn{border-radius:0}
-body.t-certificate .big.grad{background:none;-webkit-background-clip:initial;background-clip:initial;color:var(--navy);border-bottom:3px double rgba(138,109,47,.7)}
+body.t-certificate .big.grad{background:none;-webkit-background-clip:initial;background-clip:initial;color:var(--navy);border-bottom:3px double color-mix(in srgb,var(--gold) 70%,transparent)}
 body.t-certificate #nav{border-radius:0}
 body.t-certificate #nav button{border-radius:0}
 body.t-certificate .big.grad{animation:none}
-body.t-certificate #fx i{display:block;position:absolute;bottom:-8px;width:4px;height:4px;border-radius:50%;background:radial-gradient(circle,rgba(179,146,74,.8),rgba(179,146,74,0) 70%);animation:mote linear infinite}
+body.t-certificate #fx i{display:block;position:absolute;bottom:-8px;width:4px;height:4px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--gold-l) 80%,transparent),rgba(179,146,74,0) 70%);animation:mote linear infinite}
 body.t-certificate #fx i:nth-child(1){left:6%;animation-duration:16s;animation-delay:0s}
 body.t-certificate #fx i:nth-child(2){left:14%;animation-duration:21s;animation-delay:3s;width:3px;height:3px}
 body.t-certificate #fx i:nth-child(3){left:24%;animation-duration:18s;animation-delay:7s}
@@ -159,14 +159,74 @@ body.t-certificate #fx i:nth-child(12){left:97%;animation-duration:21s;animation
   },
 ]
 
-/** Resolved core colors for a template (exports: PPTX/PDF builders). */
-export function templateTokens(templateId: string): { paper: string; ink: string; accent: string; card: string; soft: string } {
+// ── Brand accent ───────────────────────────────────────────────────────────
+// A deck's entire accent system is three variables: --gold (the accent itself),
+// --gold-l (its lighter partner, for gradients) and --gold-f (the faint wash
+// used behind cards, avatars and the cover slab). Paper, ink and card stay
+// template-owned — so swapping in a brand color re-tints the deck without
+// touching the typography or the warmth that makes the layout work.
+
+function hexRgb(hex: string): [number, number, number] | null {
+  const h = String(hex ?? '').trim().replace(/^#/, '')
+  const s = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+  if (!/^[0-9a-f]{6}$/i.test(s)) return null
+  return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)]
+}
+const rgbHex = (c: [number, number, number]) =>
+  '#' + c.map((n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0')).join('')
+
+/** WCAG relative luminance. */
+function lum(c: [number, number, number]): number {
+  const [r, g, b] = c.map((v) => {
+    const s = v / 255
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+const contrast = (a: [number, number, number], b: [number, number, number]) => {
+  const [hi, lo] = lum(a) > lum(b) ? [lum(a), lum(b)] : [lum(b), lum(a)]
+  return (hi + 0.05) / (lo + 0.05)
+}
+const mix = (a: [number, number, number], b: [number, number, number], t: number) =>
+  a.map((v, i) => v + (b[i] - v) * t) as [number, number, number]
+
+/** Resolve a brand color into an accent that is actually legible on this
+ *  template's paper. A bright yellow or pale mint would vanish as a kicker and
+ *  make the CTA button unreadable, so we walk it toward the ink (or, on a dark
+ *  template, toward white) until it clears a 3.2:1 ratio. */
+function usableAccent(hex: string, paper: [number, number, number], ink: [number, number, number]): [number, number, number] {
+  let c = hexRgb(hex)!
+  const target: [number, number, number] = lum(paper) > 0.4 ? ink : [255, 255, 255]
+  for (let i = 0; i < 12 && contrast(c, paper) < 3.2; i++) c = mix(c, target, 0.12)
+  return c
+}
+
+/** The `--gold*` trio for a brand color, or '' when there's no usable override. */
+function accentVars(hex: string | undefined, t: PresentationTemplate): string {
+  if (!hex || !hexRgb(hex)) return ''
+  const paper = hexRgb(t.vars['--paper'] ?? '') ?? [247, 245, 238]
+  const ink = hexRgb(t.vars['--navy'] ?? t.vars['--ink'] ?? '') ?? [28, 42, 68]
+  const gold = usableAccent(hex, paper, ink)
+  const dark = lum(paper) <= 0.4
+  // Light partner brightens on light paper, deepens on dark paper.
+  const light = mix(gold, dark ? [255, 255, 255] : [255, 255, 255], dark ? 0.34 : 0.3)
+  // The faint wash is the accent dissolved into the paper it sits on, so it
+  // reads as a tint of the page rather than a foreign block of color.
+  const faint = mix(paper, gold, dark ? 0.34 : 0.18)
+  return `;--gold:${rgbHex(gold)};--gold-l:${rgbHex(light)};--gold-f:${rgbHex(faint)}`
+}
+
+/** Resolved core colors for a template (exports: PPTX/PDF builders).
+ *  `accent` overrides the template's own accent with the brand color, using
+ *  the same legibility guard the HTML deck applies. */
+export function templateTokens(templateId: string, accent?: string): { paper: string; ink: string; accent: string; card: string; soft: string } {
   const t = PRESENTATION_TEMPLATES.find((x) => x.id === templateId) ?? PRESENTATION_TEMPLATES[0]
   const v = t.vars
+  const brand = accentVars(accent, t).match(/--gold:(#[0-9a-f]{6})/i)?.[1]
   return {
     paper: v['--paper'] ?? '#f7f5ee',
     ink: v['--navy'] ?? '#1c2a44',
-    accent: v['--gold'] ?? '#a8842c',
+    accent: brand ?? v['--gold'] ?? '#a8842c',
     card: v['--card'] ?? '#fffdf7',
     soft: v['--soft'] ?? '#4d5a74',
   }
@@ -297,7 +357,9 @@ export function buildPresentationHtml(opts: {
         ${P.contactLine ? `<span class="ac">${esc(P.contactLine)}</span>` : '<span class="ac">Your advisor</span>'}
       </span></div>`
     : ''
+  // Brand accent last so it wins over the template's own --gold trio.
   const themeVars = Object.entries(t.vars).map(([k, v]) => `${k}:${v}`).join(';')
+    + accentVars(opts.primaryColor, t)
   // Jordyn house style pairs every slide with an on-style illustration.
   const wantIllos = t.id === 'jordyn'
   const usedIllos = new Set<string>()

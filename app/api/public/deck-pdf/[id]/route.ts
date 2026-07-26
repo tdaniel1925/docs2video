@@ -30,7 +30,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const title = (video.title as string) || 'Presentation'
   const safeName = title.replace(/[^a-zA-Z0-9-_ ]/g, '').slice(0, 60) || 'Presentation'
   const bytes = await buildDeckPdf(title, scenes,
-    (draft.presentationTemplate as string) || 'heritage')
+    (draft.presentationTemplate as string) || 'heritage',
+    draft.resolvedAccent as string | undefined)
   return new NextResponse(new Uint8Array(bytes), {
     headers: {
       'Content-Type': 'application/pdf',

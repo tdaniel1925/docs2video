@@ -34,13 +34,16 @@ export async function POST(request: Request) {
   const scenes = (draft.scenes ?? []) as PresentationScene[]
   if (!scenes.length) return NextResponse.json({ error: 'No scenes.' }, { status: 400 })
   const tokId = ((draft.presentationTemplate as string) || 'heritage')
+  // The brand accent the HTML deck resolved to — so the export matches the
+  // deck instead of falling back to the template's own color.
+  const accent = draft.resolvedAccent as string | undefined
   const title = (video.title as string) || 'Presentation'
   const safeName = title.replace(/[^a-zA-Z0-9-_ ]/g, '').slice(0, 60) || 'Presentation'
 
   try {
     if (kind === 'pptx') {
       const { buildDeckPptx } = await import('../../_lib/presentation-exports')
-      const buf = await buildDeckPptx(title, scenes, tokId)
+      const buf = await buildDeckPptx(title, scenes, tokId, accent)
       return new NextResponse(new Uint8Array(buf), {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
@@ -49,7 +52,7 @@ export async function POST(request: Request) {
       })
     }
     const { buildDeckPdf } = await import('../../_lib/presentation-exports')
-    const bytes = await buildDeckPdf(title, scenes, tokId)
+    const bytes = await buildDeckPdf(title, scenes, tokId, accent)
     return new NextResponse(new Uint8Array(bytes), {
       headers: {
         'Content-Type': 'application/pdf',

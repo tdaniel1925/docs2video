@@ -34,8 +34,8 @@ const bodyLines = (s: PresentationScene): { text: string; bullet: boolean }[] =>
   return out
 }
 
-export async function buildDeckPptx(title: string, scenes: PresentationScene[], templateId: string): Promise<Buffer> {
-  const tok = templateTokens(templateId)
+export async function buildDeckPptx(title: string, scenes: PresentationScene[], templateId: string, accent?: string): Promise<Buffer> {
+  const tok = templateTokens(templateId, accent)
   const PptxGenJS = (await import('pptxgenjs')).default
   const pptx = new PptxGenJS()
   pptx.defineLayout({ name: 'WIDE', width: 13.33, height: 7.5 })
@@ -64,8 +64,8 @@ export async function buildDeckPptx(title: string, scenes: PresentationScene[], 
   return (await pptx.write({ outputType: 'nodebuffer' })) as Buffer
 }
 
-export async function buildDeckPdf(title: string, scenes: PresentationScene[], templateId: string): Promise<Uint8Array> {
-  const tok = templateTokens(templateId)
+export async function buildDeckPdf(title: string, scenes: PresentationScene[], templateId: string, accent?: string): Promise<Uint8Array> {
+  const tok = templateTokens(templateId, accent)
   const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
   const doc = await PDFDocument.create()
   const serif = await doc.embedFont(StandardFonts.TimesRomanBold)

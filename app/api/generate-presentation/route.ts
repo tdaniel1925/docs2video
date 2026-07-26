@@ -167,11 +167,16 @@ export async function POST(request: NextRequest) {
     const brandId = (draft.brandId || draft.selectedBrand || draft.autoBrandId) as string | undefined
     let brandRow: { name?: string; profile_type?: string; person_role?: string | null; photo_url?: string | null } | null = null
     let brandLogo: string | undefined
+    let brandColor: string | undefined
     if (brandId) {
       const { data } = await admin.from('brands')
-        .select('name, profile_type, person_role, photo_url')
+        .select('name, profile_type, person_role, photo_url, primary_color, accent_color')
         .eq('id', brandId).eq('user_id', user.id).single()
       brandRow = data
+      // The deck's accent follows the brand. primary_color is the brand's
+      // "headers · CTAs" color — exactly the role --gold plays in the deck.
+      const c = data as { primary_color?: string | null; accent_color?: string | null } | null
+      brandColor = (c?.primary_color || c?.accent_color) ?? undefined
       // Real uploaded logos only — never an AI-drawn mark. Read defensively:
       // the processed-variant columns may not exist in every environment.
       try {
@@ -226,12 +231,17 @@ export async function POST(request: NextRequest) {
       if (subtitle.length > 60 && capRun >= 5 && !/[.!?]$/.test(subtitle.trim())) subtitle = undefined
     }
 
+    // Accent precedence: an explicit per-deck color beats the brand's own,
+    // which beats the template's built-in accent.
+    const accent = ((draft.accentColor || draft.primaryColor) as string | undefined) || brandColor
+
     const html = buildPresentationHtml({
       title,
       scenes,
       templateId,
       subtitle,
       brandName,
+      primaryColor: accent,
       logoUrl: brandLogo,
       // Regulated decks carry the disclosure on every slide.
       disclaimer: regulated
@@ -265,8 +275,10 @@ export async function POST(request: NextRequest) {
       video_url: pub.publicUrl,
       ...(row.title && !regulated ? {} : { title }),
       // Persist the scrubbed scenes so every downstream reader (PPTX/PDF
-      // exports, client deck download, re-renders) gets clean content.
-      ...(regulated ? { draft_data: { ...draft, scenes } } : {}),
+      // exports, client deck download, re-renders) gets clean content — and
+      // the resolved accent, so those exports use the same brand color the
+      // HTML deck did instead of falling back to the template's.
+      draft_data: { ...draft, ...(regulated ? { scenes } : {}), ...(accent ? { resolvedAccent: accent } : {}) },
       progress_updated_at: new Date().toISOString(),
     }).eq('id', videoId)
     if (fin.error) throw new Error(`Failed to finalize: ${fin.error.message}`)
