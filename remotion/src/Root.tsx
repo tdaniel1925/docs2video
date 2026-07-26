@@ -1,6 +1,7 @@
 import { Composition, staticFile } from 'remotion'
  import { PlateSlide, PLATE_FRAMES, PLATE_FPS } from './PlateSlide'
 import { IllusDeck, ILLUS_FRAMES, ILLUS_FPS } from './IllusDeck'
+import { SteampunkDeck, STEAM_FRAMES, STEAM_FPS } from './SteampunkDeck'
 import { TornPaperTest, TORN_FRAMES } from './TornPaperTest'
 import { CommercialApexTorn, APEX_TORN_FRAMES } from './CommercialApexTorn'
 import { CommercialApexPhonk, APEX_PHONK_FRAMES } from './CommercialApexPhonk'
@@ -743,6 +744,15 @@ export const RemotionRoot: React.FC = () => {
       width={1920}
       height={1080}
       durationInFrames={ILLUS_FRAMES}
+    />
+    {/* Steampunk template via the app's own slide engine. */}
+    <Composition
+      id="SteampunkDeck"
+      component={SteampunkDeck}
+      fps={STEAM_FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={STEAM_FRAMES}
     />
     </>
   )
