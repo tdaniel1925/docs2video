@@ -256,6 +256,20 @@ const JORDYN_ILLOS: { f: string; k: string[] }[] = [
   { f: 'illo-step3.png', k: ['step three', 'third', 'grow', 'scale'] },
   { f: 'illo-cta.png', k: ['next step', 'ready', 'today', 'talk', 'reach out'] },
 ]
+/** Art generated for this specific slide, if the pipeline made any. Accepts an
+ *  https URL or an inlined data URI, on the scene or inside slideData. Custom
+ *  art always wins over the keyword-matched house library — that's the whole
+ *  point of paying to generate it. */
+function sceneArt(s: PresentationScene): string | null {
+  const sd = (s.slideData ?? {}) as { imageUrl?: string }
+  const raw = (s as { imageUrl?: string }).imageUrl ?? sd.imageUrl
+  const v = String(raw ?? '').trim()
+  if (!v) return null
+  // Anything that isn't a plain image reference is a script-injection vector
+  // in an `src` attribute — reject rather than escape.
+  return /^(https:\/\/|data:image\/(png|jpeg|webp);base64,)/i.test(v) ? v : null
+}
+
 function pickJordynIllo(text: string, used: Set<string>): string | null {
   const hay = ` ${text.toLowerCase()} `
   let best: { f: string; score: number } | null = null
@@ -400,24 +414,38 @@ export function buildPresentationHtml(opts: {
         ${byline()}
         ${opts.voClips?.length ? `<div><button class="startbtn" onclick="startPres()">▶&nbsp;&nbsp;Start presentation</button></div>` : ''}
         ${opts.brandName ? `<div class="bymark">${esc(opts.brandName)}</div>` : ''}`
-      if (wantIllos) {
-        usedIllos.add('illo-hero.png')
-        return `<div class="wrap wl willo cover"><div>${coverInner}</div><div class="illocard hero"><img src="${JORDYN_ILLO_BASE}illo-hero.png" alt=""></div></div>`
+      const coverArt = sceneArt(s)
+      if (coverArt || wantIllos) {
+        if (!coverArt) usedIllos.add('illo-hero.png')
+        const src = coverArt ?? `${JORDYN_ILLO_BASE}illo-hero.png`
+        return `<div class="wrap wl willo cover"><div>${coverInner}</div><div class="illocard hero"><img src="${src}" alt=""></div></div>`
       }
       return `<div class="wrap cover ctr">${coverInner}</div>`
     }
     if (isClosing) {
-      return `<div class="wrap">
+      // Prefer the written headline over the scene title — the title is often
+      // just the filing label ("Thank you") while the headline is the actual
+      // parting line the deck was built toward.
+      const closeHead = sd.headline || s.title || 'Let’s talk'
+      const closeInner = `
         <div class="kick"><span class="rule"></span>THANK YOU<span class="rule r"></span></div>
-        <h1 style="font-size:clamp(21px,2.9vw,36px)">${esc(s.title || 'Let’s talk')}<span class="g">.</span></h1>
+        <h1 style="font-size:clamp(21px,2.9vw,36px)">${esc(closeHead)}<span class="g">.</span></h1>
         <div class="lead">${esc(sd.cta || 'We appreciate your time.')}</div>
         ${byline(true)}
+        ${opts.brandName ? `<div class="bymark">${esc(opts.brandName)}</div>` : ''}
         ${opts.shareActions ? `<div class="shareacts">
           <button class="sact" onclick="parent.postMessage({type:'act',kind:'pdf'},'*')">📄 <b>Download the source document</b></button>
           <button class="sact" onclick="parent.postMessage({type:'act',kind:'deck'},'*')">📑 <b>Download this deck</b></button>
           <button class="sact" onclick="parent.postMessage({type:'act',kind:'chat'},'*')">💬 <b>Ask a question</b></button>
-        </div>` : ''}
-      </div>`
+        </div>` : ''}`
+      const closeArt = sceneArt(s)
+      // A back cover carrying real contact details earns the same weight as
+      // the front cover — art beside it, not a lone card in an empty field.
+      if (closeArt) {
+        return `<div class="wrap wl willo cover"><div>${closeInner}</div>
+          <div class="illocard hero"><img src="${closeArt}" alt=""></div></div>`
+      }
+      return `<div class="wrap">${closeInner}</div>`
     }
 
     // ── Content slides render slideData, NOT the narration. Layout picked by
@@ -461,7 +489,9 @@ export function buildPresentationHtml(opts: {
       return `<div class="wrap">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1>${chartHtml}${bullets.length ? bulletsHtml(false) : ''}</div>`
     }
     const slideText = `${s.title ?? ''} ${heading} ${bullets.join(' ')} ${s.narration ?? ''}`
-    const illo = wantIllos && !chartable(stats) ? pickJordynIllo(slideText, usedIllos) : null
+    // Art made FOR this slide always beats the keyword-matched house library.
+    const illo = sceneArt(s)
+      ?? (wantIllos && !chartable(stats) ? pickJordynIllo(slideText, usedIllos) : null)
     const illoCard = illo ? `<div class="illocard"><img src="${illo}" alt=""></div>` : ''
 
     const one = stats.length === 1 ? String(stats[0].value ?? '') : ''
@@ -485,6 +515,13 @@ export function buildPresentationHtml(opts: {
         : `<div class="wrap">${ghost}${inner}</div>`
     }
     if (stats.length >= 1 && bullets.length >= 2) {
+      // With art made for this slide, keep the art rather than the two-column
+      // split — figures stack under the bullets on the left. Only when the
+      // content is light enough to share the column without crowding.
+      if (illo && !heroSolo && bullets.length <= 2 && stats.length <= 3) {
+        return `<div class="wrap wl willo">${ghost}<div>${kick}<h1 class="h2">${esc(heading)}</h1>
+          ${bulletsHtml(false)}<div class="statrow">${statsHtml('slim')}</div></div>${illoCard}</div>`
+      }
       // Split: bullets on one side, figures on the other. A lone hero-worthy
       // number leads; anything else stacks as cards.
       const lead = heroSolo
@@ -596,6 +633,9 @@ h1.h2::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX
 .wrap.cover>*:last-child::before{content:'';position:absolute;inset:6% -4% -7% 7%;border-radius:32px;background:color-mix(in srgb,var(--gold-f) 62%,transparent);transform:rotate(-2deg);z-index:-1}
 .bl{font-size:clamp(11px,1.2vw,14px);letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:4px}
 .statgrid{display:flex;gap:clamp(8px,1.4vw,16px);justify-content:center;flex-wrap:wrap;margin-top:clamp(10px,2.2vh,20px)}
+/* Figures sharing a column with bullets, alongside a slide's own artwork. */
+.statrow{display:flex;gap:clamp(8px,1.2vw,14px);flex-wrap:wrap;margin-top:clamp(10px,2vh,18px)}
+.statrow .stat{flex:1 1 0;min-width:0}
 .stat{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:12px;padding:clamp(10px,1.8vh,18px) clamp(14px,1.8vw,24px);min-width:130px;max-width:250px;text-align:left;box-shadow:0 10px 26px rgba(0,0,0,.08)}
 .stat .v{font-family:var(--serif);font-weight:700;font-size:clamp(18px,2.4vw,32px);line-height:1.18;padding-bottom:.06em;color:var(--navy);font-variant-numeric:tabular-nums}
 /* Text values ("Preferred Non-Tobacco") — sans, smaller, no hyphen breaks. */
