@@ -1,4 +1,5 @@
 import { Composition, staticFile } from 'remotion'
+ import { PlateSlide, PLATE_FRAMES, PLATE_FPS } from './PlateSlide'
 import { TornPaperTest, TORN_FRAMES } from './TornPaperTest'
 import { CommercialApexTorn, APEX_TORN_FRAMES } from './CommercialApexTorn'
 import { CommercialApexPhonk, APEX_PHONK_FRAMES } from './CommercialApexPhonk'
@@ -723,6 +724,15 @@ export const RemotionRoot: React.FC = () => {
       width={1920}
       height={1080}
       durationInFrames={SB87_FRAMES}
+    />
+    {/* Gemini plate + real animated Remotion text (hybrid proof). */}
+    <Composition
+      id="PlateSlide"
+      component={PlateSlide}
+      fps={PLATE_FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={PLATE_FRAMES}
     />
     </>
   )
