@@ -4,7 +4,7 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { checkCredits, deductCredits, refundVideoCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { synthesizeSpeech } from '../../_lib/tts'
 import { buildPresentationHtml, PRESENTATION_TEMPLATES, type PresentationScene } from '../../_lib/presentation'
-import { isRegulated, productTokens, scrubComplianceText } from '../../_lib/compliance'
+import { isRegulated, productTokens, scrubComplianceText, smoothScrubbed } from '../../_lib/compliance'
 import { safeEqual } from '../../_lib/api-auth'
 
 export const runtime = 'nodejs'
@@ -73,7 +73,14 @@ export async function POST(request: NextRequest) {
     typeof exData.subtitle === 'string' ? exData.subtitle : '',
   ) : []
   if (regulated) {
-    const S = (v?: string) => (typeof v === 'string' && v ? scrubComplianceText(v, complianceToks) : v)
+    // Pass 1 — word-level scrub (deterministic, the compliance guarantee).
+    const edits: { before: string; after: string }[] = []
+    const S = (v?: string) => {
+      if (typeof v !== 'string' || !v) return v
+      const after = scrubComplianceText(v, complianceToks)
+      if (after !== v) edits.push({ before: v, after })
+      return after
+    }
     scenes = scenes.map((s) => ({
       ...s,
       title: S(s.title),
@@ -86,6 +93,26 @@ export async function POST(request: NextRequest) {
         stats: s.slideData.stats?.map((st) => ({ label: S(st.label), value: S(st.value) })).filter((st) => st.value),
       } : undefined,
     }))
+
+    // Pass 2 — repair the prose the substitutions mangled ("… — illustrated"
+    // twice, "contractually projected"). Best-effort; figures are preserved
+    // and any rewrite that reintroduces a blocked name is rejected.
+    const fixes = await smoothScrubbed(edits)
+    if (fixes.size) {
+      const F = (v?: string) => (typeof v === 'string' && fixes.has(v) ? fixes.get(v)! : v)
+      scenes = scenes.map((s) => ({
+        ...s,
+        title: F(s.title),
+        narration: F(s.narration) || s.narration,
+        slideData: s.slideData ? {
+          ...s.slideData,
+          headline: F(s.slideData.headline),
+          cta: F(s.slideData.cta),
+          bullets: s.slideData.bullets?.map((b) => F(b) || '').filter(Boolean),
+          stats: s.slideData.stats?.map((st) => ({ label: F(st.label), value: st.value })).filter((st) => st.value),
+        } : undefined,
+      }))
+    }
   }
 
   // ── Credits: interactive 700 · deck reuses the existing deck price.
@@ -139,11 +166,20 @@ export async function POST(request: NextRequest) {
     // brands row (company or person profile) and the user's own profile.
     const brandId = (draft.brandId || draft.selectedBrand || draft.autoBrandId) as string | undefined
     let brandRow: { name?: string; profile_type?: string; person_role?: string | null; photo_url?: string | null } | null = null
+    let brandLogo: string | undefined
     if (brandId) {
       const { data } = await admin.from('brands')
         .select('name, profile_type, person_role, photo_url')
         .eq('id', brandId).eq('user_id', user.id).single()
       brandRow = data
+      // Real uploaded logos only — never an AI-drawn mark. Read defensively:
+      // the processed-variant columns may not exist in every environment.
+      try {
+        const { data: lg } = await admin.from('brands')
+          .select('logo_dark_url, logo_url, logo_file_url')
+          .eq('id', brandId).eq('user_id', user.id).single()
+        brandLogo = (lg?.logo_dark_url || lg?.logo_url || lg?.logo_file_url) ?? undefined
+      } catch { /* logo columns unavailable — ship without a logo */ }
     }
     const { data: profile } = await admin.from('profiles')
       .select('full_name, company_name, phone, email, photo_url')
@@ -181,6 +217,14 @@ export async function POST(request: NextRequest) {
       subtitle = subtitle ? scrubComplianceText(subtitle, complianceToks) : undefined
       if (subtitle && subtitle.replace(/[^a-zA-Z]/g, '').length < 6) subtitle = undefined
     }
+    // A product-type descriptor ("Individual Fixed Index Interest Flexible
+    // Premium Adjustable Life Insurance Policy") is industry jargon, not a
+    // subtitle — it's meaningless to the client and dominates the cover.
+    if (subtitle) {
+      const words = subtitle.trim().split(/\s+/)
+      const capRun = words.filter((w) => /^[A-Z][a-z]/.test(w)).length
+      if (subtitle.length > 60 && capRun >= 5 && !/[.!?]$/.test(subtitle.trim())) subtitle = undefined
+    }
 
     const html = buildPresentationHtml({
       title,
@@ -188,6 +232,11 @@ export async function POST(request: NextRequest) {
       templateId,
       subtitle,
       brandName,
+      logoUrl: brandLogo,
+      // Regulated decks carry the disclosure on every slide.
+      disclaimer: regulated
+        ? 'Prepared by your agent for education only. Figures shown are illustrated and not guarantees. Refer to your full illustration for complete terms, values and conditions.'
+        : undefined,
       recipientName: draft.recipientName as string | undefined,
       presenter: {
         name: presenterName,

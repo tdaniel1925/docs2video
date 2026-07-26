@@ -216,6 +216,24 @@ function detectStat(text: string): { value: string; rest: string } | null {
   return { value: m[0], rest: text }
 }
 
+/** A phone number in any common shape — these must never wrap mid-number and
+ *  must never take the giant serif hero treatment (they read as broken). */
+function isPhone(v: string): boolean {
+  const d = String(v ?? '').replace(/\D/g, '')
+  return (d.length === 10 || (d.length === 11 && d.startsWith('1'))) && /[\d)][\s.\-]/.test(String(v))
+}
+
+/** True only for SHORT, genuinely numeric values ("$176,204", "98%", "20 Years",
+ *  "67"). A phrase like "100% S&P 500 Index High Cap Rate Acct" or a text value
+ *  like "Preferred Non-Tobacco" must NOT render as a hero number — set in 68px
+ *  serif they wrap to three lines and look like a rendering failure. */
+function isHeroNumber(v?: string): boolean {
+  const s = String(v ?? '').trim()
+  if (!s || s.length > 14 || isPhone(s)) return false
+  // leading figure + at most one short unit word (Years, mo, day, %, x)
+  return /^[~≈<>]?\s*\$?\d[\d,]*(?:\.\d+)?\s*(?:%|x|[a-z]{1,5}(?:\/[a-z]{1,4})?|\/[a-z]{1,4})?$/i.test(s)
+}
+
 /** Stats that share ONE unit ($ or %) and parse numerically → animated bar
  *  chart rows. Mixed units (an age next to a premium) stay as cards. */
 function chartable(stats: { label?: string; value?: string }[]): { label: string; num: number; disp: string }[] | null {
@@ -243,6 +261,11 @@ export function buildPresentationHtml(opts: {
   subtitle?: string
   presenter?: { name?: string; photoUrl?: string; contactLine?: string }
   recipientName?: string
+  /** brand logo shown in the corner (user-supplied; never AI-generated) */
+  logoUrl?: string
+  /** standing footnote printed small on every slide — required for regulated
+   *  (insurance/financial) decks so the disclosure travels with the content. */
+  disclaimer?: string
   /** base64 mp3 per scene (interactive) — omit for silent decks */
   voClips?: string[]
   /** show the share-mode action row on the closing slide */
@@ -254,10 +277,29 @@ export function buildPresentationHtml(opts: {
   // Jordyn house style pairs every slide with an on-style illustration.
   const wantIllos = t.id === 'jordyn'
   const usedIllos = new Set<string>()
+  const disc = opts.disclaimer
+    ? `<div class="disc">${esc(opts.disclaimer)}</div>`
+    : ''
 
-  const slides = opts.scenes.map((s, i) => {
+  // A trailing "Take the next step / Call us" scene immediately before the
+  // closing repeats the same contact details twice in a row. Fold it away —
+  // the closing card already carries name, phone and email.
+  const scenes = (() => {
+    const list = [...opts.scenes]
+    if (list.length < 3) return list
+    const last = list[list.length - 1]
+    const prev = list[list.length - 2]
+    const isClosing = last?._role === 'closing' || /thank you/i.test(last?.title ?? '')
+    const ctaish = /next step|call |contact|reach out|get started|talk to/i.test(
+      `${prev?.title ?? ''} ${prev?.slideData?.headline ?? ''}`)
+    const prevThin = (prev?.slideData?.bullets?.length ?? 0) === 0
+    if (isClosing && ctaish && prevThin) list.splice(list.length - 2, 1)
+    return list
+  })()
+
+  const slides = scenes.map((s, i) => {
     const isCover = s._role === 'cover' || i === 0
-    const isClosing = s._role === 'closing' || i === opts.scenes.length - 1
+    const isClosing = s._role === 'closing' || i === scenes.length - 1
     const sd = s.slideData ?? {}
     const stats = (sd.stats ?? []).filter((x) => x && (x.value || x.label)).slice(0, 6)
     const bullets = (sd.bullets ?? []).filter(Boolean).slice(0, 6)
@@ -295,7 +337,11 @@ export function buildPresentationHtml(opts: {
     // shape: hero (1 stat) · split (stats + bullets, two columns) · cards ·
     // chart · list. Ghost numeral + accent bar give each slide depth. ──
     const num = String(i).padStart(2, '0')
-    const kick = `<div class="kick"><span class="num">${num}</span>${esc(s.title || '').toUpperCase()}<span class="rule r"></span></div>`
+    // Don't echo the headline in the kicker — "01 DECISION AT 40" above
+    // "Decision at 40" reads as a duplication bug, not a label.
+    const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, '')
+    const kickText = norm(s.title ?? '') && norm(s.title ?? '') !== norm(heading) ? esc(s.title ?? '').toUpperCase() : ''
+    const kick = `<div class="kick"><span class="num">${num}</span>${kickText}<span class="rule r"></span></div>`
     const ghost = `<div class="ghost">${num}</div>`
     // Numbers COUNT UP on slide entry (cinematic data reveal). The static text
     // stays as fallback; JS replaces it with a ticker when the slide activates.
@@ -307,8 +353,16 @@ export function buildPresentationHtml(opts: {
       if (!isFinite(n) || n < 10) return esc(raw)
       return `<span class="cnt" data-pre="${esc(m[1])}" data-num="${n}" data-suf="${esc(m[3])}">${esc(raw)}</span>`
     }
-    const statsHtml = (cls: string) => stats.map((x) =>
-      `<div class="stat ${cls}"><div class="v">${cnt(x.value)}</div><div class="l">${esc(x.label ?? '')}</div></div>`).join('')
+    // Text values ("Preferred Non-Tobacco") and phone numbers get their own
+    // treatment — the numeric serif style breaks them across lines.
+    const statsHtml = (cls: string) => stats.map((x) => {
+      const v = String(x.value ?? '')
+      const kind = isPhone(v) ? 'v tel' : isHeroNumber(v) ? 'v' : 'v txt'
+      // Non-breaking hyphen so "Preferred Non-Tobacco" never splits after the
+      // dash (phones keep real hyphens — .tel is nowrap anyway).
+      const shown = isHeroNumber(v) ? cnt(v) : esc(isPhone(v) ? v : v.replace(/(\w)-(\w)/g, '$1‑$2'))
+      return `<div class="stat ${cls}"><div class="${kind}">${shown}</div><div class="l">${esc(x.label ?? '')}</div></div>`
+    }).join('')
     const bulletsHtml = (two: boolean) => `<ul class="bullets${two ? ' two' : ''}">${bullets.map((b) =>
       `<li><span class="mk">◆</span><span>${esc(b)}</span></li>`).join('')}</ul>`
 
@@ -323,22 +377,44 @@ export function buildPresentationHtml(opts: {
     const illo = wantIllos && !chartable(stats) ? pickJordynIllo(slideText, usedIllos) : null
     const illoCard = illo ? `<div class="illocard"><img src="${illo}" alt=""></div>` : ''
 
-    if (stats.length === 1 && stats[0].value && !bullets.length) {
+    const one = stats.length === 1 ? String(stats[0].value ?? '') : ''
+    const heroSolo = one && isHeroNumber(one)
+    const telSolo = one && isPhone(one)
+
+    // A single phone number — big and readable, but sans + nowrap so it can
+    // never break mid-number the way the serif hero treatment does.
+    if (telSolo && !bullets.length) {
       const inner = `${kick}<h1 class="h2">${esc(heading)}</h1>
-        <div class="big grad">${cnt(stats[0].value)}</div>${stats[0].label ? `<div class="bl">${esc(stats[0].label)}</div>` : ''}`
-      if (illo) return `<div class="wrap wl willo">${ghost}<div>${inner}</div>${illoCard}</div>`
-      return `<div class="wrap">${ghost}${inner}</div>`
+        <div class="tel big-tel">${esc(one)}</div>${stats[0].label && !/phone/i.test(stats[0].label) ? `<div class="bl">${esc(stats[0].label)}</div>` : ''}`
+      return illo
+        ? `<div class="wrap wl willo">${ghost}<div>${inner}</div>${illoCard}</div>`
+        : `<div class="wrap">${ghost}${inner}</div>`
+    }
+    if (heroSolo && !bullets.length) {
+      const inner = `${kick}<h1 class="h2">${esc(heading)}</h1>
+        <div class="big grad">${cnt(one)}</div>${stats[0].label ? `<div class="bl">${esc(stats[0].label)}</div>` : ''}`
+      return illo
+        ? `<div class="wrap wl willo">${ghost}<div>${inner}</div>${illoCard}</div>`
+        : `<div class="wrap">${ghost}${inner}</div>`
     }
     if (stats.length >= 1 && bullets.length >= 2) {
-      // Split: headline over two columns — bullets left, stat stack right.
+      // Split: bullets on one side, figures on the other. A lone hero-worthy
+      // number leads; anything else stacks as cards.
+      const lead = heroSolo
+        ? `<div class="big grad" style="font-size:clamp(36px,5.6vw,64px)">${cnt(one)}</div>${stats[0].label ? `<div class="bl">${esc(stats[0].label)}</div>` : ''}`
+        : bulletsHtml(false)
+      const side = heroSolo ? bulletsHtml(false) : statsHtml('slim')
       return `<div class="wrap wl">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1>
         <div class="cols">
-          <div>${stats.length === 1 && stats[0].value ? `<div class="big grad" style="font-size:clamp(36px,5.6vw,68px)">${cnt(stats[0].value)}</div>${stats[0].label ? `<div class="bl">${esc(stats[0].label)}</div>` : ''}` : bulletsHtml(false)}</div>
-          <div class="sidestats">${stats.length === 1 ? bulletsHtml(false) : statsHtml('slim')}</div>
+          <div>${lead}</div>
+          <div class="sidestats">${side}</div>
         </div></div>`
     }
-    if (stats.length > 1) {
-      return `<div class="wrap">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1><div class="statgrid">${statsHtml('')}</div>${bullets.length ? bulletsHtml(false) : ''}</div>`
+    if (stats.length >= 1) {
+      const grid = `<div class="statgrid">${statsHtml('')}</div>${bullets.length ? bulletsHtml(false) : ''}`
+      return illo
+        ? `<div class="wrap wl willo">${ghost}<div>${kick}<h1 class="h2">${esc(heading)}</h1>${grid}</div>${illoCard}</div>`
+        : `<div class="wrap">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1>${grid}</div>`
     }
     if (bullets.length) {
       if (illo) return `<div class="wrap wl willo">${ghost}<div>${kick}<h1 class="h2">${esc(heading)}</h1>${bulletsHtml(false)}</div>${illoCard}</div>`
@@ -347,7 +423,7 @@ export function buildPresentationHtml(opts: {
     // Nothing structured on this scene → fall back to a short summary line.
     const stat = detectStat(s.narration)
     const fallInner = `${kick}<h1 class="h2">${esc(heading)}</h1>
-      ${stat ? `<div class="big grad">${cnt(stat.value)}</div>` : ''}
+      ${stat && isHeroNumber(stat.value) ? `<div class="big grad">${cnt(stat.value)}</div>` : ''}
       <div class="lead" style="max-width:720px">${esc(s.narration).slice(0, 300)}</div>`
     if (illo) return `<div class="wrap wl willo">${ghost}<div>${fallInner}</div>${illoCard}</div>`
     return `<div class="wrap">${ghost}${fallInner}</div>`
@@ -372,9 +448,11 @@ body{background:var(--paper);font-family:var(--font);color:var(--ink)}
 .wrap{position:relative;width:100%;max-width:1020px;margin:0 auto;text-align:center}
 .wrap.wl{text-align:left}
 .wrap.wl .kick{margin-left:0}
-.ghost{position:absolute;right:-2vw;top:50%;transform:translateY(-52%);font-family:var(--serif);font-weight:700;font-size:clamp(180px,34vh,320px);line-height:1;color:color-mix(in srgb,var(--ink) 5%,transparent);pointer-events:none;user-select:none;z-index:0;opacity:0;transition:opacity 1.2s ease .3s}
+/* Ghost numeral: pushed to the bleed edge and faint, so it reads as a design
+   mark rather than a smudge peeking out from behind the cards. */
+.ghost{position:absolute;right:-6vw;bottom:-8vh;top:auto;font-family:var(--serif);font-weight:700;font-size:clamp(200px,38vh,360px);line-height:1;color:color-mix(in srgb,var(--ink) 3.5%,transparent);pointer-events:none;user-select:none;z-index:0;opacity:0;transition:opacity 1.2s ease .3s}
 .sec.on .ghost{opacity:1;animation:gfloat 11s ease-in-out 1.2s infinite alternate}
-@keyframes gfloat{from{transform:translateY(-52%)}to{transform:translateY(-46%) rotate(.6deg)}}
+@keyframes gfloat{from{transform:translateY(0)}to{transform:translateY(-1.4%) rotate(.6deg)}}
 .wrap>*:not(.ghost){position:relative;z-index:1}
 .wd{display:inline-block;opacity:0;transform:translateY(.45em);animation:wrise .6s cubic-bezier(.16,1,.3,1) forwards}
 @keyframes wrise{to{opacity:1;transform:none}}
@@ -418,12 +496,20 @@ h1.h2::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX
 .wrap.willo .kick{margin-left:0}
 .wrap.willo .bullets{margin-left:0;margin-right:0;max-width:none}
 .wrap.willo .lead{margin-left:0}
-.illocard{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:clamp(12px,2.2vh,24px);box-shadow:0 18px 44px color-mix(in srgb,var(--ink) 10%,transparent);display:flex;align-items:center;justify-content:center}
-.illocard img{width:100%;max-height:54vh;object-fit:contain;border-radius:12px}
+/* Single frame — the art already sits on its own soft field, so an outer card
+   plus an inner panel double-frames it. */
+.illocard{border-radius:22px;overflow:hidden;box-shadow:0 18px 44px color-mix(in srgb,var(--ink) 9%,transparent);display:flex;align-items:center;justify-content:center;background:var(--card)}
+.illocard img{width:100%;max-height:52vh;object-fit:cover;display:block}
 .bl{font-size:clamp(11px,1.2vw,14px);letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:4px}
 .statgrid{display:flex;gap:clamp(8px,1.4vw,16px);justify-content:center;flex-wrap:wrap;margin-top:clamp(10px,2.2vh,20px)}
 .stat{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:12px;padding:clamp(10px,1.8vh,18px) clamp(14px,1.8vw,24px);min-width:130px;max-width:250px;text-align:left;box-shadow:0 10px 26px rgba(0,0,0,.08)}
 .stat .v{font-family:var(--serif);font-weight:700;font-size:clamp(18px,2.4vw,32px);line-height:1.18;padding-bottom:.06em;color:var(--navy);font-variant-numeric:tabular-nums}
+/* Text values ("Preferred Non-Tobacco") — sans, smaller, no hyphen breaks. */
+.stat .v.txt{font-family:var(--font);font-weight:700;font-size:clamp(14px,1.6vw,20px);line-height:1.35;letter-spacing:-.01em;hyphens:none;overflow-wrap:break-word}
+/* Phone numbers — never break mid-number. */
+.tel{font-family:var(--font);font-weight:800;letter-spacing:-.01em;white-space:nowrap;color:var(--navy);font-variant-numeric:tabular-nums}
+.big-tel{font-size:clamp(30px,5vw,60px);line-height:1.2;padding-bottom:.06em;margin-top:2vh}
+.stat .v.tel{font-size:clamp(16px,2vw,26px)}
 .stat .l{font-size:clamp(9.5px,1vw,12px);letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:4px}
 .bullets{display:grid;grid-template-columns:1fr;gap:clamp(8px,1.5vh,13px);max-width:760px;margin:clamp(10px,2.2vh,20px) auto 0;padding:0;text-align:left}
 .wl>.bullets{margin-left:0;margin-right:0}
@@ -463,13 +549,17 @@ body.share .shareacts{display:flex}
 #nav button:hover{background:var(--navy);color:var(--paper)}
 #dots{display:flex;gap:5px;margin:0 4px;flex:none}#dots i{width:7px;height:7px;border-radius:50%;background:color-mix(in srgb,var(--ink) 18%,transparent);cursor:pointer;transition:all .2s}#dots i.on{background:var(--gold);transform:scale(1.3)}
 #nav .lab{flex:none;font-size:11px;font-weight:700;color:var(--faint);padding:0 4px;min-width:40px;text-align:center}
-.corner{position:fixed;top:22px;left:34px;z-index:40;font-family:var(--serif);font-weight:700;font-size:14px;color:var(--navy);transition:opacity .4s}
+.corner{position:fixed;top:20px;left:34px;z-index:40;display:flex;align-items:center;gap:12px;font-family:var(--serif);font-weight:700;font-size:14px;color:var(--navy);transition:opacity .4s;max-width:56vw}
+.corner .logo{height:clamp(26px,3.4vh,36px);width:auto;object-fit:contain;display:block}
+.corner .ct{display:block;line-height:1.25}
 .corner .sm{color:var(--faint);font-family:var(--font);font-weight:400;font-size:11px;display:block}
-body.oncover .corner{opacity:0}
+body.oncover .corner .ct{opacity:0;transition:opacity .4s}
+/* Standing disclosure — travels with every slide on regulated decks. */
+.disc{position:fixed;left:34px;right:34px;bottom:6px;z-index:35;font-family:var(--font);font-size:10.5px;line-height:1.45;color:color-mix(in srgb,var(--soft) 72%,transparent);text-align:left;pointer-events:none;max-width:62ch}
 ${t.css ?? ''}
 </style></head><body class="themed t-${t.id}">
 <div id="glow"></div><div id="fx"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div id="frame"></div><div id="bar"></div>
-<div class="corner">${esc(opts.title)}${P.name ? `<span class="sm">Presented by ${esc(P.name)}</span>` : ''}</div>
+<div class="corner">${opts.logoUrl ? `<img class="logo" src="${esc(opts.logoUrl)}" alt="">` : ''}<span class="ct">${esc(opts.title)}${P.name ? `<span class="sm">Presented by ${esc(P.name)}</span>` : ''}</span></div>${disc}
 <div id="app"></div>
 <div id="nav"><button id="prev" title="Previous">‹</button><span class="lab" id="lab"></span><button id="next" title="Next">›</button><div id="dots"></div>${opts.voClips?.length ? '<button id="pp" title="Pause / resume narration">⏸</button><button id="voice" title="Voice on/off">🔊</button>' : ''}<button id="fs" title="Fullscreen">⛶</button></div>
 <script>
