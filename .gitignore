@@ -92,3 +92,6 @@ _review/
 
 # local secrets (platform key + internal secret, never commit)
 *.tmp
+
+# generated job payloads/bundles
+vps/.job/
