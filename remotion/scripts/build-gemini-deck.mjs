@@ -7,7 +7,8 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const SRC = join(HERE, '..', '.gem-slides')
+// SLIDES_DIR / DECK_NAME let this wrap any generated set (16:9 or portrait).
+const SRC = join(HERE, '..', process.env.SLIDES_DIR || '.gem-slides')
 const OUT = join(HERE, '..', 'out')
 mkdirSync(OUT, { recursive: true })
 
@@ -58,6 +59,6 @@ addEventListener('keydown',e=>{ if(e.key==='ArrowRight')go(i+1); if(e.key==='Arr
   if(e.key.toLowerCase()==='g')grid(); if(e.key==='Escape')document.getElementById('grid').classList.remove('on'); });
 </script></body></html>`
 
-const outFile = join(OUT, 'ai-in-medicine-gemini.html')
+const outFile = join(OUT, `${process.env.DECK_NAME || 'ai-in-medicine-gemini'}.html`)
 writeFileSync(outFile, html)
 console.log('[deck] wrote', outFile, `(${files.length} slides, ${(html.length / 1024 / 1024).toFixed(1)} MB)`)
