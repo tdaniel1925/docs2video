@@ -77,7 +77,10 @@ export const PRESENTATION_TEMPLATES: PresentationTemplate[] = [
     vars: {
       '--paper': '#faf9f5', '--card': '#fffdf8', '--ink': '#3d3929', '--navy': '#3d3929',
       '--soft': '#6b6759', '--faint': '#9c988a', '--gold': '#c96442', '--gold-l': '#e0906f',
-      '--gold-f': '#f5e6df', '--line': '#e8e6dc', '--serif': "Georgia,'Times New Roman',serif",
+      '--gold-f': '#f5e6df', '--line': '#e8e6dc',
+      // jordyn.app's own stack: Quicksand 600 for display, system sans for body.
+      '--serif': "'Quicksand',ui-rounded,'Segoe UI',system-ui,sans-serif",
+      '--font': "ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif",
     }, swatch: ['#faf9f5', '#3d3929', '#c96442'],
     css: `
 body.t-jordyn #glow{background:radial-gradient(44% 40% at 20% 16%,rgba(245,230,223,.85),transparent 62%),radial-gradient(36% 34% at 84% 82%,rgba(125,140,111,.16),transparent 65%)}
@@ -98,6 +101,12 @@ body.t-jordyn .startbtn{background:linear-gradient(115deg,#c96442,#e0906f);borde
 body.t-jordyn .sact{border-radius:999px;border-color:#f5e6df}
 body.t-jordyn #nav{border-color:#e8e6dc}
 body.t-jordyn .big.grad{background:linear-gradient(115deg,#3d3929 25%,#c96442 65%,#3d3929 95%);background-size:220% 220%;-webkit-background-clip:text;background-clip:text}
+/* Quicksand is a rounded geometric sans — it needs a touch more tracking and
+   a lighter display weight than the serif stacks the other templates use. */
+body.t-jordyn h1,body.t-jordyn h2{font-weight:600;letter-spacing:-.015em}
+body.t-jordyn .big{font-weight:600;letter-spacing:-.02em}
+body.t-jordyn .stat .v{font-weight:600}
+body.t-jordyn .an{font-weight:600;letter-spacing:-.01em}
 `,
   },
   {
@@ -273,6 +282,21 @@ export function buildPresentationHtml(opts: {
 }): string {
   const t = PRESENTATION_TEMPLATES.find((x) => x.id === opts.templateId) ?? PRESENTATION_TEMPLATES[0]
   const P = opts.presenter ?? {}
+  // The presenter always gets a visual anchor: their photo when they've
+  // uploaded one, otherwise an initials monogram — so the slot is designed
+  // for a photo rather than a name floating in a lopsided pill.
+  const initials = (P.name ?? '')
+    .split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('')
+  const avatar = P.photoUrl
+    ? `<img class="av" src="${esc(P.photoUrl)}" alt="">`
+    : initials ? `<span class="av mono">${esc(initials)}</span>` : ''
+  /** Presenter block — `lg` is the closing-card size. */
+  const byline = (lg = false) => P.name
+    ? `<div class="byline${lg ? ' lg' : ''}">${avatar}<span class="bt">
+        <span class="an">${esc(P.name)}</span>
+        ${P.contactLine ? `<span class="ac">${esc(P.contactLine)}</span>` : '<span class="ac">Your advisor</span>'}
+      </span></div>`
+    : ''
   const themeVars = Object.entries(t.vars).map(([k, v]) => `${k}:${v}`).join(';')
   // Jordyn house style pairs every slide with an on-style illustration.
   const wantIllos = t.id === 'jordyn'
@@ -308,23 +332,24 @@ export function buildPresentationHtml(opts: {
       const words = esc(opts.title).split(' ').map((w, k) =>
         `<span class="wd" style="animation-delay:${(0.2 + k * 0.09).toFixed(2)}s">${w}</span>`).join(' ')
       const coverInner = `
-        <div class="kick"><span class="rule"></span>${esc(opts.brandName || 'A PRESENTATION')}${opts.recipientName ? ' · PREPARED FOR ' + esc(opts.recipientName).toUpperCase() : ''}<span class="rule r"></span></div>
+        ${opts.recipientName ? `<div class="forwhom">Prepared for<b>${esc(opts.recipientName)}</b></div>` : ''}
         <h1>${words}<span class="g">.</span></h1>
         ${opts.subtitle ? `<div class="lead">${esc(opts.subtitle).slice(0, 180)}</div>` : ''}
-        ${P.name ? `<div class="advisor">${P.photoUrl ? `<img src="${esc(P.photoUrl)}" alt="">` : ''}<span><span class="an">${esc(P.name)}</span></span></div>` : ''}
-        ${opts.voClips?.length ? `<div><button class="startbtn" onclick="startPres()">▶&nbsp;&nbsp;Start presentation</button></div>` : ''}`
+        ${byline()}
+        ${opts.voClips?.length ? `<div><button class="startbtn" onclick="startPres()">▶&nbsp;&nbsp;Start presentation</button></div>` : ''}
+        ${opts.brandName ? `<div class="bymark">${esc(opts.brandName)}</div>` : ''}`
       if (wantIllos) {
         usedIllos.add('illo-hero.png')
-        return `<div class="wrap wl willo"><div>${coverInner}</div><div class="illocard"><img src="${JORDYN_ILLO_BASE}illo-hero.png" alt=""></div></div>`
+        return `<div class="wrap wl willo cover"><div>${coverInner}</div><div class="illocard hero"><img src="${JORDYN_ILLO_BASE}illo-hero.png" alt=""></div></div>`
       }
-      return `<div class="wrap">${coverInner}</div>`
+      return `<div class="wrap cover ctr">${coverInner}</div>`
     }
     if (isClosing) {
       return `<div class="wrap">
         <div class="kick"><span class="rule"></span>THANK YOU<span class="rule r"></span></div>
         <h1 style="font-size:clamp(21px,2.9vw,36px)">${esc(s.title || 'Let’s talk')}<span class="g">.</span></h1>
         <div class="lead">${esc(sd.cta || 'We appreciate your time.')}</div>
-        ${P.name ? `<div class="advcard">${P.photoUrl ? `<img src="${esc(P.photoUrl)}" alt="">` : ''}<span><span class="an">${esc(P.name)}</span>${P.contactLine ? `<div class="ac">${esc(P.contactLine)}</div>` : ''}</span></div>` : ''}
+        ${byline(true)}
         ${opts.shareActions ? `<div class="shareacts">
           <button class="sact" onclick="parent.postMessage({type:'act',kind:'pdf'},'*')">📄 <b>Download the source document</b></button>
           <button class="sact" onclick="parent.postMessage({type:'act',kind:'deck'},'*')">📑 <b>Download this deck</b></button>
@@ -430,7 +455,7 @@ export function buildPresentationHtml(opts: {
   })
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(opts.title)}</title>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Montserrat:wght@400;600;700;800;900&family=Pinyon+Script&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Montserrat:wght@400;600;700;800;900&family=Quicksand:wght@400;500;600;700&family=Pinyon+Script&display=swap" rel="stylesheet">
 <style>
 :root{--paper:#f7f5ee;--card:#fffdf7;--ink:#1c2a44;--navy:#1c2a44;--soft:#4d5a74;--faint:#8b94a8;--gold:#a8842c;--gold-l:#c9a84c;--gold-f:#d9c07a;--line:#e5e0d0;--font:-apple-system,'Segoe UI',Roboto,sans-serif;--serif:Georgia,'Times New Roman',serif}
 body.themed{${themeVars}}
@@ -498,8 +523,15 @@ h1.h2::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX
 .wrap.willo .lead{margin-left:0}
 /* Single frame — the art already sits on its own soft field, so an outer card
    plus an inner panel double-frames it. */
-.illocard{border-radius:22px;overflow:hidden;box-shadow:0 18px 44px color-mix(in srgb,var(--ink) 9%,transparent);display:flex;align-items:center;justify-content:center;background:var(--card)}
+.illocard{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 18px 44px color-mix(in srgb,var(--ink) 9%,transparent);display:flex;align-items:center;justify-content:center;background:var(--card)}
 .illocard img{width:100%;max-height:52vh;object-fit:cover;display:block}
+/* Cover art sits on a soft offset accent slab — gives the opening some depth
+   instead of a flat card floating on an empty field. */
+.illocard.hero{border-radius:28px;max-height:64vh}
+.illocard.hero img{max-height:64vh}
+.wrap.cover .illocard.hero::after{content:'';position:absolute;inset:0;border-radius:28px;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 6%,transparent);pointer-events:none}
+.wrap.cover>*:last-child{position:relative}
+.wrap.cover>*:last-child::before{content:'';position:absolute;inset:6% -4% -7% 7%;border-radius:32px;background:color-mix(in srgb,var(--gold-f) 62%,transparent);transform:rotate(-2deg);z-index:-1}
 .bl{font-size:clamp(11px,1.2vw,14px);letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:4px}
 .statgrid{display:flex;gap:clamp(8px,1.4vw,16px);justify-content:center;flex-wrap:wrap;margin-top:clamp(10px,2.2vh,20px)}
 .stat{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:12px;padding:clamp(10px,1.8vh,18px) clamp(14px,1.8vw,24px);min-width:130px;max-width:250px;text-align:left;box-shadow:0 10px 26px rgba(0,0,0,.08)}
@@ -525,9 +557,27 @@ h1.h2::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX
 .sec.on .cbar{animation:grow 1s cubic-bezier(.16,1,.3,1) forwards}
 @keyframes grow{to{transform:scaleX(1)}}
 .crow .cval{font-family:var(--serif);font-weight:700;font-size:clamp(13px,1.5vw,18px);color:var(--navy);font-variant-numeric:tabular-nums}
-.advisor{display:inline-flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 22px 8px 8px;box-shadow:0 8px 22px rgba(0,0,0,.09);margin-top:18px}
-.advisor img{width:46px;height:46px;border-radius:50%;object-fit:cover;border:2px solid var(--gold-f)}
-.advisor .an{font-family:var(--serif);font-weight:700;font-size:clamp(13px,1.4vw,16px);color:var(--navy)}
+/* Presenter block — photo (or initials monogram) + name + contact, on a
+   baseline grid. Replaces the old pill, whose one-sided padding left the
+   name visibly off-centre whenever no photo was supplied. */
+.byline{display:inline-flex;align-items:center;gap:clamp(11px,1.3vw,16px);margin-top:clamp(16px,3vh,26px);text-align:left}
+.byline .av{flex:none;width:clamp(44px,5.4vh,56px);height:clamp(44px,5.4vh,56px);border-radius:50%;object-fit:cover;display:inline-flex;align-items:center;justify-content:center;background:var(--gold-f);color:var(--gold);border:2px solid var(--card);box-shadow:0 0 0 1.5px var(--gold-f),0 8px 20px color-mix(in srgb,var(--ink) 12%,transparent)}
+.byline .av.mono{font-family:var(--serif);font-weight:700;font-size:clamp(15px,1.7vw,19px);letter-spacing:.02em}
+.byline .bt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.byline .an{font-family:var(--serif);font-weight:700;font-size:clamp(15px,1.65vw,19px);line-height:1.25;color:var(--navy)}
+.byline .ac{font-size:clamp(11.5px,1.15vw,13.5px);line-height:1.4;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.byline.lg{margin-top:clamp(18px,3.4vh,30px);background:var(--card);border:1px solid var(--line);border-radius:18px;padding:clamp(12px,1.8vh,18px) clamp(20px,2.4vw,28px);box-shadow:0 16px 40px color-mix(in srgb,var(--ink) 10%,transparent)}
+.byline.lg .av{width:clamp(52px,6.6vh,68px);height:clamp(52px,6.6vh,68px)}
+.byline.lg .an{font-size:clamp(17px,2vw,23px)}
+.byline.lg .ac{font-size:clamp(12px,1.25vw,15px)}
+/* Cover: quiet "prepared for" line, brand mark set low as a signature. */
+.forwhom{font-size:clamp(11px,1.15vw,13px);letter-spacing:.16em;text-transform:uppercase;color:var(--faint);font-weight:600;margin-bottom:clamp(10px,1.8vh,16px)}
+.forwhom b{color:var(--gold);font-weight:700;margin-left:.6em;letter-spacing:.1em}
+.bymark{margin-top:clamp(18px,3.6vh,32px);font-size:clamp(10.5px,1.1vw,12.5px);letter-spacing:.2em;text-transform:uppercase;color:color-mix(in srgb,var(--faint) 80%,transparent);font-weight:600}
+.wrap.cover h1{font-size:clamp(30px,4.9vw,62px);line-height:1.04}
+.wrap.cover .lead{margin-top:clamp(10px,1.8vh,18px);max-width:30ch}
+.wrap.ctr{text-align:center}
+.wrap.ctr .byline{justify-content:center}
 .startbtn{display:inline-flex;align-items:center;margin-top:clamp(16px,3vh,28px);background:linear-gradient(115deg,var(--gold),var(--gold-l));color:var(--paper);border:none;border-radius:10px;padding:clamp(12px,2vh,16px) clamp(24px,3vw,38px);font:inherit;font-weight:800;font-size:clamp(14px,1.6vw,17px);letter-spacing:.02em;cursor:pointer;box-shadow:0 14px 34px color-mix(in srgb,var(--gold) 40%,transparent);transition:transform .18s,box-shadow .18s}
 .startbtn:hover{transform:translateY(-2px);box-shadow:0 18px 40px color-mix(in srgb,var(--gold) 52%,transparent)}
 .startbtn{animation:pulse 2.6s ease-in-out infinite}
