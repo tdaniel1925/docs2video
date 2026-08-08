@@ -566,10 +566,20 @@ body{background:var(--paper);font-family:var(--font);color:var(--ink)}
 #glow{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(50% 45% at 24% 20%,color-mix(in srgb,var(--gold) 10%,transparent),transparent 60%);animation:drift 18s ease-in-out infinite alternate}
 @keyframes drift{from{transform:translate3d(-1.5%,-1%,0) scale(1.02)}to{transform:translate3d(1.8%,1.4%,0) scale(1.07)}}
 #frame{position:fixed;inset:14px;z-index:2;pointer-events:none;border:1px solid color-mix(in srgb,var(--gold) 45%,transparent);border-radius:4px}
-.sec{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:clamp(58px,10vh,92px) 6vw 104px;opacity:0;transform:translateY(18px) scale(1.012);transition:opacity .55s ease,transform .55s cubic-bezier(.16,1,.3,1),filter .5s ease;pointer-events:none;overflow:hidden;z-index:3}
+/* SAFE CENTERING, not justify-content:center. A flex-centered child that grows
+   taller than its container overflows out of BOTH ends equally — straight
+   through the padding — which is how slide bullets ended up underneath the nav
+   pill and slide titles underneath the fixed corner block. margin:auto on the
+   child centers identically when content fits, but respects the padding when it
+   does not.
+   The paddings are the chrome lanes, measured: the corner block (logo plus two
+   text lines) reaches ~72px from the top, so the floor is 88px; the nav pill
+   occupies up to 56px from the bottom with the standing disclaimer beside it,
+   so the floor is 128px. */
+.sec{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding:clamp(88px,12vh,110px) 6vw 128px;opacity:0;transform:translateY(18px) scale(1.012);transition:opacity .55s ease,transform .55s cubic-bezier(.16,1,.3,1),filter .5s ease;pointer-events:none;overflow:hidden;z-index:3}
 .sec.on{opacity:1;transform:none;pointer-events:auto}
 .sec.leaving{opacity:0;transform:scale(.985);filter:blur(6px)}
-.wrap{position:relative;width:100%;max-width:1020px;margin:0 auto;text-align:center}
+.wrap{position:relative;width:100%;max-width:1020px;margin:auto;text-align:center}
 .wrap.wl{text-align:left}
 .wrap.wl .kick{margin-left:0}
 /* Ghost numeral: pushed to the bleed edge and faint, so it reads as a design
@@ -707,7 +717,11 @@ body.share .shareacts{display:flex}
 .corner .sm{color:var(--faint);font-family:var(--font);font-weight:400;font-size:11px;display:block}
 body.oncover .corner .ct{opacity:0;transition:opacity .4s}
 /* Standing disclosure — travels with every slide on regulated decks. */
-.disc{position:fixed;left:34px;right:34px;bottom:6px;z-index:35;font-family:var(--font);font-size:10.5px;line-height:1.45;color:color-mix(in srgb,var(--soft) 72%,transparent);text-align:left;pointer-events:none;max-width:62ch}
+/* Capped so it can never run underneath the centred nav pill. The pill's half
+   width is at most ~180px, so the disclaimer's right edge stops before the
+   pill's left edge at any viewport. A disclaimer a client cannot read is a
+   compliance failure, not a styling one — this text exists to be legible. */
+.disc{position:fixed;left:34px;bottom:6px;z-index:35;font-family:var(--font);font-size:10.5px;line-height:1.45;color:color-mix(in srgb,var(--soft) 78%,transparent);text-align:left;pointer-events:none;max-width:min(62ch,calc(50vw - 190px))}
 ${t.css ?? ''}
 </style></head><body class="themed t-${t.id}">
 <div id="glow"></div><div id="fx"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div id="frame"></div><div id="bar"></div>

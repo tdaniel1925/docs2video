@@ -279,6 +279,13 @@ export async function POST(request: NextRequest) {
       // the resolved accent, so those exports use the same brand color the
       // HTML deck did instead of falling back to the template's.
       draft_data: { ...draft, ...(regulated ? { scenes } : {}), ...(accent ? { resolvedAccent: accent } : {}) },
+      // ALSO write the scenes to `script`. The dashboard detail page counts
+      // slides from videos.script (scenes.length || slide_urls.length) — the
+      // video pipeline fills script, this route only filled draft_data, so
+      // every interactive presentation showed "SLIDES (0)" with an empty panel
+      // next to a player happily reporting 8 of 11. Same shape the video flow
+      // stores, so every existing reader of script keeps working.
+      script: scenes,
       progress_updated_at: new Date().toISOString(),
     }).eq('id', videoId)
     if (fin.error) throw new Error(`Failed to finalize: ${fin.error.message}`)
