@@ -96,6 +96,29 @@ export default function ScriptPage() {
   const [quickPreviewLoading, setQuickPreviewLoading] = useState(false)
   const [quickPreviewApproving, setQuickPreviewApproving] = useState(false)
 
+  // WHOLE-DECK AI edits. The per-scene chat (SceneEditChat) already rewrites
+  // one slide, but "add a slide about pricing" or "tighten the whole thing"
+  // spans slides, which no per-scene tool can do. This bar sends the full
+  // scene list plus one instruction and swaps in the result. One-step undo,
+  // because an instruction that lands wrong should cost one click, not the
+  // user's manual edits.
+  const [deckAiText, setDeckAiText] = useState('')
+  const [deckAiBusy, setDeckAiBusy] = useState(false)
+  const [deckAiError, setDeckAiError] = useState('')
+  const deckAiUndo = useRef<any[] | null>(null)
+  const runDeckAi = async () => {
+    if (!deckAiText.trim() || deckAiBusy || scenes.length === 0) return
+    setDeckAiBusy(true); setDeckAiError('')
+    deckAiUndo.current = JSON.parse(JSON.stringify(scenes))
+    const r = await fetch('/api/ai-edit-scenes', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scenes, instruction: deckAiText.trim() }),
+    }).then((x) => x.json()).catch(() => ({ error: 'Network error' }))
+    setDeckAiBusy(false)
+    if (r?.scenes) { setScenes(r.scenes); autoSave(r.scenes, -1, true); setDeckAiText('') }
+    else { setDeckAiError(r?.error || 'The AI edit failed — nothing was changed.'); deckAiUndo.current = null }
+  }
+
   // Auto-save scenes to localStorage — debounced for typing, instant for other actions
   const autoSave = useCallback((updatedScenes: any[], sceneIdx: number, instant?: boolean) => {
     if (saveTimer.current) clearTimeout(saveTimer.current)
@@ -617,6 +640,35 @@ export default function ScriptPage() {
               >
                 {editMode ? '✓ Editing' : '✎ Edit script'}
               </button>
+            </div>
+
+            {/* Whole-deck AI bar — for changes that span slides. Each scene
+                card below has its own AI chat for single-slide edits. */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 18, padding: '12px 14px', background: 'white', border: '1px solid var(--border)', borderRadius: 10 }}>
+              <input
+                value={deckAiText}
+                onChange={(e) => setDeckAiText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') runDeckAi() }}
+                disabled={deckAiBusy}
+                placeholder='Ask AI to change the whole script — e.g. "add a slide about pricing" or "make it shorter"'
+                style={{ flex: '1 1 300px', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', font: 'inherit', fontSize: 14 }}
+              />
+              <button
+                onClick={runDeckAi}
+                disabled={deckAiBusy || !deckAiText.trim()}
+                style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: 'var(--ink)', color: 'white', fontSize: 13, fontWeight: 600, cursor: deckAiBusy ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: deckAiBusy || !deckAiText.trim() ? 0.6 : 1 }}
+              >
+                {deckAiBusy ? 'Thinking…' : 'Apply to whole script'}
+              </button>
+              {deckAiUndo.current && !deckAiBusy && (
+                <button
+                  onClick={() => { if (deckAiUndo.current) { setScenes(deckAiUndo.current); autoSave(deckAiUndo.current, -1, true); deckAiUndo.current = null } }}
+                  style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--ink)' }}
+                >
+                  Undo
+                </button>
+              )}
+              {deckAiError && <span style={{ color: '#B4432F', fontSize: 13 }}>{deckAiError}</span>}
             </div>
 
             {/* Read-only summary view */}

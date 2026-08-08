@@ -1343,6 +1343,15 @@ export default function VideoDetailPage() {
                   />
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {/* First in the row on purpose — "how do I change this?" is
+                      the question users actually arrive with; downloads come
+                      after they're happy with it. */}
+                  <a
+                    href={`/videos/${video.id}/edit`}
+                    style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: 'var(--ink)', color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'none' }}
+                  >
+                    ✏️ Edit slides
+                  </a>
                   {(['pdf', 'pptx'] as const).map((kind) => (
                     <button
                       key={kind}

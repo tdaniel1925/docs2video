@@ -5,6 +5,34 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com)
 
+## 2026-08-05 — Presentation editing (manual + AI) and display fixes
+- **New: post-generation slide editor** at `/videos/{id}/edit` for interactive
+  presentations and slide decks. Manual editing of headline/bullets/narration
+  per slide, add/delete/reorder, plus an AI instruction bar (whole deck or one
+  slide) via new `POST /api/ai-edit-scenes` (Claude; edits, never authors —
+  forbidden from inventing figures). Rebuild goes through
+  `POST /api/reedit-presentation` → internal `/api/generate-presentation`, so
+  the compliance scrub applies to edits identically. Pricing: text-only rebuild
+  FREE; narration changes bill at `slide-scene-fix` (50) per changed slide,
+  capped at 300; server-side quote (`quoteOnly`) shown on the button before the
+  user commits; refund on failed rebuild. "Edit slides" is the first button on
+  the presentation detail page.
+- **New: whole-deck AI bar on the wizard script step** — the per-scene
+  SceneEditChat existed, but nothing could do cross-slide edits ("add a slide
+  about pricing"). Uses the same `/api/ai-edit-scenes`.
+- **Fix: SLIDES (0)** — generate-presentation only filled `draft_data.scenes`;
+  the detail page counts from `videos.script`. The generator now writes both;
+  `scripts/repair-presentations.mjs` backfilled all 13 existing rows in prod.
+- **Fix: slide content under the nav / titles under the corner block** — slides
+  were flex-centered and overflowed through their padding; now safe-centered
+  (margin:auto) with measured chrome lanes (88px top / 128px bottom). Standing
+  disclaimer width capped so it can never run beneath the nav pill. The repair
+  script also patched the 11 published HTML decks in storage (2 older-vintage
+  files left untouched rather than guessed at).
+- The help pages' "AI editor" description (FAQ + creating-videos) is now TRUE —
+  previously it promised a feature that did not exist, which is where the
+  "users can't edit slides" complaints came from.
+
 ## 2026-07-07 — Narrative-first two-pass script generation (fixes "disjointed slide reading")
 
 Root cause: solo-narrator prompt ordered scenes to be "SELF-CONTAINED... WITHOUT referencing other scenes" and to narrate "EXACTLY what is on that scene's slide — nothing more, nothing less" (added for slide-sync), which overrode the storytelling/arc rules → 8 isolated blurbs. Also, narration was written in the same pass as slide layout JSON, and a per-scene "editor" pass re-fragmented whatever flow survived.
