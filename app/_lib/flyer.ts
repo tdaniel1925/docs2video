@@ -171,8 +171,16 @@ export function flyerPrompt(t: FlyerTemplate, f: FlyerFields, size: FlyerSize): 
   const ratio = size.w / size.h
   const wide = ratio > 1.3
   const square = Math.abs(ratio - 1) < 0.15
-  // Wider than gpt-image's widest shape (3:2), so the trim is severe.
+  // Wider than gpt-image's widest shape (3:2), so it has to be composed as a
+  // band inside that frame. bandPct is how much of the 3:2 frame's height the
+  // finished banner occupies — 37% for a 4:1 LinkedIn strip, 57% for a
+  // Facebook cover. The model is told the number so it designs to it.
   const ultrawide = ratio > 1.62
+  // Understate the band by 15%. The model fills whatever band it is given
+  // edge to edge, so quoting the exact figure leaves zero margin — the first
+  // 4:1 LinkedIn strip had its headline touching the top cut line. Asking for
+  // a slightly narrower band means the real trim lands in empty space.
+  const bandPct = Math.round((1.5 / ratio) * 85)
 
   const lines: string[] = []
   if (f.eyebrow) lines.push(`- Small line above the title: "${f.eyebrow}"`)
@@ -198,15 +206,20 @@ export function flyerPrompt(t: FlyerTemplate, f: FlyerFields, size: FlyerSize): 
     '',
     `TYPOGRAPHY: ${t.lettering} All text must be sharp, correctly spelled, properly kerned and clearly legible with strong contrast against whatever sits behind it.`,
     '',
-    // WARN THE MODEL ABOUT THE CROP. gpt-image only produces three shapes, so
-    // anything else is trimmed to fit — and the first wide ad came back with
-    // "FRIDAY NIGHT" sliced off the top, because the picture was composed for
-    // the frame it was drawn in rather than the frame it would end up in.
+    // COMPOSE FOR THE FINAL SHAPE, don't crop a design that was made for a
+    // different one. gpt-image offers three frames, so a 4:1 LinkedIn banner
+    // cannot be drawn directly — but it CAN be drawn as a wide band inside a
+    // 3:2 frame, with the model told exactly which band survives. Everything
+    // outside is asked to be empty background, so trimming to the band removes
+    // nothing that was ever part of the design.
+    //
+    // The earlier version cropped a poster composed for a poster, and the
+    // Facebook cover lost 43% of its height along with the text in it.
     `LAYOUT: professional composition with clear visual hierarchy — the main title dominant, supporting details grouped and easy to scan. ${
       ultrawide
-        ? 'CRITICAL: this will be trimmed top and bottom to a very wide letterbox. Keep EVERY piece of text inside the middle half of the image height, well clear of the top and bottom edges — anything near them will be cut off. Place the text to one side with the imagery to the other.'
+        ? `THIS IS A WIDE LETTERBOX BANNER. The finished banner is ONLY the central horizontal band of this image — roughly the middle ${bandPct}% of its height. Design the ENTIRE banner inside that central band: all imagery, all text, edge to edge across the full width. Above and below that band, render nothing but plain flat dark background — no imagery, no text, no detail whatsoever. Lay the band out horizontally with the text grouped to one side and the imagery flowing across the rest.`
         : wide
-        ? 'Wide format: place the text block to one side and the imagery to the other, and keep all text clear of the top and bottom edges.'
+        ? 'Wide format: lay it out horizontally with the text block to one side and the imagery to the other, and keep all text clear of the top and bottom edges.'
         : 'Keep all text comfortably inside the edges with generous margins on every side.'
     }`,
     'Do not include any watermark, signature, stock-photo marking, URL or QR code unless one is listed above.',
