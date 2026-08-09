@@ -128,6 +128,13 @@ export default function FlyerMakerPage() {
   const [balance, setBalance] = useState<number | null>(null)
   const [loadingHistory, setLoadingHistory] = useState(true)
 
+  // Project chats. One chat is one job — the summer party flyer, a client's
+  // cards — instead of every design anyone ever made sharing one endless
+  // scrollback.
+  const [chats, setChats] = useState<{ id: string; title: string; updated_at: string }[]>([])
+  const [chatId, setChatId] = useState<string | null>(null)
+  const [openChatKey, setOpenChatKey] = useState(0)
+
   // A clock, but only while something is being made — an idle page should not
   // re-render once a second for nothing.
   const [now, setNow] = useState(0)
@@ -141,11 +148,15 @@ export default function FlyerMakerPage() {
   // ── the saved thread ───────────────────────────────────────────────────
   useEffect(() => {
     let dead = false
+    setLoadingHistory(true)
     ;(async () => {
-      const r = await fetch('/api/flyer-history').then((x) => x.json()).catch(() => null)
+      const r = await fetch(`/api/flyer-history${chatId ? `?chat=${chatId}` : ''}`)
+        .then((x) => x.json()).catch(() => null)
       if (dead || !r) { setLoadingHistory(false); return }
       setUnit(typeof r.unit === 'number' ? r.unit : null)
       setBalance(typeof r.balance === 'number' ? r.balance : null)
+      setChats(r.chats ?? [])
+      if (r.openChat) setChatId(r.openChat)
       const past: Item[] = []
       for (const round of r.rounds ?? []) {
         for (const m of round.messages ?? []) {
@@ -176,11 +187,22 @@ export default function FlyerMakerPage() {
           setFields(last.fields ?? {})
           setNote(last.note ?? '')
         }
+      } else {
+        // Switched to an empty chat. Reset rather than leaving the last chat's
+        // thread on screen under a different name.
+        setItems([{
+          kind: 'msg', role: 'assistant',
+          text: 'Tell me what this is for — something like "Saturday club night at The Foundry, doors 9pm, $20 cover".',
+        }])
+        setFields({})
       }
       setLoadingHistory(false)
     })()
     return () => { dead = true }
-  }, [])
+    // openChatKey changes when a chat is chosen or started, which is what
+    // reloads the thread. chatId alone is not enough: the server may hand back
+    // the same id it was given, and that would not re-run anything.
+  }, [openChatKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Follow the thread down as it grows, the way a chat does.
   const endRef = useRef<HTMLDivElement>(null)
@@ -234,6 +256,33 @@ export default function FlyerMakerPage() {
     if (!r) return
     if (listening) { try { r.stop() } catch { /* already stopped */ } setListening(false); return }
     try { r.start(); setListening(true) } catch { setListening(false) }
+  }
+
+  /** Open a saved project chat. */
+  const openChat = (id: string) => {
+    if (id === chatId) return
+    setChatId(id)
+    setOpenChatKey((k) => k + 1)
+    setSheet(null)
+  }
+
+  /**
+   * Start a fresh job.
+   *
+   * The chat row is NOT created here — an empty chat in the sidebar that was
+   * opened and abandoned is clutter. The id is minted now and the row appears
+   * the first time something is actually made.
+   */
+  const newChat = () => {
+    setChatId(crypto.randomUUID())
+    setOpenChatKey((k) => k + 1)
+    setItems([{
+      kind: 'msg', role: 'assistant',
+      text: 'New job. Tell me what this one is for.',
+    }])
+    setFields({}); setNote(''); setPhotos([]); setReference(null)
+    setStylePicked(false); setSizesPicked(false)
+    setInput(''); setErr(''); setSheet(null)
   }
 
   /** Wipe the conversation and start over — settings and saved history stay. */
@@ -308,6 +357,11 @@ export default function FlyerMakerPage() {
     if (making || !ticked.length || !unit) return
     setErr(''); setSheet(null)
 
+    // Every job lives in a chat. If this is the first thing made in a brand
+    // new session there is no id yet, so mint one now.
+    const chat = chatId ?? crypto.randomUUID()
+    if (!chatId) setChatId(chat)
+
     const roundId = crypto.randomUUID()
     const sizeIds = [...ticked]
     const messages = items.filter((i): i is Extract<Item, { kind: 'msg' }> => i.kind === 'msg')
@@ -338,7 +392,7 @@ export default function FlyerMakerPage() {
             templateId, sizeIds: [id], fields, note: note.trim() || undefined,
             photos: photos.map(({ dataUrl, role }) => ({ dataUrl, role })),
             referenceDataUrl: reference?.dataUrl,
-            roundId, messages,
+            roundId, chatId: chat, messages,
           }),
         }).then((x) => x.json()).catch(() => ({ error: 'Network error' }))
 
@@ -383,7 +437,40 @@ export default function FlyerMakerPage() {
   const chip = (on: boolean) => ({ ...plain, background: on ? INK : 'white', color: on ? 'white' : INK, border: on ? '1px solid transparent' : plain.border }) as const
 
   return (
-    <div style={{ maxWidth: 940, margin: '0 auto', padding: '18px 20px 0', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ maxWidth: 1240, margin: '0 auto', padding: '18px 20px 0', minHeight: '100vh', display: 'flex', gap: 20 }}>
+
+      {/* ── PAST JOBS ──────────────────────────────────────────────────────
+          One chat is one job. Without this, every design anyone ever made
+          shared a single endless scrollback — fine for an afternoon, useless
+          after a month. */}
+      <aside style={{ width: 216, flexShrink: 0, position: 'sticky', top: 18, alignSelf: 'flex-start', maxHeight: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <button onClick={newChat} title="Start a separate job with its own conversation. Nothing is lost — this one stays in the list."
+          style={{ ...darkBtn, width: '100%' }}>
+          + New chat
+        </button>
+        <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {chats.length === 0 && !loadingHistory && (
+            <p style={{ fontSize: 12, color: SOFT, margin: '4px 2px', lineHeight: 1.5 }}>
+              Jobs you finish show up here, so you can come back to one.
+            </p>
+          )}
+          {chats.map((c) => (
+            <button key={c.id} onClick={() => openChat(c.id)} title={`Open "${c.title}"`}
+              style={{
+                textAlign: 'left', padding: '9px 11px', borderRadius: 8, cursor: 'pointer',
+                border: '1px solid transparent', fontFamily: 'inherit', fontSize: 13,
+                background: c.id === chatId ? 'white' : 'transparent',
+                boxShadow: c.id === chatId ? `inset 0 0 0 1px ${LINE}` : 'none',
+                fontWeight: c.id === chatId ? 700 : 400,
+                color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+              {c.title || 'Untitled'}
+            </button>
+          ))}
+        </div>
+      </aside>
+
+    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 24 }}>Custom Graphics</h1>
         {unit !== null && (
@@ -624,6 +711,7 @@ export default function FlyerMakerPage() {
       </div>
 
       {viewing && <Viewer design={viewing} onClose={() => setViewing(null)} />}
+    </div>
     </div>
   )
 }

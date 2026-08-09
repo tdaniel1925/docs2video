@@ -22,7 +22,10 @@ export async function GET(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not signed in' }, { status: 401 })
 
-  const limit = Math.min(Number(new URL(req.url).searchParams.get('limit') ?? 25) || 25, 50)
+  const params = new URL(req.url).searchParams
+  const limit = Math.min(Number(params.get('limit') ?? 25) || 25, 50)
+  // Which project chat to open. Absent means the most recent one.
+  const wantChat = params.get('chat')
   const admin = createAdminClient()
 
   // The price per design comes from the server, never from a constant in the
@@ -31,10 +34,27 @@ export async function GET(req: Request) {
   const unit = costForUser('flyer', user.id)
   const balance = await getBalance(user.id).then((b) => b.total).catch(() => null)
 
-  const { data: rounds, error } = await admin
+  // The sidebar. Missing table (migration not yet run) is not fatal — the page
+  // then behaves exactly as it did before chats existed.
+  const { data: chatRows } = await admin
+    .from('flyer_chats')
+    .select('id, title, updated_at')
+    .eq('user_id', user.id)
+    .order('updated_at', { ascending: false })
+    .limit(40)
+  const chats = chatRows ?? []
+  const openChat = wantChat && chats.some((c) => c.id === wantChat) ? wantChat : chats[0]?.id ?? null
+
+  let q = admin
     .from('flyer_rounds')
     .select('id, template_id, fields, note, messages, created_at')
     .eq('user_id', user.id)
+  // Only scope by chat where chats actually exist. Before the migration runs
+  // there is no chat_id column at all, and naming it would 400 the whole query
+  // — which in this codebase has meant a dead feature more than once.
+  if (openChat) q = q.eq('chat_id', openChat)
+
+  const { data: rounds, error } = await q
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -43,9 +63,9 @@ export async function GET(req: Request) {
   // project has form for a missing column 404-ing a whole feature.
   if (error) {
     console.error('[flyer-history] load failed:', error.message)
-    return NextResponse.json({ rounds: [], unit, balance, unavailable: true })
+    return NextResponse.json({ rounds: [], chats, openChat, unit, balance, unavailable: true })
   }
-  if (!rounds?.length) return NextResponse.json({ rounds: [], unit, balance })
+  if (!rounds?.length) return NextResponse.json({ rounds: [], chats, openChat, unit, balance })
 
   const { data: designs } = await admin
     .from('flyer_designs')
@@ -65,6 +85,8 @@ export async function GET(req: Request) {
   return NextResponse.json({
     unit,
     balance,
+    chats,
+    openChat,
     // Oldest first, so the page reads top-to-bottom like the conversation it was.
     rounds: rounds.reverse().map((r) => ({
       id: r.id,

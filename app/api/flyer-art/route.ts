@@ -49,6 +49,8 @@ export async function POST(req: Request) {
      *  Minted by the browser: the page fires one request per size and they all
      *  have to land in the same round. */
     roundId?: string
+    /** Which project chat this belongs to. Minted by the browser. */
+    chatId?: string
     /** The conversation as it stood when Make was pressed. Stored once per
      *  round so reopening the page reads like the conversation it was. */
     messages?: { role: string; text: string }[]
@@ -87,10 +89,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Not your design' }, { status: 403 })
     }
     if (!existing) {
+      // The chat this round belongs to. Created on first use and titled from
+      // whatever was asked for, so the sidebar reads like the work rather than
+      // "Chat 3". Ownership is checked for the same reason the round is: a
+      // guessed id must not attach work to somebody else's sidebar.
+      const chatId = /^[0-9a-f-]{36}$/i.test(String(body?.chatId ?? '')) ? String(body!.chatId) : null
+      let chatOk = false
+      if (chatId) {
+        const { data: chat } = await admin
+          .from('flyer_chats').select('user_id').eq('id', chatId).maybeSingle()
+        if (chat && chat.user_id !== user.id) {
+          return NextResponse.json({ error: 'Not your chat' }, { status: 403 })
+        }
+        const title = (fields.headline || note || 'New chat').toString().slice(0, 80)
+        const { error: chatErr } = chat
+          ? await admin.from('flyer_chats')
+              .update({ updated_at: new Date().toISOString() }).eq('id', chatId)
+          : await admin.from('flyer_chats')
+              .insert({ id: chatId, user_id: user.id, title })
+        chatOk = !chatErr
+        if (chatErr) console.error('[flyer] chat not recorded:', chatErr.message)
+      }
+
       const { error: roundErr } = await admin.from('flyer_rounds').insert({
         id: roundId, user_id: user.id, template_id: template.id,
         fields, note: note || null,
         messages: (body?.messages ?? []).slice(-40),
+        ...(chatOk && chatId ? { chat_id: chatId } : {}),
       })
       // If the round cannot be recorded — most likely because the migration
       // has not been run on this environment — generate anyway but skip the
