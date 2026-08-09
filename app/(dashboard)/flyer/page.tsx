@@ -14,7 +14,10 @@
 // =============================================================================
 
 import { useEffect, useRef, useState } from 'react'
-import { FLYER_TEMPLATES, FLYER_SIZES, thumbUrl, type FlyerFields } from '../../_lib/flyer'
+import {
+  FLYER_TEMPLATES, FLYER_SIZES, PHOTO_ROLES, thumbUrl,
+  type FlyerFields, type PhotoRole,
+} from '../../_lib/flyer'
 
 type Msg = { role: 'user' | 'assistant'; text: string }
 type Made = { sizeId: string; label: string; w: number; h: number; png: string }
@@ -49,6 +52,7 @@ export default function FlyerMakerPage() {
   const [ticked, setTicked] = useState<string[]>(['letter', 'ig-post'])
   const [making, setMaking] = useState(false)
   const [made, setMade] = useState<Made[]>([])
+  const [photos, setPhotos] = useState<{ dataUrl: string; role: PhotoRole; name: string }[]>([])
 
   const scrollRef = useRef<HTMLDivElement>(null)
   useEffect(() => { scrollRef.current?.scrollTo({ top: 9e9, behavior: 'smooth' }) }, [msgs, busy])
@@ -74,7 +78,10 @@ export default function FlyerMakerPage() {
     setMaking(true); setErr(''); setMade([])
     const r = await fetch('/api/flyer-art', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ templateId, sizeIds: ticked, fields, note: note.trim() || undefined }),
+      body: JSON.stringify({
+        templateId, sizeIds: ticked, fields, note: note.trim() || undefined,
+        photos: photos.map(({ dataUrl, role }) => ({ dataUrl, role })),
+      }),
     }).then((x) => x.json()).catch(() => ({ error: 'Network error' }))
     setMaking(false)
     if (r?.error) { setErr(r.error); return }
@@ -146,6 +153,60 @@ export default function FlyerMakerPage() {
               <button onClick={send} disabled={busy || !input.trim()} style={{ ...dark, opacity: busy || !input.trim() ? 0.6 : 1 }}>Send</button>
             </div>
             {err && <p style={{ color: '#B4432F', fontSize: 13, marginTop: 8 }}>{err}</p>}
+          </div>
+
+          {/* YOUR PHOTOS */}
+          <div style={panel}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+              <strong style={{ fontSize: 13 }}>Your own photos <span style={{ fontWeight: 400, color: 'var(--ink-soft,#6b6459)' }}>— optional</span></strong>
+              <label style={{ ...plain, display: 'inline-block' }}>
+                + Add photo
+                <input type="file" accept="image/*" multiple hidden
+                  onChange={async (e) => {
+                    const files = [...(e.target.files ?? [])].slice(0, 3 - photos.length)
+                    for (const f of files) {
+                      // 12 MB is a generous phone photo. Bigger than that and the
+                      // upload stalls long before the design ever starts.
+                      if (f.size > 12 * 1024 * 1024) { setErr(`${f.name} is too big — 12 MB max.`); continue }
+                      const dataUrl: string = await new Promise((res) => {
+                        const r = new FileReader()
+                        r.onload = () => res(String(r.result))
+                        r.readAsDataURL(f)
+                      })
+                      setPhotos((p) => [...p, { dataUrl, name: f.name, role: 'person' as PhotoRole }].slice(0, 3))
+                    }
+                    e.target.value = ''
+                  }} />
+              </label>
+            </div>
+            {!photos.length ? (
+              <p style={{ fontSize: 13, color: 'var(--ink-soft,#6b6459)', margin: 0, lineHeight: 1.5 }}>
+                Add a headshot, the actual property, or your product and the design gets built around it — instead of an invented person or place. Up to 3.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {photos.map((p, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <img src={p.dataUrl} alt="" style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 7, border: '1px solid var(--border,#ddd6cc)' }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                      {/* What it IS decides how it is used — a face gets cut out
+                          and placed, a house becomes the scene. */}
+                      <select value={p.role}
+                        onChange={(e) => setPhotos((prev) => prev.map((x, k) => k === i ? { ...x, role: e.target.value as PhotoRole } : x))}
+                        style={{ marginTop: 3, padding: '5px 8px', borderRadius: 7, border: '1px solid var(--border,#ddd6cc)', font: 'inherit', fontSize: 12, width: '100%' }}>
+                        {PHOTO_ROLES.map((r) => <option key={r.id} value={r.id}>{r.label} — {r.hint}</option>)}
+                      </select>
+                    </div>
+                    <button onClick={() => setPhotos((prev) => prev.filter((_, k) => k !== i))}
+                      style={{ ...plain, padding: '5px 9px' }} title="Remove">✕</button>
+                  </div>
+                ))}
+                <p style={{ fontSize: 12, color: 'var(--ink-soft,#6b6459)', margin: 0, lineHeight: 1.5 }}>
+                  Your photo is redrawn into the design rather than pasted in, so people stay recognisable but are not pixel-for-pixel the original. Check the face before sending it out.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* SIZES */}

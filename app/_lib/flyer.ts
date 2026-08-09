@@ -200,6 +200,29 @@ export const FLYER_TEMPLATES: FlyerTemplate[] = [
   },
 ]
 
+/** What an uploaded photo IS, which decides how it gets used. A headshot and a
+ *  house need opposite treatment — one is cut out and placed, the other becomes
+ *  the scene — and the model cannot tell which is which from pixels alone. */
+export type PhotoRole = 'person' | 'place' | 'product' | 'logo'
+
+export const PHOTO_ROLES: { id: PhotoRole; label: string; hint: string }[] = [
+  { id: 'person', label: 'A person', hint: 'Headshot or full body — the presenter, agent, DJ, team' },
+  { id: 'place', label: 'A place', hint: 'Property, venue, shop, gym — becomes the setting' },
+  { id: 'product', label: 'A product', hint: 'The thing being sold — featured in the design' },
+  { id: 'logo', label: 'A logo', hint: 'Placed cleanly, never redrawn or restyled' },
+]
+
+const PHOTO_RULES: Record<PhotoRole, string> = {
+  person:
+    'This is a REAL PERSON. Keep their face, hair, skin tone, build and clothing clearly recognisable and true to the photograph — they must still look like themselves. Separate them from their original background and place them into the design as the featured subject. Do not replace them with a different-looking person, do not change their age or ethnicity, and do not add or remove facial features.',
+  place:
+    'This is a REAL PLACE. Keep the building, room or venue accurate and recognisable — the same architecture, layout and materials. Do not invent a different property. Use it as the setting or hero image of the design; relight it to suit the style, but do not redesign it.',
+  product:
+    'This is a REAL PRODUCT. Keep its shape, colour, branding and proportions exactly as photographed. Feature it prominently. Do not restyle, redesign or substitute it.',
+  logo:
+    'This is a LOGO. Place it cleanly and legibly in the design, keeping its exact shapes, colours and proportions. Do NOT redraw, restyle, recolour, add effects to, or generate any variation of it. If it will not fit cleanly, make it smaller rather than altering it.',
+}
+
 export type FlyerFields = {
   eyebrow?: string
   headline?: string
@@ -223,7 +246,12 @@ export type FlyerFields = {
  * rather than sent as an empty instruction, because an image model given
  * "Price: " will happily invent one.
  */
-export function flyerPrompt(t: FlyerTemplate, f: FlyerFields, size: FlyerSize): string {
+export function flyerPrompt(
+  t: FlyerTemplate,
+  f: FlyerFields,
+  size: FlyerSize,
+  photos: PhotoRole[] = [],
+): string {
   const ratio = size.w / size.h
   const wide = ratio > 1.3
   const square = Math.abs(ratio - 1) < 0.15
@@ -266,6 +294,18 @@ export function flyerPrompt(t: FlyerTemplate, f: FlyerFields, size: FlyerSize): 
     // ran headlines flush to the edge and letters came back clipped — on print
     // that is worse than it looks on screen, because trimming takes a few more
     // millimetres off every side.
+    // Supplied photographs, in the order they are attached. Naming the order
+    // matters: the model is handed an array and has no other way to know which
+    // instruction belongs to which picture.
+    ...(photos.length
+      ? [
+          '',
+          `SUPPLIED PHOTOGRAPHS — ${photos.length} ${photos.length === 1 ? 'image is' : 'images are'} attached, in this order. These are REAL and were provided by the customer. Build the design around them rather than inventing substitutes:`,
+          ...photos.map((r, i) => `- Image ${i + 1}: ${PHOTO_RULES[r]}`),
+          'Every attached photograph must appear in the finished design. Do not generate a different person, place or product in its stead.',
+        ]
+      : []),
+    '',
     'SAFE MARGINS — THIS IS CRITICAL AND NON-NEGOTIABLE:',
     '- Leave a clear, generous empty margin all the way around the design: at least 8% of the width on the left and right, and at least 6% of the height at the top and bottom.',
     '- NO text, letter, number, logo, face or important detail may touch, overlap or sit near any edge of the image. Everything that matters must sit comfortably INSIDE that margin.',

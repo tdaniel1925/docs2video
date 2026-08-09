@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import OpenAI from 'openai'
+import OpenAI, { toFile } from 'openai'
 import { createClient } from '../../_lib/supabase/server'
 import { FLYER_TEMPLATES, FLYER_SIZES, flyerPrompt, apiSize } from '../../_lib/flyer'
-import type { FlyerFields } from '../../_lib/flyer'
+import type { FlyerFields, PhotoRole } from '../../_lib/flyer'
 
 // =============================================================================
 // Generate complete flyers — artwork AND lettering — at every ticked size.
@@ -38,6 +38,8 @@ export async function POST(req: Request) {
     fields?: FlyerFields
     /** Extra art direction typed by the user, appended verbatim. */
     note?: string
+    /** The customer's own photographs, as data URLs, with what each one is. */
+    photos?: { dataUrl: string; role: PhotoRole }[]
   } | null
 
   const template = FLYER_TEMPLATES.find((t) => t.id === body?.templateId) ?? FLYER_TEMPLATES[0]
@@ -48,15 +50,52 @@ export async function POST(req: Request) {
   const fields = body?.fields ?? {}
   const note = String(body?.note ?? '').trim().slice(0, 400)
 
+  // The customer's own photographs. Capped at three: past that the model starts
+  // dropping one silently, which is worse than refusing a fourth up front.
+  const rawPhotos = (body?.photos ?? []).slice(0, 3)
+  const roles = rawPhotos.map((p) => p.role)
+
+  // Prepare them ONCE, not per size. Every ticked size needs the same files,
+  // and re-decoding a 5 MB upload six times is pure waste.
+  let files: Awaited<ReturnType<typeof toFile>>[] = []
+  try {
+    const sharp = (await import('sharp')).default
+    files = await Promise.all(rawPhotos.map(async (p, i) => {
+      const b64 = String(p.dataUrl).split(',')[1] ?? ''
+      // Downscale before sending. A phone photo is 4000px on the long edge and
+      // the model gains nothing from it, but the upload cost is real.
+      const buf = await sharp(Buffer.from(b64, 'base64'))
+        .rotate()                       // honour EXIF, or portraits arrive sideways
+        .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
+        .png()
+        .toBuffer()
+      return toFile(buf, `photo-${i + 1}.png`, { type: 'image/png' })
+    }))
+  } catch (err) {
+    return NextResponse.json({
+      error: 'Could not read one of the photos. Try a JPEG or PNG.',
+      detail: err instanceof Error ? err.message.slice(0, 120) : undefined,
+    }, { status: 400 })
+  }
+
   const one = async (size: typeof FLYER_SIZES[number]) => {
-    const prompt = flyerPrompt(template, fields, size) + (note ? `\n\nALSO: ${note}` : '')
+    const prompt = flyerPrompt(template, fields, size, roles) + (note ? `\n\nALSO: ${note}` : '')
     try {
       // Ask for THIS size's own shape. The API takes any dimensions divisible
       // by 16 up to 3:1 and about 4 MP, so almost everything is generated
       // natively and never cropped — see apiSize for the measured limits.
-      const res = await ai().images.generate({
-        model: MODEL, prompt, size: apiSize(size).size as '1024x1024', quality: 'high', n: 1,
-      })
+      //
+      // With photographs attached the design is EDITED around them instead of
+      // generated from nothing, which is what keeps a real face looking like
+      // that person rather than a stranger who dresses similarly.
+      const res = files.length
+        ? await ai().images.edit({
+            model: MODEL, prompt, image: files.length === 1 ? files[0] : files,
+            size: apiSize(size).size as '1024x1024', quality: 'high', n: 1,
+          })
+        : await ai().images.generate({
+            model: MODEL, prompt, size: apiSize(size).size as '1024x1024', quality: 'high', n: 1,
+          })
       const b64 = res.data?.[0]?.b64_json
       if (!b64) return { sizeId: size.id, label: size.label, error: 'no image returned' }
 
