@@ -22,6 +22,10 @@ import {
 type Msg = { role: 'user' | 'assistant'; text: string }
 type Made = { sizeId: string; label: string; w: number; h: number; png: string }
 
+// Three at a time: quick enough, and few enough not to trip the image API's
+// rate limit and turn a queue into a wall of errors.
+const CONCURRENCY = 3
+
 const CATEGORIES = [
   { id: 'nightlife', label: 'Nightlife' },
   { id: 'business', label: 'Business' },
@@ -53,6 +57,29 @@ export default function FlyerMakerPage() {
   const [making, setMaking] = useState(false)
   const [made, setMade] = useState<Made[]>([])
   const [photos, setPhotos] = useState<{ dataUrl: string; role: PhotoRole; name: string }[]>([])
+  const [progress, setProgress] = useState<Record<string, 'wait' | 'busy' | 'done' | 'fail'>>({})
+  const [startedAt, setStartedAt] = useState(0)
+  const [now, setNow] = useState(0)
+
+  // Ticks only while something is being made, so an idle page isn't re-rendering
+  // once a second for no reason.
+  useEffect(() => {
+    if (!making) return
+    setNow(Date.now())
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [making])
+
+  // A MEASURED estimate, not a guess: a single size took about 75 seconds in
+  // testing, and three run at once. The countdown never goes negative — past
+  // the estimate it says so instead of showing a lie.
+  const SECS_PER_SIZE = 75
+  const doneCount = Object.values(progress).filter((s) => s === 'done' || s === 'fail').length
+  const elapsed = startedAt ? Math.round((now - startedAt) / 1000) : 0
+  const waves = Math.ceil(ticked.length / CONCURRENCY)
+  const estimateTotal = waves * SECS_PER_SIZE
+  const remaining = Math.max(0, estimateTotal - elapsed)
+  const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
   const scrollRef = useRef<HTMLDivElement>(null)
   useEffect(() => { scrollRef.current?.scrollTo({ top: 9e9, behavior: 'smooth' }) }, [msgs, busy])
@@ -73,20 +100,51 @@ export default function FlyerMakerPage() {
     setMsgs((m) => [...m, { role: 'assistant', text: r.reply || 'Got it — tick your sizes and hit Make.' }])
   }
 
+  // ONE REQUEST PER SIZE, not one request for all of them.
+  //
+  // Asking for everything at once means the page can show nothing until the
+  // last one lands — two sizes measured at 154 seconds of blank waiting. Split
+  // apart, each design appears the moment it is ready, the progress bar counts
+  // real completions rather than a made-up percentage, and one failure costs
+  // one size instead of the whole batch.
+  //
+  // Three at a time: enough to keep it quick, few enough not to trip the image
+  // API's rate limit and turn a queue into a wall of errors.
   const make = async () => {
     if (making || !ticked.length) return
     setMaking(true); setErr(''); setMade([])
-    const r = await fetch('/api/flyer-art', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        templateId, sizeIds: ticked, fields, note: note.trim() || undefined,
-        photos: photos.map(({ dataUrl, role }) => ({ dataUrl, role })),
-      }),
-    }).then((x) => x.json()).catch(() => ({ error: 'Network error' }))
+    setStartedAt(Date.now())
+    setProgress(Object.fromEntries(ticked.map((id) => [id, 'wait'])))
+
+    const queue = [...ticked]
+    const failures: string[] = []
+
+    const worker = async () => {
+      for (;;) {
+        const id = queue.shift()
+        if (!id) return
+        setProgress((p) => ({ ...p, [id]: 'busy' }))
+        const r = await fetch('/api/flyer-art', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            templateId, sizeIds: [id], fields, note: note.trim() || undefined,
+            photos: photos.map(({ dataUrl, role }) => ({ dataUrl, role })),
+          }),
+        }).then((x) => x.json()).catch(() => ({ error: 'Network error' }))
+
+        if (r?.images?.length) {
+          setMade((m) => [...m, ...r.images])
+          setProgress((p) => ({ ...p, [id]: 'done' }))
+        } else {
+          failures.push(FLYER_SIZES.find((s) => s.id === id)?.label ?? id)
+          setProgress((p) => ({ ...p, [id]: 'fail' }))
+        }
+      }
+    }
+
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, ticked.length) }, worker))
     setMaking(false)
-    if (r?.error) { setErr(r.error); return }
-    setMade(r.images ?? [])
-    if (r.failed?.length) setErr(`Could not make: ${r.failed.map((f: { label: string }) => f.label).join(', ')}`)
+    if (failures.length) setErr(`Could not make: ${failures.join(', ')}`)
   }
 
   const filled = Object.values(fields).some((v) => (Array.isArray(v) ? v.length : v))
@@ -237,7 +295,48 @@ export default function FlyerMakerPage() {
               {making ? `Designing ${ticked.length}…` : `Make ${ticked.length} design${ticked.length === 1 ? '' : 's'}`}
             </button>
             {!filled && <p style={{ fontSize: 12, color: 'var(--ink-soft,#6b6459)', margin: '8px 0 0' }}>Tell me about the event first.</p>}
-            {making && <p style={{ fontSize: 12, color: 'var(--ink-soft,#6b6459)', margin: '8px 0 0' }}>Each size is designed separately — about 30 seconds.</p>}
+
+            {/* PROGRESS. The bar measures designs actually finished, not time
+                elapsed — a bar that fills on a timer is a lie that reaches 100%
+                while the user is still waiting. */}
+            {making && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+                  <span>{doneCount} of {ticked.length} designed</span>
+                  <span style={{ color: 'var(--ink-soft,#6b6459)', fontWeight: 400 }}>
+                    {remaining > 0 ? `about ${mmss(remaining)} left` : 'any moment now'} · {mmss(elapsed)} elapsed
+                  </span>
+                </div>
+                <div style={{ height: 8, borderRadius: 99, background: 'var(--cream,#F4F1EC)', overflow: 'hidden', border: '1px solid var(--border,#ddd6cc)' }}>
+                  <div style={{
+                    height: '100%', borderRadius: 99, background: 'var(--ink,#23201c)',
+                    width: `${Math.round((doneCount / Math.max(ticked.length, 1)) * 100)}%`,
+                    transition: 'width .5s ease',
+                  }} />
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 9 }}>
+                  {ticked.map((id) => {
+                    const st = progress[id] ?? 'wait'
+                    const label = FLYER_SIZES.find((s) => s.id === id)?.label ?? id
+                    const look = st === 'done' ? { bg: '#E7F3E4', fg: '#2C6B34', mark: '✓' }
+                      : st === 'fail' ? { bg: '#FBE9E6', fg: '#B4432F', mark: '✕' }
+                      : st === 'busy' ? { bg: 'var(--ink,#23201c)', fg: 'white', mark: '●' }
+                      : { bg: 'var(--cream,#F4F1EC)', fg: 'var(--ink-soft,#6b6459)', mark: '·' }
+                    return (
+                      <span key={id} style={{
+                        fontSize: 11, fontWeight: 700, padding: '4px 9px', borderRadius: 99,
+                        background: look.bg, color: look.fg, border: '1px solid var(--border,#ddd6cc)',
+                      }}>
+                        {look.mark} {label.replace(/ \d+ ?[×x].*$/, '')}
+                      </span>
+                    )
+                  })}
+                </div>
+                <p style={{ fontSize: 12, color: 'var(--ink-soft,#6b6459)', margin: '9px 0 0', lineHeight: 1.5 }}>
+                  Each size is designed from scratch, three at a time. Finished ones appear on the right as they land — you don&apos;t have to wait for all of them.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
