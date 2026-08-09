@@ -67,6 +67,13 @@ try {
     await makeBtn.click()
     log('  generating… (waiting up to 4.5 min)')
     const t0 = Date.now()
+    // Photograph the meter mid-flight; a progress bar can only be judged while
+    // something is in progress.
+    await page.waitForTimeout(25000)
+    const mid = await page.locator('body').innerText()
+    const m = mid.match(/\d+ of \d+ designed[^\n]*/)
+    log('  meter says: ' + (m ? m[0] : 'NOT FOUND'))
+    await page.screenshot({ path: 'smoke-progress.png' })
     await page.waitForSelector('a[download$=".png"]', { timeout: 280000 }).catch(() => {})
     const made = await page.locator('a[download$=".png"]').count()
     log(`  designs produced: ${made} after ${Math.round((Date.now()-t0)/1000)}s`)

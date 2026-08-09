@@ -70,10 +70,12 @@ export default function FlyerMakerPage() {
     return () => clearInterval(t)
   }, [making])
 
-  // A MEASURED estimate, not a guess: a single size took about 75 seconds in
-  // testing, and three run at once. The countdown never goes negative — past
-  // the estimate it says so instead of showing a lie.
-  const SECS_PER_SIZE = 75
+  // A MEASURED estimate. The first figure here was 75 seconds and it was wrong:
+  // timed against production, one size takes about 115. An estimate that always
+  // runs short is nearly as irritating as none, so it is better to quote the
+  // real number and finish early. The countdown never goes negative — past the
+  // estimate it says so rather than showing a lie.
+  const SECS_PER_SIZE = 115
   const doneCount = Object.values(progress).filter((s) => s === 'done' || s === 'fail').length
   const elapsed = startedAt ? Math.round((now - startedAt) / 1000) : 0
   const waves = Math.ceil(ticked.length / CONCURRENCY)
