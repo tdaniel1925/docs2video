@@ -165,7 +165,7 @@ export default function GettingStartedPage() {
           </p>
 
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Recent Creations</strong> — Below the shortcuts, your most recent 8 items appear as cards with thumbnails, titles, and type badges (e.g., "Video," "Flyer"). Click any card to open it. A "View all" link takes you to your full Library.
+            <strong style={{ color: 'var(--ink)' }}>Recent Creations</strong> — Below the shortcuts, your most recent 8 items appear as cards with thumbnails, titles, and type badges (e.g., "Video," "Graphic"). Click any card to open it. A "View all" link takes you to your full Library.
           </p>
 
           <p>

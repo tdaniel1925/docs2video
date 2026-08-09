@@ -6,7 +6,7 @@ import { displayProgress } from '../../_lib/video-progress'
 
 const TYPE_BADGE: Record<string, { label: string; color: string }> = {
   video: { label: 'Video', color: 'mint' },
-  flyer: { label: 'Flyer', color: 'peach' },
+  flyer: { label: 'Graphic', color: 'peach' },
   'business-card': { label: 'Card', color: 'lilac' },
   infographic: { label: 'Infographic', color: 'sky' },
   ad: { label: 'Ad', color: 'sun' },

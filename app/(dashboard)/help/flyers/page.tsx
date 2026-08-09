@@ -23,12 +23,12 @@ export default function FlyersHelpPage() {
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>Flyers, Ads &amp; Business Cards</span>
+        <span>Custom Graphics</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>Flyers, Ads &amp; Business Cards</h1>
+          <h1>Custom Graphics</h1>
           <p>Describe what you need in plain English and get finished, print-ready designs — the artwork and the words together — in every size you tick.</p>
         </div>
       </div>
@@ -38,7 +38,7 @@ export default function FlyersHelpPage() {
         <div>
           <h3 style={{ margin: '4px 0 8px' }}>Open the maker</h3>
           <p style={body}>
-            In the top menu, open <strong>Tools</strong> and click <strong>📄 Flyer Creator</strong>.
+            In the top menu, open <strong>Tools</strong> and click <strong>📄 Custom Graphics</strong>.
             The page looks like a chat: a conversation down the middle, and a typing bar at the bottom.
           </p>
         </div>
@@ -51,7 +51,7 @@ export default function FlyersHelpPage() {
           <p style={body}>
             Type it the way you&rsquo;d say it out loud. For example: <em>&ldquo;Saturday club night at The
             Foundry, doors 9pm, $20 cover, DJ Sable headlining&rdquo;</em> — or <em>&ldquo;business card for
-            Dana Okafor, Managing Broker at Okafor Property Group, 555-0134&rdquo;</em>. Press <strong>Send</strong>.
+            Dana Okafor, Managing Broker at Okafor Property Group, 555-0134&rdquo;</em>. Press <strong>Preview details</strong>.
           </p>
           <p style={{ ...body, marginTop: 10 }}>
             A card appears headed <strong>What goes on the design</strong>, listing everything it understood —
@@ -69,9 +69,9 @@ export default function FlyersHelpPage() {
             Three buttons sit above where you type:
           </p>
           <ul style={{ ...body, marginTop: 10, paddingLeft: 20 }}>
-            <li><strong>🎨 the style</strong> — fifteen looks, grouped into Nightlife, Business, Community, Real estate and Fitness. It picks one that suits your job automatically, and tells you when it does. Click a different one any time; once you choose for yourself, your choice sticks.</li>
-            <li><strong>📷 your photos</strong> — up to three of your own pictures. Say what each one is (a person, a place, a product, a logo), because a face and a building need opposite treatment.</li>
-            <li><strong>📐 the sizes</strong> — tick everything you need. Print, social posts, banners and business cards.</li>
+            <li><strong>1. Pick Your Style</strong> — fifteen looks, grouped into Nightlife, Business, Community, Real estate and Fitness. It picks one that suits your job automatically and tells you when it does. Click a different one any time; once you choose for yourself, your choice sticks.</li>
+            <li><strong>2. Add Photos (Optional)</strong> — up to three of your own pictures. Say what each one is (a person, a place, a product, a logo), because a face and a building need opposite treatment.</li>
+            <li><strong>3. Choose Format</strong> — tick every size you need. Print, social posts, banners and business cards.</li>
           </ul>
         </div>
       </div>
@@ -144,7 +144,7 @@ export default function FlyersHelpPage() {
       </p>
 
       <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Common questions</h2>
-      <p style={body}><strong>Why did my old flyer page disappear?</strong><br />
+      <p style={body}><strong>Why did my old Flyer Creator page disappear?</strong><br />
         There used to be two flyer tools. They have been replaced by this one, which produces better designs,
         handles more sizes, keeps a history and makes business cards. Anything you made before is untouched
         and still in your Library.

@@ -39,7 +39,7 @@ const GUIDES: HelpGuide[] = [
   },
   {
     href: '/help/flyers',
-    title: 'Flyers, Ads & Business Cards',
+    title: 'Custom Graphics',
     description: 'Describe the job in plain English and get finished print-ready designs — artwork and words together — in every size you tick, including business cards.',
     icon: '📄',
   },
@@ -133,7 +133,7 @@ const ARTICLES: HelpArticle[] = [
     icon: '🎬',
     content: [
       'Start from **+ Create** (top nav) or the dashboard. Everything runs through one guided flow — you can leave at any point and your progress is saved.',
-      '**1 — Pick a format.** Choose **Video Explainer**, **Slides** (a deck you download as PDF/PowerPoint), or **Commercial**.',
+      '**1 — Pick a format.** Choose **Video Explainer**, **Commercial**, or **Custom Graphics** (flyers, ads, banners and business cards).',
       '**2 — Who\'s this for?** Pick an existing client, add a new one, or skip for a general video. When you name a client, their name appears on the video cover and share page ("Prepared for [Client]").',
       '**3 — Add your content.** Upload a PDF/Word/PowerPoint, paste text, enter a website URL, or describe an idea. AI reads it and extracts the key points.',
       '**4 — Review the brief.** AI shows what it understood — the angle, the key points it\'ll cover, and the figures it\'ll feature. Edit or tell it what to change. **This brief now steers the final video on every style**, so what you approve is what you get.',

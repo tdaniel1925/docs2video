@@ -20,9 +20,13 @@ export type LibraryItem = {
   createdAt: string
 }
 
+// The stored type stays `flyer` — it is in the database, the credit ledger and
+// the API. Only what the customer READS changes: the tool makes posters,
+// social posts, banners and business cards, so calling all of it "Flyer" was
+// wrong on most rows.
 const TYPE_LABELS: Record<string, string> = {
   video: 'Video', deck: 'Deck', logo: 'Logo', 'business-card': 'Card',
-  flyer: 'Flyer', infographic: 'Infographic', 'social-kit': 'Social', other: 'Other',
+  flyer: 'Graphic', infographic: 'Infographic', 'social-kit': 'Social', other: 'Other',
 }
 
 const PAGE_SIZES = [25, 50, 100]

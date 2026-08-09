@@ -19,18 +19,23 @@ type Creation = {
 // All creation types the library understands (used for filtering / "other").
 const ALL_TYPES = ['video', 'deck', 'logo', 'business-card', 'flyer', 'infographic', 'social-kit', 'other'] as const
 
-// Only these tabs are SHOWN in the focused product (video + deck). Other types
-// still load/filter correctly; their tabs are just hidden.
+// Only these tabs are SHOWN. Every other type still loads and filters
+// correctly; their tabs are simply hidden.
+//
+// Decks are deliberately absent. The deck builder is parked for now, so a tab
+// filtering to it would advertise something the product no longer asks anyone
+// to make. Decks already created are untouched and still listed under All.
 const FILTER_TABS = [
   { key: '', label: 'All' },
   { key: 'video', label: 'Videos' },
-  { key: 'deck', label: 'Decks' },
+  { key: 'flyer', label: 'Custom Graphics' },
 ] as const
 
 const KNOWN_TYPES = new Set<string>(ALL_TYPES)
 
 const FILTER_TITLES: Record<string, string> = {
   video: 'Your Videos',
+  flyer: 'Your Custom Graphics',
   deck: 'Your Decks',
 }
 

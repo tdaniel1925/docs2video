@@ -221,8 +221,12 @@ export async function POST(req: Request) {
             const href = `/api/flyer-file/${designId}`
             await admin.from('creations').insert({
               user_id: user.id, type: 'flyer',
-              title: `${fields.headline || 'Flyer'} — ${size.label}`,
+              title: `${fields.headline || 'Custom graphic'} — ${size.label}`,
               thumbnail_url: href, file_url: href,
+              // What it ACTUALLY cost. Leaving this out let the column's
+              // default of 1 stand, so the library reported a 200-credit design
+              // as having cost a single credit.
+              credits_used: unit,
             })
           }
         } catch (e) {

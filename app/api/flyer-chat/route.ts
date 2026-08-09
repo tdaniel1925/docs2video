@@ -37,6 +37,9 @@ export async function POST(req: Request) {
     layoutId?: string
     sizeId?: string
     history?: { role: 'user' | 'assistant'; text: string }[]
+    /** The designs already on screen, numbered as the customer sees them, so
+     *  "design 2, make the price $25" can be understood literally. */
+    designs?: { n: number; sizeId: string; label: string }[]
   } | null
 
   const message = String(body?.message ?? '').trim().slice(0, 1500)
@@ -58,6 +61,7 @@ Return ONLY a JSON object, no commentary and no markdown fence:
   "sizeId": string,        // one of: ${FLYER_SIZES.map((s) => `${s.id} (${s.label})`).join(', ')}
   "layoutId": string,      // one of: ${FLYER_TEMPLATES.map((t) => `${t.id} (${t.name}, ${t.category})`).join(', ')}
   "subject": string,       // 1 sentence describing the ARTWORK to generate — a scene, no text in it
+  "redoSizeId": string,    // ONLY when the user pointed at a numbered design ("design 2, ..."). The sizeId of that design. Omit otherwise.
   "reply": string          // one short friendly line back to the user
 }
 
@@ -68,11 +72,16 @@ Rules:
 - If the user names a size ("8.5 by 11", "poster", "square", "business card"), set sizeId to match. If they describe a mood, pick the layoutId that fits it.
 - ALWAYS set layoutId to the style that suits the SUBJECT, not the one already selected. A property listing is not a club night; an estate agent's card must not come back designed as a nightclub flyer. Match the category first — nightlife, business, community, realestate, fitness — then the mood within it.
 - A BUSINESS CARD is not a small poster. If sizeId is a business card, "headline" is the PERSON'S NAME, "subhead" is their job title, "venue" is the company, and "contact" holds the phone, email and website. Leave date, time and price out entirely, and keep everything short — a card carries a handful of words, not a paragraph.
-- "subject" describes a photograph or illustration only — never mention words, signs or lettering, because the artwork must contain none.`
+- "subject" describes a photograph or illustration only — never mention words, signs or lettering, because the artwork must contain none.
+- The designs already made are listed below with the NUMBER the customer sees on each one. If they point at one ("design 2, make the price $25", "redo number 1 in blue"), apply their change to the fields and set "redoSizeId" to that design's sizeId, so only that one is remade. Say in the reply which one you have queued up. If they did not name a number, leave "redoSizeId" out.`
 
+  const designs = (body?.designs ?? []).slice(0, 12)
   const context = [
     `Current fields: ${JSON.stringify(body?.fields ?? {})}`,
     `Current size: ${body?.sizeId ?? 'letter'}   Current layout: ${body?.layoutId ?? 'rnb'}`,
+    designs.length
+      ? `Designs already made, as numbered on screen:\n${designs.map((d) => `  ${d.n}. ${d.label} (sizeId: ${d.sizeId})`).join('\n')}`
+      : 'No designs made yet.',
     ...(body?.history ?? []).slice(-6).map((h) => `${h.role}: ${h.text}`),
     `user: ${message}`,
   ].join('\n')
@@ -89,16 +98,21 @@ Rules:
     const b = text.lastIndexOf('}')
     if (a < 0 || b <= a) throw new Error('no fields came back')
     const out = JSON.parse(text.slice(a, b + 1)) as {
-      fields?: FlyerFields; sizeId?: string; layoutId?: string; subject?: string; reply?: string
+      fields?: FlyerFields; sizeId?: string; layoutId?: string; subject?: string
+      redoSizeId?: string; reply?: string
     }
 
     // Trust nothing about ids — an unknown one would render a blank artboard.
     const sizeId = FLYER_SIZES.some((s) => s.id === out.sizeId) ? out.sizeId : (body?.sizeId ?? 'letter')
     const layoutId = FLYER_TEMPLATES.some((t) => t.id === out.layoutId) ? out.layoutId : (body?.layoutId ?? 'rnb')
+    // Only honour a redo that names a design ACTUALLY on screen. Left
+    // unchecked, an invented id would silently re-tick some unrelated size and
+    // the next Make would charge for the wrong thing.
+    const redoSizeId = designs.some((d) => d.sizeId === out.redoSizeId) ? out.redoSizeId : undefined
 
     return NextResponse.json({
       fields: out.fields ?? body?.fields ?? {},
-      sizeId, layoutId,
+      sizeId, layoutId, redoSizeId,
       subject: String(out.subject ?? '').slice(0, 300),
       reply: String(out.reply ?? 'Updated.').slice(0, 300),
     })

@@ -66,7 +66,7 @@ try {
 
   // Style sheet — the thumbnails are real generated samples, and a gallery of
   // broken images tells a customer nothing about what they are choosing.
-  await page.getByRole('button', { name: /🎨/ }).click()
+  await page.getByRole('button', { name: /Pick Your Style/ }).click()
   await page.waitForTimeout(2500)
   const tiles = await page.locator('img[src^="/flyer-templates/"]').count()
   const broken = await page.evaluate(() =>
@@ -75,7 +75,7 @@ try {
   await page.getByRole('button', { name: 'Done' }).click()
 
   // Sizes sheet — business cards are the new capability.
-  await page.getByRole('button', { name: /📐/ }).click()
+  await page.getByRole('button', { name: /Choose Format/ }).click()
   await page.waitForTimeout(800)
   const sheet = await page.locator('body').innerText()
   check(/Business cards/i.test(sheet), 'business cards are offered')
@@ -104,7 +104,7 @@ try {
   // flawless business card for an estate agent set in a nightclub, because the
   // style stayed on the default club night and the chat's suggestion was
   // discarded. A broker's card must not be designed as a club flyer.
-  const styleChip = (await page.getByRole('button', { name: /🎨/ }).textContent()) ?? ''
+  const styleChip = (await page.getByRole('button', { name: /Pick Your Style/ }).textContent()) ?? ''
   check(!/R&B Night|Neon Club|Ladies Night|Retro Night|Halloween|Tropical/i.test(styleChip),
     'the look suits the job rather than staying on the club-night default', styleChip.trim())
   await page.screenshot({ path: 'smoke-flyer-1-brief.png', fullPage: true })

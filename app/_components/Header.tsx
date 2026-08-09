@@ -10,7 +10,7 @@ import type { Profile } from '../_lib/types'
 
 const TOOLS_ITEMS = [
   { href: '/create', icon: '\uD83C\uDFAC', title: 'Pro Mode', desc: 'Full control over every detail' },
-  { href: '/flyer', icon: '\uD83D\uDCC4', title: 'Flyer Creator', desc: 'Flyers, ads, banners & business cards' },
+  { href: '/flyer', icon: '\uD83D\uDCC4', title: 'Custom Graphics', desc: 'Flyers, ads, banners & business cards' },
   { href: '/brands', icon: '\uD83C\uDFA8', title: 'Brands', desc: 'Manage colors, logos, brand guides' },
   { href: '/brands/new', icon: '\uD83C\uDF10', title: 'New Brand from URL', desc: 'Scrape website for brand identity' },
 ]

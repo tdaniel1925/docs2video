@@ -8,9 +8,12 @@ import { useRouter } from 'next/navigation'
  *  - Interactive Presentation → /create/client → content → brand → voice → script → template
  *    (HTML-first: narrated click-through presentation on a share page; an MP4
  *     video can be EXPORTED from it after editing — video is not its own path)
- *  - Slide Deck → /create?type=deck&for=general (skip recipient + voice) → content → brand → script → template
- *    (silent, private — PDF + PowerPoint downloads; no share page)
+ *  - Custom Graphics → /flyer (chat-driven; flyers, ads, banners, cards)
  *  - Video Explainer / Commercial — legacy paths, slated for removal at flip.
+ *
+ * Slide Deck is NOT offered here any more. The path still exists
+ * (/create?type=deck&for=general) and existing decks are untouched — it is
+ * simply not presented as a choice while the deck builder is parked.
  */
 export default function CreateStartPage() {
   const router = useRouter()
@@ -28,10 +31,16 @@ export default function CreateStartPage() {
           <div style={styles.cardDesc}>A narrated, click-through presentation your client explores at their own pace — with a share page, instant edits, and an MP4 video export when you want one.</div>
         </button>
 
-        <button style={styles.card} onClick={() => router.push('/create?type=deck&for=general')}>
-          <div style={styles.cardIcon}>📑</div>
-          <div style={styles.cardTitle}>Slide Deck</div>
-          <div style={styles.cardDesc}>A polished deck from your content — preview and edit live, then download as PDF or PowerPoint. Private, no share page.</div>
+        {/* SLIDE DECK REMOVED — deliberately, not lost. The deck builder is
+            parked while the product focuses elsewhere, so it is no longer
+            offered as a choice here. The route (/create?type=deck) and every
+            deck already made still work; nothing was deleted. Restore this card
+            to put it back. */}
+
+        <button style={styles.card} onClick={() => router.push('/flyer')}>
+          <div style={styles.cardIcon}>📄</div>
+          <div style={styles.cardTitle}>Custom Graphics</div>
+          <div style={styles.cardDesc}>Flyers, ads, social posts, banners and business cards — describe the job and get finished, print-ready designs in every size you need.</div>
         </button>
 
         <button style={styles.card} onClick={() => router.push('/create/client')}>

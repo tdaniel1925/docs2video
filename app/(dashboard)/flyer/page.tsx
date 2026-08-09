@@ -72,6 +72,26 @@ const CREAM = 'var(--cream,#F4F1EC)'
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
+/**
+ * Save every design in a round.
+ *
+ * Browsers throttle a burst of downloads and will silently drop some, so they
+ * are fired one at a time with a small gap — "download all" that quietly saves
+ * four of six is worse than no button.
+ */
+async function downloadAll(round: Extract<Item, { kind: 'round' }>) {
+  for (let i = 0; i < round.designs.length; i++) {
+    const d = round.designs[i]
+    const a = document.createElement('a')
+    a.href = d.src
+    a.download = `design-${i + 1}-${d.sizeId}.png`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    await new Promise((r) => setTimeout(r, 350))
+  }
+}
+
 export default function FlyerMakerPage() {
   const [items, setItems] = useState<Item[]>([{
     kind: 'msg', role: 'assistant',
@@ -184,9 +204,14 @@ export default function FlyerMakerPage() {
     setThinking(true)
     const history = items.filter((i): i is Extract<Item, { kind: 'msg' }> => i.kind === 'msg')
       .slice(-6).map((m) => ({ role: m.role, text: m.text }))
+    // The most recent round's designs, numbered as they appear on screen, so
+    // "design 2, make the price $25" means something.
+    const lastRound = [...items].reverse().find((i): i is Extract<Item, { kind: 'round' }> => i.kind === 'round' && i.designs.length > 0)
+    const designs = (lastRound?.designs ?? []).map((d, i) => ({ n: i + 1, sizeId: d.sizeId, label: d.label }))
+
     const r = await fetch('/api/flyer-chat', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ message: text, fields, layoutId: templateId, sizeId: ticked[0] ?? 'letter', history }),
+      body: JSON.stringify({ message: text, fields, layoutId: templateId, sizeId: ticked[0] ?? 'letter', history, designs }),
     }).then((x) => x.json()).catch(() => ({ error: 'Network error' }))
     setThinking(false)
     if (r?.error) { setErr(r.error); return }
@@ -201,7 +226,19 @@ export default function FlyerMakerPage() {
       const t = FLYER_TEMPLATES.find((x) => x.id === r.layoutId)
       if (t) { setTemplateId(t.id); setCategory(t.category); notes.push(`set the look to ${t.name}`) }
     }
-    if (!sizesPicked && r.sizeId && !ticked.includes(r.sizeId)) {
+
+    // ASKED FOR ONE DESIGN BACK. "design 2, make the price $25" queues up just
+    // that size, so pressing Make redoes the one they meant instead of the
+    // whole batch again — which would charge for sizes they were happy with.
+    // This overrides a manual size choice, because naming a number IS a choice.
+    if (r.redoSizeId) {
+      const s = FLYER_SIZES.find((x) => x.id === r.redoSizeId)
+      if (s) {
+        setTicked([s.id]); setSizesPicked(true)
+        const n = designs.find((d) => d.sizeId === s.id)?.n
+        notes.push(`queued up design ${n ?? ''} (${s.label}) to be redone on its own`.replace('  ', ' '))
+      }
+    } else if (!sizesPicked && r.sizeId && !ticked.includes(r.sizeId)) {
       const s = FLYER_SIZES.find((x) => x.id === r.sizeId)
       if (s) { setTicked([s.id]); notes.push(`switched to ${s.label}`) }
     }
@@ -295,7 +332,7 @@ export default function FlyerMakerPage() {
   return (
     <div style={{ maxWidth: 940, margin: '0 auto', padding: '18px 20px 0', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 24 }}>Flyer, ad &amp; card maker</h1>
+        <h1 style={{ margin: 0, fontSize: 24 }}>Custom Graphics</h1>
         {unit !== null && (
           <span style={{ fontSize: 12, color: SOFT }}>
             {unit} credits per design{balance !== null && ` · ${balance.toLocaleString()} left`}
@@ -407,13 +444,22 @@ export default function FlyerMakerPage() {
         )}
 
         <div style={{ ...panel, boxShadow: '0 6px 24px rgba(0,0,0,.07)' }}>
+          {/* NUMBERED AND SPELLED OUT. As bare chips reading "Editorial",
+              "Add your photos" and "2 sizes" these looked like status, not
+              controls — there was nothing to say they were steps, or in what
+              order. The number carries the order and the label says what the
+              button is FOR; the current choice follows in lighter type so you
+              can still see it at a glance. */}
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-            <button style={chip(sheet === 'style')} onClick={() => setSheet(sheet === 'style' ? null : 'style')}>🎨 {styleName}</button>
+            <button style={chip(sheet === 'style')} onClick={() => setSheet(sheet === 'style' ? null : 'style')}>
+              1. Pick Your Style <Chosen on={sheet === 'style'}>{styleName}</Chosen>
+            </button>
             <button style={chip(sheet === 'photos')} onClick={() => setSheet(sheet === 'photos' ? null : 'photos')}>
-              📷 {photos.length ? `${photos.length} photo${photos.length === 1 ? '' : 's'}` : 'Add your photos'}
+              2. Add Photos <span style={{ fontWeight: 400 }}>(Optional)</span>
+              {photos.length > 0 && <Chosen on={sheet === 'photos'}>{photos.length}</Chosen>}
             </button>
             <button style={chip(sheet === 'sizes')} onClick={() => setSheet(sheet === 'sizes' ? null : 'sizes')}>
-              📐 {ticked.length} size{ticked.length === 1 ? '' : 's'}
+              3. Choose Format <Chosen on={sheet === 'sizes'}>{ticked.length} size{ticked.length === 1 ? '' : 's'}</Chosen>
             </button>
           </div>
 
@@ -443,6 +489,15 @@ export default function FlyerMakerPage() {
 
       {viewing && <Viewer design={viewing} onClose={() => setViewing(null)} />}
     </div>
+  )
+}
+
+/** The current selection, shown after a step's label without competing with it. */
+function Chosen({ children, on }: { children: React.ReactNode; on: boolean }) {
+  return (
+    <span style={{ fontWeight: 400, opacity: on ? 0.85 : 0.6, marginLeft: 2 }}>
+      · {children}
+    </span>
   )
 }
 
@@ -499,14 +554,24 @@ function RoundBlock({ round, now, onOpen }: {
 
   return (
     <div style={{ background: 'white', border: `1px solid ${LINE}`, borderRadius: 10, padding: 14 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 10, alignItems: 'center' }}>
         <strong style={{ fontSize: 13 }}>
           {round.live ? 'Designing' : 'Designs'} · {style} · {total} size{total === 1 ? '' : 's'}
         </strong>
-        {round.live && (
+        {round.live ? (
           <span style={{ fontSize: 12, color: SOFT }}>
             {done} of {total} · {remaining > 0 ? `about ${mmss(remaining)} left` : 'any moment now'}
           </span>
+        ) : round.designs.length > 1 && (
+          // One click for the lot. Downloading six sizes one at a time is the
+          // sort of small tax nobody mentions and everybody resents.
+          <button onClick={() => downloadAll(round)}
+            style={{
+              padding: '6px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: 'white',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', color: INK,
+            }}>
+            ⬇ Download all {round.designs.length}
+          </button>
         )}
       </div>
 
@@ -526,15 +591,24 @@ function RoundBlock({ round, now, onOpen }: {
           const st = round.status[id] ?? 'wait'
           const label = FLYER_SIZES.find((s) => s.id === id)?.label ?? id
           if (d) {
+            // NUMBERED, so a change can be asked for out loud: "design 2, make
+            // the price $25". Without a number the only way to point at one is
+            // to describe it, and two social sizes look alike in a grid.
+            const n = round.designs.indexOf(d) + 1
             return (
               <figure key={id} style={{ margin: 0 }}>
                 <button onClick={() => onOpen(d)} title="Open full size"
-                  style={{ display: 'block', width: '100%', padding: 0, border: `1px solid ${LINE}`, borderRadius: 8, overflow: 'hidden', cursor: 'zoom-in', background: '#111' }}>
+                  style={{ display: 'block', width: '100%', padding: 0, border: `1px solid ${LINE}`, borderRadius: 8, overflow: 'hidden', cursor: 'zoom-in', background: '#111', position: 'relative' }}>
                   <img src={d.src} alt={d.label} style={{ width: '100%', display: 'block' }} />
+                  <span style={{
+                    position: 'absolute', top: 6, left: 6, minWidth: 20, height: 20, borderRadius: 6,
+                    background: 'rgba(20,18,16,.82)', color: 'white', fontSize: 11, fontWeight: 800,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px',
+                  }}>{n}</span>
                 </button>
                 <figcaption style={{ fontSize: 11, color: SOFT, marginTop: 5, display: 'flex', justifyContent: 'space-between', gap: 6 }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label.replace(/ \d+ ?[×x].*$/, '')}</span>
-                  <a href={d.src} download={`${d.sizeId}.png`} style={{ color: INK, fontWeight: 700, textDecoration: 'none' }}>⬇</a>
+                  <a href={d.src} download={`design-${n}-${d.sizeId}.png`} style={{ color: INK, fontWeight: 700, textDecoration: 'none' }}>⬇</a>
                 </figcaption>
               </figure>
             )
@@ -556,6 +630,8 @@ function RoundBlock({ round, now, onOpen }: {
         <p style={{ fontSize: 12, color: SOFT, margin: '10px 0 0', lineHeight: 1.5 }}>
           Click any design to see it full size — worth doing before you print, since the dates,
           prices and phone numbers are drawn by the AI.
+          {' '}<strong style={{ color: INK }}>Want one changed? Say the number and what you want</strong> —
+          {' '}&ldquo;design {round.designs.length > 1 ? 2 : 1}, make the price $25&rdquo; — and I&apos;ll set it up to redo just that one.
         </p>
       )}
     </div>
