@@ -65,11 +65,26 @@ try {
 
   if (!disabled) {
     await makeBtn.click()
-    log('  generating… (up to 2 min)')
-    await page.waitForSelector('a[download$=".png"]', { timeout: 150000 }).catch(() => {})
+    log('  generating… (waiting up to 4.5 min)')
+    const t0 = Date.now()
+    await page.waitForSelector('a[download$=".png"]', { timeout: 280000 }).catch(() => {})
     const made = await page.locator('a[download$=".png"]').count()
-    log(`  designs produced: ${made}`)
+    log(`  designs produced: ${made} after ${Math.round((Date.now()-t0)/1000)}s`)
     await page.screenshot({ path: 'smoke-2-flyer-result.png', fullPage: true })
+
+    // Save the ACTUAL designs, full size. A count of download links only proves
+    // something arrived — it says nothing about whether the flyer is any good,
+    // spelled right, or clipped at the edge.
+    const { writeFileSync } = await import('fs')
+    for (let i = 0; i < made; i++) {
+      const a = page.locator('a[download$=".png"]').nth(i)
+      const name = (await a.getAttribute('download')) || `design-${i}.png`
+      const data = await a.getAttribute('href')
+      if (data?.startsWith('data:image')) {
+        writeFileSync(`out-${name}`, Buffer.from(data.split(',')[1], 'base64'))
+        log(`    saved out-${name}`)
+      }
+    }
   }
 
   // ── the slide editor ─────────────────────────────────────────────────
