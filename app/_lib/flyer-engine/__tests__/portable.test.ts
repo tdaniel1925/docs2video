@@ -80,7 +80,44 @@ describe('the prompt carries the rules that keep flyers usable', () => {
 
   it('describes each supplied photo in the order it is attached', () => {
     const p = flyerPrompt(t, { headline: 'X' }, letter, ['person', 'logo'])
-    expect(p).toMatch(/Image 1:.*REAL PERSON/s)
-    expect(p).toMatch(/Image 2:.*LOGO/s)
+    expect(p).toMatch(/Image 1:[\s\S]*REAL PERSON/)
+    expect(p).toMatch(/Image 2:[\s\S]*LOGO/)
+  })
+})
+
+// A card is 3.5x2in — wide enough that the generic "wide banner" wording used
+// to apply to it, which produced small posters rather than cards.
+describe('business cards are treated as cards, not small posters', () => {
+  const t = FLYER_TEMPLATES.find((x) => x.id === 'corporate')!
+  const front = FLYER_SIZES.find((s) => s.id === 'biz-card-front')!
+  const back = FLYER_SIZES.find((s) => s.id === 'biz-card-back')!
+  const fields = { headline: 'Dana Okafor', subhead: 'Managing Broker', contact: '555 0134' }
+
+  it('calls the headline a name and never an event title', () => {
+    const p = flyerPrompt(t, fields, front)
+    expect(p).toMatch(/business card/i)
+    expect(p).toMatch(/PERSON'S NAME/)
+    expect(p).not.toMatch(/LARGE MAIN TITLE/)
+    expect(p).not.toMatch(/portrait poster|wide banner/)
+  })
+
+  it('tells the model this is flat artwork, not a photo of a card', () => {
+    // Left alone, image models render a card lying on a desk with a shadow,
+    // which cannot be sent to a printer.
+    expect(flyerPrompt(t, fields, front)).toMatch(/not a mockup/i)
+  })
+
+  it('asks the back to stay nearly empty', () => {
+    const p = flyerPrompt(t, fields, back)
+    expect(p).toMatch(/BACK/)
+    expect(p).toMatch(/at most two short pieces of text/)
+  })
+
+  it('is generated big enough to print, despite being a small card', () => {
+    // 3.5x2in at 300dpi is 0.63 MP — under the API's floor. apiSize must scale
+    // the REQUEST up; the route scales the result back down for print.
+    const a = apiSize(front)
+    expect(a.w * a.h).toBeGreaterThanOrEqual(1_000_000)
+    expect(a.banded).toBe(false)
   })
 })

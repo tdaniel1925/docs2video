@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import OpenAI, { toFile } from 'openai'
 import { createClient } from '../../_lib/supabase/server'
+import { createAdminClient } from '../../_lib/supabase/admin'
+import { checkCredits, deductCredits, addTopupCredits, costForUser } from '../../_lib/credits'
 import { FLYER_TEMPLATES, FLYER_SIZES, flyerPrompt, apiSize } from '../../_lib/flyer-engine'
 import type { FlyerFields, PhotoRole } from '../../_lib/flyer-engine'
 
@@ -40,6 +42,13 @@ export async function POST(req: Request) {
     note?: string
     /** The customer's own photographs, as data URLs, with what each one is. */
     photos?: { dataUrl: string; role: PhotoRole }[]
+    /** Which press of Make this belongs to, so the history groups correctly.
+     *  Minted by the browser: the page fires one request per size and they all
+     *  have to land in the same round. */
+    roundId?: string
+    /** The conversation as it stood when Make was pressed. Stored once per
+     *  round so reopening the page reads like the conversation it was. */
+    messages?: { role: string; text: string }[]
   } | null
 
   const template = FLYER_TEMPLATES.find((t) => t.id === body?.templateId) ?? FLYER_TEMPLATES[0]
@@ -49,6 +58,47 @@ export async function POST(req: Request) {
 
   const fields = body?.fields ?? {}
   const note = String(body?.note ?? '').trim().slice(0, 400)
+
+  // WHAT THIS COSTS. Charged per design, because each one is a separate
+  // generation with its own real cost — ticking four sizes is four designs.
+  // This whole feature used to be free, which was not a pricing decision so
+  // much as an oversight.
+  const unit = costForUser('flyer', user.id)
+  const check = await checkCredits(user.id, unit * sizes.length)
+  if (!check.allowed) {
+    return NextResponse.json({
+      error: `Not enough credits. ${sizes.length} design${sizes.length === 1 ? '' : 's'} costs ${(unit * sizes.length).toLocaleString()} credits and you have ${check.remaining.toLocaleString()}.`,
+      needed: unit * sizes.length, remaining: check.remaining, unit,
+    }, { status: 402 })
+  }
+
+  // The round groups every size from one press of Make. The browser mints the
+  // id so the parallel requests agree on it; ownership is checked here so a
+  // guessed id cannot attach designs to somebody else's history.
+  const admin = createAdminClient()
+  let roundId = /^[0-9a-f-]{36}$/i.test(String(body?.roundId ?? '')) ? String(body!.roundId) : null
+  if (roundId) {
+    const { data: existing } = await admin
+      .from('flyer_rounds').select('user_id').eq('id', roundId).maybeSingle()
+    if (existing && existing.user_id !== user.id) {
+      return NextResponse.json({ error: 'Not your design' }, { status: 403 })
+    }
+    if (!existing) {
+      const { error: roundErr } = await admin.from('flyer_rounds').insert({
+        id: roundId, user_id: user.id, template_id: template.id,
+        fields, note: note || null,
+        messages: (body?.messages ?? []).slice(-40),
+      })
+      // If the round cannot be recorded — most likely because the migration
+      // has not been run on this environment — generate anyway but skip the
+      // whole save path. Uploading files that nothing will ever reference just
+      // fills the bucket with rubbish.
+      if (roundErr) {
+        console.error('[flyer] history unavailable, generating without saving:', roundErr.message)
+        roundId = null
+      }
+    }
+  }
 
   // The customer's own photographs. Capped at three: past that the model starts
   // dropping one silently, which is worse than refusing a fourth up front.
@@ -80,6 +130,28 @@ export async function POST(req: Request) {
 
   const one = async (size: typeof FLYER_SIZES[number]) => {
     const prompt = flyerPrompt(template, fields, size, roles) + (note ? `\n\nALSO: ${note}` : '')
+
+    // Charge BEFORE generating, refund if it fails — the same order the video
+    // pipeline uses. Charging afterwards would let a hammered page run several
+    // generations against a balance that only covered one.
+    if (!(await deductCredits(user.id, unit, 'flyer', undefined, `Flyer — ${size.label}`))) {
+      return { sizeId: size.id, label: size.label, error: 'Not enough credits' }
+    }
+    // Put the credits back for THIS design only. Deliberately not
+    // refundVideoCredits: that one writes to the videos table and keys off a
+    // video id, and passing a non-video key there silently swallows the refund.
+    const refund = async () => {
+      try {
+        await addTopupCredits(user.id, unit, `refund:flyer:${roundId ?? 'adhoc'}:${size.id}`, {
+          action: 'refund_flyer',
+          idempotencyKey: `refund:flyer:${roundId ?? Date.now()}:${size.id}`,
+        })
+      } catch (e) {
+        // A failed refund must be findable later — it is money.
+        console.error(`[flyer] REFUND FAILED user=${user.id} size=${size.id} amount=${unit}`, e)
+      }
+    }
+
     try {
       // Ask for THIS size's own shape. The API takes any dimensions divisible
       // by 16 up to 3:1 and about 4 MP, so almost everything is generated
@@ -97,7 +169,7 @@ export async function POST(req: Request) {
             model: MODEL, prompt, size: apiSize(size).size as '1024x1024', quality: 'high', n: 1,
           })
       const b64 = res.data?.[0]?.b64_json
-      if (!b64) return { sizeId: size.id, label: size.label, error: 'no image returned' }
+      if (!b64) { await refund(); return { sizeId: size.id, label: size.label, error: 'no image returned' } }
 
       const sharp = (await import('sharp')).default
       // Print comes out at 300 dpi — the size the printer asked for, not half
@@ -120,17 +192,56 @@ export async function POST(req: Request) {
         .png()
         .toBuffer()
 
+      // KEEP IT. Until now a design existed only in the tab that made it —
+      // pressing Make again wiped the last batch and a refresh lost the lot.
+      // A save failure is logged but does NOT fail the design: the customer
+      // paid for an image and it is right there in the response.
+      let designId: string | null = null
+      if (roundId) {
+        try {
+          const path = `${user.id}/flyers/${roundId}/${size.id}.png`
+          const { error: upErr } = await admin.storage
+            .from('creation-assets')
+            .upload(path, png, { contentType: 'image/png', upsert: true })
+          if (upErr) throw upErr
+          const { data: row } = await admin.from('flyer_designs').insert({
+            round_id: roundId, user_id: user.id, size_id: size.id, label: size.label,
+            width: targetW, height: targetH, image_path: path, credits: unit,
+          }).select('id').single()
+          designId = row?.id ?? null
+
+          // Also list it in the shared library, the way the old flyer wizard
+          // did. Without this, everything made before today shows up under My
+          // Creations and everything made after it silently does not.
+          //
+          // The address stored is our own permanent one, NOT a signed link:
+          // signed links expire, and a library full of thumbnails that work
+          // today and break in a year is worse than none.
+          if (designId) {
+            const href = `/api/flyer-file/${designId}`
+            await admin.from('creations').insert({
+              user_id: user.id, type: 'flyer',
+              title: `${fields.headline || 'Flyer'} — ${size.label}`,
+              thumbnail_url: href, file_url: href,
+            })
+          }
+        } catch (e) {
+          console.error(`[flyer] could not save design user=${user.id} size=${size.id}`, e)
+        }
+      }
+
       return {
-        sizeId: size.id, label: size.label, w: targetW, h: targetH,
+        sizeId: size.id, label: size.label, w: targetW, h: targetH, designId,
         png: `data:image/png;base64,${png.toString('base64')}`,
       }
     } catch (err) {
+      await refund()
       return { sizeId: size.id, label: size.label, error: err instanceof Error ? err.message.slice(0, 160) : 'failed' }
     }
   }
 
   const all = await Promise.all(sizes.map(one))
-  const images = all.filter((r) => 'png' in r) as { sizeId: string; label: string; w: number; h: number; png: string }[]
+  const images = all.filter((r) => 'png' in r) as { sizeId: string; label: string; w: number; h: number; png: string; designId: string | null }[]
   const failed = all.filter((r) => 'error' in r) as { label: string; error: string }[]
 
   if (!images.length) {
@@ -138,5 +249,5 @@ export async function POST(req: Request) {
     // was a billing state or a content refusal.
     return NextResponse.json({ error: failed[0]?.error || 'Generation failed', failed }, { status: 502 })
   }
-  return NextResponse.json({ images, ...(failed.length ? { failed } : {}), model: MODEL })
+  return NextResponse.json({ images, ...(failed.length ? { failed } : {}), model: MODEL, charged: unit * images.length })
 }

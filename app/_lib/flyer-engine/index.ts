@@ -25,7 +25,7 @@
 export type FlyerSize = {
   id: string
   label: string
-  group: 'print' | 'social' | 'banner'
+  group: 'print' | 'social' | 'banner' | 'card'
   w: number
   h: number
   unit: 'in' | 'px'
@@ -45,6 +45,12 @@ export const FLYER_SIZES: FlyerSize[] = [
   { id: 'yt-thumb', label: 'YouTube thumbnail 1280 × 720', group: 'banner', w: 1280, h: 720, unit: 'px' },
   { id: 'x-header', label: 'X / Twitter header 1500 × 500', group: 'banner', w: 1500, h: 500, unit: 'px' },
   { id: 'li-banner', label: 'LinkedIn banner 1584 × 396', group: 'banner', w: 1584, h: 396, unit: 'px' },
+  // Standard UK/US business card. Small enough that the pixel FLOOR applies
+  // rather than the ceiling — apiSize scales the request up to the API's
+  // minimum and the result is scaled back down to 1050x600 for print, which is
+  // why a card comes out unusually crisp.
+  { id: 'biz-card-front', label: 'Business card — front 3.5 × 2 in', group: 'card', w: 3.5, h: 2, unit: 'in' },
+  { id: 'biz-card-back', label: 'Business card — back 3.5 × 2 in', group: 'card', w: 3.5, h: 2, unit: 'in' },
 ]
 
 // THE REAL LIMITS, measured against the API rather than assumed.
@@ -266,21 +272,42 @@ export function flyerPrompt(
   // a slightly narrower band means the real trim lands in empty space.
   const bandPct = Math.round((3 / ratio) * 88)
 
+  // A BUSINESS CARD IS NOT A SMALL POSTER. The same fields mean different
+  // things on one — the headline is a person's name, not an event — and a card
+  // laid out like a flyer is unreadable at 3.5 inches. So the labels change and
+  // the restraint below is spelled out, rather than hoping the model infers it
+  // from the dimensions.
+  const card = size.group === 'card'
+  const cardBack = size.id === 'biz-card-back'
+
   const lines: string[] = []
-  if (f.eyebrow) lines.push(`- Small line above the title: "${f.eyebrow}"`)
-  if (f.headline) lines.push(`- LARGE MAIN TITLE: "${f.headline}"`)
-  if (f.subhead) lines.push(`- Supporting line under the title: "${f.subhead}"`)
-  const when = [f.date, f.time].filter(Boolean).join(' · ')
-  if (when) lines.push(`- Date and time line: "${when}"`)
-  if (f.venue) lines.push(`- Venue name: "${f.venue}"`)
-  if (f.address) lines.push(`- Address, small: "${f.address}"`)
-  if (f.price) lines.push(`- Price: "${f.price}"`)
-  for (const d of (f.details ?? []).slice(0, 4)) lines.push(`- Detail line: "${d}"`)
-  if (f.cta) lines.push(`- Call to action bar: "${f.cta}"`)
-  if (f.contact) lines.push(`- Contact line at the bottom, small: "${f.contact}"`)
+  if (card) {
+    if (f.eyebrow) lines.push(`- Small line above the name: "${f.eyebrow}"`)
+    if (f.headline) lines.push(`- THE PERSON'S NAME, the largest text on the card: "${f.headline}"`)
+    if (f.subhead) lines.push(`- Their job title, directly under the name, smaller: "${f.subhead}"`)
+    if (f.venue) lines.push(`- Company name: "${f.venue}"`)
+    if (f.address) lines.push(`- Address, small: "${f.address}"`)
+    for (const d of (f.details ?? []).slice(0, 4)) lines.push(`- Contact detail line, small: "${d}"`)
+    if (f.cta) lines.push(`- Short tagline: "${f.cta}"`)
+    if (f.contact) lines.push(`- Phone, email and website line, small but perfectly legible: "${f.contact}"`)
+  } else {
+    if (f.eyebrow) lines.push(`- Small line above the title: "${f.eyebrow}"`)
+    if (f.headline) lines.push(`- LARGE MAIN TITLE: "${f.headline}"`)
+    if (f.subhead) lines.push(`- Supporting line under the title: "${f.subhead}"`)
+    const when = [f.date, f.time].filter(Boolean).join(' · ')
+    if (when) lines.push(`- Date and time line: "${when}"`)
+    if (f.venue) lines.push(`- Venue name: "${f.venue}"`)
+    if (f.address) lines.push(`- Address, small: "${f.address}"`)
+    if (f.price) lines.push(`- Price: "${f.price}"`)
+    for (const d of (f.details ?? []).slice(0, 4)) lines.push(`- Detail line: "${d}"`)
+    if (f.cta) lines.push(`- Call to action bar: "${f.cta}"`)
+    if (f.contact) lines.push(`- Contact line at the bottom, small: "${f.contact}"`)
+  }
 
   return [
-    `A professional ${wide ? 'wide banner' : square ? 'square social media' : 'portrait poster'} advertisement, print quality, designed by a graphic designer.`,
+    card
+      ? `A professional business card design — the flat printed ${cardBack ? 'BACK' : 'FRONT'} face of a standard 3.5 x 2 inch card, print quality, designed by a graphic designer. Landscape orientation. Not a photograph of a card, not a mockup, no hand, no desk, no shadow, no stack of cards, no rounded-corner outline drawn onto the artwork — just the flat artwork itself, full bleed.`
+      : `A professional ${wide ? 'wide banner' : square ? 'square social media' : 'portrait poster'} advertisement, print quality, designed by a graphic designer.`,
     '',
     `DESIGN STYLE: ${t.scene}`,
     '',
@@ -321,7 +348,13 @@ export function flyerPrompt(
     //
     // The earlier version cropped a poster composed for a poster, and the
     // Facebook cover lost 43% of its height along with the text in it.
-    `LAYOUT: professional composition with clear visual hierarchy — the main title dominant, supporting details grouped and easy to scan. ${
+    card
+      ? `LAYOUT: ${
+          cardBack
+            ? 'This is the BACK of the card and it must be RESTRAINED — a single strong element on a clean field. Typically the company mark or monogram centred, or a bold flat colour with one short line. Use at most two short pieces of text no matter how many are listed above; drop the rest. Vast empty space is correct here and looks expensive.'
+            : 'This is the FRONT of the card. The person\'s name reads first and largest, the job title sits quietly beneath it, and the contact details group together in one corner or along one edge at a small but perfectly legible size. Aim for THREE groups on the card at most.'
+        } A business card is held at arm\'s length: keep it calm, leave real breathing room, and use far fewer elements than a flyer would. No small print smaller than about 6% of the card\'s height, or it will not survive printing.`
+      : `LAYOUT: professional composition with clear visual hierarchy — the main title dominant, supporting details grouped and easy to scan. ${
       ultrawide
         ? `THIS IS A WIDE LETTERBOX BANNER. The finished banner is ONLY the central horizontal band of this image — roughly the middle ${bandPct}% of its height. Design the ENTIRE banner inside that central band: all imagery, all text, edge to edge across the full width. Above and below that band, render nothing but plain flat dark background — no imagery, no text, no detail whatsoever. Lay the band out horizontally with the text grouped to one side and the imagery flowing across the rest.`
         : wide
