@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import OpenAI, { toFile } from 'openai'
 import { createClient } from '../../_lib/supabase/server'
-import { FLYER_TEMPLATES, FLYER_SIZES, flyerPrompt, apiSize } from '../../_lib/flyer'
-import type { FlyerFields, PhotoRole } from '../../_lib/flyer'
+import { FLYER_TEMPLATES, FLYER_SIZES, flyerPrompt, apiSize } from '../../_lib/flyer-engine'
+import type { FlyerFields, PhotoRole } from '../../_lib/flyer-engine'
 
 // =============================================================================
 // Generate complete flyers — artwork AND lettering — at every ticked size.

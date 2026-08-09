@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   FLYER_TEMPLATES, FLYER_SIZES, PHOTO_ROLES, thumbUrl,
   type FlyerFields, type PhotoRole,
-} from '../../_lib/flyer'
+} from '../../_lib/flyer-engine'
 
 type Msg = { role: 'user' | 'assistant'; text: string }
 type Made = { sizeId: string; label: string; w: number; h: number; png: string }

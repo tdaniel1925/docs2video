@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../_lib/supabase/server'
-import { FLYER_TEMPLATES, FLYER_SIZES, type FlyerFields } from '../../_lib/flyer'
+import { FLYER_TEMPLATES, FLYER_SIZES, type FlyerFields } from '../../_lib/flyer-engine'
 
 // =============================================================================
 // The conversation that fills in a flyer — PROOF OF CONCEPT.
