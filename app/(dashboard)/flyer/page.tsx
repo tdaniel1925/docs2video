@@ -223,39 +223,100 @@ export default function FlyerMakerPage() {
     setItems((p) => [...p, { kind: 'msg', role, text }])
 
   // ── talking to it ──────────────────────────────────────────────────────
-  // Uses the browser's own speech recognition. It is not in every browser, so
-  // the button only appears where it actually works — a mic that does nothing
-  // when pressed is worse than no mic.
+  //
+  // EVERY FAILURE HERE MUST BE VISIBLE. The first version swallowed all of
+  // them — an unsupported browser hid the button entirely, a denied microphone
+  // reset the state and said nothing, and a thrown start() was caught and
+  // discarded. The result was a button that did nothing with no way to find
+  // out why, which is exactly what got reported.
   const recogRef = useRef<any>(null)
-  const [micAvailable, setMicAvailable] = useState(false)
+  const [micSupported, setMicSupported] = useState(true)
+  const heardAnythingRef = useRef(false)
+
   useEffect(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SR) return
-    setMicAvailable(true)
+    if (!SR) { setMicSupported(false); return }
     const r = new SR()
-    r.lang = 'en-US'
+    r.lang = navigator.language || 'en-US'
     r.continuous = true
     r.interimResults = false
+
     r.onresult = (e: any) => {
-      // Append rather than replace: dictation comes in chunks and each one
+      // Append rather than replace: dictation arrives in chunks and each one
       // should add to the sentence, not wipe what came before.
       let heard = ''
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) heard += e.results[i][0].transcript
       }
-      if (heard.trim()) setInput((p) => (p ? `${p.trim()} ${heard.trim()}` : heard.trim()))
+      if (heard.trim()) {
+        heardAnythingRef.current = true
+        setInput((p) => (p ? `${p.trim()} ${heard.trim()}` : heard.trim()))
+      }
     }
-    r.onend = () => setListening(false)
-    r.onerror = () => setListening(false)
+
+    r.onerror = (e: any) => {
+      setListening(false)
+      // Say WHICH thing went wrong. "It didn't work" sends someone into their
+      // settings at random.
+      const why: Record<string, string> = {
+        'not-allowed': 'Your browser is blocking the microphone for this site. Click the padlock in the address bar, allow the microphone, then try again.',
+        'service-not-allowed': 'Your browser blocked speech recognition for this site. Check the padlock in the address bar.',
+        'no-speech': 'I didn\'t hear anything. Check the right microphone is selected and try again.',
+        'audio-capture': 'No microphone found. Plug one in or check it isn\'t in use by another app.',
+        'network': 'Speech recognition needs the internet and could not reach the service. Type it instead, or try again.',
+        'aborted': '',
+      }
+      const msg = why[e?.error] ?? `The microphone stopped: ${e?.error || 'unknown reason'}. You can type it instead.`
+      if (msg) setErr(msg)
+    }
+
+    r.onend = () => {
+      setListening(false)
+      // Ended cleanly having heard nothing at all — usually a muted mic or the
+      // wrong input device. Silence here is the confusing case.
+      if (!heardAnythingRef.current) {
+        setErr((prev) => prev || 'I didn\'t catch anything. Check your microphone is on and is the one your browser is using.')
+      }
+    }
+
     recogRef.current = r
-    return () => { try { r.stop() } catch { /* already stopped */ } }
+    return () => { try { r.abort() } catch { /* already stopped */ } }
   }, [])
 
-  const toggleMic = () => {
+  const toggleMic = async () => {
     const r = recogRef.current
-    if (!r) return
+    if (!r) {
+      setErr('This browser can\'t do speech. Chrome or Edge on a computer can — or just type it.')
+      return
+    }
     if (listening) { try { r.stop() } catch { /* already stopped */ } setListening(false); return }
-    try { r.start(); setListening(true) } catch { setListening(false) }
+
+    setErr('')
+    heardAnythingRef.current = false
+
+    // Ask for the microphone EXPLICITLY first. Left to the speech API the
+    // prompt sometimes never appears — the call just fails — and then there is
+    // nothing on screen to act on. Doing it here means the browser's own
+    // permission dialog shows up, and a refusal is reportable.
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      // Release it immediately; speech recognition opens its own.
+      stream.getTracks().forEach((t) => t.stop())
+    } catch {
+      setErr('I need permission to use your microphone. Click the padlock in the address bar, allow the microphone, then press the mic again.')
+      return
+    }
+
+    try {
+      r.start()
+      setListening(true)
+    } catch (e) {
+      // start() throws if it is already running. Stop and let the user retry
+      // rather than leaving a button that appears dead.
+      try { r.abort() } catch { /* fine */ }
+      setListening(false)
+      setErr('The microphone was already busy — press it once more.')
+    }
   }
 
   /** Open a saved project chat. */
@@ -672,19 +733,24 @@ export default function FlyerMakerPage() {
               placeholder={listening ? 'Listening… speak now' : 'Describe it — "doors at 9, $20 cover, DJ Sable headlining"'}
               style={{ flex: 1, padding: '11px 13px', borderRadius: 8, border: `1px solid ${listening ? INK : LINE}`, font: 'inherit', fontSize: 15 }} />
 
-            {micAvailable && (
-              <button onClick={toggleMic}
-                title={listening ? 'Stop listening' : 'Talk instead of typing — say what the design is for'}
-                aria-label={listening ? 'Stop listening' : 'Dictate'}
-                style={{
-                  ...plain, padding: '10px 12px',
-                  background: listening ? INK : 'white',
-                  color: listening ? 'white' : INK,
-                  border: listening ? '1px solid transparent' : plain.border,
-                }}>
-                {listening ? '● Stop' : '🎤'}
-              </button>
-            )}
+            {/* ALWAYS SHOWN, even where it cannot work. Hiding it left anyone
+                on an unsupported browser with no button and no explanation —
+                indistinguishable from a broken one. */}
+            <button onClick={toggleMic} disabled={!micSupported}
+              title={!micSupported
+                ? 'This browser can\'t do speech — Chrome or Edge on a computer can. Type it instead.'
+                : listening ? 'Stop listening' : 'Talk instead of typing — say what the design is for'}
+              aria-label={listening ? 'Stop listening' : 'Dictate'}
+              style={{
+                ...plain, padding: '10px 12px',
+                background: listening ? INK : 'white',
+                color: listening ? 'white' : INK,
+                border: listening ? '1px solid transparent' : plain.border,
+                opacity: micSupported ? 1 : 0.4,
+                cursor: micSupported ? 'pointer' : 'not-allowed',
+              }}>
+              {listening ? '● Stop' : '🎤'}
+            </button>
 
             {/* "Preview details" rather than "Send": pressing this does not
                 make anything or cost anything — it reads what you typed back
