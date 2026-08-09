@@ -49,18 +49,23 @@ try {
   const mic = page.getByRole('button', { name: /Dictate|Stop listening/ })
   check(await mic.count() > 0, 'the mic button is on the page even when it may not work')
 
-  const before = await page.locator('body').innerText()
   await mic.click()
   await page.waitForTimeout(4000)
   const after = await page.locator('body').innerText()
 
   const nowListening = /Listening…|● Stop/.test(after)
-  const said = after.replace(before, '').trim()
-  const explained = /microphone|speech|didn't (hear|catch)|permission|padlock|browser can/i.test(after)
+  // Read the message OUT OF THE ERROR BAR rather than diffing the page text.
+  // An earlier version subtracted the old body from the new one and reported
+  // the first line of the leftovers, which was "Dashboard" — a pass with a
+  // meaningless explanation is one bad day away from a pass for the wrong
+  // reason entirely.
+  const shown = (await page.locator('div', { hasText: /microphone|speech recognition|didn't (hear|catch)/i })
+    .last().innerText().catch(() => '')) || ''
+  const explained = /microphone|speech|didn't (hear|catch)|padlock|browser can/i.test(shown)
 
   // The whole point: pressing it must do ONE of these, never neither.
   check(nowListening || explained, 'pressing it either starts listening or explains why not',
-    nowListening ? 'started listening' : (said.split('\n').find((l) => l.trim()) || '').slice(0, 110))
+    nowListening ? 'started listening' : shown.split('\n').find((l) => l.trim())?.slice(0, 120) || 'NOTHING SHOWN')
 
   await page.screenshot({ path: 'check-mic.png', fullPage: false })
   console.log('  saved check-mic.png')
