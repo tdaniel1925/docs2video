@@ -99,6 +99,14 @@ try {
   const afterChat = await page.locator('body').innerText()
   check(/Dana|Okafor|Got it|card/i.test(afterChat), 'the chat understood the job')
   check(/What goes on the design/i.test(afterChat), 'it shows what it captured')
+
+  // THE ONE THAT CAUGHT A REAL BUG. The first live run produced a technically
+  // flawless business card for an estate agent set in a nightclub, because the
+  // style stayed on the default club night and the chat's suggestion was
+  // discarded. A broker's card must not be designed as a club flyer.
+  const styleChip = (await page.getByRole('button', { name: /🎨/ }).textContent()) ?? ''
+  check(!/R&B Night|Neon Club|Ladies Night|Retro Night|Halloween|Tropical/i.test(styleChip),
+    'the look suits the job rather than staying on the club-night default', styleChip.trim())
   await page.screenshot({ path: 'smoke-flyer-1-brief.png', fullPage: true })
 
   // ── make one design ────────────────────────────────────────────────────
@@ -106,6 +114,15 @@ try {
   const makeLabel = (await makeBtn.textContent().catch(() => '')) ?? ''
   check(/\d+\s*cr/i.test(makeLabel), 'the Make button quotes the cost', makeLabel.trim())
   check(!(await makeBtn.isDisabled()), 'Make is enabled once the brief is filled')
+
+  // COUNT WHAT IS ALREADY ON SCREEN FIRST. Saved history is restored into the
+  // same thread, so "a design exists" is true the moment the page loads. An
+  // earlier version of this script waited for `figure img`, matched a design
+  // from a PREVIOUS run, declared success in 22 seconds — and then reloaded
+  // the page, killing the generation that was still in flight. It reported a
+  // pass for work that never finished.
+  const before = await page.locator('figure img').count()
+  log(`  … ${before} design(s) already restored from history; waiting for one MORE`)
 
   await makeBtn.click()
   const t0 = Date.now()
@@ -116,16 +133,20 @@ try {
     (mid.match(/\d+ of \d+[^\n]*/) ?? [''])[0])
   await page.screenshot({ path: 'smoke-flyer-2-progress.png' })
 
-  await page.waitForSelector('figure img', { timeout: 300000 }).catch(() => {})
+  await page.waitForFunction(
+    (n) => document.querySelectorAll('figure img').length > n,
+    before, { timeout: 300000 },
+  ).catch(() => {})
   await page.waitForTimeout(2000)
-  const made = await page.locator('figure img').count()
-  check(made > 0, 'a design was produced', `${made} in ${Math.round((Date.now() - t0) / 1000)}s`)
+  const made = (await page.locator('figure img').count()) - before
+  check(made > 0, 'a NEW design was produced', `${made} in ${Math.round((Date.now() - t0) / 1000)}s`)
   await page.screenshot({ path: 'smoke-flyer-3-result.png', fullPage: true })
 
-  // Save the ACTUAL design. A count of tiles says nothing about whether the
-  // card is spelled right or clipped at the edge.
-  if (made) {
-    const src = await page.locator('figure img').first().getAttribute('src')
+  // Save the ACTUAL design — the newest one, not the first, which would be the
+  // oldest restored from history. A count of tiles says nothing about whether
+  // the card is spelled right or clipped at the edge.
+  if (made > 0) {
+    const src = await page.locator('figure img').last().getAttribute('src')
     if (src?.startsWith('data:image')) {
       writeFileSync('smoke-flyer-design.png', Buffer.from(src.split(',')[1], 'base64'))
       log('    saved smoke-flyer-design.png')
@@ -133,8 +154,8 @@ try {
   }
 
   // Full-screen viewer — the whole reason you can proofread a phone number.
-  if (made) {
-    await page.locator('figure button').first().click()
+  if (made > 0) {
+    await page.locator('figure button').last().click()
     await page.waitForTimeout(1200)
     const viewerImg = await page.locator('div[style*="position: fixed"] img').count()
     check(viewerImg > 0, 'clicking a design opens it full screen')
@@ -146,8 +167,11 @@ try {
   // ── THE POINT: is it still there tomorrow? ─────────────────────────────
   await page.reload({ waitUntil: 'networkidle' })
   await page.waitForTimeout(6000)
+  // The design just made must be among them — not merely "something is there",
+  // which was already true before this run started.
   const afterReload = await page.locator('figure img').count()
-  check(afterReload > 0, 'the design SURVIVES A REFRESH', `${afterReload} restored from history`)
+  check(afterReload > before, 'the NEW design SURVIVES A REFRESH',
+    `${afterReload} restored, was ${before} before this run`)
   const body2 = await page.locator('body').innerText()
   check(/Picking up where you left off/i.test(body2), 'the saved thread is restored')
   await page.screenshot({ path: 'smoke-flyer-5-after-reload.png', fullPage: true })

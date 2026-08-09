@@ -38,6 +38,12 @@ const GUIDES: HelpGuide[] = [
     icon: '🎥',
   },
   {
+    href: '/help/flyers',
+    title: 'Flyers, Ads & Business Cards',
+    description: 'Describe the job in plain English and get finished print-ready designs — artwork and words together — in every size you tick, including business cards.',
+    icon: '📄',
+  },
+  {
     href: '/help/sharing-videos',
     title: 'Sharing & the Client Page',
     description: 'The branded share page: personalized welcome banner, a note to your client, download options, source-PDF download, booking and payment.',

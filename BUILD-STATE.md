@@ -379,3 +379,68 @@ Full-codebase review applied:
 - All inline border-radius values >10px clamped to 10px app-wide (circles via '50%' kept)
 - `generating` page surfaces persistent polling failures instead of spinning forever
 - Removed unauthenticated test scaffolding: `/api/test-{seedance,seedance-full,kenburns,flipbook}` + their public pages (they called paid AI APIs with no auth). `demo-video` is already disabled (503); `try-demo` has IP rate limiting; `demo-slide-gpt`/`template-demo` are authed.
+
+## Flyer maker rebuilt — one tool, chat-first, paid (2026-08-09)
+
+Three problems fixed together.
+
+**There were two flyer makers.** `/flyers` (Gemini wizard, 4 steps) was the one
+linked in `Header.tsx`, so it is what every customer used. `/flyer` (chat-driven,
+gpt-image-2, 15 styles, photo upload, per-size native aspect ratios) was
+unlinked and reachable only by typing the URL. The good one was invisible.
+- Menu now points at `/flyer`; `/flyers` is a `redirect()` stub (bookmarks).
+- `app/api/generate-flyer/route.ts` DELETED. Flyers it made are untouched —
+  they live in the `videos` bucket and are listed in `creations`.
+
+**The new maker was free.** It never called `deductCredits`. Now charges
+`costForUser('flyer')` (200, or 100 grandfathered) PER DESIGN, checked up front
+and quoted on the button. Failures refund via `addTopupCredits` with
+`videoId` null — NOT `refundVideoCredits`, which keys off a video id and would
+silently swallow it (see the credit-refund UUID gotcha).
+
+**Work disappeared.** Make wiped the previous batch; refresh lost everything.
+
+### New
+| Thing | Purpose |
+|---|---|
+| `supabase/migrations/20260809_flyer_designs.sql` | `flyer_rounds` + `flyer_designs`, owner RLS. **Run by hand — applied to prod 2026-08-09** |
+| `GET /api/flyer-history` | Rebuilds the thread; returns `unit` (price) + `balance`; degrades to empty if the tables are missing |
+| `GET /api/flyer-file/[id]` | Permanent, ownership-checked address for a design; mints a fresh signed URL. Stored in `creations` so library thumbnails never expire |
+| `app/_lib/flyer-engine/` | The engine, moved out of `_lib/flyer.ts`. Imports NOTHING; `__tests__/portable.test.ts` fails if that changes |
+| `app/(dashboard)/help/flyers/` | Help article + help-index entry |
+| `scripts/smoke-flyer.mjs` | Signed-in end-to-end run |
+| `scripts/check-flyer-schema.mjs` | Is prod actually ready |
+
+Images go to the PRIVATE `creation-assets` bucket at
+`{user_id}/flyers/{roundId}/{sizeId}.png` — a flyer can carry a client's name,
+address and phone number, so no public URLs.
+
+### Business cards
+`biz-card-front` / `biz-card-back` (3.5×2in). Small enough that `apiSize` hits
+the pixel FLOOR and scales the request up, then the route scales back to
+1050×600 for print. `flyerPrompt` branches: headline is the person's NAME, the
+back is kept near-empty, and it is told this is flat artwork not a photo of a
+card on a desk.
+
+### The style bug worth remembering
+`/api/flyer-chat` has ALWAYS returned a suggested `layoutId` and the page threw
+it away. A live test asked for an estate agent's business card and got a
+technically flawless card set in a nightclub, because the default style is a
+club night and nothing ever moved it. The page now applies the suggestion — for
+style AND size — but only while the customer is still on the defaults; once
+they pick for themselves their choice wins. Anything changed on their behalf is
+said out loud in the reply.
+
+### Two checkers that lied (same failure, twice in one session)
+- `check-flyer-schema.mjs` used `select(..., {head:true})`, which returns clean
+  for a table that does not exist. It passed `table_that_cannot_possibly_exist_xyz`.
+  Ask for a real row instead — a missing relation then fails with PGRST205.
+- `smoke-flyer.mjs` waited for `figure img`, which matched a design RESTORED FROM
+  HISTORY, reported success in 22s, then reloaded and killed the generation still
+  in flight. It now counts what is on screen first and waits for one MORE.
+
+Verified live 2026-08-09: redirect, price shown, thumbnails, cards offered,
+style auto-picked (Luxury Listing), design produced in 86s, opens full screen,
+survives a refresh, saved to the library. Charging proven via the
+`admin_bypass:flyer` ledger row — this account is admin, so the balance itself
+cannot demonstrate the deduction; that still needs a paying account.
