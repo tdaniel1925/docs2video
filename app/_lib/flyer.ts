@@ -14,9 +14,9 @@
 // stylesheet any more.
 //
 // TWO THINGS THIS COSTS, both worth knowing:
-//   - Resolution caps at 1536px on the long edge. Perfect for social and fine
-//     for a handout; a full-bleed 8.5x11 at 300dpi would want 3300px, so large
-//     print gets upscaled and softens. Stated on the page, not hidden.
+//   - Every size is generated at its OWN aspect ratio (see apiSize) so nothing
+//     is cropped, but a pixel budget of about 4 MP caps the detail. Social and
+//     handouts are native; a full-bleed 11x17 wants 16 MP and gets upscaled.
 //   - Exact strings are the model's to get right. It is very good now, but a
 //     phone number or an unusual venue name should be READ before it goes to
 //     print. The page says so.
@@ -47,12 +47,68 @@ export const FLYER_SIZES: FlyerSize[] = [
   { id: 'li-banner', label: 'LinkedIn banner 1584 × 396', group: 'banner', w: 1584, h: 396, unit: 'px' },
 ]
 
-/** gpt-image only offers three shapes; everything else is cropped to fit. */
-export function nearestGptSize(s: FlyerSize): '1024x1024' | '1024x1536' | '1536x1024' {
-  const r = s.w / s.h
-  if (r > 1.15) return '1536x1024'
-  if (r < 0.87) return '1024x1536'
-  return '1024x1024'
+// THE REAL LIMITS, measured against the API rather than assumed.
+//
+// An earlier version of this file claimed gpt-image offered three fixed shapes
+// and everything else had to be cropped. That was wrong, and it made the wide
+// sizes far worse than they needed to be. Asking the API directly:
+//
+//   - any size works, provided BOTH dimensions divide by 16
+//   - the aspect ratio may not exceed 3:1 either way
+//   - the longest edge may not exceed 3840
+//   - and there is a pixel budget: 4.45 MP was accepted, 8.4 MP refused
+//
+// So almost every size here can be generated at its OWN aspect ratio, natively,
+// with no cropping at all. Only a 4:1 LinkedIn strip falls outside, and that
+// one only needs a gentle 25% trim from 3:1 instead of 63% from 3:2.
+const MAX_RATIO = 3
+const MAX_EDGE = 3840
+// Comfortably inside the observed ceiling — a rejected generation costs a whole
+// round trip, and the difference between 4.19 and 4.45 MP is invisible.
+const PIXEL_BUDGET = 4_190_000
+// There is a floor too — 1152x384 (0.44 MP) was refused as below minimum.
+const MIN_PIXELS = 1_100_000
+const PRINT_DPI = 300
+
+/** What to actually ask the API for, so the result needs no crop. */
+export function apiSize(s: FlyerSize): { size: string; w: number; h: number; banded: boolean } {
+  // What the user really wants, in pixels.
+  const wantW = s.unit === 'in' ? s.w * PRINT_DPI : s.w
+  const wantH = s.unit === 'in' ? s.h * PRINT_DPI : s.h
+
+  // Clamp the shape. Past 3:1 the API refuses, so the design is composed inside
+  // a 3:1 frame and trimmed to the strip — a far gentler cut than before.
+  const ratio = wantW / wantH
+  const banded = ratio > MAX_RATIO || ratio < 1 / MAX_RATIO
+  let r = Math.min(Math.max(ratio, 1 / MAX_RATIO), MAX_RATIO)
+
+  // Fit the pixel budget and the edge limit while holding that shape.
+  let w = Math.sqrt(PIXEL_BUDGET * r)
+  let h = w / r
+  const over = Math.max(w / MAX_EDGE, h / MAX_EDGE, 1)
+  w /= over; h /= over
+  // Don't generate more pixels than were asked for — a 4x4 handout needs
+  // nowhere near 4 MP. Skipped when banded, because there the generated frame
+  // is deliberately TALLER than the target: it gets trimmed down to the strip,
+  // and matching the target first shrank the LinkedIn request to 1152x384,
+  // which the API then refused for being under its minimum.
+  if (!banded) {
+    const down = Math.max(w / wantW, h / wantH, 1)
+    if (down > 1) { w /= down; h /= down }
+  }
+  // There is a floor as well as a ceiling.
+  const up = Math.sqrt(MIN_PIXELS / (w * h))
+  if (up > 1) { w *= up; h *= up }
+
+  // Both edges must divide by 16.
+  const snap = (n: number) => Math.max(256, Math.floor(n / 16) * 16)
+  let W = snap(w)
+  const H = snap(h)
+  // Rounding BOTH down can push the ratio up: the LinkedIn strip landed on
+  // 1184x384, which is 3.08:1, and the API refused it. Shave the long edge
+  // until the shape is legal — better here than a round trip later.
+  while (W / H > MAX_RATIO && W > 256) W -= 16
+  return { size: `${W}x${H}`, w: W, h: H, banded }
 }
 
 export type FlyerTemplate = {
@@ -175,12 +231,12 @@ export function flyerPrompt(t: FlyerTemplate, f: FlyerFields, size: FlyerSize): 
   // band inside that frame. bandPct is how much of the 3:2 frame's height the
   // finished banner occupies — 37% for a 4:1 LinkedIn strip, 57% for a
   // Facebook cover. The model is told the number so it designs to it.
-  const ultrawide = ratio > 1.62
+  const ultrawide = ratio > 3
   // Understate the band by 15%. The model fills whatever band it is given
   // edge to edge, so quoting the exact figure leaves zero margin — the first
   // 4:1 LinkedIn strip had its headline touching the top cut line. Asking for
   // a slightly narrower band means the real trim lands in empty space.
-  const bandPct = Math.round((1.5 / ratio) * 85)
+  const bandPct = Math.round((3 / ratio) * 88)
 
   const lines: string[] = []
   if (f.eyebrow) lines.push(`- Small line above the title: "${f.eyebrow}"`)
@@ -205,6 +261,16 @@ export function flyerPrompt(t: FlyerTemplate, f: FlyerFields, size: FlyerSize): 
       : 'TEXT: none — artwork only.',
     '',
     `TYPOGRAPHY: ${t.lettering} All text must be sharp, correctly spelled, properly kerned and clearly legible with strong contrast against whatever sits behind it.`,
+    '',
+    // SAFE MARGINS. Nothing in the prompt used to ask for these, so the model
+    // ran headlines flush to the edge and letters came back clipped — on print
+    // that is worse than it looks on screen, because trimming takes a few more
+    // millimetres off every side.
+    'SAFE MARGINS — THIS IS CRITICAL AND NON-NEGOTIABLE:',
+    '- Leave a clear, generous empty margin all the way around the design: at least 8% of the width on the left and right, and at least 6% of the height at the top and bottom.',
+    '- NO text, letter, number, logo, face or important detail may touch, overlap or sit near any edge of the image. Everything that matters must sit comfortably INSIDE that margin.',
+    '- Background imagery, colour and texture may run right to the edges. Only text and key subjects are held back.',
+    '- Nothing may be cut off, clipped or run out of frame. If the text does not fit, make the text smaller — never let it reach the edge.',
     '',
     // COMPOSE FOR THE FINAL SHAPE, don't crop a design that was made for a
     // different one. gpt-image offers three frames, so a 4:1 LinkedIn banner

@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '../../_lib/supabase/server'
-import { FLYER_TEMPLATES, FLYER_SIZES, flyerPrompt, nearestGptSize } from '../../_lib/flyer'
+import { FLYER_TEMPLATES, FLYER_SIZES, flyerPrompt, apiSize } from '../../_lib/flyer'
 import type { FlyerFields } from '../../_lib/flyer'
 
 // =============================================================================
 // Generate complete flyers — artwork AND lettering — at every ticked size.
 //
-// gpt-image only offers three shapes, so each target size is generated at the
-// nearest one and then cropped to the exact pixels. Cropping a flyer is risky
-// (it can eat the edge of a headline), so the prompt asks for generous margins
-// and wide formats are told to keep the text to one side.
+// Each size is generated at ITS OWN aspect ratio — the API takes any dimensions
+// divisible by 16 up to 3:1, so nothing is cropped. Only a 4:1 LinkedIn strip
+// falls outside that and is composed as a band inside 3:1, then trimmed 12%.
+
 //
 // EACH SIZE IS ITS OWN GENERATION, not one image stretched. A portrait poster
 // squashed into a 1500x500 header is unusable; asking for a banner gets a
@@ -51,33 +51,33 @@ export async function POST(req: Request) {
   const one = async (size: typeof FLYER_SIZES[number]) => {
     const prompt = flyerPrompt(template, fields, size) + (note ? `\n\nALSO: ${note}` : '')
     try {
+      // Ask for THIS size's own shape. The API takes any dimensions divisible
+      // by 16 up to 3:1 and about 4 MP, so almost everything is generated
+      // natively and never cropped — see apiSize for the measured limits.
       const res = await ai().images.generate({
-        model: MODEL, prompt, size: nearestGptSize(size), quality: 'high', n: 1,
+        model: MODEL, prompt, size: apiSize(size).size as '1024x1024', quality: 'high', n: 1,
       })
       const b64 = res.data?.[0]?.b64_json
       if (!b64) return { sizeId: size.id, label: size.label, error: 'no image returned' }
 
       const sharp = (await import('sharp')).default
-      const targetW = size.unit === 'in' ? Math.round(size.w * 150) : size.w
-      const targetH = size.unit === 'in' ? Math.round(size.h * 150) : size.h
+      // Print comes out at 300 dpi — the size the printer asked for, not half
+      // of it. The generation is capped by a pixel budget rather than by this,
+      // so a big poster is scaled up to its true dimensions.
+      const targetW = size.unit === 'in' ? Math.round(size.w * 300) : size.w
+      const targetH = size.unit === 'in' ? Math.round(size.h * 300) : size.h
       const src = Buffer.from(b64, 'base64')
 
-      // EVERY SIZE IS ITS OWN ORIGINAL DESIGN. Each was generated from a prompt
-      // written for its own shape, so this is only reconciling gpt-image's three
-      // available frames with the exact pixels asked for.
+      // EVERY SIZE IS ITS OWN ORIGINAL DESIGN, generated at its own aspect
+      // ratio. For all but one shape this resize is a pure scale — the aspect
+      // already matches, so not a pixel of the design is cut.
       //
-      // Ultrawide targets were composed as a BAND inside a 3:2 frame — the
-      // prompt told the model which band survives and to leave the rest empty —
-      // so trimming to that band removes only the blank margin it was asked to
-      // leave. Nothing designed is lost, and the result is a real horizontal
-      // layout rather than a poster with its head and feet cut off.
+      // The exception is the 4:1 LinkedIn strip, which exceeds the API's 3:1
+      // limit. That one is composed as a band inside a 3:1 frame, with the
+      // prompt naming the band and asking for empty space around it, so the
+      // trim takes only the margin it was told to leave.
       const png = await sharp(src)
-        .resize(targetW, targetH, {
-          fit: 'cover',
-          // Centre is right for the band, and right for everything else too —
-          // the portrait and square frames barely trim at all.
-          position: 'centre',
-        })
+        .resize(targetW, targetH, { fit: 'cover', position: 'centre' })
         .png()
         .toBuffer()
 
