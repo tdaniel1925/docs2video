@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../_lib/supabase/server'
-import { FLYER_LAYOUTS, FLYER_SIZES, type FlyerFields } from '../../_lib/flyer'
+import { FLYER_TEMPLATES, FLYER_SIZES, type FlyerFields } from '../../_lib/flyer'
 
 // =============================================================================
 // The conversation that fills in a flyer — PROOF OF CONCEPT.
@@ -56,7 +56,7 @@ Return ONLY a JSON object, no commentary and no markdown fence:
     "contact": string      // phone / website / handle
   },
   "sizeId": string,        // one of: ${FLYER_SIZES.map((s) => s.id).join(', ')}
-  "layoutId": string,      // one of: ${FLYER_LAYOUTS.map((l) => l.id).join(', ')}
+  "layoutId": string,      // one of: ${FLYER_TEMPLATES.map((t) => t.id).join(', ')}
   "subject": string,       // 1 sentence describing the ARTWORK to generate — a scene, no text in it
   "reply": string          // one short friendly line back to the user
 }
@@ -70,7 +70,7 @@ Rules:
 
   const context = [
     `Current fields: ${JSON.stringify(body?.fields ?? {})}`,
-    `Current size: ${body?.sizeId ?? 'letter'}   Current layout: ${body?.layoutId ?? 'bleed-bottom'}`,
+    `Current size: ${body?.sizeId ?? 'letter'}   Current layout: ${body?.layoutId ?? 'rnb'}`,
     ...(body?.history ?? []).slice(-6).map((h) => `${h.role}: ${h.text}`),
     `user: ${message}`,
   ].join('\n')
@@ -92,7 +92,7 @@ Rules:
 
     // Trust nothing about ids — an unknown one would render a blank artboard.
     const sizeId = FLYER_SIZES.some((s) => s.id === out.sizeId) ? out.sizeId : (body?.sizeId ?? 'letter')
-    const layoutId = FLYER_LAYOUTS.some((l) => l.id === out.layoutId) ? out.layoutId : (body?.layoutId ?? 'bleed-bottom')
+    const layoutId = FLYER_TEMPLATES.some((t) => t.id === out.layoutId) ? out.layoutId : (body?.layoutId ?? 'rnb')
 
     return NextResponse.json({
       fields: out.fields ?? body?.fields ?? {},

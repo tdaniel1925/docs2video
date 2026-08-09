@@ -1,36 +1,95 @@
 // =============================================================================
-// Flyer layouts — PROOF OF CONCEPT.
+// Flyer engine — templates, type treatments, and every output size.
 //
-// THE WHOLE POINT: the AI makes the ART, the browser sets the TYPE.
+// THE AI MAKES THE ART; THE BROWSER SETS THE TYPE.
 //
 // Image models still garble lettering, and a flyer is ninety percent words —
-// headline, date, doors at nine, twenty dollar cover, a phone number someone
-// has to actually dial. An AI-drawn flyer gives you "SATRUDAY NIGTH" and a
-// wrong digit on the piece a client is about to print five hundred of.
+// headline, date, doors at nine, a phone number someone has to dial. An
+// AI-drawn flyer gives you "SATRUDAY NIGTH" on the piece a client prints five
+// hundred of. So the artwork prompt bans lettering outright and every word is
+// set by the browser: correct spelling, any language, any name length, and it
+// stays VECTOR when printed.
 //
-// So a template here is a LAYOUT SKELETON: real fonts at real positions with
-// slots for text, over an AI-generated background that contains no lettering
-// at all. Two things follow that no image-only tool can match:
-//   - spelling is always right, in any language, at any name length
-//   - printing goes through the browser, so the text stays VECTOR in the PDF —
-//     which is exactly what a commercial printer wants at 8.5x11
+// THE TYPE TREATMENTS ARE WHAT MAKE IT LOOK LIKE A CLUB FLYER. Reference decks
+// (ElegantFlyer and friends) get their look from chrome, neon and 3D lettering
+// baked into a PSD. All of those are reachable in CSS — gradient fills, stroke,
+// stacked shadows, glow — so the headline can look poured out of gold and STILL
+// be real, correct, editable text. That is the whole trick: the maximalist look
+// without the garbled letters.
 //
-// Sizes are in inches and the page is laid out in inches, so "8.5 x 11 high
-// res" is not a resolution setting — it is the actual size of the artboard.
+// ONE DESIGN, EVERY SIZE. Sizes carry their own units (inches for print, pixels
+// for social) and everything scales off a single unit tied to the artboard, so
+// an 8.5x11 flyer and a YouTube banner are the same design rather than a dozen
+// hand-tuned ones. Landscape sizes switch to a side-by-side arrangement,
+// because a portrait poster reflowed into a 1500x500 header just crushes.
 // =============================================================================
 
-export type FlyerSize = { id: string; label: string; w: number; h: number }
+export type FlyerSize = {
+  id: string
+  label: string
+  group: 'print' | 'social' | 'banner'
+  w: number
+  h: number
+  unit: 'in' | 'px'
+  /** Fraction of the artboard to keep clear at the edges — YouTube crops its
+   *  banner hard on phones and TVs, so type outside the middle band vanishes. */
+  safe?: number
+}
 
 export const FLYER_SIZES: FlyerSize[] = [
-  { id: 'letter', label: 'Flyer — 8.5 × 11 in', w: 8.5, h: 11 },
-  { id: 'half', label: 'Half page — 5.5 × 8.5 in', w: 5.5, h: 8.5 },
-  { id: 'poster', label: 'Poster — 11 × 17 in', w: 11, h: 17 },
-  { id: 'square', label: 'Social — 8 × 8 in', w: 8, h: 8 },
-  { id: 'story', label: 'Story — 4.5 × 8 in', w: 4.5, h: 8 },
+  { id: 'letter', label: 'Flyer 8.5 × 11 in', group: 'print', w: 8.5, h: 11, unit: 'in' },
+  { id: 'square4', label: 'Flyer 4 × 4 in', group: 'print', w: 4, h: 4, unit: 'in' },
+  { id: 'half', label: 'Half page 5.5 × 8.5 in', group: 'print', w: 5.5, h: 8.5, unit: 'in' },
+  { id: 'poster', label: 'Poster 11 × 17 in', group: 'print', w: 11, h: 17, unit: 'in' },
+  { id: 'ig-post', label: 'Instagram post 1080²', group: 'social', w: 1080, h: 1080, unit: 'px' },
+  { id: 'ig-story', label: 'Instagram story / Reel', group: 'social', w: 1080, h: 1920, unit: 'px' },
+  { id: 'fb-post', label: 'Facebook post 1200 × 1500', group: 'social', w: 1200, h: 1500, unit: 'px' },
+  { id: 'fb-ad', label: 'Facebook / IG ad 1200 × 628', group: 'social', w: 1200, h: 628, unit: 'px' },
+  { id: 'fb-cover', label: 'Facebook cover 1640 × 624', group: 'banner', w: 1640, h: 624, unit: 'px', safe: 0.1 },
+  { id: 'yt-banner', label: 'YouTube banner 2560 × 1440', group: 'banner', w: 2560, h: 1440, unit: 'px', safe: 0.3 },
+  { id: 'yt-thumb', label: 'YouTube thumbnail 1280 × 720', group: 'banner', w: 1280, h: 720, unit: 'px' },
+  { id: 'x-header', label: 'X / Twitter header 1500 × 500', group: 'banner', w: 1500, h: 500, unit: 'px', safe: 0.08 },
+  { id: 'li-banner', label: 'LinkedIn banner 1584 × 396', group: 'banner', w: 1584, h: 396, unit: 'px', safe: 0.08 },
 ]
 
-/** What the chat fills in. Every field optional — a half-finished flyer must
- *  still render, because the user watches it build up as they talk. */
+export type TypeTreatment = 'chrome' | 'neon' | 'outline' | 'extrude' | 'solid' | 'script'
+
+export type FlyerTemplate = {
+  id: string
+  name: string
+  category: 'nightlife' | 'business' | 'community' | 'realestate' | 'fitness'
+  /** Where the type block sits on a portrait artboard. */
+  anchor: 'bottom' | 'top' | 'centre'
+  type: TypeTreatment
+  /** Display face for the headline. */
+  face: 'anton' | 'bebas' | 'archivo' | 'playfair' | 'script'
+  accent: string
+  /** Steers the artwork prompt. */
+  vibe: string
+  /** How hard to darken the art behind the type. Heavier = safer, flatter. */
+  scrim: 'light' | 'medium' | 'heavy'
+}
+
+// Named looks, not abstract layouts — a user picks "Retro Night", not
+// "bleed-bottom with a gradient fill".
+export const FLYER_TEMPLATES: FlyerTemplate[] = [
+  { id: 'rnb', name: 'R&B Night', category: 'nightlife', anchor: 'bottom', type: 'chrome', face: 'anton', accent: '#E9B44C', vibe: 'gold chains, luxury club, warm amber haze, cinematic portrait lighting', scrim: 'medium' },
+  { id: 'retro', name: 'Retro Night', category: 'nightlife', anchor: 'centre', type: 'chrome', face: 'anton', accent: '#E026FF', vibe: 'eighties synthwave, magenta and violet neon, chrome and grid horizon', scrim: 'medium' },
+  { id: 'ladies', name: 'Ladies Night', category: 'nightlife', anchor: 'bottom', type: 'script', face: 'script', accent: '#F2C14E', vibe: 'gold disco ball, glamorous champagne light, sequins and sparkle', scrim: 'medium' },
+  { id: 'vip', name: 'VIP Luxury', category: 'nightlife', anchor: 'bottom', type: 'chrome', face: 'archivo', accent: '#D4AF37', vibe: 'black and gold luxury, supercar, deep shadow, high contrast', scrim: 'heavy' },
+  { id: 'neonclub', name: 'Neon Club', category: 'nightlife', anchor: 'centre', type: 'neon', face: 'bebas', accent: '#22D3EE', vibe: 'dark club interior, cyan and magenta neon tubes, atmospheric fog', scrim: 'medium' },
+  { id: 'halloween', name: 'Halloween', category: 'nightlife', anchor: 'top', type: 'outline', face: 'anton', accent: '#7CFC00', vibe: 'eerie green fog, gothic shadows, moonlit and haunting', scrim: 'medium' },
+  { id: 'tropical', name: 'Tropical Night', category: 'nightlife', anchor: 'bottom', type: 'extrude', face: 'archivo', accent: '#FF8A3D', vibe: 'sunset beach party, palms, turquoise water, warm tropical dusk', scrim: 'medium' },
+  { id: 'corporate', name: 'Corporate Event', category: 'business', anchor: 'bottom', type: 'solid', face: 'archivo', accent: '#2563EB', vibe: 'modern glass architecture, clean professional, blue hour', scrim: 'heavy' },
+  { id: 'editorial', name: 'Editorial', category: 'business', anchor: 'bottom', type: 'solid', face: 'playfair', accent: '#B45309', vibe: 'refined minimal still life, warm neutral light, premium and quiet', scrim: 'medium' },
+  { id: 'launch', name: 'Product Launch', category: 'business', anchor: 'centre', type: 'extrude', face: 'archivo', accent: '#7C3AED', vibe: 'bold studio lighting, saturated gradient backdrop, dramatic', scrim: 'medium' },
+  { id: 'community', name: 'Community', category: 'community', anchor: 'bottom', type: 'solid', face: 'archivo', accent: '#059669', vibe: 'warm human gathering, natural daylight, approachable and real', scrim: 'medium' },
+  { id: 'openhouse', name: 'Open House', category: 'realestate', anchor: 'bottom', type: 'solid', face: 'playfair', accent: '#0F766E', vibe: 'bright modern home exterior, golden hour, aspirational architecture', scrim: 'medium' },
+  { id: 'listing', name: 'Luxury Listing', category: 'realestate', anchor: 'bottom', type: 'script', face: 'playfair', accent: '#A16207', vibe: 'architectural interior, floor to ceiling glass, warm evening light', scrim: 'medium' },
+  { id: 'gym', name: 'Gym / Bootcamp', category: 'fitness', anchor: 'centre', type: 'outline', face: 'anton', accent: '#EF4444', vibe: 'gritty gym, hard rim light, chalk dust, sweat and steel', scrim: 'heavy' },
+  { id: 'race', name: 'Race / Challenge', category: 'fitness', anchor: 'bottom', type: 'extrude', face: 'bebas', accent: '#F59E0B', vibe: 'runners at dawn, motion, open road, energetic morning light', scrim: 'medium' },
+]
+
 export type FlyerFields = {
   eyebrow?: string
   headline?: string
@@ -45,56 +104,86 @@ export type FlyerFields = {
   contact?: string
 }
 
-export type FlyerLayout = {
-  id: string
-  name: string
-  /** Plain-English vibe, used to steer the art prompt. */
-  vibe: string
-  /** Category the picker groups by. */
-  category: 'nightlife' | 'business' | 'community' | 'realestate' | 'fitness'
-}
-
-// Ten skeletons is the whole idea: a small amount of code times endless art
-// directions beats hand-building three hundred fixed templates.
-export const FLYER_LAYOUTS: FlyerLayout[] = [
-  { id: 'bleed-bottom', name: 'Full bleed — type low', vibe: 'moody, high contrast, cinematic', category: 'nightlife' },
-  { id: 'bleed-top', name: 'Full bleed — type high', vibe: 'energetic, saturated, night lights', category: 'nightlife' },
-  { id: 'band', name: 'Centre band', vibe: 'bold, graphic, punchy', category: 'nightlife' },
-  { id: 'split', name: 'Split — art top', vibe: 'clean, editorial, professional', category: 'business' },
-  { id: 'frame', name: 'Framed', vibe: 'refined, understated, premium', category: 'business' },
-  { id: 'corner', name: 'Corner card', vibe: 'warm, approachable, human', category: 'community' },
-  { id: 'stack', name: 'Stacked type', vibe: 'modern, minimal, lots of negative space', category: 'business' },
-  { id: 'ticket', name: 'Ticket stub', vibe: 'retro print, textured paper, ink', category: 'nightlife' },
-  { id: 'showcase', name: 'Showcase', vibe: 'bright, aspirational, architectural', category: 'realestate' },
-  { id: 'impact', name: 'Impact', vibe: 'gritty, powerful, motivational', category: 'fitness' },
-]
-
 const esc = (s: unknown) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-/** Build the art prompt. It BANS lettering — every word on the finished flyer
- *  is set by the browser, and a stray AI-drawn sign in the background is the
- *  fastest way to make the whole thing look fake. */
-export function artPrompt(layout: FlyerLayout, subject: string, accent: string): string {
+/** Artwork prompt. Bans lettering — a stray AI-drawn sign in the background is
+ *  the fastest way to make the whole piece look fake. */
+export function artPrompt(t: FlyerTemplate, subject: string, portrait = true): string {
   return [
-    `Background artwork for a printed flyer. Subject: ${subject}.`,
-    `Mood: ${layout.vibe}.`,
-    `Vertical composition. Leave the ${layout.id.includes('bottom') ? 'lower' : layout.id.includes('top') ? 'upper' : 'central'} third visually calm and uncluttered so text can sit over it legibly.`,
-    `Colour should sit comfortably next to ${accent}.`,
-    'ABSOLUTELY NO text, no letters, no numbers, no words, no signage, no logos, no watermarks, no captions anywhere in the image.',
-    'Photographic or richly illustrated. No flat vector clip-art. No borders or frames.',
+    `Background artwork for a printed ${portrait ? 'flyer' : 'banner'}. Subject: ${subject}.`,
+    `Style: ${t.vibe}.`,
+    portrait
+      ? `Vertical composition. Keep the ${t.anchor === 'top' ? 'upper' : t.anchor === 'centre' ? 'central' : 'lower'} third visually calm so text reads over it.`
+      : 'Wide horizontal composition with the subject to one side, leaving the other side calm for text.',
+    'ABSOLUTELY NO text, letters, numbers, words, signage, logos, watermarks or captions anywhere in the image.',
+    'Photographic or richly illustrated, professional quality. No flat clip-art, no borders, no frames.',
   ].join(' ')
 }
 
-/**
- * Render the flyer as a standalone HTML document.
- *
- * `print` swaps the on-screen scaling for a real @page at the artboard's true
- * inch size, so the browser's own Save-as-PDF produces a print-ready file with
- * live vector text — no screenshot, no resolution ceiling.
- */
+const FACES: Record<FlyerTemplate['face'], string> = {
+  anton: "'Anton', Impact, sans-serif",
+  bebas: "'Bebas Neue', Impact, sans-serif",
+  archivo: "'Archivo Black', Inter, sans-serif",
+  playfair: "'Playfair Display', Georgia, serif",
+  script: "'Yellowtail', cursive",
+}
+
+/** The CSS that makes real text look like club-flyer lettering. */
+function typeCss(t: TypeTreatment, accent: string, u: string): string {
+  switch (t) {
+    case 'chrome':
+      // Gradient fill through background-clip. lineHeight and padding-bottom
+      // are load-bearing: a clipped background cuts descenders otherwise.
+      return `background:linear-gradient(178deg,#fff 4%,${accent} 34%,#7a5a12 56%,${accent} 74%,#fff 96%);
+        -webkit-background-clip:text;background-clip:text;color:transparent;
+        -webkit-text-stroke:calc(${u} * .12) rgba(0,0,0,.35);
+        filter:drop-shadow(0 calc(${u} * .35) calc(${u} * .5) rgba(0,0,0,.55));
+        padding-bottom:.14em`
+    case 'neon':
+      return `color:#fff;text-shadow:
+        0 0 calc(${u} * .6) #fff,
+        0 0 calc(${u} * 1.6) ${accent},
+        0 0 calc(${u} * 3.2) ${accent},
+        0 0 calc(${u} * 6) ${accent}`
+    case 'outline':
+      return `color:transparent;-webkit-text-stroke:calc(${u} * .28) #fff;
+        text-shadow:0 calc(${u} * .5) calc(${u} * 1.2) rgba(0,0,0,.6);
+        paint-order:stroke fill`
+    case 'extrude':
+      return `color:#fff;text-shadow:
+        calc(${u} * .18) calc(${u} * .18) 0 ${accent},
+        calc(${u} * .36) calc(${u} * .36) 0 ${accent},
+        calc(${u} * .54) calc(${u} * .54) 0 rgba(0,0,0,.55),
+        0 calc(${u} * 1) calc(${u} * 1.6) rgba(0,0,0,.5)`
+    case 'script':
+      return `color:${accent};text-shadow:0 calc(${u} * .35) calc(${u} * 1) rgba(0,0,0,.55);
+        padding-bottom:.12em`
+    default:
+      return `color:#fff;text-shadow:0 calc(${u} * .3) calc(${u} * 1.3) rgba(0,0,0,.55)`
+  }
+}
+
+const SCRIMS: Record<FlyerTemplate['scrim'], Record<string, string>> = {
+  light: {
+    bottom: 'linear-gradient(0deg,rgba(6,6,10,.78) 0%,rgba(6,6,10,.30) 45%,rgba(6,6,10,0) 75%)',
+    top: 'linear-gradient(180deg,rgba(6,6,10,.78) 0%,rgba(6,6,10,.30) 45%,rgba(6,6,10,0) 75%)',
+    centre: 'linear-gradient(180deg,rgba(6,6,10,.10),rgba(6,6,10,.62) 35%,rgba(6,6,10,.62) 65%,rgba(6,6,10,.10))',
+  },
+  medium: {
+    bottom: 'linear-gradient(0deg,rgba(6,6,10,.90) 0%,rgba(6,6,10,.58) 40%,rgba(6,6,10,.08) 76%)',
+    top: 'linear-gradient(180deg,rgba(6,6,10,.90) 0%,rgba(6,6,10,.55) 42%,rgba(6,6,10,.08) 74%)',
+    centre: 'linear-gradient(180deg,rgba(6,6,10,.18),rgba(6,6,10,.84) 32%,rgba(6,6,10,.84) 68%,rgba(6,6,10,.18))',
+  },
+  heavy: {
+    bottom: 'linear-gradient(0deg,rgba(4,4,8,.96) 0%,rgba(4,4,8,.74) 42%,rgba(4,4,8,.26) 80%)',
+    top: 'linear-gradient(180deg,rgba(4,4,8,.96) 0%,rgba(4,4,8,.72) 44%,rgba(4,4,8,.24) 78%)',
+    centre: 'linear-gradient(180deg,rgba(4,4,8,.34),rgba(4,4,8,.92) 30%,rgba(4,4,8,.92) 70%,rgba(4,4,8,.34))',
+  },
+}
+
 export function renderFlyer(opts: {
-  layout: FlyerLayout
+  template: FlyerTemplate
   size: FlyerSize
   fields: FlyerFields
   artUrl?: string | null
@@ -102,25 +191,46 @@ export function renderFlyer(opts: {
   logoUrl?: string | null
   print?: boolean
 }): string {
-  const { layout, size, fields: f, artUrl, accent = '#C0392B', logoUrl, print } = opts
-  const L = layout.id
+  const { template: t, size, fields: f, artUrl, logoUrl, print } = opts
+  const accent = opts.accent || t.accent
+  const W = `${size.w}${size.unit}`
+  const H = `${size.h}${size.unit}`
 
-  // Everything scales off ONE unit tied to the artboard width, so a 5.5in half
-  // page and an 11x17 poster are the same design, not two hand-tuned ones.
-  const u = `(var(--w) / 100)`
+  // Landscape artboards get a side-by-side arrangement: a portrait poster
+  // squeezed into a 1500x500 header would crush the type into nothing.
+  const wide = size.w / size.h > 1.35
+  const anchor = wide ? 'centre' : t.anchor
 
-  const artLayer = artUrl
-    ? `<div class="art" style="background-image:url('${esc(artUrl)}')"></div><div class="scrim"></div>`
-    : `<div class="art noart"></div><div class="scrim"></div>`
+  // One unit, tied to the SHORT edge on wide boards so a banner's type is sized
+  // by its height rather than its enormous width.
+  const u = `var(--u)`
+  const unitBase = wide ? `(var(--h) / 100)` : `(var(--w) / 100)`
+
+  // Safe area is PER AXIS. Applying a width fraction to all four sides put
+  // 768px of padding top and bottom on a 1440-tall YouTube banner — more
+  // padding than artboard, and the content spilled 535px out of its own frame.
+  // Vertical comes off the height, horizontal off the width.
+  const safePad = size.safe
+    ? `calc(var(--h) * ${size.safe}) calc(var(--w) * 0.07)`
+    : `calc(${u} * 7)`
+
+  // A banner is not a flyer with the same words at a different shape. A
+  // YouTube header's guaranteed-visible strip is about 423px tall; the full
+  // set of facts, bullets, address and contact cannot live there and trying
+  // makes every one of them illegible. Wide boards keep the poster essentials
+  // and drop the rest.
+  const banner = size.w / size.h > 2.2 || size.group === 'banner'
 
   const line = (label: string, value?: string) =>
     value ? `<div class="fact"><span class="fl">${esc(label)}</span><span class="fv">${esc(value)}</span></div>` : ''
-
-  const facts = [line('When', [f.date, f.time].filter(Boolean).join(' · ')), line('Where', f.venue), line('Cost', f.price)]
-    .filter(Boolean).join('')
+  const facts = [
+    line('When', [f.date, f.time].filter(Boolean).join(' · ')),
+    line('Where', f.venue),
+    line('Cost', f.price),
+  ].filter(Boolean).join('')
 
   const details = (f.details ?? []).length
-    ? `<ul class="details">${(f.details ?? []).map((d) => `<li>${esc(d)}</li>`).join('')}</ul>`
+    ? `<ul class="details">${(f.details ?? []).slice(0, 4).map((d) => `<li>${esc(d)}</li>`).join('')}</ul>`
     : ''
 
   const block = `
@@ -134,58 +244,65 @@ export function renderFlyer(opts: {
     ${f.contact ? `<p class="contact">${esc(f.contact)}</p>` : ''}
     ${logoUrl ? `<img class="logo" src="${esc(logoUrl)}" alt="">` : ''}`
 
+  // Tiny boards (a 4x4 handout, a LinkedIn strip) cannot carry the whole set —
+  // hide the supporting matter rather than shrink it into unreadability.
+  const tiny = (size.unit === 'in' ? size.w * size.h : (size.w * size.h) / 9216) < 26
+
   return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Inter:wght@400;600;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bebas+Neue&family=Inter:wght@400;600;800&family=Playfair+Display:wght@700;900&family=Yellowtail&display=swap" rel="stylesheet">
 <style>
-:root{--w:${size.w}in;--h:${size.h}in;--accent:${accent};--u:calc(${u})}
+:root{--w:${W};--h:${H};--accent:${accent};--u:calc(${unitBase})}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:${print ? '#fff' : '#2a2a2e'};display:flex;align-items:center;justify-content:center;min-height:100%}
-${print ? `@page{size:${size.w}in ${size.h}in;margin:0}html,body{width:${size.w}in;height:${size.h}in;display:block}` : ''}
-.page{position:relative;width:var(--w);height:var(--h);overflow:hidden;background:#0d0d10;color:#fff;
-  font-family:Inter,system-ui,sans-serif;${print ? '' : 'box-shadow:0 24px 70px rgba(0,0,0,.55);'}
-  ${print ? '' : 'transform-origin:center;'}}
+html,body{background:${print ? '#fff' : '#232327'};min-height:100%;
+  ${print ? '' : 'display:flex;align-items:center;justify-content:center;'}}
+${print ? `@page{size:${W} ${H};margin:0}html,body{width:${W};height:${H};display:block}` : ''}
+.page{position:relative;width:var(--w);height:var(--h);overflow:hidden;background:#0c0c10;color:#fff;
+  font-family:Inter,system-ui,sans-serif;${print ? '' : 'box-shadow:0 20px 60px rgba(0,0,0,.5);'}}
 .art{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0}
-.art.noart{background:linear-gradient(145deg,#1b1b22,#2c2c36 60%,var(--accent))}
-/* The scrim is what makes the type readable no matter what the art turned out
-   to be. Never trust a generated image to have a calm area where you need one. */
-.scrim{position:absolute;inset:0;z-index:1;background:
-  ${L === 'bleed-top'
-      ? 'linear-gradient(180deg,rgba(6,6,10,.86) 0%,rgba(6,6,10,.55) 42%,rgba(6,6,10,.15) 70%)'
-      : L === 'band'
-      ? 'linear-gradient(180deg,rgba(6,6,10,.20) 0%,rgba(6,6,10,.88) 32%,rgba(6,6,10,.88) 68%,rgba(6,6,10,.20) 100%)'
-      : 'linear-gradient(0deg,rgba(6,6,10,.90) 0%,rgba(6,6,10,.62) 38%,rgba(6,6,10,.12) 72%)'}}
+.art.noart{background:linear-gradient(150deg,#16161d,#26262f 55%,var(--accent))}
+.scrim{position:absolute;inset:0;z-index:1;background:${SCRIMS[t.scrim][anchor]}}
 .inner{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;
-  padding:calc(var(--u) * 8);
-  ${L === 'bleed-top' ? 'justify-content:flex-start;' : L === 'band' ? 'justify-content:center;' : 'justify-content:flex-end;'}
-  ${L === 'stack' || L === 'ticket' ? 'text-align:left;align-items:flex-start;' : 'text-align:center;align-items:center;'}}
-${L === 'split' ? '.art{inset:0 0 46% 0}.scrim{inset:0 0 46% 0;background:linear-gradient(0deg,rgba(6,6,10,.55),rgba(6,6,10,.05))}.inner{background:#0d0d10;top:54%;justify-content:flex-start}' : ''}
-${L === 'frame' ? '.page::after{content:"";position:absolute;inset:calc(var(--u) * 4);border:calc(var(--u) * .55) solid rgba(255,255,255,.85);z-index:3;pointer-events:none}' : ''}
-${L === 'ticket' ? '.page::before{content:"";position:absolute;left:0;right:0;top:64%;border-top:calc(var(--u)*.4) dashed rgba(255,255,255,.5);z-index:3}' : ''}
-.eyebrow{font-weight:800;letter-spacing:.22em;text-transform:uppercase;font-size:calc(var(--u) * 2.4);
-  color:var(--accent);margin-bottom:calc(var(--u) * 2)}
-h1{font-family:${L === 'frame' || L === 'showcase' ? "'Playfair Display',serif" : L === 'stack' ? "Inter,sans-serif" : "Anton,'Bebas Neue',sans-serif"};
-  font-weight:${L === 'frame' || L === 'showcase' ? 900 : L === 'stack' ? 800 : 400};
-  font-size:calc(var(--u) * ${L === 'stack' ? 9 : 12});line-height:.92;letter-spacing:${L === 'stack' ? '-.03em' : '.005em'};
-  text-transform:${L === 'frame' || L === 'showcase' ? 'none' : 'uppercase'};
-  text-wrap:balance;text-shadow:0 calc(var(--u)*.3) calc(var(--u)*1.4) rgba(0,0,0,.5)}
-.subhead{font-size:calc(var(--u) * 3.1);line-height:1.35;margin-top:calc(var(--u) * 2.4);
-  max-width:34ch;color:rgba(255,255,255,.92)}
-.facts{display:flex;gap:calc(var(--u) * 5);margin-top:calc(var(--u) * 4.5);flex-wrap:wrap;
-  justify-content:${L === 'stack' || L === 'ticket' ? 'flex-start' : 'center'}}
-.fact{display:flex;flex-direction:column;gap:calc(var(--u) * .6);text-align:${L === 'stack' || L === 'ticket' ? 'left' : 'center'}}
-.fl{font-size:calc(var(--u) * 1.9);letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:800}
-.fv{font-size:calc(var(--u) * 3.2);font-weight:600}
-.details{list-style:none;margin-top:calc(var(--u) * 3.4);display:flex;flex-direction:column;gap:calc(var(--u) * 1.2)}
-.details li{font-size:calc(var(--u) * 2.5);color:rgba(255,255,255,.9);position:relative;padding-left:calc(var(--u) * 3)}
-.details li::before{content:"";position:absolute;left:0;top:calc(var(--u) * 1.1);width:calc(var(--u) * 1.3);height:calc(var(--u) * 1.3);background:var(--accent);border-radius:50%}
-.addr{font-size:calc(var(--u) * 2.3);color:rgba(255,255,255,.75);margin-top:calc(var(--u) * 2)}
-.cta{margin-top:calc(var(--u) * 4);background:var(--accent);color:#fff;font-weight:800;
-  font-size:calc(var(--u) * 3);letter-spacing:.04em;padding:calc(var(--u) * 2) calc(var(--u) * 4.5);
-  border-radius:calc(var(--u) * 1);text-transform:uppercase}
-.contact{margin-top:calc(var(--u) * 2.2);font-size:calc(var(--u) * 2.3);color:rgba(255,255,255,.85);font-weight:600}
-.logo{margin-top:calc(var(--u) * 3.5);height:calc(var(--u) * 7);width:auto;object-fit:contain}
+  padding:${safePad};
+  justify-content:${anchor === 'top' ? 'flex-start' : anchor === 'centre' ? 'center' : 'flex-end'};
+  align-items:center;text-align:center}
+${wide ? `.inner{align-items:flex-start;text-align:left;width:58%}` : ''}
+.eyebrow{font-weight:800;letter-spacing:.24em;text-transform:uppercase;
+  font-size:calc(${u} * 2.3);color:var(--accent);margin-bottom:calc(${u} * 2)}
+h1{font-family:${FACES[t.face]};
+  font-weight:${t.face === 'playfair' ? 900 : t.face === 'archivo' ? 400 : 400};
+  font-size:calc(${u} * ${t.face === 'script' ? 11 : wide ? 11 : 13});
+  line-height:${t.face === 'script' ? 1.05 : 0.94};
+  letter-spacing:${t.face === 'playfair' || t.face === 'script' ? '0' : '.01em'};
+  text-transform:${t.face === 'playfair' || t.face === 'script' ? 'none' : 'uppercase'};
+  text-wrap:balance;${typeCss(t.type, accent, u)}}
+.subhead{font-size:calc(${u} * 2.9);line-height:1.34;margin-top:calc(${u} * 2.2);
+  max-width:32ch;color:rgba(255,255,255,.93);font-weight:600}
+.facts{display:flex;gap:calc(${u} * 4.5);margin-top:calc(${u} * 4);flex-wrap:wrap;
+  justify-content:${wide ? 'flex-start' : 'center'}}
+.fact{display:flex;flex-direction:column;gap:calc(${u} * .5)}
+.fl{font-size:calc(${u} * 1.8);letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:800}
+.fv{font-size:calc(${u} * 3);font-weight:700}
+.details{list-style:none;margin-top:calc(${u} * 3);display:flex;flex-direction:column;gap:calc(${u} * 1.1);
+  align-items:${wide ? 'flex-start' : 'center'}}
+.details li{font-size:calc(${u} * 2.4);color:rgba(255,255,255,.92);position:relative;padding-left:calc(${u} * 3)}
+.details li::before{content:"";position:absolute;left:0;top:calc(${u} * 1);width:calc(${u} * 1.2);height:calc(${u} * 1.2);background:var(--accent);border-radius:50%}
+.addr{font-size:calc(${u} * 2.2);color:rgba(255,255,255,.78);margin-top:calc(${u} * 1.8)}
+.cta{margin-top:calc(${u} * 3.6);background:var(--accent);color:#0b0b0f;font-weight:800;
+  font-size:calc(${u} * 2.9);letter-spacing:.04em;padding:calc(${u} * 1.9) calc(${u} * 4.2);
+  border-radius:calc(${u} * .9);text-transform:uppercase}
+.contact{margin-top:calc(${u} * 2);font-size:calc(${u} * 2.2);color:rgba(255,255,255,.88);font-weight:700}
+.logo{margin-top:calc(${u} * 3);height:calc(${u} * 6.5);width:auto;object-fit:contain}
+${tiny ? '.details,.addr,.subhead{display:none}.facts{gap:calc(var(--u) * 3);margin-top:calc(var(--u) * 3)}' : ''}
+${banner ? `.details,.addr,.contact,.facts,.logo{display:none}
+  h1{font-size:calc(${u} * 15)}
+  .subhead{font-size:calc(${u} * 3.4);margin-top:calc(${u} * 1.6);max-width:26ch}
+  .cta{margin-top:calc(${u} * 2.4);font-size:calc(${u} * 3);padding:calc(${u} * 1.6) calc(${u} * 3.4)}` : ''}
 </style></head><body>
-<div class="page">${artLayer}<div class="inner">${block}</div></div>
+<div class="page">
+  <div class="art${artUrl ? '' : ' noart'}"${artUrl ? ` style="background-image:url('${esc(artUrl)}')"` : ''}></div>
+  <div class="scrim"></div>
+  <div class="inner">${block}</div>
+</div>
 </body></html>`
 }
