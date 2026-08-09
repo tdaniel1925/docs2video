@@ -159,6 +159,24 @@ Grep results can flood context. Use `ctx_execute(language: "shell", code: "grep 
 
 When spawning subagents (Agent/Task tool), the routing block is automatically injected into their prompt. Bash-type subagents are upgraded to general-purpose so they have access to MCP tools. You do NOT need to manually instruct subagents about context-mode.
 
+## Talk like a normal person — MANDATORY
+
+Write so a smart 10-year-old could follow it. The user is not a programmer and
+should never have to decode jargon to know what is going on.
+
+- Short sentences. Plain words. No wall of text.
+- Say what a thing DOES, not what it is called. "The page that plays the video"
+  beats "the client-side render surface".
+- No jargon unless you explain it in the same breath. Banned unless defined:
+  blast radius, idempotent, seam, surface, wire up, thread through, composition,
+  instrumentation, root-cause (say "find out why"), invalidate, gate.
+- No file paths, line numbers, hex colors, or code in normal conversation.
+  Those go in the code, not in the answer. Only show them if asked.
+- Tables are for short lists of choices, not for explaining ideas.
+- When something breaks, say: what broke, what it means for the user, what you
+  will do. Three sentences. Not a debugging diary.
+- Lead with the answer. Details after, and only if they change a decision.
+
 ## Output constraints
 
 - Keep responses under 500 words.

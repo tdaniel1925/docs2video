@@ -106,7 +106,9 @@ const vertMetadata = async ({ props }: { props: VertProps }) => {
     if (res.ok) { const j = await res.json(); if (Array.isArray(j.vo)) vo = j.vo }
   } catch {}
   const segD = vo.map((d) => (d || 7) + PAD)
-  const body = Math.round((segD.reduce((a, b) => a + b, 0) - 9 * XF) * FPS)
+  // (n-1) crossfades, not a hardcoded 9 — the funnel pain films run 6 beats,
+  // the industry films 10, and both drive this same composition.
+  const body = Math.round((segD.reduce((a, b) => a + b, 0) - (vo.length - 1) * XF) * FPS)
   const total = Math.round((INTRO - IXF) * FPS) + body + Math.round((END - EXF) * FPS)
   return { durationInFrames: total, fps: FPS, width: 1920, height: 1080 }
 }
