@@ -89,6 +89,14 @@ export default function FlyerMakerPage() {
   const [ticked, setTicked] = useState<string[]>(['letter', 'ig-post'])
   const [photos, setPhotos] = useState<{ dataUrl: string; role: PhotoRole; name: string }[]>([])
 
+  // Has the customer made these choices THEMSELVES yet? The conversation is
+  // allowed to set the look and the sizes while they are still on the
+  // defaults, but the moment someone picks for themselves, their choice wins
+  // and stays won. Nothing is more annoying than a tool that quietly undoes
+  // what you just clicked.
+  const [stylePicked, setStylePicked] = useState(false)
+  const [sizesPicked, setSizesPicked] = useState(false)
+
   const [making, setMaking] = useState(false)
   const [sheet, setSheet] = useState<null | 'style' | 'photos' | 'sizes'>(null)
   const [viewing, setViewing] = useState<Design | null>(null)
@@ -183,7 +191,24 @@ export default function FlyerMakerPage() {
     setThinking(false)
     if (r?.error) { setErr(r.error); return }
     setFields(r.fields ?? {})
-    say('assistant', r.reply || 'Got it — pick your sizes and hit Make.')
+
+    // LET THE CONVERSATION CHOOSE THE LOOK. It always returned a suggestion and
+    // the page used to throw it away, which is how a request for an estate
+    // agent's business card came back designed as a nightclub flyer — the
+    // default style is a club night, and nothing ever moved it.
+    const notes: string[] = []
+    if (!stylePicked && r.layoutId && r.layoutId !== templateId) {
+      const t = FLYER_TEMPLATES.find((x) => x.id === r.layoutId)
+      if (t) { setTemplateId(t.id); setCategory(t.category); notes.push(`set the look to ${t.name}`) }
+    }
+    if (!sizesPicked && r.sizeId && !ticked.includes(r.sizeId)) {
+      const s = FLYER_SIZES.find((x) => x.id === r.sizeId)
+      if (s) { setTicked([s.id]); notes.push(`switched to ${s.label}`) }
+    }
+
+    // Say what was changed on your behalf. A tool that silently rearranges your
+    // settings is unnerving even when it guesses right.
+    say('assistant', (r.reply || 'Got it.') + (notes.length ? ` (I ${notes.join(' and ')} — change either below if you'd rather.)` : ''))
   }
 
   // ONE REQUEST PER SIZE, not one for all of them. Asking for everything at
@@ -323,7 +348,7 @@ export default function FlyerMakerPage() {
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
                   {CATEGORIES.map((c) => (
                     <button key={c.id} style={chip(category === c.id)} onClick={() => {
-                      setCategory(c.id)
+                      setCategory(c.id); setStylePicked(true)
                       const first = FLYER_TEMPLATES.find((t) => t.category === c.id)
                       if (first) setTemplateId(first.id)
                     }}>{c.label}</button>
@@ -331,7 +356,7 @@ export default function FlyerMakerPage() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(118px,1fr))', gap: 9 }}>
                   {FLYER_TEMPLATES.filter((t) => t.category === category).map((t) => (
-                    <button key={t.id} onClick={() => setTemplateId(t.id)} title={t.name}
+                    <button key={t.id} onClick={() => { setTemplateId(t.id); setStylePicked(true) }} title={t.name}
                       style={{
                         padding: 0, borderRadius: 9, overflow: 'hidden', cursor: 'pointer', background: '#111',
                         border: templateId === t.id ? `3px solid ${INK}` : `1px solid ${LINE}`,
@@ -358,7 +383,10 @@ export default function FlyerMakerPage() {
                       {FLYER_SIZES.filter((s) => s.group === g.id).map((s) => (
                         <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, cursor: 'pointer', padding: '2px 0' }}>
                           <input type="checkbox" checked={ticked.includes(s.id)}
-                            onChange={(e) => setTicked((p) => (e.target.checked ? [...p, s.id] : p.filter((x) => x !== s.id)).slice(0, 8))} />
+                            onChange={(e) => {
+                              setSizesPicked(true)
+                              setTicked((p) => (e.target.checked ? [...p, s.id] : p.filter((x) => x !== s.id)).slice(0, 8))
+                            }} />
                           {s.label}
                         </label>
                       ))}

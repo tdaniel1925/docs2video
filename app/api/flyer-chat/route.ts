@@ -55,8 +55,8 @@ Return ONLY a JSON object, no commentary and no markdown fence:
     "cta": string,         // the action, e.g. "TICKETS AT THE DOOR"
     "contact": string      // phone / website / handle
   },
-  "sizeId": string,        // one of: ${FLYER_SIZES.map((s) => s.id).join(', ')}
-  "layoutId": string,      // one of: ${FLYER_TEMPLATES.map((t) => t.id).join(', ')}
+  "sizeId": string,        // one of: ${FLYER_SIZES.map((s) => `${s.id} (${s.label})`).join(', ')}
+  "layoutId": string,      // one of: ${FLYER_TEMPLATES.map((t) => `${t.id} (${t.name}, ${t.category})`).join(', ')}
   "subject": string,       // 1 sentence describing the ARTWORK to generate — a scene, no text in it
   "reply": string          // one short friendly line back to the user
 }
@@ -65,7 +65,9 @@ Rules:
 - MERGE with the current values. Keep anything the user has not asked to change; never blank a field just because this message didn't mention it.
 - Omit a field entirely rather than inventing it. No placeholder text, no "TBD", no made-up phone numbers, prices or addresses.
 - The headline goes on a poster read from across a room. Short and punchy beats complete sentences.
-- If the user names a size ("8.5 by 11", "poster", "square"), set sizeId to match. If they describe a mood, pick the layoutId that fits it.
+- If the user names a size ("8.5 by 11", "poster", "square", "business card"), set sizeId to match. If they describe a mood, pick the layoutId that fits it.
+- ALWAYS set layoutId to the style that suits the SUBJECT, not the one already selected. A property listing is not a club night; an estate agent's card must not come back designed as a nightclub flyer. Match the category first — nightlife, business, community, realestate, fitness — then the mood within it.
+- A BUSINESS CARD is not a small poster. If sizeId is a business card, "headline" is the PERSON'S NAME, "subhead" is their job title, "venue" is the company, and "contact" holds the phone, email and website. Leave date, time and price out entirely, and keep everything short — a card carries a handful of words, not a paragraph.
 - "subject" describes a photograph or illustration only — never mention words, signs or lettering, because the artwork must contain none.`
 
   const context = [
