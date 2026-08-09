@@ -42,6 +42,9 @@ export async function POST(req: Request) {
     note?: string
     /** The customer's own photographs, as data URLs, with what each one is. */
     photos?: { dataUrl: string; role: PhotoRole }[]
+    /** A design to copy the LOOK of. Mutually exclusive with a template style —
+     *  both are an art direction, and two at once produce a muddle of neither. */
+    referenceDataUrl?: string
     /** Which press of Make this belongs to, so the history groups correctly.
      *  Minted by the browser: the page fires one request per size and they all
      *  have to land in the same round. */
@@ -105,12 +108,20 @@ export async function POST(req: Request) {
   const rawPhotos = (body?.photos ?? []).slice(0, 3)
   const roles = rawPhotos.map((p) => p.role)
 
+  // A reference design, if there is one, goes FIRST — the prompt refers to it
+  // as image 1 and numbers the photographs after it.
+  const ref = String(body?.referenceDataUrl ?? '')
+  const hasReference = ref.startsWith('data:image')
+  const toPrepare = hasReference
+    ? [{ dataUrl: ref }, ...rawPhotos]
+    : rawPhotos
+
   // Prepare them ONCE, not per size. Every ticked size needs the same files,
   // and re-decoding a 5 MB upload six times is pure waste.
   let files: Awaited<ReturnType<typeof toFile>>[] = []
   try {
     const sharp = (await import('sharp')).default
-    files = await Promise.all(rawPhotos.map(async (p, i) => {
+    files = await Promise.all(toPrepare.map(async (p, i) => {
       const b64 = String(p.dataUrl).split(',')[1] ?? ''
       // Downscale before sending. A phone photo is 4000px on the long edge and
       // the model gains nothing from it, but the upload cost is real.
@@ -119,7 +130,10 @@ export async function POST(req: Request) {
         .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
         .png()
         .toBuffer()
-      return toFile(buf, `photo-${i + 1}.png`, { type: 'image/png' })
+      // Name the reference for what it is. The order is what the prompt keys
+      // off, but a readable filename makes a failed request diagnosable.
+      const name = hasReference && i === 0 ? 'reference.png' : `photo-${i + (hasReference ? 0 : 1)}.png`
+      return toFile(buf, name, { type: 'image/png' })
     }))
   } catch (err) {
     return NextResponse.json({
@@ -129,7 +143,7 @@ export async function POST(req: Request) {
   }
 
   const one = async (size: typeof FLYER_SIZES[number]) => {
-    const prompt = flyerPrompt(template, fields, size, roles) + (note ? `\n\nALSO: ${note}` : '')
+    const prompt = flyerPrompt(template, fields, size, roles, hasReference) + (note ? `\n\nALSO: ${note}` : '')
 
     // Charge BEFORE generating, refund if it fails — the same order the video
     // pipeline uses. Charging afterwards would let a hammered page run several

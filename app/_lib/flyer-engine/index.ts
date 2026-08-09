@@ -257,6 +257,16 @@ export function flyerPrompt(
   f: FlyerFields,
   size: FlyerSize,
   photos: PhotoRole[] = [],
+  /**
+   * A reference design was supplied, attached as the FIRST image.
+   *
+   * This REPLACES the template rather than adding to it, which is why the two
+   * cannot both be chosen: a template is an art direction, a reference is an
+   * art direction, and handing the model two different ones produces a muddle
+   * of both. When true the template's scene and lettering are dropped and the
+   * reference's look is the instruction.
+   */
+  reference = false,
 ): string {
   const ratio = size.w / size.h
   const wide = ratio > 1.3
@@ -309,13 +319,26 @@ export function flyerPrompt(
       ? `A professional business card design — the flat printed ${cardBack ? 'BACK' : 'FRONT'} face of a standard 3.5 x 2 inch card, print quality, designed by a graphic designer. Landscape orientation. Not a photograph of a card, not a mockup, no hand, no desk, no shadow, no stack of cards, no rounded-corner outline drawn onto the artwork — just the flat artwork itself, full bleed.`
       : `A professional ${wide ? 'wide banner' : square ? 'square social media' : 'portrait poster'} advertisement, print quality, designed by a graphic designer.`,
     '',
-    `DESIGN STYLE: ${t.scene}`,
+    // A REFERENCE REPLACES THE TEMPLATE. Both are an art direction, and giving
+    // the model two at once produces a design that obeys neither.
+    reference
+      ? [
+          'DESIGN STYLE — COPY THE REFERENCE. The FIRST attached image is a reference design supplied by the customer. Match its look closely:',
+          '- the same colour palette and how the colours are distributed',
+          '- the same feel of lettering: serif or sans, weight, letter spacing, capitals or mixed case, and the same relationship in size between the headline and the small print',
+          '- the same kind of composition, spacing and visual rhythm',
+          '- the same mood, lighting, texture and level of decoration',
+          'Do NOT copy the reference\'s words, names, dates, prices, logos or photographs — only its style. Do not reproduce it. This is a NEW design for the content below that a customer would believe came from the same designer.',
+        ].join('\n')
+      : `DESIGN STYLE: ${t.scene}`,
     '',
     lines.length
       ? `TEXT TO RENDER — spell every word EXACTLY as written, no substitutions, no invented text, and do not add any words that are not listed:\n${lines.join('\n')}`
       : 'TEXT: none — artwork only.',
     '',
-    `TYPOGRAPHY: ${t.lettering} All text must be sharp, correctly spelled, properly kerned and clearly legible with strong contrast against whatever sits behind it.`,
+    reference
+      ? 'TYPOGRAPHY: follow the reference image\'s lettering as described above. All text must be sharp, correctly spelled, properly kerned and clearly legible with strong contrast against whatever sits behind it.'
+      : `TYPOGRAPHY: ${t.lettering} All text must be sharp, correctly spelled, properly kerned and clearly legible with strong contrast against whatever sits behind it.`,
     '',
     // SAFE MARGINS. Nothing in the prompt used to ask for these, so the model
     // ran headlines flush to the edge and letters came back clipped — on print
@@ -327,8 +350,11 @@ export function flyerPrompt(
     ...(photos.length
       ? [
           '',
-          `SUPPLIED PHOTOGRAPHS — ${photos.length} ${photos.length === 1 ? 'image is' : 'images are'} attached, in this order. These are REAL and were provided by the customer. Build the design around them rather than inventing substitutes:`,
-          ...photos.map((r, i) => `- Image ${i + 1}: ${PHOTO_RULES[r]}`),
+          // The reference, when there is one, is image 1 — so the photographs
+          // start at 2. Getting this offset wrong makes the model apply the
+          // "keep this person recognisable" rule to the reference design.
+          `SUPPLIED PHOTOGRAPHS — ${photos.length} ${photos.length === 1 ? 'image is' : 'images are'} attached${reference ? ', AFTER the reference image' : ''}, in this order. These are REAL and were provided by the customer. Build the design around them rather than inventing substitutes:`,
+          ...photos.map((r, i) => `- Image ${i + 1 + (reference ? 1 : 0)}: ${PHOTO_RULES[r]}`),
           'Every attached photograph must appear in the finished design. Do not generate a different person, place or product in its stead.',
         ]
       : []),
