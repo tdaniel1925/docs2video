@@ -108,6 +108,10 @@ export default function FlyerMakerPage() {
   const [note, setNote] = useState('')
   const [ticked, setTicked] = useState<string[]>(['letter', 'ig-post'])
   const [photos, setPhotos] = useState<{ dataUrl: string; role: PhotoRole; name: string }[]>([])
+  // A design to copy the LOOK of. Mutually exclusive with a template style —
+  // see the note in the style sheet for why.
+  const [reference, setReference] = useState<{ dataUrl: string; name: string } | null>(null)
+  const [listening, setListening] = useState(false)
 
   // Has the customer made these choices THEMSELVES yet? The conversation is
   // allowed to set the look and the sizes while they are still on the
@@ -195,6 +199,54 @@ export default function FlyerMakerPage() {
 
   const say = (role: 'user' | 'assistant', text: string) =>
     setItems((p) => [...p, { kind: 'msg', role, text }])
+
+  // ── talking to it ──────────────────────────────────────────────────────
+  // Uses the browser's own speech recognition. It is not in every browser, so
+  // the button only appears where it actually works — a mic that does nothing
+  // when pressed is worse than no mic.
+  const recogRef = useRef<any>(null)
+  const [micAvailable, setMicAvailable] = useState(false)
+  useEffect(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SR) return
+    setMicAvailable(true)
+    const r = new SR()
+    r.lang = 'en-US'
+    r.continuous = true
+    r.interimResults = false
+    r.onresult = (e: any) => {
+      // Append rather than replace: dictation comes in chunks and each one
+      // should add to the sentence, not wipe what came before.
+      let heard = ''
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) heard += e.results[i][0].transcript
+      }
+      if (heard.trim()) setInput((p) => (p ? `${p.trim()} ${heard.trim()}` : heard.trim()))
+    }
+    r.onend = () => setListening(false)
+    r.onerror = () => setListening(false)
+    recogRef.current = r
+    return () => { try { r.stop() } catch { /* already stopped */ } }
+  }, [])
+
+  const toggleMic = () => {
+    const r = recogRef.current
+    if (!r) return
+    if (listening) { try { r.stop() } catch { /* already stopped */ } setListening(false); return }
+    try { r.start(); setListening(true) } catch { setListening(false) }
+  }
+
+  /** Wipe the conversation and start over — settings and saved history stay. */
+  const clearChat = () => {
+    if (!window.confirm('Clear this conversation? Your saved designs stay in your Library, and this does not refund anything.')) return
+    setItems([{
+      kind: 'msg', role: 'assistant',
+      text: 'Cleared. Tell me what the next one is for.',
+    }])
+    setFields({})
+    setInput('')
+    setErr('')
+  }
 
   const send = async () => {
     const text = input.trim()
@@ -285,6 +337,7 @@ export default function FlyerMakerPage() {
           body: JSON.stringify({
             templateId, sizeIds: [id], fields, note: note.trim() || undefined,
             photos: photos.map(({ dataUrl, role }) => ({ dataUrl, role })),
+            referenceDataUrl: reference?.dataUrl,
             roundId, messages,
           }),
         }).then((x) => x.json()).catch(() => ({ error: 'Network error' }))
@@ -377,32 +430,85 @@ export default function FlyerMakerPage() {
               <strong style={{ fontSize: 13 }}>
                 {sheet === 'style' ? 'Pick a look' : sheet === 'photos' ? 'Your own photos' : 'Which sizes?'}
               </strong>
-              <button onClick={() => setSheet(null)} style={{ ...plain, padding: '4px 9px' }}>Done</button>
+              <button onClick={() => setSheet(null)} title="Close this panel — your choice is already saved" style={{ ...plain, padding: '4px 9px' }}>Done</button>
             </div>
 
             {sheet === 'style' && (
               <>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-                  {CATEGORIES.map((c) => (
-                    <button key={c.id} style={chip(category === c.id)} onClick={() => {
-                      setCategory(c.id); setStylePicked(true)
-                      const first = FLYER_TEMPLATES.find((t) => t.category === c.id)
-                      if (first) setTemplateId(first.id)
-                    }}>{c.label}</button>
-                  ))}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(118px,1fr))', gap: 9 }}>
-                  {FLYER_TEMPLATES.filter((t) => t.category === category).map((t) => (
-                    <button key={t.id} onClick={() => { setTemplateId(t.id); setStylePicked(true) }} title={t.name}
-                      style={{
-                        padding: 0, borderRadius: 9, overflow: 'hidden', cursor: 'pointer', background: '#111',
-                        border: templateId === t.id ? `3px solid ${INK}` : `1px solid ${LINE}`,
-                      }}>
-                      <img src={thumbUrl(t.id)} alt={t.name}
-                        style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
-                      <div style={{ fontSize: 11, fontWeight: 700, padding: '5px 4px', background: 'white', color: INK }}>{t.name}</div>
-                    </button>
-                  ))}
+                {/* ONE OR THE OTHER, never both. A style and a reference are
+                    each a complete instruction about how the design should
+                    look; supply two and the result follows neither. Rather
+                    than let someone set both and get a muddle, choosing one
+                    clears the other and says so. */}
+                <p style={{ fontSize: 13, color: SOFT, margin: '0 0 12px', lineHeight: 1.55 }}>
+                  Use <strong style={{ color: INK }}>one of our looks</strong> or{' '}
+                  <strong style={{ color: INK }}>a design of your own to copy</strong> — one or the other,
+                  not both. Each is a full instruction for how it should look, and two at once means the
+                  design follows neither. Picking one clears the other.
+                </p>
+
+                {reference ? (
+                  <div title="The look of this design will be copied — its colours, lettering and layout — using your words, not its own"
+                    style={{ display: 'flex', gap: 12, alignItems: 'center', border: `1px solid ${LINE}`, borderRadius: 9, padding: 10, marginBottom: 12 }}>
+                    <img src={reference.dataUrl} alt="" style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 7, border: `1px solid ${LINE}` }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>Copying this design&rsquo;s style</div>
+                      <div style={{ fontSize: 12, color: SOFT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reference.name}</div>
+                      <div style={{ fontSize: 12, color: SOFT, marginTop: 4, lineHeight: 1.5 }}>
+                        Its colours, lettering and layout — never its words, logos or photos.
+                      </div>
+                    </div>
+                    <button onClick={() => setReference(null)} title="Remove this reference and go back to our looks"
+                      style={{ ...plain, padding: '5px 9px' }}>✕</button>
+                  </div>
+                ) : (
+                  <label title="Upload a flyer, ad or card you like — yours will be designed in the same style"
+                    style={{ ...plain, display: 'inline-block', marginBottom: 12 }}>
+                    + Add Reference — copy a design I already have
+                    <input type="file" accept="image/*" hidden
+                      onChange={async (e) => {
+                        const f = e.target.files?.[0]
+                        e.target.value = ''
+                        if (!f) return
+                        if (f.size > 12 * 1024 * 1024) { setErr(`${f.name} is too big — 12 MB max.`); return }
+                        const dataUrl: string = await new Promise((res) => {
+                          const r = new FileReader()
+                          r.onload = () => res(String(r.result))
+                          r.readAsDataURL(f)
+                        })
+                        setReference({ dataUrl, name: f.name })
+                        setStylePicked(true)
+                        say('assistant', 'Got your reference — I\'ll copy its look and use your words. Our own styles are switched off while it\'s attached; remove it to go back to them.')
+                      }} />
+                  </label>
+                )}
+
+                <div style={{ opacity: reference ? 0.4 : 1, pointerEvents: reference ? 'none' : 'auto' }}
+                  title={reference ? 'Switched off while a reference is attached — remove it to pick one of our looks' : undefined}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                    {CATEGORIES.map((c) => (
+                      <button key={c.id} style={chip(category === c.id)} title={`Show the ${c.label.toLowerCase()} looks`}
+                        onClick={() => {
+                          setCategory(c.id); setStylePicked(true)
+                          const first = FLYER_TEMPLATES.find((t) => t.category === c.id)
+                          if (first) setTemplateId(first.id)
+                        }}>{c.label}</button>
+                    ))}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(118px,1fr))', gap: 9 }}>
+                    {FLYER_TEMPLATES.filter((t) => t.category === category).map((t) => (
+                      <button key={t.id} onClick={() => { setTemplateId(t.id); setStylePicked(true) }}
+                        title={`Design it in the ${t.name} look`}
+                        style={{
+                          padding: 0, borderRadius: 9, overflow: 'hidden', cursor: 'pointer', background: '#111',
+                          border: templateId === t.id && !reference ? `3px solid ${INK}` : `1px solid ${LINE}`,
+                        }}>
+                        <img src={thumbUrl(t.id)} alt={t.name}
+                          style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
+                        <div style={{ fontSize: 11, fontWeight: 700, padding: '5px 4px', background: 'white', color: INK }}>{t.name}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </>
             )}
@@ -431,6 +537,7 @@ export default function FlyerMakerPage() {
                   </div>
                 ))}
                 <input value={note} onChange={(e) => setNote(e.target.value)}
+                  title="Anything the style should do differently — a colour, a mood, something to leave out"
                   placeholder="Anything else about the look? e.g. 'use purple instead of gold'"
                   style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 13 }} />
                 <p style={{ fontSize: 12, color: SOFT, margin: '8px 0 0' }}>Up to 8 at a time. Each is designed from scratch, not a crop of the others.</p>
@@ -450,33 +557,62 @@ export default function FlyerMakerPage() {
               order. The number carries the order and the label says what the
               button is FOR; the current choice follows in lighter type so you
               can still see it at a glance. */}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-            <button style={chip(sheet === 'style')} onClick={() => setSheet(sheet === 'style' ? null : 'style')}>
-              1. Pick Your Style <Chosen on={sheet === 'style'}>{styleName}</Chosen>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10, alignItems: 'center' }}>
+            <button style={chip(sheet === 'style')} onClick={() => setSheet(sheet === 'style' ? null : 'style')}
+              title="Choose how it should look — one of our fifteen looks, or a design of your own to copy. One or the other, not both.">
+              1. Pick Your Style <Chosen on={sheet === 'style'}>{reference ? 'Your reference' : styleName}</Chosen>
             </button>
-            <button style={chip(sheet === 'photos')} onClick={() => setSheet(sheet === 'photos' ? null : 'photos')}>
+            <button style={chip(sheet === 'photos')} onClick={() => setSheet(sheet === 'photos' ? null : 'photos')}
+              title="Add up to three of your own pictures — a headshot, the property, your product or a logo — and the design is built around them instead of invented people">
               2. Add Photos <span style={{ fontWeight: 400 }}>(Optional)</span>
               {photos.length > 0 && <Chosen on={sheet === 'photos'}>{photos.length}</Chosen>}
             </button>
-            <button style={chip(sheet === 'sizes')} onClick={() => setSheet(sheet === 'sizes' ? null : 'sizes')}>
+            <button style={chip(sheet === 'sizes')} onClick={() => setSheet(sheet === 'sizes' ? null : 'sizes')}
+              title="Tick every size you need — print, social posts, banners, business cards. Each is designed from scratch, so each costs one design.">
               3. Choose Format <Chosen on={sheet === 'sizes'}>{ticked.length} size{ticked.length === 1 ? '' : 's'}</Chosen>
+            </button>
+
+            <button onClick={clearChat} title="Start the conversation over. Your saved designs stay in your Library and nothing is refunded."
+              style={{ ...plain, marginLeft: 'auto', fontWeight: 400, color: SOFT }}>
+              Clear chat
             </button>
           </div>
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input value={input} onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') send() }} disabled={thinking}
-              placeholder='Describe it — "doors at 9, $20 cover, DJ Sable headlining"'
-              style={{ flex: 1, padding: '11px 13px', borderRadius: 8, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 15 }} />
+              title="Describe the job the way you'd say it out loud — what it's for, when, where, how much"
+              placeholder={listening ? 'Listening… speak now' : 'Describe it — "doors at 9, $20 cover, DJ Sable headlining"'}
+              style={{ flex: 1, padding: '11px 13px', borderRadius: 8, border: `1px solid ${listening ? INK : LINE}`, font: 'inherit', fontSize: 15 }} />
+
+            {micAvailable && (
+              <button onClick={toggleMic}
+                title={listening ? 'Stop listening' : 'Talk instead of typing — say what the design is for'}
+                aria-label={listening ? 'Stop listening' : 'Dictate'}
+                style={{
+                  ...plain, padding: '10px 12px',
+                  background: listening ? INK : 'white',
+                  color: listening ? 'white' : INK,
+                  border: listening ? '1px solid transparent' : plain.border,
+                }}>
+                {listening ? '● Stop' : '🎤'}
+              </button>
+            )}
+
             {/* "Preview details" rather than "Send": pressing this does not
                 make anything or cost anything — it reads what you typed back
                 to you as the card above, so you can correct a wrong date
                 before paying to have it drawn. */}
             <button onClick={send} disabled={thinking || !input.trim()}
+              title="Read it back to me — free, and nothing is made yet. Check the details before you pay to have it drawn."
               style={{ ...plain, padding: '10px 14px', whiteSpace: 'nowrap', opacity: thinking || !input.trim() ? 0.5 : 1 }}>
               Preview details
             </button>
-            <button onClick={make} disabled={!canMake} style={{ ...darkBtn, opacity: canMake ? 1 : 0.5, whiteSpace: 'nowrap' }}>
+            <button onClick={make} disabled={!canMake}
+              title={canMake
+                ? `Design ${ticked.length} graphic${ticked.length === 1 ? '' : 's'}${cost !== null ? ` for ${cost.toLocaleString()} credits` : ''}. Takes about two minutes each.`
+                : 'Tell me what it\'s for and tick at least one size first'}
+              style={{ ...darkBtn, opacity: canMake ? 1 : 0.5, whiteSpace: 'nowrap' }}>
               {making ? 'Designing…' : `Make ${ticked.length}${cost !== null ? ` · ${cost.toLocaleString()} cr` : ''}`}
             </button>
           </div>
@@ -651,7 +787,7 @@ function Viewer({ design, onClose }: { design: Design; onClose: () => void }) {
       <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: 10, alignItems: 'center', color: 'white', fontSize: 13 }}>
         <span style={{ fontWeight: 700 }}>{design.label}</span>
         <span style={{ opacity: 0.6 }}>{design.w} × {design.h}</span>
-        <a href={design.src} download={`${design.sizeId}.png`}
+        <a href={design.src} download={`${design.sizeId}.png`} title="Save this design to your computer"
           style={{ padding: '8px 14px', borderRadius: 8, background: 'white', color: '#23201c', fontWeight: 700, textDecoration: 'none' }}>
           ⬇ Download
         </a>
@@ -673,7 +809,7 @@ function PhotoSheet({ photos, setPhotos, setErr, plain }: {
     <>
       <label style={{ ...plain, display: 'inline-block', marginBottom: 10 }}>
         + Add photo
-        <input type="file" accept="image/*" multiple hidden
+        <input type="file" title="Pick an image from your device" accept="image/*" multiple hidden
           onChange={async (e) => {
             const files = [...(e.target.files ?? [])].slice(0, 3 - photos.length)
             for (const f of files) {
