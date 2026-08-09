@@ -92,7 +92,7 @@ try {
   // ── describe the job ───────────────────────────────────────────────────
   await page.fill('input[placeholder*="doors at 9"]',
     'Business card for Dana Okafor, Managing Broker at Okafor Property Group, 555-0134, dana@okaforgroup.com')
-  await page.getByRole('button', { name: 'Send' }).click()
+  await page.getByRole('button', { name: 'Preview details' }).click()
   log('  … sent the brief, waiting for the reply')
   await page.waitForTimeout(22000)
 

@@ -422,8 +422,14 @@ export default function FlyerMakerPage() {
               onKeyDown={(e) => { if (e.key === 'Enter') send() }} disabled={thinking}
               placeholder='Describe it — "doors at 9, $20 cover, DJ Sable headlining"'
               style={{ flex: 1, padding: '11px 13px', borderRadius: 8, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 15 }} />
+            {/* "Preview details" rather than "Send": pressing this does not
+                make anything or cost anything — it reads what you typed back
+                to you as the card above, so you can correct a wrong date
+                before paying to have it drawn. */}
             <button onClick={send} disabled={thinking || !input.trim()}
-              style={{ ...plain, padding: '10px 14px', opacity: thinking || !input.trim() ? 0.5 : 1 }}>Send</button>
+              style={{ ...plain, padding: '10px 14px', whiteSpace: 'nowrap', opacity: thinking || !input.trim() ? 0.5 : 1 }}>
+              Preview details
+            </button>
             <button onClick={make} disabled={!canMake} style={{ ...darkBtn, opacity: canMake ? 1 : 0.5, whiteSpace: 'nowrap' }}>
               {making ? 'Designing…' : `Make ${ticked.length}${cost !== null ? ` · ${cost.toLocaleString()} cr` : ''}`}
             </button>

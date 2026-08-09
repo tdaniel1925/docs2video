@@ -1,10 +1,15 @@
-// Sign in and actually USE the two new pages, the way a customer would.
+// Sign in and actually USE the slide editor, the way a customer would.
 //
 //   D2V_USER=... D2V_PASS=... node scripts/smoke-flyer-editor.mjs
 //
 // Credentials come from the environment and are never written down. The site
 // rejects API calls that lack a real browser session, so poking the endpoints
 // from a script proves nothing — the only honest check is to drive the UI.
+//
+// The flyer half of this script has been removed: the maker was rebuilt as a
+// chat-first timeline and every selector here was written for the old four-
+// panel layout. A stale script that fails for the wrong reason is worse than
+// no script — see scripts/smoke-flyer.mjs for the current one.
 import { chromium } from 'playwright'
 
 const EMAIL = process.env.D2V_USER
@@ -34,65 +39,6 @@ try {
   await page.waitForTimeout(3000)
   if (page.url().includes('/login')) throw new Error('login failed: ' + (await page.locator('body').innerText()).slice(0, 200).replace(/\s+/g, ' '))
   log(`signed in → ${page.url().replace(BASE, '')}`)
-
-  // ── the flyer maker ──────────────────────────────────────────────────
-  log('\n--- FLYER MAKER ---')
-  await page.goto(`${BASE}/flyer`, { waitUntil: 'networkidle' })
-  await page.waitForTimeout(2500)
-
-  const tiles = await page.locator('img[src^="/flyer-templates/"]').count()
-  const broken = await page.evaluate(() =>
-    [...document.querySelectorAll('img[src^="/flyer-templates/"]')].filter((i) => !i.naturalWidth).length)
-  log(`  template tiles: ${tiles} shown, ${broken} failed to load`)
-
-  // Pick Neon Club, then describe the job.
-  await page.getByTitle('Neon Club').click().catch(() => log('  ! could not click Neon Club'))
-  await page.fill('input[placeholder*="doors at 9"]', 'Saturday club night at The Foundry, doors 9pm, $20 cover, DJ Sable headlining')
-  await page.getByRole('button', { name: 'Send' }).click()
-  log('  sent the brief, waiting for the chat…')
-  await page.waitForTimeout(20000)
-
-  const chatText = await page.locator('body').innerText()
-  const gotReply = /Foundry|tick|sizes|Got it|Updated/i.test(chatText)
-  log(`  chat replied: ${gotReply ? 'yes' : 'NO'}`)
-  await page.screenshot({ path: 'smoke-1-flyer-chat.png' })
-
-  // Only one size, to keep the run short.
-  const makeBtn = page.getByRole('button', { name: /^Make \d+ design/ })
-  const label = await makeBtn.textContent().catch(() => '?')
-  const disabled = await makeBtn.isDisabled().catch(() => true)
-  log(`  make button: "${label?.trim()}" ${disabled ? '(DISABLED)' : '(enabled)'}`)
-
-  if (!disabled) {
-    await makeBtn.click()
-    log('  generating… (waiting up to 4.5 min)')
-    const t0 = Date.now()
-    // Photograph the meter mid-flight; a progress bar can only be judged while
-    // something is in progress.
-    await page.waitForTimeout(25000)
-    const mid = await page.locator('body').innerText()
-    const m = mid.match(/\d+ of \d+ designed[^\n]*/)
-    log('  meter says: ' + (m ? m[0] : 'NOT FOUND'))
-    await page.screenshot({ path: 'smoke-progress.png' })
-    await page.waitForSelector('a[download$=".png"]', { timeout: 280000 }).catch(() => {})
-    const made = await page.locator('a[download$=".png"]').count()
-    log(`  designs produced: ${made} after ${Math.round((Date.now()-t0)/1000)}s`)
-    await page.screenshot({ path: 'smoke-2-flyer-result.png', fullPage: true })
-
-    // Save the ACTUAL designs, full size. A count of download links only proves
-    // something arrived — it says nothing about whether the flyer is any good,
-    // spelled right, or clipped at the edge.
-    const { writeFileSync } = await import('fs')
-    for (let i = 0; i < made; i++) {
-      const a = page.locator('a[download$=".png"]').nth(i)
-      const name = (await a.getAttribute('download')) || `design-${i}.png`
-      const data = await a.getAttribute('href')
-      if (data?.startsWith('data:image')) {
-        writeFileSync(`out-${name}`, Buffer.from(data.split(',')[1], 'base64'))
-        log(`    saved out-${name}`)
-      }
-    }
-  }
 
   // ── the slide editor ─────────────────────────────────────────────────
   log('\n--- SLIDE EDITOR ---')
