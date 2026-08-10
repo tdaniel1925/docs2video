@@ -96,3 +96,5 @@ _review/
 # generated job payloads/bundles
 vps/.job/
 .logo-lab/
+logo-lab/runs/
+logo-lab/results.json
