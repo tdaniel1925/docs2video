@@ -434,7 +434,12 @@ export default function FlyerMakerPage() {
           One chat is one job. Without this, every design anyone ever made
           shared a single endless scrollback — fine for an afternoon, useless
           after a month. */}
-      <aside style={{ width: 216, flexShrink: 0, position: 'sticky', top: 18, alignSelf: 'flex-start', maxHeight: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {/* CLEAR THE HEADER. The site header is pinned to the top of the window
+          and is 72px tall, so sticking at 18px parked this underneath it and
+          sliced the top off the New chat button as soon as you scrolled. The
+          offset has to be the header's height plus a gap, and the height has
+          to subtract the same amount or the list runs off the bottom. */}
+      <aside style={{ width: 216, flexShrink: 0, position: 'sticky', top: 88, alignSelf: 'flex-start', maxHeight: 'calc(100vh - 108px)', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <button onClick={newChat} title="Start a separate job with its own conversation. Nothing is lost — this one stays in the list."
           style={{ ...darkBtn, width: '100%' }}>
           + New chat
