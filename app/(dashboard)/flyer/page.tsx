@@ -316,6 +316,7 @@ export default function FlyerMakerPage() {
   const [deckPlan, setDeckPlan] = useState<DeckPlan | null>(null)
   const [deckCount, setDeckCount] = useState(8)
   const [planning, setPlanning] = useState(false)
+  const [readingDoc, setReadingDoc] = useState(false)
   // The running order is long. Once the deck is being drawn it has done its
   // job, and left open it buries the slides underneath it — which is exactly
   // what it did, with no way to fold it away.
@@ -664,11 +665,76 @@ export default function FlyerMakerPage() {
     setErr('')
   }
 
+  /**
+   * Read a document and use its words as the content.
+   *
+   * The fourth way in, beside typing, pasting and asking me to write it — and
+   * the strongest one, because most people already HAVE the words. A one-pager,
+   * a price list, a menu, a report. Retyping those into a chat box just to get
+   * them back as a design is work nobody should have to do.
+   *
+   * Reuses /api/extract-doc, which has read PDFs and Word files for Docs2Video
+   * for months and takes a file directly — so there is no upload step to build
+   * and no second place for this to break.
+   */
+  const readDocument = async (file: File) => {
+    if (thinking || readingDoc) return
+    if (file.size > 20 * 1024 * 1024) {
+      setErr('That file is over 20 MB. Try a smaller one, or paste the important part in.')
+      return
+    }
+    setErr(''); setReadingDoc(true)
+    say('user', `📄 ${file.name}`)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/extract-doc', { method: 'POST', body: form })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setErr(data?.error || 'Could not read that document. Try pasting the text in instead.')
+        return
+      }
+
+      // Flatten what came back. The extractor returns a title and sections; the
+      // assistant is better at choosing a headline out of that than any rule
+      // here would be, so it gets the words rather than a guess.
+      const sections: { heading?: string; content?: string }[] = data.sections ?? []
+      const full = [
+        data.title,
+        sections.map((s) => [s.heading, s.content].filter(Boolean).join('\n')).join('\n\n'),
+      ].filter(Boolean).join('\n\n').trim().slice(0, 12_000)
+
+      if (!full) {
+        setErr('That document came back empty — it may be a scan with no real text in it. Try pasting the words in.')
+        return
+      }
+
+      say('assistant', `Read ${file.name} — about ${full.split(/\s+/).length} words. Working out what goes on the design…`)
+      await ask(`Here is the source material for this job. Use it as the content:\n\n${full}`)
+    } catch {
+      setErr('Could not read that document. Try pasting the text in instead.')
+    } finally {
+      setReadingDoc(false)
+    }
+  }
+
   const send = async () => {
     const text = input.trim()
     if (!text || thinking) return
-    setInput(''); setErr('')
+    setInput('')
     say('user', text)
+    await ask(text)
+  }
+
+  /**
+   * One pipeline for everything the customer says, however it arrived —
+   * typed, dictated, or lifted out of a document. The caller does the echoing
+   * into the thread, because a document's entire text in a chat bubble is
+   * unreadable and its filename has already been shown.
+   */
+  const ask = async (text: string) => {
+    if (!text.trim() || thinking) return
+    setErr('')
     setThinking(true)
     const history = items.filter((i): i is Extract<Item, { kind: 'msg' }> => i.kind === 'msg')
       .slice(-6).map((m) => ({ role: m.role, text: m.text }))
@@ -1479,11 +1545,21 @@ export default function FlyerMakerPage() {
               {nextStep === 'sizes' && <Dot />}1. What are you making
               <Chosen on={sheet === 'sizes'}>{ticked.length ? `${ticked.length} size${ticked.length === 1 ? '' : 's'}` : 'pick one'}</Chosen>
             </button>
-            <button style={chip(false)} onClick={() => { setUnacked(false); setStrobeId(null); setSheet(null) }}
-              title="What should it say? Type it, paste it in, or ask me to write it. Nothing is drawn until you have read it back.">
+            {/* Step 2 has no panel on purpose — what it says is what the chat
+                is FOR. What it does have is the fourth way in: most people
+                already have the words in a document and should not have to
+                retype them to get a design out. */}
+            <label style={{ ...chip(false), display: 'inline-flex', alignItems: 'center', gap: 0, cursor: readingDoc ? 'wait' : 'pointer', opacity: readingDoc ? 0.6 : 1 }}
+              title="What should it say? Type it below, paste it in, ask me to write it — or click here to upload a PDF or Word document and I'll read it.">
               {nextStep === 'content' && <Dot />}2. What it says
-              <Chosen on={false}>{filled ? 'ready' : 'tell me below'}</Chosen>
-            </button>
+              <Chosen on={false}>{readingDoc ? 'reading…' : filled ? 'ready' : 'type it, or upload a document'}</Chosen>
+              <input type="file" hidden accept=".pdf,.doc,.docx,.txt,.md,.rtf,.pptx"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0]
+                  e.target.value = ''
+                  if (f) await readDocument(f)
+                }} />
+            </label>
             <button style={chip(sheet === 'style')} onClick={() => { setUnacked(false); setStrobeId(null); setSheet(sheet === 'style' ? null : 'style') }}
               title="How should it look? One of our 225 ready-made looks, or a design of your own to work from. One or the other, not both.">
               {nextStep === 'style' && <Dot />}3. How it looks
