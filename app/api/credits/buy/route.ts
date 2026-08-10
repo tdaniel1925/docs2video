@@ -25,7 +25,20 @@ export async function POST(request: Request) {
   // success_url an invalid URL → "Not a valid URL" on redirect).
   const priceId = (process.env[packInfo.priceEnv] || '').trim()
   if (!priceId) return NextResponse.json({ error: 'Credit packs not configured yet' }, { status: 500 })
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').trim().replace(/\/+$/, '')
+
+  // COME BACK TO THE SITE YOU LEFT FROM. This used NEXT_PUBLIC_SITE_URL, which
+  // is docs2video.com — so a Text2Art customer who bought credits was dropped
+  // on a different company's website immediately after paying. The subscription
+  // and billing-portal routes already keyed off the request origin; this one
+  // did not, and there is now more than one front door.
+  //
+  // Only our own hosts are honoured. `origin` is attacker-controllable, and an
+  // open redirect on a payment success page is a phishing gift.
+  const ALLOWED = ['https://docs2video.com', 'https://www.docs2video.com', 'https://text2art.app', 'https://www.text2art.app']
+  const origin = (request.headers.get('origin') || '').trim().replace(/\/+$/, '')
+  const siteUrl = ALLOWED.includes(origin)
+    ? origin
+    : (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').trim().replace(/\/+$/, '')
 
   try {
     const stripe = getStripe()
