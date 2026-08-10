@@ -75,3 +75,39 @@ export const BRANDS = [
 ]
 
 export const byId = (id) => BRANDS.find((b) => b.id === id)
+
+// ── monogram bench ──────────────────────────────────────────────────────────
+//
+// The premium end. Initials are the hardest thing to do well — letters have to
+// be BUILT into one object rather than set side by side — and the easiest place
+// to look cheap, because a bad monogram is just two letters touching.
+//
+// Each carries a palette, because the earlier runs were all single-ink: correct
+// for testing craft, wrong for showing anyone what they are buying.
+export const MONOGRAM_BRANDS = [
+  {
+    id: 'ahg',
+    name: 'AFFINITY HEALTH GROUP',
+    initials: 'AHG',
+    what: 'a group of primary care clinics',
+    positioning: 'steady care',
+    palette: 'a deep teal and a warm coral',
+  },
+  {
+    id: 'htm',
+    name: 'HARTMAN TRUST MANAGEMENT',
+    initials: 'HTM',
+    what: 'a trust and estate management firm',
+    positioning: 'permanence',
+    palette: 'a deep navy and a muted gold',
+  },
+  {
+    id: 'bx',
+    name: 'BOXWORTH EXCHANGE',
+    initials: 'BX',
+    what: 'a commodities trading exchange',
+    positioning: 'momentum',
+    // Two letters is the hardest case of all — there is nowhere to hide.
+    palette: 'a strong ink black and a signal orange',
+  },
+]

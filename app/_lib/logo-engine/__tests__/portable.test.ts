@@ -67,6 +67,47 @@ describe('symbol-only mode really removes the lettering', () => {
   })
 })
 
+describe('the positioning word is direction, never copy', () => {
+  // It was phrased "IT MUST SAY ONE THING: steady care", and the model printed
+  // "steady care." under the monogram as a tagline. A feeling to design toward
+  // must never read as words to set.
+  const brief = { name: 'AFFINITY HEALTH GROUP', initials: 'AHG', what: 'clinics', positioning: 'steady care' }
+
+  it('says outright that it is not text to render', () => {
+    const p = buildLogoPrompt(brief, { monogramStyle: 'interlock' })
+    expect(p).toMatch(/NOT text to render/)
+    expect(p).toMatch(/must appear nowhere in the image/)
+  })
+
+  it('never phrases it as something the logo should SAY', () => {
+    expect(buildLogoPrompt(brief, {})).not.toMatch(/MUST SAY/)
+  })
+
+  it('a monogram asks for the initials and nothing else', () => {
+    const p = buildLogoPrompt(brief, { monogramStyle: 'stacked' })
+    expect(p).toMatch(/NO tagline/)
+    expect(p).toMatch(/NO company name/)
+    // The full company name must not be in a monogram prompt at all.
+    expect(p).not.toContain('AFFINITY HEALTH GROUP')
+  })
+})
+
+describe('colour stays flat, because gradients break two things at once', () => {
+  const brief = { name: 'BOXWORTH', initials: 'BX', what: 'trading' }
+
+  it('forbids gradients on every colour strategy', () => {
+    for (const way of ['two-tone', 'overlap-blend', 'block', 'accent', 'duo-split'] as const) {
+      const p = buildLogoPrompt(brief, { monogramStyle: 'interlock', colourWay: way })
+      expect(p, `${way} allowed a gradient`).toMatch(/no gradients/i)
+    }
+  })
+
+  it('builds the overlap colour from solid shapes, not transparency', () => {
+    const p = buildLogoPrompt(brief, { monogramStyle: 'overlap', colourWay: 'overlap-blend' })
+    expect(p).toMatch(/THIRD flat colour/)
+  })
+})
+
 describe('mark types are distinct instructions', () => {
   it('a wordmark forbids a symbol and an emblem requires a container', () => {
     const brief = { name: 'HALDEN', what: 'wealth' }

@@ -81,6 +81,122 @@ export const MARK_TYPES: MarkType[] = [
 ]
 
 // =============================================================================
+// MONOGRAM CONSTRUCTION
+//
+// The premium end of identity work, and the hardest. A monogram is not letters
+// placed side by side — it is letters BUILT into a single object. That
+// construction decision is the whole design, so it has to be an explicit
+// instruction rather than something hoped for.
+//
+// Every one of these is flat and solid, which keeps the vector conversion clean
+// (see the tracing work — the house style is load-bearing in two places).
+// =============================================================================
+
+export type MonogramStyleId =
+  | 'interlock' | 'stacked' | 'nested' | 'shared-stem' | 'contained'
+  | 'negative' | 'modular' | 'ligature' | 'overlap' | 'rotational'
+
+export const MONOGRAM_STYLES: { id: MonogramStyleId; label: string; direction: string }[] = [
+  {
+    id: 'interlock',
+    label: 'Interlocked',
+    direction:
+      'The letters INTERLOCK — they merge and share strokes so the result reads as ONE continuous constructed object rather than separate characters. Where two letters meet they become the same line.',
+  },
+  {
+    id: 'stacked',
+    label: 'Stacked block',
+    direction:
+      'The letters are STACKED into a tight rectangular block, each sized and stretched so their edges align flush on all sides — a solid slab of type with no gaps at the outer edge.',
+  },
+  {
+    id: 'nested',
+    label: 'Nested',
+    direction:
+      'The smaller letters sit NESTED inside the counter — the enclosed white space — of the largest letter, sized so the whole thing reads as one balanced shape.',
+  },
+  {
+    id: 'shared-stem',
+    label: 'Shared stem',
+    direction:
+      'The letters SHARE a single vertical stroke, so one stem does the work of two or three characters. The economy of it is the idea.',
+  },
+  {
+    id: 'contained',
+    label: 'Contained',
+    direction:
+      'The letters sit inside a simple geometric container — a circle or a square — sized so they nearly touch its edge. The container is a plain solid shape with no ornament, no ring of text, no border pattern.',
+  },
+  {
+    id: 'negative',
+    label: 'Negative space',
+    direction:
+      'The letters are formed ENTIRELY by the negative space cut out of one solid geometric shape. The ink is the background; the letters are the gaps. It must still read instantly.',
+  },
+  {
+    id: 'modular',
+    label: 'Modular grid',
+    direction:
+      'The letters are constructed from a strict geometric module — the same circle radius, the same square, the same 45-degree angle used throughout — so every curve and corner in the mark is visibly the same size. A visible underlying system.',
+  },
+  {
+    id: 'ligature',
+    label: 'Ligature',
+    direction:
+      'The letters are joined as a LIGATURE, flowing into one another as a single connected stroke, the way an ampersand joins an E and a T. One unbroken form.',
+  },
+  {
+    id: 'overlap',
+    label: 'Overlapping',
+    direction:
+      'The letters OVERLAP, and where they cross, the intersection is filled with a third flat colour — a deliberate transparency effect built from solid shapes, never a gradient. The overlaps are the point of interest.',
+  },
+  {
+    id: 'rotational',
+    label: 'Rotational',
+    direction:
+      'The letters are arranged with rotational symmetry — one form repeated at 90 or 180 degrees to build the others — so the mark reads as a deliberate geometric system rather than a row of characters.',
+  },
+]
+
+// =============================================================================
+// COLOUR
+//
+// The first eight samples were all single-ink, which is correct for testing
+// craft and wrong for showing a customer what they are buying. Colour is a
+// large part of what makes an identity feel considered rather than austere.
+//
+// All of these stay FLAT and countable — no gradients — because a gradient
+// breaks the vector conversion and fails the one-colour test at the same time.
+// =============================================================================
+
+export type ColourWayId = 'mono' | 'two-tone' | 'overlap-blend' | 'block' | 'accent' | 'duo-split'
+
+export const COLOUR_WAYS: { id: ColourWayId; label: string; direction: string }[] = [
+  { id: 'mono', label: 'Single ink', direction: 'ONE solid ink on white. No second colour anywhere.' },
+  {
+    id: 'two-tone', label: 'Two flat colours',
+    direction: 'TWO flat solid colours, used deliberately — one per letter, or one for the mark and one for its counterpart. Both must be strong enough to hold their own; no tints, no gradients, no transparency.',
+  },
+  {
+    id: 'overlap-blend', label: 'Two colours plus overlap',
+    direction: 'TWO flat solid colours, plus a THIRD flat colour only where the shapes overlap — a built transparency effect made from solid shapes. Exactly three flat colours, no gradients.',
+  },
+  {
+    id: 'block', label: 'Knockout of a colour block',
+    direction: 'The mark is knocked OUT of a solid block of one strong colour — the letters are the white of the paper showing through. Two colours at most: the block, and the paper.',
+  },
+  {
+    id: 'accent', label: 'One ink plus an accent',
+    direction: 'Mostly ONE dark ink, with a SINGLE small element in one bright accent colour — a counter, a dot, a joining stroke. The accent must be small enough that the mark still works without it.',
+  },
+  {
+    id: 'duo-split', label: 'Split colour',
+    direction: 'The mark is split across a straight edge — one half in one flat colour, the other half in a second — as if lit from one side. Two flat colours, a clean straight division, no blending.',
+  },
+]
+
+// =============================================================================
 // THE HOUSE RULES
 //
 // Each is separately identified so exactly one can be removed and the effect
@@ -179,6 +295,8 @@ export const STYLE_STEERS: Record<SteerId, string> = {
 export type LogoBrief = {
   /** The company name, spelled exactly as it must appear. */
   name: string
+  /** The initials, for a monogram. e.g. "AHG" for Affinity Health Group. */
+  initials?: string
   /** What the business actually does, in a sentence. */
   what: string
   /** ONE thing the mark should say. Not four. Forcing this choice is the job. */
@@ -192,6 +310,12 @@ export type LogoBrief = {
 export type PromptOptions = {
   markType?: MarkTypeId
   steer?: SteerId
+  /** How the letters are BUILT. The whole design decision for a monogram. */
+  monogramStyle?: MonogramStyleId
+  /** How many inks, and how they are used. */
+  colourWay?: ColourWayId
+  /** The actual colours to use, e.g. "deep teal and warm coral". */
+  palette?: string
   /** Which house rules to include. Omit for all — name a subset to ablate. */
   rules?: string[]
   /**
@@ -221,9 +345,26 @@ export function buildLogoPrompt(brief: LogoBrief, opts: PromptOptions = {}): str
   )
 
   parts.push('', `THE BUSINESS: ${brief.what}`)
-  if (brief.positioning) parts.push(`IT MUST SAY ONE THING: ${brief.positioning}.`)
+  // PHRASED SO IT CANNOT BE READ AS COPY. Written as "IT MUST SAY ONE THING:
+  // steady care", the model printed "steady care." underneath the monogram as
+  // a tagline. It is a feeling to design toward, not words to set.
+  if (brief.positioning) {
+    parts.push(`THE FEELING TO DESIGN TOWARD — this is a direction for the shapes, NOT text to render, and these words must appear nowhere in the image: ${brief.positioning}`)
+  }
 
-  if (!opts.symbolOnly) {
+  const monogram = opts.monogramStyle
+    ? MONOGRAM_STYLES.find((m) => m.id === opts.monogramStyle)
+    : undefined
+
+  if (monogram && brief.initials) {
+    // A monogram is its own thing: the letters ARE the artwork, so the
+    // construction instruction replaces the mark-type direction entirely.
+    parts.push('', `A MONOGRAM built from exactly these letters and no others: "${brief.initials.split('').join(' ')}" — the letters ${brief.initials}.`)
+    parts.push(monogram.direction)
+    parts.push(
+      `Draw ONLY those ${brief.initials.length} letters and nothing else. NO company name, NO tagline, NO strapline, NO descriptive words, NO extra characters — not above, not below, not beside the monogram. The letters ${brief.initials} are the entire image.`,
+    )
+  } else if (!opts.symbolOnly) {
     parts.push('', mark.direction)
     // Quoted exactly, the way the flyer engine does it — this is what keeps a
     // name from drifting into something that merely looks similar.
@@ -233,7 +374,16 @@ export function buildLogoPrompt(brief: LogoBrief, opts: PromptOptions = {}): str
   }
 
   if (brief.concept) parts.push('', `THE CONCEPT: ${brief.concept}`)
-  parts.push('', `COLOUR: ${brief.colour ?? 'a single solid near-black ink on white'}. No second colour.`)
+
+  // Colour: an explicit strategy when one is named, otherwise the brief's own
+  // line, otherwise single ink. Kept flat in every case — a gradient breaks
+  // both the one-colour test and the vector conversion.
+  const way = opts.colourWay ? COLOUR_WAYS.find((c) => c.id === opts.colourWay) : undefined
+  if (way) {
+    parts.push('', `COLOUR: ${way.direction}${opts.palette ? ` Use ${opts.palette}.` : ''} Flat solid fills only — absolutely no gradients, no tints, no opacity.`)
+  } else {
+    parts.push('', `COLOUR: ${brief.colour ?? 'a single solid near-black ink on white'}. No second colour.`)
+  }
 
   if (steer) parts.push('', steer)
 
