@@ -1,0 +1,157 @@
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rate the logos — steer</title>
+<style>
+ body{font:16px/1.6 -apple-system,Segoe UI,Roboto,sans-serif;background:#F4F1EC;color:#23201c;margin:0;padding:20px 16px 140px}
+ .wrap{max-width:1100px;margin:0 auto}
+ h1{font-size:24px;margin:0 0 4px}
+ .sub{color:#6b6459;margin:0 0 8px;font-size:15px}
+ .scale{background:#fff;border:1px solid #ddd6cc;border-radius:10px;padding:12px 14px;margin:0 0 22px;font-size:14px;color:#6b6459}
+ .scale b{color:#23201c}
+ .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+ .cell{background:#fff;border:1px solid #ddd6cc;border-radius:10px;padding:10px}
+ .cell img{width:100%;aspect-ratio:1;object-fit:contain;background:#fff;display:block;border-radius:6px}
+ .n{font-size:12px;font-weight:800;color:#6b6459;margin:6px 0 8px}
+ .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+ .btns button{padding:9px 0;border:1px solid #ddd6cc;background:#fff;border-radius:7px;font:inherit;
+   font-size:14px;font-weight:700;cursor:pointer;color:#23201c}
+ .btns button.on{background:#23201c;color:#fff;border-color:transparent}
+ .bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #ddd6cc;padding:12px 16px;
+   display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+ .bar .count{font-weight:700}
+ .bar textarea{flex:1;min-width:260px;font:13px ui-monospace,Menlo,monospace;padding:8px;border:1px solid #ddd6cc;border-radius:8px;height:44px}
+ .bar button{padding:11px 18px;border:none;border-radius:8px;background:#23201c;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+</style></head><body><div class="wrap">
+<h1>Rate the logos</h1>
+<p class="sub">48 logos. You cannot see which prompt made which — that is the point.</p>
+<div class="scale"><b>Would you show this to a client?</b><br>
+ <b>1</b> janky &nbsp;·&nbsp; <b>2</b> weak &nbsp;·&nbsp; <b>3</b> passable &nbsp;·&nbsp;
+ <b>4</b> good &nbsp;·&nbsp; <b>5</b> I'd put my name on it<br>
+ Skip any you are unsure about — a missing rating is better than a guessed one.</div>
+<div class="grid">
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/001.png" alt="" loading="lazy"><div class="n">#1</div>
+<div class="btns" data-n="1"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/002.png" alt="" loading="lazy"><div class="n">#2</div>
+<div class="btns" data-n="2"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/003.png" alt="" loading="lazy"><div class="n">#3</div>
+<div class="btns" data-n="3"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/004.png" alt="" loading="lazy"><div class="n">#4</div>
+<div class="btns" data-n="4"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/005.png" alt="" loading="lazy"><div class="n">#5</div>
+<div class="btns" data-n="5"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/006.png" alt="" loading="lazy"><div class="n">#6</div>
+<div class="btns" data-n="6"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/007.png" alt="" loading="lazy"><div class="n">#7</div>
+<div class="btns" data-n="7"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/008.png" alt="" loading="lazy"><div class="n">#8</div>
+<div class="btns" data-n="8"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/009.png" alt="" loading="lazy"><div class="n">#9</div>
+<div class="btns" data-n="9"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/010.png" alt="" loading="lazy"><div class="n">#10</div>
+<div class="btns" data-n="10"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/011.png" alt="" loading="lazy"><div class="n">#11</div>
+<div class="btns" data-n="11"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/012.png" alt="" loading="lazy"><div class="n">#12</div>
+<div class="btns" data-n="12"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/013.png" alt="" loading="lazy"><div class="n">#13</div>
+<div class="btns" data-n="13"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/014.png" alt="" loading="lazy"><div class="n">#14</div>
+<div class="btns" data-n="14"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/015.png" alt="" loading="lazy"><div class="n">#15</div>
+<div class="btns" data-n="15"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/016.png" alt="" loading="lazy"><div class="n">#16</div>
+<div class="btns" data-n="16"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/017.png" alt="" loading="lazy"><div class="n">#17</div>
+<div class="btns" data-n="17"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/018.png" alt="" loading="lazy"><div class="n">#18</div>
+<div class="btns" data-n="18"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/019.png" alt="" loading="lazy"><div class="n">#19</div>
+<div class="btns" data-n="19"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/020.png" alt="" loading="lazy"><div class="n">#20</div>
+<div class="btns" data-n="20"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/021.png" alt="" loading="lazy"><div class="n">#21</div>
+<div class="btns" data-n="21"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/022.png" alt="" loading="lazy"><div class="n">#22</div>
+<div class="btns" data-n="22"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/023.png" alt="" loading="lazy"><div class="n">#23</div>
+<div class="btns" data-n="23"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/024.png" alt="" loading="lazy"><div class="n">#24</div>
+<div class="btns" data-n="24"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/025.png" alt="" loading="lazy"><div class="n">#25</div>
+<div class="btns" data-n="25"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/026.png" alt="" loading="lazy"><div class="n">#26</div>
+<div class="btns" data-n="26"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/027.png" alt="" loading="lazy"><div class="n">#27</div>
+<div class="btns" data-n="27"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/028.png" alt="" loading="lazy"><div class="n">#28</div>
+<div class="btns" data-n="28"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/029.png" alt="" loading="lazy"><div class="n">#29</div>
+<div class="btns" data-n="29"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/030.png" alt="" loading="lazy"><div class="n">#30</div>
+<div class="btns" data-n="30"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/031.png" alt="" loading="lazy"><div class="n">#31</div>
+<div class="btns" data-n="31"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/032.png" alt="" loading="lazy"><div class="n">#32</div>
+<div class="btns" data-n="32"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/033.png" alt="" loading="lazy"><div class="n">#33</div>
+<div class="btns" data-n="33"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/034.png" alt="" loading="lazy"><div class="n">#34</div>
+<div class="btns" data-n="34"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/035.png" alt="" loading="lazy"><div class="n">#35</div>
+<div class="btns" data-n="35"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/036.png" alt="" loading="lazy"><div class="n">#36</div>
+<div class="btns" data-n="36"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/037.png" alt="" loading="lazy"><div class="n">#37</div>
+<div class="btns" data-n="37"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/038.png" alt="" loading="lazy"><div class="n">#38</div>
+<div class="btns" data-n="38"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/039.png" alt="" loading="lazy"><div class="n">#39</div>
+<div class="btns" data-n="39"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/040.png" alt="" loading="lazy"><div class="n">#40</div>
+<div class="btns" data-n="40"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/041.png" alt="" loading="lazy"><div class="n">#41</div>
+<div class="btns" data-n="41"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/042.png" alt="" loading="lazy"><div class="n">#42</div>
+<div class="btns" data-n="42"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/043.png" alt="" loading="lazy"><div class="n">#43</div>
+<div class="btns" data-n="43"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/044.png" alt="" loading="lazy"><div class="n">#44</div>
+<div class="btns" data-n="44"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/045.png" alt="" loading="lazy"><div class="n">#45</div>
+<div class="btns" data-n="45"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/046.png" alt="" loading="lazy"><div class="n">#46</div>
+<div class="btns" data-n="46"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/047.png" alt="" loading="lazy"><div class="n">#47</div>
+<div class="btns" data-n="47"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/steer/048.png" alt="" loading="lazy"><div class="n">#48</div>
+<div class="btns" data-n="48"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
+</div></div>
+<div class="bar">
+ <span class="count">0 / 48</span>
+ <textarea readonly placeholder="Your ratings appear here as you tap"></textarea>
+ <button id="copy">Copy</button>
+</div>
+<script>
+ const scores = {};
+ const out = document.querySelector('textarea');
+ const count = document.querySelector('.count');
+ function refresh(){
+   const parts = Object.keys(scores).map(Number).sort((a,b)=>a-b).map(n=>n+':'+scores[n]);
+   out.value = parts.join(' ');
+   count.textContent = parts.length + ' / 48';
+ }
+ document.querySelectorAll('.btns').forEach(g=>{
+   g.addEventListener('click', e=>{
+     const b = e.target.closest('button'); if(!b) return;
+     scores[g.dataset.n] = Number(b.dataset.v);
+     [...g.children].forEach(x=>x.classList.toggle('on', x===b));
+     refresh();
+   });
+ });
+ document.getElementById('copy').addEventListener('click', async ()=>{
+   out.select();
+   try{ await navigator.clipboard.writeText(out.value); }catch{ document.execCommand('copy'); }
+   const b = document.getElementById('copy'); const t = b.textContent;
+   b.textContent = 'Copied'; setTimeout(()=>b.textContent=t, 1200);
+ });
+</script></body></html>
