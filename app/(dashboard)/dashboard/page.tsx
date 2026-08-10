@@ -1,6 +1,8 @@
 import React from 'react'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/server'
+import { getBrand } from '../../_lib/brand-server'
 import { getBalance } from '../../_lib/credits'
 import { displayProgress } from '../../_lib/video-progress'
 
@@ -149,6 +151,15 @@ function DiscardDraftButton({ videoId }: { videoId: string }) {
 }
 
 export default async function DashboardPage() {
+  // SINGLE CHOKE POINT for "where does a signed-in user land?".
+  //
+  // Login, signup, the auth callback, the onboarding wizard and proxy.ts all
+  // send people to /dashboard. Rather than teach each of those about the second
+  // storefront, /dashboard itself bounces to the brand's home. On docs2video.com
+  // brand.home IS '/dashboard', so this is a no-op there.
+  const brand = await getBrand()
+  if (brand.home !== '/dashboard') redirect(brand.home)
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 

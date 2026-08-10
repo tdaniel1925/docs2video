@@ -1,6 +1,37 @@
 import Link from 'next/link'
+import { getBrand } from '../_lib/brand-server'
+import { CREDIT_COSTS, TIER_CREDITS } from '../_lib/credits'
+import { thumbUrl } from '../_lib/flyer-engine'
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  // Same login form, different sign over the door. Docs2Video's panel is
+  // untouched; Text2Art gets its own words and a real sample design.
+  const brand = await getBrand()
+
+  if (brand.id === 'text2art') {
+    const freeDesigns = Math.floor(TIER_CREDITS.free / CREDIT_COSTS.flyer)
+    return (
+      <div className="auth-split">
+        <div className="auth-side">
+          <Link href="/" className="logo" style={{ textDecoration: 'none', color: '#fff', fontWeight: 800, fontSize: 28, letterSpacing: '-0.03em' }}>
+            Text<span style={{ color: 'var(--mint)' }}>2</span>Art
+          </Link>
+          <div className="auth-side-content">
+            <h2>Describe it. Get the <em>finished design</em>.</h2>
+            <p>Flyers, ads, social posts, banners and business cards — {freeDesigns} free to start.</p>
+          </div>
+          <div className="auth-side-mock">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={thumbUrl('editorial')} alt="Example design made with Text2Art" style={{ width: '100%', display: 'block', borderRadius: 10 }} />
+          </div>
+        </div>
+        <div className="auth-form-wrap">
+          <div className="auth-form">{children}</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="auth-split">
       <div className="auth-side">

@@ -4,10 +4,18 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
+import { useBrand } from '../../_components/BrandProvider'
+
+// Literals, not an import: app/_lib/credits.ts reaches for the Supabase service
+// role client, which must never be pulled into a client bundle. Keep in sync
+// with CREDIT_COSTS.flyer and TIER_CREDITS.free.
+const FLYER_COST = 200
+const FREE_CREDITS = 2000
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 function CardForm() {
+  const brand = useBrand()
   const router = useRouter()
   const searchParams = useSearchParams()
   const next = searchParams.get('next')
@@ -75,7 +83,8 @@ function CardForm() {
 
     // Return to wherever the user was sent from (e.g. the produce flow), or
     // fall back to onboarding.
-    router.push(next || '/setup')
+    // Onboarding is a video-product wizard. Brands without it go to their tool.
+    router.push(next || (brand.showVideoFeatures ? '/setup' : brand.home))
   }
 
   return (
@@ -101,7 +110,9 @@ function CardForm() {
           <strong style={{ color: '#166534' }}>2,000 free credits included</strong>
         </div>
         <p style={{ color: '#15803d', marginTop: 6, marginBottom: 0 }}>
-          Enough for your first videos — a standard video is 1,000 credits. Top up or upgrade anytime. Cancel anytime.
+          {brand.showVideoFeatures
+            ? 'Enough for your first videos — a standard video is 1,000 credits. Top up or upgrade anytime. Cancel anytime.'
+            : `Enough for your first ${Math.floor(FREE_CREDITS / FLYER_COST)} designs — each design is ${FLYER_COST} credits. Top up or upgrade anytime. Cancel anytime.`}
         </p>
       </div>
 

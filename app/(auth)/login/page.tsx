@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { login } from '../../_actions/auth'
+import { useBrand } from '../../_components/BrandProvider'
 
 export default function LoginPage() {
+  const brand = useBrand()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -23,7 +25,7 @@ export default function LoginPage() {
   return (
     <>
       <h1>Sign in</h1>
-      <p className="auth-sub">Welcome back to Docs2Video.</p>
+      <p className="auth-sub">Welcome back to {brand.name}.</p>
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">

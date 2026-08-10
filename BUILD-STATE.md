@@ -3,7 +3,55 @@
 **Last updated:** 2026-07-04 (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
 **Branch:** main
 **Build:** ✅ Compiles clean
-**Deploy:** Vercel (docs2video.com)
+**Deploy:** Vercel (docs2video.com, text2art.app)
+
+## 2026-08-09 — Text2Art: second storefront on the same codebase
+
+One app, two front doors. `text2art.app` sells the existing Custom Graphics tool
+(`/flyer`) on its own; `docs2video.com` is unchanged. Auth, credits, Stripe,
+admin and the database are shared — a person has ONE account and ONE credit
+balance across both.
+
+**Where the switch lives (one place):**
+- `app/_lib/brand.ts` — the `Brand` object and `brandFromHost()`. Import-free so
+  both client and server can read it. Every host-dependent decision (name, logo,
+  landing page, nav, whether video features are advertised, where a signed-in
+  user lands) is a FIELD here. Do not add `if (host === …)` anywhere else.
+- `app/_lib/brand-server.ts` — `getBrand()`, reads `x-forwarded-host`/`host`.
+- `app/_components/BrandProvider.tsx` — root layout reads the host once and
+  passes the brand to client components via `useBrand()`. Client components must
+  never sniff `window.location` (hydration mismatch).
+- **Unrecognised host ⇒ Docs2Video.** Previews, localhost and a missing Host
+  header all behave exactly as before. `NEXT_PUBLIC_BRAND=text2art` forces the
+  other brand for local dev only.
+
+**Files changed:** `app/_lib/brand.ts` (new), `app/_lib/brand-server.ts` (new),
+`app/_components/BrandProvider.tsx` (new), `app/_components/Text2ArtLanding.tsx`
+(new), `app/layout.tsx`, `app/page.tsx`, `app/sitemap.ts`,
+`app/_components/Header.tsx`, `app/(dashboard)/layout.tsx`,
+`app/(dashboard)/dashboard/page.tsx`, `app/(auth)/layout.tsx`,
+`app/(auth)/login/page.tsx`, `app/(auth)/setup-payment/page.tsx`,
+`app/(onboarding)/layout.tsx`.
+
+**Routing on text2art.app:** `/dashboard` redirects to `/flyer`. That is the one
+choke point — login, signup, the auth callback, the onboarding wizard and
+proxy.ts all send people to `/dashboard`, so none of them needed changing. The
+video-only setup wizard is skipped (`app/(onboarding)/layout.tsx`) because it
+asks for a narrator voice and a slide style.
+
+**Landing page** (`/` on text2art.app) is public and uses the REAL pre-generated
+samples in `public/flyer-templates/*.png` plus the live values from
+`flyer-engine` (15 styles, 15 sizes, photo roles) and `credits.ts` (200 credits
+per design). It states the card-on-file requirement and the "read it before you
+print" caveat rather than overselling.
+
+**No database change.** No migration, no new table, no new column, no new env
+var. Trent only needs to add the domain in Vercel and point DNS.
+
+**Not done / known gaps:** no Text2Art logo artwork (the header renders a text
+wordmark); `/terms`, `/privacy`, `/cookies`, `/contact`, `/help` and billing
+emails still carry Docs2Video wording on both hosts; `NEXT_PUBLIC_SITE_URL` is
+still docs2video.com, so links inside emails point there.
 
 ## 2026-08-05 — Presentation editing (manual + AI) and display fixes
 - **New: post-generation slide editor** at `/videos/{id}/edit` for interactive

@@ -1,8 +1,21 @@
 import type { MetadataRoute } from 'next'
+import { getBrand } from './_lib/brand-server'
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const base = 'https://docs2video.com'
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const brand = await getBrand()
+  const base = `https://${brand.domain}`
   const now = new Date()
+
+  // Text2Art has no blog and no industry landing pages, and it must not point
+  // search engines at Docs2Video's video marketing copy under its own domain.
+  if (brand.id === 'text2art') {
+    return ['/', '/privacy', '/terms', '/cookies', '/contact', '/login', '/signup'].map((path) => ({
+      url: `${base}${path}`,
+      lastModified: now,
+      changeFrequency: path === '/' ? 'weekly' : 'monthly',
+      priority: path === '/' ? 1.0 : 0.5,
+    }))
+  }
 
   const staticPages = [
     '/',

@@ -7,6 +7,7 @@ import NotificationBell from './NotificationBell'
 import BuyCreditsModal from './BuyCreditsModal'
 import { logout } from '../_actions/auth'
 import type { Profile } from '../_lib/types'
+import { DOCS2VIDEO, type Brand } from '../_lib/brand'
 
 const TOOLS_ITEMS = [
   { href: '/create', icon: '\uD83C\uDFAC', title: 'Pro Mode', desc: 'Full control over every detail' },
@@ -19,14 +20,10 @@ const TOOLS_ITEMS = [
 // The flyer tool still works at /flyers directly; it's just not surfaced in nav.
 const SHOW_TOOLS_NAV = false
 
-// Focused product (2026-06-11): video + deck only — peripheral tools unlinked
-const NAV_LINKS = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/videos', label: 'Library' },
-  { href: '/clients', label: 'Clients' },
-]
-
-export default function Header({ profile }: { profile: Profile }) {
+// Which links appear here is a per-STOREFRONT decision and now lives in
+// app/_lib/brand.ts. `brand` defaults to Docs2Video, whose nav is exactly what
+// it always was, so every existing caller is unaffected.
+export default function Header({ profile, brand = DOCS2VIDEO }: { profile: Profile; brand?: Brand }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [toolsOpen, setToolsOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -69,6 +66,7 @@ export default function Header({ profile }: { profile: Profile }) {
     setMobileOpen(false)
   }, [pathname])
 
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
   const isCreateActive = pathname === '/create' || pathname.startsWith('/create/')
   const isToolsActive = TOOLS_ITEMS.some(
     (item) => pathname === item.href || pathname.startsWith(item.href + '/')
@@ -78,28 +76,35 @@ export default function Header({ profile }: { profile: Profile }) {
     <header className="app-header">
       <div className="app-header-inner">
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-            <img src="/logo.png" alt="Docs2Video" style={{ height: 64 }} />
+          <Link href={brand.home} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+            {brand.logoSrc
+              ? <img src={brand.logoSrc} alt={brand.name} style={{ height: 64 }} />
+              : <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--ink)' }}>{brand.name}</span>}
           </Link>
           <nav className="app-nav">
-            {/* Dashboard */}
-            <Link
-              href="/dashboard"
-              className={pathname === '/dashboard' ? 'active' : ''}
-            >
-              Dashboard
-            </Link>
+            {/* First nav item (Dashboard on Docs2Video, Designs on Text2Art). */}
+            {brand.nav[0] && (
+              <Link
+                href={brand.nav[0].href}
+                className={pathname === brand.nav[0].href ? 'active' : ''}
+              >
+                {brand.nav[0].label}
+              </Link>
+            )}
 
             {/* Create — ONE door. /create/start presents all output types (Video /
                 Slides / Commercial) so we don't need a parallel dropdown that
-                deep-links past the output-type choice. */}
-            <Link
-              href="/create/start"
-              className={isCreateActive ? 'active' : ''}
-              style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '8px 16px', borderRadius: 10, fontSize: 14, fontWeight: 500, color: 'var(--ink-soft)' }}
-            >
-              + Create
-            </Link>
+                deep-links past the output-type choice. Brands with a single tool
+                set create to null and get no button. */}
+            {brand.create && (
+              <Link
+                href={brand.create.href}
+                className={isCreateActive ? 'active' : ''}
+                style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '8px 16px', borderRadius: 10, fontSize: 14, fontWeight: 500, color: 'var(--ink-soft)' }}
+              >
+                {brand.create.label}
+              </Link>
+            )}
 
             {/* Tools dropdown — hidden from nav per product decision (kept in code). */}
             {SHOW_TOOLS_NAV && (
@@ -146,11 +151,11 @@ export default function Header({ profile }: { profile: Profile }) {
             )}
 
             {/* Other nav links */}
-            {NAV_LINKS.slice(1).map((link) => (
+            {brand.nav.slice(1).map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className={pathname === link.href || pathname.startsWith(link.href + '/') ? 'active' : ''}
+                className={isActive(link.href) ? 'active' : ''}
               >
                 {link.label}
               </Link>
@@ -259,13 +264,17 @@ export default function Header({ profile }: { profile: Profile }) {
                 </button>
               </div>
               <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: 0 }} />
-              <Link
-                href="/analytics"
-                onClick={() => setMenuOpen(false)}
-                style={{ display: 'block', padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none' }}
-              >
-                Analytics
-              </Link>
+              {/* Share-page analytics only mean something where there are
+                  share pages — i.e. the video product. */}
+              {brand.showVideoFeatures && (
+                <Link
+                  href="/analytics"
+                  onClick={() => setMenuOpen(false)}
+                  style={{ display: 'block', padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none' }}
+                >
+                  Analytics
+                </Link>
+              )}
               <Link
                 href="/settings"
                 onClick={() => setMenuOpen(false)}
@@ -325,8 +334,12 @@ export default function Header({ profile }: { profile: Profile }) {
       {/* Mobile menu */}
       {mobileOpen && (
         <div className="mobile-menu">
-          <Link href="/dashboard" className={pathname === '/dashboard' ? 'active' : ''}>Dashboard</Link>
-          <Link href="/create/start" className={isCreateActive ? 'active' : ''}>+ Create</Link>
+          {brand.nav[0] && (
+            <Link href={brand.nav[0].href} className={pathname === brand.nav[0].href ? 'active' : ''}>{brand.nav[0].label}</Link>
+          )}
+          {brand.create && (
+            <Link href={brand.create.href} className={isCreateActive ? 'active' : ''}>{brand.create.label}</Link>
+          )}
           {SHOW_TOOLS_NAV && (
             <>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-light)', padding: '12px 0 4px' }}>Tools</div>
@@ -338,10 +351,13 @@ export default function Header({ profile }: { profile: Profile }) {
             </>
           )}
           <div style={{ height: 8 }} />
-          <Link href="/videos" className={pathname === '/videos' ? 'active' : ''}>Library</Link>
-          <Link href="/clients" className={pathname === '/clients' ? 'active' : ''}>Clients</Link>
+          {brand.nav.slice(1).map((link) => (
+            <Link key={link.href} href={link.href} className={pathname === link.href ? 'active' : ''}>{link.label}</Link>
+          ))}
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-light)', padding: '12px 0 4px' }}>Account</div>
-          <Link href="/analytics" className={pathname === '/analytics' ? 'active' : ''}>Analytics</Link>
+          {brand.showVideoFeatures && (
+            <Link href="/analytics" className={pathname === '/analytics' ? 'active' : ''}>Analytics</Link>
+          )}
           <Link href="/settings" className={pathname === '/settings' ? 'active' : ''}>Settings</Link>
           <Link href="/help" className={pathname.startsWith('/help') ? 'active' : ''}>Help Center</Link>
           {showAdmin && (

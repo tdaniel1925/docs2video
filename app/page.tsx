@@ -7,6 +7,8 @@ import SharePagePreview from './_components/SharePagePreview'
 import ClickToPlayVideo from './_components/ClickToPlayVideo'
 import IndustryMegaMenu from './_components/IndustryMegaMenu'
 import { createAdminClient } from './_lib/supabase/admin'
+import { getBrand } from './_lib/brand-server'
+import Text2ArtLanding from './_components/Text2ArtLanding'
 
 const FALLBACK_VIDEO = 'https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/site-assets/hero-video.mp4'
 const HERO_VIDEO_ID = 'ef7cd8fd-247e-438b-91e5-35bed0be98f0'
@@ -26,6 +28,12 @@ async function getHeroVideoUrl(): Promise<string> {
 }
 
 export default async function HomePage() {
+  // Two storefronts share this route. text2art.app gets its own landing page and
+  // returns BEFORE the hero-video lookup below, so nothing about the Docs2Video
+  // page — markup, data fetch or copy — is touched by the second brand.
+  const brand = await getBrand()
+  if (brand.id === 'text2art') return <Text2ArtLanding />
+
   const heroVideoUrl = await getHeroVideoUrl()
   return (
     <>
