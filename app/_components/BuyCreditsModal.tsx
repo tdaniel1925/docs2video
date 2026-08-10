@@ -115,6 +115,19 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
           </div>
         ))}
 
+        {/* SAY WHOSE NAME IS ON THE CHARGE. Payments run through one Stripe
+            account, so a Text2Art customer's statement and receipt both read
+            Docs2Video. An unrecognised name on a card statement is a chargeback
+            waiting to happen — saying so beforehand costs nothing, while the
+            surprise costs the payment and the trust. */}
+        <p style={{
+          fontSize: 12, color: 'var(--ink-light)', lineHeight: 1.5,
+          marginTop: 16, textAlign: 'center',
+        }}>
+          Payments are handled securely by Stripe. <strong>Docs2Video</strong> is the name
+          that appears on your card statement and receipt.
+        </p>
+
         <button
           onClick={onClose}
           style={{

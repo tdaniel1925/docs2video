@@ -955,6 +955,17 @@ export default function SettingsPage() {
           <div className="settings-card">
             <h3>Credits &amp; Top-Ups</h3>
             <p className="ssub">Buy credit packs anytime. Credits never expire and are used after your monthly allotment.</p>
+            {/* Both storefronts bill through ONE Stripe account, so the name on
+                the statement is Docs2Video whichever site the customer bought
+                from. Said here plainly rather than discovered on a bank
+                statement, where an unrecognised name means a chargeback. Only
+                shown where it would be a surprise. */}
+            {storefront.id !== 'docs2video' && (
+              <p className="ssub" style={{ fontSize: 12, color: 'var(--ink-light)' }}>
+                Billing is handled by <strong>Docs2Video</strong> — that is the name that appears
+                on your card statement and on your receipts.
+              </p>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginTop: 12 }}>
               <div>
                 <div style={{ fontSize: 12, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Current balance</div>
