@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useBrand } from '../../_components/BrandProvider'
 
 interface HelpArticle {
   id: string
@@ -504,6 +505,14 @@ export default function HelpPage() {
   const [expandedArticle, setExpandedArticle] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
+  const brand = useBrand()
+
+  // On a storefront that does not sell video, the help centre must not be a
+  // list of video guides. Only what that customer can actually use.
+  const guides = brand.showVideoFeatures
+    ? GUIDES
+    : GUIDES.filter((g) => ['/help/flyers', '/help/pricing', '/help/account', '/help/faq'].includes(g.href))
+
   const filteredArticles = ARTICLES.filter(a => {
     if (search.trim()) {
       const q = search.toLowerCase()
@@ -518,7 +527,7 @@ export default function HelpPage() {
       <div className="page-head">
         <div>
           <h1>Help Center</h1>
-          <p>Everything you need to know about Docs2Video.</p>
+          <p>Everything you need to know about {brand.name}.</p>
         </div>
       </div>
 
@@ -532,7 +541,7 @@ export default function HelpPage() {
           gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
           gap: 14,
         }}>
-          {GUIDES.map(guide => (
+          {guides.map(guide => (
             <Link
               key={guide.href}
               href={guide.href}
@@ -682,7 +691,7 @@ export default function HelpPage() {
       }}>
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Still need help?</div>
         <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '0 0 12px' }}>
-          Click the help button in the bottom-right corner to chat with our AI assistant. It knows everything about Docs2Video.
+          Click the help button in the bottom-right corner to chat with our AI assistant. It knows everything about the app.
         </p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
           <a href="mailto:support@docs2video.com" className="btn btn-soft">Email Support</a>

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import DOMPurify from 'dompurify'
+import { useBrand } from './BrandProvider'
 
 // Sanitize assistant HTML before injection (review S4): the prompt asks the
 // model for p/strong/ul/ol/li/a only, but model output is NOT a security
@@ -20,6 +21,7 @@ interface Message {
 }
 
 export default function HelpChatWidget() {
+  const brand = useBrand()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -115,7 +117,7 @@ export default function HelpChatWidget() {
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--mint, #A8F0D4)', boxShadow: '0 0 6px rgba(168,240,212,0.6)' }} />
             <div>
               <div style={{ fontWeight: 700, fontSize: 14 }}>Help Assistant</div>
-              <div style={{ fontSize: 11, color: 'var(--ink-light, #94a3b8)' }}>Ask anything about Docs2Video</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-light, #94a3b8)' }}>Ask anything about {brand.name}</div>
             </div>
           </div>
 

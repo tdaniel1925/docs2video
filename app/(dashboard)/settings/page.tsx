@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/client'
 import SmtpSetupModal from '../../_components/SmtpSetupModal'
 import InlineConfirm from '../../_components/InlineConfirm'
+import { useBrand } from '../../_components/BrandProvider'
 import BuyCreditsModal from '../../_components/BuyCreditsModal'
 import { SLIDE_STYLES } from '../../_lib/types'
 import type { Profile, Brand } from '../../_lib/types'
@@ -120,6 +121,9 @@ function ApiKeysSection() {
 }
 
 export default function SettingsPage() {
+  // Which storefront this is (Docs2Video / Text2Art). NOT the customer's
+  // brand kit, which is also called `brand` throughout this file.
+  const storefront = useBrand()
   const [tab, setTab] = useState<SettingsTab>('profile')
   const [profile, setProfile] = useState<Profile | null>(null)
   const [brand, setBrand] = useState<Brand | null>(null)
@@ -675,7 +679,7 @@ export default function SettingsPage() {
           {/* Social Accounts */}
           <div className="settings-card">
             <h3>Social Accounts</h3>
-            <p className="ssub">Connect your social media accounts to post directly from Docs2Video.</p>
+            <p className="ssub">Connect your social media accounts to post directly from {storefront.name}.</p>
 
             {socialError && (
               <div style={{ borderRadius: 10, background: '#fde8e8', padding: '10px 16px', fontSize: 13, marginBottom: 12, color: '#b91c1c', fontWeight: 600 }}>

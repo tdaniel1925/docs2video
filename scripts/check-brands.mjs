@@ -50,6 +50,17 @@ check(/Docs2Video/i.test(d2v.body), 'docs2video.com still says Docs2Video')
 check(!/Text2Art/i.test(d2v.body), 'Text2Art does not leak onto Docs2Video')
 check(!d2v.body.includes('text2art-logo'), 'the Text2Art logo does not appear on Docs2Video')
 
+// The signed-in chrome must not say the wrong company either. These pages
+// redirect to /login when signed out, so what is checked is that the LOGIN
+// page they land on is branded correctly — the deeper pages need a session
+// and are covered by eye.
+for (const path of ['/settings', '/help']) {
+  const t = await get('text2art.app', path)
+  const d = await get('docs2video.com', path)
+  check(!/Docs2Video/i.test(t.body || ''), `${path} on text2art.app never says Docs2Video`)
+  check(t.status === d.status, `${path} behaves the same on both hosts`, `${t.status} vs ${d.status}`)
+}
+
 // An unknown host — a Vercel preview URL, a health check, a missing Host —
 // must fall back rather than error.
 const unknown = await get('some-preview-abc.vercel.app')
