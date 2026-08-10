@@ -71,6 +71,21 @@ for (const path of ['/', '/login']) {
   check(!hit, `${path} on text2art.app never mentions video`, hit ? `found "${hit[0]}"` : '')
 }
 
+// ONE TOOL, TWO DOORS. The design maker is shared code, so improving it for
+// Text2Art improves it for Docs2Video automatically — but only if a Docs2Video
+// customer can REACH it. It sat behind a Tools dropdown that had been switched
+// off, which meant 225 styles and a paid feature nobody could find. Shared code
+// is not the same as shared access, and only the second one is visible to a
+// customer.
+{
+  const brand = await import('../app/_lib/brand.ts')
+  for (const b of [brand.DOCS2VIDEO, brand.TEXT2ART]) {
+    const linked = b.nav.some((n) => n.href === '/flyer') || b.create?.href === '/flyer'
+    check(linked, `${b.name} has a menu link to the design maker`,
+      linked ? '' : 'it exists but nothing in the nav points at it')
+  }
+}
+
 // An unknown host — a Vercel preview URL, a health check, a missing Host —
 // must fall back rather than error.
 const unknown = await get('some-preview-abc.vercel.app')

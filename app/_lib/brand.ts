@@ -68,6 +68,12 @@ export const DOCS2VIDEO: Brand = {
   home: '/dashboard',
   nav: [
     { href: '/dashboard', label: 'Dashboard' },
+    // The design maker had NO link here. It lived in a Tools dropdown that was
+    // switched off (SHOW_TOOLS_NAV in Header.tsx), so for a Docs2Video customer
+    // the whole thing was unreachable except by typing the address — 225 styles
+    // and a paid feature that nobody could find. Text2Art is only a different
+    // front door onto the same tool, not a different tool.
+    { href: '/flyer', label: 'Custom Graphics' },
     { href: '/videos', label: 'Library' },
     { href: '/clients', label: 'Clients' },
   ],

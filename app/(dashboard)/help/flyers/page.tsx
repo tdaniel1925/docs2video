@@ -38,7 +38,7 @@ export default function FlyersHelpPage() {
         <div>
           <h3 style={{ margin: '4px 0 8px' }}>Open the maker</h3>
           <p style={body}>
-            In the top menu, open <strong>Tools</strong> and click <strong>📄 Custom Graphics</strong>.
+            Click <strong>Custom Graphics</strong> in the top menu.
             The page looks like a chat: a conversation down the middle, and a typing bar at the bottom.
           </p>
         </div>
