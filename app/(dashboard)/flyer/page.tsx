@@ -395,15 +395,46 @@ export default function FlyerMakerPage() {
           if (m?.text) past.push({ kind: 'msg', role: m.role === 'user' ? 'user' : 'assistant', text: m.text })
         }
         if (round.designs?.length) {
-          past.push({
-            kind: 'round', id: round.id, templateId: round.templateId, note: round.note ?? '',
-            sizeIds: round.designs.map((d: Design) => d.sizeId),
-            designs: round.designs.map((d: { sizeId: string; label: string; w: number; h: number; url: string }) => ({
-              sizeId: d.sizeId, label: d.label, w: d.w, h: d.h, src: d.url,
-            })),
-            status: Object.fromEntries(round.designs.map((d: Design) => [d.sizeId, 'done' as Status])),
-            startedAt: 0, live: false,
-          })
+          const designs = round.designs as { id?: string; sizeId: string; label: string; w: number; h: number; url: string }[]
+
+          // IS THIS A DECK? A normal batch is one design per ticked size, so
+          // every size id is different. A deck is many designs at the SAME
+          // size — so a repeated size id means a deck and nothing else does.
+          //
+          // This matters because a round is INDEXED BY SIZE. Rebuilt as a
+          // round, a deck's five slides all shared the id 'slide-16x9', every
+          // tile looked up the first match, and the customer saw five copies of
+          // one slide — all badged "1" — for five slides they had paid for.
+          // The designs were fine. Only the display was wrong.
+          const sizes = designs.map((d) => d.sizeId)
+          const isDeck = sizes.length > 1 && new Set(sizes).size < sizes.length
+
+          if (isDeck) {
+            past.push({
+              kind: 'deck', id: round.id,
+              title: (round.fields?.headline as string) || 'Deck',
+              // The running order is not stored, so captions fall back to the
+              // slide number. The pictures are the point; the plan was the
+              // scaffolding used to make them.
+              slides: [],
+              designs: designs.map((d, i) => ({
+                sizeId: `slide-${i + 1}`, label: `Slide ${i + 1}`,
+                w: d.w, h: d.h, src: d.url, designId: d.id,
+              })),
+              status: Object.fromEntries(designs.map((_, i) => [i, 'done' as Status])),
+              startedAt: 0, live: false,
+            })
+          } else {
+            past.push({
+              kind: 'round', id: round.id, templateId: round.templateId, note: round.note ?? '',
+              sizeIds: designs.map((d) => d.sizeId),
+              designs: designs.map((d) => ({
+                sizeId: d.sizeId, label: d.label, w: d.w, h: d.h, src: d.url,
+              })),
+              status: Object.fromEntries(designs.map((d) => [d.sizeId, 'done' as Status])),
+              startedAt: 0, live: false,
+            })
+          }
         }
       }
       if (past.length) {
@@ -725,23 +756,41 @@ export default function FlyerMakerPage() {
    * The cost of that: the first slide is a bottleneck, about two minutes before
    * the rest can start. Worth it — the alternative is a deck you cannot present.
    */
-  const makeDeck = async () => {
-    if (making || !deckPlan || !unit) return
+  const makeDeck = async (retry?: {
+    /** The deck already on screen, being topped up rather than replaced. */
+    deckId: string
+    /** Which slide positions failed and are being drawn again. */
+    indices: number[]
+    slides: PlannedSlide[]
+    /** Slide one, already drawn, so the retries still match the deck. */
+    anchorSrc?: string
+  }) => {
+    if (making || !unit) return
+    if (!retry && !deckPlan) return
     setErr(''); setSheet(null); setPlanOpen(false)
 
     const chat = chatId ?? crypto.randomUUID()
     if (!chatId) { setChatId(chat); rememberChat(chat) }
 
-    const roundId = crypto.randomUUID()
-    const plan = deckPlan
+    const roundId = retry?.deckId ?? crypto.randomUUID()
+    const plan = retry ? { title: '', slides: retry.slides } : deckPlan!
     const messages = items.filter((i): i is Extract<Item, { kind: 'msg' }> => i.kind === 'msg')
       .slice(-12).map((m) => ({ role: m.role, text: m.text }))
 
-    setItems((p) => [...p, {
-      kind: 'deck', id: roundId, title: plan.title, slides: plan.slides,
-      designs: [], status: Object.fromEntries(plan.slides.map((_, i) => [i, 'wait' as Status])),
-      startedAt: Date.now(), live: true,
-    }])
+    if (retry) {
+      // Put the failed ones back to waiting. The slides that worked stay
+      // exactly as they are — they are drawn, saved and paid for, and redrawing
+      // them would charge twice for work already done.
+      setItems((p) => p.map((i) => (i.kind === 'deck' && i.id === roundId
+        ? { ...i, live: true, startedAt: Date.now(), status: { ...i.status, ...Object.fromEntries(retry.indices.map((n) => [n, 'wait' as Status])) } }
+        : i)))
+    } else {
+      setItems((p) => [...p, {
+        kind: 'deck', id: roundId, title: plan.title, slides: plan.slides,
+        designs: [], status: Object.fromEntries(plan.slides.map((_, i) => [i, 'wait' as Status])),
+        startedAt: Date.now(), live: true,
+      }])
+    }
     setMaking(true)
 
     const patch = (fn: (r: Extract<Item, { kind: 'deck' }>) => Extract<Item, { kind: 'deck' }>) =>
@@ -789,7 +838,12 @@ export default function FlyerMakerPage() {
         const img = res.images[0]
         patch((r) => ({
           ...r,
-          designs: [...r.designs, { sizeId: `slide-${index + 1}`, label: `Slide ${index + 1}`, w: img.w, h: img.h, src: img.png, designId: img.designId }],
+          // REPLACE, don't append. On a retry the slot may already hold a
+          // failed attempt, and appending would leave two slide 4s in the deck.
+          designs: [
+            ...r.designs.filter((d) => d.sizeId !== `slide-${index + 1}`),
+            { sizeId: `slide-${index + 1}`, label: `Slide ${index + 1}`, w: img.w, h: img.h, src: img.png, designId: img.designId },
+          ],
           status: { ...r.status, [index]: 'done' },
         }))
         setBalance((b) => (b === null ? b : Math.max(0, b - unit)))
@@ -801,15 +855,19 @@ export default function FlyerMakerPage() {
       return null
     }
 
-    // Slide one first, alone. Everything else waits on it.
-    const full = await drawSlide(0)
-    // Send it on as a SMALL reference, not as the 2.6 MB original — see
-    // shrinkForReference. Three full-size anchors in flight at once is what
-    // broke slides 2, 3 and 4.
+    // On a retry slide one already exists, so it is reused as the anchor rather
+    // than drawn again — the whole point is not to pay twice.
+    const full = retry
+      ? retry.anchorSrc ?? null
+      : await drawSlide(0)
+    // Send it on as a SMALL reference, not the multi-megabyte original — see
+    // shrinkForReference.
     const anchor = full ? await shrinkForReference(full) : null
 
     if (anchor && !stop) {
-      const queue = plan.slides.map((_, i) => i).slice(1)
+      const queue = retry
+        ? retry.indices.filter((i) => i !== 0)
+        : plan.slides.map((_, i) => i).slice(1)
       const worker = async () => {
         for (;;) {
           const i = queue.shift()
@@ -1047,7 +1105,14 @@ export default function FlyerMakerPage() {
               color: it.role === 'user' ? 'white' : 'inherit',
             }}>{it.text}</div>
           ) : it.kind === 'deck' ? (
-            <DeckBlock key={it.id} deck={it} now={now} onOpen={setViewing} />
+            <DeckBlock key={it.id} deck={it} now={now} onOpen={setViewing}
+              onRetry={(indices) => makeDeck({
+                deckId: it.id,
+                indices,
+                slides: it.slides,
+                // Slide one, already drawn, keeps the retries matching.
+                anchorSrc: it.designs.find((d) => d.sizeId === 'slide-1')?.src,
+              })} />
           ) : (
             <RoundBlock key={it.id} round={it} now={now} onOpen={setViewing} />
           ),
@@ -1325,7 +1390,7 @@ export default function FlyerMakerPage() {
               </button>
               <span style={{ display: 'flex', gap: 6 }}>
                 <button onClick={() => setDeckPlan(null)} title="Throw this running order away" style={{ ...plain, padding: '5px 10px' }}>Discard</button>
-                <button onClick={makeDeck} disabled={making}
+                <button onClick={() => makeDeck()} disabled={making}
                   title={unit !== null ? `Draw all ${deckPlan.slides.length} slides — ${(unit * deckPlan.slides.length).toLocaleString()} credits` : 'Draw the deck'}
                   style={{ ...plain, padding: '5px 10px', background: INK, color: 'white', borderColor: INK, opacity: making ? 0.6 : 1 }}>
                   {making ? 'Building…' : `Make deck${unit !== null ? ` · ${(unit * deckPlan.slides.length).toLocaleString()} cr` : ''}`}
@@ -1411,14 +1476,25 @@ export default function FlyerMakerPage() {
               {listening ? '● Stop' : transcribing ? '…' : '🎤'}
             </button>
 
-            {/* "Preview details" rather than "Send": pressing this does not
-                make anything or cost anything — it reads what you typed back
-                to you as the card above, so you can correct a wrong date
-                before paying to have it drawn. */}
+            {/* SEND. There was no Send button at all, and the only way to
+                submit was a control labelled "Preview details" — which reads as
+                "show me the design", not "reply to me". So the page invited you
+                to talk and gave the talk nowhere to go: asking a question got
+                you a red error box reading "no fields came back", because every
+                message was fed to a field extractor that had to return design
+                data or throw.
+
+                One button, called what it does. Whether a message changes the
+                design or is just a question is now the assistant's problem, not
+                something the customer has to know before pressing anything. */}
             <button onClick={send} disabled={thinking || !input.trim()}
-              title="Read it back to me — free, and nothing is made yet. Check the details before you pay to have it drawn."
-              style={{ ...plain, padding: '10px 14px', whiteSpace: 'nowrap', opacity: thinking || !input.trim() ? 0.5 : 1 }}>
-              Preview details
+              title="Send. Free — nothing is made and nothing is charged. Ask a question, or say what you want changed."
+              style={{
+                ...plain, padding: '10px 16px', whiteSpace: 'nowrap',
+                background: INK, color: 'white', border: '1px solid transparent',
+                opacity: thinking || !input.trim() ? 0.4 : 1,
+              }}>
+              {thinking ? 'Thinking…' : 'Send'}
             </button>
             <button onClick={make} disabled={!canMake}
               title={canMake
@@ -1498,10 +1574,12 @@ function BriefCard({ fields }: { fields: FlyerFields }) {
  * is in: a PowerPoint missing slide 7 is worse than no PowerPoint, because you
  * find out in front of the room.
  */
-function DeckBlock({ deck, now, onOpen }: {
+function DeckBlock({ deck, now, onOpen, onRetry }: {
   deck: Extract<Item, { kind: 'deck' }>
   now: number
   onOpen: (d: Design) => void
+  /** Draw only the slides that failed, keeping the ones already paid for. */
+  onRetry?: (indices: number[]) => void
 }) {
   const [busy, setBusy] = useState<'pptx' | 'pdf' | null>(null)
   const [problem, setProblem] = useState('')
@@ -1516,6 +1594,13 @@ function DeckBlock({ deck, now, onOpen }: {
   const remaining = Math.max(0, waves * SECS_PER_SIZE - elapsed)
 
   // Sort by slide number rather than by arrival: they finish in a jumble.
+  // Which slots came back empty. Read off the status map rather than the
+  // designs list, so a slide that failed twice still counts once.
+  const failed = Object.entries(deck.status)
+    .filter(([, v]) => v === 'fail')
+    .map(([k]) => Number(k))
+    .sort((a, b) => a - b)
+
   const ordered = [...deck.designs].sort((a, b) =>
     Number(a.sizeId.replace('slide-', '')) - Number(b.sizeId.replace('slide-', '')))
 
@@ -1554,6 +1639,18 @@ function DeckBlock({ deck, now, onOpen }: {
           </span>
         ) : (
           <span style={{ display: 'flex', gap: 6 }}>
+            {failed.length > 0 && onRetry && (
+              /* A DECK WITH HOLES IN IT IS WASTED MONEY. Three slides failing
+                 used to leave five paid-for slides that could not be presented
+                 and no way forward but to build the whole deck again — and pay
+                 for all of it twice. This redraws only what is missing, and
+                 anchors it to slide one so it still matches. */
+              <button onClick={() => onRetry(failed)}
+                title={`Draw the ${failed.length} slide${failed.length === 1 ? '' : 's'} that failed. The ones that worked are kept and not charged again.`}
+                style={{ ...PLAIN_BTN, padding: '5px 10px', background: INK, color: 'white', borderColor: INK }}>
+                Retry {failed.length} slide{failed.length === 1 ? '' : 's'}
+              </button>
+            )}
             <button onClick={() => download('pptx')} disabled={busy !== null || !made}
               title="Download as a PowerPoint file — one slide per page, opens in PowerPoint, Keynote or Google Slides"
               style={{ ...PLAIN_BTN, padding: '5px 10px' }}>
@@ -1585,7 +1682,7 @@ function DeckBlock({ deck, now, onOpen }: {
             <img src={d.src} alt={`Slide ${i + 1}`}
               style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />
             <div style={{ fontSize: 11, fontWeight: 700, padding: '4px 5px', background: 'white', color: INK, textAlign: 'left' }}>
-              {i + 1}. {deck.slides[i]?.fields.headline ?? ''}
+              {i + 1}{deck.slides[i]?.fields.headline ? `. ${deck.slides[i].fields.headline}` : ''}
             </div>
           </button>
         ))}
@@ -1647,17 +1744,25 @@ function RoundBlock({ round, now, onOpen }: {
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 10 }}>
-        {round.sizeIds.map((id) => {
-          const d = round.designs.find((x) => x.sizeId === id)
+        {round.sizeIds.map((id, slot) => {
+          // LOOK UP BY POSITION, not by size id.
+          //
+          // `find` on the size id returns the FIRST design with that size, so a
+          // round containing two designs of the same size showed the first one
+          // twice. That is exactly what happened to decks, where every slide
+          // shares a size — five real slides displayed as five copies of one.
+          // Decks are now restored separately, but this is the line that made
+          // it possible, and any future repeat would land here again.
+          const d = round.designs[slot] ?? round.designs.find((x) => x.sizeId === id)
           const st = round.status[id] ?? 'wait'
           const label = FLYER_SIZES.find((s) => s.id === id)?.label ?? id
           if (d) {
             // NUMBERED, so a change can be asked for out loud: "design 2, make
             // the price $25". Without a number the only way to point at one is
             // to describe it, and two social sizes look alike in a grid.
-            const n = round.designs.indexOf(d) + 1
+            const n = slot + 1
             return (
-              <figure key={id} style={{ margin: 0 }}>
+              <figure key={`${id}-${slot}`} style={{ margin: 0 }}>
                 <button onClick={() => onOpen(d)} title="Open full size"
                   style={{ display: 'block', width: '100%', padding: 0, border: `1px solid ${LINE}`, borderRadius: 8, overflow: 'hidden', cursor: 'zoom-in', background: '#111', position: 'relative' }}>
                   <img src={d.src} alt={d.label} style={{ width: '100%', display: 'block' }} />
@@ -1675,7 +1780,7 @@ function RoundBlock({ round, now, onOpen }: {
             )
           }
           return (
-            <div key={id} style={{
+            <div key={`${id}-${slot}`} style={{
               border: `1px dashed ${LINE}`, borderRadius: 8, minHeight: 120, display: 'flex',
               alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 10,
               fontSize: 11, fontWeight: 700, color: st === 'fail' ? '#B4432F' : SOFT,

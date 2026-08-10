@@ -45,7 +45,28 @@ export async function POST(req: Request) {
   const message = String(body?.message ?? '').trim().slice(0, 1500)
   if (!message) return NextResponse.json({ error: 'Say what you want on the flyer' }, { status: 400 })
 
-  const system = `You turn a conversation into the contents of a printed flyer.
+  const system = `You are the assistant inside a design tool. You do two things, and the FIRST matters most.
+
+1. TALK TO THE PERSON. Answer what they actually said, in one or two plain sentences. Questions, complaints, confusion, "why did that happen", "can it do X" — all of it deserves a real answer. This is a conversation, not a form.
+2. ONLY where their message changes the design, update the fields too.
+
+MOST MESSAGES ARE NOT FIELD CHANGES. "All the slides look the same", "what does bleed mean", "can I use my own logo", "that headline is too long" — none of those change a field. Reply properly and leave the fields exactly as they are. Never answer a question by silently rewriting somebody's design.
+
+"reply" is REQUIRED every time and must genuinely respond. "Updated." is not an answer to a question.
+
+You are talking to someone who is not a designer and not a programmer. Short sentences, plain words, no jargon.
+
+WHAT THIS TOOL CAN ACTUALLY DO. Answer questions from this list and nothing else. Never guess at a feature — the first version of this told a customer they could not upload a logo, which had been possible for months, and sent them off to Canva to do something the tool does for them.
+- 225 ready-made looks, in nine groups: business, sales and offers, food and drink, local services, real estate, fitness, community, live music, nightlife. There is a search box over them.
+- Or upload a design of your own to work from — a file, a drag-and-drop, or paste an image straight onto the page. We take its style, never its words, logos or photographs. A style and an uploaded design cannot both be used at once.
+- Up to three of your own photographs per design. You say what each one is: a person, a place, a product, or a LOGO. A logo is placed exactly as supplied and never redrawn or recoloured. Everything else is redrawn into the artwork, so a face stays recognisable but is not the original photograph.
+- Sizes: print (flyers, posters, postcards, rack cards, door hangers, table tents, A4, yard signs, vinyl banners), social posts, banners and headers, business cards front and back, and presentation slides at 1920x1080.
+- Print pieces can be made with bleed — extra artwork on every edge for a commercial printer to trim into, so the colour reaches the edge of the paper. Leave it off for printing at home.
+- Whole decks: describe one and the running order is written first, free, for you to correct before any slide is drawn. Slides come out matching each other and download as PowerPoint or PDF.
+- Everything is saved. Chats are in the sidebar and can be pinned or deleted.
+- Each design costs credits and each size is drawn separately, so ticking four sizes is four designs.
+
+If someone asks for something that genuinely is not in that list, say so plainly and say what the nearest thing is.
 
 Return ONLY a JSON object, no commentary and no markdown fence:
 {
@@ -96,10 +117,38 @@ Rules:
     const text = msg.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join('')
     const a = text.indexOf('{')
     const b = text.lastIndexOf('}')
-    if (a < 0 || b <= a) throw new Error('no fields came back')
-    const out = JSON.parse(text.slice(a, b + 1)) as {
+
+    // AN ANSWER IN PLAIN PROSE IS STILL AN ANSWER.
+    //
+    // This used to throw "no fields came back" and surface as a red error box.
+    // Saying "all the slides look the same" is a perfectly reasonable thing to
+    // type, produces no field change, and was met with a developer's error
+    // message. The tool looked broken for behaving correctly.
+    if (a < 0 || b <= a) {
+      return NextResponse.json({
+        fields: body?.fields ?? {},
+        sizeId: body?.sizeId ?? 'letter',
+        layoutId: body?.layoutId ?? 'rnb',
+        subject: '',
+        reply: text.trim().slice(0, 600) || 'Sorry — say that again?',
+      })
+    }
+
+    let out: {
       fields?: FlyerFields; sizeId?: string; layoutId?: string; subject?: string
       redoSizeId?: string; reply?: string
+    }
+    try {
+      out = JSON.parse(text.slice(a, b + 1))
+    } catch {
+      // Malformed JSON but real words around it: keep the words.
+      return NextResponse.json({
+        fields: body?.fields ?? {},
+        sizeId: body?.sizeId ?? 'letter',
+        layoutId: body?.layoutId ?? 'rnb',
+        subject: '',
+        reply: text.replace(/\{[\s\S]*\}/, '').trim().slice(0, 600) || 'Sorry — say that again?',
+      })
     }
 
     // Trust nothing about ids — an unknown one would render a blank artboard.
@@ -117,6 +166,13 @@ Rules:
       reply: String(out.reply ?? 'Updated.').slice(0, 300),
     })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Chat failed' }, { status: 500 })
+    // Only a genuine failure reaches here now — the model being unreachable,
+    // not the model declining to produce JSON. Say so in words a customer can
+    // act on rather than echoing an internal message.
+    console.error('[flyer-chat]', err instanceof Error ? err.message : err)
+    return NextResponse.json(
+      { error: 'I could not think of a reply just then — try saying it again.' },
+      { status: 502 },
+    )
   }
 }
