@@ -279,7 +279,31 @@ export async function POST(req: Request) {
       }
     } catch (err) {
       await refund()
-      return { sizeId: size.id, label: size.label, error: err instanceof Error ? err.message.slice(0, 160) : 'failed' }
+
+      // LOG THE WHOLE THING. Only a 160-character slice ever reached the
+      // browser, and nothing at all reached the server log — so when two
+      // flyers failed in production there was no way to find out why from
+      // either end. The full error goes to the log; the customer gets a
+      // sentence they can act on.
+      const raw = err instanceof Error ? err.message : String(err)
+      console.error(`[flyer] generation failed user=${user.id} size=${size.id} photos=${rawPhotos.length} ref=${hasReference}:`, raw)
+
+      // Turn the common API failures into something a person can do something
+      // about. Anything unrecognised is passed through rather than flattened
+      // into "failed", which tells nobody anything.
+      const lower = raw.toLowerCase()
+      const friendly =
+        lower.includes('safety') || lower.includes('content_policy') || lower.includes('moderation')
+          ? 'The wording or an uploaded photo was refused by the image service. Try rephrasing, or removing the photo.'
+        : lower.includes('rate limit') || lower.includes('429')
+          ? 'The image service is busy right now. Wait a moment and press Make again.'
+        : lower.includes('timeout') || lower.includes('etimedout') || lower.includes('econnreset')
+          ? 'The image service took too long to answer. Press Make again.'
+        : lower.includes('billing') || lower.includes('quota') || lower.includes('insufficient_quota')
+          ? 'The image service account has a billing problem — this one is on us, not you.'
+        : raw.slice(0, 200)
+
+      return { sizeId: size.id, label: size.label, error: friendly }
     }
   }
 

@@ -381,7 +381,7 @@ export default function FlyerMakerPage() {
       setItems((p) => p.map((i) => (i.kind === 'round' && i.id === roundId ? fn(i) : i)))
 
     const queue = [...sizeIds]
-    const failures: string[] = []
+    const failures: { label: string; why: string }[] = []
     let stop = ''
 
     const worker = async () => {
@@ -411,7 +411,15 @@ export default function FlyerMakerPage() {
           // Running out of credits mid-batch should stop the queue, not
           // produce one identical failure per remaining size.
           if (res?.needed) stop = res.error || 'Not enough credits'
-          failures.push(FLYER_SIZES.find((s) => s.id === id)?.label ?? id)
+
+          // KEEP THE REASON. This used to record only the size label, so the
+          // customer got "Could not make: Flyer 8.5 x 11 in" and no way to tell
+          // whether their photo was rejected, the service was busy, or
+          // something needed changing. The server sends a reason; throwing it
+          // away made the app unfixable from the outside AND undiagnosable from
+          // the inside.
+          const why = res?.failed?.[0]?.error || res?.error || 'no reason given'
+          failures.push({ label: FLYER_SIZES.find((s) => s.id === id)?.label ?? id, why })
           patch((r) => ({ ...r, status: { ...r.status, [id]: 'fail' } }))
         }
       }
@@ -420,12 +428,21 @@ export default function FlyerMakerPage() {
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, sizeIds.length) }, worker))
     // Anything the credit stop skipped never ran; don't leave it spinning.
     patch((r) => ({
-      ...r, live: false, failed: failures,
+      ...r, live: false, failed: failures.map((f) => f.label),
       status: Object.fromEntries(Object.entries(r.status).map(([k, v]) => [k, v === 'wait' || v === 'busy' ? 'fail' : v])),
     }))
     setMaking(false)
-    if (stop) setErr(stop)
-    else if (failures.length) setErr(`Could not make: ${failures.join(', ')} — you were not charged for those.`)
+    if (stop) {
+      setErr(stop)
+    } else if (failures.length) {
+      // Group by reason: six sizes failing for one cause should read as one
+      // problem, not six. And the reason comes FIRST, because that is the part
+      // anyone can act on.
+      const byReason = new Map<string, string[]>()
+      for (const f of failures) byReason.set(f.why, [...(byReason.get(f.why) ?? []), f.label])
+      const lines = [...byReason.entries()].map(([why, labels]) => `${why} (${labels.join(', ')})`)
+      setErr(`Couldn't make ${failures.length === 1 ? 'that one' : `${failures.length} of them`} — you were not charged. ${lines.join(' · ')}`)
+    }
 
     // The chat row is only created once something is actually made, so refresh
     // the sidebar now — otherwise a brand-new job stays missing from the list
