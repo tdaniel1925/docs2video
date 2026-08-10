@@ -156,7 +156,11 @@ export default function FlyerMakerPage() {
       setUnit(typeof r.unit === 'number' ? r.unit : null)
       setBalance(typeof r.balance === 'number' ? r.balance : null)
       setChats(r.chats ?? [])
-      if (r.openChat) setChatId(r.openChat)
+      // Adopt the server's pick ONLY when we hadn't chosen one — on a first
+      // load, where "most recent" is the sensible default. If we asked for a
+      // specific chat, ours wins; anything else is the page silently moving
+      // you somewhere you didn't ask to go.
+      if (!chatId && r.openChat) setChatId(r.openChat)
       const past: Item[] = []
       for (const round of r.rounds ?? []) {
         for (const m of round.messages ?? []) {
@@ -249,8 +253,11 @@ export default function FlyerMakerPage() {
    * the first time something is actually made.
    */
   const newChat = () => {
+    // Deliberately does NOT reload from the server. There is nothing saved
+    // under a chat that has never been used, so a fetch could only come back
+    // empty — and the round trip cost a flicker and, until the server was
+    // fixed, dumped the customer back into the previous conversation.
     setChatId(crypto.randomUUID())
-    setOpenChatKey((k) => k + 1)
     setItems([{
       kind: 'msg', role: 'assistant',
       text: 'New job. Tell me what this one is for.',
@@ -398,6 +405,15 @@ export default function FlyerMakerPage() {
     setMaking(false)
     if (stop) setErr(stop)
     else if (failures.length) setErr(`Could not make: ${failures.join(', ')} — you were not charged for those.`)
+
+    // The chat row is only created once something is actually made, so refresh
+    // the sidebar now — otherwise a brand-new job stays missing from the list
+    // until the next page load. Take ONLY the list: re-reading the rounds here
+    // would replace designs that are already on screen.
+    fetch(`/api/flyer-history?chat=${chat}`)
+      .then((x) => x.json())
+      .then((r) => { if (r?.chats) setChats(r.chats) })
+      .catch(() => { /* the list refreshes on the next load anyway */ })
   }
 
   const filled = Object.values(fields).some((v) => (Array.isArray(v) ? v.length : v))

@@ -43,7 +43,16 @@ export async function GET(req: Request) {
     .order('updated_at', { ascending: false })
     .limit(40)
   const chats = chatRows ?? []
-  const openChat = wantChat && chats.some((c) => c.id === wantChat) ? wantChat : chats[0]?.id ?? null
+
+  // BE HONEST ABOUT A CHAT WE DO NOT KNOW. Asking for one that has nothing
+  // saved yet used to fall through to "most recent", so pressing New chat
+  // fetched the PREVIOUS conversation and dropped the customer straight back
+  // into it. A brand-new chat has no rows yet — that is normal, and the right
+  // answer is an empty one, not somebody else's.
+  if (wantChat && !chats.some((c) => c.id === wantChat)) {
+    return NextResponse.json({ rounds: [], chats, openChat: wantChat, unit, balance })
+  }
+  const openChat = wantChat || chats[0]?.id || null
 
   let q = admin
     .from('flyer_rounds')
