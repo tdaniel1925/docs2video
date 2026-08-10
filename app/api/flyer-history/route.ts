@@ -38,8 +38,11 @@ export async function GET(req: Request) {
   // then behaves exactly as it did before chats existed.
   const { data: chatRows } = await admin
     .from('flyer_chats')
-    .select('id, title, updated_at')
+    .select('id, title, updated_at, pinned')
     .eq('user_id', user.id)
+    // Pinned first, then most recent — a job you return to weekly should not
+    // sink under a dozen one-offs.
+    .order('pinned', { ascending: false })
     .order('updated_at', { ascending: false })
     .limit(40)
   const chats = chatRows ?? []

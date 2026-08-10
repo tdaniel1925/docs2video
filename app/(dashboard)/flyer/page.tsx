@@ -71,7 +71,41 @@ const SOFT = 'var(--ink-soft,#6b6459)'
 const LINE = 'var(--border,#ddd6cc)'
 const CREAM = 'var(--cream,#F4F1EC)'
 
+type Chat = { id: string; title: string; updated_at: string; pinned?: boolean }
+
+/** Pinned first, then most recent — the same order the server returns, so a
+ *  local change never reshuffles into something different. */
+const sortChats = (list: Chat[]): Chat[] =>
+  [...list].sort((a, b) =>
+    (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) ||
+    (b.updated_at ?? '').localeCompare(a.updated_at ?? ''))
+
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+
+/**
+ * Where you left off, remembered across a refresh.
+ *
+ * A chat row is only written once a design succeeds — so pressing New chat and
+ * then having the generation fail left NOTHING on the server, and a refresh
+ * fell back to "most recent", which was some job from months ago. You had to
+ * start over every time.
+ *
+ * The browser remembers the open chat regardless of whether anything has been
+ * made in it yet, so wherever you left off is where you come back to.
+ */
+const OPEN_CHAT_KEY = 'text2art:openChat'
+const rememberChat = (id: string | null) => {
+  try { id ? localStorage.setItem(OPEN_CHAT_KEY, id) : localStorage.removeItem(OPEN_CHAT_KEY) } catch { /* private mode */ }
+}
+const recallChat = (): string | null => {
+  try {
+    // An explicit ?chat= in the address wins — that is someone deliberately
+    // opening a particular job, and it must beat whatever was last open.
+    const fromUrl = new URLSearchParams(window.location.search).get('chat')
+    if (fromUrl) return fromUrl
+    return localStorage.getItem(OPEN_CHAT_KEY)
+  } catch { return null }
+}
 
 /**
  * Shrink a photo IN THE BROWSER before it is ever sent.
@@ -199,7 +233,7 @@ export default function FlyerMakerPage() {
   // Project chats. One chat is one job — the summer party flyer, a client's
   // cards — instead of every design anyone ever made sharing one endless
   // scrollback.
-  const [chats, setChats] = useState<{ id: string; title: string; updated_at: string }[]>([])
+  const [chats, setChats] = useState<Chat[]>([])
   const [chatId, setChatId] = useState<string | null>(null)
   const [openChatKey, setOpenChatKey] = useState(0)
 
@@ -218,17 +252,23 @@ export default function FlyerMakerPage() {
     let dead = false
     setLoadingHistory(true)
     ;(async () => {
-      const r = await fetch(`/api/flyer-history${chatId ? `?chat=${chatId}` : ''}`)
+      // On the very first load, reopen whatever was last open in this browser
+      // rather than letting the server pick "most recent" — those differ the
+      // moment a new chat has not produced a design yet.
+      const wanted = chatId ?? recallChat()
+      const r = await fetch(`/api/flyer-history${wanted ? `?chat=${wanted}` : ''}`)
         .then((x) => x.json()).catch(() => null)
       if (dead || !r) { setLoadingHistory(false); return }
       setUnit(typeof r.unit === 'number' ? r.unit : null)
       setBalance(typeof r.balance === 'number' ? r.balance : null)
       setChats(r.chats ?? [])
-      // Adopt the server's pick ONLY when we hadn't chosen one — on a first
-      // load, where "most recent" is the sensible default. If we asked for a
-      // specific chat, ours wins; anything else is the page silently moving
-      // you somewhere you didn't ask to go.
-      if (!chatId && r.openChat) setChatId(r.openChat)
+      // Adopt the server's pick ONLY when neither we nor the browser had one —
+      // a genuinely first visit, where "most recent" is the sensible default.
+      // If a chat was asked for, ours wins; anything else is the page silently
+      // moving you somewhere you didn't ask to go.
+      const opened = wanted ?? r.openChat ?? null
+      if (opened !== chatId) setChatId(opened)
+      rememberChat(opened)
       const past: Item[] = []
       for (const round of r.rounds ?? []) {
         for (const m of round.messages ?? []) {
@@ -305,10 +345,51 @@ export default function FlyerMakerPage() {
     { onError: setErr },
   )
 
+  /**
+   * Pin or unpin. Updated on screen first and reverted if the server refuses —
+   * a pin that takes a round trip to appear feels broken.
+   */
+  const togglePin = async (c: { id: string; pinned?: boolean }) => {
+    const next = !c.pinned
+    setChats((prev) => sortChats(prev.map((x) => (x.id === c.id ? { ...x, pinned: next } : x))))
+    const ok = await fetch(`/api/flyer-chats/${c.id}`, {
+      method: 'PATCH', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ pinned: next }),
+    }).then((r) => r.ok).catch(() => false)
+    if (!ok) {
+      setChats((prev) => sortChats(prev.map((x) => (x.id === c.id ? { ...x, pinned: c.pinned } : x))))
+      setErr('Could not save that pin. Try again.')
+    }
+  }
+
+  /** Delete a chat and everything in it. */
+  const removeChat = async (c: { id: string; title: string }) => {
+    // Every design in it goes too, and the files behind them. That is not
+    // recoverable, so it is spelled out rather than hidden behind "Are you
+    // sure?".
+    if (!window.confirm(`Delete "${c.title || 'Untitled'}" and every design in it? This cannot be undone.`)) return
+
+    const res = await fetch(`/api/flyer-chats/${c.id}`, { method: 'DELETE' })
+      .then((r) => r.json()).catch(() => ({ error: 'Network error' }))
+    if (res?.error) { setErr(res.error); return }
+
+    const left = chats.filter((x) => x.id !== c.id)
+    setChats(left)
+    // Deleting the chat you are looking at has to move you somewhere real,
+    // not leave the thread of a job that no longer exists on screen.
+    if (c.id === chatId) {
+      const next = left[0]?.id ?? null
+      setChatId(next)
+      rememberChat(next)
+      setOpenChatKey((k) => k + 1)
+    }
+  }
+
   /** Open a saved project chat. */
   const openChat = (id: string) => {
     if (id === chatId) return
     setChatId(id)
+    rememberChat(id)
     setOpenChatKey((k) => k + 1)
     setSheet(null)
   }
@@ -325,7 +406,9 @@ export default function FlyerMakerPage() {
     // under a chat that has never been used, so a fetch could only come back
     // empty — and the round trip cost a flicker and, until the server was
     // fixed, dumped the customer back into the previous conversation.
-    setChatId(crypto.randomUUID())
+    const fresh = crypto.randomUUID()
+    setChatId(fresh)
+    rememberChat(fresh)
     setItems([{
       kind: 'msg', role: 'assistant',
       text: 'New job. Tell me what this one is for.',
@@ -410,7 +493,7 @@ export default function FlyerMakerPage() {
     // Every job lives in a chat. If this is the first thing made in a brand
     // new session there is no id yet, so mint one now.
     const chat = chatId ?? crypto.randomUUID()
-    if (!chatId) setChatId(chat)
+    if (!chatId) { setChatId(chat); rememberChat(chat) }
 
     const roundId = crypto.randomUUID()
     const sizeIds = [...ticked]
@@ -553,17 +636,40 @@ export default function FlyerMakerPage() {
             </p>
           )}
           {chats.map((c) => (
-            <button key={c.id} onClick={() => openChat(c.id)} title={`Open "${c.title}"`}
+            <div key={c.id}
               style={{
-                textAlign: 'left', padding: '9px 11px', borderRadius: 8, cursor: 'pointer',
-                border: '1px solid transparent', fontFamily: 'inherit', fontSize: 13,
+                display: 'flex', alignItems: 'center', gap: 2, borderRadius: 8,
                 background: c.id === chatId ? 'white' : 'transparent',
                 boxShadow: c.id === chatId ? `inset 0 0 0 1px ${LINE}` : 'none',
-                fontWeight: c.id === chatId ? 700 : 400,
-                color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
-              {c.title || 'Untitled'}
-            </button>
+              <button onClick={() => openChat(c.id)} title={`Open "${c.title}"`}
+                style={{
+                  flex: 1, minWidth: 0, textAlign: 'left', padding: '9px 4px 9px 11px', borderRadius: 8,
+                  cursor: 'pointer', border: '1px solid transparent', background: 'transparent',
+                  fontFamily: 'inherit', fontSize: 13, fontWeight: c.id === chatId ? 700 : 400,
+                  color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                {c.pinned && <span style={{ marginRight: 5 }}>📌</span>}
+                {c.title || 'Untitled'}
+              </button>
+
+              <button onClick={() => togglePin(c)} aria-label={c.pinned ? 'Unpin' : 'Pin'}
+                title={c.pinned ? 'Unpin — let it drop back down the list' : 'Pin to the top of the list'}
+                style={{
+                  border: 'none', background: 'transparent', cursor: 'pointer', padding: '6px 3px',
+                  fontSize: 12, opacity: c.pinned ? 1 : 0.35, lineHeight: 1,
+                }}>
+                📌
+              </button>
+              <button onClick={() => removeChat(c)} aria-label="Delete"
+                title="Delete this job and every design in it — permanently"
+                style={{
+                  border: 'none', background: 'transparent', cursor: 'pointer', padding: '6px 7px 6px 3px',
+                  fontSize: 13, opacity: 0.35, lineHeight: 1, color: INK,
+                }}>
+                ✕
+              </button>
+            </div>
           ))}
         </div>
       </aside>
