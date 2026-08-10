@@ -70,5 +70,12 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  // Files in public/ must be SERVED, not routed. The image extensions were
+  // already excluded but .html was not, so a static page in public/ was handed
+  // to the app instead — /logo-lab.html came back as the dashboard's HTML with
+  // a 200, which looks like a working link right up until you open it.
+  //
+  // Everything listed here is a static asset that is public by definition;
+  // nothing that needs a signed-in session lives at one of these extensions.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|html|txt|xml|pdf|css|js|woff2?)$).*)'],
 }
