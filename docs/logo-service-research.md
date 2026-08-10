@@ -287,3 +287,43 @@ advantage in a market where the customer is quietly worried about exactly this.
 - **Tracing is only clean because the house style is flat.** Any drift toward
   gradients or shadows breaks the vector step. The style rule is load-bearing
   in two places at once.
+
+---
+
+## PARKED 2026-08-09 — what the rating rounds actually established
+
+Three blind rating passes by the owner. Recorded here so the next person does
+not repeat them.
+
+| batch | avg /5 | rated 4-or-5 |
+|---|---|---|
+| plain logos, six style steers | **2.79** | 16 / 48 |
+| monograms, first attempt | 1.42 | 3 / 60 |
+| monograms, after the legibility fix | **1.22** | 1 / 59 |
+
+**Monograms failed, twice, and the fix made no difference.** The first round's
+scores pointed hard at legibility — the three constructions that deform letters
+each scored exactly 1.00, and an AHG came back as an unreadable blob. Adding a
+rule that legibility outranks construction did not help. 1.42 became 1.22.
+
+So legibility was a real defect but NOT the cause. Something else is wrong with
+monograms, and the obvious suspect is the engine: every monogram was Gemini,
+while the eight originals that started this whole thing were mostly GPT Image.
+
+**The undone test that settles it:** run the same monogram briefs through GPT
+Image 2. If they come back good, it is an engine choice. If they are also bad,
+monograms should not be generated as pictures at all — they are TYPE, and the
+right answer is the split-the-logo architecture taken to its conclusion: set the
+initials in a real typeface and compose the interlocking, containing and
+stacking in CODE as geometry, where it is deterministic and perfect.
+
+That second possibility is the more interesting one, and this is the strongest
+evidence yet for it.
+
+**What did work:** plain logos on Gemini, 2.79 with a third rated 4-or-5.
+Two other findings survived both raters — naming famous studios came LAST, and
+briefs carrying a written CONCEPT beat briefs without. Neither has been retested
+since.
+
+**What still predicts nothing:** every machine gate. Best correlation with human
+rating was 0.13. They remain switched off.
