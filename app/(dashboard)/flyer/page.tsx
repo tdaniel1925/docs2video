@@ -210,6 +210,48 @@ async function shrinkForUpload(file: File, maxEdge = 1600, quality = 0.82): Prom
 }
 
 /**
+ * Shrink an image the page already holds, for sending back up as a REFERENCE.
+ *
+ * THIS IS WHY DECK SLIDES 2 ONWARDS FAILED WITH "Network error". Slide one is
+ * attached to every later slide so the deck matches — but it was attached at
+ * full size. A 1920x1080 PNG is around 2.6 MB, base64 adds a third, so each
+ * request carried ~3.5 MB and three ran at once. The host rejects anything over
+ * 4.5 MB, so those requests never arrived, had no JSON body, and surfaced as a
+ * network failure rather than as the size problem they were.
+ *
+ * A style reference does not need resolution. What is being read off it is
+ * palette, lettering weight and mood, none of which survive past about a
+ * thousand pixels anyway.
+ */
+async function shrinkForReference(dataUrl: string, maxEdge = 1024, quality = 0.85): Promise<string> {
+  try {
+    const img = await new Promise<HTMLImageElement>((res, rej) => {
+      const i = new Image()
+      i.onload = () => res(i)
+      i.onerror = () => rej(new Error('unreadable'))
+      i.src = dataUrl
+    })
+    const longest = Math.max(img.width, img.height)
+    if (longest <= maxEdge && dataUrl.length < 700_000) return dataUrl
+
+    const scale = maxEdge / longest
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(img.width * scale)
+    canvas.height = Math.round(img.height * scale)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return dataUrl
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    return canvas.toDataURL('image/jpeg', quality)
+  } catch {
+    // Worst case the deck loses its anchor and the slides match less well —
+    // still better than failing the whole build over a resize.
+    return dataUrl
+  }
+}
+
+/**
  * Save every design in a round.
  *
  * Browsers throttle a burst of downloads and will silently drop some, so they
@@ -260,6 +302,10 @@ export default function FlyerMakerPage() {
   const [deckPlan, setDeckPlan] = useState<DeckPlan | null>(null)
   const [deckCount, setDeckCount] = useState(8)
   const [planning, setPlanning] = useState(false)
+  // The running order is long. Once the deck is being drawn it has done its
+  // job, and left open it buries the slides underneath it — which is exactly
+  // what it did, with no way to fold it away.
+  const [planOpen, setPlanOpen] = useState(true)
 
   // Mac says Cmd, everyone else says Ctrl. Worked out after the first paint so
   // the server and the browser render the same thing.
@@ -654,7 +700,7 @@ export default function FlyerMakerPage() {
         setErr(data?.error || 'Could not plan that deck.')
         return
       }
-      setDeckPlan(data)
+      setDeckPlan(data); setPlanOpen(true)
       say('assistant',
         `Here's the running order for "${data.title}" — ${data.slides.length} slides. ` +
         `Read it and tell me anything you want changed. Nothing is drawn yet, so changes are free. ` +
@@ -681,7 +727,7 @@ export default function FlyerMakerPage() {
    */
   const makeDeck = async () => {
     if (making || !deckPlan || !unit) return
-    setErr(''); setSheet(null)
+    setErr(''); setSheet(null); setPlanOpen(false)
 
     const chat = chatId ?? crypto.randomUUID()
     if (!chatId) { setChatId(chat); rememberChat(chat) }
@@ -719,7 +765,25 @@ export default function FlyerMakerPage() {
           referenceDataUrl: anchor ?? reference?.dataUrl,
           roundId, chatId: chat, messages,
         }),
-      }).then((x) => x.json()).catch(() => ({ error: 'Network error' }))
+      }).then(async (x) => {
+        // SAY WHICH FAILURE THIS WAS. Every one of these used to land in a
+        // single catch reporting "Network error", which is the least useful
+        // thing it could have said — it sent me hunting a payload-size problem
+        // that measurement then showed was not happening at all.
+        //
+        // Slide one is GENERATED. Every later slide is EDITED, because it
+        // carries the anchor image. Editing is the slower call, so a timeout
+        // lands on slides two onward and looks like the anchor is at fault
+        // when the real answer is that the slide took too long.
+        if (x.status === 413) return { error: 'That slide was too large to send.' }
+        if (x.status === 502 || x.status === 504) {
+          return { error: 'That slide took too long and the connection was cut before it finished.' }
+        }
+        const body = await x.text()
+        try { return JSON.parse(body) } catch {
+          return { error: `The server replied with something unreadable (status ${x.status}).` }
+        }
+      }).catch((e) => ({ error: `Could not reach the server — ${e instanceof Error ? e.message : 'unknown'}` }))
 
       if (res?.images?.length) {
         const img = res.images[0]
@@ -738,7 +802,11 @@ export default function FlyerMakerPage() {
     }
 
     // Slide one first, alone. Everything else waits on it.
-    const anchor = await drawSlide(0)
+    const full = await drawSlide(0)
+    // Send it on as a SMALL reference, not as the 2.6 MB original — see
+    // shrinkForReference. Three full-size anchors in flight at once is what
+    // broke slides 2, 3 and 4.
+    const anchor = full ? await shrinkForReference(full) : null
 
     if (anchor && !stop) {
       const queue = plan.slides.map((_, i) => i).slice(1)
@@ -1248,8 +1316,13 @@ export default function FlyerMakerPage() {
             they have already been charged for. */}
         {deckPlan && (
           <div style={{ ...panel, marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-              <strong style={{ fontSize: 13 }}>{deckPlan.title} · {deckPlan.slides.length} slides</strong>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: planOpen ? 8 : 0 }}>
+              <button onClick={() => setPlanOpen((o) => !o)}
+                title={planOpen ? 'Hide the running order' : 'Show the running order'}
+                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: INK, display: 'flex', gap: 6, alignItems: 'center' }}>
+                <span style={{ fontSize: 11, color: SOFT }}>{planOpen ? '▾' : '▸'}</span>
+                {deckPlan.title} · {deckPlan.slides.length} slides
+              </button>
               <span style={{ display: 'flex', gap: 6 }}>
                 <button onClick={() => setDeckPlan(null)} title="Throw this running order away" style={{ ...plain, padding: '5px 10px' }}>Discard</button>
                 <button onClick={makeDeck} disabled={making}
@@ -1259,20 +1332,24 @@ export default function FlyerMakerPage() {
                 </button>
               </span>
             </div>
-            <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.65 }}>
-              {deckPlan.slides.map((s, i) => (
-                <li key={i} style={{ marginBottom: 4 }}>
-                  <strong>{s.fields.headline}</strong>
-                  {s.fields.subhead ? <span style={{ color: SOFT }}> — {s.fields.subhead}</span> : null}
-                  {s.fields.details?.length ? (
-                    <span style={{ color: SOFT, display: 'block', fontSize: 12.5 }}>{s.fields.details.join(' · ')}</span>
-                  ) : null}
-                </li>
-              ))}
-            </ol>
-            <p style={{ fontSize: 12.5, color: SOFT, margin: '10px 0 0', lineHeight: 1.55 }}>
-              Nothing has been drawn yet. Say what you want changed and press Plan the deck again.
-            </p>
+            {planOpen && (
+              <>
+                <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.65 }}>
+                  {deckPlan.slides.map((s, i) => (
+                    <li key={i} style={{ marginBottom: 4 }}>
+                      <strong>{s.fields.headline}</strong>
+                      {s.fields.subhead ? <span style={{ color: SOFT }}> — {s.fields.subhead}</span> : null}
+                      {s.fields.details?.length ? (
+                        <span style={{ color: SOFT, display: 'block', fontSize: 12.5 }}>{s.fields.details.join(' · ')}</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ol>
+                <p style={{ fontSize: 12.5, color: SOFT, margin: '10px 0 0', lineHeight: 1.55 }}>
+                  Nothing has been drawn yet. Say what you want changed and press Plan the deck again.
+                </p>
+              </>
+            )}
           </div>
         )}
 
