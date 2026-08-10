@@ -23,7 +23,7 @@
  .bar button{padding:11px 18px;border:none;border-radius:8px;background:#23201c;color:#fff;font:inherit;font-weight:700;cursor:pointer}
 </style></head><body><div class="wrap">
 <h1>Rate the logos</h1>
-<p class="sub">60 logos. You cannot see which prompt made which — that is the point.</p>
+<p class="sub">59 logos. You cannot see which prompt made which — that is the point.</p>
 <div class="scale"><b>Would you show this to a client?</b><br>
  <b>1</b> janky &nbsp;·&nbsp; <b>2</b> weak &nbsp;·&nbsp; <b>3</b> passable &nbsp;·&nbsp;
  <b>4</b> good &nbsp;·&nbsp; <b>5</b> I'd put my name on it<br>
@@ -147,11 +147,9 @@
 <div class="btns" data-n="58"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
 <div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/monogram/059.png" alt="" loading="lazy"><div class="n">#59</div>
 <div class="btns" data-n="59"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
-<div class="cell"><img src="https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/logo-rate/monogram/060.png" alt="" loading="lazy"><div class="n">#60</div>
-<div class="btns" data-n="60"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div></div>
 </div></div>
 <div class="bar">
- <span class="count">0 / 60</span>
+ <span class="count">0 / 59</span>
  <textarea readonly placeholder="Your ratings appear here as you tap"></textarea>
  <button id="copy">Copy</button>
 </div>
@@ -162,7 +160,7 @@
  function refresh(){
    const parts = Object.keys(scores).map(Number).sort((a,b)=>a-b).map(n=>n+':'+scores[n]);
    out.value = parts.join(' ');
-   count.textContent = parts.length + ' / 60';
+   count.textContent = parts.length + ' / 59';
  }
  document.querySelectorAll('.btns').forEach(g=>{
    g.addEventListener('click', e=>{
