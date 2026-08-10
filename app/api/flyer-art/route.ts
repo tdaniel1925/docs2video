@@ -5,6 +5,7 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { checkCredits, deductCredits, addTopupCredits, costForUser } from '../../_lib/credits'
 import { FLYER_TEMPLATES, FLYER_SIZES, flyerPrompt, apiSize, printPixels, canBleed, dpiFor } from '../../_lib/flyer-engine'
 import { upscaleForPrint } from '../../_lib/upscale'
+import { pickEngine, drawChecked } from '../../_lib/image-engine'
 import type { FlyerFields, PhotoRole } from '../../_lib/flyer-engine'
 
 // =============================================================================
@@ -151,6 +152,11 @@ export async function POST(req: Request) {
   // Prepare them ONCE, not per size. Every ticked size needs the same files,
   // and re-decoding a 5 MB upload six times is pure waste.
   let files: Awaited<ReturnType<typeof toFile>>[] = []
+  // The same pictures again, as raw buffers, because Gemini takes them inline
+  // rather than as uploads. Built in the SAME ORDER — the prompt says "Image 1"
+  // and "Image 2", and a different order here would apply the "keep this person
+  // recognisable" rule to the wrong picture.
+  const geminiInputs: { data: Buffer<ArrayBuffer>; mimeType: string }[] = []
   try {
     const sharp = (await import('sharp')).default
     files = await Promise.all(toPrepare.map(async (p, i) => {
@@ -165,6 +171,7 @@ export async function POST(req: Request) {
       // Name the reference for what it is. The order is what the prompt keys
       // off, but a readable filename makes a failed request diagnosable.
       const name = hasReference && i === 0 ? 'reference.png' : `photo-${i + (hasReference ? 0 : 1)}.png`
+      geminiInputs[i] = { data: buf as Buffer<ArrayBuffer>, mimeType: 'image/png' }
       return toFile(buf, name, { type: 'image/png' })
     }))
   } catch (err) {
@@ -207,16 +214,56 @@ export async function POST(req: Request) {
       // With photographs attached the design is EDITED around them instead of
       // generated from nothing, which is what keeps a real face looking like
       // that person rather than a stranger who dresses similarly.
-      const res = files.length
-        ? await ai().images.edit({
-            model: MODEL, prompt, image: files.length === 1 ? files[0] : files,
-            size: apiSize(size, bleed).size as '1024x1024', quality: 'high', n: 1,
-          })
-        : await ai().images.generate({
-            model: MODEL, prompt, size: apiSize(size, bleed).size as '1024x1024', quality: 'high', n: 1,
-          })
-      const b64 = res.data?.[0]?.b64_json
-      if (!b64) { await refund(); return { sizeId: size.id, label: size.label, error: 'no image returned' } }
+      // WHICH ENGINE. Measured on the same slide and prompt: Gemini is 16x
+      // faster (5s against 90s) and 4x cheaper (~4c against ~18c), and the
+      // design is just as good. Its one weakness is spelling in small type —
+      // so the words are read back off the finished image and it is simply
+      // drawn again if they came out wrong. Three Gemini attempts still cost
+      // less and finish sooner than one gpt-image-2 attempt.
+      //
+      // gpt-image-2 keeps the shapes Gemini cannot hold: a rack card at 1:2.4,
+      // a 4:1 banner. Squeezing those into the nearest offered shape would cut
+      // into a design composed for a different one.
+      const target0 = printPixels(size, bleed)
+      const { engine, aspect } = pickEngine(target0.w, target0.h)
+
+      // The words that MUST survive. A headline, a price, a phone number —
+      // not the decorative text in the background, where a redraw would throw
+      // away a good design over something nobody reads.
+      const mustSay = [
+        fields.headline, fields.subhead, fields.price, fields.date,
+        fields.venue, fields.cta, fields.contact,
+      ].filter((s): s is string => typeof s === 'string' && s.trim().length > 2)
+
+      let src: Buffer<ArrayBuffer>
+      let spellingNote = ''
+
+      if (engine === 'gemini' && aspect) {
+        const drawn = await drawChecked(prompt, aspect, mustSay, geminiInputs)
+        src = drawn.image
+        if (!drawn.spelling.ok) {
+          // Say it rather than hide it. A word that came out wrong on a flyer
+          // being sent to a printer is exactly the thing worth a second look,
+          // and the customer is the only one who can decide it matters.
+          spellingNote = `Check the small print — "${drawn.spelling.missing[0]}" may not have come out right.`
+          console.warn(`[flyer] ${size.id} kept with misspellings after ${drawn.attempts} attempts: ${drawn.spelling.missing.join(', ')}`)
+        }
+      } else {
+        // With photographs attached the design is EDITED around them instead of
+        // generated from nothing, which is what keeps a real face looking like
+        // that person rather than a stranger who dresses similarly.
+        const res = files.length
+          ? await ai().images.edit({
+              model: MODEL, prompt, image: files.length === 1 ? files[0] : files,
+              size: apiSize(size, bleed).size as '1024x1024', quality: 'high', n: 1,
+            })
+          : await ai().images.generate({
+              model: MODEL, prompt, size: apiSize(size, bleed).size as '1024x1024', quality: 'high', n: 1,
+            })
+        const b64 = res.data?.[0]?.b64_json
+        if (!b64) { await refund(); return { sizeId: size.id, label: size.label, error: 'no image returned' } }
+        src = Buffer.from(b64, 'base64')
+      }
 
       const sharp = (await import('sharp')).default
       // The true finished size, including the bleed margin the printer trims
@@ -224,10 +271,8 @@ export async function POST(req: Request) {
       // a six-foot banner at 72 — asking those for 300 would demand a
       // ten-thousand-pixel file to carry detail nobody can stand close enough
       // to see.
-      const target = printPixels(size, bleed)
-      const targetW = target.w
-      const targetH = target.h
-      let src = Buffer.from(b64, 'base64')
+      const targetW = target0.w
+      const targetH = target0.h
 
       // ENLARGE BEFORE SCALING, where the generator could not reach print size.
       // The image API caps out around 4 megapixels; a letter flyer at 300 dpi
