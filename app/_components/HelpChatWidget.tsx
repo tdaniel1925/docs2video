@@ -131,15 +131,15 @@ export default function HelpChatWidget() {
                 <div style={{ fontSize: 28, marginBottom: 12 }}>&#128075;</div>
                 <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>How can I help?</div>
                 <div style={{ fontSize: 12, color: 'var(--ink-light)', lineHeight: 1.5, marginBottom: 16 }}>
-                  Ask me anything about creating videos, infographics, logos, business cards, billing, or any feature.
+                  {brand.showVideoFeatures
+                    ? 'Ask me anything about creating videos, infographics, logos, business cards, billing, or any feature.'
+                    : 'Ask me anything about making flyers, ads, social posts, banners or business cards — or about credits and billing.'}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {[
-                    'How do I create a video?',
-                    'What do credits cost?',
-                    'How do I add my brand logo?',
-                    'Can I download as PDF?',
-                  ].map(q => (
+                  {(brand.showVideoFeatures
+                    ? ['How do I create a video?', 'What do credits cost?', 'How do I add my brand logo?', 'Can I download as PDF?']
+                    : ['How do I make a flyer?', 'What do credits cost?', 'Can I use my own photos?', 'What sizes can I get?']
+                  ).map(q => (
                     <button
                       key={q}
                       onClick={() => { setInput(q); setTimeout(() => send(), 0) }}

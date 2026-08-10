@@ -61,6 +61,16 @@ for (const path of ['/settings', '/help']) {
   check(t.status === d.status, `${path} behaves the same on both hosts`, `${t.status} vs ${d.status}`)
 }
 
+// Nothing on a Text2Art page should talk about VIDEOS. The customer cannot
+// make one, so "20 videos/mo included" reads like they bought the wrong
+// product. Credits are the shared currency and the only honest unit here.
+const VIDEO_WORDS = /(video|videos|explainer|voiceover|narration|slide deck)/i
+for (const path of ['/', '/login']) {
+  const t = await get('text2art.app', path)
+  const hit = (t.body || '').match(VIDEO_WORDS)
+  check(!hit, `${path} on text2art.app never mentions video`, hit ? `found "${hit[0]}"` : '')
+}
+
 // An unknown host — a Vercel preview URL, a health check, a missing Host —
 // must fall back rather than error.
 const unknown = await get('some-preview-abc.vercel.app')

@@ -11,6 +11,7 @@ import BuyCreditsModal from '../../_components/BuyCreditsModal'
 import { SLIDE_STYLES } from '../../_lib/types'
 import type { Profile, Brand } from '../../_lib/types'
 import { PLANS, type PlanTier } from '../../_lib/pricing'
+import { TIER_CREDITS, TIER_APPROX_VIDEOS, CREDIT_COSTS } from '../../_lib/credits'
 import { updatePassword, updateEmail } from '../../_actions/auth'
 import { useToast } from '../../_components/Toast'
 
@@ -35,6 +36,7 @@ type ApiKey = { id: string; key_prefix: string; name: string | null; is_active: 
 /** Self-serve API key management + MCP usage. A key lets the user (or an MCP
  *  client) drive the app via the API, spending their normal subscription credits. */
 function ApiKeysSection() {
+  const storefront = useBrand()
   const [keys, setKeys] = useState<ApiKey[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
@@ -67,7 +69,9 @@ function ApiKeysSection() {
     <div className="settings-card">
       <h3 style={{ marginBottom: 4 }}>API &amp; MCP</h3>
       <p className="ssub" style={{ margin: '0 0 16px' }}>
-        Create an API key to build videos and commercials programmatically — from your own scripts or an AI assistant via the docs2video MCP server. Usage spends your normal credits.
+        {storefront.showVideoFeatures
+          ? 'Create an API key to build videos and commercials programmatically — from your own scripts or an AI assistant. Usage spends your normal credits.'
+          : 'Create an API key to make designs programmatically — from your own scripts or an AI assistant. Usage spends your normal credits.'}
       </p>
 
       {/* The freshly-created key — shown ONCE. */}
@@ -124,6 +128,27 @@ export default function SettingsPage() {
   // Which storefront this is (Docs2Video / Text2Art). NOT the customer's
   // brand kit, which is also called `brand` throughout this file.
   const storefront = useBrand()
+
+  /**
+   * What a plan gets you, said in the units this storefront actually sells.
+   *
+   * "20 videos/mo" is meaningless to a Text2Art customer, who cannot make a
+   * video — it reads like they are on the wrong product. Credits are the real
+   * shared currency, so the graphics side is quoted in credits and in designs.
+   *
+   * Both numbers are DERIVED from TIER_CREDITS and the flyer credit cost, so
+   * they cannot drift away from what the account is actually given or charged.
+   */
+  const allowance = (tier: PlanTier) => {
+    const credits = TIER_CREDITS[tier]
+    if (storefront.showVideoFeatures) {
+      return tier === 'enterprise'
+        ? `${TIER_APPROX_VIDEOS[tier].standard} videos/mo + API`
+        : `${TIER_APPROX_VIDEOS[tier].standard} videos/mo included`
+    }
+    const designs = Math.floor(credits / CREDIT_COSTS.flyer)
+    return `${credits.toLocaleString()} credits/mo — about ${designs} designs`
+  }
   const [tab, setTab] = useState<SettingsTab>('profile')
   const [profile, setProfile] = useState<Profile | null>(null)
   const [brand, setBrand] = useState<Brand | null>(null)
@@ -612,7 +637,7 @@ export default function SettingsPage() {
             <div className="settings-card">
               <h3>Your default brand</h3>
               <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 16px' }}>
-                This is applied automatically to every video. Manage additional brands on the <Link href="/brands" style={{ color: 'var(--mint-darker)', fontWeight: 600 }}>Brands</Link> page.
+                This is applied automatically to everything you make. Manage additional brands on the <Link href="/brands" style={{ color: 'var(--mint-darker)', fontWeight: 600 }}>Brands</Link> page.
               </p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 16 }}>
                 {brand.logo_file_url || brand.logo_url ? (
@@ -631,7 +656,7 @@ export default function SettingsPage() {
                     </label>
                     <Link href={`/brands/${brand.id}`} className="btn btn-soft btn-sm">Edit Colors</Link>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 6 }}>Logo appears on slide decks and client emails. Videos use text branding only.</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 6 }}>Your logo can be added to any design — upload it under your photos when you make one.</div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
@@ -1003,17 +1028,20 @@ export default function SettingsPage() {
                     if (['business', 'unlimited'].includes(s)) return 'Business'
                     if (['pro', 'professional'].includes(s)) return 'Pro'
                     if (['starter', 'active'].includes(s)) return 'Starter'
-                    return 'Pay Per Video'
+                    return storefront.showVideoFeatures ? 'Pay Per Video' : 'Pay As You Go'
                   })()}
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginTop: 4 }}>
                   {(() => {
                     const s = profile.subscription_status?.toLowerCase() ?? ''
-                    if (['enterprise', 'enterprise-plus', 'enterprise_plus'].includes(s)) return '200 videos/mo + API'
-                    if (['business', 'unlimited'].includes(s)) return '75 videos/mo included'
-                    if (['pro', 'professional'].includes(s)) return '20 videos/mo included'
-                    if (['starter', 'active'].includes(s)) return '5 videos/mo included'
-                    return '$10 per video'
+                    // Described in whatever this storefront actually sells. A
+                    // Text2Art customer cannot make videos, so "20 videos/mo"
+                    // tells them nothing about what they are paying for.
+                    if (['enterprise', 'enterprise-plus', 'enterprise_plus'].includes(s)) return allowance('enterprise')
+                    if (['business', 'unlimited'].includes(s)) return allowance('business')
+                    if (['pro', 'professional'].includes(s)) return allowance('pro')
+                    if (['starter', 'active'].includes(s)) return allowance('starter')
+                    return storefront.showVideoFeatures ? '$10 per video' : 'Buy credits as you need them'
                   })()}
                 </div>
               </div>
@@ -1048,35 +1076,43 @@ export default function SettingsPage() {
               {([
                 {
                   tier: 'free',
-                  label: 'Pay Per Video',
+                  label: storefront.showVideoFeatures ? 'Pay Per Video' : 'Pay As You Go',
                   price: '$0',
                   period: '',
-                  highlight: '1 free video, then $10 each',
-                  features: ['No monthly fee', 'Full quality output', 'Share pages with AI chat'],
+                  highlight: storefront.showVideoFeatures ? '1 free video, then $10 each' : allowance('free'),
+                  features: storefront.showVideoFeatures
+                    ? ['No monthly fee', 'Full quality output', 'Share pages with AI chat']
+                    : ['No monthly fee', 'Full print quality', 'Top up any time'],
                 },
                 {
                   tier: 'pro',
                   label: 'Pro',
                   price: '$79',
                   period: '/mo',
-                  highlight: '20 videos/mo included',
-                  features: ['$5 per additional video', 'Priority generation', 'Unlimited brands'],
+                  highlight: allowance('pro'),
+                  features: storefront.showVideoFeatures
+                    ? ['$5 per additional video', 'Priority generation', 'Unlimited brands']
+                    : ['Top up any time', 'Priority generation', 'Unlimited brands'],
                 },
                 {
                   tier: 'business',
                   label: 'Business',
                   price: '$199',
                   period: '/mo',
-                  highlight: '75 videos/mo included',
-                  features: ['$5 per additional video', 'White-label share pages', 'Priority support'],
+                  highlight: allowance('business'),
+                  features: storefront.showVideoFeatures
+                    ? ['$5 per additional video', 'White-label share pages', 'Priority support']
+                    : ['Top up any time', 'Every size and format', 'Priority support'],
                 },
                 {
                   tier: 'enterprise',
                   label: 'Enterprise',
                   price: '$499',
                   period: '/mo',
-                  highlight: '200 videos/mo + API',
-                  features: ['$5 per additional video', 'Unlimited slide edits', 'Dedicated support'],
+                  highlight: allowance('enterprise'),
+                  features: storefront.showVideoFeatures
+                    ? ['$5 per additional video', 'Unlimited slide edits', 'Dedicated support']
+                    : ['Top up any time', 'API access', 'Dedicated support'],
                 },
               ] as const).map(plan => {
                 const s = profile.subscription_status?.toLowerCase() ?? ''
