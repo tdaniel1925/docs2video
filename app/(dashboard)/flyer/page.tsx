@@ -121,6 +121,27 @@ export default function FlyerMakerPage() {
   const [stylePicked, setStylePicked] = useState(false)
   const [sizesPicked, setSizesPicked] = useState(false)
 
+  // SHOW THAT SOMETHING HAPPENED. A thin border on one of six thumbnails is
+  // easy to miss, and once you have chosen there is nothing saying the panel
+  // is finished with. `strobeId` flashes a ring round whatever was just
+  // picked; `unacked` keeps Done pulsing until it is pressed.
+  const [strobeId, setStrobeId] = useState<string | null>(null)
+  const [unacked, setUnacked] = useState(false)
+  const strobeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const markPicked = (id: string) => {
+    setUnacked(true)
+    if (strobeTimer.current) clearTimeout(strobeTimer.current)
+    // Clear first so picking the SAME thing twice replays the animation
+    // instead of doing nothing.
+    setStrobeId(null)
+    requestAnimationFrame(() => setStrobeId(id))
+    strobeTimer.current = setTimeout(() => setStrobeId(null), 2400)
+  }
+
+  const closeSheet = () => { setSheet(null); setUnacked(false); setStrobeId(null) }
+  useEffect(() => () => { if (strobeTimer.current) clearTimeout(strobeTimer.current) }, [])
+
   const [making, setMaking] = useState(false)
   const [sheet, setSheet] = useState<null | 'style' | 'photos' | 'sizes'>(null)
   const [viewing, setViewing] = useState<Design | null>(null)
@@ -217,7 +238,7 @@ export default function FlyerMakerPage() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       if (viewing) setViewing(null)
-      else if (sheet) setSheet(null)
+      else if (sheet) closeSheet()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -513,7 +534,11 @@ export default function FlyerMakerPage() {
               <strong style={{ fontSize: 13 }}>
                 {sheet === 'style' ? 'Pick a look' : sheet === 'photos' ? 'Your own photos' : 'Which sizes?'}
               </strong>
-              <button onClick={() => setSheet(null)} title="Close this panel — your choice is already saved" style={{ ...plain, padding: '4px 9px' }}>Done</button>
+              {/* Pulses once you have chosen something, so it is obvious the
+                  panel is done with and waiting to be closed. */}
+              <button onClick={closeSheet} className={unacked ? 'cg-done-flash' : undefined}
+                title="Close this panel — your choice is already saved"
+                style={{ ...plain, padding: '6px 14px' }}>Done</button>
             </div>
 
             {sheet === 'style' && (
@@ -531,7 +556,8 @@ export default function FlyerMakerPage() {
                 </p>
 
                 {reference ? (
-                  <div title="The look of this design will be copied — its colours, lettering and layout — using your words, not its own"
+                  <div className={strobeId === 'reference' ? 'cg-strobe' : undefined}
+                    title="The look of this design will be copied — its colours, lettering and layout — using your words, not its own"
                     style={{ display: 'flex', gap: 12, alignItems: 'center', border: `1px solid ${LINE}`, borderRadius: 9, padding: 10, marginBottom: 12 }}>
                     <img src={reference.dataUrl} alt="" style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 7, border: `1px solid ${LINE}` }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -561,6 +587,7 @@ export default function FlyerMakerPage() {
                         })
                         setReference({ dataUrl, name: f.name })
                         setStylePicked(true)
+                        markPicked('reference')
                         say('assistant', 'Got your reference — I\'ll copy its look and use your words. Our own styles are switched off while it\'s attached; remove it to go back to them.')
                       }} />
                   </label>
@@ -580,7 +607,8 @@ export default function FlyerMakerPage() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(118px,1fr))', gap: 9 }}>
                     {FLYER_TEMPLATES.filter((t) => t.category === category).map((t) => (
-                      <button key={t.id} onClick={() => { setTemplateId(t.id); setStylePicked(true) }}
+                      <button key={t.id} className={strobeId === t.id ? 'cg-strobe' : undefined}
+                        onClick={() => { setTemplateId(t.id); setStylePicked(true); markPicked(t.id) }}
                         title={`Design it in the ${t.name} look`}
                         style={{
                           padding: 0, borderRadius: 9, overflow: 'hidden', cursor: 'pointer', background: '#111',
@@ -597,7 +625,8 @@ export default function FlyerMakerPage() {
             )}
 
             {sheet === 'photos' && (
-              <PhotoSheet photos={photos} setPhotos={setPhotos} setErr={setErr} plain={plain} />
+              <PhotoSheet photos={photos} setPhotos={setPhotos} setErr={setErr} plain={plain}
+                onPicked={() => markPicked('photo')} />
             )}
 
             {sheet === 'sizes' && (
@@ -607,11 +636,13 @@ export default function FlyerMakerPage() {
                     <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: SOFT, marginBottom: 5 }}>{g.label}</div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 3 }}>
                       {FLYER_SIZES.filter((s) => s.group === g.id).map((s) => (
-                        <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, cursor: 'pointer', padding: '2px 0' }}>
+                        <label key={s.id} className={strobeId === s.id ? 'cg-strobe' : undefined}
+                          style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, cursor: 'pointer', padding: '2px 6px', borderRadius: 6 }}>
                           <input type="checkbox" checked={ticked.includes(s.id)}
                             onChange={(e) => {
                               setSizesPicked(true)
                               setTicked((p) => (e.target.checked ? [...p, s.id] : p.filter((x) => x !== s.id)).slice(0, 8))
+                              markPicked(s.id)
                             }} />
                           {s.label}
                         </label>
@@ -641,16 +672,16 @@ export default function FlyerMakerPage() {
               button is FOR; the current choice follows in lighter type so you
               can still see it at a glance. */}
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10, alignItems: 'center' }}>
-            <button style={chip(sheet === 'style')} onClick={() => setSheet(sheet === 'style' ? null : 'style')}
+            <button style={chip(sheet === 'style')} onClick={() => { setUnacked(false); setStrobeId(null); setSheet(sheet === 'style' ? null : 'style') }}
               title="Choose how it should look — one of our fifteen looks, or a design of your own to copy. One or the other, not both.">
               1. Pick Your Style <Chosen on={sheet === 'style'}>{reference ? 'Your reference' : styleName}</Chosen>
             </button>
-            <button style={chip(sheet === 'photos')} onClick={() => setSheet(sheet === 'photos' ? null : 'photos')}
+            <button style={chip(sheet === 'photos')} onClick={() => { setUnacked(false); setStrobeId(null); setSheet(sheet === 'photos' ? null : 'photos') }}
               title="Add up to three of your own pictures — a headshot, the property, your product or a logo — and the design is built around them instead of invented people">
               2. Add Photos <span style={{ fontWeight: 400 }}>(Optional)</span>
               {photos.length > 0 && <Chosen on={sheet === 'photos'}>{photos.length}</Chosen>}
             </button>
-            <button style={chip(sheet === 'sizes')} onClick={() => setSheet(sheet === 'sizes' ? null : 'sizes')}
+            <button style={chip(sheet === 'sizes')} onClick={() => { setUnacked(false); setStrobeId(null); setSheet(sheet === 'sizes' ? null : 'sizes') }}
               title="Tick every size you need — print, social posts, banners, business cards. Each is designed from scratch, so each costs one design.">
               3. Choose Format <Chosen on={sheet === 'sizes'}>{ticked.length} size{ticked.length === 1 ? '' : 's'}</Chosen>
             </button>
@@ -888,11 +919,13 @@ function Viewer({ design, onClose }: { design: Design; onClose: () => void }) {
   )
 }
 
-function PhotoSheet({ photos, setPhotos, setErr, plain }: {
+function PhotoSheet({ photos, setPhotos, setErr, plain, onPicked }: {
   photos: { dataUrl: string; role: PhotoRole; name: string }[]
   setPhotos: React.Dispatch<React.SetStateAction<{ dataUrl: string; role: PhotoRole; name: string }[]>>
   setErr: (s: string) => void
   plain: React.CSSProperties
+  /** Tell the panel a choice was made, so Done starts asking to be pressed. */
+  onPicked?: () => void
 }) {
   return (
     <>
@@ -911,6 +944,7 @@ function PhotoSheet({ photos, setPhotos, setErr, plain }: {
                 r.readAsDataURL(f)
               })
               setPhotos((p) => [...p, { dataUrl, name: f.name, role: 'person' as PhotoRole }].slice(0, 3))
+              onPicked?.()
             }
             e.target.value = ''
           }} />
