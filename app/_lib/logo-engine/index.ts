@@ -96,18 +96,36 @@ export type MonogramStyleId =
   | 'interlock' | 'stacked' | 'nested' | 'shared-stem' | 'contained'
   | 'negative' | 'modular' | 'ligature' | 'overlap' | 'rotational'
 
+/**
+ * LEGIBILITY OUTRANKS CLEVERNESS. Attached to every construction below.
+ *
+ * The first monogram batch was rated 1.42 out of 5 — worse than the plain
+ * logos before it — and the pattern in the scores was unmistakable. The three
+ * constructions that deform letters most (interlock, stacked, overlap) each
+ * scored exactly 1.00. The one that leaves letters intact and simply frames
+ * them (contained) scored highest.
+ *
+ * The cause was this file. "Merge and share strokes so it reads as ONE
+ * continuous object" is an instruction to destroy letter recognition, and the
+ * model obliged: an AHG came back as an unreadable blob. Cleverness of
+ * construction was being optimised for at the direct expense of the only thing
+ * a monogram has to do, which is be read.
+ */
+const LEGIBILITY_FIRST =
+  'ABOVE ALL: every letter must remain INSTANTLY READABLE as itself. A stranger who has never seen this company must identify each letter in under a second, with no effort and no guessing. Keep the crossbar on an A, the bowl on a G, the counters open. Where the construction and legibility conflict, LEGIBILITY WINS and the construction gives way — a clever mark nobody can read is a failed mark.'
+
 export const MONOGRAM_STYLES: { id: MonogramStyleId; label: string; direction: string }[] = [
   {
     id: 'interlock',
     label: 'Interlocked',
     direction:
-      'The letters INTERLOCK — they merge and share strokes so the result reads as ONE continuous constructed object rather than separate characters. Where two letters meet they become the same line.',
+      'The letters sit tightly together and TOUCH at their nearest edges, so the group reads as one deliberate object — but each letter keeps its own complete shape. They meet; they do not dissolve into each other.',
   },
   {
     id: 'stacked',
     label: 'Stacked block',
     direction:
-      'The letters are STACKED into a tight rectangular block, each sized and stretched so their edges align flush on all sides — a solid slab of type with no gaps at the outer edge.',
+      'The letters are STACKED into a tight rectangular block with their edges aligned, in a heavy condensed face. Tighten the spacing, never the letterforms themselves — do not squash or stretch a letter out of its natural proportion to make it fit.',
   },
   {
     id: 'nested',
@@ -149,7 +167,7 @@ export const MONOGRAM_STYLES: { id: MonogramStyleId; label: string; direction: s
     id: 'overlap',
     label: 'Overlapping',
     direction:
-      'The letters OVERLAP, and where they cross, the intersection is filled with a third flat colour — a deliberate transparency effect built from solid shapes, never a gradient. The overlaps are the point of interest.',
+      'The letters OVERLAP SLIGHTLY at their edges, and where they cross, the intersection is filled with a third flat colour — a transparency effect built from solid shapes, never a gradient. Overlap only at the outer edges; never cover a letter enough to obscure what it is.',
   },
   {
     id: 'rotational',
@@ -361,6 +379,7 @@ export function buildLogoPrompt(brief: LogoBrief, opts: PromptOptions = {}): str
     // construction instruction replaces the mark-type direction entirely.
     parts.push('', `A MONOGRAM built from exactly these letters and no others: "${brief.initials.split('').join(' ')}" — the letters ${brief.initials}.`)
     parts.push(monogram.direction)
+    parts.push(LEGIBILITY_FIRST)
     parts.push(
       `Draw ONLY those ${brief.initials.length} letters and nothing else. NO company name, NO tagline, NO strapline, NO descriptive words, NO extra characters — not above, not below, not beside the monogram. The letters ${brief.initials} are the entire image.`,
     )
