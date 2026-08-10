@@ -36,9 +36,27 @@ import {
 type Design = { sizeId: string; label: string; w: number; h: number; src: string }
 type Status = 'wait' | 'busy' | 'done' | 'fail'
 
+/** A deck's running order, as returned by the planner before anything is drawn. */
+type PlannedSlide = { role: string; fields: FlyerFields }
+type DeckPlan = { title: string; slides: PlannedSlide[] }
+
 /** Everything in the thread, in the order it happened. */
 type Item =
   | { kind: 'msg'; role: 'user' | 'assistant'; text: string }
+  | {
+      /**
+       * A deck being built, or built.
+       *
+       * Kept separate from a round rather than squeezed in beside it: a round is
+       * keyed by SIZE — one design per ticked size — and a deck is many designs
+       * at the SAME size, so sharing the shape would mean every status lookup
+       * collided on 'slide-16x9'.
+       */
+      kind: 'deck'; id: string; title: string; slides: PlannedSlide[]
+      designs: (Design & { designId?: string })[]
+      status: Record<number, Status>
+      startedAt: number; live: boolean
+    }
   | {
       kind: 'round'; id: string; templateId: string; note: string
       sizeIds: string[]; designs: Design[]; status: Record<string, Status>
@@ -48,6 +66,10 @@ type Item =
 // Three at a time: quick enough, and few enough not to trip the image API's
 // rate limit and turn a queue into a wall of errors.
 const CONCURRENCY = 3
+// Below 3 it is not a deck; above 20 the cost surprises people. Mirrors the
+// same clamp on the server, which is the one that actually binds.
+const MIN_DECK = 3
+const MAX_DECK = 20
 // MEASURED against production, not guessed — the first estimate here was 75s
 // and it was wrong. Better to quote the real number and finish early.
 const SECS_PER_SIZE = 115
@@ -75,6 +97,29 @@ const GROUPS = [
   { id: 'banner', label: 'Banners & headers' },
   { id: 'card', label: 'Business cards' },
 ] as const
+
+/** The plain button, at module level so the blocks below can use it too. */
+const PLAIN_BTN = {
+  padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border,#ddd6cc)',
+  background: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+  fontFamily: 'inherit', color: 'var(--ink,#23201c)',
+} as const
+
+/**
+ * Extra art direction per slide type.
+ *
+ * Mirrors roleDirection in app/_lib/deck-plan.ts. It is repeated here rather
+ * than imported because the engine and the planner must not depend on each
+ * other — and because a cover and a numbers slide want completely different
+ * weight even in the same look, which the model will not infer from the words.
+ */
+const DECK_DIRECTION: Record<string, string> = {
+  cover: 'This is the OPENING slide of a deck. The title dominates — the largest type in the whole deck. Nothing competes with it. Generous empty space.',
+  point: 'This is a body slide. One idea. The headline leads; supporting lines sit quietly beneath at a much smaller size.',
+  numbers: 'This slide exists for ONE FIGURE. Set the headline enormous — it should fill a third of the frame on its own. The supporting line is small, directly underneath.',
+  quote: 'This is a QUOTATION. Set it as a quote — larger, lighter, more space around it than a normal headline, attribution small and quiet beneath.',
+  closing: 'This is the FINAL slide. Calm and uncluttered. The ask reads first; contact details are small at the bottom.',
+}
 
 const INK = 'var(--ink,#23201c)'
 const SOFT = 'var(--ink-soft,#6b6459)'
@@ -207,6 +252,14 @@ export default function FlyerMakerPage() {
   const [reference, setReference] = useState<{ dataUrl: string; name: string } | null>(null)
   // What is typed into the style search. Empty means "show the chosen group".
   const [styleQuery, setStyleQuery] = useState('')
+
+  // Deck mode. The running order is planned as TEXT first and shown for
+  // approval, because drawing twelve slides costs real money and several
+  // minutes — and the commonest way to waste both is generating an order
+  // nobody read.
+  const [deckPlan, setDeckPlan] = useState<DeckPlan | null>(null)
+  const [deckCount, setDeckCount] = useState(8)
+  const [planning, setPlanning] = useState(false)
 
   // Mac says Cmd, everyone else says Ctrl. Worked out after the first paint so
   // the server and the browser render the same thing.
@@ -575,6 +628,143 @@ export default function FlyerMakerPage() {
   // once means nothing appears until the last one lands; split apart, each
   // design shows the moment it is ready, the bar counts real completions
   // rather than a made-up percentage, and one failure costs one size.
+  /**
+   * Work out the running order. Costs nothing — no picture is drawn yet.
+   */
+  const planTheDeck = async () => {
+    if (planning) return
+    const brief = [
+      note.trim(),
+      ...items.filter((i): i is Extract<Item, { kind: 'msg' }> => i.kind === 'msg' && i.role === 'user')
+        .slice(-6).map((m) => m.text),
+    ].filter(Boolean).join('\n')
+
+    if (brief.trim().length < 10) {
+      setErr('Tell me what the deck is about first — a sentence or two in the box below.')
+      return
+    }
+    setErr(''); setPlanning(true)
+    try {
+      const res = await fetch('/api/flyer-deck', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ brief, slides: deckCount }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.slides?.length) {
+        setErr(data?.error || 'Could not plan that deck.')
+        return
+      }
+      setDeckPlan(data)
+      say('assistant',
+        `Here's the running order for "${data.title}" — ${data.slides.length} slides. ` +
+        `Read it and tell me anything you want changed. Nothing is drawn yet, so changes are free. ` +
+        `When it looks right, press Make deck.`)
+    } catch {
+      setErr('Network error while planning the deck.')
+    } finally {
+      setPlanning(false)
+    }
+  }
+
+  /**
+   * Draw the deck.
+   *
+   * THE FIRST SLIDE ANCHORS THE REST. Twelve slides generated independently in
+   * "the same style" drift apart — the same words for a look do not produce the
+   * same palette twice, and a deck whose slides don't match is worse than one
+   * plain template. So slide one is drawn on its own, and every slide after it
+   * is drawn with slide one attached as the reference. That is the same
+   * machinery a customer uses to copy their own design, pointed inward.
+   *
+   * The cost of that: the first slide is a bottleneck, about two minutes before
+   * the rest can start. Worth it — the alternative is a deck you cannot present.
+   */
+  const makeDeck = async () => {
+    if (making || !deckPlan || !unit) return
+    setErr(''); setSheet(null)
+
+    const chat = chatId ?? crypto.randomUUID()
+    if (!chatId) { setChatId(chat); rememberChat(chat) }
+
+    const roundId = crypto.randomUUID()
+    const plan = deckPlan
+    const messages = items.filter((i): i is Extract<Item, { kind: 'msg' }> => i.kind === 'msg')
+      .slice(-12).map((m) => ({ role: m.role, text: m.text }))
+
+    setItems((p) => [...p, {
+      kind: 'deck', id: roundId, title: plan.title, slides: plan.slides,
+      designs: [], status: Object.fromEntries(plan.slides.map((_, i) => [i, 'wait' as Status])),
+      startedAt: Date.now(), live: true,
+    }])
+    setMaking(true)
+
+    const patch = (fn: (r: Extract<Item, { kind: 'deck' }>) => Extract<Item, { kind: 'deck' }>) =>
+      setItems((p) => p.map((i) => (i.kind === 'deck' && i.id === roundId ? fn(i) : i)))
+
+    const failures: string[] = []
+    let stop = ''
+
+    const drawSlide = async (index: number, anchor?: string) => {
+      const slide = plan.slides[index]
+      patch((r) => ({ ...r, status: { ...r.status, [index]: 'busy' } }))
+      const res = await fetch('/api/flyer-art', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          templateId,
+          sizeIds: ['slide-16x9'],
+          fields: slide.fields,
+          note: [DECK_DIRECTION[slide.role] ?? DECK_DIRECTION.point, note.trim()].filter(Boolean).join(' '),
+          // Slide one carries the customer's own reference if they gave one;
+          // every later slide is anchored to slide one instead.
+          referenceDataUrl: anchor ?? reference?.dataUrl,
+          roundId, chatId: chat, messages,
+        }),
+      }).then((x) => x.json()).catch(() => ({ error: 'Network error' }))
+
+      if (res?.images?.length) {
+        const img = res.images[0]
+        patch((r) => ({
+          ...r,
+          designs: [...r.designs, { sizeId: `slide-${index + 1}`, label: `Slide ${index + 1}`, w: img.w, h: img.h, src: img.png, designId: img.designId }],
+          status: { ...r.status, [index]: 'done' },
+        }))
+        setBalance((b) => (b === null ? b : Math.max(0, b - unit)))
+        return img.png as string
+      }
+      if (res?.needed) stop = res.error || 'Not enough credits'
+      failures.push(`Slide ${index + 1}: ${res?.failed?.[0]?.error || res?.error || 'no reason given'}`)
+      patch((r) => ({ ...r, status: { ...r.status, [index]: 'fail' } }))
+      return null
+    }
+
+    // Slide one first, alone. Everything else waits on it.
+    const anchor = await drawSlide(0)
+
+    if (anchor && !stop) {
+      const queue = plan.slides.map((_, i) => i).slice(1)
+      const worker = async () => {
+        for (;;) {
+          const i = queue.shift()
+          if (i === undefined || stop) return
+          await drawSlide(i, anchor)
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker))
+    } else if (!stop) {
+      // Without slide one there is nothing to match, and drawing the rest
+      // unanchored would produce eleven slides that do not belong together.
+      stop = 'The first slide failed, so the rest were not drawn — they would not have matched. You were only charged for the one attempt.'
+    }
+
+    patch((r) => ({
+      ...r, live: false,
+      status: Object.fromEntries(Object.entries(r.status).map(([k, v]) => [k, v === 'wait' || v === 'busy' ? 'fail' : v])),
+    }))
+    setMaking(false)
+    if (stop) setErr(stop)
+    else if (failures.length) setErr(`${failures.length} slide${failures.length === 1 ? '' : 's'} failed — you were not charged for those. ${failures.slice(0, 3).join(' · ')}`)
+  }
+
   const make = async () => {
     if (making || !ticked.length || !unit) return
     setErr(''); setSheet(null)
@@ -788,6 +978,8 @@ export default function FlyerMakerPage() {
               background: it.role === 'user' ? INK : CREAM,
               color: it.role === 'user' ? 'white' : 'inherit',
             }}>{it.text}</div>
+          ) : it.kind === 'deck' ? (
+            <DeckBlock key={it.id} deck={it} now={now} onOpen={setViewing} />
           ) : (
             <RoundBlock key={it.id} round={it} now={now} onOpen={setViewing} />
           ),
@@ -1013,8 +1205,74 @@ export default function FlyerMakerPage() {
                   placeholder="Anything else about the look? e.g. 'use purple instead of gold'"
                   style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 13 }} />
                 <p style={{ fontSize: 12, color: SOFT, margin: '8px 0 0' }}>Up to 8 at a time. Each is designed from scratch, not a crop of the others.</p>
+
+                {/* A WHOLE DECK, rather than one slide at a time. Lives in the
+                    sizes panel because that is where someone has just ticked
+                    "Slide 1920x1080" and thought "actually I need twelve of
+                    these". */}
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${LINE}` }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Or build a whole deck</div>
+                  <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.55 }}>
+                    Describe it in the box below and I&rsquo;ll write the running order first — free, and you
+                    can change anything before a single slide is drawn. Every slide is then designed to match
+                    the first one, so the deck hangs together.
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <label style={{ fontSize: 12.5, color: SOFT, display: 'flex', gap: 6, alignItems: 'center' }}
+                      title="How many slides. Between 3 and 20.">
+                      Slides
+                      <input type="number" min={MIN_DECK} max={MAX_DECK} value={deckCount}
+                        onChange={(e) => setDeckCount(Math.max(MIN_DECK, Math.min(MAX_DECK, Number(e.target.value) || MIN_DECK)))}
+                        style={{ width: 62, padding: '6px 8px', borderRadius: 7, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 13 }} />
+                    </label>
+                    <button onClick={planTheDeck} disabled={planning}
+                      title="Write the running order. Costs nothing — no slides are drawn yet."
+                      style={{ ...plain, opacity: planning ? 0.6 : 1 }}>
+                      {planning ? 'Planning…' : 'Plan the deck'}
+                    </button>
+                    {unit !== null && (
+                      <span style={{ fontSize: 12, color: SOFT }}>
+                        {(unit * deckCount).toLocaleString()} credits when you build it
+                      </span>
+                    )}
+                  </div>
+                </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* THE RUNNING ORDER, before anything is paid for. Shown as plain text
+            because that is what makes it correctable — a customer can see that
+            slide 4 has the wrong number far more easily here than in a picture
+            they have already been charged for. */}
+        {deckPlan && (
+          <div style={{ ...panel, marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+              <strong style={{ fontSize: 13 }}>{deckPlan.title} · {deckPlan.slides.length} slides</strong>
+              <span style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => setDeckPlan(null)} title="Throw this running order away" style={{ ...plain, padding: '5px 10px' }}>Discard</button>
+                <button onClick={makeDeck} disabled={making}
+                  title={unit !== null ? `Draw all ${deckPlan.slides.length} slides — ${(unit * deckPlan.slides.length).toLocaleString()} credits` : 'Draw the deck'}
+                  style={{ ...plain, padding: '5px 10px', background: INK, color: 'white', borderColor: INK, opacity: making ? 0.6 : 1 }}>
+                  {making ? 'Building…' : `Make deck${unit !== null ? ` · ${(unit * deckPlan.slides.length).toLocaleString()} cr` : ''}`}
+                </button>
+              </span>
+            </div>
+            <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.65 }}>
+              {deckPlan.slides.map((s, i) => (
+                <li key={i} style={{ marginBottom: 4 }}>
+                  <strong>{s.fields.headline}</strong>
+                  {s.fields.subhead ? <span style={{ color: SOFT }}> — {s.fields.subhead}</span> : null}
+                  {s.fields.details?.length ? (
+                    <span style={{ color: SOFT, display: 'block', fontSize: 12.5 }}>{s.fields.details.join(' · ')}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+            <p style={{ fontSize: 12.5, color: SOFT, margin: '10px 0 0', lineHeight: 1.55 }}>
+              Nothing has been drawn yet. Say what you want changed and press Plan the deck again.
+            </p>
           </div>
         )}
 
@@ -1154,6 +1412,118 @@ function BriefCard({ fields }: { fields: FlyerFields }) {
 }
 
 /** One press of Make: what was asked for, and everything that came back. */
+/**
+ * A deck in the thread.
+ *
+ * Shows the slides in ORDER as they land — which matters more here than for a
+ * batch of sizes, because a deck read out of order tells you nothing about
+ * whether it hangs together. The download buttons appear only once every slide
+ * is in: a PowerPoint missing slide 7 is worse than no PowerPoint, because you
+ * find out in front of the room.
+ */
+function DeckBlock({ deck, now, onOpen }: {
+  deck: Extract<Item, { kind: 'deck' }>
+  now: number
+  onOpen: (d: Design) => void
+}) {
+  const [busy, setBusy] = useState<'pptx' | 'pdf' | null>(null)
+  const [problem, setProblem] = useState('')
+
+  const total = deck.slides.length
+  const done = Object.values(deck.status).filter((s) => s === 'done' || s === 'fail').length
+  const made = deck.designs.length
+  const elapsed = deck.startedAt ? Math.round((now - deck.startedAt) / 1000) : 0
+  // The first slide runs ALONE — everything after it is anchored to it — so the
+  // wait is one full slide plus however many waves the rest take.
+  const waves = 1 + Math.ceil(Math.max(0, total - 1) / CONCURRENCY)
+  const remaining = Math.max(0, waves * SECS_PER_SIZE - elapsed)
+
+  // Sort by slide number rather than by arrival: they finish in a jumble.
+  const ordered = [...deck.designs].sort((a, b) =>
+    Number(a.sizeId.replace('slide-', '')) - Number(b.sizeId.replace('slide-', '')))
+
+  const download = async (format: 'pptx' | 'pdf') => {
+    const ids = ordered.map((d) => d.designId).filter(Boolean) as string[]
+    if (ids.length !== ordered.length) {
+      setProblem('These slides were made before saving was switched on, so they cannot be bundled. Make the deck again.')
+      return
+    }
+    setProblem(''); setBusy(format)
+    try {
+      const res = await fetch('/api/flyer-deck-export', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ designIds: ids, title: deck.title, format }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.url) { setProblem(data?.error || 'Could not build the file.'); return }
+      if (data.dropped) setProblem(`${data.dropped} slide${data.dropped === 1 ? '' : 's'} could not be read and were left out.`)
+      window.location.href = data.url
+    } catch {
+      setProblem('Network error while building the file.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div style={{ background: 'white', border: `1px solid ${LINE}`, borderRadius: 10, padding: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 10, alignItems: 'center' }}>
+        <strong style={{ fontSize: 13 }}>
+          {deck.live ? 'Building deck' : 'Deck'} · {deck.title} · {total} slide{total === 1 ? '' : 's'}
+        </strong>
+        {deck.live ? (
+          <span style={{ fontSize: 12, color: SOFT }}>
+            {done} of {total} · {remaining > 0 ? `about ${mmss(remaining)} left` : 'any moment now'}
+          </span>
+        ) : (
+          <span style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => download('pptx')} disabled={busy !== null || !made}
+              title="Download as a PowerPoint file — one slide per page, opens in PowerPoint, Keynote or Google Slides"
+              style={{ ...PLAIN_BTN, padding: '5px 10px' }}>
+              {busy === 'pptx' ? 'Building…' : 'PowerPoint'}
+            </button>
+            <button onClick={() => download('pdf')} disabled={busy !== null || !made}
+              title="Download as a PDF — best for emailing"
+              style={{ ...PLAIN_BTN, padding: '5px 10px' }}>
+              {busy === 'pdf' ? 'Building…' : 'PDF'}
+            </button>
+          </span>
+        )}
+      </div>
+
+      {deck.live && (
+        <div style={{ height: 4, background: CREAM, borderRadius: 3, overflow: 'hidden', marginBottom: 10 }}>
+          <div style={{ height: '100%', width: `${Math.round((done / total) * 100)}%`, background: INK, transition: 'width .4s' }} />
+        </div>
+      )}
+
+      {problem && (
+        <p role="alert" style={{ fontSize: 12.5, color: '#b91c1c', margin: '0 0 10px', lineHeight: 1.5 }}>{problem}</p>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(190px,1fr))', gap: 9 }}>
+        {ordered.map((d, i) => (
+          <button key={d.sizeId} onClick={() => onOpen(d)} title={`Slide ${i + 1} — click to see it full size`}
+            style={{ padding: 0, border: `1px solid ${LINE}`, borderRadius: 8, overflow: 'hidden', background: '#111', cursor: 'pointer' }}>
+            <img src={d.src} alt={`Slide ${i + 1}`}
+              style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />
+            <div style={{ fontSize: 11, fontWeight: 700, padding: '4px 5px', background: 'white', color: INK, textAlign: 'left' }}>
+              {i + 1}. {deck.slides[i]?.fields.headline ?? ''}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {!deck.live && made > 0 && (
+        <p style={{ fontSize: 12.5, color: SOFT, margin: '10px 0 0', lineHeight: 1.55 }}>
+          Want a slide changed? Say the number and what you want different — for example
+          &ldquo;slide 4 should say 30 days, not 14&rdquo;.
+        </p>
+      )}
+    </div>
+  )
+}
+
 function RoundBlock({ round, now, onOpen }: {
   round: Extract<Item, { kind: 'round' }>
   now: number
