@@ -98,6 +98,20 @@ const GROUPS = [
   { id: 'card', label: 'Business cards' },
 ] as const
 
+/**
+ * The "do this next" marker.
+ *
+ * Deliberately quiet. A step that has not been done yet still WORKS — the dot
+ * suggests an order, it does not enforce one, and anything that looked like a
+ * lock would make this worse than the panels it replaced.
+ */
+const Dot = () => (
+  <span aria-hidden style={{
+    display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+    background: 'var(--ink,#23201c)', marginRight: 6, verticalAlign: 'middle',
+  }} />
+)
+
 /** The plain button, at module level so the blocks below can use it too. */
 const PLAIN_BTN = {
   padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border,#ddd6cc)',
@@ -484,6 +498,7 @@ export default function FlyerMakerPage() {
 
   const say = (role: 'user' | 'assistant', text: string) =>
     setItems((p) => [...p, { kind: 'msg', role, text }])
+
 
   /**
    * Which style tiles to show.
@@ -1010,6 +1025,24 @@ export default function FlyerMakerPage() {
   const filled = Object.values(fields).some((v) => (Array.isArray(v) ? v.length : v))
   const cost = unit === null ? null : unit * ticked.length
   const canMake = !making && !!ticked.length && filled && unit !== null
+
+  /**
+   * Which step is worth doing next.
+   *
+   * Read off what is actually answered rather than tracked as a position, so
+   * jumping around, coming back to a saved chat, or being handed a format by
+   * the conversation all leave it correct. A remembered step number would go
+   * stale the moment somebody did things out of order — which they will.
+   *
+   * Photos are never "next": they are optional, and pointing at them implies
+   * they are owed.
+   */
+  const nextStep: 'sizes' | 'content' | 'style' | null =
+    !ticked.length ? 'sizes'
+    : !filled ? 'content'
+    : !stylePicked && !reference ? 'style'
+    : null
+
   const styleName = FLYER_TEMPLATES.find((t) => t.id === templateId)?.name ?? 'Style'
 
   // ── styling ────────────────────────────────────────────────────────────
@@ -1429,19 +1462,37 @@ export default function FlyerMakerPage() {
               order. The number carries the order and the label says what the
               button is FOR; the current choice follows in lighter type so you
               can still see it at a glance. */}
+          {/* THE ORDER MATTERS, and it used to be wrong.
+              What you are MAKING changes everything after it: a deck needs a
+              running order, a business card needs a name and a job title, a
+              flyer needs a date and a price. Asking for the look and the words
+              before the format is why a deck inherited a flyer's style and why
+              the typing box still suggested "doors at 9, $20 cover".
+
+              These GUIDE rather than gate. Every one has a sensible default and
+              you can press Make at any point — a wizard that blocks you is
+              worse than the panels this replaced. The dot marks the next thing
+              worth doing, it does not lock the others. */}
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10, alignItems: 'center' }}>
+            <button style={chip(sheet === 'sizes')} onClick={() => { setUnacked(false); setStrobeId(null); setSheet(sheet === 'sizes' ? null : 'sizes') }}
+              title="What are you making? A deck, a flyer, a social post, a business card. This decides everything else, so it comes first.">
+              {nextStep === 'sizes' && <Dot />}1. What are you making
+              <Chosen on={sheet === 'sizes'}>{ticked.length ? `${ticked.length} size${ticked.length === 1 ? '' : 's'}` : 'pick one'}</Chosen>
+            </button>
+            <button style={chip(false)} onClick={() => { setUnacked(false); setStrobeId(null); setSheet(null) }}
+              title="What should it say? Type it, paste it in, or ask me to write it. Nothing is drawn until you have read it back.">
+              {nextStep === 'content' && <Dot />}2. What it says
+              <Chosen on={false}>{filled ? 'ready' : 'tell me below'}</Chosen>
+            </button>
             <button style={chip(sheet === 'style')} onClick={() => { setUnacked(false); setStrobeId(null); setSheet(sheet === 'style' ? null : 'style') }}
-              title="Choose how it should look — one of our ready-made looks, or a design of your own to copy. One or the other, not both.">
-              1. Pick Your Style <Chosen on={sheet === 'style'}>{reference ? 'Your reference' : styleName}</Chosen>
+              title="How should it look? One of our 225 ready-made looks, or a design of your own to work from. One or the other, not both.">
+              {nextStep === 'style' && <Dot />}3. How it looks
+              <Chosen on={sheet === 'style'}>{reference ? 'your reference' : styleName}</Chosen>
             </button>
             <button style={chip(sheet === 'photos')} onClick={() => { setUnacked(false); setStrobeId(null); setSheet(sheet === 'photos' ? null : 'photos') }}
-              title="Add up to three of your own pictures — a headshot, the property, your product or a logo — and the design is built around them instead of invented people">
-              2. Add Photos <span style={{ fontWeight: 400 }}>(Optional)</span>
+              title="Add up to three of your own pictures — a headshot, the property, your product, or a logo. Optional: skip it and the artwork is invented.">
+              4. Photos <span style={{ fontWeight: 400, color: SOFT }}>optional</span>
               {photos.length > 0 && <Chosen on={sheet === 'photos'}>{photos.length}</Chosen>}
-            </button>
-            <button style={chip(sheet === 'sizes')} onClick={() => { setUnacked(false); setStrobeId(null); setSheet(sheet === 'sizes' ? null : 'sizes') }}
-              title="Tick every size you need — print, social posts, banners, business cards. Each is designed from scratch, so each costs one design.">
-              3. Choose Format <Chosen on={sheet === 'sizes'}>{ticked.length} size{ticked.length === 1 ? '' : 's'}</Chosen>
             </button>
 
             <button onClick={clearChat} title="Start the conversation over. Your saved designs stay in your Library and nothing is refunded."
@@ -1449,6 +1500,18 @@ export default function FlyerMakerPage() {
               Clear chat
             </button>
           </div>
+
+          {/* WHAT THIS WILL COST AND HOW LONG, before the button rather than
+              after the charge. A twelve-slide deck is fifteen minutes and 2,400
+              credits, and nothing said so — people assumed it had hung. */}
+          {canMake && (
+            <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.55 }}>
+              {ticked.length} design{ticked.length === 1 ? '' : 's'}
+              {cost !== null ? ` · ${cost.toLocaleString()} credits` : ''}
+              {` · about ${mmss(Math.ceil(ticked.length / CONCURRENCY) * SECS_PER_SIZE)}`}
+              {balance !== null && cost !== null ? ` · ${Math.max(0, balance - cost).toLocaleString()} credits left after` : ''}
+            </p>
+          )}
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input value={input} onChange={(e) => setInput(e.target.value)}
