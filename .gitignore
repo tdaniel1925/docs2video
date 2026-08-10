@@ -99,3 +99,7 @@ vps/.job/
 logo-lab/runs/
 logo-lab/results.json
 .logo-fix/
+# one-off verification screenshots from smoke/check scripts
+check-*.png
+smoke-*.png
+out-*.png
