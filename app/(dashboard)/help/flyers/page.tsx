@@ -69,7 +69,7 @@ export default function FlyersHelpPage() {
             Three buttons sit above where you type:
           </p>
           <ul style={{ ...body, marginTop: 10, paddingLeft: 20 }}>
-            <li><strong>1. Pick Your Style</strong> — thirty-eight looks, grouped into Business, Sales &amp; offers, Food &amp; drink, Local services, Real estate, Fitness, Community, Live music and Nightlife. It picks one that suits your job automatically and tells you when it does. Click a different one any time; once you choose for yourself, your choice sticks.</li>
+            <li><strong>1. Pick Your Style</strong> — 225 looks: twenty-five each in Business, Sales &amp; offers, Food &amp; drink, Local services, Real estate, Fitness, Community, Live music and Nightlife. It picks one that suits your job automatically and tells you when it does. Click a different one any time; once you choose for yourself, your choice sticks. There is a search box above the pictures that looks through every group at once — type <em>taco</em>, <em>gold</em> or <em>wedding</em> rather than guessing which group we filed it under.</li>
             <li><strong>2. Add Photos (Optional)</strong> — up to three of your own pictures. Say what each one is (a person, a place, a product, a logo), because a face and a building need opposite treatment.</li>
             <li><strong>3. Choose Format</strong> — tick every size you need. Print, social posts, banners and business cards.</li>
           </ul>
@@ -129,6 +129,28 @@ export default function FlyersHelpPage() {
         treated as a card, not a shrunken poster: the person&rsquo;s name is the largest thing on it, the job
         title sits underneath, the contact details group into one corner, and the back is kept deliberately
         near-empty — which is what an expensive card looks like.
+      </p>
+
+      <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Working from a design you like</h2>
+      <p style={body}>
+        Instead of picking one of our looks, you can give us a design to take direction from. Open{' '}
+        <strong>1. Pick Your Style</strong> and use <strong>Upload your own design to work from</strong>. You can
+        choose a file, drag one in, or simply copy an image and paste it straight onto the page.
+      </p>
+      <p style={body}>
+        If you have nothing to hand, browse <strong>Envato</strong>, <strong>Freepik</strong> or{' '}
+        <strong>Creative Market</strong>, find something you like the look of, and paste it in.
+      </p>
+      <div style={note}>
+        <strong>We don&rsquo;t copy the design itself.</strong> We read its style — the colours, the lettering,
+        the mood, the way it is laid out — and build you a new design from your own words. Its text, logos and
+        photographs are never reused. That matters: those designs belong to the people who made them, and a
+        close copy is theirs, not yours.
+      </div>
+      <p style={body}>
+        A style and a reference cannot both be used at once. Each is a complete instruction for how the design
+        should look, and giving two means it follows neither — so choosing one clears the other, and the app
+        tells you when it does.
       </p>
 
       <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Using your own photos</h2>

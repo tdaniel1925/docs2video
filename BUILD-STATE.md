@@ -41,7 +41,7 @@ asks for a narrator voice and a slide style.
 
 **Landing page** (`/` on text2art.app) is public and uses the REAL pre-generated
 samples in `public/flyer-templates/*.png` plus the live values from
-`flyer-engine` (38 styles, 15 sizes, photo roles) and `credits.ts` (200 credits
+`flyer-engine` (225 styles, 15 sizes, photo roles) and `credits.ts` (200 credits
 per design). It states the card-on-file requirement and the "read it before you
 print" caveat rather than overselling.
 
@@ -434,7 +434,7 @@ Three problems fixed together.
 
 **There were two flyer makers.** `/flyers` (Gemini wizard, 4 steps) was the one
 linked in `Header.tsx`, so it is what every customer used. `/flyer` (chat-driven,
-gpt-image-2, 38 styles, photo upload, per-size native aspect ratios) was
+gpt-image-2, 225 styles, photo upload, per-size native aspect ratios) was
 unlinked and reachable only by typing the URL. The good one was invisible.
 - Menu now points at `/flyer`; `/flyers` is a `redirect()` stub (bookmarks).
 - `app/api/generate-flyer/route.ts` DELETED. Flyers it made are untouched —

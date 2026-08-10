@@ -321,6 +321,941 @@ export const FLYER_TEMPLATES: FlyerTemplate[] = [
     scene: 'Intimate acoustic open-mic night. A single stool, an acoustic guitar and a vintage microphone in a small room, one warm lamp, textured cream paper stock with visible fibre, two-ink riso print look in burnt orange and slate blue, grainy halftone.',
     lettering: 'Main title in tall wooden-type letterpress capitals with worn edges and visible ink misregistration. Supporting text in a small typewriter monospace face.',
   },
+  {
+    id: 'business-early-start', name: 'Early Start', category: 'business',
+    scene: 'Dawn over a glass office district, shot wide from a rooftop. Cool steel blue and pale silver, mist drifting between towers, first sun catching one edge of glass. Crisp digital capture, calm and spacious, matte finish.',
+    lettering: 'Main title in thin uppercase sans-serif with very wide letter spacing, pale silver, razor-sharp edges. Supporting text in small light grey capitals.',
+  },
+  {
+    id: 'business-now-hiring', name: 'Open Office', category: 'business',
+    scene: 'Bright open-plan office at midday, tall windows, oak desks, potted greenery, a friendly mixed team mid-conversation. White, warm oak and soft sage green, airy daylight, pastel grade, low contrast, clean digital.',
+    lettering: 'Main title in friendly rounded bold sans-serif capitals in coral, thick even strokes, no effects. Supporting text in medium-weight rounded sans, charcoal.',
+  },
+  {
+    id: 'business-desk-flatlay', name: 'Desk Flat Lay', category: 'business',
+    scene: 'Overhead flat-lay on a linen-covered desk: blank cream paper, a brass fountain pen, folded reading glasses, a small espresso cup, one dried eucalyptus sprig. Soft diffused window light, sand and ivory palette, matte paper texture.',
+    lettering: 'Main title in fine-weight letterspaced capitals, ink black, quietly refined. Supporting text in small caps with a thin hairline rule feel and generous spacing.',
+  },
+  {
+    id: 'business-awards-night', name: 'Awards Night', category: 'business',
+    scene: 'Black-tie ballroom at night. Deep burgundy velvet drapes, round tables lit by candles, a narrow warm spotlight falling on an empty stage step. Low-key moody light, deep shadow, burgundy, brass and near-black, glossy finish.',
+    lettering: 'Main title in engraved classical serif capitals with a brushed-gold foil fill and a fine inner shadow. Supporting text in small spaced serif capitals, cream.',
+  },
+  {
+    id: 'business-webinar-live', name: 'Live Stream', category: 'business',
+    scene: 'Night home studio: a tidy desk, ring light on a face turned to camera, monitor glow washing the wall, teal and magenta LED strip behind. Dark room, high contrast, slight lens bloom, clean digital, modern tech mood.',
+    lettering: 'Main title in tight geometric sans capitals with a soft cyan neon glow and a thin magenta edge. Supporting text in condensed uppercase, cool white.',
+  },
+  {
+    id: 'business-industry', name: 'Industry', category: 'business',
+    scene: 'Working warehouse at midday, wide environmental lens. Concrete floor, steel racking, stacked pallets and a forklift, hard shafts of daylight through high windows with dust in the beams. Concrete grey, safety orange, gunmetal, documentary grade.',
+    lettering: 'Main title in heavy condensed stencil capitals with a slight ink-spread edge, safety orange. Supporting text in blocky uppercase sans, gunmetal grey.',
+  },
+  {
+    id: 'business-riso-summit', name: 'Riso Print', category: 'business',
+    scene: 'Two-colour riso print on oatmeal paper. Flat simplified figures around a long table under pendant lamps, printed in fluorescent coral and deep teal, ink slightly misregistered, visible paper tooth, grainy screen texture, matte finish.',
+    lettering: 'Main title in chunky geometric sans capitals printed in fluorescent coral with a teal offset shadow a millimetre off, ink mottling and soft edges. Support text in small typewriter mono.',
+  },
+  {
+    id: 'business-woodtype-hiring', name: 'Wood Type', category: 'business',
+    scene: 'Letterpress broadside on thick cotton stock. Carved wood ornaments, thick rules and pointing-hand cuts in oxblood red and coal black, deep bite pressing into cream paper, ink slightly starved at the edges, 1890s print-shop feel.',
+    lettering: 'Enormous vintage wood-type capitals mixing slab and fat-face at different sizes, oxblood and black, ink-starved with visible wood grain and a debossed impression.',
+  },
+  {
+    id: 'business-collage-network', name: 'Cut Paper', category: 'business',
+    scene: 'Cut-paper collage. Torn and scissor-cut shapes of a mingling crowd holding glasses, built from mustard, sage, terracotta and sky-blue construction paper on off-white, soft real drop shadows under each layer, handmade matte craft finish.',
+    lettering: 'Title hand-cut from paper in soft rounded capitals with slightly wobbly scissor edges, casting a small shadow. Secondary text in neat handwritten pencil.',
+  },
+  {
+    id: 'business-midcentury-awards', name: 'Retro Poster', category: 'business',
+    scene: 'Mid-century lithograph poster. Stylised figures in evening dress beside a ribboned trophy shape, flat planes of champagne gold, ink navy and warm ivory, limited spot colours, fine texture speckle, elegant 1959 travel-poster mood, matte litho finish.',
+    lettering: 'Elegant high-contrast modern serif capitals in champagne gold, wide letterspacing, hairline thin strokes, printed flat with a faint litho speckle.',
+  },
+  {
+    id: 'business-blueprint-consult', name: 'Blueprint', category: 'business',
+    scene: 'Technical drafting on blueprint paper. White ink line drawing of gears, node diagrams and a rising bar chart over Prussian blue ground, faint grid, dimension arrows and compass arcs, cool and precise, flat drafting-paper finish.',
+    lettering: 'Title in white drafting stencil capitals, thin uniform strokes, wide tracking, with a fine underline rule. Support text in small engineer hand-lettering.',
+  },
+  {
+    id: 'business-embroidery-team', name: 'Team Patch', category: 'business',
+    scene: 'Embroidered patch on heather-grey wool felt. Satin-stitch handshake and pennant motifs in forest green, cream and burnt orange, visible thread direction, raised merrowed border, chain-stitch details, tactile craft look, soft studio light.',
+    lettering: 'Title in thick satin-stitch script with raised glossy thread and visible needle direction, edged in cream chain stitch. Smaller words in flat cross-stitch capitals.',
+  },
+  {
+    id: 'business-halftone-webinar', name: 'Comic Panel', category: 'business',
+    scene: 'Halftone comic-book panel. Bold black ink outlines of a presenter gesturing at a chart, exaggerated perspective, benday dot shading in cyan and hot pink over yellow, speed lines and a starburst, pulpy 1960s newsprint texture.',
+    lettering: 'Title in inflated comic capitals with a thick black outline, yellow fill and a hot-pink drop shadow, slight tilt and a hand-inked wobble.',
+  },
+  {
+    id: 'business-swiss-grid', name: 'Swiss Grid', category: 'business',
+    scene: 'International-style graphic panel. Flat warm white paper field divided by a strict column grid of hairline black rules, one saturated vermilion rectangle anchoring the lower third, a single thin diagonal bar, generous empty space, even flat light, matte print finish.',
+    lettering: 'Main title in tight lowercase grotesque sans, medium weight, very close letterspacing, flush left, flat black. Supporting text small, same family, light weight, wide tracking.',
+  },
+  {
+    id: 'business-glass-stack', name: 'Glass Panels', category: 'business',
+    scene: 'Frosted glass panels floating over a pale ice-blue to mint gradient, soft blurred lavender and peach light blooms behind them, hairline white panel edges, gentle inner glow, light drop shadows, bright airy ambient light, smooth digital sheen.',
+    lettering: 'Main title in clean geometric sans, semi-bold, pure white with a faint outer glow. Supporting text light weight, translucent white, wide even tracking.',
+  },
+  {
+    id: 'business-concrete', name: 'Concrete', category: 'business',
+    scene: 'Brutalist poster surface. Raw concrete grey ground with photocopy grain and toner speckle, oversized solid black rectangles butted edge to edge, one acid-yellow block off-centre, thick heavy borders, harsh flat scanner light, deliberately crude and unpolished.',
+    lettering: 'Main title in extremely heavy condensed capitals cropped tight to the block, black on yellow, with xerox degradation on the edges. Supporting text in small typewriter mono.',
+  },
+  {
+    id: 'business-deco-brass', name: 'Deco Brass', category: 'business',
+    scene: 'Art-deco geometric panel. Deep midnight navy ground with symmetrical brass line fans, stepped ziggurat borders, thin concentric arcs and a fluted column motif, brushed-metal sheen on the gold, low warm side light, lacquered finish.',
+    lettering: 'Main title in high-contrast deco capitals with hairline serifs and a brass gradient fill, letters widely spaced. Supporting text in small engraved capitals between thin gold rules.',
+  },
+  {
+    id: 'business-soft-clay', name: 'Soft Clay', category: 'business',
+    scene: 'Three-dimensional clay render. Rounded matte objects in pale mint, blush and cream floating on a soft beige backdrop, isometric arrangement of stacked blocks, tubes and discs, gentle studio light from upper left, long soft shadows, velvety no-gloss surfaces.',
+    lettering: 'Main title in rounded geometric sans, bold, extruded as a soft matte three-dimensional solid in cream with the same clay shading. Supporting text flat, medium weight, warm grey.',
+  },
+  {
+    id: 'business-service-call', name: 'On Call', category: 'business',
+    scene: 'Bright suburban driveway at midday. A plain white work van with rear doors open, neat tool cases, coiled hose, a technician in clean navy workwear and hi-vis, sharp blue sky, green lawn edge, crisp commercial photography, high clarity, natural sun.',
+    lettering: 'Main title in bold italic condensed sans capitals, royal blue with a thin white outline and a hard drop shadow. Supporting text in solid uppercase sans, safety yellow.',
+  },
+  {
+    id: 'business-watercolour', name: 'Watercolour', category: 'business',
+    scene: 'Loose watercolour on cold-pressed paper. Soft washes of blush, sage and ochre bleeding into each other, a faint pencil under-sketch of a handshake and a coffee cup showing through, granulating pigment, white paper breathing at the edges, gentle daylight.',
+    lettering: 'Main title in flowing brush-lettered script with tapering wet strokes and pigment pooling at the ends. Supporting text in a small even hand-drawn serif, sepia.',
+  },
+  {
+    id: 'sale-grand-opening', name: 'Grand Opening', category: 'sale',
+    scene: 'Bright midday storefront on a city sidewalk. Clear blue sky, crisp white awning, a wide satin ribbon stretched across plain unmarked glass doors, paper confetti mid-air, potted geraniums on the step. Wide clean digital capture, high key, cherry-red and white.',
+    lettering: 'Main title in tall rounded sans capitals, glossy cherry-red with a thin white keyline and a soft drop shadow. Supporting text in light grey sans-serif.',
+  },
+  {
+    id: 'sale-flash-neon', name: 'Flash Deal', category: 'sale',
+    scene: 'Rain-slick shopping street at night. Wet asphalt mirrors cyan and magenta neon tubes, steam curling from a grate, a shopper hurrying past with paper bags, moody low-key exposure, deep blacks, cinematic anamorphic flare, glossy reflective finish.',
+    lettering: 'Main title in italic heavy sans capitals with a glowing magenta neon-tube outline and a slight motion-blur streak. Supporting text in thin cyan uppercase.',
+  },
+  {
+    id: 'sale-warehouse-floor', name: 'Clearance Floor', category: 'sale',
+    scene: 'Cavernous concrete warehouse at noon. Hard daylight shafts fall through roof skylights onto steel pallet racks, stacked unmarked cardboard cartons, a yellow forklift, safety-orange floor stripes. Wide industrial lens, high-contrast editorial, cool grey and orange, matte finish.',
+    lettering: 'Main title in heavy stencil capitals, safety-orange with chipped paint edges and a hard black shadow. Supporting text in narrow grey uppercase sans.',
+  },
+  {
+    id: 'sale-spring-pastel', name: 'Spring Savings', category: 'sale',
+    scene: 'Early dawn boutique interior. Pale mint walls, peach morning light through sheer curtains, linen garments on a blond wood rail, tulips in a glass jar, dust motes drifting. Soft diffusion, low contrast, airy matte finish.',
+    lettering: 'Main title in an airy high-waisted serif with fine hairlines, warm peach ink. Supporting text in widely letter-spaced light sans small capitals.',
+  },
+  {
+    id: 'sale-market-day', name: 'Market Day', category: 'sale',
+    scene: 'Open-air weekend market at mid-morning. Striped canvas awnings in red and cream, trestle tables of second-hand wares, wicker baskets, leafy trees behind, dust hanging in low golden sun. Sun-bleached film stock, soft grain, relaxed browsing crowd.',
+    lettering: 'Main title in cheerful hand-painted brush capitals, cream with a leaf-green shadow and slight paint wobble. Supporting text in a friendly rounded sans.',
+  },
+  {
+    id: 'sale-coupon-kraft', name: 'Coupon Clip', category: 'sale',
+    scene: 'Tight macro on a kitchen table under a warm tungsten lamp. Kraft-paper tickets with perforated edges, steel scissors, a thumb smudge, visible paper fibre and torn corners, shallow depth of field, 35mm film grain, brown and faded-red.',
+    lettering: 'Main title in chunky woodblock capitals with ink-bleed edges and slight letterpress deboss. Supporting text in a typewriter monospace, faded red.',
+  },
+  {
+    id: 'sale-last-days', name: 'Last Days', category: 'sale',
+    scene: 'Emptying shop interior at dusk. Bare hanging bulbs, half-stripped shelves, stacked wooden crates, one folding table left behind, long amber shadows across a dusty plank floor. Sepia-leaning film grain, moody warm low-key, soft vignette.',
+    lettering: 'Main title in tall condensed slab capitals, chalk-white with dry brush texture and faint smudging. Supporting text in loose handwritten marker script.',
+  },
+  {
+    id: 'sale-members-club', name: 'Members Only', category: 'sale',
+    scene: 'Evening members lounge. Deep burgundy walls, walnut panelling, amber table lamps pooling light, oxblood leather armchairs, a relaxed well-dressed group mid-conversation. Portrait lens, shallow focus, rich low-key colour, editorial polish, soft sheen on leather.',
+    lettering: 'Main title in an engraved high-contrast serif with fine copper-foil edges and a soft inner glow. Supporting text in cream small-caps sans, widely spaced.',
+  },
+  {
+    id: 'sale-riso-pop', name: 'Riso Pop', category: 'sale',
+    scene: 'Two-colour risograph print on off-white newsprint. Fluorescent orange and deep teal only, deliberately misregistered by a hair, coarse grain and roller smudge. Chunky simplified shopping bags, tags and thick arrows, flat matte ink finish.',
+    lettering: 'Main title in fat rounded seventies capitals, printed orange with a teal offset shadow slipped sideways. Supporting text in small grainy mono type.',
+  },
+  {
+    id: 'sale-wood-type', name: 'Letterpress', category: 'sale',
+    scene: 'Letterpress broadside pressed into thick cream cotton stock. Ink in barn red and near-black, edges showing the bite of the press and the grain of the blocks, hairline rules and small pointing-hand cuts. Matte, slightly dented paper.',
+    lettering: 'Main title in tall condensed slab-serif wood type, heavy and slightly uneven, with visible ink bite and worn edges. Supporting text in wide-spaced small caps.',
+  },
+  {
+    id: 'sale-paper-cut', name: 'Paper Cutout', category: 'sale',
+    scene: 'Cut-paper collage shot from above under hard raking light. Layered card in navy, rust, ochre and bone on a slate-grey ground, crisp scissor edges, thick cast shadows, simple paper tags, coins and a folded bag. Matte fibre texture.',
+    lettering: 'Main title cut from card by hand, chunky rounded shapes in bone with visible scissor nicks and long hard shadows. Supporting text in neat lowercase sans.',
+  },
+  {
+    id: 'sale-chalkboard', name: 'Chalk Board', category: 'sale',
+    scene: 'Hand-drawn chalkboard, deep charcoal slate with faint eraser smears. White chalk line art of ribbons, laurels, arrows and a scalloped border, dusty accents in soft yellow and blush. Warm shop light from the left, powdery matte finish.',
+    lettering: 'Main title hand-lettered in chalk: bouncy brush script with thick downstrokes, dusty edges and a doubled outline. Supporting text in narrow chalk capitals.',
+  },
+  {
+    id: 'sale-blueprint', name: 'Cyanotype', category: 'sale',
+    scene: 'Cyanotype blueprint sheet. Prussian-blue drafting paper with a faint white graph grid, precise white line drawings of boxes, tags, gears and dimension arrows, a coffee-ring stain in one corner, flat matte finish under even light.',
+    lettering: 'Main title in drafting-stencil capitals, thin uniform white strokes with ticked corners and wide spacing. Supporting text in small white engineering monospace.',
+  },
+  {
+    id: 'sale-comic-blast', name: 'Comic Blast', category: 'sale',
+    scene: 'Vintage comic-book page in halftone. Loud primary red, cyan and yellow over visible Ben-Day dot screens, thick black ink outlines, speed lines and a jagged explosion burst. Slight off-register colour on yellowed newsprint, flat pulp finish.',
+    lettering: 'Main title in bold italic comic capitals with thick black outline, white inline and a hard yellow drop shadow, tilted. Supporting text in hand-inked comic caps.',
+  },
+  {
+    id: 'sale-stitched', name: 'Stitched Patch', category: 'sale',
+    scene: 'Embroidered textile flat lay. Felt in oatmeal and denim blue with satin-stitch shapes in tomato red and cream, merrowed patch borders, French knots and a running-stitch frame. Soft raking daylight raises every thread, fuzzy matte finish.',
+    lettering: 'Main title embroidered in raised satin-stitch varsity capitals with a chain-stitch outline. Supporting text in fine back-stitch lowercase, thread slightly uneven.',
+  },
+  {
+    id: 'sale-swiss-grid', name: 'Red Block', category: 'sale',
+    scene: 'Flat Swiss poster graphic. Pure white paper field, one enormous red rectangle anchored off-centre, thin black rule lines dividing a strict column grid, generous empty space, matte offset-print finish, cool even light, no photography.',
+    lettering: 'Tight grotesque sans in black and red, flush left, very tight tracking, mixed light to extra-bold weights, no effects, crisp ink edges.',
+  },
+  {
+    id: 'sale-clay-3d', name: 'Clay Pop', category: 'sale',
+    scene: 'Soft 3D clay render. Rounded matte shapes in bubblegum pink, butter yellow and mint, floating balloons and thick chunky arrows, soft global-illumination light with gentle contact shadows on a pale peach backdrop, toy-like finish.',
+    lettering: 'Chunky rounded 3D extruded letters in matte clay, soft bevelled corners, gentle drop shadow, cream face with a pink side wall.',
+  },
+  {
+    id: 'sale-memphis', name: 'Memphis Pop', category: 'sale',
+    scene: 'Postmodern Memphis graphic. Cream background scattered with squiggles, confetti triangles and black-and-white checkerboard strips in tomato red, cobalt and turmeric yellow, playful asymmetry, flat vector finish, bright even daylight.',
+    lettering: 'Fat geometric sans capitals in cobalt with a tomato-red offset shadow layer, slight tilt, dotted halftone infill on select letters.',
+  },
+  {
+    id: 'sale-glass-panel', name: 'Glass Panel', category: 'sale',
+    scene: 'Glassmorphism graphic. Frosted translucent rounded panels stacked over a blurred violet-to-teal gradient mesh, faint white edge highlights, soft light leaks, tiny floating spheres, airy weightless mood, polished digital finish.',
+    lettering: 'Thin-to-medium geometric sans in white, slight letter-spacing, soft glass blur behind, delicate hairline underline, subtle inner glow.',
+  },
+  {
+    id: 'sale-brutalist', name: 'Brutal Tape', category: 'sale',
+    scene: 'Brutalist photocopy poster. Raw concrete-grey field with heavy toner grain, black boxed borders, safety-orange highlight bars, torn tape strips, hard flat shadows, deliberately crude spacing, matte xerox finish under flat light.',
+    lettering: 'Oversized monospace mixed with heavy grotesque, black on orange highlight blocks, underlined, some letters knocked out of solid boxes, rough toner edges.',
+  },
+  {
+    id: 'sale-deco-lines', name: 'Platinum Deco', category: 'sale',
+    scene: 'Art-deco geometric graphic. Midnight-navy field with fine platinum sunburst rays, stepped fan arches and slim concentric circles, strict symmetry, soft directional sheen across the metal lines, velvet matte ground, 1920s printed-poster finish.',
+    lettering: 'High-waisted deco display capitals in brushed platinum with thin inline stripes, wide letter spacing, small hairline serifs, subtle cool sheen.',
+  },
+  {
+    id: 'food-late-night-diner', name: 'Late Night Diner', category: 'food',
+    scene: 'Roadside diner booth after midnight. Rain-slick asphalt outside, magenta and cyan neon tubing reflecting off chrome trim and glass, a stacked burger and fries under hard tabletop light, deep blue shadows, high-contrast photography, wet glossy finish.',
+    lettering: 'Main title in glowing neon-tube script with a soft pink halo and thin cyan outline. Supporting text in tight condensed uppercase sans-serif.',
+  },
+  {
+    id: 'food-morning-bakery', name: 'Morning Bakery', category: 'food',
+    scene: 'Bakery bench at first light. Flour dust drifting through a low dawn sunbeam, torn sourdough crust and butter croissants on scorched steel trays, oat, cream and burnt caramel palette, tight macro lens, warm 35mm film grain, matte finish.',
+    lettering: 'Main title in a warm hand-drawn serif with slightly uneven ink weight and soft edges. Supporting text in letterspaced small capitals, thin sans-serif.',
+  },
+  {
+    id: 'food-brunch-table', name: 'Brunch Table', category: 'food',
+    scene: 'Overhead brunch spread on pale marble at midday. Poached eggs, halved avocado, berries, iced glasses, linen napkin and brass cutlery, soft diffused window daylight, pastel mint and blush palette, clean flat-lay, airy bright finish.',
+    lettering: 'Main title in a light modern serif with high-contrast thick-thin strokes and generous letterspacing. Supporting text in hairline sans-serif capitals.',
+  },
+  {
+    id: 'food-smokehouse', name: 'Smokehouse', category: 'food',
+    scene: 'Barbecue pit at dusk. Thick woodsmoke lit orange by open coals, glistening bark on brisket and ribs, blackened steel grates, embers rising, charcoal-black and ember-orange palette, wide environmental lens, moody low-key contrast, rich matte finish.',
+    lettering: 'Main title in heavy rough-cut carved wooden capitals with charred edges and a burnt orange inner glow. Supporting text in sturdy slab-serif, all caps.',
+  },
+  {
+    id: 'food-coffee-house', name: 'Coffee House', category: 'food',
+    scene: 'Small coffee bar on a rainy evening. Warm tungsten lamplight on brass and dark walnut, steam curling off a poured flat white, fogged window and blurred street lights beyond, espresso-brown and honey palette, portrait lens, soft cinematic low-key finish.',
+    lettering: 'Main title in a rounded lowercase script with a smooth painted finish and gentle drop shadow. Supporting text in friendly geometric sans-serif, medium weight.',
+  },
+  {
+    id: 'food-market-fresh', name: 'Market Fresh', category: 'food',
+    scene: 'Open-air produce market at high noon. Crates of tomatoes, lemons, chard and radishes under crisp white sunlight, striped canvas awnings, woven baskets and worn wooden stalls, saturated green-red-yellow palette, wide editorial lens, sharp digital, punchy contrast.',
+    lettering: 'Main title in bold rounded sans-serif capitals with a thick white outline and flat colour fill. Supporting text in wide-tracked uppercase sans-serif.',
+  },
+  {
+    id: 'food-wine-cellar', name: 'Wine Cellar', category: 'food',
+    scene: 'Stone wine cellar at night. Candle flames on a dark oak table, poured red glasses catching the light, aged barrels and damp limestone walls in shadow, burgundy, slate and antique gold palette, portrait lens, deep chiaroscuro, painterly low-light finish.',
+    lettering: 'Main title in an elegant engraved serif with fine hairline flourishes and a soft antique gold foil sheen. Supporting text in small letterspaced roman capitals.',
+  },
+  {
+    id: 'food-sushi-slate', name: 'Sushi Minimal', category: 'food',
+    scene: 'Quiet Japanese counter. Charcoal slate stone, a single bare branch, ash grey and warm oatmeal tones with one vermilion accent, sliced fish and rice set with wide empty space, soft even overhead light, ink-wash restraint, matte fine-art finish.',
+    lettering: 'Main title in fine vertical-stroke brush characters with dry-bristle texture and tapering ends. Supporting text in very light widely spaced sans-serif capitals.',
+  },
+  {
+    id: 'food-seafood-shack', name: 'Seafood Shack', category: 'food',
+    scene: 'Coastal seafood counter at midday. Crushed ice glittering under bright sea light, prawns, oysters and lemon halves, blue-and-white checked cloth, weathered pale timber, sea-glass blue and chalk white palette, crisp daylight, cool clean bright finish.',
+    lettering: 'Main title in hand-painted signwriter capitals with a rope-twist inline and a navy shadow. Supporting text in a jaunty condensed serif with small painted swash tails.',
+  },
+  {
+    id: 'food-riso-pizza', name: 'Pizza Night', category: 'food',
+    scene: 'Two-colour riso print. Fluorescent pink and warm orange ink on rough off-white paper, a hand tossing dough and a wedge of pizza drawn in loose outlines, visible ink misregistration, grainy paper texture, matte unvarnished finish.',
+    lettering: 'Main title in chunky rounded sans capitals printed in fluorescent pink with a deliberately misregistered orange offset shadow. Supporting text in small typewriter mono.',
+  },
+  {
+    id: 'food-woodtype-bbq', name: 'BBQ Broadside', category: 'food',
+    scene: 'Letterpress broadside on thick cotton stock. Antique wood-type ornaments, a hog and a smoking grill inked in soot black and brick red, deep visible bite into the paper, cream ground, flecked ink and worn edges, matte tactile finish.',
+    lettering: 'Main title in tall condensed slab wood type, ink-heavy with worn broken edges and deep press impression. Supporting text in narrow Victorian gothic capitals.',
+  },
+  {
+    id: 'food-watercolour-brunch', name: 'Watercolour Brunch', category: 'food',
+    scene: 'Loose watercolour illustration. Soft peach, butter yellow and sage washes on cold-press paper, a table of poached eggs, pastries and a jug of juice painted with bleeding edges and bare white paper gaps, pale morning light, airy matte finish.',
+    lettering: 'Main title in a fluid brush script with wet tapering strokes and slight pigment pooling. Supporting text in a light hand-lettered serif with irregular spacing.',
+  },
+  {
+    id: 'food-chalkboard-coffee', name: 'Chalkboard Cafe', category: 'food',
+    scene: 'Hand-drawn chalkboard. Matte black slate ground with white and pale mint chalk drawings of a pour-over cone, beans and steam curls, smudged eraser ghosts, dusty flourishes and blank ribbon banners, low warm cafe light, powdery chalk finish.',
+    lettering: 'Main title in ornate chalk script with thick-and-thin strokes and a doubled outline. Supporting text in blocky chalk capitals with sketchy hatched shading.',
+  },
+  {
+    id: 'food-halftone-burger', name: 'Comic Burger', category: 'food',
+    scene: 'Halftone comic panel art. Bold black ink outlines with visible dot shading in cherry red, teal and mustard on newsprint-yellow paper, a stacked burger and milkshake drawn with speed lines and starbursts, flat pulp-print finish.',
+    lettering: 'Main title in inflated comic-book capitals with a thick black outline, dot-shaded fill and a hard offset drop shadow. Supporting text in inked comic hand lettering.',
+  },
+  {
+    id: 'food-tile-tapas', name: 'Tile Tapas', category: 'food',
+    scene: 'Painted ceramic tile panel. Cobalt blue and white glazed tiles with hand-painted olives, lemons and small plates, ochre and terracotta accents, grout lines dividing the panel, glossy fired glaze catching soft reflected light.',
+    lettering: 'Main title hand-painted in cobalt brush capitals with slight glaze bleed at the stroke ends. Supporting text in a small painted serif with painterly imperfections.',
+  },
+  {
+    id: 'food-swiss-grid', name: 'Menu Grid', category: 'food',
+    scene: 'Swiss International poster design. Flat white paper field split by a strict modular grid, one enormous scarlet rectangle, thin black rules, a single cropped duotone photograph of coffee and citrus, no gradients, no shadow, matte offset flatness, cool neutral daylight.',
+    lettering: 'Main title in tight lowercase grotesque sans, heavy weight, very close letter spacing. Supporting text small and light with generous leading, pure black on white.',
+  },
+  {
+    id: 'food-deco-supper', name: 'Deco Supper', category: 'food',
+    scene: 'Art-deco geometry. Deep emerald and oxblood panels, fanned sunburst arcs and stepped chevrons in brushed brass, thin gold pinstripe borders, symmetrical mirrored composition, lacquered black ground, soft theatrical glow, luxurious enamel-and-metal finish.',
+    lettering: 'Main title in high-contrast deco capitals with hairline serifs, wide letter spacing and a gold foil finish carrying a fine engraved inline stripe. Supporting text in small spaced capitals.',
+  },
+  {
+    id: 'food-memphis-pop', name: 'Sprinkle Pop', category: 'food',
+    scene: 'Memphis postmodern playground. Sherbet pink, cyan, lemon and grape blocks, squiggles, confetti dashes and terrazzo speckle, tilted checkerboard bands, hard drop shadows, no depth, joyful chaotic balance, flat vinyl-sticker finish.',
+    lettering: 'Main title in chunky rounded bouncy capitals, each letter slightly rotated, filled candy yellow and offset by a thick violet shadow. Supporting text in playful wide sans-serif.',
+  },
+  {
+    id: 'food-clay-3d', name: 'Clay Kitchen', category: 'food',
+    scene: 'Soft 3D clay render. Matte pastel putty shapes on a warm sand backdrop, rounded utensils, bowls and cups modelled in dough-like material, gentle studio key light, long soft shadows, subtle ambient occlusion, tactile toy-like plasticine finish.',
+    lettering: 'Main title as extruded rounded 3D letters in matte pastel clay with thick soft-cornered strokes, gentle top light and a soft contact shadow. Supporting text in small rounded sans-serif.',
+  },
+  {
+    id: 'food-paper-feast', name: 'Paper Feast', category: 'food',
+    scene: 'Maximalist cut-paper collage. Torn magazine scraps, halftone newsprint fragments and sepia clippings layered over hot coral and mustard blocks, snipped scalloped edges, visible tape and staple marks, dense busy layering, tactile scrapbook finish.',
+    lettering: 'Main title in mismatched ransom-note capitals cut from different papers, varying sizes and baselines, some inked by hand. Supporting text in typewriter face on a paper strip.',
+  },
+  {
+    id: 'food-icecream-sun', name: 'Ice Cream Day', category: 'food',
+    scene: 'Summer ice-cream stop in blazing afternoon sun. Turquoise painted wall, hard-edged shadows, dripping cones and sprinkles held up against a deep blue sky, sherbet coral and mint accents, saturated slide-film colour, glossy high-key photography.',
+    lettering: 'Main title in fat glossy bubble capitals with a white highlight streak, thick cream outline and a hard turquoise cast shadow. Supporting text in bold rounded sans-serif.',
+  },
+  {
+    id: 'services-dawn-yard', name: 'Dawn Yard', category: 'services',
+    scene: 'First light over a freshly cut suburban lawn. Wet grass, long low shadows, mist hanging at the hedge line, striped mowing lines curving away. Wide environmental photograph, dew-green and pale gold, clean digital capture, crisp and calm.',
+    lettering: 'Main title in rounded heavy sans capitals, matte white with a soft drop shadow. Supporting text in a light humanist sans, generously letterspaced.',
+  },
+  {
+    id: 'services-night-call', name: 'Night Call', category: 'services',
+    scene: 'Emergency call-out after dark. A work van\'s open rear doors spill amber light across wet asphalt, a headlamp beam cutting through drizzle, tools glinting on the tailgate. Deep navy blacks with amber and cold blue reflections, moody low-key cinematic photography.',
+    lettering: 'Main title in bold condensed capitals, glowing amber with a subtle outer glow. Supporting text in clean uppercase sans, cool light grey.',
+  },
+  {
+    id: 'services-bright-clean', name: 'Bright Clean', category: 'services',
+    scene: 'Sunlit empty room mid-morning. Bare windows, glossy pale floorboards, a bucket and folded cloths, dust motes drifting in a hard shaft of sun. High-key white, sky blue and lemon, clean digital photograph, airy blown-out edges.',
+    lettering: 'Main title in geometric bold sans capitals, sky blue with a crisp white keyline. Supporting text in medium-weight sans, tight and tidy.',
+  },
+  {
+    id: 'services-tool-bench', name: 'Tool Bench', category: 'services',
+    scene: 'Overhead flat-lay on a scarred walnut workbench. Wrenches, a torque driver, coiled cable, a stripped-open small appliance, brass screws in a tin. Single low lamp from one side, espresso brown with steel grey and oxblood, warm film grain.',
+    lettering: 'Main title in industrial slab-serif capitals, cream with a lightly worn stencil edge. Supporting text in monospaced uppercase, small and precise.',
+  },
+  {
+    id: 'services-porch-groom', name: 'Porch Groomer', category: 'services',
+    scene: 'Late afternoon on a wooden porch. A groomer kneels with a fluffy dog mid-brush, golden backlight flaring through a screen door, chipped mint paint, terracotta pots. Cream, dusty rose and sun-gold, portrait lens with creamy blur, warm film grain.',
+    lettering: 'Main title in a friendly handwritten script with natural ink weight and a slight upward lilt. Supporting text in a soft rounded sans, sentence case.',
+  },
+  {
+    id: 'services-roof-dusk', name: 'Roof Dusk', category: 'services',
+    scene: 'Drone view over a shingled roofline at dusk. Crew silhouettes on the ridge, an extension ladder against the eave, violet and burnt-orange sky behind bare trees. Slate grey and charcoal against fiery sky, high-contrast editorial photography, sharp and dramatic.',
+    lettering: 'Main title in tall extended sans capitals, chalk white with a hard black offset shadow. Supporting text in thin uppercase sans, strictly aligned.',
+  },
+  {
+    id: 'services-marble-desk', name: 'Marble Desk', category: 'services',
+    scene: 'Corner of a polished white marble desk in a quiet office. A brass fountain pen, folded reading glasses, a navy suit cuff resting at the edge, a stack of plain paper. Cool north-window daylight, grey-white with navy and brass, sharp editorial photograph.',
+    lettering: 'Main title in a stately transitional serif with fine bracketed serifs, deep navy. Supporting text in small-cap sans, widely tracked and understated.',
+  },
+  {
+    id: 'services-riso-yard', name: 'Riso Yard', category: 'services',
+    scene: 'Two-colour riso screen print of a trimmed lawn, hedge and pruned tree, printed in fluorescent green and warm ink-blue on oatmeal paper. Visible misregistration, grainy ink texture, flat daylight, no shading, matte uncoated finish.',
+    lettering: 'Main title in chunky rounded geometric sans capitals printed in fluorescent green ink, slightly off-register with a soft blue ghost edge. Supporting text in small clean sans.',
+  },
+  {
+    id: 'services-press-sheet', name: 'Workshop Press', category: 'services',
+    scene: 'Letterpress broadside on thick cotton stock with a deep bite into the paper. Pipe wrenches, a spirit level and hand tools inked in indigo and coal black, plus rule lines and printer\'s ornaments. Ink smudge, visible fibre, tactile debossed finish.',
+    lettering: 'Main title in tall wooden slab-serif capitals with visible ink squeeze and worn broken edges, pressed deep into the sheet. Supporting text in narrow spurred grotesque.',
+  },
+  {
+    id: 'services-comic-garage', name: 'Comic Garage', category: 'services',
+    scene: 'Halftone comic-book panel art of a car on a lift and a gloved hand gripping a socket wrench, drawn in heavy black ink outlines with visible Ben-Day dot shading, printed in cyan, hot red and yellow on newsprint. Action speed lines, bold flat colour.',
+    lettering: 'Main title in bold slanted comic capitals with a thick black outline, yellow fill and a hard offset red drop shadow, like a sound-effect burst.',
+  },
+  {
+    id: 'services-watercolour', name: 'Soft Watercolour', category: 'services',
+    scene: 'Loose watercolour illustration on cold-press paper: a tidy kitchen corner with a kettle, a jug of cut flowers and a linen cloth. Wet washes of teal, lemon and lavender bleeding at the edges, pencil underdrawing showing, wide white space, matte paper.',
+    lettering: 'Main title in a flowing hand-painted brush script with dry-brush tails and translucent pigment bleed. Supporting text in a light airy serif, widely letterspaced.',
+  },
+  {
+    id: 'services-paper-cut', name: 'Teal Cutout', category: 'services',
+    scene: 'Cut-paper collage on a deep teal ground built from matte coloured card: a ladder, a broom, a watering can and a simple gabled house in terracotta, navy, ochre and blush, torn edges visible, small shadows between layers. Even soft studio light, craft-paper texture.',
+    lettering: 'Main title in friendly rounded sans capitals cut from ochre card, each letter slightly tilted with a soft paper shadow beneath. Supporting text in plain thin sans.',
+  },
+  {
+    id: 'services-woodcut', name: 'Old Woodcut', category: 'services',
+    scene: 'Antique woodcut engraving in black ink on aged ivory paper: a straight razor, shaving brush, comb and scissors arranged with cross-hatched shading and fine parallel line work. Ornamental hairline border, faded sepia stain, dry matte finish.',
+    lettering: 'Main title in engraved high-contrast didone capitals with fine hairline serifs and a delicate inline groove. Supporting text in small caps with wide tracking.',
+  },
+  {
+    id: 'services-tile-panel', name: 'Tile Pattern', category: 'services',
+    scene: 'Hand-painted ceramic tile panel in the Portuguese manner: glazed square tiles in cobalt blue on white, painted with scrolling vines, lotus blooms and a bathing bird, framed by a repeating border. Glossy glaze highlights, faint crazing, cool even light.',
+    lettering: 'Main title in painted blue brush-drawn serif capitals following the glaze, with slight bleed into the ceramic and a wet glossy sheen. Supporting text in hand-painted italics.',
+  },
+  {
+    id: 'services-swiss-grid', name: 'Crimson Bar', category: 'services',
+    scene: 'Flat International-style poster. Cool paper-white ground, one thick crimson horizontal bar, thin black rules dividing a strict column grid, generous empty space, a single small black circle as accent. Even diffuse light, matte print finish, calm and exact.',
+    lettering: 'Neo-grotesque sans in tight ranged-left blocks, medium weight for body copy, one heavy black setting for the headline, crisp matte, no effects at all.',
+  },
+  {
+    id: 'services-clay-3d', name: 'Soft 3D', category: 'services',
+    scene: 'Clay-render composition. Rounded matte shapes floating on a warm peach backdrop, a chunky wrench, spray bottle and paint roller modelled in putty-like plastic, soft studio light from upper left, gentle long shadows, velvety no-gloss finish.',
+    lettering: 'Rounded geometric sans extruded in soft-plastic 3D with a matte clay surface, thick friendly weight, subtle contact shadow beneath each letter.',
+  },
+  {
+    id: 'services-neon-dark', name: 'Neon Night', category: 'services',
+    scene: 'Dark graphic panel. Near-black charcoal ground, glowing electric-cyan and hot-magenta outline shapes drawn in thin light strokes, soft bloom haze around every line, wet-glass reflection along the lower edge, cool, technical and luminous.',
+    lettering: 'Thin uppercase sans drawn as glowing tube outlines in cyan with a magenta secondary glow, wide letterspacing and faint halo bleed.',
+  },
+  {
+    id: 'services-memphis-pop', name: 'Pop Shapes', category: 'services',
+    scene: 'Postmodern pattern field. Mint, tangerine and cobalt confetti shapes — squiggles, checkerboards, zigzags and dots — scattered on cream, flat vector fills, one oversized off-kilter triangle, playful and busy, screen-print texture, flat even light.',
+    lettering: 'Chunky bouncy sans with an alternating baseline, flat two-tone offset fill in cobalt and tangerine, thick black outline.',
+  },
+  {
+    id: 'services-deco-lines', name: 'Brass Deco', category: 'services',
+    scene: 'Art-deco geometry. Deep forest green ground with fine brass line inlay, fanned sunburst arcs, stepped ziggurat frames and slender fluted columns, symmetrical composition, warm low-angle glow on metal, lacquered satin finish, elegant and formal.',
+    lettering: 'High-waisted deco capitals with a thin brass inline stripe, sharp geometric spurs, tight tracking and a satin metallic sheen.',
+  },
+  {
+    id: 'services-glass-panel', name: 'Frosted Glass', category: 'services',
+    scene: 'Glassmorphism composition. A blurred aqua-to-violet gradient mesh behind translucent frosted rectangles with hairline white edges, soft coloured light bleeding through the panels, faint noise grain, floating depth, airy modern digital finish.',
+    lettering: 'Light-weight geometric sans in semi-transparent white with a fine bright edge highlight, wide spacing and a soft outer glow.',
+  },
+  {
+    id: 'services-brutal-block', name: 'Bold Blocks', category: 'services',
+    scene: 'Brutalist colour blocking. A raw concrete-grey field split by hard rectangles of safety yellow and ink black, thick offset drop shadows, exposed registration marks, coarse halftone dots, harsh flat light, unpolished photocopy finish.',
+    lettering: 'Ultra-heavy condensed capitals in ink black with a hard yellow offset shadow and slight photocopy roughness eating the edges.',
+  },
+  {
+    id: 'realestate-just-sold', name: 'Just Sold', category: 'realestate',
+    scene: 'Midday suburban front lawn under a bright blue sky. Crisp white siding, emerald grass, a red front door, wide environmental lens, clean digital capture, hard noon sun with sharp shadows, saturated and cheerful.',
+    lettering: 'Main title in heavy rounded sans capitals, flat white with a thick emerald outline and a hard offset shadow. Secondary text in tight uppercase sans.',
+  },
+  {
+    id: 'realestate-apartments', name: 'Apartment Living', category: 'realestate',
+    scene: 'Dusk at a modern apartment courtyard. Lit turquoise pool water, palms, string bulbs, coral and lavender sky, residents lounging, soft pastel grade, gentle haze, low-contrast dreamy finish, eye-level medium lens.',
+    lettering: 'Main title in light geometric sans with wide letter spacing, soft coral-to-lavender gradient fill. Supporting text in thin uppercase with hairline rules.',
+  },
+  {
+    id: 'realestate-commercial', name: 'Commercial Space', category: 'realestate',
+    scene: 'Dawn drone view over a glass and steel office block, empty parking decks, cold blue mist between towers, graphite concrete, a thin gold sunrise line on the horizon, high-contrast editorial grade, sharp architectural detail.',
+    lettering: 'Main title in tall narrow serif capitals, ice-white with fine hairline strokes. Supporting text in small letterspaced grey sans.',
+  },
+  {
+    id: 'realestate-first-home', name: 'First Home', category: 'realestate',
+    scene: 'Evening interior lit by one table lamp. Cardboard moving boxes, two people sitting on bare floorboards with takeaway cups, amber glow, cream walls, warm film grain, shallow depth of field, cosy and quiet.',
+    lettering: 'Main title in a friendly handwritten script with slightly uneven strokes in warm cream. Supporting text in small humanist sans, lowercase.',
+  },
+  {
+    id: 'realestate-investment', name: 'Investment Deal', category: 'realestate',
+    scene: 'Overhead flat-lay on a dark walnut desk. Brass keys, a folded blueprint, reading glasses, a leather notebook and a coffee cup, moody low-key side light, deep shadows, muted browns and brass, matte editorial finish.',
+    lettering: 'Main title in refined serif capitals with high thick-thin contrast and a brushed brass foil finish. Supporting text in small caps with wide tracking.',
+  },
+  {
+    id: 'realestate-lending', name: 'Home Loans', category: 'realestate',
+    scene: 'Early morning kitchen with a large window. Sheer curtains diffusing pale sunlight, sage cabinetry, white marble counter, a mug and loose paperwork, airy clean digital capture, soft shadows, calm and reassuring, light and bright.',
+    lettering: 'Main title in medium-weight grotesque sans, deep ink navy, generous spacing and clean flat edges. Supporting text in the same family at light weight.',
+  },
+  {
+    id: 'realestate-staging', name: 'Staged & Styled', category: 'realestate',
+    scene: 'Overcast midday light through tall windows. Tight macro of a styled living-room vignette: linen cushion weave, dried stems in a stoneware vase, plaster wall, greige and bone palette, muted matte grade, soft directional shadow.',
+    lettering: 'Main title in elegant thin italic serif, warm taupe, with a delicate underline. Supporting text in tiny widely tracked uppercase sans.',
+  },
+  {
+    id: 'realestate-rent-ready', name: 'Rent Ready', category: 'realestate',
+    scene: 'Two-colour risograph print. Burnt orange and navy ink on oatmeal stock, coarse halftone dots, deliberate misregistration, blocky cut-paper rooftops and stair shapes, visible paper tooth, flat matte zine finish.',
+    lettering: 'Heavy slab-serif capitals in navy with an orange ink offset behind, halftone speckle showing through the letterforms, small typewriter-style caption text.',
+  },
+  {
+    id: 'realestate-retro-apartments', name: 'Retro Apartments', category: 'realestate',
+    scene: 'Mid-century lithograph travel poster of an apartment community: stacked balconies, kidney-shaped pool, palm fronds, long flat sun shadows. Mustard, sky blue, cream and burnt orange, screened flat colour, faint press texture, optimistic 1950s calm.',
+    lettering: 'Main title in wide extended mid-century capitals, burnt orange with a thin cream inline stripe down each stroke. Supporting text in light italic sans.',
+  },
+  {
+    id: 'realestate-paper-house', name: 'Paper House', category: 'realestate',
+    scene: 'Cut-paper collage of a small starter house built from layered construction paper, felt lawn, torn-edge clouds and a paper key, real drop shadows between layers, sage, butter yellow and blush, bright even studio light.',
+    lettering: 'Main title cut from thick paper with visible scissor edges and a soft layered shadow. Supporting text in a friendly handwritten marker script.',
+  },
+  {
+    id: 'realestate-engraved-office', name: 'Engraved Office', category: 'realestate',
+    scene: 'Fine-line copperplate engraving of a brick and glass commercial building, dense crosshatch and stipple, sepia-black ink on ivory laid paper, thin ruled border, cool restrained finish like an old stock certificate.',
+    lettering: 'Main title in engraved high-contrast serif capitals with hairline flourishes and fine crosshatch shading. Supporting text in small letterspaced roman caps.',
+  },
+  {
+    id: 'realestate-watercolour-home', name: 'Watercolour Home', category: 'realestate',
+    scene: 'Loose watercolour and ink illustration of a styled living room: linen sofa, ceramic vase with eucalyptus, sunlit rug, washes bleeding past pencil outlines, blush and sage, white paper breathing through, gentle morning light.',
+    lettering: 'Main title in an elegant thin-stroke script with damp brushy edges. Supporting text in a small airy serif with generous letterspacing.',
+  },
+  {
+    id: 'realestate-letterpress-deal', name: 'Letterpress Deal', category: 'realestate',
+    scene: 'Letterpress broadside on thick cotton paper: a row of duplex rooftops and chimneys carved as a wood-block silhouette, oxblood red and charcoal ink, heavy plate impression denting the sheet, ruled ornament borders, no gloss.',
+    lettering: 'Main title in giant slab wood-type capitals, ink-starved and mottled, pressed deep into the sheet. Supporting text in condensed gothic caps on ruled lines.',
+  },
+  {
+    id: 'realestate-comic-loans', name: 'Comic Loans', category: 'realestate',
+    scene: 'Retro halftone comic panel: a cheerful buyer shaking hands across a lender\'s desk, thick black outlines, benday dot shading, primary red, yellow and blue, radiating speed lines behind, newsprint yellowing, off-register dots.',
+    lettering: 'Main title in bouncy bold comic capitals with a thick black outline, yellow fill and a hard drop shadow. Supporting text in inked comic caps.',
+  },
+  {
+    id: 'realestate-sold-grid', name: 'Sold Grid', category: 'realestate',
+    scene: 'Swiss international poster. Flat white paper, a strict column grid ruled in hairline black, one large scarlet rectangle and one small black square set low. No photograph, no texture, matte print, cool even studio light.',
+    lettering: 'Titles in tight grotesque sans, all lowercase, flush left in tall stacked lines. Supporting text in small black caps with one word knocked out white.',
+  },
+  {
+    id: 'realestate-deco-tower', name: 'Deco Tower', category: 'realestate',
+    scene: 'Art-deco geometry. Stepped ziggurat arches and radiating sunburst fans in brushed brass and deep emerald over a midnight ink ground, thin gold rules, strictly symmetrical, soft warm sheen like an old elevator door.',
+    lettering: 'Main title in tall narrow deco capitals with fine inline stripes down each stroke, brass gradient fill, wide letterspacing, thin gold rules above and below.',
+  },
+  {
+    id: 'realestate-retro-shapes', name: 'Retro Shapes', category: 'realestate',
+    scene: 'Memphis postmodern playground on cream. Bubblegum pink, lemon yellow, mint and cobalt shapes scattered loose: squiggles, dotted grids, striped triangles, floating circles. Flat 1980s vector, zero shading, cheerful and light, crisp matte finish.',
+    lettering: 'Chunky rounded sans capitals in cobalt with a yellow drop shadow, each word on its own tilted baseline, small mint outline text beneath.',
+  },
+  {
+    id: 'realestate-clay-keys', name: 'Clay Keys', category: 'realestate',
+    scene: 'Soft 3D clay render. A pastel matte gable house, a rounded key and a small door arch modelled in putty peach, sage and cloud grey, floating on lavender with gentle shadow, diffuse studio light, velvety toy finish.',
+    lettering: 'Rounded soft-edge sans in matte clay with the same putty finish as the shapes, gentle extrusion and a soft ambient shadow. Small clean grey caption text.',
+  },
+  {
+    id: 'realestate-neon-rentals', name: 'Neon Rentals', category: 'realestate',
+    scene: 'Neon on black. A wireframe skyline of glowing cyan and magenta lines over a dark grid horizon, purple haze, thin light streaks, chromatic glow bleeding into the black, high-gloss synthwave screen finish.',
+    lettering: 'Main title in glowing tube-neon script with a magenta halo and a visible glass highlight. Supporting text in thin cyan uppercase with wide tracking.',
+  },
+  {
+    id: 'realestate-glass-panels', name: 'Indigo Glass', category: 'realestate',
+    scene: 'Frosted translucent panels with soft white borders floating on a smooth indigo-to-teal gradient blur, faint blurred spheres behind, cool diffused light, weightless high-end app-screen polish, glossy and edgeless.',
+    lettering: 'Clean geometric sans in white, semibold title over light supporting lines, slight frosted transparency and a faint soft glow at the edges.',
+  },
+  {
+    id: 'realestate-new-build', name: 'New Build', category: 'realestate',
+    scene: 'Cyanotype blueprint. White technical linework of a house elevation, framing studs and dimension arrows on deep prussian blue, faint coffee-ring stain and folded creases across the sheet, cool chemical wash, flat matte drafting paper.',
+    lettering: 'Main title in precise drafting stencil capitals, chalk white, wide tracking, thin ruled leader lines. Supporting text in small hand-drafted uppercase.',
+  },
+  {
+    id: 'fitness-pool-lane', name: 'Pool Lanes', category: 'fitness',
+    scene: 'Indoor lap pool at dawn. Overhead wide view down the lane ropes, swimmers mid-stroke, turquoise water and white tile, pale blue skylight glow, frozen splash droplets, cool clean digital finish with high clarity.',
+    lettering: 'Main title in tall clean sans-serif capitals with a wet glass shine and a thin white outline. Supporting text in light widely spaced letterforms.',
+  },
+  {
+    id: 'fitness-spin-night', name: 'Spin Class', category: 'fitness',
+    scene: 'Night indoor cycling studio with the lights out. Rows of riders standing on the pedals in silhouette, magenta and electric violet strip lighting, mirrored back wall, thin haze, sweat highlights, low-key digital with deep blacks.',
+    lettering: 'Main title in italic heavy sans-serif capitals with a magenta neon glow and a slight motion-blur trail. Supporting text in narrow uppercase.',
+  },
+  {
+    id: 'fitness-climb-gym', name: 'Climbing Gym', category: 'fitness',
+    scene: 'Bouldering gym after dark. Tungsten spotlights on plywood overhangs, scattered orange, lime and blue holds, a climber reaching high, chalk cloud drifting, thick padded floor, warm amber and charcoal palette, gritty photographic contrast.',
+    lettering: 'Main title in heavy rounded slab capitals with a chalky matte texture and a hand-scuffed edge. Supporting text in compact bold uppercase.',
+  },
+  {
+    id: 'fitness-dojo-dusk', name: 'Karate Class', category: 'fitness',
+    scene: 'Traditional martial arts hall at dusk. Worn wooden floor, white uniforms and coloured belts, low sun through paper screens, dust drifting in the light shafts, warm sepia and oxblood palette, 35mm film grain, quiet and disciplined.',
+    lettering: 'Main title in sharp brush-stroke serif capitals with dry ink edges and split hairline strokes. Supporting text in small letterspaced sans-serif.',
+  },
+  {
+    id: 'fitness-studio-light', name: 'Barre Class', category: 'fitness',
+    scene: 'Barre and reformer studio at midday. Tall windows throwing sunlight across pale oak floor and mirrors, wooden barre, resistance bands, blush pink, cream and sage palette, soft pastel grade, airy and calm with gentle lens flare.',
+    lettering: 'Main title in a thin high-contrast serif with elongated letterforms and fine hairlines. Supporting text in small lowercase sans-serif with wide spacing.',
+  },
+  {
+    id: 'fitness-field-day', name: 'Field Day', category: 'fitness',
+    scene: 'Youth team sports on a grass field at golden hour. Drone-high wide view, long shadows across chalked lines, children and coaches mid-drill, emerald green and amber sunlight, orange cones, punchy warm digital with crisp detail.',
+    lettering: 'Main title in chunky rounded sans-serif capitals with a thick white outline and a soft drop shadow. Supporting text bold, friendly and upright.',
+  },
+  {
+    id: 'fitness-fuel-flat', name: 'Fuel Up', category: 'fitness',
+    scene: 'Overhead flat-lay on white marble. Grilled chicken and rice bowls, berries, spinach, a shaker bottle, a tape measure and a small dumbbell, cut citrus and ice, bright even studio light, crisp shadows, fresh green and white palette.',
+    lettering: 'Main title in confident geometric sans-serif capitals in solid black. Supporting text in a light weight sitting on thin horizontal rules.',
+  },
+  {
+    id: 'fitness-easy-start', name: 'Easy Start', category: 'fitness',
+    scene: 'Community hall morning class for older adults. Soft window light plus warm lamp glow, chairs, light hand weights and stretch bands, relaxed smiles, oatmeal, dusty teal and soft gold palette, gentle portrait lens, low contrast.',
+    lettering: 'Main title in a friendly humanist serif with generous weight and rounded terminals. Supporting text in large plain readable sans-serif.',
+  },
+  {
+    id: 'fitness-spin-riso', name: 'Cycle Studio', category: 'fitness',
+    scene: 'Two-colour riso screen print of an indoor cycling room. Flat fluorescent orange and deep navy inks on warm off-white paper, visible misregistration and grainy ink texture, silhouetted riders leaning over handlebars, radiating speed lines.',
+    lettering: 'Main title in chunky rounded sans capitals printed in solid navy with an orange offset shadow that slips out of register. Small text in typewriter mono.',
+  },
+  {
+    id: 'fitness-dance-paper', name: 'Dance Recital', category: 'fitness',
+    scene: 'Cut-paper collage of dancers mid-turn. Torn and scissor-cut shapes in coral, mustard, deep teal and cream, soft drop shadows under each paper layer, matte construction-paper texture, buoyant and playful, clean pale background.',
+    lettering: 'Main title hand-cut from paper in loose brush-script capitals, each letter slightly uneven with a soft paper shadow. Details in tidy geometric sans.',
+  },
+  {
+    id: 'fitness-trail-watercolour', name: 'Hiking Club', category: 'fitness',
+    scene: 'Loose watercolour painting of walkers on a ridge trail. Wet-on-wet olive, ochre and slate washes, pine shapes bleeding at the edges, bare paper left as mist and path, cold-press cotton grain, calm open morning air.',
+    lettering: 'Main title in a flowing wet brush script with soft bleeding edges and pigment pooling at stroke ends. Supporting text in light airy sans.',
+  },
+  {
+    id: 'fitness-schedule-chalk', name: 'Class Schedule', category: 'fitness',
+    scene: 'Hand-drawn chalkboard on slate green-black. Dusty white chalk drawings of dumbbells, trainers, a skipping rope and a wall clock, soft smudged shading, faint eraser streaks, a few strokes in pale yellow and mint chalk.',
+    lettering: 'Main title in ornate chalk-drawn slab capitals with white outline flourishes and hatched shadowing. Secondary lines in casual chalk cursive with visible dust.',
+  },
+  {
+    id: 'fitness-dojo-woodcut', name: 'Judo Class', category: 'fitness',
+    scene: 'Japanese-style woodcut print. Black carved linework on aged ivory paper with a single vermilion ink block, figures in belted training uniforms locked in a throw, crashing wave motif behind, visible chisel marks and wood grain.',
+    lettering: 'Main title in carved brush-stroke capitals with rough chiselled edges and ink-starved gaps. Supporting text in narrow upright serif printed in vermilion.',
+  },
+  {
+    id: 'fitness-kids-embroidery', name: 'Kids Sports', category: 'fitness',
+    scene: 'Embroidered felt patch artwork. Stitched running children, a ball and a whistle in kelly green, orange and cream thread on a navy felt ground, raised satin-stitch fills, chain-stitch outlines, merrowed edge, tactile and handmade.',
+    lettering: 'Main title in bold varsity block capitals rendered in dense satin stitch with a contrasting chain-stitch outline. Small text in simple back-stitch lettering.',
+  },
+  {
+    id: 'fitness-senior-litho', name: 'Golden Years', category: 'fitness',
+    scene: 'Mid-century lithograph poster. Flat limited palette of burnt orange, sage, cream and charcoal, simplified rounded figures walking and stretching among park trees, printed halftone dot shading, slight ink overlap, optimistic 1950s travel-poster mood.',
+    lettering: 'Main title in wide friendly mid-century sans capitals with generous letter spacing and a soft ink-bleed edge. Supporting text in a light modern serif.',
+  },
+  {
+    id: 'fitness-pilates-swiss', name: 'Pilates Studio', category: 'fitness',
+    scene: 'Swiss International style layout. Warm off-white paper, one large flat sage circle and two thin slate rules, generous empty space, a single duotone silhouette of a stretching figure in dusty rose, calm and precise, matte print finish.',
+    lettering: 'Main title in lowercase grotesque, medium weight, tight tracking, flat slate ink. Supporting text in small even-weight sans, no effects, strictly aligned.',
+  },
+  {
+    id: 'fitness-awards-deco', name: 'Club Awards', category: 'fitness',
+    scene: 'Art-deco geometry for a sports club awards evening. Symmetrical fan rays and stepped chevrons in brushed gold on deep lacquer black and oxblood, thin concentric borders, a stylised laurel and cup shape centred, foil-on-card finish.',
+    lettering: 'Main title in tall art-deco capitals with hairline inner stripes and thin gold rules above and below. Supporting text in spaced small caps, gold on black.',
+  },
+  {
+    id: 'fitness-kids-memphis', name: 'Kids Camp', category: 'fitness',
+    scene: 'Memphis postmodern playground graphics. Bright blocks of tomato red, sunflower yellow and cobalt on cream, squiggles, confetti triangles and dotted arcs scattered at playful angles, flat shapes with hard offset shadows, matte poster finish.',
+    lettering: 'Main title in chunky rounded bubble capitals, each letter a different flat colour with a thick cream outline and a hard offset shadow. Supporting text in rounded sans.',
+  },
+  {
+    id: 'fitness-nutrition-clay', name: 'Nutrition Plan', category: 'fitness',
+    scene: 'Soft 3D clay render. Rounded matte objects — an apple, a water bottle, a small dumbbell, a bowl — modelled in pastel mint, peach and cream, floating on a seamless blush backdrop with soft studio shadows, velvety finish, no reflections.',
+    lettering: 'Main title in rounded extrabold sans extruded as matte 3D clay in cream with a soft shadow. Supporting text in light rounded sans, flat pastel grey.',
+  },
+  {
+    id: 'fitness-dance-collage', name: 'Dance Class', category: 'fitness',
+    scene: 'Maximalist cut-and-paste zine collage. Torn magazine paper, coarse halftone textures and photocopied hands layered over acid green and purple, scribbled marker arcs, tape strips and stickers, deliberately messy, high-contrast photocopy grain.',
+    lettering: 'Main title in ransom-note mixed typefaces, some letters cut from halftone print, some hand-marker, slightly rotated with heavy black outline. Supporting text in typewriter monospace.',
+  },
+  {
+    id: 'fitness-training-glass', name: 'Personal Training', category: 'fitness',
+    scene: 'Glassmorphism on a dark gradient mesh. Deep indigo blending into teal and plum, frosted translucent rounded panels floating with soft blur and thin bright edges, small line icons of a stopwatch and a barbell, glossy digital finish.',
+    lettering: 'Main title in clean geometric sans, semibold, pure white with a faint frosted glow. Supporting text in a light weight white at reduced opacity.',
+  },
+  {
+    id: 'community-market-dawn', name: 'Farmers Market', category: 'community',
+    scene: 'Open-air produce market at first light. Wooden trestle tables, crates of tomatoes and peaches, canvas awnings, dew on greens, vendors setting up. Wide environmental lens, pale blue and butter-yellow dawn light, soft pastel film grain, gentle matte finish.',
+    lettering: 'Main title in a friendly rounded slab serif, chalk-white with a soft drop shadow. Supporting text in a small handwritten script with slightly uneven strokes.',
+  },
+  {
+    id: 'community-benefit-gala', name: 'Benefit Night', category: 'community',
+    scene: 'Charity dinner in a wood-panelled hall after dark. Round tables, white linen, candle flames, silver bidding paddles, a stylish crowd mid-applause. Low-key portrait lighting, deep navy shadows against warm candle gold, high-contrast editorial finish.',
+    lettering: 'Main title in a high-contrast engraved serif with thin hairlines, brushed champagne-gold. Supporting text in widely letterspaced small capitals.',
+  },
+  {
+    id: 'community-parade-day', name: 'Parade Day', category: 'community',
+    scene: 'Small-town parade at high noon. Brass instruments catching hard sun, paper bunting strung across the street, confetti in the air, families lining the kerb. Tight telephoto compression, crimson and cream against blue sky, punchy saturated digital finish.',
+    lettering: 'Main title in bold vintage circus capitals with an inline stripe and a thin cream keyline. Supporting text in condensed uppercase gothic.',
+  },
+  {
+    id: 'community-craft-fair', name: 'Craft Fair', category: 'community',
+    scene: 'Overhead flat-lay of handmade goods on raw linen: knitted scarves, thrown pottery, beeswax candles, dried lavender, pressed-flower cards. Soft north-window daylight, terracotta, oatmeal and sage palette, shallow macro detail, natural matte paper finish.',
+    lettering: 'Main title in a warm hand-lettered serif with inked, uneven strokes. Supporting text in a light typewriter face with visible ribbon texture.',
+  },
+  {
+    id: 'community-blood-drive', name: 'Blood Drive', category: 'community',
+    scene: 'Bright community-hall donation clinic. Padded recliners in a row, folded blankets, juice cartons, volunteers in soft scrubs, a calm donor resting. Even daylight through tall windows, white, pale teal and warm skin tones, crisp clinical digital finish.',
+    lettering: 'Main title in a clean geometric sans with rounded terminals, deep teal. Supporting text in a lighter weight of the same family with generous spacing.',
+  },
+  {
+    id: 'community-block-party', name: 'Block Party', category: 'community',
+    scene: 'Neighbourhood street closed for a party at dusk. Folding tables end to end, grills smoking, string bulbs overhead, kids on bikes, neighbours mid-laugh. Warm film grain, amber bulbs against deep teal twilight sky, slight lens flare, nostalgic 35mm finish.',
+    lettering: 'Main title in a chunky retro script with a thick outline and a hard offset shadow. Supporting text in bold rounded lowercase sans.',
+  },
+  {
+    id: 'community-cleanup-day', name: 'Clean-Up Day', category: 'community',
+    scene: 'Volunteers clearing a riverside park on a bright morning. High-visibility vests, work gloves, rakes, sacks of leaves, a wheelbarrow of mulch. Elevated drone-style wide angle looking down, lime green and cobalt against wet grass, crisp saturated digital finish.',
+    lettering: 'Main title in heavy squared-off sans capitals, lime green with a thick charcoal outline. Supporting text in plain bold uppercase, tightly tracked.',
+  },
+  {
+    id: 'community-honor-night', name: 'Honour Night', category: 'community',
+    scene: 'Civic memorial garden at last light. Stone plinth, laurel wreath, folding chairs on gravel, an honour guard standing at ease in silhouette, a lone bugler. Long-lens portrait depth, slate grey and burnt amber, soft dusk haze, restrained low-key finish.',
+    lettering: 'Main title in a stately transitional serif, small capitals in aged bronze with a fine embossed edge. Supporting text in quiet letterspaced roman.',
+  },
+  {
+    id: 'community-volunteer-riso', name: 'Volunteer Day', category: 'community',
+    scene: 'Two-colour risograph print of neighbours raking a park in the morning, rubber gloves and paper sacks, kelly green and warm orange inks slightly misregistered, heavy paper grain and ink speckle, flat uncoated matte stock, cheerful and rough.',
+    lettering: 'Main title in chunky rounded sans capitals in solid orange ink, edges softly misregistered with a green ghost offset. Supporting text in a light typewriter face.',
+  },
+  {
+    id: 'community-town-hall-woodtype', name: 'Town Hall', category: 'community',
+    scene: 'Letterpress broadside on thick oatmeal cotton paper, no photograph at all, one black ink with a faded brick-red rule, a carved pointing-hand ornament and simple printers\' fleurons, deep bite and inky impression, sober civic mood, deckled edge.',
+    lettering: 'Main title in enormous slab-serif wood type, black with visible woodgrain and broken edges. Secondary lines in condensed antique gothic, letterspaced wide and deeply debossed.',
+  },
+  {
+    id: 'community-market-wash', name: 'Market Sketch', category: 'community',
+    scene: 'Loose watercolour and ink-line sketch of market stalls under striped awnings, crates of tomatoes, radishes and sunflowers, wet-on-wet bleeds of sap green, ochre and raspberry, pencil underdrawing showing through, open white paper, airy morning light.',
+    lettering: 'Main title in a relaxed hand-painted brush script with translucent watery edges and dry-brush breakup. Supporting text in a small neat handwritten pen serif.',
+  },
+  {
+    id: 'community-street-party-paper', name: 'Street Party', category: 'community',
+    scene: 'Cut-paper collage of a closed street with folding tables, bunting and a seated crowd, layered construction paper in coral, teal, mustard and cream, torn and scissor-cut edges casting soft real shadows, flat daylight, handmade craft-room feel.',
+    lettering: 'Main title cut from bright coral paper in fat geometric capitals with scissor-nicked edges and a soft paper shadow. Supporting text in a clean flat white sans.',
+  },
+  {
+    id: 'community-remembrance-woodcut', name: 'Remembrance', category: 'community',
+    scene: 'Hand-cut woodblock print on ivory laid paper, a wreath of oak leaves and a plain stone marker, dense black cross-hatching, one muted navy overprint, visible gouge marks and chipped linework, solemn and dignified, near-monochrome.',
+    lettering: 'Main title in engraved serif capitals carved from the block, crisp with tiny nicks, letterspaced wide. Supporting text in a small italic serif, black ink only.',
+  },
+  {
+    id: 'community-donor-drive-comic', name: 'Donor Drive', category: 'community',
+    scene: 'Vintage halftone comic panel on newsprint, a beaming volunteer offering juice and cookies to a donor in a folding chair, heavy black outlines, benday dot shading, faded cyan and scarlet, yellowed pulp paper, hopeful action-comic energy.',
+    lettering: 'Main title in bold comic display capitals with a thick black outline, scarlet fill and a cyan offset shadow. Supporting text in hand-lettered comic caption sans.',
+  },
+  {
+    id: 'community-parade-litho', name: 'Parade Poster', category: 'community',
+    scene: 'Mid-century travel-poster lithograph of a small-town parade, marching band silhouettes, a fire engine and balloons above a row of awnings, flat simplified shapes in cranberry, cream, teal and sky blue, fine print grain, confident 1950s optimism.',
+    lettering: 'Main title in wide mid-century geometric sans capitals, cream on cranberry, with a thin flat shadow. Supporting text in a light letterspaced grotesque.',
+  },
+  {
+    id: 'community-handmade-fair-stitch', name: 'Handmade Fair', category: 'community',
+    scene: 'Embroidered sampler on natural linen, a cross-stitched cottage, a pie, a spool of thread and a daisy border, floss in rust, denim blue, olive and cream, visible weave and stray thread ends, warm lamp light, homespun and tactile.',
+    lettering: 'Main title chain-stitched in rust floss with raised satin-stitch fill and visible needle holes. Supporting text in small even cross-stitch capitals in denim blue.',
+  },
+  {
+    id: 'community-town-notice-swiss', name: 'Town Notice', category: 'community',
+    scene: 'Swiss International style. Vast white field, one thin red horizontal rule, a strict column grid faintly implied, a single black-and-white halftone square of clasped hands, cool neutral daylight, no ornament, crisp offset-litho finish.',
+    lettering: 'Neutral neue-grotesque sans, medium weight, flush left and ragged right, black on white with generous leading and a single word set in red.',
+  },
+  {
+    id: 'community-night-fundraiser', name: 'Night Fundraiser', category: 'community',
+    scene: 'Glowing neon tubes on near-black. Deep charcoal ground with looping tube outlines in electric cyan and hot magenta, thin light trails and soft bloom halos, faint scanline haze, wet reflective sheen along the lower edge, cool late-night mood.',
+    lettering: 'Glowing neon-tube capitals with rounded terminals, magenta core and cyan outer halo. Supporting text in a thin cool-white uppercase sans.',
+  },
+  {
+    id: 'community-helping-hands-clay', name: 'Helping Hands', category: 'community',
+    scene: 'Soft 3D clay render. Rounded matte forms — a heart, a donation box, a tiny house — in pastel mint, peach and lavender floating over a plain putty backdrop, soft global illumination, gentle contact shadows, velvety no-gloss surface, toy-like scale.',
+    lettering: 'Extruded rounded 3D letters in matching matte clay with soft bevels and gentle cast shadow. Supporting text in a light rounded sans.',
+  },
+  {
+    id: 'community-civic-hall-deco', name: 'Civic Hall', category: 'community',
+    scene: 'Art-deco geometry on ivory card. Symmetrical stepped arches, radiating sunburst rays and fine parallel rules in jade green and copper, subtle linen-paper grain, faint foxing at the corners, warm even light, formal 1930s programme finish.',
+    lettering: 'Tall narrow deco capitals with high waistlines and hairline inline stripes in copper, widely letterspaced, sitting between double jade rules.',
+  },
+  {
+    id: 'community-fun-fair-postmodern', name: 'Fun Fair', category: 'community',
+    scene: '1980s postmodern graphics. Squiggles, confetti dashes, checkerboard slivers and wobbly triangles in turquoise, bubblegum pink, black and lemon scattered across off-white, playful asymmetry, flat bright light, slight print misregistration, energetic finish.',
+    lettering: 'Fat playful sans with a bouncing wonky baseline, alternating colours letter to letter and a hard black offset shadow.',
+  },
+  {
+    id: 'community-together-glass', name: 'Together', category: 'community',
+    scene: 'Gradient mesh with frosted glass. Smooth blended wash of violet into teal into blush, a translucent panel floating over it with blurred edges and a fine white hairline rim, tiny light refractions, calm airy modern-app finish, no texture anywhere.',
+    lettering: 'Clean geometric sans in bright white, medium weight, generous letterspacing, faint soft glow, with some words in a lighter translucent weight.',
+  },
+  {
+    id: 'music-jazz-cellar', name: 'Jazz Cellar', category: 'music',
+    scene: 'Late-night jazz cellar. Sepia and oxblood, brass instruments catching a single hot lamp, cigarette haze drifting through the beam, brick arches lost in shadow. Tight portrait lens, heavy warm film grain, moody low-key, matte print finish.',
+    lettering: 'Main title in elegant high-contrast serif italic with fine hairline strokes and a soft warm glow. Supporting text in widely letterspaced small capitals.',
+  },
+  {
+    id: 'music-punk-basement', name: 'Punk Basement', category: 'music',
+    scene: 'Sweaty basement punk show. Pure black and white, hard direct flash blowing out skin and cables, a packed crowd mid-surge, ceiling pipes overhead, battered amps stacked crooked. Wide chaotic lens, coarse grain, blown highlights, photocopied contrast.',
+    lettering: 'Main title in ransom-note mismatched heavy capitals, xeroxed and torn at the edges, harsh black on white with visible ink bleed.',
+  },
+  {
+    id: 'music-porch-session', name: 'Porch Session', category: 'music',
+    scene: 'Golden-hour porch session. Dusty gold and faded denim blue, an acoustic guitar and worn boots on weathered pine boards, wheat field behind, low sun flaring through the railing. Wide environmental lens, warm film grain, honeyed haze.',
+    lettering: 'Main title in tall western slab-serif capitals with hand-painted wood-grain texture and sun-bleached wear. Supporting text in a plain typewriter face.',
+  },
+  {
+    id: 'music-concert-hall', name: 'Concert Hall', category: 'music',
+    scene: 'Grand concert hall before the downbeat. Deep crimson velvet, gilt balconies, warm chandelier lamplight pooling on polished cello wood and black formalwear, tiered seats fading into dark. Wide symmetrical lens, clean digital capture, painterly contrast, lacquered finish.',
+    lettering: 'Main title in refined engraved serif capitals with fine gold foil edging and generous letterspacing. Supporting text in light roman small caps.',
+  },
+  {
+    id: 'music-warehouse-rave', name: 'Warehouse Rave', category: 'music',
+    scene: 'Concrete warehouse rave at 2am. Cyan and magenta laser fans slicing through fog, silhouetted hands raised, wet floor reflecting colour, raw steel trusses above. Wide high-angle lens, clean digital, deep blacks, crisp glossy finish.',
+    lettering: 'Main title in wide techno sans capitals with a liquid chrome face and a thin cyan glow outline. Supporting text in tight monospaced uppercase.',
+  },
+  {
+    id: 'music-karaoke-booth', name: 'Karaoke Night', category: 'music',
+    scene: 'Private karaoke booth, late evening. Bubblegum pink and teal neon tubing on padded vinyl walls, a handheld mic, tambourine and half-finished drinks, laughing friends mid-song. Tight flash-lit lens, soft pastel grade, slight lens haze, candy-glossy finish.',
+    lettering: 'Main title in rounded bubble capitals with a glossy plastic highlight and a teal drop shadow. Supporting text in a playful light sans-serif.',
+  },
+  {
+    id: 'music-rooftop-set', name: 'Rooftop Set', category: 'music',
+    scene: 'City rooftop set at dusk. Violet sky over amber streetlights, a turntable rig and speaker stack on tar paper, skyline haze, a stylish crowd in silhouette against the last light. Editorial mid-wide lens, high-contrast grade, cinematic clarity.',
+    lettering: 'Main title in bold brush-graffiti capitals with a thick white outline and a hard violet drop shadow. Supporting text in condensed uppercase sans.',
+  },
+  {
+    id: 'music-record-table', name: 'New Record', category: 'music',
+    scene: 'Overhead flat-lay on a pale oak table at midday. Cream, charcoal and burnt orange: a vinyl record half out of its sleeve, headphones coiled, brass cup, scattered lyric notebooks. Soft window daylight, clean digital, gentle shadows, matte paper finish.',
+    lettering: 'Main title in modern geometric sans capitals, tightly kerned and ink-black, with one word set in a fine handwritten script.',
+  },
+  {
+    id: 'music-lesson-studio', name: 'Music Lessons', category: 'music',
+    scene: 'Bright daytime teaching studio. Chalk-white walls, pale grey floor and mint accents, sunlight falling in clean rectangles across piano keys, an open violin case, a metronome, a child\'s stool. Airy wide lens, high-key digital, soft shadows, crisp clean finish.',
+    lettering: 'Main title in friendly rounded sans capitals in warm charcoal, with one word in a soft handwritten script. Supporting text in light spaced lowercase.',
+  },
+  {
+    id: 'music-record-shop', name: 'Record Shop', category: 'music',
+    scene: 'Daytime record shop aisle. Mustard, teal and worn walnut, crates of sleeves fingered open, dust and sunlight through a grubby front window, a cork board of curling paper scraps. Mid-wide slightly fisheye lens, faded seventies colour grade, matte finish.',
+    lettering: 'Main title in chunky seventies groove capitals with swollen curves, mustard fill and a thin cream inline. Supporting text in condensed uppercase serif.',
+  },
+  {
+    id: 'music-salsa-night', name: 'Salsa Night', category: 'music',
+    scene: 'Tropical dance hall at midnight. Hot coral and deep turquoise, palm-leaf shadows thrown across a wooden floor, dancers spinning into motion blur, tungsten bulbs strung overhead, rum glasses sweating. Slow-shutter mid-shot, saturated warm grade, glossy finish.',
+    lettering: 'Main title in swashy brush script with thick tapering strokes and a coral-to-gold gradient. Supporting text in bold condensed capitals, tightly stacked.',
+  },
+  {
+    id: 'music-retro-jazz-litho', name: 'Retro Jazz', category: 'music',
+    scene: 'Mid-century lithograph poster of a small combo on a low stage, upright bass and horn shapes, limited ink palette of black, burnt orange and cream, flat overlapping planes, visible litho grain and slight misregistration, matte paper finish.',
+    lettering: 'Main title in tall geometric 1950s capitals with slightly overlapping letterforms and a hand-inked wobble. Supporting text in small spaced serif caps.',
+  },
+  {
+    id: 'music-punk-zine', name: 'Punk Zine', category: 'music',
+    scene: 'Photocopied zine collage. Torn newsprint, ripped tape edges, blown-out high-contrast black and white with one acid green blot, staples and smudged toner, crowded chaotic layers, rough matte photocopy finish.',
+    lettering: 'Main title in cut-out ransom-note letters from mismatched newsprint, uneven baseline, heavy toner smears and a black marker scrawl underline.',
+  },
+  {
+    id: 'music-country-woodtype', name: 'Country Night', category: 'music',
+    scene: 'Letterpress wood-type broadside on kraft paper. Ink-pressed ornamental rules, a carved boot and fiddle motif, barn-red and deep indigo inks over tan stock, visible woodgrain texture and debossed impression, dry uncoated finish.',
+    lettering: 'Main title in fat slab-serif wood-type capitals with chipped edges and ink squash. Supporting text in condensed Victorian caps between hairline rules.',
+  },
+  {
+    id: 'music-metal-woodcut', name: 'Metal Night', category: 'music',
+    scene: 'Woodcut engraving. Dense black hand-carved hatching of storm clouds, a cracked mountain and skeletal hands raised, bone-white paper showing through, one blood-red carved band, harsh graphic contrast, dry raw-print finish.',
+    lettering: 'Main title in gnarled blackletter carved from the same woodblock, thorny spurs and gouged white nicks cutting through the strokes.',
+  },
+  {
+    id: 'music-dj-riso', name: 'DJ Set', category: 'music',
+    scene: 'Two-colour riso screen-print. Fluorescent pink and electric blue inks overprinting into purple, a turntable and dancing figures reduced to flat halftone dot shapes, deliberate misregistration and roller streaks, grainy matte recycled stock.',
+    lettering: 'Main title in bold rounded sans capitals split into offset pink and blue layers with a purple overlap and speckled ink texture.',
+  },
+  {
+    id: 'music-chalkboard-gig', name: 'Chalkboard Gig', category: 'music',
+    scene: 'Chalkboard drawing. Deep slate-black board with smudged eraser clouds, white chalk sketches of a handheld mic, sparkles and a small stage curtain, pops of yellow and mint chalk, dusty powdery texture, casual pub blackboard finish.',
+    lettering: 'Main title in chunky hand-drawn chalk capitals with double outlines and cross-hatch shading. Supporting text in loose chalk cursive.',
+  },
+  {
+    id: 'music-hiphop-comic', name: 'Hip-Hop Night', category: 'music',
+    scene: 'Halftone comic-book panel art. Bold black ink outlines, a crowd with hands up and a mic cable snaking across, flat primary red, yellow and cyan fills with visible Ben-Day dot shading, speed lines and a starburst, glossy pulp-print finish.',
+    lettering: 'Main title in inflated comic capitals with a thick black outline, white inner highlight and a hard yellow drop shadow.',
+  },
+  {
+    id: 'music-deco-night', name: 'Deco Night', category: 'music',
+    scene: 'Art-deco geometric composition. Cream and deep ink-black with brushed brass arcs, stepped fan shapes and thin gold rules radiating from a half-circle, symmetrical and calm, soft paper grain, elegant matte finish with metallic sheen.',
+    lettering: 'Main title in tall thin deco capitals with wide letterspacing, a fine gold inline stroke and hairline rules above and below. Supporting text in small elegant serif.',
+  },
+  {
+    id: 'music-recital-swiss', name: 'Recital', category: 'music',
+    scene: 'Swiss International style layout. Warm off-white field, one vermilion rule and a single large charcoal square, disciplined margins, wide empty space, no ornament, precise vector edges, flat uncoated print finish.',
+    lettering: 'Main title in clean grotesque capitals, medium weight, tight tracking, flush left, pure black with one word in vermilion. Supporting text small and lowercase.',
+  },
+  {
+    id: 'music-chrome-bass', name: 'Chrome Bass', category: 'music',
+    scene: '3D render composition. Liquid chrome blobs and an inflated glossy sphere floating over a burnt-orange to deep-purple gradient, soft studio lighting with sharp specular highlights, subtle floor shadow, hyper-glossy plastic-and-metal finish.',
+    lettering: 'Main title in extended heavy capitals rendered as polished liquid chrome with mirrored highlights and a dark bevelled underside. Supporting text in tight condensed uppercase.',
+  },
+  {
+    id: 'music-album-drop', name: 'Album Drop', category: 'music',
+    scene: 'Glassmorphism gradient mesh. Frosted translucent panels floating over a soft iridescent blend of teal, lilac and coral, blurred colour bleeding through, faint noise grain, diffused light, smooth silky digital finish.',
+    lettering: 'Main title in light geometric capitals, wide tracking, semi-transparent frosted white with a thin bright edge highlight. Supporting text in small light sans at low opacity.',
+  },
+  {
+    id: 'nightlife-rooftop-sunset', name: 'Rooftop Sunset', category: 'nightlife',
+    scene: 'Rooftop terrace at dusk, camera high above a hazy city skyline. Coral and lilac sky, glass balustrades, bare-bulb string lights just switching on, a relaxed crowd holding cocktails, warm golden backlight, soft lens flare, clean digital photography.',
+    lettering: 'Main title in tall airy sans-serif capitals with wide letterspacing and a soft coral-to-gold gradient fill. Supporting text in thin light uppercase, generously spaced.',
+  },
+  {
+    id: 'nightlife-pool-party', name: 'Pool Party', category: 'nightlife',
+    scene: 'Midday pool deck under hard overhead sun. Turquoise water, white tile, chrome loungers and inflatable rings, splashing water frozen mid-air, sharp palm shadows across pale concrete, saturated aqua and white, crisp high-contrast digital photography.',
+    lettering: 'Main title in chunky rounded bold capitals with a glossy wet highlight and a thin white outline. Supporting text in bouncy playful sans-serif.',
+  },
+  {
+    id: 'nightlife-powder-party', name: 'Color Powder', category: 'nightlife',
+    scene: 'Outdoor colour party in late afternoon, clouds of magenta and yellow powder pigment hanging in backlit dusty air. Sweaty smiling dancers, pigment streaked on arms and clothing, warm 35mm film grain, blown highlights, low hazy sun behind the crowd.',
+    lettering: 'Main title in hand-painted brush capitals with wet drips, uneven edges and multicoloured splatter flecks. Supporting text in loose marker-style lowercase.',
+  },
+  {
+    id: 'nightlife-cabaret', name: 'Cabaret Night', category: 'nightlife',
+    scene: 'Intimate cabaret room lit by tungsten lamps. Crimson velvet curtains, gilt frames, small round tables with candles, feather fans and sequins catching warm light, deep shadow, soft vignette, rich burgundy and brass palette, classic film grain.',
+    lettering: 'Main title in ornate high-contrast serif with elegant swashes and hairline strokes in warm brass foil. Supporting text in delicate italic script.',
+  },
+  {
+    id: 'nightlife-warehouse', name: 'Strobe Warehouse', category: 'nightlife',
+    scene: 'Raw concrete warehouse at peak hours, hard white strobe cutting through thick fog, steel beams and cable runs overhead, a silhouetted crowd with hands raised, near-monochrome grey and white with one cold blue wash, gritty documentary photography.',
+    lettering: 'Main title in stark stencil capitals, tightly packed, flat white with photocopy noise and a slight horizontal glitch offset. Supporting text in small monospaced uppercase.',
+  },
+  {
+    id: 'nightlife-new-year', name: 'New Year', category: 'nightlife',
+    scene: 'Elegant midnight ballroom, silver and champagne confetti falling through the air, coupes raised, tailored suits and sequin gowns, crystal chandelier flare, long-exposure sparkle trails, cool platinum and ice-blue palette with warm lamp pools, polished editorial finish.',
+    lettering: 'Main title in polished platinum chrome capitals with a mirrored surface and fine sparkle glints. Supporting text in refined thin sans-serif, widely spaced.',
+  },
+  {
+    id: 'nightlife-beach-bonfire', name: 'Beach Bonfire', category: 'nightlife',
+    scene: 'Night beach around a driftwood bonfire. Orange firelight flickering across faces and blankets, indigo sea and pale moonlight behind, sparks rising, damp sand, heavy 35mm grain, deep shadow, warm-versus-cold contrast, natural unposed photography.',
+    lettering: 'Main title in warm hand-drawn rough serif capitals with a charred smoky edge and faint ember glow. Supporting text in relaxed handwritten lowercase.',
+  },
+  {
+    id: 'nightlife-garden-social', name: 'Garden Social', category: 'nightlife',
+    scene: 'Loose watercolour on cold-press paper. Twilight walled garden, paper lanterns strung between trees, sage green, blush and dove grey washes bleeding into each other, small figures suggested in wet blooms, dry-brush lantern dots, airy matte finish.',
+    lettering: 'Main title in flowing brush-lettered script with visible bristle streaks and translucent ink pooling at stroke ends. Supporting text in a light airy serif, widely spaced.',
+  },
+  {
+    id: 'nightlife-drag-collage', name: 'Drag Show', category: 'nightlife',
+    scene: 'Cut-paper collage of layered construction paper with torn edges and real cast shadows. Magenta curtain strips, turquoise and gold starbursts, a performer silhouette in glossy black card, scattered foil circles. Bold, theatrical, tactile, studio-lit.',
+    lettering: 'Main title cut from gold foil card with hand-scissored uneven edges, each capital tilted slightly and drop-shadowed. Supporting text in a narrow deco sans, hand-trimmed.',
+  },
+  {
+    id: 'nightlife-marker-splash', name: 'Paint Splash', category: 'nightlife',
+    scene: 'Bold marker and ink drawing on black paper. Fast brush-pen figures mid-dance, splattered neon acrylic in lime, orange and cyan flung across the sheet, white paint-pen highlights, wet drips running down, raw matte poster-paint finish.',
+    lettering: 'Main title hand-drawn in dripping paint-brush capitals of uneven weight, streaked and splattered, with a scratchy white marker outline. Supporting text in quick handwritten caps.',
+  },
+  {
+    id: 'nightlife-woodcut-midnight', name: 'Midnight Toast', category: 'nightlife',
+    scene: 'Antique woodcut engraving, dense black ink hatching on warm cream laid paper. Champagne coupes, a pocket watch, bursting fireworks drawn as fine radiating lines, ornamental border rules, single colour, high detail, letterpress bite and visible paper tooth.',
+    lettering: 'Main title in ornate Victorian wood type capitals with heavy slab serifs, engraved inline shading and a decorative flourish rule. Supporting text in small caps between thin rules.',
+  },
+  {
+    id: 'nightlife-midcentury-holiday', name: 'Holiday Party', category: 'nightlife',
+    scene: 'Mid-century lithograph poster in a limited flat palette of brick red, teal, mustard and warm off-white, with visible print grain and slight ink overprint. Stylised partygoers holding cocktail glasses, geometric evergreen shapes, simple angular furniture, retro matte finish.',
+    lettering: 'Main title in wide geometric sans capitals with a hand-inked wobble, mustard fill and a teal offset shadow. Supporting text in a small friendly slab serif.',
+  },
+  {
+    id: 'nightlife-bold-poster', name: 'Bold Poster', category: 'nightlife',
+    scene: 'Flat Swiss poster graphic in two colours only, scarlet red and ink black on bone white. Hard geometric grid, thick horizontal rules, one enormous red circle, generous empty margins, matte offset print texture, no photograph and no gradient.',
+    lettering: 'Tight grotesque capitals set very heavy with ultra-tight tracking, pure black and scarlet, no effects at all. Supporting text in light small capitals.',
+  },
+  {
+    id: 'nightlife-memphis-pop', name: 'Confetti Pop', category: 'nightlife',
+    scene: 'Memphis postmodern composition on cream. Mint, hot pink, tangerine and cobalt shapes, squiggles, checkerboard strips, terrazzo speckles, tilted triangles and floating confetti dots, flat vector artwork, crisp screen-print finish, playful eighties graphic energy.',
+    lettering: 'Chunky rounded display capitals in candy colours, each letter a different hue, with a thin black outline and a hard offset drop shadow.',
+  },
+  {
+    id: 'nightlife-deco-gold', name: 'Deco Gold', category: 'nightlife',
+    scene: 'Art-deco geometry in deep emerald and midnight ink with fine champagne-gold linework. Fan rays, stepped arches, a symmetrical sunburst and thin concentric arcs, flat illustration with a subtle metallic foil sheen, elegant nineteen-twenties poster finish.',
+    lettering: 'Slim high-waisted deco capitals with thin gold inline stripes, wide letterspacing, hairline serifs and a delicate foil shine.',
+  },
+  {
+    id: 'nightlife-clay-3d', name: 'Clay Party', category: 'nightlife',
+    scene: 'Soft 3D clay render on a matte lavender backdrop. Putty-pink, butter-yellow and sky-blue balloons, rounded cylinders, a tilted disc and tiny spheres, gentle broad studio light, soft shadows, no gloss, toy-like tactile finish.',
+    lettering: 'Inflated puffy 3D rounded capitals in matte clay pink with soft edges, gentle top light and a diffuse shadow beneath.',
+  },
+  {
+    id: 'nightlife-liquid-chrome', name: 'Liquid Chrome', category: 'nightlife',
+    scene: 'Dark graphite void holding a floating liquid chrome blob and rippling mercury ribbons. Iridescent oil-slick reflections of violet, teal and silver, sharp specular highlights, high-gloss mirror finish, cold futuristic 3D render, no visible light fixtures.',
+    lettering: 'Polished liquid-metal capitals with mirrored chrome reflections, stretched highlights and a faint iridescent violet rim.',
+  },
+  {
+    id: 'nightlife-riso-headphones', name: 'Silent Disco', category: 'nightlife',
+    scene: 'Two-ink risograph print on rough newsprint. Fluorescent pink and electric blue overlap and misregister into purple, grainy paper speckle throughout, a dancing crowd wearing headphones drawn as flat shapes, visible halftone dots, ink-starved patches, cheerful and loud.',
+    lettering: 'Main title in chunky rounded sans capitals printed twice with a deliberate offset, pink behind blue, edges slightly ink-blotted. Supporting text in small typewriter mono.',
+  },
 ]
 
 /** What an uploaded photo IS, which decides how it gets used. A headshot and a
@@ -440,7 +1375,7 @@ export function flyerPrompt(
     // the model two at once produces a design that obeys neither.
     reference
       ? [
-          'DESIGN STYLE — COPY THE REFERENCE. The FIRST attached image is a reference design supplied by the customer. Match its look closely:',
+          'DESIGN STYLE — TAKE DIRECTION FROM THE REFERENCE. The FIRST attached image is a reference design supplied by the customer. It is a style guide, NOT artwork to be reproduced. Match its look closely:',
           '- the same colour palette and how the colours are distributed',
           '- the same feel of lettering: serif or sans, weight, letter spacing, capitals or mixed case, and the same relationship in size between the headline and the small print',
           '- the same kind of composition, spacing and visual rhythm',

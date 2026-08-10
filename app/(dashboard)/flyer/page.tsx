@@ -201,6 +201,15 @@ export default function FlyerMakerPage() {
   // A design to copy the LOOK of. Mutually exclusive with a template style —
   // see the note in the style sheet for why.
   const [reference, setReference] = useState<{ dataUrl: string; name: string } | null>(null)
+  // What is typed into the style search. Empty means "show the chosen group".
+  const [styleQuery, setStyleQuery] = useState('')
+
+  // Mac says Cmd, everyone else says Ctrl. Worked out after the first paint so
+  // the server and the browser render the same thing.
+  const [pasteKey, setPasteKey] = useState('Ctrl+V')
+  useEffect(() => {
+    if (/Mac|iPhone|iPad/.test(navigator.userAgent)) setPasteKey('Cmd+V')
+  }, [])
 
   // Has the customer made these choices THEMSELVES yet? The conversation is
   // allowed to set the look and the sizes while they are still on the
@@ -341,6 +350,74 @@ export default function FlyerMakerPage() {
 
   const say = (role: 'user' | 'assistant', text: string) =>
     setItems((p) => [...p, { kind: 'msg', role, text }])
+
+  /**
+   * Which style tiles to show.
+   *
+   * Nothing typed: the chosen group. Something typed: every group, because a
+   * search that only looks inside the group you happen to be standing in finds
+   * nothing and looks broken.
+   *
+   * The words in the style's own description are searched too, not just its
+   * name — "taco" and "gold" and "wedding" are how people actually describe
+   * what they want, and none of those are the name of a style.
+   */
+  const shownStyles = (() => {
+    const q = styleQuery.trim().toLowerCase()
+    if (!q) return FLYER_TEMPLATES.filter((t) => t.category === category)
+    const words = q.split(/\s+/)
+    return FLYER_TEMPLATES.filter((t) => {
+      const hay = `${t.name} ${t.category} ${t.scene} ${t.lettering}`.toLowerCase()
+      return words.every((w) => hay.includes(w))
+    })
+  })()
+
+  /**
+   * Attach a design to work from, however it arrived.
+   *
+   * Three routes in — the file button, a paste, a drag-and-drop — and all of
+   * them land here. The realistic path is browsing a stock site, right-clicking
+   * an image and pressing paste; making that work only through a file picker
+   * would mean saving it to disk first, which is enough friction that most
+   * people give up and use a style they did not really want.
+   */
+  const attachReference = async (file: File, label: string) => {
+    if (!file.type.startsWith('image/')) {
+      setErr('That is not an image. Copy the picture itself rather than a link to it.')
+      return
+    }
+    let dataUrl: string
+    try {
+      dataUrl = await shrinkForUpload(file)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not read that image.')
+      return
+    }
+    setReference({ dataUrl, name: label })
+    setStylePicked(true)
+    markPicked('reference')
+    say('assistant',
+      'Got it. I\'ll take the style from that — the colours, the lettering, the mood — and build you a ' +
+      'new design from your own words. I won\'t copy the design itself, or its text, logos or photos. ' +
+      'Our own looks are switched off while it\'s attached; remove it to go back to them.')
+  }
+
+  // PASTE ANYWHERE WHILE THE STYLE PANEL IS OPEN. Bound to the window rather
+  // than to a box you must click first, because "click here, then paste" is a
+  // step people skip and then report the paste as broken.
+  useEffect(() => {
+    if (sheet !== 'style' || reference) return
+    const onPaste = (e: ClipboardEvent) => {
+      const item = [...(e.clipboardData?.items ?? [])].find((i) => i.type.startsWith('image/'))
+      if (!item) return
+      const file = item.getAsFile()
+      if (!file) return
+      e.preventDefault()
+      void attachReference(file, 'pasted design')
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  })
 
   // ── talking to it ──────────────────────────────────────────────────────
   // Native speech where the browser has it, recording + server transcription
@@ -745,9 +822,9 @@ export default function FlyerMakerPage() {
                     clears the other and says so. */}
                 <p style={{ fontSize: 13, color: SOFT, margin: '0 0 12px', lineHeight: 1.55 }}>
                   Use <strong style={{ color: INK }}>one of our looks</strong> or{' '}
-                  <strong style={{ color: INK }}>a design of your own to copy</strong> — one or the other,
-                  not both. Each is a full instruction for how it should look, and two at once means the
-                  design follows neither. Picking one clears the other.
+                  <strong style={{ color: INK }}>a design of your own to work from</strong> — one or the
+                  other, not both. Each is a full instruction for how it should look, and two at once means
+                  the design follows neither. Picking one clears the other.
                 </p>
 
                 {reference ? (
@@ -766,29 +843,48 @@ export default function FlyerMakerPage() {
                       style={{ ...plain, padding: '5px 9px' }}>✕</button>
                   </div>
                 ) : (
-                  <label title="Upload a flyer, ad or card you like — yours will be designed in the same style"
-                    style={{ ...plain, display: 'inline-block', marginBottom: 12 }}>
-                    + Add Reference — copy a design I already have
-                    <input type="file" accept="image/*" hidden
-                      onChange={async (e) => {
-                        const f = e.target.files?.[0]
-                        e.target.value = ''
-                        if (!f) return
-                        // No size limit needed any more — it is shrunk here
-                        // before it goes anywhere.
-                        let dataUrl: string
-                        try {
-                          dataUrl = await shrinkForUpload(f)
-                        } catch (err) {
-                          setErr(err instanceof Error ? err.message : 'Could not read that image.')
-                          return
-                        }
-                        setReference({ dataUrl, name: f.name })
-                        setStylePicked(true)
-                        markPicked('reference')
-                        say('assistant', 'Got your reference — I\'ll copy its look and use your words. Our own styles are switched off while it\'s attached; remove it to go back to them.')
-                      }} />
-                  </label>
+                  <div style={{ marginBottom: 12 }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      const f = e.dataTransfer.files?.[0]
+                      if (!f) return
+                      e.preventDefault()
+                      void attachReference(f, f.name)
+                    }}>
+                    <label title="Upload a flyer, ad or card you like the look of — yours will be designed in that style, with your words"
+                      style={{ ...plain, display: 'inline-block' }}>
+                      + Upload your own design to work from
+                      <input type="file" accept="image/*" hidden
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0]
+                          e.target.value = ''
+                          if (f) await attachReference(f, f.name)
+                        }} />
+                    </label>
+
+                    {/* WHERE TO FIND ONE. Most people have no design to hand and
+                        stall here. Naming the places designers actually browse
+                        turns a blank box into a five-second job.
+
+                        The wording matters and is deliberate: the design is a
+                        REFERENCE, not something to be reproduced. Those sites
+                        sell licensed work, and a customer who prints a close
+                        copy is exposed. The engine already enforces this — it is
+                        told to take the style and never reproduce the design —
+                        so this text describes what actually happens. */}
+                    <p style={{ fontSize: 12.5, color: SOFT, margin: '10px 0 0', lineHeight: 1.6 }}>
+                      No design to hand? Browse{' '}
+                      <strong style={{ color: INK }}>Envato</strong>,{' '}
+                      <strong style={{ color: INK }}>Freepik</strong> or{' '}
+                      <strong style={{ color: INK }}>Creative Market</strong> for something you like the
+                      look of, then <strong style={{ color: INK }}>copy the image and paste it here</strong>{' '}
+                      with {pasteKey}. You can also drag one in.
+                    </p>
+                    <p style={{ fontSize: 12.5, color: SOFT, margin: '6px 0 0', lineHeight: 1.6 }}>
+                      We don&rsquo;t copy the design itself. We read its style — the colours, the
+                      lettering, the mood — and make you a new one from your own words.
+                    </p>
+                  </div>
                 )}
 
                 <div style={{ opacity: reference ? 0.4 : 1, pointerEvents: reference ? 'none' : 'auto' }}
@@ -803,8 +899,33 @@ export default function FlyerMakerPage() {
                         }}>{c.label}</button>
                     ))}
                   </div>
+
+                  {/* SEARCH ACROSS EVERYTHING. With twenty-five looks in each of
+                      nine groups, hunting by eye means scrolling past two
+                      hundred tiles — and someone who wants a taco night should
+                      not have to know we filed it under Food & drink. Typing
+                      searches every group at once; clearing it goes back to the
+                      chosen one. */}
+                  <input
+                    value={styleQuery}
+                    onChange={(e) => setStyleQuery(e.target.value)}
+                    placeholder="Search all looks — try taco, wedding, gold, retro…"
+                    title="Search every group at once by name"
+                    style={{
+                      width: '100%', padding: '8px 11px', marginBottom: 10, fontSize: 13,
+                      borderRadius: 8, border: `1px solid ${LINE}`, background: 'white',
+                      color: INK, fontFamily: 'inherit',
+                    }} />
+
+                  {shownStyles.length === 0 && (
+                    <p style={{ fontSize: 13, color: SOFT, margin: '4px 0 12px', lineHeight: 1.55 }}>
+                      Nothing matches &ldquo;{styleQuery}&rdquo;. Try a plainer word, or upload a design
+                      of your own above and we&rsquo;ll work from that instead.
+                    </p>
+                  )}
+
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(118px,1fr))', gap: 9 }}>
-                    {FLYER_TEMPLATES.filter((t) => t.category === category).map((t) => (
+                    {shownStyles.map((t) => (
                       <button key={t.id} className={strobeId === t.id ? 'cg-strobe' : undefined}
                         onClick={() => { setTemplateId(t.id); setStylePicked(true); markPicked(t.id) }}
                         title={`Design it in the ${t.name} look`}
