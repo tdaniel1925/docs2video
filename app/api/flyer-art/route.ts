@@ -3,7 +3,8 @@ import OpenAI, { toFile } from 'openai'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { checkCredits, deductCredits, addTopupCredits, costForUser } from '../../_lib/credits'
-import { FLYER_TEMPLATES, FLYER_SIZES, flyerPrompt, apiSize } from '../../_lib/flyer-engine'
+import { FLYER_TEMPLATES, FLYER_SIZES, flyerPrompt, apiSize, printPixels, canBleed, dpiFor } from '../../_lib/flyer-engine'
+import { upscaleForPrint } from '../../_lib/upscale'
 import type { FlyerFields, PhotoRole } from '../../_lib/flyer-engine'
 
 // =============================================================================
@@ -45,6 +46,12 @@ export async function POST(req: Request) {
     /** A design to copy the LOOK of. Mutually exclusive with a template style —
      *  both are an art direction, and two at once produce a muddle of neither. */
     referenceDataUrl?: string
+    /**
+     * Generate printed pieces oversize, for a commercial printer to trim into.
+     * Off means exact size, which is what you want for printing at home or for
+     * anything that stays on a screen.
+     */
+    bleed?: boolean
     /** Which press of Make this belongs to, so the history groups correctly.
      *  Minted by the browser: the page fires one request per size and they all
      *  have to land in the same round. */
@@ -168,7 +175,8 @@ export async function POST(req: Request) {
   }
 
   const one = async (size: typeof FLYER_SIZES[number]) => {
-    const prompt = flyerPrompt(template, fields, size, roles, hasReference) + (note ? `\n\nALSO: ${note}` : '')
+    const bleed = Boolean(body?.bleed) && canBleed(size)
+      const prompt = flyerPrompt(template, fields, size, roles, hasReference, bleed) + (note ? `\n\nALSO: ${note}` : '')
 
     // Charge BEFORE generating, refund if it fails — the same order the video
     // pipeline uses. Charging afterwards would let a hammered page run several
@@ -202,21 +210,37 @@ export async function POST(req: Request) {
       const res = files.length
         ? await ai().images.edit({
             model: MODEL, prompt, image: files.length === 1 ? files[0] : files,
-            size: apiSize(size).size as '1024x1024', quality: 'high', n: 1,
+            size: apiSize(size, bleed).size as '1024x1024', quality: 'high', n: 1,
           })
         : await ai().images.generate({
-            model: MODEL, prompt, size: apiSize(size).size as '1024x1024', quality: 'high', n: 1,
+            model: MODEL, prompt, size: apiSize(size, bleed).size as '1024x1024', quality: 'high', n: 1,
           })
       const b64 = res.data?.[0]?.b64_json
       if (!b64) { await refund(); return { sizeId: size.id, label: size.label, error: 'no image returned' } }
 
       const sharp = (await import('sharp')).default
-      // Print comes out at 300 dpi — the size the printer asked for, not half
-      // of it. The generation is capped by a pixel budget rather than by this,
-      // so a big poster is scaled up to its true dimensions.
-      const targetW = size.unit === 'in' ? Math.round(size.w * 300) : size.w
-      const targetH = size.unit === 'in' ? Math.round(size.h * 300) : size.h
-      const src = Buffer.from(b64, 'base64')
+      // The true finished size, including the bleed margin the printer trims
+      // off. printPixels also knows that a yard sign is printed at 150 dpi and
+      // a six-foot banner at 72 — asking those for 300 would demand a
+      // ten-thousand-pixel file to carry detail nobody can stand close enough
+      // to see.
+      const target = printPixels(size, bleed)
+      const targetW = target.w
+      const targetH = target.h
+      let src = Buffer.from(b64, 'base64')
+
+      // ENLARGE BEFORE SCALING, where the generator could not reach print size.
+      // The image API caps out around 4 megapixels; a letter flyer at 300 dpi
+      // needs 8.4. Until now the shortfall was covered by stretching, which
+      // makes a file that SAYS 300 dpi while the lettering inside is soft.
+      // Measured on a real design, the small caps line is visibly furred when
+      // stretched and clean when upscaled.
+      //
+      // Never fatal: a design at its original size is worth far more to the
+      // person who paid for it than an error.
+      const grown = await upscaleForPrint(src, targetW, targetH)
+      if (grown.reason) console.warn(`[flyer] upscale skipped for ${size.id}: ${grown.reason}`)
+      src = grown.buffer
 
       // EVERY SIZE IS ITS OWN ORIGINAL DESIGN, generated at its own aspect
       // ratio. For all but one shape this resize is a pure scale — the aspect
@@ -226,8 +250,13 @@ export async function POST(req: Request) {
       // limit. That one is composed as a band inside a 3:1 frame, with the
       // prompt naming the band and asking for empty space around it, so the
       // trim takes only the margin it was told to leave.
+      // TAG THE RESOLUTION. Without a density in the file, a lot of print
+      // software assumes 72 dpi and offers to print an 8.5-inch flyer at 35
+      // inches across — the file was always the right number of pixels, it just
+      // never said what they meant.
       const png = await sharp(src)
         .resize(targetW, targetH, { fit: 'cover', position: 'centre' })
+        .withMetadata({ density: dpiFor(size) })
         .png()
         .toBuffer()
 

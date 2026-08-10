@@ -25,17 +25,82 @@
 export type FlyerSize = {
   id: string
   label: string
-  group: 'print' | 'social' | 'banner' | 'card'
+  group: 'print' | 'social' | 'banner' | 'card' | 'slide'
   w: number
   h: number
   unit: 'in' | 'px'
+  /**
+   * Dots per inch for a printed piece. 300 is what a commercial printer asks
+   * for and is right for anything held in the hand. Large-format work — a yard
+   * sign read from across a lawn — is printed at 150 and asking for 300 would
+   * quadruple the pixels for detail no eye will ever resolve.
+   */
+  dpi?: number
+}
+
+/**
+ * Bleed: the extra margin of artwork that gets cut off.
+ *
+ * A commercial printer cannot cut to the exact millimetre, so anything meant to
+ * reach the edge of the paper must be printed slightly OVERSIZE and trimmed
+ * into. Without it, a fraction of a millimetre of drift leaves a white sliver
+ * down one side — the single most common reason a print job is rejected.
+ *
+ * An eighth of an inch per edge is the near-universal standard.
+ */
+export const BLEED_IN = 0.125
+
+/**
+ * Print resolution for a size — 300 unless the size says otherwise.
+ *
+ * A size measured in PIXELS is never printed, so it gets 72: the screen
+ * convention. Returning 300 for an Instagram post is the kind of answer that
+ * looks harmless and then gets written into a file as its density, telling
+ * print software the image is a third of its real size. The first thing that
+ * called this fell into exactly that, so the trap is closed here rather than
+ * left for each caller to remember.
+ */
+export const dpiFor = (s: FlyerSize): number => (s.unit === 'in' ? s.dpi ?? PRINT_DPI : 72)
+
+/** Can this size be printed, and therefore have bleed added? */
+export const canBleed = (s: FlyerSize): boolean => s.unit === 'in'
+
+/**
+ * The finished pixel dimensions — what the customer downloads.
+ *
+ * With bleed the artwork is BIGGER than the piece: an 8.5x11 flyer becomes
+ * 8.75x11.25 inches of image, and the printer trims an eighth off every edge.
+ */
+export function printPixels(s: FlyerSize, bleed = false): { w: number; h: number; dpi: number } {
+  if (s.unit === 'px') return { w: s.w, h: s.h, dpi: 72 }
+  const dpi = dpiFor(s)
+  const extra = bleed ? BLEED_IN * 2 : 0
+  return {
+    w: Math.round((s.w + extra) * dpi),
+    h: Math.round((s.h + extra) * dpi),
+    dpi,
+  }
 }
 
 export const FLYER_SIZES: FlyerSize[] = [
-  { id: 'letter', label: 'Flyer 8.5 × 11 in', group: 'print', w: 8.5, h: 11, unit: 'in' },
+  { id: 'letter', label: 'Flyer / sell sheet 8.5 × 11 in', group: 'print', w: 8.5, h: 11, unit: 'in' },
   { id: 'square4', label: 'Flyer 4 × 4 in', group: 'print', w: 4, h: 4, unit: 'in' },
   { id: 'half', label: 'Half page 5.5 × 8.5 in', group: 'print', w: 5.5, h: 8.5, unit: 'in' },
   { id: 'poster', label: 'Poster 11 × 17 in', group: 'print', w: 11, h: 17, unit: 'in' },
+  { id: 'postcard-6x4', label: 'Postcard 6 × 4 in', group: 'print', w: 6, h: 4, unit: 'in' },
+  { id: 'postcard-5x7', label: 'Postcard 5 × 7 in', group: 'print', w: 5, h: 7, unit: 'in' },
+  { id: 'rack-card', label: 'Rack card 3.5 × 8.5 in', group: 'print', w: 3.5, h: 8.5, unit: 'in' },
+  { id: 'door-hanger', label: 'Door hanger 4.25 × 11 in', group: 'print', w: 4.25, h: 11, unit: 'in' },
+  { id: 'table-tent', label: 'Table tent 4 × 6 in', group: 'print', w: 4, h: 6, unit: 'in' },
+  { id: 'a4', label: 'A4 flyer 8.27 × 11.69 in', group: 'print', w: 8.27, h: 11.69, unit: 'in' },
+  // Read from across a lawn, not from the hand. 150 dpi is the trade standard
+  // for large format; at 300 this would be a 39-megapixel file for detail
+  // nobody standing on the pavement can see.
+  { id: 'yard-sign', label: 'Yard sign 24 × 18 in', group: 'print', w: 24, h: 18, unit: 'in', dpi: 150 },
+  // A six-foot banner is read from ten feet away or more, and the trade prints
+  // these at 72 dpi or less at full size — asking for 150 would demand a
+  // 10,000-pixel file to carry detail nobody can stand close enough to see.
+  { id: 'banner-3x6', label: 'Vinyl banner 6 × 3 ft', group: 'print', w: 72, h: 36, unit: 'in', dpi: 72 },
   { id: 'ig-post', label: 'Instagram post 1080²', group: 'social', w: 1080, h: 1080, unit: 'px' },
   { id: 'ig-story', label: 'Instagram story / Reel', group: 'social', w: 1080, h: 1920, unit: 'px' },
   { id: 'fb-post', label: 'Facebook post 1200 × 1500', group: 'social', w: 1200, h: 1500, unit: 'px' },
@@ -51,6 +116,10 @@ export const FLYER_SIZES: FlyerSize[] = [
   // why a card comes out unusually crisp.
   { id: 'biz-card-front', label: 'Business card — front 3.5 × 2 in', group: 'card', w: 3.5, h: 2, unit: 'in' },
   { id: 'biz-card-back', label: 'Business card — back 3.5 × 2 in', group: 'card', w: 3.5, h: 2, unit: 'in' },
+  // Presentation slides. 1920x1080 is what a projector, a TV and PowerPoint all
+  // expect; the 4:3 size is still what a lot of older meeting-room screens run.
+  { id: 'slide-16x9', label: 'Slide 1920 × 1080', group: 'slide', w: 1920, h: 1080, unit: 'px' },
+  { id: 'slide-4x3', label: 'Slide 1600 × 1200 (4:3)', group: 'slide', w: 1600, h: 1200, unit: 'px' },
 ]
 
 // THE REAL LIMITS, measured against the API rather than assumed.
@@ -76,11 +145,20 @@ const PIXEL_BUDGET = 4_190_000
 const MIN_PIXELS = 1_100_000
 const PRINT_DPI = 300
 
-/** What to actually ask the API for, so the result needs no crop. */
-export function apiSize(s: FlyerSize): { size: string; w: number; h: number; banded: boolean } {
-  // What the user really wants, in pixels.
-  const wantW = s.unit === 'in' ? s.w * PRINT_DPI : s.w
-  const wantH = s.unit === 'in' ? s.h * PRINT_DPI : s.h
+/**
+ * What to actually ask the API for, so the result needs no crop.
+ *
+ * `bleed` matters here as well as at export time: the SHAPE changes. An 8.5x11
+ * flyer with bleed is 8.75x11.25, a slightly different ratio, and generating at
+ * the wrong one would mean cropping the design after all — which is exactly the
+ * thing this function exists to avoid.
+ */
+export function apiSize(s: FlyerSize, bleed = false): { size: string; w: number; h: number; banded: boolean } {
+  // What the user really wants, in pixels — including the bleed margin that
+  // will be trimmed away.
+  const want = printPixels(s, bleed)
+  const wantW = want.w
+  const wantH = want.h
 
   // Clamp the shape. Past 3:1 the API refuses, so the design is composed inside
   // a 3:1 frame and trimmed to the strip — a far gentler cut than before.
@@ -1319,6 +1397,15 @@ export function flyerPrompt(
    * reference's look is the instruction.
    */
   reference = false,
+  /**
+   * The piece is being generated OVERSIZE for a commercial printer, and an
+   * eighth of an inch will be cut off every edge.
+   *
+   * The model has to be told, or it does the sensible-looking thing and leaves
+   * a tidy white margin — which the trim then turns into an uneven off-white
+   * border, and the print is wasted.
+   */
+  bleed = false,
 ): string {
   const ratio = size.w / size.h
   const wide = ratio > 1.3
@@ -1341,6 +1428,16 @@ export function flyerPrompt(
   // from the dimensions.
   const card = size.group === 'card'
   const cardBack = size.id === 'biz-card-back'
+  // A PRESENTATION SLIDE IS NOT A POSTER. It is read from the back of a room in
+  // a few seconds while someone talks over it, so it carries one idea in very
+  // large type with a lot of empty space — the opposite of a flyer, which is
+  // held in the hand and allowed to be dense.
+  const slide = size.group === 'slide'
+  // How much of each edge gets cut off, as a percentage of the whole image.
+  // Quoting the real number beats saying "leave a bit extra": the model is being
+  // asked to deliberately overrun a boundary, which is not its instinct.
+  const bleedPctW = bleed && size.unit === 'in' ? (BLEED_IN / (size.w + BLEED_IN * 2)) * 100 : 0
+  const bleedPctH = bleed && size.unit === 'in' ? (BLEED_IN / (size.h + BLEED_IN * 2)) * 100 : 0
 
   const lines: string[] = []
   if (card) {
@@ -1369,6 +1466,8 @@ export function flyerPrompt(
   return [
     card
       ? `A professional business card design — the flat printed ${cardBack ? 'BACK' : 'FRONT'} face of a standard 3.5 x 2 inch card, print quality, designed by a graphic designer. Landscape orientation. Not a photograph of a card, not a mockup, no hand, no desk, no shadow, no stack of cards, no rounded-corner outline drawn onto the artwork — just the flat artwork itself, full bleed.`
+      : slide
+      ? 'A single presentation slide, 16:9 widescreen, designed by a graphic designer for projection. Flat artwork filling the whole frame — not a photograph of a screen, no laptop, no projector, no room, no drop shadow, no slide border or frame drawn onto it.'
       : `A professional ${wide ? 'wide banner' : square ? 'square social media' : 'portrait poster'} advertisement, print quality, designed by a graphic designer.`,
     '',
     // A REFERENCE REPLACES THE TEMPLATE. Both are an art direction, and giving
@@ -1411,8 +1510,21 @@ export function flyerPrompt(
         ]
       : []),
     '',
+    // BLEED. The artwork is deliberately oversize and the outer sliver is cut
+    // off. Left unsaid, the model composes a neat design that fits the frame —
+    // and the trim then eats into it, or worse leaves a pale uneven rim where
+    // the background stopped short of the edge.
+    ...(bleed
+      ? [
+          'PRINT BLEED — THE OUTER EDGE WILL BE CUT OFF:',
+          `- This artwork is printed OVERSIZE and trimmed. The outer ${bleedPctW.toFixed(1)}% of the width on each side and the outer ${bleedPctH.toFixed(1)}% of the height top and bottom are cut away and will NOT appear on the finished piece.`,
+          '- The background, colour, photograph and texture MUST run right off all four edges. No white border, no frame, no rounded corners, no empty rim — if the artwork stops short of the edge the printed piece gets an ugly pale sliver down one side.',
+          '- Because of that trim, keep every word, number, logo and face even further inside than usual. Treat the outer tenth of the image as a disposable margin.',
+          '',
+        ]
+      : []),
     'SAFE MARGINS — THIS IS CRITICAL AND NON-NEGOTIABLE:',
-    '- Leave a clear, generous empty margin all the way around the design: at least 8% of the width on the left and right, and at least 6% of the height at the top and bottom.',
+    `- Leave a clear, generous empty margin all the way around the design: at least ${bleed ? 12 : 8}% of the width on the left and right, and at least ${bleed ? 10 : 6}% of the height at the top and bottom.`,
     '- NO text, letter, number, logo, face or important detail may touch, overlap or sit near any edge of the image. Everything that matters must sit comfortably INSIDE that margin.',
     '- Background imagery, colour and texture may run right to the edges. Only text and key subjects are held back.',
     '- Nothing may be cut off, clipped or run out of frame. If the text does not fit, make the text smaller — never let it reach the edge.',
@@ -1432,6 +1544,8 @@ export function flyerPrompt(
             ? 'This is the BACK of the card and it must be RESTRAINED — a single strong element on a clean field. Typically the company mark or monogram centred, or a bold flat colour with one short line. Use at most two short pieces of text no matter how many are listed above; drop the rest. Vast empty space is correct here and looks expensive.'
             : 'This is the FRONT of the card. The person\'s name reads first and largest, the job title sits quietly beneath it, and the contact details group together in one corner or along one edge at a small but perfectly legible size. Aim for THREE groups on the card at most.'
         } A business card is held at arm\'s length: keep it calm, leave real breathing room, and use far fewer elements than a flyer would. No small print smaller than about 6% of the card\'s height, or it will not survive printing.`
+      : slide
+      ? 'LAYOUT: this is a PRESENTATION SLIDE, read from the back of a room in a few seconds while someone speaks over it. ONE idea only. The main line is very large — at least 12% of the frame height — and there are at most three short supporting lines, or a simple row of three or four labelled points. Vast empty space is correct and looks confident. Never a paragraph, never a dense list, never small print. Imagery sits to one side or behind at low contrast so the words stay effortless to read.'
       : `LAYOUT: professional composition with clear visual hierarchy — the main title dominant, supporting details grouped and easy to scan. ${
       ultrawide
         ? `THIS IS A WIDE LETTERBOX BANNER. The finished banner is ONLY the central horizontal band of this image — roughly the middle ${bandPct}% of its height. Design the ENTIRE banner inside that central band: all imagery, all text, edge to edge across the full width. Above and below that band, render nothing but plain flat dark background — no imagery, no text, no detail whatsoever. Lay the band out horizontally with the text grouped to one side and the imagery flowing across the rest.`

@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync } from 'fs'
 import { join } from 'path'
-import { FLYER_SIZES, FLYER_TEMPLATES, apiSize, flyerPrompt } from '../index'
+import {
+  FLYER_SIZES, FLYER_TEMPLATES, apiSize, flyerPrompt,
+  printPixels, dpiFor, canBleed, BLEED_IN,
+} from '../index'
 
 // =============================================================================
 // The engine must stay liftable.
@@ -63,9 +66,13 @@ describe('every style can be shown in the picker', () => {
 // are the expensive knowledge in this file — each one cost a failed request to
 // discover, and a regression would be invisible until a size silently broke.
 describe('every size can actually be generated', () => {
-  it('asks for dimensions the API will accept', () => {
+  // Both ways round. Adding bleed changes the SHAPE as well as the size — an
+  // 8.5x11 flyer becomes 8.75x11.25 — so a size that is legal without bleed is
+  // not automatically legal with it, and the illegal one only shows up as a
+  // rejected generation the customer already paid for.
+  it.each([false, true])('asks for dimensions the API will accept (bleed: %s)', (bleed) => {
     for (const s of FLYER_SIZES) {
-      const a = apiSize(s)
+      const a = apiSize(s, bleed)
       const [w, h] = a.size.split('x').map(Number)
       expect(w % 16, `${s.id}: width ${w} must divide by 16`).toBe(0)
       expect(h % 16, `${s.id}: height ${h} must divide by 16`).toBe(0)
@@ -73,6 +80,32 @@ describe('every size can actually be generated', () => {
       expect(Math.max(w, h), `${s.id}: longest edge over 3840`).toBeLessThanOrEqual(3840)
       expect(w * h, `${s.id}: over the pixel budget`).toBeLessThanOrEqual(4_450_000)
       expect(w * h, `${s.id}: under the minimum pixel budget`).toBeGreaterThanOrEqual(1_000_000)
+    }
+  })
+
+  // Bleed is the whole reason a print shop accepts or rejects a file, and it is
+  // invisible on screen — you only find out it was wrong when a box of flyers
+  // arrives with a white sliver down one side.
+  it('adds an eighth of an inch to every edge of a printed piece', () => {
+    for (const s of FLYER_SIZES.filter((x) => x.unit === 'in')) {
+      const plain = printPixels(s, false)
+      const bled = printPixels(s, true)
+      const dpi = dpiFor(s)
+      expect(plain.w, `${s.id}: trim width`).toBe(Math.round(s.w * dpi))
+      expect(plain.h, `${s.id}: trim height`).toBe(Math.round(s.h * dpi))
+      // A quarter inch total — an eighth on each side.
+      expect(bled.w - plain.w, `${s.id}: bleed width`).toBe(Math.round(BLEED_IN * 2 * dpi))
+      expect(bled.h - plain.h, `${s.id}: bleed height`).toBe(Math.round(BLEED_IN * 2 * dpi))
+    }
+  })
+
+  it('never offers bleed on something that is not printed', () => {
+    // A pixel size — an Instagram post, a slide — has no trim and no printer.
+    // Offering "add bleed" there would produce a file that is simply the wrong
+    // size for the thing it is going into.
+    for (const s of FLYER_SIZES.filter((x) => x.unit === 'px')) {
+      expect(canBleed(s), `${s.id} should not accept bleed`).toBe(false)
+      expect(printPixels(s, true)).toEqual(printPixels(s, false))
     }
   })
 
@@ -113,6 +146,57 @@ describe('the prompt carries the rules that keep flyers usable', () => {
   })
 })
 
+describe('bleed is explained to the model, not just to the printer', () => {
+  const t = FLYER_TEMPLATES[0]
+  const letter = FLYER_SIZES.find((s) => s.id === 'letter')!
+  const fields = { headline: 'Open Day' }
+
+  it('demands the artwork run off all four edges', () => {
+    // Left unsaid, the model composes a tidy design that fits inside the frame
+    // and the trim leaves a pale uneven rim — the commonest reason a print
+    // shop rejects a file.
+    const p = flyerPrompt(t, fields, letter, [], false, true)
+    expect(p).toMatch(/BLEED/)
+    expect(p).toMatch(/run right off all four edges/)
+    expect(p).toMatch(/No white border/)
+  })
+
+  it('says nothing about bleed when there is none', () => {
+    // A flyer printed at home on letter paper has no trim, and telling the
+    // model to overrun the edge would just lose the design's margins.
+    expect(flyerPrompt(t, fields, letter)).not.toMatch(/BLEED/)
+  })
+
+  it('pulls the text further in when the edge will be cut', () => {
+    expect(flyerPrompt(t, fields, letter, [], false, true)).toMatch(/at least 12% of the width/)
+    expect(flyerPrompt(t, fields, letter)).toMatch(/at least 8% of the width/)
+  })
+})
+
+describe('a slide is not a poster', () => {
+  const t = FLYER_TEMPLATES[0]
+  const slide = FLYER_SIZES.find((s) => s.id === 'slide-16x9')!
+
+  it('asks for one idea in large type, not a dense flyer', () => {
+    const p = flyerPrompt(t, { headline: 'Where we are going' }, slide)
+    expect(p).toMatch(/PRESENTATION SLIDE/)
+    expect(p).toMatch(/ONE idea only/)
+    expect(p).not.toMatch(/portrait poster|wide banner/)
+  })
+
+  it('refuses the photo-of-a-screen look', () => {
+    // Told only "a slide", image models render a laptop on a desk, or a
+    // projected rectangle on a wall — neither of which can be used as a slide.
+    const p = flyerPrompt(t, { headline: 'X' }, slide)
+    expect(p).toMatch(/no laptop, no projector/)
+  })
+
+  it('comes out at exactly 1920x1080', () => {
+    // Off by a pixel and PowerPoint letterboxes it with grey bars.
+    expect(printPixels(slide)).toEqual({ w: 1920, h: 1080, dpi: 72 })
+  })
+})
+
 // A card is 3.5x2in — wide enough that the generic "wide banner" wording used
 // to apply to it, which produced small posters rather than cards.
 describe('business cards are treated as cards, not small posters', () => {
@@ -147,5 +231,23 @@ describe('business cards are treated as cards, not small posters', () => {
     const a = apiSize(front)
     expect(a.w * a.h).toBeGreaterThanOrEqual(1_000_000)
     expect(a.banded).toBe(false)
+  })
+})
+
+// A pixel size is never printed. Handing back 300 for one looks harmless and
+// then gets written into the file as its density, which tells print software
+// the image is a third of its real size. The first caller of dpiFor fell into
+// exactly this within an hour of it existing.
+describe('resolution is never claimed for something that is not printed', () => {
+  it('gives screen sizes 72, not a print dpi', () => {
+    for (const s of FLYER_SIZES.filter((x) => x.unit === 'px')) {
+      expect(dpiFor(s), `${s.id}`).toBe(72)
+    }
+  })
+
+  it('gives printed pieces their own dpi', () => {
+    expect(dpiFor(FLYER_SIZES.find((s) => s.id === 'letter')!)).toBe(300)
+    expect(dpiFor(FLYER_SIZES.find((s) => s.id === 'yard-sign')!)).toBe(150)
+    expect(dpiFor(FLYER_SIZES.find((s) => s.id === 'banner-3x6')!)).toBe(72)
   })
 })

@@ -30,6 +30,7 @@ import { useDictation } from '../../_components/useDictation'
 import {
   FLYER_TEMPLATES, FLYER_SIZES, PHOTO_ROLES, thumbUrl,
   type FlyerFields, type PhotoRole,
+  canBleed,
 } from '../../_lib/flyer-engine'
 
 type Design = { sizeId: string; label: string; w: number; h: number; src: string }
@@ -69,6 +70,7 @@ const CATEGORIES = [
 
 const GROUPS = [
   { id: 'print', label: 'Print' },
+  { id: 'slide', label: 'Presentation slides' },
   { id: 'social', label: 'Social posts' },
   { id: 'banner', label: 'Banners & headers' },
   { id: 'card', label: 'Business cards' },
@@ -197,6 +199,8 @@ export default function FlyerMakerPage() {
   const [category, setCategory] = useState<string>(CATEGORIES[0].id)
   const [note, setNote] = useState('')
   const [ticked, setTicked] = useState<string[]>(['letter', 'ig-post'])
+  // Off by default — see the note by the checkbox. Most people print at home.
+  const [bleed, setBleed] = useState(false)
   const [photos, setPhotos] = useState<{ dataUrl: string; role: PhotoRole; name: string }[]>([])
   // A design to copy the LOOK of. Mutually exclusive with a template style —
   // see the note in the style sheet for why.
@@ -608,6 +612,7 @@ export default function FlyerMakerPage() {
           templateId, sizeIds: [id], fields, note: note.trim() || undefined,
           photos: photos.map(({ dataUrl, role }) => ({ dataUrl, role })),
           referenceDataUrl: reference?.dataUrl,
+        bleed,
           roundId, chatId: chat, messages,
         })
 
@@ -969,6 +974,40 @@ export default function FlyerMakerPage() {
                     </div>
                   </div>
                 ))}
+
+                {/* BLEED. Only offered when something printable is ticked,
+                    because it means nothing for an Instagram post or a slide.
+
+                    Off by default: the common case is printing at home or on an
+                    office machine, where the paper CANNOT be printed edge to
+                    edge, and a file with bleed would come out with the design
+                    shrunk and a white frame round it. Someone sending work to a
+                    real printer knows to tick this; someone who doesn't
+                    shouldn't be handed a file they can't use. */}
+                {ticked.some((id) => { const s = FLYER_SIZES.find((x) => x.id === id); return s && canBleed(s) }) && (
+                  <label
+                    title="Tick this only if a professional printer is producing it. It adds an eighth of an inch of extra artwork on every edge for them to trim into, so the colour reaches the very edge of the paper with no white sliver."
+                    style={{
+                      display: 'flex', gap: 9, alignItems: 'flex-start', marginTop: 4, marginBottom: 12,
+                      padding: '10px 12px', border: `1px solid ${LINE}`, borderRadius: 9, cursor: 'pointer',
+                    }}>
+                    <input type="checkbox" checked={bleed} style={{ marginTop: 2 }}
+                      onChange={(e) => {
+                        setBleed(e.target.checked)
+                        say('assistant', e.target.checked
+                          ? 'Print shop mode on. Printed pieces come out slightly oversize with an eighth of an inch of extra artwork on every edge, which the printer trims off — that is what stops a white sliver appearing down one side. Not what you want for printing at home.'
+                          : 'Back to exact size. Right for printing at home or in the office, where the paper cannot be printed all the way to the edge anyway.')
+                      }} />
+                    <span>
+                      <span style={{ fontSize: 13, fontWeight: 700, display: 'block' }}>Sending this to a print shop</span>
+                      <span style={{ fontSize: 12.5, color: SOFT, lineHeight: 1.55 }}>
+                        Adds the extra edge (&ldquo;bleed&rdquo;) a commercial printer trims off, so the colour
+                        runs right to the edge of the paper. Leave it off for printing at home.
+                      </span>
+                    </span>
+                  </label>
+                )}
+
                 <input value={note} onChange={(e) => setNote(e.target.value)}
                   title="Anything the style should do differently — a colour, a mood, something to leave out"
                   placeholder="Anything else about the look? e.g. 'use purple instead of gold'"
