@@ -99,6 +99,54 @@ const GROUPS = [
 ] as const
 
 /**
+ * THE CONVERSATION, one question at a time.
+ *
+ * The old design put every control in a bar under the chat: style, photos,
+ * sizes, and a deck planner hidden inside the sizes panel. Everything was
+ * available at once and nothing said what to do first, so people either pressed
+ * Make with the defaults or hunted. It also asked for the LOOK before it knew
+ * what was being made, which is how a business deck inherited a flyer's style.
+ *
+ * Now the assistant asks, and the answer widget appears in the question itself.
+ * No permanent bar, no hunting: the thread is both the interface and the record
+ * of what was decided.
+ *
+ * `null` means there is nothing to ask — press Make.
+ */
+type Step = 'kind' | 'piece' | 'slides' | 'content' | 'look' | 'photos' | 'notes' | null
+
+/** What someone said they wanted at the very start. */
+type Kind = 'deck' | 'print' | 'social' | 'set'
+
+const STARTERS: { kind: Kind; label: string; hint: string }[] = [
+  { kind: 'deck', label: 'Make a slide deck', hint: 'A whole presentation, all the slides matching' },
+  { kind: 'social', label: 'Make a graphic', hint: 'For Instagram, Facebook, LinkedIn or a website' },
+  { kind: 'print', label: 'Make something to print', hint: 'Flyer, poster, postcard, business card, sign' },
+  { kind: 'set', label: 'Make a set', hint: 'The same design in several sizes at once' },
+]
+
+/** The pieces inside "something to print", asked as one question with pictures. */
+const PRINT_PIECES: { id: string; label: string }[] = [
+  { id: 'letter', label: 'Flyer / sell sheet' },
+  { id: 'poster', label: 'Poster' },
+  { id: 'postcard-6x4', label: 'Postcard' },
+  { id: 'biz-card-front', label: 'Business card' },
+  { id: 'rack-card', label: 'Rack card' },
+  { id: 'door-hanger', label: 'Door hanger' },
+  { id: 'table-tent', label: 'Table tent' },
+  { id: 'yard-sign', label: 'Yard sign' },
+]
+
+const SOCIAL_PIECES: { id: string; label: string }[] = [
+  { id: 'ig-post', label: 'Instagram post' },
+  { id: 'ig-story', label: 'Instagram story / Reel' },
+  { id: 'fb-post', label: 'Facebook post' },
+  { id: 'fb-ad', label: 'Facebook / Instagram ad' },
+  { id: 'yt-thumb', label: 'YouTube thumbnail' },
+  { id: 'li-banner', label: 'LinkedIn banner' },
+]
+
+/**
  * The "do this next" marker.
  *
  * Deliberately quiet. A step that has not been done yet still WORKS — the dot
@@ -288,7 +336,7 @@ async function downloadAll(round: Extract<Item, { kind: 'round' }>) {
 export default function FlyerMakerPage() {
   const [items, setItems] = useState<Item[]>([{
     kind: 'msg', role: 'assistant',
-    text: 'Tell me what this is for — something like "Saturday club night at The Foundry, doors 9pm, $20 cover". Pick a look and your sizes below, then hit Make.',
+    text: "I'm your graphic designer. What would you like to make?",
   }])
 
   const [input, setInput] = useState('')
@@ -317,6 +365,44 @@ export default function FlyerMakerPage() {
   const [deckCount, setDeckCount] = useState(8)
   const [planning, setPlanning] = useState(false)
   const [readingDoc, setReadingDoc] = useState(false)
+
+  // The live question. Starts at 'kind' for a brand-new chat and is set to null
+  // once there is nothing left to ask.
+  const [step, setStep] = useState<Step>('kind')
+  const [kind, setKind] = useState<Kind | null>(null)
+  const filledRef = useRef(false)
+
+  /**
+   * Move to the next question, skipping anything already answered.
+   *
+   * SKIP-AHEAD IS THE POINT. Someone who opens with "flyer for our open house
+   * Sunday 1-3 at 42 Maple Drive" has already answered the format and most of
+   * the content, and asking again would make the tool feel like it was not
+   * listening — which is the main way a guided flow ends up worse than the
+   * panels it replaced.
+   */
+  const advance = (from: Step, k: Kind | null = kind) => {
+    const order: Step[] = k === 'deck'
+      ? ['kind', 'slides', 'content', 'look', 'photos', 'notes', null]
+      : ['kind', 'piece', 'content', 'look', 'photos', 'notes', null]
+    const answered = (s: Step): boolean => {
+      switch (s) {
+        case 'kind': return k !== null
+        case 'piece': return ticked.length > 0
+        case 'slides': return false            // always worth confirming how many
+        case 'content': return filledRef.current
+        case 'look': return stylePicked || !!reference
+        case 'photos': return false            // optional, but always offered once
+        case 'notes': return false
+        default: return true
+      }
+    }
+    const at = order.indexOf(from)
+    for (let i = at + 1; i < order.length; i++) {
+      if (order[i] === null || !answered(order[i])) { setStep(order[i]); return }
+    }
+    setStep(null)
+  }
   // The running order is long. Once the deck is being drawn it has done its
   // job, and left open it buries the slides underneath it — which is exactly
   // what it did, with no way to fold it away.
@@ -459,6 +545,7 @@ export default function FlyerMakerPage() {
           kind: 'msg', role: 'assistant',
           text: 'Picking up where you left off. Change anything and press Make again, or start something new.',
         }])
+        setStep(null)
         const last = r.rounds[r.rounds.length - 1]
         if (last) {
           setTemplateId(last.templateId || 'rnb')
@@ -470,9 +557,9 @@ export default function FlyerMakerPage() {
         // thread on screen under a different name.
         setItems([{
           kind: 'msg', role: 'assistant',
-          text: 'Tell me what this is for — something like "Saturday club night at The Foundry, doors 9pm, $20 cover".',
+          text: "I'm your graphic designer. What would you like to make?",
         }])
-        setFields({})
+        setFields({}); setStep('kind'); setKind(null)
       }
       setLoadingHistory(false)
     })()
@@ -646,11 +733,12 @@ export default function FlyerMakerPage() {
     rememberChat(fresh)
     setItems([{
       kind: 'msg', role: 'assistant',
-      text: 'New job. Tell me what this one is for.',
+      text: "I'm your graphic designer. What would you like to make?",
     }])
     setFields({}); setNote(''); setPhotos([]); setReference(null)
     setStylePicked(false); setSizesPicked(false)
     setInput(''); setErr(''); setSheet(null)
+    setStep('kind'); setKind(null); setDeckPlan(null)
   }
 
   /** Wipe the conversation and start over — settings and saved history stay. */
@@ -658,7 +746,7 @@ export default function FlyerMakerPage() {
     if (!window.confirm('Clear this conversation? Your saved designs stay in your Library, and this does not refund anything.')) return
     setItems([{
       kind: 'msg', role: 'assistant',
-      text: 'Cleared. Tell me what the next one is for.',
+      text: "I'm your graphic designer. What would you like to make?",
     }])
     setFields({})
     setInput('')
@@ -716,6 +804,53 @@ export default function FlyerMakerPage() {
     } finally {
       setReadingDoc(false)
     }
+  }
+
+  /** They picked what they are making. Everything downstream depends on it. */
+  const chooseKind = (k: Kind) => {
+    setKind(k)
+    const label = STARTERS.find((s) => s.kind === k)?.label ?? k
+    say('user', label)
+    if (k === 'deck') {
+      setTicked(['slide-16x9']); setSizesPicked(true)
+      say('assistant', 'Good — a slide deck. A few questions and I can get to work.')
+    } else {
+      say('assistant', 'Good. A few questions and I can get to work.')
+    }
+    advance('kind', k)
+  }
+
+  /** One piece, or one more piece when they are building a set. */
+  const choosePiece = (id: string, label: string) => {
+    setSizesPicked(true)
+    if (kind === 'set') {
+      // A set is many sizes, so these toggle and the customer says when done.
+      setTicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]).slice(0, 8))
+      return
+    }
+    setTicked([id])
+    say('user', label)
+    advance('piece')
+  }
+
+  /**
+   * Stop asking and go.
+   *
+   * Fills the gaps rather than refusing: a look is already defaulted, sizes get
+   * a sensible one for whatever they said they were making. The only thing that
+   * cannot be guessed is what it should SAY, so that one is asked for plainly
+   * instead of invented.
+   */
+  const justMakeIt = () => {
+    if (!ticked.length) {
+      setTicked([kind === 'deck' ? 'slide-16x9' : kind === 'social' ? 'ig-post' : 'letter'])
+      setSizesPicked(true)
+    }
+    setStep(null)
+    say('user', 'Skip the questions')
+    say('assistant', filledRef.current
+      ? 'Right — I\'ll use what we have. Press Make when you\'re ready.'
+      : 'Right. I still need to know what it should SAY, though — tell me that below and I\'ll make it.')
   }
 
   const send = async () => {
@@ -780,6 +915,31 @@ export default function FlyerMakerPage() {
     // Say what was changed on your behalf. A tool that silently rearranges your
     // settings is unnerving even when it guesses right.
     say('assistant', (r.reply || 'Got it.') + (notes.length ? ` (I ${notes.join(' and ')} — change either below if you'd rather.)` : ''))
+
+    // MOVE THE CONVERSATION ON. Typing an answer has to count as answering the
+    // question, or the same one sits there after it has been dealt with and the
+    // whole flow reads as broken. It also carries forward anybody who ignores
+    // the buttons and just describes the job.
+    const gotContent = Object.values(r.fields ?? {}).some((v) => (Array.isArray(v) ? v.length : v))
+    if (gotContent) filledRef.current = true
+
+    if (step === 'kind' && gotContent) {
+      // They described the job instead of pressing a button. Take the format
+      // from what the assistant worked out and skip past everything already
+      // answered — re-asking is exactly what makes a guided flow feel like it
+      // was not listening.
+      const size = FLYER_SIZES.find((x) => x.id === r.sizeId)
+      const k: Kind = size?.group === 'slide' ? 'deck'
+        : size?.group === 'social' || size?.group === 'banner' ? 'social'
+        : 'print'
+      setKind(k)
+      advance('kind', k)
+    } else if (step === 'content' && gotContent) {
+      advance('content')
+    } else if (step === 'notes') {
+      setNote(text.slice(0, 400))
+      advance('notes')
+    }
   }
 
   // ONE REQUEST PER SIZE, not one for all of them. Asking for everything at
@@ -1091,6 +1251,28 @@ export default function FlyerMakerPage() {
   const filled = Object.values(fields).some((v) => (Array.isArray(v) ? v.length : v))
   const cost = unit === null ? null : unit * ticked.length
   const canMake = !making && !!ticked.length && filled && unit !== null
+
+  // Read during a click handler, which may be holding a render-old copy of
+  // `fields`. Written on every render, so it is always the current answer.
+  filledRef.current = filled
+
+  /**
+   * Six looks worth showing, rather than all 225.
+   *
+   * Chosen from the category that suits what is being made, because by this
+   * point the conversation knows it is an accounting firm and not a nightclub —
+   * and opening a business deck on a wall of club flyers is the same mistake as
+   * asking for the look before the format. "See all" is one click away for
+   * anyone who wants the full grid.
+   */
+  const suggestedStyles = (() => {
+    const inCategory = FLYER_TEMPLATES.filter((t) => t.category === category)
+    const chosen = FLYER_TEMPLATES.find((t) => t.id === templateId)
+    // Always include whatever is currently selected, so the tile they picked
+    // last time does not vanish from the six.
+    const pool = chosen && !inCategory.some((t) => t.id === chosen.id) ? [chosen, ...inCategory] : inCategory
+    return pool.slice(0, 6)
+  })()
 
   /**
    * Which step is worth doing next.
@@ -1517,6 +1699,181 @@ export default function FlyerMakerPage() {
           </div>
         )}
 
+        {/* ===================================================================
+            THE LIVE QUESTION.
+            Sits directly above where you type, so the thing being asked and the
+            place you answer are never more than an inch apart. Everything
+            already decided is in the thread above as plain conversation — the
+            transcript IS the record, which is why there is no longer a bar of
+            controls carrying state you cannot see.
+            =================================================================== */}
+        {step && !making && (
+          <div style={{ ...panel, marginBottom: 10 }}>
+            {step === 'kind' && (
+              <>
+                <p style={{ fontSize: 14, fontWeight: 700, margin: '0 0 4px' }}>What would you like to make?</p>
+                <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 12px', lineHeight: 1.5 }}>
+                  Pick one, or just describe the job below and I&rsquo;ll work it out.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 8 }}>
+                  {STARTERS.map((s) => (
+                    <button key={s.kind} onClick={() => chooseKind(s.kind)} title={s.hint}
+                      style={{ ...plain, textAlign: 'left', padding: '11px 13px', lineHeight: 1.45 }}>
+                      <span style={{ display: 'block', fontSize: 13.5 }}>{s.label}</span>
+                      <span style={{ display: 'block', fontSize: 12, fontWeight: 400, color: SOFT, marginTop: 2 }}>{s.hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {step === 'piece' && (
+              <>
+                <p style={{ fontSize: 14, fontWeight: 700, margin: '0 0 12px' }}>
+                  {kind === 'social' ? 'Where is it going?' : kind === 'set' ? 'Which sizes do you need?' : 'Which piece?'}
+                </p>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {(kind === 'social' ? SOCIAL_PIECES : kind === 'set' ? [...PRINT_PIECES, ...SOCIAL_PIECES] : PRINT_PIECES).map((p) => (
+                    <button key={p.id} onClick={() => choosePiece(p.id, p.label)} style={chip(ticked.includes(p.id))}>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                {kind === 'set' && ticked.length > 0 && (
+                  <button onClick={() => { say('user', `${ticked.length} sizes`); advance('piece') }}
+                    style={{ ...plain, marginTop: 12, background: INK, color: 'white', borderColor: INK }}>
+                    Done — {ticked.length} size{ticked.length === 1 ? '' : 's'}
+                  </button>
+                )}
+                {/* Bleed belongs with the piece, not three steps later: it is a
+                    fact about how this exact thing is being produced. */}
+                {ticked.some((id) => { const s = FLYER_SIZES.find((x) => x.id === id); return s && canBleed(s) }) && (
+                  <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, fontSize: 12.5, color: SOFT, cursor: 'pointer' }}
+                    title="Adds the extra edge a commercial printer trims off, so colour reaches the edge of the paper. Leave it off for printing at home.">
+                    <input type="checkbox" checked={bleed} onChange={(e) => setBleed(e.target.checked)} />
+                    A print shop is producing this
+                  </label>
+                )}
+              </>
+            )}
+
+            {step === 'slides' && (
+              <>
+                <p style={{ fontSize: 14, fontWeight: 700, margin: '0 0 4px' }}>How many slides?</p>
+                <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 12px', lineHeight: 1.5 }}>
+                  {unit !== null ? `${unit.toLocaleString()} credits each. ` : ''}
+                  I&rsquo;ll write the running order first, free, for you to check.
+                </p>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {[5, 8, 10, 12, 16].map((n) => (
+                    <button key={n} onClick={() => { setDeckCount(n); setTicked(['slide-16x9']); setSizesPicked(true); say('user', `${n} slides`); advance('slides') }}
+                      style={chip(deckCount === n)}>
+                      {n} slides{unit !== null ? ` · ${(unit * n).toLocaleString()} cr` : ''}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {step === 'content' && (
+              <>
+                <p style={{ fontSize: 14, fontWeight: 700, margin: '0 0 4px' }}>
+                  {kind === 'deck' ? 'What is the deck about, and who is it for?' : 'What should it say?'}
+                </p>
+                <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 12px', lineHeight: 1.55 }}>
+                  {kind === 'deck'
+                    ? 'Type it below in a sentence or two — or upload a document and I’ll build it from that.'
+                    : 'Type it below — the date, the time, the place, the price, whatever needs to be on it. Or upload a document and I’ll pull it out.'}
+                </p>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <label style={{ ...plain, cursor: readingDoc ? 'wait' : 'pointer', opacity: readingDoc ? 0.6 : 1 }}
+                    title="PDF, Word, PowerPoint or a text file — I read it and use the words">
+                    {readingDoc ? 'Reading…' : '📄 Upload a document'}
+                    <input type="file" hidden accept=".pdf,.doc,.docx,.txt,.md,.rtf,.pptx"
+                      onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) await readDocument(f) }} />
+                  </label>
+                  <button onClick={() => { say('user', 'Write it for me'); void ask('Write the wording for me. Use what you know about the job so far, and do not invent any figure, date, price or name I have not given you.') }}
+                    style={plain} title="I'll draft the wording — and I will not invent a price, date or name you have not given me">
+                    ✍️ Write it for me
+                  </button>
+                </div>
+              </>
+            )}
+
+            {step === 'look' && (
+              <>
+                <p style={{ fontSize: 14, fontWeight: 700, margin: '0 0 4px' }}>How should it look?</p>
+                <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 12px', lineHeight: 1.55 }}>
+                  Here are six that suit this job. Or work from a design of your own.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(112px,1fr))', gap: 8, marginBottom: 10 }}>
+                  {suggestedStyles.map((t) => (
+                    <button key={t.id} onClick={() => { setTemplateId(t.id); setCategory(t.category); setStylePicked(true); say('user', t.name); advance('look') }}
+                      title={`Design it in the ${t.name} look`}
+                      style={{ padding: 0, borderRadius: 9, overflow: 'hidden', cursor: 'pointer', background: '#111', border: templateId === t.id ? `3px solid ${INK}` : `1px solid ${LINE}` }}>
+                      <img src={thumbUrl(t.id)} alt={t.name} style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
+                      <div style={{ fontSize: 11, fontWeight: 700, padding: '5px 4px', background: 'white', color: INK }}>{t.name}</div>
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button onClick={() => setSheet('style')} style={plain} title="Every look we have, with a search box">
+                    See all {FLYER_TEMPLATES.length}
+                  </button>
+                  <label style={{ ...plain, cursor: 'pointer' }}
+                    title="Upload or paste a design you like the look of. We take its style, never its words, logos or photographs.">
+                    Work from my own design
+                    <input type="file" accept="image/*" hidden
+                      onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { await attachReference(f, f.name); advance('look') } }} />
+                  </label>
+                </div>
+              </>
+            )}
+
+            {step === 'photos' && (
+              <>
+                <p style={{ fontSize: 14, fontWeight: 700, margin: '0 0 4px' }}>
+                  Any photos or a logo to include?
+                </p>
+                <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 12px', lineHeight: 1.55 }}>
+                  A headshot, the property, your product, your logo. A logo goes on exactly as supplied.
+                  Skip this and the artwork is invented.
+                </p>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button onClick={() => setSheet('photos')} style={plain}>
+                    {photos.length ? `${photos.length} added — add more` : 'Add photos'}
+                  </button>
+                  <button onClick={() => { say('user', photos.length ? 'That’s all the photos' : 'No photos'); advance('photos') }} style={plain}>
+                    {photos.length ? 'Done' : 'Skip'}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {step === 'notes' && (
+              <>
+                <p style={{ fontSize: 14, fontWeight: 700, margin: '0 0 4px' }}>Anything else I should know?</p>
+                <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 12px', lineHeight: 1.55 }}>
+                  A colour to use, something to leave out, a mood to aim for. Type it below, or skip.
+                </p>
+                <button onClick={() => { say('user', 'Nothing else'); advance('notes') }} style={plain}>Skip</button>
+              </>
+            )}
+
+            {/* THE ESCAPE HATCH, on every question. A guided flow that cannot be
+                walked out of is worse than no guidance — this fills in whatever
+                is left with sensible defaults and goes. */}
+            {step !== 'kind' && (
+              <p style={{ fontSize: 12, color: SOFT, margin: '12px 0 0' }}>
+                <button onClick={justMakeIt} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: SOFT, textDecoration: 'underline', cursor: 'pointer' }}
+                  title="Stop asking and make it with sensible defaults for anything I have not answered">
+                  Skip the questions and just make it
+                </button>
+              </p>
+            )}
+          </div>
+        )}
+
         {err && (
           <div style={{ ...panel, marginBottom: 10, borderColor: '#E3B4A8', background: '#FDF3F1', color: '#B4432F', fontSize: 13 }}>{err}</div>
         )}
@@ -1528,51 +1885,19 @@ export default function FlyerMakerPage() {
               order. The number carries the order and the label says what the
               button is FOR; the current choice follows in lighter type so you
               can still see it at a glance. */}
-          {/* THE ORDER MATTERS, and it used to be wrong.
-              What you are MAKING changes everything after it: a deck needs a
-              running order, a business card needs a name and a job title, a
-              flyer needs a date and a price. Asking for the look and the words
-              before the format is why a deck inherited a flyer's style and why
-              the typing box still suggested "doors at 9, $20 cover".
+          {/* NO BAR OF CONTROLS ANY MORE.
+              Style, photos and sizes used to live down here, all available at
+              once, with nothing to say what to do first — and a deck planner
+              buried inside the sizes panel. It also asked for the LOOK before it
+              knew what was being made, which is how a business deck inherited a
+              flyer's style.
 
-              These GUIDE rather than gate. Every one has a sensible default and
-              you can press Make at any point — a wizard that blocks you is
-              worse than the panels this replaced. The dot marks the next thing
-              worth doing, it does not lock the others. */}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10, alignItems: 'center' }}>
-            <button style={chip(sheet === 'sizes')} onClick={() => { setUnacked(false); setStrobeId(null); setSheet(sheet === 'sizes' ? null : 'sizes') }}
-              title="What are you making? A deck, a flyer, a social post, a business card. This decides everything else, so it comes first.">
-              {nextStep === 'sizes' && <Dot />}1. What are you making
-              <Chosen on={sheet === 'sizes'}>{ticked.length ? `${ticked.length} size${ticked.length === 1 ? '' : 's'}` : 'pick one'}</Chosen>
-            </button>
-            {/* Step 2 has no panel on purpose — what it says is what the chat
-                is FOR. What it does have is the fourth way in: most people
-                already have the words in a document and should not have to
-                retype them to get a design out. */}
-            <label style={{ ...chip(false), display: 'inline-flex', alignItems: 'center', gap: 0, cursor: readingDoc ? 'wait' : 'pointer', opacity: readingDoc ? 0.6 : 1 }}
-              title="What should it say? Type it below, paste it in, ask me to write it — or click here to upload a PDF or Word document and I'll read it.">
-              {nextStep === 'content' && <Dot />}2. What it says
-              <Chosen on={false}>{readingDoc ? 'reading…' : filled ? 'ready' : 'type it, or upload a document'}</Chosen>
-              <input type="file" hidden accept=".pdf,.doc,.docx,.txt,.md,.rtf,.pptx"
-                onChange={async (e) => {
-                  const f = e.target.files?.[0]
-                  e.target.value = ''
-                  if (f) await readDocument(f)
-                }} />
-            </label>
-            <button style={chip(sheet === 'style')} onClick={() => { setUnacked(false); setStrobeId(null); setSheet(sheet === 'style' ? null : 'style') }}
-              title="How should it look? One of our 225 ready-made looks, or a design of your own to work from. One or the other, not both.">
-              {nextStep === 'style' && <Dot />}3. How it looks
-              <Chosen on={sheet === 'style'}>{reference ? 'your reference' : styleName}</Chosen>
-            </button>
-            <button style={chip(sheet === 'photos')} onClick={() => { setUnacked(false); setStrobeId(null); setSheet(sheet === 'photos' ? null : 'photos') }}
-              title="Add up to three of your own pictures — a headshot, the property, your product, or a logo. Optional: skip it and the artwork is invented.">
-              4. Photos <span style={{ fontWeight: 400, color: SOFT }}>optional</span>
-              {photos.length > 0 && <Chosen on={sheet === 'photos'}>{photos.length}</Chosen>}
-            </button>
-
+              The questions are asked one at a time above instead, and what was
+              decided sits in the thread as plain conversation. All that is left
+              down here is the way out of the current chat. */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
             <button onClick={clearChat} title="Start the conversation over. Your saved designs stay in your Library and nothing is refunded."
-              style={{ ...plain, marginLeft: 'auto', fontWeight: 400, color: SOFT }}>
+              style={{ ...plain, fontWeight: 400, color: SOFT }}>
               Clear chat
             </button>
           </div>
