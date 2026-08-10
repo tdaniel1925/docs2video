@@ -95,3 +95,4 @@ _review/
 
 # generated job payloads/bundles
 vps/.job/
+.logo-lab/
