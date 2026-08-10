@@ -74,6 +74,53 @@ const CREAM = 'var(--cream,#F4F1EC)'
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
 /**
+ * Shrink a photo IN THE BROWSER before it is ever sent.
+ *
+ * THIS IS WHY DESIGNS WERE FAILING. The whole file was read as a data URL and
+ * posted as JSON — and base64 is a third bigger than the original, so a 12 MB
+ * phone photo became a ~16 MB request. The host rejects anything over 4.5 MB
+ * with a 413, so the request never arrived and the careful downscaling on the
+ * server never got the chance to run. The size limit has to be enforced on the
+ * side that does the sending.
+ *
+ * 1600px on the longest edge is more than the image model can use anyway, and
+ * lands around 200–500 KB — so three photos and a reference still leave the
+ * request comfortably inside the limit.
+ */
+async function shrinkForUpload(file: File, maxEdge = 1600, quality = 0.82): Promise<string> {
+  const dataUrl: string = await new Promise((res, rej) => {
+    const r = new FileReader()
+    r.onload = () => res(String(r.result))
+    r.onerror = () => rej(new Error('could not read the file'))
+    r.readAsDataURL(file)
+  })
+
+  const img = await new Promise<HTMLImageElement>((res, rej) => {
+    const i = new Image()
+    i.onload = () => res(i)
+    i.onerror = () => rej(new Error('that file is not an image the browser can open'))
+    i.src = dataUrl
+  })
+
+  // Already small enough and not enormous? Send it untouched — re-encoding a
+  // small PNG can make it bigger, and a logo needs its crisp edges.
+  const longest = Math.max(img.width, img.height)
+  if (longest <= maxEdge && dataUrl.length < 700_000) return dataUrl
+
+  const scale = Math.min(1, maxEdge / longest)
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(img.width * scale)
+  canvas.height = Math.round(img.height * scale)
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return dataUrl
+  // White behind it: a transparent PNG flattened to JPEG goes black otherwise.
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+  return canvas.toDataURL('image/jpeg', quality)
+}
+
+/**
  * Save every design in a round.
  *
  * Browsers throttle a burst of downloads and will silently drop some, so they
@@ -389,15 +436,32 @@ export default function FlyerMakerPage() {
         const id = queue.shift()
         if (!id || stop) return
         patch((r) => ({ ...r, status: { ...r.status, [id]: 'busy' } }))
+        const payload = JSON.stringify({
+          templateId, sizeIds: [id], fields, note: note.trim() || undefined,
+          photos: photos.map(({ dataUrl, role }) => ({ dataUrl, role })),
+          referenceDataUrl: reference?.dataUrl,
+          roundId, chatId: chat, messages,
+        })
+
+        // BELT AND BRACES. The photos are shrunk on the way in, so this should
+        // never trigger — but if it ever does, the customer gets a sentence
+        // naming the cause instead of a bare 413 in the console.
+        if (payload.length > 4_000_000) {
+          stop = 'Those images are too large to send even after shrinking. Remove one and try again.'
+          patch((r) => ({ ...r, status: { ...r.status, [id]: 'fail' } }))
+          failures.push({ label: FLYER_SIZES.find((s) => s.id === id)?.label ?? id, why: stop })
+          return
+        }
+
         const res = await fetch('/api/flyer-art', {
-          method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            templateId, sizeIds: [id], fields, note: note.trim() || undefined,
-            photos: photos.map(({ dataUrl, role }) => ({ dataUrl, role })),
-            referenceDataUrl: reference?.dataUrl,
-            roundId, chatId: chat, messages,
-          }),
-        }).then((x) => x.json()).catch(() => ({ error: 'Network error' }))
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: payload,
+        }).then(async (x) => {
+          // A 413 never reaches the route, so it has no JSON body and no
+          // friendly message — it must be recognised here or it surfaces as
+          // "Network error", which is what happened.
+          if (x.status === 413) return { error: 'Those images were too large to upload. Remove one and try again.', failed: [{ error: 'request too large (413)' }] }
+          return x.json()
+        }).catch(() => ({ error: 'Network error' }))
 
         if (res?.images?.length) {
           const img = res.images[0]
@@ -596,12 +660,15 @@ export default function FlyerMakerPage() {
                         const f = e.target.files?.[0]
                         e.target.value = ''
                         if (!f) return
-                        if (f.size > 12 * 1024 * 1024) { setErr(`${f.name} is too big — 12 MB max.`); return }
-                        const dataUrl: string = await new Promise((res) => {
-                          const r = new FileReader()
-                          r.onload = () => res(String(r.result))
-                          r.readAsDataURL(f)
-                        })
+                        // No size limit needed any more — it is shrunk here
+                        // before it goes anywhere.
+                        let dataUrl: string
+                        try {
+                          dataUrl = await shrinkForUpload(f)
+                        } catch (err) {
+                          setErr(err instanceof Error ? err.message : 'Could not read that image.')
+                          return
+                        }
                         setReference({ dataUrl, name: f.name })
                         setStylePicked(true)
                         markPicked('reference')
@@ -952,14 +1019,18 @@ function PhotoSheet({ photos, setPhotos, setErr, plain, onPicked }: {
           onChange={async (e) => {
             const files = [...(e.target.files ?? [])].slice(0, 3 - photos.length)
             for (const f of files) {
-              // 12 MB is a generous phone photo. Bigger and the upload stalls
-              // long before the design ever starts.
-              if (f.size > 12 * 1024 * 1024) { setErr(`${f.name} is too big — 12 MB max.`); continue }
-              const dataUrl: string = await new Promise((res) => {
-                const r = new FileReader()
-                r.onload = () => res(String(r.result))
-                r.readAsDataURL(f)
-              })
+              // Shrunk here rather than rejected for being big. A phone photo
+              // straight from the camera is 4000px and 12 MB; posted as JSON
+              // that is a ~16 MB request, and the host refuses anything over
+              // 4.5 MB — which is what was making designs fail with no
+              // explanation.
+              let dataUrl: string
+              try {
+                dataUrl = await shrinkForUpload(f)
+              } catch (err) {
+                setErr(err instanceof Error ? err.message : `Could not read ${f.name}.`)
+                continue
+              }
               setPhotos((p) => [...p, { dataUrl, name: f.name, role: 'person' as PhotoRole }].slice(0, 3))
               onPicked?.()
             }
