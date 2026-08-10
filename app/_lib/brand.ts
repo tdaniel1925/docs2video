@@ -83,7 +83,7 @@ export const TEXT2ART: Brand = {
   title: 'Text2Art — Describe It, Get the Finished Design',
   description:
     'Type what your flyer, ad, social post, banner or business card needs to say. Get a print-ready design back — artwork and lettering both — in about a minute.',
-  logoSrc: null,
+  logoSrc: '/text2art-logo.png',
   home: '/flyer',
   nav: [{ href: '/flyer', label: 'Designs' }],
   create: null,
