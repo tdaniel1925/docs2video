@@ -31,6 +31,34 @@ describe('flyer engine stays portable', () => {
   })
 })
 
+// The picker is a wall of pictures. A style with no picture is a black square
+// with a name under it, which is what the gallery shipped as once already —
+// and adding a style is a one-line edit while generating its sample is a
+// separate paid script, so the two drift apart by default.
+describe('every style can be shown in the picker', () => {
+  it('has a sample image on disk', () => {
+    const dir = join(process.cwd(), 'public/flyer-templates')
+    const have = new Set(readdirSync(dir))
+    const missing = FLYER_TEMPLATES.filter((t) => !have.has(`${t.id}.png`)).map((t) => t.id)
+    expect(missing, `no sample image — run: node scripts/flyer-thumbs.mjs ${missing.join(' ')}`).toEqual([])
+  })
+
+  it('puts every style in a category the picker actually shows', () => {
+    // A style in a category with no chip is unreachable: it exists, it costs
+    // nothing to run, and no customer can ever pick it.
+    const page = readFileSync(join(process.cwd(), 'app/(dashboard)/flyer/page.tsx'), 'utf8')
+    // Read the CATEGORIES list specifically. Scanning the whole file would also
+    // pick up the paper-size groups, which share the same shape — and a check
+    // that matches the wrong thing passes for the wrong reason.
+    const start = page.indexOf('const CATEGORIES = [')
+    expect(start, 'CATEGORIES list not found in the picker').toBeGreaterThan(-1)
+    const block = page.slice(start, page.indexOf('] as const', start))
+    const shown = new Set([...block.matchAll(/id: '([a-z]+)'/g)].map((m) => m[1]))
+    const orphans = [...new Set(FLYER_TEMPLATES.map((t) => t.category))].filter((c) => !shown.has(c))
+    expect(orphans, 'category has no chip in the picker, so its styles are unreachable').toEqual([])
+  })
+})
+
 // The rules below were measured against the live image API, not assumed. They
 // are the expensive knowledge in this file — each one cost a failed request to
 // discover, and a regression would be invisible until a size silently broke.

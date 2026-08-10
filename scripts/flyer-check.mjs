@@ -14,7 +14,7 @@ for (const line of readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2]
 }
 
-const { FLYER_TEMPLATES, FLYER_SIZES, flyerPrompt, apiSize } = await import('../app/_lib/flyer.ts')
+const { FLYER_TEMPLATES, FLYER_SIZES, flyerPrompt, apiSize } = await import('../app/_lib/flyer-engine/index.ts')
 const ai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 const MODEL = process.env.FLYER_IMAGE_MODEL || 'gpt-image-2'
 

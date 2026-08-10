@@ -69,7 +69,7 @@ export default function FlyersHelpPage() {
             Three buttons sit above where you type:
           </p>
           <ul style={{ ...body, marginTop: 10, paddingLeft: 20 }}>
-            <li><strong>1. Pick Your Style</strong> — fifteen looks, grouped into Nightlife, Business, Community, Real estate and Fitness. It picks one that suits your job automatically and tells you when it does. Click a different one any time; once you choose for yourself, your choice sticks.</li>
+            <li><strong>1. Pick Your Style</strong> — thirty-eight looks, grouped into Business, Sales &amp; offers, Food &amp; drink, Local services, Real estate, Fitness, Community, Live music and Nightlife. It picks one that suits your job automatically and tells you when it does. Click a different one any time; once you choose for yourself, your choice sticks.</li>
             <li><strong>2. Add Photos (Optional)</strong> — up to three of your own pictures. Say what each one is (a person, a place, a product, a logo), because a face and a building need opposite treatment.</li>
             <li><strong>3. Choose Format</strong> — tick every size you need. Print, social posts, banners and business cards.</li>
           </ul>

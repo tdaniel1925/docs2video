@@ -120,7 +120,9 @@ export function apiSize(s: FlyerSize): { size: string; w: number; h: number; ban
 export type FlyerTemplate = {
   id: string
   name: string
-  category: 'nightlife' | 'business' | 'community' | 'realestate' | 'fitness'
+  category:
+    | 'business' | 'sale' | 'food' | 'services'
+    | 'realestate' | 'fitness' | 'community' | 'music' | 'nightlife'
   /** The scene: what is actually pictured. */
   scene: string
   /** The lettering: how the words should look. This is what separates a club
@@ -203,6 +205,121 @@ export const FLYER_TEMPLATES: FlyerTemplate[] = [
     id: 'race', name: 'Race / Challenge', category: 'fitness',
     scene: 'Runners at dawn on an open road, motion and energy, warm morning light, wide sky, determined and uplifting.',
     lettering: 'Main title in bold italic sports lettering with a forward-motion slant and an amber gradient.',
+  },
+  {
+    id: 'workshop', name: 'Workshop', category: 'business',
+    scene: 'Bright daytime training room. Pale oak table, blank sticky notes in mint and coral on a whiteboard, ceramic coffee cups and open blank notebooks, tall windows with soft diffused daylight, airy white and warm teal palette, friendly and hands-on, natural matte finish, no glare.',
+    lettering: 'Main title in a rounded geometric sans, medium weight with wide open counters, set in flat marker-ink colour with a hand-drawn highlighter swipe behind it. Supporting text in light rounded sans.',
+  },
+  {
+    id: 'law-firm', name: 'Law & Finance', category: 'business',
+    scene: 'Traditional professional-services interior after hours. Dark walnut panelling, deep forest green leather chair, brass desk lamp casting one low warm pool of light, rows of unmarked bound volumes, shallow depth of field, heavy falloff into shadow, subtle film grain.',
+    lettering: 'Main title in engraved small-caps serif, tight letterspacing, soft letterpress deboss with a thin brushed-brass edge. Supporting text in restrained roman capitals, wide tracked.',
+  },
+  {
+    id: 'blowout-sale', name: 'Blowout Sale', category: 'sale',
+    scene: 'Explosive discount energy. Flat screaming red and lemon yellow, hard black diagonal slashes, burst starbursts and torn price-tag shapes, no photograph — pure vector poster, matte print finish, zero gradients, maximum contrast.',
+    lettering: 'Enormous ultra-heavy italic capitals in white with a thick black outline and a hard yellow drop shadow, slightly skewed forward for speed.',
+  },
+  {
+    id: 'clean-retail', name: 'Modern Retail', category: 'sale',
+    scene: 'Bright product promotion shot straight down. Everyday items arranged in a neat grid on a saturated cobalt-blue surface, hard midday sunlight casting crisp offset shadows, tangerine and white accents, punchy saturated colour, glossy finish.',
+    lettering: 'Geometric sans-serif in two weights: the number tight and bold, the words light with wide letter-spacing. No outlines, no shadows.',
+  },
+  {
+    id: 'holiday-sale', name: 'Holiday Sale', category: 'sale',
+    scene: 'Cosy seasonal promotion. Warm lamplight over deep pine green and cranberry red, brushed kraft paper texture, evergreen sprigs, twine, cinnamon sticks and cut orange, soft golden bokeh behind, tactile matte finish with a faint sheen.',
+    lettering: 'Warm hand-drawn script for the lead word paired with small friendly rounded sans capitals, both in soft antique gold foil.',
+  },
+  {
+    id: 'quiet-luxury-sale', name: 'Luxury Sale', category: 'sale',
+    scene: 'Restrained upscale markdown. Cool bone-white and pale stone, a single draped silk swatch on a brushed-nickel rail, low raking window light, long soft shadows, muted sand and charcoal palette, still and expensive, subtle film grain.',
+    lettering: 'Sparse thin serif capitals with very wide tracking and a hairline rule beneath; no bold anywhere, the number set in the same thin serif at large size.',
+  },
+  {
+    id: 'rustic-kitchen', name: 'Farmhouse Kitchen', category: 'food',
+    scene: 'Rustic artisan kitchen table. Flour-dusted scarred oak, crumpled linen cloth, cast-iron pan and torn sourdough, single window of soft north light raking across, deep shadow, muted palette of wheat, butter cream and forest green, matte film-grain finish.',
+    lettering: 'Main title in a warm hand-brushed script with slightly uneven ink weight and dry-brush tails, paired with small letterspaced woodblock capitals in charcoal.',
+  },
+  {
+    id: 'fresh-menu', name: 'Fresh Menu', category: 'food',
+    scene: 'Bright modern food photography on a seamless pale mint backdrop. Overhead flat-lay of colourful bowls, citrus halves and scattered herbs, crisp studio softbox light, tiny hard shadows, saturated palette of lime, coral and white, clean glossy commercial finish.',
+    lettering: 'Main title in rounded geometric sans-serif, extra-bold, cheerful and tightly kerned, with a soft coral drop shadow and no texture or outline.',
+  },
+  {
+    id: 'street-food', name: 'Street Food', category: 'food',
+    scene: 'Loud street-food illustration. Flat vector poster art of a busy food truck at dusk, halftone dot shading, thick black linework, riso-print colour of chilli red, hot yellow and cobalt, steam curls and paper trays, screen-printed poster finish.',
+    lettering: 'Main title in chunky slab capitals with a hard black outline and a yellow offset shadow, tilted for energy, edges showing slight ink misregistration.',
+  },
+  {
+    id: 'cocktail-lounge', name: 'Cocktail Bar', category: 'food',
+    scene: 'Art Deco cocktail bar after midnight. Coupe glass on a polished black marble counter, fluted chrome column and mirrored back wall, cool jade and emerald light, condensation beads, citrus twist, silver-grey shadows, crisp glass-and-metal reflections, sharp modern finish.',
+    lettering: 'Main title in tall Art Deco geometric capitals, widely spaced, polished silver chrome with a fine engraved inline stripe through each letter; subtitle in ivory letterspaced small caps.',
+  },
+  {
+    id: 'salon-luxe', name: 'Salon & Beauty', category: 'services',
+    scene: 'Polished salon interior. Blush pink walls and warm brass fittings, soft diffused beauty lighting with a ring-light catch, veined marble counter, clear glass bottles, a dusty-rose velvet chair, glossy skin and glossy hair, clean editorial retouch.',
+    lettering: 'Main title in a delicate high-contrast serif with long tapered strokes, filled with brushed rose-gold foil, joined by a fine looping monoline script accent word and wide-tracked thin capitals. No shadows.',
+  },
+  {
+    id: 'home-services', name: 'Home Services', category: 'services',
+    scene: 'Bright suburban home exterior on a clear morning. Fresh-cut lawn, tidy white siding, an unmarked plain white work van at the curb with a ladder on its roof rack, cloudless blue sky, even sunny daylight, royal blue, white and grass green.',
+    lettering: 'Main title in sturdy rounded sans-serif capitals, solid navy with a thin white keyline and a flat inline stripe through each letter. Supporting text plain, wide and legible.',
+  },
+  {
+    id: 'grease-trade', name: 'Auto & Repair', category: 'services',
+    scene: 'Working garage bay at night. Bare caged shop lights and a hanging work lamp, oil-stained concrete floor, red steel toolbox, stacked tyres, deep near-black shadows cut by orange sodium spill, gloved hands on a wrench, gritty and hands-on.',
+    lettering: 'Main title in heavy slab-serif capitals, chipped and worn at the edges, hand-painted burnt-orange fill with a hard black drop shadow and faint paint-flake texture.',
+  },
+  {
+    id: 'friendly-flat', name: 'Friendly & Simple', category: 'services',
+    scene: 'Cheerful flat vector illustration, no photography. Soft cream background, simple rounded shapes — a wagging dog, a broom, a stacked moving box and a little house — in teal, mustard and coral, thick even outlines, gentle paper-grain texture.',
+    lettering: 'Main title in a chunky friendly rounded sans-serif with a slightly bouncy baseline, solid teal, plus one small handwritten marker-style accent word in coral.',
+  },
+  {
+    id: 'agent-brand', name: 'Agent Brand', category: 'realestate',
+    scene: 'Confident agent-brand portrait. A well-dressed real estate professional, arms folded, standing in a bright studio against a deep forest-green seamless backdrop, soft key light with clean falloff, crisp white shirt, a single brass key on a leather fob in hand, polished matte finish.',
+    lettering: 'Main title in tall condensed sans-serif capitals, tight tracking, warm brass foil fill with a thin white keyline. Secondary text in small letterspaced uppercase.',
+  },
+  {
+    id: 'acreage', name: 'Land & Acreage', category: 'realestate',
+    scene: 'Wide open countryside parcel. Rolling grass fields in sage and wheat tones, a weathered split-rail fence line, distant treeline, big overcast sky with soft diffused daylight, elevated drone-height perspective, natural muted colour, gentle film grain.',
+    lettering: 'Main title in a sturdy slab serif with slightly rounded corners, earthy cream fill, embossed letterpress texture. Details in a plain typewriter-style mono.',
+  },
+  {
+    id: 'yoga-calm', name: 'Yoga & Wellness', category: 'fitness',
+    scene: 'Serene sunrise yoga studio. Pale oak floor, sheer linen curtains, soft diffused daylight, a calm figure mid-stretch, palette of sand, sage and warm off-white, matte airy finish, long soft shadows and generous stillness.',
+    lettering: 'Main title in a light airy serif, thin strokes, wide letter-spacing, all lowercase, no effects, soft ink-grey printed on cream.',
+  },
+  {
+    id: 'boxing-ring', name: 'Boxing Night', category: 'fitness',
+    scene: 'Vintage letterpress fight poster. Thick uncoated mustard-ochre paper with visible fibre, one heavy black ink pass, coarse halftone dots, a boxer\'s taped gloves rendered in rough screenprint, ink bleed at the edges, faded and slightly foxed, flat matte print — no photography.',
+    lettering: 'Main title in fat slab-serif wood-type capitals, ink pressed unevenly so strokes break up, tight leading, a thick black rule above and below.',
+  },
+  {
+    id: 'faith-gathering', name: 'Faith Gathering', category: 'community',
+    scene: 'Sunlit sanctuary interior. Long dusty light beams slant through tall stained glass, honey-toned oak pews, cream plaster walls, a congregation standing together, dust motes hanging in the air, soft reverent amber glow, fine film grain.',
+    lettering: 'Main title in a warm humanist serif with slightly rounded terminals and a soft letterpress emboss, wide letterspacing, thin gold hairline rule under the baseline.',
+  },
+  {
+    id: 'bake-sale', name: 'Bake Sale', category: 'community',
+    scene: 'Cheerful outdoor bake sale table. Red and white gingham cloth, glass domes over cupcakes and cookies, triangular paper bunting strung overhead, flat bright midday sun, pastel palette of strawberry pink, lemon yellow and mint, crisp candy-bright finish.',
+    lettering: 'Main title in a chunky rounded sans, extra bold, thick white outline plus a second mint offset outline, flat soft drop shadow, no gradient — friendly and sugary.',
+  },
+  {
+    id: 'festival-day', name: 'Outdoor Festival', category: 'music',
+    scene: 'Outdoor daytime music festival. Wide grass field, a crowd with hands up, a scaffold stage under an open sky, golden late-afternoon sun and drifting dust haze, palette of sky blue, sun yellow and warm green, punchy saturated photographic finish.',
+    lettering: 'Main title in inflated glossy sans-serif capitals with a rounded 3D extrude, a yellow-to-orange gradient face and a crisp white keyline. Supporting text in plain bold sans.',
+  },
+  {
+    id: 'gospel-night', name: 'Gospel Night', category: 'music',
+    scene: 'Uplifting gospel and worship night. A robed choir mid-song inside a church hall, light shafts falling through stained glass, palette of deep purple, warm gold and ivory, gentle glow, reverent and joyful, soft filmic grain.',
+    lettering: 'Main title in a flowing hand-lettered script with a soft gold gradient and a thin ivory outline. Supporting text in a small-caps serif with wide letter spacing.',
+  },
+  {
+    id: 'open-mic', name: 'Open Mic', category: 'music',
+    scene: 'Intimate acoustic open-mic night. A single stool, an acoustic guitar and a vintage microphone in a small room, one warm lamp, textured cream paper stock with visible fibre, two-ink riso print look in burnt orange and slate blue, grainy halftone.',
+    lettering: 'Main title in tall wooden-type letterpress capitals with worn edges and visible ink misregistration. Supporting text in a small typewriter monospace face.',
   },
 ]
 

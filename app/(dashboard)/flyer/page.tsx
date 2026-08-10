@@ -19,7 +19,7 @@
 // Rounds are now saved (see /api/flyer-history) and any design opens full
 // screen.
 //
-// WHY THE BUTTONS STAYED. Picking a look from fifteen pictures is three clicks
+// WHY THE BUTTONS STAYED. Picking a look from a wall of pictures is three clicks
 // and describing it is a sentence that gets it wrong, so style, photos and
 // sizes are controls in the typing bar rather than things you must type. Chat
 // is the spine; clicking is kept for whatever is faster to click.
@@ -51,12 +51,20 @@ const CONCURRENCY = 3
 // and it was wrong. Better to quote the real number and finish early.
 const SECS_PER_SIZE = 115
 
+// Ordered by how many people need it, NOT by how many looks we happen to have.
+// Nightlife used to be first and was seven of the fifteen styles, so the app
+// opened looking like a nightclub-flyer tool — a restaurant or a salon landed on
+// a wall of dark neon and had nothing to pick.
 const CATEGORIES = [
-  { id: 'nightlife', label: 'Nightlife' },
   { id: 'business', label: 'Business' },
-  { id: 'community', label: 'Community' },
+  { id: 'sale', label: 'Sales & offers' },
+  { id: 'food', label: 'Food & drink' },
+  { id: 'services', label: 'Local services' },
   { id: 'realestate', label: 'Real estate' },
   { id: 'fitness', label: 'Fitness' },
+  { id: 'community', label: 'Community' },
+  { id: 'music', label: 'Live music' },
+  { id: 'nightlife', label: 'Nightlife' },
 ] as const
 
 const GROUPS = [
@@ -186,7 +194,7 @@ export default function FlyerMakerPage() {
 
   const [fields, setFields] = useState<FlyerFields>({})
   const [templateId, setTemplateId] = useState('rnb')
-  const [category, setCategory] = useState<string>('nightlife')
+  const [category, setCategory] = useState<string>(CATEGORIES[0].id)
   const [note, setNote] = useState('')
   const [ticked, setTicked] = useState<string[]>(['letter', 'ig-post'])
   const [photos, setPhotos] = useState<{ dataUrl: string; role: PhotoRole; name: string }[]>([])
@@ -863,7 +871,7 @@ export default function FlyerMakerPage() {
               can still see it at a glance. */}
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10, alignItems: 'center' }}>
             <button style={chip(sheet === 'style')} onClick={() => { setUnacked(false); setStrobeId(null); setSheet(sheet === 'style' ? null : 'style') }}
-              title="Choose how it should look — one of our fifteen looks, or a design of your own to copy. One or the other, not both.">
+              title="Choose how it should look — one of our ready-made looks, or a design of your own to copy. One or the other, not both.">
               1. Pick Your Style <Chosen on={sheet === 'style'}>{reference ? 'Your reference' : styleName}</Chosen>
             </button>
             <button style={chip(sheet === 'photos')} onClick={() => { setUnacked(false); setStrobeId(null); setSheet(sheet === 'photos' ? null : 'photos') }}

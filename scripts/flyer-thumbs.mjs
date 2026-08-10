@@ -9,7 +9,7 @@
 // a user nothing about what they are choosing — these are real generations, so
 // what you click is what you get.
 //
-// Committed to the repo on purpose: fifteen images that never change are worth
+// Committed to the repo on purpose: images that never change are worth
 // far more as static files than as an API call on every page load.
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import OpenAI from 'openai'
@@ -19,7 +19,7 @@ for (const line of readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2]
 }
 
-const { FLYER_TEMPLATES, FLYER_SIZES, flyerPrompt } = await import('../app/_lib/flyer.ts')
+const { FLYER_TEMPLATES, FLYER_SIZES, flyerPrompt } = await import('../app/_lib/flyer-engine/index.ts')
 const ai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 const MODEL = process.env.FLYER_IMAGE_MODEL || 'gpt-image-2'
 const OUT = 'public/flyer-templates'
@@ -37,6 +37,10 @@ const SAMPLE = {
   community: { eyebrow: 'EVERYONE WELCOME', headline: 'COMMUNITY DAY', date: 'SUNDAY 14 JULY', time: '11AM - 4PM', venue: 'RIVERSIDE PARK', cta: 'FREE ENTRY' },
   realestate: { eyebrow: 'OPEN HOUSE', headline: '42 MAPLE DRIVE', date: 'SUNDAY 1 - 3PM', price: '$685,000', cta: 'COME AND SEE IT' },
   fitness: { eyebrow: 'SIX WEEK PROGRAM', headline: 'STRONGER', date: 'STARTS 6 JANUARY', time: '6AM DAILY', venue: 'IRONWORKS GYM', cta: 'JOIN THE CHALLENGE' },
+  food: { eyebrow: 'NOW SERVING', headline: 'SUPPER CLUB', date: 'EVERY FRIDAY', time: 'FROM 5PM', venue: 'THE CORNER TABLE', price: '$28 PER HEAD', cta: 'BOOK A TABLE' },
+  services: { eyebrow: 'LOCAL AND TRUSTED', headline: 'BOOK IT TODAY', time: 'MON - SAT', venue: 'SERVING THE WHOLE COUNTY', price: 'FREE QUOTES', cta: 'CALL FOR A QUOTE' },
+  sale: { eyebrow: 'THIS WEEKEND ONLY', headline: '40% OFF', date: 'FRI - SUN', time: '9AM - 6PM', venue: 'IN STORE AND ONLINE', cta: 'SHOP THE SALE' },
+  music: { eyebrow: 'LIVE ON STAGE', headline: 'THE LONG WAY HOME', date: 'SAT 14 JUNE', time: 'DOORS 7PM', venue: 'THE OLD HALL', price: '$15 ADVANCE', cta: 'GET YOUR TICKETS' },
 }
 
 const portrait = FLYER_SIZES.find((s) => s.id === 'letter')
@@ -57,11 +61,24 @@ for (let i = 0; i < todo.length; i += 3) {
   const batch = todo.slice(i, i + 3)
   await Promise.all(batch.map(async (t) => {
     try {
-      const res = await ai.images.generate({
-        model: MODEL,
-        prompt: flyerPrompt(t, SAMPLE[t.category], portrait),
-        size: '1024x1536', quality: 'high', n: 1,
-      })
+      // One retry. A rate-limit or a dropped socket is not a reason to leave a
+      // black square in the picker forever, and the last batch job that lacked
+      // this quietly shipped three missing images.
+      let res, lastErr
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          res = await ai.images.generate({
+            model: MODEL,
+            prompt: flyerPrompt(t, SAMPLE[t.category], portrait),
+            size: '1024x1536', quality: 'high', n: 1,
+          })
+          break
+        } catch (e) {
+          lastErr = e
+          if (attempt === 0) await new Promise((r) => setTimeout(r, 20_000))
+        }
+      }
+      if (!res) throw lastErr
       const b64 = res.data?.[0]?.b64_json
       if (!b64) throw new Error('no image returned')
       // Thumbnails only need to be legible in a 110px tile.
