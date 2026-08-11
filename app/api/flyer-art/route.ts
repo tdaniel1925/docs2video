@@ -42,6 +42,11 @@ export async function POST(req: Request) {
     fields?: FlyerFields
     /** Extra art direction typed by the user, appended verbatim. */
     note?: string
+    /** What the design should picture, in the customer's words. Outranks the
+     *  style's own motif — that is the entire point of splitting the two. */
+    subject?: string
+    /** Keep the style's own props (the pumpkins, the disco ball) as well. */
+    keepMotif?: boolean
     /** The customer's own photographs, as data URLs, with what each one is. */
     photos?: { dataUrl: string; role: PhotoRole }[]
     /** A design to copy the LOOK of. Mutually exclusive with a template style —
@@ -78,6 +83,14 @@ export async function POST(req: Request) {
 
   const fields = body?.fields ?? {}
   const note = String(body?.note ?? '').trim().slice(0, 400)
+  /**
+   * What the customer wants pictured. Falls back to their free-typed note,
+   * which is where they have always said it — "make it an HVAC van" was
+   * already being sent, it was just being read last.
+   */
+  const subject = String(body?.subject ?? '').trim().slice(0, 300) || note
+  /** Keep the style's own props. Off unless asked for. */
+  const keepMotif = Boolean(body?.keepMotif)
 
   // WHAT THIS COSTS. Charged per design, because each one is a separate
   // generation with its own real cost — ticking four sizes is four designs.
@@ -266,9 +279,11 @@ export async function POST(req: Request) {
 
   const one = async (size: typeof FLYER_SIZES[number]) => {
     const bleed = Boolean(body?.bleed) && canBleed(size)
-      const prompt = flyerPrompt(template, fields, size, roles, hasReference, bleed)
+      // The customer's own words go in as THE SUBJECT, not as a footnote. See
+      // the long note on flyerPrompt's `subject` — appending them at the end is
+      // what made "change the burger to a radio ad" get quietly ignored.
+      const prompt = flyerPrompt(template, fields, size, roles, hasReference, bleed, subject, keepMotif)
         + brandDirection
-        + (note ? `\n\nALSO: ${note}` : '')
 
     // Charge BEFORE generating, refund if it fails — the same order the video
     // pipeline uses. Charging afterwards would let a hammered page run several

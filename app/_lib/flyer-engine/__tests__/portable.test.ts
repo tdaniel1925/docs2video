@@ -266,3 +266,76 @@ describe('no browser dialogs', () => {
     expect(found, 'use an inline confirmation instead').toEqual([])
   })
 })
+
+// =============================================================================
+// WHAT THE CUSTOMER ASKS FOR IS WHAT GETS DRAWN.
+//
+// The complaint that started this: pick the autumn style for its burnt-orange
+// palette and its hand-lettering, ask for an HVAC van, get pumpkins. The cause
+// was ordering. The style paragraph opened the prompt and named the pumpkins;
+// the customer's own words were appended at the very bottom after "ALSO:". The
+// model obeyed the louder instruction, which is exactly what it should do.
+//
+// These check the ORDER and the OVERRIDE, because that is the whole fix. A test
+// that only checked the words were present would have passed before the fix.
+// =============================================================================
+describe('the subject the customer asked for outranks the style', () => {
+  const style = {
+    id: 'test-autumn', name: 'Autumn', category: 'community' as const,
+    scene: 'Autumn harvest festival with pumpkins and hay bales, burnt orange.',
+    look: 'Burnt orange and charcoal, rough paper texture, heavy hand-lettering.',
+    subject: 'Pumpkins, hay bales and falling maple leaves.',
+    lettering: 'Chunky hand-drawn slab capitals.',
+  }
+  const size = FLYER_SIZES.find((s) => s.id === 'letter')!
+  const fields = { headline: '24/7 HEAT REPAIR' }
+
+  it('states the asked-for subject BEFORE the style, not after it', () => {
+    const p = flyerPrompt(style, fields, size, [], false, false, 'an HVAC repair van in a driveway')
+    const subjectAt = p.indexOf('HVAC repair van')
+    const styleAt = p.indexOf('Burnt orange and charcoal')
+    expect(subjectAt, 'the subject must appear at all').toBeGreaterThan(-1)
+    expect(subjectAt, 'the subject must come FIRST — order is the bug').toBeLessThan(styleAt)
+  })
+
+  it('drops the pumpkins when a subject was asked for', () => {
+    const p = flyerPrompt(style, fields, size, [], false, false, 'an HVAC repair van in a driveway')
+    expect(p.toLowerCase()).not.toContain('pumpkin')
+    expect(p.toLowerCase()).not.toContain('hay bale')
+  })
+
+  it('keeps the palette and the lettering — that is what was picked', () => {
+    const p = flyerPrompt(style, fields, size, [], false, false, 'an HVAC repair van in a driveway')
+    expect(p).toContain('Burnt orange and charcoal')
+    expect(p).toContain('Chunky hand-drawn slab capitals')
+  })
+
+  it('brings the pumpkins back only when they are asked for', () => {
+    const p = flyerPrompt(style, fields, size, [], false, false, '', true)
+    expect(p.toLowerCase()).toContain('pumpkin')
+  })
+
+  it('leaves the motif out by default — browsing a look is not asking for props', () => {
+    const p = flyerPrompt(style, fields, size, [], false, false)
+    expect(p.toLowerCase()).not.toContain('pumpkin')
+  })
+
+  it('tells an unsplit style to ignore the objects welded into its paragraph', () => {
+    const unsplit = { ...style, look: undefined, subject: undefined }
+    const p = flyerPrompt(unsplit, fields, size, [], false, false, 'an HVAC repair van')
+    // The old paragraph still names pumpkins and cannot be edited out, so the
+    // override has to be said in words. Best-effort, and honest about it.
+    expect(p).toContain('ignore every one of them')
+  })
+
+  it('a reference replaces the STYLE but never the subject', () => {
+    const p = flyerPrompt(style, fields, size, [], true, false, 'an HVAC repair van')
+    expect(p).toContain('TAKE DIRECTION FROM THE REFERENCE')
+    // The style is gone — two art directions produce a design obeying neither.
+    expect(p).not.toContain('Burnt orange and charcoal')
+    // The subject is NOT gone. "I uploaded a design I liked and it ignored what
+    // I asked for" is the same complaint, one layer up.
+    expect(p).toContain('an HVAC repair van')
+    expect(p.indexOf('an HVAC repair van')).toBeLessThan(p.indexOf('TAKE DIRECTION'))
+  })
+})

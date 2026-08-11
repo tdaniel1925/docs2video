@@ -201,8 +201,37 @@ export type FlyerTemplate = {
   category:
     | 'business' | 'sale' | 'food' | 'services'
     | 'realestate' | 'fitness' | 'community' | 'music' | 'nightlife'
-  /** The scene: what is actually pictured. */
+  /**
+   * The scene: how it is drawn AND what is pictured, in one paragraph.
+   *
+   * THIS IS THE OLD SHAPE AND IT IS THE BUG. Mixing the two meant a customer
+   * who picked the autumn style for its burnt-orange palette and hand-lettering
+   * got pumpkins whether they wanted them or not — because the pumpkins and the
+   * palette arrived in the same instruction, at the top, and their own request
+   * arrived at the bottom as an afterthought. Kept only as the fallback for any
+   * style not yet split.
+   */
   scene: string
+  /**
+   * HOW IT IS DRAWN, with nothing in it that is pictured.
+   *
+   * Palette, lettering, texture, lighting, finish, era. Must survive having any
+   * subject at all dropped into it: pick this look, ask for an HVAC van, and
+   * every word here should still apply.
+   */
+  look?: string
+  /**
+   * WHAT IS PICTURED — the pumpkins, the ice cream cone, the club crowd.
+   *
+   * Optional in both senses: a style may not have one, and a customer may not
+   * want it. This is the half that gets replaced when somebody says what they
+   * actually sell.
+   */
+  subject?: string
+  /** The look's name, which describes the look and never an occasion. */
+  lookName?: string
+  /** Which shelf it sits on in the picker — grouped by look, not by industry. */
+  family?: string
   /** The lettering: how the words should look. This is what separates a club
    *  flyer from a corporate one far more than the photograph does. */
   lettering: string
@@ -1406,7 +1435,39 @@ export function flyerPrompt(
    * border, and the print is wasted.
    */
   bleed = false,
+  /**
+   * WHAT THE CUSTOMER WANTS PICTURED, in their own words.
+   *
+   * This used to arrive at the very bottom of the prompt as "ALSO: change the
+   * ice cream to an HVAC van", underneath a DESIGN STYLE paragraph that opened
+   * with "Ice cream parlour". The model read that exactly as written — draw an
+   * ice cream parlour, and also a van — and the ice cream won every time. It
+   * was not being stubborn; it was obeying the louder instruction.
+   *
+   * Now it REPLACES the style's own subject and is stated first. The style's
+   * palette, lettering and texture are untouched, so "Thanksgiving colours,
+   * HVAC van" is a normal thing to ask for rather than a fight.
+   */
+  subject = '',
+  /**
+   * Keep the style's own motif — the pumpkins, the disco ball.
+   *
+   * Off by default. Somebody browsing for a LOOK is not asking for the props
+   * that happened to be in the sample, and getting them anyway is the single
+   * complaint that started all of this.
+   */
+  keepMotif = false,
 ): string {
+  // What ends up pictured, in priority order: what the customer asked for, or
+  // the style's own motif if they chose to keep it, or nothing — in which case
+  // the model composes around the words, which is a perfectly good flyer.
+  const wants = String(subject ?? '').trim()
+  const motif = wants || (keepMotif ? String(t.subject ?? '').trim() : '')
+  // A style that has been split has a `look` with no subject buried in it. One
+  // that has not falls back to the old mixed paragraph — which still carries
+  // its own motif, so overriding the subject on those is best-effort until the
+  // whole list is split.
+  const style = t.look?.trim() || t.scene
   const ratio = size.w / size.h
   const wide = ratio > 1.3
   const square = Math.abs(ratio - 1) < 0.15
@@ -1470,6 +1531,13 @@ export function flyerPrompt(
       ? 'A single presentation slide, 16:9 widescreen, designed by a graphic designer for projection. Flat artwork filling the whole frame — not a photograph of a screen, no laptop, no projector, no room, no drop shadow, no slide border or frame drawn onto it.'
       : `A professional ${wide ? 'wide banner' : square ? 'square social media' : 'portrait poster'} advertisement, print quality, designed by a graphic designer.`,
     '',
+    // WHAT IS PICTURED, ALWAYS FIRST — including when a reference was uploaded.
+    //
+    // A reference and a subject do not compete: the reference says how to draw,
+    // the customer says what to draw. Dropping the subject here would recreate
+    // the original complaint one layer up — "I uploaded a design I liked and it
+    // ignored what I asked for".
+    reference && wants ? `SUBJECT — THIS IS WHAT THE DESIGN PICTURES: ${wants}\n` : '',
     // A REFERENCE REPLACES THE TEMPLATE. Both are an art direction, and giving
     // the model two at once produces a design that obeys neither.
     reference
@@ -1481,7 +1549,24 @@ export function flyerPrompt(
           '- the same mood, lighting, texture and level of decoration',
           'Do NOT copy the reference\'s words, names, dates, prices, logos or photographs — only its style. Do not reproduce it. This is a NEW design for the content below that a customer would believe came from the same designer.',
         ].join('\n')
-      : `DESIGN STYLE: ${t.scene}`,
+      : [
+          // THE SUBJECT GOES FIRST, and the style is explicitly demoted to a
+          // way of drawing it. Order is not cosmetic here: whatever opens the
+          // prompt is what gets drawn.
+          motif ? `SUBJECT — THIS IS WHAT THE DESIGN PICTURES: ${motif}` : '',
+          motif && !t.look
+            // The unsplit styles still have their own props welded into the
+            // style paragraph, so the override has to be said out loud.
+            ? 'Picture the subject above and NOTHING ELSE. The style description below may mention other objects, seasons or scenes — ignore every one of them. They describe how to draw, not what to draw.'
+            : '',
+          motif ? '' : '',
+          `DESIGN STYLE — HOW IT IS DRAWN${motif ? ', not what is in it' : ''}: ${style}`,
+          !motif && !keepMotif && t.look
+            // No subject and no motif is a legitimate choice, not an omission.
+            // Said plainly, or the model invents a scene to fill the space.
+            ? 'No specific subject. Build the design from typography, colour, pattern and texture in that style — abstract shapes and fields rather than an invented scene.'
+            : '',
+        ].filter(Boolean).join('\n'),
     '',
     lines.length
       ? `TEXT TO RENDER — spell every word EXACTLY as written, no substitutions, no invented text, and do not add any words that are not listed:\n${lines.join('\n')}`
