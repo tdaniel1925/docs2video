@@ -9,6 +9,7 @@ import { downscaleImage } from '../../../_lib/image-resize'
 import type { Brand } from '../../../_lib/types'
 import { SLIDE_STYLES } from '../../../_lib/types'
 import InlineConfirm from '../../../_components/InlineConfirm'
+import { useBrand } from '../../../_components/BrandProvider'
 
 const COLOR_LABELS: Record<string, string> = {
   primary_color: 'Primary',
@@ -49,6 +50,7 @@ export default function EditBrandPage() {
   })
 
   // Profile type (Person | Company)
+  const storefront = useBrand()
   const [profileType, setProfileType] = useState<'person' | 'company'>('company')
   const [personRole, setPersonRole] = useState('')
   const [introLine, setIntroLine] = useState('')
@@ -370,6 +372,7 @@ export default function EditBrandPage() {
         <form onSubmit={handleSubmit}>
           {/* Profile type toggle */}
           <input type="hidden" name="profile_type" value={profileType} />
+          {(storefront.showVideoFeatures || profileType === 'person') && (
           <div className="form-group">
             <label className="input-label">Profile type</label>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -391,6 +394,7 @@ export default function EditBrandPage() {
               ))}
             </div>
           </div>
+          )}
 
           <div className="form-group">
             <label className="input-label">{profileType === 'person' ? 'Your name' : 'Brand Name'}</label>
@@ -568,7 +572,7 @@ export default function EditBrandPage() {
             <input type="hidden" name="logo_chip" value={logoChip ? 'true' : 'false'} />
             {logoFileUrl && logoLightUrl && (
               <div style={{ marginTop: 6, fontSize: 12, color: 'var(--accent, #16A34A)', fontWeight: 600 }}>
-                ✓ Ready for video {logoChip ? '(shown on a subtle panel)' : ''}
+                ✓ {storefront.showVideoFeatures ? 'Ready for video' : 'Ready to place on designs'} {logoChip ? '(shown on a subtle panel)' : ''}
               </div>
             )}
 
@@ -639,9 +643,9 @@ export default function EditBrandPage() {
             <div style={{ marginTop: 12 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
                 <input type="checkbox" checked={showLogo} onChange={(e) => setShowLogo(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--ink)' }} />
-                <span style={{ fontSize: 14.5, fontWeight: 500 }}>Show logo in videos</span>
+                <span style={{ fontSize: 14.5, fontWeight: 500 }}>{storefront.showVideoFeatures ? 'Show logo in videos' : 'Add my logo to designs'}</span>
               </label>
-              <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '6px 0 0 30px' }}>Turn off to render videos without your logo.</p>
+              <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '6px 0 0 30px' }}>{storefront.showVideoFeatures ? 'Turn off to render videos without your logo.' : 'Turn off to leave your logo off the artwork.'}</p>
             </div>
           </div>
 

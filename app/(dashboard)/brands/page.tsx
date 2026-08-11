@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useBrand } from '../../_components/BrandProvider'
 import { createClient } from '../../_lib/supabase/client'
 import type { Brand } from '../../_lib/types'
 
 export default function BrandsPage() {
+  // Which storefront this is. A Text2Art customer has no presenter and no
+  // video, so the copy explaining what a "profile" is has to say something true.
+  const storefront = useBrand()
   const [brands, setBrands] = useState<Brand[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -75,7 +79,9 @@ export default function BrandsPage() {
       <div className="page-head">
         <div>
           <h1>Your profiles</h1>
-          <p>Manage all your profiles here — a Company (logo + colors) or a Person (presenter photo + intro). Your default profile is applied automatically to every video; add more if you work under multiple companies or present as different people.</p>
+          <p>{storefront.showVideoFeatures
+            ? 'Manage all your profiles here — a Company (logo + colors) or a Person (presenter photo + intro). Your default profile is applied automatically to every video; add more if you work under multiple companies or present as different people.'
+            : 'Your logo, your colours and your contact details, saved. The default one is applied to everything you make; add more if you design for more than one business.'}</p>
         </div>
         <Link href="/brands/new" className="btn btn-primary btn-lg">+ New profile</Link>
       </div>
@@ -83,7 +89,7 @@ export default function BrandsPage() {
       {!brands.length ? (
         <div style={{ background: 'white', border: '1px dashed var(--border)', borderRadius: 10, padding: '64px 32px', textAlign: 'center' }}>
           <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>No profiles yet</p>
-          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 18 }}>Create a profile to customize your presentation colors, logo, or presenter</p>
+          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 18 }}>{storefront.showVideoFeatures ? 'Create a profile to customize your presentation colors, logo, or presenter' : 'Save a logo and a set of colours once, and every design comes back in them'}</p>
           <Link href="/brands/new" className="btn btn-primary">Create your first profile</Link>
         </div>
       ) : (

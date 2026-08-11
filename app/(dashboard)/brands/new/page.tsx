@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { createBrand } from '../../../_actions/brands'
 import { downscaleImage } from '../../../_lib/image-resize'
+import { useBrand } from '../../../_components/BrandProvider'
 
 const COLOR_LABELS: Record<string, string> = {
   primary_color: 'Primary',
@@ -138,6 +139,7 @@ export default function NewBrandPage() {
   const [logoUrl, setLogoUrl] = useState('')
 
   // Profile type (Person | Company)
+  const storefront = useBrand()
   const [profileType, setProfileType] = useState<'person' | 'company'>('company')
   const [personRole, setPersonRole] = useState('')
   const [introLine, setIntroLine] = useState('')
@@ -548,6 +550,7 @@ export default function NewBrandPage() {
         <form onSubmit={handleSubmit}>
           {/* Profile type toggle */}
           <input type="hidden" name="profile_type" value={profileType} />
+          {storefront.showVideoFeatures && (
           <div className="form-group">
             <label className="input-label">Profile type</label>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -569,6 +572,7 @@ export default function NewBrandPage() {
               ))}
             </div>
           </div>
+          )}
 
           {/* === Essential Fields === */}
           <div className="form-group">
@@ -733,7 +737,7 @@ export default function NewBrandPage() {
           <input type="hidden" name="show_logo" value={showLogo ? 'true' : 'false'} />
           <div className="form-group">
             <label className="input-label">Logo URL <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
-            <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '-2px 0 8px' }}>Used on slide decks and client emails. Videos use text branding only.</p>
+            <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '-2px 0 8px' }}>{storefront.showVideoFeatures ? 'Used on slide decks and client emails. Videos use text branding only.' : 'Placed on your designs. Upload the real thing — a logo is never drawn from your name.'}</p>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <input
                 name="logo_url"
@@ -782,9 +786,9 @@ export default function NewBrandPage() {
             <div style={{ marginTop: 12 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
                 <input type="checkbox" checked={showLogo} onChange={(e) => setShowLogo(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--ink)' }} />
-                <span style={{ fontSize: 14.5, fontWeight: 500 }}>Show logo in videos</span>
+                <span style={{ fontSize: 14.5, fontWeight: 500 }}>{storefront.showVideoFeatures ? 'Show logo in videos' : 'Add my logo to designs'}</span>
               </label>
-              <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '6px 0 0 30px' }}>Turn off to render videos without your logo.</p>
+              <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '6px 0 0 30px' }}>{storefront.showVideoFeatures ? 'Turn off to render videos without your logo.' : 'Turn off to leave your logo off the artwork.'}</p>
             </div>
           </div>
 

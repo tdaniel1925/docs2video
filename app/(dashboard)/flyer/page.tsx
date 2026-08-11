@@ -34,7 +34,21 @@ import {
 } from '../../_lib/flyer-engine'
 
 /** A finished design. designId is what makes a masked edit possible. */
-type Design = { sizeId: string; label: string; w: number; h: number; src: string; designId?: string }
+type Design = {
+  sizeId: string; label: string; w: number; h: number; src: string; designId?: string
+  /**
+   * Did the words on the finished design match the words that were asked for?
+   *
+   * The AI DRAWS the lettering, so a phone number can come out with the digits
+   * shuffled and it still LOOKS right. Every design is read back and compared,
+   * because the customer who finds that out at the printer does not come back.
+   *
+   * undefined means the design predates the check, NOT that it passed.
+   */
+  checked?: boolean
+  /** The words that did not match, so the warning can name them. */
+  misspelled?: string[]
+}
 type Status = 'wait' | 'busy' | 'done' | 'fail'
 
 /** A deck's running order, as returned by the planner before anything is drawn. */
@@ -1479,7 +1493,7 @@ export default function FlyerMakerPage() {
           // failed attempt, and appending would leave two slide 4s in the deck.
           designs: [
             ...r.designs.filter((d) => d.sizeId !== `slide-${index + 1}`),
-            { sizeId: `slide-${index + 1}`, label: `Slide ${index + 1}`, w: img.w, h: img.h, src: img.png, designId: img.designId },
+            { sizeId: `slide-${index + 1}`, label: `Slide ${index + 1}`, w: img.w, h: img.h, src: img.png, designId: img.designId, checked: img.checked, misspelled: img.misspelled },
           ],
           status: { ...r.status, [index]: 'done' },
         }))
@@ -2606,6 +2620,32 @@ function RoundBlock({ round, now, onOpen }: {
                     background: 'rgba(20,18,16,.82)', color: 'white', fontSize: 11, fontWeight: 800,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px',
                   }}>{n}</span>
+                  {/*
+                    THE WORDS WERE READ BACK OFF THIS DESIGN.
+                    Silent when nothing is known — an old design that predates
+                    the check must not wear a tick it never earned. A warning
+                    NAMES the word, because "check the spelling" on a design
+                    with forty words in it is not something anyone can act on.
+                  */}
+                  {d.checked === false && (
+                    <span title={`The design does not clearly show: ${(d.misspelled ?? []).join(', ')}`}
+                      style={{
+                        position: 'absolute', top: 6, right: 6, borderRadius: 6, padding: '0 6px', height: 20,
+                        background: 'rgba(180,67,47,.94)', color: 'white', fontSize: 10, fontWeight: 800,
+                        display: 'flex', alignItems: 'center', maxWidth: '78%',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                      ⚠ check “{(d.misspelled ?? ['the wording'])[0]}”
+                    </span>
+                  )}
+                  {d.checked === true && (
+                    <span title="Every word from your brief was read back off this design and matched."
+                      style={{
+                        position: 'absolute', top: 6, right: 6, borderRadius: 6, padding: '0 6px', height: 20,
+                        background: 'rgba(28,110,74,.92)', color: 'white', fontSize: 10, fontWeight: 800,
+                        display: 'flex', alignItems: 'center',
+                      }}>✓ words checked</span>
+                  )}
                 </button>
                 <figcaption style={{ fontSize: 11, color: SOFT, marginTop: 5, display: 'flex', justifyContent: 'space-between', gap: 6 }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label.replace(/ \d+ ?[×x].*$/, '')}</span>

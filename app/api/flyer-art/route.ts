@@ -5,7 +5,7 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { checkCredits, deductCredits, addTopupCredits, costForUser } from '../../_lib/credits'
 import { FLYER_TEMPLATES, FLYER_SIZES, flyerPrompt, apiSize, printPixels, canBleed, dpiFor } from '../../_lib/flyer-engine'
 import { upscaleForPrint } from '../../_lib/upscale'
-import { pickEngine, drawChecked } from '../../_lib/image-engine'
+import { pickEngine, drawChecked, checkWords } from '../../_lib/image-engine'
 import type { FlyerFields, PhotoRole } from '../../_lib/flyer-engine'
 
 // =============================================================================
@@ -322,10 +322,14 @@ export async function POST(req: Request) {
 
       let src: Buffer<ArrayBuffer>
       let spellingNote = ''
+      /** Words the Gemini path already read back as wrong, so the final check
+       *  does not have to pay to read the same image twice. */
+      let alreadyMissing: string[] | null = null
 
       if (engine === 'gemini' && aspect) {
         const drawn = await drawChecked(prompt, aspect, mustSay, geminiInputs)
         src = drawn.image
+        alreadyMissing = drawn.spelling.ok ? [] : drawn.spelling.missing
         if (!drawn.spelling.ok) {
           // Say it rather than hide it. A word that came out wrong on a flyer
           // being sent to a printer is exactly the thing worth a second look,
@@ -390,6 +394,26 @@ export async function POST(req: Request) {
         .png()
         .toBuffer()
 
+      /**
+       * READ THE WORDS BACK OFF THE FINISHED DESIGN.
+       *
+       * The AI DRAWS the text. That is the single thing most likely to lose a
+       * customer: a flyer printed five hundred times with a mangled phone
+       * number is not a bad design, it is a bill — and they will not come back,
+       * and they will tell people.
+       *
+       * So every design is read and compared with what was asked for, whichever
+       * engine drew it. This used to run only on the Gemini path, where it was
+       * a retry loop; on OpenAI the answer is more useful shown than acted on,
+       * because a redraw costs another design and might land somewhere worse.
+       *
+       * NEVER BLOCKS DELIVERY. An unreadable check means unknown, and unknown
+       * must not throw away work somebody paid for.
+       */
+      const verified = alreadyMissing
+        ? { ok: alreadyMissing.length === 0, missing: alreadyMissing }
+        : await checkWords(png as Buffer<ArrayBuffer>, mustSay)
+
       // KEEP IT. Until now a design existed only in the tab that made it —
       // pressing Make again wiped the last batch and a refresh lost the lot.
       // A save failure is logged but does NOT fail the design: the customer
@@ -434,6 +458,10 @@ export async function POST(req: Request) {
 
       return {
         sizeId: size.id, label: size.label, w: targetW, h: targetH, designId,
+        // What the check found, said plainly. "Every word checked" is worth
+        // showing precisely BECAUSE nobody else can say it.
+        checked: verified.ok,
+        misspelled: verified.ok ? [] : verified.missing.slice(0, 3),
         png: `data:image/png;base64,${png.toString('base64')}`,
       }
     } catch (err) {

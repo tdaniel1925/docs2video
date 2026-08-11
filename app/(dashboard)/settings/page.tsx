@@ -113,11 +113,12 @@ function ApiKeysSection() {
       <details style={{ fontSize: 13, color: 'var(--ink-soft)' }}>
         <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--ink)' }}>Use it with an AI assistant (MCP)</summary>
         <div style={{ marginTop: 8, lineHeight: 1.6 }}>
-          <p style={{ margin: '0 0 8px' }}>Point the <strong>docs2video MCP server</strong> at your key to make videos and commercials from chat. For Claude Code:</p>
+          <p style={{ margin: '0 0 8px' }}>Point the MCP server at your key to make {storefront.showVideoFeatures ? 'videos and commercials' : 'designs'} from chat. For Claude Code:</p>
           <code style={{ display: 'block', padding: '10px 12px', borderRadius: 8, background: '#fff', border: '1px solid var(--border-light)', overflowX: 'auto', whiteSpace: 'pre', fontSize: 12 }}>{`claude mcp add docs2video \\
   -e DOCS2VIDEO_API_KEY=YOUR_KEY \\
   -- node /path/to/mcp/server.mjs`}</code>
-          <p style={{ margin: '8px 0 0' }}>Base URL: <code>{typeof window !== 'undefined' ? window.location.origin : 'https://docs2video.com'}</code>. See the mcp/README for the full tool list.</p>
+          <p style={{ margin: '8px 0 0' }}>Base URL: <code>{typeof window !== 'undefined' ? window.location.origin : `https://${storefront.domain}`}</code>. See the mcp/README for the full tool list.
+          {!storefront.showVideoFeatures && ' The server and key are named after Docs2Video, which runs the accounts behind both sites — the key is yours either way.'}</p>
         </div>
       </details>
     </div>
@@ -580,7 +581,8 @@ export default function SettingsPage() {
             </form>
           </div>
 
-          {/* Photos */}
+          {/* Photos — Docs2Video only; see note in brand.ts. */}
+          {storefront.showVideoFeatures && (
           <div className="settings-card">
             <h3>Profile Photos</h3>
             <p className="ssub">These photos appear on your presentation slides and share pages.</p>
@@ -626,6 +628,7 @@ export default function SettingsPage() {
               ))}
             </div>
           </div>
+          )}
         </div>
       )}
 
@@ -670,7 +673,7 @@ export default function SettingsPage() {
           {/* Default Template */}
           <div className="settings-card">
             <h3>Default Template</h3>
-            <p className="ssub">This style is pre-selected when you create new presentations. You can always change it per project.</p>
+            <p className="ssub">{storefront.showVideoFeatures ? 'This style is pre-selected when you create new presentations. You can always change it per project.' : 'This style is pre-selected when you start something new. You can always change it per project.'}</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 16 }}>
               {SLIDE_STYLES.map(style => (
                 <div
@@ -793,7 +796,9 @@ export default function SettingsPage() {
             )}
           </div>
 
-          {/* Email */}
+          {/* Email, payments and booking all attach to a SHARE PAGE, which
+              only the video product has. */}
+          {storefront.showVideoFeatures && (<>
           <div className="settings-card">
             <h3>Email Connections</h3>
             <p className="ssub">Connect your email to send presentations directly to clients.</p>
@@ -967,8 +972,9 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+          </>)}
 
-          {/* API & MCP — self-serve key management */}
+          {/* API & MCP — self-serve key management. Both storefronts sell this. */}
           <ApiKeysSection />
         </div>
       )}
@@ -1204,7 +1210,7 @@ export default function SettingsPage() {
           className="btn"
           style={{ background: '#c03a1f', color: '#fff', border: 'none', marginTop: 8 }}
           onClick={async () => {
-            if (!window.confirm('Are you sure you want to delete your account? All your videos, brands, and data will be permanently removed. This cannot be undone.')) return
+            if (!window.confirm(`Are you sure you want to delete your account? All your ${storefront.showVideoFeatures ? 'videos' : 'designs'}, brands, and data will be permanently removed. This cannot be undone.`)) return
             if (!window.confirm('This is your final confirmation. Type OK in the next prompt to proceed.')) return
             const res = await fetch('/api/account/delete', { method: 'POST' })
             if (res.ok) {
