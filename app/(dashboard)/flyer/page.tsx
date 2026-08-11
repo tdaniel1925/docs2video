@@ -78,6 +78,8 @@ type Item =
       designs: (Design & { designId?: string })[]
       status: Record<number, Status>
       startedAt: number; live: boolean
+      /** Slide one is drawn and waiting to be approved before the rest. */
+      awaiting?: boolean
     }
   | {
       kind: 'round'; id: string; templateId: string; note: string
@@ -1396,11 +1398,12 @@ export default function FlyerMakerPage() {
       .slice(-12).map((m) => ({ role: m.role, text: m.text }))
 
     if (retry) {
+      // Approving or retrying both clear the pause.
       // Put the failed ones back to waiting. The slides that worked stay
       // exactly as they are — they are drawn, saved and paid for, and redrawing
       // them would charge twice for work already done.
       setItems((p) => p.map((i) => (i.kind === 'deck' && i.id === roundId
-        ? { ...i, live: true, startedAt: Date.now(), status: { ...i.status, ...Object.fromEntries(retry.indices.map((n) => [n, 'wait' as Status])) } }
+        ? { ...i, live: true, awaiting: false, startedAt: Date.now(), status: { ...i.status, ...Object.fromEntries(retry.indices.map((n) => [n, 'wait' as Status])) } }
         : i)))
     } else {
       setItems((p) => [...p, {
@@ -1482,6 +1485,28 @@ export default function FlyerMakerPage() {
     // Send it on as a SMALL reference, not the multi-megabyte original — see
     // shrinkForReference.
     const anchor = full ? await shrinkForReference(full) : null
+
+    /**
+     * STOP AND SHOW SLIDE ONE.
+     *
+     * A twelve-slide deck is about eighteen minutes and 2,400 credits, and the
+     * look was only visible at the END of it — so a style that turned out wrong
+     * cost the whole thing. Slide one is drawn, shown, and nothing else happens
+     * until it is approved: 200 credits to find out, instead of 2,400.
+     *
+     * Carrying on is the RETRY path with every slide but the first — the same
+     * code, the same anchor, so approving cannot drift from redrawing.
+     */
+    if (!retry && anchor && !stop) {
+      patch((r) => ({ ...r, live: false, awaiting: true }))
+      setMaking(false)
+      say('assistant',
+        `Here's slide one. Everything else will be drawn to match it, so it is worth a look now — ` +
+        `the other ${plan.slides.length - 1} cost ${unit ? (unit * (plan.slides.length - 1)).toLocaleString() + ' credits' : 'the rest of the credits'} ` +
+        `and about ${mmss(Math.ceil((plan.slides.length - 1) / CONCURRENCY) * SECS_PER_SIZE)}. ` +
+        `Happy with the look, or shall we try a different one?`)
+      return
+    }
 
     if (anchor && !stop) {
       const queue = retry
@@ -1832,6 +1857,14 @@ export default function FlyerMakerPage() {
             </div>
           ) : it.kind === 'deck' ? (
             <DeckBlock key={it.id} deck={it} now={now} onOpen={setViewing}
+              onApprove={() => makeDeck({
+                deckId: it.id,
+                // Everything except slide one, which is drawn and paid for.
+                indices: it.slides.map((_, n) => n).slice(1),
+                slides: it.slides,
+                anchorSrc: it.designs.find((d) => d.sizeId === 'slide-1')?.src,
+              })}
+              onRestyle={() => { setStylePicked(false); openCard('styles'); say('assistant', 'Pick another look and I will redraw slide one in it — the rest still have not been made.') }}
               onRetry={(indices) => makeDeck({
                 deckId: it.id,
                 indices,
@@ -2331,12 +2364,16 @@ function BriefCard({ fields }: { fields: FlyerFields }) {
  * is in: a PowerPoint missing slide 7 is worse than no PowerPoint, because you
  * find out in front of the room.
  */
-function DeckBlock({ deck, now, onOpen, onRetry }: {
+function DeckBlock({ deck, now, onOpen, onRetry, onApprove, onRestyle }: {
   deck: Extract<Item, { kind: 'deck' }>
   now: number
   onOpen: (d: Design) => void
   /** Draw only the slides that failed, keeping the ones already paid for. */
   onRetry?: (indices: number[]) => void
+  /** Slide one is approved — draw the rest to match it. */
+  onApprove?: () => void
+  /** Reject the look and choose another before spending on the rest. */
+  onRestyle?: () => void
 }) {
   const [busy, setBusy] = useState<'pptx' | 'pdf' | null>(null)
   const [problem, setProblem] = useState('')
@@ -2425,6 +2462,31 @@ function DeckBlock({ deck, now, onOpen, onRetry }: {
       {deck.live && (
         <div style={{ height: 4, background: CREAM, borderRadius: 3, overflow: 'hidden', marginBottom: 10 }}>
           <div style={{ height: '100%', width: `${Math.round((done / total) * 100)}%`, background: INK, transition: 'width .4s' }} />
+        </div>
+      )}
+
+      {/* THE DECISION, BEFORE THE MONEY. Slide one is on screen and nothing
+          else has been drawn yet — so a look that turns out wrong costs 200
+          credits to reject here instead of 2,400 at the end. */}
+      {deck.awaiting && onApprove && (
+        <div style={{ padding: '10px 12px', borderRadius: 9, background: CREAM, marginBottom: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Happy with this look?</div>
+          <div style={{ fontSize: 12.5, color: SOFT, lineHeight: 1.5, marginBottom: 10 }}>
+            The other {total - 1} slides will be drawn to match it. Nothing else has been made yet.
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button onClick={onApprove} title={`Draw the remaining ${total - 1} slides in this look`}
+              style={{ ...PLAIN_BTN, padding: '6px 12px', background: INK, color: 'white', borderColor: 'transparent' }}>
+              Yes — draw the other {total - 1}
+            </button>
+            <button onClick={onRestyle} style={{ ...PLAIN_BTN, padding: '6px 12px' }}
+              title="Pick a different look, then draw slide one again">
+              Try a different look
+            </button>
+          </div>
+          <p style={{ fontSize: 12, color: SOFT, margin: '9px 0 0', lineHeight: 1.5 }}>
+            Or say what you&rsquo;d change — &ldquo;warmer colours&rdquo;, &ldquo;bigger headline&rdquo; — and I&rsquo;ll redo this one first.
+          </p>
         </div>
       )}
 
