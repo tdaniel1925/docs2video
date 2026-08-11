@@ -28,7 +28,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDictation } from '../../_components/useDictation'
 import {
-  FLYER_TEMPLATES, FLYER_SIZES, PHOTO_ROLES, thumbUrl,
+  FLYER_TEMPLATES, VISIBLE_STYLES, STYLE_FAMILIES, FLYER_SIZES, PHOTO_ROLES, thumbUrl,
   type FlyerFields, type PhotoRole,
   canBleed,
 } from '../../_lib/flyer-engine'
@@ -336,7 +336,7 @@ function Picker(p: {
     return (
       <>
         <p style={{ fontSize: 13.5, fontWeight: 700, margin: '0 0 2px' }}>How should it look?</p>
-        <p style={{ fontSize: 12.5, color: soft, margin: '0 0 12px' }}>Six that suit this job — or see all {FLYER_TEMPLATES.length}.</p>
+        <p style={{ fontSize: 12.5, color: soft, margin: '0 0 12px' }}>Six that suit this job — or see all {VISIBLE_STYLES.length}.</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(112px,1fr))', gap: 8, marginBottom: 10 }}>
           {p.styles.map((t) => (
             <button key={t.id} onClick={() => { p.onPickStyle(t.id); p.onDone(t.name) }} title={`Design it in the ${t.name} look`}
@@ -347,7 +347,7 @@ function Picker(p: {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <button onClick={p.onSeeAll} style={btn}>See all {FLYER_TEMPLATES.length}</button>
+          <button onClick={p.onSeeAll} style={btn}>See all {VISIBLE_STYLES.length}</button>
           <label style={{ ...btn, cursor: 'pointer' }}
             title="Upload a design you like the look of. We take its style, never its words, logos or photographs.">
             Work from my own design
@@ -639,6 +639,7 @@ export default function FlyerMakerPage() {
   const [fields, setFields] = useState<FlyerFields>({})
   const [templateId, setTemplateId] = useState('rnb')
   const [category, setCategory] = useState<string>(CATEGORIES[0].id)
+  const [family, setFamily] = useState<string>(STYLE_FAMILIES[0].id)
   const [note, setNote] = useState('')
   // EMPTY. Two formats used to be ticked before anyone was asked, which is
   // how a customer ended up paying for two designs they never chose.
@@ -935,10 +936,13 @@ export default function FlyerMakerPage() {
    */
   const shownStyles = (() => {
     const q = styleQuery.trim().toLowerCase()
-    if (!q) return FLYER_TEMPLATES.filter((t) => t.category === category)
+    if (!q) return VISIBLE_STYLES.filter((t) => t.family === family)
     const words = q.split(/\s+/)
-    return FLYER_TEMPLATES.filter((t) => {
-      const hay = `${t.name} ${t.category} ${t.scene} ${t.lettering}`.toLowerCase()
+    return VISIBLE_STYLES.filter((t) => {
+      // The old subject is searched too. Somebody who remembers the pumpkin
+      // sample should still find that look by typing "pumpkin", even though the
+      // pumpkins are no longer what they would get.
+      const hay = `${t.name} ${t.family} ${t.look} ${t.subject ?? ""} ${t.lettering}`.toLowerCase()
       return words.every((w) => hay.includes(w))
     })
   })()
@@ -1709,8 +1713,8 @@ export default function FlyerMakerPage() {
    * anyone who wants the full grid.
    */
   const suggestedStyles = (() => {
-    const inCategory = FLYER_TEMPLATES.filter((t) => t.category === category)
-    const chosen = FLYER_TEMPLATES.find((t) => t.id === templateId)
+    const inCategory = VISIBLE_STYLES.filter((t) => t.category === category)
+    const chosen = VISIBLE_STYLES.find((t) => t.id === templateId)
     // Always include whatever is currently selected, so the tile they picked
     // last time does not vanish from the six.
     const pool = chosen && !inCategory.some((t) => t.id === chosen.id) ? [chosen, ...inCategory] : inCategory
@@ -2009,27 +2013,33 @@ export default function FlyerMakerPage() {
                 <div style={{ opacity: reference ? 0.4 : 1, pointerEvents: reference ? 'none' : 'auto' }}
                   title={reference ? 'Switched off while a reference is attached — remove it to pick one of our looks' : undefined}>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-                    {CATEGORIES.map((c) => (
-                      <button key={c.id} style={chip(category === c.id)} title={`Show the ${c.label.toLowerCase()} looks`}
+                    {/* SHELVES ARE LOOKS NOW, NOT TRADES. "Food & drink" was
+                        only ever a useful shelf while picking it also picked a
+                        plate of food. Now that the subject is yours to set, the
+                        thing worth browsing is the look — and the warm rustic
+                        one belongs to the HVAC company just as much as to the
+                        bakery. The count is shown because a shelf with three on
+                        it and a shelf with thirteen are different decisions. */}
+                    {STYLE_FAMILIES.map((c) => (
+                      <button key={c.id} style={chip(family === c.id)} title={`${c.count} ${c.label.toLowerCase()} looks`}
                         onClick={() => {
-                          setCategory(c.id); setStylePicked(true)
-                          const first = FLYER_TEMPLATES.find((t) => t.category === c.id)
+                          setFamily(c.id); setStyleQuery(''); setStylePicked(true)
+                          const first = VISIBLE_STYLES.find((t) => t.family === c.id)
                           if (first) setTemplateId(first.id)
-                        }}>{c.label}</button>
+                        }}>{c.label} <span style={{ opacity: 0.5 }}>{c.count}</span></button>
                     ))}
                   </div>
 
-                  {/* SEARCH ACROSS EVERYTHING. With twenty-five looks in each of
-                      nine groups, hunting by eye means scrolling past two
-                      hundred tiles — and someone who wants a taco night should
-                      not have to know we filed it under Food & drink. Typing
-                      searches every group at once; clearing it goes back to the
-                      chosen one. */}
+                  {/* SEARCH ACROSS EVERYTHING, including the old subjects.
+                      Somebody who remembers the pumpkin sample should find that
+                      look by typing "pumpkin" — even though pumpkins are no
+                      longer what they would get from it. Typing searches every
+                      shelf at once; clearing it returns to the chosen one. */}
                   <input
                     value={styleQuery}
                     onChange={(e) => setStyleQuery(e.target.value)}
-                    placeholder="Search all looks — try taco, wedding, gold, retro…"
-                    title="Search every group at once by name"
+                    placeholder="Search all looks — try gold, rustic, neon, hand-drawn…"
+                    title="Search every shelf at once"
                     style={{
                       width: '100%', padding: '8px 11px', marginBottom: 10, fontSize: 13,
                       borderRadius: 8, border: `1px solid ${LINE}`, background: 'white',

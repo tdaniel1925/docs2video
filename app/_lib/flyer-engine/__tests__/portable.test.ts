@@ -4,6 +4,7 @@ import { join } from 'path'
 import {
   FLYER_SIZES, FLYER_TEMPLATES, apiSize, flyerPrompt,
   printPixels, dpiFor, canBleed, BLEED_IN,
+  VISIBLE_STYLES, STYLE_FAMILIES, MOTIFS, resolveStyle,
 } from '../index'
 
 // =============================================================================
@@ -337,5 +338,61 @@ describe('the subject the customer asked for outranks the style', () => {
     // I asked for" is the same complaint, one layer up.
     expect(p).toContain('an HVAC repair van')
     expect(p.indexOf('an HVAC repair van')).toBeLessThan(p.indexOf('TAKE DIRECTION'))
+  })
+})
+
+// =============================================================================
+// THE MERGED LIST MUST STAY HONEST.
+//
+// 225 styles became 105 shown, with 120 folded away. Every folded one is still
+// somebody's saved design, so a merge is a redirection and never a deletion.
+// These guard the three ways that can quietly break: a redirect that points at
+// nothing, a design that no longer opens, and two entries in the picker that
+// are impossible to tell apart because they share a name.
+// =============================================================================
+describe('folding a style never loses it', () => {
+  it('keeps every original id — a changed id breaks a saved design silently', () => {
+    expect(FLYER_TEMPLATES.length).toBe(225)
+    expect(new Set(FLYER_TEMPLATES.map((t) => t.id)).size).toBe(225)
+  })
+
+  it('never points a merge at something that is not in the picker', () => {
+    const shown = new Set(VISIBLE_STYLES.map((t) => t.id))
+    for (const t of FLYER_TEMPLATES.filter((x) => x.mergedInto)) {
+      expect(shown.has(t.mergedInto!), `${t.id} folds into ${t.mergedInto}, which is not shown`).toBe(true)
+    }
+  })
+
+  it('resolves every id, folded or not, to a look that exists', () => {
+    for (const t of FLYER_TEMPLATES) {
+      const r = resolveStyle(t.id)
+      expect(r, `${t.id} resolves to nothing`).toBeTruthy()
+      expect(r!.mergedInto, `${t.id} resolves to another merged style`).toBeUndefined()
+    }
+  })
+
+  it('says WHY it was folded, so the decision can be argued with', () => {
+    for (const t of FLYER_TEMPLATES.filter((x) => x.mergedInto)) {
+      expect((t.mergedWhy ?? '').length, `${t.id} was folded with no reason given`).toBeGreaterThan(20)
+    }
+  })
+
+  it('gives no two shown looks the same name', () => {
+    const names = VISIBLE_STYLES.map((t) => t.name)
+    const dup = [...new Set(names.filter((n, i) => names.indexOf(n) !== i))]
+    expect(dup, 'two looks a customer cannot tell apart in the list').toEqual([])
+  })
+
+  it('gives every shown look a family and a look description', () => {
+    for (const t of VISIBLE_STYLES) {
+      expect(t.family, `${t.id} has no shelf to sit on`).toBeTruthy()
+      expect((t.look ?? '').length, `${t.id} has no look description`).toBeGreaterThan(30)
+    }
+  })
+
+  it('keeps the motifs that came off the folded styles', () => {
+    // The pumpkins were separated, not deleted. If this ever drops to nothing,
+    // the "keep the seasonal props" switch has nothing left to offer.
+    expect(MOTIFS.length).toBeGreaterThan(150)
   })
 })
