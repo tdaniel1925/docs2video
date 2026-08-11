@@ -2342,3 +2342,17 @@ export const MOTIFS: { id: string; text: string }[] = FLYER_TEMPLATES
 
 /** Where a template's sample image lives once it has been pre-generated. */
 export const thumbUrl = (id: string) => `/flyer-templates/${id}.png`
+
+/**
+ * The SAME look carrying an ordinary job: a service van, a phone number, a price.
+ *
+ * The sample tile shows whatever that style was originally about — pumpkins,
+ * a club crowd, an ice cream cone — and that picture makes a promise the style
+ * no longer keeps. Somebody running a heating business scrolls straight past
+ * the warm hand-lettered one, even though its colours and its type are exactly
+ * what they were looking for.
+ *
+ * A sentence saying "you can use this for anything" is a claim. This is the
+ * same claim as a picture, which is the version people believe.
+ */
+export const proofUrl = (id: string) => `/flyer-templates/${id}-alt.png`

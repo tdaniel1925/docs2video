@@ -28,7 +28,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDictation } from '../../_components/useDictation'
 import {
-  FLYER_TEMPLATES, VISIBLE_STYLES, STYLE_FAMILIES, FLYER_SIZES, PHOTO_ROLES, thumbUrl,
+  FLYER_TEMPLATES, VISIBLE_STYLES, STYLE_FAMILIES, FLYER_SIZES, PHOTO_ROLES, thumbUrl, proofUrl,
   type FlyerFields, type PhotoRole,
   canBleed,
 } from '../../_lib/flyer-engine'
@@ -640,6 +640,18 @@ export default function FlyerMakerPage() {
   const [templateId, setTemplateId] = useState('rnb')
   const [category, setCategory] = useState<string>(CATEGORIES[0].id)
   const [family, setFamily] = useState<string>(STYLE_FAMILIES[0].id)
+  /**
+   * Show every look carrying the SAME ordinary job instead of its own sample.
+   *
+   * One switch for the whole grid rather than a hover on each tile: hover does
+   * not exist on a phone, and flipping all of them at once is the point. The
+   * van never changes while the look changes underneath it, which is the
+   * difference between a pile of themed posters and a style catalogue.
+   */
+  const [onRealWork, setOnRealWork] = useState(false)
+  /** Looks whose proof tile has not been generated yet, so the switch does not
+   *  silently show a broken image where a design should be. */
+  const [noProof, setNoProof] = useState<string[]>([])
   const [note, setNote] = useState('')
   // EMPTY. Two formats used to be ticked before anyone was asked, which is
   // how a customer ended up paying for two designs they never chose.
@@ -2053,6 +2065,22 @@ export default function FlyerMakerPage() {
                     </p>
                   )}
 
+                  {/* THE ANSWER TO "CAN I USE THE HALLOWEEN ONE FOR MY HVAC
+                      BUSINESS?" — said as a picture rather than a promise. */}
+                  <label style={{
+                    display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+                    fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.5,
+                  }}>
+                    <input type="checkbox" checked={onRealWork}
+                      onChange={(e) => setOnRealWork(e.target.checked)}
+                      style={{ width: 16, height: 16, accentColor: INK, flexShrink: 0 }} />
+                    <span>
+                      <strong style={{ color: INK }}>Show these on an everyday job.</strong>{' '}
+                      The same van and the same words in every look — so you can see the
+                      style on its own, without whatever the sample happened to be about.
+                    </span>
+                  </label>
+
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(118px,1fr))', gap: 9 }}>
                     {shownStyles.map((t) => (
                       <button key={t.id} className={strobeId === t.id ? 'cg-strobe' : undefined}
@@ -2062,7 +2090,13 @@ export default function FlyerMakerPage() {
                           padding: 0, borderRadius: 9, overflow: 'hidden', cursor: 'pointer', background: '#111',
                           border: templateId === t.id && !reference ? `3px solid ${INK}` : `1px solid ${LINE}`,
                         }}>
-                        <img src={thumbUrl(t.id)} alt={t.name}
+                        <img
+                          src={onRealWork && !noProof.includes(t.id) ? proofUrl(t.id) : thumbUrl(t.id)}
+                          alt={onRealWork ? `The ${t.name} look on an everyday job` : t.name}
+                          // FALL BACK, DO NOT SHOW A HOLE. A look whose proof
+                          // tile has not been generated yet keeps its own
+                          // sample rather than turning into a broken image.
+                          onError={() => setNoProof((n) => (n.includes(t.id) ? n : [...n, t.id]))}
                           style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
                         <div style={{ fontSize: 11, fontWeight: 700, padding: '5px 4px', background: 'white', color: INK }}>{t.name}</div>
                       </button>
