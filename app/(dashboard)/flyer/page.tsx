@@ -761,6 +761,28 @@ export default function FlyerMakerPage() {
   // Follow the thread down as it grows, the way a chat does.
   const endRef = useRef<HTMLDivElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
+
+  /**
+   * How tall this page can be, MEASURED rather than assumed.
+   *
+   * A hardcoded "100vh minus the header" was wrong twice over — the number was
+   * a guess, and the layout adds 40px of padding above and below every page on
+   * top of it. So the page overflowed the window, the document scrolled, and
+   * the typing box fell off the bottom.
+   */
+  const rootRef = useRef<HTMLDivElement>(null)
+  const [shellHeight, setShellHeight] = useState<number | null>(null)
+  useEffect(() => {
+    const measure = () => {
+      const top = rootRef.current?.getBoundingClientRect().top ?? 0
+      // The layout's bottom padding is cancelled on the element itself, so only
+      // the distance from the top of the window has to come off.
+      setShellHeight(Math.max(420, window.innerHeight - top - 12))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
   /**
    * Follow the conversation — but only if the customer is watching the end of
    * it.
@@ -1488,7 +1510,17 @@ export default function FlyerMakerPage() {
   const chip = (on: boolean) => ({ ...plain, background: on ? INK : 'white', color: on ? 'white' : INK, border: on ? '1px solid transparent' : plain.border }) as const
 
   return (
-    <div style={{ maxWidth: 1240, margin: '0 auto', padding: '18px 20px 0', height: 'calc(100vh - 73px)', display: 'flex', gap: 20, overflow: 'hidden' }}>
+    <div ref={rootRef} style={{
+      maxWidth: 1240, margin: '0 auto', padding: '0 20px',
+      // Measured on mount and on resize. Until the first measurement lands a
+      // tall default keeps the page from flashing at zero height.
+      height: shellHeight ?? '70vh',
+      // Cancel the 40px the dashboard layout puts under every page, so the
+      // typing box can sit at the bottom of the window rather than 40px above
+      // a scrollbar it created.
+      marginBottom: -40,
+      display: 'flex', gap: 20, overflow: 'hidden',
+    }}>
 
       {/* ── PAST JOBS ──────────────────────────────────────────────────────
           One chat is one job. Without this, every design anyone ever made
@@ -1499,7 +1531,11 @@ export default function FlyerMakerPage() {
           sliced the top off the New chat button as soon as you scrolled. The
           offset has to be the header's height plus a gap, and the height has
           to subtract the same amount or the list runs off the bottom. */}
-      <aside style={{ width: 216, flexShrink: 0, position: 'sticky', top: 88, alignSelf: 'flex-start', maxHeight: 'calc(100vh - 108px)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {/* No sticky offsets any more. The column is already exactly the height
+          of the window, so the sidebar just fills it and scrolls its own list.
+          The old `top: 88` and `calc(100vh - 108px)` were two more guesses at a
+          header height that is not this page's to know. */}
+      <aside style={{ width: 216, flexShrink: 0, height: '100%', minHeight: 0, paddingTop: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <button onClick={newChat} title="Start a separate job with its own conversation. Nothing is lost — this one stays in the list."
           style={{ ...darkBtn, width: '100%' }}>
           + New chat
