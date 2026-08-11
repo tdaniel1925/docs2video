@@ -612,6 +612,10 @@ export default function FlyerMakerPage() {
   // Photos are optional, so the offer is made ONCE. Re-opening it after every
   // message would nag about something that was already declined.
   const [photosAsked, setPhotosAsked] = useState(false)
+  // Which chat row is asking to be confirmed, and whether Clear chat is.
+  // Inline, in place, rather than a browser dialog over the whole app.
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [confirmClear, setConfirmClear] = useState(false)
   // What they said they were making. Used to put the right group of formats
   // first, so someone who asked for a print piece is not led with Instagram.
   const [kind, setKind] = useState<Kind | null>(null)
@@ -951,10 +955,11 @@ export default function FlyerMakerPage() {
 
   /** Delete a chat and everything in it. */
   const removeChat = async (c: { id: string; title: string }) => {
-    // Every design in it goes too, and the files behind them. That is not
-    // recoverable, so it is spelled out rather than hidden behind "Are you
-    // sure?".
-    if (!window.confirm(`Delete "${c.title || 'Untitled'}" and every design in it? This cannot be undone.`)) return
+    // NO BROWSER DIALOG. window.confirm greys out the whole app behind a box
+    // that says "text2art.app says" in a font we do not control and cannot
+    // style — it looks like the site has been taken over by something. The
+    // asking now happens inline, in the row itself, where the thing being
+    // deleted is still visible next to the question.
 
     const res = await fetch(`/api/flyer-chats/${c.id}`, { method: 'DELETE' })
       .then((r) => r.json()).catch(() => ({ error: 'Network error' }))
@@ -1013,7 +1018,7 @@ export default function FlyerMakerPage() {
 
   /** Wipe the conversation and start over — settings and saved history stay. */
   const clearChat = () => {
-    if (!window.confirm('Clear this conversation? Your saved designs stay in your Library, and this does not refund anything.')) return
+    setConfirmClear(false)
     setItems([
       { kind: 'msg', role: 'assistant', text: "I'm your graphic designer. What would you like to make?", },
       { kind: 'card', id: crypto.randomUUID(), card: 'start' },
@@ -1676,6 +1681,27 @@ export default function FlyerMakerPage() {
             </p>
           )}
           {chats.map((c) => (
+            confirmDelete === c.id ? (
+              /* ASKED IN PLACE. A browser dialog greys out the whole app behind
+                 a box headed "text2art.app says" in a font we do not control —
+                 it reads as though something has gone wrong with the site. Here
+                 the row itself asks, with the name of the thing still visible
+                 beside the question. */
+              <div key={c.id} style={{ padding: '9px 10px', borderRadius: 8, background: '#FDF3F1', border: '1px solid #E3B4A8' }}>
+                <div style={{ fontSize: 12.5, color: '#B4432F', lineHeight: 1.45, marginBottom: 8 }}>
+                  Delete <strong>{c.title || 'Untitled'}</strong> and every design in it? This cannot be undone.
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => { setConfirmDelete(null); void removeChat(c) }}
+                    style={{ ...plain, padding: '4px 10px', background: '#B4432F', color: 'white', borderColor: 'transparent' }}>
+                    Delete
+                  </button>
+                  <button onClick={() => setConfirmDelete(null)} style={{ ...plain, padding: '4px 10px', fontWeight: 400 }}>
+                    Keep it
+                  </button>
+                </div>
+              </div>
+            ) : (
             <div key={c.id}
               style={{
                 display: 'flex', alignItems: 'center', gap: 2, borderRadius: 8,
@@ -1701,7 +1727,7 @@ export default function FlyerMakerPage() {
                 }}>
                 📌
               </button>
-              <button onClick={() => removeChat(c)} aria-label="Delete"
+              <button onClick={() => setConfirmDelete(c.id)} aria-label="Delete"
                 title="Delete this job and every design in it — permanently"
                 style={{
                   border: 'none', background: 'transparent', cursor: 'pointer', padding: '6px 7px 6px 3px',
@@ -1710,6 +1736,7 @@ export default function FlyerMakerPage() {
                 ✕
               </button>
             </div>
+            )
           ))}
         </div>
       </aside>
@@ -2092,11 +2119,24 @@ export default function FlyerMakerPage() {
               The questions are asked one at a time above instead, and what was
               decided sits in the thread as plain conversation. All that is left
               down here is the way out of the current chat. */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-            <button onClick={clearChat} title="Start the conversation over. Your saved designs stay in your Library and nothing is refunded."
-              style={{ ...plain, fontWeight: 400, color: SOFT }}>
-              Clear chat
-            </button>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            {confirmClear ? (
+              <>
+                <span style={{ fontSize: 12.5, color: SOFT }}>
+                  Clear this conversation? Your saved designs stay in your Library.
+                </span>
+                <button onClick={clearChat} style={{ ...plain, padding: '4px 10px' }}>Clear it</button>
+                <button onClick={() => setConfirmClear(false)} style={{ ...plain, padding: '4px 10px', fontWeight: 400, color: SOFT }}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button onClick={() => setConfirmClear(true)}
+                title="Start the conversation over. Your saved designs stay in your Library and nothing is refunded."
+                style={{ ...plain, fontWeight: 400, color: SOFT }}>
+                Clear chat
+              </button>
+            )}
           </div>
 
           {/* WHAT THIS WILL COST AND HOW LONG, before the button rather than

@@ -251,3 +251,18 @@ describe('resolution is never claimed for something that is not printed', () => 
     expect(dpiFor(FLYER_SIZES.find((s) => s.id === 'banner-3x6')!)).toBe(72)
   })
 })
+
+// Browser dialogs grey out the whole app behind a box headed "text2art.app
+// says", in a font we do not control and cannot style. It reads as though
+// something has gone wrong with the site, and it cannot carry a design system.
+// Every question belongs inline, next to the thing it is about.
+describe('no browser dialogs', () => {
+  it('asks inline, never with confirm or alert', () => {
+    const page = readFileSync(join(process.cwd(), 'app/(dashboard)/flyer/page.tsx'), 'utf8')
+    // Strip comments first — this file explains WHY window.confirm is banned,
+    // and a check that trips over its own explanation is just noise.
+    const code = page.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '')
+    const found = code.match(/window\.(confirm|alert|prompt)\s*\(/g) ?? []
+    expect(found, 'use an inline confirmation instead').toEqual([])
+  })
+})
