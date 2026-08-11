@@ -33,7 +33,8 @@ import {
   canBleed,
 } from '../../_lib/flyer-engine'
 
-type Design = { sizeId: string; label: string; w: number; h: number; src: string }
+/** A finished design. designId is what makes a masked edit possible. */
+type Design = { sizeId: string; label: string; w: number; h: number; src: string; designId?: string }
 type Status = 'wait' | 'busy' | 'done' | 'fail'
 
 /** A deck's running order, as returned by the planner before anything is drawn. */
@@ -797,7 +798,7 @@ export default function FlyerMakerPage() {
               kind: 'round', id: round.id, templateId: round.templateId, note: round.note ?? '',
               sizeIds: designs.map((d) => d.sizeId),
               designs: designs.map((d) => ({
-                sizeId: d.sizeId, label: d.label, w: d.w, h: d.h, src: d.url,
+                  sizeId: d.sizeId, label: d.label, w: d.w, h: d.h, src: d.url, designId: d.id,
               })),
               status: Object.fromEntries(designs.map((d) => [d.sizeId, 'done' as Status])),
               startedAt: 0, live: false,
@@ -1616,7 +1617,7 @@ export default function FlyerMakerPage() {
           const img = res.images[0]
           patch((r) => ({
             ...r,
-            designs: [...r.designs, { sizeId: img.sizeId, label: img.label, w: img.w, h: img.h, src: img.png }],
+            designs: [...r.designs, { sizeId: img.sizeId, label: img.label, w: img.w, h: img.h, src: img.png, designId: img.designId }],
             status: { ...r.status, [id]: 'done' },
           }))
           setBalance((b) => (b === null ? b : Math.max(0, b - unit)))
@@ -2639,19 +2640,152 @@ function RoundBlock({ round, now, onOpen }: {
 }
 
 /** Full screen, because you cannot proofread a phone number at thumbnail size. */
-function Viewer({ design, onClose }: { design: Design; onClose: () => void }) {
+function Viewer({ design, onClose }: { design: Design & { designId?: string }; onClose: () => void }) {
+  /**
+   * Paint over a part of the design and say what to change there.
+   *
+   * A design used to be a dead image: right layout, right lettering, wrong
+   * sandwich, and the only move was to redraw the whole thing and hope. That is
+   * where people gave up and opened Canva.
+   *
+   * The brush paints onto a canvas laid exactly over the picture. What gets
+   * sent is the INVERSE of what you painted — the API's mask marks the region
+   * it MAY repaint as transparent and everything to protect as opaque, which is
+   * the opposite of what anyone assumes, so it is built explicitly here rather
+   * than by sending whatever the brush happened to leave behind.
+   */
+  const [brushing, setBrushing] = useState(false)
+  const [painted, setPainted] = useState(false)
+  const [instruction, setInstruction] = useState('')
+  const [working, setWorking] = useState(false)
+  const [problem, setProblem] = useState('')
+  const [current, setCurrent] = useState(design)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
+  const drawing = useRef(false)
+
+  const sizeCanvas = () => {
+    const c = canvasRef.current, i = imgRef.current
+    if (!c || !i) return
+    c.width = i.clientWidth
+    c.height = i.clientHeight
+  }
+
+  const paintAt = (e: React.PointerEvent) => {
+    const c = canvasRef.current
+    if (!c) return
+    const r = c.getBoundingClientRect()
+    const ctx = c.getContext('2d')
+    if (!ctx) return
+    ctx.fillStyle = 'rgba(255,90,60,0.55)'
+    ctx.beginPath()
+    // A generous brush on purpose. A thin outline round the burger leaves the
+    // burger itself protected, and the edit does nothing — people circle things,
+    // they do not colour them in.
+    ctx.arc(e.clientX - r.left, e.clientY - r.top, Math.max(14, c.width * 0.045), 0, Math.PI * 2)
+    ctx.fill()
+    setPainted(true)
+  }
+
+  const clearBrush = () => {
+    const c = canvasRef.current
+    c?.getContext('2d')?.clearRect(0, 0, c.width, c.height)
+    setPainted(false)
+  }
+
+  /** Opaque where the picture must survive, transparent where it may change. */
+  const buildMask = (): string | null => {
+    const c = canvasRef.current
+    if (!c) return null
+    const out = document.createElement('canvas')
+    out.width = c.width; out.height = c.height
+    const ctx = out.getContext('2d')
+    if (!ctx) return null
+    ctx.fillStyle = '#000'
+    ctx.fillRect(0, 0, out.width, out.height)
+    // Punch the painted area out of the solid sheet.
+    ctx.globalCompositeOperation = 'destination-out'
+    ctx.drawImage(c, 0, 0)
+    return out.toDataURL('image/png')
+  }
+
+  const applyChange = async () => {
+    if (!current.designId) { setProblem('This design was made before edits were possible — make it again to edit it.'); return }
+    if (!instruction.trim()) { setProblem('Say what should change in the area you painted.'); return }
+    const maskDataUrl = buildMask()
+    if (!maskDataUrl || !painted) { setProblem('Paint over the part you want changed first.'); return }
+
+    setProblem(''); setWorking(true)
+    try {
+      const res = await fetch('/api/flyer-edit', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ designId: current.designId, maskDataUrl, instruction }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.png) { setProblem(data?.error || 'That change could not be made.'); return }
+      // The old one is still saved; this shows the new one without losing it.
+      setCurrent({ ...current, src: data.png, designId: data.designId ?? current.designId })
+      clearBrush(); setBrushing(false); setInstruction('')
+    } catch {
+      setProblem('Network error — you were not charged.')
+    } finally {
+      setWorking(false)
+    }
+  }
+
   return (
     <div onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(20,18,16,.88)',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24,
       }}>
-      <img src={design.src} alt={design.label} onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8, background: '#111' }} />
+      <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', maxWidth: '100%', maxHeight: '80vh' }}>
+        <img ref={imgRef} src={current.src} alt={current.label} onLoad={sizeCanvas}
+          style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8, background: '#111', display: 'block' }} />
+        <canvas ref={canvasRef}
+          onPointerDown={(e) => { if (!brushing) return; drawing.current = true; paintAt(e) }}
+          onPointerMove={(e) => { if (brushing && drawing.current) paintAt(e) }}
+          onPointerUp={() => { drawing.current = false }}
+          onPointerLeave={() => { drawing.current = false }}
+          style={{
+            position: 'absolute', inset: 0, borderRadius: 8,
+            pointerEvents: brushing ? 'auto' : 'none',
+            cursor: brushing ? 'crosshair' : 'default',
+            touchAction: 'none',
+          }} />
+      </div>
+
+      {brushing && (
+        <div onClick={(e) => e.stopPropagation()}
+          style={{ background: 'white', borderRadius: 10, padding: 14, width: 'min(560px, 92vw)' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>
+            {painted ? 'What should change there?' : 'Paint over the part you want changed'}
+          </div>
+          <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.5 }}>
+            Cover the whole thing, not just its outline — everything you leave unpainted stays exactly as it is.
+          </p>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <input value={instruction} onChange={(e) => setInstruction(e.target.value)}
+              placeholder="e.g. add lettuce and tomato"
+              style={{ flex: 1, minWidth: 200, padding: '9px 11px', borderRadius: 8, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 14 }} />
+            <button onClick={applyChange} disabled={working || !painted}
+              style={{ ...PLAIN_BTN, padding: '9px 14px', background: INK, color: 'white', borderColor: 'transparent', opacity: working || !painted ? 0.5 : 1 }}>
+              {working ? 'Changing…' : 'Change it'}
+            </button>
+            <button onClick={clearBrush} style={{ ...PLAIN_BTN, padding: '9px 12px' }}>Clear</button>
+          </div>
+          {problem && <p role="alert" style={{ fontSize: 12.5, color: '#b91c1c', margin: '9px 0 0' }}>{problem}</p>}
+        </div>
+      )}
       <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: 10, alignItems: 'center', color: 'white', fontSize: 13 }}>
-        <span style={{ fontWeight: 700 }}>{design.label}</span>
-        <span style={{ opacity: 0.6 }}>{design.w} × {design.h}</span>
-        <a href={design.src} download={`${design.sizeId}.png`} title="Save this design to your computer"
+        <span style={{ fontWeight: 700 }}>{current.label}</span>
+        <span style={{ opacity: 0.6 }}>{current.w} × {current.h}</span>
+        <button onClick={() => { setBrushing((b) => !b); setProblem('') }}
+          title="Paint over part of the design and say what to change there. Everything else stays exactly as it is."
+          style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.35)', background: brushing ? 'white' : 'transparent', color: brushing ? '#23201c' : 'white', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>
+          {brushing ? 'Done editing' : '✎ Change part of it'}
+        </button>
+        <a href={current.src} download={`${current.sizeId}.png`} title="Save this design to your computer"
           style={{ padding: '8px 14px', borderRadius: 8, background: 'white', color: '#23201c', fontWeight: 700, textDecoration: 'none' }}>
           ⬇ Download
         </a>
