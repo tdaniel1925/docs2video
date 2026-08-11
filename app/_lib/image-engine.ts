@@ -179,10 +179,23 @@ export async function checkWords(image: Buffer<ArrayBuffer>, expected: string[])
  */
 export function pickEngine(w: number, h: number): { engine: Engine; aspect: string | null } {
   const forced = (process.env.FLYER_IMAGE_ENGINE || '').toLowerCase()
-  if (forced === 'openai') return { engine: 'openai', aspect: null }
+
+  // OPENAI IS THE DEFAULT AGAIN.
+  //
+  // Gemini is measurably faster and cheaper — 5s against 90s, 4c against 18c —
+  // and the spelling loop deals with its one measurable weakness. But the
+  // designs themselves were judged worse by the person whose product this is,
+  // and that is not something a benchmark overrules. Cheaper and faster is only
+  // an improvement if the work is still good enough to send to a customer.
+  //
+  // Nothing is deleted. The whole Gemini path, the aspect matching and the
+  // read-the-words-back check all stay, and FLYER_IMAGE_ENGINE=gemini turns
+  // them on again without a deploy — worth keeping for the day their image
+  // model improves, which will not be long.
+  if (forced !== 'gemini') return { engine: 'openai', aspect: null }
+
   const aspect = geminiAspect(w, h)
   if (!aspect || !process.env.GEMINI_API_KEY) return { engine: 'openai', aspect: null }
-  if (forced === 'gemini') return { engine: 'gemini', aspect }
   return { engine: 'gemini', aspect }
 }
 
