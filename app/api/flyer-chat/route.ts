@@ -83,8 +83,23 @@ Return ONLY a JSON object, no commentary and no markdown fence:
   "layoutId": string,      // one of: ${FLYER_TEMPLATES.map((t) => `${t.id} (${t.name}, ${t.category})`).join(', ')}
   "subject": string,       // 1 sentence describing the ARTWORK to generate — a scene, no text in it
   "redoSizeId": string,    // ONLY when the user pointed at a numbered design ("design 2, ..."). The sizeId of that design. Omit otherwise.
-  "reply": string          // one short friendly line back to the user
+  "reply": string,         // one short friendly line back to the user
+  "show": string           // OPEN A PICKER. One of: formats, styles, photos, reference, slides. Omit when there is nothing to choose.
 }
+
+SHOW A PICKER INSTEAD OF DESCRIBING ONE. This is the most important rule here.
+
+You cannot list options as text. Ever. If the customer needs to choose something, set "show" and the app opens the real thing — pictures, tick boxes, a file button. Asked "can you give me a way to select the formats", the answer is show:"formats" and a one-line reply, NOT a numbered list of sizes and pixel dimensions. That list is unreadable, and the picker is already there.
+
+  formats    — which pieces and sizes to make. Tiles showing each shape.
+  styles     — how it should look. Six suggestions as pictures, plus all 225.
+  photos     — their own pictures and logo.
+  reference  — upload a design to work from.
+  slides     — how many slides, with the cost of each.
+
+Open one when the customer asks to choose, when they ask what is available, or when you genuinely need the answer to go on. Do NOT open one to be helpful when they did not ask and you do not need it — a picker nobody asked for is as annoying as a wall of text.
+
+Your reply alongside a picker should be ONE short line. The picker does the explaining.
 
 Rules:
 - MERGE with the current values. Keep anything the user has not asked to change; never blank a field just because this message didn't mention it.
@@ -136,7 +151,7 @@ Rules:
 
     let out: {
       fields?: FlyerFields; sizeId?: string; layoutId?: string; subject?: string
-      redoSizeId?: string; reply?: string
+      redoSizeId?: string; reply?: string; show?: string
     }
     try {
       out = JSON.parse(text.slice(a, b + 1))
@@ -159,11 +174,19 @@ Rules:
     // the next Make would charge for the wrong thing.
     const redoSizeId = designs.some((d) => d.sizeId === out.redoSizeId) ? out.redoSizeId : undefined
 
+    // Only pickers that exist. An invented name would render nothing and leave
+    // the customer waiting for a chooser that never arrives.
+    const CARDS = ['formats', 'styles', 'photos', 'reference', 'slides']
+    const show = CARDS.includes(String(out.show)) ? String(out.show) : null
+
     return NextResponse.json({
       fields: out.fields ?? body?.fields ?? {},
-      sizeId, layoutId, redoSizeId,
+      sizeId, layoutId, redoSizeId, show,
       subject: String(out.subject ?? '').slice(0, 300),
-      reply: String(out.reply ?? 'Updated.').slice(0, 300),
+      // Longer than before: it can now hold a real answer to a real question,
+      // not just "Updated." — but a reply that arrives WITH a picker should be
+      // one line, and the prompt says so.
+      reply: String(out.reply ?? 'Updated.').slice(0, 600),
     })
   } catch (err) {
     // Only a genuine failure reaches here now — the model being unreachable,

@@ -41,6 +41,23 @@ const CASES = [
   // features are worse than no answer.
   { msg: 'can I use my own logo?', why: 'a question', expectSameFields: true, mustMention: /upload|yes|you can|logo/i, mustNotMention: /canva|not directly|cannot|can't/i },
   { msg: 'change the date to Friday 20 September', why: 'a real change', expectSameFields: false },
+
+  // THE ONE THAT BROKE. Asked for a way to choose, the assistant typed out
+  // twenty-three formats with their pixel dimensions as a paragraph — because
+  // words were the only thing it could return. It must open the picker instead,
+  // and its reply must NOT be the list.
+  {
+    msg: 'can you offer me a way to select the files that I want to create',
+    why: 'asking to choose', expectSameFields: true,
+    mustShow: 'formats',
+    mustNotMention: /1080|1200|2560|8\.5|11x17|\bflyer 8|numbered|1\.\s|2\.\s/i,
+    maxReplyLength: 220,
+  },
+  {
+    msg: 'what looks can I choose from?',
+    why: 'asking to choose a style', expectSameFields: true,
+    mustShow: 'styles',
+  },
 ]
 
 let bad = 0
@@ -69,6 +86,15 @@ for (const c of CASES) {
   console.log(`  reply: ${reply.slice(0, 150)}`)
   if (!hasReply) { console.log('  FAIL  no real answer'); bad++ } else console.log('  PASS  answered')
 
+  if (c.mustShow) {
+    if (out.show === c.mustShow) console.log(`  PASS  opened the ${c.mustShow} picker`)
+    else { console.log(`  FAIL  should have opened "${c.mustShow}", got "${out.show ?? 'nothing'}"`); bad++ }
+  }
+  if (c.maxReplyLength) {
+    const short = reply.length <= c.maxReplyLength
+    if (short) console.log(`  PASS  reply is one line (${reply.length} chars)`)
+    else { console.log(`  FAIL  reply is ${reply.length} chars — the picker should do the explaining`); bad++ }
+  }
   if (c.mustMention && !c.mustMention.test(reply)) { console.log('  FAIL  did not say the feature exists'); bad++ }
   else if (c.mustMention) console.log('  PASS  described the real feature')
   if (c.mustNotMention && c.mustNotMention.test(reply)) { console.log('  FAIL  denied a feature we have'); bad++ }
