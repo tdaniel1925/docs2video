@@ -644,6 +644,16 @@ export default function FlyerMakerPage() {
   const [deckPlan, setDeckPlan] = useState<DeckPlan | null>(null)
   const [deckCount, setDeckCount] = useState(8)
   const [planning, setPlanning] = useState(false)
+  /**
+   * What should be IN the picture, as opposed to what it should SAY.
+   *
+   * The assistant has always worked this out and returned it. The page threw it
+   * away — so "change the burger to a radio" was understood, answered politely,
+   * and then had nowhere to go: the fields carry words, and the artwork came
+   * only from the style's built-in scene. The design was redrawn with the same
+   * burger every time.
+   */
+  const [artNote, setArtNote] = useState('')
   const [readingDoc, setReadingDoc] = useState(false)
   // Photos are optional, so the offer is made ONCE. Re-opening it after every
   // message would nag about something that was already declined.
@@ -1050,7 +1060,7 @@ export default function FlyerMakerPage() {
     // inherited the last one's choices — and then never asked, because from the
     // app's point of view they were already answered.
     setFields({}); setNote(''); setPhotos([]); setReference(null)
-    setTicked([]); setKind(null); setPhotosAsked(false); setDeckPlan(null)
+    setTicked([]); setKind(null); setPhotosAsked(false); setDeckPlan(null); setArtNote('')
     setBrandAsked(false)
     setStylePicked(false); setSizesPicked(false)
     setInput(''); setErr(''); setSheet(null)
@@ -1291,6 +1301,10 @@ export default function FlyerMakerPage() {
     // out twenty-three formats: choosing is no longer something it can do with
     // words, so when a choice is needed it names one of these and the real
     // thing opens here, in the conversation, where the answer belongs.
+    // Keep what they said about the PICTURE. Appended rather than replaced,
+    // so "make it a radio" and then "at night" both survive.
+    if (r.subject) setArtNote((p) => (p ? `${p} ${r.subject}` : String(r.subject)).slice(0, 600))
+
     if (r.show) openCard(r.show as CardKind)
     else askNext(r.fields ?? {})
   }
@@ -1429,7 +1443,7 @@ export default function FlyerMakerPage() {
           templateId,
           sizeIds: ['slide-16x9'],
           fields: slide.fields,
-          note: [DECK_DIRECTION[slide.role] ?? DECK_DIRECTION.point, note.trim()].filter(Boolean).join(' '),
+          note: [DECK_DIRECTION[slide.role] ?? DECK_DIRECTION.point, note.trim(), artNote].filter(Boolean).join(' '),
           // Slide one carries the customer's own reference if they gave one;
           // every later slide is anchored to slide one instead.
           referenceDataUrl: anchor ?? reference?.dataUrl,
@@ -1569,7 +1583,8 @@ export default function FlyerMakerPage() {
         if (!id || stop) return
         patch((r) => ({ ...r, status: { ...r.status, [id]: 'busy' } }))
         const payload = JSON.stringify({
-          templateId, sizeIds: [id], fields, note: note.trim() || undefined,
+          templateId, sizeIds: [id], fields,
+          note: [note.trim(), artNote].filter(Boolean).join(' ') || undefined,
           photos: photos.map(({ dataUrl, role }) => ({ dataUrl, role })),
           referenceDataUrl: reference?.dataUrl,
         brandId,
