@@ -31,7 +31,10 @@ export default async function RootLayout({
   const brand = await getBrand();
 
   return (
-    <html lang="en" className="h-full antialiased">
+    // WHICH STOREFRONT, stamped on the root so CSS can recolour the whole site
+    // per brand. The two share one stylesheet, so without this a change to
+    // Text2Art's palette would silently repaint Docs2Video as well.
+    <html lang="en" className="h-full antialiased" data-brand={brand.id}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

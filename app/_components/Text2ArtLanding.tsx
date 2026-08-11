@@ -54,15 +54,14 @@ export default function Text2ArtLanding() {
         {/* ───── Nav ───── */}
         <nav className="top-nav">
           <div className="top-nav-inner">
-            <Link
-              href="/"
-              className="logo"
-              style={{
-                textDecoration: 'none', color: '#fff', fontWeight: 800,
-                fontSize: 26, letterSpacing: '-0.03em',
-              }}
-            >
-              Text<span style={{ color: 'var(--mint)' }}>2</span>Art
+            {/* THE LOGO, not a re-lettering of it. The wordmark was set in the
+                site's own font with a coloured "2" — close to the artwork but
+                not it, which is the one thing a brand cannot afford on the page
+                that introduces it. */}
+            <Link href="/" className="logo" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/text2art-logo.png" alt="Text2Art" height={40}
+                style={{ height: 40, width: 'auto', display: 'block' }} />
             </Link>
             <div className="top-nav-links">
               <a href="#how-it-works">How it works</a>

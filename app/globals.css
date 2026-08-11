@@ -3216,3 +3216,42 @@ h1.hero-title em {
   .cg-strobe, .cg-done-flash { animation: none; }
   .cg-done-flash { background: var(--ink); color: white; }
 }
+
+/* ===========================================================================
+   TEXT2ART'S OWN PALETTE
+   ---------------------------------------------------------------------------
+   Taken off the logo: an electric blue, a cyan, a violet and an amber, all
+   glossy, against a cool near-white. The old values were teal-and-navy from a
+   previous mark, so the page and the logo above it disagreed.
+
+   Scoped to the storefront rather than edited in place. Both brands share one
+   stylesheet, so recolouring :root would have quietly repainted Docs2Video too
+   — which is exactly the kind of change nobody notices until a customer does.
+   =========================================================================== */
+[data-brand='text2art'] {
+  --bg: #F4F7FF;
+  --bg-soft: #FAFBFF;
+  --bg-card: #FFFFFF;
+
+  /* The blue the tile and the wordmark are built from. */
+  --mint: #2E7BF6;
+  --mint-deep: #1E5FD0;
+  --mint-darker: #17489E;
+
+  /* Deep navy, the outline colour around the whole mark. */
+  --ink: #16215C;
+  --ink-soft: #3B4780;
+  --ink-light: #7C86AE;
+
+  --border: #D9E1F5;
+  --border-light: #EAEFFB;
+
+  /* The rest of the mark: cyan, violet, amber, magenta. */
+  --sky: #D9F1FE;
+  --lilac: #E2D9FB;
+  --peach: #FFEBD1;
+  --peach-deep: #FF9A1F;
+  --sun: #FFC93C;
+  --rose: #F9CBE8;
+  --orange-cta: #FF9A1F;
+}
