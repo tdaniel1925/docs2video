@@ -77,6 +77,48 @@ try {
   check(after.inputBottom <= after.winH, 'the typing box is still inside the window',
     `bottom ${after.inputBottom} of ${after.winH}`)
 
+  // ---- NOTHING IS CHOSEN FOR YOU -------------------------------------------
+  //
+  // A customer described a birthday flyer and went straight to two finished
+  // designs for 400 credits, never having been shown a format, a style, or the
+  // photo upload — because two formats and a style were already selected before
+  // anyone was asked. Make was live from the first sentence.
+  console.log('\nnothing chosen on your behalf\n')
+
+  await page.goto(`${base}/flyer`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1200)
+
+  const makeState = () => page.evaluate(() => {
+    const btns = [...document.querySelectorAll('button')]
+    const make = btns.find((b) => /^Make/.test(b.textContent?.trim() ?? ''))
+    return {
+      label: make?.textContent?.trim() ?? null,
+      disabled: make ? make.disabled : null,
+      // "2 sizes" or "400 cr" on a fresh chat means something was pre-ticked.
+      mentionsCost: /\d+\s*cr/.test(make?.textContent ?? ''),
+    }
+  })
+
+  const fresh = await makeState()
+  check(fresh.disabled === true, 'Make is disabled on a fresh chat',
+    fresh.disabled ? '' : `it was live and said "${fresh.label}"`)
+  check(!fresh.mentionsCost, 'Make does not quote a price before anything is chosen',
+    fresh.mentionsCost ? `it said "${fresh.label}"` : '')
+
+  // Describe a job. Content alone must NOT be enough to start spending.
+  await page.fill('input[placeholder^="Describe it"]',
+    'birthday party flyer for Sam, January 10 2027, 128 Main Street Dallas, BYOB')
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(6000)
+
+  const described = await makeState()
+  check(described.disabled === true, 'STILL disabled after describing the job',
+    described.disabled ? '' : `it went live as "${described.label}" with no format or style chosen`)
+
+  const asked = await page.evaluate(() =>
+    /Which formats|What would you like to make/i.test(document.body.innerText))
+  check(asked, 'a picker was opened without being asked for')
+
   await page.screenshot({ path: '.layout-check.png' })
   console.log('\nwrote .layout-check.png')
 } catch (e) {

@@ -574,7 +574,9 @@ export default function FlyerMakerPage() {
   const [templateId, setTemplateId] = useState('rnb')
   const [category, setCategory] = useState<string>(CATEGORIES[0].id)
   const [note, setNote] = useState('')
-  const [ticked, setTicked] = useState<string[]>(['letter', 'ig-post'])
+  // EMPTY. Two formats used to be ticked before anyone was asked, which is
+  // how a customer ended up paying for two designs they never chose.
+  const [ticked, setTicked] = useState<string[]>([])
   // Off by default — see the note by the checkbox. Most people print at home.
   const [bleed, setBleed] = useState(false)
   const [photos, setPhotos] = useState<{ dataUrl: string; role: PhotoRole; name: string }[]>([])
@@ -592,6 +594,9 @@ export default function FlyerMakerPage() {
   const [deckCount, setDeckCount] = useState(8)
   const [planning, setPlanning] = useState(false)
   const [readingDoc, setReadingDoc] = useState(false)
+  // Photos are optional, so the offer is made ONCE. Re-opening it after every
+  // message would nag about something that was already declined.
+  const [photosAsked, setPhotosAsked] = useState(false)
 
   // The running order is long. Once the deck is being drawn it has done its
   // job, and left open it buries the slides underneath it — which is exactly
@@ -1079,9 +1084,19 @@ export default function FlyerMakerPage() {
    * already works.
    */
   const answerCard = (id: string, summary: string) => {
+    const card = items.find((i) => i.kind === 'card' && i.id === id) as Extract<Item, { kind: 'card' }> | undefined
     setItems((p) => p.filter((i) => !(i.kind === 'card' && i.id === id)))
     say('user', summary)
-    if (summary === 'Make a slide deck') openCard('slides')
+
+    // ANSWERING ONE QUESTION ASKS THE NEXT. Without this the customer picks a
+    // format, the card vanishes, and nothing happens — so the only live control
+    // left is Make, and pressing it spends money on a design they have not
+    // finished describing. That is exactly how this went wrong.
+    if (summary === 'Make a slide deck') return openCard('slides')
+    if (card?.card === 'formats') return openCard('styles')
+    if (card?.card === 'styles' || card?.card === 'reference') {
+      if (!photosAsked) { setPhotosAsked(true); return openCard('photos') }
+    }
   }
 
   /** Formats are multi-select, so this toggles rather than replaces. */
@@ -1140,7 +1155,11 @@ export default function FlyerMakerPage() {
     const notes: string[] = []
     if (!stylePicked && r.layoutId && r.layoutId !== templateId) {
       const t = FLYER_TEMPLATES.find((x) => x.id === r.layoutId)
-      if (t) { setTemplateId(t.id); setCategory(t.category); notes.push(`set the look to ${t.name}`) }
+      // Move the SUGGESTIONS, not the choice. This used to set the style
+      // outright and announce "I set the look to Confetti Pop" — a decision
+      // made on the customer's behalf, with their credits, for something they
+      // were never shown. Now it only decides which six the styles card offers.
+      if (t) { setTemplateId(t.id); setCategory(t.category) }
     }
 
     // ASKED FOR ONE DESIGN BACK. "design 2, make the price $25" queues up just
@@ -1168,6 +1187,29 @@ export default function FlyerMakerPage() {
     // words, so when a choice is needed it names one of these and the real
     // thing opens here, in the conversation, where the answer belongs.
     if (r.show) openCard(r.show as CardKind)
+    else askNext(r.fields ?? {})
+  }
+
+  /**
+   * Open the next question the customer has not answered yet.
+   *
+   * THE APP GUARANTEES THIS rather than hoping the assistant remembers. A
+   * customer described a birthday flyer and went straight to two finished
+   * designs for 400 credits, having never been shown a format, a style, or the
+   * photo upload — because the assistant was busy collecting the wording and
+   * never got round to offering a choice.
+   *
+   * The assistant can still open a picker whenever it wants, and that stays
+   * useful for "show me the styles" out of nowhere. But the sequence does not
+   * DEPEND on its judgement. Judgement decides the extras; code decides the
+   * things that must happen before any money is spent.
+   */
+  const askNext = (f: FlyerFields) => {
+    const hasContent = Object.values(f).some((v) => (Array.isArray(v) ? v.length : v))
+    if (!hasContent) return
+    if (!ticked.length) return openCard('formats')
+    if (!stylePicked && !reference) return openCard('styles')
+    if (!photosAsked) { setPhotosAsked(true); return openCard('photos') }
   }
 
   // ONE REQUEST PER SIZE, not one for all of them. Asking for everything at
@@ -1478,7 +1520,19 @@ export default function FlyerMakerPage() {
 
   const filled = Object.values(fields).some((v) => (Array.isArray(v) ? v.length : v))
   const cost = unit === null ? null : unit * ticked.length
-  const canMake = !making && !!ticked.length && filled && unit !== null
+  /**
+   * What is still missing, in the order it will be asked for.
+   *
+   * Make is not merely disabled — it SAYS what it is waiting for. A dead button
+   * with no explanation is how someone ends up pressing the one live control on
+   * the screen and buying something they had not designed yet.
+   */
+  const missing =
+    !filled ? 'tell me what it should say'
+    : !ticked.length ? 'pick a format'
+    : !stylePicked && !reference ? 'pick a look'
+    : null
+  const canMake = !making && !missing && unit !== null
 
 
   /**
@@ -2044,17 +2098,25 @@ export default function FlyerMakerPage() {
               }}>
               {thinking ? 'Thinking…' : 'Send'}
             </button>
+            {/* SAY WHAT IT IS WAITING FOR. A live Make button beside an
+                unfinished design is how somebody spends 400 credits on two
+                formats and a style they were never shown — it was the only
+                thing on screen that looked ready. */}
             <button onClick={make} disabled={!canMake}
               title={canMake
                 ? `Design ${ticked.length} graphic${ticked.length === 1 ? '' : 's'}${cost !== null ? ` for ${cost.toLocaleString()} credits` : ''}. Takes about two minutes each.`
-                : 'Tell me what it\'s for and tick at least one size first'}
-              style={{ ...darkBtn, opacity: canMake ? 1 : 0.5, whiteSpace: 'nowrap' }}>
-              {making ? 'Designing…' : `Make ${ticked.length}${cost !== null ? ` · ${cost.toLocaleString()} cr` : ''}`}
+                : `Not yet — ${missing}.`}
+              style={{ ...darkBtn, opacity: canMake ? 1 : 0.45, whiteSpace: 'nowrap' }}>
+              {making ? 'Designing…' : canMake
+                ? `Make ${ticked.length}${cost !== null ? ` · ${cost.toLocaleString()} cr` : ''}`
+                : 'Make'}
             </button>
           </div>
 
-          {!filled && !loadingHistory && (
-            <p style={{ fontSize: 12, color: SOFT, margin: '8px 0 0' }}>Tell me what it&apos;s for first.</p>
+          {missing && !loadingHistory && (
+            <p style={{ fontSize: 12, color: SOFT, margin: '8px 0 0' }}>
+              Next: {missing}.
+            </p>
           )}
         </div>
       </div>
