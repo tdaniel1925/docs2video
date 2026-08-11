@@ -57,7 +57,7 @@ type DeckPlan = { title: string; slides: PlannedSlide[] }
  * came back, so a conversation about formats left "What should it say?" on
  * screen permanently while everything moved on around it.
  */
-type CardKind = 'start' | 'formats' | 'styles' | 'photos' | 'reference' | 'slides'
+type CardKind = 'start' | 'formats' | 'styles' | 'photos' | 'reference' | 'slides' | 'brand'
 
 /** Everything in the thread, in the order it happened. */
 type Item =
@@ -203,6 +203,8 @@ function Picker(p: {
   card: CardKind
   /** What they said they were making, so the right group of formats leads. */
   kind: Kind | null
+  brands: { id: string; name: string; primary_color?: string | null }[]
+  onPickBrand: (id: string | null) => void
   ticked: string[]; onTickSize: (id: string) => void
   styles: typeof FLYER_TEMPLATES; templateId: string
   onPickStyle: (id: string) => void; onSeeAll: () => void
@@ -228,6 +230,38 @@ function Picker(p: {
             </button>
           ))}
         </div>
+      </>
+    )
+  }
+
+  if (p.card === 'brand') {
+    return (
+      <>
+        <p style={{ fontSize: 13.5, fontWeight: 700, margin: '0 0 2px' }}>Whose brand is this for?</p>
+        <p style={{ fontSize: 12.5, color: soft, margin: '0 0 12px', lineHeight: 1.5 }}>
+          Pick one and every design uses their colours and drops their logo in — no re-uploading it each time.
+        </p>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {p.brands.map((b) => (
+            <button key={b.id} onClick={() => { p.onPickBrand(b.id); p.onDone(b.name) }}
+              style={{ ...btn, display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{
+                width: 12, height: 12, borderRadius: 3, flexShrink: 0,
+                background: b.primary_color || 'var(--border,#ddd6cc)',
+              }} />
+              {b.name}
+            </button>
+          ))}
+          <button onClick={() => { p.onPickBrand(null); p.onDone('no brand') }} style={btn}>
+            No brand — a one-off
+          </button>
+        </div>
+        {!p.brands.length && (
+          <p style={{ fontSize: 12.5, color: soft, margin: '10px 0 0', lineHeight: 1.5 }}>
+            You have not saved a brand yet. <a href="/brands/new" style={{ color: 'var(--ink,#23201c)' }}>Add one from your website</a> —
+            paste the address and it reads the colours, the logo and the tone off the page.
+          </p>
+        )}
       </>
     )
   }
@@ -612,6 +646,7 @@ export default function FlyerMakerPage() {
   // Photos are optional, so the offer is made ONCE. Re-opening it after every
   // message would nag about something that was already declined.
   const [photosAsked, setPhotosAsked] = useState(false)
+  const [brandAsked, setBrandAsked] = useState(false)
   // Which chat row is asking to be confirmed, and whether Clear chat is.
   // Inline, in place, rather than a browser dialog over the whole app.
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -619,6 +654,9 @@ export default function FlyerMakerPage() {
   // What they said they were making. Used to put the right group of formats
   // first, so someone who asked for a print piece is not led with Instagram.
   const [kind, setKind] = useState<Kind | null>(null)
+  // Whose brand this job is for. Null means no brand — a one-off.
+  const [brands, setBrands] = useState<{ id: string; name: string; primary_color?: string | null; logo_url?: string | null }[]>([])
+  const [brandId, setBrandId] = useState<string | null>(null)
 
   // The running order is long. Once the deck is being drawn it has done its
   // job, and left open it buries the slides underneath it — which is exactly
@@ -1011,6 +1049,7 @@ export default function FlyerMakerPage() {
     // app's point of view they were already answered.
     setFields({}); setNote(''); setPhotos([]); setReference(null)
     setTicked([]); setKind(null); setPhotosAsked(false); setDeckPlan(null)
+    setBrandAsked(false)
     setStylePicked(false); setSizesPicked(false)
     setInput(''); setErr(''); setSheet(null)
     setDeckPlan(null)
@@ -1133,6 +1172,7 @@ export default function FlyerMakerPage() {
         : 'Good. What should it say? The date, the time, the place, the price — whatever needs to be on it. Type it below, or upload a document and I\'ll pull it out.')
       return
     }
+    if (card?.card === 'brand') return openCard('formats')
     if (card?.card === 'formats') return openCard('styles')
     if (card?.card === 'slides') return openCard('formats')
     if (card?.card === 'styles' || card?.card === 'reference') {
@@ -1271,6 +1311,9 @@ export default function FlyerMakerPage() {
     const hasContent = Object.values(f).some((v) => (Array.isArray(v) ? v.length : v))
     if (!hasContent) return
     if (kind === 'deck' && deckCount === 0) return openCard('slides')
+    // Ask whose brand it is BEFORE the look, because the brand largely IS the
+    // look — colours, logo and tone all come from it.
+    if (brands.length && brandId === null && !brandAsked) { setBrandAsked(true); return openCard('brand') }
     if (!ticked.length) return openCard('formats')
     if (!stylePicked && !reference) return openCard('styles')
     if (!photosAsked) { setPhotosAsked(true); return openCard('photos') }
@@ -1387,6 +1430,7 @@ export default function FlyerMakerPage() {
           // Slide one carries the customer's own reference if they gave one;
           // every later slide is anchored to slide one instead.
           referenceDataUrl: anchor ?? reference?.dataUrl,
+          brandId,
           roundId, chatId: chat, messages,
         }),
       }).then(async (x) => {
@@ -1503,6 +1547,7 @@ export default function FlyerMakerPage() {
           templateId, sizeIds: [id], fields, note: note.trim() || undefined,
           photos: photos.map(({ dataUrl, role }) => ({ dataUrl, role })),
           referenceDataUrl: reference?.dataUrl,
+        brandId,
         bleed,
           roundId, chatId: chat, messages,
         })
@@ -1774,6 +1819,7 @@ export default function FlyerMakerPage() {
             <div key={it.id} style={{ ...panel, alignSelf: 'stretch' }}>
               <Picker
                 card={it.card} kind={kind}
+                brands={brands} onPickBrand={setBrandId}
                 ticked={ticked} onTickSize={toggleSize}
                 styles={suggestedStyles} templateId={templateId}
                 onPickStyle={pickStyle} onSeeAll={() => setSheet('style')}

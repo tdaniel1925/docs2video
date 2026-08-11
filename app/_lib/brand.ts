@@ -91,7 +91,13 @@ export const TEXT2ART: Brand = {
     'Type what your flyer, ad, social post, banner or business card needs to say. Get a print-ready design back — artwork and lettering both — in about a minute.',
   logoSrc: '/text2art-logo.png',
   home: '/flyer',
-  nav: [{ href: '/flyer', label: 'Designs' }],
+  // Brands were unreachable on Text2Art: the scraper, the multi-brand store and
+  // the whole editor already existed, and nothing in this storefront linked to
+  // any of it. A customer could not save their colours even once.
+  nav: [
+    { href: '/flyer', label: 'Designs' },
+    { href: '/brands', label: 'Brands' },
+  ],
   create: null,
   showVideoFeatures: false,
 }

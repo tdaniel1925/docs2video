@@ -48,6 +48,13 @@ export async function POST(req: Request) {
      *  both are an art direction, and two at once produce a muddle of neither. */
     referenceDataUrl?: string
     /**
+     * Whose brand this is for. The colours, the logo and the contact details
+     * are then applied to every design — which is the only way a small business
+     * gets a consistent look, and the reason to come back next month rather
+     * than start from nothing again.
+     */
+    brandId?: string
+    /**
      * Generate printed pieces oversize, for a commercial printer to trim into.
      * Off means exact size, which is what you want for printing at home or for
      * anything that stays on a screen.
@@ -136,9 +143,79 @@ export async function POST(req: Request) {
     }
   }
 
+  /**
+   * The customer's brand, if this job belongs to one.
+   *
+   * Scoped by user_id as well as id. RLS already enforces ownership, but a
+   * guessed id must return nothing rather than somebody else's colours and
+   * logo — and a logo is the one asset here that is genuinely theirs.
+   */
+  type BrandBits = {
+    name: string | null
+    primary_color: string | null
+    secondary_color: string | null
+    accent_color: string | null
+    logo_url: string | null
+    logo_light_url: string | null
+    fonts: string[] | null
+    tone: string | null
+  }
+  let brand: BrandBits | null = null
+  if (/^[0-9a-f-]{36}$/i.test(String(body?.brandId ?? ''))) {
+    const { data } = await admin
+      .from('brands')
+      .select('name, primary_color, secondary_color, accent_color, logo_url, logo_light_url, fonts, tone')
+      .eq('id', body!.brandId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    brand = (data as BrandBits) ?? null
+  }
+
+  /**
+   * The brand, written as art direction.
+   *
+   * COLOURS AS A PALETTE, NOT AS A COMMAND. Telling an image model "use
+   * #1B4D89" produces a flat block of that exact colour somewhere unhelpful.
+   * Naming it as the palette the design is built FROM leaves the model free to
+   * shade, tint and contrast, which is what a designer would do with a brand
+   * colour anyway.
+   */
+  const brandDirection = brand
+    ? [
+        '',
+        'BRAND — this design belongs to a real business and must look like the rest of their material:',
+        brand.primary_color ? `- Build the palette around ${brand.primary_color} as the dominant colour${brand.secondary_color ? `, with ${brand.secondary_color} supporting it` : ''}${brand.accent_color ? ` and ${brand.accent_color} for accents and call-to-action` : ''}. Shade and tint them freely; do not paint flat blocks of the raw hex.`
+          : '',
+        brand.fonts?.length ? `- Lettering in the spirit of ${brand.fonts.slice(0, 2).join(' and ')}.` : '',
+        brand.tone ? `- The tone is ${brand.tone}.` : '',
+        // The name is NOT drawn as a logo. Rule of this codebase: real uploaded
+        // logos only, never an AI-drawn approximation of a company mark.
+        '- Do NOT invent, draw or letter a logo. If a logo is supplied as an image, place it exactly as given.',
+      ].filter(Boolean).join('\n')
+    : ''
+
   // The customer's own photographs. Capped at three: past that the model starts
   // dropping one silently, which is worse than refusing a fourth up front.
   const rawPhotos = (body?.photos ?? []).slice(0, 3)
+
+  /**
+   * The brand's logo joins the photographs automatically.
+   *
+   * The whole point of picking a brand is not having to attach the same logo
+   * every single time. It goes on the END so it cannot displace a photograph
+   * the customer deliberately chose, and only when they have not already
+   * attached a logo themselves — theirs wins, always.
+   *
+   * logo_light_url is the background-removed variant made for exactly this;
+   * logo_url is whatever was scraped off their website and may carry its
+   * original backdrop.
+   */
+  const brandLogo = brand?.logo_light_url || brand?.logo_url || null
+  const alreadyHasLogo = rawPhotos.some((p) => p.role === 'logo')
+  if (brandLogo && !alreadyHasLogo && rawPhotos.length < 3) {
+    rawPhotos.push({ dataUrl: brandLogo, role: 'logo' as PhotoRole })
+  }
+
   const roles = rawPhotos.map((p) => p.role)
 
   // A reference design, if there is one, goes FIRST — the prompt refers to it
@@ -160,7 +237,13 @@ export async function POST(req: Request) {
   try {
     const sharp = (await import('sharp')).default
     files = await Promise.all(toPrepare.map(async (p, i) => {
-      const b64 = String(p.dataUrl).split(',')[1] ?? ''
+      // The customer's uploads arrive as data URLs; a brand logo is a stored
+      // URL. Fetching it here rather than making the browser download and
+      // re-upload its own logo on every single design.
+      const raw = String(p.dataUrl)
+      const b64 = raw.startsWith('http')
+        ? Buffer.from(await (await fetch(raw, { signal: AbortSignal.timeout(15_000) })).arrayBuffer()).toString('base64')
+        : raw.split(',')[1] ?? ''
       // Downscale before sending. A phone photo is 4000px on the long edge and
       // the model gains nothing from it, but the upload cost is real.
       const buf = await sharp(Buffer.from(b64, 'base64'))
@@ -183,7 +266,9 @@ export async function POST(req: Request) {
 
   const one = async (size: typeof FLYER_SIZES[number]) => {
     const bleed = Boolean(body?.bleed) && canBleed(size)
-      const prompt = flyerPrompt(template, fields, size, roles, hasReference, bleed) + (note ? `\n\nALSO: ${note}` : '')
+      const prompt = flyerPrompt(template, fields, size, roles, hasReference, bleed)
+        + brandDirection
+        + (note ? `\n\nALSO: ${note}` : '')
 
     // Charge BEFORE generating, refund if it fails — the same order the video
     // pipeline uses. Charging afterwards would let a hammered page run several
