@@ -1,0 +1,90 @@
+// Does the page stay still?
+//
+//   npx next start -p 3131
+//   T2A_EMAIL=... T2A_PASSWORD=... node scripts/layout-check.mjs 3131
+//
+// Written after three failed attempts at this, all of which typechecked and
+// built cleanly and none of which worked. A layout is not verified by tsc; it
+// is verified by looking at it.
+//
+// What it checks, which is exactly what was wrong each time:
+//   - the document does not scroll at all
+//   - the typing box is inside the window before AND after messages arrive
+//   - the typing box does not MOVE when the conversation grows
+import { chromium } from 'playwright'
+
+const port = process.argv[2] || 3000
+const base = `http://127.0.0.1:${port}`
+const email = process.env.T2A_EMAIL
+const password = process.env.T2A_PASSWORD
+if (!email || !password) {
+  console.error('Set T2A_EMAIL and T2A_PASSWORD in the environment (never in a file).')
+  process.exit(2)
+}
+
+const browser = await chromium.launch()
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+
+let bad = 0
+const check = (ok, label, detail = '') => {
+  console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? ' — ' + detail : ''}`)
+  if (!ok) bad++
+}
+
+try {
+  await page.goto(`${base}/login`, { waitUntil: 'domcontentloaded' })
+  await page.fill('input[type=email]', email)
+  await page.fill('input[type=password]', password)
+  await page.click('button[type=submit]')
+  await page.waitForURL(/dashboard|flyer/, { timeout: 30_000 })
+
+  await page.goto(`${base}/flyer`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1200)
+
+  const box = () => page.evaluate(() => {
+    const input = document.querySelector('input[placeholder^="Describe it"]')
+    const r = input?.getBoundingClientRect()
+    return {
+      docScrolls: document.documentElement.scrollHeight > window.innerHeight + 2,
+      inputTop: r ? Math.round(r.top) : null,
+      inputBottom: r ? Math.round(r.bottom) : null,
+      winH: window.innerHeight,
+    }
+  })
+
+  const before = await box()
+  check(!before.docScrolls, 'the page itself does not scroll',
+    before.docScrolls ? 'the document is taller than the window' : '')
+  check(before.inputBottom !== null && before.inputBottom <= before.winH,
+    'the typing box is inside the window', `bottom ${before.inputBottom} of ${before.winH}`)
+
+  // Fill the thread with enough messages to have overflowed the old layout.
+  await page.evaluate(() => {
+    const el = document.querySelector('input[placeholder^="Describe it"]')
+    if (el) el.scrollIntoView()
+  })
+  for (let i = 0; i < 6; i++) {
+    await page.fill('input[placeholder^="Describe it"]', `test message ${i + 1}`)
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(900)
+  }
+  await page.waitForTimeout(1500)
+
+  const after = await box()
+  check(!after.docScrolls, 'STILL does not scroll after six messages')
+  check(after.inputTop === before.inputTop,
+    'the typing box has not moved', `was ${before.inputTop}, now ${after.inputTop}`)
+  check(after.inputBottom <= after.winH, 'the typing box is still inside the window',
+    `bottom ${after.inputBottom} of ${after.winH}`)
+
+  await page.screenshot({ path: '.layout-check.png' })
+  console.log('\nwrote .layout-check.png')
+} catch (e) {
+  console.error('check could not run:', e.message)
+  bad++
+} finally {
+  await browser.close()
+}
+
+console.log(bad ? `\n${bad} problem(s)\n` : '\nthe layout stays put\n')
+process.exit(bad ? 1 : 0)

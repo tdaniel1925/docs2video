@@ -763,25 +763,40 @@ export default function FlyerMakerPage() {
   const threadRef = useRef<HTMLDivElement>(null)
 
   /**
-   * How tall this page can be, MEASURED rather than assumed.
+   * Pin the workspace to the WINDOW, not to the page.
    *
-   * A hardcoded "100vh minus the header" was wrong twice over — the number was
-   * a guess, and the layout adds 40px of padding above and below every page on
-   * top of it. So the page overflowed the window, the document scrolled, and
-   * the typing box fell off the bottom.
+   * Three goes at making this sit still all failed the same way: the panel
+   * stayed inside the document and then tried to out-argue the page it lived
+   * in. The dashboard layout gives every page a min-height of the full viewport
+   * plus 40px of padding top and bottom — so whatever height this asked for,
+   * something was always left over, the document grew taller than the window,
+   * and anything "stuck to the bottom" scrolled away with it.
+   *
+   * position:fixed takes it out of the document. `marker` is a zero-height
+   * element left behind in normal flow purely so the app header's height can be
+   * read off it — the one number that genuinely cannot be known in advance.
    */
-  const rootRef = useRef<HTMLDivElement>(null)
-  const [shellHeight, setShellHeight] = useState<number | null>(null)
+  const marker = useRef<HTMLDivElement>(null)
+  const [top, setTop] = useState(0)
   useEffect(() => {
-    const measure = () => {
-      const top = rootRef.current?.getBoundingClientRect().top ?? 0
-      // The layout's bottom padding is cancelled on the element itself, so only
-      // the distance from the top of the window has to come off.
-      setShellHeight(Math.max(420, window.innerHeight - top - 12))
-    }
+    const measure = () => setTop(marker.current?.getBoundingClientRect().top ?? 0)
     measure()
     window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
+
+    // And stop the page behind it scrolling, or the window gets a scrollbar for
+    // content nobody can reach and the wheel scrolls the wrong thing.
+    const html = document.documentElement
+    const body = document.body
+    const prevHtml = html.style.overflow
+    const prevBody = body.style.overflow
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+
+    return () => {
+      window.removeEventListener('resize', measure)
+      html.style.overflow = prevHtml
+      body.style.overflow = prevBody
+    }
   }, [])
   /**
    * Follow the conversation — but only if the customer is watching the end of
@@ -1510,15 +1525,16 @@ export default function FlyerMakerPage() {
   const chip = (on: boolean) => ({ ...plain, background: on ? INK : 'white', color: on ? 'white' : INK, border: on ? '1px solid transparent' : plain.border }) as const
 
   return (
-    <div ref={rootRef} style={{
-      maxWidth: 1240, margin: '0 auto', padding: '0 20px',
-      // Measured on mount and on resize. Until the first measurement lands a
-      // tall default keeps the page from flashing at zero height.
-      height: shellHeight ?? '70vh',
-      // Cancel the 40px the dashboard layout puts under every page, so the
-      // typing box can sit at the bottom of the window rather than 40px above
-      // a scrollbar it created.
-      marginBottom: -40,
+    <>
+    {/* Zero-height, in normal flow, purely to read the header's height off. */}
+    <div ref={marker} />
+    <div style={{
+      position: 'fixed', top, left: 0, right: 0, bottom: 0,
+      display: 'flex', justifyContent: 'center',
+      background: 'var(--bg,#F4F1EC)', overflow: 'hidden',
+    }}>
+    <div style={{
+      width: '100%', maxWidth: 1240, padding: '0 20px',
       display: 'flex', gap: 20, overflow: 'hidden',
     }}>
 
@@ -2046,6 +2062,8 @@ export default function FlyerMakerPage() {
       {viewing && <Viewer design={viewing} onClose={() => setViewing(null)} />}
     </div>
     </div>
+    </div>
+    </>
   )
 }
 
