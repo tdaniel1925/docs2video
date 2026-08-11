@@ -12,6 +12,19 @@
 // =============================================================================
 import Link from 'next/link'
 import { FLYER_TEMPLATES, FLYER_SIZES, PHOTO_ROLES, thumbUrl } from '../_lib/flyer-engine'
+
+/** The nine groups, in the order the app itself shows them. */
+const STYLE_GROUPS = [
+  { id: 'business', label: 'Business' },
+  { id: 'sale', label: 'Sales & offers' },
+  { id: 'food', label: 'Food & drink' },
+  { id: 'services', label: 'Local services' },
+  { id: 'realestate', label: 'Real estate' },
+  { id: 'fitness', label: 'Fitness' },
+  { id: 'community', label: 'Community' },
+  { id: 'music', label: 'Live music' },
+  { id: 'nightlife', label: 'Nightlife' },
+]
 import { CREDIT_COSTS, TIER_CREDITS } from '../_lib/credits'
 
 const COST = CREDIT_COSTS.flyer
@@ -31,8 +44,20 @@ const PLAN_ROWS: { label: string; price: string; credits: number }[] = [
   { label: 'Enterprise', price: '$499/mo', credits: TIER_CREDITS.enterprise },
 ]
 
-// The four thumbnails that read best small, used as the hero collage.
-const HERO_IDS = ['rnb', 'editorial', 'openhouse', 'gym']
+// The two thumbnails that read best small, used as the hero until the app
+// screenshot exists.
+const HERO_IDS = ['rnb', 'editorial']
+
+/**
+ * Is public/text2art-app.png in place yet?
+ *
+ * The hero should show the PRODUCT — two finished flyers proved the output was
+ * good and left the obvious question unanswered: what is it actually like to
+ * use? But this page is live, and pointing at an image that is not there yet
+ * would put a broken picture in front of every visitor. So the designs stay
+ * until the screenshot lands, and this flips to true when it does.
+ */
+const HAS_APP_SHOT = false
 
 export default function Text2ArtLanding() {
   return (
@@ -106,22 +131,35 @@ export default function Text2ArtLanding() {
             </div>
           </div>
           <div className="hero-right">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {HERO_IDS.map((id, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={id}
-                  src={thumbUrl(id)}
-                  alt={FLYER_TEMPLATES.find(t => t.id === id)?.name ?? 'Example design'}
-                  style={{
-                    width: '100%', display: 'block', borderRadius: 10,
-                    border: '1px solid var(--border)',
-                    boxShadow: '0 20px 60px rgba(27,58,92,0.18)',
-                    transform: i % 2 ? 'translateY(14px)' : 'none',
-                  }}
-                />
-              ))}
-            </div>
+            {HAS_APP_SHOT ? (
+              /* THE PRODUCT, NOT A GALLERY. A screenshot of the conversation
+                 answers "what is this like to use?" in the half second somebody
+                 spends deciding whether to read on. */
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src="/text2art-app.png"
+                alt="The Text2Art chat, with a finished design in it"
+                style={{
+                  width: '100%', display: 'block', borderRadius: 12,
+                  border: '1px solid var(--border)',
+                  boxShadow: '0 28px 70px rgba(22,33,92,0.20)',
+                }}
+              />
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {HERO_IDS.map((id, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={id} src={thumbUrl(id)}
+                    alt={FLYER_TEMPLATES.find((t) => t.id === id)?.name ?? 'Example design'}
+                    style={{
+                      width: '100%', display: 'block', borderRadius: 10,
+                      border: '1px solid var(--border)',
+                      boxShadow: '0 20px 60px rgba(22,33,92,0.18)',
+                      transform: i % 2 ? 'translateY(14px)' : 'none',
+                    }} />
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
@@ -181,42 +219,51 @@ export default function Text2ArtLanding() {
               different from one another.
             </p>
           </div>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-              gap: 18,
-            }}
-          >
-            {FLYER_TEMPLATES.map((t) => (
-              <div
-                key={t.id}
-                style={{
-                  borderRadius: 10, overflow: 'hidden',
-                  border: '1px solid var(--border)', background: 'var(--bg-card)',
-                }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={thumbUrl(t.id)}
-                  alt={`${t.name} example design`}
-                  loading="lazy"
-                  style={{ width: '100%', display: 'block', aspectRatio: '17 / 22', objectFit: 'cover' }}
-                />
-                <div style={{ padding: '10px 12px' }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{t.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-light)', textTransform: 'capitalize' }}>
-                    {t.category === 'realestate' ? 'Real estate' : t.category}
-                  </div>
+          {/* AN ACCORDION, NOT 225 TILES.
+              Every style rendered at once made a page you scrolled past rather
+              than read — and it buried the range, which is the actual selling
+              point. Nine headings show the SPREAD at a glance; one click opens
+              any of them.
+
+              Built on <details>, so it works before JavaScript loads, keyboard
+              users get it for free, and browser find-in-page can still reach a
+              style name inside a closed section. */}
+          {STYLE_GROUPS.map((g, gi) => {
+            const inGroup = FLYER_TEMPLATES.filter((t) => t.category === g.id)
+            if (!inGroup.length) return null
+            return (
+              <details key={g.id} open={gi === 0} style={{
+                border: '1px solid var(--border)', borderRadius: 10,
+                background: 'var(--bg-card)', marginBottom: 10, overflow: 'hidden',
+              }}>
+                <summary style={{
+                  cursor: 'pointer', padding: '14px 18px', fontWeight: 700, fontSize: 15,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  listStyle: 'none',
+                }}>
+                  <span>{g.label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--ink-light)' }}>
+                    {inGroup.length} styles
+                  </span>
+                </summary>
+                <div style={{
+                  display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
+                  gap: 14, padding: '4px 18px 18px',
+                }}>
+                  {inGroup.map((t) => (
+                    <div key={t.id} style={{ borderRadius: 9, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={thumbUrl(t.id)} alt={`${t.name} example design`} loading="lazy"
+                        style={{ width: '100%', display: 'block', aspectRatio: '17 / 22', objectFit: 'cover' }} />
+                      <div style={{ padding: '8px 10px', fontSize: 13, fontWeight: 600, background: 'var(--bg-card)' }}>
+                        {t.name}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ))}
-          </div>
-          <p style={{ fontSize: 13, color: 'var(--ink-light)', textAlign: 'center', marginTop: 24 }}>
-            You can also skip the styles entirely and upload a design you already like — it is
-            used as a style reference, so the new design looks like it came from the same
-            designer. Its words, logos and photos are not copied.
-          </p>
+              </details>
+            )
+          })}
         </section>
 
         {/* ───── Sizes ───── */}
