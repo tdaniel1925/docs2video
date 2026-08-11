@@ -170,6 +170,19 @@ const SOCIAL_PIECES: { id: string; label: string }[] = [
 
 
 /** The groups the formats picker shows, in the order most people need them. */
+/**
+ * Put the group they asked for first.
+ *
+ * Someone who clicked "Make something to print" should not have to scroll past
+ * Instagram to find a flyer. Everything is still there — only the order moves,
+ * because hiding the rest would mean a second question to get at them.
+ */
+function orderedGroups(kind: Kind | null) {
+  const lead = kind === 'deck' ? 'slide' : kind === 'social' ? 'social' : kind === 'print' ? 'print' : null
+  if (!lead) return FORMAT_GROUPS
+  return [...FORMAT_GROUPS].sort((a, b) => (a.id === lead ? -1 : b.id === lead ? 1 : 0))
+}
+
 const FORMAT_GROUPS: { id: string; label: string }[] = [
   { id: 'print', label: 'Print' },
   { id: 'social', label: 'Social' },
@@ -188,6 +201,8 @@ const FORMAT_GROUPS: { id: string; label: string }[] = [
  */
 function Picker(p: {
   card: CardKind
+  /** What they said they were making, so the right group of formats leads. */
+  kind: Kind | null
   ticked: string[]; onTickSize: (id: string) => void
   styles: typeof FLYER_TEMPLATES; templateId: string
   onPickStyle: (id: string) => void; onSeeAll: () => void
@@ -225,7 +240,7 @@ function Picker(p: {
         <p style={{ fontSize: 12.5, color: soft, margin: '0 0 12px' }}>
           Tick as many as you need. Each one is designed from scratch{p.unit !== null ? `, ${p.unit.toLocaleString()} credits each` : ''}.
         </p>
-        {FORMAT_GROUPS.map((g) => {
+        {orderedGroups(p.kind).map((g) => {
           const sizes = FLYER_SIZES.filter((s) => s.group === g.id)
           if (!sizes.length) return null
           return (
@@ -597,6 +612,9 @@ export default function FlyerMakerPage() {
   // Photos are optional, so the offer is made ONCE. Re-opening it after every
   // message would nag about something that was already declined.
   const [photosAsked, setPhotosAsked] = useState(false)
+  // What they said they were making. Used to put the right group of formats
+  // first, so someone who asked for a print piece is not led with Instagram.
+  const [kind, setKind] = useState<Kind | null>(null)
 
   // The running order is long. Once the deck is being drawn it has done its
   // job, and left open it buries the slides underneath it — which is exactly
@@ -1088,12 +1106,21 @@ export default function FlyerMakerPage() {
     setItems((p) => p.filter((i) => !(i.kind === 'card' && i.id === id)))
     say('user', summary)
 
-    // ANSWERING ONE QUESTION ASKS THE NEXT. Without this the customer picks a
-    // format, the card vanishes, and nothing happens — so the only live control
-    // left is Make, and pressing it spends money on a design they have not
-    // finished describing. That is exactly how this went wrong.
-    if (summary === 'Make a slide deck') return openCard('slides')
+    // ANSWERING ONE QUESTION ASKS THE NEXT. Without this a card vanishes and
+    // nothing happens — the customer clicks "Make a graphic" and the screen
+    // just goes blank on them, which is exactly what it did: only the slide
+    // deck had a follow-on, so the other three starters led nowhere.
+    if (card?.card === 'start') {
+      if (summary === 'Make a slide deck') {
+        setKind('deck')
+        setTicked(['slide-16x9']); setSizesPicked(true)
+        return openCard('slides')
+      }
+      setKind(summary === 'Make a graphic' ? 'social' : summary === 'Make a set' ? 'set' : 'print')
+      return openCard('formats')
+    }
     if (card?.card === 'formats') return openCard('styles')
+    if (card?.card === 'slides') return openCard('styles')
     if (card?.card === 'styles' || card?.card === 'reference') {
       if (!photosAsked) { setPhotosAsked(true); return openCard('photos') }
     }
@@ -1687,7 +1714,7 @@ export default function FlyerMakerPage() {
           ) : it.kind === 'card' ? (
             <div key={it.id} style={{ ...panel, alignSelf: 'stretch' }}>
               <Picker
-                card={it.card}
+                card={it.card} kind={kind}
                 ticked={ticked} onTickSize={toggleSize}
                 styles={suggestedStyles} templateId={templateId}
                 onPickStyle={pickStyle} onSeeAll={() => setSheet('style')}

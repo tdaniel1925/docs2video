@@ -119,6 +119,29 @@ try {
     /Which formats|What would you like to make/i.test(document.body.innerText))
   check(asked, 'a picker was opened without being asked for')
 
+  // ---- THE STARTER BUTTONS ACTUALLY DO SOMETHING ---------------------------
+  //
+  // Three of the four led nowhere: the card vanished and the screen went blank,
+  // because only "Make a slide deck" had a follow-on question wired to it.
+  console.log('\nevery starter leads somewhere\n')
+
+  for (const [label, expect] of [
+    ['Make something to print', /Which formats/i],
+    ['Make a graphic', /Which formats/i],
+    ['Make a set', /Which formats/i],
+    ['Make a slide deck', /How many slides/i],
+  ]) {
+    await page.goto(`${base}/flyer`, { waitUntil: 'networkidle' })
+    // A fresh chat, so the starter card is the one on screen.
+    await page.click('text=+ New chat')
+    await page.waitForTimeout(1200)
+    await page.click(`button:has-text("${label}")`)
+    await page.waitForTimeout(900)
+    const landed = await page.evaluate(() => document.body.innerText)
+    check(expect.test(landed), `"${label}" opens the next question`,
+      expect.test(landed) ? '' : 'the card vanished and nothing replaced it')
+  }
+
   await page.screenshot({ path: '.layout-check.png' })
   console.log('\nwrote .layout-check.png')
 } catch (e) {
