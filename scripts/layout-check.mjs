@@ -109,7 +109,7 @@ try {
   await page.fill('input[placeholder^="Describe it"]',
     'birthday party flyer for Sam, January 10 2027, 128 Main Street Dallas, BYOB')
   await page.keyboard.press('Enter')
-  await page.waitForTimeout(6000)
+  await page.waitForTimeout(12000)
 
   const described = await makeState()
   check(described.disabled === true, 'STILL disabled after describing the job',
@@ -126,10 +126,10 @@ try {
   console.log('\nevery starter leads somewhere\n')
 
   for (const [label, expect] of [
-    ['Make something to print', /Which formats/i],
-    ['Make a graphic', /Which formats/i],
-    ['Make a set', /Which formats/i],
-    ['Make a slide deck', /How many slides/i],
+    ['Make something to print', /What should it say/i],
+    ['Make a graphic', /What should it say/i],
+    ['Make a set', /What should it say/i],
+    ['Make a slide deck', /What is the deck about/i],
   ]) {
     await page.goto(`${base}/flyer`, { waitUntil: 'networkidle' })
     // A fresh chat, so the starter card is the one on screen.
@@ -141,6 +141,53 @@ try {
     check(expect.test(landed), `"${label}" opens the next question`,
       expect.test(landed) ? '' : 'the card vanished and nothing replaced it')
   }
+
+  // ---- ANSWERING A CARD CLOSES IT AND MOVES ON -----------------------------
+  console.log('\nanswering a card closes it\n')
+
+  await page.goto(`${base}/flyer`, { waitUntil: 'networkidle' })
+  await page.click('text=+ New chat')
+  await page.waitForTimeout(1200)
+  await page.click('button:has-text("Make something to print")')
+  await page.waitForTimeout(900)
+
+  // WHAT IT SAYS COMES FIRST. Choosing a look for a job you have not described
+  // is choosing blind, and the six suggestions are drawn FROM the description.
+  const afterStart = await page.evaluate(() => document.body.innerText)
+  check(/What should it say/i.test(afterStart), 'it asks what it should say before anything else')
+  check(!/How should it look/i.test(afterStart), 'it does NOT ask for a look yet')
+
+  await page.fill('input[placeholder^="Describe it"]',
+    'six week bootcamp at Ironworks Gym, starts 6 January, 6am daily, join the challenge')
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(12000)
+
+  const afterContent = await page.evaluate(() => document.body.innerText)
+  check(/Which formats/i.test(afterContent), 'formats are asked for once it knows the job')
+
+  // Tick a format, confirm, and the look question should replace it.
+  await page.click('button:has-text("Flyer / sell sheet")')
+  await page.locator('button', { hasText: /^Done/ }).first().click()
+  await page.waitForTimeout(900)
+  const afterFormats = await page.evaluate(() => document.body.innerText)
+  check(!/Which formats/i.test(afterFormats), 'the formats card closed after Done')
+  check(/How should it look/i.test(afterFormats), 'the look question opened next')
+
+  // Pick whichever look is offered first. The card must go and something follow.
+  // Scope to the card — img[alt] on its own matches the site logo in the header.
+  await page.locator('div', { hasText: /How should it look/ }).locator('button:has(img)').first().click()
+  await page.waitForTimeout(900)
+  const afterStyle = await page.evaluate(() => document.body.innerText)
+  check(!/How should it look/i.test(afterStyle), 'the look card closed after picking one',
+    /How should it look/i.test(afterStyle) ? 'it stayed with no way to close it' : '')
+  check(/photos or a logo/i.test(afterStyle), 'the photos question followed it')
+
+  // And Make is finally alive, with a price.
+  const ready = await page.evaluate(() => {
+    const b = [...document.querySelectorAll('button')].find((x) => /^Make/.test(x.textContent?.trim() ?? ''))
+    return { label: b?.textContent?.trim(), disabled: b?.disabled }
+  })
+  check(ready.disabled === false, 'Make is alive once everything is chosen', `"${ready.label}"`)
 
   await page.screenshot({ path: '.layout-check.png' })
   console.log('\nwrote .layout-check.png')

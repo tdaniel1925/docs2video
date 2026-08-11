@@ -1000,7 +1000,12 @@ export default function FlyerMakerPage() {
       { kind: 'msg', role: 'assistant', text: "I'm your graphic designer. What would you like to make?", },
       { kind: 'card', id: crypto.randomUUID(), card: 'start' },
     ])
+    // A NEW JOB STARTS EMPTY. Formats, the look and the photos-already-offered
+    // flag used to survive into the next chat, so the new job silently
+    // inherited the last one's choices — and then never asked, because from the
+    // app's point of view they were already answered.
     setFields({}); setNote(''); setPhotos([]); setReference(null)
+    setTicked([]); setKind(null); setPhotosAsked(false); setDeckPlan(null)
     setStylePicked(false); setSizesPicked(false)
     setInput(''); setErr(''); setSheet(null)
     setDeckPlan(null)
@@ -1110,21 +1115,45 @@ export default function FlyerMakerPage() {
     // nothing happens — the customer clicks "Make a graphic" and the screen
     // just goes blank on them, which is exactly what it did: only the slide
     // deck had a follow-on, so the other three starters led nowhere.
+    // WHAT IT SAYS COMES BEFORE HOW IT LOOKS. Choosing a style for a job you
+    // have not described yet is choosing blind — and the six suggestions are
+    // picked FROM the description, so asking first makes them better too.
     if (card?.card === 'start') {
-      if (summary === 'Make a slide deck') {
-        setKind('deck')
-        setTicked(['slide-16x9']); setSizesPicked(true)
-        return openCard('slides')
-      }
-      setKind(summary === 'Make a graphic' ? 'social' : summary === 'Make a set' ? 'set' : 'print')
-      return openCard('formats')
+      setKind(summary === 'Make a slide deck' ? 'deck'
+        : summary === 'Make a graphic' ? 'social'
+        : summary === 'Make a set' ? 'set' : 'print')
+      if (summary === 'Make a slide deck') { setTicked(['slide-16x9']); setSizesPicked(true) }
+      say('assistant', summary === 'Make a slide deck'
+        ? 'Good. What is the deck about, and who is it for? Type it below — or upload a document and I\'ll build it from that.'
+        : 'Good. What should it say? The date, the time, the place, the price — whatever needs to be on it. Type it below, or upload a document and I\'ll pull it out.')
+      return
     }
     if (card?.card === 'formats') return openCard('styles')
-    if (card?.card === 'slides') return openCard('styles')
+    if (card?.card === 'slides') return openCard('formats')
     if (card?.card === 'styles' || card?.card === 'reference') {
       if (!photosAsked) { setPhotosAsked(true); return openCard('photos') }
     }
   }
+
+  /**
+   * Close the look question once a look has been chosen ANYWHERE.
+   *
+   * The six suggestions answer the card directly. "See all 225" opens the older
+   * full-screen picker, and choosing in there set the style without the card
+   * ever hearing about it — so the question sat on screen with no way to close
+   * it and nothing to move on to.
+   *
+   * Watching the ANSWER rather than the button means every route in closes the
+   * question, including any added later.
+   */
+  useEffect(() => {
+    const open = items.find((i): i is Extract<Item, { kind: 'card' }> => i.kind === 'card')
+    if (open?.card !== 'styles') return
+    if (!stylePicked && !reference) return
+    const t = FLYER_TEMPLATES.find((x) => x.id === templateId)
+    answerCard(open.id, reference ? 'your own design' : t?.name ?? 'that look')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stylePicked, reference, templateId, items])
 
   /** Formats are multi-select, so this toggles rather than replaces. */
   const toggleSize = (id: string) => {
@@ -1200,10 +1229,12 @@ export default function FlyerMakerPage() {
         const n = designs.find((d) => d.sizeId === s.id)?.n
         notes.push(`queued up design ${n ?? ''} (${s.label}) to be redone on its own`.replace('  ', ' '))
       }
-    } else if (!sizesPicked && r.sizeId && !ticked.includes(r.sizeId)) {
-      const s = FLYER_SIZES.find((x) => x.id === r.sizeId)
-      if (s) { setTicked([s.id]); notes.push(`switched to ${s.label}`) }
     }
+    // The assistant's suggested SIZE is deliberately not applied. This is the
+    // same fault as the style one line above: it silently ticked a format, so
+    // the formats question never needed asking and the customer never saw it.
+    // The suggestion still steers which group of formats leads; it does not
+    // make the choice.
 
     // Say what was changed on your behalf. A tool that silently rearranges your
     // settings is unnerving even when it guesses right.
@@ -1234,6 +1265,7 @@ export default function FlyerMakerPage() {
   const askNext = (f: FlyerFields) => {
     const hasContent = Object.values(f).some((v) => (Array.isArray(v) ? v.length : v))
     if (!hasContent) return
+    if (kind === 'deck' && deckCount === 0) return openCard('slides')
     if (!ticked.length) return openCard('formats')
     if (!stylePicked && !reference) return openCard('styles')
     if (!photosAsked) { setPhotosAsked(true); return openCard('photos') }
