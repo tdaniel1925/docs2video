@@ -64,8 +64,6 @@ type Item =
   | { kind: 'msg'; role: 'user' | 'assistant'; text: string }
   | {
       kind: 'card'; id: string; card: CardKind
-      /** Once answered it collapses to this line, with a way back in. */
-      answered?: string
     }
   | {
       /**
@@ -170,14 +168,6 @@ const SOCIAL_PIECES: { id: string; label: string }[] = [
   { id: 'li-banner', label: 'LinkedIn banner' },
 ]
 
-const CARD_TITLE: Record<CardKind, string> = {
-  start: 'What are we making',
-  formats: 'Formats',
-  styles: 'Look',
-  photos: 'Photos',
-  reference: 'Your own design',
-  slides: 'Slides',
-}
 
 /** The groups the formats picker shows, in the order most people need them. */
 const FORMAT_GROUPS: { id: string; label: string }[] = [
@@ -770,7 +760,23 @@ export default function FlyerMakerPage() {
 
   // Follow the thread down as it grows, the way a chat does.
   const endRef = useRef<HTMLDivElement>(null)
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [items, thinking])
+  const threadRef = useRef<HTMLDivElement>(null)
+  /**
+   * Follow the conversation — but only if the customer is watching the end of
+   * it.
+   *
+   * This used to be scrollIntoView({behavior:'smooth'}) on every message, which
+   * animated the WHOLE PAGE for half a second each time and yanked you back
+   * down the instant you scrolled up to read something. Now it moves the
+   * thread's own scrollbar, instantly, and leaves you alone whenever you are
+   * anywhere but the bottom.
+   */
+  useEffect(() => {
+    const el = threadRef.current
+    if (!el) return
+    const distanceFromEnd = el.scrollHeight - el.scrollTop - el.clientHeight
+    if (distanceFromEnd < 160) el.scrollTop = el.scrollHeight
+  }, [items, thinking])
 
   // Escape closes whatever is open, innermost first.
   useEffect(() => {
@@ -1017,21 +1023,29 @@ export default function FlyerMakerPage() {
    */
   const openCard = (card: CardKind) => {
     setItems((p) => {
-      const live = p.some((i) => i.kind === 'card' && i.card === card && !i.answered)
+      const live = p.some((i) => i.kind === 'card' && i.card === card)
       if (live) return p
       return [...p, { kind: 'card', id: crypto.randomUUID(), card }]
     })
   }
 
-  /** Collapse it to a line, and say out loud what was chosen. */
+  /**
+   * Answered: the card GOES. It does not collapse into a grey summary row.
+   *
+   * The collapsed rows were the pile-up. A normal job answers four cards, so
+   * the thread filled with four boxes each restating a choice that was already
+   * sitting next to it as a message. Two things saying the same thing, and one
+   * of them a panel.
+   *
+   * The choice is spoken instead, like any other turn in the conversation, and
+   * changing it is what the typing box is for — "actually make it a postcard"
+   * already works.
+   */
   const answerCard = (id: string, summary: string) => {
-    setItems((p) => p.map((i) => (i.kind === 'card' && i.id === id ? { ...i, answered: summary } : i)))
+    setItems((p) => p.filter((i) => !(i.kind === 'card' && i.id === id)))
     say('user', summary)
     if (summary === 'Make a slide deck') openCard('slides')
   }
-
-  const reopenCard = (id: string) =>
-    setItems((p) => p.map((i) => (i.kind === 'card' && i.id === id ? { ...i, answered: undefined } : i)))
 
   /** Formats are multi-select, so this toggles rather than replaces. */
   const toggleSize = (id: string) => {
@@ -1474,7 +1488,7 @@ export default function FlyerMakerPage() {
   const chip = (on: boolean) => ({ ...plain, background: on ? INK : 'white', color: on ? 'white' : INK, border: on ? '1px solid transparent' : plain.border }) as const
 
   return (
-    <div style={{ maxWidth: 1240, margin: '0 auto', padding: '18px 20px 0', minHeight: '100vh', display: 'flex', gap: 20 }}>
+    <div style={{ maxWidth: 1240, margin: '0 auto', padding: '18px 20px 0', height: 'calc(100vh - 73px)', display: 'flex', gap: 20, overflow: 'hidden' }}>
 
       {/* ── PAST JOBS ──────────────────────────────────────────────────────
           One chat is one job. Without this, every design anyone ever made
@@ -1535,7 +1549,7 @@ export default function FlyerMakerPage() {
         </div>
       </aside>
 
-    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 24 }}>Custom Graphics</h1>
         {unit !== null && (
@@ -1545,8 +1559,13 @@ export default function FlyerMakerPage() {
         )}
       </div>
 
-      {/* ── THE THREAD ─────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 0 8px' }}>
+      {/* ── THE THREAD ──────────────────────────────────────────────────
+          Scrolls INSIDE itself. The page does not scroll at all, so the typing
+          box is nailed to the bottom of the window and an arriving message
+          cannot shove it around — which is what made the whole screen bounce
+          every time a line of chat landed. */}
+      <div ref={threadRef}
+        style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 0 8px' }}>
         {loadingHistory && (
           <p style={{ fontSize: 13, color: SOFT, margin: 0 }}>Looking for anything you made before…</p>
         )}
@@ -1561,33 +1580,17 @@ export default function FlyerMakerPage() {
             }}>{it.text}</div>
           ) : it.kind === 'card' ? (
             <div key={it.id} style={{ ...panel, alignSelf: 'stretch' }}>
-              {it.answered ? (
-                // ANSWERED CARDS COLLAPSE. The transcript should read as the
-                // record of the job, not as a stack of open control panels —
-                // and a card that stays open invites a second answer to a
-                // question that is already settled.
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 13 }}>
-                    <strong>{CARD_TITLE[it.card]}</strong>
-                    <span style={{ color: SOFT }}> — {it.answered}</span>
-                  </span>
-                  <button onClick={() => reopenCard(it.id)} style={{ ...plain, padding: '4px 9px', fontWeight: 400 }}>
-                    change
-                  </button>
-                </div>
-              ) : (
-                <Picker
-                  card={it.card}
-                  ticked={ticked} onTickSize={toggleSize}
-                  styles={suggestedStyles} templateId={templateId}
-                  onPickStyle={pickStyle} onSeeAll={() => setSheet('style')}
-                  photos={photos} onOpenPhotos={() => setSheet('photos')}
-                  onReference={async (f) => { await attachReference(f, f.name); answerCard(it.id, 'your own design') }}
-                  deckCount={deckCount} onPickSlides={pickSlides}
-                  unit={unit} bleed={bleed} onBleed={setBleed}
-                  onDone={(summary) => answerCard(it.id, summary)}
-                />
-              )}
+              <Picker
+                card={it.card}
+                ticked={ticked} onTickSize={toggleSize}
+                styles={suggestedStyles} templateId={templateId}
+                onPickStyle={pickStyle} onSeeAll={() => setSheet('style')}
+                photos={photos} onOpenPhotos={() => setSheet('photos')}
+                onReference={async (f) => { await attachReference(f, f.name); answerCard(it.id, 'your own design') }}
+                deckCount={deckCount} onPickSlides={pickSlides}
+                unit={unit} bleed={bleed} onBleed={setBleed}
+                onDone={(summary) => answerCard(it.id, summary)}
+              />
             </div>
           ) : it.kind === 'deck' ? (
             <DeckBlock key={it.id} deck={it} now={now} onOpen={setViewing}
@@ -1614,7 +1617,7 @@ export default function FlyerMakerPage() {
       </div>
 
       {/* ── THE COMPOSER ───────────────────────────────────────────────── */}
-      <div style={{ position: 'sticky', bottom: 0, paddingBottom: 18, background: 'linear-gradient(to bottom, transparent, var(--bg,#F4F1EC) 22%)' }}>
+      <div style={{ flexShrink: 0, paddingBottom: 14, paddingTop: 10 }}>
         {sheet && (
           <div style={{ ...panel, marginBottom: 10, maxHeight: '52vh', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.10)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
