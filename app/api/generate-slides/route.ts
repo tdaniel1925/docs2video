@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { VIDEO_WORKING } from '../../_lib/video-status'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { logError } from '../../_lib/error-logger'
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
   // create the videos row the UI will poll for progress.
   const { data: video, error: insErr } = await admin
     .from('videos')
-    .insert({ user_id: user.id, status: 'processing', progress_pct: 5, progress_detail: 'Starting…', title: (preparer || fileName || 'Slide video').toString().slice(0, 120) })
+    .insert({ user_id: user.id, status: VIDEO_WORKING, progress_pct: 5, progress_detail: 'Starting…', title: (preparer || fileName || 'Slide video').toString().slice(0, 120) })
     .select('id')
     .single()
   if (insErr || !video) {

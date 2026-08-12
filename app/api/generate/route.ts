@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { VIDEO_WORKING } from '../../_lib/video-status'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { INFOGRAPHIC_WIDTH, INFOGRAPHIC_HEIGHT } from '../../_lib/constants'
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
         ? `${(policyData as ExtractedPolicyData).carrier} - ${(policyData as ExtractedPolicyData).policyType}`
         : (policyData as ExtractedData).title,
       source_pdf_name: pdfName,
-      status: 'processing',
+      status: VIDEO_WORKING,
       image_size: `${INFOGRAPHIC_WIDTH}x${INFOGRAPHIC_HEIGHT}`,
       policy_data: policyData,
     })

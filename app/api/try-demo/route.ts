@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { VIDEO_WORKING } from '@/app/_lib/video-status'
 import { createAdminClient } from '@/app/_lib/supabase/admin'
 import { scrapeBrand } from '@/app/_lib/brand-scraper'
 import { checkRateLimit } from '@/app/_lib/rate-limit'
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
         logo_url: brandData.logoUrl,
         company_name: brandData.companyName,
       } : null,
-      status: 'processing',
+      status: VIDEO_WORKING,
       is_trial: true,
       detail_level: 'quick',
       created_at: new Date().toISOString(),

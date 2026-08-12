@@ -775,10 +775,68 @@ app.post('/extract-document', authCheck, async (req, res) => {
         })
       })
       text = (await readFile(txtPath, 'utf-8').catch(() => '')).slice(0, 60000)
+
+      /**
+       * READ THE PAGES AS PICTURES WHEN THERE IS NO TEXT LAYER.
+       *
+       * pdftotext only sees text that is stored AS text. A quote that was
+       * printed and scanned, exported with the type converted to outlines, or
+       * produced by an insurer's ancient print system, has no text layer at
+       * all — so it came back empty and the customer was told "no readable
+       * text found, paste it instead".
+       *
+       * They uploaded a document to avoid retyping it. Asking them to retype it
+       * is the app failing at the exact job they came for.
+       *
+       * pdftoppm ships in the same poppler-utils package as pdftotext, so the
+       * pages become images with nothing new installed — and Gemini reads text
+       * off an image perfectly well. It is already loaded a few lines below.
+       */
+      if (text.trim().length < 40) {
+        console.log('[extract-document] no text layer — reading the pages as images')
+        try {
+          // 150 dpi is enough for body type and keeps the payload sane. Twelve
+          // pages at most: past that it is a book, not a quote, and both the
+          // cost and the wait stop being reasonable.
+          await new Promise((resolve, reject) => {
+            execFile('pdftoppm', ['-png', '-r', '150', '-l', '12', pdfPath, join(workDir, 'page')],
+              { timeout: 120000 }, (err) => err ? reject(err) : resolve(null))
+          })
+          const { readdir } = require('fs/promises')
+          const pages = (await readdir(workDir)).filter(f => f.startsWith('page') && f.endsWith('.png')).sort()
+
+          if (pages.length) {
+            const { GoogleGenAI } = require('@google/genai')
+            const vision = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 180000 } })
+            const parts = [{
+              text: 'Transcribe ALL of the text in these document pages, in reading order, exactly as written. '
+                + 'Keep numbers, dates, money amounts and names precise — this is a real business document, and a '
+                + 'wrong figure is worse than a missing one. Preserve table rows as lines. Do not summarise, do '
+                + 'not comment, and do not add anything that is not on the page. Output the text only.',
+            }]
+            for (const p of pages) {
+              parts.push({ inlineData: { mimeType: 'image/png', data: (await readFile(join(workDir, p))).toString('base64') } })
+            }
+            const r = await vision.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: [{ role: 'user', parts }],
+            })
+            const read = (r.text || '').trim() || (r.candidates?.[0]?.content?.parts ?? []).map(p => p.text || '').join('').trim()
+            if (read) {
+              text = read.slice(0, 60000)
+              console.log(`[extract-document] read ${text.length} characters off ${pages.length} page image(s)`)
+            }
+          }
+        } catch (e) {
+          // Never fatal by itself. If this cannot rescue the file, the message
+          // below still fires — and it now says something you can act on.
+          console.error('[extract-document] reading pages as images failed:', e.message?.slice(0, 160))
+        }
+      }
     }
 
     if (!text.trim()) {
-      throw new Error('No readable text found in this document. If it is a scanned image, please paste the text instead.')
+      throw new Error('I could not find any text in that file, even after reading the pages as pictures. If it is a photo of a document, try a clearer scan — or paste the text in instead.')
     }
 
     // 2) Gemini structures the text into ExtractedData.

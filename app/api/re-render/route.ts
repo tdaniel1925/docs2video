@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { VIDEO_WORKING } from '../../_lib/video-status'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { synthesizeSpeech } from '../../_lib/tts'
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
 
   try {
     // Mark video as re-rendering
-    await admin.from('videos').update({ status: 'processing', progress_detail: 'Re-rendering video...', progress_pct: 10 }).eq('id', videoId)
+    await admin.from('videos').update({ status: VIDEO_WORKING, progress_detail: 'Re-rendering video...', progress_pct: 10 }).eq('id', videoId)
 
     // 1. Generate new TTS audio only for changed scenes
     const audioBuffers: Buffer[] = []

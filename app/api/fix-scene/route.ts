@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { VIDEO_WORKING } from '../../_lib/video-status'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { logError } from '../../_lib/error-logger'
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
   }
 
   if (!previewOnly) {
-    await admin.from('videos').update({ status: 'processing', progress_pct: 8, progress_detail: action === 'edit-text' ? 'Applying your edit…' : 'Re-recording the scene…' }).eq('id', videoId)
+    await admin.from('videos').update({ status: VIDEO_WORKING, progress_pct: 8, progress_detail: action === 'edit-text' ? 'Applying your edit…' : 'Re-recording the scene…' }).eq('id', videoId)
   }
 
   try {

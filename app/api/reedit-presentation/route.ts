@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { VIDEO_WORKING } from '../../_lib/video-status'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { CREDIT_COSTS, deductCredits, getBalance, refundVideoCredits } from '../../_lib/credits'
@@ -97,7 +98,7 @@ export async function POST(req: Request) {
   const up = await admin.from('videos').update({
     draft_data: { ...draft, scenes },
     script: scenes,
-    status: 'processing', progress_pct: 5, progress_detail: 'Rebuilding with your edits',
+    status: VIDEO_WORKING, progress_pct: 5, progress_detail: 'Rebuilding with your edits',
     progress_updated_at: new Date().toISOString(),
   }).eq('id', videoId)
   if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 })
