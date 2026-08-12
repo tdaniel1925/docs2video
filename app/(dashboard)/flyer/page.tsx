@@ -1013,10 +1013,95 @@ export default function FlyerMakerPage() {
   }
 
   /**
-   * A pasted image that arrived with no panel open, so we cannot know what it
-   * is. Held here until asked.
+   * Anything dropped or pasted with no panel open, waiting to be sorted.
+   *
+   * ONE BUCKET, NOT THREE. The obvious build is three labelled trays — logo
+   * here, photos there, reference in the third — but that makes somebody sort
+   * their own files before the app will look at them, which is the work we are
+   * meant to be doing. Drop the lot in; the app works out what each one is and
+   * shows you what it decided.
    */
-  const [pasted, setPasted] = useState<File | null>(null)
+  type Dropped = {
+    id: string
+    dataUrl: string
+    name: string
+    /** What it was taken to be. Editable — the guess is a starting point. */
+    kind: PhotoRole | 'reference'
+    /** The app's own description, so you can tell which one it means. */
+    what: string
+    /** Was it confident? An unsure one is highlighted rather than assumed. */
+    sure: boolean
+  }
+  const [dropped, setDropped] = useState<Dropped[]>([])
+  const [sorting, setSorting] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+
+  /**
+   * Take whatever arrived, shrink it, and ask what each one is.
+   *
+   * The sorting is a CONVENIENCE, never a gate. If it fails, or there is no key
+   * for it, the files still land — they just arrive unlabelled and ask. Losing
+   * somebody's upload because a nicety broke is not a trade worth making.
+   */
+  const takeDropped = async (files: File[]) => {
+    const room = 6 - dropped.length
+    if (room <= 0) { setErr('Six at a time is plenty — sort these first.'); return }
+
+    const taken: Dropped[] = []
+    for (const f of files.slice(0, room)) {
+      if (!f.type.startsWith('image/')) continue
+      try {
+        taken.push({
+          id: crypto.randomUUID(),
+          dataUrl: await shrinkForUpload(f),
+          name: f.name || 'pasted image',
+          kind: 'person', what: '', sure: false,
+        })
+      } catch (err) {
+        setErr(err instanceof Error ? err.message : `Could not read ${f.name || 'that image'}.`)
+      }
+    }
+    if (!taken.length) return
+
+    setErr('')
+    setDropped((d) => [...d, ...taken])
+    setSorting(true)
+    try {
+      const res = await fetch('/api/classify-images', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ images: taken.map((t) => t.dataUrl) }),
+      }).then((r) => r.json()).catch(() => null)
+
+      if (res?.results?.length === taken.length) {
+        setDropped((d) => d.map((item) => {
+          const i = taken.findIndex((t) => t.id === item.id)
+          if (i < 0) return item
+          const g = res.results[i]
+          return { ...item, kind: g.kind, what: g.what, sure: g.sure }
+        }))
+      }
+    } finally {
+      setSorting(false)
+    }
+  }
+
+  /** File it where it belongs and take it out of the tray. */
+  const fileDropped = (d: Dropped) => {
+    // Read out before the check. Narrowing a property does not survive into the
+    // closure below, so `d.kind` in there is still "might be a reference".
+    const role = d.kind
+    setDropped((rest) => rest.filter((x) => x.id !== d.id))
+    if (role === 'reference') {
+      // The reference wants the original file, not our shrunk copy — it is the
+      // one image whose fine detail is the whole point.
+      fetch(d.dataUrl).then((r) => r.blob()).then((b) => {
+        void attachReference(new File([b], d.name, { type: b.type }), d.name)
+      })
+      return
+    }
+    setPhotos((p) => [...p, { dataUrl: d.dataUrl, name: d.name, role }].slice(0, 3))
+    markPicked('photo')
+  }
 
   /**
    * PASTE WORKS EVERYWHERE, AND LANDS WHERE YOU ARE.
@@ -1027,27 +1112,83 @@ export default function FlyerMakerPage() {
    * pasting a photo or a logo silently did nothing — which reads as the
    * feature not existing.
    *
-   * What is open decides where it goes. When nothing is open we ASK rather
-   * than guess: a pasted image is as likely to be a design to copy the look of
-   * as a photo to put in one, and guessing wrong either burns their reference
-   * or puts a stock poster in their flyer.
+   * What is open decides where it goes. When nothing is open it goes into the
+   * tray, which works out what it is and SHOWS you — a pasted image is as
+   * likely to be a design to copy the look of as a photo to put in one, and
+   * there is no signal in the gesture that tells them apart.
    */
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
-      // Never steal a paste from a text box. Copying a headline out of a
-      // document and pasting it into the chat must stay a paste of text.
-      const el = document.activeElement
-      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return
       const item = [...(e.clipboardData?.items ?? [])].find((i) => i.type.startsWith('image/'))
       const file = item?.getAsFile()
       if (!file) return
+
+      // TEXT WINS ONLY WHEN THERE IS TEXT. The old rule was "ignore any paste
+      // while the cursor is in a box you type into" — which killed the gesture
+      // in the chat box, the single most obvious place to paste a picture.
+      //
+      // The real question is not where the cursor is, it is what is ON the
+      // clipboard. Copying a headline out of a document puts text there and
+      // that must stay text. Copying an image puts an image there, and no
+      // amount of cursor position changes what was meant.
+      const alsoText = (e.clipboardData?.getData('text/plain') ?? '').trim()
+      const el = document.activeElement
+      const typing = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
+      if (typing && alsoText) return
+
       e.preventDefault()
       if (sheet === 'photos') void addPhoto(file)
       else if (sheet === 'style' && !reference) void attachReference(file, 'pasted design')
-      else setPasted(file)
+      else void takeDropped([file])
     }
     window.addEventListener('paste', onPaste)
     return () => window.removeEventListener('paste', onPaste)
+  })
+
+  /**
+   * DROP ANYWHERE ON THE PAGE.
+   *
+   * Same reasoning as paste being bound to the window: a drop zone you have to
+   * find and hit is a zone people miss, and a file dropped outside it gets
+   * OPENED BY THE BROWSER — the whole app replaced by a JPEG, and their work
+   * apparently gone. Which is why the leave/over handlers below cancel the
+   * default even when we are not going to accept the file.
+   */
+  useEffect(() => {
+    let depth = 0
+    const over = (e: DragEvent) => {
+      if (!e.dataTransfer?.types?.includes('Files')) return
+      e.preventDefault()
+    }
+    const enter = (e: DragEvent) => {
+      if (!e.dataTransfer?.types?.includes('Files')) return
+      e.preventDefault(); depth++; setDragOver(true)
+    }
+    const leave = () => { depth = Math.max(0, depth - 1); if (!depth) setDragOver(false) }
+    const drop = (e: DragEvent) => {
+      if (!e.dataTransfer?.types?.includes('Files')) return
+      e.preventDefault(); depth = 0; setDragOver(false)
+      const files = [...(e.dataTransfer.files ?? [])]
+      const images = files.filter((f) => f.type.startsWith('image/'))
+      // A dropped PDF or Word file is a BRIEF, not artwork — the app already
+      // reads those. Sending it to the image sorter would just reject it.
+      const doc = files.find((f) => !f.type.startsWith('image/'))
+      if (images.length) {
+        if (sheet === 'photos') { for (const f of images) void addPhoto(f) }
+        else if (sheet === 'style' && !reference) void attachReference(images[0], images[0].name)
+        else void takeDropped(images)
+      } else if (doc) void readDocument(doc)
+    }
+    window.addEventListener('dragover', over)
+    window.addEventListener('dragenter', enter)
+    window.addEventListener('dragleave', leave)
+    window.addEventListener('drop', drop)
+    return () => {
+      window.removeEventListener('dragover', over)
+      window.removeEventListener('dragenter', enter)
+      window.removeEventListener('dragleave', leave)
+      window.removeEventListener('drop', drop)
+    }
   })
 
   // ── talking to it ──────────────────────────────────────────────────────
@@ -2299,29 +2440,73 @@ export default function FlyerMakerPage() {
           <div style={{ ...panel, marginBottom: 10, borderColor: '#E3B4A8', background: '#FDF3F1', color: '#B4432F', fontSize: 13 }}>{err}</div>
         )}
 
-        {/* PASTED WITH NOTHING OPEN — SO ASK.
-            A pasted image is as likely to be a design to copy the look of as a
-            photo to go in one, and there is no signal that tells them apart.
-            Guessing wrong either burns their reference or drops a stock poster
-            into their flyer, and both are worse than one small question.
-            Inline, next to the thing it is about — never a browser dialog. */}
-        {pasted && (
-          <div style={{ ...panel, marginBottom: 10, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <img src={URL.createObjectURL(pasted)} alt="the image you pasted"
-              style={{ width: 46, height: 46, objectFit: 'cover', borderRadius: 7, border: `1px solid ${LINE}` }} />
-            <div style={{ flex: 1, minWidth: 150, fontSize: 13, color: INK, fontWeight: 600 }}>
-              You pasted an image. What is it?
+        {/* WHAT YOU DROPPED IN, ALREADY SORTED.
+            Not three labelled buckets to aim at. Making somebody file their own
+            images before the app will look at them is the work we are supposed
+            to be doing for them. Drop the lot; each one is identified and shown
+            with what it was taken to be, and the label is a dropdown because a
+            guess you cannot correct is worse than no guess.
+            An UNSURE one is marked, not silently assumed — a logo filed as a
+            product gets redrawn instead of placed, and that must never happen
+            to somebody's real mark. */}
+        {dropped.length > 0 && (
+          <div style={{ ...panel, marginBottom: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: INK, marginBottom: 2 }}>
+              {sorting
+                ? `Looking at ${dropped.length} image${dropped.length === 1 ? '' : 's'}…`
+                : dropped.some((d) => !d.sure)
+                ? 'Sorted these — check the ones marked, I was not sure.'
+                : `Sorted these. Change any label that is wrong.`}
             </div>
-            <button style={plain} title="Take the colours, lettering and mood from it — we never copy the design itself"
-              onClick={() => { const f = pasted; setPasted(null); void attachReference(f, 'pasted design') }}>
-              A design to copy the style of
-            </button>
-            <button style={plain} title="Put this picture in the design"
-              onClick={() => { const f = pasted; setPasted(null); void addPhoto(f); markPicked('photo') }}>
-              A photo to put in it
-            </button>
-            <button style={{ ...plain, padding: '5px 9px' }} title="Discard it"
-              onClick={() => setPasted(null)}>✕</button>
+            <p style={{ fontSize: 12, color: SOFT, margin: '0 0 10px' }}>
+              A design becomes the style to work from. Everything else goes into the artwork.
+            </p>
+
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {dropped.map((d) => (
+                <div key={d.id} style={{
+                  width: 156, border: `1px solid ${d.sure || sorting ? LINE : '#E3B4A8'}`,
+                  borderRadius: 9, padding: 8, background: d.sure || sorting ? 'white' : '#FDF3F1',
+                }}>
+                  <img src={d.dataUrl} alt={d.what || d.name}
+                    style={{ width: '100%', height: 84, objectFit: 'cover', borderRadius: 6, display: 'block', marginBottom: 6 }} />
+                  {d.what && (
+                    <div style={{ fontSize: 11, color: SOFT, marginBottom: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      title={d.what}>{d.what}</div>
+                  )}
+                  <select value={d.kind} disabled={sorting}
+                    onChange={(e) => setDropped((rest) => rest.map((x) =>
+                      x.id === d.id ? { ...x, kind: e.target.value as Dropped['kind'], sure: true } : x))}
+                    style={{ width: '100%', padding: '5px 6px', borderRadius: 6, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 12 }}>
+                    <option value="reference">A design to copy the look of</option>
+                    {PHOTO_ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                  </select>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                    <button style={{ ...plain, flex: 1, padding: '5px 6px', fontSize: 12 }} disabled={sorting}
+                      title="Use it" onClick={() => fileDropped(d)}>Use it</button>
+                    <button style={{ ...plain, padding: '5px 8px', fontSize: 12 }}
+                      title="Discard" onClick={() => setDropped((rest) => rest.filter((x) => x.id !== d.id))}>✕</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {dropped.length > 1 && !sorting && (
+              <button style={{ ...plain, marginTop: 10 }}
+                title="Accept every label as shown"
+                onClick={() => { for (const d of [...dropped]) fileDropped(d) }}>
+                Use all {dropped.length}
+              </button>
+            )}
+          </div>
+        )}
+
+        {dragOver && (
+          <div style={{
+            ...panel, marginBottom: 10, borderStyle: 'dashed', borderColor: INK,
+            textAlign: 'center', fontSize: 13, fontWeight: 700, color: INK, padding: 18,
+          }}>
+            Drop them anywhere — I&rsquo;ll work out what each one is
           </div>
         )}
 
@@ -2378,7 +2563,7 @@ export default function FlyerMakerPage() {
             <input value={input} onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') send() }} disabled={thinking}
               title="Describe the job the way you'd say it out loud — what it's for, when, where, how much"
-              placeholder={listening ? 'Listening… speak now' : 'Describe it — "doors at 9, $20 cover, DJ Sable headlining"'}
+              placeholder={listening ? 'Listening… speak now' : 'Describe it, or drop in your logo and photos'}
               style={{ flex: 1, padding: '11px 13px', borderRadius: 8, border: `1px solid ${listening ? INK : LINE}`, font: 'inherit', fontSize: 15 }} />
 
             {/* No "unsupported" state any more. Where the browser has no

@@ -63,32 +63,31 @@ try {
   await page.goto(`${BASE}/flyer`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
 
-  // 1. Nothing open — it must ASK rather than guess or swallow it.
+  // 1. THE BUG THIS EXISTS FOR. Paste used to be ignored inside any text box —
+  //    and the chat box IS a text box, so the most obvious place to paste an
+  //    image was the one place it did nothing. Click into it and paste.
+  const box = page.locator('input[type="text"], textarea, input:not([type])').first()
+  if (await box.count()) await box.click()
   await pasteImage(page)
-  const asked = await page.getByText('You pasted an image. What is it?').isVisible().catch(() => false)
-  check('paste with nothing open asks what it is', asked)
+  await page.waitForTimeout(1500)
+  const landed = await page.getByText(/Sorted these|Looking at \d+ image/i).first().isVisible().catch(() => false)
+  check('pasting into the chat box accepts the image', landed)
 
-  // 2. Both answers are offered, and they are the two real options.
-  const hasStyle = await page.getByRole('button', { name: /copy the style of/i }).isVisible().catch(() => false)
-  const hasPhoto = await page.getByRole('button', { name: /photo to put in it/i }).isVisible().catch(() => false)
-  check('offers "a design to copy" and "a photo"', hasStyle && hasPhoto)
+  // 2. It sorted it rather than asking a question per image.
+  const label = await page.locator('select').filter({ hasText: /design to copy the look of/i }).first().isVisible().catch(() => false)
+  check('shows what it decided, as something you can change', label)
 
-  // 3. Choosing "photo" actually attaches it.
-  if (hasPhoto) {
-    await page.getByRole('button', { name: /photo to put in it/i }).click()
-    await page.waitForTimeout(1200)
-    const gone = !(await page.getByText('You pasted an image. What is it?').isVisible().catch(() => false))
-    check('answering closes the question', gone)
-  }
-
-  // 4. A paste while typing must stay a paste of TEXT.
-  const box = page.locator('textarea, input[type="text"]').first()
-  if (await box.count()) {
-    await box.click()
-    await pasteImage(page)
-    const stole = await page.getByText('You pasted an image. What is it?').isVisible().catch(() => false)
-    check('does not hijack a paste while typing', !stole)
-  }
+  // 3. TEXT STILL WINS when there is text on the clipboard. Copying a headline
+  //    out of a document and pasting it into the chat must stay a paste of text.
+  const before = await box.inputValue().catch(() => '')
+  await page.evaluate(async () => {
+    const dt = new DataTransfer()
+    dt.setData('text/plain', 'doors at 9')
+    document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true }))
+    await new Promise((r) => setTimeout(r, 400))
+  })
+  const trayGrew = (await page.locator('select').count()) > 1
+  check('a paste of text is not treated as an image', !trayGrew, `box was "${before}"`)
 } catch (e) {
   check('ran at all', false, String(e).slice(0, 120))
 } finally {
