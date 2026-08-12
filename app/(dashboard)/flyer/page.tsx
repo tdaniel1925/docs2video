@@ -237,7 +237,16 @@ function Picker(p: {
   if (p.card === 'start') {
     return (
       <>
-        <p style={{ fontSize: 13.5, fontWeight: 700, margin: '0 0 10px' }}>What would you like to make?</p>
+        <p style={{ fontSize: 13.5, fontWeight: 700, margin: '0 0 2px' }}>What would you like to make?</p>
+        {/* SAID AT THE START, WHERE IT IS USEFUL. Every one of these gestures
+            worked before and none of them were mentioned, so nobody used them.
+            Under the buttons rather than above: the question is still the first
+            thing read, and this is what to do if none of the four fit. */}
+        <p style={{ fontSize: 12.5, color: soft, margin: '0 0 12px', lineHeight: 1.55 }}>
+          At any point you can paste or drag in your logo, your photos, or a design you like the
+          look of — anywhere on the screen, as many as you like, and I&rsquo;ll work out what each one
+          is. Or paste your website address and I&rsquo;ll go and look.
+        </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 8 }}>
           {STARTERS.map((s) => (
             <button key={s.kind} onClick={() => p.onDone(s.label)} title={s.hint}
@@ -628,7 +637,10 @@ async function downloadAll(round: Extract<Item, { kind: 'round' }>) {
 
 export default function FlyerMakerPage() {
   const [items, setItems] = useState<Item[]>([
-    { kind: 'msg', role: 'assistant', text: "I'm your graphic designer. What would you like to make?", },
+    {
+      kind: 'msg', role: 'assistant',
+      text: "I'm your graphic designer. What would you like to make?",
+    },
     { kind: 'card', id: crypto.randomUUID(), card: 'start' },
   ])
 
@@ -1085,6 +1097,78 @@ export default function FlyerMakerPage() {
     }
   }
 
+  /**
+   * Go and look at a web page, and put what is on it into the tray.
+   *
+   * "Here is what we look like" is a link, not a folder. Their site already has
+   * the logo, the photographs and the colours on it; making them save each one
+   * to disk first is asking them to redo a job they already did.
+   *
+   * Everything found is a CANDIDATE. It lands in the same tray, gets sorted the
+   * same way, and is thrown out with one click — a page also carries navigation
+   * icons and stock banners, so choosing for them would be wrong often enough
+   * to be worse than not offering it.
+   */
+  const [readingSite, setReadingSite] = useState(false)
+  const takeFromUrl = async (url: string) => {
+    if (readingSite) return
+    setReadingSite(true); setErr('')
+    say('user', url)
+    say('assistant', 'Having a look at that page…')
+    try {
+      const r = await fetch('/api/reference-url', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ url }),
+      }).then((x) => x.json()).catch(() => null)
+
+      if (!r || r.error || !r.images?.length) {
+        say('assistant', r?.error
+          ? `${r.error}`
+          : 'I could not find any usable pictures on that page. Save the ones you want and drop them in — I will sort them.')
+        return
+      }
+
+      // Fetched through our own server: a browser cannot read pixels from
+      // another site's image, and we need the bytes to sort and to use them.
+      const got: Dropped[] = []
+      for (const src of r.images.slice(0, 6)) {
+        try {
+          const blob = await fetch(`/api/proxy-image?url=${encodeURIComponent(src)}`).then((x) => x.ok ? x.blob() : null)
+          if (!blob || !blob.type.startsWith('image/')) continue
+          const file = new File([blob], src.split('/').pop()?.split('?')[0] || 'from the site', { type: blob.type })
+          got.push({
+            id: crypto.randomUUID(), dataUrl: await shrinkForUpload(file),
+            name: file.name, kind: 'person', what: '', sure: false,
+          })
+        } catch { /* one bad image must not lose the rest */ }
+      }
+
+      if (!got.length) {
+        say('assistant', 'That page had pictures but none of them would load for me. Drop them in and I will sort them.')
+        return
+      }
+
+      setDropped((d) => [...d, ...got].slice(0, 6))
+      say('assistant', `Pulled ${got.length} picture${got.length === 1 ? '' : 's'} off ${r.title || 'that page'}. Sorting them now — keep what you want, bin the rest.`)
+
+      setSorting(true)
+      try {
+        const res = await fetch('/api/classify-images', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ images: got.map((g) => g.dataUrl) }),
+        }).then((x) => x.json()).catch(() => null)
+        if (res?.results?.length === got.length) {
+          setDropped((d) => d.map((item) => {
+            const i = got.findIndex((g) => g.id === item.id)
+            return i < 0 ? item : { ...item, kind: res.results[i].kind, what: res.results[i].what, sure: res.results[i].sure }
+          }))
+        }
+      } finally { setSorting(false) }
+    } finally {
+      setReadingSite(false)
+    }
+  }
+
   /** File it where it belongs and take it out of the tray. */
   const fileDropped = (d: Dropped) => {
     // Read out before the check. Narrowing a property does not survive into the
@@ -1444,10 +1528,19 @@ export default function FlyerMakerPage() {
     setDeckCount(n); setTicked(['slide-16x9']); setSizesPicked(true)
   }
 
+  /** Just an address, nothing else — so it was meant as "go and look at this". */
+  const JUST_A_URL = /^(https?:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i
+
   const send = async () => {
     const text = input.trim()
     if (!text || thinking) return
     setInput('')
+    // A BARE ADDRESS MEANS GO AND LOOK. Typing a website into a design tool and
+    // getting "tell me more about your event" back is the app ignoring the most
+    // useful thing it was given. An address inside a sentence is left alone —
+    // "put northsideheating.com at the bottom" is a contact line, not an
+    // instruction to go browsing.
+    if (JUST_A_URL.test(text) && !text.includes(' ')) { await takeFromUrl(text); return }
     say('user', text)
     await ask(text)
   }
