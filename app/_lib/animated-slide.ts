@@ -201,9 +201,11 @@ function buildAnimatedHtml(
      * subtitle, 48px figures — chosen for text of a length nobody controls. The
      * words are written by a model from somebody's document, so a headline can
      * be four words or fourteen. When it is fourteen it wraps onto three lines,
-     * shoves the panels down, and the frame is `overflow: hidden`, so the
-     * bottom of the slide is simply cut off. That is the overlapping and
-     * spilling.
+     * shoves the panels down, and the frame hides its overflow — so the bottom
+     * of the slide is simply cut off. That is the overlapping and the spilling.
+     *
+     * (No backticks in here: this whole script lives inside a template string,
+     * and one stray backtick ends it. That is how it got committed broken once.)
      *
      * This runs in a real browser before a single frame is captured, so it does
      * not guess: it asks the page whether the content fits and shrinks the type
