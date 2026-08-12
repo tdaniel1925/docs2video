@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createBrand } from '../../../_actions/brands'
 import { downscaleImage } from '../../../_lib/image-resize'
 import { useBrand } from '../../../_components/BrandProvider'
+import { usePasteImage, pasteKeyLabel } from '../../../_components/usePasteImage'
 
 const COLOR_LABELS: Record<string, string> = {
   primary_color: 'Primary',
@@ -242,6 +243,11 @@ export default function NewBrandPage() {
       setLoading(false)
     }
   }
+
+  // Only while the headshot field is on screen. A company profile has no
+  // photo to paste into, and binding a listener that quietly discards what you
+  // pasted is how a feature gets reported as broken.
+  usePasteImage((f) => { void handlePhotoUpload(f) }, profileType === 'person')
 
   async function handlePhotoUpload(file: File) {
     setPhotoUploading(true)
@@ -628,7 +634,7 @@ export default function NewBrandPage() {
                   {photoUploading ? (
                     <span style={{ fontSize: 14, color: 'var(--ink-soft)' }}>Uploading...</span>
                   ) : (
-                    <span style={{ fontSize: 14, color: 'var(--ink-light)' }}>Click to upload a headshot</span>
+                    <span style={{ fontSize: 14, color: 'var(--ink-light)' }}>Click to upload a headshot — or paste one with {pasteKeyLabel()}</span>
                   )}
                   <input
                     ref={photoInputRef}

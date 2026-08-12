@@ -10,6 +10,7 @@ import type { Brand } from '../../../_lib/types'
 import { SLIDE_STYLES } from '../../../_lib/types'
 import InlineConfirm from '../../../_components/InlineConfirm'
 import { useBrand } from '../../../_components/BrandProvider'
+import { usePasteImage, pasteKeyLabel } from '../../../_components/usePasteImage'
 
 const COLOR_LABELS: Record<string, string> = {
   primary_color: 'Primary',
@@ -252,6 +253,14 @@ export default function EditBrandPage() {
     const file = e.dataTransfer.files?.[0]
     if (file && file.type.startsWith('image/')) handleLogoUpload(file)
   }
+
+  // PASTE GOES WHERE THE PAGE ALREADY IS. A person profile shows a headshot
+  // and no logo; a company profile shows a logo and no headshot. They are never
+  // both on screen, so there is nothing to guess between.
+  usePasteImage((f) => {
+    if (profileType === 'person') void handlePhotoUpload(f)
+    else void handleLogoUpload(f)
+  })
 
   function handleRemoveLogo() {
     setLogoFileUrl(null)
@@ -565,6 +574,11 @@ export default function EditBrandPage() {
           {/* Logo Upload */}
           <div className="form-group">
             <label className="input-label">Upload Logo <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
+            {/* SAY THE SHORTCUT. A gesture nobody is told about is a gesture
+                nobody uses, however well it works. */}
+            <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '-2px 0 8px' }}>
+              Pick a file, drag one in, or just paste it with {pasteKeyLabel()}.
+            </p>
             <input type="hidden" name="logo_file_url" value={logoFileUrl ?? ''} />
             {/* Processed transparent variants used when rendering videos. */}
             <input type="hidden" name="logo_light_url" value={logoLightUrl ?? ''} />

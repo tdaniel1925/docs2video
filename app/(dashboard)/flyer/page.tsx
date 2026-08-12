@@ -989,18 +989,62 @@ export default function FlyerMakerPage() {
       'Our own looks are switched off while it\'s attached; remove it to go back to them.')
   }
 
-  // PASTE ANYWHERE WHILE THE STYLE PANEL IS OPEN. Bound to the window rather
-  // than to a box you must click first, because "click here, then paste" is a
-  // step people skip and then report the paste as broken.
+  /**
+   * Add one of the customer's own pictures.
+   *
+   * Lives here rather than inside the photo panel so that pasting, dropping and
+   * the file button are the SAME code. When it lived in the panel's onChange
+   * only the file button could reach it, which is how you end up with an app
+   * where one of three obvious gestures works.
+   */
+  const addPhoto = async (f: File) => {
+    if (photos.length >= 3) { setErr('Three photos is the most a design can use.'); return }
+    try {
+      // Shrunk rather than rejected for being big. A phone photo straight from
+      // the camera is 4000px and 12 MB; posted as JSON that is a ~16 MB request
+      // and the host refuses anything over 4.5 MB — which was making designs
+      // fail with no explanation.
+      const dataUrl = await shrinkForUpload(f)
+      setPhotos((p) => [...p, { dataUrl, name: f.name || 'pasted photo', role: 'person' as PhotoRole }].slice(0, 3))
+      setErr('')
+    } catch (err) {
+      setErr(err instanceof Error ? err.message : `Could not read ${f.name || 'that image'}.`)
+    }
+  }
+
+  /**
+   * A pasted image that arrived with no panel open, so we cannot know what it
+   * is. Held here until asked.
+   */
+  const [pasted, setPasted] = useState<File | null>(null)
+
+  /**
+   * PASTE WORKS EVERYWHERE, AND LANDS WHERE YOU ARE.
+   *
+   * Bound to the window rather than to a box you have to click first: "click
+   * here, then paste" is a step people skip and then report the paste as
+   * broken. It used to be bound only while the style panel was open, so
+   * pasting a photo or a logo silently did nothing — which reads as the
+   * feature not existing.
+   *
+   * What is open decides where it goes. When nothing is open we ASK rather
+   * than guess: a pasted image is as likely to be a design to copy the look of
+   * as a photo to put in one, and guessing wrong either burns their reference
+   * or puts a stock poster in their flyer.
+   */
   useEffect(() => {
-    if (sheet !== 'style' || reference) return
     const onPaste = (e: ClipboardEvent) => {
+      // Never steal a paste from a text box. Copying a headline out of a
+      // document and pasting it into the chat must stay a paste of text.
+      const el = document.activeElement
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return
       const item = [...(e.clipboardData?.items ?? [])].find((i) => i.type.startsWith('image/'))
-      if (!item) return
-      const file = item.getAsFile()
+      const file = item?.getAsFile()
       if (!file) return
       e.preventDefault()
-      void attachReference(file, 'pasted design')
+      if (sheet === 'photos') void addPhoto(file)
+      else if (sheet === 'style' && !reference) void attachReference(file, 'pasted design')
+      else setPasted(file)
     }
     window.addEventListener('paste', onPaste)
     return () => window.removeEventListener('paste', onPaste)
@@ -2107,8 +2151,8 @@ export default function FlyerMakerPage() {
             )}
 
             {sheet === 'photos' && (
-              <PhotoSheet photos={photos} setPhotos={setPhotos} setErr={setErr} plain={plain}
-                onPicked={() => markPicked('photo')} />
+              <PhotoSheet photos={photos} setPhotos={setPhotos} plain={plain}
+                addPhoto={addPhoto} onPicked={() => markPicked('photo')} />
             )}
 
             {sheet === 'sizes' && (
@@ -2253,6 +2297,32 @@ export default function FlyerMakerPage() {
 
         {err && (
           <div style={{ ...panel, marginBottom: 10, borderColor: '#E3B4A8', background: '#FDF3F1', color: '#B4432F', fontSize: 13 }}>{err}</div>
+        )}
+
+        {/* PASTED WITH NOTHING OPEN — SO ASK.
+            A pasted image is as likely to be a design to copy the look of as a
+            photo to go in one, and there is no signal that tells them apart.
+            Guessing wrong either burns their reference or drops a stock poster
+            into their flyer, and both are worse than one small question.
+            Inline, next to the thing it is about — never a browser dialog. */}
+        {pasted && (
+          <div style={{ ...panel, marginBottom: 10, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <img src={URL.createObjectURL(pasted)} alt="the image you pasted"
+              style={{ width: 46, height: 46, objectFit: 'cover', borderRadius: 7, border: `1px solid ${LINE}` }} />
+            <div style={{ flex: 1, minWidth: 150, fontSize: 13, color: INK, fontWeight: 600 }}>
+              You pasted an image. What is it?
+            </div>
+            <button style={plain} title="Take the colours, lettering and mood from it — we never copy the design itself"
+              onClick={() => { const f = pasted; setPasted(null); void attachReference(f, 'pasted design') }}>
+              A design to copy the style of
+            </button>
+            <button style={plain} title="Put this picture in the design"
+              onClick={() => { const f = pasted; setPasted(null); void addPhoto(f); markPicked('photo') }}>
+              A photo to put in it
+            </button>
+            <button style={{ ...plain, padding: '5px 9px' }} title="Discard it"
+              onClick={() => setPasted(null)}>✕</button>
+          </div>
         )}
 
         <div style={{ ...panel, boxShadow: '0 6px 24px rgba(0,0,0,.07)' }}>
@@ -2881,11 +2951,12 @@ function Viewer({ design, onClose }: { design: Design & { designId?: string }; o
   )
 }
 
-function PhotoSheet({ photos, setPhotos, setErr, plain, onPicked }: {
+function PhotoSheet({ photos, setPhotos, plain, addPhoto, onPicked }: {
   photos: { dataUrl: string; role: PhotoRole; name: string }[]
   setPhotos: React.Dispatch<React.SetStateAction<{ dataUrl: string; role: PhotoRole; name: string }[]>>
-  setErr: (s: string) => void
   plain: React.CSSProperties
+  /** Shared with paste and drag-and-drop so all three behave identically. */
+  addPhoto: (f: File) => Promise<void>
   /** Tell the panel a choice was made, so Done starts asking to be pressed. */
   onPicked?: () => void
 }) {
@@ -2895,26 +2966,19 @@ function PhotoSheet({ photos, setPhotos, setErr, plain, onPicked }: {
         + Add photo
         <input type="file" title="Pick an image from your device" accept="image/*" multiple hidden
           onChange={async (e) => {
-            const files = [...(e.target.files ?? [])].slice(0, 3 - photos.length)
-            for (const f of files) {
-              // Shrunk here rather than rejected for being big. A phone photo
-              // straight from the camera is 4000px and 12 MB; posted as JSON
-              // that is a ~16 MB request, and the host refuses anything over
-              // 4.5 MB — which is what was making designs fail with no
-              // explanation.
-              let dataUrl: string
-              try {
-                dataUrl = await shrinkForUpload(f)
-              } catch (err) {
-                setErr(err instanceof Error ? err.message : `Could not read ${f.name}.`)
-                continue
-              }
-              setPhotos((p) => [...p, { dataUrl, name: f.name, role: 'person' as PhotoRole }].slice(0, 3))
+            for (const f of [...(e.target.files ?? [])].slice(0, 3 - photos.length)) {
+              await addPhoto(f)
               onPicked?.()
             }
             e.target.value = ''
           }} />
       </label>
+
+      {/* SAME THREE WAYS IN AS EVERYTHING ELSE. Told, not implied — a gesture
+          nobody knows about is a gesture nobody uses. */}
+      <p style={{ fontSize: 12, color: SOFT, margin: '0 0 10px', lineHeight: 1.5 }}>
+        Or paste one with {typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘V' : 'Ctrl+V'}, or drag it onto this panel.
+      </p>
 
       {!photos.length ? (
         <p style={{ fontSize: 13, color: SOFT, margin: 0, lineHeight: 1.5 }}>
