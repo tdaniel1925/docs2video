@@ -706,7 +706,12 @@ body.share .shareacts{display:flex}
 .sact{display:inline-flex;align-items:center;gap:8px;background:var(--card);border:1.5px solid var(--gold-f);border-radius:12px;padding:11px 18px;cursor:pointer;transition:transform .18s;font:inherit;font-size:clamp(11.5px,1.2vw,13.5px);color:var(--navy)}
 .sact:hover{transform:translateY(-3px);border-color:var(--gold)}
 #bar{position:fixed;left:0;top:0;height:3px;background:var(--gold);width:0;z-index:40;transition:width .3s ease}
-#nav{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;z-index:50;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 10px;box-shadow:0 8px 24px rgba(0,0,0,.14);white-space:nowrap;max-width:94vw}
+/* 22px, not 12px: the decorative border is inset 14px, and at 12px the pill's
+   bottom edge crossed it by 2px. Small enough that nobody would report it, big
+   enough to look like an accident rather than a choice — and a check that has
+   to carry an exception for it stops being worth reading. The .sec bottom
+   padding is 128px, which still clears the pill at its new height. */
+#nav{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;z-index:50;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 10px;box-shadow:0 8px 24px rgba(0,0,0,.14);white-space:nowrap;max-width:94vw}
 #nav button{flex:none;display:inline-flex;align-items:center;justify-content:center;background:var(--paper);border:none;color:var(--ink);font:inherit;font-weight:700;font-size:15px;width:32px;height:32px;line-height:1;border-radius:50%;cursor:pointer;transition:all .18s;padding:0}
 #nav button:hover{background:var(--navy);color:var(--paper)}
 #dots{display:flex;gap:5px;margin:0 4px;flex:none}#dots i{width:7px;height:7px;border-radius:50%;background:color-mix(in srgb,var(--ink) 18%,transparent);cursor:pointer;transition:all .2s}#dots i.on{background:var(--gold);transform:scale(1.3)}
@@ -721,7 +726,13 @@ body.oncover .corner .ct{opacity:0;transition:opacity .4s}
    width is at most ~180px, so the disclaimer's right edge stops before the
    pill's left edge at any viewport. A disclaimer a client cannot read is a
    compliance failure, not a styling one — this text exists to be legible. */
-.disc{position:fixed;left:34px;bottom:6px;z-index:35;font-family:var(--font);font-size:10.5px;line-height:1.45;color:color-mix(in srgb,var(--soft) 78%,transparent);text-align:left;pointer-events:none;max-width:min(62ch,calc(50vw - 190px))}
+/* INSIDE THE FRAME. The decorative border is inset 14px from every edge, and
+   this was pinned 6px from the bottom — so the last line of the disclosure sat
+   ON the border and past it, which is what "text spilling out of the borders"
+   looks like. 26px clears the border with a real gap; 34px on the left already
+   did. The frame inset and this offset are related, so if one moves the other
+   has to. */
+.disc{position:fixed;left:34px;bottom:26px;z-index:35;font-family:var(--font);font-size:10.5px;line-height:1.45;color:color-mix(in srgb,var(--soft) 78%,transparent);text-align:left;pointer-events:none;max-width:min(62ch,calc(50vw - 190px))}
 ${t.css ?? ''}
 </style></head><body class="themed t-${t.id}">
 <div id="glow"></div><div id="fx"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div id="frame"></div><div id="bar"></div>

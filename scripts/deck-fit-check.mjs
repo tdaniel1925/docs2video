@@ -92,6 +92,40 @@ for (const size of SIZES) {
   await tab.goto(pathToFileURL(file).href, { waitUntil: 'load' })
   await tab.waitForTimeout(600)
 
+  /**
+   * THE CHROME, CHECKED AGAINST THE DECORATIVE BORDER.
+   *
+   * My first version only measured the slide body, and missed the one the
+   * customer actually pointed at: the standing disclosure, pinned 6px from the
+   * bottom when the border is inset 14px — so its last line sat on the border
+   * and past it. It is not part of the slide, so nothing about the slide was
+   * ever going to catch it.
+   *
+   * Everything fixed on top of the deck gets measured against the frame the
+   * reader can see, not the window.
+   */
+  const chrome = await tab.evaluate(() => {
+    const frame = document.getElementById('frame')
+    if (!frame) return []
+    const f = frame.getBoundingClientRect()
+    const out = []
+    for (const sel of ['.disc', '.corner', '#nav']) {
+      const el = document.querySelector(sel)
+      if (!el || !el.offsetParent && getComputedStyle(el).position !== 'fixed') continue
+      const r = el.getBoundingClientRect()
+      if (!r.width || !r.height) continue
+      const crosses = r.left < f.left - 1 || r.right > f.right + 1
+        || r.top < f.top - 1 || r.bottom > f.bottom + 1
+      if (crosses) {
+        out.push(sel + ' crosses the border by ' + Math.round(Math.max(
+          f.left - r.left, r.right - f.right, f.top - r.top, r.bottom - f.bottom,
+        )) + 'px')
+      }
+    }
+    return out
+  })
+  for (const problem of chrome) { failed++; console.log('  FAIL ' + size.name.padEnd(22) + problem) }
+
   const slides = await tab.evaluate(() => document.querySelectorAll('.sec').length)
 
   for (let i = 0; i < slides; i++) {
