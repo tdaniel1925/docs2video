@@ -334,6 +334,38 @@ function chartable(stats: { label?: string; value?: string }[]): { label: string
   return rows
 }
 
+/**
+ * The scenes that actually become slides.
+ *
+ * A trailing "Take the next step / Call us" scene immediately before the
+ * closing repeats the same contact details twice in a row, so the deck folds it
+ * away — the closing card already carries the name, phone and email.
+ *
+ * WHY THIS IS EXPORTED, and it is the whole point. The rule used to live inside
+ * the HTML builder, so the deck knew about it and nothing else did. The app's
+ * own page counted the stored scenes instead and told the customer "Slide 1 of
+ * 12" while the player underneath it said "1 / 11".
+ *
+ * That is not just an untidy number. The page lists a chip per scene to jump
+ * around with, so the last chip pointed at a slide that does not exist. Two
+ * definitions of "a slide" is the bug; the mismatched count is how you notice.
+ *
+ * Anything that counts, lists or links to slides must call this — never
+ * `scenes.length`.
+ */
+export function visibleScenes(scenes: PresentationScene[]): PresentationScene[] {
+  const list = [...scenes]
+  if (list.length < 3) return list
+  const last = list[list.length - 1]
+  const prev = list[list.length - 2]
+  const isClosing = last?._role === 'closing' || /thank you/i.test(last?.title ?? '')
+  const ctaish = /next step|call |contact|reach out|get started|talk to/i.test(
+    `${prev?.title ?? ''} ${prev?.slideData?.headline ?? ''}`)
+  const prevThin = (prev?.slideData?.bullets?.length ?? 0) === 0
+  if (isClosing && ctaish && prevThin) list.splice(list.length - 2, 1)
+  return list
+}
+
 export function buildPresentationHtml(opts: {
   title: string
   scenes: PresentationScene[]
@@ -381,21 +413,7 @@ export function buildPresentationHtml(opts: {
     ? `<div class="disc">${esc(opts.disclaimer)}</div>`
     : ''
 
-  // A trailing "Take the next step / Call us" scene immediately before the
-  // closing repeats the same contact details twice in a row. Fold it away —
-  // the closing card already carries name, phone and email.
-  const scenes = (() => {
-    const list = [...opts.scenes]
-    if (list.length < 3) return list
-    const last = list[list.length - 1]
-    const prev = list[list.length - 2]
-    const isClosing = last?._role === 'closing' || /thank you/i.test(last?.title ?? '')
-    const ctaish = /next step|call |contact|reach out|get started|talk to/i.test(
-      `${prev?.title ?? ''} ${prev?.slideData?.headline ?? ''}`)
-    const prevThin = (prev?.slideData?.bullets?.length ?? 0) === 0
-    if (isClosing && ctaish && prevThin) list.splice(list.length - 2, 1)
-    return list
-  })()
+  const scenes = visibleScenes(opts.scenes)
 
   const slides = scenes.map((s, i) => {
     const isCover = s._role === 'cover' || i === 0

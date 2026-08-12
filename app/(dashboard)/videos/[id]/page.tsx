@@ -8,6 +8,8 @@ import { displayProgress } from '../../../_lib/video-progress'
 import ScriptEditor from '../../../_components/ScriptEditor'
 import FixScene from './FixScene'
 import type { Video, Brand } from '../../../_lib/types'
+// ONE definition of which scenes become slides — see the note on visibleScenes.
+import { visibleScenes } from '../../../_lib/presentation'
 
 // Feature flags — now driven by user's subscription plan
 
@@ -390,7 +392,21 @@ export default function VideoDetailPage() {
 
   // Compute slide count and timestamps
   const slideUrls = video?.slide_urls ?? []
-  const scenes = Array.isArray(video?.script) ? video.script : []
+  /**
+   * THE SCENES THIS PAGE SHOULD COUNT.
+   *
+   * A deck folds away a trailing "call us" scene, because the closing card
+   * already carries the same contact details — so an HTML presentation renders
+   * one fewer slide than the script holds. This page was counting the script
+   * and telling the customer "Slide 1 of 12" while the player underneath said
+   * "1 / 11", and the last chapter chip pointed at a slide that does not exist.
+   *
+   * A VIDEO renders every scene, so the fold must not apply there. Same rule,
+   * one place, applied only where it is true — see visibleScenes.
+   */
+  const rawScenes = Array.isArray(video?.script) ? video.script : []
+  const isDeck = (video as any)?.output_type === 'interactive' || (video as any)?.output_type === 'deck'
+  const scenes = isDeck ? visibleScenes(rawScenes) : rawScenes
   const perSlideDurations: number[] = video?.slide_durations ?? []
   // Chapter chips are keyed to SCENES (the script), and slide_durations is keyed
   // to scenes too — NOT to slide_urls (which can be empty even when scenes exist,
