@@ -19,10 +19,12 @@ import { existsSync, statSync } from 'node:fs'
 const { VISIBLE_STYLES } = await import('../app/_lib/flyer-engine/index.ts')
 
 const selftest = process.argv.includes('--selftest')
-const path = (id) => `public/flyer-templates/${id}-alt.png`
+const path = (id) => `public/flyer-templates/${id}-alt.webp`
 
-/** Under this and it is an error page or a truncated download, not a design. */
-const TOO_SMALL = 20_000
+/** Under this and it is an error page or a truncated download, not a design.
+ *  The real tiles run 26KB to 149KB as WebP, so this leaves room for a flat
+ *  vector look that compresses unusually small without crying wolf. */
+const TOO_SMALL = 8_000
 
 const missing = []
 const broken = []

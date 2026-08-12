@@ -2355,4 +2355,4 @@ export const thumbUrl = (id: string) => `/flyer-templates/${id}.png`
  * A sentence saying "you can use this for anything" is a claim. This is the
  * same claim as a picture, which is the version people believe.
  */
-export const proofUrl = (id: string) => `/flyer-templates/${id}-alt.png`
+export const proofUrl = (id: string) => `/flyer-templates/${id}-alt.webp`

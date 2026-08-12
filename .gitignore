@@ -103,3 +103,8 @@ logo-lab/results.json
 check-*.png
 smoke-*.png
 out-*.png
+
+# Working data from the style split — the decisions themselves live in the
+# engine (look, subject, mergedInto, mergedWhy), so these are the notebook and
+# not the record.
+.styles/

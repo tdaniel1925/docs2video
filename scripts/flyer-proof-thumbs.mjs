@@ -57,7 +57,12 @@ const FIELDS = {
 }
 
 const portrait = FLYER_SIZES.find((s) => s.id === 'letter')
-const alt = (id) => `${OUT}/${id}-alt.png`
+// WEBP, AND SMALL. These are shown at about 118 pixels wide in a grid of a
+// hundred. The first version of this saved them exactly as the API returned
+// them — 1024x1536 PNG, two megabytes each — which is 215MB of photographs to
+// draw a wall of thumbnails. Same picture, a thirtieth of the weight.
+const THUMB = { w: 512, h: 768, quality: 82 }
+const alt = (id) => `${OUT}/${id}-alt.webp`
 
 const todo = VISIBLE_STYLES.filter((t) => {
   if (only.length) return only.includes(t.id)
@@ -106,7 +111,11 @@ for (let i = 0; i < todo.length; i += 4) {
       if (!res) throw lastErr
       const b64 = res.data?.[0]?.b64_json
       if (!b64) throw new Error('no image came back')
-      writeFileSync(alt(t.id), Buffer.from(b64, 'base64'))
+      const sharp = (await import('sharp')).default
+      writeFileSync(alt(t.id), await sharp(Buffer.from(b64, 'base64'))
+        .resize(THUMB.w, THUMB.h, { fit: 'cover' })
+        .webp({ quality: THUMB.quality })
+        .toBuffer())
       ok++
       console.log(`  ok   ${t.id}  (${t.name})`)
     } catch (e) {
