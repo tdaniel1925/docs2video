@@ -223,6 +223,8 @@ function Picker(p: {
   brands: { id: string; name: string; primary_color?: string | null }[]
   onPickBrand: (id: string | null) => void
   ticked: string[]; onTickSize: (id: string) => void
+  /** The look chosen so far. Used twice: to mark the picked tile in the style
+   *  grid, and to show each SHAPE with that look cropped into it. */
   styles: typeof FLYER_TEMPLATES; templateId: string
   onPickStyle: (id: string) => void; onSeeAll: () => void
   photos: { name: string }[]; onOpenPhotos: () => void
@@ -317,7 +319,7 @@ function Picker(p: {
                         background: on ? 'var(--cream,#F4F1EC)' : 'white',
                         border: `1px solid ${on ? 'var(--ink,#23201c)' : 'var(--border,#ddd6cc)'}`,
                       }}>
-                      <ShapeTile w={s.w} h={s.h} on={on} />
+                      <ShapeTile w={s.w} h={s.h} on={on} styleId={p.templateId} />
                       <span style={{ fontSize: 12.5, lineHeight: 1.3 }}>{s.label}</span>
                     </button>
                   )
@@ -444,20 +446,35 @@ function Picker(p: {
  * number. This is what "go back to the selection picker" meant, and the shape
  * does the explaining the dimensions were failing to do.
  */
-function ShapeTile({ w, h, on }: { w: number; h: number; on: boolean }) {
-  const box = 40
+function ShapeTile({ w, h, on, styleId }: { w: number; h: number; on: boolean; styleId?: string }) {
+  const box = 42
   const scale = Math.min(box / w, box / h)
+  const tw = Math.max(7, Math.round(w * scale))
+  const th = Math.max(7, Math.round(h * scale))
   return (
     <span style={{
       width: box, height: box, flexShrink: 0,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
       <span style={{
-        width: Math.max(6, Math.round(w * scale)),
-        height: Math.max(6, Math.round(h * scale)),
-        borderRadius: 2,
+        width: tw, height: th, borderRadius: 2, overflow: 'hidden',
+        display: 'block', position: 'relative',
+        // The plain block stays underneath. If the picture has not loaded, or
+        // no look has been chosen yet, the shape is still readable rather than
+        // being a hole — which is what an <img> with nothing behind it becomes.
         background: on ? 'var(--ink,#23201c)' : 'var(--border,#ddd6cc)',
-      }} />
+        outline: on ? '2px solid var(--ink,#23201c)' : 'none',
+        outlineOffset: 1,
+      }}>
+        {styleId && (
+          <img src={thumbUrl(styleId)} alt=""
+            // COVER, so the crop is the real crop. A design squashed to fit
+            // would misrepresent the one thing this tile is for: what the shape
+            // does to the artwork.
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+        )}
+      </span>
     </span>
   )
 }
@@ -663,7 +680,7 @@ export default function FlyerMakerPage() {
   const [err, setErr] = useState('')
 
   const [fields, setFields] = useState<FlyerFields>({})
-  const [templateId, setTemplateId] = useState('rnb')
+  const [templateId, setTemplateId] = useState(VISIBLE_STYLES[0].id)
   const [category, setCategory] = useState<string>(CATEGORIES[0].id)
   const [family, setFamily] = useState<string>(STYLE_FAMILIES[0].id)
   /**
@@ -868,7 +885,7 @@ export default function FlyerMakerPage() {
         }])
         const last = r.rounds[r.rounds.length - 1]
         if (last) {
-          setTemplateId(last.templateId || 'rnb')
+          setTemplateId(last.templateId || VISIBLE_STYLES[0].id)
           setFields(last.fields ?? {})
           setNote(last.note ?? '')
         }

@@ -396,3 +396,47 @@ describe('folding a style never loses it', () => {
     expect(MOTIFS.length).toBeGreaterThan(150)
   })
 })
+
+// =============================================================================
+// THE DEFAULT LOOK HAS TO BE ONE YOU CAN SEE.
+//
+// The page opened with 'rnb' selected. When 225 styles became 105, rnb was
+// folded into another look — nothing was deleted, so it still drew perfectly
+// well, and nothing looked broken. It simply could never appear as the ticked
+// tile, because it is not in the picker any more: you would never see your own
+// choice highlighted and would have no idea what you were about to get.
+//
+// Silent, harmless-looking, and exactly the kind of thing that survives a
+// hundred green builds.
+// =============================================================================
+describe('the starting look is one the customer can actually see', () => {
+  it('has a first visible style to fall back on', () => {
+    expect(VISIBLE_STYLES.length).toBeGreaterThan(0)
+    expect(VISIBLE_STYLES[0].mergedInto).toBeUndefined()
+  })
+
+  it('never hard-codes a style id as the default', () => {
+    // MY FIRST VERSION OF THIS TEST WAS A FALSE GREEN.
+    //
+    // It looked for `useState('...')` followed by a `// template` comment —
+    // after stripping every comment from the file. It could not have matched
+    // anything, ever. I put the bug back to check, and it passed happily.
+    //
+    // This one names the actual declaration, and it has been watched failing.
+    const page = readFileSync(join(process.cwd(), 'app/(dashboard)/flyer/page.tsx'), 'utf8')
+    const code = page.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '')
+
+    const decl = code.match(/const\s*\[\s*templateId\s*,\s*setTemplateId\s*\]\s*=\s*useState\(([^)]*)\)/)
+    expect(decl, 'could not find where the default look is set').toBeTruthy()
+    // A named id is a promise that it still exists AND is still in the picker.
+    // Reading it off the list keeps that promise for free, forever.
+    expect(decl![1].trim(), 'read the default off VISIBLE_STYLES instead of naming an id')
+      .not.toMatch(/^['"]/)
+  })
+
+  it('every sample image the picker asks for exists', () => {
+    const have = new Set(readdirSync(join(process.cwd(), 'public/flyer-templates')))
+    const missing = VISIBLE_STYLES.filter((t) => !have.has(`${t.id}.png`)).map((t) => t.id)
+    expect(missing, 'a look in the picker with no sample is a black square').toEqual([])
+  })
+})
