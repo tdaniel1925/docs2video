@@ -108,3 +108,6 @@ out-*.png
 # engine (look, subject, mergedInto, mergedWhy), so these are the notebook and
 # not the record.
 .styles/
+
+# Head-to-head engine test images — regenerate with scripts/engine-bakeoff.mjs
+.bakeoff/
