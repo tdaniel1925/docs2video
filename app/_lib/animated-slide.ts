@@ -104,7 +104,7 @@ function buildAnimatedHtml(
   .overlay {
     width: 100%; height: 100%;
     display: flex; flex-direction: column;
-    justify-content: center; align-items: center;
+    justify-content: safe center; align-items: center;
     padding: 80px 120px;
     background: rgba(0,0,0,0.25);
   }
@@ -192,6 +192,105 @@ function buildAnimatedHtml(
   <div class="brand-bar">
     ${barItems.join(' <span>|</span> ')}
   </div>` : ''}
+
+  <script>
+    /**
+     * MAKE IT FIT. Measured, not estimated.
+     *
+     * Every size on this slide was a fixed number — 72px headline, 28px
+     * subtitle, 48px figures — chosen for text of a length nobody controls. The
+     * words are written by a model from somebody's document, so a headline can
+     * be four words or fourteen. When it is fourteen it wraps onto three lines,
+     * shoves the panels down, and the frame is `overflow: hidden`, so the
+     * bottom of the slide is simply cut off. That is the overlapping and
+     * spilling.
+     *
+     * This runs in a real browser before a single frame is captured, so it does
+     * not guess: it asks the page whether the content fits and shrinks the type
+     * a step at a time until it does. Real measurement handles a long German
+     * word, a customer's twelve-word title and a dollar figure with eight
+     * digits, none of which a rule of thumb would survive.
+     */
+    (function fitToFrame() {
+      var overlay = document.querySelector('.overlay');
+      var bar = document.querySelector('.brand-bar');
+      if (!overlay) return;
+
+      // THE BRAND BAR SITS ON TOP OF EVERYTHING. It is positioned absolutely at
+      // the bottom, so the layout above knows nothing about it and the last row
+      // of panels was free to slide underneath. Reserve its height plus a gap.
+      if (bar) {
+        var pad = bar.offsetHeight + 32;
+        overlay.style.paddingBottom = pad + 'px';
+      }
+
+      // A single unbroken string longer than the frame — a URL, a long email —
+      // cannot be shrunk into fitting at any sane size. Let it break.
+      overlay.style.overflowWrap = 'anywhere';
+
+      var scaled = [
+        { el: overlay.querySelector('.title'), start: 72, floor: 34 },
+        { el: overlay.querySelector('.subtitle'), start: 28, floor: 17 },
+      ];
+      overlay.querySelectorAll('.metric-value').forEach(function (el) {
+        scaled.push({ el: el, start: 48, floor: 24 });
+      });
+      overlay.querySelectorAll('.metric-label').forEach(function (el) {
+        scaled.push({ el: el, start: 16, floor: 11 });
+      });
+      scaled = scaled.filter(function (s) { return s.el; });
+
+      /**
+       * DOES NOT FIT — asked three ways, because one of them is not enough.
+       *
+       * My first version asked only whether the box scrolls. That misses the
+       * two failures that actually look worst: content pushed off the TOP of a
+       * centred column, and the last row of panels sliding UNDER the brand bar,
+       * which floats above everything and so never registers as overflow.
+       *
+       * The shrink loop stopped early on a real slide because of it — three
+       * steps, then "fits", then a clipped frame. Measured, caught, widened.
+       */
+      var doesNotFit = function () {
+        if (overlay.scrollHeight > overlay.clientHeight + 1) return true;
+        if (overlay.scrollWidth > overlay.clientWidth + 1) return true;
+        var kids = Array.prototype.slice.call(overlay.children);
+        for (var k = 0; k < kids.length; k++) {
+          var r = kids[k].getBoundingClientRect();
+          if (r.top < -1 || r.bottom > window.innerHeight + 1) return true;
+          if (r.left < -1 || r.right > window.innerWidth + 1) return true;
+        }
+        if (bar) {
+          var barTop = bar.getBoundingClientRect().top;
+          for (var j = 0; j < kids.length; j++) {
+            if (kids[j].getBoundingClientRect().bottom > barTop + 1) return true;
+          }
+        }
+        return false;
+      };
+
+      // 4% a step, 40 steps at most — that reaches the floor from any starting
+      // size, and the bound means a layout that can never fit stops rather than
+      // hanging the render.
+      for (var step = 0; step < 40 && doesNotFit(); step++) {
+        var moved = false;
+        for (var i = 0; i < scaled.length; i++) {
+          var s = scaled[i];
+          var now = parseFloat(getComputedStyle(s.el).fontSize);
+          var next = Math.max(s.floor, now * 0.96);
+          if (next < now - 0.01) { s.el.style.fontSize = next + 'px'; moved = true; }
+        }
+        // Everything is already as small as it is allowed to get. Shrinking
+        // further would trade a clipped slide for an unreadable one, which is
+        // not a trade — leave it and say so.
+        if (!moved) break;
+      }
+
+      if (doesNotFit()) {
+        console.warn('[slide] content still does not fit at the smallest readable size — the text is too long for one slide');
+      }
+    })();
+  </script>
 
   <script>
     // Count-up animation for dollar values
