@@ -111,3 +111,6 @@ out-*.png
 
 # Head-to-head engine test images — regenerate with scripts/engine-bakeoff.mjs
 .bakeoff/
+
+# Deck fit check output — regenerate with scripts/deck-fit-check.mjs
+.deckcheck/

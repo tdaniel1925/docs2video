@@ -767,12 +767,55 @@ function countUps(sec){
     requestAnimationFrame(tick);
   });
 }
+/**
+ * SHRINK A SLIDE THAT DOES NOT FIT.
+ *
+ * Every size here already uses clamp(), so the type scales with the WINDOW. It
+ * does not scale with the CONTENT — and the content is written by a model out
+ * of somebody's document, so one slide gets four bullets and the next gets nine
+ * of two lines each. At the clamp minimum that still runs past the bottom of
+ * the frame, and .sec hides its overflow: the last bullets are simply gone, and
+ * the ones above collide with the nav pill.
+ *
+ * Centring was already handled — see the note on .sec. This is the other half,
+ * how MUCH there is, which no amount of viewport maths can know in advance.
+ *
+ * Scales the whole block rather than restyling parts of it, so the proportions
+ * survive: a slide at 0.82 looks like the same slide, whereas shrinking only
+ * the bullets would wreck its balance. Measured against the real box in the
+ * real browser, and re-run on resize, because a deck opened on a laptop gets
+ * dragged onto a projector.
+ */
+function fitSlide(sec){
+  if(!sec)return;
+  const w=sec.querySelector('.wrap');if(!w)return;
+  // Measure unscaled every time. Measuring an already-scaled block and scaling
+  // again compounds, and the slide creeps smaller on every visit.
+  w.style.transform='';w.style.transformOrigin='center center';
+  const cs=getComputedStyle(sec);
+  const room=sec.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+  const need=w.scrollHeight;
+  if(!room||!need||need<=room+1)return;
+  // 0.62 floor: below that the type is too small to read on a phone, and a
+  // slide nobody can read is no better than one that is clipped. Hitting the
+  // floor means the deck is genuinely carrying too much for one slide.
+  w.style.transform='scale('+Math.max(0.62,room/need)+')';
+}
+function fitAll(){secs.forEach(fitSlide);}
+addEventListener('resize',function(){clearTimeout(window.__fitT);window.__fitT=setTimeout(fitAll,120);});
+// Webfonts land after the first paint and change every measurement, so measure
+// again once they have.
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitAll);
 function go(i){
   if(i<0)i=0;if(i>=secs.length)i=secs.length-1;
   const prev=cur;cur=i;
   if(prev>=0&&prev!==i&&secs[prev]){const L=secs[prev];L.classList.add('leaving');setTimeout(()=>L.classList.remove('leaving'),600);}
   secs.forEach(s=>s.classList.remove('on'));dotEls.forEach(d=>d.classList.remove('on'));
   secs[i].classList.add('on');dotEls[i].classList.add('on');
+  // Measured while it is VISIBLE. A hidden .sec still has a size here, but the
+  // count-up numbers below have not run yet and a slide whose figures grow from
+  // "0" to "$1,000,000" measures short before they do.
+  fitSlide(secs[i]);
   countUps(secs[i]);
   lab.textContent=(i+1)+' / '+secs.length;
   bar.style.width=(i/(Math.max(secs.length-1,1))*100)+'%';
