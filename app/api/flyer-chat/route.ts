@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { stripFalseDelivery } from '../../_lib/no-false-claims'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../_lib/supabase/server'
 import { FLYER_TEMPLATES, FLYER_SIZES, type FlyerFields } from '../../_lib/flyer-engine'
@@ -53,6 +54,14 @@ export async function POST(req: Request) {
 MOST MESSAGES ARE NOT FIELD CHANGES. "All the slides look the same", "what does bleed mean", "can I use my own logo", "that headline is too long" — none of those change a field. Reply properly and leave the fields exactly as they are. Never answer a question by silently rewriting somebody's design.
 
 "reply" is REQUIRED every time and must genuinely respond. "Updated." is not an answer to a question.
+
+YOU HAVE NOT MADE ANYTHING. You capture what the customer wants; the app draws
+it, later, only when they press Make. So never write a sentence that says a
+design exists: no "here's your flyer", no "I've created", no "take a look", no
+"all done". A customer told their flyer is ready, who then cannot find it, does
+not think "odd wording" — they think the thing they paid for is broken.
+Say what you have understood and what happens next. "Got it — a webinar flyer
+for 1 September. Pick a format and press Make." That is the whole job.
 
 You are talking to someone who is not a designer and not a programmer. Short sentences, plain words, no jargon.
 
@@ -179,6 +188,29 @@ Rules:
     const CARDS = ['formats', 'styles', 'photos', 'reference', 'slides']
     const show = CARDS.includes(String(out.show)) ? String(out.show) : null
 
+    /**
+     * IT MUST NOT SAY IT MADE SOMETHING IT HAS NOT MADE.
+     *
+     * The rule above asks it not to. This checks. Whether a design exists is a
+     * fact the app holds, not a matter of opinion, so it does not get left to
+     * one — see no-false-claims.ts for why a prompt line alone is not enough.
+     */
+    const madeSoFar = (body?.designs ?? []).length
+    const checked = stripFalseDelivery(
+      String(out.reply ?? 'Updated.').slice(0, 600),
+      madeSoFar,
+      show === 'formats' ? 'pick a format'
+        : show === 'styles' ? 'pick a look'
+        : show === 'photos' ? 'add your photos'
+        : undefined,
+    )
+    if (checked.corrected) {
+      // LOUD IN THE LOG. Every one of these is the prompt failing to hold, and
+      // if it starts happening often the wording above needs to change rather
+      // than the net catching more.
+      console.warn(`[flyer-chat] claimed a design that does not exist (/${checked.matched}/)`)
+    }
+
     return NextResponse.json({
       fields: out.fields ?? body?.fields ?? {},
       sizeId, layoutId, redoSizeId, show,
@@ -186,7 +218,7 @@ Rules:
       // Longer than before: it can now hold a real answer to a real question,
       // not just "Updated." — but a reply that arrives WITH a picker should be
       // one line, and the prompt says so.
-      reply: String(out.reply ?? 'Updated.').slice(0, 600),
+      reply: checked.reply,
     })
   } catch (err) {
     // Only a genuine failure reaches here now — the model being unreachable,
