@@ -1,27 +1,40 @@
 // =============================================================================
 // Which engine draws the design, and how we know the words came out right.
 //
-// MEASURED, on the same slide and the same prompt:
+// gpt-image-2 DRAWS EVERYTHING. Decided on measurement, twice, and the second
+// measurement overturned the argument the first one made. Re-run it yourself
+// with scripts/engine-bakeoff.mjs before changing this — it takes ten minutes.
 //
-//                        gpt-image-2      Gemini 2.5 Flash Image
-//   time                   81-92 s              5 s
-//   cost per image          ~18c               ~4c
-//   composition             good               good
-//   small text            correct        misspelled "REPETITIVE"
+// MEASURED, 12 looks across 12 shelves, identical words and subject:
 //
-// Sixteen times faster and four times cheaper, and the design itself was just
-// as good. The only fault is spelling in small type — which on a flyer someone
-// prints five hundred of, or a deck someone stands up and presents, is not a
-// cosmetic problem.
+//                          gpt-image-2         Gemini 2.5 Flash Image
+//   drew at all                6/6                     12/12
+//   every word right           6/6         0/6 first try, 3/12 after 3 tries
+//   time                      116 s                30 s (incl. retries)
+//   cost per design            18c              12c (2.9 attempts each)
 //
-// THE POINT OF THIS FILE: at five seconds and four cents you can afford to
-// CHECK AND REDO. Three Gemini attempts cost 12c and fifteen seconds against
-// 18c and ninety seconds for one gpt-image-2 attempt. So the words are read
-// back off the finished image and compared with what was asked for, and a slide
-// that got them wrong is simply drawn again.
+// THE ARGUMENT THAT DIED. This file used to say: at four cents you can afford
+// to CHECK AND REDO, so three cheap attempts beat one expensive one. It reads
+// well and it is wrong, because it assumes the mistake is RANDOM. It is not.
+// The same small line fails for the same reason, so drawing it again mostly
+// lands on a different wrong word:
 //
-// A twelve-slide deck goes from about eighteen minutes and $2.16 to under two
-// minutes and about 60c.
+//   "seven days an week"    "seven days de week"    "seven days in week"
+//
+// Real words, right shape, wrong word — which is worse than gibberish. Gibberish
+// you catch across the room. "Seven days an week" survives a glance, survives
+// the customer's approval, and gets found by THEIR customer. On something that
+// was printed five hundred times, that is not a defect, it is a bill.
+//
+// Needing 2.9 attempts also eats the saving: 12c against 18c is a third off,
+// not four times. Paying two thirds the price for three quarters of the flyers
+// misspelled is not a saving.
+//
+// NOTHING BELOW IS DELETED. The Gemini path, the aspect matching and the
+// read-back loop all still work, and FLYER_IMAGE_ENGINE=gemini turns them on
+// without a deploy. Their image model will improve — this is a decision with an
+// expiry date, not a closed door. checkWords earns its keep either way: it now
+// runs on every design, on both engines.
 // =============================================================================
 
 export type Engine = 'gemini' | 'openai'
@@ -173,25 +186,29 @@ export async function checkWords(image: Buffer<ArrayBuffer>, expected: string[])
 /**
  * Which engine should draw this?
  *
- * Gemini where it can hold the shape, gpt-image-2 otherwise. Set
- * FLYER_IMAGE_ENGINE=openai to put everything back on the slow, expensive path
- * without a deploy — worth having the day Gemini has a bad afternoon.
+ * gpt-image-2, unless FLYER_IMAGE_ENGINE=gemini says otherwise. See the top of
+ * this file for the numbers behind that, and re-run the bake-off before
+ * changing it rather than trusting either the numbers or this sentence.
  */
 export function pickEngine(w: number, h: number): { engine: Engine; aspect: string | null } {
   const forced = (process.env.FLYER_IMAGE_ENGINE || '').toLowerCase()
 
-  // OPENAI IS THE DEFAULT AGAIN.
+  // OPENAI, ON EVIDENCE RATHER THAN PREFERENCE.
   //
-  // Gemini is measurably faster and cheaper — 5s against 90s, 4c against 18c —
-  // and the spelling loop deals with its one measurable weakness. But the
-  // designs themselves were judged worse by the person whose product this is,
-  // and that is not something a benchmark overrules. Cheaper and faster is only
-  // an improvement if the work is still good enough to send to a customer.
+  // Two separate reasons, and the second is the one that settles it:
   //
-  // Nothing is deleted. The whole Gemini path, the aspect matching and the
-  // read-the-words-back check all stay, and FLYER_IMAGE_ENGINE=gemini turns
-  // them on again without a deploy — worth keeping for the day their image
-  // model improves, which will not be long.
+  // 1. The designs were judged worse by the person whose product this is. A
+  //    benchmark does not overrule that; cheaper and faster is only better if
+  //    the work is still worth sending to a customer.
+  //
+  // 2. Re-measured on the CURRENT prompts, after the look was separated from
+  //    the subject — the fair test, since the old numbers were taken on a
+  //    prompt that no longer exists. 3 of 12 designs came out with every word
+  //    correct, after three attempts each. Not 3 of 12 misspelled. 3 of 12
+  //    CORRECT.
+  //
+  // Both stay true independently. If their model improves and the pictures get
+  // better, point 2 still has to be re-measured before this line moves.
   if (forced !== 'gemini') return { engine: 'openai', aspect: null }
 
   const aspect = geminiAspect(w, h)
