@@ -345,7 +345,11 @@ function Picker(p: {
     return (
       <>
         <p style={{ fontSize: 13.5, fontWeight: 700, margin: '0 0 2px' }}>How should it look?</p>
-        <p style={{ fontSize: 12.5, color: soft, margin: '0 0 12px' }}>Six that suit this job — or see all {VISIBLE_STYLES.length}.</p>
+        <p style={{ fontSize: 12.5, color: soft, margin: '0 0 12px', lineHeight: 1.55 }}>
+          Pick one of these six, see all {VISIBLE_STYLES.length}, or paste in a design you like the
+          look of — anywhere on the screen. We take its colours, lettering and mood, never its
+          words or pictures.
+        </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(112px,1fr))', gap: 8, marginBottom: 10 }}>
           {p.styles.map((t) => (
             <button key={t.id} onClick={() => { p.onPickStyle(t.id); p.onDone(t.name) }} title={`Design it in the ${t.name} look`}
@@ -363,6 +367,16 @@ function Picker(p: {
             <input type="file" accept="image/*" hidden
               onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) p.onReference(f) }} />
           </label>
+          {/* THE THIRD ROUTE, in the same breath as the other two. It used to
+              be a separate question asked at a different moment, which meant
+              somebody who just wanted their own colours had to sit through a
+              style grid first and then be asked again. */}
+          {p.brands.length > 0 && (
+            <button style={btn} title="Use your saved colours and logo, in whichever look you pick"
+              onClick={() => { p.onPickBrand(p.brands[0].id); p.onDone(`${p.brands[0].name} colours`) }}>
+              Use my {p.brands[0].name} colours
+            </button>
+          )}
         </div>
       </>
     )
@@ -2219,11 +2233,12 @@ export default function FlyerMakerPage() {
               <strong style={{ fontSize: 13 }}>
                 {sheet === 'style' ? 'Pick a look' : sheet === 'photos' ? 'Your own photos' : 'Which sizes?'}
               </strong>
-              {/* Pulses once you have chosen something, so it is obvious the
-                  panel is done with and waiting to be closed. */}
-              <button onClick={closeSheet} className={unacked ? 'cg-done-flash' : undefined}
-                title="Close this panel — your choice is already saved"
-                style={{ ...plain, padding: '6px 14px' }}>Done</button>
+              {/* Only a way OUT lives up here, and only as an X. The way
+                  FORWARD is always at the bottom. Two buttons that both close
+                  the panel, one at each end, is what made this feel like a
+                  guessing game. */}
+              <button onClick={closeSheet} title="Close without changing anything"
+                aria-label="Close" style={{ ...plain, padding: '4px 10px', fontSize: 13 }}>✕</button>
             </div>
 
             {sheet === 'style' && (
@@ -2362,7 +2377,10 @@ export default function FlyerMakerPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(118px,1fr))', gap: 9 }}>
                     {shownStyles.map((t) => (
                       <button key={t.id} className={strobeId === t.id ? 'cg-strobe' : undefined}
-                        onClick={() => { setTemplateId(t.id); setStylePicked(true); markPicked(t.id) }}
+                        // CLOSES ITSELF. One choice, made — there is nothing
+                        // left to confirm, and asking for a confirmation of a
+                        // thing you just clicked is the definition of clunky.
+                        onClick={() => { setTemplateId(t.id); setStylePicked(true); markPicked(t.id); closeSheet() }}
                         title={`Design it in the ${t.name} look`}
                         style={{
                           padding: 0, borderRadius: 9, overflow: 'hidden', cursor: 'pointer', background: '#111',
@@ -2482,6 +2500,25 @@ export default function FlyerMakerPage() {
                   </div>
                 </div>
               </>
+            )}
+
+            {/* THE ONE WAY FORWARD, AND IT IS ALWAYS HERE.
+                Only for the panels where doing nothing is a real answer — you
+                may add no photos, and you tick several sizes. Picking a look is
+                a single choice and closes itself, so it needs none of this.
+                Bottom, because that is where your hand already is after
+                choosing, and because a control that moves is a control you have
+                to look for. */}
+            {sheet !== 'style' && (
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${LINE}`, display: 'flex', justifyContent: 'flex-end' }}>
+                <button onClick={closeSheet} className={unacked ? 'cg-done-flash' : undefined}
+                  title="Your choices are already saved — this just closes the panel"
+                  style={{ ...plain, padding: '8px 18px', background: INK, color: 'white', borderColor: INK }}>
+                  {sheet === 'photos'
+                    ? (photos.length ? `Done — ${photos.length} added` : 'Skip photos')
+                    : `Done — ${ticked.length} size${ticked.length === 1 ? '' : 's'}`}
+                </button>
+              </div>
             )}
           </div>
         )}
