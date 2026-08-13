@@ -28,6 +28,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDictation } from '../../_components/useDictation'
 import { StepRow, DropHint } from '../../_components/StepRow'
+import { useBrand } from '../../_components/BrandProvider'
 import {
   FLYER_TEMPLATES, VISIBLE_STYLES, STYLE_FAMILIES, FLYER_SIZES, PHOTO_ROLES, thumbUrl, proofUrl,
   type FlyerFields, type PhotoRole,
@@ -544,7 +545,7 @@ const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, 
  * The browser remembers the open chat regardless of whether anything has been
  * made in it yet, so wherever you left off is where you come back to.
  */
-const OPEN_CHAT_KEY = 'text2art:openChat'
+const OPEN_CHAT_KEY = 'designs:openChat'
 const rememberChat = (id: string | null) => {
   try { id ? localStorage.setItem(OPEN_CHAT_KEY, id) : localStorage.removeItem(OPEN_CHAT_KEY) } catch { /* private mode */ }
 }
@@ -799,6 +800,9 @@ export default function FlyerMakerPage() {
    * row without anything having to remember a position.
    */
   const [openStep, setOpenStep] = useState<Step | null>(null)
+
+  /** Which storefront this is. Both serve this page under different names. */
+  const storefront = useBrand()
   const [viewing, setViewing] = useState<Design | null>(null)
   const [unit, setUnit] = useState<number | null>(null)
   const [balance, setBalance] = useState<number | null>(null)
@@ -2298,7 +2302,9 @@ export default function FlyerMakerPage() {
 
     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 24 }}>Custom Graphics</h1>
+        <h1 style={{ margin: 0, fontSize: 24 }}>
+          {storefront.nav.find((n) => n.href === '/flyer')?.label ?? 'Designs'}
+        </h1>
         {unit !== null && (
           <span style={{ fontSize: 12, color: SOFT }}>
             {unit} credits per design{balance !== null && ` · ${balance.toLocaleString()} left`}

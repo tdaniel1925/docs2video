@@ -20,15 +20,35 @@
 
 import fs from 'node:fs'
 
-const FILES = [
-  'app/(dashboard)/settings/page.tsx',
-  'app/(dashboard)/brands/page.tsx',
-  'app/(dashboard)/brands/new/page.tsx',
-  'app/(dashboard)/brands/[id]/page.tsx',
-]
+/**
+ * THE SAME WORD MEANS DIFFERENT THINGS ON DIFFERENT PAGES.
+ *
+ * On the account pages, "presentation" and "slide deck" mean Docs2Video's video
+ * product, which a Text2Art customer does not have. On the DESIGN page they
+ * mean a static slide deck — which Text2Art really does make, because it was
+ * asked for.
+ *
+ * Pointing the account-page word list at the design page flagged five correct
+ * lines. A check that flags correct lines is one people learn to ignore, so the
+ * list is per file — narrowing it everywhere would have weakened it exactly
+ * where it earns its keep.
+ */
+const ACCOUNT_WORDS = /\b(video|videos|presentation|presentations|share page|share pages|presenter|slide deck)\b/i
 
-/** Words that only mean something on Docs2Video. */
-const VIDEO_WORDS = /\b(video|videos|presentation|presentations|share page|share pages|presenter|slide deck)\b/i
+/** On the design page only these are wrong — both brands make decks and slides. */
+const DESIGN_WORDS = /\b(video|videos|share page|share pages|presenter)\b/i
+
+const FILES = [
+  { path: 'app/(dashboard)/settings/page.tsx', words: ACCOUNT_WORDS },
+  { path: 'app/(dashboard)/brands/page.tsx', words: ACCOUNT_WORDS },
+  { path: 'app/(dashboard)/brands/new/page.tsx', words: ACCOUNT_WORDS },
+  { path: 'app/(dashboard)/brands/[id]/page.tsx', words: ACCOUNT_WORDS },
+  // BOTH storefronts serve the design page — Docs2Video calls it Custom
+  // Graphics, Text2Art calls it Designs — so a hardcoded name reaches the wrong
+  // customer. Its heading WAS hardcoded to one brand's nav label until this
+  // check was pointed at it.
+  { path: 'app/(dashboard)/flyer/page.tsx', words: DESIGN_WORDS },
+]
 
 /** Anything that makes the storefront, not the code, decide what renders. */
 const GUARD = /showVideoFeatures|storefront\.id|profileType === 'person'|profile_type === 'person'/
@@ -46,7 +66,7 @@ const ALLOW = ['generate-video', 'photo_url', 'logo_light_url', 'logo_dark_url']
 const selftest = process.argv.includes('--selftest')
 const problems = []
 
-for (const file of FILES) {
+for (const { path: file, words: VIDEO_WORDS } of FILES) {
   let src = fs.readFileSync(file, 'utf8')
 
   // SELF-TEST: put the bug back, in memory only, and confirm the check screams.
@@ -100,4 +120,4 @@ if (problems.length) {
   process.exit(1)
 }
 
-console.log(`Clean — ${FILES.length} shared account pages say nothing about video that Text2Art can see.`)
+console.log(`Clean — ${FILES.length} shared pages say nothing about video that Text2Art can see.`)
