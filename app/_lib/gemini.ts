@@ -5,8 +5,40 @@ import { SLIDE_STYLES } from './types'
 import { buildStructuredPrompt } from './prompt-builder'
 import { INDUSTRIES, detectIndustry, type IndustryId } from './industries'
 import { withRetry } from './with-retry'
+import { figuresIn, missingFigures } from './slide-figures'
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+
+/**
+ * Transcribe whatever text is on an image.
+ *
+ * TRANSCRIBE AND COMPARE, never "is this correct?". A model asked to judge its
+ * own work says yes; a model asked to read just reads. The comparison then
+ * happens in code, where it is deterministic and cannot be talked round.
+ *
+ * Returns null when the read itself failed — which means UNKNOWN, not wrong. An
+ * unreadable check must never throw away a slide somebody is waiting for.
+ */
+async function readTextOffImage(image: Buffer): Promise<string | null> {
+  try {
+    const r = await genai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: 'Transcribe EVERY number and word visible in this image exactly as shown, including currency symbols and commas. Do not correct anything. Do not describe the picture. Output the text only.' },
+          { inlineData: { mimeType: 'image/png', data: image.toString('base64') } },
+        ],
+      }],
+    })
+    const text = (r.text ?? '').trim()
+      || (r.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('').trim()
+    return text || null
+  } catch (e) {
+    console.warn('[gemini] could not read the slide back:', e instanceof Error ? e.message.slice(0, 120) : e)
+    return null
+  }
+}
 
 // Image generation model — switch between models via env var without code changes
 const IMAGE_MODEL = process.env.IMAGE_MODEL || 'gemini-3-pro-image-preview'
@@ -74,6 +106,9 @@ function buildContentSummary(data: ExtractedPolicyData | ExtractedData): { headl
     metrics: topMetrics || '- Key information from the document',
   }
 }
+
+// figuresIn and missingFigures live in slide-figures.ts, so they can be tested
+// without a network call and reused wherever a slide gets drawn.
 
 function getDocumentTypeLabel(data: ExtractedPolicyData | ExtractedData): string {
   if (isInsuranceData(data)) return 'a life insurance policy overview'
@@ -393,7 +428,45 @@ This is slide ${slideIndex + 1} of ${totalSlides}. ALL slides must share identic
     const responseParts = response.candidates?.[0]?.content?.parts ?? []
     for (const rp of responseParts) {
       if (rp.inlineData) {
-        return Buffer.from(rp.inlineData.data!, 'base64')
+        const image = Buffer.from(rp.inlineData.data!, 'base64')
+
+        /**
+         * READ THE FIGURES BACK OFF THE SLIDE.
+         *
+         * The model DRAWS these numbers. The prompt above tells it to verify
+         * them itself, which is asking it to mark its own work — the flyer
+         * side already established that a model asked to check itself agrees
+         * with itself. So they are read back and compared in code.
+         *
+         * One redraw at most. These are real figures from somebody's policy,
+         * and a wrong one is a false statement in a document an agent hands a
+         * client — but a second attempt that also fails is not improved by a
+         * third, and the customer is waiting.
+         *
+         * NEVER LOSES THE SLIDE. A failed check on the last attempt logs
+         * loudly and returns the image anyway: a slide with one soft number
+         * beats a hole in the deck, and the log is how we learn whether this
+         * is rare or routine.
+         */
+        // Built here rather than reused from above: `summary` belongs to a
+        // different function, and reaching for a name that happens to exist
+        // elsewhere is how you end up checking the wrong document's figures.
+        const content = buildContentSummary(data)
+        const want = figuresIn(
+          `${content.headline} ${content.subline} ${content.metrics} ${slidePrompt ?? ''}`,
+        )
+        if (want.length) {
+          const read = await readTextOffImage(image)
+          const missing = read === null ? [] : missingFigures(want, read)
+          if (missing.length) {
+            console.warn(
+              `[gemini] slide ${slideIndex + 1}: figure(s) not drawn as given — ${missing.join(', ')}`
+              + (attempt === 0 ? ' — redrawing once' : ' — KEPT, check this slide'),
+            )
+            if (attempt === 0) continue
+          }
+        }
+        return image
       }
     }
 
