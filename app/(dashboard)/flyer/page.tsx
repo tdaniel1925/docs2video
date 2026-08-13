@@ -27,6 +27,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useDictation } from '../../_components/useDictation'
+import { StepRow, DropHint } from '../../_components/StepRow'
 import {
   FLYER_TEMPLATES, VISIBLE_STYLES, STYLE_FAMILIES, FLYER_SIZES, PHOTO_ROLES, thumbUrl, proofUrl,
   type FlyerFields, type PhotoRole,
@@ -784,6 +785,20 @@ export default function FlyerMakerPage() {
 
   const [making, setMaking] = useState(false)
   const [sheet, setSheet] = useState<null | 'style' | 'photos' | 'sizes'>(null)
+
+  /**
+   * WHICH SECTION IS OPEN. One at a time, and never more.
+   *
+   * The thread version put every question in the scroll as it arrived, so the
+   * job had no shape you could see: what was decided scrolled away, what was
+   * left was invisible, and the way out of a panel moved. Five rows you can
+   * take in at a glance replaces all of that.
+   *
+   * null means "work it out from what is answered" — so coming back to a saved
+   * job, or being handed a format by the conversation, both land on the right
+   * row without anything having to remember a position.
+   */
+  const [openStep, setOpenStep] = useState<Step | null>(null)
   const [viewing, setViewing] = useState<Design | null>(null)
   const [unit, setUnit] = useState<number | null>(null)
   const [balance, setBalance] = useState<number | null>(null)
@@ -2061,11 +2076,126 @@ export default function FlyerMakerPage() {
 
   const styleName = FLYER_TEMPLATES.find((t) => t.id === templateId)?.name ?? 'Style'
 
+
   // ── styling ────────────────────────────────────────────────────────────
   const panel = { background: 'white', border: `1px solid ${LINE}`, borderRadius: 10, padding: 14 } as const
   const darkBtn = { padding: '10px 16px', borderRadius: 8, border: 'none', background: INK, color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' } as const
   const plain = { padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', color: INK } as const
   const chip = (on: boolean) => ({ ...plain, background: on ? INK : 'white', color: on ? 'white' : INK, border: on ? '1px solid transparent' : plain.border }) as const
+
+  /**
+   * WHICH ROW IS SHOWING.
+   *
+   * If nothing has been opened by hand, the first unanswered one. That way the
+   * next thing to do is always the thing already in front of you — including
+   * after reloading a saved job, where a remembered position would be wrong.
+   * '__none' is how a row says "I was closed on purpose", so clicking the open
+   * row shuts it rather than snapping straight back open.
+   */
+  const firstUndone: Step =
+    !kind ? 'kind'
+    : !filled ? 'content'
+    : !stylePicked && !reference ? 'look'
+    : !ticked.length ? 'notes'
+    : null
+  const shownStep = openStep ?? firstUndone
+
+  /** The five rows, in the order they are worth doing. */
+  const STEPS: { id: Step; title: string; answer?: string; done: boolean; optional?: boolean; body: React.ReactNode }[] = [
+    {
+      id: 'kind', title: 'What are you making?', done: Boolean(kind),
+      answer: STARTERS.find((x) => x.kind === kind)?.label,
+      body: (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 8 }}>
+            {STARTERS.map((x) => (
+              <button key={x.kind} onClick={() => { setKind(x.kind); setOpenStep('content') }}
+                title={x.hint}
+                style={{ ...plain, textAlign: 'left', padding: '10px 12px', lineHeight: 1.45,
+                  background: kind === x.kind ? CREAM : 'white' }}>
+                <span style={{ display: 'block', fontSize: 13 }}>{x.label}</span>
+                <span style={{ display: 'block', fontSize: 12, fontWeight: 400, color: SOFT, marginTop: 2 }}>{x.hint}</span>
+              </button>
+            ))}
+          </div>
+          <DropHint what="Already have your logo, photos or a design you like?"
+            pasteKey={pasteKey} onFiles={(f) => void takeDropped(f)}
+            line={LINE} soft={SOFT} ink={INK} />
+        </>
+      ),
+    },
+    {
+      id: 'content', title: "What's it about?", done: filled,
+      answer: fields.headline || undefined,
+      body: (
+        <p style={{ fontSize: 12.5, color: SOFT, margin: 0, lineHeight: 1.6 }}>
+          Say it in the box at the bottom the way you would out loud — &ldquo;24/7 heat repair,
+          $89 tune-up, 555-0142&rdquo;. Or drop a PDF, Word file or PowerPoint in and I will read it.
+          You can paste your website address too and I will go and look.
+        </p>
+      ),
+    },
+    {
+      id: 'look', title: 'How should it look?',
+      done: stylePicked || Boolean(reference),
+      answer: reference ? 'your own design' : stylePicked ? styleName : undefined,
+      body: (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(104px,1fr))', gap: 8 }}>
+            {suggestedStyles.map((t) => (
+              <button key={t.id} onClick={() => { pickStyle(t.id); setOpenStep('photos') }}
+                title={`Design it in the ${t.name} look`}
+                style={{ padding: 0, borderRadius: 9, overflow: 'hidden', cursor: 'pointer', background: '#111',
+                  border: templateId === t.id && !reference ? `3px solid ${INK}` : `1px solid ${LINE}` }}>
+                <img src={thumbUrl(t.id)} alt={t.name} style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
+                <div style={{ fontSize: 11, fontWeight: 700, padding: '4px 3px', background: 'white', color: INK }}>{t.name}</div>
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+            <button style={plain} onClick={() => setSheet('style')}>See all {VISIBLE_STYLES.length}</button>
+            {brands.length > 0 && (
+              <button style={plain} title="Use your saved colours and logo"
+                onClick={() => { setBrandId(brands[0].id); markPicked('brand') }}>
+                Use my {brands[0].name} colours
+              </button>
+            )}
+          </div>
+          <DropHint what="Or work from a design you like the look of"
+            pasteKey={pasteKey} onFiles={(f) => void attachReference(f[0], f[0].name)}
+            line={LINE} soft={SOFT} ink={INK} />
+        </>
+      ),
+    },
+    {
+      id: 'photos', title: 'Your logo and photos', optional: true,
+      done: photos.length > 0,
+      answer: photos.length ? `${photos.length} added` : undefined,
+      body: (
+        <>
+          <PhotoSheet photos={photos} setPhotos={setPhotos} plain={plain}
+            addPhoto={addPhoto} onPicked={() => markPicked('photo')} />
+          <DropHint what="Drop your logo, a headshot, the property or the product"
+            pasteKey={pasteKey} onFiles={(f) => void takeDropped(f)}
+            line={LINE} soft={SOFT} ink={INK} />
+        </>
+      ),
+    },
+    {
+      id: 'notes', title: 'What sizes?', done: ticked.length > 0,
+      answer: ticked.length ? `${ticked.length} size${ticked.length === 1 ? '' : 's'}` : undefined,
+      body: (
+        <>
+          <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px' }}>
+            Tick as many as you need. Each one is designed from scratch{unit !== null ? `, ${unit.toLocaleString()} credits each` : ''}.
+          </p>
+          <button style={plain} onClick={() => setSheet('sizes')}>
+            {ticked.length ? `${ticked.length} chosen — change` : 'Choose sizes'}
+          </button>
+        </>
+      ),
+    },
+  ]
 
   return (
     <>
@@ -2244,6 +2374,23 @@ export default function FlyerMakerPage() {
 
       {/* ── THE COMPOSER ───────────────────────────────────────────────── */}
       <div style={{ flexShrink: 0, paddingBottom: 14, paddingTop: 10 }}>
+
+        {/* ── THE JOB, AS FIVE ROWS ────────────────────────────────────────
+            One open at a time. A finished row shows the ANSWER rather than the
+            question, so the whole job reads at a glance and nothing has to be
+            scrolled back to. Each row asks for what it wants where it wants it,
+            including the files — which is the thing that was never said. */}
+        <div style={{ ...panel, marginBottom: 10, padding: 0, overflow: 'hidden' }}>
+          {STEPS.map((st, i) => (
+            <StepRow key={st.id} n={i + 1} title={st.title} answer={st.answer}
+              open={shownStep === st.id} done={st.done} optional={st.optional}
+              onToggle={() => setOpenStep(shownStep === st.id ? '__none' as Step : st.id)}
+              line={LINE} ink={INK} soft={SOFT}>
+              {st.body}
+            </StepRow>
+          ))}
+        </div>
+
         {sheet && (
           <div style={{ ...panel, marginBottom: 10, maxHeight: '52vh', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.10)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
