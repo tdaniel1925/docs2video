@@ -2312,13 +2312,43 @@ export default function FlyerMakerPage() {
         )}
       </div>
 
+
+        {/* ── THE JOB, AS FIVE ROWS ────────────────────────────────────────
+            One open at a time. A finished row shows the ANSWER rather than the
+            question, so the whole job reads at a glance and nothing has to be
+            scrolled back to. Each row asks for what it wants where it wants it,
+            including the files — which is the thing that was never said. */}
+        <div style={{
+          ...panel, marginBottom: 12, padding: 0,
+          // Never more than half the window. Past that an open row is burying
+          // the work rather than helping with it, and the rows scroll inside
+          // themselves instead of shoving everything else out of the way.
+          maxHeight: '52vh', overflowY: 'auto', flexShrink: 0,
+        }}>
+          {STEPS.map((st, i) => (
+            <StepRow key={st.id} n={i + 1} title={st.title} answer={st.answer}
+              open={shownStep === st.id} done={st.done} optional={st.optional}
+              onToggle={() => setOpenStep(shownStep === st.id ? '__none' as Step : st.id)}
+              line={LINE} ink={INK} soft={SOFT}>
+              {st.body}
+            </StepRow>
+          ))}
+        </div>
+
       {/* ── THE THREAD ──────────────────────────────────────────────────
           Scrolls INSIDE itself. The page does not scroll at all, so the typing
           box is nailed to the bottom of the window and an arriving message
           cannot shove it around — which is what made the whole screen bounce
           every time a line of chat landed. */}
       <div ref={threadRef}
-        style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 0 8px' }}>
+        style={{
+          flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column',
+          gap: 14, padding: '4px 0 8px',
+          // 160px FLOOR. This is where the designs land and where the assistant
+          // answers; flex:1 on its own means "whatever is left over", and what
+          // was left over was a sliver you could not read a single line in.
+          minHeight: 160,
+        }}>
         {loadingHistory && (
           <p style={{ fontSize: 13, color: SOFT, margin: 0 }}>Looking for anything you made before…</p>
         )}
@@ -2380,23 +2410,6 @@ export default function FlyerMakerPage() {
 
       {/* ── THE COMPOSER ───────────────────────────────────────────────── */}
       <div style={{ flexShrink: 0, paddingBottom: 14, paddingTop: 10 }}>
-
-        {/* ── THE JOB, AS FIVE ROWS ────────────────────────────────────────
-            One open at a time. A finished row shows the ANSWER rather than the
-            question, so the whole job reads at a glance and nothing has to be
-            scrolled back to. Each row asks for what it wants where it wants it,
-            including the files — which is the thing that was never said. */}
-        <div style={{ ...panel, marginBottom: 10, padding: 0, overflow: 'hidden' }}>
-          {STEPS.map((st, i) => (
-            <StepRow key={st.id} n={i + 1} title={st.title} answer={st.answer}
-              open={shownStep === st.id} done={st.done} optional={st.optional}
-              onToggle={() => setOpenStep(shownStep === st.id ? '__none' as Step : st.id)}
-              line={LINE} ink={INK} soft={SOFT}>
-              {st.body}
-            </StepRow>
-          ))}
-        </div>
-
         {sheet && (
           <div style={{ ...panel, marginBottom: 10, maxHeight: '52vh', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.10)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>

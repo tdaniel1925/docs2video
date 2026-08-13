@@ -77,6 +77,25 @@ try {
   // 6. THE PAGE ITSELF STILL DOES NOT SCROLL.
   const scrolls = await page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight + 2)
   check('the page does not scroll', !scrolls)
+
+  // 7. THE RESULTS AREA IS STILL USABLE.
+  //
+  // THE ONE THAT WOULD HAVE CAUGHT IT. Adding the rows squeezed the area where
+  // designs and answers appear down to about thirty pixels with its own tiny
+  // scrollbar — solving one problem by creating a worse one. A region that
+  // small is not a smaller version of the feature, it is a broken one.
+  //
+  // Measured with the tallest row open, because that is the worst case and the
+  // one that actually happened.
+  await rows.nth(0).click()
+  await page.waitForTimeout(400)
+  const room = await page.evaluate(() => {
+    const el = [...document.querySelectorAll('div')]
+      .find((d) => d.scrollHeight > 0 && getComputedStyle(d).overflowY === 'auto'
+        && d.querySelector('[aria-expanded]') === null && d.clientWidth > 400)
+    return el ? el.clientHeight : -1
+  })
+  check('the results area is still big enough to read', room >= 150, `${room}px tall`)
 } catch (e) {
   check('ran at all', false, String(e).slice(0, 140))
 } finally {
