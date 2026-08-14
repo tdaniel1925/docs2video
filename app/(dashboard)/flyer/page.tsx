@@ -74,7 +74,7 @@ type DeckPlan = { title: string; slides: PlannedSlide[] }
  * came back, so a conversation about formats left "What should it say?" on
  * screen permanently while everything moved on around it.
  */
-type CardKind = 'start' | 'formats' | 'styles' | 'photos' | 'reference' | 'slides' | 'brand'
+type CardKind = 'formats' | 'styles' | 'photos' | 'reference' | 'slides' | 'brand'
 
 /** Everything in the thread, in the order it happened. */
 type Item =
@@ -159,6 +159,16 @@ type Step = 'kind' | 'piece' | 'slides' | 'content' | 'look' | 'photos' | 'notes
 /** What someone said they wanted at the very start. */
 type Kind = 'deck' | 'print' | 'social' | 'set'
 
+/**
+ * The first thing said, and it does NOT ask what you are making.
+ *
+ * It used to — and so did a card underneath it, and so did row 1 of the steps,
+ * all three on screen at once, two of them with the same four buttons. The
+ * question is the rail's job; the chat's job is to say what the rail is and
+ * where the typing box is, once, and then get out of the way.
+ */
+const HELLO = "I'm your graphic designer. Answer the steps above as you go — or just tell me what you need in the box below."
+
 const STARTERS: { kind: Kind; label: string; hint: string }[] = [
   { kind: 'deck', label: 'Make a slide deck', hint: 'A whole presentation, all the slides matching' },
   { kind: 'social', label: 'Make a graphic', hint: 'For Instagram, Facebook, LinkedIn or a website' },
@@ -237,32 +247,6 @@ function Picker(p: {
 }) {
   const btn = { ...PLAIN_BTN, padding: '7px 12px' } as const
   const soft = 'var(--ink-soft,#6b6459)'
-
-  if (p.card === 'start') {
-    return (
-      <>
-        <p style={{ fontSize: 13.5, fontWeight: 700, margin: '0 0 2px' }}>What would you like to make?</p>
-        {/* SAID AT THE START, WHERE IT IS USEFUL. Every one of these gestures
-            worked before and none of them were mentioned, so nobody used them.
-            Under the buttons rather than above: the question is still the first
-            thing read, and this is what to do if none of the four fit. */}
-        <p style={{ fontSize: 12.5, color: soft, margin: '0 0 12px', lineHeight: 1.55 }}>
-          At any point you can paste or drag in your logo, your photos, or a design you like the
-          look of — anywhere on the screen, as many as you like, and I&rsquo;ll work out what each one
-          is. Or paste your website address and I&rsquo;ll go and look.
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 8 }}>
-          {STARTERS.map((s) => (
-            <button key={s.kind} onClick={() => p.onDone(s.label)} title={s.hint}
-              style={{ ...btn, textAlign: 'left', padding: '11px 13px', lineHeight: 1.45 }}>
-              <span style={{ display: 'block', fontSize: 13.5 }}>{s.label}</span>
-              <span style={{ display: 'block', fontSize: 12, fontWeight: 400, color: soft, marginTop: 2 }}>{s.hint}</span>
-            </button>
-          ))}
-        </div>
-      </>
-    )
-  }
 
   if (p.card === 'brand') {
     return (
@@ -672,9 +656,8 @@ export default function FlyerMakerPage() {
   const [items, setItems] = useState<Item[]>([
     {
       kind: 'msg', role: 'assistant',
-      text: "I'm your graphic designer. What would you like to make?",
+      text: HELLO,
     },
-    { kind: 'card', id: crypto.randomUUID(), card: 'start' },
   ])
 
   const [input, setInput] = useState('')
@@ -922,9 +905,8 @@ export default function FlyerMakerPage() {
         // Switched to an empty chat. Reset rather than leaving the last chat's
         // thread on screen under a different name.
         setItems([
-          { kind: 'msg', role: 'assistant', text: "I'm your graphic designer. What would you like to make?", },
-          { kind: 'card', id: crypto.randomUUID(), card: 'start' },
-        ])
+          { kind: 'msg', role: 'assistant', text: HELLO, },
+              ])
         setFields({})
       }
       setLoadingHistory(false)
@@ -1412,9 +1394,8 @@ export default function FlyerMakerPage() {
     setChatId(fresh)
     rememberChat(fresh)
     setItems([
-      { kind: 'msg', role: 'assistant', text: "I'm your graphic designer. What would you like to make?", },
-      { kind: 'card', id: crypto.randomUUID(), card: 'start' },
-    ])
+      { kind: 'msg', role: 'assistant', text: HELLO, },
+      ])
     // A NEW JOB STARTS EMPTY. Formats, the look and the photos-already-offered
     // flag used to survive into the next chat, so the new job silently
     // inherited the last one's choices — and then never asked, because from the
@@ -1431,9 +1412,8 @@ export default function FlyerMakerPage() {
   const clearChat = () => {
     setConfirmClear(false)
     setItems([
-      { kind: 'msg', role: 'assistant', text: "I'm your graphic designer. What would you like to make?", },
-      { kind: 'card', id: crypto.randomUUID(), card: 'start' },
-    ])
+      { kind: 'msg', role: 'assistant', text: HELLO, },
+      ])
     setFields({})
     setInput('')
     setErr('')
@@ -1522,6 +1502,25 @@ export default function FlyerMakerPage() {
    * changing it is what the typing box is for — "actually make it a postcard"
    * already works.
    */
+  /**
+   * Answer "what are you making?" — from the rail, which is now the only place
+   * that asks it.
+   *
+   * The reply still lands in the chat. Clicking a row used to be silent while
+   * clicking the identical card in the thread said "Good. What should it say?"
+   * — same choice, two behaviours, because they were two pieces of code. This
+   * is the one piece.
+   */
+  const chooseKind = (k: Kind, label: string) => {
+    setKind(k)
+    if (k === 'deck') { setTicked(['slide-16x9']); setSizesPicked(true) }
+    say('user', label)
+    say('assistant', k === 'deck'
+      ? 'Good. What is the deck about, and who is it for? Type it below — or upload a document and I\'ll build it from that.'
+      : 'Good. What should it say? The date, the time, the place, the price — whatever needs to be on it. Type it below, or upload a document and I\'ll pull it out.')
+    setOpenStep('content')
+  }
+
   const answerCard = (id: string, summary: string) => {
     const card = items.find((i) => i.kind === 'card' && i.id === id) as Extract<Item, { kind: 'card' }> | undefined
     setItems((p) => p.filter((i) => !(i.kind === 'card' && i.id === id)))
@@ -1534,16 +1533,6 @@ export default function FlyerMakerPage() {
     // WHAT IT SAYS COMES BEFORE HOW IT LOOKS. Choosing a style for a job you
     // have not described yet is choosing blind — and the six suggestions are
     // picked FROM the description, so asking first makes them better too.
-    if (card?.card === 'start') {
-      setKind(summary === 'Make a slide deck' ? 'deck'
-        : summary === 'Make a graphic' ? 'social'
-        : summary === 'Make a set' ? 'set' : 'print')
-      if (summary === 'Make a slide deck') { setTicked(['slide-16x9']); setSizesPicked(true) }
-      say('assistant', summary === 'Make a slide deck'
-        ? 'Good. What is the deck about, and who is it for? Type it below — or upload a document and I\'ll build it from that.'
-        : 'Good. What should it say? The date, the time, the place, the price — whatever needs to be on it. Type it below, or upload a document and I\'ll pull it out.')
-      return
-    }
     if (card?.card === 'brand') return openCard('formats')
     if (card?.card === 'formats') return openCard('styles')
     if (card?.card === 'slides') return openCard('formats')
@@ -2123,7 +2112,7 @@ export default function FlyerMakerPage() {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 8 }}>
             {STARTERS.map((x) => (
-              <button key={x.kind} onClick={() => { setKind(x.kind); setOpenStep('content') }}
+              <button key={x.kind} onClick={() => chooseKind(x.kind, x.label)}
                 title={x.hint}
                 style={{ ...plain, textAlign: 'left', padding: '10px 12px', lineHeight: 1.45,
                   background: kind === x.kind ? CREAM : 'white' }}>
@@ -2135,6 +2124,14 @@ export default function FlyerMakerPage() {
           <DropHint what="Already have your logo, photos or a design you like?"
             pasteKey={pasteKey} onFiles={(f) => void takeDropped(f)}
             line={LINE} soft={SOFT} ink={INK} />
+          {/* THE ONE LINE WORTH KEEPING from the card that used to duplicate
+              this entire row. The box above takes files; this says the same
+              gestures work anywhere on the page, and that a web address counts.
+              Said once, in the row that is open by default. */}
+          <p style={{ fontSize: 12, color: SOFT, margin: '8px 2px 0', lineHeight: 1.55 }}>
+            That works anywhere on this page, as many as you like — I&rsquo;ll work out what each
+            one is. A website address works too.
+          </p>
         </>
       ),
     },
