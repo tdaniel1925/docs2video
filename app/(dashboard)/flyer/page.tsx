@@ -176,6 +176,35 @@ const STARTERS: { kind: Kind; label: string; hint: string }[] = [
   { kind: 'set', label: 'Make a set', hint: 'The same design in several sizes at once' },
 ]
 
+/**
+ * WHAT "What's it about?" MEANS — ONE source, two voices.
+ *
+ * A deck and a flyer want different things here. A deck wants a subject and an
+ * audience; a flyer wants the words that go ON it — the date, the price, the
+ * phone number. The bug was that these were written twice: the chat reply after
+ * picking a kind switched on the kind, but step 2's help text was hard-wired to
+ * the flyer version, so choosing "slide deck" left an HVAC flyer example
+ * ("$89 tune-up, 555-0142") sitting under a chat bubble asking what the deck is
+ * about. Two instructions, disagreeing, side by side.
+ *
+ * Now both come from here. `chat` is the sentence the designer says back in the
+ * thread; `body` is the same guidance as the step's help text. Change the
+ * wording once and both move together — they cannot drift again.
+ */
+function contentGuidance(kind: Kind | null): { chat: string; body: string } {
+  if (kind === 'deck') {
+    return {
+      chat: 'What is the deck about, and who is it for? Type it below — or upload a document and I’ll build it from that.',
+      body: 'Tell me what the deck is about and who it’s for — say it in the box at the bottom the way you would out loud. Or drop a PDF, Word file or PowerPoint in and I’ll build the slides from it.',
+    }
+  }
+  // Flyers, graphics and sets all want the WORDS that go on the artwork.
+  return {
+    chat: 'What should it say? The date, the time, the place, the price — whatever needs to be on it. Type it below, or upload a document and I’ll pull it out.',
+    body: 'Say the words that go on it, in the box at the bottom, the way you would out loud — “Grand opening Saturday, 20% off, 555-0142”. Or drop a PDF, Word file or PowerPoint in and I’ll read it. You can paste your website address too and I’ll go and look.',
+  }
+}
+
 /** The pieces inside "something to print", asked as one question with pictures. */
 const PRINT_PIECES: { id: string; label: string }[] = [
   { id: 'letter', label: 'Flyer / sell sheet' },
@@ -1507,9 +1536,7 @@ export default function FlyerMakerPage() {
     setKind(k)
     if (k === 'deck') { setTicked(['slide-16x9']); setSizesPicked(true) }
     say('user', label)
-    say('assistant', k === 'deck'
-      ? 'Good. What is the deck about, and who is it for? Type it below — or upload a document and I\'ll build it from that.'
-      : 'Good. What should it say? The date, the time, the place, the price — whatever needs to be on it. Type it below, or upload a document and I\'ll pull it out.')
+    say('assistant', 'Good. ' + contentGuidance(k).chat)
     setOpenStep('content')
   }
 
@@ -2155,11 +2182,11 @@ export default function FlyerMakerPage() {
     {
       id: 'content', title: "What's it about?", done: filled,
       answer: fields.headline || undefined,
+      // Same source as the chat reply after picking a kind — a deck is asked
+      // what it is about, a flyer what it should say. They cannot disagree now.
       body: (
         <p style={{ fontSize: 12.5, color: SOFT, margin: 0, lineHeight: 1.6 }}>
-          Say it in the box at the bottom the way you would out loud — &ldquo;24/7 heat repair,
-          $89 tune-up, 555-0142&rdquo;. Or drop a PDF, Word file or PowerPoint in and I will read it.
-          You can paste your website address too and I will go and look.
+          {contentGuidance(kind).body}
         </p>
       ),
     },
