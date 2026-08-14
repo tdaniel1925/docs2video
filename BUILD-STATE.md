@@ -448,6 +448,16 @@ silently swallow it (see the credit-refund UUID gotcha).
 
 **Work disappeared.** Make wiped the previous batch; refresh lost everything.
 
+**The builder was three fixed columns — dead on a phone.** At ≤900px they were
+clipped off the right edge with no way to reach the steps or typing box. Now a
+single `isPhone` switch (`matchMedia('(max-width:900px)')`) stacks it into one
+scrolling column: the working surface (steps + chat + typing box) first, designs
+below, past-jobs list behind a ☰ drawer. The typing box is pinned to the bottom
+above the cookie bar; the composer row wraps so Send/Make never clip. Desktop is
+unchanged (still fixed 3-column, `steps-check` 7/7). Proven with
+`scripts/phone-check.mjs` (390×900: box + all 5 rows + composer buttons reachable
+via elementFromPoint) — shown to fail on the old layout before the fix.
+
 ### New
 | Thing | Purpose |
 |---|---|

@@ -618,6 +618,9 @@ export default function FlyerMakerPage() {
   // Inline, in place, rather than a browser dialog over the whole app.
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
+  // On a phone the past-jobs list is behind a menu button rather than eating a
+  // third of a narrow screen. Off by default so the phone opens on the work.
+  const [drawerOpen, setDrawerOpen] = useState(false)
   // What they said they were making. Used to put the right group of formats
   // first, so someone who asked for a print piece is not led with Instagram.
   const [kind, setKind] = useState<Kind | null>(null)
@@ -836,26 +839,52 @@ export default function FlyerMakerPage() {
    */
   const marker = useRef<HTMLDivElement>(null)
   const [top, setTop] = useState(0)
+
+  /**
+   * PHONE OR DESKTOP — the one switch the whole layout hangs off.
+   *
+   * Below this width the three side-by-side columns (216 + flex + 420) cannot
+   * fit; they were clipped off the right edge with no way to reach them, so a
+   * phone opened to a dead end. Everything the phone does differently keys off
+   * this single boolean rather than scattering breakpoints through the markup.
+   *
+   * 900 is the point where 216 + 20 + a usable middle + 20 + 420 stops fitting.
+   * Measured with matchMedia, not window.innerWidth, so a rotate or a desktop
+   * window drag flips it live without a resize-math dance.
+   */
+  const [isPhone, setIsPhone] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 900px)')
+    const sync = () => setIsPhone(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
   useEffect(() => {
     const measure = () => setTop(marker.current?.getBoundingClientRect().top ?? 0)
     measure()
     window.addEventListener('resize', measure)
 
-    // And stop the page behind it scrolling, or the window gets a scrollbar for
-    // content nobody can reach and the wheel scrolls the wrong thing.
+    // DESKTOP ONLY: pin the whole app to the window and lock the page behind it.
+    // On a phone the layout is one tall column that MUST scroll the page — so
+    // locking html/body overflow there would trap the customer above the fold
+    // with the typing box unreachable below it. The very bug we are fixing.
     const html = document.documentElement
     const body = document.body
     const prevHtml = html.style.overflow
     const prevBody = body.style.overflow
-    html.style.overflow = 'hidden'
-    body.style.overflow = 'hidden'
+    if (!isPhone) {
+      html.style.overflow = 'hidden'
+      body.style.overflow = 'hidden'
+    }
 
     return () => {
       window.removeEventListener('resize', measure)
       html.style.overflow = prevHtml
       body.style.overflow = prevBody
     }
-  }, [])
+  }, [isPhone])
   /**
    * Follow the conversation — but only if the customer is watching the end of
    * it.
@@ -1270,6 +1299,7 @@ export default function FlyerMakerPage() {
 
   /** Open a saved project chat. */
   const openChat = (id: string) => {
+    setDrawerOpen(false) // on a phone, choosing a job returns you to the work
     if (id === chatId) return
     setChatId(id)
     rememberChat(id)
@@ -1285,6 +1315,7 @@ export default function FlyerMakerPage() {
    * the first time something is actually made.
    */
   const newChat = () => {
+    setDrawerOpen(false) // on a phone, starting fresh returns you to the work
     // Deliberately does NOT reload from the server. There is nothing saved
     // under a chat that has never been used, so a fetch could only come back
     // empty — and the round trip cost a flicker and, until the server was
@@ -2167,14 +2198,26 @@ export default function FlyerMakerPage() {
          pinned over everything and nothing made room for it, so a page built to
          fill the window exactly had its bottom row hidden underneath it. The
          bar publishes its own height now; with no bar the value is 0 and this
-         behaves exactly as it did. */
-      position: 'fixed', top, left: 0, right: 0, bottom: 'var(--bottom-bar, 0px)',
-      display: 'flex', justifyContent: 'center',
-      background: 'var(--bg,#F4F1EC)', overflow: 'hidden',
+         behaves exactly as it did.
+
+         DESKTOP is pinned to the window (position:fixed) so the columns each
+         scroll once and the typing box never moves. A PHONE cannot do that —
+         one tall stacked column has to scroll the PAGE, and a fixed height
+         would clip the bottom of it off — so on a phone this is a normal block
+         that grows as tall as it needs and lets the page scroll. */
+      ...(isPhone
+        ? { position: 'relative' as const, background: 'var(--bg,#F4F1EC)' }
+        : { position: 'fixed' as const, top, left: 0, right: 0, bottom: 'var(--bottom-bar, 0px)',
+            display: 'flex', justifyContent: 'center',
+            background: 'var(--bg,#F4F1EC)', overflow: 'hidden' }),
     }}>
     <div style={{
-      width: '100%', maxWidth: 1240, padding: '0 20px',
-      display: 'flex', gap: 20, overflow: 'hidden',
+      width: '100%', maxWidth: 1240,
+      ...(isPhone
+        // The big bottom padding clears the fixed composer (typing box + hint +
+        // buttons) so the last row of content is never trapped beneath it.
+        ? { padding: '12px 14px 180px', display: 'flex', flexDirection: 'column' as const, gap: 16 }
+        : { padding: '0 20px', display: 'flex', gap: 20, overflow: 'hidden' }),
     }}>
 
       {/* ── PAST JOBS ──────────────────────────────────────────────────────
@@ -2190,7 +2233,42 @@ export default function FlyerMakerPage() {
           of the window, so the sidebar just fills it and scrolls its own list.
           The old `top: 88` and `calc(100vh - 108px)` were two more guesses at a
           header height that is not this page's to know. */}
-      <aside style={{ width: 216, flexShrink: 0, height: '100%', minHeight: 0, paddingTop: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+      {/* PHONE TOP BAR. On a phone the past-jobs list is behind a menu instead
+          of eating a third of a narrow screen, so a phone opens straight onto
+          the work. The two things worth reaching without opening anything —
+          the list, and starting fresh — sit up here in the flow. Desktop never
+          sees this; the list is a permanent column there. order:-1 pins it to
+          the very top of the stacked layout. */}
+      {isPhone && (
+        <div style={{ order: -1, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={() => setDrawerOpen(true)} aria-label="Past jobs"
+            title="Your past jobs" style={{ ...plain, padding: '9px 12px', fontSize: 18, lineHeight: 1 }}>☰</button>
+          <button onClick={newChat} title="Start a separate job with its own conversation."
+            style={{ ...darkBtn, flex: 1 }}>+ New chat</button>
+        </div>
+      )}
+
+      {/* PHONE BACKDROP. Tap anything outside the drawer to close it. */}
+      {isPhone && drawerOpen && (
+        <div onClick={() => setDrawerOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 60 }} />
+      )}
+
+      <aside style={
+        isPhone
+          ? {
+              // A slide-over from the left, on top of everything, only when
+              // opened. Off-screen (and non-interactive) when closed so it
+              // never steals a tap from the work behind it.
+              position: 'fixed', top: 0, bottom: 0, left: 0, width: 264, zIndex: 61,
+              transform: drawerOpen ? 'translateX(0)' : 'translateX(-100%)',
+              transition: 'transform .22s ease', pointerEvents: drawerOpen ? 'auto' : 'none',
+              background: 'var(--bg,#F4F1EC)', boxShadow: drawerOpen ? '2px 0 24px rgba(0,0,0,.18)' : 'none',
+              padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 10,
+            }
+          : { width: 216, flexShrink: 0, height: '100%', minHeight: 0, paddingTop: 18, display: 'flex', flexDirection: 'column', gap: 10 }
+      }>
         <button onClick={newChat} title="Start a separate job with its own conversation. Nothing is lost — this one stays in the list."
           style={{ ...darkBtn, width: '100%', flexShrink: 0 }}>
           + New chat
@@ -2273,7 +2351,14 @@ export default function FlyerMakerPage() {
         188-pixel strip. What you PUT IN and what you GET OUT should not share
         a column at all: the work takes the middle with the full height, every
         control sits on the right, and each column scrolls exactly once. */}
-    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 0, paddingTop: 18, paddingRight: 18 }}>
+    {/* On a phone this drops BELOW the rail (order:2) and takes the full width
+        at its natural height — the work you PUT IN comes first, the designs you
+        GET OUT follow, and the page scrolls through both. */}
+    <div style={
+      isPhone
+        ? { order: 2, width: '100%', display: 'flex', flexDirection: 'column' }
+        : { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 0, paddingTop: 18, paddingRight: 18 }
+    }>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', flexShrink: 0 }}>
         <h1 style={{ margin: 0, fontSize: 24 }}>
           {storefront.nav.find((n) => n.href === '/flyer')?.label ?? 'Designs'}
@@ -2285,8 +2370,15 @@ export default function FlyerMakerPage() {
         )}
       </div>
 
+      {/* On a phone this does not scroll inside itself — the page scrolls. A
+          fixed-height inner scroller here is what buried the designs in a strip
+          on desktop, and on a phone it would trap them behind a nested bar. */}
       <div className="scroll-visible"
-        style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 0 8px' }}>
+        style={
+          isPhone
+            ? { display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 0 8px' }
+            : { flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 0 8px' }
+        }>
         {items.map((it) => (
           it.kind === 'round' ? <RoundBlock key={it.id} round={it} now={now} onOpen={setViewing} />
           : it.kind === 'deck' ? (
@@ -2361,8 +2453,20 @@ export default function FlyerMakerPage() {
     {/* Marked so a check can ask "is this in the rail?" by ancestry rather
         than by guessing an x-coordinate — a guess that was wrong (the rail
         starts at 931, not 1000) and so passed for the wrong reason. */}
-    <div data-rail="" style={{ width: 420, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0, paddingTop: 18 }}>
-      <div className="scroll-visible" style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4 }}>
+    {/* THE WORKING SURFACE. On a phone this comes FIRST (order:1) and full
+        width — steps, chat and the typing box are what the customer came for,
+        so they are what a phone opens onto. On desktop it is the fixed 420px
+        right rail. */}
+    <div data-rail="" style={
+      isPhone
+        ? { order: 1, width: '100%', display: 'flex', flexDirection: 'column' }
+        : { width: 420, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0, paddingTop: 18 }
+    }>
+      {/* On a phone the steps do not scroll inside themselves — the page
+          scrolls, and the composer below sits in the flow rather than pinned. */}
+      <div className="scroll-visible" style={
+        isPhone ? {} : { flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4 }
+      }>
       {/* No heading here — it sits over the designs, which is what it names. */}
 
 
@@ -2438,7 +2542,19 @@ export default function FlyerMakerPage() {
       </div>{/* the rail's single scrolling region ends here */}
 
       {/* ── THE COMPOSER, pinned below the scroll ─────────────────────── */}
-      <div style={{ flexShrink: 0, paddingBottom: 14, paddingTop: 10 }}>
+      {/* On desktop it sits at the bottom of the fixed-height rail (the scroller
+          above takes all the slack, so this is naturally pinned). On a phone the
+          rail has no fixed height, so to keep the typing box always reachable it
+          is pinned to the bottom of the window, ABOVE the cookie bar
+          (--bottom-bar). The page gets matching bottom padding below so the last
+          row of content is never hidden behind it. */}
+      <div style={
+        isPhone
+          ? { position: 'fixed', left: 0, right: 0, bottom: 'var(--bottom-bar, 0px)', zIndex: 40,
+              background: 'var(--bg,#F4F1EC)', borderTop: `1px solid ${LINE}`,
+              padding: '10px 14px calc(10px + env(safe-area-inset-bottom))' }
+          : { flexShrink: 0, paddingBottom: 14, paddingTop: 10 }
+      }>
         {sheet && (
           <div style={{ ...panel, marginBottom: 10, maxHeight: '52vh', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.10)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -2883,12 +2999,16 @@ export default function FlyerMakerPage() {
             </p>
           )}
 
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* On a phone this WRAPS: the box takes the whole first line and the
+              mic + Send + Make sit on the line below, so nothing is pushed off
+              the right edge (the Make button was being clipped at 390px). On
+              desktop it stays a single row, unchanged. */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: isPhone ? 'wrap' : 'nowrap' }}>
             <input value={input} onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') send() }} disabled={thinking}
               title="Describe the job the way you'd say it out loud — what it's for, when, where, how much"
               placeholder={listening ? 'Listening… speak now' : 'Describe it, or drop in your logo and photos'}
-              style={{ flex: 1, padding: '11px 13px', borderRadius: 8, border: `1px solid ${listening ? INK : LINE}`, font: 'inherit', fontSize: 15 }} />
+              style={{ flex: 1, minWidth: isPhone ? '100%' : 0, padding: '11px 13px', borderRadius: 8, border: `1px solid ${listening ? INK : LINE}`, font: 'inherit', fontSize: 15 }} />
 
             {/* No "unsupported" state any more. Where the browser has no
                 speech engine the hook records and has the server read it back,
