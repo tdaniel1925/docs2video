@@ -736,7 +736,7 @@ export default function FlyerMakerPage() {
   useEffect(() => () => { if (strobeTimer.current) clearTimeout(strobeTimer.current) }, [])
 
   const [making, setMaking] = useState(false)
-  const [sheet, setSheet] = useState<null | 'photos' | 'sizes'>(null)
+  const [sheet, setSheet] = useState<null | 'photos'>(null)
 
   // Browsing all the looks happens in the WIDE middle column, not a cramped
   // panel in the 420px rail beside it. This flips the middle from the
@@ -2181,6 +2181,117 @@ export default function FlyerMakerPage() {
    */
   const examplesShowing = !items.some((it) => it.kind === 'round' || it.kind === 'deck') && !loadingHistory
 
+  /**
+   * THE SIZES, RIGHT IN ROW 5 — no button behind the row, no panel behind
+   * the button. "What sizes?" is a required decision, and it used to be two
+   * clicks down: open the row, then press "Choose sizes" to open a separate
+   * panel. Opening the row now IS the picker. The group that matches what you
+   * are making leads (orderedGroups), each size shows its own credit cost,
+   * and the bleed toggle, the note and the whole-deck shortcut come with it
+   * because they all belong to the same decision.
+   */
+  const sizesPicker = () => (
+    <>
+                {orderedGroups(kind).map((g) => (
+                  <div key={g.id} style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: SOFT, marginBottom: 5 }}>{g.label}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 3 }}>
+                      {FLYER_SIZES.filter((s) => s.group === g.id).map((s) => (
+                        <label key={s.id} className={strobeId === s.id ? 'cg-strobe' : undefined}
+                          style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, cursor: 'pointer', padding: '3px 6px', borderRadius: 6 }}>
+                          <input type="checkbox" checked={ticked.includes(s.id)}
+                            onChange={(e) => {
+                              setSizesPicked(true)
+                              setTicked((p) => (e.target.checked ? [...p, s.id] : p.filter((x) => x !== s.id)).slice(0, 8))
+                              markPicked(s.id)
+                            }} />
+                          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.label}</span>
+                          {/* Each design is priced the same, so the per-size cost
+                              is the same number — but showing it on every line is
+                              what makes "eight sizes" read as a real amount before
+                              the button rather than a surprise after. */}
+                          {unit !== null && (
+                            <span style={{ fontSize: 11, color: SOFT, flexShrink: 0 }}>{unit.toLocaleString()} cr</span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {/* BLEED. Only offered when something printable is ticked,
+                    because it means nothing for an Instagram post or a slide.
+
+                    Off by default: the common case is printing at home or on an
+                    office machine, where the paper CANNOT be printed edge to
+                    edge, and a file with bleed would come out with the design
+                    shrunk and a white frame round it. Someone sending work to a
+                    real printer knows to tick this; someone who doesn't
+                    shouldn't be handed a file they can't use. */}
+                {ticked.some((id) => { const s = FLYER_SIZES.find((x) => x.id === id); return s && canBleed(s) }) && (
+                  <label
+                    title="Tick this only if a professional printer is producing it. It adds an eighth of an inch of extra artwork on every edge for them to trim into, so the colour reaches the very edge of the paper with no white sliver."
+                    style={{
+                      display: 'flex', gap: 9, alignItems: 'flex-start', marginTop: 4, marginBottom: 12,
+                      padding: '10px 12px', border: `1px solid ${LINE}`, borderRadius: 9, cursor: 'pointer',
+                    }}>
+                    <input type="checkbox" checked={bleed} style={{ marginTop: 2 }}
+                      onChange={(e) => {
+                        setBleed(e.target.checked)
+                        say('assistant', e.target.checked
+                          ? 'Print shop mode on. Printed pieces come out slightly oversize with an eighth of an inch of extra artwork on every edge, which the printer trims off — that is what stops a white sliver appearing down one side. Not what you want for printing at home.'
+                          : 'Back to exact size. Right for printing at home or in the office, where the paper cannot be printed all the way to the edge anyway.')
+                      }} />
+                    <span>
+                      <span style={{ fontSize: 13, fontWeight: 700, display: 'block' }}>Sending this to a print shop</span>
+                      <span style={{ fontSize: 12.5, color: SOFT, lineHeight: 1.55 }}>
+                        Adds the extra edge (&ldquo;bleed&rdquo;) a commercial printer trims off, so the colour
+                        runs right to the edge of the paper. Leave it off for printing at home.
+                      </span>
+                    </span>
+                  </label>
+                )}
+
+                <input value={note} onChange={(e) => setNote(e.target.value)}
+                  title="Anything the style should do differently — a colour, a mood, something to leave out"
+                  placeholder="Anything else about the look? e.g. 'use purple instead of gold'"
+                  style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 13 }} />
+                <p style={{ fontSize: 12, color: SOFT, margin: '8px 0 0' }}>Up to 8 at a time. Each is designed from scratch, not a crop of the others.</p>
+
+                {/* A WHOLE DECK, rather than one slide at a time. Lives in the
+                    sizes panel because that is where someone has just ticked
+                    "Slide 1920x1080" and thought "actually I need twelve of
+                    these". */}
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${LINE}` }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Or build a whole deck</div>
+                  <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.55 }}>
+                    Describe it in the box below and I&rsquo;ll write the running order first — free, and you
+                    can change anything before a single slide is drawn. Every slide is then designed to match
+                    the first one, so the deck hangs together.
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <label style={{ fontSize: 12.5, color: SOFT, display: 'flex', gap: 6, alignItems: 'center' }}
+                      title="How many slides. Between 3 and 20.">
+                      Slides
+                      <input type="number" min={MIN_DECK} max={MAX_DECK} value={deckCount}
+                        onChange={(e) => setDeckCount(Math.max(MIN_DECK, Math.min(MAX_DECK, Number(e.target.value) || MIN_DECK)))}
+                        style={{ width: 62, padding: '6px 8px', borderRadius: 7, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 13 }} />
+                    </label>
+                    <button onClick={planTheDeck} disabled={planning}
+                      title="Write the running order. Costs nothing — no slides are drawn yet."
+                      style={{ ...plain, opacity: planning ? 0.6 : 1 }}>
+                      {planning ? 'Planning…' : 'Plan the deck'}
+                    </button>
+                    {unit !== null && (
+                      <span style={{ fontSize: 12, color: SOFT }}>
+                        {(unit * deckCount).toLocaleString()} credits when you build it
+                      </span>
+                    )}
+                  </div>
+                </div>
+    </>
+  )
+
   /** The five rows, in the order they are worth doing. */
   const STEPS: { id: Step; title: string; answer?: string; done: boolean; optional?: boolean; body: React.ReactNode }[] = [
     {
@@ -2274,14 +2385,15 @@ export default function FlyerMakerPage() {
     {
       id: 'notes', title: 'What sizes?', done: ticked.length > 0,
       answer: ticked.length ? `${ticked.length} size${ticked.length === 1 ? '' : 's'}` : undefined,
+      // THE PICKER IS THE ROW. It used to be a button ("Choose sizes") that
+      // opened a separate panel — a required decision two clicks down. Opening
+      // the row now shows the sizes themselves.
       body: (
         <>
           <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px' }}>
             Tick as many as you need. Each one is designed from scratch{unit !== null ? `, ${unit.toLocaleString()} credits each` : ''}.
           </p>
-          <button style={plain} onClick={() => setSheet('sizes')}>
-            {ticked.length ? `${ticked.length} chosen — change` : 'Choose sizes'}
-          </button>
+          {sizesPicker()}
         </>
       ),
     },
@@ -2872,9 +2984,7 @@ export default function FlyerMakerPage() {
         {sheet && (
           <div style={{ ...panel, marginBottom: 10, maxHeight: '52vh', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.10)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <strong style={{ fontSize: 13 }}>
-                {sheet === 'photos' ? 'Your own photos' : 'Which sizes?'}
-              </strong>
+              <strong style={{ fontSize: 13 }}>Your own photos</strong>
               {/* Only a way OUT lives up here, and only as an X. The way
                   FORWARD is always at the bottom. Two buttons that both close
                   the panel, one at each end, is what made this feel like a
@@ -2883,124 +2993,19 @@ export default function FlyerMakerPage() {
                 aria-label="Close" style={{ ...plain, padding: '4px 10px', fontSize: 13 }}>✕</button>
             </div>
 
+            <PhotoSheet photos={photos} setPhotos={setPhotos} plain={plain}
+              addPhoto={addPhoto} onPicked={() => markPicked('photo')} />
 
-            {sheet === 'photos' && (
-              <PhotoSheet photos={photos} setPhotos={setPhotos} plain={plain}
-                addPhoto={addPhoto} onPicked={() => markPicked('photo')} />
-            )}
-
-            {sheet === 'sizes' && (
-              <>
-                {GROUPS.map((g) => (
-                  <div key={g.id} style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: SOFT, marginBottom: 5 }}>{g.label}</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 3 }}>
-                      {FLYER_SIZES.filter((s) => s.group === g.id).map((s) => (
-                        <label key={s.id} className={strobeId === s.id ? 'cg-strobe' : undefined}
-                          style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, cursor: 'pointer', padding: '2px 6px', borderRadius: 6 }}>
-                          <input type="checkbox" checked={ticked.includes(s.id)}
-                            onChange={(e) => {
-                              setSizesPicked(true)
-                              setTicked((p) => (e.target.checked ? [...p, s.id] : p.filter((x) => x !== s.id)).slice(0, 8))
-                              markPicked(s.id)
-                            }} />
-                          {s.label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-
-                {/* BLEED. Only offered when something printable is ticked,
-                    because it means nothing for an Instagram post or a slide.
-
-                    Off by default: the common case is printing at home or on an
-                    office machine, where the paper CANNOT be printed edge to
-                    edge, and a file with bleed would come out with the design
-                    shrunk and a white frame round it. Someone sending work to a
-                    real printer knows to tick this; someone who doesn't
-                    shouldn't be handed a file they can't use. */}
-                {ticked.some((id) => { const s = FLYER_SIZES.find((x) => x.id === id); return s && canBleed(s) }) && (
-                  <label
-                    title="Tick this only if a professional printer is producing it. It adds an eighth of an inch of extra artwork on every edge for them to trim into, so the colour reaches the very edge of the paper with no white sliver."
-                    style={{
-                      display: 'flex', gap: 9, alignItems: 'flex-start', marginTop: 4, marginBottom: 12,
-                      padding: '10px 12px', border: `1px solid ${LINE}`, borderRadius: 9, cursor: 'pointer',
-                    }}>
-                    <input type="checkbox" checked={bleed} style={{ marginTop: 2 }}
-                      onChange={(e) => {
-                        setBleed(e.target.checked)
-                        say('assistant', e.target.checked
-                          ? 'Print shop mode on. Printed pieces come out slightly oversize with an eighth of an inch of extra artwork on every edge, which the printer trims off — that is what stops a white sliver appearing down one side. Not what you want for printing at home.'
-                          : 'Back to exact size. Right for printing at home or in the office, where the paper cannot be printed all the way to the edge anyway.')
-                      }} />
-                    <span>
-                      <span style={{ fontSize: 13, fontWeight: 700, display: 'block' }}>Sending this to a print shop</span>
-                      <span style={{ fontSize: 12.5, color: SOFT, lineHeight: 1.55 }}>
-                        Adds the extra edge (&ldquo;bleed&rdquo;) a commercial printer trims off, so the colour
-                        runs right to the edge of the paper. Leave it off for printing at home.
-                      </span>
-                    </span>
-                  </label>
-                )}
-
-                <input value={note} onChange={(e) => setNote(e.target.value)}
-                  title="Anything the style should do differently — a colour, a mood, something to leave out"
-                  placeholder="Anything else about the look? e.g. 'use purple instead of gold'"
-                  style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 13 }} />
-                <p style={{ fontSize: 12, color: SOFT, margin: '8px 0 0' }}>Up to 8 at a time. Each is designed from scratch, not a crop of the others.</p>
-
-                {/* A WHOLE DECK, rather than one slide at a time. Lives in the
-                    sizes panel because that is where someone has just ticked
-                    "Slide 1920x1080" and thought "actually I need twelve of
-                    these". */}
-                <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${LINE}` }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Or build a whole deck</div>
-                  <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.55 }}>
-                    Describe it in the box below and I&rsquo;ll write the running order first — free, and you
-                    can change anything before a single slide is drawn. Every slide is then designed to match
-                    the first one, so the deck hangs together.
-                  </p>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <label style={{ fontSize: 12.5, color: SOFT, display: 'flex', gap: 6, alignItems: 'center' }}
-                      title="How many slides. Between 3 and 20.">
-                      Slides
-                      <input type="number" min={MIN_DECK} max={MAX_DECK} value={deckCount}
-                        onChange={(e) => setDeckCount(Math.max(MIN_DECK, Math.min(MAX_DECK, Number(e.target.value) || MIN_DECK)))}
-                        style={{ width: 62, padding: '6px 8px', borderRadius: 7, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 13 }} />
-                    </label>
-                    <button onClick={planTheDeck} disabled={planning}
-                      title="Write the running order. Costs nothing — no slides are drawn yet."
-                      style={{ ...plain, opacity: planning ? 0.6 : 1 }}>
-                      {planning ? 'Planning…' : 'Plan the deck'}
-                    </button>
-                    {unit !== null && (
-                      <span style={{ fontSize: 12, color: SOFT }}>
-                        {(unit * deckCount).toLocaleString()} credits when you build it
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* THE ONE WAY FORWARD, AND IT IS ALWAYS HERE.
-                Only for the panels where doing nothing is a real answer — you
-                may add no photos, and you tick several sizes. Picking a look is
-                a single choice and closes itself, so it needs none of this.
-                Bottom, because that is where your hand already is after
-                choosing, and because a control that moves is a control you have
-                to look for. */}
-            {/* Photos and sizes both want a Done. The style sheet used to be
-                excluded here because it closed itself on a single click — it no
-                longer lives in this panel at all, so the guard is gone. */}
+            {/* THE ONE WAY FORWARD, AND IT IS ALWAYS HERE. Doing nothing is a
+                real answer here — you may add no photos — so the panel needs a
+                Done that also means "skip". (Sizes moved into their step row and
+                the style browser into the middle, so photos is the only panel
+                left.) */}
             <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${LINE}`, display: 'flex', justifyContent: 'flex-end' }}>
               <button onClick={closeSheet} className={unacked ? 'cg-done-flash' : undefined}
                 title="Your choices are already saved — this just closes the panel"
                 style={{ ...plain, padding: '8px 18px', background: INK, color: 'white', borderColor: INK }}>
-                {sheet === 'photos'
-                  ? (photos.length ? `Done — ${photos.length} added` : 'Skip photos')
-                  : `Done — ${ticked.length} size${ticked.length === 1 ? '' : 's'}`}
+                {photos.length ? `Done — ${photos.length} added` : 'Skip photos'}
               </button>
             </div>
           </div>
