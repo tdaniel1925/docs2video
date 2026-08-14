@@ -2247,7 +2247,8 @@ export default function FlyerMakerPage() {
             actually does it: without it a flex child refuses to shrink below
             its content, so a long list pushes the column taller instead of
             scrolling, and the button goes with it. */}
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div className="scroll-visible fade-bottom"
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2, paddingBottom: 24 }}>
           {chats.length === 0 && !loadingHistory && (
             <p style={{ fontSize: 12, color: SOFT, margin: '4px 2px', lineHeight: 1.5 }}>
               Jobs you finish show up here, so you can come back to one.
@@ -2332,7 +2333,8 @@ export default function FlyerMakerPage() {
         )}
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 0 8px' }}>
+      <div className="scroll-visible"
+        style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 0 8px' }}>
         {items.map((it) => (
           it.kind === 'round' ? <RoundBlock key={it.id} round={it} now={now} onOpen={setViewing} />
           : it.kind === 'deck' ? (
@@ -2399,7 +2401,7 @@ export default function FlyerMakerPage() {
         Steps and conversation share ONE scrolling region. The typing box is
         pinned under it and never moves, however long either gets. */}
     <div style={{ width: 420, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0, paddingTop: 18 }}>
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4 }}>
+      <div className="scroll-visible" style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4 }}>
       {/* No heading here — it sits over the designs, which is what it names. */}
 
 

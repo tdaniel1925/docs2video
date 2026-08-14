@@ -3255,3 +3255,40 @@ h1.hero-title em {
   --rose: #F9CBE8;
   --orange-cta: #FF9A1F;
 }
+
+/* =============================================================================
+   A SCROLLING LIST SHOULD LOOK LIKE ONE.
+
+   The job list scrolls correctly — measured at 700px and 560px windows, the box
+   shrinks and the content moves. But the browser's overlay scrollbar stays
+   invisible until you touch it, and the list is cut off flush against the
+   bottom edge, so it reads as "the rest is missing" rather than "there is more
+   below". Reported as "the sidebar needs scrolling" when it already did.
+
+   Two hints, both permanent: a thin bar that is always there, and a soft fade
+   at the bottom edge. Neither costs a click.
+   ========================================================================== */
+.scroll-visible {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, currentColor 22%, transparent) transparent;
+}
+.scroll-visible::-webkit-scrollbar { width: 8px; }
+.scroll-visible::-webkit-scrollbar-track { background: transparent; }
+.scroll-visible::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 99px;
+  /* Inset from the edge so it reads as part of the list rather than the window. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.scroll-visible:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, currentColor 34%, transparent);
+  background-clip: content-box;
+}
+
+/* The fade says "keep going" without occupying a row of its own. Pointer events
+   off, or it would swallow clicks on the last item in the list. */
+.fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to bottom, black calc(100% - 28px), transparent 100%);
+}
