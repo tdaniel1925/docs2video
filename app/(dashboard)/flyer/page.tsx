@@ -74,7 +74,7 @@ type DeckPlan = { title: string; slides: PlannedSlide[] }
  * came back, so a conversation about formats left "What should it say?" on
  * screen permanently while everything moved on around it.
  */
-type CardKind = 'formats' | 'styles' | 'photos' | 'reference' | 'slides' | 'brand'
+type CardKind = 'reference' | 'slides' | 'brand'
 
 /** Everything in the thread, in the order it happened. */
 type Item =
@@ -280,114 +280,13 @@ function Picker(p: {
     )
   }
 
-  if (p.card === 'formats') {
-    const chosen = FLYER_SIZES.filter((s) => p.ticked.includes(s.id))
-    return (
-      <>
-        <p style={{ fontSize: 13.5, fontWeight: 700, margin: '0 0 2px' }}>Which formats?</p>
-        <p style={{ fontSize: 12.5, color: soft, margin: '0 0 12px' }}>
-          Tick as many as you need. Each one is designed from scratch{p.unit !== null ? `, ${p.unit.toLocaleString()} credits each` : ''}.
-        </p>
-        {orderedGroups(p.kind).map((g) => {
-          const sizes = FLYER_SIZES.filter((s) => s.group === g.id)
-          if (!sizes.length) return null
-          return (
-            <div key={g.id} style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: soft, marginBottom: 6 }}>{g.label}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(168px,1fr))', gap: 6 }}>
-                {sizes.map((s) => {
-                  const on = p.ticked.includes(s.id)
-                  return (
-                    <button key={s.id} onClick={() => p.onTickSize(s.id)} title={s.label}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left',
-                        padding: '6px 9px', borderRadius: 8, cursor: 'pointer', font: 'inherit',
-                        background: on ? 'var(--cream,#F4F1EC)' : 'white',
-                        border: `1px solid ${on ? 'var(--ink,#23201c)' : 'var(--border,#ddd6cc)'}`,
-                      }}>
-                      <ShapeTile w={s.w} h={s.h} on={on} styleId={p.templateId} />
-                      <span style={{ fontSize: 12.5, lineHeight: 1.3 }}>{s.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })}
-        {chosen.some((s) => canBleed(s)) && (
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '2px 0 12px', fontSize: 12.5, color: soft, cursor: 'pointer' }}
-            title="Adds the extra edge a commercial printer trims off, so colour reaches the edge of the paper. Leave it off for printing at home.">
-            <input type="checkbox" checked={p.bleed} onChange={(e) => p.onBleed(e.target.checked)} />
-            A print shop is producing this
-          </label>
-        )}
-        <button disabled={!chosen.length} onClick={() => p.onDone(chosen.map((s) => s.label).join(', '))}
-          style={{ ...btn, background: 'var(--ink,#23201c)', color: 'white', borderColor: 'transparent', opacity: chosen.length ? 1 : 0.4 }}>
-          {chosen.length ? `Done — ${chosen.length} format${chosen.length === 1 ? '' : 's'}` : 'Pick at least one'}
-        </button>
-      </>
-    )
-  }
-
-  if (p.card === 'styles') {
-    return (
-      <>
-        <p style={{ fontSize: 13.5, fontWeight: 700, margin: '0 0 2px' }}>How should it look?</p>
-        <p style={{ fontSize: 12.5, color: soft, margin: '0 0 12px', lineHeight: 1.55 }}>
-          Pick one of these six, see all {VISIBLE_STYLES.length}, or paste in a design you like the
-          look of — anywhere on the screen. We take its colours, lettering and mood, never its
-          words or pictures.
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(112px,1fr))', gap: 8, marginBottom: 10 }}>
-          {p.styles.map((t) => (
-            <button key={t.id} onClick={() => { p.onPickStyle(t.id); p.onDone(t.name) }} title={`Design it in the ${t.name} look`}
-              style={{ padding: 0, borderRadius: 9, overflow: 'hidden', cursor: 'pointer', background: '#111', border: p.templateId === t.id ? '3px solid var(--ink,#23201c)' : '1px solid var(--border,#ddd6cc)' }}>
-              <img src={thumbUrl(t.id)} alt={t.name} style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
-              <div style={{ fontSize: 11, fontWeight: 700, padding: '5px 4px', background: 'white' }}>{t.name}</div>
-            </button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <button onClick={p.onSeeAll} style={btn}>See all {VISIBLE_STYLES.length}</button>
-          <label style={{ ...btn, cursor: 'pointer' }}
-            title="Upload a design you like the look of. We take its style, never its words, logos or photographs.">
-            Work from my own design
-            <input type="file" accept="image/*" hidden
-              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) p.onReference(f) }} />
-          </label>
-          {/* THE THIRD ROUTE, in the same breath as the other two. It used to
-              be a separate question asked at a different moment, which meant
-              somebody who just wanted their own colours had to sit through a
-              style grid first and then be asked again. */}
-          {p.brands.length > 0 && (
-            <button style={btn} title="Use your saved colours and logo, in whichever look you pick"
-              onClick={() => { p.onPickBrand(p.brands[0].id); p.onDone(`${p.brands[0].name} colours`) }}>
-              Use my {p.brands[0].name} colours
-            </button>
-          )}
-        </div>
-      </>
-    )
-  }
-
-  if (p.card === 'photos') {
-    return (
-      <>
-        <p style={{ fontSize: 13.5, fontWeight: 700, margin: '0 0 2px' }}>Any photos or a logo?</p>
-        <p style={{ fontSize: 12.5, color: soft, margin: '0 0 12px', lineHeight: 1.5 }}>
-          A headshot, the property, your product, your logo. A logo goes on exactly as supplied. Skip and the artwork is invented.
-        </p>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <button onClick={p.onOpenPhotos} style={btn}>
-            {p.photos.length ? `${p.photos.length} added — add more` : 'Add photos'}
-          </button>
-          <button onClick={() => p.onDone(p.photos.length ? `${p.photos.length} added` : 'none')} style={btn}>
-            {p.photos.length ? 'Done' : 'Skip'}
-          </button>
-        </div>
-      </>
-    )
-  }
+  // NO formats / styles / photos CARD ANY MORE.
+  //
+  // Each of these drew, inside the conversation, the exact panel that row 3,
+  // 4 or 5 of the steps rail already shows a few inches away — one of them
+  // even under the identical heading, "How should it look?", with a second
+  // wall of the same thumbnails. The rail asks the questions now; the chat
+  // routes to the row instead of growing a copy of it. See openQuestion.
 
   if (p.card === 'reference') {
     return (
@@ -1491,6 +1390,31 @@ export default function FlyerMakerPage() {
   }
 
   /**
+   * ASK A QUESTION — in the ONE place that question is asked.
+   *
+   * This is the fix for the whole class of mess, not one instance of it.
+   * Anything that wanted an answer used to push a card into the chat, and
+   * three of those questions — the look, the sizes, the photos — were already
+   * rows in the steps rail a few inches away. So the screen grew the same
+   * picker twice, once even under the identical heading "How should it look?"
+   * with a second wall of the same thumbnails. The two copies did not behave
+   * alike either, because they were two pieces of code.
+   *
+   * Everything routes through here now. If the rail owns the question, the
+   * rail's row opens. Only the two questions the rail has no row for — how
+   * many slides, whose brand — are still cards in the conversation.
+   */
+  const ROW_FOR: Record<string, Step> = {
+    start: 'kind', content: 'content', styles: 'look', photos: 'photos', formats: 'notes',
+  }
+
+  const openQuestion = (name: string) => {
+    const row = ROW_FOR[name]
+    if (row) { setOpenStep(row); return }
+    if (name === 'reference' || name === 'slides' || name === 'brand') openCard(name)
+  }
+
+  /**
    * Answered: the card GOES. It does not collapse into a grey summary row.
    *
    * The collapsed rows were the pile-up. A normal job answers four cards, so
@@ -1533,28 +1457,28 @@ export default function FlyerMakerPage() {
     // WHAT IT SAYS COMES BEFORE HOW IT LOOKS. Choosing a style for a job you
     // have not described yet is choosing blind — and the six suggestions are
     // picked FROM the description, so asking first makes them better too.
-    if (card?.card === 'brand') return openCard('formats')
-    if (card?.card === 'formats') return openCard('styles')
-    if (card?.card === 'slides') return openCard('formats')
-    if (card?.card === 'styles' || card?.card === 'reference') {
-      if (!photosAsked) { setPhotosAsked(true); return openCard('photos') }
+    if (card?.card === 'brand') return openQuestion('formats')
+    
+    if (card?.card === 'slides') return openQuestion('formats')
+    if (card?.card === 'reference') {
+      if (!photosAsked) { setPhotosAsked(true); return openQuestion('photos') }
     }
   }
 
   /**
    * Close the look question once a look has been chosen ANYWHERE.
    *
-   * The six suggestions answer the card directly. "See all 225" opens the older
-   * full-screen picker, and choosing in there set the style without the card
-   * ever hearing about it — so the question sat on screen with no way to close
-   * it and nothing to move on to.
+   * The look row closes itself, because it watches whether a look exists. The
+   * bring-your-own-design card cannot: a style chosen from the middle of the
+   * screen or the full-screen picker never told it anything, so it sat there
+   * with no way to close it and nothing to move on to.
    *
    * Watching the ANSWER rather than the button means every route in closes the
    * question, including any added later.
    */
   useEffect(() => {
     const open = items.find((i): i is Extract<Item, { kind: 'card' }> => i.kind === 'card')
-    if (open?.card !== 'styles') return
+    if (open?.card !== 'reference') return
     if (!stylePicked && !reference) return
     const t = FLYER_TEMPLATES.find((x) => x.id === templateId)
     answerCard(open.id, reference ? 'your own design' : t?.name ?? 'that look')
@@ -1663,7 +1587,7 @@ export default function FlyerMakerPage() {
     // so "make it a radio" and then "at night" both survive.
     if (r.subject) setArtNote((p) => (p ? `${p} ${r.subject}` : String(r.subject)).slice(0, 600))
 
-    if (r.show) openCard(r.show as CardKind)
+    if (r.show) openQuestion(String(r.show))
     else askNext(r.fields ?? {})
   }
 
@@ -1684,13 +1608,19 @@ export default function FlyerMakerPage() {
   const askNext = (f: FlyerFields) => {
     const hasContent = Object.values(f).some((v) => (Array.isArray(v) ? v.length : v))
     if (!hasContent) return
-    if (kind === 'deck' && deckCount === 0) return openCard('slides')
+    if (kind === 'deck' && deckCount === 0) return openQuestion('slides')
     // Ask whose brand it is BEFORE the look, because the brand largely IS the
     // look — colours, logo and tone all come from it.
-    if (brands.length && brandId === null && !brandAsked) { setBrandAsked(true); return openCard('brand') }
-    if (!ticked.length) return openCard('formats')
-    if (!stylePicked && !reference) return openCard('styles')
-    if (!photosAsked) { setPhotosAsked(true); return openCard('photos') }
+    if (brands.length && brandId === null && !brandAsked) { setBrandAsked(true); return openQuestion('brand') }
+    // THE SAME ORDERED LIST the rail draws and the hint reads. This used to be
+    // its own third copy of the order, and it disagreed with both: it asked for
+    // sizes before the look, so the rail jumped from row 2 to row 5 and left 3
+    // behind. The list is numbered, and people read numbered lists downwards.
+    const next = TODO.find((s) => !s.done && s.row !== 'kind' && s.row !== 'content')
+    if (next) return setOpenStep(next.row)
+    // Photos are optional, so they are not in that list — offered once, after
+    // everything that is actually required has been answered.
+    if (!photosAsked) { setPhotosAsked(true); return openQuestion('photos') }
   }
 
   // ONE REQUEST PER SIZE, not one for all of them. Asking for everything at
@@ -2034,11 +1964,27 @@ export default function FlyerMakerPage() {
    * with no explanation is how someone ends up pressing the one live control on
    * the screen and buying something they had not designed yet.
    */
-  const missing =
-    !filled ? 'tell me what it should say'
-    : !ticked.length ? 'pick a format'
-    : !stylePicked && !reference ? 'pick a look'
-    : null
+  /**
+   * THE JOB, AS ONE ORDERED LIST — used by everything that needs it.
+   *
+   * There were three copies of this order: which row opens next, what the
+   * "Next: ..." hint says, and which question gets asked once you describe the
+   * job. They disagreed. The assistant jumped from row 2 to row 5, and the
+   * hint said "pick a format" while row 3 sat open asking about the look.
+   * Three lists means two of them are wrong and nobody notices.
+   */
+  const TODO: { row: Step; done: boolean; ask: string }[] = [
+    { row: 'kind', done: Boolean(kind), ask: 'tell me what you are making' },
+    { row: 'content', done: filled, ask: 'tell me what it should say' },
+    { row: 'look', done: stylePicked || Boolean(reference), ask: 'pick a look' },
+    { row: 'notes', done: ticked.length > 0, ask: 'pick a format' },
+  ]
+  const firstUndone: Step = TODO.find((s) => !s.done)?.row ?? null
+  const shownStep = openStep ?? firstUndone
+
+  // The same list, so the hint can never name a different step from the one
+  // sitting open a few inches above it.
+  const missing = TODO.find((s) => !s.done && s.row !== 'kind')?.ask ?? null
   const canMake = !making && !missing && unit !== null
 
 
@@ -2095,13 +2041,16 @@ export default function FlyerMakerPage() {
    * '__none' is how a row says "I was closed on purpose", so clicking the open
    * row shuts it rather than snapping straight back open.
    */
-  const firstUndone: Step =
-    !kind ? 'kind'
-    : !filled ? 'content'
-    : !stylePicked && !reference ? 'look'
-    : !ticked.length ? 'notes'
-    : null
-  const shownStep = openStep ?? firstUndone
+
+  /**
+   * Is the wall of looks on screen in the middle?
+   *
+   * It shows until there is work to show instead. Both the middle and the look
+   * row need to know, because they used to be two separate grids of the same
+   * tiles side by side — and the row can only say "pick one in the middle"
+   * while there IS a middle to pick from.
+   */
+  const examplesShowing = !items.some((it) => it.kind === 'round' || it.kind === 'deck') && !loadingHistory
 
   /** The five rows, in the order they are worth doing. */
   const STEPS: { id: Step; title: string; answer?: string; done: boolean; optional?: boolean; body: React.ReactNode }[] = [
@@ -2152,19 +2101,20 @@ export default function FlyerMakerPage() {
       answer: reference ? 'your own design' : stylePicked ? styleName : undefined,
       body: (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(104px,1fr))', gap: 8 }}>
-            {suggestedStyles.map((t) => (
-              <button key={t.id} onClick={() => { pickStyle(t.id); setOpenStep('photos') }}
-                title={`Design it in the ${t.name} look`}
-                style={{ padding: 0, borderRadius: 9, overflow: 'hidden', cursor: 'pointer', background: '#111',
-                  border: templateId === t.id && !reference ? `3px solid ${INK}` : `1px solid ${LINE}` }}>
-                <img src={thumbUrl(t.id)} alt={t.name} style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
-                <div style={{ fontSize: 11, fontWeight: 700, padding: '4px 3px', background: 'white', color: INK }}>{t.name}</div>
-              </button>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-            <button style={plain} onClick={() => setSheet('style')}>See all {VISIBLE_STYLES.length}</button>
+          {/* NO SECOND WALL OF TILES. This row used to draw its own grid of
+              look thumbnails RIGHT NEXT TO the wall of them filling the middle
+              of the screen — the same pictures twice, four inches apart. The
+              middle is the bigger, better place to browse, so this row points
+              at it and offers the thing the middle cannot do: work from a
+              design you already have. */}
+          <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.6 }}>
+            {examplesShowing
+              ? 'Click any look in the middle of the screen — that sets the style, and you can change it any time.'
+              : 'Open the full set of looks below and pick one — you can change it any time.'}
+            {' '}Or drop in a design you already like and I&rsquo;ll work in its style instead.
+          </p>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button style={plain} onClick={() => setSheet('style')}>See all {VISIBLE_STYLES.length} looks</button>
             {brands.length > 0 && (
               <button style={plain} title="Use your saved colours and logo"
                 onClick={() => { setBrandId(brands[0].id); markPicked('brand') }}>
@@ -2365,18 +2315,24 @@ export default function FlyerMakerPage() {
         {/* NOTHING MADE YET, so show what the thing produces. A large empty
             middle on first use reads as something that failed to load; real
             work reads as an invitation, and one click starts from it. */}
-        {!items.some((it) => it.kind === 'round' || it.kind === 'deck') && !loadingHistory && (
+        {examplesShowing && (
           <div>
+            {/* THE WHOLE CHOICE, SAID ONCE, WHERE THE PICTURES ARE. This is the
+                only wall of looks now — the steps rail used to draw a second
+                one beside it. So the two ways to answer "how should it look"
+                belong here together: pick one of these, or bring your own. */}
             <p style={{ fontSize: 13, color: SOFT, margin: '0 0 12px', lineHeight: 1.6 }}>
-              Your designs appear here. Start from one of these if it helps — it sets the look
-              on the right and you change whatever you like.
+              Your designs appear here. To start, <strong style={{ color: INK }}>click any look below</strong> —
+              it sets the style and you can change it any time. Or{' '}
+              <strong style={{ color: INK }}>drop in a design you already like</strong> (drag it anywhere on
+              this page, or press {pasteKey}) and I&rsquo;ll work in its style instead.
             </p>
             {/* SMALLER TILES. At 150px only three fitted across the middle and
                 browsing meant scrolling; at 108 you get six or seven, which is
                 the difference between comparing looks and hunting for one. */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(108px,1fr))', gap: 8 }}>
               {VISIBLE_STYLES.slice(0, shownExamples).map((t) => (
-                <button key={t.id} onClick={() => { pickStyle(t.id); setOpenStep('content') }}
+                <button key={t.id} onClick={() => { pickStyle(t.id); setOpenStep(null) }}
                   title={`Start from the ${t.name} look`}
                   style={{ padding: 0, borderRadius: 10, overflow: 'hidden', cursor: 'pointer', background: '#111', border: `1px solid ${LINE}` }}>
                   <img src={thumbUrl(t.id)} alt={t.name} loading="lazy"
@@ -2402,7 +2358,10 @@ export default function FlyerMakerPage() {
     {/* ── THE RIGHT RAIL: everything you PUT IN ─────────────────────────
         Steps and conversation share ONE scrolling region. The typing box is
         pinned under it and never moves, however long either gets. */}
-    <div style={{ width: 420, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0, paddingTop: 18 }}>
+    {/* Marked so a check can ask "is this in the rail?" by ancestry rather
+        than by guessing an x-coordinate — a guess that was wrong (the rail
+        starts at 931, not 1000) and so passed for the wrong reason. */}
+    <div data-rail="" style={{ width: 420, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0, paddingTop: 18 }}>
       <div className="scroll-visible" style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4 }}>
       {/* No heading here — it sits over the designs, which is what it names. */}
 

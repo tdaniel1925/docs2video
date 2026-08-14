@@ -54,6 +54,58 @@ try {
   check('the page asks what you are making exactly once', asks.length === 1,
     asks.length ? asks.map((a) => `"${a}"`).join(' + ') : 'not asked at all')
 
+  // EVERY QUESTION, ONCE — not just the one that was complained about.
+  //
+  // Fixing "what are you making?" on its own and shipping is how this page got
+  // three duplicated pickers in the first place. The chat used to push a look
+  // picker, a sizes picker and a photos picker into the conversation while the
+  // steps rail showed all three a few inches away — the look one under the
+  // very same heading. So the whole rail gets counted, every time.
+  const HEADINGS = [
+    /how should it look/i,
+    /what sizes|which formats/i,
+    /(your logo and photos|any photos or a logo)/i,
+    /what'?s it about/i,
+  ]
+  // Every row OPENED, because a collapsed row hides its copy of the picker —
+  // and collapsed is exactly the state a lazy check would pass in.
+  const rows = page.locator('[data-step-row]')
+  for (let i = 0; i < await rows.count(); i++) {
+    await rows.nth(i).click()
+    await page.waitForTimeout(300)
+  }
+
+  for (const re of HEADINGS) {
+    const hits = await page.evaluate((src) => {
+      const r = new RegExp(src.slice(1, src.lastIndexOf('/')), 'i')
+      return [...document.querySelectorAll('p,h1,h2,h3,span,div,button')]
+        .filter((el) => ![...el.children].some((c) => r.test(c.textContent || '')))
+        .map((el) => (el.textContent || '').trim())
+        .filter((t) => r.test(t) && t.length < 120)
+    }, re.toString())
+    check(`asked once: ${re.source.slice(0, 26)}`, hits.length <= 1, hits.map((h) => `"${h}"`).join(' + '))
+  }
+
+  // AND NO WALL OF LOOK THUMBNAILS TWICE. Headings can differ while the same
+  // grid of pictures appears in two columns — which is exactly what happened.
+  //
+  // By ancestry, NOT by x-coordinate. The first version of this asked "is it
+  // past 1000px?" — the rail starts at 931, so it reported "middle only" no
+  // matter what, and passed for the wrong reason. Proven by putting a tile
+  // back in the rail and watching it still say ok.
+  const grids = await page.evaluate(() => {
+    const tiles = [...document.querySelectorAll('img')].filter((i) => /flyer-templates/.test(i.src))
+    const cols = new Set(tiles.map((i) => (i.closest('[data-rail]') ? 'rail' : 'middle')))
+    return { count: tiles.length, where: [...cols] }
+  })
+  check('look thumbnails live in one column only', grids.where.length <= 1,
+    `${grids.count} tiles in ${grids.where.join(' + ') || 'none'}`)
+
+  // Back to row 1, which the sweep above left collapsed — its buttons are the
+  // subject of everything below. (Caught by running it: 0 buttons found.)
+  await rows.nth(0).click()
+  await page.waitForTimeout(400)
+
   // ONE SET OF STARTER BUTTONS. The duplicate card carried its own copy, so
   // "Make a slide deck" appeared twice and picking either did different things.
   const deck = await page.getByRole('button', { name: 'Make a slide deck' }).count()
