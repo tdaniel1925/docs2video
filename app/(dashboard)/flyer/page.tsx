@@ -736,7 +736,12 @@ export default function FlyerMakerPage() {
   useEffect(() => () => { if (strobeTimer.current) clearTimeout(strobeTimer.current) }, [])
 
   const [making, setMaking] = useState(false)
-  const [sheet, setSheet] = useState<null | 'style' | 'photos' | 'sizes'>(null)
+  const [sheet, setSheet] = useState<null | 'photos' | 'sizes'>(null)
+
+  // Browsing all the looks happens in the WIDE middle column, not a cramped
+  // panel in the 420px rail beside it. This flips the middle from the
+  // designs/examples over to the full style browser; picking one flips it back.
+  const [browseLooks, setBrowseLooks] = useState(false)
 
   /**
    * WHICH SECTION IS OPEN. One at a time, and never more.
@@ -974,10 +979,11 @@ export default function FlyerMakerPage() {
       if (e.key !== 'Escape') return
       if (viewing) setViewing(null)
       else if (sheet) closeSheet()
+      else if (browseLooks) exitBrowse()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [viewing, sheet])
+  }, [viewing, sheet, browseLooks])
 
   const say = (role: 'user' | 'assistant', text: string) =>
     setItems((p) => [...p, { kind: 'msg', role, text }])
@@ -1258,7 +1264,7 @@ export default function FlyerMakerPage() {
 
       e.preventDefault()
       if (sheet === 'photos') void addPhoto(file)
-      else if (sheet === 'style' && !reference) void attachReference(file, 'pasted design')
+      else if (browseLooks && !reference) void attachReference(file, 'pasted design')
       else void takeDropped([file])
     }
     window.addEventListener('paste', onPaste)
@@ -1295,7 +1301,7 @@ export default function FlyerMakerPage() {
       const doc = files.find((f) => !f.type.startsWith('image/'))
       if (images.length) {
         if (sheet === 'photos') { for (const f of images) void addPhoto(f) }
-        else if (sheet === 'style' && !reference) void attachReference(images[0], images[0].name)
+        else if (browseLooks && !reference) void attachReference(images[0], images[0].name)
         else void takeDropped(images)
       } else if (doc) void readDocument(doc)
     }
@@ -2209,7 +2215,7 @@ export default function FlyerMakerPage() {
             {' '}Or drop in a design you already like and I&rsquo;ll work in its style instead.
           </p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <button style={plain} onClick={() => setSheet('style')}>See all {VISIBLE_STYLES.length} looks</button>
+            <button style={plain} onClick={() => setBrowseLooks(true)}>See all {VISIBLE_STYLES.length} looks</button>
             {brands.length > 0 && (
               <button style={plain} title="Use your saved colours and logo"
                 onClick={() => { setBrandId(brands[0].id); markPicked('brand') }}>
@@ -2252,6 +2258,178 @@ export default function FlyerMakerPage() {
       ),
     },
   ]
+
+  /**
+   * THE FULL LOOK BROWSER — rendered in the WIDE middle column, not the rail.
+   *
+   * This used to open as a cramped panel inside the 420px rail, its tiles and
+   * category chips squeezed next to the wide middle column that exists FOR
+   * browsing looks. It is the same browser; only where it lives changed. One
+   * definition, called once (from the middle when browseLooks is on), so there
+   * is never a second grid of the same thumbnails — the thing
+   * no-duplicate-asks.mjs watches for.
+   */
+  const exitBrowse = () => { setBrowseLooks(false); setUnacked(false); setStrobeId(null) }
+  const styleBrowser = () => (
+    <>
+                {/* ONE OR THE OTHER, never both. A style and a reference are
+                    each a complete instruction about how the design should
+                    look; supply two and the result follows neither. Rather
+                    than let someone set both and get a muddle, choosing one
+                    clears the other and says so. */}
+                <p style={{ fontSize: 13, color: SOFT, margin: '0 0 12px', lineHeight: 1.55 }}>
+                  Use <strong style={{ color: INK }}>one of our looks</strong> or{' '}
+                  <strong style={{ color: INK }}>a design of your own to work from</strong> — one or the
+                  other, not both. Each is a full instruction for how it should look, and two at once means
+                  the design follows neither. Picking one clears the other.
+                </p>
+
+                {reference ? (
+                  <div className={strobeId === 'reference' ? 'cg-strobe' : undefined}
+                    title="The look of this design will be copied — its colours, lettering and layout — using your words, not its own"
+                    style={{ display: 'flex', gap: 12, alignItems: 'center', border: `1px solid ${LINE}`, borderRadius: 9, padding: 10, marginBottom: 12 }}>
+                    <img src={reference.dataUrl} alt="" style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 7, border: `1px solid ${LINE}` }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>Copying this design&rsquo;s style</div>
+                      <div style={{ fontSize: 12, color: SOFT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reference.name}</div>
+                      <div style={{ fontSize: 12, color: SOFT, marginTop: 4, lineHeight: 1.5 }}>
+                        Its colours, lettering and layout — never its words, logos or photos.
+                      </div>
+                    </div>
+                    <button onClick={() => setReference(null)} title="Remove this reference and go back to our looks"
+                      style={{ ...plain, padding: '5px 9px' }}>✕</button>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: 12 }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      const f = e.dataTransfer.files?.[0]
+                      if (!f) return
+                      e.preventDefault()
+                      void attachReference(f, f.name)
+                    }}>
+                    <label title="Upload a flyer, ad or card you like the look of — yours will be designed in that style, with your words"
+                      style={{ ...plain, display: 'inline-block' }}>
+                      + Upload your own design to work from
+                      <input type="file" accept="image/*" hidden
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0]
+                          e.target.value = ''
+                          if (f) await attachReference(f, f.name)
+                        }} />
+                    </label>
+
+                    {/* WHERE TO FIND ONE. Most people have no design to hand and
+                        stall here. Naming the places designers actually browse
+                        turns a blank box into a five-second job.
+
+                        The wording matters and is deliberate: the design is a
+                        REFERENCE, not something to be reproduced. Those sites
+                        sell licensed work, and a customer who prints a close
+                        copy is exposed. The engine already enforces this — it is
+                        told to take the style and never reproduce the design —
+                        so this text describes what actually happens. */}
+                    <p style={{ fontSize: 12.5, color: SOFT, margin: '10px 0 0', lineHeight: 1.6 }}>
+                      No design to hand? Browse{' '}
+                      <strong style={{ color: INK }}>Envato</strong>,{' '}
+                      <strong style={{ color: INK }}>Freepik</strong> or{' '}
+                      <strong style={{ color: INK }}>Creative Market</strong> for something you like the
+                      look of, then <strong style={{ color: INK }}>copy the image and paste it here</strong>{' '}
+                      with {pasteKey}. You can also drag one in.
+                    </p>
+                    <p style={{ fontSize: 12.5, color: SOFT, margin: '6px 0 0', lineHeight: 1.6 }}>
+                      We don&rsquo;t copy the design itself. We read its style — the colours, the
+                      lettering, the mood — and make you a new one from your own words.
+                    </p>
+                  </div>
+                )}
+
+                <div style={{ opacity: reference ? 0.4 : 1, pointerEvents: reference ? 'none' : 'auto' }}
+                  title={reference ? 'Switched off while a reference is attached — remove it to pick one of our looks' : undefined}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                    {/* SHELVES ARE LOOKS NOW, NOT TRADES. "Food & drink" was
+                        only ever a useful shelf while picking it also picked a
+                        plate of food. Now that the subject is yours to set, the
+                        thing worth browsing is the look — and the warm rustic
+                        one belongs to the HVAC company just as much as to the
+                        bakery. The count is shown because a shelf with three on
+                        it and a shelf with thirteen are different decisions. */}
+                    {STYLE_FAMILIES.map((c) => (
+                      <button key={c.id} style={chip(family === c.id)} title={`${c.count} ${c.label.toLowerCase()} looks`}
+                        onClick={() => {
+                          setFamily(c.id); setStyleQuery(''); setStylePicked(true)
+                          const first = VISIBLE_STYLES.find((t) => t.family === c.id)
+                          if (first) setTemplateId(first.id)
+                        }}>{c.label} <span style={{ opacity: 0.5 }}>{c.count}</span></button>
+                    ))}
+                  </div>
+
+                  {/* SEARCH ACROSS EVERYTHING, including the old subjects.
+                      Somebody who remembers the pumpkin sample should find that
+                      look by typing "pumpkin" — even though pumpkins are no
+                      longer what they would get from it. Typing searches every
+                      shelf at once; clearing it returns to the chosen one. */}
+                  <input
+                    value={styleQuery}
+                    onChange={(e) => setStyleQuery(e.target.value)}
+                    placeholder="Search all looks — try gold, rustic, neon, hand-drawn…"
+                    title="Search every shelf at once"
+                    style={{
+                      width: '100%', padding: '8px 11px', marginBottom: 10, fontSize: 13,
+                      borderRadius: 8, border: `1px solid ${LINE}`, background: 'white',
+                      color: INK, fontFamily: 'inherit',
+                    }} />
+
+                  {shownStyles.length === 0 && (
+                    <p style={{ fontSize: 13, color: SOFT, margin: '4px 0 12px', lineHeight: 1.55 }}>
+                      Nothing matches &ldquo;{styleQuery}&rdquo;. Try a plainer word, or upload a design
+                      of your own above and we&rsquo;ll work from that instead.
+                    </p>
+                  )}
+
+                  {/* THE ANSWER TO "CAN I USE THE HALLOWEEN ONE FOR MY HVAC
+                      BUSINESS?" — said as a picture rather than a promise. */}
+                  <label style={{
+                    display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+                    fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.5,
+                  }}>
+                    <input type="checkbox" checked={onRealWork}
+                      onChange={(e) => setOnRealWork(e.target.checked)}
+                      style={{ width: 16, height: 16, accentColor: INK, flexShrink: 0 }} />
+                    <span>
+                      <strong style={{ color: INK }}>Show these on an everyday job.</strong>{' '}
+                      The same van and the same words in every look — so you can see the
+                      style on its own, without whatever the sample happened to be about.
+                    </span>
+                  </label>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(118px,1fr))', gap: 9 }}>
+                    {shownStyles.map((t) => (
+                      <button key={t.id} className={strobeId === t.id ? 'cg-strobe' : undefined}
+                        // CLOSES ITSELF. One choice, made — there is nothing
+                        // left to confirm, and asking for a confirmation of a
+                        // thing you just clicked is the definition of clunky.
+                        onClick={() => { setTemplateId(t.id); setStylePicked(true); markPicked(t.id); exitBrowse() }}
+                        title={`Design it in the ${t.name} look`}
+                        style={{
+                          padding: 0, borderRadius: 9, overflow: 'hidden', cursor: 'pointer', background: '#111',
+                          border: templateId === t.id && !reference ? `3px solid ${INK}` : `1px solid ${LINE}`,
+                        }}>
+                        <img
+                          src={onRealWork && !noProof.includes(t.id) ? proofUrl(t.id) : thumbUrl(t.id)}
+                          alt={onRealWork ? `The ${t.name} look on an everyday job` : t.name}
+                          // FALL BACK, DO NOT SHOW A HOLE. A look whose proof
+                          // tile has not been generated yet keeps its own
+                          // sample rather than turning into a broken image.
+                          onError={() => setNoProof((n) => (n.includes(t.id) ? n : [...n, t.id]))}
+                          style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
+                        <div style={{ fontSize: 11, fontWeight: 700, padding: '5px 4px', background: 'white', color: INK }}>{t.name}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+    </>
+  )
 
   return (
     <>
@@ -2443,6 +2621,22 @@ export default function FlyerMakerPage() {
             ? { display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 0 8px' }
             : { flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 0 8px' }
         }>
+        {/* BROWSING ALL THE LOOKS TAKES OVER THE MIDDLE. The full browser used
+            to open as a cramped panel in the 420px rail beside this wide space
+            that exists FOR browsing. Now "See all looks" swaps the middle to it,
+            with a clear way back. It replaces the designs/examples rather than
+            adding a second grid, so there is only ever one wall of thumbnails. */}
+        {browseLooks ? (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <button onClick={exitBrowse} style={{ ...plain }}
+                title="Back to your designs">← Back</button>
+              <strong style={{ fontSize: 15 }}>Pick a look</strong>
+            </div>
+            {styleBrowser()}
+          </div>
+        ) : (
+        <>
         {items.map((it) => (
           it.kind === 'round' ? <RoundBlock key={it.id} round={it} now={now} onOpen={setViewing} />
           : it.kind === 'deck' ? (
@@ -2507,6 +2701,8 @@ export default function FlyerMakerPage() {
               </button>
             )}
           </div>
+        )}
+        </>
         )}
       </div>
     </div>
@@ -2576,7 +2772,7 @@ export default function FlyerMakerPage() {
                 brands={brands} onPickBrand={setBrandId}
                 ticked={ticked} onTickSize={toggleSize}
                 styles={suggestedStyles} templateId={templateId}
-                onPickStyle={pickStyle} onSeeAll={() => setSheet('style')}
+                onPickStyle={pickStyle} onSeeAll={() => setBrowseLooks(true)}
                 photos={photos} onOpenPhotos={() => setSheet('photos')}
                 onReference={async (f) => { await attachReference(f, f.name); answerCard(it.id, 'your own design') }}
                 deckCount={deckCount} onPickSlides={pickSlides}
@@ -2638,7 +2834,7 @@ export default function FlyerMakerPage() {
           <div style={{ ...panel, marginBottom: 10, maxHeight: '52vh', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.10)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <strong style={{ fontSize: 13 }}>
-                {sheet === 'style' ? 'Pick a look' : sheet === 'photos' ? 'Your own photos' : 'Which sizes?'}
+                {sheet === 'photos' ? 'Your own photos' : 'Which sizes?'}
               </strong>
               {/* Only a way OUT lives up here, and only as an X. The way
                   FORWARD is always at the bottom. Two buttons that both close
@@ -2648,166 +2844,6 @@ export default function FlyerMakerPage() {
                 aria-label="Close" style={{ ...plain, padding: '4px 10px', fontSize: 13 }}>✕</button>
             </div>
 
-            {sheet === 'style' && (
-              <>
-                {/* ONE OR THE OTHER, never both. A style and a reference are
-                    each a complete instruction about how the design should
-                    look; supply two and the result follows neither. Rather
-                    than let someone set both and get a muddle, choosing one
-                    clears the other and says so. */}
-                <p style={{ fontSize: 13, color: SOFT, margin: '0 0 12px', lineHeight: 1.55 }}>
-                  Use <strong style={{ color: INK }}>one of our looks</strong> or{' '}
-                  <strong style={{ color: INK }}>a design of your own to work from</strong> — one or the
-                  other, not both. Each is a full instruction for how it should look, and two at once means
-                  the design follows neither. Picking one clears the other.
-                </p>
-
-                {reference ? (
-                  <div className={strobeId === 'reference' ? 'cg-strobe' : undefined}
-                    title="The look of this design will be copied — its colours, lettering and layout — using your words, not its own"
-                    style={{ display: 'flex', gap: 12, alignItems: 'center', border: `1px solid ${LINE}`, borderRadius: 9, padding: 10, marginBottom: 12 }}>
-                    <img src={reference.dataUrl} alt="" style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 7, border: `1px solid ${LINE}` }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700 }}>Copying this design&rsquo;s style</div>
-                      <div style={{ fontSize: 12, color: SOFT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reference.name}</div>
-                      <div style={{ fontSize: 12, color: SOFT, marginTop: 4, lineHeight: 1.5 }}>
-                        Its colours, lettering and layout — never its words, logos or photos.
-                      </div>
-                    </div>
-                    <button onClick={() => setReference(null)} title="Remove this reference and go back to our looks"
-                      style={{ ...plain, padding: '5px 9px' }}>✕</button>
-                  </div>
-                ) : (
-                  <div style={{ marginBottom: 12 }}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      const f = e.dataTransfer.files?.[0]
-                      if (!f) return
-                      e.preventDefault()
-                      void attachReference(f, f.name)
-                    }}>
-                    <label title="Upload a flyer, ad or card you like the look of — yours will be designed in that style, with your words"
-                      style={{ ...plain, display: 'inline-block' }}>
-                      + Upload your own design to work from
-                      <input type="file" accept="image/*" hidden
-                        onChange={async (e) => {
-                          const f = e.target.files?.[0]
-                          e.target.value = ''
-                          if (f) await attachReference(f, f.name)
-                        }} />
-                    </label>
-
-                    {/* WHERE TO FIND ONE. Most people have no design to hand and
-                        stall here. Naming the places designers actually browse
-                        turns a blank box into a five-second job.
-
-                        The wording matters and is deliberate: the design is a
-                        REFERENCE, not something to be reproduced. Those sites
-                        sell licensed work, and a customer who prints a close
-                        copy is exposed. The engine already enforces this — it is
-                        told to take the style and never reproduce the design —
-                        so this text describes what actually happens. */}
-                    <p style={{ fontSize: 12.5, color: SOFT, margin: '10px 0 0', lineHeight: 1.6 }}>
-                      No design to hand? Browse{' '}
-                      <strong style={{ color: INK }}>Envato</strong>,{' '}
-                      <strong style={{ color: INK }}>Freepik</strong> or{' '}
-                      <strong style={{ color: INK }}>Creative Market</strong> for something you like the
-                      look of, then <strong style={{ color: INK }}>copy the image and paste it here</strong>{' '}
-                      with {pasteKey}. You can also drag one in.
-                    </p>
-                    <p style={{ fontSize: 12.5, color: SOFT, margin: '6px 0 0', lineHeight: 1.6 }}>
-                      We don&rsquo;t copy the design itself. We read its style — the colours, the
-                      lettering, the mood — and make you a new one from your own words.
-                    </p>
-                  </div>
-                )}
-
-                <div style={{ opacity: reference ? 0.4 : 1, pointerEvents: reference ? 'none' : 'auto' }}
-                  title={reference ? 'Switched off while a reference is attached — remove it to pick one of our looks' : undefined}>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-                    {/* SHELVES ARE LOOKS NOW, NOT TRADES. "Food & drink" was
-                        only ever a useful shelf while picking it also picked a
-                        plate of food. Now that the subject is yours to set, the
-                        thing worth browsing is the look — and the warm rustic
-                        one belongs to the HVAC company just as much as to the
-                        bakery. The count is shown because a shelf with three on
-                        it and a shelf with thirteen are different decisions. */}
-                    {STYLE_FAMILIES.map((c) => (
-                      <button key={c.id} style={chip(family === c.id)} title={`${c.count} ${c.label.toLowerCase()} looks`}
-                        onClick={() => {
-                          setFamily(c.id); setStyleQuery(''); setStylePicked(true)
-                          const first = VISIBLE_STYLES.find((t) => t.family === c.id)
-                          if (first) setTemplateId(first.id)
-                        }}>{c.label} <span style={{ opacity: 0.5 }}>{c.count}</span></button>
-                    ))}
-                  </div>
-
-                  {/* SEARCH ACROSS EVERYTHING, including the old subjects.
-                      Somebody who remembers the pumpkin sample should find that
-                      look by typing "pumpkin" — even though pumpkins are no
-                      longer what they would get from it. Typing searches every
-                      shelf at once; clearing it returns to the chosen one. */}
-                  <input
-                    value={styleQuery}
-                    onChange={(e) => setStyleQuery(e.target.value)}
-                    placeholder="Search all looks — try gold, rustic, neon, hand-drawn…"
-                    title="Search every shelf at once"
-                    style={{
-                      width: '100%', padding: '8px 11px', marginBottom: 10, fontSize: 13,
-                      borderRadius: 8, border: `1px solid ${LINE}`, background: 'white',
-                      color: INK, fontFamily: 'inherit',
-                    }} />
-
-                  {shownStyles.length === 0 && (
-                    <p style={{ fontSize: 13, color: SOFT, margin: '4px 0 12px', lineHeight: 1.55 }}>
-                      Nothing matches &ldquo;{styleQuery}&rdquo;. Try a plainer word, or upload a design
-                      of your own above and we&rsquo;ll work from that instead.
-                    </p>
-                  )}
-
-                  {/* THE ANSWER TO "CAN I USE THE HALLOWEEN ONE FOR MY HVAC
-                      BUSINESS?" — said as a picture rather than a promise. */}
-                  <label style={{
-                    display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-                    fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.5,
-                  }}>
-                    <input type="checkbox" checked={onRealWork}
-                      onChange={(e) => setOnRealWork(e.target.checked)}
-                      style={{ width: 16, height: 16, accentColor: INK, flexShrink: 0 }} />
-                    <span>
-                      <strong style={{ color: INK }}>Show these on an everyday job.</strong>{' '}
-                      The same van and the same words in every look — so you can see the
-                      style on its own, without whatever the sample happened to be about.
-                    </span>
-                  </label>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(118px,1fr))', gap: 9 }}>
-                    {shownStyles.map((t) => (
-                      <button key={t.id} className={strobeId === t.id ? 'cg-strobe' : undefined}
-                        // CLOSES ITSELF. One choice, made — there is nothing
-                        // left to confirm, and asking for a confirmation of a
-                        // thing you just clicked is the definition of clunky.
-                        onClick={() => { setTemplateId(t.id); setStylePicked(true); markPicked(t.id); closeSheet() }}
-                        title={`Design it in the ${t.name} look`}
-                        style={{
-                          padding: 0, borderRadius: 9, overflow: 'hidden', cursor: 'pointer', background: '#111',
-                          border: templateId === t.id && !reference ? `3px solid ${INK}` : `1px solid ${LINE}`,
-                        }}>
-                        <img
-                          src={onRealWork && !noProof.includes(t.id) ? proofUrl(t.id) : thumbUrl(t.id)}
-                          alt={onRealWork ? `The ${t.name} look on an everyday job` : t.name}
-                          // FALL BACK, DO NOT SHOW A HOLE. A look whose proof
-                          // tile has not been generated yet keeps its own
-                          // sample rather than turning into a broken image.
-                          onError={() => setNoProof((n) => (n.includes(t.id) ? n : [...n, t.id]))}
-                          style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
-                        <div style={{ fontSize: 11, fontWeight: 700, padding: '5px 4px', background: 'white', color: INK }}>{t.name}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
 
             {sheet === 'photos' && (
               <PhotoSheet photos={photos} setPhotos={setPhotos} plain={plain}
@@ -2916,17 +2952,18 @@ export default function FlyerMakerPage() {
                 Bottom, because that is where your hand already is after
                 choosing, and because a control that moves is a control you have
                 to look for. */}
-            {sheet !== 'style' && (
-              <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${LINE}`, display: 'flex', justifyContent: 'flex-end' }}>
-                <button onClick={closeSheet} className={unacked ? 'cg-done-flash' : undefined}
-                  title="Your choices are already saved — this just closes the panel"
-                  style={{ ...plain, padding: '8px 18px', background: INK, color: 'white', borderColor: INK }}>
-                  {sheet === 'photos'
-                    ? (photos.length ? `Done — ${photos.length} added` : 'Skip photos')
-                    : `Done — ${ticked.length} size${ticked.length === 1 ? '' : 's'}`}
-                </button>
-              </div>
-            )}
+            {/* Photos and sizes both want a Done. The style sheet used to be
+                excluded here because it closed itself on a single click — it no
+                longer lives in this panel at all, so the guard is gone. */}
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${LINE}`, display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={closeSheet} className={unacked ? 'cg-done-flash' : undefined}
+                title="Your choices are already saved — this just closes the panel"
+                style={{ ...plain, padding: '8px 18px', background: INK, color: 'white', borderColor: INK }}>
+                {sheet === 'photos'
+                  ? (photos.length ? `Done — ${photos.length} added` : 'Skip photos')
+                  : `Done — ${ticked.length} size${ticked.length === 1 ? '' : 's'}`}
+              </button>
+            </div>
           </div>
         )}
 
