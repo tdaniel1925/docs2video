@@ -45,7 +45,11 @@ try {
   await page.waitForTimeout(2500)
 
   // 1. THE WHOLE JOB IS VISIBLE. Five rows, not a scroll you have to read.
-  const rows = page.locator('[aria-expanded]')
+  //
+  // Scoped to the rail. A bare [aria-expanded] found six, because a design
+  // block on the page carries one too — counting every expandable thing on the
+  // screen was my mistake, not the page's.
+  const rows = page.locator('[data-step-row]')
   const count = await rows.count()
   check('the job reads as five rows', count === 5, `found ${count}`)
 
@@ -66,7 +70,9 @@ try {
     afterClick === 1 && thirdOpen === 'true', `${afterClick} open`)
 
   // 5. THE CHAT DOES NOT MOVE. It was the one thing that had to stay put.
-  const box = page.locator('input[type="text"], textarea').last()
+  // The composer input has no type attribute, so input[type="text"] never
+  // matched it and the check timed out looking. Found by running it.
+  const box = page.locator('input:not([type]), input[type="text"], textarea').last()
   const before = await box.boundingBox()
   await rows.nth(0).click()
   await page.waitForTimeout(400)

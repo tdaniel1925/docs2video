@@ -114,3 +114,6 @@ out-*.png
 
 # Deck fit check output — regenerate with scripts/deck-fit-check.mjs
 .deckcheck/
+
+# Screenshots taken while checking layouts
+.shots/

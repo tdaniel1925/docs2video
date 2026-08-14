@@ -2300,8 +2300,14 @@ export default function FlyerMakerPage() {
         </div>
       </aside>
 
-    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+    {/* ── THE MIDDLE: YOUR WORK, AND NOTHING ELSE ───────────────────────
+        Steps, results and the typing box shared one column, so three scroll
+        regions fought over the same height and the designs ended up in a
+        188-pixel strip. What you PUT IN and what you GET OUT should not share
+        a column at all: the work takes the middle with the full height, every
+        control sits on the right, and each column scrolls exactly once. */}
+    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 0, paddingTop: 18, paddingRight: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', flexShrink: 0 }}>
         <h1 style={{ margin: 0, fontSize: 24 }}>
           {storefront.nav.find((n) => n.href === '/flyer')?.label ?? 'Designs'}
         </h1>
@@ -2312,19 +2318,70 @@ export default function FlyerMakerPage() {
         )}
       </div>
 
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 0 8px' }}>
+        {items.map((it) => (
+          it.kind === 'round' ? <RoundBlock key={it.id} round={it} now={now} onOpen={setViewing} />
+          : it.kind === 'deck' ? (
+            <DeckBlock key={it.id} deck={it} now={now} onOpen={setViewing}
+              onApprove={() => makeDeck({
+                deckId: it.id,
+                // Everything except slide one, which is drawn and paid for.
+                indices: it.slides.map((_, n) => n).slice(1),
+                slides: it.slides,
+                anchorSrc: it.designs.find((d) => d.sizeId === 'slide-1')?.src,
+              })}
+              onRestyle={() => {
+                setStylePicked(false); setOpenStep('look')
+                say('assistant', 'Pick another look and I will redraw slide one in it — the rest still have not been made.')
+              }}
+              onRetry={(indices) => makeDeck({
+                deckId: it.id,
+                indices,
+                slides: it.slides,
+                // Slide one, already drawn, keeps the retries matching.
+                anchorSrc: it.designs.find((d) => d.sizeId === 'slide-1')?.src,
+              })} />
+          ) : null
+        ))}
+
+        {/* NOTHING MADE YET, so show what the thing produces. A large empty
+            middle on first use reads as something that failed to load; real
+            work reads as an invitation, and one click starts from it. */}
+        {!items.some((it) => it.kind === 'round' || it.kind === 'deck') && !loadingHistory && (
+          <div>
+            <p style={{ fontSize: 13, color: SOFT, margin: '0 0 12px', lineHeight: 1.6 }}>
+              Your designs appear here. Start from one of these if it helps — it sets the look
+              on the right and you change whatever you like.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 10 }}>
+              {VISIBLE_STYLES.slice(0, 12).map((t) => (
+                <button key={t.id} onClick={() => { pickStyle(t.id); setOpenStep('content') }}
+                  title={`Start from the ${t.name} look`}
+                  style={{ padding: 0, borderRadius: 10, overflow: 'hidden', cursor: 'pointer', background: '#111', border: `1px solid ${LINE}` }}>
+                  <img src={thumbUrl(t.id)} alt={t.name} style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
+                  <div style={{ fontSize: 11.5, fontWeight: 700, padding: '6px 5px', background: 'white', color: INK }}>{t.name}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* ── THE RIGHT RAIL: everything you PUT IN ─────────────────────────
+        Steps and conversation share ONE scrolling region. The typing box is
+        pinned under it and never moves, however long either gets. */}
+    <div style={{ width: 420, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0, paddingTop: 18 }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4 }}>
+      {/* No heading here — it sits over the designs, which is what it names. */}
+
 
         {/* ── THE JOB, AS FIVE ROWS ────────────────────────────────────────
             One open at a time. A finished row shows the ANSWER rather than the
             question, so the whole job reads at a glance and nothing has to be
             scrolled back to. Each row asks for what it wants where it wants it,
             including the files — which is the thing that was never said. */}
-        <div style={{
-          ...panel, marginBottom: 12, padding: 0,
-          // Never more than half the window. Past that an open row is burying
-          // the work rather than helping with it, and the rows scroll inside
-          // themselves instead of shoving everything else out of the way.
-          maxHeight: '52vh', overflowY: 'auto', flexShrink: 0,
-        }}>
+        <div style={{ ...panel, marginBottom: 12, padding: 0, flexShrink: 0 }}>
           {STEPS.map((st, i) => (
             <StepRow key={st.id} n={i + 1} title={st.title} answer={st.answer}
               open={shownStep === st.id} done={st.done} optional={st.optional}
@@ -2341,14 +2398,7 @@ export default function FlyerMakerPage() {
           cannot shove it around — which is what made the whole screen bounce
           every time a line of chat landed. */}
       <div ref={threadRef}
-        style={{
-          flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column',
-          gap: 14, padding: '4px 0 8px',
-          // 160px FLOOR. This is where the designs land and where the assistant
-          // answers; flex:1 on its own means "whatever is left over", and what
-          // was left over was a sliver you could not read a single line in.
-          minHeight: 160,
-        }}>
+        style={{ display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0, paddingBottom: 8 }}>
         {loadingHistory && (
           <p style={{ fontSize: 13, color: SOFT, margin: 0 }}>Looking for anything you made before…</p>
         )}
@@ -2377,24 +2427,11 @@ export default function FlyerMakerPage() {
               />
             </div>
           ) : it.kind === 'deck' ? (
-            <DeckBlock key={it.id} deck={it} now={now} onOpen={setViewing}
-              onApprove={() => makeDeck({
-                deckId: it.id,
-                // Everything except slide one, which is drawn and paid for.
-                indices: it.slides.map((_, n) => n).slice(1),
-                slides: it.slides,
-                anchorSrc: it.designs.find((d) => d.sizeId === 'slide-1')?.src,
-              })}
-              onRestyle={() => { setStylePicked(false); openCard('styles'); say('assistant', 'Pick another look and I will redraw slide one in it — the rest still have not been made.') }}
-              onRetry={(indices) => makeDeck({
-                deckId: it.id,
-                indices,
-                slides: it.slides,
-                // Slide one, already drawn, keeps the retries matching.
-                anchorSrc: it.designs.find((d) => d.sizeId === 'slide-1')?.src,
-              })} />
+            // Drawn in the middle column, where there is room for it.
+            null
           ) : (
-            <RoundBlock key={it.id} round={it} now={now} onOpen={setViewing} />
+            // Drawn in the middle column, where there is room for it.
+            null
           ),
         )}
 
@@ -2408,7 +2445,9 @@ export default function FlyerMakerPage() {
         <div ref={endRef} />
       </div>
 
-      {/* ── THE COMPOSER ───────────────────────────────────────────────── */}
+      </div>{/* the rail's single scrolling region ends here */}
+
+      {/* ── THE COMPOSER, pinned below the scroll ─────────────────────── */}
       <div style={{ flexShrink: 0, paddingBottom: 14, paddingTop: 10 }}>
         {sheet && (
           <div style={{ ...panel, marginBottom: 10, maxHeight: '52vh', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.10)' }}>

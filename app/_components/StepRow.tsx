@@ -48,6 +48,9 @@ export function StepRow({
   return (
     <div style={{ borderBottom: `1px solid ${line}` }}>
       <button onClick={onToggle} style={head}
+        // Marked so a check can count THESE and not every expandable thing on
+        // the page — a design block carries aria-expanded too.
+        data-step-row=""
         aria-expanded={open}
         title={done ? `${title} — currently ${answer}. Click to change it.` : title}>
         {/* A TICK OR A NUMBER, never both. The tick means "no need to come
