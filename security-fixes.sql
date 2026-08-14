@@ -42,17 +42,25 @@ DROP POLICY IF EXISTS "Anyone can view creation assets" ON storage.objects;
 -- a spot still used a public URL — tell Claude to switch it to a signed one.
 
 
--- ─── STEP 2 · LOCK THE SAFE-TO-LOCK PUBLIC BUCKETS ─────────────────────────
--- See them first:
+-- ─── STEP 2 · SKIP — decided to leave logo/brand buckets public ────────────
+-- DO NOT RUN THE UPDATE/DROP BELOW. Decision (2026): leave logos and
+-- brand-assets public. Reasons: the app serves them via getPublicUrl in
+-- several places (upload-logo, templates, brand page, template-demo,
+-- logo-styler) and SAVES those long-lived URLs onto brands/videos — flipping
+-- the bucket private would break every saved logo across the app and in
+-- generated designs. A company's own logo is low-sensitivity (already public
+-- on their site), and paths are scoped under each user's id. Not worth a
+-- signed-URL rewrite. videos + infographics stay public for the same reason
+-- (share links).
+--
+-- If you ever DO want these private, ask Claude to switch the reads to signed
+-- URLs FIRST, then run:
+--   UPDATE storage.buckets SET public = false WHERE id IN ('logos','brand-assets');
+--   DROP POLICY IF EXISTS "Anyone can view logos" ON storage.objects;
+--   DROP POLICY IF EXISTS "Anyone can view brand assets" ON storage.objects;
+--
+-- (Harmless to run — just shows the buckets:)
 SELECT id, public FROM storage.buckets ORDER BY id;
-
--- Lock logos + brand-assets now (source art, no public links needed).
--- DO NOT lock 'videos' (needs public share links) or 'infographics'
--- (email-signature/share previews serve from it) until their delivery is
--- switched to signed URLs — ask Claude to wire that first.
-UPDATE storage.buckets SET public = false WHERE id IN ('logos', 'brand-assets');
-DROP POLICY IF EXISTS "Anyone can view logos" ON storage.objects;
-DROP POLICY IF EXISTS "Anyone can view brand assets" ON storage.objects;
 
 
 -- ─── STEP 3 · CLOSE THE ANON HOLES ON affiliates / referrals ───────────────

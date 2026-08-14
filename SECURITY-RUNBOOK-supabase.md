@@ -65,25 +65,22 @@ a spot still used a public URL and I'll switch it to a signed one.
 
 ## STEP 2 — Review the other public buckets
 
-`videos`, `logos`, `infographics`, `brand-assets` are all public. Decide per
-bucket. `videos` probably needs public share links (leave it), but the others
-hold source art that shouldn't be enumerable.
+**DECIDED: SKIP THIS STEP. Leave `logos`, `brand-assets`, `videos`, and
+`infographics` public.** The app serves logos/brand-assets via `getPublicUrl`
+in several places (upload-logo, templates, brand page, template-demo,
+logo-styler) and SAVES those long-lived links onto brands/videos — flipping the
+bucket private would break every saved logo across the app and in generated
+designs. A company's own logo is low-sensitivity (already public on their site)
+and paths are scoped under each user's id. `videos`/`infographics` stay public
+for share links. Not worth a signed-URL rewrite. Only `creation-assets` (Step 1)
+gets locked, because the app already delivers those via signed URLs.
 
-```sql
--- See them:
-SELECT id, public FROM storage.buckets ORDER BY id;
+(Harmless to run — just shows the buckets:)
 
--- Lock down the ones that don't need public links (example — logos):
-UPDATE storage.buckets SET public = false WHERE id IN ('logos','brand-assets');
-DROP POLICY IF EXISTS "Anyone can view logos" ON storage.objects;
-DROP POLICY IF EXISTS "Anyone can view brand assets" ON storage.objects;
-```
+    SELECT id, public FROM storage.buckets ORDER BY id;
 
-⚠️ Before flipping `infographics` private: email-signature previews and some
-share features serve from it with public URLs. If you lock it, those need
-signed URLs first — tell me and I'll wire that up. Safe order: do `logos` /
-`brand-assets` now; leave `videos` and `infographics` until we've swapped their
-delivery to signed URLs.
+If you ever change your mind, ask Claude to switch the reads to signed URLs
+FIRST, then flip the bucket.
 
 ---
 
