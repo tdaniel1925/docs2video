@@ -800,6 +800,18 @@ export default function FlyerMakerPage() {
       // rather than letting the server pick "most recent" — those differ the
       // moment a new chat has not produced a design yet.
       const wanted = chatId ?? recallChat()
+
+      // IS THIS A COLD LANDING? True only when nobody has deliberately chosen a
+      // chat this session — no chatId in state, and no ?chat= in the address.
+      // A cold landing is the one case where "reopen the last job" can be the
+      // WRONG thing: if that job is already FINISHED, the person is far more
+      // likely starting something new than coming back to a done design. So a
+      // finished last job lands on a fresh chat instead (it stays one click
+      // away in the list). A job still in progress opens as before — that
+      // person is coming back to finish it.
+      let urlChat: string | null = null
+      try { urlChat = new URLSearchParams(window.location.search).get('chat') } catch { /* ssr */ }
+      const coldLanding = chatId == null && !urlChat
       const r = await fetch(`/api/flyer-history${wanted ? `?chat=${wanted}` : ''}`)
         .then((x) => x.json()).catch(() => null)
       if (dead || !r) { setLoadingHistory(false); return }
@@ -861,6 +873,22 @@ export default function FlyerMakerPage() {
           }
         }
       }
+      // FINISHED LAST JOB + COLD LANDING → START FRESH. The old job is already
+      // in the list on the left (r.chats), one click away, and nothing about it
+      // is touched. We just don't drop the returning customer INTO it, because
+      // a done design is not a thing you come back to edit — it is a thing you
+      // made, and you are here to make another.
+      const finished = past.some((it) => it.kind === 'round' || it.kind === 'deck')
+      if (coldLanding && finished) {
+        const fresh = crypto.randomUUID()
+        setChatId(fresh)
+        rememberChat(fresh)
+        setItems([{ kind: 'msg', role: 'assistant', text: HELLO }])
+        setFields({}); setNote(''); setTemplateId(VISIBLE_STYLES[0].id)
+        setLoadingHistory(false)
+        return
+      }
+
       if (past.length) {
         // The stored conversation replaces the opening prompt — a returning
         // customer should not be greeted as if they had never been here.
