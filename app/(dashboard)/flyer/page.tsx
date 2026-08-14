@@ -2576,7 +2576,7 @@ export default function FlyerMakerPage() {
                 </div>
               </div>
             ) : (
-            <div key={c.id}
+            <div key={c.id} className="chat-row"
               style={{
                 display: 'flex', alignItems: 'center', gap: 2, borderRadius: 8,
                 background: c.id === chatId ? 'white' : 'transparent',
@@ -2589,26 +2589,37 @@ export default function FlyerMakerPage() {
                   fontFamily: 'inherit', fontSize: 13, fontWeight: c.id === chatId ? 700 : 400,
                   color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
+                {/* The pin PREFIX is the always-visible sign that a row is
+                    pinned — it stays whether or not the row is hovered, so the
+                    pinned state never hides. The pin/delete BUTTONS below reveal
+                    on hover (and stay put on touch, which has no hover). */}
                 {c.pinned && <span style={{ marginRight: 5 }}>📌</span>}
                 {c.title || 'Untitled'}
               </button>
 
-              <button onClick={() => togglePin(c)} aria-label={c.pinned ? 'Unpin' : 'Pin'}
-                title={c.pinned ? 'Unpin — let it drop back down the list' : 'Pin to the top of the list'}
-                style={{
-                  border: 'none', background: 'transparent', cursor: 'pointer', padding: '6px 3px',
-                  fontSize: 12, opacity: c.pinned ? 1 : 0.35, lineHeight: 1,
-                }}>
-                📌
-              </button>
-              <button onClick={() => setConfirmDelete(c.id)} aria-label="Delete"
-                title="Delete this job and every design in it — permanently"
-                style={{
-                  border: 'none', background: 'transparent', cursor: 'pointer', padding: '6px 7px 6px 3px',
-                  fontSize: 13, opacity: 0.35, lineHeight: 1, color: INK,
-                }}>
-                ✕
-              </button>
+              {/* Hidden until you hover the row (or on a touch device, always),
+                  so a list of twenty jobs is twenty names, not sixty controls.
+                  A pinned row keeps its pin button visible too, so unpinning is
+                  never a hidden action. */}
+              <span className={`chat-row-tools${c.pinned ? ' is-pinned' : ''}`}
+                style={{ display: 'flex', alignItems: 'center' }}>
+                <button onClick={() => togglePin(c)} aria-label={c.pinned ? 'Unpin' : 'Pin'}
+                  title={c.pinned ? 'Unpin — let it drop back down the list' : 'Pin to the top of the list'}
+                  style={{
+                    border: 'none', background: 'transparent', cursor: 'pointer', padding: '6px 3px',
+                    fontSize: 12, opacity: c.pinned ? 1 : 0.55, lineHeight: 1,
+                  }}>
+                  📌
+                </button>
+                <button onClick={() => setConfirmDelete(c.id)} aria-label="Delete"
+                  title="Delete this job and every design in it — permanently"
+                  style={{
+                    border: 'none', background: 'transparent', cursor: 'pointer', padding: '6px 7px 6px 3px',
+                    fontSize: 13, opacity: 0.55, lineHeight: 1, color: INK,
+                  }}>
+                  ✕
+                </button>
+              </span>
             </div>
             )
           ))}

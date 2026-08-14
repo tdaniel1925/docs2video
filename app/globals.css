@@ -3292,3 +3292,27 @@ h1.hero-title em {
   -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 28px), transparent 100%);
   mask-image: linear-gradient(to bottom, black calc(100% - 28px), transparent 100%);
 }
+
+/* ============= CHAT-ROW CONTROLS: quiet until you reach for them =============
+   The past-jobs list was sixty controls — a pin and a delete on every row, all
+   the time — competing with the names you actually scan. The pin/delete now
+   reveal only when you hover the row, so twenty jobs read as twenty names.
+
+   A PINNED row keeps its pin button showing (.is-pinned), so unpinning is never
+   a hidden action. The pin PREFIX beside the title stays regardless, so a
+   pinned row still LOOKS pinned when not hovered.
+
+   TOUCH HAS NO HOVER. On a coarse pointer the controls stay visible — a phone
+   user cannot hover to reveal them, so hiding would strand them. */
+.chat-row-tools {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.chat-row:hover .chat-row-tools,
+.chat-row:focus-within .chat-row-tools,
+.chat-row-tools.is-pinned {
+  opacity: 1;
+}
+@media (hover: none), (pointer: coarse) {
+  .chat-row-tools { opacity: 1; }
+}
