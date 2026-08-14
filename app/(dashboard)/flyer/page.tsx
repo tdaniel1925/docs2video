@@ -563,6 +563,43 @@ export default function FlyerMakerPage() {
   const [thinking, setThinking] = useState(false)
   const [err, setErr] = useState('')
 
+  /**
+   * WHAT IT IS DOING WHILE YOU WAIT, in plain words.
+   *
+   * The reply takes ~18 seconds and the only sign of life was the word
+   * "Thinking…". That is long enough that people press Send again, decide it
+   * has broken, or leave. These lines change every few seconds so the wait
+   * feels like the designer working rather than a hang.
+   *
+   * The server sends no progress events, so this is a timer, not a truth — and
+   * that puts two hard limits on what it may say. It must not name a step that
+   * does not happen (this call reads your message and history, then asks the
+   * model what should go on the design and which look suits it — nothing is
+   * generated or charged here). And it must NEVER say anything is finished or
+   * ready: a timer cannot know that, and claiming done before done is the exact
+   * bug app/_lib/no-false-claims.ts exists to stop. So the last line is still a
+   * "…", never "Done" — the real reply replaces it when it actually lands.
+   *
+   * It holds on the last line rather than looping, so it never resets to
+   * "Reading…" after ten seconds and implies it started over.
+   */
+  const THINKING_STAGES = [
+    'Reading what you wrote…',
+    'Working out what should go on it…',
+    'Picking a look that fits…',
+    'Almost there…',
+  ]
+  const [thinkStage, setThinkStage] = useState(0)
+  useEffect(() => {
+    if (!thinking) { setThinkStage(0); return }
+    const id = setInterval(
+      () => setThinkStage((s) => Math.min(s + 1, THINKING_STAGES.length - 1)),
+      3500,
+    )
+    return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thinking])
+
   const [fields, setFields] = useState<FlyerFields>({})
   const [templateId, setTemplateId] = useState(VISIBLE_STYLES[0].id)
   const [category, setCategory] = useState<string>(CATEGORIES[0].id)
@@ -2529,7 +2566,22 @@ export default function FlyerMakerPage() {
           ),
         )}
 
-        {thinking && <div style={{ fontSize: 13, color: SOFT }}>Thinking…</div>}
+        {/* Reads like the designer working, not a frozen "Thinking…". The line
+            advances through THINKING_STAGES on a timer; the pulsing dot says it
+            is alive even between changes. Styled as an assistant turn so it sits
+            where the reply will land and is replaced by it. */}
+        {thinking && (
+          <div style={{
+            alignSelf: 'flex-start', maxWidth: '78%', display: 'flex', alignItems: 'center', gap: 8,
+            padding: '10px 14px', borderRadius: 12, background: CREAM, color: SOFT, fontSize: 15, lineHeight: 1.5,
+          }}>
+            <span style={{
+              width: 7, height: 7, borderRadius: '50%', background: INK, flexShrink: 0,
+              animation: 'pulse-anim 1s ease infinite',
+            }} />
+            {THINKING_STAGES[thinkStage]}
+          </div>
+        )}
 
         {/* What it has understood so far. Shown as a card rather than prose
             because a customer scanning for a wrong date should not have to
