@@ -801,6 +801,16 @@ export default function FlyerMakerPage() {
    */
   const [openStep, setOpenStep] = useState<Step | null>(null)
 
+  /**
+   * How many examples the middle is showing.
+   *
+   * A HANDFUL, THEN MORE ON REQUEST. All 105 at once is a wall that takes a
+   * second to paint and buries the one you wanted; a dozen is a taste. Twelve
+   * more per press means somebody browsing keeps their place instead of being
+   * dropped into a page that suddenly grew ten times taller.
+   */
+  const [shownExamples, setShownExamples] = useState(18)
+
   /** Which storefront this is. Both serve this page under different names. */
   const storefront = useBrand()
   const [viewing, setViewing] = useState<Design | null>(null)
@@ -2230,10 +2240,14 @@ export default function FlyerMakerPage() {
           header height that is not this page's to know. */}
       <aside style={{ width: 216, flexShrink: 0, height: '100%', minHeight: 0, paddingTop: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <button onClick={newChat} title="Start a separate job with its own conversation. Nothing is lost — this one stays in the list."
-          style={{ ...darkBtn, width: '100%' }}>
+          style={{ ...darkBtn, width: '100%', flexShrink: 0 }}>
           + New chat
         </button>
-        <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {/* THE LIST SCROLLS, THE BUTTON DOES NOT. minHeight 0 is the part that
+            actually does it: without it a flex child refuses to shrink below
+            its content, so a long list pushes the column taller instead of
+            scrolling, and the button goes with it. */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {chats.length === 0 && !loadingHistory && (
             <p style={{ fontSize: 12, color: SOFT, margin: '4px 2px', lineHeight: 1.5 }}>
               Jobs you finish show up here, so you can come back to one.
@@ -2353,16 +2367,29 @@ export default function FlyerMakerPage() {
               Your designs appear here. Start from one of these if it helps — it sets the look
               on the right and you change whatever you like.
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 10 }}>
-              {VISIBLE_STYLES.slice(0, 12).map((t) => (
+            {/* SMALLER TILES. At 150px only three fitted across the middle and
+                browsing meant scrolling; at 108 you get six or seven, which is
+                the difference between comparing looks and hunting for one. */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(108px,1fr))', gap: 8 }}>
+              {VISIBLE_STYLES.slice(0, shownExamples).map((t) => (
                 <button key={t.id} onClick={() => { pickStyle(t.id); setOpenStep('content') }}
                   title={`Start from the ${t.name} look`}
                   style={{ padding: 0, borderRadius: 10, overflow: 'hidden', cursor: 'pointer', background: '#111', border: `1px solid ${LINE}` }}>
-                  <img src={thumbUrl(t.id)} alt={t.name} style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
-                  <div style={{ fontSize: 11.5, fontWeight: 700, padding: '6px 5px', background: 'white', color: INK }}>{t.name}</div>
+                  <img src={thumbUrl(t.id)} alt={t.name} loading="lazy"
+                    style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
+                  <div style={{ fontSize: 11, fontWeight: 700, padding: '5px 4px', background: 'white', color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
                 </button>
               ))}
             </div>
+
+            {shownExamples < VISIBLE_STYLES.length && (
+              <button
+                onClick={() => setShownExamples((n) => Math.min(n + 18, VISIBLE_STYLES.length))}
+                title={`Show 18 more of the ${VISIBLE_STYLES.length} looks`}
+                style={{ ...plain, marginTop: 12 }}>
+                See more — {VISIBLE_STYLES.length - shownExamples} left
+              </button>
+            )}
           </div>
         )}
       </div>
