@@ -174,9 +174,11 @@ ${companyContext}` : ''}
 
     return NextResponse.json({ response: aiResponse })
   } catch (err: unknown) {
+    // Log the real error server-side; return a generic message. This is a
+    // PUBLIC route (share-page chat), so raw error text would leak internals.
     console.error('[chat] Error:', err)
     const errMsg = err instanceof Error ? err.message : 'Unknown error'
     console.error('[chat] Details:', JSON.stringify({ message: errMsg, stack: err instanceof Error ? err.stack?.slice(0, 500) : undefined }))
-    return NextResponse.json({ error: errMsg }, { status: 500 })
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }
