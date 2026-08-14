@@ -6,6 +6,7 @@ import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import Anthropic from '@anthropic-ai/sdk'
 import { GoogleGenAI } from '@google/genai'
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
+import { safeFetch } from '../../_lib/brand-scraper'
 
 export const runtime = 'nodejs'
 export const maxDuration = 600
@@ -90,8 +91,11 @@ async function uploadToStorage(
 // ── Helper: download image as buffer ──────────────────────────────
 async function downloadImage(url: string): Promise<Buffer | null> {
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(10000) })
-    if (!res.ok) return null
+    // safeFetch, not fetch: url is user-supplied (logoUrl from the request), so
+    // it must clear the SSRF guard — including every redirect — before we pull
+    // it server-side. Both callers of downloadImage pass user input here.
+    const res = await safeFetch(url)
+    if (!res || !res.ok) return null
     return Buffer.from(await res.arrayBuffer())
   } catch {
     return null

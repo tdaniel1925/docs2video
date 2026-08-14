@@ -143,9 +143,12 @@ export async function POST(req: NextRequest) {
       demoId,
     })
   } catch (err: any) {
+    // Log the real error server-side; return a generic message. Raw DB/error
+    // text leaks table and column names — a schema map for an attacker — and
+    // this is a PUBLIC endpoint.
     console.error('[try-demo] Error:', err)
     return NextResponse.json(
-      { error: err?.message || 'Server error' },
+      { error: 'Something went wrong. Please try again.' },
       { status: 500 }
     )
   }

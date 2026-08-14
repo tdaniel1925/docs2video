@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
+import { safeFetch } from '../../_lib/brand-scraper'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -32,8 +33,10 @@ export async function POST(request: Request) {
       const base64Clean = imageBase64.replace(/^data:image\/\w+;base64,/, '')
       buffer = Buffer.from(base64Clean, 'base64')
     } else {
-      const res = await fetch(imageUrl!, { signal: AbortSignal.timeout(10000) })
-      if (!res.ok) throw new Error('Failed to fetch image')
+      // safeFetch, not fetch: imageUrl comes from the user, so it must be
+      // checked (every redirect hop) against private/internal addresses first.
+      const res = await safeFetch(imageUrl!)
+      if (!res || !res.ok) throw new Error('Failed to fetch image')
       buffer = Buffer.from(await res.arrayBuffer())
     }
 

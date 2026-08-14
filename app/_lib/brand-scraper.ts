@@ -54,6 +54,43 @@ export async function isSafePublicUrl(rawUrl: string): Promise<boolean> {
   }
 }
 
+/**
+ * Fetch a URL that came from a user, WITHOUT letting it reach anything private.
+ *
+ * The danger (SSRF): a logged-in user hands us a "logo URL", we fetch it
+ * server-side, and they point it at http://169.254.169.254/… (cloud metadata)
+ * or an internal service. This checks every hop — including each redirect —
+ * against isSafePublicUrl before the request is made, so a public URL that
+ * 302s to a private one is caught too. Returns the Response for the caller to
+ * read as bytes/image, or null if any hop is unsafe or the fetch fails.
+ *
+ * Use this for any fetch of a user-supplied URL that returns non-HTML (images,
+ * files). For pages, fetchPage already does the same thing and returns text.
+ */
+export async function safeFetch(
+  url: string,
+  opts: { timeoutMs?: number; maxHops?: number } = {},
+): Promise<Response | null> {
+  const { timeoutMs = 10000, maxHops = 5 } = opts
+  try {
+    let current = url
+    for (let hop = 0; hop < maxHops; hop++) {
+      if (!(await isSafePublicUrl(current))) return null
+      const res = await fetch(current, { redirect: 'manual', signal: AbortSignal.timeout(timeoutMs) })
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get('location')
+        if (!loc) return null
+        current = new URL(loc, current).toString()
+        continue
+      }
+      return res
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 export async function fetchPage(url: string): Promise<string | null> {
   try {
     // Follow redirects manually so every hop passes the SSRF guard

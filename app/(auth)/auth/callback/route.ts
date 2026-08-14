@@ -5,7 +5,13 @@ import { ensureCreditBalance } from '../../../_lib/credits'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
+
+  // WHERE TO LAND AFTER LOGIN — but never off this site. `next` comes from the
+  // URL, so a crafted link (?next=//evil.com or ?next=https://evil.com) would
+  // otherwise bounce a just-authenticated user to an attacker's page. Only a
+  // plain in-app path is allowed: it must start with a single "/" and not "//".
+  const rawNext = searchParams.get('next') ?? '/dashboard'
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard'
 
   if (code) {
     const supabase = await createClient()

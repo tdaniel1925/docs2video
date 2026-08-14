@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     // Stay on the trial tier (free allotment) until the first real charge succeeds.
     subscription_status: 'trial',
   }).eq('id', user.id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) { console.error('[confirm-card] profile update failed:', error); return NextResponse.json({ error: 'Could not save your selection.' }, { status: 500 }) }
 
   // If they picked a paid plan, create a Stripe subscription NOW with a long trial
   // on the saved card. No charge happens until we end the trial (on credit

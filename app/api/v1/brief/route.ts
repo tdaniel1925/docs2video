@@ -66,7 +66,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unsupported input.type for brief (use text|url|idea; upload a file via the app for now)' }, { status: 400 })
     }
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Extraction error' }, { status: 502 })
+    console.error('[v1/brief] extraction error:', e)
+    return NextResponse.json({ error: 'Could not read the source.' }, { status: 502 })
   }
 
   // 2) Build the grounded input + generate the brief (shared brief-core; same as
@@ -95,6 +96,7 @@ export async function POST(request: Request) {
     if (!brief) return NextResponse.json({ error: 'Could not build a brief' }, { status: 502 })
     return NextResponse.json({ brief, extracted })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to build brief' }, { status: 500 })
+    console.error('[v1/brief] build error:', err)
+    return NextResponse.json({ error: 'Failed to build brief.' }, { status: 500 })
   }
 }

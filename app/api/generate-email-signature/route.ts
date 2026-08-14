@@ -26,6 +26,25 @@ function esc(str: string | undefined): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+/**
+ * A URL that is safe to drop into an href. `esc()` stops HTML-breaking but NOT
+ * a `javascript:` scheme — so a website of "javascript:alert(1)" would become a
+ * live script link in the signature. Only http/https/mailto pass; anything else
+ * (javascript:, data:, vbscript:) is dropped to empty. A bare "example.com"
+ * with no scheme is assumed https.
+ */
+function safeUrl(str: string | undefined): string {
+  if (!str) return ''
+  const raw = str.trim()
+  const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `https://${raw}`
+  try {
+    const u = new URL(withScheme)
+    return ['http:', 'https:', 'mailto:'].includes(u.protocol) ? withScheme : ''
+  } catch {
+    return ''
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /*  MINIMAL: clean single line, small text, subtle divider             */
 /* ------------------------------------------------------------------ */
@@ -293,7 +312,10 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { fullName, title, company, email, phone, website, logoUrl, photoUrl, primaryColor } = body as SignatureInput
+  const { fullName, title, company, email, phone, logoUrl, photoUrl, primaryColor } = body as SignatureInput
+  // Drop any non-http(s)/mailto scheme up front (e.g. javascript:) so no
+  // generator can emit it as a live href.
+  const website = safeUrl((body as SignatureInput).website)
 
   if (!fullName?.trim()) {
     return NextResponse.json({ error: 'Full name is required' }, { status: 400 })

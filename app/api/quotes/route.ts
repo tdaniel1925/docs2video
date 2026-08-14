@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   const { data: quotes, error } = await query
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    { console.error('[quotes] db error:', error); return NextResponse.json({ error: 'Request failed.' }, { status: 500 }) }
   }
 
   return NextResponse.json({ quotes })
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    { console.error('[quotes] db error:', error); return NextResponse.json({ error: 'Request failed.' }, { status: 500 }) }
   }
 
   return NextResponse.json({ quote })
@@ -143,7 +143,7 @@ export async function PUT(request: Request) {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    { console.error('[quotes] db error:', error); return NextResponse.json({ error: 'Request failed.' }, { status: 500 }) }
   }
 
   return NextResponse.json({ quote })

@@ -21,6 +21,18 @@ export async function POST(request: Request) {
   const { action } = body as { action: string }
   const admin = createAdminClient()
 
+  // OWN IT OR YOU CAN'T TOUCH IT. These actions take a campaignId/postId from
+  // the request and read/generate/publish through the admin client, which
+  // bypasses row-level security — so ownership MUST be checked here by hand.
+  // Without this, any logged-in user could read, spend on, or publish another
+  // user's campaign just by guessing its id. Returns true only if the campaign
+  // belongs to the caller.
+  const ownsCampaign = async (campaignId: string): Promise<boolean> => {
+    if (!campaignId) return false
+    const { data } = await admin.from('social_campaigns').select('user_id').eq('id', campaignId).single()
+    return data?.user_id === user.id
+  }
+
   // Generate campaign plan
   if (action === 'generate-plan') {
     const { businessName, businessDescription, goal, platforms, duration, frequency, tone } = body as {
@@ -193,6 +205,10 @@ RULES:
       referenceImage?: string
     }
 
+    if (!(await ownsCampaign(campaignId))) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
     const { data: posts } = await admin
       .from('social_campaign_posts')
       .select('id, image_prompt, platform')
@@ -300,7 +316,12 @@ RULES:
       .eq('id', postId)
       .single()
 
-    if (!post || post.status !== 'ready') {
+    // The post's campaign must belong to the caller — otherwise anyone could
+    // publish someone else's post through their own social account.
+    if (!post || !(await ownsCampaign(post.campaign_id))) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+    if (post.status !== 'ready') {
       return NextResponse.json({ error: 'Post not ready' }, { status: 400 })
     }
 
@@ -340,6 +361,10 @@ RULES:
   // Get campaign status
   if (action === 'get-campaign') {
     const { campaignId } = body as { campaignId: string }
+
+    if (!(await ownsCampaign(campaignId))) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
 
     const { data: campaign } = await admin
       .from('social_campaigns')

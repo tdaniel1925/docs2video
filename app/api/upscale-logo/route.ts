@@ -3,6 +3,7 @@ import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
+import { safeFetch } from '../../_lib/brand-scraper'
 import { GoogleGenAI } from '@google/genai'
 
 export const runtime = 'nodejs'
@@ -53,8 +54,10 @@ export async function POST(request: Request) {
       mimeType = match[1]
       imageBuffer = Buffer.from(match[2], 'base64')
     } else if (logoImage.startsWith('http')) {
-      const res = await fetch(logoImage, { signal: AbortSignal.timeout(8000) })
-      if (!res.ok) return NextResponse.json({ error: 'Could not fetch logo' }, { status: 400 })
+      // safeFetch: logoImage is user-supplied, so it must clear the SSRF guard
+      // (and every redirect) before we fetch it server-side.
+      const res = await safeFetch(logoImage, { timeoutMs: 8000 })
+      if (!res || !res.ok) return NextResponse.json({ error: 'Could not fetch logo' }, { status: 400 })
       mimeType = res.headers.get('content-type')?.split(';')[0] ?? 'image/png'
       imageBuffer = Buffer.from(await res.arrayBuffer())
     } else {

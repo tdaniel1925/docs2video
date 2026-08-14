@@ -43,9 +43,32 @@ export const CARRIER_BLOCKLIST: string[] = [
   'guaranteed refund option',
 ]
 
+/**
+ * NORMALISE BEFORE MATCHING, so the blocklist can't be dodged with typography.
+ *
+ * The detection and audit checks used a plain lowercase `includes()`, which is
+ * beaten by cheap tricks: unicode look-alikes ("Ｍutual" fullwidth, or a
+ * Cyrillic "М") and zero-width characters wedged between letters ("Mu​tual").
+ * NFKC folds look-alikes to their plain form; we then strip zero-width marks
+ * and collapse runs of whitespace. Now "Ｍutual" and "Mu​tual" both match.
+ *
+ * NOT covered: deliberately spaced-out letters ("M u t u a l") — collapsing
+ * single-letter gaps would mangle legitimate text (initialisms, "M B A"), and
+ * this scrub is a backstop, not the only control. This hardens the DETECTION
+ * path (whether to scrub, whether a leak survived); the scrub's own replace
+ * runs on the real text so character offsets stay intact.
+ */
+export function normalizeForMatch(s: string): string {
+  return s
+    .normalize('NFKC')
+    .replace(/[​-‍﻿]/g, '') // zero-width space/joiner/no-break
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+}
+
 /** True when the content is a regulated insurance/financial illustration. */
 export function isRegulated(...hays: unknown[]): boolean {
-  const hay = hays.map((h) => (typeof h === 'string' ? h : JSON.stringify(h ?? ''))).join(' ').toLowerCase()
+  const hay = normalizeForMatch(hays.map((h) => (typeof h === 'string' ? h : JSON.stringify(h ?? ''))).join(' '))
   return /\b(insuranc|annuit|iul|life policy|indexed universal|premium|underwrit|carrier|policyholder|book of business|licensed agent|financial advisor|retirement|investment|securit|fiduciary|medicare|final expense|death benefit|cash value|surrender)\b/.test(hay)
 }
 
@@ -206,7 +229,7 @@ export async function smoothScrubbed(
 
 /** Which blocklisted terms survived a scrub (should be empty). Audit helper. */
 export function complianceLeaks(...hays: unknown[]): string[] {
-  const hay = hays.map((h) => (typeof h === 'string' ? h : JSON.stringify(h ?? ''))).join(' ').toLowerCase()
+  const hay = normalizeForMatch(hays.map((h) => (typeof h === 'string' ? h : JSON.stringify(h ?? ''))).join(' '))
   return CARRIER_BLOCKLIST.filter((t) => hay.includes(t))
 }
 

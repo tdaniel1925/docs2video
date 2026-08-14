@@ -42,6 +42,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing message or scenes' }, { status: 400 })
   }
 
+  // OWN THE VIDEO OR YOU CAN'T SAVE TO IT. videoId comes from the request and
+  // saveRevision() writes to that video's history via the admin client (which
+  // bypasses RLS). Without this check, any logged-in user could inject bogus
+  // revisions into another user's video by passing their videoId. Verified once
+  // here, up front, before any work.
+  if (videoId) {
+    const { data: owned } = await supabase
+      .from('videos').select('id').eq('id', videoId).eq('user_id', user.id).single()
+    if (!owned) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
   // Build source reference for the AI
   const sourceRef = sourceData ? JSON.stringify(sourceData).slice(0, 15000) : ''
 

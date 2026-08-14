@@ -124,7 +124,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ error: 'Invalid provider' }, { status: 400 })
   } catch (err: any) {
+    // Public endpoint: log the real (possibly upstream/Gemini) error server-side,
+    // return a generic message so no internals leak to the caller.
     console.error(`[demo] ${provider} error:`, err)
-    return NextResponse.json({ error: err?.message ?? 'Generation failed' }, { status: 500 })
+    return NextResponse.json({ error: 'Generation failed' }, { status: 500 })
   }
 }

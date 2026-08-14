@@ -5,7 +5,11 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']
+// NO SVG. An SVG is code, not just a picture — it can carry <script>, and these
+// logos are served from a public bucket, so a booby-trapped one would run JS in
+// our origin for anyone handed the link. Raster only. (If SVG upload is ever
+// needed, sanitize it server-side first, e.g. with DOMPurify, before storing.)
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 
 export async function POST(request: Request) {
@@ -16,7 +20,7 @@ export async function POST(request: Request) {
   const formData = await request.formData()
   const file = formData.get('file') as File | null
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
-  if (!ALLOWED_TYPES.includes(file.type)) return NextResponse.json({ error: 'File must be JPG, PNG, WebP, or SVG' }, { status: 400 })
+  if (!ALLOWED_TYPES.includes(file.type)) return NextResponse.json({ error: 'File must be JPG, PNG, or WebP' }, { status: 400 })
   if (file.size > MAX_SIZE) return NextResponse.json({ error: 'File must be under 5MB' }, { status: 400 })
 
   try {
