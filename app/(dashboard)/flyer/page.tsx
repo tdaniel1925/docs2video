@@ -2216,7 +2216,12 @@ export default function FlyerMakerPage() {
     {/* Zero-height, in normal flow, purely to read the header's height off. */}
     <div ref={marker} />
     <div style={{
-      position: 'fixed', top, left: 0, right: 0, bottom: 0,
+      /* STOP AT THE COOKIE BAR, not at the bottom of the window. That bar is
+         pinned over everything and nothing made room for it, so a page built to
+         fill the window exactly had its bottom row hidden underneath it. The
+         bar publishes its own height now; with no bar the value is 0 and this
+         behaves exactly as it did. */
+      position: 'fixed', top, left: 0, right: 0, bottom: 'var(--bottom-bar, 0px)',
       display: 'flex', justifyContent: 'center',
       background: 'var(--bg,#F4F1EC)', overflow: 'hidden',
     }}>
@@ -2906,27 +2911,9 @@ export default function FlyerMakerPage() {
               flyer's style.
 
               The questions are asked one at a time above instead, and what was
-              decided sits in the thread as plain conversation. All that is left
-              down here is the way out of the current chat. */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            {confirmClear ? (
-              <>
-                <span style={{ fontSize: 12.5, color: SOFT }}>
-                  Clear this conversation? Your saved designs stay in your Library.
-                </span>
-                <button onClick={clearChat} style={{ ...plain, padding: '4px 10px' }}>Clear it</button>
-                <button onClick={() => setConfirmClear(false)} style={{ ...plain, padding: '4px 10px', fontWeight: 400, color: SOFT }}>
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button onClick={() => setConfirmClear(true)}
-                title="Start the conversation over. Your saved designs stay in your Library and nothing is refunded."
-                style={{ ...plain, fontWeight: 400, color: SOFT }}>
-                Clear chat
-              </button>
-            )}
-          </div>
+              decided sits in the thread as plain conversation. The only thing
+              left is the way out of the current chat, and it now sits BELOW the
+              typing box rather than between you and it. */}
 
           {/* WHAT THIS WILL COST AND HOW LONG, before the button rather than
               after the charge. A twelve-slide deck is fifteen minutes and 2,400
@@ -3001,11 +2988,39 @@ export default function FlyerMakerPage() {
             </button>
           </div>
 
-          {missing && !loadingHistory && (
-            <p style={{ fontSize: 12, color: SOFT, margin: '8px 0 0' }}>
-              Next: {missing}.
-            </p>
-          )}
+          {/* THE BOTTOM LINE. Clear chat used to sit ABOVE the typing box,
+              which put a destructive control between you and the thing you
+              came to use — and left the row under the box empty. Now the two
+              things that belong down here share it: what to do next on the
+              left, the way to start over on the right, with the send buttons
+              staying where they are beside the box. */}
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            gap: 10, marginTop: 8, minHeight: 30, flexWrap: 'wrap',
+          }}>
+            <span style={{ fontSize: 12, color: SOFT }}>
+              {missing && !loadingHistory ? `Next: ${missing}.` : ''}
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {confirmClear ? (
+                <>
+                  <span style={{ fontSize: 12.5, color: SOFT }}>
+                    Clear this conversation? Your saved designs stay in your Library.
+                  </span>
+                  <button onClick={clearChat} style={{ ...plain, padding: '4px 10px' }}>Clear it</button>
+                  <button onClick={() => setConfirmClear(false)} style={{ ...plain, padding: '4px 10px', fontWeight: 400, color: SOFT }}>
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => setConfirmClear(true)}
+                  title="Start the conversation over. Your saved designs stay in your Library and nothing is refunded."
+                  style={{ ...plain, fontWeight: 400, color: SOFT }}>
+                  Clear chat
+                </button>
+              )}
+            </span>
+          </div>
         </div>
       </div>
 

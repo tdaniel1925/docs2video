@@ -1,15 +1,39 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false)
+  const bar = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !localStorage.getItem('cookie_consent')) {
       setVisible(true)
     }
   }, [])
+
+  /**
+   * SAY HOW TALL YOU ARE, so pages can get out of the way.
+   *
+   * This bar is pinned to the bottom of the window and nothing made room for
+   * it, so on any page built to exactly fill the screen it simply sat on top of
+   * the bottom row of controls — on the design page that was the Clear chat
+   * button, invisible until you dismissed a banner you had no reason to think
+   * was hiding anything.
+   *
+   * Measured, not guessed: the text wraps on a narrow window and the bar gets
+   * taller, and a hard-coded 52 would be wrong exactly when it matters most.
+   */
+  useEffect(() => {
+    const root = document.documentElement
+    const set = () => root.style.setProperty('--bottom-bar',
+      visible && bar.current ? `${Math.round(bar.current.getBoundingClientRect().height)}px` : '0px')
+    set()
+    if (!visible) return
+    const ro = new ResizeObserver(set)
+    if (bar.current) ro.observe(bar.current)
+    return () => { ro.disconnect(); root.style.setProperty('--bottom-bar', '0px') }
+  }, [visible])
 
   function accept() {
     localStorage.setItem('cookie_consent', 'accepted')
@@ -19,7 +43,7 @@ export default function CookieBanner() {
   if (!visible) return null
 
   return (
-    <div style={{
+    <div ref={bar} style={{
       position: 'fixed',
       bottom: 0,
       left: 0,
