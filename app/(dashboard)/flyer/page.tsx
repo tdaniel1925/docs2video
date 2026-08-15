@@ -2159,6 +2159,9 @@ export default function FlyerMakerPage() {
   const panel = { background: 'white', border: `1px solid ${LINE}`, borderRadius: 10, padding: 14 } as const
   const darkBtn = { padding: '10px 16px', borderRadius: 8, border: 'none', background: INK, color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' } as const
   const plain = { padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', color: INK } as const
+  // An inline text link — for a quiet "see all" INSIDE a sentence, where a
+  // boxed button would shout. Same size/colour as the surrounding text.
+  const linkBtn = { background: 'none', border: 'none', padding: 0, font: 'inherit', color: INK, fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' } as const
   const chip = (on: boolean) => ({ ...plain, background: on ? INK : 'white', color: on ? 'white' : INK, border: on ? '1px solid transparent' : plain.border }) as const
 
   /**
@@ -2339,30 +2342,30 @@ export default function FlyerMakerPage() {
       id: 'look', title: 'How should it look?',
       done: stylePicked || Boolean(reference),
       answer: reference ? 'your own design' : stylePicked ? styleName : undefined,
+      // THE PICKING HAPPENS IN THE MIDDLE, NOT HERE. This row used to be a
+      // second look picker — its own grid, a "See all" button, a paragraph —
+      // sitting right beside the wall of looks that fills the middle of the
+      // screen. Two places doing the same job. The middle IS the picker now;
+      // this row is just the STATUS of that choice (its answer shows in the
+      // collapsed header), plus the one thing the middle can't do: bring your
+      // own design to copy. A quiet link opens the full browser for anyone who
+      // reached for it here.
       body: (
         <>
-          {/* NO SECOND WALL OF TILES. This row used to draw its own grid of
-              look thumbnails RIGHT NEXT TO the wall of them filling the middle
-              of the screen — the same pictures twice, four inches apart. The
-              middle is the bigger, better place to browse, so this row points
-              at it and offers the thing the middle cannot do: work from a
-              design you already have. */}
           <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.6 }}>
-            {examplesShowing
-              ? 'Click any look in the middle of the screen — that sets the style, and you can change it any time.'
-              : 'Open the full set of looks below and pick one — you can change it any time.'}
-            {' '}Or drop in a design you already like and I&rsquo;ll work in its style instead.
+            {reference
+              ? 'Working from your own design. Remove it below to go back to our looks.'
+              : stylePicked
+              ? <>The <strong style={{ color: INK }}>{styleName}</strong> look. Pick a different one in the middle any time, or <button onClick={() => setBrowseLooks(true)} style={linkBtn}>see all {VISIBLE_STYLES.length}</button>.</>
+              : <>Pick a look from the wall in the middle — or <button onClick={() => setBrowseLooks(true)} style={linkBtn}>see all {VISIBLE_STYLES.length}</button>.</>}
           </p>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <button style={plain} onClick={() => setBrowseLooks(true)}>See all {VISIBLE_STYLES.length} looks</button>
-            {brands.length > 0 && (
-              <button style={plain} title="Use your saved colours and logo"
-                onClick={() => { setBrandId(brands[0].id); markPicked('brand') }}>
-                Use my {brands[0].name} colours
-              </button>
-            )}
-          </div>
-          <DropHint what="Or work from a design you like the look of"
+          {brands.length > 0 && !reference && (
+            <button style={{ ...plain, marginBottom: 10 }} title="Use your saved colours and logo"
+              onClick={() => { setBrandId(brands[0].id); markPicked('brand') }}>
+              Use my {brands[0].name} colours
+            </button>
+          )}
+          <DropHint what="Or work from a design you already like"
             pasteKey={pasteKey} onFiles={(f) => void attachReference(f[0], f[0].name)}
             line={LINE} soft={SOFT} ink={INK} />
         </>
