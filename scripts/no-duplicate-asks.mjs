@@ -96,6 +96,11 @@ try {
   // — the rail starts at 931, so it always said "middle" and passed for the
   // wrong reason. Proven by putting a tile back in the wrong column and
   // watching it still say ok.
+  // Measure with the LOOK row open, or the assertion is vacuous — the row
+  // sweep above ends on row 5, tiles unmounted, and "0 tiles in 0 columns"
+  // passes without testing anything. (Caught by reading the pass detail.)
+  await rows.nth(2).click()
+  await page.waitForTimeout(400)
   const grids = await page.evaluate(() => {
     const tiles = [...document.querySelectorAll('button img')].filter((i) => /flyer-templates/.test(i.src))
     const cols = new Set(tiles.map((i) => (i.closest('[data-rail]') ? 'rail' : 'middle')))

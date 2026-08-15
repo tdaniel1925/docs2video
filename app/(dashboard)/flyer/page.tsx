@@ -985,12 +985,52 @@ export default function FlyerMakerPage() {
    * thread's own scrollbar, instantly, and leaves you alone whenever you are
    * anywhere but the bottom.
    */
+  /**
+   * PINNED TO THE NEWEST MESSAGE unless the customer deliberately scrolled up.
+   *
+   * The first version stuck only when you were within 160px of the bottom.
+   * Wrong mechanic, measured wrong: a reply lands as several pieces at once
+   * (your message + the answer + the brief card, 300-400px together), so one
+   * arrival overshoots the threshold and the sticking silently stops for the
+   * rest of the conversation — which is exactly the "scroll down to find the
+   * reply" treadmill. The truth we actually want is INTENT: are they reading
+   * back, or watching the end? So a scroll listener records which, and while
+   * they are at the end we pin hard — on every new message AND whenever the
+   * thread RESIZES (opening a tall step above shrinks the chat, which also
+   * used to lose the bottom). Scrolling up detaches; scrolling back to the
+   * bottom re-attaches. Nothing yanks you while you are reading history.
+   */
+  const stickToEnd = useRef(true)
   useEffect(() => {
     const el = threadRef.current
     if (!el) return
-    const distanceFromEnd = el.scrollHeight - el.scrollTop - el.clientHeight
-    if (distanceFromEnd < 160) el.scrollTop = el.scrollHeight
+    const onScroll = () => {
+      stickToEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    const ro = new ResizeObserver(() => {
+      if (stickToEnd.current) el.scrollTop = el.scrollHeight
+    })
+    ro.observe(el)
+    return () => { el.removeEventListener('scroll', onScroll); ro.disconnect() }
+  }, [isPhone])
+
+  useEffect(() => {
+    const el = threadRef.current
+    if (!el) return
+    if (stickToEnd.current) el.scrollTop = el.scrollHeight
   }, [items, thinking])
+
+  /**
+   * A conversation OPENS at its newest message, not its oldest. One hard jump
+   * per load/switch (re-attaching the pin), then the intent logic above owns it.
+   */
+  useEffect(() => {
+    if (loadingHistory) return
+    stickToEnd.current = true
+    const el = threadRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [loadingHistory, openChatKey])
 
   // Escape closes whatever is open, innermost first.
   useEffect(() => {
@@ -2898,12 +2938,19 @@ export default function FlyerMakerPage() {
         ? { order: 1, width: '100%', display: 'flex', flexDirection: 'column' }
         : { width: 420, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0, paddingTop: 18 }
     }>
-      {/* On a phone the steps do not scroll inside themselves — the page
-          scrolls, and the composer below sits in the flow rather than pinned. */}
+      {/* ── THE STEPS ZONE — PINNED, never shoved by the chat ─────────────
+          The steps and the conversation used to share ONE scroll region, and
+          they want opposite things: steps stay put (you jump between them),
+          chat sticks to the newest message. Sharing a scrollbar meant every
+          reply pushed the steps off-screen and reading the reply meant losing
+          the steps — the scroll-up-scroll-down treadmill. Now the steps sit in
+          their own capped box up top: collapsed they are small and always
+          visible; a tall open step (the look grid, the size list) scrolls
+          INSIDE this box instead of crushing the chat below, which keeps a
+          guaranteed floor. On a phone the page scrolls, so no caps there. */}
       <div className="scroll-visible" style={
-        isPhone ? {} : { flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4 }
+        isPhone ? {} : { flexShrink: 0, maxHeight: '46vh', overflowY: 'auto', paddingRight: 4 }
       }>
-      {/* No heading here — it sits over the designs, which is what it names. */}
 
 
         {/* ── THE JOB, AS FIVE ROWS ────────────────────────────────────────
@@ -2921,14 +2968,24 @@ export default function FlyerMakerPage() {
             </StepRow>
           ))}
         </div>
+      </div>{/* the steps zone ends here */}
 
-      {/* ── THE THREAD ──────────────────────────────────────────────────
-          Scrolls INSIDE itself. The page does not scroll at all, so the typing
-          box is nailed to the bottom of the window and an arriving message
-          cannot shove it around — which is what made the whole screen bounce
-          every time a line of chat landed. */}
-      <div ref={threadRef}
-        style={{ display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0, paddingBottom: 8 }}>
+      {/* ── THE THREAD — ITS OWN SCROLL REGION ──────────────────────────
+          This ref is also what the follow-the-conversation effect drives. It
+          used to point at a non-scrolling inner div while the actual scrollbar
+          belonged to the shared wrapper above — so "keep the newest message in
+          view" silently did nothing, and every conversation opened at the TOP
+          with the reply buried below. Now the thread scrolls itself: new
+          messages appear at the bottom you are already looking at, and the
+          steps above never move. flex:1 takes whatever the steps zone leaves;
+          minHeight keeps the chat readable even with a tall step open. */}
+      <div ref={threadRef} className="scroll-visible"
+        style={
+          isPhone
+            ? { display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 8 }
+            : { flex: 1, minHeight: 140, overflowY: 'auto', paddingRight: 4, marginTop: 2,
+                display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 8 }
+        }>
         {loadingHistory && (
           <p style={{ fontSize: 13, color: SOFT, margin: 0 }}>Looking for anything you made before…</p>
         )}
@@ -2988,9 +3045,7 @@ export default function FlyerMakerPage() {
         {filled && <BriefCard fields={fields} />}
 
         <div ref={endRef} />
-      </div>
-
-      </div>{/* the rail's single scrolling region ends here */}
+      </div>{/* the thread's own scroll region ends here */}
 
       {/* ── THE COMPOSER, pinned below the scroll ─────────────────────── */}
       {/* On desktop it sits at the bottom of the fixed-height rail (the scroller
