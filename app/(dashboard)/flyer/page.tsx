@@ -757,15 +757,6 @@ export default function FlyerMakerPage() {
    */
   const [openStep, setOpenStep] = useState<Step | null>(null)
 
-  /**
-   * How many examples the middle is showing.
-   *
-   * A HANDFUL, THEN MORE ON REQUEST. All 105 at once is a wall that takes a
-   * second to paint and buries the one you wanted; a dozen is a taste. Twelve
-   * more per press means somebody browsing keeps their place instead of being
-   * dropped into a page that suddenly grew ten times taller.
-   */
-  const [shownExamples, setShownExamples] = useState(18)
 
   /** Which storefront this is. Both serve this page under different names. */
   const storefront = useBrand()
@@ -2342,28 +2333,48 @@ export default function FlyerMakerPage() {
       id: 'look', title: 'How should it look?',
       done: stylePicked || Boolean(reference),
       answer: reference ? 'your own design' : stylePicked ? styleName : undefined,
-      // THE PICKING HAPPENS IN THE MIDDLE, NOT HERE. This row used to be a
-      // second look picker — its own grid, a "See all" button, a paragraph —
-      // sitting right beside the wall of looks that fills the middle of the
-      // screen. Two places doing the same job. The middle IS the picker now;
-      // this row is just the STATUS of that choice (its answer shows in the
-      // collapsed header), plus the one thing the middle can't do: bring your
-      // own design to copy. A quiet link opens the full browser for anyone who
-      // reached for it here.
+      // THE ONE PLACE YOU PICK A LOOK. The middle is a preview stage now, not a
+      // picker — so the choosing lives here: a few suggested looks, "see all"
+      // for the full browser, or drop your own. Whatever you pick loads into
+      // the middle preview so you can see the style before you Make.
       body: (
         <>
-          <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.6 }}>
-            {reference
-              ? 'Working from your own design. Remove it below to go back to our looks.'
-              : stylePicked
-              ? <>The <strong style={{ color: INK }}>{styleName}</strong> look. Pick a different one in the middle any time, or <button onClick={() => setBrowseLooks(true)} style={linkBtn}>see all {VISIBLE_STYLES.length}</button>.</>
-              : <>Pick a look from the wall in the middle — or <button onClick={() => setBrowseLooks(true)} style={linkBtn}>see all {VISIBLE_STYLES.length}</button>.</>}
-          </p>
-          {brands.length > 0 && !reference && (
-            <button style={{ ...plain, marginBottom: 10 }} title="Use your saved colours and logo"
-              onClick={() => { setBrandId(brands[0].id); markPicked('brand') }}>
-              Use my {brands[0].name} colours
-            </button>
+          {reference ? (
+            // Their own design is attached — show it, with a way to drop back to our looks.
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 4 }}>
+              <img src={reference.dataUrl} alt="" style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 8, border: `1px solid ${LINE}` }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>Working from your own design</div>
+                <button onClick={() => setReference(null)} style={linkBtn}>Use one of our looks instead</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.55 }}>
+                Pick a look — it loads into the preview so you can see the style.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                {suggestedStyles.map((t) => (
+                  <button key={t.id} onClick={() => pickStyle(t.id)}
+                    title={`The ${t.name} look`}
+                    style={{ padding: 0, borderRadius: 9, overflow: 'hidden', cursor: 'pointer', background: '#111',
+                      border: templateId === t.id && stylePicked ? `3px solid ${INK}` : `1px solid ${LINE}` }}>
+                    <img src={thumbUrl(t.id)} alt={t.name} loading="lazy"
+                      style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
+                    <div style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 3px', background: 'white', color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+                <button style={plain} onClick={() => setBrowseLooks(true)}>See all {VISIBLE_STYLES.length} looks</button>
+                {brands.length > 0 && (
+                  <button style={plain} title="Use your saved colours and logo"
+                    onClick={() => { setBrandId(brands[0].id); markPicked('brand') }}>
+                    Use my {brands[0].name} colours
+                  </button>
+                )}
+              </div>
+            </>
           )}
           <DropHint what="Or work from a design you already like"
             pasteKey={pasteKey} onFiles={(f) => void attachReference(f[0], f[0].name)}
@@ -2816,43 +2827,54 @@ export default function FlyerMakerPage() {
           ) : null
         ))}
 
-        {/* NOTHING MADE YET, so show what the thing produces. A large empty
-            middle on first use reads as something that failed to load; real
-            work reads as an invitation, and one click starts from it. */}
+        {/* THE PREVIEW STAGE. Nothing made yet, so the middle is not a picker —
+            the picking lives in step 3 on the right. This is where you SEE the
+            choice: empty at first (a silhouette that says Preview), then the
+            chosen style's sample once you pick one in step 3, then your own
+            reference if you drop one, and finally the finished designs after
+            Make (those render above, as rounds/decks). One place to see, one
+            place to choose — no wall of tiles competing with the step-3 picker. */}
         {examplesShowing && (
-          <div>
-            {/* THE WHOLE CHOICE, SAID ONCE, WHERE THE PICTURES ARE. This is the
-                only wall of looks now — the steps rail used to draw a second
-                one beside it. So the two ways to answer "how should it look"
-                belong here together: pick one of these, or bring your own. */}
-            <p style={{ fontSize: 13, color: SOFT, margin: '0 0 12px', lineHeight: 1.6 }}>
-              Your designs appear here. To start, <strong style={{ color: INK }}>click any look below</strong> —
-              it sets the style and you can change it any time. Or{' '}
-              <strong style={{ color: INK }}>drop in a design you already like</strong> (drag it anywhere on
-              this page, or press {pasteKey}) and I&rsquo;ll work in its style instead.
-            </p>
-            {/* SMALLER TILES. At 150px only three fitted across the middle and
-                browsing meant scrolling; at 108 you get six or seven, which is
-                the difference between comparing looks and hunting for one. */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(108px,1fr))', gap: 8 }}>
-              {VISIBLE_STYLES.slice(0, shownExamples).map((t) => (
-                <button key={t.id} onClick={() => { pickStyle(t.id); setOpenStep(null) }}
-                  title={`Start from the ${t.name} look`}
-                  style={{ padding: 0, borderRadius: 10, overflow: 'hidden', cursor: 'pointer', background: '#111', border: `1px solid ${LINE}` }}>
-                  <img src={thumbUrl(t.id)} alt={t.name} loading="lazy"
-                    style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
-                  <div style={{ fontSize: 11, fontWeight: 700, padding: '5px 4px', background: 'white', color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
-                </button>
-              ))}
-            </div>
-
-            {shownExamples < VISIBLE_STYLES.length && (
-              <button
-                onClick={() => setShownExamples((n) => Math.min(n + 18, VISIBLE_STYLES.length))}
-                title={`Show 18 more of the ${VISIBLE_STYLES.length} looks`}
-                style={{ ...plain, marginTop: 12 }}>
-                See more — {VISIBLE_STYLES.length - shownExamples} left
-              </button>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            minHeight: 420, border: `2px dashed ${LINE}`, borderRadius: 14, padding: 24, textAlign: 'center', gap: 14 }}>
+            {reference ? (
+              // Their own design, dropped in — this is the reference we'll work from.
+              <>
+                <img src={reference.dataUrl} alt="Your reference design"
+                  style={{ maxWidth: 300, maxHeight: 340, borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,.14)' }} />
+                <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Working from your own design</div>
+                <div style={{ fontSize: 12.5, color: SOFT, maxWidth: 320, lineHeight: 1.55 }}>
+                  We&rsquo;ll copy its colours, lettering and mood — never its words. Your designs appear here once you press Make.
+                </div>
+              </>
+            ) : stylePicked ? (
+              // A style chosen in step 3 — show its sample big, as the look to expect.
+              <>
+                <img src={thumbUrl(templateId)} alt={`The ${styleName} look`}
+                  style={{ maxWidth: 300, maxHeight: 340, borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,.14)' }} />
+                <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>The {styleName} look</div>
+                <div style={{ fontSize: 12.5, color: SOFT, maxWidth: 320, lineHeight: 1.55 }}>
+                  Your design will be made in this style. Change it in step 3 any time. Press <strong style={{ color: INK }}>Make</strong> and your designs appear right here.
+                </div>
+              </>
+            ) : (
+              // The empty silhouette — nothing picked yet.
+              <>
+                <div style={{
+                  width: 132, height: 176, borderRadius: 10, background: 'var(--border,#e7e2d8)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: SOFT,
+                }}>
+                  <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.8" />
+                    <path d="M21 15l-5-5L5 21" />
+                  </svg>
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: INK }}>Preview</div>
+                <div style={{ fontSize: 12.5, color: SOFT, maxWidth: 340, lineHeight: 1.6 }}>
+                  Pick a look in <strong style={{ color: INK }}>step&nbsp;3</strong> on the right to see the style here — or drop in a design you already like (drag it anywhere, or press {pasteKey}). Your finished designs appear here after you press Make.
+                </div>
+              </>
             )}
           </div>
         )}

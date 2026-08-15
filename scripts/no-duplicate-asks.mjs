@@ -86,20 +86,23 @@ try {
     check(`asked once: ${re.source.slice(0, 26)}`, hits.length <= 1, hits.map((h) => `"${h}"`).join(' + '))
   }
 
-  // AND NO WALL OF LOOK THUMBNAILS TWICE. Headings can differ while the same
-  // grid of pictures appears in two columns — which is exactly what happened.
+  // ONE PICKER, NOT TWO. The middle is a preview stage now; the picking lives
+  // in step 3 in the rail. So there must be exactly one GRID of clickable look
+  // tiles — count only thumbnails that sit inside a <button> (a picker tile),
+  // which excludes the single preview image in the middle (not a button).
+  // Those picker tiles must all live in one column.
   //
-  // By ancestry, NOT by x-coordinate. The first version of this asked "is it
-  // past 1000px?" — the rail starts at 931, so it reported "middle only" no
-  // matter what, and passed for the wrong reason. Proven by putting a tile
-  // back in the rail and watching it still say ok.
+  // By ancestry, NOT by x-coordinate. An earlier version asked "past 1000px?"
+  // — the rail starts at 931, so it always said "middle" and passed for the
+  // wrong reason. Proven by putting a tile back in the wrong column and
+  // watching it still say ok.
   const grids = await page.evaluate(() => {
-    const tiles = [...document.querySelectorAll('img')].filter((i) => /flyer-templates/.test(i.src))
+    const tiles = [...document.querySelectorAll('button img')].filter((i) => /flyer-templates/.test(i.src))
     const cols = new Set(tiles.map((i) => (i.closest('[data-rail]') ? 'rail' : 'middle')))
     return { count: tiles.length, where: [...cols] }
   })
-  check('look thumbnails live in one column only', grids.where.length <= 1,
-    `${grids.count} tiles in ${grids.where.join(' + ') || 'none'}`)
+  check('look picker lives in one column only', grids.where.length <= 1,
+    `${grids.count} picker tiles in ${grids.where.join(' + ') || 'none'}`)
 
   // Back to row 1, which the sweep above left collapsed — its buttons are the
   // subject of everything below. (Caught by running it: 0 buttons found.)
