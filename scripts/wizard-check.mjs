@@ -52,7 +52,8 @@ try {
   await page.waitForURL(`**${STEPS[1]}`)
   check('What → Style advances', page.url().endsWith(STEPS[1]))
 
-  // STEP 2 — Style: pick first style, Next
+  // STEP 2 — Style: open the styles accordion, pick the first style, Next
+  await page.locator('button:has-text("choose one of our styles")').first().click()
   await page.locator('button:has(img)').first().click()
   await nextBtn().click()
   await page.waitForURL(`**${STEPS[2]}`)

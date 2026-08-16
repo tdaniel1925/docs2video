@@ -27,6 +27,12 @@ export type WizardState = {
   kind: Kind | null
   templateId: string | null
   reference: { dataUrl: string; name: string } | null
+  /**
+   * Whether the user confirmed they OWN the reference artwork. Style-inspired is
+   * always allowed; only close matching is gated behind this, so we never help
+   * anyone copy work that isn't theirs.
+   */
+  referenceOwned: boolean
   brandId: string | null
   photos: WizardPhoto[]
   fields: FlyerFields
@@ -47,7 +53,7 @@ export type WizardState = {
 const KEY = 'text2art:wizard'
 
 const EMPTY: WizardState = {
-  kind: null, templateId: null, reference: null, brandId: null,
+  kind: null, templateId: null, reference: null, referenceOwned: false, brandId: null,
   photos: [], fields: {}, note: '', sizes: [], roundId: null, chatId: null,
 }
 

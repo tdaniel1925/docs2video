@@ -35,6 +35,9 @@ export default function MakingScreen() {
             sizeIds: state.sizes,
             fields: state.fields,
             referenceDataUrl: state.reference?.dataUrl,
+            // Only allow close matching when the user confirmed they own the
+            // reference; otherwise the engine takes style inspiration only.
+            keepMotif: Boolean(state.reference && state.referenceOwned),
             photos: state.photos.map((p) => ({ dataUrl: p.dataUrl, role: p.role })),
             brandId: state.brandId ?? undefined,
             roundId, chatId,

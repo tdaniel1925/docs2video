@@ -1,23 +1,18 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { VISIBLE_STYLES, thumbUrl } from '../../../_lib/flyer-engine'
 import { useWizard } from '../useWizard'
-import { INK, SOFT, LINE, card, plainBtn, StepShell } from '../ui'
+import { guessRole } from '../guessRole'
+import { INK, SOFT, LINE, MINT, card, plainBtn, StepShell } from '../ui'
 
-// A handful to start; "see more" reveals the rest. Phase 3 will add the one
-// smart image box (logo/photo auto-guess) and the own-it reference checkbox.
 const PAGE = 24
 
 export default function StyleStep() {
   const { state, patch, ready } = useWizard()
+  const [openStyles, setOpenStyles] = useState(false)
   const [shown, setShown] = useState(PAGE)
-
-  const picked = state.templateId
-  const styleName = useMemo(
-    () => VISIBLE_STYLES.find((t) => t.id === picked)?.name ?? null,
-    [picked],
-  )
+  const [guessing, setGuessing] = useState(false)
 
   if (!ready) return null
 
@@ -29,117 +24,151 @@ export default function StyleStep() {
       r.readAsDataURL(file)
     })
 
+  // ONE box for all uploads. We guess logo vs photo for each, but the user can
+  // flip any guess with a tap — so a headshot + a house photo + a logo can all
+  // go in together and only the wrong guesses need a correction.
+  const onDropAny = async (files: FileList | null) => {
+    if (!files) return
+    const imgs = [...files].filter((f) => f.type.startsWith('image/')).slice(0, 6)
+    if (!imgs.length) return
+    setGuessing(true)
+    const added = await Promise.all(imgs.map(async (f) => {
+      const dataUrl = await readAsDataUrl(f)
+      const role = await guessRole(dataUrl)
+      return { dataUrl, role, name: f.name }
+    }))
+    patch({ photos: [...state.photos, ...added].slice(0, 6) })
+    setGuessing(false)
+  }
+
+  const flipRole = (i: number) =>
+    patch({ photos: state.photos.map((p, j) => j === i ? { ...p, role: p.role === 'logo' ? 'person' : 'logo' } : p) })
+
+  const removeImg = (i: number) =>
+    patch({ photos: state.photos.filter((_, j) => j !== i) })
+
   const onReference = async (file: File | undefined) => {
     if (!file || !file.type.startsWith('image/')) return
     const dataUrl = await readAsDataUrl(file)
-    patch({ reference: { dataUrl, name: file.name }, templateId: null })
+    patch({ reference: { dataUrl, name: file.name }, referenceOwned: false, templateId: null })
+    setOpenStyles(false)
+  }
+  const onReferencePaste = async (e: React.ClipboardEvent) => {
+    const file = [...(e.clipboardData?.items ?? [])].find((it) => it.type.startsWith('image/'))?.getAsFile()
+    if (file) { e.preventDefault(); await onReference(file) }
   }
 
-  const onUpload = async (files: FileList | null, role: 'person' | 'logo') => {
-    if (!files) return
-    const imgs = [...files].filter((f) => f.type.startsWith('image/')).slice(0, 6)
-    const added = await Promise.all(imgs.map(async (f) => ({
-      dataUrl: await readAsDataUrl(f), role, name: f.name,
-    })))
-    patch({ photos: [...state.photos, ...added].slice(0, 6) })
-  }
+  const pickStyle = (id: string) => patch({ templateId: id, reference: null })
 
-  const ready2 = Boolean(picked) || Boolean(state.reference)
+  const ready2 = Boolean(state.templateId) || Boolean(state.reference)
+  const pickedName = VISIBLE_STYLES.find((t) => t.id === state.templateId)?.name ?? null
 
   return (
-    <StepShell title="Choose a look"
-      subtitle="Pick one of our styles, or drop in a design you already like and we’ll work in its style. Add your logo and photos on the right — all optional."
+    <StepShell title="Choose a look and add your images"
+      subtitle="Drop in a design you like and we’ll work in its style, or open our styles below. Add your logo and photos in the other box — we sort them out for you."
       back="/design" next="/design/content" nextReady={ready2}
-      nextHint="Pick a style or drop your own design">
+      nextHint="Drop a reference or pick one of our styles">
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, alignItems: 'start' }}>
-        {/* THE LOOKS */}
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: INK, marginBottom: 10 }}>Our styles</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(120px,1fr))', gap: 10 }}>
-            {VISIBLE_STYLES.slice(0, shown).map((t) => (
-              <button key={t.id} onClick={() => patch({ templateId: t.id, reference: null })}
-                title={`The ${t.name} look`}
-                style={{ padding: 0, borderRadius: 10, overflow: 'hidden', cursor: 'pointer', background: '#111',
-                  border: picked === t.id ? `3px solid ${INK}` : `1px solid ${LINE}` }}>
-                <img src={thumbUrl(t.id)} alt={t.name} loading="lazy"
-                  style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
-                <div style={{ fontSize: 11, fontWeight: 700, padding: '5px 4px', background: 'white', color: INK,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
-              </button>
-            ))}
-          </div>
-          {shown < VISIBLE_STYLES.length && (
-            <button style={{ ...plainBtn, marginTop: 14 }}
-              onClick={() => setShown((n) => Math.min(n + PAGE, VISIBLE_STYLES.length))}>
-              See more — {VISIBLE_STYLES.length - shown} left
-            </button>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }}>
+
+        {/* BOX 1 — REFERENCE / STYLE */}
+        <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: INK }}>The look</div>
+
+          {state.reference ? (
+            <>
+              <img src={state.reference.dataUrl} alt="" style={{ width: '100%', maxHeight: 260, objectFit: 'contain', borderRadius: 8, background: '#faf8f4' }} />
+              <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, color: INK, cursor: 'pointer' }}>
+                <input type="checkbox" checked={state.referenceOwned} onChange={(e) => patch({ referenceOwned: e.target.checked })} style={{ marginTop: 2 }} />
+                <span>I own this artwork or have the right to use it. <span style={{ color: SOFT }}>(Leave unticked and we’ll take style inspiration only, never a close copy.)</span></span>
+              </label>
+              <button style={plainBtn} onClick={() => patch({ reference: null, referenceOwned: false })}>Remove reference</button>
+            </>
+          ) : (
+            <label onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); void onReference(e.dataTransfer.files?.[0]) }}
+              onPaste={onReferencePaste}
+              style={{ display: 'block', border: `1.5px dashed ${LINE}`, borderRadius: 10, padding: '26px 16px', textAlign: 'center', cursor: 'pointer', color: SOFT, fontSize: 13, lineHeight: 1.55 }}>
+              <div style={{ fontSize: 26, marginBottom: 6 }}>🎨</div>
+              <strong style={{ color: INK }}>Drop or paste a design you like</strong><br />
+              Grab an image from anywhere online and drop or paste it here — we’ll design in its <strong>style</strong>, not copy it.
+              <input type="file" accept="image/*" hidden
+                onChange={(e) => { void onReference(e.target.files?.[0]); e.target.value = '' }} />
+            </label>
           )}
+
+          {/* premade styles accordion */}
+          <div style={{ borderTop: `1px solid ${LINE}`, paddingTop: 10 }}>
+            <button onClick={() => setOpenStyles((v) => !v)}
+              style={{ ...plainBtn, width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{state.templateId ? `Style: ${pickedName}` : 'Or choose one of our styles'}</span>
+              <span style={{ color: SOFT }}>{openStyles ? '▲' : '▼'}</span>
+            </button>
+            {openStyles && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(96px,1fr))', gap: 8, maxHeight: 340, overflowY: 'auto', paddingRight: 4 }}>
+                  {VISIBLE_STYLES.slice(0, shown).map((t) => (
+                    <button key={t.id} onClick={() => pickStyle(t.id)} title={`The ${t.name} look`}
+                      style={{ padding: 0, borderRadius: 9, overflow: 'hidden', cursor: 'pointer', background: '#111',
+                        border: state.templateId === t.id ? `3px solid ${INK}` : `1px solid ${LINE}` }}>
+                      <img src={thumbUrl(t.id)} alt={t.name} loading="lazy"
+                        style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
+                      <div style={{ fontSize: 10, fontWeight: 700, padding: '3px 3px', background: 'white', color: INK,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
+                    </button>
+                  ))}
+                </div>
+                {shown < VISIBLE_STYLES.length && (
+                  <button style={{ ...plainBtn, marginTop: 10 }}
+                    onClick={() => setShown((n) => Math.min(n + PAGE, VISIBLE_STYLES.length))}>
+                    See more — {VISIBLE_STYLES.length - shown} left
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* PREVIEW + YOUR STUFF */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ ...card, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
-            {state.reference ? (
-              <>
-                <img src={state.reference.dataUrl} alt="" style={{ maxWidth: '100%', maxHeight: 240, borderRadius: 8 }} />
-                <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>Working from your own design</div>
-                <button style={plainBtn} onClick={() => patch({ reference: null })}>Use one of our looks instead</button>
-              </>
-            ) : picked ? (
-              <>
-                <img src={thumbUrl(picked)} alt={styleName ?? ''} style={{ maxWidth: '100%', maxHeight: 240, borderRadius: 8 }} />
-                <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>The {styleName} look</div>
-                <div style={{ fontSize: 12, color: SOFT }}>Your design will be made in this style.</div>
-              </>
-            ) : (
-              <div style={{ padding: '30px 0', color: SOFT, fontSize: 13 }}>
-                Pick a style, or drop your own design below — it shows here.
-              </div>
-            )}
-          </div>
+        {/* BOX 2 — YOUR IMAGES (one box, auto-sorted) */}
+        <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: INK }}>Your logo &amp; photos <span style={{ color: SOFT, fontWeight: 400, fontSize: 12 }}>(optional)</span></div>
 
-          {/* Drop your own design */}
           <label onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); void onReference(e.dataTransfer.files?.[0]) }}
-            style={{ ...card, display: 'block', border: `1px dashed ${LINE}`, cursor: 'pointer', textAlign: 'center', fontSize: 12.5, color: SOFT }}>
-            <strong style={{ color: INK }}>Have a design you like?</strong><br />
-            Drag it here or click to pick a file.
-            <input type="file" accept="image/*" hidden
-              onChange={(e) => { void onReference(e.target.files?.[0]); e.target.value = '' }} />
+            onDrop={(e) => { e.preventDefault(); void onDropAny(e.dataTransfer.files) }}
+            style={{ display: 'block', border: `1.5px dashed ${LINE}`, borderRadius: 10, padding: '22px 16px', textAlign: 'center', cursor: 'pointer', color: SOFT, fontSize: 13, lineHeight: 1.55 }}>
+            <div style={{ fontSize: 24, marginBottom: 6 }}>🖼️</div>
+            <strong style={{ color: INK }}>Drop your logo and photos here</strong><br />
+            Put them all in — a logo, a headshot, a photo of your place. We tell each one apart; fix any we get wrong with a tap.
+            <input type="file" accept="image/*" multiple hidden
+              onChange={(e) => { void onDropAny(e.target.files); e.target.value = '' }} />
           </label>
 
-          {/* Logo & photos */}
-          <div style={card}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: INK, marginBottom: 6 }}>Your logo &amp; photos <span style={{ color: SOFT, fontWeight: 400 }}>(optional)</span></div>
-            {state.photos.length > 0 && (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-                {state.photos.map((p, i) => (
-                  <div key={i} style={{ position: 'relative' }}>
-                    <img src={p.dataUrl} alt="" style={{ width: 44, height: 44, objectFit: p.role === 'logo' ? 'contain' : 'cover', background: p.role === 'logo' ? '#fff' : undefined, borderRadius: 6, border: `1px solid ${LINE}` }} />
-                    <span style={{ position: 'absolute', bottom: -6, left: '50%', transform: 'translateX(-50%)', fontSize: 8.5, fontWeight: 700, letterSpacing: '.03em', textTransform: 'uppercase', color: 'white', background: p.role === 'logo' ? '#2E7D32' : INK, borderRadius: 4, padding: '1px 4px', lineHeight: 1.3, whiteSpace: 'nowrap' }}>{p.role === 'logo' ? 'Logo' : 'Photo'}</span>
-                    <button onClick={() => patch({ photos: state.photos.filter((_, j) => j !== i) })}
-                      aria-label="Remove" style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: 9, border: 'none', background: INK, color: 'white', fontSize: 11, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          {guessing && <div style={{ fontSize: 12.5, color: SOFT }}>Sorting your images…</div>}
+
+          {state.photos.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {state.photos.map((p, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 6, border: `1px solid ${LINE}`, borderRadius: 9 }}>
+                  <img src={p.dataUrl} alt="" style={{ width: 46, height: 46, flexShrink: 0, objectFit: p.role === 'logo' ? 'contain' : 'cover', background: p.role === 'logo' ? '#fff' : undefined, borderRadius: 6, border: `1px solid ${LINE}` }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: INK, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'white', background: p.role === 'logo' ? '#2E7D32' : INK, borderRadius: 4, padding: '2px 5px' }}>{p.role === 'logo' ? 'Logo' : 'Photo'}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name ?? 'image'}</span>
+                    </div>
+                    <button onClick={() => flipRole(i)} style={{ marginTop: 3, background: 'none', border: 'none', padding: 0, color: SOFT, fontSize: 11.5, cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
+                      Not a {p.role === 'logo' ? 'logo' : 'photo'}? Mark it a {p.role === 'logo' ? 'photo' : 'logo'}
+                    </button>
                   </div>
-                ))}
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <label style={{ ...plainBtn, display: 'inline-block' }}>
-                Add your logo
-                <input type="file" accept="image/*" hidden
-                  onChange={(e) => { void onUpload(e.target.files, 'logo'); e.target.value = '' }} />
-              </label>
-              <label style={{ ...plainBtn, display: 'inline-block' }}>
-                Add photos
-                <input type="file" accept="image/*" multiple hidden
-                  onChange={(e) => { void onUpload(e.target.files, 'person'); e.target.value = '' }} />
-              </label>
+                  <button onClick={() => removeImg(i)} aria-label="Remove"
+                    style={{ width: 22, height: 22, flexShrink: 0, borderRadius: 11, border: 'none', background: LINE, color: INK, fontSize: 13, cursor: 'pointer', lineHeight: 1 }}>×</button>
+                </div>
+              ))}
             </div>
-            <p style={{ fontSize: 11.5, color: SOFT, margin: '8px 0 0', lineHeight: 1.5 }}>
-              Your logo is placed as-is — never redrawn or restyled. Photos of people become the featured subject.
-            </p>
-          </div>
+          )}
+
+          <p style={{ fontSize: 11.5, color: SOFT, margin: 0, lineHeight: 1.5, background: `${MINT}44`, padding: '8px 10px', borderRadius: 8 }}>
+            A <strong style={{ color: INK }}>logo</strong> is placed exactly as given — never redrawn or restyled. A <strong style={{ color: INK }}>photo</strong> of a person becomes the featured subject.
+          </p>
         </div>
       </div>
     </StepShell>
