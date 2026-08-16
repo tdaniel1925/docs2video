@@ -34,13 +34,21 @@ export type WizardState = {
   sizes: string[]
   /** The round produced by Generate — the edit page reads its designs by this. */
   roundId: string | null
+  /**
+   * The chat this job belongs to. /api/flyer-history filters rounds by chat_id,
+   * so a round created with no chat is invisible to the edit page (it fetches
+   * the most recent chat's rounds, which will never be ours). Minting a chat id
+   * up front and passing it through generate + history is what makes the design
+   * findable afterwards.
+   */
+  chatId: string | null
 }
 
 const KEY = 'text2art:wizard'
 
 const EMPTY: WizardState = {
   kind: null, templateId: null, reference: null, brandId: null,
-  photos: [], fields: {}, note: '', sizes: [], roundId: null,
+  photos: [], fields: {}, note: '', sizes: [], roundId: null, chatId: null,
 }
 
 function load(): WizardState {

@@ -43,6 +43,9 @@ export default function MakeStep() {
     if (!sizes.length || making) return
     setErr(''); setMaking(true)
     const roundId = crypto.randomUUID()
+    // Reuse this job's chat if it has one, else mint one. The round is saved
+    // under this chat so the edit page can find it (history filters by chat).
+    const chatId = state.chatId ?? crypto.randomUUID()
     try {
       const r = await fetch('/api/flyer-art', {
         method: 'POST', headers: { 'content-type': 'application/json' },
@@ -53,12 +56,12 @@ export default function MakeStep() {
           referenceDataUrl: state.reference?.dataUrl,
           photos: state.photos.map((p) => ({ dataUrl: p.dataUrl, role: p.role })),
           brandId: state.brandId ?? undefined,
-          roundId,
+          roundId, chatId,
         }),
       }).then((x) => x.json())
       if (r?.error) { setErr(r.error); setMaking(false); return }
-      // Hand the round to the edit page.
-      patch({ roundId })
+      // Hand the round AND its chat to the edit page (history is chat-scoped).
+      patch({ roundId, chatId })
       router.push('/design/edit')
     } catch {
       setErr('Something went wrong. Please try again.')

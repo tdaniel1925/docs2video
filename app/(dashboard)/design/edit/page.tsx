@@ -37,7 +37,11 @@ export default function EditStep() {
   useEffect(() => {
     if (!ready) return
     if (!state.roundId) { setLoading(false); return }
-    fetch('/api/flyer-history').then((r) => r.json()).then((r) => {
+    // Scope the fetch to THIS job's chat. Unscoped, history returns the most
+    // recent chat's rounds — never ours — so our design would be invisible even
+    // though it was made and saved.
+    const url = state.chatId ? `/api/flyer-history?chat=${state.chatId}` : '/api/flyer-history'
+    fetch(url).then((r) => r.json()).then((r) => {
       const round = (r.rounds ?? []).find((x: { id: string }) => x.id === state.roundId)
       const ds: Design[] = round?.designs ?? []
       setDesigns(ds)
