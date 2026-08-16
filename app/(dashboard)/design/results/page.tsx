@@ -30,6 +30,7 @@ export default function EditStep() {
   const [instruction, setInstruction] = useState('')
   const [working, setWorking] = useState(false)
   const [problem, setProblem] = useState('')
+  const [shared, setShared] = useState('')
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const drawing = useRef(false)
@@ -113,6 +114,55 @@ export default function EditStep() {
 
   const shown = selected?.src ?? selected?.url
 
+  // Save one image to the user's device. Fetch to a blob first so the browser
+  // downloads it instead of navigating to it (cross-origin URLs ignore the
+  // `download` attribute otherwise).
+  const downloadOne = async (d: Design) => {
+    const href = d.src ?? d.url
+    try {
+      const blob = await fetch(href).then((r) => r.blob())
+      const u = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = u; a.download = `${d.label || 'design'}.png`
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(u)
+    } catch {
+      window.open(href, '_blank')
+    }
+  }
+  // Download every size, one after another (a small gap so browsers don't block
+  // the burst as a popup).
+  const downloadAll = async () => {
+    for (const d of designs) { await downloadOne(d); await new Promise((r) => setTimeout(r, 350)) }
+  }
+
+  // Share the selected design. Native share sheet where it exists (phones), else
+  // copy the image link to the clipboard as a friendly fallback. (`shared` state
+  // is declared with the other hooks at the top — never after an early return.)
+  const shareOne = async () => {
+    if (!selected) return
+    const href = selected.src ?? selected.url
+    const abs = href.startsWith('http') ? href : `${location.origin}${href}`
+    try {
+      const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean }
+      if (typeof navigator.share === 'function') {
+        // Try sharing the actual file; fall back to the link.
+        try {
+          const blob = await fetch(href).then((r) => r.blob())
+          const file = new File([blob], `${selected.label || 'design'}.png`, { type: blob.type })
+          if (nav.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: 'My design' }); return }
+        } catch { /* fall through to link share */ }
+        await navigator.share({ title: 'My design', url: abs }); return
+      }
+      await navigator.clipboard.writeText(abs)
+      setShared('Link copied — paste it into an email or a post.')
+      setTimeout(() => setShared(''), 4000)
+    } catch {
+      setShared('Could not open sharing — use Download instead.')
+      setTimeout(() => setShared(''), 4000)
+    }
+  }
+
   if (loading) {
     return <StepShell title="Your designs"><p style={{ color: SOFT }}>Loading your designs…</p></StepShell>
   }
@@ -126,8 +176,17 @@ export default function EditStep() {
   }
 
   return (
-    <StepShell title="Your designs — edit any part"
-      subtitle="Click a design to open it. To change one part, press “Edit a part”, paint over it, and say what to change — only that part is redrawn.">
+    <StepShell title="Your designs — download, share, or edit any part"
+      subtitle="Click a design to open it. Download one or all, share it, or press “Edit a part” to change just one region.">
+
+      {/* TOP ACTIONS — download all + share, always in reach */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <button style={primaryBtn} onClick={downloadAll}>
+          Download all {designs.length > 1 ? `(${designs.length})` : ''}
+        </button>
+        <button style={plainBtn} onClick={shareOne}>Share</button>
+        {shared && <span style={{ fontSize: 12.5, color: SOFT }}>{shared}</span>}
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 200px', gap: 24, alignItems: 'start' }}>
         {/* PREVIEW + EDITOR */}
@@ -150,7 +209,7 @@ export default function EditStep() {
             ) : (
               <button style={plainBtn} onClick={() => { clearBrush(); setBrushing(false); setProblem('') }}>Cancel edit</button>
             )}
-            {shown && <a href={shown} download={`${selected?.label || 'design'}.png`} style={{ ...plainBtn, textDecoration: 'none' }}>Download</a>}
+            {selected && <button style={plainBtn} onClick={() => downloadOne(selected)}>Download this one</button>}
           </div>
 
           {brushing && (
@@ -175,15 +234,21 @@ export default function EditStep() {
           )}
         </div>
 
-        {/* THE OTHER SIZES — its own scroll so a long list never runs off the page */}
+        {/* THE OTHER SIZES — its own scroll so a long list never runs off the page.
+            Each shows a Download link so any one size can be saved on its own. */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '72vh', overflowY: 'auto', paddingRight: 4 }}>
           {designs.map((d) => (
-            <button key={d.id} onClick={() => { setSelected(d); clearBrush(); setBrushing(false); setProblem('') }}
-              style={{ padding: 4, borderRadius: 9, cursor: 'pointer', background: 'white',
-                border: (selected?.id === d.id) ? `2px solid ${INK}` : `1px solid ${LINE}` }}>
-              <img src={d.src ?? d.url} alt={d.label} style={{ width: '100%', borderRadius: 6, display: 'block' }} />
-              <div style={{ fontSize: 11, color: SOFT, padding: '4px 2px 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</div>
-            </button>
+            <div key={d.id} style={{ borderRadius: 9, background: 'white', border: (selected?.id === d.id) ? `2px solid ${INK}` : `1px solid ${LINE}`, overflow: 'hidden' }}>
+              <button onClick={() => { setSelected(d); clearBrush(); setBrushing(false); setProblem('') }}
+                style={{ display: 'block', width: '100%', padding: 4, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                <img src={d.src ?? d.url} alt={d.label} style={{ width: '100%', borderRadius: 6, display: 'block' }} />
+                <div style={{ fontSize: 11, color: SOFT, padding: '4px 2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</div>
+              </button>
+              <button onClick={() => downloadOne(d)}
+                style={{ width: '100%', border: 'none', borderTop: `1px solid ${LINE}`, background: 'transparent', color: INK, fontSize: 11.5, fontWeight: 700, padding: '6px 4px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                ↓ Download
+              </button>
+            </div>
           ))}
         </div>
       </div>
