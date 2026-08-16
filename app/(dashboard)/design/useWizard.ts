@@ -54,13 +54,19 @@ export type WizardState = {
    * findable afterwards.
    */
   chatId: string | null
+  /**
+   * True once the inputs have been wiped after a finished job. Stops the results
+   * page from re-clearing on every refresh, and marks this as a spent job whose
+   * inputs are gone (only the round pointer remains).
+   */
+  cleared: boolean
 }
 
 const KEY = 'text2art:wizard'
 
 const EMPTY: WizardState = {
   kind: null, templateId: null, reference: null, referenceOwned: false, brandId: null,
-  photos: [], fields: {}, note: '', sizes: [], bleed: false, roundId: null, chatId: null,
+  photos: [], fields: {}, note: '', sizes: [], bleed: false, roundId: null, chatId: null, cleared: false,
 }
 
 function load(): WizardState {
@@ -101,5 +107,21 @@ export function useWizard() {
     setState({ ...EMPTY })
   }, [])
 
-  return { state, patch, reset, ready }
+  /**
+   * Wipe the reusable inputs once a job is DONE, so the next design starts truly
+   * empty — no leftover logo, photos, words, style or sizes pretending to belong
+   * to the new job. The round is already saved on the server, so we keep only
+   * its pointer (roundId + chatId) for the results page and drop everything else.
+   * Guarded by a flag so calling it twice (or on refresh) does nothing.
+   */
+  const clearInputsKeepJob = useCallback(() => {
+    setState((prev) => {
+      if (prev.cleared) return prev
+      const kept: WizardState = { ...EMPTY, roundId: prev.roundId, chatId: prev.chatId, cleared: true }
+      try { localStorage.setItem(KEY, JSON.stringify(kept)) } catch { /* ignore */ }
+      return kept
+    })
+  }, [])
+
+  return { state, patch, reset, clearInputsKeepJob, ready }
 }

@@ -2,10 +2,20 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { FLYER_SIZES } from '../../../_lib/flyer-engine'
 import { useWizard } from '../useWizard'
 import { INK, SOFT, LINE, card, plainBtn, primaryBtn, StepShell } from '../ui'
 
 type Design = { id: string; sizeId: string; label: string; w: number; h: number; url: string; src?: string }
+
+/**
+ * The size/format NAME to show, so the user always knows what each design is
+ * for. The stored label can be the design's own headline text (not a size), so
+ * we prefer the real size name looked up from the engine by sizeId, and fall
+ * back to the stored label only if the id is unknown.
+ */
+const sizeName = (d: Design): string =>
+  FLYER_SIZES.find((s) => s.id === d.sizeId)?.label ?? d.label ?? 'Design'
 
 /**
  * STEP 4 — SEE AND SPOT-EDIT.
@@ -18,7 +28,7 @@ type Design = { id: string; sizeId: string; label: string; w: number; h: number;
  * transparent = may repaint, built explicitly here.
  */
 export default function EditStep() {
-  const { state, reset, ready } = useWizard()
+  const { state, reset, clearInputsKeepJob, ready } = useWizard()
   const router = useRouter()
   const [designs, setDesigns] = useState<Design[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,6 +57,11 @@ export default function EditStep() {
       const ds: Design[] = round?.designs ?? []
       setDesigns(ds)
       setSelected(ds[0] ?? null)
+      // The job is DONE and its designs are safely on the server. Wipe the
+      // reusable inputs now (logo, photos, words, style, sizes) so the NEXT
+      // design starts empty — no leftovers from this job pretending to belong to
+      // it. Keeps only the round pointer so this page keeps working.
+      if (ds.length) clearInputsKeepJob()
     }).catch(() => {}).finally(() => setLoading(false))
   }, [ready, state.roundId])
 
@@ -191,6 +206,15 @@ export default function EditStep() {
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 200px', gap: 24, alignItems: 'start' }}>
         {/* PREVIEW + EDITOR */}
         <div>
+          {/* which size/format this is — so the preview is never ambiguous */}
+          {selected && (
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: INK }}>{sizeName(selected)}</span>
+              {selected.w > 0 && selected.h > 0 && (
+                <span style={{ fontSize: 12.5, color: SOFT }}>{selected.w.toLocaleString()} × {selected.h.toLocaleString()} px</span>
+              )}
+            </div>
+          )}
           <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
             <img ref={imgRef} src={shown} alt={selected?.label} onLoad={sizeCanvas}
               style={{ maxWidth: '100%', maxHeight: '62vh', borderRadius: 10, background: '#111', display: 'block' }} />
@@ -241,8 +265,8 @@ export default function EditStep() {
             <div key={d.id} style={{ borderRadius: 9, background: 'white', border: (selected?.id === d.id) ? `2px solid ${INK}` : `1px solid ${LINE}`, overflow: 'hidden' }}>
               <button onClick={() => { setSelected(d); clearBrush(); setBrushing(false); setProblem('') }}
                 style={{ display: 'block', width: '100%', padding: 4, border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                <img src={d.src ?? d.url} alt={d.label} style={{ width: '100%', borderRadius: 6, display: 'block' }} />
-                <div style={{ fontSize: 11, color: SOFT, padding: '4px 2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</div>
+                <img src={d.src ?? d.url} alt={sizeName(d)} style={{ width: '100%', borderRadius: 6, display: 'block' }} />
+                <div style={{ fontSize: 11, fontWeight: 700, color: INK, padding: '4px 2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sizeName(d)}</div>
               </button>
               <button onClick={() => downloadOne(d)}
                 style={{ width: '100%', border: 'none', borderTop: `1px solid ${LINE}`, background: 'transparent', color: INK, fontSize: 11.5, fontWeight: 700, padding: '6px 4px', cursor: 'pointer', fontFamily: 'inherit' }}>

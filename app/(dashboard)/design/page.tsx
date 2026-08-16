@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { thumbUrl } from '../../_lib/flyer-engine'
 import { useWizard } from './useWizard'
 import { INK, SOFT, LINE, card, StepShell } from './ui'
@@ -21,7 +22,16 @@ const KINDS: { kind: Kind; label: string; blurb: string; sample: string }[] = [
 ]
 
 export default function WhatStep() {
-  const { state, patch, ready } = useWizard()
+  const { state, patch, reset, ready } = useWizard()
+
+  // Landing on Step 1 begins a NEW design. If the last job was already finished
+  // (its inputs were wiped after results), drop its leftover round pointer too,
+  // so nothing at all carries over. A job in progress (not cleared) is left
+  // alone — you can still step back into it.
+  useEffect(() => {
+    if (ready && state.cleared) reset()
+  }, [ready, state.cleared, reset])
+
   if (!ready) return null
 
   return (

@@ -73,10 +73,11 @@ export default function MakingScreen() {
     })()
   }, [ready])
 
-  // Rotate the slideshow every 5s. Facts and ads interleave.
+  // Rotate the slideshow every 10s (long enough to actually read a fact or take
+  // in an ad). Facts and ads interleave.
   useEffect(() => {
     if (err) return
-    const t = setInterval(() => setTick((n) => n + 1), 5000)
+    const t = setInterval(() => setTick((n) => n + 1), 10000)
     return () => clearInterval(t)
   }, [err])
 
@@ -106,7 +107,10 @@ export default function MakingScreen() {
         {/* progress heading */}
         <div style={{ width: 48, height: 48, borderRadius: '50%', border: `4px solid ${INK}`, borderTopColor: 'transparent', margin: '0 auto 16px', animation: 'design-spin 0.9s linear infinite' }} />
         <h1 style={{ fontSize: 22, color: INK, margin: '0 0 4px' }}>Designing your artwork…</h1>
-        <p style={{ fontSize: 13.5, color: SOFT, margin: '0 0 24px' }}>Each size is made from scratch. Please keep this page open.</p>
+        <p style={{ fontSize: 13.5, color: SOFT, margin: '0 0 6px' }}>Each size is made from scratch. Please keep this page open.</p>
+        <p style={{ fontSize: 13, color: INK, fontWeight: 600, margin: '0 0 22px' }}>
+          While you wait, here’s a little about our other AI-powered business products.
+        </p>
 
         {/* the rotating card */}
         <div key={tick} style={{ animation: 'design-fade .6s ease' }}>
