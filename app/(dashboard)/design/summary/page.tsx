@@ -51,14 +51,52 @@ export default function SummaryStep() {
       nextHint="Finish the earlier steps first"
       onNext={() => router.push('/design/making')}>
 
-      <div style={{ ...card, maxWidth: 620 }}>
-        {rows.map((r, i) => (
-          <div key={r.k} style={{ display: 'flex', gap: 16, padding: '10px 0', borderTop: i ? `1px solid ${LINE}` : 'none' }}>
-            <div style={{ width: 120, flexShrink: 0, fontSize: 12, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: SOFT }}>{r.k}</div>
-            <div style={{ fontSize: 14, color: INK }}>{r.v}</div>
-          </div>
-        ))}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 300px', gap: 24, alignItems: 'start' }}>
+        <div style={{ ...card }}>
+          {rows.map((r, i) => (
+            <div key={r.k} style={{ display: 'flex', gap: 16, padding: '10px 0', borderTop: i ? `1px solid ${LINE}` : 'none' }}>
+              <div style={{ width: 120, flexShrink: 0, fontSize: 12, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: SOFT }}>{r.k}</div>
+              <div style={{ fontSize: 14, color: INK }}>{r.v}</div>
+            </div>
+          ))}
+        </div>
+
+        <Examples kind={state.kind} />
       </div>
     </StepShell>
+  )
+}
+
+/**
+ * "Here's the kind of thing you'll get." Pre-made showpieces — generated ONCE
+ * with OpenAI and stored in public/design-examples, reused for every visitor
+ * (never generated live). Not the user's actual design; just a quality preview.
+ * The one matching what they're making is featured; the rest sit in a small row.
+ */
+const EXAMPLES: { kind: string; file: string; label: string }[] = [
+  { kind: 'print', file: 'print', label: 'Flyer' },
+  { kind: 'social', file: 'social', label: 'Social post' },
+  { kind: 'deck', file: 'slide', label: 'Slide' },
+  { kind: 'set', file: 'card', label: 'Business card' },
+]
+
+function Examples({ kind }: { kind: string | null }) {
+  const featured = EXAMPLES.find((e) => e.kind === kind) ?? EXAMPLES[0]
+  const others = EXAMPLES.filter((e) => e !== featured)
+  return (
+    <div style={{ ...card }}>
+      <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: SOFT, marginBottom: 8 }}>
+        The kind of thing you’ll get
+      </div>
+      <img src={`/design-examples/${featured.file}.png`} alt={`Example ${featured.label}`}
+        style={{ width: '100%', borderRadius: 8, border: `1px solid ${LINE}`, display: 'block', background: '#faf8f4' }} />
+      <div style={{ fontSize: 11.5, color: SOFT, margin: '6px 0 12px' }}>An example {featured.label.toLowerCase()} — yours uses your words and style.</div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        {others.map((e) => (
+          <img key={e.file} src={`/design-examples/${e.file}.png`} alt={`Example ${e.label}`} title={e.label}
+            style={{ width: `${100 / others.length}%`, height: 56, objectFit: 'cover', borderRadius: 6, border: `1px solid ${LINE}`, background: '#faf8f4' }} />
+        ))}
+      </div>
+    </div>
   )
 }
