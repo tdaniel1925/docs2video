@@ -81,8 +81,12 @@ try {
   await page.waitForURL(`**${STEPS[3]}`)
   check('Content → Sizes advances', page.url().endsWith(STEPS[3]))
 
-  // STEP 4 — Sizes: tick first size, Next
+  // STEP 4 — Sizes: tick first size (a print size), which reveals the bleed
+  // choice. Pick "Full bleed", then Next.
   await page.locator('input[type=checkbox]').first().check()
+  const bleedShown = await page.locator('text=do you want a bleed').first().isVisible().catch(() => false)
+  check('bleed choice appears for a print size', bleedShown)
+  if (bleedShown) await page.locator('button:has-text("Full bleed")').first().click()
   await nextBtn().click()
   await page.waitForURL(`**${STEPS[4]}`)
   check('Sizes → Review advances', page.url().endsWith(STEPS[4]))
@@ -93,6 +97,7 @@ try {
   const summaryText = await page.locator('body').innerText()
   check('Review shows the typed headline (state survived)', summaryText.includes(HEAD), 'headline persisted across 3 navigations')
   check('Review has a "Start designing" button', /Start designing/i.test(summaryText))
+  check('Review shows the full-bleed choice survived', /full bleed/i.test(summaryText), 'bleed persisted from Sizes')
 
   // Back twice: Review → Sizes → Content, then confirm the AI-written headline
   // is still shown on the "On your design so far" panel (state survived).

@@ -38,6 +38,12 @@ export type WizardState = {
   fields: FlyerFields
   note: string
   sizes: string[]
+  /**
+   * Full-bleed for PRINT sizes: the artwork runs past the trim edge so cutting
+   * leaves no white sliver. Only applies to printable (inch) sizes; ignored for
+   * on-screen sizes. Undefined until the user chooses on the sizes step.
+   */
+  bleed: boolean
   /** The round produced by Generate — the edit page reads its designs by this. */
   roundId: string | null
   /**
@@ -54,7 +60,7 @@ const KEY = 'text2art:wizard'
 
 const EMPTY: WizardState = {
   kind: null, templateId: null, reference: null, referenceOwned: false, brandId: null,
-  photos: [], fields: {}, note: '', sizes: [], roundId: null, chatId: null,
+  photos: [], fields: {}, note: '', sizes: [], bleed: false, roundId: null, chatId: null,
 }
 
 function load(): WizardState {

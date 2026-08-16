@@ -33,6 +33,7 @@ export default function MakingScreen() {
           body: JSON.stringify({
             templateId: state.templateId ?? undefined,
             sizeIds: state.sizes,
+            bleed: state.bleed,
             fields: state.fields,
             referenceDataUrl: state.reference?.dataUrl,
             // Only allow close matching when the user confirmed they own the

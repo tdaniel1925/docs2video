@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { VISIBLE_STYLES, FLYER_SIZES } from '../../../_lib/flyer-engine'
+import { VISIBLE_STYLES, FLYER_SIZES, canBleed } from '../../../_lib/flyer-engine'
 import { useWizard } from '../useWizard'
 import { INK, SOFT, LINE, card, StepShell } from '../ui'
 
@@ -32,11 +32,14 @@ export default function SummaryStep() {
 
   if (!ready) return null
 
+  const hasPrint = state.sizes.some((id) => { const s = FLYER_SIZES.find((x) => x.id === id); return s ? canBleed(s) : false })
+
   const rows: { k: string; v: string }[] = [
     { k: 'Making', v: state.kind ? KIND_LABEL[state.kind] : '—' },
     { k: 'Look', v: state.reference ? 'Your own design (style-matched)' : styleName ?? '—' },
     { k: 'Headline', v: state.fields.headline || '—' },
     { k: 'Sizes', v: sizeLabels.length ? sizeLabels.join(', ') : '—' },
+    ...(hasPrint ? [{ k: 'Print edge', v: state.bleed ? 'Full bleed (runs to the edge)' : 'No bleed (white margin)' }] : []),
     { k: 'Your images', v: state.photos.length ? `${state.photos.filter((p) => p.role === 'logo').length} logo, ${state.photos.filter((p) => p.role !== 'logo').length} photo` : 'none' },
   ]
 
