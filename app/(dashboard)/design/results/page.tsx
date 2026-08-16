@@ -120,7 +120,7 @@ export default function EditStep() {
     return (
       <StepShell title="Nothing to show yet"
         subtitle="This step shows the designs you made — go back and generate them first.">
-        <button style={primaryBtn} onClick={() => router.push('/design/make')}>&larr; Back to sizes</button>
+        <button style={primaryBtn} onClick={() => router.push('/design/summary')}>&larr; Back to review</button>
       </StepShell>
     )
   }
@@ -189,7 +189,7 @@ export default function EditStep() {
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginTop: 24, flexWrap: 'wrap' }}>
-        <button style={plainBtn} onClick={() => router.push('/design/make')}>&larr; Make more sizes</button>
+        <button style={plainBtn} onClick={() => router.push('/design/summary')}>&larr; Make more sizes</button>
         <button style={primaryBtn} onClick={() => { reset(); router.push('/design') }}>Start another design</button>
       </div>
     </StepShell>

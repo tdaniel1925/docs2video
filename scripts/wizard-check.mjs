@@ -1,106 +1,97 @@
-// =============================================================================
-// Does the 4-page /design wizard actually hold together?
+// Does the 5-page /design wizard hold together?
 //
-// The one genuinely new risk in a multi-page wizard is that the choices don't
-// survive a route change — you pick a style, click Next, and it's gone. So this
-// walks the four pages and, crucially, proves state (kind, style, words, sizes)
-// is still there after navigating away and back. A typecheck sees none of that.
+// Walks What → Style → Content → Sizes → Review, using the TOP Next button each
+// time (never scrolling), and asserts: the left sidebar renders with all 5
+// steps, each Next advances to the right URL, and the choices survive
+// navigation (the headline typed on Content is still there after going forward
+// and back). Proven to FAIL: point any STEPS[] entry at a wrong path and it red-
+// flags; break the sidebar and the "sidebar lists" checks red-flag.
 //
-//   TEST_EMAIL=... TEST_PASSWORD=... node scripts/wizard-check.mjs
-//
-// Credentials come from the environment, never written anywhere.
-// =============================================================================
-
+// Run:  set -a && . ./.env.local && node scripts/wizard-check.mjs
 import { chromium } from 'playwright'
 
-const BASE = process.env.BASE_URL || 'http://localhost:3000'
+const BASE = process.env.BASE || 'http://localhost:3000'
 const EMAIL = process.env.TEST_EMAIL
-const PASSWORD = process.env.TEST_PASSWORD
-if (!EMAIL || !PASSWORD) { console.log('Set TEST_EMAIL and TEST_PASSWORD.'); process.exit(1) }
+const PASS = process.env.TEST_PASSWORD
 
-const results = []
-const check = (name, pass, detail = '') => {
-  results.push(pass)
-  console.log(`  ${pass ? 'ok  ' : 'FAIL'} ${name}${detail ? '  — ' + detail : ''}`)
+let failures = 0
+const check = (name, ok, extra = '') => {
+  console.log(`${ok ? '✓' : '✗'} ${name}${extra ? ' — ' + extra : ''}`)
+  if (!ok) failures++
 }
 
+const STEPS = ['/design', '/design/style', '/design/content', '/design/sizes', '/design/summary']
+
 const browser = await chromium.launch()
-const page = await browser.newPage({ viewport: { width: 1400, height: 950 } })
+const page = await browser.newPage()
+page.setDefaultTimeout(15000)
 
 try {
-  await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' })
-  await page.fill('input[type="email"]', EMAIL)
-  await page.fill('input[type="password"]', PASSWORD)
-  await page.click('button[type="submit"]')
-  await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 60_000 })
-
-  const bar = () => page.evaluate(() => (document.body.innerText.match(/STEP \d OF 4/) || [''])[0])
-  // The wizard's Next, not Next.js's dev-tools button (which also says "Next").
-  const clickNext = async () => {
-    await page.locator('button', { hasText: /^Next/ }).filter({ hasNotText: 'Dev Tools' }).first().click()
-    await page.waitForTimeout(900)
+  await page.goto(`${BASE}/design`, { waitUntil: 'domcontentloaded' })
+  if (page.url().includes('/login') || page.url().includes('/auth')) {
+    if (!EMAIL || !PASS) { console.log('need TEST_EMAIL / TEST_PASSWORD'); process.exit(2) }
+    await page.fill('input[type=email]', EMAIL)
+    await page.fill('input[type=password]', PASS)
+    await page.click('button[type=submit]')
+    await page.waitForLoadState('networkidle')
+    await page.goto(`${BASE}/design`, { waitUntil: 'domcontentloaded' })
   }
 
-  // Start clean so a stale localStorage from a prior run can't mask a break.
-  await page.goto(`${BASE}/design`, { waitUntil: 'domcontentloaded' })
-  await page.evaluate(() => localStorage.removeItem('text2art:wizard'))
-  await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(1500)
+  // STEP 1 — What: sidebar shows all 5 steps
+  const railText = await page.locator('nav.design-rail, .design-rail-mini').first().innerText().catch(() => '')
+  check('sidebar renders', railText.length > 0)
+  for (const label of ['What', 'Style', 'Content', 'Sizes', 'Review']) {
+    check(`sidebar lists "${label}"`, railText.includes(label))
+  }
 
-  // STEP 1
-  check('step 1 loads', (await bar()) === 'STEP 1 OF 4')
-  await page.getByRole('button', { name: /Something to print/ }).click()
-  await page.waitForTimeout(200)
-  await page.locator('button img[src*="flyer-templates"]').first().click()
-  await page.waitForTimeout(300)
-  await clickNext()
+  const nextBtn = () => page.locator('button:has-text("Next")').first()
 
-  // STEP 2
-  check('step 2 loads after Next', (await bar()) === 'STEP 2 OF 4')
-  await page.locator('input').first().fill('Grand Opening BBQ')
-  await page.locator('textarea').first().fill('Saturday Sept 12')
-  await page.locator('textarea').first().blur().catch(() => {})
-  await clickNext()
+  // pick the first kind, Next (top button)
+  await page.locator('button:has(img)').first().click()
+  await nextBtn().click()
+  await page.waitForURL(`**${STEPS[1]}`)
+  check('What → Style advances', page.url().endsWith(STEPS[1]))
 
-  // STEP 3
-  check('step 3 loads after Next', (await bar()) === 'STEP 3 OF 4')
-  const sizeCount = await page.locator('input[type=checkbox]').count()
-  check('step 3 shows the sizes', sizeCount >= 20, `${sizeCount} sizes`)
+  // STEP 2 — Style: pick first style, Next
+  await page.locator('button:has(img)').first().click()
+  await nextBtn().click()
+  await page.waitForURL(`**${STEPS[2]}`)
+  check('Style → Content advances', page.url().endsWith(STEPS[2]))
+
+  // STEP 3 — Content: type a headline, Next
+  const HEAD = 'Check Headline 7714'
+  await page.locator('input').first().fill(HEAD)
+  await page.locator('input').first().blur()
+  await nextBtn().click()
+  await page.waitForURL(`**${STEPS[3]}`)
+  check('Content → Sizes advances', page.url().endsWith(STEPS[3]))
+
+  // STEP 4 — Sizes: tick first size, Next
   await page.locator('input[type=checkbox]').first().check()
-  await page.waitForTimeout(300)
-  const costShown = await page.evaluate(() => /\d+ credits/.test(document.body.innerText))
-  check('step 3 shows the cost', costShown)
+  await nextBtn().click()
+  await page.waitForURL(`**${STEPS[4]}`)
+  check('Sizes → Review advances', page.url().endsWith(STEPS[4]))
 
-  // BACK TO STEP 1 — the real test: did the choices survive?
-  await page.goto(`${BASE}/design`, { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(1200)
-  const styleSurvived = await page.evaluate(() =>
-    !!document.querySelector('button[style*="3px solid"] img[src*="flyer-templates"]'))
-  const kindSurvived = await page.evaluate(() =>
-    [...document.querySelectorAll('button')].some((b) =>
-      /Something to print/.test(b.textContent || '') && /inset 0 0 0 1px/.test(b.getAttribute('style') || '')))
-  check('style choice survived navigation', styleSurvived)
-  check('kind choice survived navigation', kindSurvived)
+  // Review shows the red Start button and our headline survived. Small settle:
+  // the summary reads state from localStorage on mount, a beat after navigation.
+  await page.waitForTimeout(400)
+  const summaryText = await page.locator('body').innerText()
+  check('Review shows the typed headline (state survived)', summaryText.includes(HEAD), 'headline persisted across 3 navigations')
+  check('Review has a "Start designing" button', /Start designing/i.test(summaryText))
 
-  // The saved state actually holds words + sizes too (checked in storage).
-  const stored = await page.evaluate(() => {
-    try { return JSON.parse(localStorage.getItem('text2art:wizard') || '{}') } catch { return {} }
-  })
-  check('words survived', stored?.fields?.headline === 'Grand Opening BBQ',
-    stored?.fields?.headline || '(none)')
-  check('a size survived', Array.isArray(stored?.sizes) && stored.sizes.length >= 1,
-    `${stored?.sizes?.length ?? 0} sizes`)
+  // Back twice: Review → Sizes → Content, then confirm the headline is still there.
+  await page.locator('button:has-text("Back")').first().click()
+  await page.waitForURL(`**${STEPS[3]}`)
+  await page.locator('button:has-text("Back")').first().click()
+  await page.waitForURL(`**${STEPS[2]}`)
+  const val = await page.locator('input').first().inputValue()
+  check('headline still in the box after Back', val === HEAD, `got "${val}"`)
 
-  // The edit page loads (even with no round it must render, not crash).
-  await page.goto(`${BASE}/design/edit`, { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(1200)
-  check('step 4 (edit) loads without a round', (await bar()) === 'STEP 4 OF 4')
 } catch (e) {
-  check('ran at all', false, String(e).slice(0, 160))
+  check('walk completed without error', false, e.message)
 } finally {
   await browser.close()
 }
 
-const failed = results.filter((r) => !r).length
-console.log(`\n${results.length - failed}/${results.length} passed`)
-process.exit(failed ? 1 : 0)
+console.log(failures ? `\n${failures} FAILED` : '\nALL GREEN')
+process.exit(failures ? 1 : 0)

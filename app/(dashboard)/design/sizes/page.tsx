@@ -1,10 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { FLYER_SIZES } from '../../../_lib/flyer-engine'
 import { useWizard } from '../useWizard'
-import { INK, SOFT, LINE, card, StepNav, StepShell, primaryBtn } from '../ui'
+import { INK, SOFT, LINE, card, StepShell } from '../ui'
 
 const GROUPS: { id: string; label: string }[] = [
   { id: 'print', label: 'Print' },
@@ -14,16 +13,18 @@ const GROUPS: { id: string; label: string }[] = [
   { id: 'slide', label: 'Slides' },
 ]
 
-export default function MakeStep() {
+/**
+ * STEP 4 — WHERE IT'S USED (the output sizes).
+ *
+ * Tick the sizes you need; each is designed from scratch. Generating no longer
+ * happens here — it happens after the Review step, on the wait screen. Phase 5
+ * adds the full-bleed vs no-bleed choice (with an illustration) for print sizes.
+ */
+export default function SizesStep() {
   const { state, patch, ready } = useWizard()
-  const router = useRouter()
   const [unit, setUnit] = useState<number | null>(null)
   const [balance, setBalance] = useState<number | null>(null)
-  const [making, setMaking] = useState(false)
-  const [err, setErr] = useState('')
 
-  // Deck default: one 16:9 slide size is implied; the wizard treats a deck like
-  // the /flyer page does (slide-16x9 ticked), so here we just show print/social.
   useEffect(() => {
     fetch('/api/flyer-history').then((r) => r.json()).then((r) => {
       if (typeof r.unit === 'number') setUnit(r.unit)
@@ -38,42 +39,13 @@ export default function MakeStep() {
     patch({ sizes: sizes.includes(id) ? sizes.filter((x) => x !== id) : [...sizes, id].slice(0, 8) })
 
   const cost = unit === null ? null : unit * sizes.length
-
-  const generate = async () => {
-    if (!sizes.length || making) return
-    setErr(''); setMaking(true)
-    const roundId = crypto.randomUUID()
-    // Reuse this job's chat if it has one, else mint one. The round is saved
-    // under this chat so the edit page can find it (history filters by chat).
-    const chatId = state.chatId ?? crypto.randomUUID()
-    try {
-      const r = await fetch('/api/flyer-art', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          templateId: state.templateId ?? undefined,
-          sizeIds: sizes,
-          fields: state.fields,
-          referenceDataUrl: state.reference?.dataUrl,
-          photos: state.photos.map((p) => ({ dataUrl: p.dataUrl, role: p.role })),
-          brandId: state.brandId ?? undefined,
-          roundId, chatId,
-        }),
-      }).then((x) => x.json())
-      if (r?.error) { setErr(r.error); setMaking(false); return }
-      // Hand the round AND its chat to the edit page (history is chat-scoped).
-      patch({ roundId, chatId })
-      router.push('/design/edit')
-    } catch {
-      setErr('Something went wrong. Please try again.')
-      setMaking(false)
-    }
-  }
-
   const lbl = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '.08em', color: SOFT, margin: '0 0 6px' }
 
   return (
-    <StepShell title="Pick your sizes"
-      subtitle="Tick as many as you need — each one is designed from scratch. You’ll see them next, and can spot-edit any of them.">
+    <StepShell title="Where will you use it?"
+      subtitle="Tick as many sizes as you need — each one is designed from scratch. You’ll review everything next, then we make them."
+      back="/design/content" next="/design/summary" nextReady={sizes.length > 0}
+      nextHint="Pick at least one size">
 
       <div style={{ ...card, maxWidth: 720 }}>
         {GROUPS.map((g) => {
@@ -100,19 +72,8 @@ export default function MakeStep() {
         <p style={{ fontSize: 13, color: SOFT, margin: '16px 0 0' }}>
           {sizes.length} design{sizes.length === 1 ? '' : 's'} · <strong style={{ color: INK }}>{cost.toLocaleString()} credits</strong>
           {balance !== null && ` · ${Math.max(0, balance - cost).toLocaleString()} left after`}
-          {' · about '}{Math.ceil(sizes.length * 0.5)}–{sizes.length * 2} min
         </p>
       )}
-
-      {err && <p style={{ fontSize: 13, color: '#B4432F', margin: '12px 0 0' }}>{err}</p>}
-
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 22, flexWrap: 'wrap' }}>
-        <StepNav back="/design/words" />
-        <button onClick={generate} disabled={!sizes.length || making}
-          style={{ ...primaryBtn, padding: '11px 22px', fontSize: 15, opacity: !sizes.length || making ? 0.4 : 1, cursor: !sizes.length || making ? 'default' : 'pointer' }}>
-          {making ? 'Designing…' : `Make ${sizes.length || ''}`.trim()}
-        </button>
-      </div>
     </StepShell>
   )
 }

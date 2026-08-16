@@ -2,19 +2,18 @@
 
 import { useState } from 'react'
 import { useWizard } from '../useWizard'
-import { INK, SOFT, LINE, card, plainBtn, StepNav, StepShell } from '../ui'
+import { INK, SOFT, LINE, card, StepShell } from '../ui'
 
 /**
- * STEP 2 — the words that go on it.
+ * STEP 3 — the words that go on it.
  *
- * A deck wants a subject; a flyer wants the exact words (headline, the details,
- * the call to action). We collect them as STRUCTURED fields, not one blob,
- * because the generator's word-check verifies each one landed on the image —
- * "$89" has to survive, and a single free-text box makes that impossible to
- * confirm. Or drop a document / paste a website and we read it (that path is
- * lifted from /flyer in a follow-up; the manual fields cover the core now).
+ * We collect them as STRUCTURED fields, not one blob, because the generator's
+ * word-check verifies each one landed on the image — "$89" has to survive, and a
+ * single free-text box makes that impossible to confirm. Phase 4 turns this into
+ * a full chat (type/speak, AI-write-from-a-topic, paste, upload a document); the
+ * manual fields cover the core meanwhile.
  */
-export default function WordsStep() {
+export default function ContentStep() {
   const { state, patch, ready } = useWizard()
   const isDeck = state.kind === 'deck'
   const [headline, setHeadline] = useState('')
@@ -23,7 +22,6 @@ export default function WordsStep() {
   const [contact, setContact] = useState('')
   const [hydrated, setHydrated] = useState(false)
 
-  // Seed the boxes from saved state once ready (can't read localStorage on first paint).
   if (ready && !hydrated) {
     setHeadline(state.fields.headline ?? '')
     setDetails((state.fields.details ?? []).join('\n'))
@@ -57,7 +55,9 @@ export default function WordsStep() {
       title={isDeck ? 'What is the deck about?' : 'What should it say?'}
       subtitle={isDeck
         ? 'Tell us the subject and who it’s for — the exact words for each slide come next.'
-        : 'The words that go on it, exactly as you want them — a headline, the details, a call to action.'}>
+        : 'The words that go on it, exactly as you want them — a headline, the details, a call to action.'}
+      back="/design/style" next="/design/sizes" nextReady={ready2}
+      nextHint="Type at least a headline or a detail" onNext={save}>
 
       <div style={{ ...card, maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 18 }}>
         <div>
@@ -87,9 +87,6 @@ export default function WordsStep() {
           </>
         )}
       </div>
-
-      <StepNav back="/design" next="/design/make" nextReady={ready2}
-        nextHint="Type at least a headline or a detail" onNext={() => { save() }} />
     </StepShell>
   )
 }
