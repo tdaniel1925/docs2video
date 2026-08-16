@@ -497,12 +497,19 @@ export async function POST(req: Request) {
       const friendly =
         lower.includes('safety') || lower.includes('content_policy') || lower.includes('moderation')
           ? 'The wording or an uploaded photo was refused by the image service. Try rephrasing, or removing the photo.'
+        // BILLING BEFORE RATE-LIMIT. "You have no credits remaining" comes back
+        // as a 429, so a plain "429 → busy, try again" check catches it first
+        // and tells the customer to retry a thing retrying can NEVER fix — which
+        // is exactly what happened. A genuine throttle 429 says "rate limit";
+        // an out-of-funds 429 says "credits"/"billing"/"quota". Check the money
+        // words first so the two 429s don't get confused.
+        : lower.includes('billing') || lower.includes('quota') || lower.includes('insufficient_quota')
+            || lower.includes('no credits') || lower.includes('credit balance')
+          ? 'The image service account is out of credit — this one is on us, not you. We’re on it; nothing was charged to you.'
         : lower.includes('rate limit') || lower.includes('429')
           ? 'The image service is busy right now. Wait a moment and press Make again.'
         : lower.includes('timeout') || lower.includes('etimedout') || lower.includes('econnreset')
           ? 'The image service took too long to answer. Press Make again.'
-        : lower.includes('billing') || lower.includes('quota') || lower.includes('insufficient_quota')
-          ? 'The image service account has a billing problem — this one is on us, not you.'
         : raw.slice(0, 200)
 
       return { sizeId: size.id, label: size.label, error: friendly }
