@@ -45,6 +45,12 @@ const GUIDES: HelpGuide[] = [
     icon: '📄',
   },
   {
+    href: '/help/restyle-deck',
+    title: 'Restyle a Deck',
+    description: 'Upload a PowerPoint or PDF and get the whole deck back, slide for slide, in a brand-new look — plus a single PDF. Picture-only slides are flagged and skipped.',
+    icon: '📊',
+  },
+  {
     href: '/help/sharing-videos',
     title: 'Sharing & the Client Page',
     description: 'The branded share page: personalized welcome banner, a note to your client, download options, source-PDF download, booking and payment.',
@@ -511,7 +517,7 @@ export default function HelpPage() {
   // list of video guides. Only what that customer can actually use.
   const guides = brand.showVideoFeatures
     ? GUIDES
-    : GUIDES.filter((g) => ['/help/flyers', '/help/pricing', '/help/account', '/help/faq'].includes(g.href))
+    : GUIDES.filter((g) => ['/help/flyers', '/help/restyle-deck', '/help/pricing', '/help/account', '/help/faq'].includes(g.href))
 
   const filteredArticles = ARTICLES.filter(a => {
     if (search.trim()) {
