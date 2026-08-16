@@ -41,6 +41,7 @@ export default function EditStep() {
   const [working, setWorking] = useState(false)
   const [problem, setProblem] = useState('')
   const [shared, setShared] = useState('')
+  const [pdfBusy, setPdfBusy] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const drawing = useRef(false)
@@ -129,6 +130,45 @@ export default function EditStep() {
 
   const shown = selected?.src ?? selected?.url
 
+  // A deck's designs are the restyled slides — offer them stitched into one PDF.
+  const isDeck = designs.length > 1 && designs.every((d) => /^slide-\d+$/.test(d.sizeId))
+
+  // Build a landscape PDF, one page per slide, in order — client-side (pdf-lib).
+  const downloadPdf = async () => {
+    if (pdfBusy) return
+    setPdfBusy(true)
+    try {
+      const { PDFDocument } = await import('pdf-lib')
+      const pdf = await PDFDocument.create()
+      // designs are already in slide order (round.designs order preserved).
+      for (const d of designs) {
+        const href = d.src ?? d.url
+        const ab = await fetch(href).then((r) => r.arrayBuffer())
+        const head = new Uint8Array(ab.slice(0, 2))
+        // Our slides are PNG; fall back to JPG if the byte header says so.
+        const img = head[0] === 0xff && head[1] === 0xd8
+          ? await pdf.embedJpg(ab)
+          : await pdf.embedPng(ab)
+        const page = pdf.addPage([img.width, img.height])
+        page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height })
+      }
+      const out = await pdf.save()
+      // Wrap in a fresh ArrayBuffer so TS/Blob is happy about the byte source.
+      const buf = new ArrayBuffer(out.byteLength)
+      new Uint8Array(buf).set(out)
+      const url = URL.createObjectURL(new Blob([buf], { type: 'application/pdf' }))
+      const a = document.createElement('a')
+      a.href = url; a.download = 'deck.pdf'
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      setShared('Could not build the PDF — you can still download the slides one by one.')
+      setTimeout(() => setShared(''), 5000)
+    } finally {
+      setPdfBusy(false)
+    }
+  }
+
   // Save one image to the user's device. Fetch to a blob first so the browser
   // downloads it instead of navigating to it (cross-origin URLs ignore the
   // `download` attribute otherwise).
@@ -199,6 +239,11 @@ export default function EditStep() {
         <button style={primaryBtn} onClick={downloadAll}>
           Download all {designs.length > 1 ? `(${designs.length})` : ''}
         </button>
+        {isDeck && (
+          <button style={plainBtn} onClick={downloadPdf} disabled={pdfBusy}>
+            {pdfBusy ? 'Building PDF…' : 'Download as PDF'}
+          </button>
+        )}
         <button style={plainBtn} onClick={shareOne}>Share</button>
         {shared && <span style={{ fontSize: 12.5, color: SOFT }}>{shared}</span>}
       </div>
