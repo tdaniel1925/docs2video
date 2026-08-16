@@ -25,13 +25,21 @@ const KINDS: { kind: Kind; label: string; blurb: string; sample: string }[] = [
 export default function WhatStep() {
   const { state, patch, reset, ready } = useWizard()
 
-  // Landing on Step 1 begins a NEW design. If the last job was already finished
-  // (its inputs were wiped after results), drop its leftover round pointer too,
-  // so nothing at all carries over. A job in progress (not cleared) is left
-  // alone — you can still step back into it.
+  // A FRESH arrival at Step 1 begins a NEW design — wipe ANY leftover job so
+  // nothing from a previous session carries over (a logo, words, a half-finished
+  // deck, a spent round). "Fresh" = a real page load: opening /design from the
+  // nav, a new tab, or a reload. Stepping BACK to Step 1 within an active walk is
+  // NOT fresh — we mark the walk active in sessionStorage the moment you leave
+  // Step 1, and only skip the reset while that mark is present. sessionStorage
+  // clears when the tab closes, so the next visit is fresh again.
   useEffect(() => {
-    if (ready && state.cleared) reset()
-  }, [ready, state.cleared, reset])
+    if (!ready) return
+    const walking = sessionStorage.getItem('design:walking')
+    if (!walking) reset() // new session → clean slate
+    // Landing here always means we are back at the start; the walk mark is set
+    // again as soon as the user advances (see the WHAT-step Next handler).
+    sessionStorage.removeItem('design:walking')
+  }, [ready, reset])
 
   if (!ready) return null
 
@@ -45,6 +53,9 @@ export default function WhatStep() {
       title="What do you want to make?"
       subtitle="Pick one to start. You’ll choose a look, add your words, and pick sizes on the next pages — you can change any of it later."
       next="/design/style"
+      // Advancing off Step 1 begins the walk — mark it active so stepping BACK
+      // here doesn't wipe the in-progress job (only a fresh load does).
+      onNext={() => sessionStorage.setItem('design:walking', '1')}
       nextReady={nextReady}
       nextHint={state.kind === 'deck' ? 'Upload a deck to restyle first' : 'Pick what you’re making'}
     >
