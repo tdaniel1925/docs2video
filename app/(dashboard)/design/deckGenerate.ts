@@ -1,6 +1,7 @@
 'use client'
 
 import type { DeckSlide } from '../../_lib/deck-split'
+import type { PhotoRole } from '../../_lib/flyer-engine'
 
 /**
  * DRAW A WHOLE DECK, ONE SLIDE AT A TIME.
@@ -28,6 +29,9 @@ export async function generateDeck(opts: {
   /** Only true when the user confirmed they own the reference (allows close
    *  matching); otherwise the engine takes style inspiration only. */
   keepMotif?: boolean
+  /** The user's logo and photos, placed on EVERY slide (a logo is placed as-is,
+   *  never redrawn — the codebase rule). */
+  photos?: { dataUrl: string; role: PhotoRole }[]
   roundId: string
   chatId: string
   onProgress?: (p: DeckProgress) => void
@@ -57,6 +61,9 @@ export async function generateDeck(opts: {
           keepMotif: Boolean(opts.referenceDataUrl && opts.keepMotif),
           sizeIds: ['slide-16x9'],
           fields,
+          // The logo (and any photos) go on every slide so the deck is branded
+          // consistently.
+          photos: opts.photos && opts.photos.length ? opts.photos : undefined,
           brandId: opts.brandId ?? undefined,
           slotId: `slide-${slide.n}`,
           slotLabel: `Slide ${slide.n}`,

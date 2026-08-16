@@ -62,6 +62,8 @@ export default function MakingScreen() {
             // slide from it (own-it gate controls close matching).
             referenceDataUrl: state.reference?.dataUrl,
             keepMotif: Boolean(state.reference && state.referenceOwned),
+            // Logo + photos, placed on every slide.
+            photos: state.photos.map((p) => ({ dataUrl: p.dataUrl, role: p.role })),
             roundId, chatId,
             onProgress: (p) => setDeckProg({ done: p.done, total: p.total }),
           })
