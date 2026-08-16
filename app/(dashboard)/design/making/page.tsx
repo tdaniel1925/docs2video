@@ -58,6 +58,10 @@ export default function MakingScreen() {
             slides: state.deckSlides,
             templateId: state.templateId,
             brandId: state.brandId,
+            // If the user dropped a reference on the Style step, style every
+            // slide from it (own-it gate controls close matching).
+            referenceDataUrl: state.reference?.dataUrl,
+            keepMotif: Boolean(state.reference && state.referenceOwned),
             roundId, chatId,
             onProgress: (p) => setDeckProg({ done: p.done, total: p.total }),
           })

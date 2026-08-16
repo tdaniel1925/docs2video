@@ -22,6 +22,12 @@ export async function generateDeck(opts: {
   slides: DeckSlide[]
   templateId?: string | null
   brandId?: string | null
+  /** A design to copy the LOOK of — applied to EVERY slide so the deck stays
+   *  consistent. Same reference as the single-design path. */
+  referenceDataUrl?: string | null
+  /** Only true when the user confirmed they own the reference (allows close
+   *  matching); otherwise the engine takes style inspiration only. */
+  keepMotif?: boolean
   roundId: string
   chatId: string
   onProgress?: (p: DeckProgress) => void
@@ -43,7 +49,12 @@ export async function generateDeck(opts: {
         method: 'POST', headers: { 'content-type': 'application/json' },
         signal: opts.signal,
         body: JSON.stringify({
-          templateId: opts.templateId ?? undefined,
+          // A reference outranks a template style (both are art direction), so
+          // only send the template when there's no reference — same rule as the
+          // single-design path.
+          templateId: opts.referenceDataUrl ? undefined : (opts.templateId ?? undefined),
+          referenceDataUrl: opts.referenceDataUrl ?? undefined,
+          keepMotif: Boolean(opts.referenceDataUrl && opts.keepMotif),
           sizeIds: ['slide-16x9'],
           fields,
           brandId: opts.brandId ?? undefined,
