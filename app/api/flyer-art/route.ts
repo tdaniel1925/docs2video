@@ -71,6 +71,17 @@ export async function POST(req: Request) {
     roundId?: string
     /** Which project chat this belongs to. Minted by the browser. */
     chatId?: string
+    /**
+     * DECK RESTYLE ONLY. A deck makes many designs at the SAME size
+     * (slide-16x9), so the storage path and the saved row can't be keyed by
+     * size.id — every slide would overwrite the last. When present, slotId
+     * replaces size.id as the unique key for THIS design (e.g. "slide-3"), and
+     * slotLabel replaces the size label (e.g. "Slide 3"). Only meaningful with a
+     * single sizeId. The normal (non-deck) path never sends these and is
+     * unchanged.
+     */
+    slotId?: string
+    slotLabel?: string
     /** The conversation as it stood when Make was pressed. Stored once per
      *  round so reopening the page reads like the conversation it was. */
     messages?: { role: string; text: string }[]
@@ -109,6 +120,10 @@ export async function POST(req: Request) {
   // id so the parallel requests agree on it; ownership is checked here so a
   // guessed id cannot attach designs to somebody else's history.
   const admin = createAdminClient()
+  // Deck-restyle overrides (see the type). Sanitised: slotId is used in a
+  // storage path and a db key, so keep it to safe chars.
+  const slotId = String(body?.slotId ?? '').trim().replace(/[^a-z0-9-]/gi, '').slice(0, 40) || null
+  const slotLabel = String(body?.slotLabel ?? '').trim().slice(0, 80) || null
   let roundId = /^[0-9a-f-]{36}$/i.test(String(body?.roundId ?? '')) ? String(body!.roundId) : null
   if (roundId) {
     const { data: existing } = await admin
@@ -278,6 +293,11 @@ export async function POST(req: Request) {
   }
 
   const one = async (size: typeof FLYER_SIZES[number]) => {
+    // For a deck, many designs share one size, so the UNIQUE key for this design
+    // is the slot (slide-3), not the size. Everything that must not collide
+    // across designs in the same round keys off `key`; the human name is `lbl`.
+    const key = slotId ?? size.id
+    const lbl = slotLabel ?? size.label
     const bleed = Boolean(body?.bleed) && canBleed(size)
       // The customer's own words go in as THE SUBJECT, not as a footnote. See
       // the long note on flyerPrompt's `subject` — appending them at the end is
@@ -288,21 +308,21 @@ export async function POST(req: Request) {
     // Charge BEFORE generating, refund if it fails — the same order the video
     // pipeline uses. Charging afterwards would let a hammered page run several
     // generations against a balance that only covered one.
-    if (!(await deductCredits(user.id, unit, 'flyer', undefined, `Flyer — ${size.label}`))) {
-      return { sizeId: size.id, label: size.label, error: 'Not enough credits' }
+    if (!(await deductCredits(user.id, unit, 'flyer', undefined, `Flyer — ${lbl}`))) {
+      return { sizeId: key, label: lbl, error: 'Not enough credits' }
     }
     // Put the credits back for THIS design only. Deliberately not
     // refundVideoCredits: that one writes to the videos table and keys off a
     // video id, and passing a non-video key there silently swallows the refund.
     const refund = async () => {
       try {
-        await addTopupCredits(user.id, unit, `refund:flyer:${roundId ?? 'adhoc'}:${size.id}`, {
+        await addTopupCredits(user.id, unit, `refund:flyer:${roundId ?? 'adhoc'}:${key}`, {
           action: 'refund_flyer',
-          idempotencyKey: `refund:flyer:${roundId ?? Date.now()}:${size.id}`,
+          idempotencyKey: `refund:flyer:${roundId ?? Date.now()}:${key}`,
         })
       } catch (e) {
         // A failed refund must be findable later — it is money.
-        console.error(`[flyer] REFUND FAILED user=${user.id} size=${size.id} amount=${unit}`, e)
+        console.error(`[flyer] REFUND FAILED user=${user.id} slot=${key} amount=${unit}`, e)
       }
     }
 
@@ -365,7 +385,7 @@ export async function POST(req: Request) {
               model: MODEL, prompt, size: apiSize(size, bleed).size as '1024x1024', quality: 'high', n: 1,
             })
         const b64 = res.data?.[0]?.b64_json
-        if (!b64) { await refund(); return { sizeId: size.id, label: size.label, error: 'no image returned' } }
+        if (!b64) { await refund(); return { sizeId: key, label: lbl, error: 'no image returned' } }
         src = Buffer.from(b64, 'base64')
       }
 
@@ -436,13 +456,13 @@ export async function POST(req: Request) {
       let designId: string | null = null
       if (roundId) {
         try {
-          const path = `${user.id}/flyers/${roundId}/${size.id}.png`
+          const path = `${user.id}/flyers/${roundId}/${key}.png`
           const { error: upErr } = await admin.storage
             .from('creation-assets')
             .upload(path, png, { contentType: 'image/png', upsert: true })
           if (upErr) throw upErr
           const { data: row } = await admin.from('flyer_designs').insert({
-            round_id: roundId, user_id: user.id, size_id: size.id, label: size.label,
+            round_id: roundId, user_id: user.id, size_id: key, label: lbl,
             width: targetW, height: targetH, image_path: path, credits: unit,
           }).select('id').single()
           designId = row?.id ?? null
@@ -458,7 +478,7 @@ export async function POST(req: Request) {
             const href = `/api/flyer-file/${designId}`
             await admin.from('creations').insert({
               user_id: user.id, type: 'flyer',
-              title: `${fields.headline || 'Custom graphic'} — ${size.label}`,
+              title: `${fields.headline || 'Custom graphic'} — ${lbl}`,
               thumbnail_url: href, file_url: href,
               // What it ACTUALLY cost. Leaving this out let the column's
               // default of 1 stand, so the library reported a 200-credit design
@@ -472,7 +492,7 @@ export async function POST(req: Request) {
       }
 
       return {
-        sizeId: size.id, label: size.label, w: targetW, h: targetH, designId,
+        sizeId: key, label: lbl, w: targetW, h: targetH, designId,
         // What the check found, said plainly. "Every word checked" is worth
         // showing precisely BECAUSE nobody else can say it.
         checked: verified.ok,
@@ -512,7 +532,7 @@ export async function POST(req: Request) {
           ? 'The image service took too long to answer. Press Make again.'
         : raw.slice(0, 200)
 
-      return { sizeId: size.id, label: size.label, error: friendly }
+      return { sizeId: key, label: lbl, error: friendly }
     }
   }
 
