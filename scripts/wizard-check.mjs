@@ -37,6 +37,10 @@ try {
     await page.goto(`${BASE}/design`, { waitUntil: 'domcontentloaded' })
   }
 
+  // Dismiss the cookie banner — it sticks to the bottom and overlays the
+  // quick-action buttons, which makes them un-clickable in the harness.
+  await page.locator('button:has-text("Got it")').first().click({ timeout: 3000 }).catch(() => {})
+
   // STEP 1 — What: sidebar shows all 5 steps
   const railText = await page.locator('nav.design-rail, .design-rail-mini').first().innerText().catch(() => '')
   check('sidebar renders', railText.length > 0)
@@ -59,10 +63,20 @@ try {
   await page.waitForURL(`**${STEPS[2]}`)
   check('Style → Content advances', page.url().endsWith(STEPS[2]))
 
-  // STEP 3 — Content: type a headline, Next
+  // STEP 3 — Content is a chat, but it has a "Type it in myself" fallback that
+  // works with no AI (so this check never depends on an AI account balance).
+  // We use that path and assert the typed headline survives to Review.
   const HEAD = 'Check Headline 7714'
-  await page.locator('input').first().fill(HEAD)
-  await page.locator('input').first().blur()
+  const typeBtn = page.locator('button:has-text("Type it in myself")').first()
+  await typeBtn.scrollIntoViewIfNeeded()
+  await typeBtn.click({ force: true })
+  await page.locator('input[placeholder*="Grand Opening"]').first().fill(HEAD)
+  await page.locator('input[placeholder*="Grand Opening"]').first().blur()
+  // Next enables once the headline is saved to state — wait for it, don't race.
+  await page.waitForFunction(() => {
+    const b = [...document.querySelectorAll('button')].find((x) => /Next/.test(x.textContent || ''))
+    return b && !b.disabled
+  }, { timeout: 8000 })
   await nextBtn().click()
   await page.waitForURL(`**${STEPS[3]}`)
   check('Content → Sizes advances', page.url().endsWith(STEPS[3]))
@@ -80,13 +94,17 @@ try {
   check('Review shows the typed headline (state survived)', summaryText.includes(HEAD), 'headline persisted across 3 navigations')
   check('Review has a "Start designing" button', /Start designing/i.test(summaryText))
 
-  // Back twice: Review → Sizes → Content, then confirm the headline is still there.
+  // Back twice: Review → Sizes → Content, then confirm the AI-written headline
+  // is still shown on the "On your design so far" panel (state survived).
   await page.locator('button:has-text("Back")').first().click()
   await page.waitForURL(`**${STEPS[3]}`)
   await page.locator('button:has-text("Back")').first().click()
   await page.waitForURL(`**${STEPS[2]}`)
-  const val = await page.locator('input').first().inputValue()
-  check('headline still in the box after Back', val === HEAD, `got "${val}"`)
+  await page.waitForTimeout(400)
+  // Reopen the manual panel; the headline should still be in its box.
+  await page.locator('button:has-text("Type it in myself")').first().click()
+  const backVal = await page.locator('input[placeholder*="Grand Opening"]').first().inputValue()
+  check('headline still in the box after Back', backVal === HEAD, `got "${backVal}"`)
 
 } catch (e) {
   check('walk completed without error', false, e.message)
