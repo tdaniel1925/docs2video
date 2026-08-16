@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation'
  *  - Interactive Presentation → /create/client → content → brand → voice → script → template
  *    (HTML-first: narrated click-through presentation on a share page; an MP4
  *     video can be EXPORTED from it after editing — video is not its own path)
- *  - Custom Graphics → /flyer (chat-driven; flyers, ads, banners, cards)
+ *  - Custom Graphics → /design (4-step wizard; flyers, ads, banners, cards)
  *  - Video Explainer / Commercial — legacy paths, slated for removal at flip.
  *
  * Slide Deck is NOT offered here any more. The path still exists
@@ -37,7 +37,7 @@ export default function CreateStartPage() {
             deck already made still work; nothing was deleted. Restore this card
             to put it back. */}
 
-        <button style={styles.card} onClick={() => router.push('/flyer')}>
+        <button style={styles.card} onClick={() => router.push('/design')}>
           <div style={styles.cardIcon}>📄</div>
           <div style={styles.cardTitle}>Custom Graphics</div>
           <div style={styles.cardDesc}>Flyers, ads, social posts, banners and business cards — describe the job and get finished, print-ready designs in every size you need.</div>

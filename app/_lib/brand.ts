@@ -76,7 +76,7 @@ export const DOCS2VIDEO: Brand = {
     // the whole thing was unreachable except by typing the address — 225 styles
     // and a paid feature that nobody could find. Text2Art is only a different
     // front door onto the same tool, not a different tool.
-    { href: '/flyer', label: 'Custom Graphics' },
+    { href: '/design', label: 'Custom Graphics' },
     { href: '/videos', label: 'Library' },
     { href: '/clients', label: 'Clients' },
   ],
@@ -94,12 +94,14 @@ export const TEXT2ART: Brand = {
     'Type what your flyer, ad, social post, banner or business card needs to say. Get a print-ready design back — artwork and lettering both — in about a minute.',
   logoSrc: '/text2art-logo.png',
   iconSrc: '/text2art-favicon.png',
-  home: '/flyer',
+  home: '/design',
   // Brands were unreachable on Text2Art: the scraper, the multi-brand store and
   // the whole editor already existed, and nothing in this storefront linked to
   // any of it. A customer could not save their colours even once.
+  // "Designs" now opens the 4-step wizard at /design (pick a look → words →
+  // sizes → generate & spot-edit); the old one-page /flyer still works directly.
   nav: [
-    { href: '/flyer', label: 'Designs' },
+    { href: '/design', label: 'Designs' },
     { href: '/brands', label: 'Brands' },
   ],
   create: null,

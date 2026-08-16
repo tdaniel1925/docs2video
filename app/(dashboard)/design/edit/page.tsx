@@ -175,8 +175,8 @@ export default function EditStep() {
           )}
         </div>
 
-        {/* THE OTHER SIZES */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {/* THE OTHER SIZES — its own scroll so a long list never runs off the page */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '72vh', overflowY: 'auto', paddingRight: 4 }}>
           {designs.map((d) => (
             <button key={d.id} onClick={() => { setSelected(d); clearBrush(); setBrushing(false); setProblem('') }}
               style={{ padding: 4, borderRadius: 9, cursor: 'pointer', background: 'white',
