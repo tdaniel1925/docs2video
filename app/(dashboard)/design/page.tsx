@@ -43,11 +43,15 @@ export default function StyleStep() {
     patch({ reference: { dataUrl, name: file.name }, templateId: null })
   }
 
-  const onPhotos = async (files: FileList | null) => {
+  // role decides how the generator uses an upload: a 'logo' is placed cleanly and
+  // never redrawn; a 'person' is composited as the featured subject. A logo added
+  // as a person would get restyled into artwork — which is why it wasn't showing
+  // up as the logo. So each upload carries its role.
+  const onUpload = async (files: FileList | null, role: 'person' | 'logo') => {
     if (!files) return
     const imgs = [...files].filter((f) => f.type.startsWith('image/')).slice(0, 6)
     const added = await Promise.all(imgs.map(async (f) => ({
-      dataUrl: await readAsDataUrl(f), role: 'person' as const, name: f.name,
+      dataUrl: await readAsDataUrl(f), role, name: f.name,
     })))
     patch({ photos: [...state.photos, ...added].slice(0, 6) })
   }
@@ -135,18 +139,29 @@ export default function StyleStep() {
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                 {state.photos.map((p, i) => (
                   <div key={i} style={{ position: 'relative' }}>
-                    <img src={p.dataUrl} alt="" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: `1px solid ${LINE}` }} />
+                    <img src={p.dataUrl} alt="" style={{ width: 44, height: 44, objectFit: p.role === 'logo' ? 'contain' : 'cover', background: p.role === 'logo' ? '#fff' : undefined, borderRadius: 6, border: `1px solid ${LINE}` }} />
+                    <span style={{ position: 'absolute', bottom: -6, left: '50%', transform: 'translateX(-50%)', fontSize: 8.5, fontWeight: 700, letterSpacing: '.03em', textTransform: 'uppercase', color: 'white', background: p.role === 'logo' ? '#2E7D32' : INK, borderRadius: 4, padding: '1px 4px', lineHeight: 1.3, whiteSpace: 'nowrap' }}>{p.role === 'logo' ? 'Logo' : 'Photo'}</span>
                     <button onClick={() => patch({ photos: state.photos.filter((_, j) => j !== i) })}
                       aria-label="Remove" style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: 9, border: 'none', background: INK, color: 'white', fontSize: 11, cursor: 'pointer', lineHeight: 1 }}>×</button>
                   </div>
                 ))}
               </div>
             )}
-            <label style={{ ...plainBtn, display: 'inline-block' }}>
-              Add photos
-              <input type="file" accept="image/*" multiple hidden
-                onChange={(e) => { void onPhotos(e.target.files); e.target.value = '' }} />
-            </label>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <label style={{ ...plainBtn, display: 'inline-block' }}>
+                Add your logo
+                <input type="file" accept="image/*" hidden
+                  onChange={(e) => { void onUpload(e.target.files, 'logo'); e.target.value = '' }} />
+              </label>
+              <label style={{ ...plainBtn, display: 'inline-block' }}>
+                Add photos
+                <input type="file" accept="image/*" multiple hidden
+                  onChange={(e) => { void onUpload(e.target.files, 'person'); e.target.value = '' }} />
+              </label>
+            </div>
+            <p style={{ fontSize: 11.5, color: SOFT, margin: '8px 0 0', lineHeight: 1.5 }}>
+              Your logo is placed as-is — never redrawn or restyled. Photos of people become the featured subject.
+            </p>
           </div>
         </div>
       </div>
