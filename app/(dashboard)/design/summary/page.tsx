@@ -34,7 +34,16 @@ export default function SummaryStep() {
 
   const hasPrint = state.sizes.some((id) => { const s = FLYER_SIZES.find((x) => x.id === id); return s ? canBleed(s) : false })
 
-  const rows: { k: string; v: string }[] = [
+  const isDeck = Boolean(state.deckSlides)
+  const drawableSlides = (state.deckSlides ?? []).filter((s) => !s.imageOnly).length
+
+  const rows: { k: string; v: string }[] = isDeck ? [
+    { k: 'Making', v: 'Restyled slide deck' },
+    { k: 'From', v: state.deckName || 'your deck' },
+    { k: 'Look', v: state.reference ? 'Your own design (style-matched)' : styleName ?? '—' },
+    { k: 'Slides', v: `${drawableSlides} slide${drawableSlides === 1 ? '' : 's'}, restyled at 16:9` },
+    { k: 'Your images', v: state.photos.length ? `${state.photos.filter((p) => p.role === 'logo').length} logo, ${state.photos.filter((p) => p.role !== 'logo').length} photo` : 'none' },
+  ] : [
     { k: 'Making', v: state.kind ? KIND_LABEL[state.kind] : '—' },
     { k: 'Look', v: state.reference ? 'Your own design (style-matched)' : styleName ?? '—' },
     { k: 'Headline', v: state.fields.headline || '—' },

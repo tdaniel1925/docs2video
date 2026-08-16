@@ -33,6 +33,14 @@ export default function SizesStep() {
     }).catch(() => {})
   }, [])
 
+  const isDeck = Boolean(state.deckSlides)
+  // A deck's size is fixed to 16:9 slides — set it once so Review + generate agree.
+  useEffect(() => {
+    if (isDeck && (state.sizes.length !== 1 || state.sizes[0] !== 'slide-16x9')) {
+      patch({ sizes: ['slide-16x9'] })
+    }
+  }, [isDeck])
+
   const sizes = state.sizes
   // Does the current pick include any printable (inch) size? Only then does bleed matter.
   const hasPrint = useMemo(
@@ -45,8 +53,30 @@ export default function SizesStep() {
   const toggle = (id: string) =>
     patch({ sizes: sizes.includes(id) ? sizes.filter((x) => x !== id) : [...sizes, id].slice(0, 8) })
 
-  const cost = unit === null ? null : unit * sizes.length
+  const drawableSlides = (state.deckSlides ?? []).filter((s) => !s.imageOnly).length
+  const cost = unit === null ? null : unit * (isDeck ? drawableSlides : sizes.length)
   const lbl = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '.08em', color: SOFT, margin: '0 0 6px' }
+
+  // A deck skips the size picker — its size is fixed to 16:9 slides.
+  if (isDeck) {
+    return (
+      <StepShell title="Your deck is set to slides"
+        subtitle="Every restyled slide is made at standard 16:9 slide size."
+        back="/design/style" next="/design/summary" nextReady={drawableSlides > 0}
+        nextHint="Go back and add a deck with text">
+        <div style={{ ...card, maxWidth: 520 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: INK }}>Slide · 1920 × 1080 (16:9)</div>
+          <div style={{ fontSize: 13, color: SOFT, marginTop: 4 }}>{drawableSlides} slide{drawableSlides === 1 ? '' : 's'} will be restyled.</div>
+          {cost !== null && (
+            <p style={{ fontSize: 13, color: SOFT, margin: '12px 0 0' }}>
+              <strong style={{ color: INK }}>{cost.toLocaleString()} credits</strong>
+              {balance !== null && ` · ${Math.max(0, balance - cost).toLocaleString()} left after`}
+            </p>
+          )}
+        </div>
+      </StepShell>
+    )
+  }
 
   return (
     <StepShell title="Where will you use it?"

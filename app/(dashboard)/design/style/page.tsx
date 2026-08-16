@@ -66,7 +66,10 @@ export default function StyleStep() {
   return (
     <StepShell title="Choose a look and add your images"
       subtitle="Drop in a design you like and we’ll work in its style, or open our styles below. Add your logo and photos in the other box — we sort them out for you."
-      back="/design" next="/design/content" nextReady={ready2}
+      back="/design"
+      // A deck already has its words (from the upload), so skip the Content chat.
+      next={state.deckSlides ? '/design/sizes' : '/design/content'}
+      nextReady={ready2}
       nextHint="Drop a reference or pick one of our styles">
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }}>

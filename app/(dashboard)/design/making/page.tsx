@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useWizard } from '../useWizard'
+import { generateDeck } from '../deckGenerate'
 import { INK, SOFT, CREAM } from '../ui'
 
 /**
@@ -39,6 +40,7 @@ export default function MakingScreen() {
   const fired = useRef(false)
   const [err, setErr] = useState('')
   const [tick, setTick] = useState(0)
+  const [deckProg, setDeckProg] = useState<{ done: number; total: number } | null>(null)
 
   // Fire the generate ONCE.
   useEffect(() => {
@@ -50,6 +52,22 @@ export default function MakingScreen() {
     const chatId = state.chatId ?? crypto.randomUUID()
     ;(async () => {
       try {
+        // DECK: draw one styled slide per slide (deckGenerate loops flyer-art).
+        if (state.deckSlides && state.deckSlides.length) {
+          const res = await generateDeck({
+            slides: state.deckSlides,
+            templateId: state.templateId,
+            brandId: state.brandId,
+            roundId, chatId,
+            onProgress: (p) => setDeckProg({ done: p.done, total: p.total }),
+          })
+          if (!res.made) { setErr(res.firstError || 'None of the slides could be made. You were not charged for anything that failed.'); return }
+          patch({ roundId, chatId })
+          router.replace('/design/results')
+          return
+        }
+
+        // Everything else: one design (or one batch of sizes).
         const r = await fetch('/api/flyer-art', {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
@@ -106,8 +124,10 @@ export default function MakingScreen() {
       <div style={{ width: 'min(560px,100%)', textAlign: 'center' }}>
         {/* progress heading */}
         <div style={{ width: 48, height: 48, borderRadius: '50%', border: `4px solid ${INK}`, borderTopColor: 'transparent', margin: '0 auto 16px', animation: 'design-spin 0.9s linear infinite' }} />
-        <h1 style={{ fontSize: 22, color: INK, margin: '0 0 4px' }}>Designing your artwork…</h1>
-        <p style={{ fontSize: 13.5, color: SOFT, margin: '0 0 6px' }}>Each size is made from scratch. Please keep this page open.</p>
+        <h1 style={{ fontSize: 22, color: INK, margin: '0 0 4px' }}>
+          {deckProg ? `Restyling your deck — slide ${Math.min(deckProg.done + 1, deckProg.total)} of ${deckProg.total}…` : 'Designing your artwork…'}
+        </h1>
+        <p style={{ fontSize: 13.5, color: SOFT, margin: '0 0 6px' }}>Each slide is made from scratch. Please keep this page open.</p>
         <p style={{ fontSize: 13, color: INK, fontWeight: 600, margin: '0 0 22px' }}>
           While you wait, here’s a little about our other AI-powered business products.
         </p>

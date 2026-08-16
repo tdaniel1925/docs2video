@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import type { FlyerFields, PhotoRole } from '../../_lib/flyer-engine'
+import type { DeckSlide } from '../../_lib/deck-split'
 
 /**
  * THE JOB, CARRIED ACROSS FOUR PAGES.
@@ -39,6 +40,15 @@ export type WizardState = {
   note: string
   sizes: string[]
   /**
+   * DECK RESTYLE. When the user uploads a deck to restyle, its parsed slides live
+   * here (ordered, with image-only flagged). Its presence flips the deck flow on:
+   * the content chat is skipped, sizes are fixed to slide-16x9, and Start draws
+   * one styled slide per slide instead of one design.
+   */
+  deckSlides: DeckSlide[] | null
+  /** The uploaded deck's file name, for showing back ("From MyDeck.pptx"). */
+  deckName: string | null
+  /**
    * Full-bleed for PRINT sizes: the artwork runs past the trim edge so cutting
    * leaves no white sliver. Only applies to printable (inch) sizes; ignored for
    * on-screen sizes. Undefined until the user chooses on the sizes step.
@@ -66,7 +76,7 @@ const KEY = 'text2art:wizard'
 
 const EMPTY: WizardState = {
   kind: null, templateId: null, reference: null, referenceOwned: false, brandId: null,
-  photos: [], fields: {}, note: '', sizes: [], bleed: false, roundId: null, chatId: null, cleared: false,
+  photos: [], fields: {}, note: '', sizes: [], deckSlides: null, deckName: null, bleed: false, roundId: null, chatId: null, cleared: false,
 }
 
 function load(): WizardState {
