@@ -99,20 +99,30 @@ export async function POST(req: Request) {
     if (dlErr || !file) { await refund(); return NextResponse.json({ error: 'Could not read that design.' }, { status: 500 }) }
     const original = Buffer.from(await file.arrayBuffer())
 
-    // THE MASK MUST MATCH THE PICTURE EXACTLY. The browser draws over whatever
-    // size the design happens to be displayed at — a few hundred pixels wide —
-    // while the design itself may be several thousand. A mismatch is rejected
-    // by the API with a message no customer could act on, so it is resized here
-    // where the real dimensions are known.
     const meta = await sharp(original).metadata()
+    const w = meta.width ?? 1024, h = meta.height ?? 1024
+
+    // THE API ONLY ACCEPTS THREE EDIT SIZES. images.edit rejects arbitrary
+    // dimensions — only 1024x1024, 1024x1536 (portrait) or 1536x1024 (landscape).
+    // A 1640x624 Facebook cover sent as "1640x624" was silently refused, which
+    // showed up to the customer as "try a larger area" — nothing they could act
+    // on, and the real reason a spot-edit on any non-square design always failed.
+    // So: pick the supported size whose SHAPE is closest, send the image + mask
+    // stretched to exactly that, then scale the result back to the true size.
+    const editSize: '1024x1024' | '1024x1536' | '1536x1024' =
+      w / h > 1.2 ? '1536x1024' : h / w > 1.2 ? '1024x1536' : '1024x1024'
+    const [ew, eh] = editSize.split('x').map(Number)
+
+    const imageForEdit = await sharp(original).resize(ew, eh, { fit: 'fill' }).png().toBuffer()
+
+    // THE MASK MUST MATCH WHAT WE SEND. The browser draws over the small on-screen
+    // preview; resize the mask to the same edit size as the image, not the design's
+    // true pixels (that mismatch is what the API rejected).
     const maskPng = await sharp(Buffer.from(mask.split(',')[1] ?? '', 'base64'))
-      .resize(meta.width, meta.height, { fit: 'fill' })
+      .resize(ew, eh, { fit: 'fill' })
       .png()
       .toBuffer()
 
-    // The edit endpoint has its own size limits, so the design goes in at a
-    // workable size and the result is scaled back to the original dimensions —
-    // the customer's file must not shrink because they changed one corner of it.
     const res = await ai().images.edit({
       model: MODEL,
       prompt:
@@ -120,9 +130,9 @@ export async function POST(req: Request) {
         'Everything outside that area must stay exactly as it is — same layout, same lettering, same colours. ' +
         'Blend the change into its surroundings so the edit is invisible: matching light, matching shadow, matching grain and style. ' +
         'Do not add, move, respell or restyle any text anywhere in the image.',
-      image: await toFile(original, 'design.png', { type: 'image/png' }),
+      image: await toFile(imageForEdit, 'design.png', { type: 'image/png' }),
       mask: await toFile(maskPng, 'mask.png', { type: 'image/png' }),
-      size: `${meta.width}x${meta.height}` as '1024x1024',
+      size: editSize,
       quality: 'high',
       n: 1,
     })
