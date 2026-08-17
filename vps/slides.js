@@ -293,9 +293,18 @@ function scrubSlidePlan(w, u) {
     out = out
       .replace(/(^|\s)\+?\s*(?:iii|ii|iv|vi)\b/gi, '$1')   // orphaned version fragments ("+ III")
       .replace(/(^|\s)\+(?=\s|$)/g, '$1')
+      // ORPHAN CLEANUP — removing a carrier NAME strands the bits that clung to it:
+      //  "Mutual of Omaha's plan" → "'s plan"  → drop the leading possessive
+      //  "an [Product] strategy"  → "an  strategy" (double space handled below), but
+      //  "An [Product]" as a whole heading → "An" — a dangling article with nothing
+      //  after it. Strip a stranded leading possessive, and drop a trailing/leading
+      //  article/preposition left with no noun. Deterministic, not grammar-rebuilding.
+      .replace(/(^|[\s([{])['’]s\b/gi, '$1')                       // leading "'s"
+      .replace(/\b(an?|the|with|of|by|for|from|to|and)[\s]*$/i, '') // trailing dangling word
+      .replace(/^[\s]*(an?|the|with|of|by|for|from|to|and)[\s]*$/i, '') // whole string == one article
       .replace(/\s{2,}/g, ' ').replace(/\s+([.,!?;:])/g, '$1')
       .replace(/([.,!?;:])\1+/g, '$1')
-    return out.replace(/^[\s—–\-,;:]+|[\s—–\-,;:]+$/g, '').replace(/^([a-z])/, (m) => m.toUpperCase()).trim()
+    return out.replace(/^[\s—–\-,;:'’]+|[\s—–\-,;:]+$/g, '').replace(/^([a-z])/, (m) => m.toUpperCase()).trim()
   }
   // scrubbing can empty a CRITICAL field (intro line, title, a slide heading);
   // a blank renders as a broken slide, so fall back to a neutral generic phrase.
@@ -349,7 +358,9 @@ function scrubSlidePlan(w, u) {
 // ⚠ KEEP IN SYNC with app/_lib/compliance.ts smoothScrubbed().
 async function smoothScrubbedSlides(w) {
   const pairs = (w && w.__scrubbed) || []
-  const changed = pairs.filter((p) => p.after && /[a-z]/i.test(p.after) && p.after.split(/\s+/).length > 1)
+  // include 1-word results too — a scrubbed heading can collapse to a lone dangling
+  // article ("An") that still needs repair/removal.
+  const changed = pairs.filter((p) => p.after && /[a-z]/i.test(p.after))
   if (!changed.length) return w
   try {
     const list = changed.map((p, i) => `${i}. ${p.after}`).join('\n')

@@ -157,6 +157,9 @@ export function scrubComplianceText(input: string, extraTokens: string[] = []): 
     // orphaned version fragments after a name removal ("+ III", "II", "+")
     .replace(/(^|\s)\+?\s*(?:iii|ii|iv|vi)\b/gi, '$1')
     .replace(/(^|\s)\+(?=\s|$)/g, '$1')
+    // stranded possessive: removing "Mutual of Omaha" from "Mutual of Omaha's plan"
+    // leaves "'s plan" — drop the orphaned "'s" (mirror of vps/slides.js clean()).
+    .replace(/(^|[\s([{])['’]s\b/gi, '$1')
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+([.,!?;:])/g, '$1')
     .replace(/([.,!?;:])\1+/g, '$1')
