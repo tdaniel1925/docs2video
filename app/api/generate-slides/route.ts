@@ -36,6 +36,37 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
 
+  // THE CLOSING CONTACT is the AGENT'S, never our platform. If the caller didn't
+  // pass a footer, build one from the agent's profile in priority order:
+  // website → calendly → phone → email → company. Only fall back further if the
+  // agent has set literally nothing. (Bug this fixes: the footer was defaulting
+  // to docs2video.com on the client-facing closing slide.)
+  let contactFooter: string | undefined = (footer || '').toString().trim() || undefined
+  let profilePreparer: string | undefined
+  if (!contactFooter || !preparer) {
+    const { data: prof } = await admin
+      .from('profiles')
+      .select('full_name, company_name, phone, calendly_url, email, payment_link_url')
+      .eq('id', user.id).maybeSingle()
+    const p = prof as Record<string, string | null> | null
+    profilePreparer = (p?.full_name || p?.company_name || undefined) as string | undefined
+    if (!contactFooter && p) {
+      const fmtPhone = (raw?: string | null) => {
+        const d = (raw || '').replace(/\D/g, '')
+        if (d.length === 11 && d.startsWith('1')) return `(${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`
+        if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`
+        return raw || ''
+      }
+      contactFooter =
+        (p.payment_link_url && p.payment_link_url.replace(/^https?:\/\//, '')) ||
+        (p.calendly_url && p.calendly_url.replace(/^https?:\/\//, '')) ||
+        (p.phone ? fmtPhone(p.phone) : '') ||
+        p.email ||
+        p.company_name ||
+        undefined
+    }
+  }
+
   // create the videos row the UI will poll for progress.
   const { data: video, error: insErr } = await admin
     .from('videos')
@@ -63,7 +94,7 @@ export async function POST(request: Request) {
     const res = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-slides`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
-      body: JSON.stringify({ videoId, userId: user.id, fileBase64, fileName, text, url, preparer, recipient, music, glass, footer, accent, logoUrl, musicUrl }),
+      body: JSON.stringify({ videoId, userId: user.id, fileBase64, fileName, text, url, preparer: preparer || profilePreparer, recipient, music, glass, footer: contactFooter, accent, logoUrl, musicUrl }),
       signal: AbortSignal.timeout(30000),
     })
     if (!res.ok) throw new Error(`VPS ${res.status}: ${(await res.text()).slice(0, 160)}`)

@@ -475,8 +475,16 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   // shows. Only the AUDIENCE-NAME FALLBACK can accidentally be the carrier, so
   // that fallback (and only it) is suppressed when regulated.
   const chromeRecipient = recipient || (!regulated && u.audiences && u.audiences[0] && u.audiences[0].name) || null
-  const chrome = { company: preparer, logo, recipient: chromeRecipient, footer: footer || 'docs2video.com', glass: glass || 'vivid' }
-  const ctaContact = (w.cta && w.cta.contact) || (source.url ? new URL(source.url).hostname.replace(/^www\./, '') : null)
+  // The footer + closing contact are the AGENT'S, NEVER our platform. The caller
+  // (app) builds `footer` from the agent's profile (website/calendly/phone/email/
+  // company). Fall back to the agent's own company/name — never docs2video.com,
+  // which is our brand and has no business on a client-facing insurance video.
+  const agentContact = footer || preparer || (u.brand && u.brand.company) || null
+  const chrome = { company: preparer, logo, recipient: chromeRecipient, footer: agentContact, glass: glass || 'vivid' }
+  // Closing CTA contact: prefer a real contact the writer found in the source,
+  // then the agent's own footer/contact — but NEVER the source URL if it is ours
+  // or empty. This is what stops "docs2video.com" appearing on the last slide.
+  const ctaContact = (w.cta && w.cta.contact) || agentContact || null
   const doc = { title: w.title, look, chrome, intro: { ...w.intro, preparer, recipient }, cta: { line: (w.cta && w.cta.line) || 'Get started today', contact: ctaContact }, scenes }
   // presenter headshot (opt-in). photoPlacement: cover|closing|both|none|auto.
   // The photo is staged as brand-presenter.png by the caller; we set placement flags.
