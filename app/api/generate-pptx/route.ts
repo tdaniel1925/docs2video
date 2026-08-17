@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { deductCredits, CREDIT_COSTS, checkCredits } from '../../_lib/credits'
+import { deductCredits, CREDIT_COSTS, checkCredits, refundVideoCredits } from '../../_lib/credits'
 import { logError } from '../../_lib/error-logger'
 import { buildSimpleSlidePrompt, getStylePrompt } from '../../_lib/slide-engine/simple-prompt'
 import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
@@ -59,12 +59,14 @@ export async function POST(request: Request) {
     }, { status: 402 })
   }
 
+  let charged = false
   try {
     // Deduct credits
     const deducted = await deductCredits(user.id, CREDIT_COSTS.pptx, 'pptx', videoId, `PPTX generation: ${videoId}`)
     if (!deducted) {
       return NextResponse.json({ error: 'Failed to deduct credits' }, { status: 402 })
     }
+    charged = true
 
     // Update status
     await admin.from('videos').update({
@@ -305,6 +307,8 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error(`[generate-pptx ${videoId}] Error:`, err)
     logError('generate-pptx', err, { videoId, userId: user.id })
+    // Refund credits — generation failed, customer got no file. Idempotent.
+    if (charged) await refundVideoCredits(user.id, CREDIT_COSTS.pptx, videoId)
     const message = err instanceof Error ? err.message : 'PPTX generation failed'
     await admin.from('videos').update({
       status: 'failed',

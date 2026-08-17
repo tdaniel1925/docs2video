@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { checkCredits, deductCredits, addTopupCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { SLIDE_STYLES } from '../../_lib/types'
 import type { Brand } from '../../_lib/types'
 
@@ -103,6 +103,21 @@ export async function POST(request: Request) {
   const admin = createAdminClient()
   const timestamp = Date.now()
 
+  // Refund guard: this route has no video row, so refund via top-up with a
+  // NULL videoId + a string idempotency key (a string job-key into the uuid
+  // videoId param would silently swallow the refund). Flag-guarded so any
+  // failure path refunds at most once.
+  let refunded = false
+  const refundCard = async () => {
+    if (refunded) return
+    refunded = true
+    await addTopupCredits(user.id, COST, 'refund:card', {
+      idempotencyKey: `refund:card:${user.id}:${timestamp}`,
+      action: 'refund_card',
+      videoId: null as any,
+    })
+  }
+
   const hasLogo = !!(logoBuffer || logoUrl)
 
   const colorInstruction = logoBuffer
@@ -161,29 +176,34 @@ ${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
     })
   }
 
-  const frontResponse = await genai.models.generateContent({
-    model: 'gemini-3-pro-image-preview',
-    contents: [{ role: 'user', parts: frontParts }],
-    config: {
-      responseFormat: {
-        image: {
-          aspectRatio: '16:9',
-          imageSize: '4K',
-        },
-      },
-    } as any,
-  })
-
-  const frontResponseParts = frontResponse.candidates?.[0]?.content?.parts ?? []
   let frontBuffer: Buffer | null = null
-  for (const rp of frontResponseParts) {
-    if (rp.inlineData) {
-      frontBuffer = Buffer.from(rp.inlineData.data!, 'base64')
-      break
+  try {
+    const frontResponse = await genai.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: [{ role: 'user', parts: frontParts }],
+      config: {
+        responseFormat: {
+          image: {
+            aspectRatio: '16:9',
+            imageSize: '4K',
+          },
+        },
+      } as any,
+    })
+
+    const frontResponseParts = frontResponse.candidates?.[0]?.content?.parts ?? []
+    for (const rp of frontResponseParts) {
+      if (rp.inlineData) {
+        frontBuffer = Buffer.from(rp.inlineData.data!, 'base64')
+        break
+      }
     }
+  } catch (err) {
+    console.error('[generate-business-card] Front generation error:', err)
   }
 
   if (!frontBuffer) {
+    await refundCard()
     return NextResponse.json({ error: 'Failed to generate business card front' }, { status: 500 })
   }
 
@@ -239,29 +259,34 @@ ${hasLogo ? '- Feature the provided logo prominently' : ''}
     })
   }
 
-  const backResponse = await genai.models.generateContent({
-    model: 'gemini-3-pro-image-preview',
-    contents: [{ role: 'user', parts: backParts }],
-    config: {
-      responseFormat: {
-        image: {
-          aspectRatio: '16:9',
-          imageSize: '4K',
-        },
-      },
-    } as any,
-  })
-
-  const backResponseParts = backResponse.candidates?.[0]?.content?.parts ?? []
   let backBuffer: Buffer | null = null
-  for (const rp of backResponseParts) {
-    if (rp.inlineData) {
-      backBuffer = Buffer.from(rp.inlineData.data!, 'base64')
-      break
+  try {
+    const backResponse = await genai.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: [{ role: 'user', parts: backParts }],
+      config: {
+        responseFormat: {
+          image: {
+            aspectRatio: '16:9',
+            imageSize: '4K',
+          },
+        },
+      } as any,
+    })
+
+    const backResponseParts = backResponse.candidates?.[0]?.content?.parts ?? []
+    for (const rp of backResponseParts) {
+      if (rp.inlineData) {
+        backBuffer = Buffer.from(rp.inlineData.data!, 'base64')
+        break
+      }
     }
+  } catch (err) {
+    console.error('[generate-business-card] Back generation error:', err)
   }
 
   if (!backBuffer) {
+    await refundCard()
     return NextResponse.json({ error: 'Failed to generate business card back' }, { status: 500 })
   }
 

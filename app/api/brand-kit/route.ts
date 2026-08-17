@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { checkCredits, deductCredits, addTopupCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import Anthropic from '@anthropic-ai/sdk'
 import { GoogleGenAI } from '@google/genai'
@@ -313,6 +313,18 @@ OUTPUT: Pure white background (#FFFFFF), centered composition, high resolution, 
       if (jobId) await updateJobProgress(admin, jobId, 10 + i * 20, 'running')
     }
 
+    // Every logo attempt failed — customer got nothing. Refund the charge
+    // (no video row: NULL videoId + string idempotency key) and return an error.
+    if (images.length === 0) {
+      await addTopupCredits(user.id, CREDIT_COSTS['brand-kit'], 'refund:brandkit', {
+        idempotencyKey: `refund:brandkit:${user.id}:${timestamp}`,
+        action: 'refund_brandkit',
+        videoId: null as any,
+      })
+      if (jobId) await updateJobProgress(admin, jobId, 100, 'failed')
+      return NextResponse.json({ error: 'Logo generation failed. Your credits were not charged.' }, { status: 500 })
+    }
+
     if (jobId) await updateJobProgress(admin, jobId, 100, 'completed')
 
     return NextResponse.json({ images })
@@ -368,9 +380,22 @@ OUTPUT: Pure white background (#FFFFFF), centered, high resolution, square forma
         return NextResponse.json({ images: [url] })
       }
 
+      // No image — refund the charge (no video row: NULL videoId + string key).
+      await addTopupCredits(user.id, CREDIT_COSTS['brand-kit'], 'refund:brandkit', {
+        idempotencyKey: `refund:brandkit:${user.id}:${timestamp}`,
+        action: 'refund_brandkit',
+        videoId: null as any,
+      })
       return NextResponse.json({ error: 'No image generated' }, { status: 500 })
     } catch (err) {
       console.error('[brand-kit] Refine error:', err)
+      // Refund on failure. Idempotent on the same string key, so the no-image
+      // path above and this catch never double-refund.
+      await addTopupCredits(user.id, CREDIT_COSTS['brand-kit'], 'refund:brandkit', {
+        idempotencyKey: `refund:brandkit:${user.id}:${timestamp}`,
+        action: 'refund_brandkit',
+        videoId: null as any,
+      })
       return NextResponse.json(
         { error: err instanceof Error ? err.message : 'Refine failed' },
         { status: 500 }
@@ -665,6 +690,19 @@ STRICT RULES:
       }
     } catch (err) {
       console.error('[brand-kit] Brand guide failed:', err)
+    }
+
+    // If every Gemini asset failed (cards + all socials + guide empty), the
+    // customer got nothing but the emailSignatureHtml (which is free/static).
+    // Refund the charge (no video row: NULL videoId + string key) and error out.
+    if (!cardFront && !cardBack && socialImages.length === 0 && !guideUrl) {
+      await addTopupCredits(user.id, CREDIT_COSTS['brand-kit'], 'refund:brandkit', {
+        idempotencyKey: `refund:brandkit:${user.id}:${timestamp}`,
+        action: 'refund_brandkit',
+        videoId: null as any,
+      })
+      if (jobId) await updateJobProgress(admin, jobId, 100, 'failed')
+      return NextResponse.json({ error: 'Brand kit asset generation failed. Your credits were not charged.' }, { status: 500 })
     }
 
     if (jobId) await updateJobProgress(admin, jobId, 95, 'running')
