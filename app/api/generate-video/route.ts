@@ -14,7 +14,7 @@ import { buildEditorialPayload } from '../../_lib/editorial-render'
 import { buildPresenter, resolvePhotoPlacement, isPersonProfile } from '../../_lib/presenter'
 import { cleanRecipientName } from '../../_lib/text-format'
 import { resolveClientName, resolveAgentName, buildOpeningNarration } from '../../_lib/personalize'
-import { isRegulated, scrubComplianceText, productTokens } from '../../_lib/compliance'
+import { isRegulated, scrubComplianceText, productTokens, smoothScrubbed } from '../../_lib/compliance'
 import { speakable } from '../../_lib/tts'
 import { waitUntil } from '@vercel/functions'
 import { logError } from '../../_lib/error-logger'
@@ -625,7 +625,18 @@ export async function POST(request: Request) {
         (policyData as any)?.title, (policyData as any)?.carrier, (policyData as any)?.policyType,
         ...(Array.isArray((policyData as any)?.bulletPoints) ? (policyData as any).bulletPoints : []),
       )
-      const clean = (s: unknown) => typeof s === 'string' ? scrubComplianceText(s, tokens) : s
+      // record every string the scrub CHANGED so smoothScrubbed() can re-smooth the
+      // gaps word-removal leaves ("an strategy", "so let's it up") — BOTH spoken
+      // narration AND on-screen title/headline/bullets/stat-labels. This one block
+      // feeds EVERY downstream engine (slides default, V3, editorial, legacy, Inngest),
+      // so smoothing here fixes the voice-stumble bug across all of them at once.
+      const scrubPairs: { before: string; after: string }[] = []
+      const clean = (s: unknown) => {
+        if (typeof s !== 'string') return s
+        const after = scrubComplianceText(s, tokens)
+        if (after && after !== s && /[a-z]/i.test(after) && after.split(/\s+/).length > 1) scrubPairs.push({ before: s, after })
+        return after
+      }
       scenes = scenes.map((sc: any) => ({
         ...sc,
         title: clean(sc.title),
@@ -638,6 +649,27 @@ export async function POST(request: Request) {
           stats: Array.isArray(sc.slideData.stats) ? sc.slideData.stats.map((st: any) => ({ ...st, label: clean(st.label) })) : sc.slideData.stats,
         } : sc.slideData,
       }))
+      // ONE cheap model pass over just the changed strings → repaired English, BEFORE
+      // any TTS/render/payload build below. Rejects rewrites that re-add a name or drop
+      // a figure (inside smoothScrubbed). Then swap each broken string for its repair.
+      try {
+        const repaired = await smoothScrubbed(scrubPairs)   // Map<after, smoothed>
+        if (repaired.size) {
+          const fix = (s: unknown) => (typeof s === 'string' && repaired.has(s)) ? repaired.get(s)! : s
+          scenes = scenes.map((sc: any) => ({
+            ...sc,
+            title: fix(sc.title),
+            narration: fix(sc.narration),
+            slidePrompt: fix(sc.slidePrompt),
+            slideData: sc.slideData ? {
+              ...sc.slideData,
+              headline: fix(sc.slideData.headline),
+              bullets: Array.isArray(sc.slideData.bullets) ? sc.slideData.bullets.map(fix) : sc.slideData.bullets,
+              stats: Array.isArray(sc.slideData.stats) ? sc.slideData.stats.map((st: any) => ({ ...st, label: fix(st.label) })) : sc.slideData.stats,
+            } : sc.slideData,
+          }))
+        }
+      } catch { /* best-effort — scrubbed text still ships */ }
     }
 
     // Save script revision
@@ -1043,7 +1075,10 @@ export async function POST(request: Request) {
           videoId, userId: user.id, voiceId,
           text: JSON.stringify(policyData),   // the extracted document data (structured); the VPS comprehends it
           brief: slidesBrief || undefined,    // approved brief → writer steering (parity with preview)
-          preparer: effectiveBrandName || (body as any).companyName || 'docs2video',
+          // NEVER 'docs2video' — this is the client-facing preparer on the closing
+          // slide. Empty string lets the VPS fall back to the AGENT'S own profile
+          // contact (its own logic), never our platform name.
+          preparer: effectiveBrandName || (body as any).companyName || '',
           recipient: recipientName || undefined,
           music: undefined, musicUrl: musicUrl || undefined,
           glass: 'vivid',

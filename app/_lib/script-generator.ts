@@ -5,7 +5,7 @@ import { detectIndustry, classifyIndustryLLM, INDUSTRIES, type IndustryId } from
 import { getPrompt } from './prompts'
 import { fitSourceData } from './source-data-fitter'
 import { withRetry } from './with-retry'
-import { CARRIER_BLOCKLIST } from './compliance'
+import { CARRIER_BLOCKLIST, smoothScrubbed } from './compliance'
 
 let _claude: Anthropic | null = null
 function getClaude() {
@@ -988,8 +988,14 @@ NARRATION ↔ SLIDE CORRESPONDENCE (every scene):
         // Dedupe and sort by length (longest first to avoid partial matches)
         const uniqueVars = [...new Set(variations)].sort((a, b) => b.length - a.length)
 
+        // record what the strip CHANGED so we can re-smooth the gaps below (deleting
+        // a name from a HEADLINE leaves "An Starting Point"; narration keeps "the
+        // carrier the carrier" fragments). Repair with the shared smoother BEFORE the
+        // script is returned + voiced.
+        const smoothPairs: { before: string; after: string }[] = []
         for (const scene of scenes) {
           if (scene.narration) {
+            const beforeN = scene.narration
             for (const v of uniqueVars) {
               if (v.length > 2) {
                 const regex = new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
@@ -1002,17 +1008,30 @@ NARRATION ↔ SLIDE CORRESPONDENCE (every scene):
               .replace(/the carrier the carrier/gi, 'the carrier')
               .replace(/\s{2,}/g, ' ')
               .trim()
+            if (scene.narration && scene.narration !== beforeN && scene.narration.split(/\s+/).length > 1) smoothPairs.push({ before: beforeN, after: scene.narration })
           }
           if (scene.slideData?.headline) {
+            const beforeH = scene.slideData.headline
             for (const v of uniqueVars) {
               if (v.length > 2) {
                 scene.slideData.headline = scene.slideData.headline.replace(new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '')
               }
             }
             scene.slideData.headline = scene.slideData.headline.replace(/\s{2,}/g, ' ').trim()
+            if (scene.slideData.headline && scene.slideData.headline !== beforeH && scene.slideData.headline.split(/\s+/).length > 1) smoothPairs.push({ before: beforeH, after: scene.slideData.headline })
           }
         }
         console.log(`[script-gen] Stripped ${uniqueVars.length} carrier/product names from narration: ${uniqueVars.join(', ')}`)
+        // re-smooth the broken narration + headlines (never re-adds a name / drops a figure)
+        try {
+          const repaired = await smoothScrubbed(smoothPairs)
+          if (repaired.size) {
+            for (const scene of scenes) {
+              if (scene.narration && repaired.has(scene.narration)) scene.narration = repaired.get(scene.narration)!
+              if (scene.slideData?.headline && repaired.has(scene.slideData.headline)) scene.slideData.headline = repaired.get(scene.slideData.headline)!
+            }
+          }
+        } catch { /* best-effort */ }
       }
 
         // Remove entire scenes that are about the carrier (not the policy)

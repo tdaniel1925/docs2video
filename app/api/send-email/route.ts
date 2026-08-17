@@ -72,7 +72,10 @@ export async function POST(request: Request) {
   if (infographicId) {
     const { data: ig } = await supabase.from('infographics').select('*').eq('id', infographicId).single()
     if (ig) {
-      infographicUrl = ig.image_url
+      // the raw storage image is used ONLY as the email's preview thumbnail — NEVER
+      // as the click target. There is no branded infographic viewer page yet, so the
+      // CTA points at the app's branded infographics page instead of a bare file URL.
+      infographicUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3001'}/infographics`
       thumbnailUrl = ig.image_url
       title = ig.title ?? title
     }

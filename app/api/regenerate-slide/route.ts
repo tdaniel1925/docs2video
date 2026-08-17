@@ -4,6 +4,7 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { buildSlidePrompt, extractLogoColors } from '../../_lib/slide-engine/prompt-builder'
 import { getTemplateSpec } from '../../_lib/slide-engine/templates'
 import type { SlideContent, BrandColors } from '../../_lib/slide-engine/types'
+import { isRegulated, scrubComplianceText, productTokens, smoothScrubbed } from '../../_lib/compliance'
 import OpenAI from 'openai'
 
 export const runtime = 'nodejs'
@@ -44,6 +45,35 @@ export async function POST(request: Request) {
 
   if (!policyData) {
     return NextResponse.json({ error: 'No content data found for regeneration' }, { status: 400 })
+  }
+
+  // The stored video.script is persisted PRE-scrub (generate-video saves it before
+  // the compliance pass), so a regulated scene can still carry a raw carrier/product
+  // name. Scrub → smooth the fields we're about to render onto the new slide PNG, so
+  // a regenerated slide never re-introduces a name its siblings had removed.
+  if (scene && isRegulated(policyData, (policyData as any)?.classification?.documentType)) {
+    const tokens = productTokens((policyData as any)?.title, (policyData as any)?.carrier, (policyData as any)?.policyType)
+    const pairs: { before: string; after: string }[] = []
+    const clean = (s: unknown) => {
+      if (typeof s !== 'string') return s
+      const after = scrubComplianceText(s, tokens)
+      if (after && after !== s && /[a-z]/i.test(after) && after.split(/\s+/).length > 1) pairs.push({ before: s, after })
+      return after
+    }
+    scene.title = clean(scene.title)
+    scene.subtitle = clean(scene.subtitle)
+    scene.slidePrompt = clean(scene.slidePrompt)
+    if (Array.isArray(scene.bullets)) scene.bullets = scene.bullets.map((b: any) => typeof b === 'string' ? clean(b) : (b && { ...b, text: clean(b.text) }))
+    if (Array.isArray(scene.stats)) scene.stats = scene.stats.map((st: any) => st && { ...st, label: clean(st.label) })
+    if (Array.isArray(scene.keyMetrics)) scene.keyMetrics = scene.keyMetrics.map((m: any) => m && { ...m, label: clean(m.label) })
+    try {
+      const repaired = await smoothScrubbed(pairs)
+      if (repaired.size) {
+        const fix = (s: unknown) => (typeof s === 'string' && repaired.has(s)) ? repaired.get(s)! : s
+        scene.title = fix(scene.title); scene.subtitle = fix(scene.subtitle); scene.slidePrompt = fix(scene.slidePrompt)
+        if (Array.isArray(scene.bullets)) scene.bullets = scene.bullets.map((b: any) => typeof b === 'string' ? fix(b) : (b && { ...b, text: fix(b.text) }))
+      }
+    } catch { /* best-effort */ }
   }
 
   // Get brand info
