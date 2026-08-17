@@ -942,7 +942,12 @@ export default function PublicWatchPage() {
   /* ================================================================ */
   // On client-facing share page, show company name first, then personal name
   const hasAgentIdentity = !!(agent?.company_name || agent?.full_name)
-  const agentName = agent?.company_name ?? agent?.full_name ?? video.title ?? 'Your Personalized Presentation'
+  // The PERSON comes first on a client-facing share page — an insurance client is
+  // meeting Michele, not "Valor". Company is shown as the secondary line under the
+  // name (and in the banner we lead with the person). Fall back to company only if
+  // there's no full_name. (Was company-first, which showed "prepared for you by
+  // Valor" and "Valor / Valor" on the agent card.)
+  const agentName = agent?.full_name ?? agent?.company_name ?? video.title ?? 'Your Personalized Presentation'
   // The client this video was prepared for — powers the welcome banner. Prefer
   // the recorded recipient_name; fall back to the quote's client name.
   const clientName = ((video.recipient_name || quote?.client_name || '') as string).trim()
