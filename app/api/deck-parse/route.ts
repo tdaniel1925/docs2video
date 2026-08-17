@@ -34,16 +34,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Upload a PowerPoint (.pptx) or PDF deck.' }, { status: 400 })
   }
 
-  try {
-    const buf = Buffer.from(await file.arrayBuffer())
-    let split: DeckSplit
+  const buf = Buffer.from(await file.arrayBuffer())
+  let split: DeckSplit
 
-    if (isPptx) {
+  if (isPptx) {
+    // PPTX: split in-app. A corrupt/old .ppt or a non-pptx zip throws here.
+    try {
       const rawSlides = await extractPptxSlides(buf)
       split = buildDeckSplit(rawSlides)
-    } else {
-      // PDF → per-page slides via Claude's native PDF support.
-      const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || '' })
+    } catch (e) {
+      console.error('[deck-parse] pptx extract failed:', e instanceof Error ? e.message : e)
+      // .ppt (old binary format) isn't a zip → JSZip fails. Tell the user precisely.
+      const isOldPpt = (file.name || '').toLowerCase().endsWith('.ppt')
+      return NextResponse.json({
+        error: isOldPpt
+          ? 'That looks like an old-format .ppt. Open it in PowerPoint and "Save As" a modern .pptx, then upload again.'
+          : 'That PowerPoint could not be read. Re-save it as .pptx (or export it as a PDF) and try again.',
+      }, { status: 422 })
+    }
+  } else {
+    // PDF → per-page slides via Claude's native PDF support.
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error('[deck-parse] no ANTHROPIC_API_KEY set')
+      return NextResponse.json({ error: 'PDF reading is temporarily unavailable. Try a .pptx instead.' }, { status: 503 })
+    }
+    let rawText = '{}'
+    try {
+      const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
       const res = await claude.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 4096,
@@ -56,15 +73,25 @@ export async function POST(request: Request) {
           ],
         }],
       })
-      const rawText = res.content[0]?.type === 'text' ? res.content[0].text : '{}'
-      const parsed = JSON.parse(rawText.replace(/^```json?\n?/i, '').replace(/\n?```$/i, '').trim()) as { slides?: { heading?: string; bullets?: string[] }[] }
-      // Rebuild each slide's raw text ("heading\nbullet\nbullet") and feed the
-      // SAME normaliser the PPTX path uses, so image-only detection + cap match.
-      const rawSlides = (parsed.slides ?? []).map((s) =>
-        [s.heading ?? '', ...(s.bullets ?? [])].filter(Boolean).join('\n'))
-      split = buildDeckSplit(rawSlides)
+      rawText = res.content[0]?.type === 'text' ? res.content[0].text : '{}'
+    } catch (e) {
+      // Anthropic API error (rate limit, credit, PDF too big/unsupported).
+      console.error('[deck-parse] anthropic PDF read failed:', e instanceof Error ? e.message : e)
+      return NextResponse.json({ error: 'We could not read that PDF. It may be too large or scanned — try a .pptx, or a text-based PDF.' }, { status: 422 })
     }
+    let parsed: { slides?: { heading?: string; bullets?: string[] }[] }
+    try {
+      parsed = JSON.parse(rawText.replace(/^```json?\n?/i, '').replace(/\n?```$/i, '').trim())
+    } catch (e) {
+      console.error('[deck-parse] PDF JSON parse failed. rawText head:', rawText.slice(0, 200))
+      return NextResponse.json({ error: 'We could not make sense of that PDF. Try re-exporting it, or upload a .pptx.' }, { status: 422 })
+    }
+    const rawSlides = (parsed.slides ?? []).map((s) =>
+      [s.heading ?? '', ...(s.bullets ?? [])].filter(Boolean).join('\n'))
+    split = buildDeckSplit(rawSlides)
+  }
 
+  try {
     if (!split.slides.length) {
       return NextResponse.json({ error: 'We could not read any slides from that file. Is it a real deck?' }, { status: 422 })
     }

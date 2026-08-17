@@ -108,17 +108,30 @@ function DeckRestyle({ deckSlides, deckName, patch }: {
 
   const onFile = async (file: File | undefined) => {
     if (!file) return
+    // quick client-side guards so a bad/huge file fails INSTANTLY with a message
+    // instead of spinning on "Reading your deck…" forever.
+    const nm = (file.name || '').toLowerCase()
+    const okType = nm.endsWith('.pptx') || nm.endsWith('.ppt') || nm.endsWith('.pdf') || file.type === 'application/pdf'
+    if (!okType) { setErr('Upload a PowerPoint (.pptx) or PDF deck.'); return }
+    if (file.size > 40 * 1024 * 1024) { setErr('That file is over 40MB — try a smaller one.'); return }
     setErr(''); setTruncated(false); setBusy(true)
+    // hard timeout so the spinner can NEVER hang forever (server cap is 120s;
+    // give the round-trip a little more, then abort with a clear message).
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 130_000)
     try {
       const fd = new FormData(); fd.append('file', file)
-      const r = await fetch('/api/deck-parse', { method: 'POST', body: fd })
+      const r = await fetch('/api/deck-parse', { method: 'POST', body: fd, signal: ctrl.signal })
       const data = await r.json().catch(() => ({}))
       if (!r.ok) { setErr(data?.error || 'Could not read that deck.'); return }
       patch({ deckSlides: data.slides as DeckSlide[], deckName: data.name as string })
       setTruncated(Boolean(data.truncated))
-    } catch {
-      setErr('Something went wrong reading the file.')
+    } catch (e) {
+      setErr((e as any)?.name === 'AbortError'
+        ? 'That took too long to read. Try a smaller deck, or export it again as a PDF.'
+        : 'Something went wrong reading the file.')
     } finally {
+      clearTimeout(timer)
       setBusy(false)
       if (fileRef.current) fileRef.current.value = ''
     }
