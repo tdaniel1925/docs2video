@@ -36,19 +36,32 @@ const CLAUDE_MODELS = {
 }
 // claude(system, user, maxTokens, opts?) — opts: { model, cache }
 //  model: one of CLAUDE_MODELS values (default WRITE for back-comfort with old callers)
-//  cache: true → mark the (large, static) system prompt as a prompt-cache breakpoint so
-//         repeated identical system prompts across videos bill at ~10% after first hit.
+//  system: EITHER a plain string, OR { staticPrefix, dynamicSuffix } to enable
+//    PREFIX caching WITHOUT changing what the model reads. The prefix (large, static,
+//    identical every call) becomes a cached system block; the suffix (per-video brief/
+//    compliance) is a second plain block right after it. Concatenated they are byte-
+//    identical to the old single string → zero behaviour change, but the big prefix
+//    now bills at ~10% on repeat. Anthropic only CREATES a breakpoint at ≥~1024 tokens
+//    (~4KB chars); below that the header is silently ignored, so we gate on 4KB.
+//  cache: true → attempt caching (string form caches the whole thing if ≥4KB).
 async function claude(system, user, maxTokens, opts = {}) {
   const model = opts.model || CLAUDE_MODELS.WRITE
-  // System-as-blocks lets us attach cache_control. Anthropic only CREATES a cache
-  // breakpoint when the block is ≥~1024 tokens (~4KB chars) — below that the header
-  // is silently ignored. Gate on 4KB so we only flag prompts that actually cache
-  // (the commercial writer/critique/review blocks qualify; the small slides prompts
-  // don't, and are correctly sent plain).
-  const useCache = opts.cache && typeof system === 'string' && system.length >= 4096
-  const systemField = useCache
-    ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }]
-    : system
+  let systemField = system
+  let useCache = false
+  if (system && typeof system === 'object' && typeof system.staticPrefix === 'string') {
+    // split form: cache the static prefix, append the dynamic suffix plain.
+    const prefix = system.staticPrefix, suffix = system.dynamicSuffix || ''
+    if (opts.cache && prefix.length >= 4096) {
+      systemField = [{ type: 'text', text: prefix, cache_control: { type: 'ephemeral' } }]
+      if (suffix) systemField.push({ type: 'text', text: suffix })
+      useCache = true
+    } else {
+      systemField = prefix + suffix   // too small to cache → send plain, unchanged content
+    }
+  } else if (opts.cache && typeof system === 'string' && system.length >= 4096) {
+    systemField = [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }]
+    useCache = true
+  }
   const headers = { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }
   if (useCache) headers['anthropic-beta'] = 'prompt-caching-2024-07-31'
   const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -200,7 +213,10 @@ async function writerFromUnderstanding(u, shotPaths, regulated, brief) {
     if (brief.tone) parts.push(`- TONE: ${brief.tone}`)
     briefBlock = parts.join('\n')
   }
-  const sys = `You are an intelligent creative DIRECTOR + SCRIPTWRITER building an ANIMATED EXPLAINER DECK (~90-120s, works like a talking PowerPoint). You get a COMPLETE researched UNDERSTANDING. Tell the WHOLE story faithfully.
+  // STATIC PREFIX — identical on EVERY slide video → this is what gets prompt-cached.
+  // Keep all per-video/conditional text OUT of here (screenshots/brief/compliance go
+  // in the dynamic suffix below) so the cached bytes never change.
+  const staticPrefix = `You are an intelligent creative DIRECTOR + SCRIPTWRITER building an ANIMATED EXPLAINER DECK (~90-120s, works like a talking PowerPoint). You get a COMPLETE researched UNDERSTANDING. Tell the WHOLE story faithfully.
 
 Each content scene is a SLIDE: a TOPIC HEADING plus SUPPORTING CONTENT (2-4 bullets, or data/comparison cards, or a chart, or a screenshot) that back up the voice. Sound-off, a viewer still gets the point. Bullets/cards reveal one-by-one AS the narrator speaks them.
 
@@ -216,13 +232,18 @@ RULES:
 - Multiple audiences → each gets its own mini-section (audience header + 2-3 benefit slides), both proportional.
 - EVERY content slide MUST have real blocks — never a bare heading.
 - Use cards for pricing tiers/comparisons (vs:true for 2-card, accent:true winner). For a FINANCIAL ILLUSTRATION: figures-heavy — key_numbers → figure blocks + comparison cards; personalize to the recipient.
-${shotPaths.length ? `- SCREENSHOTS (REQUIRED): use "screenshot" blocks on 2-3 slides. Page paths (use EXACTLY): ${shotPaths.join(', ')}. 1-2 pins each (x,y % 0-100) with label+cue.` : `- NO screenshots available (document/text source) — do NOT emit screenshot blocks.`}
 - CUES: for every bullet/card/pin, "cue" = a short verbatim substring of THAT scene's narration. Bullets' cues in speaking order.
 - Identity-neutral imagery (NO people). Compliance: never promise returns; illustrations are illustrated/hypothetical, not guaranteed.
-- Faithful + complete for every audience.${briefBlock}${regulated ? SLIDE_COMPLIANCE_CLAUSE : ''}`
-  // writer = the creative/structured slide-plan generation → WRITE tier (quality
-  // matters most here). Big static director/schema system prompt is cached.
-  return extractJson(await claude(sys, 'UNDERSTANDING:\n' + JSON.stringify(u, null, 2), 12000, { model: claude.MODELS.WRITE, cache: true }))
+- Faithful + complete for every audience.`
+  // DYNAMIC SUFFIX — per-video bits (screenshots present?, approved brief, regulated
+  // clause). NOT cached; appended right after the prefix so the model reads the exact
+  // same combined prompt as before.
+  const dynamicSuffix = '\n' +
+    (shotPaths.length ? `- SCREENSHOTS (REQUIRED): use "screenshot" blocks on 2-3 slides. Page paths (use EXACTLY): ${shotPaths.join(', ')}. 1-2 pins each (x,y % 0-100) with label+cue.` : `- NO screenshots available (document/text source) — do NOT emit screenshot blocks.`) +
+    briefBlock + (regulated ? SLIDE_COMPLIANCE_CLAUSE : '')
+  // writer = creative/structured slide-plan generation → WRITE tier. The big static
+  // director/schema prefix is prompt-cached; the small dynamic suffix rides plain.
+  return extractJson(await claude({ staticPrefix, dynamicSuffix }, 'UNDERSTANDING:\n' + JSON.stringify(u, null, 2), 12000, { model: claude.MODELS.WRITE, cache: true }))
 }
 
 function figFromKeyNumber(kn) {
