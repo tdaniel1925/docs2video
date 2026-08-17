@@ -52,6 +52,17 @@ rm -rf "$DIR/remotion/src" && cp -r "$TMP/remotion/src" "$DIR/remotion/src"
 mkdir -p "$DIR/remotion/public/sfx"
 cp -f "$TMP"/remotion/public/sfx/*.wav "$DIR/remotion/public/sfx/" 2>/dev/null || true
 cp -f "$TMP"/remotion/public/sfx/*.mp3 "$DIR/remotion/public/sfx/" 2>/dev/null || true
+# BUNDLE-REQUIRED JSON METADATA — several compositions IMPORT these at the TOP of
+# the bundle (public/cinematic/durations.json, public/*/beatgrid.json, etc.).
+# Remotion bundles ALL compositions together, so ONE missing import fails the
+# WHOLE bundle at setup-cache and EVERY render (slides included) crashes before a
+# frame is drawn. This copy was missing — the real cause of slide-render failures.
+for j in "$TMP"/remotion/public/*/durations.json "$TMP"/remotion/public/*/beatgrid.json "$TMP"/remotion/public/*/transients.json "$TMP"/remotion/public/beatgrid.json; do
+  [ -f "$j" ] || continue
+  rel="${j#"$TMP"/remotion/public/}"
+  mkdir -p "$DIR/remotion/public/$(dirname "$rel")"
+  cp -f "$j" "$DIR/remotion/public/$rel"
+done
 # remotion/package.json must ride along so new deps (@remotion/transitions, paths)
 # get installed on the next image build. NOTE: since COPY remotion precedes
 # npm install in the Dockerfile, a package.json change needs a --no-cache build.
