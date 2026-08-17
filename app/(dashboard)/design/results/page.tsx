@@ -42,8 +42,13 @@ export default function EditStep() {
   const [problem, setProblem] = useState('')
   const [shared, setShared] = useState('')
   const [pdfBusy, setPdfBusy] = useState(false)
+  // place-an-image (logo/QR) mode
+  const [placing, setPlacing] = useState<null | 'logo' | 'qr'>(null)
+  const [overlayUrl, setOverlayUrl] = useState('')
+  const [spot, setSpot] = useState<{ x: number; y: number } | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
+  const overlayFileRef = useRef<HTMLInputElement>(null)
   const drawing = useRef(false)
 
   useEffect(() => {
@@ -102,6 +107,51 @@ export default function EditStep() {
     ctx.globalCompositeOperation = 'destination-out'
     ctx.drawImage(c, 0, 0)
     return out.toDataURL('image/png')
+  }
+
+  // Start placing a logo/QR: pick the file, then the user clicks where it goes.
+  const startPlace = (role: 'logo' | 'qr') => {
+    setBrushing(false); clearBrush(); setProblem(''); setSpot(null); setOverlayUrl('')
+    setPlacing(role)
+    overlayFileRef.current?.click()
+  }
+  const onOverlayFile = (file: File | undefined) => {
+    if (!file || !file.type.startsWith('image/')) { setPlacing(null); return }
+    const r = new FileReader()
+    r.onload = () => setOverlayUrl(String(r.result))
+    r.readAsDataURL(file)
+  }
+  // Click on the preview → record where (as a fraction of the design).
+  const pickSpot = (e: React.PointerEvent) => {
+    if (!placing || !overlayUrl) return
+    const el = imgRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    setSpot({ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height })
+  }
+  // Paste it exactly (no AI) at the chosen spot.
+  const applyPlace = async () => {
+    if (!selected || !overlayUrl || !spot) return
+    setProblem(''); setWorking(true)
+    try {
+      const res = await fetch('/api/flyer-edit', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          designId: selected.id, overlayDataUrl: overlayUrl, overlayRole: placing,
+          x: spot.x, y: spot.y, w: placing === 'qr' ? 0.16 : 0.2,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.png) { setProblem(data?.error || 'That could not be placed.'); return }
+      const updated = { ...selected, id: data.designId ?? selected.id, src: data.png }
+      setSelected(updated)
+      setDesigns((ds) => ds.map((d) => (d.id === selected.id ? updated : d)))
+      setPlacing(null); setOverlayUrl(''); setSpot(null)
+    } catch {
+      setProblem('Network error — you were not charged.')
+    } finally {
+      setWorking(false)
+    }
   }
 
   const applyChange = async () => {
@@ -264,22 +314,54 @@ export default function EditStep() {
             <img ref={imgRef} src={shown} alt={selected?.label} onLoad={sizeCanvas}
               style={{ maxWidth: '100%', maxHeight: '62vh', borderRadius: 10, background: '#111', display: 'block' }} />
             <canvas ref={canvasRef}
-              onPointerDown={(e) => { if (!brushing) return; drawing.current = true; paintAt(e) }}
+              onPointerDown={(e) => { if (placing && overlayUrl) { pickSpot(e); return } if (!brushing) return; drawing.current = true; paintAt(e) }}
               onPointerMove={(e) => { if (brushing && drawing.current) paintAt(e) }}
               onPointerUp={() => { drawing.current = false }}
               onPointerLeave={() => { drawing.current = false }}
               style={{ position: 'absolute', inset: 0, borderRadius: 10,
-                pointerEvents: brushing ? 'auto' : 'none', cursor: brushing ? 'crosshair' : 'default', touchAction: 'none' }} />
+                pointerEvents: (brushing || (placing && overlayUrl)) ? 'auto' : 'none',
+                cursor: brushing ? 'crosshair' : (placing && overlayUrl) ? 'copy' : 'default', touchAction: 'none' }} />
+            {/* where the logo/QR will land */}
+            {placing && overlayUrl && spot && (
+              <img src={overlayUrl} alt="" style={{ position: 'absolute', left: `${spot.x * 100}%`, top: `${spot.y * 100}%`,
+                width: `${(placing === 'qr' ? 16 : 20)}%`, border: '2px solid #C0392B', borderRadius: 4, pointerEvents: 'none',
+                background: placing === 'qr' ? '#fff' : 'transparent' }} />
+            )}
           </div>
+          <input ref={overlayFileRef} type="file" accept="image/*" hidden
+            onChange={(e) => { onOverlayFile(e.target.files?.[0]); e.target.value = '' }} />
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-            {!brushing ? (
+            {!brushing && !placing ? (
               <button style={plainBtn} onClick={() => setBrushing(true)}>Edit a part</button>
-            ) : (
+            ) : brushing ? (
               <button style={plainBtn} onClick={() => { clearBrush(); setBrushing(false); setProblem('') }}>Cancel edit</button>
-            )}
+            ) : null}
+            {!brushing && !placing && <button style={plainBtn} onClick={() => startPlace('qr')}>Add a QR code</button>}
+            {!brushing && !placing && <button style={plainBtn} onClick={() => startPlace('logo')}>Add a logo</button>}
+            {placing && <button style={plainBtn} onClick={() => { setPlacing(null); setOverlayUrl(''); setSpot(null); setProblem('') }}>Cancel</button>}
             {selected && <button style={plainBtn} onClick={() => downloadOne(selected)}>Download this one</button>}
           </div>
+
+          {/* PLACE A QR / LOGO — click the design, then confirm. No AI: pasted exact. */}
+          {placing && (
+            <div style={{ ...card, marginTop: 12, width: 'min(560px,100%)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, color: INK }}>
+                {!overlayUrl ? `Pick your ${placing === 'qr' ? 'QR code' : 'logo'} image` : !spot ? `Click on the design where the ${placing === 'qr' ? 'QR code' : 'logo'} should go` : 'Looks right? Place it.'}
+              </div>
+              <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.5 }}>
+                It’s pasted exactly as your file — never redrawn{placing === 'qr' ? ', so the QR still scans' : ''}. Placing it costs one design.
+              </p>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {!overlayUrl && <button style={plainBtn} onClick={() => overlayFileRef.current?.click()}>Choose file</button>}
+                <button onClick={applyPlace} disabled={working || !overlayUrl || !spot}
+                  style={{ ...primaryBtn, padding: '9px 16px', opacity: working || !overlayUrl || !spot ? 0.5 : 1 }}>
+                  {working ? 'Placing…' : 'Place it'}
+                </button>
+              </div>
+              {problem && <p style={{ fontSize: 12.5, color: '#B4432F', margin: '8px 0 0' }}>{problem}</p>}
+            </div>
+          )}
 
           {brushing && (
             <div style={{ ...card, marginTop: 12, width: 'min(560px,100%)' }}>

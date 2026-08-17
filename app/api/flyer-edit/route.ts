@@ -45,15 +45,33 @@ export async function POST(req: Request) {
     maskDataUrl?: string
     /** What to do inside that region. */
     instruction?: string
+    /**
+     * PLACE-AN-IMAGE MODE (no AI). A logo or QR code to paste onto the finished
+     * design at an exact spot — the AI never touches it, so a QR still scans.
+     * x/y/w are fractions (0–1) of the design: where the top-left goes and how
+     * wide it is. role decides the treatment (a QR gets a white quiet-zone).
+     */
+    overlayDataUrl?: string
+    overlayRole?: 'logo' | 'qr'
+    x?: number
+    y?: number
+    w?: number
   } | null
 
   const designId = String(body?.designId ?? '')
+  if (!/^[0-9a-f-]{36}$/i.test(designId)) return NextResponse.json({ error: 'Which design?' }, { status: 400 })
+
+  // Two modes: paste an image (logo/QR) at a spot, or paint-and-repaint a region.
+  const overlay = String(body?.overlayDataUrl ?? '')
+  const isOverlay = overlay.startsWith('data:image')
+
   const instruction = String(body?.instruction ?? '').trim().slice(0, 400)
   const mask = String(body?.maskDataUrl ?? '')
 
-  if (!/^[0-9a-f-]{36}$/i.test(designId)) return NextResponse.json({ error: 'Which design?' }, { status: 400 })
-  if (!instruction) return NextResponse.json({ error: 'Say what to change in that area.' }, { status: 400 })
-  if (!mask.startsWith('data:image')) return NextResponse.json({ error: 'Draw over the part you want changed first.' }, { status: 400 })
+  if (!isOverlay) {
+    if (!instruction) return NextResponse.json({ error: 'Say what to change in that area.' }, { status: 400 })
+    if (!mask.startsWith('data:image')) return NextResponse.json({ error: 'Draw over the part you want changed first.' }, { status: 400 })
+  }
 
   const admin = createAdminClient()
 
@@ -101,6 +119,52 @@ export async function POST(req: Request) {
 
     const meta = await sharp(original).metadata()
     const w = meta.width ?? 1024, h = meta.height ?? 1024
+
+    // ── PLACE-AN-IMAGE MODE (logo / QR) — pixel-exact paste, no AI ──
+    if (isOverlay) {
+      const role = body?.overlayRole === 'qr' ? 'qr' : 'logo'
+      // Clamp the position/size to sane bounds (fractions of the design).
+      const fx = Math.min(0.98, Math.max(0, Number(body?.x ?? 0.5)))
+      const fy = Math.min(0.98, Math.max(0, Number(body?.y ?? 0.5)))
+      const fw = Math.min(0.6, Math.max(0.05, Number(body?.w ?? 0.18)))
+      const boxW = Math.round(w * fw)
+      const raw = Buffer.from(overlay.split(',')[1] ?? '', 'base64')
+
+      let tile: Buffer
+      if (role === 'qr') {
+        // white quiet-zone + crisp (nearest) resize, like the generate path
+        const pad = Math.round(boxW * 0.08)
+        const qr = await sharp(raw).resize(boxW - pad * 2, boxW - pad * 2, { fit: 'contain', background: '#fff', kernel: 'nearest' }).png().toBuffer()
+        tile = await sharp({ create: { width: boxW, height: boxW, channels: 4, background: '#ffffff' } })
+          .composite([{ input: qr, gravity: 'centre' }]).png().toBuffer()
+      } else {
+        // a logo keeps its own aspect, transparent background preserved
+        tile = await sharp(raw).resize(boxW, null, { fit: 'inside' }).png().toBuffer()
+      }
+      const tMeta = await sharp(tile).metadata()
+      const left = Math.min(w - (tMeta.width ?? boxW), Math.max(0, Math.round(w * fx)))
+      const top = Math.min(h - (tMeta.height ?? boxW), Math.max(0, Math.round(h * fy)))
+
+      const placed = await sharp(original)
+        .composite([{ input: tile, top, left }])
+        .withMetadata({ density: meta.density ?? 72 })
+        .png()
+        .toBuffer()
+
+      const path = `${user.id}/flyer/${crypto.randomUUID()}.png`
+      await admin.storage.from('creation-assets').upload(path, placed, { contentType: 'image/png', upsert: true })
+      const { data: row } = await admin.from('flyer_designs').insert({
+        round_id: design.round_id, user_id: user.id,
+        size_id: design.size_id, label: design.label,
+        width: design.width, height: design.height,
+        image_path: path, credits_used: unit,
+      }).select('id').maybeSingle()
+
+      return NextResponse.json({
+        designId: row?.id ?? null,
+        png: `data:image/png;base64,${placed.toString('base64')}`,
+      })
+    }
 
     // THE API ONLY ACCEPTS THREE EDIT SIZES. images.edit rejects arbitrary
     // dimensions — only 1024x1024, 1024x1536 (portrait) or 1536x1024 (landscape).
