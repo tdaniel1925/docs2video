@@ -4,6 +4,8 @@ import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { logError } from '../../_lib/error-logger'
 import { videoServiceUrl } from '../../_lib/video-service'
+import { checkCredits, deductCredits, refundVideoCredits, calculateVideoCost } from '../../_lib/credits'
+import { safeEqual } from '../../_lib/api-auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -23,8 +25,24 @@ const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().r
  * recipient, music, glass, footer, accent, logoUrl, musicUrl.
  */
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // Internal service auth (v1 API / partner layer): those callers have already
+  // authenticated + metered the charge, so act as the resolved owner and SKIP the
+  // UI-credit deduction below. A normal user call has no valid secret → it must be
+  // credit-checked and charged. (Audit P0: this route previously did neither, so
+  // any logged-in user got unlimited FREE slide videos.)
+  const internalSecret = (process.env.INTERNAL_API_SECRET || '').trim()
+  const reqInternalSecret = (request.headers.get('x-internal-service') || '').trim()
+  const internalUserId = request.headers.get('x-internal-user-id') || ''
+  const isInternalCall = !!internalSecret && safeEqual(reqInternalSecret, internalSecret) && !!internalUserId
+
+  let user: { id: string } | null = null
+  if (isInternalCall) {
+    user = { id: internalUserId }
+  } else {
+    const supabase = await createClient()
+    const { data: auth } = await supabase.auth.getUser()
+    user = auth.user
+  }
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   let body: any
@@ -79,11 +97,36 @@ export async function POST(request: Request) {
   }
   const videoId = video.id
 
+  // CHARGE (audit P0). A normal user pays the slide-video price; an internal call
+  // (v1 API) already metered upstream and skips this. Charge AFTER the row exists
+  // (so the refund can key on videoId) but BEFORE the VPS is fired — and refund on
+  // EVERY failure path below so a user is never charged for a video that didn't run.
+  let deductedCost = 0
+  if (!isInternalCall) {
+    // slide video = a standard 'video' output; grandfathered users pay old rates via userId.
+    const cost = calculateVideoCost({ outputType: 'video', detailLevel: 'standard', userId: user.id })
+    const creditCheck = await checkCredits(user.id, cost)
+    if (!creditCheck.allowed) {
+      await admin.from('videos').update({ status: 'failed', error_message: 'Not enough credits.' }).eq('id', videoId)
+      return NextResponse.json({ error: `Not enough credits. Need ${cost}, have ${creditCheck.remaining}.`, videoId }, { status: 402 })
+    }
+    const deducted = await deductCredits(user.id, cost, 'video_generation', videoId)
+    if (!deducted) {
+      await admin.from('videos').update({ status: 'failed', error_message: 'Credit deduction failed.' }).eq('id', videoId)
+      return NextResponse.json({ error: 'Credit deduction failed. Please try again.', videoId }, { status: 402 })
+    }
+    deductedCost = cost
+    await admin.from('videos').update({ deducted_cost: cost }).eq('id', videoId)
+  }
+  // refund helper — used on every early failure after the charge.
+  const refundIfCharged = async () => { if (deductedCost > 0) await refundVideoCredits(user!.id, deductedCost, videoId).catch(() => {}) }
+
   // pre-check the VPS is up (fast) so we fail early with a clear message.
   try {
     const health = await fetch(`${VIDEO_ASSEMBLY_URL}/health`, { signal: AbortSignal.timeout(6000) })
     if (!health.ok) throw new Error(`health ${health.status}`)
   } catch (e: any) {
+    await refundIfCharged()
     await admin.from('videos').update({ status: 'failed', error_message: 'Video service is temporarily unavailable. Please try again shortly.' }).eq('id', videoId)
     return NextResponse.json({ error: 'Video service unavailable', videoId }, { status: 503 })
   }
@@ -99,6 +142,7 @@ export async function POST(request: Request) {
     })
     if (!res.ok) throw new Error(`VPS ${res.status}: ${(await res.text()).slice(0, 160)}`)
   } catch (e: any) {
+    await refundIfCharged()
     await admin.from('videos').update({ status: 'failed', error_message: 'Could not start video generation.', progress_detail: `[fail] trigger: ${e.message}`.slice(0, 500) }).eq('id', videoId)
     logError('generate-slides', e, { userId: user.id, videoId })
     return NextResponse.json({ error: 'Could not start generation', videoId }, { status: 502 })
