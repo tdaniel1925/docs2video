@@ -281,7 +281,9 @@ async function nameBrandColors(pngBuffer) {
       method: 'POST',
       headers: { 'x-api-key': KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-opus-4-8', max_tokens: 200,
+        // naming 2 hex colors from a screenshot is a trivial vision task — Haiku,
+        // not Opus. (This inline call bypasses the shared claude() helper.)
+        model: process.env.CLAUDE_MODEL_CHEAP || 'claude-haiku-4-5-20251001', max_tokens: 200,
         system: 'You identify a brand\'s color palette from a screenshot of its website. Return ONLY compact JSON: {"primary":"#rrggbb","secondary":"#rrggbb"}. primary = the brand\'s main ACCENT/identity color (the vivid one used in the logo, nav bar, buttons, headings) — NOT a neutral background. secondary = the next distinct brand color (or a complementary one). Pick real, saturated brand colors; ignore pure white/black/grey. If only one clear brand color exists, set secondary to a darker/lighter tone of primary.',
         messages: [{ role: 'user', content: [
           { type: 'image', source: { type: 'base64', media_type: 'image/png', data: b64 } },
@@ -464,7 +466,7 @@ async function smoothCommercial(spec) {
       'Rewrite each line so it reads naturally in plain English.\n' +
       'HARD RULES:\n- NEVER reintroduce a carrier, company, or branded product name.\n- NEVER add back a specific dollar amount or percentage.\n- Keep the same meaning and roughly the same length; fix duplicated words and dangling grammar.\n- If a line already reads fine, return it unchanged.\n' +
       'Reply with ONLY a JSON array of strings, in the same order, no prose or code fences.'
-    const raw = await claude(sys, list, 1500)
+    const raw = await claude(sys, list, 1500, { model: claude.MODELS.CHEAP, cache: true })
     const m = raw.match(/\[[\s\S]*\]/); if (!m) return spec
     const arr = JSON.parse(m[0]); if (!Array.isArray(arr) || arr.length !== changed.length) return spec
     // build a replacement map, rejecting any rewrite that re-adds a blocked name.
@@ -561,7 +563,7 @@ RULES:
 - The big_idea must be a real creative concept, not a restatement of 'we sell X'. If it's boring, you failed.
 - If a USER GOAL is given, the brief serves that goal above all.`
   const user = (goal ? `USER GOAL (serve this above all): ${goal}\n\n` : '') + `BRAND${brandName ? ` (${brandName})` : ''} — SOURCE UNDERSTANDING:\n` + JSON.stringify(u, null, 2)
-  try { return extractJson(await claude(sys, user, 1500)) } catch { return null }
+  try { return extractJson(await claude(sys, user, 1500, { model: claude.MODELS.REASON, cache: true })) } catch { return null }
 }
 
 // ---------- DIRECT: Claude writes the commercial spec (styleId + beats) ----------
@@ -644,7 +646,7 @@ RULES:
 - "steps" = a "how it works" timeline of 3-4 short steps — use for a process/onboarding video ("Connect → Ask → Act"). Keep step titles 2-4 words.
 - Use these NEW beat types for VARIETY when they fit — don't make every video the same shot→meet→grid→cta. Mix in bignumber/steps/showcase/chat/split where the content earns it.
 ${intentHint ? `\nINTENT HINT (honor this): the video's goal is "${intentHint}".` : ''}${regulated ? '\n' + COMPLIANCE_CLAUSE : ''}`
-  const spec = extractJson(await claude(sys, (goal ? `USER GOAL (primary brief): ${goal}\n\n` : '') + 'SOURCE FACTS (use only for accurate details):\n' + JSON.stringify(u, null, 2) + (brandName ? `\n\nBRAND NAME: ${brandName}` : '') + (intentHint ? `\n\nINTENT_HINT: ${intentHint}` : ''), 4500))
+  const spec = extractJson(await claude(sys, (goal ? `USER GOAL (primary brief): ${goal}\n\n` : '') + 'SOURCE FACTS (use only for accurate details):\n' + JSON.stringify(u, null, 2) + (brandName ? `\n\nBRAND NAME: ${brandName}` : '') + (intentHint ? `\n\nINTENT_HINT: ${intentHint}` : ''), 4500, { model: claude.MODELS.WRITE, cache: true }))
   return regulated ? scrubGuarantees(spec) : spec
 }
 
@@ -662,7 +664,7 @@ ${brief && brief.big_idea ? `Big idea: ${brief.big_idea}\n` : ''}${brief && brie
 Given the current opening beat, generate 5 DISTINCT hook options using different angles (a bold claim, a provocative question, a pain/tension, a surprising truth, a pattern-interrupt). Then PICK the single strongest one — the one that would stop a scroll and set up the whole video. Keep it to ONE spoken sentence, in the brand's voice, no ellipsis, no invented claims.
 Return ONLY JSON: {"vo":"the winning hook (one spoken sentence)","hot":"the 1-3 word phrase to highlight","kicker":"optional tiny label"}`
     const user = `CURRENT OPENING BEAT:\nvo: ${first.vo || ''}\npre: ${first.pre || ''}\nhot: ${first.hot || ''}\nsub: ${first.sub || ''}`
-    const win = extractJson(await claude(sys, user, 800))
+    const win = extractJson(await claude(sys, user, 800, { model: claude.MODELS.CHEAP, cache: true }))
     if (win && typeof win.vo === 'string' && win.vo.trim()) {
       first.vo = win.vo.trim()
       if (typeof win.hot === 'string' && win.hot.trim()) { first.hot = win.hot.trim(); first.pre = ''; first.post = '' }
@@ -693,7 +695,7 @@ ${brandName ? `• Brand: ${brandName}` : ''}
 Judge the beats below. For any beat whose VO is generic, off-voice, doesn't serve the big idea, or wouldn't make the viewer FEEL the shift — REWRITE its vo (and hot/headline if present) to be sharper, more on-voice, and true to the big idea. Keep it the same length-ish, same facts, no "..." ellipsis, no invented claims. Leave genuinely-good beats alone.
 
 Return ONLY JSON: {"beats":[{"i":<index>,"vo":"rewritten line","hot":"?","headline":"?"}]} — only beats you actually improved, only the fields you changed.`
-    const out = extractJson(await claude(sys, 'BEATS:\n' + JSON.stringify(beats, null, 2), 2500))
+    const out = extractJson(await claude(sys, 'BEATS:\n' + JSON.stringify(beats, null, 2), 2500, { model: claude.MODELS.REASON, cache: true }))
     const fixes = new Map((out.beats || []).map((f) => [f.i, f]))
     for (const b of (spec.beats || [])) {
       const f = fixes.get(spec.beats.indexOf(b)); if (!f) continue
@@ -729,7 +731,7 @@ Fix each beat's on-screen text so that:
 4. Keep it SHORT and punchy (headlines 2-6 words, sub 3-8 words). Keep the same beat kinds and structure.
 
 Return ONLY JSON: {"beats":[{"i":<index>,"kicker":?,"pre":?,"hot":?,"post":?,"sub":?,"items":[{"title":?}]?,"stats":[{"label":?}]?,"cta":{"headline":?,"button":?}?}]}. Only include fields that EXIST for that beat and only beats you CHANGED (omit unchanged beats). Do not change vo.`
-    const out = extractJson(await claude(sys, 'BEATS:\n' + JSON.stringify(beats, null, 2), 3000))
+    const out = extractJson(await claude(sys, 'BEATS:\n' + JSON.stringify(beats, null, 2), 3000, { model: claude.MODELS.REASON, cache: true }))
     const fixes = new Map((out.beats || []).map((f) => [f.i, f]))
     for (const b of (spec.beats || [])) {
       const f = fixes.get(spec.beats.indexOf(b)); if (!f) continue

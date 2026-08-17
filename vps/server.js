@@ -2012,7 +2012,7 @@ RULES:
 - If the user asks to add or mention a specific word/term (e.g. an acronym like "ICHRA"), put it on the slide AND in the narration exactly as written — do NOT drop it.
 - NEVER invent figures, names, or claims not in the original scene.
 - Keep narration natural and spoken; keep on-screen copy tight (headings short, bullets one idea each).${regulated ? '\n- COMPLIANCE: do NOT name any insurance carrier or branded product. Dollar figures and percentages are fine and should be kept.' : ''}`
-          const raw = await claude(sys, `Current scene:\n${JSON.stringify(editable, null, 2)}\n\nWording instruction: ${instruction}`, 2000)
+          const raw = await claude(sys, `Current scene:\n${JSON.stringify(editable, null, 2)}\n\nWording instruction: ${instruction}`, 2000, { model: claude.MODELS && claude.MODELS.CHEAP, cache: true })
           const cleaned = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
           const upd = JSON.parse(cleaned.slice(cleaned.indexOf('{'), cleaned.lastIndexOf('}') + 1))
           // apply back onto the real scene, keeping structure/cueFrames intact

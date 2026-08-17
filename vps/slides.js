@@ -23,16 +23,41 @@ const IMAGE_MODEL = process.env.IMAGE_MODEL || 'gemini-3-pro-image-preview'
 const FPS = 30
 
 // ---------- Anthropic (raw HTTP, no SDK) ----------
-async function claude(system, user, maxTokens) {
+// Model tiers — route each call to the CHEAPEST model that does the job well.
+// Was: everything on Opus 4.8 (~$15/$75 per M). Now:
+//  WRITE  = strong model for the creative/structured writing (slide plan, ad beats)
+//  REASON = mid model for faithful extraction + QA (comprehend, critique, review)
+//  CHEAP  = cheapest for trivial rewrites (name-scrub smoothing, color-naming, edits)
+// Override any via env without a code change.
+const CLAUDE_MODELS = {
+  WRITE: process.env.CLAUDE_MODEL_WRITE || 'claude-sonnet-4-6',
+  REASON: process.env.CLAUDE_MODEL_REASON || 'claude-sonnet-4-6',
+  CHEAP: process.env.CLAUDE_MODEL_CHEAP || 'claude-haiku-4-5-20251001',
+}
+// claude(system, user, maxTokens, opts?) — opts: { model, cache }
+//  model: one of CLAUDE_MODELS values (default WRITE for back-comfort with old callers)
+//  cache: true → mark the (large, static) system prompt as a prompt-cache breakpoint so
+//         repeated identical system prompts across videos bill at ~10% after first hit.
+async function claude(system, user, maxTokens, opts = {}) {
+  const model = opts.model || CLAUDE_MODELS.WRITE
+  // System-as-blocks lets us attach cache_control. Only worth caching a big static
+  // prompt (>~1KB); tiny/dynamic systems are sent plain.
+  const useCache = opts.cache && typeof system === 'string' && system.length > 1024
+  const systemField = useCache
+    ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }]
+    : system
+  const headers = { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }
+  if (useCache) headers['anthropic-beta'] = 'prompt-caching-2024-07-31'
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: 'claude-opus-4-8', max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }),
+    headers,
+    body: JSON.stringify({ model, max_tokens: maxTokens, system: systemField, messages: [{ role: 'user', content: user }] }),
   })
   if (!r.ok) throw new Error(`Anthropic ${r.status}: ${(await r.text()).slice(0, 200)}`)
   const j = await r.json()
   return j.content[0].text
 }
+claude.MODELS = CLAUDE_MODELS
 
 // ---------- Cloudflare Workers AI (FLUX) image generation ----------
 // The DEFAULT backdrop generator for slides: fast (~2s), free tier, reliable.
@@ -151,7 +176,10 @@ async function comprehend(sourceText, kindHint) {
   const sys = `You are a research analyst. You are given the FULL text of a source. READ ALL OF IT and produce a faithful, COMPLETE structured understanding — NOT cherry-picked. Return ONLY JSON:
 {"what_it_is":"2-3 sentences","category":"...","audiences":[{"name":"who","what_they_get":["..."],"pricing":"incl free tiers/ranges or null","value":"why they care"}],"differentiators":["..."],"core_promise":"...","key_numbers":[{"label":"...","value":"...","context":"..."}],"notable_features":["..."],"tone":"...","coverage_notes":"..."}
 RULES: Cover EVERY distinct audience and offering. Capture pricing ranges and free tiers. Do not invent. Be thorough over concise.`
-  return extractJson(await claude(sys, `SOURCE TYPE: ${kindHint}\n\nFULL SOURCE TEXT:\n${sourceText.slice(0, 120000)}`, 6000))
+  // comprehend = faithful extraction → REASON tier (not Opus). Big static system
+  // prompt is cached. Source slice trimmed 120K→48K chars (~12K tokens): plenty for
+  // faithful understanding of any normal doc, and the input was the biggest cost.
+  return extractJson(await claude(sys, `SOURCE TYPE: ${kindHint}\n\nFULL SOURCE TEXT:\n${sourceText.slice(0, 48000)}`, 6000, { model: claude.MODELS.REASON, cache: true }))
 }
 
 async function writerFromUnderstanding(u, shotPaths, regulated, brief) {
@@ -189,7 +217,9 @@ ${shotPaths.length ? `- SCREENSHOTS (REQUIRED): use "screenshot" blocks on 2-3 s
 - CUES: for every bullet/card/pin, "cue" = a short verbatim substring of THAT scene's narration. Bullets' cues in speaking order.
 - Identity-neutral imagery (NO people). Compliance: never promise returns; illustrations are illustrated/hypothetical, not guaranteed.
 - Faithful + complete for every audience.${briefBlock}${regulated ? SLIDE_COMPLIANCE_CLAUSE : ''}`
-  return extractJson(await claude(sys, 'UNDERSTANDING:\n' + JSON.stringify(u, null, 2), 12000))
+  // writer = the creative/structured slide-plan generation → WRITE tier (quality
+  // matters most here). Big static director/schema system prompt is cached.
+  return extractJson(await claude(sys, 'UNDERSTANDING:\n' + JSON.stringify(u, null, 2), 12000, { model: claude.MODELS.WRITE, cache: true }))
 }
 
 function figFromKeyNumber(kn) {
@@ -374,7 +404,7 @@ async function smoothScrubbedSlides(w) {
       '- Keep the same meaning and roughly the same length. Fix duplicated words and dangling grammar.\n' +
       '- If a line already reads fine, return it unchanged.\n' +
       'Reply with ONLY a JSON array of strings, in the same order, no prose or code fences.'
-    const raw = await claude(sys, list, 1500)
+    const raw = await claude(sys, list, 1500, { model: claude.MODELS.CHEAP, cache: true })
     const m = raw.match(/\[[\s\S]*\]/)
     if (!m) return w
     const arr = JSON.parse(m[0])
