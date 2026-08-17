@@ -317,9 +317,13 @@ const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan[
 
   // (B) CARDS slide: heading + optional bullets on top, cards as a centered
   // full-width row underneath. Cards never overlap bullets.
+  // TOP PAD 150 (was 92): the persistent chrome owns the top ~130px (logo/name
+  // top-left, "PREPARED FOR" top-right). Content starting at 92 rode UP into the
+  // agent name — the overlap in the shipped slides. Start below the chrome, and
+  // top-align so a tall heading grows DOWN into the empty middle, never up.
   if (cardsB) {
     return (
-      <AbsoluteFill style={{ flexDirection: 'column', justifyContent: 'center', alignItems, gap: SL(46), padding: '92px 84px 110px', overflow: 'hidden' }}>
+      <AbsoluteFill style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems, gap: SL(40), padding: '150px 84px 96px', overflow: 'hidden' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: SL(26), alignItems, maxWidth: 1760, width: '100%' }}>
           {Heading}{Bullets}
         </div>
@@ -337,7 +341,9 @@ const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan[
   const sideBySide = Media && bulletB && media !== 'below'
   if (sideBySide) {
     return (
-      <AbsoluteFill style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start', gap: SL(40), padding: '96px 100px 120px', overflow: 'hidden' }}>
+      // TOP PAD 150 + top-align: clear the persistent chrome so the heading never
+      // rides up into the agent name (see the cards-layout note).
+      <AbsoluteFill style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: SL(40), padding: '150px 100px 110px', overflow: 'hidden' }}>
         {Heading}
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: SL(56), width: '100%' }}>
           {/* wide text column */}
@@ -350,8 +356,10 @@ const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan[
   }
 
   // (D) plain vertical stack (bullets below heading, or media below)
+  // TOP PAD 150 + top-align: clear the persistent chrome (see the cards note) so
+  // the heading can't collide with the agent name top-left.
   return (
-    <AbsoluteFill style={{ flexDirection: 'column', justifyContent: 'center', alignItems, gap: SL(40), padding: '96px 90px 120px', overflow: 'hidden' }}>
+    <AbsoluteFill style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems, gap: SL(40), padding: '150px 90px 110px', overflow: 'hidden' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: SL(30), alignItems, maxWidth: 1760, width: '100%' }}>
         {Heading}{Bullets}
       </div>
