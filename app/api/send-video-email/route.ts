@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    const senderName = profile?.company_name || profile?.full_name || 'Your agent'
+    const senderName = profile?.full_name || profile?.company_name || 'Your agent'
     const senderEmail = profile?.email || user.email || ''
     const videoTitle = video.title || 'Video Explainer'
     const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.docs2video.com'}/watch/${video.id}`

@@ -999,7 +999,11 @@ async function generateCommercial({ pub, url, text, brandName, music, forceStyle
     introFrames: 90, duck: { loud: 0.2, duck: 0.08 }, bug: true,
     beats,
   }
-  for (const b of props.beats) if (b.kind === 'cta' && b.cta && !b.cta.url && domain) b.cta.url = domain
+  // Inject the scraped source domain as the CTA url ONLY for non-regulated content.
+  // On a regulated (insurance/financial) client-facing closing frame, showing a
+  // scraped source hostname is wrong — the CTA should be "contact your agent",
+  // never a source domain — so leave cta.url empty when regulated.
+  for (const b of props.beats) if (b.kind === 'cta' && b.cta && !b.cta.url && domain && !regulated) b.cta.url = domain
 
   const propsPath = join(pub, `commercial-${videoId || assetDir}-props.json`)
   await writeFile(propsPath, JSON.stringify(props))

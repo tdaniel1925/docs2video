@@ -44,9 +44,10 @@ export async function POST(request: Request) {
   try {
     const pdfDoc = await PDFDocument.create()
 
-    pdfDoc.setTitle(title ?? 'Docs2Video Export')
-    pdfDoc.setCreator('Docs2Video')
-    pdfDoc.setProducer('Docs2Video')
+    const deckTitle = title?.trim() || 'Presentation'
+    pdfDoc.setTitle(deckTitle)
+    pdfDoc.setCreator(deckTitle)
+    pdfDoc.setProducer(deckTitle)
 
     for (const url of imageUrls) {
       try {
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
     return new NextResponse(Buffer.from(pdfBytes), {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${(title ?? 'Docs2Video-Export').replace(/[^a-zA-Z0-9-_ ]/g, '')}.pdf"`,
+        'Content-Disposition': `attachment; filename="${(deckTitle || 'Presentation').replace(/[^a-zA-Z0-9-_ ]/g, '') || 'Presentation'}.pdf"`,
       },
     })
   } catch (err) {

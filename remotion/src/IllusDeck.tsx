@@ -289,12 +289,20 @@ const Timeline: React.FC = () => {
 }
 
 // ── 6 · Next ───────────────────────────────────────────────────────────────
-const CONTACT = [
-  { label: 'CALL', value: '1-555-014-2200' },
-  { label: 'EMAIL', value: 'trent@example.com' },
-  { label: 'ONLINE', value: 'example.com' },
-]
-const Next: React.FC = () => {
+export type IllusContact = { phone?: string; email?: string; website?: string }
+
+/** Last-resort placeholders only — real contact should come from the prop. */
+const CONTACT_FALLBACK: Required<IllusContact> = {
+  phone: '1-555-014-2200',
+  email: 'trent@example.com',
+  website: 'example.com',
+}
+const Next: React.FC<{ contact?: IllusContact }> = ({ contact }) => {
+  const CONTACT = [
+    { label: 'CALL', value: contact?.phone || CONTACT_FALLBACK.phone },
+    { label: 'EMAIL', value: contact?.email || CONTACT_FALLBACK.email },
+    { label: 'ONLINE', value: contact?.website || CONTACT_FALLBACK.website },
+  ]
   const head = useRise(8)
   const r = [useRise(56, 12), useRise(70, 12), useRise(84, 12)]
   return (
@@ -320,9 +328,11 @@ const Next: React.FC = () => {
   )
 }
 
-const SCENES = [Cover, Premium, Growth, Benefits, Timeline, Next]
+const SCENES = [Cover, Premium, Growth, Benefits, Timeline]
 
-export const IllusDeck: React.FC = () => (
+export type IllusDeckProps = { contact?: IllusContact }
+
+export const IllusDeck: React.FC<IllusDeckProps> = ({ contact }) => (
   <AbsoluteFill style={{ backgroundColor: NAVY }}>
     <Series>
       {SCENES.map((S, i) => (
@@ -330,6 +340,9 @@ export const IllusDeck: React.FC = () => (
           <S />
         </Series.Sequence>
       ))}
+      <Series.Sequence durationInFrames={LEN[5]}>
+        <Next contact={contact} />
+      </Series.Sequence>
     </Series>
   </AbsoluteFill>
 )

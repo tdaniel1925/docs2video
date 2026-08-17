@@ -51,7 +51,10 @@ export async function POST(request: Request) {
     const pptx = new PptxGenJS()
     pptx.defineLayout({ name: 'CUSTOM', width: 13.33, height: 7.5 })
     pptx.layout = 'CUSTOM'
-    pptx.title = title ?? 'Docs2Video Export'
+    const deckTitle = title?.trim() || 'Presentation'
+    pptx.title = deckTitle
+    pptx.author = deckTitle
+    pptx.company = deckTitle
 
     for (let i = 0; i < imageUrls.length; i++) {
       try {
@@ -82,7 +85,7 @@ export async function POST(request: Request) {
 
     const pptxBuffer = await pptx.write({ outputType: 'nodebuffer' }) as Buffer
 
-    const filename = (title ?? 'Docs2Video-Export').replace(/[^a-zA-Z0-9-_ ]/g, '')
+    const filename = deckTitle.replace(/[^a-zA-Z0-9-_ ]/g, '') || 'Presentation'
     return new NextResponse(new Uint8Array(pptxBuffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',

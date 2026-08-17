@@ -260,7 +260,10 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       const r = await api(`/api/v1/videos?${qs.toString()}`)
       const rows = r.videos || []
       if (!rows.length) return toolOk('No videos found.')
-      const lines = rows.map((v) => `• ${v.title || '(untitled)'} — ${v.status}${v.video_url ? ` — ${v.video_url}` : ''}  [${v.id}]`)
+      const lines = rows.map((v) => {
+        const link = v.status === 'completed' ? ` — ${BASE_URL}/watch/${v.id}` : ''
+        return `• ${v.title || '(untitled)'} — ${v.status}${link}  [${v.id}]`
+      })
       return toolOk(`${rows.length} video(s):\n\n${lines.join('\n')}`)
     }
 

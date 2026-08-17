@@ -68,7 +68,7 @@ export function buildEmailTemplate(options: {
 
   <!-- Footer -->
   <tr><td style="background:#fafafa;padding:16px 32px;text-align:center;">
-    <p style="margin:0;font-size:11px;color:#aaa;">Powered by Docs2Video</p>
+    <p style="margin:0;font-size:11px;color:#aaa;">Sent by ${agentName}</p>
   </td></tr>
 </table>
 ${trackingPixelUrl ? `<img src="${trackingPixelUrl}" width="1" height="1" style="display:none;" />` : ''}

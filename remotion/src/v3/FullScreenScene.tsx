@@ -64,7 +64,7 @@ export const FullScreenScene: React.FC<{
   // are for supporting variety.
   const align: Record<Placement, React.CSSProperties> = {
     bottom: { justifyContent: 'flex-end', alignItems: 'center', textAlign: 'center', padding: '0 200px 120px' },
-    top: { justifyContent: 'flex-start', alignItems: 'center', textAlign: 'center', padding: '120px 200px 0' },
+    top: { justifyContent: 'flex-start', alignItems: 'center', textAlign: 'center', padding: '150px 200px 0' },
     left: { justifyContent: 'center', alignItems: 'flex-start', textAlign: 'left', padding: '0 130px' },
     right: { justifyContent: 'center', alignItems: 'flex-end', textAlign: 'right', padding: '0 130px' },
     center: { justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '0 220px' },

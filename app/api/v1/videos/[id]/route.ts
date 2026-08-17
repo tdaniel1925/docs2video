@@ -60,7 +60,7 @@ export async function GET(
     // For presentations video_url holds the raw HTML artifact — the client-
     // facing deliverable is the share page (plays inline, action buttons).
     video_url: isPresentation ? null : (data.video_url ?? null),
-    share_url: isPresentation && data.status === 'completed' ? `${BASE_URL}/watch/${data.id}` : null,
+    share_url: data.status === 'completed' ? `${BASE_URL}/watch/${data.id}` : null,
     deck_pdf_url: outputType === 'interactive' && data.status === 'completed' ? `${BASE_URL}/api/public/deck-pdf/${data.id}` : null,
     thumbnail_url: data.thumbnail_url ?? null,
     slide_urls: data.slide_urls ?? null,

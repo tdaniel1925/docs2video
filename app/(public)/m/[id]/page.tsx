@@ -30,12 +30,20 @@ interface Video {
   title: string | null
 }
 
+interface Agent {
+  full_name: string | null
+  company_name: string | null
+  photo_url: string | null
+  email: string | null
+}
+
 const BASE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://docs2video.com'
 
 export default function MarketingWatchPage() {
   const params = useParams()
   const [contact, setContact] = useState<CampaignContact | null>(null)
   const [campaign, setCampaign] = useState<Campaign | null>(null)
+  const [agent, setAgent] = useState<Agent | null>(null)
   const [video, setVideo] = useState<Video | null>(null)
   const [notFound, setNotFound] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -63,6 +71,7 @@ export default function MarketingWatchPage() {
       if (!data?.contact) { setNotFound(true); return }
       setContact(data.contact)
       if (data.campaign) setCampaign(data.campaign)
+      if (data.agent) setAgent(data.agent)
       if (data.video) setVideo(data.video)
 
       // Track analytics view once (server already recorded video_watched_at).
@@ -107,13 +116,33 @@ export default function MarketingWatchPage() {
 
   const signupUrl = `/signup?email=${encodeURIComponent(contact.email)}&ref=${encodeURIComponent(campaign?.discount_code ?? '')}`
 
+  // Brand the page to the sending agent: person name first, then company,
+  // then a neutral phrase. Never fall back to our platform name.
+  const agentName = agent?.full_name?.trim() || agent?.company_name?.trim() || 'Your video'
+  const agentSecondary =
+    agent?.full_name?.trim() && agent?.company_name?.trim() ? agent.company_name!.trim() : null
+
   return (
     <div style={rootStyle}>
       <style>{pageCSS}</style>
 
-      {/* Header */}
+      {/* Header — branded to the sending agent, not our platform */}
       <header style={headerStyle}>
-        <h1 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: '#1a1a1a' }}>Docs2Video</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+          {agent?.photo_url && (
+            <img
+              src={agent.photo_url}
+              alt={agentName}
+              style={{ width: 40, height: 40, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }}
+            />
+          )}
+          <div style={{ minWidth: 0 }}>
+            <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: '#1a1a1a', lineHeight: 1.2 }}>{agentName}</h1>
+            {agentSecondary && (
+              <span style={{ fontSize: 12, color: '#888' }}>{agentSecondary}</span>
+            )}
+          </div>
+        </div>
         <span style={{ fontSize: 12, color: '#888' }}>Personalized for {contact.name}</span>
       </header>
 
@@ -246,7 +275,7 @@ export default function MarketingWatchPage() {
       {/* Footer */}
       <footer style={footerStyle}>
         <p style={{ fontSize: 11, color: '#999', margin: 0 }}>
-          Docs2Video -- Turn any document into a professional video explainer.
+          {agentName}
           <br />
           <a href="/privacy" style={{ color: '#999' }}>Privacy Policy</a>
           {!contact.unsubscribed && (

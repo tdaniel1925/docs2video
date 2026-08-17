@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation'
 export default function UnsubscribePage() {
   const params = useParams()
   const [status, setStatus] = useState<'loading' | 'done' | 'error'>('loading')
+  const [brandName, setBrandName] = useState<string | null>(null)
 
   useEffect(() => {
     async function unsub() {
@@ -13,6 +14,10 @@ export default function UnsubscribePage() {
       try {
         // Server endpoint (service role) — anon can no longer write this table.
         const res = await fetch(`/api/public/unsubscribe/${contactId}`, { method: 'POST' })
+        if (res.ok) {
+          const body = await res.json().catch(() => null)
+          setBrandName(body?.brand?.name ?? null)
+        }
         setStatus(res.ok ? 'done' : 'error')
       } catch {
         setStatus('error')
@@ -60,11 +65,11 @@ export default function UnsubscribePage() {
             </p>
           </>
         )}
-        <div style={{ marginTop: 24 }}>
-          <a href="https://docs2video.com" style={{ fontSize: 13, color: '#888', textDecoration: 'none' }}>
-            Docs2Video
-          </a>
-        </div>
+        {brandName && (
+          <div style={{ marginTop: 24 }}>
+            <span style={{ fontSize: 13, color: '#888' }}>{brandName}</span>
+          </div>
+        )}
       </div>
     </div>
   )
