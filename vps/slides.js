@@ -40,9 +40,12 @@ const CLAUDE_MODELS = {
 //         repeated identical system prompts across videos bill at ~10% after first hit.
 async function claude(system, user, maxTokens, opts = {}) {
   const model = opts.model || CLAUDE_MODELS.WRITE
-  // System-as-blocks lets us attach cache_control. Only worth caching a big static
-  // prompt (>~1KB); tiny/dynamic systems are sent plain.
-  const useCache = opts.cache && typeof system === 'string' && system.length > 1024
+  // System-as-blocks lets us attach cache_control. Anthropic only CREATES a cache
+  // breakpoint when the block is ≥~1024 tokens (~4KB chars) — below that the header
+  // is silently ignored. Gate on 4KB so we only flag prompts that actually cache
+  // (the commercial writer/critique/review blocks qualify; the small slides prompts
+  // don't, and are correctly sent plain).
+  const useCache = opts.cache && typeof system === 'string' && system.length >= 4096
   const systemField = useCache
     ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }]
     : system
