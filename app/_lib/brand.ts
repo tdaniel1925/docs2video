@@ -102,6 +102,7 @@ export const TEXT2ART: Brand = {
   // sizes → generate & spot-edit); the old one-page /flyer still works directly.
   nav: [
     { href: '/design', label: 'Designs' },
+    { href: '/library', label: 'My Library' },
     { href: '/brands', label: 'Brands' },
   ],
   create: null,
