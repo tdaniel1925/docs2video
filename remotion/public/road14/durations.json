@@ -1,0 +1,34 @@
+{
+  "vo": [
+    5.381134,
+    6.270454,
+    6.176553,
+    6.130113,
+    5.944354,
+    5.619274,
+    5.852494,
+    5.561202,
+    5.944354,
+    6.873152
+  ],
+  "lines": [
+    "The fortune is in the follow-up. Most people say yes after the second or third touch.",
+    "Rule one: always schedule the follow-up before you leave the conversation. Never leave it open.",
+    "Rule two: follow up when you say you will. Reliability builds the trust that closes.",
+    "When it's time to close, keep it simple. Ask: are you ready to get started today?",
+    "Then stay quiet, and let them answer. The first person to speak usually decides.",
+    "If yes, walk them through enrollment right then, step by step, so they never get stuck.",
+    "If not yet, that's fine — set the next follow-up and keep the door open warmly.",
+    "The moment someone joins, welcome them and start their first forty-eight hours immediately.",
+    "A good close isn't pressure — it's simply helping someone make a decision they already want.",
+    "Now they're on your team. Next, we learn to duplicate — to copy this with them. Let's go."
+  ],
+  "panels": {
+    "1": "schedule",
+    "2": "reliable",
+    "3": "ask",
+    "4": "quiet",
+    "5": "enroll",
+    "6": "notyet"
+  }
+}

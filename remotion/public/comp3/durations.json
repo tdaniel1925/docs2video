@@ -1,0 +1,43 @@
+{
+  "vo": [
+    3.761633,
+    4.318912,
+    5.572789,
+    5.479909,
+    5.387029,
+    5.24771,
+    6.176508,
+    5.897868,
+    6.919546,
+    6.037188,
+    5.804989,
+    6.501587,
+    6.408707
+  ],
+  "lines": [
+    "This is the Apex Insurance ladder — for licensed life-insurance agents.",
+    "Here you're paid a commission on the first-year premium of every policy you write.",
+    "Your commission rate rises with your rank — from fifty percent, all the way up to ninety.",
+    "There are seven ranks, from Pre-Associate to M.G.A., each with a higher rate.",
+    "You climb by production and by quality — writing consistent, well-placed business.",
+    "You're contracted directly with top carriers — so your commissions are paid straight to you.",
+    "And the business you write is yours. You own your book — it stays with you as you grow.",
+    "Build a team, and you earn overrides on their production, six generations deep.",
+    "Here's an example. You recruit five agents, they each build, and your team grows to twenty.",
+    "If each writes around five thousand a month in premium, your overrides can reach about seventy-five hundred a month.",
+    "Stay consistent, and a weekly production bonus rewards you on top — one to four percent.",
+    "Reach M.G.A. and build your own shop, and a quarterly recruiting bonus pays up to six thousand.",
+    "That's the Insurance ladder — higher rates as you rank, a book you own, and overrides on your team."
+  ],
+  "panels": {
+    "2": "range",
+    "3": "inranks",
+    "5": "carriers",
+    "6": "ownbook",
+    "7": "gens",
+    "8": "exteam",
+    "9": "ex7500",
+    "10": "weekly",
+    "11": "recruit"
+  }
+}

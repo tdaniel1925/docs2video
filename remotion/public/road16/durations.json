@@ -1,0 +1,34 @@
+{
+  "vo": [
+    5.990794,
+    5.758594,
+    5.665714,
+    4.133197,
+    5.572834,
+    5.572834,
+    5.479955,
+    6.362313,
+    5.944354,
+    6.037234
+  ],
+  "lines": [
+    "You've learned the whole system. Now let's talk about climbing — ranking up and earning more.",
+    "Every rank has a target: your own personal volume, plus your team's group volume.",
+    "Hit both, and you promote — unlocking deeper levels of override income on your team.",
+    "The higher your rank, the more levels of your organization you get paid on.",
+    "Each new rank also pays a one-time bonus, a reward for the milestone you reached.",
+    "On the insurance side, staying productive can trigger extra weekly and team bonuses too.",
+    "One simple habit drives it all: a little personal production every single month.",
+    "Consistency is the whole game. Small steps, repeated, become big ranks over time.",
+    "You now have the full roadmap — from day one, to your first sale, to leading a team.",
+    "So take that first step, and keep climbing. Welcome to Apex — we'll see you at the top."
+  ],
+  "panels": {
+    "1": "targets",
+    "2": "unlock",
+    "3": "levels",
+    "4": "bonus",
+    "5": "extra",
+    "6": "habit"
+  }
+}

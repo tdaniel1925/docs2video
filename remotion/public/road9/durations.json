@@ -1,0 +1,34 @@
+{
+  "vo": [
+    4.598617,
+    8.127029,
+    5.801859,
+    6.222993,
+    5.758594,
+    5.154875,
+    4.272517,
+    5.016576,
+    6.315873,
+    6.501633
+  ],
+  "lines": [
+    "Let's make the compensation plan simple — just what it means for your paycheck.",
+    "One term to know: B.V., or Business Volume. For each product, Apex designates a Business Volume.",
+    "That B.V. is simply the amount your commission is based on. That's all you need to remember.",
+    "You get paid two ways. First, a commission on the B.V. of everything you personally sell.",
+    "Second, override income — a share that comes back to you as your team sells too.",
+    "As you rank up, you earn on more levels of your team, and your share grows.",
+    "Reach new ranks and you also unlock one-time bonuses along the way.",
+    "One simple rule to stay qualified: keep a little personal volume each month.",
+    "That's it. Sell, build a team, rank up. The plan rewards all three.",
+    "Now you know what you're building. Next, we learn how to actually find people. Let's go."
+  ],
+  "panels": {
+    "1": "bv",
+    "3": "personal",
+    "4": "override",
+    "5": "ranks",
+    "6": "bonuses",
+    "7": "qualify"
+  }
+}

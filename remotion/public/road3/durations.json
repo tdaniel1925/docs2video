@@ -1,0 +1,34 @@
+{
+  "vo": [
+    4.411837,
+    6.037234,
+    7.106372,
+    7.51771,
+    5.610998,
+    5.852494,
+    5.378254,
+    6.594512,
+    5.619274,
+    5.197959
+  ],
+  "lines": [
+    "Let's take a tour of your back office — your command center for the whole business.",
+    "This is your home base. Everything you need to run and grow your Apex business lives right here.",
+    "First, your dashboard. It shows your progress at a glance — your rank, your volume, and your next goal.",
+    "Next, your team view. See everyone you've brought in and everyone they've brought in, all in one tree.",
+    "Your compensation section breaks down exactly how you earn and what you've earned so far.",
+    "Your commissions page shows every payment, clearly itemized, so you always know where you stand.",
+    "The products area is where you find everything you can offer, ready to share with a click.",
+    "And the training center — right here — holds this whole roadmap and every resource you'll need.",
+    "Spend a few minutes clicking around. The more familiar it feels, the faster you'll move.",
+    "That's your back office. Next, we'll help you choose your path. Let's keep going."
+  ],
+  "panels": {
+    "2": "dashboard",
+    "3": "team",
+    "4": "comp",
+    "5": "commissions",
+    "6": "products",
+    "7": "training"
+  }
+}

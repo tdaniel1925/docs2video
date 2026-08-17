@@ -1,0 +1,35 @@
+{
+  "vo": [
+    5.897914,
+    9.334467,
+    8.870068,
+    7.291111,
+    8.03415,
+    7.430431,
+    9.659546,
+    7.75551,
+    9.520227,
+    9.566667
+  ],
+  "lines": [
+    "In this episode, we'll get you fully enrolled and set up — so you're ready to earn from day one.",
+    "Apex is referral-based. You joined through the link of the person who introduced you — that's your sponsor, and they're on your team to help you win.",
+    "When you signed up, you chose your path: licensed, or non-licensed. Both are welcome — it simply sets which ladder you start on.",
+    "If you're not licensed, you start on the Technology ladder right away. If you are licensed, you can run both.",
+    "Your first job inside the back office is simple: complete your profile. Add your photo, your phone, and your details.",
+    "Then set up how you get paid. Add your payment information and your tax form, so your commissions reach you with no delays.",
+    "Take a few minutes to explore your back office — your team view, your compensation, your commissions, your products, and this training center.",
+    "Now the most important part — your first forty-eight hours. This window sets the tone for everything that follows.",
+    "So take three actions. One: finish your setup. Two: choose your path and learn your products. Three: write your list of everyone you know.",
+    "Do these, and you're no longer just signed up — you're in business. In the next episode, we tour your back office in detail. Let's go."
+  ],
+  "panels": {
+    "1": "sponsor",
+    "2": "licpath",
+    "4": "profile",
+    "5": "getpaid",
+    "6": "backoffice",
+    "7": "first48",
+    "8": "threesteps"
+  }
+}

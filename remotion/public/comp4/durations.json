@@ -1,0 +1,44 @@
+{
+  "vo": [
+    5.387029,
+    5.990748,
+    5.619229,
+    6.548027,
+    5.572789,
+    6.083628,
+    5.01551,
+    6.594467,
+    6.548027,
+    4.92263,
+    5.15483,
+    5.34059,
+    6.873107
+  ],
+  "lines": [
+    "The real power of Apex is building a team — and earning on everything they produce.",
+    "That team income is called override — a share that flows up to you as your team sells.",
+    "You get paid two ways at once: what you personally sell, and what your whole team sells.",
+    "On the Insurance side, overrides pay six generations deep — from your recruits all the way down.",
+    "Here's how it can add up. You recruit five agents, and your team grows to twenty.",
+    "If each writes around five thousand a month, your override income can reach about seventy-five hundred a month.",
+    "That's roughly ninety thousand a year — on top of your own personal commissions.",
+    "Stay productive, and a weekly bonus rewards consistency — one to four percent, tier by tier.",
+    "Reach M.G.A. and build your own shop, and a quarterly recruiting bonus pays up to six thousand.",
+    "On the Technology side, every rank you reach also pays a one-time bonus.",
+    "Across all nine ranks, that's more than ninety-three thousand dollars in rank bonuses.",
+    "Run both ladders, and you build two income streams — with one team behind you.",
+    "Build the team, earn on their production, and stack the bonuses. That's how Apex income compounds."
+  ],
+  "panels": {
+    "1": "override",
+    "2": "both",
+    "3": "gens",
+    "4": "exteam",
+    "5": "ex7500",
+    "6": "yearly",
+    "7": "weekly",
+    "8": "recruit",
+    "10": "bonuses",
+    "11": "streams"
+  }
+}

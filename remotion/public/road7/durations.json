@@ -1,0 +1,33 @@
+{
+  "vo": [
+    3.529478,
+    6.270454,
+    5.897914,
+    5.247755,
+    5.434535,
+    6.222993,
+    5.526395,
+    5.340635,
+    5.572834,
+    5.201315
+  ],
+  "lines": [
+    "Now meet the newest product in the Apex family — Jordyn.",
+    "Jordyn is an A.I. assistant with a brain for your business — it arrives already knowing your industry.",
+    "Unlike a generic chatbot, Jordyn learns from a professional's real inbox and real clients.",
+    "It reads and manages email, answers the phone, and builds a pipeline automatically.",
+    "Every morning it delivers a briefing of what needs attention, so nothing slips.",
+    "Who's it for? Agents, realtors, attorneys — any busy professional buried in follow-up.",
+    "The promise: it gives back about eight hours a week, roughly two thousand dollars in time.",
+    "It's a hundred forty-nine a month, and like the others, recurring income for you.",
+    "Your pitch: an assistant that actually runs your day, not just chats about it.",
+    "That's Jordyn. Now let's cover the Insurance side of the business. Let's go."
+  ],
+  "panels": {
+    "1": "whatis",
+    "3": "features",
+    "5": "who",
+    "6": "value",
+    "7": "recurring"
+  }
+}

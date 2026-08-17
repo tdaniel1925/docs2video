@@ -1,0 +1,33 @@
+{
+  "vo": [
+    6.037234,
+    6.408753,
+    7.569751,
+    5.201315,
+    6.548073,
+    5.990794,
+    5.387075,
+    5.665714,
+    4.272517,
+    5.056961
+  ],
+  "lines": [
+    "Every business starts the same way — with a list of people and a story worth sharing.",
+    "First, your list. Write down everyone you know. Don't pre-judge who's interested — just write.",
+    "Think in circles: family, friends, coworkers, and anyone whose number is in your phone.",
+    "Aim for at least one hundred names. Your list is the fuel for your whole business.",
+    "Next, your story. People don't join a company — they join a person with a why.",
+    "Your story is three simple parts: where you were, what you found, and where you're going.",
+    "Keep it under sixty seconds. Honest and short beats polished and long, every time.",
+    "Practice it out loud until it feels natural. Your story is your most powerful tool.",
+    "A full list and a clear story — that's a business ready to launch.",
+    "Next, we learn exactly how to invite people to take a look. Let's go."
+  ],
+  "panels": {
+    "1": "list",
+    "2": "circles",
+    "3": "hundred",
+    "5": "story3",
+    "6": "sixty"
+  }
+}

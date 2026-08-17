@@ -1,0 +1,49 @@
+{
+  "vo": [
+    6.083628,
+    7.709025,
+    6.176508,
+    6.501587,
+    5.34059,
+    6.733787,
+    5.387029,
+    6.919546,
+    5.758549,
+    8.080544,
+    6.919546,
+    6.826667,
+    6.780227,
+    9.473741,
+    8.498503
+  ],
+  "lines": [
+    "This is the Apex Technology ladder — how everyone, licensed or not, earns with Apex.",
+    "You earn by putting Apex's A.I. tools — like SmartViewz and Docs2Video — in the hands of businesses.",
+    "You get paid two ways. First, a commission on every sale you personally make.",
+    "Second, override income — a share that comes back to you as the team you build makes sales too.",
+    "So your income grows two ways at once: what you sell, and what your team sells.",
+    "Now, your rank. There are nine ranks, from Starter to Elite, based on your monthly volume.",
+    "Each rank has a target — your own personal volume, plus your team's group volume.",
+    "Reach Bronze at just a hundred fifty personal, three hundred group. The targets grow as you climb.",
+    "Every rank you reach unlocks deeper override levels — how far down your team you get paid.",
+    "Starter earns on one level. Elite earns on all seven — from your recruits, to their recruits, and beyond.",
+    "Your enrollment override pays on everyone you personally bring in — the biggest share, at every rank.",
+    "And the deeper levels pay more as you rank up — the higher your rank, the more of your team you earn on.",
+    "Every rank also pays a one-time bonus — more than ninety-three thousand dollars in bonuses along the way.",
+    "One simple rule to earn overrides: produce at least fifty points of personal volume a month. Sell a little, stay qualified.",
+    "That's the Technology ladder. Sell the tools, build a team, and climb — nine ranks, seven levels deep, no ceiling."
+  ],
+  "panels": {
+    "2": "twoways",
+    "3": "override",
+    "5": "ranks",
+    "6": "reqs",
+    "7": "reqs2",
+    "8": "levels",
+    "9": "levels2",
+    "10": "l1",
+    "11": "schedule",
+    "12": "bonuses",
+    "13": "pv"
+  }
+}

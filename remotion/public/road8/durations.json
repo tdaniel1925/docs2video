@@ -1,0 +1,33 @@
+{
+  "vo": [
+    6.270454,
+    5.016576,
+    4.964739,
+    4.969116,
+    6.037234,
+    4.783356,
+    5.154875,
+    5.016576,
+    3.993878,
+    6.501633
+  ],
+  "lines": [
+    "If you're a licensed agent, the Insurance side is a powerful second income. Let's cover it.",
+    "On this side, you sell life insurance and earn a commission on every policy you write.",
+    "Your commission is a share of the first-year premium — and that share grows as you rank up.",
+    "You're contracted directly with top carriers, so your commissions are paid straight to you.",
+    "And the business you write is yours. You own your book — it stays with you as you grow.",
+    "Build a team of agents, and you earn override income on their production too.",
+    "You climb by writing consistent, quality business — production and persistency.",
+    "It pairs perfectly with the tech side: same team, two income streams.",
+    "If you're licensed, this is where a great month becomes a great year.",
+    "That's the Insurance side. Next, a quick tour of how you actually get paid. Let's go."
+  ],
+  "panels": {
+    "1": "howpaid",
+    "2": "rate",
+    "3": "carriers",
+    "4": "ownbook",
+    "6": "climb"
+  }
+}

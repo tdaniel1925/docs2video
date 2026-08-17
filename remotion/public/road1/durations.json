@@ -1,0 +1,34 @@
+{
+  "vo": [
+    9.009388,
+    7.75551,
+    8.544989,
+    7.012472,
+    7.75551,
+    5.758594,
+    7.476871,
+    9.845306,
+    8.03415,
+    6.083673
+  ],
+  "lines": [
+    "Welcome to Apex. You just made a decision that could change everything. This roadmap takes you from day one to your first paycheck.",
+    "Here's what makes Apex different. Most companies give you one way to earn. Apex gives you two, under one roof.",
+    "On the Technology side, you put powerful A.I. tools in the hands of businesses. No license required, open to everyone.",
+    "On the Insurance side, if you're a licensed agent, you sell life insurance and earn on every policy.",
+    "And here's the belief that drives it all: every agent in this industry is our customer, whether they join us or not.",
+    "So you earn two ways. On what you personally sell, and on what your team produces.",
+    "Now, your first forty-eight hours matter most. The people who start fast are the ones who succeed.",
+    "So take three simple actions right away. Complete your profile and set up how you get paid. Pick your path. And make your list of people to talk to.",
+    "This series is your map. We'll cover the products, the plan, how to invite, present, close, and build a team.",
+    "You don't need to know everything today. You just need to start. Let's take that first step together."
+  ],
+  "panels": {
+    "1": "twopaths",
+    "4": "mission",
+    "5": "earn",
+    "6": "first48",
+    "7": "threesteps",
+    "8": "series"
+  }
+}

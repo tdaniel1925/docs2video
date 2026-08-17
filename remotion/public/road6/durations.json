@@ -1,0 +1,34 @@
+{
+  "vo": [
+    6.315873,
+    5.944354,
+    6.780272,
+    6.548073,
+    6.408753,
+    6.083673,
+    6.408753,
+    5.852494,
+    3.900998,
+    6.454853
+  ],
+  "lines": [
+    "Next product: Docs2Video. This one is easy to love and easy to sell.",
+    "Docs2Video turns any document into a branded, narrated explainer video in minutes.",
+    "A business uploads a P.D.F., and out comes a polished video with a voice, visuals, and their brand.",
+    "No cameras, no editing, no film crew. Just upload, and the A.I. does the rest.",
+    "It comes in four tiers, from a starter plan to enterprise, so it fits any size business.",
+    "Who needs it? Insurance agents, real estate, any business that explains things to clients.",
+    "Your pitch: turn boring paperwork into videos clients actually watch. That's the hook.",
+    "Like SmartViewz, it's a monthly subscription — recurring income on every account you open.",
+    "Show a prospect one sample video, and it often sells itself.",
+    "That's Docs2Video. Now, a brand-new addition to the family — Jordyn. Let's go."
+  ],
+  "panels": {
+    "1": "whatis",
+    "3": "how",
+    "4": "tiers",
+    "5": "who",
+    "6": "pitch",
+    "7": "recurring"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "vo": [
+    5.805034,
+    5.051156,
+    6.780272,
+    5.434535,
+    4.736916,
+    6.25254,
+    5.572834,
+    5.340635,
+    5.434535,
+    5.061995
+  ],
+  "lines": [
+    "The invite is the most important skill in this business. Let's make it simple and repeatable.",
+    "The goal of an invite is not to explain everything. It's just to get them to take a look.",
+    "Keep it short, keep it curious, and always point to a tool — a video, a call, or a link.",
+    "Here's a warm-market script: Hey, I'm working on something new and thought of you.",
+    "Would you be open to taking a look if it doesn't cost you anything to check it out?",
+    "For social or a D.M.: I'm expanding my business and looking for a few sharp people. Interested?",
+    "Notice the pattern — a compliment, a reason, and a simple yes-or-no question.",
+    "When they say yes, send the tool immediately, and set a time to follow up.",
+    "Don't sell in the invite. Your only job is to spark curiosity and hand off the tool.",
+    "Once they've looked, it's time to present. That's next. Let's go."
+  ],
+  "panels": {
+    "1": "goal",
+    "2": "rule",
+    "3": "warm",
+    "4": "openclose",
+    "5": "dm",
+    "6": "pattern"
+  }
+}

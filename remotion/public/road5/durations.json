@@ -1,0 +1,33 @@
+{
+  "vo": [
+    4.180658,
+    5.247755,
+    5.619274,
+    6.083673,
+    4.736916,
+    5.870816,
+    7.930748,
+    5.340635,
+    3.529478,
+    6.360612
+  ],
+  "lines": [
+    "Let's talk about your first product to know cold — SmartViewz.",
+    "SmartViewz is an A.I. intelligence platform built for life and annuity agents.",
+    "It turns an agent's messy spreadsheets and data into a clean, living dashboard.",
+    "It surfaces revenue insights, flags compliance issues, and answers questions about their book.",
+    "Think of it as a smart co-pilot that already understands the insurance business.",
+    "Who's it for? Any life or annuity agent drowning in data who wants clarity and time back.",
+    "Your pitch is simple: stop guessing, start seeing. SmartViewz shows agents what's really happening.",
+    "It's a monthly subscription, so every agent you sign becomes recurring income for you.",
+    "Know the problem it solves, and you'll sell it with confidence.",
+    "That's SmartViewz. Next up, a product that turns documents into video. Let's go."
+  ],
+  "panels": {
+    "1": "whatis",
+    "3": "features",
+    "5": "who",
+    "6": "pitch",
+    "7": "recurring"
+  }
+}

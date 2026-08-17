@@ -1,0 +1,48 @@
+{
+  "vo": [
+    3.808118,
+    5.479955,
+    6.037234,
+    5.108435,
+    4.829796,
+    3.762698,
+    5.387075
+  ],
+  "beats": [
+    {
+      "head": "Meet Jordyn",
+      "hi": "Jordyn",
+      "hero": "a friendly glowing 3D assistant orb character with a warm terracotta glow, soft and approachable"
+    },
+    {
+      "head": "Knows Your Industry",
+      "hi": "Your Industry",
+      "hero": "a glossy 3D brain made of warm terracotta glass connected to floating industry icons, intelligence"
+    },
+    {
+      "head": "Your Whole Day, Handled",
+      "hi": "Handled",
+      "hero": "a glossy 3D email envelope, a phone, and a rising pipeline chart floating together in warm terracotta glass"
+    },
+    {
+      "head": "In Your Voice",
+      "hi": "Your Voice",
+      "hero": "a glossy 3D speech bubble and a checkmark shield in warm terracotta glass, approval and trust"
+    },
+    {
+      "head": "Morning Briefing",
+      "hi": "Briefing",
+      "hero": "a glossy 3D clipboard checklist with a rising sun behind it in warm terracotta and cream, a morning briefing"
+    },
+    {
+      "head": "~8 Hours Back",
+      "hi": "8 Hours",
+      "hero": "a glossy 3D clock with warm terracotta hands and floating time particles, saving time"
+    },
+    {
+      "head": "Try Jordyn Today",
+      "hi": "Today",
+      "hero": "a glossy 3D upward arrow and a handshake in warm terracotta glass, success and ROI, celebratory"
+    }
+  ]
+}

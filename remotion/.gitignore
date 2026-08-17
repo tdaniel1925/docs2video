@@ -11,6 +11,16 @@ public/*.json
 # Per-brand generated asset dirs (comic panels, VO, music) — regenerable via scripts/gen-*.
 # Reference samples (Apex etc.) are not committed; the gen scripts + source are.
 public/*/
+# EXCEPT the tiny JSON metadata that compositions IMPORT at the top of the bundle
+# (durations.json, beatgrid.json, transients.json). If any is missing from the
+# deployed image, Remotion fails to BUNDLE — and because the bundle includes ALL
+# compositions, EVERY render (slides included) crashes at setup-cache. This was
+# the real cause of the slide-video render failures. These ~200K of JSON must be
+# committed and shipped.
+!public/*/durations.json
+!public/*/beatgrid.json
+!public/*/transients.json
+!public/beatgrid.json
 # loose top-level media in public/ (superseded / brand-specific) — skip
 public/*.wav
 public/*.jpg

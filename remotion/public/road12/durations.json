@@ -1,0 +1,34 @@
+{
+  "vo": [
+    6.820023,
+    7.151791,
+    5.387075,
+    6.683855,
+    5.805034,
+    5.665714,
+    6.083673,
+    4.644036,
+    5.665714,
+    6.362313
+  ],
+  "lines": [
+    "The presentation is where curiosity becomes understanding. Keep it simple and let the tools do the work.",
+    "A great presentation answers three questions: what is it, how do I make money, and how do I start.",
+    "Start with the story — the problem Apex solves and why it matters right now.",
+    "Then the products, briefly. Show, don't tell. One sample is worth a thousand words.",
+    "Next, the opportunity — the two ways to earn, in plain, simple language.",
+    "Keep the whole thing under twenty minutes. Confused people never say yes.",
+    "Let the video or the tool carry the details, and you stay the guide, not the expert.",
+    "Always end with a clear next step: are you ready to get started today?",
+    "Remember, you're not convincing — you're revealing. Show it clearly and let them decide.",
+    "After the presentation, some will have questions. Handling those is next. Let's go."
+  ],
+  "panels": {
+    "1": "three",
+    "2": "story",
+    "3": "show",
+    "4": "opp",
+    "5": "twenty",
+    "7": "nextstep"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "vo": [
+    5.201315,
+    7.244671,
+    6.407619,
+    6.037234,
+    5.198254,
+    6.222993,
+    5.479955,
+    5.387075,
+    5.061995,
+    5.758594
+  ],
+  "lines": [
+    "Now the big question — which path do you start on? Let's make it simple.",
+    "Remember, Apex gives you two ladders. Technology, and Insurance. You can run one, or both.",
+    "The Technology path is open to everyone. No license needed. You start earning right away.",
+    "You put Apex's A.I. tools in the hands of businesses, and earn on every subscription.",
+    "The Insurance path is for licensed agents. If you're licensed, you can sell policies too.",
+    "Not licensed yet? No problem. Start on Technology today, and get licensed when you're ready.",
+    "Here's the simple rule. Start where you can win this week, and add the second ladder later.",
+    "Whatever you choose, the team you build carries across. You're never starting over.",
+    "So pick your starting ladder, and commit to it. Momentum beats perfection.",
+    "Path chosen? Great. Next, we dive into the products you'll offer. Let's go."
+  ],
+  "panels": {
+    "1": "twoladders",
+    "2": "techpath",
+    "4": "inspath",
+    "5": "start",
+    "6": "rule"
+  }
+}
