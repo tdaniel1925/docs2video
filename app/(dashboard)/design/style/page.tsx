@@ -41,6 +41,15 @@ export default function StyleStep() {
     setGuessing(false)
   }
 
+  // A QR code always goes in as role 'qr' — it's pasted pixel-exact, never
+  // guessed or redrawn.
+  const onAddQr = async (file: File | undefined) => {
+    if (!file || !file.type.startsWith('image/')) return
+    const dataUrl = await readAsDataUrl(file)
+    patch({ photos: [...state.photos, { dataUrl, role: 'qr' as const, name: file.name }].slice(0, 6) })
+  }
+
+  // A logo/photo can be flipped between the two; a QR is never one of those.
   const flipRole = (i: number) =>
     patch({ photos: state.photos.map((p, j) => j === i ? { ...p, role: p.role === 'logo' ? 'person' : 'logo' } : p) })
 
@@ -146,21 +155,31 @@ export default function StyleStep() {
               onChange={(e) => { void onDropAny(e.target.files); e.target.value = '' }} />
           </label>
 
+          {/* QR CODE — a separate button because a QR must be placed pixel-exact
+              (never redrawn), so it's tagged 'qr' and pasted as-is on the design. */}
+          <label style={{ ...plainBtn, display: 'inline-block' }}>
+            Add a QR code
+            <input type="file" accept="image/*" hidden
+              onChange={(e) => { void onAddQr(e.target.files?.[0]); e.target.value = '' }} />
+          </label>
+
           {guessing && <div style={{ fontSize: 12.5, color: SOFT }}>Sorting your images…</div>}
 
           {state.photos.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {state.photos.map((p, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 6, border: `1px solid ${LINE}`, borderRadius: 9 }}>
-                  <img src={p.dataUrl} alt="" style={{ width: 46, height: 46, flexShrink: 0, objectFit: p.role === 'logo' ? 'contain' : 'cover', background: p.role === 'logo' ? '#fff' : undefined, borderRadius: 6, border: `1px solid ${LINE}` }} />
+                  <img src={p.dataUrl} alt="" style={{ width: 46, height: 46, flexShrink: 0, objectFit: p.role === 'person' ? 'cover' : 'contain', background: p.role === 'person' ? undefined : '#fff', borderRadius: 6, border: `1px solid ${LINE}` }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, fontWeight: 700, color: INK, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'white', background: p.role === 'logo' ? '#2E7D32' : INK, borderRadius: 4, padding: '2px 5px' }}>{p.role === 'logo' ? 'Logo' : 'Photo'}</span>
+                      <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'white', background: p.role === 'logo' ? '#2E7D32' : p.role === 'qr' ? '#4A3B8A' : INK, borderRadius: 4, padding: '2px 5px' }}>{p.role === 'logo' ? 'Logo' : p.role === 'qr' ? 'QR' : 'Photo'}</span>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name ?? 'image'}</span>
                     </div>
-                    <button onClick={() => flipRole(i)} style={{ marginTop: 3, background: 'none', border: 'none', padding: 0, color: SOFT, fontSize: 11.5, cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
-                      Not a {p.role === 'logo' ? 'logo' : 'photo'}? Mark it a {p.role === 'logo' ? 'photo' : 'logo'}
-                    </button>
+                    {p.role !== 'qr' && (
+                      <button onClick={() => flipRole(i)} style={{ marginTop: 3, background: 'none', border: 'none', padding: 0, color: SOFT, fontSize: 11.5, cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
+                        Not a {p.role === 'logo' ? 'logo' : 'photo'}? Mark it a {p.role === 'logo' ? 'photo' : 'logo'}
+                      </button>
+                    )}
                   </div>
                   <button onClick={() => removeImg(i)} aria-label="Remove"
                     style={{ width: 22, height: 22, flexShrink: 0, borderRadius: 11, border: 'none', background: LINE, color: INK, fontSize: 13, cursor: 'pointer', lineHeight: 1 }}>×</button>
@@ -170,7 +189,7 @@ export default function StyleStep() {
           )}
 
           <p style={{ fontSize: 11.5, color: SOFT, margin: 0, lineHeight: 1.5, background: `${MINT}44`, padding: '8px 10px', borderRadius: 8 }}>
-            A <strong style={{ color: INK }}>logo</strong> is placed exactly as given — never redrawn or restyled. A <strong style={{ color: INK }}>photo</strong> of a person becomes the featured subject.
+            A <strong style={{ color: INK }}>logo</strong> or <strong style={{ color: INK }}>QR code</strong> is placed exactly as given — never redrawn (so a QR still scans). A <strong style={{ color: INK }}>photo</strong> of a person becomes the featured subject.
           </p>
         </div>
       </div>

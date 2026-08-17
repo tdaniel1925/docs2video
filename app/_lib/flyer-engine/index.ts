@@ -2006,13 +2006,14 @@ export const FLYER_TEMPLATES: FlyerTemplate[] = [
 /** What an uploaded photo IS, which decides how it gets used. A headshot and a
  *  house need opposite treatment — one is cut out and placed, the other becomes
  *  the scene — and the model cannot tell which is which from pixels alone. */
-export type PhotoRole = 'person' | 'place' | 'product' | 'logo'
+export type PhotoRole = 'person' | 'place' | 'product' | 'logo' | 'qr'
 
 export const PHOTO_ROLES: { id: PhotoRole; label: string; hint: string }[] = [
   { id: 'person', label: 'A person', hint: 'Headshot or full body — the presenter, agent, DJ, team' },
   { id: 'place', label: 'A place', hint: 'Property, venue, shop, gym — becomes the setting' },
   { id: 'product', label: 'A product', hint: 'The thing being sold — featured in the design' },
   { id: 'logo', label: 'A logo', hint: 'Placed cleanly, never redrawn or restyled' },
+  { id: 'qr', label: 'A QR code', hint: 'Placed pixel-exact so it still scans — never redrawn' },
 ]
 
 const PHOTO_RULES: Record<PhotoRole, string> = {
@@ -2024,6 +2025,8 @@ const PHOTO_RULES: Record<PhotoRole, string> = {
     'This is a REAL PRODUCT. Keep its shape, colour, branding and proportions exactly as photographed. Feature it prominently. Do not restyle, redesign or substitute it.',
   logo:
     'This is a LOGO. Place it cleanly and legibly in the design, keeping its exact shapes, colours and proportions. Do NOT redraw, restyle, recolour, add effects to, or generate any variation of it. If it will not fit cleanly, make it smaller rather than altering it.',
+  qr:
+    'This is a QR CODE. It MUST be reproduced PIXEL-EXACT — a QR code that is redrawn, restyled, recoloured, blurred, rotated or distorted will not scan and is useless. Place it as a crisp square with a small quiet-zone margin around it, high contrast (dark on light), never on a busy background. Do NOT add effects, do NOT change its pattern, do NOT generate a different code. If space is tight, make it smaller — never alter it.',
 }
 
 export type FlyerFields = {

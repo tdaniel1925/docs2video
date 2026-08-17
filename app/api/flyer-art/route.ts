@@ -244,15 +244,20 @@ export async function POST(req: Request) {
     rawPhotos.push({ dataUrl: brandLogo, role: 'logo' as PhotoRole })
   }
 
-  const roles = rawPhotos.map((p) => p.role)
+  // A QR code is NOT an AI input — it must be pasted pixel-exact afterwards, not
+  // handed to the model (which would redraw it into something that won't scan).
+  // So it's excluded from the images/roles the model sees; the paste step below
+  // reads it straight from rawPhotos.
+  const aiPhotos = rawPhotos.filter((p) => p.role !== 'qr')
+  const roles = aiPhotos.map((p) => p.role)
 
   // A reference design, if there is one, goes FIRST — the prompt refers to it
   // as image 1 and numbers the photographs after it.
   const ref = String(body?.referenceDataUrl ?? '')
   const hasReference = ref.startsWith('data:image')
   const toPrepare = hasReference
-    ? [{ dataUrl: ref }, ...rawPhotos]
-    : rawPhotos
+    ? [{ dataUrl: ref }, ...aiPhotos]
+    : aiPhotos
 
   // Prepare them ONCE, not per size. Every ticked size needs the same files,
   // and re-decoding a 5 MB upload six times is pure waste.
@@ -423,11 +428,35 @@ export async function POST(req: Request) {
       // software assumes 72 dpi and offers to print an 8.5-inch flyer at 35
       // inches across — the file was always the right number of pixels, it just
       // never said what they meant.
-      const png = await sharp(src)
+      let png = await sharp(src)
         .resize(targetW, targetH, { fit: 'cover', position: 'centre' })
         .withMetadata({ density: dpiFor(size) })
         .png()
         .toBuffer()
+
+      // PASTE ANY QR CODE EXACTLY — never let the model draw it. A QR that is
+      // redrawn or restyled will not scan, so it is composited as crisp pixels
+      // onto the FINISHED design (on a white quiet-zone tile, bottom-right),
+      // after everything the AI touched is done. Placed at ~16% of the shorter
+      // side, which stays scannable in print and on screen.
+      const qrPhoto = rawPhotos.find((p) => p.role === 'qr')
+      if (qrPhoto?.dataUrl?.startsWith('data:image')) {
+        try {
+          const qrRaw = Buffer.from(qrPhoto.dataUrl.split(',')[1] ?? '', 'base64')
+          const box = Math.round(Math.min(targetW, targetH) * 0.16)
+          const pad = Math.round(box * 0.08)
+          // nearest-neighbour keeps the QR's hard edges crisp — smoothing would
+          // grey the module borders and can break a scan.
+          const qrImg = await sharp(qrRaw).resize(box - pad * 2, box - pad * 2, { fit: 'contain', background: '#fff', kernel: 'nearest' }).png().toBuffer()
+          // white tile behind the QR = its required quiet zone
+          const tile = await sharp({ create: { width: box, height: box, channels: 4, background: '#ffffff' } })
+            .composite([{ input: qrImg, gravity: 'centre' }]).png().toBuffer()
+          const margin = Math.round(Math.min(targetW, targetH) * 0.04)
+          png = await sharp(png).composite([{ input: tile, top: targetH - box - margin, left: targetW - box - margin }]).png().toBuffer()
+        } catch (e) {
+          console.warn(`[flyer] QR paste skipped for ${key}:`, e instanceof Error ? e.message : e)
+        }
+      }
 
       /**
        * READ THE WORDS BACK OFF THE FINISHED DESIGN.
