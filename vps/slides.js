@@ -300,6 +300,12 @@ function scrubSlidePlan(w, u) {
   // scrubbing can empty a CRITICAL field (intro line, title, a slide heading);
   // a blank renders as a broken slide, so fall back to a neutral generic phrase.
   const orEmpty = (v, fb) => (v && v.trim()) ? v : fb
+  // Record narration lines the scrub actually CHANGED. Word-level name removal can
+  // leave the sentence with a hole ("an [Carrier] indexed strategy" → "an strategy",
+  // "so let's sort it out" → "so let's it up") that the voice reads as a stumble.
+  // We collect before/after here and hand them to smoothScrubbedSlides() (an async
+  // model pass) to close the gaps. ⚠ mirror of app/_lib/compliance.ts smoothScrubbed.
+  const scrubbed = []
   if (w.intro) {
     w.intro.line1 = orEmpty(clean(w.intro.line1), 'A closer look at your plan')
     w.intro.line2 = orEmpty(clean(w.intro.line2), 'Prepared for you by your advisor')
@@ -307,9 +313,16 @@ function scrubSlidePlan(w, u) {
   if (w.cta) w.cta.line = orEmpty(clean(w.cta.line), 'Talk with your agent')
   w.title = orEmpty(clean(w.title), 'Your plan')
   for (const s of (w.scenes || [])) {
+    const beforeN = s.narration
     s.narration = clean(s.narration)
+    if (typeof beforeN === 'string' && s.narration && beforeN !== s.narration) scrubbed.push({ set: (v) => { s.narration = v }, after: s.narration })
     if (s.layout) {
+      const beforeH = s.layout.heading
       s.layout.heading = orEmpty(clean(s.layout.heading), 'Your plan')
+      // a scrubbed HEADING can read broken too ("An Starting Point", "Long- Upside")
+      // — smooth it with the same pass. (2-word min filter in the smoother skips
+      // trivial ones.)
+      if (typeof beforeH === 'string' && s.layout.heading && beforeH !== s.layout.heading) scrubbed.push({ set: (v) => { s.layout.heading = v }, after: s.layout.heading })
       s.layout.kicker = clean(s.layout.kicker)  // kicker may be empty (optional)
     }
     for (const b of (s.blocks || [])) {
@@ -324,6 +337,45 @@ function scrubSlidePlan(w, u) {
     // was left completely value-less by name-scrubbing.
     s.blocks = (s.blocks || []).filter((b) => !(b.type === 'cards' && (b.cards || []).every((c) => !c || (!c.value && !c.label))))
   }
+  w.__scrubbed = scrubbed   // consumed by smoothScrubbedSlides()
+  return w
+}
+
+// Re-smooth the narration lines the scrub broke. Word-level name removal leaves
+// awkward/dropped-word sentences the voice stumbles over; this runs ONE cheap
+// model pass over ONLY the changed lines, rewriting them into natural English
+// under the same compliance constraints. Never reintroduces a name, never invents
+// a figure, best-effort (on any failure the scrubbed text ships as-is).
+// ⚠ KEEP IN SYNC with app/_lib/compliance.ts smoothScrubbed().
+async function smoothScrubbedSlides(w) {
+  const pairs = (w && w.__scrubbed) || []
+  const changed = pairs.filter((p) => p.after && /[a-z]/i.test(p.after) && p.after.split(/\s+/).length > 1)
+  if (!changed.length) return w
+  try {
+    const list = changed.map((p, i) => `${i}. ${p.after}`).join('\n')
+    const sys = 'You repair short narration lines for a client-facing insurance illustration explainer. ' +
+      'Each line had carrier and product NAMES removed and guarantee wording softened, which left awkward or dropped-word phrasing. ' +
+      'Rewrite each line so it reads naturally in plain spoken English.\n' +
+      'HARD RULES:\n' +
+      '- NEVER reintroduce a carrier, company, or branded product name.\n' +
+      '- NEVER promise or imply a guaranteed return; keep figures framed as illustrated/projected.\n' +
+      '- KEEP every dollar amount, percentage, and age EXACTLY as written. Invent nothing.\n' +
+      '- Keep the same meaning and roughly the same length. Fix duplicated words and dangling grammar.\n' +
+      '- If a line already reads fine, return it unchanged.\n' +
+      'Reply with ONLY a JSON array of strings, in the same order, no prose or code fences.'
+    const raw = await claude(sys, list, 1500)
+    const m = raw.match(/\[[\s\S]*\]/)
+    if (!m) return w
+    const arr = JSON.parse(m[0])
+    if (!Array.isArray(arr) || arr.length !== changed.length) return w
+    arr.forEach((v, i) => {
+      const s = typeof v === 'string' ? v.trim() : ''
+      if (!s || complianceLeaks({ scenes: [{ narration: s }] }).length) return   // rejected: a name crept back
+      const figs = (changed[i].after.match(/\$[\d,]+|\b\d+(?:\.\d+)?%|\b\d{2,}\b/g) || [])
+      if (figs.some((f) => !s.includes(f))) return   // rejected: dropped a figure
+      changed[i].set(s)
+    })
+  } catch { /* best-effort — scrubbed text still ships */ }
   return w
 }
 // returns the list of blocklisted terms that survived into the final text (should
@@ -362,6 +414,12 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   // generated (so the voice never speaks them either). Then assert nothing leaked.
   if (regulated) {
     w = scrubSlidePlan(w, u)
+    // name removal is word-level, so a scrubbed sentence can lose a word and read
+    // broken ("an strategy", "so let's it up"). Re-smooth ONLY the changed lines
+    // with a cheap model pass BEFORE VO, so the voice never speaks a stumble.
+    const nFixed = (w.__scrubbed || []).length
+    if (nFixed) { await smoothScrubbedSlides(w); say(`✓ re-smoothed ${nFixed} scrubbed narration line(s)`) }
+    delete w.__scrubbed
     const leaked = complianceLeaks(w)
     if (leaked.length) say('⚠ COMPLIANCE: carrier/product term(s) survived scrub: ' + leaked.join(', '))
     else say('✓ compliance scrub clean — no carrier/product/figure leaks')
@@ -534,4 +592,4 @@ async function generateSceneVO({ pub, text, outName, pronounce, tts }) {
   return tts ? await tts(run) : await run()
 }
 
-module.exports = { generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend, isRegulated, scrubSlidePlan, complianceLeaks, CARRIER_BLOCKLIST }
+module.exports = { generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend, isRegulated, scrubSlidePlan, smoothScrubbedSlides, complianceLeaks, CARRIER_BLOCKLIST }
