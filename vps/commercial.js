@@ -13,7 +13,7 @@
 const { writeFile, stat } = require('fs/promises')
 const { join } = require('path')
 const { execFile } = require('child_process')
-const { claude, comprehend, ttsTimed, cloudflareImage, cloudflareAvailable, CARRIER_BLOCKLIST } = require('./slides')
+const { claude, comprehend, ttsTimed, cloudflareImage, cloudflareAvailable, CARRIER_BLOCKLIST, isRegulated } = require('./slides')
 
 const FPS = 30
 const STYLE_IDS = ['fintech', 'luxury', 'tech', 'upbeat', 'emerald', 'redblueprint', 'data', 'playful', 'casino', 'clean', 'glitchcore', 'cinematic', 'noir', 'retro', 'vibrant', 'editorial', 'brutalist', 'aurora', 'sport', 'corporate', 'neon', 'organic']
@@ -379,10 +379,9 @@ async function captureScreenshot(pageUrl, dir) {
 // director applies the guardrails — no carrier/product-as-guarantee claims, no
 // invented returns/income figures, no promises. Mirrors the illustration rule
 // spirit (remotion/src/lib/compliance.ts) for the commercial context. ----
-function isRegulated(u) {
-  const hay = JSON.stringify(u || {}).toLowerCase()
-  return /\b(insuranc|annuit|iul|life policy|indexed universal|premium|underwrit|carrier|policyholder|book of business|licensed agent|financial advisor|retirement|investment|securit|fiduciary|medicare|final expense)\b/.test(hay)
-}
+// isRegulated is imported from ./slides (the SINGLE detector) — the local copy was
+// missing death benefit|cash value|surrender, so some content skipped the scrub
+// entirely (a NAME LEAK). Do not re-add a local copy.
 const COMPLIANCE_CLAUSE = `
 COMPLIANCE (regulated financial/insurance content detected) — STRICT:
 - NEVER promise or imply specific returns, income amounts, or guaranteed results. If the source has no stated figure, sell the CONCEPT only (e.g. "recurring income", "grow your book") with NO number.
@@ -421,13 +420,18 @@ function scrubCarrierProduct(spec, u, brandName) {
   const res = terms.map((t) => new RegExp('\\b' + t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') + '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|iii|ii|iv|vi|v(?![a-z])|\\u2120|\\u00ae|\\u2122))*', 'ig'))
   // also strip specific dollar figures + percentages that shouldn't appear
   const figRe = [/\$\s?\d[\d,]*(?:\.\d+)?/g, /\b\d+(?:\.\d+)?\s?%/g]
+  // record every string the scrub CHANGED so smoothCommercial() can re-smooth the
+  // gaps word-removal leaves ("an strategy", "so let's it up"). Attached to spec.
+  const scrubbed = []
   const clean = (s) => {
     if (typeof s !== 'string') return s
     let out = s
     for (const re of res) out = out.replace(re, '')
     for (const re of figRe) out = out.replace(re, '')
     out = out.replace(/(^|\s)\+?\s*(?:iii|ii|iv|vi)\b/gi, '$1').replace(/(^|\s)\+(?=\s|$)/g, '$1')
-    return out.replace(/\s{2,}/g, ' ').replace(/\s+([.,!?;:])/g, '$1').replace(/^[\s—–-]+|[\s—–-]+$/g, '').trim()
+    out = out.replace(/\s{2,}/g, ' ').replace(/\s+([.,!?;:])/g, '$1').replace(/^[\s—–-]+|[\s—–-]+$/g, '').trim()
+    if (out && out !== s && /[a-z]/i.test(out) && out.split(/\s+/).length > 1) scrubbed.push(out)
+    return out
   }
   const cleanBeat = (b) => {
     b.vo = clean(b.vo); b.pre = clean(b.pre); b.hot = clean(b.hot); b.post = clean(b.post); b.sub = clean(b.sub); b.kicker = clean(b.kicker)
@@ -440,6 +444,50 @@ function scrubCarrierProduct(spec, u, brandName) {
   for (const b of (spec.beats || [])) cleanBeat(b)
   // the wordmark/brand shown in intro + corner: for regulated, never show a carrier
   if (spec.wordmark) { spec.wordmark.pre = clean(spec.wordmark.pre); spec.wordmark.post = clean(spec.wordmark.post) }
+  spec.__scrubbed = [...new Set(scrubbed)]   // consumed by smoothCommercial()
+  return spec
+}
+
+// Re-smooth the strings the commercial scrub broke (word-removal leaves "an
+// strategy", "so let's it up") — BOTH spoken (vo/pre/hot/post) and on-screen
+// (sub/kicker/cta/items/stats/steps/chat). One cheap Claude pass over ONLY the
+// changed strings, then replace each broken string with its repair everywhere in
+// the spec. Never re-adds a name (leak-checked) or a figure. Best-effort.
+// ⚠ mirror of vps/slides.js smoothScrubbedSlides / app compliance smoothScrubbed.
+async function smoothCommercial(spec) {
+  const changed = [...new Set(spec && spec.__scrubbed || [])]
+  if (!changed.length) return spec
+  try {
+    const list = changed.map((s, i) => `${i}. ${s}`).join('\n')
+    const sys = 'You repair short ad-script lines for a client-facing commercial. ' +
+      'Each line had carrier/product NAMES removed and specific dollar/percent figures stripped, leaving awkward or dropped-word phrasing. ' +
+      'Rewrite each line so it reads naturally in plain English.\n' +
+      'HARD RULES:\n- NEVER reintroduce a carrier, company, or branded product name.\n- NEVER add back a specific dollar amount or percentage.\n- Keep the same meaning and roughly the same length; fix duplicated words and dangling grammar.\n- If a line already reads fine, return it unchanged.\n' +
+      'Reply with ONLY a JSON array of strings, in the same order, no prose or code fences.'
+    const raw = await claude(sys, list, 1500)
+    const m = raw.match(/\[[\s\S]*\]/); if (!m) return spec
+    const arr = JSON.parse(m[0]); if (!Array.isArray(arr) || arr.length !== changed.length) return spec
+    // build a replacement map, rejecting any rewrite that re-adds a blocked name.
+    const repl = new Map()
+    arr.forEach((v, i) => {
+      const s = typeof v === 'string' ? v.trim() : ''
+      if (!s) return
+      const low = s.toLowerCase()
+      if (CARRIER_BLOCKLIST.some((t) => low.includes(t))) return   // rejected: name crept back
+      if (s !== changed[i]) repl.set(changed[i], s)
+    })
+    if (!repl.size) return spec
+    const fix = (x) => (typeof x === 'string' && repl.has(x)) ? repl.get(x) : x
+    for (const b of (spec.beats || [])) {
+      b.vo = fix(b.vo); b.pre = fix(b.pre); b.hot = fix(b.hot); b.post = fix(b.post); b.sub = fix(b.sub); b.kicker = fix(b.kicker)
+      if (b.cta) b.cta.headline = fix(b.cta.headline)
+      for (const it of (b.items || [])) { if (it) { it.title = fix(it.title); it.desc = fix(it.desc) } }
+      for (const st of (b.stats || [])) { if (st) st.label = fix(st.label) }
+      if (b.chat) { b.chat.q = fix(b.chat.q); b.chat.a = fix(b.chat.a) }
+      for (const st of (b.steps || [])) { if (st) { st.title = fix(st.title); st.desc = fix(st.desc) } }
+    }
+  } catch { /* best-effort — scrubbed text still ships */ }
+  delete spec.__scrubbed
   return spec
 }
 
@@ -837,6 +885,10 @@ async function generateCommercial({ pub, url, text, brandName, music, forceStyle
     const allText = JSON.stringify(spec.beats || []).toLowerCase() + ' ' + JSON.stringify(spec.wordmark || {}).toLowerCase()
     const leaked = CARRIER_BLOCKLIST.filter((t) => allText.includes(t))
     if (leaked.length) say(`⚠ COMPLIANCE: carrier/product term(s) survived scrub: ${leaked.join(', ')}`)
+    // re-smooth the gaps the scrub left BEFORE any VO is recorded, so the voice
+    // never speaks a stumble and no broken line reaches the screen.
+    const nFixed = (spec.__scrubbed || []).length
+    if (nFixed) { spec = await smoothCommercial(spec); say(`✓ re-smoothed ${nFixed} scrubbed commercial line(s)`) }
   }
   let styleId = (forceStyle && STYLE_IDS.includes(forceStyle)) ? forceStyle : spec.styleId
   if (!STYLE_IDS.includes(styleId)) styleId = 'fintech'

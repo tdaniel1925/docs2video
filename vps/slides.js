@@ -592,4 +592,4 @@ async function generateSceneVO({ pub, text, outName, pronounce, tts }) {
   return tts ? await tts(run) : await run()
 }
 
-module.exports = { generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend, isRegulated, scrubSlidePlan, smoothScrubbedSlides, complianceLeaks, CARRIER_BLOCKLIST }
+module.exports = { generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend, isRegulated, productTokens, scrubSlidePlan, smoothScrubbedSlides, complianceLeaks, CARRIER_BLOCKLIST }

@@ -1957,7 +1957,7 @@ app.post('/re-render-scene', authCheck, async (req, res) => {
 
   const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
   const setProgress = (pct, detail) => sb.from('videos').update({ progress_pct: pct, progress_detail: detail, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
-  const { generateSceneVO, claude, scrubSlidePlan, isRegulated } = require('./slides')
+  const { generateSceneVO, claude, scrubSlidePlan, smoothScrubbedSlides, isRegulated } = require('./slides')
 
   // PREVIEW path is cheap + synchronous-ish: regen one VO, return its URL. No render.
   // (still ACK first so the caller isn't blocked on TTS.)
@@ -2028,8 +2028,10 @@ RULES:
             if (ub.type === 'cards' && Array.isArray(ub.cards)) (b.cards || []).forEach((c, k) => { const u = ub.cards[k]; if (c && u) { if (typeof u.value === 'string') c.value = u.value; if (typeof u.label === 'string') c.label = u.label; if (typeof u.sub === 'string') c.sub = u.sub } })
             if (ub.type === 'figure' && b.figure) { if (typeof ub.label === 'string') b.figure.label = ub.label; if (typeof ub.value === 'string') b.figure.value = ub.value; if (typeof ub.prefix === 'string') b.figure.prefix = ub.prefix; if (typeof ub.suffix === 'string') b.figure.suffix = ub.suffix }
           }
-          // compliance scrub the edited scene (names only; keeps figures)
-          try { scrubSlidePlan({ scenes: [scene] }, understanding) } catch {}
+          // compliance scrub the edited scene (names only; keeps figures), then
+          // re-smooth the gaps the scrub leaves BEFORE this scene's VO is recorded
+          // below — otherwise the re-recorded voice speaks a stumble ("an strategy").
+          try { const w = { scenes: [scene] }; scrubSlidePlan(w, understanding); if ((w.__scrubbed || []).length) await smoothScrubbedSlides(w) } catch {}
         } catch (e) {
           // if the rewrite fails, fall back to treating the text as raw narration
           // (old behavior) so the edit still lands SOMETHING rather than 0 change.
