@@ -19,13 +19,16 @@ import { NextResponse } from 'next/server'
  *   NEXT_PUBLIC_SITE_URL (optional) base for the internal API call
  */
 export const runtime = 'nodejs'
-export const maxDuration = 60
+// create_deck runs the whole deck generation inline (plan → draw every slide →
+// PPTX), which can take 1-2 min for a small deck, so this must outlast the default.
+export const maxDuration = 300
 
 const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').replace(/\/$/, '')
 const AGENCY_KEY = (process.env.MCP_AGENCY_API_KEY || '').trim()
 const STYLES = ['fintech', 'luxury', 'tech', 'upbeat', 'emerald', 'redblueprint', 'data', 'playful', 'casino', 'clean', 'glitchcore', 'cinematic', 'noir', 'retro', 'vibrant', 'editorial', 'brutalist', 'aurora', 'sport', 'corporate', 'neon', 'organic']
 const PROTOCOL_VERSION = '2025-06-18'
 const PRES_TEMPLATES = ['heritage', 'warm', 'bold', 'midnight', 'mint', 'certificate']
+const DECK_STYLES = ['executive', 'warm-story', 'dark-cinematic', 'bold-infographic', 'isometric', 'editorial']
 
 const TOOLS = [
   {
@@ -81,6 +84,22 @@ const TOOLS = [
       type: 'object',
       properties: { job_id: { type: 'string', description: 'The job_id from create_presentation.' } },
       required: ['job_id'],
+    },
+  },
+  {
+    name: 'create_deck',
+    description:
+      'Turn a DOCUMENT, some text, or just a topic into a finished, professionally-DESIGNED slide deck (a downloadable PowerPoint). Text2Art plans the running order, then draws every slide in a chosen visual style. Give it ONE source: `document_url` (a link to a .pptx or PDF — fetched + read server-side, no upload needed), OR `text` (an outline / notes), OR `topic` (a plain brief like "a 10-slide pitch for my roofing company"). This runs to completion and returns the download link directly (~1-2 min for a small deck); it charges credits once and refunds automatically if it fails.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        document_url: { type: 'string', description: 'A link to a .pptx or PDF to turn into a designed deck (e.g. a Google Drive/Dropbox/public URL). The server fetches + reads it — no upload or base64 needed.' },
+        text: { type: 'string', description: 'Alternative to document_url: raw source text — notes, an outline, or the deck content.' },
+        topic: { type: 'string', description: 'Alternative: just describe the deck in plain English, e.g. "a 10-slide investor pitch for a solar startup".' },
+        style: { type: 'string', enum: DECK_STYLES, description: 'Visual look for the slides. Default "executive".' },
+        slides: { type: 'number', description: 'How many slides (5-40). Default 8. Ignored when a document_url dictates its own slide count.' },
+        title: { type: 'string', description: 'Optional deck title (else derived from the content).' },
+      },
     },
   },
 ]
@@ -139,6 +158,20 @@ async function runTool(name: string, args: any) {
     if (s.status === 'failed') throw new Error(`Generation failed: ${s.error || 'unknown error'}`)
     return `Still working — status: ${s.status}, ${s.progress_pct ?? 0}% done. Check again shortly.`
   }
+  if (name === 'create_deck') {
+    if (!args?.document_url && !args?.text && !args?.topic) throw new Error('Provide one of: `document_url`, `text`, or `topic`.')
+    // v1/decks runs to completion and returns the finished deck (no polling tool).
+    const out = await apiV1('/api/v1/decks', {
+      method: 'POST',
+      body: {
+        document_url: args.document_url, text: args.text, topic: args.topic,
+        style: DECK_STYLES.includes(args.style) ? args.style : undefined,
+        slides: typeof args.slides === 'number' ? args.slides : undefined,
+        title: args.title,
+      },
+    })
+    return `✅ Deck ready.\n\ntitle: ${out.title}\nslides: ${out.slide_count}\ndownload (.pptx): ${out.download_url}\ncredits: ${out.credits_charged}`
+  }
   throw new Error(`Unknown tool: ${name}`)
 }
 
@@ -154,7 +187,7 @@ async function handleRpc(msg: any): Promise<any | null> {
         protocolVersion: params?.protocolVersion || PROTOCOL_VERSION,
         capabilities: { tools: {} },
         serverInfo: { name: 'docs2video', version: '1.0.0' },
-        instructions: 'Generate brand-matched commercial videos (create_commercial → check_commercial) and personalized interactive presentations with narrated share pages (create_presentation → check_presentation → send the share_url to the recipient).',
+        instructions: 'Generate brand-matched commercial videos (create_commercial → check_commercial), personalized interactive presentations with narrated share pages (create_presentation → check_presentation → send the share_url), and designed slide decks from a document, text, or a topic (create_deck → returns a downloadable .pptx directly).',
       })
     case 'notifications/initialized':
     case 'notifications/cancelled':
