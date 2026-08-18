@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { createAdminClient } from '../../_lib/supabase/admin'
+import { sha256 } from '../../_lib/mcp-oauth'
 
 /**
  * PUBLIC (remote) MCP endpoint — Streamable HTTP transport.
@@ -112,6 +114,47 @@ const TOOLS = [
     },
   },
 ]
+
+// --- OAuth: is this request carrying a valid, active MCP OAuth access token? ---
+// A user who signed in via Jordyn presents an mcpat_ bearer. We accept it (proves
+// consent) and still generate on the HOUSE agency key. A user's static v1 API key
+// (d2v_live_) is also accepted for backward-compat. tools/call requires ONE of these.
+async function isAuthorized(request: Request): Promise<boolean> {
+  const header = request.headers.get('authorization') || ''
+  const m = header.match(/^Bearer\s+(.+)$/i)
+  if (!m) return false
+  const raw = m[1].trim()
+  // a docs2video static API key or the agency key itself is fine
+  if (raw.startsWith('d2v_live_')) return true
+  if (AGENCY_KEY && raw === AGENCY_KEY) return true
+  // otherwise it must be a live MCP OAuth access token
+  if (raw.startsWith('mcpat_')) {
+    try {
+      const admin = createAdminClient()
+      const { data } = await admin.from('mcp_oauth_tokens')
+        .select('id, is_active, access_expires_at')
+        .eq('access_token_hash', sha256(raw)).eq('is_active', true).maybeSingle()
+      if (!data) return false
+      if (new Date(data.access_expires_at).getTime() < Date.now()) return false
+      admin.from('mcp_oauth_tokens').update({ last_used_at: new Date().toISOString() }).eq('id', data.id).then(() => {}, () => {})
+      return true
+    } catch { return false }
+  }
+  return false
+}
+
+// RFC 9728 — the 401 that starts the OAuth dance. Points the client at our
+// protected-resource metadata so it can discover the authorization server.
+function challenge401() {
+  const metaUrl = `${BASE_URL}/.well-known/oauth-protected-resource/api/mcp`
+  return new NextResponse(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32001, message: 'Authorization required' } }), {
+    status: 401,
+    headers: {
+      'Content-Type': 'application/json',
+      'WWW-Authenticate': `Bearer resource_metadata="${metaUrl}"`,
+    },
+  })
+}
 
 // --- call our own public API v1 with the agency key ---
 async function apiV1(path: string, init: { method?: string; body?: unknown } = {}) {
@@ -228,6 +271,13 @@ async function handleRpc(msg: any): Promise<any | null> {
 export async function POST(request: Request) {
   let payload: any
   try { payload = await request.json() } catch { return NextResponse.json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }, { status: 400 }) }
+
+  // AUTH GATE: initialize / tools/list / ping stay OPEN (the MCP client probes them
+  // to discover the server). Any tools/call MUST carry a valid token — otherwise we
+  // answer 401 + WWW-Authenticate so the client starts the OAuth sign-in flow.
+  const messages = Array.isArray(payload) ? payload : [payload]
+  const hasToolCall = messages.some((m) => m?.method === 'tools/call')
+  if (hasToolCall && !(await isAuthorized(request))) return challenge401()
 
   // MCP allows single messages or a batch array.
   if (Array.isArray(payload)) {

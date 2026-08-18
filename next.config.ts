@@ -5,6 +5,17 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     '*': ['node_modules/ffmpeg-static/**'],
   },
+  // OAuth discovery lives at /.well-known/... but a literal ".well-known" app
+  // folder isn't reliably routed by the App Router (dot-folders), so serve those
+  // paths from normal /api/well-known/* routes via rewrites. This is what the MCP
+  // OAuth client (Jordyn) probes to discover our authorize/token endpoints.
+  async rewrites() {
+    return [
+      { source: '/.well-known/oauth-protected-resource/api/mcp', destination: '/api/well-known/oauth-protected-resource/api/mcp' },
+      { source: '/.well-known/oauth-protected-resource', destination: '/api/well-known/oauth-protected-resource-bare' },
+      { source: '/.well-known/oauth-authorization-server', destination: '/api/well-known/oauth-authorization-server' },
+    ]
+  },
   async headers() {
     return [
       {
