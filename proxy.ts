@@ -33,7 +33,12 @@ export async function proxy(request: NextRequest) {
   // Machine-to-machine endpoints — these authenticate themselves (webhook
   // signatures, cron secrets, Inngest signing keys, Bearer API keys, the MCP
   // agency key) and must never be redirected to the login page.
-  const machinePaths = ['/api/webhooks', '/api/cron', '/api/inngest', '/api/email-track', '/api/email-prefs', '/api/stripe/webhook', '/api/partner', '/api/v1', '/api/mcp', '/api/checkout/create']
+  const machinePaths = ['/api/webhooks', '/api/cron', '/api/inngest', '/api/email-track', '/api/email-prefs', '/api/stripe/webhook', '/api/partner', '/api/v1', '/api/mcp', '/api/checkout/create',
+    // MCP OAuth: discovery metadata + the token/register/approve endpoints are
+    // machine-to-machine (an MCP client calls them, no browser session). The
+    // /api/mcp/oauth/authorize route handles its OWN login redirect internally,
+    // so it's safe to let through here too (it bounces to /login when needed).
+    '/.well-known', '/api/well-known', '/api/mcp/oauth']
   if (machinePaths.some(p => pathname.startsWith(p))) {
     return response
   }
