@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto'
 import { NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { authenticateApiKey, checkApiRateLimit, getApiBalance, chargeApiCredits, refundApiCredits, logApiUsage } from '../../../_lib/api-auth'
 import { costForUser } from '../../../_lib/credits'
@@ -104,63 +105,75 @@ export async function POST(request: Request) {
   if (!(await chargeApiCredits(caller.userId, DECK_COST))) return NextResponse.json({ error: 'Insufficient credits.' }, { status: 402 })
 
   const admin = createAdminClient()
-  const fail = async (status: number, message: string) => {
+
+  // 3) create the JOB row (a videos row of output_type 'deck') so a big deck runs
+  //    in the BACKGROUND and check_deck (GET /api/v1/videos/{id}) can poll it —
+  //    the drawing never has to finish inside the request window.
+  const { data: row, error: insErr } = await admin
+    .from('videos')
+    .insert({ user_id: caller.userId, status: 'pending', progress_pct: 3, progress_detail: 'Planning your deck…', title: (body.title || 'Deck').slice(0, 120), output_type: 'deck', draft_data: { apiKeyId: caller.keyId, apiCost: DECK_COST, source: 'api', kind: 'deck' } })
+    .select('id')
+    .single()
+  if (insErr || !row) {
     await refundApiCredits(caller.userId, DECK_COST)
-    await logApiUsage({ apiKeyId: caller.keyId, userId: caller.userId, endpoint: 'POST /api/v1/decks', videoId: null, creditsCharged: 0, status: 'failed' })
-    return NextResponse.json({ error: message }, { status })
+    return NextResponse.json({ error: 'Failed to create deck job.' }, { status: 500 })
   }
+  const jobId = row.id as string
 
-  try {
-    // 3) plan the running order
-    const plan = await planDeck(brief, slideCount)
-    const specs = (plan.slides || []).map((s, i) => toGenSlide(s, i, plan.slides.length)).filter((s) => s.headline)
-    if (!specs.length) return fail(422, 'Could not plan a deck from that source.')
+  // 4) do the heavy work in the background; the response returns immediately.
+  waitUntil((async () => {
+    const setFail = async (message: string) => {
+      await admin.from('videos').update({ status: 'failed', error_message: message.slice(0, 500), progress_pct: 0 }).eq('id', jobId).then(() => {}, () => {})
+      await refundApiCredits(caller.userId, DECK_COST)   // idempotent per-call key inside
+      await logApiUsage({ apiKeyId: caller.keyId, userId: caller.userId, endpoint: 'POST /api/v1/decks', videoId: jobId, creditsCharged: 0, status: 'failed' }).catch(() => {})
+      console.error(`[v1/decks ${reqId}] failed:`, message)
+    }
+    try {
+      const plan = await planDeck(brief, slideCount)
+      const specs = (plan.slides || []).map((s, i) => toGenSlide(s, i, plan.slides.length)).filter((s) => s.headline)
+      if (!specs.length) return setFail('Could not plan a deck from that source.')
+      await admin.from('videos').update({ progress_pct: 10, progress_detail: `Drawing ${specs.length} slides…` }).eq('id', jobId).then(() => {}, () => {})
 
-    // 4) draw every slide (Gemini) — parallel, with a solid-fallback so one bad
-    //    image never sinks the deck (mirrors generate-deck).
-    const stylePrompt = getStylePrompt(styleId)
-    const deckSlides: DeckSlide[] = await Promise.all(specs.map(async (spec, i) => {
-      const input: SimpleSlideInput = {
-        hasLogo: false,
-        type: spec.slideType === 'cover' ? 'cover' : spec.slideType === 'closing' ? 'closing' : 'content',
-        stylePrompt,
-        headline: spec.headline,
-        subtitle: spec.subheadline,
-        brandColors: { primary: '#1B365D', secondary: '#4A90D9' },
-        bullets: spec.bodyPoints.map((text) => ({ text })),
-        pageNumber: i + 1,
-        totalPages: specs.length,
-      }
-      let backgroundImage: Buffer
-      try {
-        const buf = await generateSlideFromPrompt(buildSimpleSlidePrompt(input))
-        if (!buf) throw new Error('no image')
-        backgroundImage = buf
-      } catch {
-        const sharpMod = await import('sharp'); const sharp = sharpMod.default ?? sharpMod
-        backgroundImage = await sharp({ create: { width: 1920, height: 1080, channels: 4, background: { r: 240, g: 244, b: 248, alpha: 1 } } }).png().toBuffer()
-      }
-      return { ...spec, backgroundImage }
-    }))
+      const stylePrompt = getStylePrompt(styleId)
+      let done = 0
+      const deckSlides: DeckSlide[] = await Promise.all(specs.map(async (spec, i) => {
+        const input: SimpleSlideInput = {
+          hasLogo: false,
+          type: spec.slideType === 'cover' ? 'cover' : spec.slideType === 'closing' ? 'closing' : 'content',
+          stylePrompt, headline: spec.headline, subtitle: spec.subheadline,
+          brandColors: { primary: '#1B365D', secondary: '#4A90D9' },
+          bullets: spec.bodyPoints.map((text) => ({ text })),
+          pageNumber: i + 1, totalPages: specs.length,
+        }
+        let backgroundImage: Buffer
+        try {
+          const buf = await generateSlideFromPrompt(buildSimpleSlidePrompt(input))
+          if (!buf) throw new Error('no image')
+          backgroundImage = buf
+        } catch {
+          const sharpMod = await import('sharp'); const sharp = sharpMod.default ?? sharpMod
+          backgroundImage = await sharp({ create: { width: 1920, height: 1080, channels: 4, background: { r: 240, g: 244, b: 248, alpha: 1 } } }).png().toBuffer()
+        }
+        done++
+        await admin.from('videos').update({ progress_pct: 10 + Math.round((done / specs.length) * 75) }).eq('id', jobId).then(() => {}, () => {})
+        return { ...spec, backgroundImage }
+      }))
 
-    // 5) build the PPTX + upload
-    const title = (body.title || plan.title || 'Deck').slice(0, 120)
-    const pptxBuffer = await generatePptx(deckSlides, {
-      brandName: title, primaryColor: '#1B365D', secondaryColor: '#4A90D9', accentColor: '#FFB347', textColor: '#FFFFFF', logoBuffer: null, contactInfo: { phone: '', website: '' },
-    })
-    const path = `${caller.userId}/decks/api-${Date.now()}.pptx`
-    await admin.storage.from('videos').upload(path, pptxBuffer, { contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', upsert: true })
-    const { data: urlData } = admin.storage.from('videos').getPublicUrl(path)
+      const title = (body.title || plan.title || 'Deck').slice(0, 120)
+      const pptxBuffer = await generatePptx(deckSlides, { brandName: title, primaryColor: '#1B365D', secondaryColor: '#4A90D9', accentColor: '#FFB347', textColor: '#FFFFFF', logoBuffer: null, contactInfo: { phone: '', website: '' } })
+      const path = `${caller.userId}/decks/api-${jobId}.pptx`
+      await admin.storage.from('videos').upload(path, pptxBuffer, { contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', upsert: true })
+      const { data: urlData } = admin.storage.from('videos').getPublicUrl(path)
 
-    await admin.from('creations').insert({ user_id: caller.userId, type: 'deck', title: `Deck: ${title}`, file_url: urlData.publicUrl, credits_used: DECK_COST }).then(() => {}, () => {})
-    await logApiUsage({ apiKeyId: caller.keyId, userId: caller.userId, endpoint: 'POST /api/v1/decks', videoId: null, creditsCharged: DECK_COST, status: 'ok' })
+      await admin.from('videos').update({ status: 'completed', progress_pct: 100, progress_detail: null, video_url: urlData.publicUrl, title }).eq('id', jobId).then(() => {}, () => {})
+      await admin.from('creations').insert({ user_id: caller.userId, type: 'deck', title: `Deck: ${title}`, file_url: urlData.publicUrl, credits_used: DECK_COST }).then(() => {}, () => {})
+      await logApiUsage({ apiKeyId: caller.keyId, userId: caller.userId, endpoint: 'POST /api/v1/decks', videoId: jobId, creditsCharged: DECK_COST, status: 'ok' }).catch(() => {})
+    } catch (e: any) {
+      await setFail(e?.message || 'Deck generation failed.')
+    }
+  })())
 
-    return NextResponse.json({ title, slide_count: deckSlides.length, download_url: urlData.publicUrl, credits_charged: DECK_COST }, { status: 200 })
-  } catch (e: any) {
-    // refund keyed on reqId → a retry can't double-refund
-    await refundApiCredits(caller.userId, DECK_COST)
-    await logApiUsage({ apiKeyId: caller.keyId, userId: caller.userId, endpoint: 'POST /api/v1/decks', videoId: null, creditsCharged: 0, status: 'failed' }).catch(() => {})
-    console.error(`[v1/decks ${reqId}] failed:`, e?.message || e)
-    return NextResponse.json({ error: e?.message || 'Deck generation failed.' }, { status: 500 })
-  }
+  // 5) respond immediately with the job id. Poll GET /api/v1/videos/{job_id};
+  //    when completed, video_url holds the .pptx download link.
+  return NextResponse.json({ job_id: jobId, status: 'queued', credits_charged: DECK_COST }, { status: 202 })
 }

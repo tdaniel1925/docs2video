@@ -89,7 +89,7 @@ const TOOLS = [
   {
     name: 'create_deck',
     description:
-      'Turn a DOCUMENT, some text, or just a topic into a finished, professionally-DESIGNED slide deck (a downloadable PowerPoint). Text2Art plans the running order, then draws every slide in a chosen visual style. Give it ONE source: `document_url` (a link to a .pptx or PDF — fetched + read server-side, no upload needed), OR `text` (an outline / notes), OR `topic` (a plain brief like "a 10-slide pitch for my roofing company"). This runs to completion and returns the download link directly (~1-2 min for a small deck); it charges credits once and refunds automatically if it fails.',
+      'Turn a DOCUMENT, some text, or just a topic into a finished, professionally-DESIGNED slide deck (a downloadable PowerPoint). Text2Art plans the running order, then draws every slide in a chosen visual style. Give it ONE source: `document_url` (a link to a .pptx or PDF — fetched + read server-side, no upload needed), OR `text` (an outline / notes), OR `topic` (a plain brief like "a 10-slide pitch for my roofing company"). Returns a job_id immediately; use check_deck to get the finished .pptx (~1-2 min for a small deck). Charges credits once, refunds automatically if it fails.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -97,9 +97,18 @@ const TOOLS = [
         text: { type: 'string', description: 'Alternative to document_url: raw source text — notes, an outline, or the deck content.' },
         topic: { type: 'string', description: 'Alternative: just describe the deck in plain English, e.g. "a 10-slide investor pitch for a solar startup".' },
         style: { type: 'string', enum: DECK_STYLES, description: 'Visual look for the slides. Default "executive".' },
-        slides: { type: 'number', description: 'How many slides (5-40). Default 8. Ignored when a document_url dictates its own slide count.' },
+        slides: { type: 'number', description: 'How many slides (3-20). Default 8. Ignored when a document_url dictates its own slide count.' },
         title: { type: 'string', description: 'Optional deck title (else derived from the content).' },
       },
+    },
+  },
+  {
+    name: 'check_deck',
+    description: 'Check the status of a deck started with create_deck. When completed, returns the download link for the finished .pptx.',
+    inputSchema: {
+      type: 'object',
+      properties: { job_id: { type: 'string', description: 'The job_id from create_deck.' } },
+      required: ['job_id'],
     },
   },
 ]
@@ -160,8 +169,7 @@ async function runTool(name: string, args: any) {
   }
   if (name === 'create_deck') {
     if (!args?.document_url && !args?.text && !args?.topic) throw new Error('Provide one of: `document_url`, `text`, or `topic`.')
-    // v1/decks runs to completion and returns the finished deck (no polling tool).
-    const out = await apiV1('/api/v1/decks', {
+    const started = await apiV1('/api/v1/decks', {
       method: 'POST',
       body: {
         document_url: args.document_url, text: args.text, topic: args.topic,
@@ -170,7 +178,14 @@ async function runTool(name: string, args: any) {
         title: args.title,
       },
     })
-    return `✅ Deck ready.\n\ntitle: ${out.title}\nslides: ${out.slide_count}\ndownload (.pptx): ${out.download_url}\ncredits: ${out.credits_charged}`
+    return `Deck started.\n\njob_id: ${started.job_id}\nstatus: ${started.status}\ncredits: ${started.credits_charged}\n\nUse check_deck with this job_id to get the finished .pptx when it's ready (~1-2 min for a small deck).`
+  }
+  if (name === 'check_deck') {
+    if (!args?.job_id) throw new Error('Provide a `job_id`.')
+    const s = await apiV1(`/api/v1/videos/${args.job_id}`)
+    if (s.status === 'completed') return `✅ Deck ready.\n\ndownload (.pptx): ${s.download_url || s.video_url}\ntitle: ${s.title || 'Deck'}\njob_id: ${args.job_id}`
+    if (s.status === 'failed') throw new Error(`Deck generation failed: ${s.error || 'unknown error'}`)
+    return `Still working — status: ${s.status}, ${s.progress_pct ?? 0}% done. Check again shortly.`
   }
   throw new Error(`Unknown tool: ${name}`)
 }

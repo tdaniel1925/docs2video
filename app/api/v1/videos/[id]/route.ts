@@ -21,7 +21,7 @@ export async function GET(
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('videos')
-    .select('id, user_id, status, progress_pct, video_url, thumbnail_url, slide_urls, error_message, created_at, output_type, title')
+    .select('id, user_id, status, progress_pct, video_url, thumbnail_url, slide_urls, error_message, created_at, output_type, title, draft_data')
     .eq('id', id)
     .single()
 
@@ -50,6 +50,11 @@ export async function GET(
   const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').replace(/\/$/, '')
   const outputType = (data as { output_type?: string }).output_type || 'video'
   const isPresentation = outputType === 'interactive' || outputType === 'deck'
+  // An API-generated .pptx deck (create_deck) is also output_type 'deck' but its
+  // deliverable is a real downloadable file in video_url — NOT a share page. Tell
+  // the two apart by draft_data.kind so we surface the download link.
+  const draft = (data as { draft_data?: { kind?: string; source?: string } }).draft_data || {}
+  const isApiPptxDeck = draft.kind === 'deck' && draft.source === 'api'
 
   return NextResponse.json({
     id: data.id,
@@ -58,9 +63,11 @@ export async function GET(
     title: (data as { title?: string | null }).title ?? null,
     progress_pct: data.progress_pct ?? 0,
     // For presentations video_url holds the raw HTML artifact — the client-
-    // facing deliverable is the share page (plays inline, action buttons).
-    video_url: isPresentation ? null : (data.video_url ?? null),
-    share_url: data.status === 'completed' ? `${BASE_URL}/watch/${data.id}` : null,
+    // facing deliverable is the share page. For an API .pptx deck it IS the download.
+    video_url: (isPresentation && !isApiPptxDeck) ? null : (data.video_url ?? null),
+    // Explicit download link for API .pptx decks (create_deck → check_deck reads this).
+    download_url: isApiPptxDeck && data.status === 'completed' ? (data.video_url ?? null) : undefined,
+    share_url: (data.status === 'completed' && !isApiPptxDeck) ? `${BASE_URL}/watch/${data.id}` : null,
     deck_pdf_url: outputType === 'interactive' && data.status === 'completed' ? `${BASE_URL}/api/public/deck-pdf/${data.id}` : null,
     thumbnail_url: data.thumbnail_url ?? null,
     slide_urls: data.slide_urls ?? null,
