@@ -3798,6 +3798,16 @@ function Viewer({ design, onClose }: { design: Design & { designId?: string }; o
     c.height = i.clientHeight
   }
 
+  // The picture changes size when editing starts (it shrinks to make room for
+  // the controls). The paint layer sits exactly on top of it, so it has to be
+  // re-measured to the new size — otherwise the brush lands in the wrong place.
+  // A tiny delay lets the CSS height change settle before we measure.
+  useEffect(() => {
+    const t = setTimeout(() => { sizeCanvas(); clearBrush() }, 60)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brushing])
+
   const paintAt = (e: React.PointerEvent) => {
     const c = canvasRef.current
     if (!c) return
@@ -3849,6 +3859,14 @@ function Viewer({ design, onClose }: { design: Design & { designId?: string }; o
         body: JSON.stringify({ designId: current.designId, maskDataUrl, instruction }),
       })
       const data = await res.json().catch(() => ({}))
+      // Asked to change WORDS? The server won't inpaint text (it invents junk).
+      // Show its guidance calmly and drop out of the brush so the person can go
+      // type the new wording in the chat.
+      if (res.status === 422 && data?.code === 'use_chat_for_text') {
+        setProblem(data.error || 'To change the words, type the new wording in the chat and press Make.')
+        setBrushing(false); clearBrush()
+        return
+      }
       if (!res.ok || !data?.png) { setProblem(data?.error || 'That change could not be made.'); return }
       // The old one is still saved; this shows the new one without losing it.
       setCurrent({ ...current, src: data.png, designId: data.designId ?? current.designId })
@@ -3864,11 +3882,19 @@ function Viewer({ design, onClose }: { design: Design & { designId?: string }; o
     <div onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(20,18,16,.88)',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24,
+        // Scroll as a safety net: on a short window, the picture + edit box +
+        // toolbar used to run off the bottom and the buttons became unreachable.
+        // A scrollable column can never hide its own controls.
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start',
+        gap: 12, padding: 20, overflowY: 'auto',
       }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', maxWidth: '100%', maxHeight: '80vh' }}>
+      {/* WHEN EDITING, THE PICTURE MAKES ROOM. At full 80vh the image left no
+          space for the edit box and the toolbar, so they fell off screen. While
+          painting, the picture shrinks so everything you need is visible at once
+          — you can still see what you painted, just smaller. */}
+      <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', maxWidth: '100%', maxHeight: brushing ? '52vh' : '82vh', margin: 'auto 0' }}>
         <img ref={imgRef} src={current.src} alt={current.label} onLoad={sizeCanvas}
-          style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8, background: '#111', display: 'block' }} />
+          style={{ maxWidth: '100%', maxHeight: brushing ? '52vh' : '82vh', objectFit: 'contain', borderRadius: 8, background: '#111', display: 'block' }} />
         <canvas ref={canvasRef}
           onPointerDown={(e) => { if (!brushing) return; drawing.current = true; paintAt(e) }}
           onPointerMove={(e) => { if (brushing && drawing.current) paintAt(e) }}
@@ -3884,11 +3910,13 @@ function Viewer({ design, onClose }: { design: Design & { designId?: string }; o
 
       {brushing && (
         <div onClick={(e) => e.stopPropagation()}
-          style={{ background: 'white', borderRadius: 10, padding: 14, width: 'min(560px, 92vw)' }}>
+          style={{ background: 'white', borderRadius: 10, padding: 14, width: 'min(560px, 92vw)', flexShrink: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>
             {painted ? 'What should change there?' : 'Paint over the part you want changed'}
           </div>
           <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.5 }}>
+            This is for pictures — swap an object, change a colour, tidy the background.
+            To change the <strong>words</strong>, close this and retype them in the chat, then press Make.
             Cover the whole thing, not just its outline — everything you leave unpainted stays exactly as it is.
           </p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -3904,7 +3932,7 @@ function Viewer({ design, onClose }: { design: Design & { designId?: string }; o
           {problem && <p role="alert" style={{ fontSize: 12.5, color: '#b91c1c', margin: '9px 0 0' }}>{problem}</p>}
         </div>
       )}
-      <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: 10, alignItems: 'center', color: 'white', fontSize: 13 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: 10, alignItems: 'center', color: 'white', fontSize: 13, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'center' }}>
         <span style={{ fontWeight: 700 }}>{current.label}</span>
         <span style={{ opacity: 0.6 }}>{current.w} × {current.h}</span>
         <button onClick={() => { setBrushing((b) => !b); setProblem('') }}

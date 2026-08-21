@@ -27,6 +27,26 @@ let _ai: OpenAI | null = null
 const ai = () => (_ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' }))
 const MODEL = process.env.FLYER_IMAGE_MODEL || 'gpt-image-2'
 
+/**
+ * Is this instruction really about changing WORDS?
+ *
+ * Paint-editing repaints a region as a fresh picture — it cannot reliably edit
+ * letters, and when pushed to, it invents imagery to fill the space. A text
+ * change belongs in the chat (retype + Make redraws the design). We catch the
+ * common ways people phrase a wording change and bounce them to that path.
+ */
+function looksLikeTextChange(s: string): boolean {
+  const t = s.toLowerCase()
+  // Direct mentions of text/wording/spelling.
+  if (/\b(text|word|words|wording|spelling|spelled|headline|caption|title|says?|say|type|font|letter|letters|phrase|sentence|copy)\b/.test(t)) return true
+  // "change X to Y" / "replace X with Y" / "make it say Y" patterns.
+  if (/\b(change|replace|swap|rename|edit|update|correct|fix)\b.*\b(to|with|into|for|say)\b/.test(t)) return true
+  if (/\bmake it (say|read)\b/.test(t)) return true
+  // Quoted words are almost always literal copy to place.
+  if (/["'“”].+["'“”]/.test(s)) return true
+  return false
+}
+
 export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -71,6 +91,22 @@ export async function POST(req: Request) {
   if (!isOverlay) {
     if (!instruction) return NextResponse.json({ error: 'Say what to change in that area.' }, { status: 400 })
     if (!mask.startsWith('data:image')) return NextResponse.json({ error: 'Draw over the part you want changed first.' }, { status: 400 })
+
+    // PAINTING IS FOR PICTURES, NOT WORDS.
+    //
+    // The image editor repaints the masked hole from scratch. Ask it to "change
+    // the word 'working' to something else" and it does not edit letters — it
+    // invents whatever fills the space (a customer asked to swap a word and got
+    // a yoga-class flyer and a sticky note painted onto the wall). Changing text
+    // reliably means re-drawing the design with the new words, which is what the
+    // chat + Make does. So we catch a text-change instruction here and send the
+    // person to the right tool instead of charging them for garbage.
+    if (looksLikeTextChange(instruction)) {
+      return NextResponse.json({
+        error: 'To change the words, close this and type the new wording in the chat, then press Make — that redraws the design with your new text. Painting only changes pictures, not letters.',
+        code: 'use_chat_for_text',
+      }, { status: 422 })
+    }
   }
 
   const admin = createAdminClient()
@@ -190,10 +226,13 @@ export async function POST(req: Request) {
     const res = await ai().images.edit({
       model: MODEL,
       prompt:
-        `Change ONLY the area marked in the mask. ${instruction}\n\n` +
-        'Everything outside that area must stay exactly as it is — same layout, same lettering, same colours. ' +
+        `Make a small, local, photorealistic edit to ONLY the masked area: ${instruction}\n\n` +
+        'Everything outside the masked area must stay exactly as it is — same layout, same lettering, same colours. ' +
         'Blend the change into its surroundings so the edit is invisible: matching light, matching shadow, matching grain and style. ' +
-        'Do not add, move, respell or restyle any text anywhere in the image.',
+        'The edit must be a natural continuation of what is already there in that spot. ' +
+        'DO NOT invent or add any new objects, posters, flyers, signs, notes, stickers, labels, logos, cards, screens or artwork. ' +
+        'DO NOT add, move, respell or restyle any text or lettering anywhere in the image. ' +
+        'If the instruction cannot be done as a subtle photographic change to the masked spot, leave that area unchanged rather than inventing something to fill it.',
       image: await toFile(imageForEdit, 'design.png', { type: 'image/png' }),
       mask: await toFile(maskPng, 'mask.png', { type: 'image/png' }),
       size: editSize,
