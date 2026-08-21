@@ -241,6 +241,22 @@ function orderedGroups(kind: Kind | null) {
   return [...FORMAT_GROUPS].sort((a, b) => (a.id === lead ? -1 : b.id === lead ? 1 : 0))
 }
 
+/**
+ * Which "what are you making?" a size belongs to.
+ *
+ * Reopening a finished job needs to put the right group of formats first and
+ * light up the right rail step, but only the SIZES were saved — not the kind.
+ * So we read the kind back off the size's own group: a slide means a deck, a
+ * social or banner size means a graphic, print and cards mean a print piece.
+ * Defaults to 'print' for an unknown id rather than leaving it blank.
+ */
+function kindForSize(sizeId: string): Kind {
+  const g = FLYER_SIZES.find((s) => s.id === sizeId)?.group
+  if (g === 'slide') return 'deck'
+  if (g === 'social' || g === 'banner') return 'social'
+  return 'print' // print + card
+}
+
 const FORMAT_GROUPS: { id: string; label: string }[] = [
   { id: 'print', label: 'Print' },
   { id: 'social', label: 'Social' },
@@ -892,6 +908,27 @@ export default function FlyerMakerPage() {
           setTemplateId(last.templateId || VISIBLE_STYLES[0].id)
           setFields(last.fields ?? {})
           setNote(last.note ?? '')
+
+          // BRING BACK THE WHOLE BUILD, NOT JUST THE WORDS.
+          //
+          // Reopening a job used to restore the words and the style but leave
+          // the SIZES and the KIND blank. So "make more sizes" opened the
+          // formats picker with nothing ticked and no idea what you were
+          // making — an empty screen with none of your work on it. We restore
+          // the sizes you last made and infer the kind from them, so the
+          // picker opens already showing what you had, ready to add to.
+          const lastSizes: string[] = Array.isArray(last.designs)
+            ? last.designs.map((d: { sizeId: string }) => d.sizeId).filter(Boolean)
+            : []
+          // A deck repeats one size; a normal job has distinct sizes. Either
+          // way, tick what actually exists so the picker reflects reality.
+          const uniqueSizes = [...new Set(lastSizes)]
+          if (uniqueSizes.length) {
+            const isDeck = lastSizes.length > 1 && uniqueSizes.length < lastSizes.length
+            setKind(isDeck ? 'deck' : kindForSize(uniqueSizes[0]))
+            setTicked(isDeck ? ['slide-16x9'] : uniqueSizes)
+            setSizesPicked(true)
+          }
         }
       } else {
         // Switched to an empty chat. Reset rather than leaving the last chat's
@@ -902,6 +939,23 @@ export default function FlyerMakerPage() {
         setFields({})
       }
       setLoadingHistory(false)
+
+      // "MORE SIZES" ARRIVES READY TO USE.
+      //
+      // The library's "More sizes" link comes in as ?pick=formats. Now that the
+      // job's words, style and sizes are back on screen, open the formats
+      // picker straight away so the customer can tick a new size and press Make
+      // — instead of landing on the design and having to hunt for where sizes
+      // live. One-shot: we strip the param so a refresh doesn't reopen it.
+      try {
+        const sp = new URLSearchParams(window.location.search)
+        if (sp.get('pick') === 'formats' && past.length) {
+          openQuestion('formats')
+          sp.delete('pick')
+          const qs = sp.toString()
+          window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
+        }
+      } catch { /* ssr / private mode */ }
     })()
     return () => { dead = true }
     // openChatKey changes when a chat is chosen or started, which is what
@@ -2843,7 +2897,7 @@ export default function FlyerMakerPage() {
         ) : (
         <>
         {items.map((it) => (
-          it.kind === 'round' ? <RoundBlock key={it.id} round={it} now={now} onOpen={setViewing} />
+          it.kind === 'round' ? <RoundBlock key={it.id} round={it} now={now} onOpen={setViewing} onMoreSizes={() => openQuestion('formats')} />
           : it.kind === 'deck' ? (
             <DeckBlock key={it.id} deck={it} now={now} onOpen={setViewing}
               onApprove={() => makeDeck({
@@ -3558,10 +3612,13 @@ function DeckBlock({ deck, now, onOpen, onRetry, onApprove, onRestyle }: {
   )
 }
 
-function RoundBlock({ round, now, onOpen }: {
+function RoundBlock({ round, now, onOpen, onMoreSizes }: {
   round: Extract<Item, { kind: 'round' }>
   now: number
   onOpen: (d: Design) => void
+  /** Open the formats picker so more sizes can be added to THIS job — the
+   *  words and style are already on screen, so it just adds to what's here. */
+  onMoreSizes?: () => void
 }) {
   const style = FLYER_TEMPLATES.find((t) => t.id === round.templateId)?.name ?? round.templateId
   const done = Object.values(round.status).filter((s) => s === 'done' || s === 'fail').length
@@ -3580,16 +3637,35 @@ function RoundBlock({ round, now, onOpen }: {
           <span style={{ fontSize: 12, color: SOFT }}>
             {done} of {total} · {remaining > 0 ? `about ${mmss(remaining)} left` : 'any moment now'}
           </span>
-        ) : round.designs.length > 1 && (
-          // One click for the lot. Downloading six sizes one at a time is the
-          // sort of small tax nobody mentions and everybody resents.
-          <button onClick={() => downloadAll(round)}
-            style={{
-              padding: '6px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: 'white',
-              fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', color: INK,
-            }}>
-            ⬇ Download all {round.designs.length}
-          </button>
+        ) : (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {/* MORE SIZES, RIGHT HERE. Adding a size used to mean losing the
+                job: the button led to a blank screen with none of your work
+                on it. Now it opens the size picker over the design you're
+                looking at — same words, same style, just pick what else to
+                make and press Make. */}
+            {onMoreSizes && (
+              <button onClick={onMoreSizes}
+                title="Make this same design in more sizes — your words and style stay exactly as they are"
+                style={{
+                  padding: '6px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: 'white',
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', color: INK,
+                }}>
+                ＋ More sizes
+              </button>
+            )}
+            {round.designs.length > 1 && (
+              // One click for the lot. Downloading six sizes one at a time is the
+              // sort of small tax nobody mentions and everybody resents.
+              <button onClick={() => downloadAll(round)}
+                style={{
+                  padding: '6px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: 'white',
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', color: INK,
+                }}>
+                ⬇ Download all {round.designs.length}
+              </button>
+            )}
+          </div>
         )}
       </div>
 

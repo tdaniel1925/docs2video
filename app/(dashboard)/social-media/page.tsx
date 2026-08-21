@@ -38,6 +38,23 @@ export default function SocialMediaPage() {
   // Create Post state
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([])
   const [captionTopic, setCaptionTopic] = useState('')
+  // A design handed over from the Library ("Post to social"). We show it and
+  // pre-fill the topic so the caption is written ABOUT this design. Saving the
+  // image to attach it to the post is the user's step for now — this gets them
+  // into the right place with the right design in front of them.
+  const [fromDesign, setFromDesign] = useState<{ url: string; title: string } | null>(null)
+  useEffect(() => {
+    try {
+      const sp = new URLSearchParams(window.location.search)
+      const url = sp.get('fromDesign')
+      if (url) {
+        const title = sp.get('title') || 'my design'
+        setFromDesign({ url, title })
+        setTab('create')
+        setCaptionTopic((t) => t || `A social post to go with my design: ${title}`)
+      }
+    } catch { /* ssr */ }
+  }, [])
   const [captions, setCaptions] = useState<Record<string, string>>({})
   const [generating, setGenerating] = useState(false)
   const [posting, setPosting] = useState(false)
@@ -473,6 +490,23 @@ export default function SocialMediaPage() {
               })}
             </div>
           </div>
+
+          {/* A design brought over from My Library. Shown so the person knows
+              which one they're posting, with a one-tap save to attach it. */}
+          {fromDesign && (
+            <div className="settings-card" style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={fromDesign.url} alt={fromDesign.title}
+                style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)' }} />
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ fontWeight: 700, marginBottom: 2 }}>Posting your design</div>
+                <p style={{ fontSize: 13, color: 'var(--ink-light)', margin: 0 }}>
+                  Write a caption below, then save the image to attach it to your post.
+                </p>
+              </div>
+              <a href={fromDesign.url} target="_blank" rel="noreferrer" className="btn btn-outlined btn-sm">Save image</a>
+            </div>
+          )}
 
           {/* Caption Input */}
           <div className="settings-card">

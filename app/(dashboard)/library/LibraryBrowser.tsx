@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 type Design = { id: string; sizeId: string; label: string; w: number; h: number; url: string; createdAt: string }
 type Project = { id: string; title: string; pinned: boolean; updatedAt: string; totalDesigns: number; designs: Design[] }
@@ -12,13 +13,63 @@ function fmtDate(iso: string) {
   try { return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) } catch { return '' }
 }
 
+/**
+ * Save a design to the visitor's device.
+ *
+ * The signed image URL points at a private bucket, so a plain <a download>
+ * often opens the image in a tab instead of saving it (cross-origin downloads
+ * are ignored by the browser). Fetching the bytes and saving a blob makes
+ * "Download" actually download, on every browser.
+ */
+async function saveToDevice(url: string, filename: string) {
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const href = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = href; a.download = filename
+    document.body.appendChild(a); a.click(); a.remove()
+    setTimeout(() => URL.revokeObjectURL(href), 4000)
+  } catch {
+    window.open(url, '_blank') // last resort: at least show it
+  }
+}
+
+/**
+ * Share a design using the phone/desktop share sheet when it exists (Instagram,
+ * Messages, Mail all appear there), and fall back to copying the link so there
+ * is always SOMETHING that works — a share button that silently does nothing on
+ * a laptop is worse than no button.
+ */
+async function shareDesign(url: string, title: string) {
+  try {
+    const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean; share?: (d: unknown) => Promise<void> }
+    // Prefer sharing the actual image file where the browser allows it.
+    try {
+      const res = await fetch(url)
+      const blob = await res.blob()
+      const file = new File([blob], `${title || 'design'}.png`, { type: blob.type || 'image/png' })
+      if (nav.canShare?.({ files: [file] }) && nav.share) { await nav.share({ files: [file], title }); return }
+    } catch { /* fall through to url share */ }
+    if (nav.share) { await nav.share({ title, url }); return }
+    await navigator.clipboard.writeText(url)
+    return 'copied'
+  } catch {
+    try { await navigator.clipboard.writeText(url); return 'copied' } catch { return 'failed' }
+  }
+}
+
 export default function LibraryBrowser() {
+  const router = useRouter()
   const [projects, setProjects] = useState<Project[]>([])
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState<Record<string, boolean>>({})
+  const [toast, setToast] = useState<string | null>(null)
+
+  const flash = (m: string) => { setToast(m); setTimeout(() => setToast(null), 2200) }
 
   const load = useCallback(async (p: number, append: boolean) => {
     setLoading(true); setError(null)
@@ -45,6 +96,13 @@ export default function LibraryBrowser() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 4px' }}>
+      {toast && (
+        <div role="status" style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: '#23201c', color: 'white', padding: '9px 16px', borderRadius: 10,
+          fontSize: 13, fontWeight: 600, zIndex: 50, boxShadow: '0 4px 16px rgba(0,0,0,.2)',
+        }}>{toast}</div>
+      )}
       <div className="page-head">
         <h1 className="page-title">My Library</h1>
         <Link href="/flyer" className="btn btn-mint btn-sm">Make something new</Link>
@@ -97,17 +155,31 @@ export default function LibraryBrowser() {
                     <p style={{ color: 'var(--ink-light)', fontSize: 13, margin: '8px 0' }}>No files in this project yet.</p>
                   ) : (
                     <>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
                         {proj.designs.map((d) => (
-                          <a key={d.id} href={d.url} target="_blank" rel="noreferrer"
-                             title={`${d.label} — open full size`}
-                             style={{ display: 'block', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, overflow: 'hidden', background: '#faf8f4', textDecoration: 'none' }}>
-                            <div style={{ aspectRatio: `${d.w} / ${d.h}`, background: '#efece6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={d.url} alt={d.label} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          <div key={d.id}
+                             style={{ display: 'flex', flexDirection: 'column', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, overflow: 'hidden', background: '#faf8f4' }}>
+                            <a href={d.url} target="_blank" rel="noreferrer" title={`${d.label} — open full size`}
+                               style={{ display: 'block', textDecoration: 'none' }}>
+                              <div style={{ aspectRatio: `${d.w} / ${d.h}`, background: '#efece6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={d.url} alt={d.label} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                              </div>
+                            </a>
+                            <div style={{ padding: '6px 8px', fontSize: 12, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</div>
+
+                            {/* WHAT YOU CAN DO WITH A SAVED DESIGN. Edit again and
+                                More sizes reopen the whole job in the builder (its
+                                words, style and sizes come back), so they land on a
+                                filled-in screen — not a blank one. */}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '0 8px 8px', marginTop: 'auto' }}>
+                              <LibBtn label="Edit again" onClick={() => router.push(`/flyer?chat=${proj.id}`)} title="Reopen this job to change the wording or style" />
+                              <LibBtn label="More sizes" onClick={() => router.push(`/flyer?chat=${proj.id}&pick=formats`)} title="Reopen this job and pick more sizes to make" />
+                              <LibBtn label="Download" onClick={() => saveToDevice(d.url, `${d.label || 'design'}.png`)} title="Save this design to your device" />
+                              <LibBtn label="Share" onClick={async () => { const r = await shareDesign(d.url, d.label); if (r === 'copied') flash('Link copied'); else if (r === 'failed') flash('Could not share') }} title="Share this design" />
+                              <LibBtn label="Post to social" onClick={() => router.push(`/social-media?fromDesign=${encodeURIComponent(d.url)}&title=${encodeURIComponent(d.label)}`)} title="Take this design into the Social Posts tool" />
                             </div>
-                            <div style={{ padding: '6px 8px', fontSize: 12, color: 'var(--ink)' }}>{d.label}</div>
-                          </a>
+                          </div>
                         ))}
                       </div>
                       {proj.totalDesigns > proj.designs.length && (
@@ -133,5 +205,20 @@ export default function LibraryBrowser() {
         </div>
       )}
     </div>
+  )
+}
+
+/** A small, quiet action button — same look for every design action so the row
+ *  reads as one set of choices, not a jumble. */
+function LibBtn({ label, onClick, title }: { label: string; onClick: () => void; title?: string }) {
+  return (
+    <button onClick={onClick} title={title}
+      style={{
+        padding: '5px 9px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.12)',
+        background: 'white', color: 'var(--ink)', fontSize: 11.5, fontWeight: 600,
+        cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.2, whiteSpace: 'nowrap',
+      }}>
+      {label}
+    </button>
   )
 }
