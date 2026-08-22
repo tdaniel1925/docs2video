@@ -44,8 +44,14 @@ export default function ContentStep() {
       : 'Tell me what this needs to say — the event, the offer, the details. You can talk it, type it, paste text, or upload a document and I’ll write it for you.' }])
   }, [ready])
 
+  // Only follow the conversation down if the user is ALREADY near the bottom.
+  // Auto-scrolling while they've scrolled up to re-read an answer is the jarring
+  // behaviour the audit flagged.
   useEffect(() => {
-    scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: 'smooth' })
+    const el = scrollerRef.current
+    if (!el) return
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120
+    if (nearBottom) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
   }, [msgs, busy])
 
   if (!ready) return null
@@ -161,10 +167,13 @@ export default function ContentStep() {
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
             rows={2} placeholder="Type or paste here — or press the mic and talk…"
             style={{ flex: 1, resize: 'none', padding: '10px 12px', borderRadius: 10, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 14, color: INK }} />
-          <button onClick={() => dictation.toggle()} disabled={busy} aria-label="Talk"
+          <button onClick={() => dictation.toggle()} disabled={busy}
+            aria-label={dictation.listening ? 'Stop recording' : 'Talk to type'}
+            aria-pressed={dictation.listening}
             title={dictation.listening ? 'Stop' : 'Talk'}
-            style={{ ...plainBtn, padding: '10px 12px', background: dictation.listening ? '#C0392B' : 'white', color: dictation.listening ? 'white' : INK }}>
-            {dictation.transcribing ? '…' : dictation.listening ? '■' : '🎤'}
+            style={{ ...plainBtn, padding: '10px 14px', display: 'inline-flex', alignItems: 'center', gap: 6, background: dictation.listening ? '#C0392B' : 'white', color: dictation.listening ? 'white' : INK }}>
+            <span aria-hidden>{dictation.transcribing ? '…' : dictation.listening ? '■' : '🎤'}</span>
+            <span style={{ fontSize: 12 }}>{dictation.transcribing ? 'Transcribing…' : dictation.listening ? 'Listening…' : 'Talk'}</span>
           </button>
           <button onClick={send} disabled={busy || !input.trim()} style={{ ...primaryBtn, padding: '10px 16px', opacity: busy || !input.trim() ? 0.5 : 1 }}>Send</button>
         </div>

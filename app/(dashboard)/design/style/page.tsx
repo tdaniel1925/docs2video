@@ -14,6 +14,12 @@ export default function StyleStep() {
   const [openStyles, setOpenStyles] = useState(false)
   const [shown, setShown] = useState(PAGE)
   const [guessing, setGuessing] = useState(false)
+  // When picking a look ejects an uploaded reference (or vice versa), we say so
+  // and offer Undo — the old behaviour cleared the other choice silently.
+  const [ejected, setEjected] = useState<{ msg: string; restore: () => void } | null>(null)
+  const flashEject = (msg: string, restore: () => void) => {
+    setEjected({ msg, restore }); setTimeout(() => setEjected(null), 6000)
+  }
 
   if (!ready) return null
 
@@ -66,15 +72,24 @@ export default function StyleStep() {
     // The reference is used for STYLE only, so a smaller copy is plenty — and it
     // MUST be small enough to persist, or it's lost on the way to the next step.
     const dataUrl = await downscaleDataUrl(await readAsDataUrl(file), 1280)
+    // A reference and one of our styles can't both be used. If a style was
+    // chosen, SAY it's being cleared and offer to undo — never silent.
+    const prevStyle = state.templateId
     patch({ reference: { dataUrl, name: file.name }, referenceOwned: false, templateId: null })
     setOpenStyles(false)
+    if (prevStyle) flashEject('Using your reference — the chosen style was cleared.', () => patch({ templateId: prevStyle, reference: null }))
   }
   const onReferencePaste = async (e: React.ClipboardEvent) => {
     const file = [...(e.clipboardData?.items ?? [])].find((it) => it.type.startsWith('image/'))?.getAsFile()
     if (file) { e.preventDefault(); await onReference(file) }
   }
 
-  const pickStyle = (id: string) => patch({ templateId: id, reference: null })
+  const pickStyle = (id: string) => {
+    const prevRef = state.reference
+    patch({ templateId: id, reference: null,
+      aiSuggested: { ...state.aiSuggested, templateId: false } })
+    if (prevRef) flashEject('Using this style — your uploaded reference was cleared.', () => patch({ reference: prevRef, templateId: null }))
+  }
 
   const ready2 = Boolean(state.templateId) || Boolean(state.reference)
   const pickedName = VISIBLE_STYLES.find((t) => t.id === state.templateId)?.name ?? null
@@ -89,7 +104,25 @@ export default function StyleStep() {
       nextReady={ready2}
       nextHint="Drop a reference or pick one of our styles">
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }}>
+      {/* AI picked this look from your sentence — say so, and it's easy to change. */}
+      {state.aiSuggested?.templateId && pickedName && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 14, padding: '6px 12px', borderRadius: 8, background: `${MINT}55`, border: `1px solid ${MINT}`, fontSize: 13, color: INK }}>
+          <span>✨ Suggested look: <strong>{pickedName}</strong> — keep it or pick another below.</span>
+        </div>
+      )}
+
+      {/* Reference↔style swap notice with Undo — never a silent clear. */}
+      {ejected && (
+        <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, padding: '9px 14px', borderRadius: 8, background: '#23201c', color: '#fff', fontSize: 13 }}>
+          <span>{ejected.msg}</span>
+          <button onClick={() => { ejected.restore(); setEjected(null) }}
+            style={{ background: 'none', border: '1px solid rgba(255,255,255,.4)', color: '#fff', borderRadius: 6, padding: '3px 10px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5 }}>
+            Undo
+          </button>
+        </div>
+      )}
+
+      <div className="t2a-style-cols" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }}>
 
         {/* BOX 1 — REFERENCE / STYLE */}
         <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -119,7 +152,7 @@ export default function StyleStep() {
 
           {/* premade styles accordion */}
           <div style={{ borderTop: `1px solid ${LINE}`, paddingTop: 10 }}>
-            <button onClick={() => setOpenStyles((v) => !v)}
+            <button onClick={() => setOpenStyles((v) => !v)} aria-expanded={openStyles}
               style={{ ...plainBtn, width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>{state.templateId ? `Style: ${pickedName}` : 'Or choose one of our styles'}</span>
               <span style={{ color: SOFT }}>{openStyles ? '▲' : '▼'}</span>
@@ -202,6 +235,7 @@ export default function StyleStep() {
           </p>
         </div>
       </div>
+      <style>{`@media (max-width: 720px) { .t2a-style-cols { grid-template-columns: 1fr !important; } }`}</style>
     </StepShell>
   )
 }

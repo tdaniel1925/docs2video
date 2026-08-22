@@ -25,13 +25,20 @@ export default function SizesStep() {
   const { state, patch, ready } = useWizard()
   const [unit, setUnit] = useState<number | null>(null)
   const [balance, setBalance] = useState<number | null>(null)
+  // 'loading' until we know the price, 'failed' if we couldn't fetch it. The
+  // price must never silently vanish — a failed lookup BLOCKS Next with a retry,
+  // so nobody picks sizes blind and then hits "not enough credits" at generate.
+  const [costState, setCostState] = useState<'loading' | 'ok' | 'failed'>('loading')
 
-  useEffect(() => {
+  const loadCost = () => {
+    setCostState('loading')
     fetch('/api/flyer-history').then((r) => r.json()).then((r) => {
-      if (typeof r.unit === 'number') setUnit(r.unit)
+      if (typeof r.unit === 'number') { setUnit(r.unit); setCostState('ok') }
+      else setCostState('failed')
       if (typeof r.balance === 'number') setBalance(r.balance)
-    }).catch(() => {})
-  }, [])
+    }).catch(() => setCostState('failed'))
+  }
+  useEffect(() => { loadCost() }, [])
 
   const isDeck = Boolean(state.deckSlides)
   // A deck's size is fixed to 16:9 slides — set it once so Review + generate agree.
@@ -82,8 +89,9 @@ export default function SizesStep() {
     <StepShell title="Where will you *use* it?"
       nextLabel="Next: review"
       subtitle="Tick as many sizes as you need — each one is designed from scratch. You’ll review everything next, then we make them."
-      back="/design/content" next="/design/summary" nextReady={sizes.length > 0}
-      nextHint="Pick at least one size">
+      back="/design/content" next="/design/summary"
+      nextReady={sizes.length > 0 && costState === 'ok'}
+      nextHint={costState === 'failed' ? 'Couldn’t load the price — retry below' : costState === 'loading' ? 'Checking the price…' : 'Pick at least one size'}>
 
       <div style={{ ...card, maxWidth: 720 }}>
         {GROUPS.map((g) => {
@@ -92,7 +100,7 @@ export default function SizesStep() {
           return (
             <div key={g.id} style={{ marginBottom: 16 }}>
               <div style={lbl}>{g.label}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(230px,1fr))', gap: 4 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(170px,1fr))', gap: 4 }}>
                 {rows.map((s) => (
                   <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, cursor: 'pointer', padding: '4px 6px', borderRadius: 6, color: INK }}>
                     <input type="checkbox" checked={sizes.includes(s.id)} onChange={() => toggle(s.id)} />
@@ -109,7 +117,15 @@ export default function SizesStep() {
       {/* BLEED CHOICE — only when a printable size is picked. */}
       {hasPrint && <BleedChoice bleed={state.bleed} onPick={(b) => patch({ bleed: b })} />}
 
-      {sizes.length > 0 && cost !== null && (
+      {/* THE PRICE IS NEVER HIDDEN. If we couldn't load it, say so and offer a
+          retry — Next stays blocked until we know the cost. */}
+      {costState === 'failed' && (
+        <div role="alert" style={{ margin: '16px 0 0', padding: '10px 12px', borderRadius: 8, border: '1px solid #e6b0b0', background: '#fdf3f3', color: '#8a3b3b', fontSize: 13, display: 'flex', alignItems: 'center', gap: 10, maxWidth: 720 }}>
+          <span>We couldn’t load the credit price. You won’t be charged until we can show it.</span>
+          <button onClick={loadCost} style={{ ...card, padding: '5px 12px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 12.5 }}>Try again</button>
+        </div>
+      )}
+      {sizes.length > 0 && costState === 'ok' && cost !== null && (
         <p style={{ fontSize: 13, color: SOFT, margin: '16px 0 0' }}>
           {sizes.length} design{sizes.length === 1 ? '' : 's'} · <strong style={{ color: INK }}>{cost.toLocaleString()} credits</strong>
           {balance !== null && ` · ${Math.max(0, balance - cost).toLocaleString()} left after`}

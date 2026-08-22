@@ -109,11 +109,11 @@ function Examples({ kind }: { kind: string | null }) {
   return (
     <div style={{ ...card }}>
       <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: SOFT, marginBottom: 8 }}>
-        The kind of thing you’ll get
+        Samples of this kind
       </div>
       <img src={`/design-examples/${featured.file}.png`} alt={`Example ${featured.label}`}
         style={{ width: '100%', borderRadius: 8, border: `1px solid ${LINE}`, display: 'block', background: '#faf8f4' }} />
-      <div style={{ fontSize: 11.5, color: SOFT, margin: '6px 0 12px' }}>An example {featured.label.toLowerCase()} — yours uses your words and style.</div>
+      <div style={{ fontSize: 11.5, color: SOFT, margin: '6px 0 12px' }}>A sample {featured.label.toLowerCase()} for the look — yours is made fresh from your words and style, so it won’t look like this one.</div>
       <div style={{ display: 'flex', gap: 6 }}>
         {others.map((e) => (
           <img key={e.file} src={`/design-examples/${e.file}.png`} alt={`Example ${e.label}`} title={e.label}
