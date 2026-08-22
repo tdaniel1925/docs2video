@@ -63,8 +63,10 @@ export async function POST(request: Request) {
       const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
       const res = await claude.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
-        system: 'You split a slide deck / PDF into its individual slides, in order. For EACH page or slide, return its title and its bullet points as written. Do not merge slides, do not summarise, do not invent. If a page is only a picture with no readable text, return it with an empty heading and empty bullets so it is still counted.',
+        // Bigger budget: a long deck's JSON was getting cut off mid-array at
+        // 4096, which then failed to parse and read as "couldn't make sense".
+        max_tokens: 8192,
+        system: 'You split a slide deck / PDF into its individual slides, in order. For EACH page or slide, return its title and its bullet points as written. Do not merge slides, do not summarise, do not invent. If a page is only a picture with no readable text, return it with an empty heading and empty bullets so it is still counted. Reply with ONLY the JSON object — no explanation, no markdown fences, nothing before or after it.',
         messages: [{
           role: 'user',
           content: [
@@ -73,7 +75,7 @@ export async function POST(request: Request) {
           ],
         }],
       })
-      rawText = res.content[0]?.type === 'text' ? res.content[0].text : '{}'
+      rawText = res.content.filter((c) => c.type === 'text').map((c) => (c as { text: string }).text).join('')
     } catch (e) {
       // Anthropic API error (rate limit, credit, PDF too big/unsupported).
       console.error('[deck-parse] anthropic PDF read failed:', e instanceof Error ? e.message : e)
@@ -81,10 +83,15 @@ export async function POST(request: Request) {
     }
     let parsed: { slides?: { heading?: string; bullets?: string[] }[] }
     try {
-      parsed = JSON.parse(rawText.replace(/^```json?\n?/i, '').replace(/\n?```$/i, '').trim())
+      // ROBUST EXTRACTION. The model sometimes wraps JSON in a sentence or a
+      // fence, or trails off. Take the widest {...} span and parse that; only
+      // give up if there's genuinely no object in the reply.
+      const a = rawText.indexOf('{'), b = rawText.lastIndexOf('}')
+      const slice = a >= 0 && b > a ? rawText.slice(a, b + 1) : rawText.trim()
+      parsed = JSON.parse(slice)
     } catch (e) {
       console.error('[deck-parse] PDF JSON parse failed. rawText head:', rawText.slice(0, 200))
-      return NextResponse.json({ error: 'We could not make sense of that PDF. Try re-exporting it, or upload a .pptx.' }, { status: 422 })
+      return NextResponse.json({ error: 'We could not make sense of that PDF. Try re-exporting it as a .pptx, which reads most reliably.' }, { status: 422 })
     }
     const rawSlides = (parsed.slides ?? []).map((s) =>
       [s.heading ?? '', ...(s.bullets ?? [])].filter(Boolean).join('\n'))
