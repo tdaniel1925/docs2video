@@ -199,6 +199,23 @@ export async function POST(req: Request) {
     brand = (data as BrandBits) ?? null
   }
 
+  // No saved brand, but colours were read off a website the user pointed at in
+  // the chat? Tint the design with those. Validated hex only, so nothing weird
+  // reaches the prompt. Name/fonts/tone stay empty — this is a palette, not a
+  // full brand kit.
+  if (!brand && Array.isArray((body as { brandColors?: unknown })?.brandColors)) {
+    const hexes = ((body as { brandColors?: unknown[] }).brandColors ?? [])
+      .map((c) => String(c))
+      .filter((c) => /^#[0-9a-fA-F]{6}$/.test(c))
+      .slice(0, 3)
+    if (hexes.length) {
+      brand = {
+        name: null, primary_color: hexes[0], secondary_color: hexes[1] ?? null,
+        accent_color: hexes[2] ?? null, logo_url: null, logo_light_url: null, fonts: null, tone: null,
+      }
+    }
+  }
+
   /**
    * The brand, written as art direction.
    *

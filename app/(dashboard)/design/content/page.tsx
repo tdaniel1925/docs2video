@@ -84,7 +84,13 @@ export default function ContentStep() {
         return
       }
       if (data.fields) patch({ fields: data.fields })
-      setMsgs((m) => [...m, { role: 'assistant', text: String(data.reply || 'Got it.') }])
+      // A website was read: keep its colours for the design to be tinted with,
+      // and (if it had a logo) nudge them to the reference box to place it — we
+      // never auto-place someone's logo for them.
+      if (Array.isArray(data.brandColors) && data.brandColors.length) patch({ brandColors: data.brandColors })
+      let note = String(data.reply || 'Got it.')
+      if (data.siteLogoFound) note += ' I spotted their logo on the site too — on the Look step, use the “your logo & photos” box to add it.'
+      setMsgs((m) => [...m, { role: 'assistant', text: note }])
     } catch {
       setMsgs((m) => [...m, { role: 'assistant', text: 'Network hiccup — try that again.' }])
     } finally {
@@ -186,6 +192,9 @@ export default function ContentStep() {
             onChange={(e) => void onFile(e.target.files?.[0])} />
           <button style={plainBtn} onClick={() => setManual((v) => !v)}>✏️ Type it in myself</button>
         </div>
+        <p style={{ fontSize: 12, color: SOFT, margin: '8px 2px 0' }}>
+          Tip: paste a website (like <strong style={{ color: INK }}>jordyn.app</strong>) and I’ll pull the words and colours from it.
+        </p>
 
         {/* Always-available manual fields — works even if the writing helper is
             down. It shares the PARENT's state/patch (not its own useWizard copy),

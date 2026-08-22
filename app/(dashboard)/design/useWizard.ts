@@ -76,6 +76,12 @@ export type WizardState = {
    * confirms or changes it. Cleared per-key as the user edits.
    */
   aiSuggested?: { kind?: boolean; templateId?: boolean; sizes?: boolean; fields?: boolean }
+  /**
+   * Brand colours read off a website the user pointed the chat at. Offered as a
+   * tint for the design; the style step can show them and the generate call can
+   * pass them along. Empty/undefined when no site was read.
+   */
+  brandColors?: string[]
 }
 
 const KEY = 'text2art:wizard'

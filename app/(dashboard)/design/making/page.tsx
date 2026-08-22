@@ -98,6 +98,9 @@ export default function MakingScreen() {
             keepMotif: Boolean(state.reference && state.referenceOwned),
             photos: state.photos.map((p) => ({ dataUrl: p.dataUrl, role: p.role })),
             brandId: state.brandId ?? undefined,
+            // Colours read off a website in the chat — used to tint only when no
+            // saved brand and no uploaded reference is driving the look.
+            brandColors: state.brandColors && state.brandColors.length ? state.brandColors : undefined,
             roundId, chatId,
           }),
         }).then((x) => x.json())

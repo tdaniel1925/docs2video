@@ -3,6 +3,35 @@ import { stripFalseDelivery } from '../../_lib/no-false-claims'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../_lib/supabase/server'
 import { FLYER_TEMPLATES, FLYER_SIZES, type FlyerFields } from '../../_lib/flyer-engine'
+import { isSafePublicUrl, fetchPage, extractColors, extractLogoUrl } from '../../_lib/brand-scraper'
+
+// Pull the FIRST web address out of a message, if any. People write "use
+// jordyn.app", "look at https://acme.com/about", or just paste a bare domain.
+function findUrl(text: string): string | null {
+  const m = text.match(/\b((?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?)/i)
+  if (!m) return null
+  let u = m[1]
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u
+  try { const p = new URL(u); return (p.protocol === 'http:' || p.protocol === 'https:') ? p.toString() : null }
+  catch { return null }
+}
+
+// Go and read a page the user pointed at: its readable text (for copy) and its
+// main colours (to tint the design). Reuses the SSRF-guarded scraper — every
+// redirect hop is re-checked, because a stranger chose this URL.
+async function readSite(url: string): Promise<{ text: string; colors: string[]; logoUrl: string | null } | null> {
+  try {
+    if (!(await isSafePublicUrl(url))) return null
+    const html = await fetchPage(url)
+    if (!html) return null
+    const text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+      .slice(0, 6000) // enough for the copywriter; keeps the call cheap
+    return { text, colors: extractColors(html).slice(0, 5), logoUrl: extractLogoUrl(html, url) }
+  } catch { return null }
+}
 
 // =============================================================================
 // The conversation that fills in a flyer — PROOF OF CONCEPT.
@@ -116,6 +145,7 @@ Return ONLY a JSON object, no commentary and no markdown fence:
   "layoutId": string,      // one of: ${FLYER_TEMPLATES.map((t) => `${t.id} (${t.name}, ${t.category})`).join(', ')}
   "subject": string,       // 1 sentence describing the ARTWORK to generate — a scene, no text in it
   "redoSizeId": string,    // ONLY when the user pointed at a numbered design ("design 2, ..."). The sizeId of that design. Omit otherwise.
+  "brandColors": string[], // ONLY when a website was read and no look is chosen yet: up to 3 hex colours from that page to tint the design. Omit otherwise.
   "reply": string,         // one short friendly line back to the user
   "show": string           // OPEN A PICKER. One of: formats, styles, photos, reference, slides. Omit when there is nothing to choose.
 }
@@ -141,8 +171,14 @@ Rules:
 - If the user names a size ("8.5 by 11", "poster", "square", "business card"), set sizeId to match. If they describe a mood, pick the layoutId that fits it.
 - ALWAYS set layoutId to the style that suits the SUBJECT, not the one already selected. A property listing is not a club night; an estate agent's card must not come back designed as a nightclub flyer. Match the category first — nightlife, business, community, realestate, fitness — then the mood within it.
 - A BUSINESS CARD is not a small poster. If sizeId is a business card, "headline" is the PERSON'S NAME, "subhead" is their job title, "venue" is the company, and "contact" holds the phone, email and website. Leave date, time and price out entirely, and keep everything short — a card carries a handful of words, not a paragraph.
+- READING A WEBSITE. When the message includes what a page says (marked "Here is what that page says"), write the design's words FROM that page: use the real business name, a tagline in their voice, and the two or three strongest selling points as the details. Do not invent facts, prices, dates or contact details the page doesn't state. If page colours are given and the user hasn't chosen a look, you MAY set "brandColors" to those hex values so the design can be tinted to match — otherwise omit it. If a page could NOT be read, say so plainly in the reply and ask them to paste the key words; don't pretend you saw it.
 - "subject" describes a photograph or illustration only — never mention words, signs or lettering, because the artwork must contain none.
 - The designs already made are listed below with the NUMBER the customer sees on each one. If they point at one ("design 2, make the price $25", "redo number 1 in blue"), apply their change to the fields and set "redoSizeId" to that design's sizeId, so only that one is remade. Say in the reply which one you have queued up. If they did not name a number, leave "redoSizeId" out.`
+
+  // POINT IT AT A WEBSITE. If the message has a URL, go read that page and hand
+  // the copywriter its words + colours so it can draft the design from the site.
+  const url = findUrl(message)
+  const site = url ? await readSite(url) : null
 
   const designs = (body?.designs ?? []).slice(0, 12)
   const context = [
@@ -151,9 +187,14 @@ Rules:
     designs.length
       ? `Designs already made, as numbered on screen:\n${designs.map((d) => `  ${d.n}. ${d.label} (sizeId: ${d.sizeId})`).join('\n')}`
       : 'No designs made yet.',
+    site
+      ? `\nThe user pointed at ${url}. Here is what that page says — draft the design's words FROM this (pull the business name, what they do, a tagline, and the strongest few selling points; keep it honest to the page, invent no facts it doesn't state):\n"""\n${site.text}\n"""\nMain colours seen on the page: ${site.colors.join(', ') || '(none found)'}.`
+      : url && !site
+        ? `\nThe user pointed at ${url} but the page could not be read (blocked, private, or down). Say so plainly and ask them to paste the key words instead.`
+        : '',
     ...(body?.history ?? []).slice(-6).map((h) => `${h.role}: ${h.text}`),
     `user: ${message}`,
-  ].join('\n')
+  ].filter(Boolean).join('\n')
 
   try {
     const msg = await claude().messages.create({
@@ -184,7 +225,7 @@ Rules:
 
     let out: {
       fields?: FlyerFields; sizeId?: string; layoutId?: string; subject?: string
-      redoSizeId?: string; reply?: string; show?: string
+      redoSizeId?: string; reply?: string; show?: string; brandColors?: string[]
     }
     try {
       out = JSON.parse(text.slice(a, b + 1))
@@ -235,6 +276,15 @@ Rules:
       console.warn(`[flyer-chat] claimed a design that does not exist (/${checked.matched}/)`)
     }
 
+    // Brand colours: only real hex values, from the model OR straight off the
+    // page we read. The client can offer to tint the design with these.
+    const HEX = /^#?[0-9a-fA-F]{6}$/
+    const fromModel = Array.isArray(out.brandColors) ? out.brandColors : []
+    const brandColors = [...new Set([...fromModel, ...(site?.colors ?? [])])]
+      .filter((c) => HEX.test(String(c)))
+      .map((c) => (c.startsWith('#') ? c : `#${c}`))
+      .slice(0, 3)
+
     return NextResponse.json({
       fields: out.fields ?? body?.fields ?? {},
       sizeId, layoutId, redoSizeId, show,
@@ -243,6 +293,11 @@ Rules:
       // not just "Updated." — but a reply that arrives WITH a picker should be
       // one line, and the prompt says so.
       reply: checked.reply,
+      // When a site was read: its colours (to tint) and whether a logo was found
+      // (so the UI can nudge them to the reference box to place it — we don't
+      // auto-place anyone else's logo).
+      ...(brandColors.length ? { brandColors } : {}),
+      ...(site?.logoUrl ? { siteLogoFound: true } : {}),
     })
   } catch (err) {
     // Only a genuine failure reaches here now — the model being unreachable,
