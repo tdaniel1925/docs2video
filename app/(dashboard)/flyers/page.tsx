@@ -1,14 +1,9 @@
 import { redirect } from 'next/navigation'
 
-// The old four-step flyer wizard lived here. It has been replaced by the
-// chat-first maker at /flyer, which generates the whole design — artwork and
-// lettering together — at each size's own shape, keeps a saved history, and
-// also makes business cards.
-//
-// This file stays as a redirect rather than being deleted outright: /flyers was
-// the address in the menu for months, so it is in bookmarks and browser
-// history. Flyers made with the old wizard are untouched and still listed
-// under My Creations.
+// Retired address. Both the old four-step wizard (/flyers) and the one-page
+// chat builder (/flyer) are gone; the designer now lives at /design. Kept as a
+// redirect because /flyers was in the menu for months. Every design ever made
+// is still in My Library.
 export default function RetiredFlyerWizard() {
-  redirect('/flyer')
+  redirect('/design')
 }

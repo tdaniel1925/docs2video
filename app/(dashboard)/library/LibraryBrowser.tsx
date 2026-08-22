@@ -68,8 +68,14 @@ export default function LibraryBrowser() {
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState<Record<string, boolean>>({})
   const [toast, setToast] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
 
   const flash = (m: string) => { setToast(m); setTimeout(() => setToast(null), 2200) }
+
+  // Filter loaded projects by title as you type — a fast way to find one job in
+  // a long list. (Filters what's loaded; "Load more" keeps pulling older pages.)
+  const q = query.trim().toLowerCase()
+  const visible = q ? projects.filter((p) => (p.title || '').toLowerCase().includes(q)) : projects
 
   /**
    * Open a saved job in the NEW 5-step design flow (not the old chat builder).
@@ -138,9 +144,19 @@ export default function LibraryBrowser() {
         <h1 className="page-title">My Library</h1>
         <Link href="/design" className="btn btn-mint btn-sm">Make something new</Link>
       </div>
-      <p style={{ color: 'var(--ink-light)', marginTop: -6, marginBottom: 20, fontSize: 14 }}>
+      <p style={{ color: 'var(--ink-light)', marginTop: -6, marginBottom: 14, fontSize: 14 }}>
         Every design you&apos;ve made, kept by project. Click a project to see its files.
       </p>
+
+      {projects.length > 0 && (
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search your projects by name…"
+          aria-label="Search your projects"
+          style={{ width: '100%', maxWidth: 420, marginBottom: 18, padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.14)', font: 'inherit', fontSize: 14 }}
+        />
+      )}
 
       {error && (
         <div className="card" style={{ borderColor: '#e6b0b0', color: '#8a3b3b' }}>
@@ -149,14 +165,22 @@ export default function LibraryBrowser() {
       )}
 
       {!error && !loading && projects.length === 0 && (
-        <div className="card" style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--ink-light)' }}>
-          <p style={{ fontSize: 16, marginBottom: 12 }}>Nothing here yet.</p>
+        <div className="card" style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--ink-light)' }}>
+          <div style={{ fontSize: 40, marginBottom: 10 }} aria-hidden>🎨</div>
+          <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>Your library is a blank canvas</p>
+          <p style={{ fontSize: 14, marginBottom: 16 }}>Everything you make lands here — flyers, posts, cards, decks.</p>
           <Link href="/design" className="btn btn-mint">Make your first design</Link>
         </div>
       )}
 
+      {!error && !loading && projects.length > 0 && visible.length === 0 && (
+        <div className="card" style={{ textAlign: 'center', padding: '28px 20px', color: 'var(--ink-light)' }}>
+          No projects match “{query}”. <button className="btn btn-sm btn-outlined" style={{ marginLeft: 8 }} onClick={() => setQuery('')}>Clear search</button>
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {projects.map((proj) => {
+        {visible.map((proj) => {
           const isOpen = !!open[proj.id]
           return (
             <div key={proj.id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -230,7 +254,7 @@ export default function LibraryBrowser() {
 
       {loading && <p style={{ textAlign: 'center', color: 'var(--ink-light)', padding: 20 }}>Loading…</p>}
 
-      {!loading && hasMore && (
+      {!loading && hasMore && !q && (
         <div style={{ textAlign: 'center', marginTop: 20 }}>
           <button className="btn btn-outlined" onClick={() => load(page + 1, true)}>Load more projects</button>
         </div>
