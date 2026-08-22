@@ -70,6 +70,12 @@ export type WizardState = {
    * inputs are gone (only the round pointer remains).
    */
   cleared: boolean
+  /**
+   * Which fields the AI drafted from the one-sentence prompt (vs. the user
+   * choosing them). Lets each step badge a value as "suggested" until the user
+   * confirms or changes it. Cleared per-key as the user edits.
+   */
+  aiSuggested?: { kind?: boolean; templateId?: boolean; sizes?: boolean; fields?: boolean }
 }
 
 const KEY = 'text2art:wizard'

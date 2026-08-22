@@ -5,8 +5,17 @@ import { useRouter } from 'next/navigation'
 import { thumbUrl } from '../../_lib/flyer-engine'
 import { useWizard } from './useWizard'
 import { INK, SOFT, LINE, MINT, card, plainBtn, StepShell } from './ui'
+import { useDictation } from '../../_components/useDictation'
 import type { Kind } from './useWizard'
 import type { DeckSlide } from '../../_lib/deck-split'
+
+// One-tap starters that show the kind of sentence that works best.
+const STARTERS = [
+  'A grand-opening flyer for my salon this Saturday',
+  'An Instagram post for a new house listing',
+  'A “now hiring” poster for my cafe',
+  'A business card for a real-estate agent',
+]
 
 /**
  * STEP 1 — WHAT ARE YOU MAKING?
@@ -26,6 +35,40 @@ const KINDS: { kind: Kind; label: string; blurb: string; sample: string }[] = [
 export default function WhatStep() {
   const { state, patch, reset, ready } = useWizard()
   const router = useRouter()
+
+  // THE PROMPT HERO. One sentence → the AI drafts kind, look, words and sizes,
+  // and the wizard opens as a review instead of a blank questionnaire.
+  const [prompt, setPrompt] = useState('')
+  const [drafting, setDrafting] = useState(false)
+  const [draftErr, setDraftErr] = useState('')
+  const dictation = useDictation((t) => setPrompt((v) => (v ? v + ' ' : '') + t), { onError: (m) => setDraftErr(m) })
+
+  const draftFromPrompt = async (text: string) => {
+    const p = text.trim()
+    if (!p || drafting) return
+    setDrafting(true); setDraftErr('')
+    try {
+      const r = await fetch('/api/design-prefill', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ prompt: p }),
+      }).then((x) => x.json())
+      if (r?.error) { setDraftErr(r.error); return }
+      // Seed the wizard with the AI's draft (all suggestions the user can change)
+      // and mark which pieces were AI-guessed so the steps can badge them.
+      patch({
+        kind: r.kind, templateId: r.templateId, sizes: r.sizeIds ?? [],
+        fields: r.fields ?? {}, note: p,
+        aiSuggested: { kind: true, templateId: true, sizes: true, fields: true },
+      })
+      sessionStorage.setItem('design:walking', '1')
+      // Land on Style so they can confirm/adjust the look first.
+      router.push('/design/style')
+    } catch {
+      setDraftErr('Could not draft that just now — pick a tile below instead.')
+    } finally {
+      setDrafting(false)
+    }
+  }
 
   // AUTO-ADVANCE on a single tap — but only for the kinds that are ready the
   // instant they're picked. A deck still needs its file uploaded, so tapping
@@ -75,6 +118,51 @@ export default function WhatStep() {
       nextReady={nextReady}
       nextHint={state.kind === 'deck' ? 'Upload a deck to restyle first' : 'Pick what you’re making'}
     >
+      {/* THE PROMPT HERO — say it in a sentence and we draft the whole thing.
+          The tiles below stay for anyone who'd rather just pick. */}
+      <div style={{ marginBottom: 'var(--sp-6)' }}>
+        <div style={{
+          position: 'relative', display: 'flex', alignItems: 'flex-end', gap: 8,
+          border: `1px solid ${LINE}`, borderRadius: 'var(--r-4)', background: 'white',
+          padding: 8, boxShadow: '0 8px 30px rgba(35,32,28,0.08)',
+        }}>
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void draftFromPrompt(prompt) } }}
+            placeholder="Describe it in a sentence — e.g. a grand-opening flyer for my salon this Saturday"
+            rows={2}
+            disabled={drafting}
+            aria-label="Describe what you want to make"
+            style={{ flex: 1, resize: 'none', border: 'none', outline: 'none', background: 'transparent',
+              font: 'inherit', fontSize: 16, color: INK, padding: '8px 8px', lineHeight: 1.5 }}
+          />
+          <button onClick={() => dictation.toggle()} disabled={drafting} aria-label={dictation.listening ? 'Stop talking' : 'Talk'}
+            title={dictation.listening ? 'Stop' : 'Talk'}
+            style={{ ...plainBtn, padding: '10px 12px', background: dictation.listening ? '#C0392B' : 'white', color: dictation.listening ? 'white' : INK }}>
+            {dictation.transcribing ? '…' : dictation.listening ? '■' : '🎤'}
+          </button>
+          <button onClick={() => void draftFromPrompt(prompt)} disabled={drafting || !prompt.trim()}
+            className="t2a-cta" style={{ opacity: drafting || !prompt.trim() ? 0.45 : 1 }}>
+            {drafting ? 'Drafting…' : 'Draft it →'}
+          </button>
+        </div>
+        {draftErr && <p role="alert" style={{ fontSize: 12.5, color: '#b91c1c', margin: '8px 2px 0' }}>{draftErr}</p>}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+          {STARTERS.map((s) => (
+            <button key={s} onClick={() => { setPrompt(s); void draftFromPrompt(s) }} disabled={drafting}
+              style={{ fontSize: 12.5, color: SOFT, background: 'white', border: `1px solid ${LINE}`,
+                borderRadius: 'var(--r-3)', padding: '6px 11px', cursor: 'pointer', fontFamily: 'inherit' }}>
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: SOFT, margin: '0 0 12px' }}>
+        Or pick one to start
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 14 }}>
         {KINDS.map((k) => {
           const on = state.kind === k.kind
