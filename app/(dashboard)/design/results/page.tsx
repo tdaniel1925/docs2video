@@ -53,6 +53,10 @@ export default function EditStep() {
 
   useEffect(() => {
     if (!ready) return
+    // A walk that reached results is OVER. Clear the in-progress mark so the
+    // next time the user opens Step 1 (e.g. via the nav) it resets to a clean
+    // slate instead of showing this job's leftover words.
+    try { sessionStorage.removeItem('design:walking') } catch { /* ignore */ }
     // Need at least a job pointer: the round we made, OR the chat it lives in
     // (the Library "Edit again" deep-link seeds the chat but not a round).
     if (!state.roundId && !state.chatId) { setLoading(false); return }

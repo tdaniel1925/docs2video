@@ -114,6 +114,11 @@ export function useWizard() {
 
   const reset = useCallback(() => {
     try { localStorage.removeItem(KEY) } catch { /* ignore */ }
+    // Also drop the "walk in progress" mark. Otherwise a finished walk could
+    // leave it set, and the NEXT visit to Step 1 would SKIP its own reset and
+    // show the old job's words in the fields — the "new session still has the
+    // old info" bug.
+    try { sessionStorage.removeItem('design:walking') } catch { /* ignore */ }
     setState({ ...EMPTY })
   }, [])
 
