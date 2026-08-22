@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { STEPS, activeStepIndex, stepDoneFlags } from './steps'
 import { Sidebar } from './ui'
 import { useWizard } from './useWizard'
+import { Preview } from './system/Preview'
 import './system/tokens.css'
 
 /**
@@ -36,6 +37,13 @@ export default function DesignLayout({ children }: { children: React.ReactNode }
   const activeIdx = activeStepIndex(pathname)
   const doneFlags = ready ? stepDoneFlags(state) : undefined
 
+  // Show the live preview once there's something to show (a look chosen or a
+  // reference or words). On Step 1 (nothing picked yet) it stays hidden so the
+  // kind tiles get the full width. Decks skip it (they preview per-slide later).
+  const showPreview = ready && !state.deckSlides &&
+    Boolean(state.templateId || state.reference || state.fields?.headline)
+  const firstSize = state.sizes?.[0] ?? (state.kind === 'social' ? 'ig-post' : 'letter')
+
   return (
     // height:100vh + overflow on the content column so the step body scrolls
     // UNDER a sticky bottom bar that pins to the viewport edge.
@@ -44,6 +52,26 @@ export default function DesignLayout({ children }: { children: React.ReactNode }
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
         {children}
       </div>
+      {showPreview && (
+        // Persistent live preview — desktop only (hidden ≤1100px so phones and
+        // the two-column Style step keep their room). Reacts to every choice.
+        <aside className="t2a-preview-rail" style={{
+          width: 340, flexShrink: 0, borderLeft: '1px solid var(--t2a-line)',
+          background: 'rgba(255,255,255,.5)', padding: 'var(--sp-5)',
+          display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)', overflowY: 'auto',
+        }}>
+          <div style={{ fontSize: 'var(--fs-1)', fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--t2a-soft)' }}>
+            Live preview
+          </div>
+          <Preview
+            sizeId={firstSize}
+            templateId={state.templateId}
+            referenceDataUrl={state.reference?.dataUrl ?? null}
+            headline={state.fields?.headline}
+          />
+        </aside>
+      )}
+      <style>{`@media (max-width: 1100px) { .t2a-preview-rail { display: none !important; } }`}</style>
     </div>
   )
 }

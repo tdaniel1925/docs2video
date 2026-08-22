@@ -102,3 +102,8 @@
 .t2a-back:focus-visible { outline: 3px solid var(--t2a-mint); outline-offset: 2px; }
 
 .t2a-hint { font-size: var(--fs-1); color: var(--t2a-soft); }
+
+/* Making-screen theater */
+@keyframes t2a-shimmer { to { background-position: -200% 0; } }
+@keyframes t2a-sharpen { from { filter: blur(14px); opacity: 0.4; transform: scale(1.04); } to { filter: none; opacity: 1; transform: none; } }
+@keyframes t2a-spin { to { transform: rotate(360deg); } }

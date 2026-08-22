@@ -5,6 +5,18 @@ import { useRouter } from 'next/navigation'
 import { useWizard } from '../useWizard'
 import { generateDeck } from '../deckGenerate'
 import { INK, SOFT, CREAM } from '../ui'
+import { SkeletonTile } from '../system/Preview'
+import { FLYER_SIZES } from '../../../_lib/flyer-engine'
+
+// The status line cycles through the real stages of a design so the wait reads
+// as work happening, not a hung spinner.
+const STAGES = [
+  'Sketching the layout…',
+  'Setting your headline…',
+  'Placing your images…',
+  'Bringing in colour…',
+  'Final polish…',
+]
 
 /**
  * THE WAIT SCREEN.
@@ -40,6 +52,7 @@ export default function MakingScreen() {
   const fired = useRef(false)
   const [err, setErr] = useState('')
   const [tick, setTick] = useState(0)
+  const [stage, setStage] = useState(0)
   const [deckProg, setDeckProg] = useState<{ done: number; total: number } | null>(null)
 
   // Fire the generate ONCE.
@@ -105,6 +118,14 @@ export default function MakingScreen() {
     return () => clearInterval(t)
   }, [err])
 
+  // Cycle the status verb so the wait reads as work happening. Stops at the last
+  // stage rather than looping, so it never claims to restart.
+  useEffect(() => {
+    if (err) return
+    const t = setInterval(() => setStage((s) => Math.min(s + 1, STAGES.length - 1)), 2600)
+    return () => clearInterval(t)
+  }, [err])
+
   if (err) {
     return (
       <div style={{ minHeight: '100vh', background: CREAM, display: 'grid', placeItems: 'center', padding: 32 }}>
@@ -120,49 +141,69 @@ export default function MakingScreen() {
     )
   }
 
-  // Every other slide is an ad; the rest are facts.
+  // Every other slide is an ad; the rest are facts (secondary strip below).
   const showAd = tick % 2 === 1
   const ad = ADS[Math.floor(tick / 2) % ADS.length]
   const fact = FACTS[Math.floor(tick / 2) % FACTS.length]
 
+  // What to draw as skeletons: one tile per chosen size, or per deck slide.
+  const isDeck = Boolean(state.deckSlides && state.deckSlides.length)
+  const tiles: { id: string; label: string }[] = isDeck
+    ? (deckProg ? Array.from({ length: deckProg.total }) : state.deckSlides ?? []).map((_, i) => ({ id: `slide-${i}`, label: `Slide ${i + 1}` }))
+    : state.sizes.map((id) => ({ id, label: FLYER_SIZES.find((s) => s.id === id)?.label?.replace(/ \d.*$/, '') ?? id }))
+
+  // Per-tile state. A deck fills in for real via onProgress; a normal batch
+  // returns all at once, so every tile shows "busy" until the page routes away.
+  const tileState = (i: number): 'wait' | 'busy' | 'done' => {
+    if (isDeck && deckProg) return i < deckProg.done ? 'done' : i === deckProg.done ? 'busy' : 'wait'
+    return 'busy'
+  }
+
+  const headline = deckProg
+    ? `Restyling your deck — ${deckProg.done} of ${deckProg.total} slides`
+    : STAGES[stage]
+
   return (
-    <div style={{ minHeight: '100vh', background: `radial-gradient(120% 120% at 50% 0%, #fff 0%, ${CREAM} 60%)`, display: 'grid', placeItems: 'center', padding: 24 }}>
-      <div style={{ width: 'min(560px,100%)', textAlign: 'center' }}>
-        {/* progress heading */}
-        <div style={{ width: 48, height: 48, borderRadius: '50%', border: `4px solid ${INK}`, borderTopColor: 'transparent', margin: '0 auto 16px', animation: 'design-spin 0.9s linear infinite' }} />
-        <h1 style={{ fontSize: 22, color: INK, margin: '0 0 4px' }}>
-          {deckProg ? `Restyling your deck — slide ${Math.min(deckProg.done + 1, deckProg.total)} of ${deckProg.total}…` : 'Designing your artwork…'}
-        </h1>
-        <p style={{ fontSize: 13.5, color: SOFT, margin: '0 0 6px' }}>Each slide is made from scratch. Please keep this page open.</p>
-        <p style={{ fontSize: 13, color: INK, fontWeight: 600, margin: '0 0 22px' }}>
-          While you wait, here’s a little about our other AI-powered business products.
+    <div style={{ minHeight: '100vh', background: `radial-gradient(120% 120% at 50% 0%, #fff 0%, ${CREAM} 60%)`, padding: '32px 24px 48px' }}>
+      <div style={{ width: 'min(880px,100%)', margin: '0 auto' }}>
+        {/* status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center', marginBottom: 6 }}>
+          <div style={{ width: 20, height: 20, borderRadius: '50%', border: `3px solid ${INK}`, borderTopColor: 'transparent', animation: 't2a-spin 0.8s linear infinite' }} />
+          <h1 className="t2a-display" style={{ fontSize: 'clamp(24px,4vw,36px)', margin: 0 }}>{headline}</h1>
+        </div>
+        <p style={{ fontSize: 13, color: SOFT, textAlign: 'center', margin: '0 0 24px' }}>
+          Your finished designs are saved to your Library — even if you close this tab, they’ll be waiting there.
         </p>
 
-        {/* the rotating card */}
-        <div key={tick} style={{ animation: 'design-fade .6s ease' }}>
+        {/* THE WORK, HAPPENING — a skeleton in the true shape of every design,
+            filling in as each lands (decks) or sharpening together (a batch). */}
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(tiles.length, 4)}, 1fr)`, gap: 14, maxWidth: tiles.length === 1 ? 360 : '100%', margin: '0 auto 28px' }}>
+          {tiles.map((t, i) => (
+            <SkeletonTile key={t.id} sizeId={isDeck ? 'slide-16x9' : t.id} label={t.label} state={tileState(i)} />
+          ))}
+        </div>
+
+        {/* secondary: one fact or ad, quietly, below the work */}
+        <div key={tick} style={{ maxWidth: 480, margin: '0 auto', animation: 't2a-rise .5s var(--ease)' }}>
           {showAd ? (
             <a href={ad.href} target="_blank" rel="noreferrer"
-              style={{ display: 'block', textDecoration: 'none', borderRadius: 16, overflow: 'hidden', boxShadow: '0 12px 40px rgba(0,0,0,.14)' }}>
-              <img src={`/wait-ads/${ad.file}.png`} alt={ad.name}
-                style={{ width: '100%', maxHeight: '52vh', objectFit: 'contain', display: 'block', background: '#0d0d12' }} />
-              <div style={{ background: 'white', padding: '10px 14px', textAlign: 'left' }}>
-                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: SOFT }}>While you wait</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>{ad.name}</div>
-                <div style={{ fontSize: 12.5, color: SOFT }}>{ad.line} →</div>
+              style={{ display: 'flex', gap: 12, alignItems: 'center', textDecoration: 'none', border: `1px solid ${LINE_C}`, borderRadius: 10, padding: 12, background: 'white' }}>
+              <img src={`/wait-ads/${ad.file}.png`} alt={ad.name} style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, background: '#0d0d12', flexShrink: 0 }} />
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: INK }}>{ad.name}</div>
+                <div style={{ fontSize: 12, color: SOFT }}>{ad.line} →</div>
               </div>
             </a>
           ) : (
-            <div style={{ background: 'white', borderRadius: 16, padding: '30px 26px', boxShadow: '0 12px 40px rgba(0,0,0,.10)' }}>
-              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: SOFT, marginBottom: 10 }}>Did you know</div>
-              <div style={{ fontSize: 17, color: INK, lineHeight: 1.5 }}>{fact}</div>
+            <div style={{ border: `1px solid ${LINE_C}`, borderRadius: 10, padding: '14px 16px', background: 'white' }}>
+              <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: SOFT, marginBottom: 5 }}>Did you know</div>
+              <div style={{ fontSize: 14, color: INK, lineHeight: 1.5 }}>{fact}</div>
             </div>
           )}
         </div>
       </div>
-      <style>{`
-        @keyframes design-spin { to { transform: rotate(360deg); } }
-        @keyframes design-fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-      `}</style>
     </div>
   )
 }
+
+const LINE_C = 'var(--t2a-line,#ddd6cc)'
