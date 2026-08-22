@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { VISIBLE_STYLES, thumbUrl } from '../../../_lib/flyer-engine'
 import { useWizard } from '../useWizard'
 import { guessRole } from '../guessRole'
+import { downscaleDataUrl } from '../downscale'
 import { INK, SOFT, LINE, MINT, card, plainBtn, StepShell } from '../ui'
 
 const PAGE = 24
@@ -33,8 +34,11 @@ export default function StyleStep() {
     if (!imgs.length) return
     setGuessing(true)
     const added = await Promise.all(imgs.map(async (f) => {
-      const dataUrl = await readAsDataUrl(f)
-      const role = await guessRole(dataUrl)
+      const raw = await readAsDataUrl(f)
+      const role = await guessRole(raw)
+      // Shrink for storage so a big logo/photo doesn't overflow localStorage
+      // and get silently dropped between steps. Logos keep transparency (PNG).
+      const dataUrl = await downscaleDataUrl(raw, role === 'logo' ? 900 : 1280)
       return { dataUrl, role, name: f.name }
     }))
     patch({ photos: [...state.photos, ...added].slice(0, 6) })
@@ -45,7 +49,8 @@ export default function StyleStep() {
   // guessed or redrawn.
   const onAddQr = async (file: File | undefined) => {
     if (!file || !file.type.startsWith('image/')) return
-    const dataUrl = await readAsDataUrl(file)
+    // A QR must stay crisp to scan, but 600px is plenty and keeps it storable.
+    const dataUrl = await downscaleDataUrl(await readAsDataUrl(file), 600)
     patch({ photos: [...state.photos, { dataUrl, role: 'qr' as const, name: file.name }].slice(0, 6) })
   }
 
@@ -58,7 +63,9 @@ export default function StyleStep() {
 
   const onReference = async (file: File | undefined) => {
     if (!file || !file.type.startsWith('image/')) return
-    const dataUrl = await readAsDataUrl(file)
+    // The reference is used for STYLE only, so a smaller copy is plenty — and it
+    // MUST be small enough to persist, or it's lost on the way to the next step.
+    const dataUrl = await downscaleDataUrl(await readAsDataUrl(file), 1280)
     patch({ reference: { dataUrl, name: file.name }, referenceOwned: false, templateId: null })
     setOpenStyles(false)
   }
