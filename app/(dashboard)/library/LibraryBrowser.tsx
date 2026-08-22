@@ -71,6 +71,37 @@ export default function LibraryBrowser() {
 
   const flash = (m: string) => { setToast(m); setTimeout(() => setToast(null), 2200) }
 
+  /**
+   * Open a saved job in the NEW 5-step design flow (not the old chat builder).
+   *
+   * The wizard reads its job from localStorage (key text2art:wizard), so to
+   * reopen a Library job we seed that store with the project's chat id (the
+   * results/sizes pages then load its rounds by chat) plus any sizes we already
+   * know, then navigate to the right step. "edit" goes to the results page with
+   * its spot-editor; "sizes" goes to the size picker to make more sizes.
+   */
+  const openInWizard = (proj: Project, where: 'edit' | 'sizes') => {
+    try {
+      const KEY = 'text2art:wizard'
+      const prev = (() => { try { return JSON.parse(localStorage.getItem(KEY) || '{}') } catch { return {} } })()
+      const sizes = [...new Set(proj.designs.map((d) => d.sizeId).filter(Boolean))]
+      const seeded = {
+        ...prev,
+        chatId: proj.id,
+        roundId: null,        // let the page find the newest round in this chat
+        sizes: sizes.length ? sizes : (prev.sizes ?? []),
+        cleared: false,
+      }
+      localStorage.setItem(KEY, JSON.stringify(seeded))
+    } catch { /* private mode — the page still loads, just without the seed */ }
+    // Both land on the results page in the 5-step flow: it loads the saved
+    // designs from the server (no re-typing), gives the spot-editor, and has its
+    // own "Make more sizes" button. Sending "More sizes" straight to the size
+    // picker would skip the words/style the picker needs to redraw, so we go
+    // through results where the full job is in hand.
+    router.push('/design/results')
+  }
+
   const load = useCallback(async (p: number, append: boolean) => {
     setLoading(true); setError(null)
     try {
@@ -105,7 +136,7 @@ export default function LibraryBrowser() {
       )}
       <div className="page-head">
         <h1 className="page-title">My Library</h1>
-        <Link href="/flyer" className="btn btn-mint btn-sm">Make something new</Link>
+        <Link href="/design" className="btn btn-mint btn-sm">Make something new</Link>
       </div>
       <p style={{ color: 'var(--ink-light)', marginTop: -6, marginBottom: 20, fontSize: 14 }}>
         Every design you&apos;ve made, kept by project. Click a project to see its files.
@@ -120,7 +151,7 @@ export default function LibraryBrowser() {
       {!error && !loading && projects.length === 0 && (
         <div className="card" style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--ink-light)' }}>
           <p style={{ fontSize: 16, marginBottom: 12 }}>Nothing here yet.</p>
-          <Link href="/flyer" className="btn btn-mint">Make your first design</Link>
+          <Link href="/design" className="btn btn-mint">Make your first design</Link>
         </div>
       )}
 
@@ -173,8 +204,8 @@ export default function LibraryBrowser() {
                                 words, style and sizes come back), so they land on a
                                 filled-in screen — not a blank one. */}
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '0 8px 8px', marginTop: 'auto' }}>
-                              <LibBtn label="Edit again" onClick={() => router.push(`/flyer?chat=${proj.id}`)} title="Reopen this job to change the wording or style" />
-                              <LibBtn label="More sizes" onClick={() => router.push(`/flyer?chat=${proj.id}&pick=formats`)} title="Reopen this job and pick more sizes to make" />
+                              <LibBtn label="Edit again" onClick={() => openInWizard(proj, 'edit')} title="Reopen this job to change part of the design" />
+                              <LibBtn label="More sizes" onClick={() => openInWizard(proj, 'sizes')} title="Reopen this job and pick more sizes to make" />
                               <LibBtn label="Download" onClick={() => saveToDevice(d.url, `${d.label || 'design'}.png`)} title="Save this design to your device" />
                               <LibBtn label="Share" onClick={async () => { const r = await shareDesign(d.url, d.label); if (r === 'copied') flash('Link copied'); else if (r === 'failed') flash('Could not share') }} title="Share this design" />
                               <LibBtn label="Post to social" onClick={() => router.push(`/social-media?fromDesign=${encodeURIComponent(d.url)}&title=${encodeURIComponent(d.label)}`)} title="Take this design into the Social Posts tool" />
@@ -185,7 +216,7 @@ export default function LibraryBrowser() {
                       {proj.totalDesigns > proj.designs.length && (
                         <p style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 10 }}>
                           Showing {proj.designs.length} of {proj.totalDesigns}.{' '}
-                          <Link href={`/flyer?chat=${proj.id}`} style={{ color: 'var(--mint-deep, #4a7c2f)', fontWeight: 600 }}>Open the project</Link> to see them all.
+<button onClick={() => openInWizard(proj, 'edit')} style={{ color: 'var(--mint-deep, #4a7c2f)', fontWeight: 600, background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit' }}>Open the project</button> to see them all.
                         </p>
                       )}
                     </>

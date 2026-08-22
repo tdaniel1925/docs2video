@@ -53,13 +53,20 @@ export default function EditStep() {
 
   useEffect(() => {
     if (!ready) return
-    if (!state.roundId) { setLoading(false); return }
+    // Need at least a job pointer: the round we made, OR the chat it lives in
+    // (the Library "Edit again" deep-link seeds the chat but not a round).
+    if (!state.roundId && !state.chatId) { setLoading(false); return }
     // Scope the fetch to THIS job's chat. Unscoped, history returns the most
     // recent chat's rounds — never ours — so our design would be invisible even
     // though it was made and saved.
     const url = state.chatId ? `/api/flyer-history?chat=${state.chatId}` : '/api/flyer-history'
     fetch(url).then((r) => r.json()).then((r) => {
-      const round = (r.rounds ?? []).find((x: { id: string }) => x.id === state.roundId)
+      const rounds = (r.rounds ?? []) as { id: string; designs?: Design[] }[]
+      // Prefer the round we made; otherwise fall back to the newest round with
+      // designs in this chat — that's what "reopen this job to edit" means when
+      // the library only handed us the project.
+      const round = rounds.find((x) => x.id === state.roundId)
+        ?? [...rounds].reverse().find((x) => (x.designs?.length ?? 0) > 0)
       const ds: Design[] = round?.designs ?? []
       setDesigns(ds)
       setSelected(ds[0] ?? null)
