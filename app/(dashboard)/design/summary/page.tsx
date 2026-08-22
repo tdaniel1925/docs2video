@@ -74,18 +74,19 @@ export default function SummaryStep() {
       nextHint={hint}
       onNext={() => router.push('/design/making')}>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 300px', gap: 24, alignItems: 'start' }}>
-        <div style={{ ...card }}>
-          {rows.map((r, i) => (
-            <div key={r.k} style={{ display: 'flex', gap: 16, padding: '10px 0', borderTop: i ? `1px solid ${LINE}` : 'none' }}>
-              <div style={{ width: 120, flexShrink: 0, fontSize: 12, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: SOFT }}>{r.k}</div>
-              <div style={{ fontSize: 14, color: INK }}>{r.v}</div>
-            </div>
-          ))}
-        </div>
-
-        <Examples kind={state.kind} />
+      {/* Full-width summary. The live-preview rail on the right already shows a
+          sample of the look, so we don't cram a second examples card in here —
+          that squeezed the table into one-word-per-line. On its own the table
+          has room to breathe; on narrow screens the label/value stack. */}
+      <div style={{ ...card, maxWidth: 640 }}>
+        {rows.map((r, i) => (
+          <div key={r.k} className="t2a-sum-row" style={{ display: 'flex', gap: 16, padding: '10px 0', borderTop: i ? `1px solid ${LINE}` : 'none' }}>
+            <div style={{ width: 120, flexShrink: 0, fontSize: 12, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: SOFT }}>{r.k}</div>
+            <div style={{ fontSize: 14, color: INK, minWidth: 0 }}>{r.v}</div>
+          </div>
+        ))}
       </div>
+      <style>{`@media (max-width: 560px) { .t2a-sum-row { flex-direction: column; gap: 2px !important; } }`}</style>
     </StepShell>
   )
 }

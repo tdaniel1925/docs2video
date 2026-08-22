@@ -2,6 +2,33 @@ import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../_lib/supabase/server'
 import { VISIBLE_STYLES, FLYER_SIZES } from '../../_lib/flyer-engine'
+import { isSafePublicUrl, fetchPage, extractColors } from '../../_lib/brand-scraper'
+
+// Pull the first web address out of the sentence, if any ("make a flyer from
+// jordyn.app"). Same detector as the words chat.
+function findUrl(text: string): string | null {
+  const m = text.match(/\b((?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?)/i)
+  if (!m) return null
+  let u = m[1]
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u
+  try { const p = new URL(u); return (p.protocol === 'http:' || p.protocol === 'https:') ? p.toString() : null }
+  catch { return null }
+}
+
+// Read a page the user named: its text (for copy) and main colours (to tint).
+// Reuses the SSRF-guarded scraper — every redirect hop is re-checked.
+async function readSite(url: string): Promise<{ text: string; colors: string[] } | null> {
+  try {
+    if (!(await isSafePublicUrl(url))) return null
+    const html = await fetchPage(url)
+    if (!html) return null
+    const text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 6000)
+    return { text, colors: extractColors(html).slice(0, 5) }
+  } catch { return null }
+}
 
 // =============================================================================
 // One sentence in → a drafted design out.
@@ -73,12 +100,19 @@ export async function POST(req: Request) {
   const prompt = String(body?.prompt ?? '').trim().slice(0, 600)
   if (!prompt) return NextResponse.json({ error: 'Say what you want to make.' }, { status: 400 })
 
+  // If the sentence names a website, read it and draft the whole design FROM it.
+  const url = findUrl(prompt)
+  const site = url ? await readSite(url) : null
+  const userContent = site
+    ? `${prompt}\n\nThe user pointed at ${url}. Draft the design FROM what this page says — use the real business name, a tagline in their voice, and the strongest 2-3 selling points; invent no facts (phone, price, date, address) it doesn't state:\n"""\n${site.text}\n"""\nMain colours on the page: ${site.colors.join(', ') || '(none)'}.`
+    : prompt
+
   try {
     const msg = await claude().messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 700,
       system: SYSTEM,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content: userContent }],
     })
     const text = msg.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join('')
     const a = text.indexOf('{'), b = text.lastIndexOf('}')
@@ -118,7 +152,15 @@ export async function POST(req: Request) {
       if (d.length) fields.details = d
     }
 
-    return NextResponse.json({ kind, templateId, sizeIds: safeSizes, fields })
+    // Site colours (validated hex) so the design can be tinted to match the page.
+    const brandColors = (site?.colors ?? [])
+      .filter((c) => /^#[0-9a-fA-F]{6}$/.test(c)).slice(0, 3)
+
+    return NextResponse.json({
+      kind, templateId, sizeIds: safeSizes, fields,
+      ...(brandColors.length ? { brandColors } : {}),
+      ...(site ? { fromSite: url } : {}),
+    })
   } catch (e) {
     console.error('[design-prefill]', e instanceof Error ? e.message : e)
     return NextResponse.json({ error: 'Could not draft that just now — pick a tile below instead.' }, { status: 502 })

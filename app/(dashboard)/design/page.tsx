@@ -58,6 +58,8 @@ export default function WhatStep() {
       patch({
         kind: r.kind, templateId: r.templateId, sizes: r.sizeIds ?? [],
         fields: r.fields ?? {}, note: p,
+        // Colours read off a website the sentence named — tint the design to match.
+        ...(Array.isArray(r.brandColors) && r.brandColors.length ? { brandColors: r.brandColors } : {}),
         aiSuggested: { kind: true, templateId: true, sizes: true, fields: true },
       })
       sessionStorage.setItem('design:walking', '1')
