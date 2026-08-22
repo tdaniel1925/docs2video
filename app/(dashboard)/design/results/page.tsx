@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FLYER_SIZES } from '../../../_lib/flyer-engine'
 import { useWizard } from '../useWizard'
-import { INK, SOFT, LINE, card, plainBtn, primaryBtn, StepShell } from '../ui'
+import { INK, SOFT, LINE, MINT, card, plainBtn, primaryBtn, StepShell } from '../ui'
 
 type Design = { id: string; sizeId: string; label: string; w: number; h: number; url: string; src?: string }
 
@@ -50,6 +50,12 @@ export default function EditStep() {
   const imgRef = useRef<HTMLImageElement>(null)
   const overlayFileRef = useRef<HTMLInputElement>(null)
   const drawing = useRef(false)
+  // Brush size as a fraction of the image width (slider 0.02–0.10). One value so
+  // small edits (a price) and big ones (a whole sky) are both easy.
+  const [brushFrac, setBrushFrac] = useState(0.045)
+  // Undo stack: a snapshot of the paint layer BEFORE each stroke, so Undo peels
+  // back one stroke at a time instead of the old all-or-nothing Clear.
+  const undoStack = useRef<ImageData[]>([])
 
   useEffect(() => {
     if (!ready) return
@@ -99,12 +105,43 @@ export default function EditStep() {
     }).catch(() => {}).finally(() => setLoading(false))
   }, [ready, state.roundId, state.chatId])
 
+  // Keep the paint canvas the same size as the image. It used to be measured
+  // once on load, so resizing the window left the brush landing in the wrong
+  // place. Re-measure on resize (and clear any half-done paint, since its
+  // coordinates no longer map).
+  useEffect(() => {
+    const onResize = () => {
+      const c = canvasRef.current, i = imgRef.current
+      if (!c || !i) return
+      c.width = i.clientWidth; c.height = i.clientHeight
+      undoStack.current = []; setPainted(false)
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
   if (!ready) return null
 
   const sizeCanvas = () => {
     const c = canvasRef.current, i = imgRef.current
     if (!c || !i) return
     c.width = i.clientWidth; c.height = i.clientHeight
+  }
+  // Snapshot the paint layer before a new stroke, for per-stroke Undo.
+  const pushUndo = () => {
+    const c = canvasRef.current, ctx = c?.getContext('2d')
+    if (!c || !ctx) return
+    try { undoStack.current.push(ctx.getImageData(0, 0, c.width, c.height)) } catch { /* tainted canvas */ }
+    if (undoStack.current.length > 20) undoStack.current.shift()
+  }
+  const undoStroke = () => {
+    const c = canvasRef.current, ctx = c?.getContext('2d')
+    if (!c || !ctx) return
+    const prev = undoStack.current.pop()
+    if (prev) ctx.putImageData(prev, 0, 0)
+    else ctx.clearRect(0, 0, c.width, c.height)
+    // Painted only if there's still something on the layer.
+    setPainted(undoStack.current.length > 0)
   }
   const paintAt = (e: React.PointerEvent) => {
     const c = canvasRef.current
@@ -114,13 +151,14 @@ export default function EditStep() {
     if (!ctx) return
     ctx.fillStyle = 'rgba(255,90,60,0.55)'
     ctx.beginPath()
-    ctx.arc(e.clientX - r.left, e.clientY - r.top, Math.max(14, c.width * 0.045), 0, Math.PI * 2)
+    ctx.arc(e.clientX - r.left, e.clientY - r.top, Math.max(8, c.width * brushFrac), 0, Math.PI * 2)
     ctx.fill()
     setPainted(true)
   }
   const clearBrush = () => {
     const c = canvasRef.current
     c?.getContext('2d')?.clearRect(0, 0, c.width, c.height)
+    undoStack.current = []
     setPainted(false)
   }
   const buildMask = (): string | null => {
@@ -194,6 +232,12 @@ export default function EditStep() {
         body: JSON.stringify({ designId: selected.id, maskDataUrl, instruction }),
       })
       const data = await res.json().catch(() => ({}))
+      // Asked to change WORDS? Painting can't (it garbles text). Keep the panel
+      // open and show the guidance — don't leave the button looking dead.
+      if (res.status === 422 && data?.code === 'use_chat_for_text') {
+        setProblem(data.error || 'To change the words, use “Make more sizes → Words”.')
+        return
+      }
       if (!res.ok || !data?.png) { setProblem(data?.error || 'That change could not be made.'); return }
       const updated = { ...selected, id: data.designId ?? selected.id, src: data.png }
       setSelected(updated)
@@ -342,7 +386,7 @@ export default function EditStep() {
             <img ref={imgRef} src={shown} alt={selected?.label} onLoad={sizeCanvas}
               style={{ maxWidth: '100%', maxHeight: '62vh', borderRadius: 10, background: '#111', display: 'block' }} />
             <canvas ref={canvasRef}
-              onPointerDown={(e) => { if (placing && overlayUrl) { pickSpot(e); return } if (!brushing) return; drawing.current = true; paintAt(e) }}
+              onPointerDown={(e) => { if (placing && overlayUrl) { pickSpot(e); return } if (!brushing) return; drawing.current = true; pushUndo(); paintAt(e) }}
               onPointerMove={(e) => { if (brushing && drawing.current) paintAt(e) }}
               onPointerUp={() => { drawing.current = false }}
               onPointerLeave={() => { drawing.current = false }}
@@ -382,6 +426,13 @@ export default function EditStep() {
               </p>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {!overlayUrl && <button style={plainBtn} onClick={() => overlayFileRef.current?.click()}>Choose file</button>}
+                {/* Back one stage: if a spot is set, unset it; else drop the file
+                    to re-pick. So you're never stuck mid-flow with no way out. */}
+                {overlayUrl && (
+                  <button style={plainBtn} onClick={() => { if (spot) setSpot(null); else { setOverlayUrl(''); overlayFileRef.current?.click() } }}>
+                    &larr; {spot ? 'Move it' : 'Pick a different file'}
+                  </button>
+                )}
                 <button onClick={applyPlace} disabled={working || !overlayUrl || !spot}
                   style={{ ...primaryBtn, padding: '9px 16px', opacity: working || !overlayUrl || !spot ? 0.5 : 1 }}>
                   {working ? 'Placing…' : 'Place it'}
@@ -397,18 +448,32 @@ export default function EditStep() {
                 {painted ? 'What should change there?' : 'Paint over the part you want changed'}
               </div>
               <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.5 }}>
-                Cover the whole thing, not just its outline — everything you leave unpainted stays exactly as it is. A change costs one design.
+                This is for pictures — swap an object, change a colour, tidy the background.
+                To change the <strong style={{ color: INK }}>words</strong>, use “Make more sizes → Words”.
+                Cover the whole thing, not just its outline. A change costs one design.
               </p>
+              {/* Brush size + per-stroke Undo — small edits and big ones both easy,
+                  and a mistake is one tap back instead of starting over. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: SOFT }}>
+                  Brush
+                  <input type="range" min={0.02} max={0.1} step={0.005} value={brushFrac}
+                    onChange={(e) => setBrushFrac(Number(e.target.value))} aria-label="Brush size"
+                    style={{ width: 120 }} />
+                </label>
+                <button onClick={undoStroke} disabled={!painted} style={{ ...plainBtn, padding: '6px 12px', opacity: painted ? 1 : 0.5 }}>↶ Undo</button>
+                <button onClick={clearBrush} disabled={!painted} style={{ ...plainBtn, padding: '6px 12px', opacity: painted ? 1 : 0.5 }}>Clear</button>
+              </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <input value={instruction} onChange={(e) => setInstruction(e.target.value)}
-                  placeholder="e.g. make the price $25"
+                  placeholder="e.g. make the background blue"
                   style={{ flex: 1, minWidth: 200, padding: '9px 11px', borderRadius: 8, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 14 }} />
                 <button onClick={applyChange} disabled={working || !painted}
                   style={{ ...primaryBtn, padding: '9px 16px', opacity: working || !painted ? 0.5 : 1 }}>
                   {working ? 'Changing…' : 'Change it'}
                 </button>
               </div>
-              {problem && <p style={{ fontSize: 12.5, color: '#B4432F', margin: '8px 0 0' }}>{problem}</p>}
+              {problem && <p role="alert" style={{ fontSize: 12.5, color: '#B4432F', margin: '8px 0 0' }}>{problem}</p>}
             </div>
           )}
         </div>
@@ -417,7 +482,9 @@ export default function EditStep() {
             Each shows a Download link so any one size can be saved on its own. */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '72vh', overflowY: 'auto', paddingRight: 4 }}>
           {designs.map((d) => (
-            <div key={d.id} style={{ borderRadius: 9, background: 'white', border: (selected?.id === d.id) ? `2px solid ${INK}` : `1px solid ${LINE}`, overflow: 'hidden' }}>
+            <div key={d.id}
+              ref={(el) => { if (el && selected?.id === d.id) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }}
+              style={{ borderRadius: 9, background: 'white', border: (selected?.id === d.id) ? `2px solid ${MINT}` : `1px solid ${LINE}`, overflow: 'hidden' }}>
               <button onClick={() => { setSelected(d); clearBrush(); setBrushing(false); setProblem('') }}
                 style={{ display: 'block', width: '100%', padding: 4, border: 'none', background: 'transparent', cursor: 'pointer' }}>
                 <img src={d.src ?? d.url} alt={sizeName(d)} style={{ width: '100%', borderRadius: 6, display: 'block' }} />
@@ -433,7 +500,16 @@ export default function EditStep() {
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginTop: 24, flexWrap: 'wrap' }}>
-        <button style={plainBtn} onClick={() => router.push('/design/summary')}>&larr; Make more sizes</button>
+        <button style={plainBtn} onClick={() => {
+          // If a paint edit is mid-flight, confirm before leaving — the strokes
+          // would be lost. Then go to the SIZES step to add more sizes.
+          if (painted && !confirm('Leave this edit? Your unsaved paint will be cleared.')) return
+          router.push('/design/sizes')
+        }}>&larr; Make more sizes</button>
+        <button style={plainBtn} onClick={() => {
+          if (painted && !confirm('Leave this edit? Your unsaved paint will be cleared.')) return
+          router.push('/design/content')
+        }}>Change the words</button>
         <button style={primaryBtn} onClick={() => { reset(); router.push('/design') }}>Start another design</button>
       </div>
     </StepShell>
