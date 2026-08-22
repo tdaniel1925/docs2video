@@ -119,7 +119,7 @@ export function TopBar({
  * behind you carry a check, the ones ahead are faint. Clicking a finished step
  * jumps back to it. Collapses to a slim horizontal bar on narrow screens.
  */
-export function Sidebar({ steps, activeIdx }: { steps: Step[]; activeIdx: number }) {
+export function Sidebar({ steps, activeIdx, doneFlags }: { steps: Step[]; activeIdx: number; doneFlags?: boolean[] }) {
   const router = useRouter()
   return (
     <>
@@ -132,7 +132,12 @@ export function Sidebar({ steps, activeIdx }: { steps: Step[]; activeIdx: number
           Your design
         </div>
         {steps.map((s, i) => {
-          const done = i < activeIdx, here = i === activeIdx
+          // A tick means DONE, not merely "a step we walked past". When real
+          // completeness is known (doneFlags), an earlier step you skipped shows
+          // its number, not a ✓ — so the rail can't claim Style is finished when
+          // no look was picked. Falls back to position when flags aren't passed.
+          const here = i === activeIdx
+          const done = doneFlags ? (!!doneFlags[i] && i !== activeIdx) : i < activeIdx
           return (
             <button key={s.path} disabled={i > activeIdx}
               onClick={() => { if (i <= activeIdx) router.push(s.path) }}
@@ -158,12 +163,14 @@ export function Sidebar({ steps, activeIdx }: { steps: Step[]; activeIdx: number
 
       {/* NARROW: horizontal dots */}
       <div className="design-rail-mini" style={{ display: 'none', padding: '10px 16px', borderBottom: `1px solid ${LINE}`, background: 'rgba(255,255,255,.6)', alignItems: 'center', gap: 6 }}>
-        {steps.map((s, i) => (
+        {steps.map((s, i) => {
+          const mDone = doneFlags ? (!!doneFlags[i] && i !== activeIdx) : i < activeIdx
+          return (
           <div key={s.path} style={{
             height: 8, borderRadius: 4, flex: i === activeIdx ? '0 0 34px' : '0 0 12px',
-            background: i < activeIdx ? MINT : i === activeIdx ? INK : LINE, transition: 'all .3s',
+            background: i === activeIdx ? INK : mDone ? MINT : LINE, transition: 'all .3s',
           }} title={s.label} />
-        ))}
+        )})}
         <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 800, color: SOFT, letterSpacing: '.04em' }}>
           {activeIdx + 1}/{steps.length} &middot; {steps[activeIdx]?.label.toUpperCase()}
         </span>

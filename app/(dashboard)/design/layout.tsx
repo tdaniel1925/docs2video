@@ -1,8 +1,9 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { STEPS, activeStepIndex } from './steps'
+import { STEPS, activeStepIndex, stepDoneFlags } from './steps'
 import { Sidebar } from './ui'
+import { useWizard } from './useWizard'
 
 /**
  * THE FIVE-STEP FRAME.
@@ -18,6 +19,7 @@ import { Sidebar } from './ui'
  */
 export default function DesignLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { state, ready } = useWizard()
   const bare = pathname === '/design/making' || pathname === '/design/results'
 
   if (bare) {
@@ -27,10 +29,11 @@ export default function DesignLayout({ children }: { children: React.ReactNode }
   }
 
   const activeIdx = activeStepIndex(pathname)
+  const doneFlags = ready ? stepDoneFlags(state) : undefined
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: 'var(--bg,#F4F1EC)' }}>
-      <Sidebar steps={STEPS} activeIdx={activeIdx} />
+      <Sidebar steps={STEPS} activeIdx={activeIdx} doneFlags={doneFlags} />
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         {children}
       </div>

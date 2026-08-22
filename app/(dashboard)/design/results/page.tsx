@@ -28,7 +28,7 @@ const sizeName = (d: Design): string =>
  * transparent = may repaint, built explicitly here.
  */
 export default function EditStep() {
-  const { state, reset, clearInputsKeepJob, ready } = useWizard()
+  const { state, reset, clearInputsKeepJob, patch, ready } = useWizard()
   const router = useRouter()
   const [designs, setDesigns] = useState<Design[]>([])
   const [loading, setLoading] = useState(true)
@@ -59,9 +59,14 @@ export default function EditStep() {
     // Scope the fetch to THIS job's chat. Unscoped, history returns the most
     // recent chat's rounds — never ours — so our design would be invisible even
     // though it was made and saved.
+    // A Library reopen hands us a chat but no round (openedFromLibrary). In that
+    // case we must NOT wipe inputs — we RESTORE them, so "Make more sizes" has
+    // the words and look to redraw with. A freshly-finished job (we have the
+    // roundId) still clears, as before.
+    const fromLibrary = !state.roundId && !!state.chatId
     const url = state.chatId ? `/api/flyer-history?chat=${state.chatId}` : '/api/flyer-history'
     fetch(url).then((r) => r.json()).then((r) => {
-      const rounds = (r.rounds ?? []) as { id: string; designs?: Design[] }[]
+      const rounds = (r.rounds ?? []) as { id: string; designs?: Design[]; fields?: Record<string, unknown>; templateId?: string }[]
       // Prefer the round we made; otherwise fall back to the newest round with
       // designs in this chat — that's what "reopen this job to edit" means when
       // the library only handed us the project.
@@ -70,13 +75,25 @@ export default function EditStep() {
       const ds: Design[] = round?.designs ?? []
       setDesigns(ds)
       setSelected(ds[0] ?? null)
-      // The job is DONE and its designs are safely on the server. Wipe the
-      // reusable inputs now (logo, photos, words, style, sizes) so the NEXT
-      // design starts empty — no leftovers from this job pretending to belong to
-      // it. Keeps only the round pointer so this page keeps working.
-      if (ds.length) clearInputsKeepJob()
+      if (fromLibrary && round) {
+        // Bring the job's words, look and sizes back into the wizard so the
+        // "Make more sizes" button redraws the SAME design in new sizes instead
+        // of an empty one. roundId is set too, so this page keeps working.
+        const sizes = [...new Set(ds.map((d) => d.sizeId).filter(Boolean))]
+        patch({
+          roundId: round.id,
+          fields: (round.fields as typeof state.fields) ?? state.fields,
+          templateId: round.templateId ?? state.templateId,
+          sizes: sizes.length ? sizes : state.sizes,
+        })
+      } else if (ds.length) {
+        // A just-made job: wipe the reusable inputs so the NEXT design starts
+        // empty — no leftovers pretending to belong to it. Keeps the round
+        // pointer so this page keeps working.
+        clearInputsKeepJob()
+      }
     }).catch(() => {}).finally(() => setLoading(false))
-  }, [ready, state.roundId])
+  }, [ready, state.roundId, state.chatId])
 
   if (!ready) return null
 

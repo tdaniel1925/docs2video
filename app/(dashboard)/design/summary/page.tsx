@@ -37,6 +37,20 @@ export default function SummaryStep() {
   const isDeck = Boolean(state.deckSlides)
   const drawableSlides = (state.deckSlides ?? []).filter((s) => !s.imageOnly).length
 
+  // Everything Start needs, and — when something's missing — WHICH one, by name.
+  // "Finish the earlier steps first" told nobody what to fix; here all five ticks
+  // can be green while Style is empty, so the hint has to name the gap.
+  const needStyle = !(state.templateId || state.reference)
+  const needKind = !state.kind
+  const needContent = !(state.fields.headline || isDeck)
+  const needSizes = !state.sizes.length
+  const ready_ = !needKind && !needStyle && !needContent && !needSizes
+  const hint = needKind ? 'Pick what you’re making (step 1) first'
+    : needStyle ? 'Pick a look on the Style step first'
+    : needContent ? 'Add your words on the Content step first'
+    : needSizes ? 'Choose at least one size first'
+    : 'Finish the earlier steps first'
+
   const rows: { k: string; v: string }[] = isDeck ? [
     { k: 'Making', v: 'Restyled slide deck' },
     { k: 'From', v: state.deckName || 'your deck' },
@@ -56,8 +70,8 @@ export default function SummaryStep() {
     <StepShell title="Review and start"
       subtitle="Here’s what we’ll make. Press Start designing and we’ll get to work — you’ll see a progress screen, then your finished designs."
       back="/design/sizes" nextLabel="Start designing" startMode
-      nextReady={Boolean(state.kind && (state.templateId || state.reference) && state.sizes.length)}
-      nextHint="Finish the earlier steps first"
+      nextReady={ready_}
+      nextHint={hint}
       onNext={() => router.push('/design/making')}>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 300px', gap: 24, alignItems: 'start' }}>

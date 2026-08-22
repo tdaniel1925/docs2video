@@ -17,6 +17,30 @@ export const STEPS: Step[] = [
   { path: '/design/summary', label: 'Review', blurb: 'Check and start' },
 ]
 
+/**
+ * Which steps are actually COMPLETE, by index, matching STEPS order:
+ *   0 What → a kind is chosen
+ *   1 Style → a look is picked, OR an uploaded reference to match
+ *   2 Content → something to say (a headline), or a deck being restyled
+ *   3 Sizes → at least one size ticked
+ *   4 Review → complete only when everything above is
+ * Kept here beside STEPS so the rail's ticks and the Start gate agree.
+ */
+export function stepDoneFlags(s: {
+  kind?: string | null
+  templateId?: string | null
+  reference?: unknown
+  fields?: { headline?: string } | null
+  deckSlides?: unknown[] | null
+  sizes?: unknown[]
+}): boolean[] {
+  const what = !!s.kind
+  const style = !!(s.templateId || s.reference)
+  const content = !!(s.fields?.headline || (s.deckSlides && s.deckSlides.length))
+  const sizes = !!(s.sizes && s.sizes.length)
+  return [what, style, content, sizes, what && style && content && sizes]
+}
+
 /** Longest-prefix match, so /design/style beats /design. */
 export function activeStepIndex(pathname: string | null): number {
   if (!pathname) return 0
