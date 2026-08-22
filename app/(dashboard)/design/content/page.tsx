@@ -133,9 +133,9 @@ export default function ContentStep() {
   )
 
   return (
-    <StepShell title="What should it say?"
+    <StepShell title="What should it *say*?"
       subtitle="Talk it, type it, paste it, or drop in a document — I’ll turn it into the words on your design. Add or change anything until it’s right."
-      back="/design/style" next="/design/sizes" nextReady={hasWords}
+      back="/design/style" next="/design/sizes" nextLabel="Next: pick sizes" nextReady={hasWords}
       nextHint="Tell me the content first">
 
       <div style={{ maxWidth: 720 }}>

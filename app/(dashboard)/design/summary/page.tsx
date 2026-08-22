@@ -67,7 +67,7 @@ export default function SummaryStep() {
   ]
 
   return (
-    <StepShell title="Review and start"
+    <StepShell title="Review and *start*"
       subtitle="Here’s what we’ll make. Press Start designing and we’ll get to work — you’ll see a progress screen, then your finished designs."
       back="/design/sizes" nextLabel="Start designing" startMode
       nextReady={ready_}

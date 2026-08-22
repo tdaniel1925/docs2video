@@ -1,0 +1,104 @@
+/*
+ * Text2Art design-wizard tokens — the ONE place values live.
+ *
+ * Scoped to .t2a (applied on the wizard frame) so it never disturbs the rest of
+ * the app's shell palette. Every spacing/radius/type value in the wizard comes
+ * from here; one-off pixel values are the amateur tell we're removing.
+ *
+ * Brand rules baked in: radius caps at 10px; cream canvas + mint used ONLY for
+ * selection/progress; the two brand fonts; motion is fast + calm.
+ */
+.t2a {
+  /* Spacing — 4px grid. No other values allowed. */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 64px;
+
+  /* Radius — 10px hard cap. */
+  --r-1: 4px; --r-2: 6px; --r-3: 8px; --r-4: 10px;
+
+  /* Color roles */
+  --t2a-canvas: #F4F1EC;   /* cream page */
+  --t2a-card: #ffffff;
+  --t2a-ink: #23201c;      /* text + primary buttons */
+  --t2a-soft: #6b6459;     /* secondary text */
+  --t2a-line: #ddd6cc;     /* hairline borders */
+  --t2a-mint: #C7E8A8;     /* SELECTION + PROGRESS ONLY */
+  --t2a-mint-deep: #4a7c2f;
+  --t2a-red: #C0392B;      /* the final Start button ONLY */
+
+  /* Type scale — Instrument Serif at >=28 (display), Plus Jakarta below (UI) */
+  --fs-1: 13px; --fs-2: 14px; --fs-3: 16px; --fs-4: 20px;
+  --fs-5: 28px; --fs-6: 40px; --fs-7: 56px;
+  --font-ui: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-display: 'Instrument Serif', Georgia, serif;
+
+  /* Elevation — flat + hairline by default; shadow only on hover/drag */
+  --shadow-hover: 0 6px 24px rgba(35,32,28,0.12);
+
+  /* Motion */
+  --fast: 180ms; --base: 260ms;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1); /* ease-out */
+}
+
+/* Display type helper */
+.t2a-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--t2a-ink);
+}
+.t2a-display em { font-style: italic; }
+
+/* Grid stagger-in: children cascade on mount */
+@media (prefers-reduced-motion: no-preference) {
+  .t2a-stagger > * { animation: t2a-rise var(--base) var(--ease) both; }
+  .t2a-stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .t2a-stagger > *:nth-child(2) { animation-delay: 40ms; }
+  .t2a-stagger > *:nth-child(3) { animation-delay: 80ms; }
+  .t2a-stagger > *:nth-child(4) { animation-delay: 120ms; }
+  .t2a-stagger > *:nth-child(5) { animation-delay: 160ms; }
+  .t2a-stagger > *:nth-child(6) { animation-delay: 200ms; }
+  @keyframes t2a-rise {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: none; }
+  }
+}
+
+/* The sticky action bar — the primary CTA that is ALWAYS in the viewport.
+   This is the structural fix for "scroll back up to click Next". */
+.t2a-actionbar {
+  position: sticky; bottom: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-6);
+  background: rgba(255,255,255,0.86);
+  border-top: 1px solid var(--t2a-line);
+  backdrop-filter: blur(8px);
+}
+@media (max-width: 900px) {
+  /* Thumb zone: lift it off the very bottom edge on phones. */
+  .t2a-actionbar { padding: var(--sp-3) var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px)); }
+}
+
+.t2a-cta {
+  font-family: var(--font-ui); font-weight: 700; font-size: var(--fs-2);
+  padding: 11px 22px; border-radius: var(--r-4); border: 1px solid transparent;
+  background: var(--t2a-ink); color: #fff; cursor: pointer;
+  transition: transform var(--fast) var(--ease), opacity var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+.t2a-cta:hover:not(:disabled) { box-shadow: var(--shadow-hover); }
+.t2a-cta:active:not(:disabled) { transform: translateY(1px); }
+.t2a-cta:disabled { opacity: 0.45; cursor: not-allowed; }
+.t2a-cta--start { background: var(--t2a-red); padding: 12px 26px; font-size: var(--fs-3); }
+.t2a-cta:focus-visible { outline: 3px solid var(--t2a-mint); outline-offset: 2px; }
+
+.t2a-back {
+  font-family: var(--font-ui); font-weight: 700; font-size: var(--fs-1);
+  padding: 9px 16px; border-radius: var(--r-3); border: 1px solid var(--t2a-line);
+  background: #fff; color: var(--t2a-ink); cursor: pointer;
+  transition: box-shadow var(--fast) var(--ease);
+}
+.t2a-back:hover { box-shadow: var(--shadow-hover); }
+.t2a-back:focus-visible { outline: 3px solid var(--t2a-mint); outline-offset: 2px; }
+
+.t2a-hint { font-size: var(--fs-1); color: var(--t2a-soft); }

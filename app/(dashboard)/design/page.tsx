@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { thumbUrl } from '../../_lib/flyer-engine'
 import { useWizard } from './useWizard'
 import { INK, SOFT, LINE, MINT, card, plainBtn, StepShell } from './ui'
@@ -24,6 +25,20 @@ const KINDS: { kind: Kind; label: string; blurb: string; sample: string }[] = [
 
 export default function WhatStep() {
   const { state, patch, reset, ready } = useWizard()
+  const router = useRouter()
+
+  // AUTO-ADVANCE on a single tap — but only for the kinds that are ready the
+  // instant they're picked. A deck still needs its file uploaded, so tapping
+  // "slide deck" just selects it and reveals the upload; the sticky Next takes
+  // over from there. The 250ms wait lets the mint selection ring register so the
+  // jump doesn't feel like a misclick.
+  const pickKind = (k: Kind) => {
+    patch({ kind: k })
+    if (k !== 'deck') {
+      sessionStorage.setItem('design:walking', '1')
+      setTimeout(() => router.push('/design/style'), 250)
+    }
+  }
 
   // A FRESH arrival at Step 1 begins a NEW design — wipe ANY leftover job so
   // nothing from a previous session carries over (a logo, words, a half-finished
@@ -50,9 +65,10 @@ export default function WhatStep() {
 
   return (
     <StepShell
-      title="What do you want to make?"
+      title="What do you want to *make*?"
       subtitle="Pick one to start. You’ll choose a look, add your words, and pick sizes on the next pages — you can change any of it later."
       next="/design/style"
+      nextLabel="Next: choose a look"
       // Advancing off Step 1 begins the walk — mark it active so stepping BACK
       // here doesn't wipe the in-progress job (only a fresh load does).
       onNext={() => sessionStorage.setItem('design:walking', '1')}
@@ -63,9 +79,10 @@ export default function WhatStep() {
         {KINDS.map((k) => {
           const on = state.kind === k.kind
           return (
-            <button key={k.kind} onClick={() => patch({ kind: k.kind })}
+            <button key={k.kind} onClick={() => pickKind(k.kind)}
               style={{ ...card, padding: 0, overflow: 'hidden', textAlign: 'left', cursor: 'pointer',
-                borderColor: on ? INK : LINE, boxShadow: on ? `inset 0 0 0 2px ${INK}` : 'none' }}>
+                transition: 'box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease',
+                borderColor: on ? MINT : LINE, boxShadow: on ? `inset 0 0 0 2px ${MINT}` : 'none' }}>
               <img src={k.sample} alt="" loading="lazy"
                 style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block', background: '#111' }} />
               <div style={{ padding: '12px 14px 16px' }}>

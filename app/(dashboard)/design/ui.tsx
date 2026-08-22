@@ -12,7 +12,7 @@ export const CREAM = 'var(--cream,#F4F1EC)'
 export const MINT = 'var(--mint,#C7E8A8)'
 
 export const card = {
-  background: 'white', border: `1px solid ${LINE}`, borderRadius: 12, padding: 20,
+  background: 'white', border: `1px solid ${LINE}`, borderRadius: 10, padding: 20,
 } as const
 
 export const plainBtn = {
@@ -187,12 +187,38 @@ export function Sidebar({ steps, activeIdx, doneFlags }: { steps: Step[]; active
 }
 
 /**
- * The page body: a top action bar (Back/Next, never scroll to advance) above a
- * centered content column with the title. Pass the same nav props you'd give
- * StepNav; they render at the top. Omit them for pages that drive their own nav.
+ * Render a step title in the display serif, honouring a *word* accent (italic).
+ * "Choose your *look*" → "Choose your " + <em>look</em>.
+ */
+function DisplayTitle({ title }: { title: string }) {
+  const parts = title.split(/(\*[^*]+\*)/g).filter(Boolean)
+  return (
+    <h1 className="t2a-display" style={{ margin: '0 0 6px', fontSize: 'clamp(30px, 5vw, 44px)' }}>
+      {parts.map((p, i) =>
+        p.startsWith('*') && p.endsWith('*')
+          ? <em key={i}>{p.slice(1, -1)}</em>
+          : <span key={i}>{p}</span>,
+      )}
+    </h1>
+  )
+}
+
+/**
+ * The page body: the content column with a display-serif title, ABOVE a STICKY
+ * BOTTOM ACTION BAR that holds Back + the primary CTA.
+ *
+ * WHY THE BAR IS AT THE BOTTOM AND STICKY. The old design put Next in a bar at
+ * the TOP, so after picking a style card near the bottom of the page you had to
+ * scroll all the way back up to advance — on every single step. A sticky bottom
+ * bar keeps the primary action in view no matter how far you've scrolled, and on
+ * a phone it sits right in the thumb's reach.
+ *
+ * The CTA is NAMED ("Next: your words", "Next: pick sizes") so you always know
+ * where the button leads; when it's disabled, the hint says exactly what's
+ * missing. Same prop contract as before, so no step page changes.
  */
 export function StepShell({
-  title, subtitle, children, back, next, nextLabel, nextReady, nextHint, onNext, startMode,
+  title, subtitle, children, back, next, nextLabel = 'Next', nextReady = true, nextHint, onNext, startMode,
 }: {
   title: string
   subtitle?: string
@@ -205,18 +231,39 @@ export function StepShell({
   onNext?: () => void
   startMode?: boolean
 }) {
-  const showTop = Boolean(back || next || onNext)
+  const router = useRouter()
+  const showBar = Boolean(back || next || onNext)
+  const go = () => { if (!nextReady) return; onNext?.(); if (next) router.push(next) }
+
   return (
-    <>
-      {showTop && (
-        <TopBar back={back} next={next} nextLabel={nextLabel} nextReady={nextReady}
-          nextHint={nextHint} onNext={onNext} startMode={startMode} />
-      )}
-      <div style={{ maxWidth: 1100, width: '100%', margin: '0 auto', padding: '24px 32px 48px' }}>
-        <h1 style={{ margin: '0 0 4px', fontSize: 26, color: INK }}>{title}</h1>
-        {subtitle && <p style={{ margin: '0 0 20px', fontSize: 14, color: SOFT, lineHeight: 1.55 }}>{subtitle}</p>}
+    // A flex column that fills the height, so the action bar can stick to the
+    // bottom of the content area (below it there is nothing).
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', flex: 1 }}>
+      <div style={{ maxWidth: 1100, width: '100%', margin: '0 auto', padding: '32px 32px 24px', flex: 1 }}>
+        <DisplayTitle title={title} />
+        {subtitle && <p style={{ margin: '0 0 24px', fontSize: 14, color: SOFT, lineHeight: 1.55, maxWidth: 640 }}>{subtitle}</p>}
         {children}
       </div>
-    </>
+
+      {showBar && (
+        <div className="t2a-actionbar">
+          <div>
+            {back && <button className="t2a-back" onClick={() => router.push(back)}>&larr; Back</button>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {!nextReady && nextHint && <span className="t2a-hint" role="status">{nextHint}</span>}
+            {(next || onNext) && (
+              <button
+                className={startMode ? 't2a-cta t2a-cta--start' : 't2a-cta'}
+                disabled={!nextReady}
+                aria-disabled={!nextReady}
+                onClick={go}>
+                {nextLabel}{startMode ? '' : ' →'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

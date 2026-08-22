@@ -80,11 +80,12 @@ export default function StyleStep() {
   const pickedName = VISIBLE_STYLES.find((t) => t.id === state.templateId)?.name ?? null
 
   return (
-    <StepShell title="Choose a look and add your images"
+    <StepShell title="Choose your *look*"
       subtitle="Drop in a design you like and we’ll work in its style, or open our styles below. Add your logo and photos in the other box — we sort them out for you."
       back="/design"
       // A deck already has its words (from the upload), so skip the Content chat.
       next={state.deckSlides ? '/design/sizes' : '/design/content'}
+      nextLabel={state.deckSlides ? 'Next: pick sizes' : 'Next: your words'}
       nextReady={ready2}
       nextHint="Drop a reference or pick one of our styles">
 
@@ -129,7 +130,8 @@ export default function StyleStep() {
                   {VISIBLE_STYLES.slice(0, shown).map((t) => (
                     <button key={t.id} onClick={() => pickStyle(t.id)} title={`The ${t.name} look`}
                       style={{ padding: 0, borderRadius: 9, overflow: 'hidden', cursor: 'pointer', background: '#111',
-                        border: state.templateId === t.id ? `3px solid ${INK}` : `1px solid ${LINE}` }}>
+                        transition: 'box-shadow 180ms ease, border-color 180ms ease',
+                        border: state.templateId === t.id ? `3px solid ${MINT}` : `1px solid ${LINE}` }}>
                       <img src={thumbUrl(t.id)} alt={t.name} loading="lazy"
                         style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
                       <div style={{ fontSize: 10, fontWeight: 700, padding: '3px 3px', background: 'white', color: INK,

@@ -60,9 +60,9 @@ export default function SizesStep() {
   // A deck skips the size picker — its size is fixed to 16:9 slides.
   if (isDeck) {
     return (
-      <StepShell title="Your deck is set to slides"
+      <StepShell title="Your deck is set to *slides*"
         subtitle="Every restyled slide is made at standard 16:9 slide size."
-        back="/design/style" next="/design/summary" nextReady={drawableSlides > 0}
+        back="/design/style" next="/design/summary" nextLabel="Next: review" nextReady={drawableSlides > 0}
         nextHint="Go back and add a deck with text">
         <div style={{ ...card, maxWidth: 520 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: INK }}>Slide · 1920 × 1080 (16:9)</div>
@@ -79,7 +79,8 @@ export default function SizesStep() {
   }
 
   return (
-    <StepShell title="Where will you use it?"
+    <StepShell title="Where will you *use* it?"
+      nextLabel="Next: review"
       subtitle="Tick as many sizes as you need — each one is designed from scratch. You’ll review everything next, then we make them."
       back="/design/content" next="/design/summary" nextReady={sizes.length > 0}
       nextHint="Pick at least one size">
