@@ -103,7 +103,7 @@ export async function POST(req: Request) {
     // person to the right tool instead of charging them for garbage.
     if (looksLikeTextChange(instruction)) {
       return NextResponse.json({
-        error: 'To change the words, close this and type the new wording in the chat, then press Make — that redraws the design with your new text. Painting only changes pictures, not letters.',
+        error: 'Painting can\'t change words — it only edits pictures, and text always comes out garbled. To fix the wording: close this window, type the new words in the chat on the right (for example: change the headline to "…"), and press Make. Your design is redrawn with the new text, clean and sharp.',
         code: 'use_chat_for_text',
       }, { status: 422 })
     }

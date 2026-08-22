@@ -3860,11 +3860,10 @@ function Viewer({ design, onClose }: { design: Design & { designId?: string }; o
       })
       const data = await res.json().catch(() => ({}))
       // Asked to change WORDS? The server won't inpaint text (it invents junk).
-      // Show its guidance calmly and drop out of the brush so the person can go
-      // type the new wording in the chat.
+      // KEEP THE PANEL OPEN and show the guidance — closing the brush here made
+      // the message disappear with it, so the button looked like it did nothing.
       if (res.status === 422 && data?.code === 'use_chat_for_text') {
-        setProblem(data.error || 'To change the words, type the new wording in the chat and press Make.')
-        setBrushing(false); clearBrush()
+        setProblem(data.error || 'To change the words, close this and type the new wording in the chat, then press Make.')
         return
       }
       if (!res.ok || !data?.png) { setProblem(data?.error || 'That change could not be made.'); return }
