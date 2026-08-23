@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
-import { planDeck, MIN_SLIDES, MAX_SLIDES } from '../../_lib/deck-plan'
+import { planDeck, type DeckLength } from '../../_lib/deck-plan'
 
 // =============================================================================
 // Plan a deck — the running order only, no pictures yet.
@@ -19,19 +19,21 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not signed in' }, { status: 401 })
 
-  const body = await req.json().catch(() => null) as { brief?: string; slides?: number } | null
+  const body = await req.json().catch(() => null) as { brief?: string; slides?: number; length?: string } | null
   const brief = String(body?.brief ?? '').trim()
   if (brief.length < 10) {
     return NextResponse.json({ error: 'Tell me a bit more about the deck first.' }, { status: 400 })
   }
 
-  const count = Number(body?.slides)
-  const slides = Number.isFinite(count)
-    ? Math.max(MIN_SLIDES, Math.min(MAX_SLIDES, Math.round(count)))
-    : 8
+  // Length drives a RANGE, not a hard count. The wizard sends 'short'|'medium'|
+  // 'long'; the API/MCP can still send a number (read as "about this many").
+  const length: DeckLength | number =
+    body?.length === 'short' || body?.length === 'medium' || body?.length === 'long'
+      ? body.length
+      : Number.isFinite(Number(body?.slides)) ? Number(body!.slides) : 'medium'
 
   try {
-    const plan = await planDeck(brief, slides)
+    const plan = await planDeck(brief, length)
     return NextResponse.json(plan)
   } catch (e) {
     // Say what went wrong. A silent failure here reads as "the button is
