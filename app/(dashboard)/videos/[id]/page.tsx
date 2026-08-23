@@ -312,6 +312,10 @@ export default function VideoDetailPage() {
   const [shareSentTo, setShareSentTo] = useState('')
   const [shareSendError, setShareSendError] = useState('')
   const [shareLinkCopied, setShareLinkCopied] = useState(false)
+  // The Sent → Opened trail for this video's share emails, shown in the modal
+  // so "did she get it?" has a visible answer. Loaded when the modal opens;
+  // hidden quietly if the table isn't readable from the browser.
+  const [shareHistory, setShareHistory] = useState<{ recipient: string; sent_at: string; opened_at: string | null }[]>([])
   const pipelineStarted = useRef(false)
   const [userPlan, setUserPlan] = useState<string>('trial')
   // Editor state
@@ -1097,6 +1101,19 @@ export default function VideoDetailPage() {
     setShareEmailCopied(true)
     setTimeout(() => setShareEmailCopied(false), 2500)
   }
+
+  // Load the send/open trail whenever the share modal opens (and after a send).
+  useEffect(() => {
+    if (!showShareModal) return
+    const sb = createClient()
+    sb.from('sent_emails')
+      .select('recipient, sent_at, opened_at')
+      .eq('video_id', params.id)
+      .eq('email_type', 'share')
+      .order('sent_at', { ascending: false })
+      .limit(5)
+      .then(({ data, error }) => { if (!error && data) setShareHistory(data) })
+  }, [showShareModal, shareSentTo, params.id])
 
   // ── ACTUALLY SEND the email, from the app. ──
   //
@@ -2421,7 +2438,7 @@ export default function VideoDetailPage() {
                 <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>Email sent to {shareSentTo}</div>
                 <p style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.6, margin: '0 0 18px' }}>
                   Your client just received a branded email with a <strong>Watch Video</strong> button.
-                  You&rsquo;ll get a notification when they watch it.
+                  We&rsquo;ll email you the moment they <strong>open</strong> it — and again when they <strong>watch</strong> the video.
                 </p>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                   <button className="btn btn-soft" onClick={() => { setShareSentTo(''); setShareEmail('') }}>Send to someone else</button>
@@ -2502,6 +2519,25 @@ export default function VideoDetailPage() {
                   </button>
                 </div>
               </>
+            )}
+
+            {/* THE TRAIL — every send of this video, and whether it was opened.
+                This is the plain answer to "did she get it?". */}
+            {shareHistory.length > 0 && (
+              <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 14, marginTop: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--ink-light)', marginBottom: 8 }}>Sent so far</div>
+                {shareHistory.map((h, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5, padding: '5px 0', color: 'var(--ink-soft)' }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{h.recipient}</span>
+                    <span style={{ flexShrink: 0 }}>
+                      Sent {new Date(h.sent_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      {h.opened_at
+                        ? <strong style={{ color: '#0d9488' }}> · Opened ✓</strong>
+                        : ' · Not opened yet'}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>

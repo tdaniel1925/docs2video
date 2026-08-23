@@ -113,11 +113,34 @@ export async function POST(req: NextRequest) {
       console.error('[send-video-email] Activity log error:', actErr)
     }
 
+    // RECORD THE SEND so it can be tracked. The row's id goes into an invisible
+    // tracking pixel; when the client first opens the email, /api/email-track
+    // stamps opened_at and notifies the sender. This is what turns "did it
+    // send?" into a visible Sent → Opened → Watched trail.
+    const subjectLine = `${senderName} shared a video: ${videoTitle}`
+    let sentEmailId: string | null = null
+    try {
+      const { data: sentRow } = await admin.from('sent_emails').insert({
+        user_id: user.id,
+        video_id: videoId,
+        email_type: 'share',
+        recipient: clientEmail.toLowerCase().trim(),
+        subject: subjectLine,
+        sent_at: new Date().toISOString(),
+      }).select('id').single()
+      sentEmailId = sentRow?.id ?? null
+    } catch (e) {
+      console.error('[send-video-email] sent_emails insert failed (send continues):', e)
+    }
+    const trackPixel = sentEmailId
+      ? `<img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://app.docs2video.com'}/api/email-track?id=${sentEmailId}" width="1" height="1" alt="" style="display:block;" />`
+      : ''
+
     await getResend().emails.send({
       from: 'Docs2Video <notifications@docs2video.com>',
       to: clientEmail,
       replyTo: senderEmail,
-      subject: `${senderName} shared a video: ${videoTitle}`,
+      subject: subjectLine,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
           <div style="text-align: center; margin-bottom: 32px;">
@@ -153,6 +176,7 @@ export async function POST(req: NextRequest) {
             Sent by ${senderName} via Docs2Video<br/>
             <a href="https://docs2video.com/privacy" style="color: #999;">Privacy Policy</a>
           </p>
+          ${trackPixel}
         </div>
       `,
     })
