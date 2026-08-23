@@ -31,6 +31,12 @@ export default function ContentStep() {
   const [manual, setManual] = useState(false)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  // Deck flow: the brief waiting for a length choice, and the planned running
+  // order the user reviews (with per-slide purpose) BEFORE anything is drawn.
+  const [deckBrief, setDeckBrief] = useState('')
+  const [planPreview, setPlanPreview] = useState<
+    { title: string; purpose?: string; audience?: string; slides: { role: string; headline: string; purpose?: string }[] } | null
+  >(null)
 
   const dictation = useDictation((text) => setInput((v) => (v ? v + ' ' : '') + text),
     { onError: (m) => setNote(m) })
@@ -56,34 +62,42 @@ export default function ContentStep() {
 
   if (!ready) return null
 
-  // MAKE A WHOLE DECK FROM WHAT YOU TYPED OR PASTED.
-  //
-  // When the user chose "slide deck" and there's no uploaded file, their words
-  // (typed or pasted) are a brief for the WHOLE deck — so we plan it into many
-  // slides, not one design. /api/flyer-deck returns a running order; we turn it
-  // into the deckSlides the generator expects. Setting deckSlides also locks the
-  // Sizes step to 16:9 (no size picker) and lights up the multi-slide render.
-  const planTheDeck = async (brief: string) => {
+  // MAKE A WHOLE DECK FROM WHAT YOU TYPED OR PASTED — in three moves:
+  //   1. take the brief, then ask how long it should run (length chips);
+  //   2. plan it into a story and SHOW the running order to review/trim;
+  //   3. confirm → set deckSlides (locks Sizes to 16:9, lights up the render).
+  // Nobody pays for a pile of images from an order they never saw.
+  const takeDeckBrief = (brief: string) => {
+    setDeckBrief(brief)
+    setPlanPreview(null)
     setMsgs((m) => [...m, { role: 'user', text: brief.length > 200 ? brief.slice(0, 200) + '…' : brief }])
+    setMsgs((m) => [...m, { role: 'assistant', text: 'Got it. How long should this deck run? I’ll plan it into a story, then show you the running order to check before anything’s made.' }])
+  }
+
+  const runPlan = async (length: 'short' | 'medium' | 'long') => {
+    if (!deckBrief || busy) return
     setBusy(true)
+    setMsgs((m) => [...m, { role: 'assistant', text: `Planning a ${length} deck — reading it as a story…` }])
     try {
       const r = await fetch('/api/flyer-deck', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ brief }),
+        body: JSON.stringify({ brief: deckBrief, length }),
       })
       const data = await r.json().catch(() => ({}))
       if (!r.ok || !Array.isArray(data.slides) || !data.slides.length) {
-        setMsgs((m) => [...m, { role: 'assistant', text: data?.error || 'I couldn’t plan that into slides — tell me the topic and roughly how many slides.' }])
+        setMsgs((m) => [...m, { role: 'assistant', text: data?.error || 'I couldn’t plan that into slides — try adding a bit more detail.' }])
         return
       }
-      // PlannedSlide.fields → DeckSlide { heading, bullets }. imageOnly if empty.
-      const deckSlides = (data.slides as { fields?: { headline?: string; subhead?: string; details?: string[] } }[]).map((s, i) => {
-        const f = s.fields ?? {}
-        const bullets = [f.subhead, ...(f.details ?? [])].filter(Boolean) as string[]
-        return { n: i + 1, heading: f.headline || '', bullets, imageOnly: !f.headline && bullets.length === 0 }
+      setPlanPreview({
+        title: data.title || 'Your deck',
+        purpose: data.purpose, audience: data.audience,
+        slides: (data.slides as { role?: string; purpose?: string; fields?: { headline?: string } }[]).map((s) => ({
+          role: s.role || 'point', headline: s.fields?.headline || 'Untitled', purpose: s.purpose,
+        })),
       })
-      patch({ deckSlides, deckName: data.title || 'Your deck', sizes: ['slide-16x9'] })
-      setMsgs((m) => [...m, { role: 'assistant', text: `Planned ${deckSlides.length} slides. Pick a look next and press Make — every slide comes out matching, at standard 16:9.` }])
+      // Stash the FULL slide data (with subhead/details) for confirm, keyed by index.
+      ;(runPlan as unknown as { _raw?: unknown })._raw = data.slides
+      setMsgs((m) => [...m, { role: 'assistant', text: `Here’s the running order — ${data.slides.length} slides${data.purpose ? `, built as a ${data.purpose}` : ''}. Drop any you don’t want, then press Make it a deck. Or pick a different length.` }])
     } catch {
       setMsgs((m) => [...m, { role: 'assistant', text: 'Network hiccup — try that again.' }])
     } finally {
@@ -91,12 +105,34 @@ export default function ContentStep() {
     }
   }
 
+  const dropPlanSlide = (idx: number) => {
+    setPlanPreview((p) => p ? { ...p, slides: p.slides.filter((_, i) => i !== idx) } : p)
+    const raw = (runPlan as unknown as { _raw?: unknown[] })._raw
+    if (Array.isArray(raw)) (runPlan as unknown as { _raw?: unknown[] })._raw = raw.filter((_, i) => i !== idx)
+  }
+
+  const confirmPlan = () => {
+    const raw = (runPlan as unknown as { _raw?: { fields?: { headline?: string; subhead?: string; details?: string[] } }[] })._raw
+    if (!planPreview || !Array.isArray(raw) || !raw.length) return
+    // PlannedSlide.fields → DeckSlide { heading, bullets }.
+    const deckSlides = raw.map((s, i) => {
+      const f = s.fields ?? {}
+      const bullets = [f.subhead, ...(f.details ?? [])].filter(Boolean) as string[]
+      return { n: i + 1, heading: f.headline || '', bullets, imageOnly: !f.headline && bullets.length === 0 }
+    })
+    patch({ deckSlides, deckName: planPreview.title, sizes: ['slide-16x9'] })
+    setMsgs((m) => [...m, { role: 'assistant', text: `Locked in ${deckSlides.length} slides. Pick a look next and press Make — every slide comes out matching, at 16:9.` }])
+    setPlanPreview(null); setDeckBrief('')
+  }
+
   // Send one message to the flyer-chat brain; it returns updated fields + a reply.
   const talk = async (message: string, opts?: { asContent?: boolean }) => {
     const clean = message.trim()
     if (!clean || busy) return
     // A deck (with no uploaded file) plans the WHOLE deck from these words.
-    if (state.kind === 'deck' && !state.deckSlides) { await planTheDeck(clean); return }
+    // First we take the brief and ask how long it should run; the length chips
+    // then trigger the actual plan. A new message here re-briefs from scratch.
+    if (state.kind === 'deck' && !state.deckSlides) { takeDeckBrief(clean); return }
     setNote('')
     setMsgs((m) => [...m, { role: 'user', text: opts?.asContent ? 'Here’s my content — turn it into the words.' : clean }])
     setBusy(true)
@@ -199,8 +235,51 @@ export default function ContentStep() {
           {busy && <div style={{ fontSize: 12.5, color: SOFT, paddingLeft: 4 }}>Working…</div>}
         </div>
 
+        {/* DECK — how long? (only after a brief, before a plan exists) */}
+        {deckBrief && !planPreview && (
+          <div style={{ ...card, marginTop: 10, padding: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: INK, marginBottom: 8 }}>How long should this deck run?</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {([['short', 'Short', '5–7 slides'], ['medium', 'Medium', '8–14 slides'], ['long', 'Long', '15–24 slides']] as const).map(([k, label, sub]) => (
+                <button key={k} disabled={busy} onClick={() => void runPlan(k)}
+                  style={{ ...plainBtn, padding: '10px 14px', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 120 }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 700, color: INK }}>{label}</span>
+                  <span style={{ fontSize: 12, color: SOFT }}>{sub}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* DECK — the running order, reviewed BEFORE anything is drawn */}
+        {planPreview && (
+          <div style={{ ...card, marginTop: 10, padding: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: SOFT, marginBottom: 2 }}>Running order</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: INK }}>{planPreview.title}</div>
+            {planPreview.purpose && <div style={{ fontSize: 12.5, color: SOFT, marginBottom: 8 }}>Built as a {planPreview.purpose}{planPreview.audience ? ` for ${planPreview.audience}` : ''}.</div>}
+            <ol style={{ margin: '4px 0 0', paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {planPreview.slides.map((s, i) => (
+                <li key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 10px', border: `1px solid ${LINE}`, borderRadius: 10 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: SOFT, minWidth: 20 }}>{i + 1}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: INK }}>{s.headline}</div>
+                    {s.purpose && <div style={{ fontSize: 12, color: SOFT }}>{s.purpose}</div>}
+                  </div>
+                  <button aria-label={`Remove slide ${i + 1}`} disabled={busy || planPreview.slides.length <= 1}
+                    onClick={() => dropPlanSlide(i)}
+                    style={{ ...plainBtn, padding: '4px 8px', fontSize: 12, color: SOFT }}>Remove</button>
+                </li>
+              ))}
+            </ol>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              <button onClick={confirmPlan} disabled={busy} style={{ ...primaryBtn, padding: '10px 16px' }}>Make it a deck ({planPreview.slides.length} slides)</button>
+              <button onClick={() => setPlanPreview(null)} disabled={busy} style={plainBtn}>Choose a different length</button>
+            </div>
+          </div>
+        )}
+
         {/* what we've captured so far */}
-        {hasWords && (
+        {hasWords && !deckBrief && !planPreview && (
           <div style={{ ...card, marginTop: 10, padding: '10px 14px', background: `${MINT}33`, border: `1px solid ${MINT}` }}>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: SOFT, marginBottom: 4 }}>On your design so far</div>
             {state.fields.headline && <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>{state.fields.headline}</div>}
