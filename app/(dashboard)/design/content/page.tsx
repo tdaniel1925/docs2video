@@ -40,7 +40,7 @@ export default function ContentStep() {
     if (!ready || msgs.length) return
     const isDeck = state.kind === 'deck'
     setMsgs([{ role: 'assistant', text: isDeck
-      ? 'Tell me what the deck is about and who it’s for — or paste your notes, or upload a document and I’ll pull the content out.'
+      ? 'Tell me what the deck is about and who it’s for — or paste all your notes — and I’ll plan it into a full set of matching slides. (Or upload a deck to restyle instead.)'
       : 'Tell me what this needs to say — the event, the offer, the details. You can talk it, type it, paste text, or upload a document and I’ll write it for you.' }])
   }, [ready])
 
@@ -56,10 +56,47 @@ export default function ContentStep() {
 
   if (!ready) return null
 
+  // MAKE A WHOLE DECK FROM WHAT YOU TYPED OR PASTED.
+  //
+  // When the user chose "slide deck" and there's no uploaded file, their words
+  // (typed or pasted) are a brief for the WHOLE deck — so we plan it into many
+  // slides, not one design. /api/flyer-deck returns a running order; we turn it
+  // into the deckSlides the generator expects. Setting deckSlides also locks the
+  // Sizes step to 16:9 (no size picker) and lights up the multi-slide render.
+  const planTheDeck = async (brief: string) => {
+    setMsgs((m) => [...m, { role: 'user', text: brief.length > 200 ? brief.slice(0, 200) + '…' : brief }])
+    setBusy(true)
+    try {
+      const r = await fetch('/api/flyer-deck', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ brief }),
+      })
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok || !Array.isArray(data.slides) || !data.slides.length) {
+        setMsgs((m) => [...m, { role: 'assistant', text: data?.error || 'I couldn’t plan that into slides — tell me the topic and roughly how many slides.' }])
+        return
+      }
+      // PlannedSlide.fields → DeckSlide { heading, bullets }. imageOnly if empty.
+      const deckSlides = (data.slides as { fields?: { headline?: string; subhead?: string; details?: string[] } }[]).map((s, i) => {
+        const f = s.fields ?? {}
+        const bullets = [f.subhead, ...(f.details ?? [])].filter(Boolean) as string[]
+        return { n: i + 1, heading: f.headline || '', bullets, imageOnly: !f.headline && bullets.length === 0 }
+      })
+      patch({ deckSlides, deckName: data.title || 'Your deck', sizes: ['slide-16x9'] })
+      setMsgs((m) => [...m, { role: 'assistant', text: `Planned ${deckSlides.length} slides. Pick a look next and press Make — every slide comes out matching, at standard 16:9.` }])
+    } catch {
+      setMsgs((m) => [...m, { role: 'assistant', text: 'Network hiccup — try that again.' }])
+    } finally {
+      setBusy(false)
+    }
+  }
+
   // Send one message to the flyer-chat brain; it returns updated fields + a reply.
   const talk = async (message: string, opts?: { asContent?: boolean }) => {
     const clean = message.trim()
     if (!clean || busy) return
+    // A deck (with no uploaded file) plans the WHOLE deck from these words.
+    if (state.kind === 'deck' && !state.deckSlides) { await planTheDeck(clean); return }
     setNote('')
     setMsgs((m) => [...m, { role: 'user', text: opts?.asContent ? 'Here’s my content — turn it into the words.' : clean }])
     setBusy(true)
@@ -131,7 +168,12 @@ export default function ContentStep() {
     }
   }
 
-  const hasWords = Boolean(state.fields.headline || (state.fields.details ?? []).length)
+  // Ready to move on when there's a headline/detail OR — for a deck — a planned
+  // set of slides. A deck's words live in deckSlides, not fields.
+  const hasWords = Boolean(
+    state.fields.headline || (state.fields.details ?? []).length ||
+    (state.deckSlides && state.deckSlides.length),
+  )
 
   const bubble = (m: Msg, i: number) => (
     <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
