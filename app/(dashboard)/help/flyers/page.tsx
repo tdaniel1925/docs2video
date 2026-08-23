@@ -123,6 +123,31 @@ export default function FlyersHelpPage() {
         </div>
       </div>
 
+      <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Slide decks (a whole presentation)</h2>
+      <p style={body}>
+        On the first step, tap <strong>A slide deck</strong>. On the words step, just describe what the deck is
+        about and who it&rsquo;s for &mdash; or paste all your notes. You don&rsquo;t say how many slides; the app
+        asks whether you want it <strong>Short</strong>, <strong>Medium</strong> or <strong>Long</strong>, then
+        picks the exact number to fit what you gave it.
+      </p>
+      <p style={body}>
+        It doesn&rsquo;t just list your points on slides &mdash; it builds a <strong>story</strong>. It works out
+        the deck&rsquo;s purpose (an investor pitch, a sales deck, training, a report&hellip;) and orders the
+        slides the way that kind of talk is meant to flow. Before anything is drawn, it shows you the{' '}
+        <strong>running order</strong> &mdash; each slide&rsquo;s title and one line on why it&rsquo;s there. You
+        can remove any slide or change the length, then press <strong>Make it a deck</strong>.
+      </p>
+      <div style={note}>
+        <strong>It won&rsquo;t make things up.</strong> Real numbers from your notes are kept exactly; a slide it
+        can&rsquo;t back up with your material is left out rather than invented. Your <strong>logo</strong> sits in
+        the same corner on every inside slide, so the whole set looks designed together.
+      </div>
+      <p style={body}>
+        Every slide is drawn to match your chosen look, at standard widescreen size. Download them as images or as
+        one PDF. (Already have a PowerPoint or PDF? Use <strong>restyle a deck</strong> instead &mdash; that keeps
+        your existing slides and just redraws them in a new look.)
+      </p>
+
       <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Business cards</h2>
       <p style={body}>
         Tick <strong>Business card — front</strong> and <strong>back</strong> under the sizes button. A card is

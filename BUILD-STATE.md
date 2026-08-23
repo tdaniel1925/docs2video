@@ -5,6 +5,37 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
+## 2026-08-23 — Text2Art deck AI: tells a story, and the logo stays put
+
+The "make a deck from words/paste" path was rebuilt in three phases after the
+customer verdict "eight generic slides, not a cohesive presentation — I told it I
+wanted an investor's deck." All three deck callers (wizard, `/api/v1/decks`, MCP
+`create_deck`) improve at once because they share `planDeck()`.
+
+- **Phase 1 — story planner** (`app/_lib/deck-plan.ts`, `app/api/flyer-deck`).
+  `planDeck` now first works out the deck's purpose (investor/sales/training/
+  report/all-hands/talk), audience, one-message and usable facts, then lays the
+  slides along the matching narrative arc, each carrying a one-line purpose.
+  Brief cap 4k→24k chars; slide count is a RANGE by length (short 5–7 / medium
+  8–14 / long 15–24), no more "EXACTLY 8" and no placeholder padding. Honesty
+  block overrides the arc (skips a beat rather than fabricating). Proven on a 9k
+  investor brief: purpose=investor, Long=18 / Short=7, every figure traced.
+- **Phase 2 — length choice + visible plan** (`design/content/page.tsx`). The
+  words step now asks Short/Medium/Long, plans, and shows the running order
+  (title + purpose per slide) with per-slide Remove and a re-length escape,
+  BEFORE anything is drawn or charged.
+- **Phase 3 — pinned logo** (`app/api/flyer-art`, `deckGenerate.ts`, DeckSlide
+  gained `role`). Body slides no longer hand the logo to the image model; it's
+  composited in code at a fixed top-right corner (14% width, 4% margin), so it
+  can't wander. Cover/closing keep the model's hero placement. Works for uploaded
+  (data URL) and brand (stored URL) logos. Proven by pixel check: the logo's
+  bounding box is byte-identical across body slides, and the check flags the old
+  wandering placement as inconsistent (so it can fail).
+
+Commits: bd83eb8, b914877, 8522821. Docs: TEXT2ART-WORKFLOW.md + flyers help
+article updated. Not yet exercised: a full live draw-a-real-deck run (costs
+credits; left for owner to run on the deployed build).
+
 ## 2026-08-09 — Text2Art: second storefront on the same codebase
 
 One app, two front doors. `text2art.app` sells the existing Custom Graphics tool
