@@ -48,6 +48,11 @@ export async function generateDeck(opts: {
       headline: slide.heading || undefined,
       details: slide.bullets.slice(0, 6),
     }
+    // Cover and closing keep the model's hero logo placement (the customer
+    // liked those). Every OTHER slide is a body slide: the logo is pasted in a
+    // fixed top-right corner so it doesn't wander from slide to slide. A slide
+    // with no role (restyled uploaded deck) is treated as a body slide.
+    const isBody = slide.role !== 'cover' && slide.role !== 'closing'
     try {
       const r = await fetch('/api/flyer-art', {
         method: 'POST', headers: { 'content-type': 'application/json' },
@@ -64,6 +69,10 @@ export async function generateDeck(opts: {
           // The logo (and any photos) go on every slide so the deck is branded
           // consistently.
           photos: opts.photos && opts.photos.length ? opts.photos : undefined,
+          // Body slides: keep the logo pinned to one corner (pasted in code),
+          // never handed to the image model where it would land differently
+          // each time. Cover/closing leave this off and keep hero placement.
+          logoPlacement: isBody ? 'corner' : undefined,
           brandId: opts.brandId ?? undefined,
           slotId: `slide-${slide.n}`,
           slotLabel: `Slide ${slide.n}`,

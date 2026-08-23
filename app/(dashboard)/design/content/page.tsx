@@ -112,13 +112,14 @@ export default function ContentStep() {
   }
 
   const confirmPlan = () => {
-    const raw = (runPlan as unknown as { _raw?: { fields?: { headline?: string; subhead?: string; details?: string[] } }[] })._raw
+    const raw = (runPlan as unknown as { _raw?: { role?: string; fields?: { headline?: string; subhead?: string; details?: string[] } }[] })._raw
     if (!planPreview || !Array.isArray(raw) || !raw.length) return
-    // PlannedSlide.fields → DeckSlide { heading, bullets }.
+    // PlannedSlide.fields → DeckSlide { heading, bullets }. Carry the story role
+    // through so the generator can keep the logo in a fixed corner on body slides.
     const deckSlides = raw.map((s, i) => {
       const f = s.fields ?? {}
       const bullets = [f.subhead, ...(f.details ?? [])].filter(Boolean) as string[]
-      return { n: i + 1, heading: f.headline || '', bullets, imageOnly: !f.headline && bullets.length === 0 }
+      return { n: i + 1, heading: f.headline || '', bullets, imageOnly: !f.headline && bullets.length === 0, role: s.role || 'point' }
     })
     patch({ deckSlides, deckName: planPreview.title, sizes: ['slide-16x9'] })
     setMsgs((m) => [...m, { role: 'assistant', text: `Locked in ${deckSlides.length} slides. Pick a look next and press Make — every slide comes out matching, at 16:9.` }])

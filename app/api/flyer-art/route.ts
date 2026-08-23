@@ -261,11 +261,38 @@ export async function POST(req: Request) {
     rawPhotos.push({ dataUrl: brandLogo, role: 'logo' as PhotoRole })
   }
 
+  // DECK BODY SLIDES — keep the logo in ONE corner, every slide identical.
+  //
+  // A deck is many independent image calls. When the logo is handed to the
+  // image model on each one, the model puts it somewhere different every time —
+  // the exact complaint ("the logo appeared all over the place on inside
+  // pages"). So for a deck's body slides the caller sends logoPlacement:'corner'.
+  // We then DON'T show the logo to the model at all; instead we paste it in code
+  // at a fixed top-right spot after the slide renders — same fraction on every
+  // slide, so it can't wander. Cover/closing slides don't set this and keep the
+  // model's hero placement (which the customer liked).
+  const logoCorner = (body as { logoPlacement?: string })?.logoPlacement === 'corner'
+  const cornerLogoSrc = logoCorner
+    ? (rawPhotos.find((p) => p.role === 'logo')?.dataUrl ?? null)
+    : null
+  // Decode the corner logo ONCE (data URL or stored http URL), not per slide.
+  let cornerLogoBuf: Buffer | null = null
+  if (cornerLogoSrc) {
+    try {
+      cornerLogoBuf = cornerLogoSrc.startsWith('http')
+        ? Buffer.from(await (await fetch(cornerLogoSrc, { signal: AbortSignal.timeout(15_000) })).arrayBuffer())
+        : Buffer.from(cornerLogoSrc.split(',')[1] ?? '', 'base64')
+    } catch (e) {
+      console.warn('[flyer] corner logo could not be read:', e instanceof Error ? e.message : e)
+    }
+  }
+
   // A QR code is NOT an AI input — it must be pasted pixel-exact afterwards, not
   // handed to the model (which would redraw it into something that won't scan).
   // So it's excluded from the images/roles the model sees; the paste step below
-  // reads it straight from rawPhotos.
-  const aiPhotos = rawPhotos.filter((p) => p.role !== 'qr')
+  // reads it straight from rawPhotos. A corner-pasted logo is excluded for the
+  // same reason: the model must not draw its own copy of it.
+  const aiPhotos = rawPhotos.filter((p) => p.role !== 'qr' && !(logoCorner && p.role === 'logo'))
   const roles = aiPhotos.map((p) => p.role)
 
   // A reference design, if there is one, goes FIRST — the prompt refers to it
@@ -472,6 +499,32 @@ export async function POST(req: Request) {
           png = await sharp(png).composite([{ input: tile, top: targetH - box - margin, left: targetW - box - margin }]).png().toBuffer()
         } catch (e) {
           console.warn(`[flyer] QR paste skipped for ${key}:`, e instanceof Error ? e.message : e)
+        }
+      }
+
+      // PASTE A DECK BODY-SLIDE LOGO IN THE SAME CORNER, EVERY TIME.
+      //
+      // Fixed fractions — width 14% of the long edge, margin 4% of the short
+      // edge, top-right — so the logo lands on identical pixels on every body
+      // slide of the deck. This is what makes the deck feel like one designed
+      // set instead of a shuffle. 'inside' fit keeps the logo's aspect ratio and
+      // never enlarges past its box; transparency is preserved.
+      if (cornerLogoBuf) {
+        try {
+          const logoRaw = cornerLogoBuf
+          const boxW = Math.round(targetW * 0.14)
+          const boxH = Math.round(targetH * 0.14)
+          const margin = Math.round(Math.min(targetW, targetH) * 0.04)
+          const logoImg = await sharp(logoRaw)
+            .resize(boxW, boxH, { fit: 'inside', withoutEnlargement: false })
+            .png().toBuffer()
+          const meta = await sharp(logoImg).metadata()
+          const lw = meta.width ?? boxW
+          png = await sharp(png)
+            .composite([{ input: logoImg, top: margin, left: targetW - lw - margin }])
+            .png().toBuffer()
+        } catch (e) {
+          console.warn(`[flyer] corner logo paste skipped for ${key}:`, e instanceof Error ? e.message : e)
         }
       }
 

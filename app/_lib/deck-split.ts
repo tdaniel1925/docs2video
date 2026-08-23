@@ -27,6 +27,11 @@ export type DeckSlide = {
   bullets: string[]
   /** True when the slide has almost no text (a picture/chart slide). */
   imageOnly: boolean
+  /** The story role from the planner (cover/point/numbers/closing…). Drives
+   *  logo placement: body slides get a fixed-corner logo, cover/closing keep
+   *  the model's hero placement. Absent on RESTYLE (uploaded-deck) slides,
+   *  which are treated as body slides. */
+  role?: string
 }
 
 export type DeckSplit = {
