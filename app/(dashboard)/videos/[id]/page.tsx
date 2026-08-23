@@ -306,6 +306,12 @@ export default function VideoDetailPage() {
   const [shareEmailBody, setShareEmailBody] = useState('')
   const [shareEmailBodyTouched, setShareEmailBodyTouched] = useState(false)
   const [shareEmailCopied, setShareEmailCopied] = useState(false)
+  // Real sending (the fix for "did it send or not?"): in-flight flag, a
+  // PERSISTENT sent-to address for the confirmation screen, and a plain error.
+  const [shareSending, setShareSending] = useState(false)
+  const [shareSentTo, setShareSentTo] = useState('')
+  const [shareSendError, setShareSendError] = useState('')
+  const [shareLinkCopied, setShareLinkCopied] = useState(false)
   const pipelineStarted = useRef(false)
   const [userPlan, setUserPlan] = useState<string>('trial')
   // Editor state
@@ -760,8 +766,11 @@ export default function VideoDetailPage() {
           ),
         }
       })
+      // SAY IT SENT, and to whom. A tag quietly flipping to "Sent" is not
+      // confirmation anyone notices — the share-modal complaint proved that.
+      setInlineNotice({ type: 'success', message: `Email sent to ${followUpPlan?.client_email ?? 'your client'}` })
     } catch (err) {
-      setInlineNotice({ type: 'error', message: 'Send failed' })
+      setInlineNotice({ type: 'error', message: 'The email did NOT send — try again.' })
     } finally {
       setSendingEmail(null)
     }
@@ -769,10 +778,16 @@ export default function VideoDetailPage() {
 
   async function handleSkipFollowUp(emailId: string) {
     const supabase = createClient()
-    await supabase
+    // A failed skip used to pass silently — the row LOOKED skipped locally but
+    // the schedule still had it, so the email would still go out. Check + say.
+    const { error } = await supabase
       .from('follow_up_emails')
       .update({ status: 'skipped' })
       .eq('id', emailId)
+    if (error) {
+      setInlineNotice({ type: 'error', message: 'Could not skip that email — try again.' })
+      return
+    }
     setFollowUpPlan(prev => {
       if (!prev) return prev
       return {
@@ -782,6 +797,7 @@ export default function VideoDetailPage() {
         ),
       }
     })
+    setInlineNotice({ type: 'success', message: 'Email skipped — it will not be sent.' })
   }
 
   // Quote functions
@@ -961,6 +977,9 @@ export default function VideoDetailPage() {
       const { videoId: newVideoId } = await res.json()
       setShowTranslateModal(false)
       setTranslateLang('')
+      // Landing on a different page with no word of what happened reads as "did
+      // that work? where am I?" — say it before moving.
+      setInlineNotice({ type: 'success', message: 'Translation started — opening your new video…' })
       router.push(`/videos/${newVideoId}`)
     } catch {
       setInlineNotice({ type: 'error', message: 'Translation failed. Please try again.' })
@@ -1077,6 +1096,46 @@ export default function VideoDetailPage() {
     }
     setShareEmailCopied(true)
     setTimeout(() => setShareEmailCopied(false), 2500)
+  }
+
+  // ── ACTUALLY SEND the email, from the app. ──
+  //
+  // THE COMPLAINT THAT FORCED THIS: "it says Copy email — I cannot figure out
+  // if it sent the video or not… there is nowhere to insert an email." The
+  // send capability existed the whole time (/api/send-video-email: branded
+  // email, Watch button, logs to the client's history) but the modal only
+  // offered a clipboard copy. Now sending is the primary path, with a LOUD,
+  // persistent confirmation that names the address it went to — and a failure
+  // state that says plainly the email did NOT go out.
+  async function sendShareEmail() {
+    const email = shareEmail.trim()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      setShareSendError('Enter your client’s email address first.')
+      return
+    }
+    setShareSending(true); setShareSendError('')
+    try {
+      const r = await fetch('/api/send-video-email', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          videoId: params.id,
+          clientName: shareName.trim() || undefined,
+          clientEmail: email,
+          message: shareEmailBody || defaultShareBody(),
+        }),
+      })
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok || data?.error) {
+        setShareSendError(`The email did NOT send${data?.error ? ` — ${data.error}` : ''}. You can try again, or copy the email below and send it from your own inbox.`)
+        return
+      }
+      // Success sticks until the modal closes — no 2-second blink.
+      setShareSentTo(email)
+    } catch {
+      setShareSendError('The email did NOT send — network problem. Try again, or copy the email below and send it from your own inbox.')
+    } finally {
+      setShareSending(false)
+    }
   }
 
   if (!video) {
@@ -2349,63 +2408,101 @@ export default function VideoDetailPage() {
       {/* Share Modal */}
       {showShareModal && video && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(8px)' }}>
-          <div style={{ width: '100%', maxWidth: 480, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 32 }}>
+          <div style={{ width: '100%', maxWidth: 480, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 32, maxHeight: '92vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>Share with Client</h2>
-              <button onClick={() => setShowShareModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-light)' }}>&times;</button>
+              <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>Send to Your Client</h2>
+              <button onClick={() => { setShowShareModal(false); setShareSentTo(''); setShareSendError('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-light)' }} aria-label="Close">&times;</button>
             </div>
 
-            <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: -8, marginBottom: 18, lineHeight: 1.5 }}>
-              Edit the message below, then copy the whole email and paste it into Gmail, Outlook, or any email app. The link is added automatically as a <strong>&ldquo;View Your Video Now&rdquo;</strong> button.
-            </p>
-
-            {/* Client name → personalizes the greeting */}
-            <div className="form-group">
-              <label className="input-label">Client name (optional)</label>
-              <input
-                className="input"
-                placeholder="e.g. Sarah"
-                value={shareName}
-                onChange={e => {
-                  setShareName(e.target.value)
-                  // Re-seed the greeting only if the user hasn't hand-edited the body.
-                  if (!shareEmailBodyTouched) setShareEmailBody('')
-                }}
-              />
-            </div>
-
-            {/* Editable email message */}
-            <div className="form-group">
-              <label className="input-label">Email message</label>
-              <textarea
-                className="input"
-                rows={7}
-                value={shareEmailBody || defaultShareBody()}
-                onChange={e => { setShareEmailBody(e.target.value); setShareEmailBodyTouched(true) }}
-                style={{ resize: 'vertical', lineHeight: 1.5, fontSize: 14 }}
-              />
-            </div>
-
-            {/* What gets appended automatically */}
-            <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '14px 16px', marginBottom: 18, textAlign: 'center' }}>
-              <span style={{ display: 'inline-block', background: '#0d9488', color: '#fff', fontWeight: 700, fontSize: 13, padding: '9px 20px', borderRadius: 8 }}>View Your Video Now →</span>
-              <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 10, wordBreak: 'break-all' }}>
-                Link: {watchUrl()}
+            {shareSentTo ? (
+              /* ── SENT — an unmistakable, persistent confirmation. ── */
+              <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#e6f6f2', color: '#0d9488', fontSize: 28, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>✓</div>
+                <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>Email sent to {shareSentTo}</div>
+                <p style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.6, margin: '0 0 18px' }}>
+                  Your client just received a branded email with a <strong>Watch Video</strong> button.
+                  You&rsquo;ll get a notification when they watch it.
+                </p>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                  <button className="btn btn-soft" onClick={() => { setShareSentTo(''); setShareEmail('') }}>Send to someone else</button>
+                  <button className="btn btn-primary" onClick={() => { setShowShareModal(false); setShareSentTo('') }}>Done</button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: -8, marginBottom: 18, lineHeight: 1.5 }}>
+                  Enter your client&rsquo;s email and we&rsquo;ll send it for you — with your message and a <strong>&ldquo;Watch Video&rdquo;</strong> button. You&rsquo;ll see a confirmation the moment it&rsquo;s sent.
+                </p>
 
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={copyShareEmail} className="btn btn-primary" style={{ flex: 1 }}>
-                {shareEmailCopied ? '✓ Copied — paste into your email' : 'Copy Email'}
-              </button>
-              <button onClick={() => setShowShareModal(false)} className="btn btn-soft" style={{ flexShrink: 0 }}>
-                Done
-              </button>
-            </div>
+                {/* WHO IT GOES TO — the field the old modal never had. */}
+                <div className="form-group">
+                  <label className="input-label">Client email</label>
+                  <input
+                    className="input"
+                    type="email"
+                    placeholder="e.g. sarah@example.com"
+                    value={shareEmail}
+                    onChange={e => { setShareEmail(e.target.value); setShareSendError('') }}
+                  />
+                </div>
 
-            <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 16, marginTop: 16, fontSize: 12, color: 'var(--ink-light)', textAlign: 'center' }}>
-              Your client opens a branded page with your video — and you&rsquo;ll get notified when they watch it.
-            </div>
+                <div className="form-group">
+                  <label className="input-label">Client name (optional)</label>
+                  <input
+                    className="input"
+                    placeholder="e.g. Sarah"
+                    value={shareName}
+                    onChange={e => {
+                      setShareName(e.target.value)
+                      // Re-seed the greeting only if the user hasn't hand-edited the body.
+                      if (!shareEmailBodyTouched) setShareEmailBody('')
+                    }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="input-label">Email message</label>
+                  <textarea
+                    className="input"
+                    rows={6}
+                    value={shareEmailBody || defaultShareBody()}
+                    onChange={e => { setShareEmailBody(e.target.value); setShareEmailBodyTouched(true) }}
+                    style={{ resize: 'vertical', lineHeight: 1.5, fontSize: 14 }}
+                  />
+                </div>
+
+                {/* THE FAILURE IS NEVER SILENT. */}
+                {shareSendError && (
+                  <div role="alert" style={{ background: '#fdf3f3', border: '1px solid #e6b0b0', color: '#8a3b3b', borderRadius: 8, padding: '10px 14px', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
+                    {shareSendError}
+                  </div>
+                )}
+
+                <button onClick={sendShareEmail} disabled={shareSending} className="btn btn-primary btn-full" style={{ marginBottom: 14, opacity: shareSending ? 0.6 : 1 }}>
+                  {shareSending ? 'Sending…' : 'Send Email Now'}
+                </button>
+
+                {/* The link itself, copyable on its own — "where do I click the link" */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'var(--bg)', borderRadius: 8, padding: '10px 12px', marginBottom: 14 }}>
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: 'var(--ink-soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{watchUrl()}</div>
+                  <button className="btn btn-soft btn-sm" style={{ flexShrink: 0 }}
+                    onClick={async () => { await navigator.clipboard.writeText(watchUrl()); setShareLinkCopied(true); setTimeout(() => setShareLinkCopied(false), 2500) }}>
+                    {shareLinkCopied ? '✓ Link copied' : 'Copy link'}
+                  </button>
+                </div>
+
+                {/* Manual path — labeled so nobody mistakes copy for send again. */}
+                <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 14, textAlign: 'center' }}>
+                  <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 8 }}>
+                    Prefer your own inbox? Copy the whole email and paste it into Gmail or Outlook.
+                    <strong> Copying does not send anything</strong> — you press Send there.
+                  </div>
+                  <button onClick={copyShareEmail} className="btn btn-soft btn-sm">
+                    {shareEmailCopied ? '✓ Copied — now paste it into your email app' : 'Copy email for my own inbox'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
