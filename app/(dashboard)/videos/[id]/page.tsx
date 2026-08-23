@@ -1754,8 +1754,8 @@ export default function VideoDetailPage() {
                 marginTop: 8,
               }}
             >
-              <button onClick={() => { setShareEmailBody(''); setShareEmailBodyTouched(false); setShareEmailCopied(false); setShowShareModal(true) }} className="btn btn-mint" style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}>
-                Share with Client
+              <button onClick={() => { setShareEmailBody(''); setShareEmailBodyTouched(false); setShareEmailCopied(false); setShareSentTo(''); setShareSendError(''); setShowShareModal(true) }} className="btn btn-mint" style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8 }}>
+                Send to Client
               </button>
               <button onClick={copyShareLink} className={`btn ${copied ? 'btn-mint' : 'btn-soft'}`} style={{ padding: '10px 8px', fontSize: 13, fontWeight: 600, borderRadius: 8, transition: 'all 0.2s ease' }}>
                 {copied ? '\u2713 Copied!' : 'Copy Link'}
