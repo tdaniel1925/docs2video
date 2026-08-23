@@ -262,6 +262,10 @@ export async function POST(request: NextRequest) {
     const path = `presentations/${videoId}.html`
     const up = await admin.storage.from('videos').upload(path, Buffer.from(html), {
       contentType: 'text/html; charset=utf-8', upsert: true,
+      // Short cache: the file is overwritten in place on every rebuild, so a
+      // long default TTL (Supabase's is an hour) would keep serving the old deck
+      // even after an edit. 60s + the ?v= bump means edits show right away.
+      cacheControl: '60',
     })
     if (up.error) throw new Error(up.error.message)
     const { data: pub } = admin.storage.from('videos').getPublicUrl(path)
@@ -287,6 +291,12 @@ export async function POST(request: NextRequest) {
       // stores, so every existing reader of script keeps working.
       script: scenes,
       progress_updated_at: new Date().toISOString(),
+      // BUMP updated_at so the viewer's cache-buster changes. The HTML is stored
+      // at a FIXED path (presentations/<id>.html) and the detail/watch pages load
+      // it as `?v=<updated_at>`. Every earlier rebuild left updated_at untouched,
+      // so the query string never changed and the browser/CDN served the OLD
+      // cached deck — an edit "didn't reflect" even though the new HTML was saved.
+      updated_at: new Date().toISOString(),
     }).eq('id', videoId)
     if (fin.error) throw new Error(`Failed to finalize: ${fin.error.message}`)
 

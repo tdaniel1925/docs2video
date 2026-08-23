@@ -32,7 +32,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   return new NextResponse(html, {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=300',
+      // Short cache + must-revalidate: the deck is re-rendered in place on edits,
+      // so a long cache would keep showing the old one. The viewer also appends
+      // ?v=<updated_at>, which busts it immediately; this covers links that don't.
+      'Cache-Control': 'public, max-age=30, must-revalidate',
       'X-Frame-Options': 'SAMEORIGIN',
     },
   })
