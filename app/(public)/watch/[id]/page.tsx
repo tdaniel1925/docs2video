@@ -1248,25 +1248,16 @@ export default function PublicWatchPage() {
               )
             })()}
 
-            {/* Action buttons — client only downloads the video. Script/slides/
-                PPTX/share/social removed per product decision. */}
-            <div className="wp-actions">
-              {video.video_url && (
-                <button
-                  className="wp-action-btn"
-                  onClick={() => {
-                    trackEvent(video.id, 'download', { type: 'video' })
-                    window.open(video.video_url!, '_blank')
-                  }}
-                >
-                  <IconDownload />
-                  Download Video
-                </button>
-              )}
-              {/* Original source PDF — only when the agent enabled it. Streams via
-                  a server route that mints a short-lived signed URL (bucket stays
-                  private); we never expose the storage path here. */}
-              {video.allow_source_download && (
+            {/* Action buttons. Video download removed per product decision —
+                the share page is for watching, not downloading the video.
+                (Script/slides/PPTX/share/social were removed earlier.) */}
+            {/* Only the source-PDF download can live here now, and only when the
+                agent turned it on — so render the whole row only in that case. */}
+            {video.allow_source_download && (
+              <div className="wp-actions">
+                {/* Original source PDF. Streams via a server route that mints a
+                    short-lived signed URL (bucket stays private); we never expose
+                    the storage path here. */}
                 <button
                   className="wp-action-btn"
                   onClick={() => {
@@ -1277,8 +1268,8 @@ export default function PublicWatchPage() {
                   <IconDownload />
                   Download Original {video.source_pdf_name ? 'PDF' : 'Document'}
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Booking & Payment buttons */}
             {(() => {
