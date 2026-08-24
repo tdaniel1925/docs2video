@@ -385,6 +385,10 @@ export function buildPresentationHtml(opts: {
   voClips?: string[]
   /** show the share-mode action row on the closing slide */
   shareActions?: boolean
+  /** granular gate: show "Download the source document" only when there IS one */
+  hasSourceDoc?: boolean
+  /** granular gate: show "Download this deck" only when a deck/PDF export exists */
+  hasDeckDownload?: boolean
 }): string {
   const t = PRESENTATION_TEMPLATES.find((x) => x.id === opts.templateId) ?? PRESENTATION_TEMPLATES[0]
   const P = opts.presenter ?? {}
@@ -452,8 +456,8 @@ export function buildPresentationHtml(opts: {
         ${byline(true)}
         ${opts.brandName ? `<div class="bymark">${esc(opts.brandName)}</div>` : ''}
         ${opts.shareActions ? `<div class="shareacts">
-          <button class="sact" onclick="parent.postMessage({type:'act',kind:'pdf'},'*')">📄 <b>Download the source document</b></button>
-          <button class="sact" onclick="parent.postMessage({type:'act',kind:'deck'},'*')">📑 <b>Download this deck</b></button>
+          ${opts.hasSourceDoc !== false ? `<button class="sact" onclick="parent.postMessage({type:'act',kind:'pdf'},'*')">📄 <b>Download the source document</b></button>` : ''}
+          ${opts.hasDeckDownload !== false ? `<button class="sact" onclick="parent.postMessage({type:'act',kind:'deck'},'*')">📑 <b>Download this deck</b></button>` : ''}
           <button class="sact" onclick="parent.postMessage({type:'act',kind:'chat'},'*')">💬 <b>Ask a question</b></button>
         </div>` : ''}`
       const closeArt = sceneArt(s)

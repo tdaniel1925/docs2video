@@ -255,6 +255,17 @@ export async function POST(request: NextRequest) {
       },
       voClips,
       shareActions: outputType === 'interactive',
+      // Only show "Download the source document" when there's actually a source
+      // document. A presentation built from a topic or text has no PDF to offer.
+      // Check the draft's extracted-data sourceUrl (set when a PDF/PPTX was parsed)
+      // and the policy pipeline's sourceUrl as the signals.
+      hasSourceDoc: !!(
+        (exData.sourceUrl as string | undefined)?.trim() ||
+        ((draft as Record<string, unknown>).policyData as { sourceUrl?: string } | undefined)?.sourceUrl?.trim()
+      ),
+      // "Download this deck" is always available for interactive presentations
+      // since the /api/public/deck-pdf endpoint generates one on demand.
+      hasDeckDownload: true,
     })
 
     // ── Store + finish. video_url carries the HTML for these output types
