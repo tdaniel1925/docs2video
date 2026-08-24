@@ -381,4 +381,89 @@ export const VERTICALS = {
     ],
     tagIntro: 'The AI assistant with a brain for retail.',
   },
+
+  // ── OFFERING FILMS (not industry verticals) ──────────────────────────────
+  // Same 10-scene rhythm, but selling a Jordyn OFFERING rather than an industry.
+
+  agencies: {
+    label: 'agencies',
+    lines: [
+      "You run an agency. Your clients love the results — they just want more of you than there is of you.", // 0
+      "Hiring for every client doesn't scale. Neither does doing it all yourself at two in the morning.", // 1
+      "So resell Jordyn. A full AI employee for each client — the inbox, the phone, the follow-up — under your brand.", // 2
+      "Add a client with one email. Their account spins up instantly and Jordyn's brain installs itself at first login.", // 3
+      "It arrives branded as YOUR agency. No setup labor, no onboarding calls, no software to stand up.", // 4
+      "You pay ninety-nine dollars a month per seat. You set the retail — most agencies charge a hundred forty-nine and up.", // 5
+      "That's real margin on every client, every month, with nothing new to build or maintain.", // 6
+      "Their data stays theirs — you see usage, never their emails or files. The privacy line that closes the sale.", // 7
+      "One console runs it all: usage at a glance, pause or reactivate anytime, seats prorate to the day.", // 8
+      "Jordyn for Agencies. Resell the AI employee — under your name, on your margin.", // 9
+    ],
+    scenes: [
+      `${STYLE} A friendly agency owner character (terracotta blazer) at a desk surrounded by soft floating client account cards and happy client avatars, in-demand but stretched, warm morning light.`,
+      `${STYLE} A single tired agency owner trying to serve many client desks at once, soft dotted lines stretching thin to several clients, the limit of one person, no readable text.`,
+      `${STYLE} A warm glowing terracotta 'brain' orb duplicating into several soft branded assistant cards, each handed to a different client, reselling one employee many times, no character.`,
+      `${STYLE} A single soft email envelope turning into a fully formed client account card with a gentle spark, instant provisioning, one input becomes a whole account, no readable text.`,
+      `${STYLE} A soft client dashboard card wearing a blank rounded 'your logo' badge in the corner, warm and branded, a white-label product, generous empty space, no readable text.`,
+      `${STYLE} A clean pricing concept — a small wholesale coin/tag and a larger retail tag with an upward arrow and a gentle margin gap glowing sage between them, value, no character, no readable text.`,
+      `${STYLE} A tidy row of client account cards each with a small recurring gold coin above it, steady monthly margin repeating, calm upward feeling, no character, no readable text.`,
+      `${STYLE} A soft shield/lock over a stack of private client folders, with a separate simple usage meter visible outside it, privacy and tenant isolation, warm, no readable text.`,
+      `${STYLE} A single calm console panel showing several soft client rows with little progress meters and pause/play toggles, one place to manage everything, no character, no readable text.`,
+      `${STYLE} A confident agency owner standing calmly holding a tablet showing branded client cards, soft sage leaf shapes in a rounded frame behind them, generous empty cream space lower-center for a logo, optimistic finale.`,
+    ],
+    captions: [
+      { head: 'Your clients want more of you.', sub: 'There is only so much of you.' },
+      { head: 'Hiring for every client doesn’t scale.', small: true },
+      { logoHead: 'resells the AI employee.', sub: 'A full Jordyn for every client — under your brand.' },
+      { kicker: 'How it works', head: 'Add a client with one email.', sub: 'Account spins up instantly. Brain installs at first login.' },
+      { kicker: 'How it works', head: 'Branded as your agency.', sub: 'No setup labor. No onboarding calls.' },
+      { kicker: 'The margin', head: '$99 a seat. You set the retail.', sub: 'Most agencies charge $149 and up.', accent: '$99 a seat. You set the retail.' },
+      { kicker: 'The margin', head: 'Real margin, every client, every month.', sub: 'Nothing new to build or maintain.' },
+      { head: 'Their data stays theirs.', sub: 'You see usage — never their emails or files.', accent: 'Their data stays theirs.' },
+      { kicker: 'One console', head: 'Manage everything in one place.', sub: 'Pause, reactivate, prorate — to the day.' },
+      { finale: true },
+    ],
+    tagIntro: 'Resell the AI employee — under your name, on your margin.',
+  },
+
+  'digital-employee': {
+    label: 'digital employees',
+    lines: [
+      "Every business has a job that quietly eats the day — the calls, the follow-ups, the recalls that keep slipping.", // 0
+      "You could hire for it. A loaded role runs forty to seventy thousand a year — before the first sick day or resignation.", // 1
+      "Or hire a Digital Employee. One custom AI employee, built to own that one job, end to end.", // 2
+      "It answers your real phone line and books straight into your calendar — every call caught, day or night.", // 3
+      "It runs your follow-up — drafts in your voice, chases the reply, and stops the moment they respond.", // 4
+      "It handles intake and recalls — logging each new case and pulling the ones due back before they slip.", // 5
+      "Nothing it can't back up gets sent, and nothing sends without your rules — it works the way you would.", // 6
+      "No sick days, no turnover, no re-training from zero. It just shows up, every day, and does the job.", // 7
+      "From a thousand a month — roughly sixty to seventy-five percent less than the human it replaces.", // 8
+      "A Digital Employee. Hire one job done — around the clock, on your terms.", // 9
+    ],
+    scenes: [
+      `${STYLE} A friendly small-business owner character (terracotta blazer) at a desk, one specific task glowing and overflowing — a ringing phone, missed-call dots, a stack of follow-ups — the job that eats the day, warm light.`,
+      `${STYLE} An empty office chair at a desk with a soft dollar/coin cloud and a small revolving-door/turnover motif above it, the cost and churn of a human hire, muted, no readable text.`,
+      `${STYLE} A warm glowing terracotta 'brain' orb taking a clear seat at a single desk with a small nameplate shape, one custom employee owning one role, no character, no readable text.`,
+      `${STYLE} A soft phone handset connected by a gentle line to an open calendar with a freshly booked slot, a call caught and booked, day-and-night moon/sun motif, no readable text.`,
+      `${STYLE} A soft sequence of follow-up message bubbles going out and a gentle 'stop' when a reply arrives, drafted in the owner's voice, tidy automation, no readable text.`,
+      `${STYLE} A tidy intake tray feeding new case cards into a folder, plus a small recall clock pulling a due card back, nothing slips, calm organization, no readable text.`,
+      `${STYLE} An owner reviewing a drafted message with a soft approval checkmark and a small rules/guardrail shield beside it, an approval-and-rules moment, pleased.`,
+      `${STYLE} A steady 'always on' concept — a calm employee orb with a soft 24-hour ring around it and small icons of no-sick-day and no-turnover, dependable, warm, no character, no readable text.`,
+      `${STYLE} A clean cost-comparison concept — a tall human-salary stack beside a much shorter Digital Employee stack with a downward saving arrow glowing sage, value, no character, no readable text.`,
+      `${STYLE} A confident business owner standing calmly, a friendly employee orb at their side, soft sage leaf shapes in a rounded frame behind them, generous empty cream space lower-center for a logo, optimistic finale.`,
+    ],
+    captions: [
+      { head: 'One job quietly eats the day.', sub: 'Calls, follow-ups, recalls — always slipping.' },
+      { head: 'A loaded hire runs $40k–$70k a year.', small: true },
+      { logoHead: 'is a Digital Employee.', sub: 'One custom AI employee. One job, owned end to end.' },
+      { kicker: 'The job', head: 'Answers the phone. Books the calendar.', sub: 'Every call caught — day or night.' },
+      { kicker: 'The job', head: 'Runs your follow-up.', sub: 'In your voice. Stops the moment they reply.' },
+      { kicker: 'The job', head: 'Intake and recalls, handled.', sub: 'Every case logged. Every recall pulled before it slips.' },
+      { head: 'It works the way you would.', sub: 'Your rules. Nothing sends without your OK.', accent: 'Nothing sends without your OK.' },
+      { head: 'No sick days. No turnover.', sub: 'It shows up every day and does the job.', accent: 'No sick days. No turnover.' },
+      { kicker: 'The math', head: 'From $1,000/mo.', sub: '~60–75% less than the human it replaces.', accent: 'From $1,000/mo.' },
+      { finale: true },
+    ],
+    tagIntro: 'Hire one job done — around the clock, on your terms.',
+  },
 }
