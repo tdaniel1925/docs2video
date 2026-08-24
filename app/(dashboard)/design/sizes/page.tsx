@@ -40,7 +40,11 @@ export default function SizesStep() {
   }
   useEffect(() => { loadCost() }, [])
 
-  const isDeck = Boolean(state.deckSlides)
+  // A deck is a deck the moment it's picked on Step 1 — NOT only once slides are
+  // planned. Keying off deckSlides meant a deck whose plan hadn't been confirmed
+  // yet fell through to the full flyer size picker (the "it still showed sizes"
+  // bug). kind==='deck' is the true signal; slide-16x9 is always its size.
+  const isDeck = state.kind === 'deck'
   // A deck's size is fixed to 16:9 slides — set it once so Review + generate agree.
   useEffect(() => {
     if (isDeck && (state.sizes.length !== 1 || state.sizes[0] !== 'slide-16x9')) {

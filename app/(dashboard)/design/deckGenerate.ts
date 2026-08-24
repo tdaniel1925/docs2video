@@ -32,6 +32,9 @@ export async function generateDeck(opts: {
   /** The user's logo and photos, placed on EVERY slide (a logo is placed as-is,
    *  never redrawn — the codebase rule). */
   photos?: { dataUrl: string; role: PhotoRole }[]
+  /** Brand colours read off a website (Look step or chat) — tint every slide so
+   *  the deck matches the business, when there's no saved brand driving it. */
+  brandColors?: string[]
   roundId: string
   chatId: string
   onProgress?: (p: DeckProgress) => void
@@ -69,6 +72,7 @@ export async function generateDeck(opts: {
           // The logo (and any photos) go on every slide so the deck is branded
           // consistently.
           photos: opts.photos && opts.photos.length ? opts.photos : undefined,
+          brandColors: opts.brandColors && opts.brandColors.length ? opts.brandColors : undefined,
           // Body slides: keep the logo pinned to one corner (pasted in code),
           // never handed to the image model where it would land differently
           // each time. Cover/closing leave this off and keep hero placement.

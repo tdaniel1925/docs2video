@@ -20,6 +20,48 @@ export default function StyleStep() {
   const flashEject = (msg: string, restore: () => void) => {
     setEjected({ msg, restore }); setTimeout(() => setEjected(null), 6000)
   }
+  // Reading a website's brand (colours + fonts + logo) on THIS step.
+  const [siteUrl, setSiteUrl] = useState('')
+  const [reading, setReading] = useState(false)
+  const [siteNote, setSiteNote] = useState<{ ok: boolean; text: string } | null>(null)
+
+  // Go read the site the user pasted and pull their brand into the design:
+  // colours tint it, and their logo is dropped into the images box (never
+  // auto-placed on the artwork — the user still controls it).
+  const readBrand = async () => {
+    const url = siteUrl.trim()
+    if (!url || reading) return
+    setReading(true); setSiteNote(null)
+    try {
+      const r = await fetch('/api/brand-from-url', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ url }),
+      })
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok) { setSiteNote({ ok: false, text: data?.error || 'I couldn’t read that page.' }); return }
+      const bits: string[] = []
+      if (Array.isArray(data.colors) && data.colors.length) {
+        patch({ brandColors: data.colors.slice(0, 3) })
+        bits.push(`${data.colors.length} brand colour${data.colors.length === 1 ? '' : 's'}`)
+      }
+      if (typeof data.logoDataUrl === 'string' && data.logoDataUrl.startsWith('data:image')) {
+        const already = state.photos.some((p) => p.role === 'logo')
+        if (!already && state.photos.length < 6) {
+          const dataUrl = await downscaleDataUrl(data.logoDataUrl, 900)
+          patch({ photos: [...state.photos, { dataUrl, role: 'logo' as const, name: 'logo from site' }].slice(0, 6) })
+          bits.push('their logo')
+        }
+      }
+      if (Array.isArray(data.fonts) && data.fonts.length) bits.push(`${data.fonts.length} font${data.fonts.length === 1 ? '' : 's'}`)
+      setSiteNote(bits.length
+        ? { ok: true, text: `Pulled ${bits.join(', ')} from that site. Your design will be tinted to match.` }
+        : { ok: false, text: 'I opened the page but couldn’t find a clear brand — pick a look below instead.' })
+    } catch {
+      setSiteNote({ ok: false, text: 'Network hiccup — try that again.' })
+    } finally {
+      setReading(false)
+    }
+  }
 
   if (!ready) return null
 
@@ -149,6 +191,32 @@ export default function StyleStep() {
                 onChange={(e) => { void onReference(e.target.files?.[0]); e.target.value = '' }} />
             </label>
           )}
+
+          {/* READ A WEBSITE for its brand — colours + fonts + logo. */}
+          <div style={{ borderTop: `1px solid ${LINE}`, paddingTop: 10 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: INK, marginBottom: 6 }}>Or match a website’s brand</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input value={siteUrl} onChange={(e) => setSiteUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void readBrand() } }}
+                placeholder="e.g. jordyn.app"
+                style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 8, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 13.5, color: INK }} />
+              <button onClick={() => void readBrand()} disabled={reading || !siteUrl.trim()}
+                style={{ ...plainBtn, padding: '9px 14px', opacity: reading || !siteUrl.trim() ? 0.5 : 1 }}>
+                {reading ? 'Reading…' : 'Read brand'}
+              </button>
+            </div>
+            {siteNote && (
+              <p style={{ fontSize: 12, margin: '8px 0 0', lineHeight: 1.5, color: siteNote.ok ? '#2E7D32' : '#B4432F' }}>{siteNote.text}</p>
+            )}
+            {state.brandColors && state.brandColors.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center' }}>
+                <span style={{ fontSize: 11.5, color: SOFT }}>Brand colours:</span>
+                {state.brandColors.map((c, i) => (
+                  <span key={i} title={c} style={{ width: 18, height: 18, borderRadius: 4, background: c, border: `1px solid ${LINE}` }} />
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* premade styles accordion */}
           <div style={{ borderTop: `1px solid ${LINE}`, paddingTop: 10 }}>
