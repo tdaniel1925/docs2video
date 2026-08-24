@@ -1,3 +1,5 @@
+import { runInsuranceSanityChecks } from './insurance-sanity-checks'
+
 // Generalized extracted data that works for PDFs, text input, and ideas
 export interface ExtractedData {
   title: string
@@ -35,8 +37,6 @@ export function isInsuranceData(data: unknown): data is { policyType: string; ca
   )
   if (isInsurance) {
     // Run deterministic sanity checks and attach flags
-    // Lazy import to avoid circular dependency
-    const { runInsuranceSanityChecks } = require('./insurance-sanity-checks')
     const newFlags = runInsuranceSanityChecks(d as any) as string[]
     const existing = (d.sanityFlags as string[] | undefined) || []
     d.sanityFlags = [...existing, ...newFlags]

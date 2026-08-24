@@ -38,7 +38,7 @@ describe('TTS failure handling', () => {
 
     await expect(
       synthesizeSpeech('This is a test narration.', 'nova')
-    ).rejects.toThrow(/TTS failed after 3 attempts.*OpenAI rate limit/)
+    ).rejects.toThrow(/TTS failed \(ElevenLabs \+ OpenAI\).*OpenAI rate limit/)
 
     // Should have attempted 3 times
     expect(mockCreate).toHaveBeenCalledTimes(3)
