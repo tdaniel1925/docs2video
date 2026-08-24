@@ -731,6 +731,16 @@ export default function PublicWatchPage() {
   const [videoEnded, setVideoEnded] = useState(false)
   const [disclaimersOpen, setDisclaimersOpen] = useState(false)
 
+  // "Ask a question" (from the deck's closing slide) — a real message emailed to
+  // the presenter. Opens a small form; nothing is a dead button.
+  const [askOpen, setAskOpen] = useState(false)
+  const [askQuestion, setAskQuestion] = useState('')
+  const [askEmail, setAskEmail] = useState('')
+  const [askName, setAskName] = useState('')
+  const [askSending, setAskSending] = useState(false)
+  const [askSent, setAskSent] = useState(false)
+  const [askError, setAskError] = useState('')
+
   // Lead capture state
   const [showLeadCapture, setShowLeadCapture] = useState(false)
   const [leadDismissed, setLeadDismissed] = useState(false)
@@ -769,9 +779,12 @@ export default function PublicWatchPage() {
       if (!d || d.type !== 'act') return
       if (d.kind === 'deck') window.open(`/api/public/deck-pdf/${video.id}`, '_blank')
       if (d.kind === 'video' && (video as any).export_video_url) window.open((video as any).export_video_url, '_blank')
-      if (d.kind === 'pdf' || d.kind === 'chat') {
-        // source PDF has its own visible button; chat ships later — scroll
-        // the actions area into view so the client finds them.
+      if (d.kind === 'chat') {
+        // "Ask a question" — open the form that emails the presenter for real.
+        setAskSent(false); setAskError(''); setAskOpen(true)
+      }
+      if (d.kind === 'pdf') {
+        // The source PDF has its own visible button; bring it into view.
         document.querySelector('.wp-col-right')?.scrollIntoView({ behavior: 'smooth' })
       }
     }
@@ -804,6 +817,28 @@ export default function PublicWatchPage() {
       body: JSON.stringify({ videoId, event, metadata }),
     }).catch(() => {})
   }, [])
+
+  /* ---- Ask a question → real email to the presenter ---- */
+  async function submitAsk() {
+    if (!video) return
+    const q = askQuestion.trim()
+    if (!q) { setAskError('Type your question first.'); return }
+    setAskSending(true); setAskError('')
+    try {
+      const r = await fetch(`/api/watch/${video.id}/ask`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q, fromEmail: askEmail.trim(), fromName: askName.trim() }),
+      })
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok) { setAskError(data?.error || 'Could not send your question. Please try again.'); return }
+      setAskSent(true)
+      trackEvent(video.id, 'question_asked', {})
+    } catch {
+      setAskError('Network problem — please try again.')
+    } finally {
+      setAskSending(false)
+    }
+  }
 
   /* ---- Data loading ---- */
   useEffect(() => {
@@ -1738,6 +1773,69 @@ export default function PublicWatchPage() {
                 </svg>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ASK A QUESTION — a real message emailed to the presenter ── */}
+      {askOpen && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setAskOpen(false) }}
+          style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(6px)', padding: '24px 16px', overflowY: 'auto' }}
+        >
+          <div style={{ width: '100%', maxWidth: 460, margin: 'auto', background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1a1a1a', margin: 0 }}>Ask a question</h2>
+              <button onClick={() => setAskOpen(false)} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888', lineHeight: 1 }}>&times;</button>
+            </div>
+
+            {askSent ? (
+              <div style={{ textAlign: 'center', padding: '14px 0 6px' }}>
+                <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#e6f6f2', color: '#0d9488', fontSize: 26, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>✓</div>
+                <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Question sent</div>
+                <p style={{ fontSize: 14, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>
+                  We emailed it to the presenter{askEmail.trim() ? ' — they can reply to you directly' : ''}. Thanks!
+                </p>
+                <button onClick={() => setAskOpen(false)} style={{ background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Done</button>
+              </div>
+            ) : (
+              <>
+                <p style={{ fontSize: 13.5, color: '#555', margin: '0 0 14px', lineHeight: 1.5 }}>
+                  Type your question and we&rsquo;ll email it straight to the person who made this. Add your email if you&rsquo;d like a reply.
+                </p>
+                <textarea
+                  value={askQuestion}
+                  onChange={(e) => { setAskQuestion(e.target.value); setAskError('') }}
+                  rows={4}
+                  placeholder="What would you like to know?"
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid #d8dde3', font: 'inherit', fontSize: 14, resize: 'vertical', marginBottom: 10 }}
+                />
+                <input
+                  type="email"
+                  value={askEmail}
+                  onChange={(e) => setAskEmail(e.target.value)}
+                  placeholder="Your email (optional, for a reply)"
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid #d8dde3', font: 'inherit', fontSize: 14, marginBottom: 10 }}
+                />
+                <input
+                  type="text"
+                  value={askName}
+                  onChange={(e) => setAskName(e.target.value)}
+                  placeholder="Your name (optional)"
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid #d8dde3', font: 'inherit', fontSize: 14, marginBottom: 12 }}
+                />
+                {askError && (
+                  <div role="alert" style={{ background: '#fdf3f3', border: '1px solid #e6b0b0', color: '#8a3b3b', borderRadius: 8, padding: '9px 12px', fontSize: 13, marginBottom: 12 }}>{askError}</div>
+                )}
+                <button
+                  onClick={submitAsk}
+                  disabled={askSending}
+                  style={{ width: '100%', background: '#0d9488', color: '#fff', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 700, cursor: askSending ? 'default' : 'pointer', fontSize: 15, opacity: askSending ? 0.6 : 1 }}
+                >
+                  {askSending ? 'Sending…' : 'Send question'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

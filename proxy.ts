@@ -58,7 +58,7 @@ export async function proxy(request: NextRequest) {
   // Redirect unauthenticated users away from protected pages
   // NOTE: '/r/' must stay public — affiliate referral links are clicked by
   // anonymous visitors; redirecting them to /login drops the attribution.
-  if (!user && !publicPaths.includes(pathname) && !pathname.startsWith('/auth') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/public') && !pathname.startsWith('/api/track-view') && !pathname.startsWith('/api/quotes/pay') && !pathname.startsWith('/api/demo') && !pathname.startsWith('/api/try-demo') && !pathname.startsWith('/watch') && !pathname.startsWith('/for') && !pathname.startsWith('/try') && !pathname.startsWith('/demo') && !pathname.startsWith('/share-demo') && !pathname.startsWith('/demo-prezi') && !pathname.startsWith('/terms') && !pathname.startsWith('/privacy') && !pathname.startsWith('/cookies') && !pathname.startsWith('/r/')) {
+  if (!user && !publicPaths.includes(pathname) && !pathname.startsWith('/auth') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/public') && !pathname.startsWith('/api/watch') && !pathname.startsWith('/api/track-view') && !pathname.startsWith('/api/quotes/pay') && !pathname.startsWith('/api/demo') && !pathname.startsWith('/api/try-demo') && !pathname.startsWith('/watch') && !pathname.startsWith('/for') && !pathname.startsWith('/try') && !pathname.startsWith('/demo') && !pathname.startsWith('/share-demo') && !pathname.startsWith('/demo-prezi') && !pathname.startsWith('/terms') && !pathname.startsWith('/privacy') && !pathname.startsWith('/cookies') && !pathname.startsWith('/r/')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
