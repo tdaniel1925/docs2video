@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 interface SocialShareButtonProps {
   creationId: string
@@ -20,43 +20,42 @@ export default function SocialShareButton({ creationId, creationType, title, ima
   const [open, setOpen] = useState(false)
   const [posting, setPosting] = useState<string | null>(null)
   const [result, setResult] = useState<{ message: string; credits: number } | null>(null)
-  const [shareStatus, setShareStatus] = useState<{ canEarnMore: boolean; sharesRemaining: number; creditsPerShare: number } | null>(null)
 
-  useEffect(() => {
-    if (open) {
-      fetch('/api/social-share')
-        .then(r => r.json())
-        .then(data => setShareStatus(data))
-        .catch(() => {})
+  // Open the platform's own share/compose page in a new tab. This "just works"
+  // for anyone already signed in to that platform in their browser — no account
+  // to connect here, no server post. We pass the caption (and a link when we
+  // have one) so their composer opens pre-filled.
+  function shareUrlFor(platform: string): string {
+    const caption = `Check out "${title}" — made with Docs2Video! Create professional videos, infographics & more with AI. #Docs2Video #AI`
+    const link = imageUrl || 'https://docs2video.com'
+    const t = encodeURIComponent(caption)
+    const u = encodeURIComponent(link)
+    switch (platform) {
+      case 'twitter':  return `https://twitter.com/intent/tweet?text=${t}&url=${u}`
+      case 'facebook': return `https://www.facebook.com/sharer/sharer.php?u=${u}&quote=${t}`
+      case 'linkedin': return `https://www.linkedin.com/sharing/share-offsite/?url=${u}`
+      // Instagram has no web share composer — open Instagram so they can post
+      // the downloaded image from their signed-in account.
+      case 'instagram': return `https://www.instagram.com/`
+      default: return link
     }
-  }, [open])
+  }
 
   async function handleShare(platform: string) {
     setPosting(platform)
     setResult(null)
-    try {
-      const res = await fetch('/api/social-share', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          platform,
-          creationId,
-          creationType,
-          message: `Check out "${title}" — made with Docs2Video! Create professional videos, infographics & more with AI. #Docs2Video #AI`,
-          imageUrl,
-        }),
-      })
-      const data = await res.json()
-      if (data.success) {
-        setResult({ message: data.message, credits: data.creditsAwarded })
-        // Refresh status
-        fetch('/api/social-share').then(r => r.json()).then(d => setShareStatus(d)).catch(() => {})
-      } else {
-        setResult({ message: data.error || 'Failed to post', credits: 0 })
-      }
-    } catch {
-      setResult({ message: 'Network error', credits: 0 })
-    }
+    // Copy the caption so it's ready to paste (Instagram especially).
+    try { await navigator.clipboard.writeText(
+      `Check out "${title}" — made with Docs2Video! #Docs2Video #AI`
+    ) } catch { /* clipboard blocked — not fatal */ }
+    // Open their platform page/composer, signed in as them.
+    window.open(shareUrlFor(platform), '_blank', 'noopener,noreferrer')
+    setResult({
+      message: platform === 'instagram'
+        ? 'Opened Instagram — the caption is copied; paste it with your image.'
+        : 'Opened the share window — your post is ready to publish.',
+      credits: 0,
+    })
     setPosting(null)
   }
 
@@ -81,19 +80,10 @@ export default function SocialShareButton({ creationId, creationType, title, ima
               <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-light)' }}>&times;</button>
             </div>
 
-            {shareStatus?.canEarnMore && (
-              <div style={{
-                background: 'rgba(168,240,212,0.15)', border: '1px solid var(--mint)',
-                borderRadius: 10, padding: '12px 16px', marginBottom: 16,
-                fontSize: 13, display: 'flex', alignItems: 'center', gap: 8,
-              }}>
-                <span style={{ fontSize: 18 }}>&#127873;</span>
-                <span>
-                  Earn <strong>{shareStatus.creditsPerShare} free credits</strong> per share!
-                  {shareStatus.sharesRemaining > 0 && ` (${shareStatus.sharesRemaining} shares left this month)`}
-                </span>
-              </div>
-            )}
+            <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 16px', lineHeight: 1.5 }}>
+              Pick a platform — we&rsquo;ll open it in a new tab with your post ready to publish
+              (you&rsquo;ll post from whatever account you&rsquo;re signed in to there).
+            </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 16 }}>
               {PLATFORMS.map(p => (
@@ -122,7 +112,7 @@ export default function SocialShareButton({ creationId, creationType, title, ima
                   <div style={{ textAlign: 'left' }}>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{p.label}</div>
                     <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>
-                      {posting === p.id ? 'Posting...' : 'Share now'}
+                      {posting === p.id ? 'Opening…' : 'Open & post'}
                     </div>
                   </div>
                 </button>
@@ -142,7 +132,7 @@ export default function SocialShareButton({ creationId, creationType, title, ima
             )}
 
             <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 12, textAlign: 'center' }}>
-              Earn up to 5 free credits per month by sharing your creations.
+              Opens in a new tab — nothing posts until you press publish there.
             </div>
           </div>
         </div>
