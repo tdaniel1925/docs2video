@@ -255,6 +255,22 @@ export function extractLogoUrl(html: string, baseUrl: string): string | null {
   return null
 }
 
+// Fetch a logo URL and hand it back as a data URL — SSRF-guarded via safeFetch
+// (re-checks every redirect hop). Returns null if it's unsafe, not an image, or
+// implausibly large. Shared by the design-prefill and brand-from-url routes so
+// "read a website's brand" behaves the same on the first screen and the Look step.
+export async function logoAsDataUrl(logoUrl: string): Promise<string | null> {
+  try {
+    const res = await safeFetch(logoUrl, { timeoutMs: 15000 })
+    if (!res || !res.ok) return null
+    const type = res.headers.get('content-type') || 'image/png'
+    if (!/^image\//i.test(type)) return null // never HTML dressed up as an image
+    const buf = Buffer.from(await res.arrayBuffer())
+    if (!buf.length || buf.length > 3_000_000) return null // sanity + storage cap
+    return `data:${type};base64,${buf.toString('base64')}`
+  } catch { return null }
+}
+
 export interface BrandAnalysis {
   companyName: string
   tagline: string | null

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
-import { isSafePublicUrl, fetchPage, extractColors, extractLogoUrl, extractFonts } from '../../_lib/brand-scraper'
+import { isSafePublicUrl, fetchPage, extractColors, extractLogoUrl, extractFonts, logoAsDataUrl } from '../../_lib/brand-scraper'
 
 // =============================================================================
 // Read a website's BRAND for the Style step.
@@ -24,22 +24,6 @@ function normUrl(raw: string): string | null {
   if (!/^https?:\/\//i.test(u)) u = 'https://' + u
   try { const p = new URL(u); return (p.protocol === 'http:' || p.protocol === 'https:') ? p.toString() : null }
   catch { return null }
-}
-
-// Bring the logo back as a data URL so the browser can show it and store it with
-// the other images — no second round-trip, and it survives to the generator.
-async function logoAsDataUrl(logoUrl: string): Promise<string | null> {
-  try {
-    if (!(await isSafePublicUrl(logoUrl))) return null
-    const res = await fetch(logoUrl, { signal: AbortSignal.timeout(15_000) })
-    if (!res.ok) return null
-    const type = res.headers.get('content-type') || 'image/png'
-    // Only real raster/vector image types; never HTML dressed up as an image.
-    if (!/^image\//i.test(type)) return null
-    const buf = Buffer.from(await res.arrayBuffer())
-    if (!buf.length || buf.length > 3_000_000) return null // sanity + storage cap
-    return `data:${type};base64,${buf.toString('base64')}`
-  } catch { return null }
 }
 
 export async function POST(req: Request) {

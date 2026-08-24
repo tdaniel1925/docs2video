@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../_lib/supabase/server'
 import { VISIBLE_STYLES, FLYER_SIZES } from '../../_lib/flyer-engine'
-import { isSafePublicUrl, fetchPage, extractColors } from '../../_lib/brand-scraper'
+import { isSafePublicUrl, fetchPage, extractColors, extractLogoUrl, logoAsDataUrl } from '../../_lib/brand-scraper'
 
 // Pull the first web address out of the sentence, if any ("make a flyer from
 // jordyn.app"). Same detector as the words chat.
@@ -17,7 +17,7 @@ function findUrl(text: string): string | null {
 
 // Read a page the user named: its text (for copy) and main colours (to tint).
 // Reuses the SSRF-guarded scraper — every redirect hop is re-checked.
-async function readSite(url: string): Promise<{ text: string; colors: string[] } | null> {
+async function readSite(url: string): Promise<{ text: string; colors: string[]; logoDataUrl: string | null } | null> {
   try {
     if (!(await isSafePublicUrl(url))) return null
     const html = await fetchPage(url)
@@ -26,7 +26,11 @@ async function readSite(url: string): Promise<{ text: string; colors: string[] }
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
       .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 6000)
-    return { text, colors: extractColors(html).slice(0, 5) }
+    // Their logo too, so the first screen can hand it to the user like the Look
+    // step does (we never auto-place it — it just rides along into the design).
+    const rawLogo = extractLogoUrl(html, url)
+    const logoDataUrl = rawLogo ? await logoAsDataUrl(rawLogo) : null
+    return { text, colors: extractColors(html).slice(0, 5), logoDataUrl }
   } catch { return null }
 }
 
@@ -159,6 +163,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       kind, templateId, sizeIds: safeSizes, fields,
       ...(brandColors.length ? { brandColors } : {}),
+      ...(site?.logoDataUrl ? { logoDataUrl: site.logoDataUrl } : {}),
       ...(site ? { fromSite: url } : {}),
     })
   } catch (e) {

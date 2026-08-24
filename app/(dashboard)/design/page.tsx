@@ -6,6 +6,7 @@ import { thumbUrl } from '../../_lib/flyer-engine'
 import { useWizard } from './useWizard'
 import { INK, SOFT, LINE, MINT, card, plainBtn, StepShell } from './ui'
 import { useDictation } from '../../_components/useDictation'
+import { downscaleDataUrl } from './downscale'
 import type { Kind } from './useWizard'
 import type { DeckSlide } from '../../_lib/deck-split'
 
@@ -53,6 +54,16 @@ export default function WhatStep() {
         body: JSON.stringify({ prompt: p }),
       }).then((x) => x.json())
       if (r?.error) { setDraftErr(r.error); return }
+      // If the sentence named a website and it had a logo, bring it along as the
+      // user's logo image (never auto-placed on the art — it rides into the job
+      // so they can position it). Shrunk so it stores + survives to the generator.
+      let sitePhotos: { dataUrl: string; role: 'logo'; name: string }[] = []
+      if (typeof r.logoDataUrl === 'string' && r.logoDataUrl.startsWith('data:image')) {
+        try {
+          const dataUrl = await downscaleDataUrl(r.logoDataUrl, 900)
+          sitePhotos = [{ dataUrl, role: 'logo', name: 'logo from site' }]
+        } catch { /* a missing logo is never fatal to drafting */ }
+      }
       // Seed the wizard with the AI's draft (all suggestions the user can change)
       // and mark which pieces were AI-guessed so the steps can badge them.
       patch({
@@ -60,6 +71,7 @@ export default function WhatStep() {
         fields: r.fields ?? {}, note: p,
         // Colours read off a website the sentence named — tint the design to match.
         ...(Array.isArray(r.brandColors) && r.brandColors.length ? { brandColors: r.brandColors } : {}),
+        ...(sitePhotos.length ? { photos: sitePhotos } : {}),
         aiSuggested: { kind: true, templateId: true, sizes: true, fields: true },
       })
       sessionStorage.setItem('design:walking', '1')
@@ -132,7 +144,7 @@ export default function WhatStep() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void draftFromPrompt(prompt) } }}
-            placeholder="Describe it in a sentence — e.g. a grand-opening flyer for my salon this Saturday"
+            placeholder="Describe it in a sentence — e.g. a grand-opening flyer for my salon this Saturday. Or name a website (like jordyn.app) and I’ll pull its colours, logo and words."
             rows={2}
             disabled={drafting}
             aria-label="Describe what you want to make"
