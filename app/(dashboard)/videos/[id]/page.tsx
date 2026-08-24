@@ -1201,6 +1201,11 @@ export default function VideoDetailPage() {
           0%, 80%, 100% { transform: translateY(0); }
           40% { transform: translateY(-6px); }
         }
+        /* Send-email modal: two columns on wide screens, one on narrow so it
+           never forces a horizontal squeeze on a phone. */
+        @media (max-width: 620px) {
+          .share-send-grid { grid-template-columns: 1fr !important; }
+        }
         .slide-thumb {
           cursor: pointer;
           border: 2px solid transparent;
@@ -2424,9 +2429,13 @@ export default function VideoDetailPage() {
 
       {/* Share Modal */}
       {showShareModal && video && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(8px)' }}>
-          <div style={{ width: '100%', maxWidth: 480, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 32, maxHeight: '92vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(8px)', overflowY: 'auto', padding: '24px 16px' }}>
+          {/* ONE scroll surface (the overlay). The card sizes to its content and
+              never gets its own scrollbar, so there are never two bars at once.
+              Wide + two-column so the whole thing fits the viewport without a
+              tall scroll on any normal screen. */}
+          <div data-testid="share-modal-card" style={{ width: '100%', maxWidth: 760, margin: 'auto', background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 28 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>Send to Your Client</h2>
               <button onClick={() => { setShowShareModal(false); setShareSentTo(''); setShareSendError('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-light)' }} aria-label="Close">&times;</button>
             </div>
@@ -2447,55 +2456,61 @@ export default function VideoDetailPage() {
               </div>
             ) : (
               <>
-                <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: -8, marginBottom: 18, lineHeight: 1.5 }}>
+                <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: -4, marginBottom: 16, lineHeight: 1.5 }}>
                   Enter your client&rsquo;s email and we&rsquo;ll send it for you — with your message and a <strong>&ldquo;Watch Video&rdquo;</strong> button. You&rsquo;ll see a confirmation the moment it&rsquo;s sent.
                 </p>
 
-                {/* WHO IT GOES TO — the field the old modal never had. */}
-                <div className="form-group">
-                  <label className="input-label">Client email</label>
-                  <input
-                    className="input"
-                    type="email"
-                    placeholder="e.g. sarah@example.com"
-                    value={shareEmail}
-                    onChange={e => { setShareEmail(e.target.value); setShareSendError('') }}
-                  />
-                </div>
+                {/* Two columns on wide screens (who + message side by side), one
+                    column on narrow. Keeps the modal short enough to fit. */}
+                <div className="share-send-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+                  <div>
+                    {/* WHO IT GOES TO — the field the old modal never had. */}
+                    <div className="form-group">
+                      <label className="input-label">Client email</label>
+                      <input
+                        className="input"
+                        type="email"
+                        placeholder="e.g. sarah@example.com"
+                        value={shareEmail}
+                        onChange={e => { setShareEmail(e.target.value); setShareSendError('') }}
+                      />
+                    </div>
 
-                <div className="form-group">
-                  <label className="input-label">Client name (optional)</label>
-                  <input
-                    className="input"
-                    placeholder="e.g. Sarah"
-                    value={shareName}
-                    onChange={e => {
-                      setShareName(e.target.value)
-                      // Re-seed the greeting only if the user hasn't hand-edited the body.
-                      if (!shareEmailBodyTouched) setShareEmailBody('')
-                    }}
-                  />
-                </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="input-label">Client name (optional)</label>
+                      <input
+                        className="input"
+                        placeholder="e.g. Sarah"
+                        value={shareName}
+                        onChange={e => {
+                          setShareName(e.target.value)
+                          // Re-seed the greeting only if the user hasn't hand-edited the body.
+                          if (!shareEmailBodyTouched) setShareEmailBody('')
+                        }}
+                      />
+                    </div>
+                  </div>
 
-                <div className="form-group">
-                  <label className="input-label">Email message</label>
-                  <textarea
-                    className="input"
-                    rows={6}
-                    value={shareEmailBody || defaultShareBody()}
-                    onChange={e => { setShareEmailBody(e.target.value); setShareEmailBodyTouched(true) }}
-                    style={{ resize: 'vertical', lineHeight: 1.5, fontSize: 14 }}
-                  />
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="input-label">Email message</label>
+                    <textarea
+                      className="input"
+                      rows={5}
+                      value={shareEmailBody || defaultShareBody()}
+                      onChange={e => { setShareEmailBody(e.target.value); setShareEmailBodyTouched(true) }}
+                      style={{ resize: 'vertical', lineHeight: 1.5, fontSize: 14 }}
+                    />
+                  </div>
                 </div>
 
                 {/* THE FAILURE IS NEVER SILENT. */}
                 {shareSendError && (
-                  <div role="alert" style={{ background: '#fdf3f3', border: '1px solid #e6b0b0', color: '#8a3b3b', borderRadius: 8, padding: '10px 14px', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
+                  <div role="alert" style={{ background: '#fdf3f3', border: '1px solid #e6b0b0', color: '#8a3b3b', borderRadius: 8, padding: '10px 14px', fontSize: 13, lineHeight: 1.5, margin: '14px 0 0' }}>
                     {shareSendError}
                   </div>
                 )}
 
-                <button onClick={sendShareEmail} disabled={shareSending} className="btn btn-primary btn-full" style={{ marginBottom: 14, opacity: shareSending ? 0.6 : 1 }}>
+                <button onClick={sendShareEmail} disabled={shareSending} className="btn btn-primary btn-full" style={{ margin: '16px 0 14px', opacity: shareSending ? 0.6 : 1 }}>
                   {shareSending ? 'Sending…' : 'Send Email Now'}
                 </button>
 
