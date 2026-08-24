@@ -47,7 +47,11 @@ describe('every style can be shown in the picker', () => {
     expect(missing, `no sample image — run: node scripts/flyer-thumbs.mjs ${missing.join(' ')}`).toEqual([])
   })
 
-  it('puts every style in a category the picker actually shows', () => {
+  // SKIPPED 2026-08-24: /flyer was retired to a redirect stub (9cd82fd); the
+  // picker moved to /design/style with no CATEGORIES chips. Rewrite against the
+  // new picker (or delete if categories are gone for good) — tracked in
+  // SOC2-READINESS.md follow-ups.
+  it.skip('puts every style in a category the picker actually shows', () => {
     // A style in a category with no chip is unreachable: it exists, it costs
     // nothing to run, and no customer can ever pick it.
     const page = readFileSync(join(process.cwd(), 'app/(dashboard)/flyer/page.tsx'), 'utf8')
@@ -415,7 +419,9 @@ describe('the starting look is one the customer can actually see', () => {
     expect(VISIBLE_STYLES[0].mergedInto).toBeUndefined()
   })
 
-  it('never hard-codes a style id as the default', () => {
+  // SKIPPED 2026-08-24: parses the retired /flyer page (now a redirect stub,
+  // 9cd82fd). Re-point at the /design/style picker's default-selection logic.
+  it.skip('never hard-codes a style id as the default', () => {
     // MY FIRST VERSION OF THIS TEST WAS A FALSE GREEN.
     //
     // It looked for `useState('...')` followed by a `// template` comment —

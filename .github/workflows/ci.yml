@@ -17,6 +17,5 @@ jobs:
       - run: npm ci
       - name: Typecheck
         run: npm run typecheck
-      - name: Unit tests (advisory — 20 pre-existing failing files as of 2026-08-24; make blocking after burndown)
-        run: npm test
-        continue-on-error: true
+      - name: Unit tests (script-generation excluded — live LLM calls, needs secrets, nondeterministic goldens)
+        run: npx vitest run --exclude tests/script-generation.test.ts
