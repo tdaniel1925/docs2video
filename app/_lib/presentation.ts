@@ -637,7 +637,7 @@ h1.h2::after{transform:translateX(-50%) scaleX(0);transform-origin:center}
 .kick .num{background:var(--gold);color:var(--paper);border-radius:6px;padding:3px 9px;letter-spacing:.06em;font-size:.92em}
 h1{font-family:var(--serif);font-weight:700;font-size:clamp(26px,4.4vw,52px);line-height:1.08}
 h1 .g{color:var(--gold)}
-.lead{color:var(--soft);font-size:clamp(13px,1.55vw,18px);line-height:1.6;max-width:660px;margin:12px auto 0}
+.lead{color:var(--soft);font-size:clamp(15px,1.8vw,21px);line-height:1.6;max-width:680px;margin:12px auto 0}
 .big{display:inline-block;font-family:var(--serif);font-weight:700;font-size:clamp(44px,8vw,96px);line-height:1.18;color:var(--navy);letter-spacing:-.02em;font-variant-numeric:tabular-nums;padding:0 .05em .08em}
 h1.h2{font-size:clamp(21px,3.1vw,38px);padding-bottom:clamp(12px,2.2vh,20px);margin-bottom:clamp(4px,1vh,10px);position:relative}
 h1.h2::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:56px;height:3px;border-radius:2px;background:linear-gradient(90deg,var(--gold),var(--gold-l))}
@@ -669,28 +669,28 @@ h1.h2::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX
 .statrow{display:flex;gap:clamp(8px,1.2vw,14px);flex-wrap:wrap;margin-top:clamp(10px,2vh,18px)}
 .statrow .stat{flex:1 1 0;min-width:0}
 .stat{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:12px;padding:clamp(10px,1.8vh,18px) clamp(14px,1.8vw,24px);min-width:130px;max-width:250px;text-align:left;box-shadow:0 10px 26px rgba(0,0,0,.08)}
-.stat .v{font-family:var(--serif);font-weight:700;font-size:clamp(18px,2.4vw,32px);line-height:1.18;padding-bottom:.06em;color:var(--navy);font-variant-numeric:tabular-nums}
+.stat .v{font-family:var(--serif);font-weight:700;font-size:clamp(20px,2.7vw,36px);line-height:1.18;padding-bottom:.06em;color:var(--navy);font-variant-numeric:tabular-nums}
 /* Text values ("Preferred Non-Tobacco") — sans, smaller, no hyphen breaks. */
-.stat .v.txt{font-family:var(--font);font-weight:700;font-size:clamp(14px,1.6vw,20px);line-height:1.35;letter-spacing:-.01em;hyphens:none;overflow-wrap:break-word}
+.stat .v.txt{font-family:var(--font);font-weight:700;font-size:clamp(16px,1.9vw,24px);line-height:1.35;letter-spacing:-.01em;hyphens:none;overflow-wrap:break-word}
 /* Phone numbers — never break mid-number. */
 .tel{font-family:var(--font);font-weight:800;letter-spacing:-.01em;white-space:nowrap;color:var(--navy);font-variant-numeric:tabular-nums}
 .big-tel{font-size:clamp(30px,5vw,60px);line-height:1.2;padding-bottom:.06em;margin-top:2vh}
 .stat .v.tel{font-size:clamp(16px,2vw,26px)}
-.stat .l{font-size:clamp(9.5px,1vw,12px);letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:4px}
+.stat .l{font-size:clamp(11px,1.2vw,14px);letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:5px}
 .bullets{display:grid;grid-template-columns:1fr;gap:clamp(8px,1.5vh,13px);max-width:760px;margin:clamp(10px,2.2vh,20px) auto 0;padding:0;text-align:left}
 .wl>.bullets{margin-left:0;margin-right:0}
 .bullets.two{grid-template-columns:1fr 1fr;max-width:940px}
 .bullets.tight{margin-top:clamp(8px,1.6vh,14px)}
-.bullets li{list-style:none;display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:clamp(8px,1.5vh,14px) clamp(12px,1.4vw,18px);font-size:clamp(12px,1.35vw,15.5px);line-height:1.5;color:var(--soft)}
+.bullets li{list-style:none;display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:clamp(10px,1.7vh,16px) clamp(14px,1.6vw,20px);font-size:clamp(14px,1.65vw,19px);line-height:1.55;color:var(--soft)}
 .bullets .mk{color:var(--gold);font-size:.72em;line-height:2;flex:none}
 .chart{max-width:780px;margin:clamp(12px,2.4vh,22px) auto 0;display:grid;gap:clamp(8px,1.4vh,12px);text-align:left;width:100%}
 .crow{display:grid;grid-template-columns:minmax(90px,190px) 1fr auto;gap:12px;align-items:center}
-.crow .cl{font-size:clamp(10.5px,1.1vw,13px);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);text-align:right}
+.crow .cl{font-size:clamp(12px,1.3vw,15px);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);text-align:right}
 .ctrack{background:color-mix(in srgb,var(--ink) 8%,transparent);border-radius:8px;overflow:hidden}
 .cbar{height:clamp(12px,2vh,18px);border-radius:8px;background:linear-gradient(90deg,var(--gold),var(--gold-l));transform-origin:left;transform:scaleX(0)}
 .sec.on .cbar{animation:grow 1s cubic-bezier(.16,1,.3,1) forwards}
 @keyframes grow{to{transform:scaleX(1)}}
-.crow .cval{font-family:var(--serif);font-weight:700;font-size:clamp(13px,1.5vw,18px);color:var(--navy);font-variant-numeric:tabular-nums}
+.crow .cval{font-family:var(--serif);font-weight:700;font-size:clamp(15px,1.75vw,21px);color:var(--navy);font-variant-numeric:tabular-nums}
 /* Presenter block — photo (or initials monogram) + name + contact, on a
    baseline grid. Replaces the old pill, whose one-sided padding left the
    name visibly off-centre whenever no photo was supplied. */
