@@ -2434,7 +2434,10 @@ export default function VideoDetailPage() {
               never gets its own scrollbar, so there are never two bars at once.
               Wide + two-column so the whole thing fits the viewport without a
               tall scroll on any normal screen. */}
-          <div data-testid="share-modal-card" style={{ width: '100%', maxWidth: 760, margin: 'auto', background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 28 }}>
+          {/* NO vertical margin:auto — on a scrolling overlay that would center a
+              too-tall card and clip its top out of reach. It sits at the top pad
+              and the overlay scrolls down to the rest. */}
+          <div data-testid="share-modal-card" style={{ width: '100%', maxWidth: 760, marginInline: 'auto', background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 28 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>Send to Your Client</h2>
               <button onClick={() => { setShowShareModal(false); setShareSentTo(''); setShareSendError('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-light)' }} aria-label="Close">&times;</button>
