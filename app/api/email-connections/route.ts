@@ -61,6 +61,9 @@ export async function POST(request: Request) {
     is_default: true,
   }).select().single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[email-connections] save failed:', error.message)
+    return NextResponse.json({ error: 'Could not save the email connection. Please try again.' }, { status: 500 })
+  }
   return NextResponse.json(data)
 }

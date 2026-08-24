@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
+import { logSecurityEvent } from '../../../_lib/audit'
 
 export const maxDuration = 30
 
@@ -39,6 +40,9 @@ export async function GET() {
   })
 
   const csv = [header, ...rows].join('\n')
+
+  // SOC 2: a bulk export of client PII is a security-relevant event — record it.
+  await logSecurityEvent(user.id, 'clients.export', { count: rows.length })
 
   return new NextResponse(csv, {
     headers: {

@@ -73,6 +73,21 @@ export async function POST() {
     // 7. Delete jobs
     await admin.from('jobs').delete().eq('user_id', userId)
 
+    // Audit the deletion BEFORE removing the profile. admin_id stays NULL (the
+    // profile is about to vanish and admin_id FKs to it); the who/what lives in
+    // target_user_id + details, which have no FK. This is the SOC 2 trail for a
+    // data-destruction event.
+    try {
+      await admin.from('admin_audit_log').insert({
+        admin_id: null,
+        action: 'account.self_delete',
+        target_user_id: userId,
+        details: { email: user.email ?? null, at: new Date().toISOString() },
+      })
+    } catch (e) {
+      console.error('[account/delete] audit log failed (continuing):', e instanceof Error ? e.message : e)
+    }
+
     // 8. Delete profile
     await admin.from('profiles').delete().eq('id', userId)
 
@@ -82,7 +97,7 @@ export async function POST() {
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('[account/delete] Error:', err)
-    const message = err instanceof Error ? err.message : 'Account deletion failed'
-    return NextResponse.json({ error: message }, { status: 500 })
+    // Generic to the client; detail stays in the server log.
+    return NextResponse.json({ error: 'Account deletion failed. Please contact support.' }, { status: 500 })
   }
 }

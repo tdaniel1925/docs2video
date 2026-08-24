@@ -53,6 +53,8 @@ export async function POST(request: Request) {
       try {
         const imgRes = await fetch(url)
         if (!imgRes.ok) continue
+        // Only embed real images (defence-in-depth on top of the magic-byte check below).
+        if (!(imgRes.headers.get('content-type') || '').startsWith('image/')) continue
         const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
 
         // Detect format and embed accordingly

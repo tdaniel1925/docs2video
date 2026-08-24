@@ -33,7 +33,8 @@ export async function POST(request: Request) {
       return NextResponse.json(analysis)
     } catch (err) {
       console.error('[deck-builder] Template analysis failed:', err)
-      return NextResponse.json({ error: err instanceof Error ? err.message : 'Template analysis failed' }, { status: 500 })
+      // Generic message to the client — internal detail stays in the server log.
+      return NextResponse.json({ error: 'We couldn’t analyze that template. Please try again.' }, { status: 500 })
     }
   }
 

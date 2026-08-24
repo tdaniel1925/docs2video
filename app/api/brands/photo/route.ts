@@ -48,13 +48,13 @@ export async function POST(request: Request) {
     }
     if (error) {
       console.error('[brands/photo] upload error:', error.message)
-      return NextResponse.json({ error: `Upload failed: ${error.message}` }, { status: 500 })
+      return NextResponse.json({ error: 'Upload failed. Please try again.' }, { status: 500 })
     }
     const { data } = admin.storage.from(BUCKET).getPublicUrl(path)
     return NextResponse.json({ url: data.publicUrl })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Upload failed'
     console.error('[brands/photo] error:', message)
-    return NextResponse.json({ error: `Upload failed: ${message}` }, { status: 500 })
+    return NextResponse.json({ error: 'Upload failed. Please try again.' }, { status: 500 })
   }
 }

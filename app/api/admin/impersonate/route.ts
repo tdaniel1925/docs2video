@@ -67,7 +67,8 @@ export async function POST(request: Request) {
   // Mark the session as impersonated so the banner shows. Readable client-side.
   res.cookies.set(IMP_COOKIE, encodeURIComponent(target.email), {
     maxAge: 60 * 60 * 4, // 4h
-    httpOnly: false,
+    httpOnly: false,     // the banner reads it client-side
+    secure: process.env.NODE_ENV === 'production', // HTTPS-only in prod
     sameSite: 'lax',
     path: '/',
   })

@@ -4,7 +4,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import FirecrawlApp from '@mendable/firecrawl-js'
 import sharp from 'sharp'
 import type { ExtractedData } from '../../_lib/extract-types'
-import { scrapeBrand } from '../../_lib/brand-scraper'
+import { scrapeBrand, safeFetch } from '../../_lib/brand-scraper'
 import { THEME_PROMPT, EXTRACTION_PROMPT } from '../../_lib/prompts'
 import { logError } from '../../_lib/error-logger'
 import { wrapUserData } from '../../_lib/prompt-safety'
@@ -327,9 +327,11 @@ export async function POST(request: Request) {
             const base64Data = brandAnalysis.logoUrl.split(',')[1]
             logoBuffer = Buffer.from(base64Data, 'base64')
           } else {
-            // Raw URL — download and convert to PNG
-            const logoRes = await fetch(brandAnalysis.logoUrl, { signal: AbortSignal.timeout(8000) })
-            if (logoRes.ok) {
+            // Raw URL — download and convert to PNG. SSRF-guarded: the logo URL
+            // came out of parsed page HTML, so it's attacker-influenced; safeFetch
+            // blocks private/internal IPs and re-checks every redirect hop.
+            const logoRes = await safeFetch(brandAnalysis.logoUrl, { timeoutMs: 8000 })
+            if (logoRes && logoRes.ok) {
               const ct = logoRes.headers.get('content-type') || ''
               if (!ct.includes('svg')) {
                 const rawBuf = Buffer.from(await logoRes.arrayBuffer())

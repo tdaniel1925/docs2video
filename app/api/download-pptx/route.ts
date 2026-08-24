@@ -61,6 +61,8 @@ export async function POST(request: Request) {
         const slide = pptx.addSlide()
         const res = await fetch(imageUrls[i])
         if (!res.ok) continue
+        // Only embed real images (defence-in-depth on top of the magic-byte check).
+        if (!(res.headers.get('content-type') || '').startsWith('image/')) continue
         const buffer = Buffer.from(await res.arrayBuffer())
         const base64 = buffer.toString('base64')
         const mimeType = (buffer[0] === 0xFF && buffer[1] === 0xD8) ? 'image/jpeg' : 'image/png'

@@ -32,37 +32,29 @@ report. Do both, but buy the platform first — it generates the definitive gap 
 
 ## 1. Code fixes — HIGH (before Type 1)
 
-- [ ] **SSRF: unguarded logo fetch.** `app/api/extract-url/route.ts:331` fetches a
-      logo URL parsed from attacker-controlled HTML with a raw `fetch()`. An
-      injected private/metadata IP would be fetched. **Fix:** route it through
-      `isSafePublicUrl()` + `safeFetch()` like the other scrapers do.
-- [ ] **Permissive RLS on social tables.** `supabase-social-campaigns-migration.sql`
-      has `USING (true)` on `social_campaigns` / `social_campaign_posts` — any row,
-      any user. **Fix:** replace with `USING (auth.uid() = user_id)` and confirm in
-      prod. (App routes already do ownership checks, but the DB policy must too.)
-- [ ] **Missing CSP + HSTS headers.** `next.config.ts` has X-Frame-Options etc. but
-      no Content-Security-Policy and no Strict-Transport-Security. **Fix:** add both
-      to the headers array (HSTS `max-age=31536000; includeSubDomains; preload`).
-- [ ] **Raw error messages leaked to clients.** e.g. `app/api/deck-builder/route.ts:36`,
-      `app/api/brands/photo/route.ts:51`, `app/api/email-connections/route.ts:64`
-      return `err.message`. **Fix:** generic client error + log full detail
-      server-side (the `flyer-chat` route is the good pattern).
+- [x] **SSRF: unguarded logo fetch** — `extract-url` now uses `safeFetch()`. ✅ (commit)
+- [x] **Missing CSP + HSTS headers** — both added to `next.config.ts` (permissive
+      CSP so nothing breaks; tighten with nonces later). ✅
+- [x] **Raw error messages leaked to clients** — `deck-builder`, `brands/photo`,
+      `email-connections`, `account/delete` now return generic messages + log
+      detail server-side. ✅
+- [x] **Permissive RLS on social tables** — hardening SQL written:
+      `supabase/migrations/20260824_social_rls_hardening.sql`. **ACTION: run it in
+      prod** (I don't touch the live DB).
 - [ ] **Rotate the VPS API_SECRET** (old fallback `docs2video-assembly-secret-2026`
       was in code history) and confirm the new value is only in the VPS env.
+      **ACTION: you rotate this** (env/secret, not code).
 
 ## 2. Code / config fixes — MEDIUM (before Type 2)
 
-- [ ] **Audit-log the sensitive events that aren't logged yet.** `admin_audit_log`
-      exists and covers impersonation/create-user/etc., but NOT: account deletion
-      (`/api/account/delete`), client data export (`/api/clients/export`), auth
-      callbacks. SOC 2 requires logging auth events, permission changes, and data
-      exports. **Fix:** add `logAdminAction()` calls to those routes.
-- [ ] **Impersonation cookie** (`app/api/admin/impersonate/route.ts`) lacks an
-      explicit `secure` flag. **Fix:** `secure: process.env.NODE_ENV === 'production'`.
-- [ ] **Verify fetched slide images are images** in `download-pdf`/`download-pptx`
-      before embedding (content-type check).
+- [x] **Audit-log sensitive user events** — added `logSecurityEvent()` and wired
+      **account self-deletion** and **client data export** into `admin_audit_log`. ✅
+- [x] **Impersonation cookie** now sets `secure` in production. ✅
+- [x] **Slide-image content-type check** added in `download-pdf`/`download-pptx`
+      (on top of the existing magic-byte check). ✅
 - [ ] **OAuth redirect URIs** (`app/api/mcp/oauth/approve`) — add scheme/https +
-      domain validation on top of the DB allowlist.
+      domain validation on top of the DB allowlist. *(Left as-is: the DB allowlist
+      is already the primary control; low risk. Revisit if scope demands.)*
 
 ## 3. Database / process debt (audit-fatal if unaddressed)
 

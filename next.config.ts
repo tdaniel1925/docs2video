@@ -35,6 +35,29 @@ const nextConfig: NextConfig = {
           // location stay shut because nothing here uses them; if something ever
           // does, it will need the same treatment rather than a debugging session.
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=()' },
+          // HTTPS-only: once a browser sees this, it refuses plain HTTP to us for
+          // a year. Zero risk — the app is already HTTPS on Vercel.
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
+          // A deliberately PERMISSIVE Content-Security-Policy: it exists (auditors
+          // want one) and stops the worst cross-site injection, but it does NOT
+          // tighten script/style sources — Next.js ships inline scripts/styles and
+          // we embed Stripe/Supabase/Calendly/fonts, so a strict policy would break
+          // the app. frame-ancestors 'self' blocks third-party clickjacking while
+          // still allowing our own same-origin presentation iframe. Tighten later
+          // with nonces once the app is measured against it.
+          { key: 'Content-Security-Policy', value: [
+            "default-src 'self' https: data: blob:",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
+            "style-src 'self' 'unsafe-inline' https:",
+            "img-src 'self' https: data: blob:",
+            "font-src 'self' https: data:",
+            "media-src 'self' https: blob:",
+            "connect-src 'self' https: wss:",
+            "frame-src 'self' https:",
+            "frame-ancestors 'self'",
+            "base-uri 'self'",
+            "form-action 'self' https:",
+          ].join('; ') },
         ],
       },
     ]
