@@ -138,11 +138,11 @@ D2V keeps its own Stripe; attributed sales are reported to the Apex MLM comp eng
 - **Stripe webhook** — at the 3 commission touchpoints, freshly recorded commissions for apex affiliates emit `sale.created` (session id), `sale.renewed` (invoice id), `sale.refunded` (from clawback rows). Dedupe rides commission idempotency + Apex's (external_source, external_ref) unique.
 - **Payout suppression** — admin export-csv and mark-paid exclude `payout_via='apex'`; GET includes the flag.
 - **`/r/{code}`** — regex relaxed to `^[A-Z0-9][A-Z0-9-]{2,31}$` (Apex slugs contain hyphens).
-- **SQL to run manually in prod** (migration drift!): `supabase-apex-integration.sql` (adds `affiliates.payout_via`).
+- **SQL to run manually in prod** (migration drift!): `supabase/legacy/supabase-apex-integration.sql` (adds `affiliates.payout_via`).
 - **Env needed:** `APEX_WEBHOOK_SECRET` (shared with Apex's `integrations.webhook_secret` row), optional `APEX_INTEGRATION_URL` override.
 - **Apex repo side** (already present there): products d2v-starter/pro/business/enterprise, `prismgraphs` integrations row, `processD2VSale/Refund`; added: `/api/dashboard/docs2video-link` (lazy provisioning), D2V link in ai-chat links tool + ReferralInfoTab.
 - **RESOLVED 2026-07-05:** the suspected tier mismatch was stale docs, not code — `pricing.ts` (source of truth) has exactly free/starter/pro/business/enterprise at $0/29/79/199/499, matching the spec table and Apex's `TIER_TO_SLUG` + seeded product rows (verified live in Apex prod DB: 2900/9bv, 7900/21bv, 19900/50bv, 49900/122bv). CLAUDE.md's old 6-tier table was corrected.
-- **GO-LIVE DONE 2026-07-05:** `supabase-apex-integration.sql` run on D2V prod (payout_via verified); `APEX_WEBHOOK_SECRET` set in Vercel (production) + `.env.local`, value = Apex's `integrations.webhook_secret` for prismgraphs.
+- **GO-LIVE DONE 2026-07-05:** `supabase/legacy/supabase-apex-integration.sql` run on D2V prod (payout_via verified); `APEX_WEBHOOK_SECRET` set in Vercel (production) + `.env.local`, value = Apex's `integrations.webhook_secret` for prismgraphs.
 - **E2E TEST PASSED 2026-07-05** (`scripts/apex-e2e-test.ts`, Stripe test mode, local Apex dev server, real prod DBs, test data cleaned up after): provisioning → affiliate payout_via='apex' + test promo ✓; sale.created/renewed → Apex orders (external_ref, paid, BV 21) + PV/GV 158 ✓; refund → order refunded + clawback row + PV/GV back to 79 ✓; duplicate event → idempotent 200 ✓; engine-eligibility filter matched 1 paid order ✓.
 - **Found+fixed Apex-side bug during E2E:** `processOrderClawback` reversed member PV/GV by total_bv on top of `processD2VRefund`'s price-based reversal (double dip, PV came out 58 instead of 79). Fixed in Apex `clawback-processor.ts` — volume reversal now skipped for external-source orders.
 - **Still needed to be live:** deploy D2V (git push → Vercel) and deploy the Apex repo (includes the clawback fix); Stripe *live-mode* promo attribution not yet exercised (E2E used test mode).
@@ -325,7 +325,7 @@ Auth: managed by Supabase Auth
 - **API routes**: `/api/clients` (list+create), `/api/clients/[id]` (detail+update+delete), `/api/clients/[id]/activities` (timeline+notes), `/api/clients/[id]/videos` (assigned+sent videos), `/api/clients/import` (CSV), `/api/clients/export` (CSV)
 - **Pages**: `/clients` (list with stats, search, status filters, add form, CSV import/export), `/clients/[id]` (detail with tabs: activity, videos, emails, payments)
 - **Activity wiring**: send-video-email and send-email routes auto-create/update client records and log activities; track-view logs video_viewed/video_played activities to matching clients
-- **Migration**: `supabase-clients-migration.sql` (run against Supabase to create tables + RLS)
+- **Migration**: `supabase/legacy/supabase-clients-migration.sql` (run against Supabase to create tables + RLS)
 
 ### Public Video-Generation API v1 (added 2026-06-12)
 - **Purpose**: let other apps generate videos/PPTX/PDF from text, URL, file upload, or an AI idea — programmatically.
@@ -335,7 +335,7 @@ Auth: managed by Supabase Auth
 - **Reuse**: v1 routes call the existing extraction + generate-video routes server-to-server with an `x-internal-service` trusted header (`INTERNAL_API_SECRET`) + `x-internal-user-id`. Those routes gained a guarded internal-auth branch (`resolveRequestUser` in `app/_lib/api-auth.ts`) that acts as the resolved user and skips UI-credit gates (already metered at v1 layer). No refactor of working generation logic.
 - **Webhook callback**: optional `webhook_url` in the create body; `app/_lib/api-webhook.ts` POSTs the job payload on completion/failure (fires on the Creatomate v2 path + the generate-video failure path; poll is the source of truth on the legacy VPS path).
 - **Admin UI**: `/admin/api-keys` (page) + `POST/GET /api/admin/api-keys` — create/revoke keys, top up the API pool.
-- **Migration**: `supabase-api-migration.sql` (api_keys, api_credit_balances, api_usage_log + indexes, RLS-deny).
+- **Migration**: `supabase/legacy/supabase-api-migration.sql` (api_keys, api_credit_balances, api_usage_log + indexes, RLS-deny).
 - **Env**: requires `INTERNAL_API_SECRET` set; API returns 503 until it is.
 - **Docs**: `API.md`.
 
@@ -349,7 +349,7 @@ Auth: managed by Supabase Auth
 - **Ledger**: `affiliate_commissions` (status pending → approved → paid → clawed_back; 30-day refund hold before approval).
 - **Affiliate dashboard**: `/affiliate` — enroll CTA, link + promo code copy, funnel stats, banner downloads (`public/affiliate/*.svg`), email/social swipe copy. Linked from the account menu in `Header.tsx`.
 - **Admin**: `/admin/affiliates` + `/api/admin/affiliates` — list, pause/activate, approve-pending (30d+), **export payout CSV**, mark-paid. Gated by `isAdminRequest`.
-- **Migration**: `supabase-affiliate-migration.sql` (extends `affiliates`; adds `affiliate_commissions`, `affiliate_clicks`; RLS-deny). Built against the LIVE `referrals` shape (affiliate_id, referred_user_id, status, commission_amount, commission_paid).
+- **Migration**: `supabase/legacy/supabase-affiliate-migration.sql` (extends `affiliates`; adds `affiliate_commissions`, `affiliate_clicks`; RLS-deny). Built against the LIVE `referrals` shape (affiliate_id, referred_user_id, status, commission_amount, commission_paid).
 - **Help**: updated the "Affiliate Program" article.
 
 ### Credits System Audit + Fixes (2026-06-13)
@@ -377,13 +377,13 @@ Multi-agent reliability audit → fixed all HIGH + MEDIUM. Build-clean.
 - **M4**: VPS ACK timeout 10s→25s; on abort, treat as maybe-queued (leave assembling, cron reconciles) instead of refund+fail.
 - **M6**: creatomate render id/url persisted for finalize retry.
 - **Notifications**: bell hides stale jobs (>30min) + a Dismiss (×) button per active job (POST dismiss-job). Cleared 144 stuck jobs from prod.
-- **Migration**: `supabase-pipeline-hardening-migration.sql` (videos.deducted_cost, creatomate_render_id, creatomate_render_url, progress_updated_at).
+- **Migration**: `supabase/legacy/supabase-pipeline-hardening-migration.sql` (videos.deducted_cost, creatomate_render_id, creatomate_render_url, progress_updated_at).
 - Audit dropped 2 false-positive criticals; V2 is the safer pipeline once these ship.
 
 ### Go-Live Checklist — API v1 + Affiliate Program
 These features are code-complete and build clean. Setup status:
-- [x] **Run `supabase-api-migration.sql`** in Supabase (creates `api_keys`, `api_credit_balances`, `api_usage_log`). DONE 2026-06-13.
-- [x] **Run `supabase-affiliate-migration.sql`** in Supabase (extends `affiliates`; adds `affiliate_commissions`, `affiliate_clicks`). DONE 2026-06-13.
+- [x] **Run `supabase/legacy/supabase-api-migration.sql`** in Supabase (creates `api_keys`, `api_credit_balances`, `api_usage_log`). DONE 2026-06-13.
+- [x] **Run `supabase/legacy/supabase-affiliate-migration.sql`** in Supabase (extends `affiliates`; adds `affiliate_commissions`, `affiliate_clicks`). DONE 2026-06-13.
 - [x] **Set `INTERNAL_API_SECRET`** in Vercel (long random string). `/api/v1/*` returns 503 until set. DONE.
 - [x] **Enable the `charge.refunded` Stripe webhook event** in the Stripe dashboard so affiliate commission clawbacks fire. DONE 2026-06-13.
 - [ ] **Affiliate promo codes are created in whatever mode `STRIPE_SECRET_KEY` points to** — verify enrollment once in test mode, then confirm in live.
@@ -421,7 +421,7 @@ These features are code-complete and build clean. Setup status:
 2. Logo kit generation is async — may not complete before user navigates away
 3. ⚠️ ACTION REQUIRED: Cartesia API key `sk_car_q3LX...` was committed to git history (commit ff100f4) — rotate it in the Cartesia dashboard and set `CARTESIA_API_KEY` env var on the VPS. Code no longer hardcodes it.
 4. `app/_lib/music-generator.ts` and `synthesizeAllScenes` in `app/_lib/tts.ts` are dead code — music/TTS for the main pipeline run on the VPS. Candidates for removal.
-5. Webhook idempotency unique index: run `supabase-webhook-idempotency-migration.sql` against the DB.
+5. Webhook idempotency unique index: run `supabase/legacy/supabase-webhook-idempotency-migration.sql` against the DB.
 
 ## Product Focus (2026-06-11)
 

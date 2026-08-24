@@ -10,18 +10,18 @@ middleware/CORS/deps/sessions. Ranked by real-world severity.
    The app already mints 300s signed URLs and checks ownership — but a public
    bucket lets anyone with the path fetch the raw file, bypassing all of it.
    Fix: set bucket private, drop the "Anyone can view creation assets" policy.
-   (`supabase-assets-migration.sql:18,23`)
+   (`supabase/legacy/supabase-assets-migration.sql:18,23`)
 
 2. **Review the other public buckets:** `videos`, `logos`, `infographics`,
    `brand-assets` are all `public: true`. `videos` may need public share links,
    but `logos`/`infographics`/`brand-assets` should be private + signed.
-   (`supabase-video-migration.sql`, `supabase-migration.sql`, `supabase-logo-kit-migration.sql`)
+   (`supabase/legacy/supabase-video-migration.sql`, `supabase/legacy/supabase-migration.sql`, `supabase/legacy/supabase-logo-kit-migration.sql`)
 
 3. **Drop the anon `USING(true)` policies on `affiliates` and `referrals`.**
    These grant any anonymous caller full read/write/delete of affiliate payout
    and referral data. (Their siblings campaigns/clients/quotes were already
    fixed; these two were missed.) `DROP POLICY "Service can manage affiliates" ON affiliates;`
-   and the referrals twin. (`supabase-affiliates-migration.sql:44,48`)
+   and the referrals twin. (`supabase/legacy/supabase-affiliates-migration.sql:44,48`)
 
 4. **Verify every security migration actually ran in prod.** This repo applies
    SQL by hand (no `supabase db push`), so committed RLS may never have landed.
@@ -68,7 +68,7 @@ there if anything was ever exposed on that side.)
 ## MEDIUM
 
 - **`chat_messages` fully public** — anon can read every share-page chat across
-  all videos, and post. (`supabase-sharelink-migration.sql:27-28`) Scope SELECT
+  all videos, and post. (`supabase/legacy/supabase-sharelink-migration.sql:27-28`) Scope SELECT
   to a specific video via a server route, or accept it's public by design.
 
 - **Stored XSS via SVG logo upload** — `upload-logo` accepts `image/svg+xml`,

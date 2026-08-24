@@ -52,7 +52,7 @@ export const KNOWN_ISSUES: KnownIssue[] = [
     title: "slide_durations column missing",
     fix: [
       "The render writes `slide_durations` but the column doesn't exist, so the entire 'completed' DB update is rejected and the video never finishes (share page shows 'no longer available').",
-      "Fix: run `supabase-slide-durations-migration.sql` in the Supabase SQL editor (ALTER TABLE videos ADD COLUMN IF NOT EXISTS slide_durations jsonb).",
+      "Fix: run `supabase/legacy/supabase-slide-durations-migration.sql` in the Supabase SQL editor (ALTER TABLE videos ADD COLUMN IF NOT EXISTS slide_durations jsonb).",
     ].join("\n"),
   },
   {

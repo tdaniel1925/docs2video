@@ -132,7 +132,7 @@ Also: several "unit" tests make live LLM calls (`testTimeout: 120_000`) — spli
 
 ## 7. Maintainability & Tech Debt
 
-- **Migration drift is the #1 systemic risk** (M1, High): ~60 loose root-level SQL files vs 10 in `supabase/migrations/`, prod applies them by hand, and one file is literally named `supabase-MISSING-TABLES-2026-06-22.sql`. This already causes real bugs (B6; dead share links per project memory). Fix: consolidate into `supabase/migrations/` with an APPLIED.md checklist — or adopt `supabase db push` against prod with review.
+- **Migration drift is the #1 systemic risk** (M1, High): ~60 loose root-level SQL files vs 10 in `supabase/migrations/`, prod applies them by hand, and one file is literally named `supabase/legacy/supabase-MISSING-TABLES-2026-06-22.sql`. This already causes real bugs (B6; dead share links per project memory). Fix: consolidate into `supabase/migrations/` with an APPLIED.md checklist — or adopt `supabase db push` against prod with review.
 - **The VPS deploy story** (M2, Medium): `redeploy.sh` itself is exemplary (verifies the running container), but the box is hand-synced — today's deploy required `curl` from GitHub raw + a `sed` patch because `/root/video-service` isn't a git clone. One `git clone` on the box turns deploys into `git pull && redeploy.sh`.
 - **Env sprawl** (M3, Low): 60 distinct `process.env.*` keys; `requireEnv` only warns and returns `''` (`env.ts:1–7`) — missing keys degrade silently. Fail hard on the required set.
 - **BUILD-STATE.md staleness** (A9) undermines the project's own #1 operating rule.

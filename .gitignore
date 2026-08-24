@@ -58,6 +58,9 @@ motion-sample.mp4
 pics/
 demo-annuity.pdf
 
+# quarantined customer correspondence / PII (never commit)
+.private/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

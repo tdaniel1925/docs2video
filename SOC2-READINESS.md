@@ -58,10 +58,13 @@ report. Do both, but buy the platform first — it generates the definitive gap 
 
 ## 3. Database / process debt (audit-fatal if unaddressed)
 
-- [ ] **Migration drift.** ~62 loose `supabase-*.sql` files at repo root are applied
+- [x] **Migration drift.** ~62 loose `supabase-*.sql` files at repo root were applied
       by hand; the canonical `supabase/migrations/` is separate. Auditors want a
-      controlled change process. **Fix:** consolidate into `supabase/migrations/`,
-      keep an `APPLIED.md` ledger (or adopt `supabase db push` via PR review).
+      controlled change process. **Done 2026-08-24:** hand-run files consolidated
+      into `supabase/legacy/` (frozen history — NOT renamed into migrations, since
+      fabricated timestamps would corrupt `supabase db push` ordering) with a
+      per-file `supabase/APPLIED.md` ledger. New rule: all schema changes go
+      through `supabase/migrations/` + PR review.
 - [ ] **Independently verify prod RLS.** Run `SELECT * FROM pg_policies` in prod and
       confirm every user-data table has RLS **enabled** with an owner-scoping policy
       (videos, brands, profiles, clients, credits, sent_emails, presentations,

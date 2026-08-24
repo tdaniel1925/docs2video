@@ -77,7 +77,7 @@ ssh root@5.161.215.156 "docker logs --tail 100 docs2video-service"
 If `server.js` writes a new `videos` column, add it via a
 `supabase-*-migration.sql` **before** deploying — a missing column makes the
 entire "completed" update fail. Example: `slide_durations` was added in
-`supabase-slide-durations-migration.sql`.
+`supabase/legacy/supabase-slide-durations-migration.sql`.
 
 ## After deploying
 
