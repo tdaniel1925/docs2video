@@ -47,6 +47,27 @@ function looksLikeTextChange(s: string): boolean {
   return false
 }
 
+/**
+ * Is this a BIG change (repaint the whole masked region) or a small touch-up?
+ *
+ * "Change their clothes to a red dress", "swap the sandwich for a burger",
+ * "make the jacket blue" are DELIBERATE replacements — the region should be
+ * fully redrawn to match, not nudged. The old prompt told the model to keep
+ * everything subtle and "leave it unchanged rather than invent something", which
+ * is why clothing edits came back distorted instead of changed. Small fixes
+ * (remove a blemish, soften a shadow) keep the gentle behaviour.
+ */
+function looksLikeBigChange(s: string): boolean {
+  const t = s.toLowerCase()
+  // Clothing / appearance.
+  if (/\b(clothe?s|clothing|outfit|wear|wearing|dress|dresses|suit|suits|jacket|blazer|shirt|shirts|tie|ties|top|tops|coat|coats|uniform|attire|hair|hairstyle|hairstyles|beard)\b/.test(t)) return true
+  // Explicit replace / swap / turn-into / recolor of a subject.
+  if (/\b(swap|replace|turn (it|them|the).* into|change .* (into|to)|recolou?r|repaint|make (it|them|the|him|her|their).* (into|a|an|red|blue|green|black|white|gold|silver|yellow|orange|purple|pink|grey|gray|brown))\b/.test(t)) return true
+  // Add / remove a real object in the picture.
+  if (/\b(add|remove|delete|put|place)\b.*\b(a|an|the|some)\b/.test(t)) return true
+  return false
+}
+
 export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -202,40 +223,78 @@ export async function POST(req: Request) {
       })
     }
 
-    // THE API ONLY ACCEPTS THREE EDIT SIZES. images.edit rejects arbitrary
-    // dimensions — only 1024x1024, 1024x1536 (portrait) or 1536x1024 (landscape).
-    // A 1640x624 Facebook cover sent as "1640x624" was silently refused, which
-    // showed up to the customer as "try a larger area" — nothing they could act
-    // on, and the real reason a spot-edit on any non-square design always failed.
-    // So: pick the supported size whose SHAPE is closest, send the image + mask
-    // stretched to exactly that, then scale the result back to the true size.
-    const editSize: '1024x1024' | '1024x1536' | '1536x1024' =
-      w / h > 1.2 ? '1536x1024' : h / w > 1.2 ? '1024x1536' : '1024x1024'
-    const [ew, eh] = editSize.split('x').map(Number)
+    // ── CROP → EDIT → RESTITCH (no whole-image squish) ──
+    //
+    // The old code squished the ENTIRE design into a 1024-ish box, edited, then
+    // stretched the result back. On a wide 1640x624 banner that double distort
+    // is exactly why people came out "fat" and grainy — proportions warped and
+    // detail thrown away. Instead we cut a SQUARE region around the brush at the
+    // design's TRUE pixels, send just that (little to no distortion), and paste
+    // the sharp result back into the untouched original. Full resolution where
+    // the edit happens; everything else stays byte-identical.
 
-    const imageForEdit = await sharp(original).resize(ew, eh, { fit: 'fill' }).png().toBuffer()
+    // 1) Find the painted region's bounding box from the mask (mask is TRANSPARENT
+    //    where it may be repainted). Read alpha at the design's true size.
+    const maskRaw = Buffer.from(mask.split(',')[1] ?? '', 'base64')
+    const maskAtSize = await sharp(maskRaw).resize(w, h, { fit: 'fill' }).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+    const { data: mData, info: mInfo } = maskAtSize
+    const ch = mInfo.channels
+    let minX = w, minY = h, maxX = -1, maxY = -1
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const alpha = mData[(y * w + x) * ch + (ch - 1)]
+        if (alpha < 128) { // transparent = paintable
+          if (x < minX) minX = x; if (x > maxX) maxX = x
+          if (y < minY) minY = y; if (y > maxY) maxY = y
+        }
+      }
+    }
+    if (maxX < 0) { await refund(); return NextResponse.json({ error: 'Draw over the part you want changed first.' }, { status: 400 }) }
 
-    // THE MASK MUST MATCH WHAT WE SEND. The browser draws over the small on-screen
-    // preview; resize the mask to the same edit size as the image, not the design's
-    // true pixels (that mismatch is what the API rejected).
-    const maskPng = await sharp(Buffer.from(mask.split(',')[1] ?? '', 'base64'))
-      .resize(ew, eh, { fit: 'fill' })
-      .png()
-      .toBuffer()
+    // 2) Expand the box to a SQUARE with generous padding (context helps the model
+    //    blend), clamped to the image. A square crop → 1024x1024 needs no aspect
+    //    distortion at all.
+    const boxW = maxX - minX + 1, boxH = maxY - minY + 1
+    const pad = Math.round(Math.max(boxW, boxH) * 0.6)
+    let side = Math.max(boxW, boxH) + pad * 2
+    side = Math.min(side, w, h) // can't exceed the image
+    let cx = Math.round((minX + maxX) / 2), cy = Math.round((minY + maxY) / 2)
+    let cropL = Math.round(cx - side / 2), cropT = Math.round(cy - side / 2)
+    cropL = Math.min(w - side, Math.max(0, cropL))
+    cropT = Math.min(h - side, Math.max(0, cropT))
+    const region = { left: cropL, top: cropT, width: side, height: side }
 
-    const res = await ai().images.edit({
-      model: MODEL,
-      prompt:
-        `Make a small, local, photorealistic edit to ONLY the masked area: ${instruction}\n\n` +
+    // 3) Cut the crop and its matching mask, upscale the crop to 1024 (sharp,
+    //    since a square → square is a clean scale, not a stretch).
+    const EDIT = 1024
+    const cropImg = await sharp(original).extract(region).resize(EDIT, EDIT, { fit: 'fill' }).png().toBuffer()
+    const cropMask = await sharp(maskRaw).resize(w, h, { fit: 'fill' }).extract(region).resize(EDIT, EDIT, { fit: 'fill' }).png().toBuffer()
+
+    // 4) Prompt: gentle for a touch-up, full-repaint for a real change (clothes,
+    //    swapping an object, recolour) — the old always-subtle prompt is why a
+    //    "change their clothes" came back distorted instead of changed.
+    const bigChange = looksLikeBigChange(instruction)
+    const editPrompt = bigChange
+      ? `Repaint ONLY the masked area to fully satisfy this change: ${instruction}\n\n` +
+        'Make the change clearly and completely — do not leave the original in place. ' +
+        'Keep any PERSON in the masked area the same person: same face, same skin tone, same pose and body proportions — change only what the instruction asks (e.g. their clothing), photorealistically. ' +
+        'Match the lighting, shadow, focus and grain of the rest of the image so the edit is seamless. ' +
+        'Everything OUTSIDE the masked area stays exactly as it is. ' +
+        'Do NOT add or change any text, lettering, logos, signs or new unrelated objects.'
+      : `Make a small, local, photorealistic edit to ONLY the masked area: ${instruction}\n\n` +
         'Everything outside the masked area must stay exactly as it is — same layout, same lettering, same colours. ' +
         'Blend the change into its surroundings so the edit is invisible: matching light, matching shadow, matching grain and style. ' +
         'The edit must be a natural continuation of what is already there in that spot. ' +
         'DO NOT invent or add any new objects, posters, flyers, signs, notes, stickers, labels, logos, cards, screens or artwork. ' +
         'DO NOT add, move, respell or restyle any text or lettering anywhere in the image. ' +
-        'If the instruction cannot be done as a subtle photographic change to the masked spot, leave that area unchanged rather than inventing something to fill it.',
-      image: await toFile(imageForEdit, 'design.png', { type: 'image/png' }),
-      mask: await toFile(maskPng, 'mask.png', { type: 'image/png' }),
-      size: editSize,
+        'If the instruction cannot be done as a subtle photographic change to the masked spot, leave that area unchanged rather than inventing something to fill it.'
+
+    const res = await ai().images.edit({
+      model: MODEL,
+      prompt: editPrompt,
+      image: await toFile(cropImg, 'crop.png', { type: 'image/png' }),
+      mask: await toFile(cropMask, 'mask.png', { type: 'image/png' }),
+      size: '1024x1024',
       quality: 'high',
       n: 1,
     })
@@ -243,8 +302,11 @@ export async function POST(req: Request) {
     const b64 = res.data?.[0]?.b64_json
     if (!b64) { await refund(); return NextResponse.json({ error: 'Nothing came back — you were not charged.' }, { status: 502 }) }
 
-    const edited = await sharp(Buffer.from(b64, 'base64'))
-      .resize(meta.width, meta.height, { fit: 'fill' })
+    // 5) Scale the edited crop back to the region's TRUE size and paste it into
+    //    the untouched original. Everything outside the crop is byte-identical.
+    const editedCrop = await sharp(Buffer.from(b64, 'base64')).resize(side, side, { fit: 'fill' }).png().toBuffer()
+    const edited = await sharp(original)
+      .composite([{ input: editedCrop, top: region.top, left: region.left }])
       .withMetadata({ density: meta.density ?? 72 })
       .png()
       .toBuffer()
