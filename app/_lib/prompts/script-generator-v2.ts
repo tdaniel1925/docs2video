@@ -76,10 +76,11 @@ H5. VOICE RULES
 - THE OPENING IS THE MOST IMPORTANT LINE. Do NOT open with the document title or a flat statement of the topic. Open with a HUMAN HOOK that shows you understand this person's world — a tension, a frustrating truth, a surprising reality, a "here's what nobody tells you" moment. Earn their attention in the first sentence, THEN deliver the substance. (No "Hello and welcome" greeting — but the opposite of a greeting is a great hook, not a cold fact dump.)
 - The LAST scene wraps up with warmth and a clear next step — confident and human, not a robotic "thank you for your time."
 
-H6. CONTACT INFO PLACEMENT
+H6. CONTACT INFO PLACEMENT + BACK COVER
 - Contact information (phone, email, website) must ONLY appear in the LAST scene narration. NEVER mention contact details in any earlier scene.
 - If contact info exists: end with ONE clear call to action, not three. Pick the strongest channel. Be confident: "Call us today at..." not "If you'd like, you could maybe consider..."
 - If NO contact info exists in the data: end with "Thank you for watching" — nothing more. No invented contacts.
+- THE LAST SCENE IS A BACK COVER. Its slideData must carry the organisation's name and, when they appear in the source data, the WEBSITE and any contact details — put the website in slideData (e.g. as the subhead or a detail) so it prints on the closing slide. This is the slide that shows the logo and the address to go to; do not leave it blank or make it just the word "Thank you". If the source has a website or company name, the back cover must show it VERBATIM from the source (never invent one).
 
 H7. EVERY SCENE MUST HAVE NARRATION
 - There must be NO silent scenes. Every scene MUST have narration text explaining the slide content.
@@ -114,6 +115,15 @@ For the ACTION beat: Simply thank the viewer. Only mention specific contact meth
 
 SCENE COUNT: Determined by the VIDEO LENGTH instruction below. Do NOT decide scene count here.
 SCENE STRUCTURE: Each scene covers ONE topic or concept. ONE topic per scene, ONE slide per scene.
+
+===== NUMBERED LISTS — HANDLE THEM CAREFULLY (this is where decks go wrong) =====
+The source often contains numbered sets — "1. Foo, 2. Bar, 3. Baz" — and there may be MORE THAN ONE separate numbered set (e.g. a "Four systems" list AND a separate "Seven systems" list). Get these exactly right:
+- KEEP EACH NUMBERED SET WHOLE AND IN ORDER. Never drop an item and never reorder. If the source lists items 1 through 7, the deck must present all seven, in sequence — item 1 must appear, and it must come before item 2.
+- NEVER MIX TWO DIFFERENT NUMBERED SETS ON ONE SLIDE. The "Four Margin systems" and the "Seven Differentiating systems" are DIFFERENT lists — never put "4. Two-Tier Routing" (from one list) next to "2. Dynamic Tool Loading" (from the other). Each slide's numbered items must come from ONE set only.
+- STRONGLY PREFERRED: DROP THE SOURCE NUMBERS on slides. A viewer sees ONE slide at a time, so a leading "5." on a continued slide reads as broken. Remove the source numbers and lead each item with its NAME in bold — the slide title already names the set. (Example: title "The Seven Systems (continued)", items "Voice and Phone — a real number", "Model Routing — cost-aware", "The Metering Engine".)
+- If you DO keep numbers, they MUST start at 1 on every slide. NEVER show a slide whose first numbered item is 2, 3, 4, 5, 6 or 7. A continued slide that keeps numbers restarts them at 1. There is no valid slide that begins at any number other than 1.
+- If a numbered set is too long for one slide, split it across slides BY WHOLE ITEMS, keep the order, put "(continued)" in the continued slide's title, and either drop the numbers or restart them at 1. Do not leave a dangling number sequence across slides.
+- Prose paragraphs that FOLLOW a numbered list (like "Audited, Not Assumed" or an "investor takeaway") are NOT list items — give them their own slide with their own title, never numbered.
 
 ===== STYLE GUIDANCE (these are preferences; follow them but they do not invalidate output) =====
 
