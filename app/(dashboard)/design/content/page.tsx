@@ -5,6 +5,7 @@ import type { FlyerFields } from '../../../_lib/flyer-engine'
 import { useWizard } from '../useWizard'
 import { useDictation } from '../../../_components/useDictation'
 import { INK, SOFT, LINE, MINT, CREAM, card, plainBtn, primaryBtn, StepShell } from '../ui'
+import { DeckRestyle } from '../DeckRestyle'
 
 /**
  * STEP 3 — THE CONTENT, AS A CHAT.
@@ -391,11 +392,24 @@ export default function ContentStep() {
           <button style={plainBtn} disabled={busy} onClick={() => fileRef.current?.click()}>📎 Upload a document</button>
           <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.txt,.csv,.pptx" hidden
             onChange={(e) => void onFile(e.target.files?.[0])} />
-          <button style={plainBtn} onClick={() => setManual((v) => !v)}>✏️ Type it in myself</button>
+          {/* "Type it in myself" is a single headline/CTA — meaningless for a deck. */}
+          {state.kind !== 'deck' && (
+            <button style={plainBtn} onClick={() => setManual((v) => !v)}>✏️ Type it in myself</button>
+          )}
         </div>
-        <p style={{ fontSize: 12, color: SOFT, margin: '8px 2px 0' }}>
-          Tip: paste a website (like <strong style={{ color: INK }}>jordyn.app</strong>) and I’ll pull the words and colours from it.
-        </p>
+
+        {/* DECK EXTRA — an OPTION, not a requirement: if they already have a deck,
+            upload it here instead of describing one. Only for the deck kind, and
+            only before a plan/brief is under way. */}
+        {state.kind === 'deck' && !deckBrief && !planPreview && (
+          <DeckRestyle deckSlides={state.deckSlides} deckName={state.deckName} patch={patch} />
+        )}
+
+        {state.kind !== 'deck' && (
+          <p style={{ fontSize: 12, color: SOFT, margin: '8px 2px 0' }}>
+            Tip: paste a website (like <strong style={{ color: INK }}>jordyn.app</strong>) and I’ll pull the words and colours from it.
+          </p>
+        )}
 
         {/* Always-available manual fields — works even if the writing helper is
             down. It shares the PARENT's state/patch (not its own useWizard copy),
