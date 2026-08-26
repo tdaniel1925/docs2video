@@ -34,8 +34,12 @@ export default function ContentStep() {
   // Deck flow: the brief waiting for a length choice, and the planned running
   // order the user reviews (with per-slide purpose) BEFORE anything is drawn.
   const [deckBrief, setDeckBrief] = useState('')
+  // Each planned slide holds the EDITABLE content that will actually be drawn —
+  // headline + the lines (subhead first, then details) — plus its story role and
+  // one-line purpose. Editing these here is what "see exactly what's on the slide
+  // and change it" means (mirrors the Docs2Video script editor).
   const [planPreview, setPlanPreview] = useState<
-    { title: string; purpose?: string; audience?: string; slides: { role: string; headline: string; purpose?: string }[] } | null
+    { title: string; purpose?: string; audience?: string; slides: { role: string; headline: string; lines: string[]; purpose?: string }[] } | null
   >(null)
 
   const dictation = useDictation((text) => setInput((v) => (v ? v + ' ' : '') + text),
@@ -91,13 +95,15 @@ export default function ContentStep() {
       setPlanPreview({
         title: data.title || 'Your deck',
         purpose: data.purpose, audience: data.audience,
-        slides: (data.slides as { role?: string; purpose?: string; fields?: { headline?: string } }[]).map((s) => ({
-          role: s.role || 'point', headline: s.fields?.headline || 'Untitled', purpose: s.purpose,
-        })),
+        // Flatten each slide's real content into the editable lines the viewer
+        // will read: subhead first, then details. Headline stays separate.
+        slides: (data.slides as { role?: string; purpose?: string; fields?: { headline?: string; subhead?: string; details?: string[] } }[]).map((s) => {
+          const f = s.fields ?? {}
+          const lines = [f.subhead, ...(f.details ?? [])].filter(Boolean) as string[]
+          return { role: s.role || 'point', headline: f.headline || 'Untitled', lines, purpose: s.purpose }
+        }),
       })
-      // Stash the FULL slide data (with subhead/details) for confirm, keyed by index.
-      ;(runPlan as unknown as { _raw?: unknown })._raw = data.slides
-      setMsgs((m) => [...m, { role: 'assistant', text: `Here’s the running order — ${data.slides.length} slides${data.purpose ? `, built as a ${data.purpose}` : ''}. Drop any you don’t want, then press Make it a deck. Or pick a different length.` }])
+      setMsgs((m) => [...m, { role: 'assistant', text: `Here’s every slide — the exact headline and lines that will be drawn. Edit any of them right here, add or drop slides, then press Make it a deck.` }])
     } catch {
       setMsgs((m) => [...m, { role: 'assistant', text: 'Network hiccup — try that again.' }])
     } finally {
@@ -105,21 +111,31 @@ export default function ContentStep() {
     }
   }
 
-  const dropPlanSlide = (idx: number) => {
+  // ── Inline editing of the planned slides (the "see & edit exactly" part) ──
+  const editHeadline = (i: number, v: string) =>
+    setPlanPreview((p) => p ? { ...p, slides: p.slides.map((s, j) => j === i ? { ...s, headline: v } : s) } : p)
+  const editLine = (i: number, li: number, v: string) =>
+    setPlanPreview((p) => p ? { ...p, slides: p.slides.map((s, j) => j === i ? { ...s, lines: s.lines.map((l, k) => k === li ? v : l) } : s) } : p)
+  const addLine = (i: number) =>
+    setPlanPreview((p) => p ? { ...p, slides: p.slides.map((s, j) => j === i ? { ...s, lines: [...s.lines, ''] } : s) } : p)
+  const removeLine = (i: number, li: number) =>
+    setPlanPreview((p) => p ? { ...p, slides: p.slides.map((s, j) => j === i ? { ...s, lines: s.lines.filter((_, k) => k !== li) } : s) } : p)
+  const dropPlanSlide = (idx: number) =>
     setPlanPreview((p) => p ? { ...p, slides: p.slides.filter((_, i) => i !== idx) } : p)
-    const raw = (runPlan as unknown as { _raw?: unknown[] })._raw
-    if (Array.isArray(raw)) (runPlan as unknown as { _raw?: unknown[] })._raw = raw.filter((_, i) => i !== idx)
-  }
+  const addPlanSlide = (after: number) =>
+    setPlanPreview((p) => p ? { ...p, slides: [
+      ...p.slides.slice(0, after + 1),
+      { role: 'point', headline: 'New slide', lines: [], purpose: 'Added by you' },
+      ...p.slides.slice(after + 1),
+    ] } : p)
 
   const confirmPlan = () => {
-    const raw = (runPlan as unknown as { _raw?: { role?: string; fields?: { headline?: string; subhead?: string; details?: string[] } }[] })._raw
-    if (!planPreview || !Array.isArray(raw) || !raw.length) return
-    // PlannedSlide.fields → DeckSlide { heading, bullets }. Carry the story role
-    // through so the generator can keep the logo in a fixed corner on body slides.
-    const deckSlides = raw.map((s, i) => {
-      const f = s.fields ?? {}
-      const bullets = [f.subhead, ...(f.details ?? [])].filter(Boolean) as string[]
-      return { n: i + 1, heading: f.headline || '', bullets, imageOnly: !f.headline && bullets.length === 0, role: s.role || 'point' }
+    if (!planPreview || !planPreview.slides.length) return
+    // The EDITED content in state is the source of truth — no stashed raw.
+    const deckSlides = planPreview.slides.map((s, i) => {
+      const heading = s.headline.trim()
+      const bullets = s.lines.map((l) => l.trim()).filter(Boolean)
+      return { n: i + 1, heading, bullets, imageOnly: !heading && bullets.length === 0, role: s.role }
     })
     patch({ deckSlides, deckName: planPreview.title, sizes: ['slide-16x9'] })
     setMsgs((m) => [...m, { role: 'assistant', text: `Locked in ${deckSlides.length} slides. Pick a look next and press Make — every slide comes out matching, at 16:9.` }])
@@ -252,26 +268,56 @@ export default function ContentStep() {
           </div>
         )}
 
-        {/* DECK — the running order, reviewed BEFORE anything is drawn */}
+        {/* DECK — every slide, exactly as it'll be drawn, and fully editable.
+            (Mirrors the Docs2Video script editor: you see the real headline + lines
+            per slide and can change, add, or drop them BEFORE anything is made.) */}
         {planPreview && (
           <div style={{ ...card, marginTop: 10, padding: 14 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: SOFT, marginBottom: 2 }}>Running order</div>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: SOFT, marginBottom: 2 }}>Review every slide — edit anything</div>
             <div style={{ fontSize: 15, fontWeight: 800, color: INK }}>{planPreview.title}</div>
-            {planPreview.purpose && <div style={{ fontSize: 12.5, color: SOFT, marginBottom: 8 }}>Built as a {planPreview.purpose}{planPreview.audience ? ` for ${planPreview.audience}` : ''}.</div>}
-            <ol style={{ margin: '4px 0 0', paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {planPreview.purpose && <div style={{ fontSize: 12.5, color: SOFT, marginBottom: 10 }}>Built as a {planPreview.purpose}{planPreview.audience ? ` for ${planPreview.audience}` : ''}.</div>}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 'min(52vh, 520px)', overflowY: 'auto', paddingRight: 4 }}>
               {planPreview.slides.map((s, i) => (
-                <li key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 10px', border: `1px solid ${LINE}`, borderRadius: 10 }}>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: SOFT, minWidth: 20 }}>{i + 1}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: INK }}>{s.headline}</div>
-                    {s.purpose && <div style={{ fontSize: 12, color: SOFT }}>{s.purpose}</div>}
+                <div key={i} style={{ border: `1px solid ${LINE}`, borderRadius: 10, padding: '10px 12px', background: 'white' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: 'white', background: INK, borderRadius: 5, padding: '2px 7px' }}>Slide {i + 1}</span>
+                    {s.purpose && <span style={{ fontSize: 11.5, color: SOFT, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.purpose}</span>}
+                    <button aria-label={`Delete slide ${i + 1}`} disabled={busy || planPreview.slides.length <= 1}
+                      onClick={() => dropPlanSlide(i)}
+                      style={{ ...plainBtn, padding: '3px 8px', fontSize: 11.5, color: SOFT }}>Delete</button>
                   </div>
-                  <button aria-label={`Remove slide ${i + 1}`} disabled={busy || planPreview.slides.length <= 1}
-                    onClick={() => dropPlanSlide(i)}
-                    style={{ ...plainBtn, padding: '4px 8px', fontSize: 12, color: SOFT }}>Remove</button>
-                </li>
+
+                  {/* Headline — the big line on the slide */}
+                  <input
+                    value={s.headline}
+                    onChange={(e) => editHeadline(i, e.target.value)}
+                    placeholder="Slide headline"
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '7px 9px', borderRadius: 8, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 14, fontWeight: 700, color: INK, marginBottom: 6 }}
+                  />
+
+                  {/* The supporting lines / bullets, each editable */}
+                  {s.lines.map((line, li) => (
+                    <div key={li} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 5 }}>
+                      <span style={{ color: SOFT, fontSize: 13, flexShrink: 0 }}>•</span>
+                      <input
+                        value={line}
+                        onChange={(e) => editLine(i, li, e.target.value)}
+                        placeholder="Supporting line"
+                        style={{ flex: 1, minWidth: 0, padding: '6px 9px', borderRadius: 8, border: `1px solid ${LINE}`, font: 'inherit', fontSize: 13, color: INK }}
+                      />
+                      <button aria-label="Remove line" onClick={() => removeLine(i, li)}
+                        style={{ ...plainBtn, padding: '4px 8px', fontSize: 12, color: SOFT, flexShrink: 0 }}>×</button>
+                    </div>
+                  ))}
+                  <button onClick={() => addLine(i)} disabled={s.lines.length >= 6}
+                    style={{ ...plainBtn, padding: '4px 10px', fontSize: 12, marginTop: 2 }}>+ Add a line</button>
+                  <button onClick={() => addPlanSlide(i)}
+                    style={{ ...plainBtn, padding: '4px 10px', fontSize: 12, marginTop: 2, marginLeft: 6 }}>+ Slide below</button>
+                </div>
               ))}
-            </ol>
+            </div>
+
             <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
               <button onClick={confirmPlan} disabled={busy} style={{ ...primaryBtn, padding: '10px 16px' }}>Make it a deck ({planPreview.slides.length} slides)</button>
               <button onClick={() => setPlanPreview(null)} disabled={busy} style={plainBtn}>Choose a different length</button>
