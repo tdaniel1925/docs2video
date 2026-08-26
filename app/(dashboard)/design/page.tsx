@@ -123,7 +123,7 @@ export default function WhatStep() {
   return (
     <StepShell
       title="What do you want to *make*?"
-      subtitle="Pick one to start. You’ll choose a look, add your words, and pick sizes on the next pages — you can change any of it later."
+      subtitle="Pick one to start — then you’ll add your words (type it, paste it, upload a document, or let AI write it), choose a look, and pick sizes. You can change any of it later."
       next="/design/style"
       nextLabel="Next: choose a look"
       // Advancing off Step 1 begins the walk — mark it active so stepping BACK
@@ -132,9 +132,45 @@ export default function WhatStep() {
       nextReady={nextReady}
       nextHint={state.kind === 'deck' ? 'Upload a deck to restyle first' : 'Pick what you’re making'}
     >
-      {/* THE PROMPT HERO — say it in a sentence and we draft the whole thing.
-          The tiles below stay for anyone who'd rather just pick. */}
-      <div style={{ marginBottom: 'var(--sp-6)' }}>
+      {/* THE PICK COMES FIRST — the visual choice of what to make. This is the
+          primary action; the "describe it" shortcut sits below for anyone who'd
+          rather type. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 14 }}>
+        {KINDS.map((k) => {
+          const on = state.kind === k.kind
+          return (
+            <button key={k.kind} onClick={() => pickKind(k.kind)}
+              style={{ ...card, padding: 0, overflow: 'hidden', textAlign: 'left', cursor: 'pointer',
+                transition: 'box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease',
+                borderColor: on ? MINT : LINE, boxShadow: on ? `inset 0 0 0 2px ${MINT}` : 'none' }}>
+              <img src={k.sample} alt="" loading="lazy"
+                style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block', background: '#111' }} />
+              <div style={{ padding: '12px 14px 16px' }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: INK }}>{k.label}</div>
+                <div style={{ fontSize: 12.5, color: SOFT, marginTop: 3, lineHeight: 1.5 }}>{k.blurb}</div>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* DECK RESTYLE — only when "A slide deck" is chosen. Shares the parent's
+          state/patch (not its own useWizard copy) so a parsed deck immediately
+          enables Next. */}
+      {state.kind === 'deck' && (
+        <DeckRestyle
+          deckSlides={state.deckSlides}
+          deckName={state.deckName}
+          patch={patch}
+        />
+      )}
+
+      {/* THE SHORTCUT — describe it in a sentence and we draft the whole thing.
+          Secondary to the tiles above, for anyone who'd rather just type. */}
+      <div style={{ marginTop: 'var(--sp-6)', paddingTop: 'var(--sp-5)', borderTop: `1px solid ${LINE}` }}>
+        <div style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: SOFT, margin: '0 0 12px' }}>
+          Or just describe it and skip ahead
+        </div>
         <div style={{
           position: 'relative', display: 'flex', alignItems: 'flex-end', gap: 8,
           border: `1px solid ${LINE}`, borderRadius: 'var(--r-4)', background: 'white',
@@ -172,40 +208,6 @@ export default function WhatStep() {
           ))}
         </div>
       </div>
-
-      <div style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: SOFT, margin: '0 0 12px' }}>
-        Or pick one to start
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 14 }}>
-        {KINDS.map((k) => {
-          const on = state.kind === k.kind
-          return (
-            <button key={k.kind} onClick={() => pickKind(k.kind)}
-              style={{ ...card, padding: 0, overflow: 'hidden', textAlign: 'left', cursor: 'pointer',
-                transition: 'box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease',
-                borderColor: on ? MINT : LINE, boxShadow: on ? `inset 0 0 0 2px ${MINT}` : 'none' }}>
-              <img src={k.sample} alt="" loading="lazy"
-                style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block', background: '#111' }} />
-              <div style={{ padding: '12px 14px 16px' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: INK }}>{k.label}</div>
-                <div style={{ fontSize: 12.5, color: SOFT, marginTop: 3, lineHeight: 1.5 }}>{k.blurb}</div>
-              </div>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* DECK RESTYLE — only when "A slide deck" is chosen. Shares the parent's
-          state/patch (not its own useWizard copy) so a parsed deck immediately
-          enables Next. */}
-      {state.kind === 'deck' && (
-        <DeckRestyle
-          deckSlides={state.deckSlides}
-          deckName={state.deckName}
-          patch={patch}
-        />
-      )}
     </StepShell>
   )
 }
