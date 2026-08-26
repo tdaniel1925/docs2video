@@ -35,6 +35,9 @@ export default function ContentStep() {
   // Deck flow: the brief waiting for a length choice, and the planned running
   // order the user reviews (with per-slide purpose) BEFORE anything is drawn.
   const [deckBrief, setDeckBrief] = useState('')
+  // The chosen length, remembered so a chat adjustment ("add a pricing slide")
+  // re-plans at the SAME length instead of asking again.
+  const [deckLength, setDeckLength] = useState<'short' | 'medium' | 'long' | null>(null)
   // Each planned slide holds the EDITABLE content that will actually be drawn —
   // headline + the lines (subhead first, then details) — plus its story role and
   // one-line purpose. Editing these here is what "see exactly what's on the slide
@@ -79,14 +82,16 @@ export default function ContentStep() {
     setMsgs((m) => [...m, { role: 'assistant', text: 'Got it. How long should this deck run? I’ll plan it into a story, then show you the running order to check before anything’s made.' }])
   }
 
-  const runPlan = async (length: 'short' | 'medium' | 'long') => {
-    if (!deckBrief || busy) return
+  const runPlan = async (length: 'short' | 'medium' | 'long', briefOverride?: string) => {
+    const brief = briefOverride ?? deckBrief
+    if (!brief || busy) return
+    setDeckLength(length) // remember for chat adjustments
     setBusy(true)
-    setMsgs((m) => [...m, { role: 'assistant', text: `Planning a ${length} deck — reading it as a story…` }])
+    if (!briefOverride) setMsgs((m) => [...m, { role: 'assistant', text: `Planning a ${length} deck — reading it as a story…` }])
     try {
       const r = await fetch('/api/flyer-deck', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ brief: deckBrief, length }),
+        body: JSON.stringify({ brief, length }),
       })
       const data = await r.json().catch(() => ({}))
       if (!r.ok || !Array.isArray(data.slides) || !data.slides.length) {
@@ -104,7 +109,7 @@ export default function ContentStep() {
           return { role: s.role || 'point', headline: f.headline || 'Untitled', lines, purpose: s.purpose }
         }),
       })
-      setMsgs((m) => [...m, { role: 'assistant', text: `Here’s every slide — the exact headline and lines that will be drawn. Edit any of them right here, add or drop slides, then press Make it a deck.` }])
+      setMsgs((m) => [...m, { role: 'assistant', text: `Here’s every slide — the exact headline and lines that will be drawn. Edit any of them right here, or tell me a change in the chat (like “add a slide about pricing” or “make it more formal”). Then press Make it a deck.` }])
     } catch {
       setMsgs((m) => [...m, { role: 'assistant', text: 'Network hiccup — try that again.' }])
     } finally {
@@ -140,17 +145,34 @@ export default function ContentStep() {
     })
     patch({ deckSlides, deckName: planPreview.title, sizes: ['slide-16x9'] })
     setMsgs((m) => [...m, { role: 'assistant', text: `Locked in ${deckSlides.length} slides. Pick a look next and press Make — every slide comes out matching, at 16:9.` }])
-    setPlanPreview(null); setDeckBrief('')
+    setPlanPreview(null); setDeckBrief(''); setDeckLength(null)
+  }
+
+  // CHAT ADJUSTMENT while reviewing a plan. The user typed something like "add a
+  // slide about pricing" or "make it more formal" — fold that into the brief and
+  // re-plan at the SAME length. This is what stops the loop: a message during
+  // review REVISES the plan, it does NOT start a new brief.
+  const revisePlan = async (instruction: string) => {
+    if (!deckBrief || busy) return
+    setMsgs((m) => [...m, { role: 'user', text: instruction }])
+    setMsgs((m) => [...m, { role: 'assistant', text: 'Reworking the deck with that change…' }])
+    const combined = `${deckBrief}\n\n---\nApply this change to the deck: ${instruction}`
+    await runPlan(deckLength ?? 'medium', combined)
   }
 
   // Send one message to the flyer-chat brain; it returns updated fields + a reply.
   const talk = async (message: string, opts?: { asContent?: boolean }) => {
     const clean = message.trim()
     if (!clean || busy) return
-    // A deck (with no uploaded file) plans the WHOLE deck from these words.
-    // First we take the brief and ask how long it should run; the length chips
-    // then trigger the actual plan. A new message here re-briefs from scratch.
-    if (state.kind === 'deck' && !state.deckSlides) { takeDeckBrief(clean); return }
+    // DECK CHAT — three phases, so a review message doesn't loop back to briefing:
+    //   1. No brief yet  → this message IS the brief (ask length next).
+    //   2. Reviewing a plan (planPreview set) → this message ADJUSTS the plan
+    //      (re-plan with the change), NOT a new brief. This is the loop fix.
+    //   3. After confirm (deckSlides set) → this branch doesn't run.
+    if (state.kind === 'deck' && !state.deckSlides) {
+      if (planPreview) { await revisePlan(clean); return }
+      takeDeckBrief(clean); return
+    }
     setNote('')
     setMsgs((m) => [...m, { role: 'user', text: opts?.asContent ? 'Here’s my content — turn it into the words.' : clean }])
     setBusy(true)
