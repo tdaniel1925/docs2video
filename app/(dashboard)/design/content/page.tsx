@@ -50,7 +50,7 @@ export default function ContentStep() {
     if (!ready || msgs.length) return
     const isDeck = state.kind === 'deck'
     setMsgs([{ role: 'assistant', text: isDeck
-      ? 'Tell me what the deck is about and who it’s for — or paste all your notes — and I’ll plan it into a full set of matching slides. (Or upload a deck to restyle instead.)'
+      ? 'Tell me what the deck is about and who it’s for — or paste all your notes, or upload a document — and I’ll plan it into a full set of matching slides you can review and edit.'
       : 'Tell me what this needs to say — the event, the offer, the details. You can talk it, type it, paste text, or upload a document and I’ll write it for you.' }])
   }, [ready])
 
@@ -242,10 +242,43 @@ export default function ContentStep() {
   return (
     <StepShell title="What should it *say*?"
       subtitle="Talk it, type it, paste it, or drop in a document — I’ll turn it into the words on your design. Add or change anything until it’s right."
-      back="/design/style" next="/design/sizes" nextLabel="Next: pick sizes" nextReady={hasWords}
-      nextHint="Tell me the content first">
+      back="/design" next="/design/style" nextLabel="Next: choose a look" nextReady={hasWords}
+      nextHint="Tell me the content first"
+      help={state.kind === 'deck' ? {
+        title: 'How do I fill a slide deck?',
+        intro: 'Give me the raw material — I turn it into a full set of matching slides. You don’t write each slide yourself.',
+        points: [
+          'Paste your notes, or type what the deck is about and who it’s for.',
+          'Or upload a document (PDF, Word, PowerPoint) and I’ll read it.',
+          'Or press “Write it for me” and give me just the topic.',
+          'You’ll then pick Short/Medium/Long and review — and edit — every slide before anything is drawn.',
+        ],
+        example: 'Paste a one-page product brief, choose Medium, and get ~10 slides you can tweak line by line.',
+      } : {
+        title: 'What should I put here?',
+        intro: 'These are the WORDS that get printed on your design — the headline, a few details, a call to action.',
+        points: [
+          'Type or talk it, paste text, or upload a document — I’ll turn it into the design’s words.',
+          'Not sure what to write? Press “Write it for me” and give me the gist.',
+          'Give me real facts only — I won’t invent a phone number, price or date you didn’t give me.',
+          'Your exact words go on the design as-is; I don’t treat them as commands.',
+        ],
+        example: 'Grand opening this Saturday, 20% off all day, free coffee, 123 Main St.',
+      }}>
 
       <div style={{ maxWidth: 720 }}>
+        {/* RESTYLE DECK — the user uploaded a deck on Step 1; its slides already
+            exist, so don't show the "paste your notes" chat. Just confirm and
+            let them move on to the look. */}
+        {state.kind === 'deck' && state.deckSlides && state.deckSlides.length > 0 && !deckBrief && !planPreview ? (
+          <div style={{ ...card, padding: 16, background: `${MINT}22`, border: `1px solid ${MINT}` }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: INK, marginBottom: 4 }}>Your deck is ready to restyle</div>
+            <div style={{ fontSize: 13, color: SOFT, lineHeight: 1.55 }}>
+              We read <strong style={{ color: INK }}>{state.deckSlides.length} slide{state.deckSlides.length === 1 ? '' : 's'}</strong> from your file and kept the words. Next, choose a look and every slide is redrawn to match. Nothing you wrote is changed.
+            </div>
+          </div>
+        ) : (
+        <>
         {/* transcript */}
         <div ref={scrollerRef} style={{ ...card, padding: 14, height: 'min(46vh,420px)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, background: CREAM }}>
           {msgs.map(bubble)}
@@ -370,6 +403,8 @@ export default function ContentStep() {
         {manual && <ManualFields fields={state.fields} onSave={(f) => patch({ fields: { ...state.fields, ...f } })} />}
 
         {note && <p style={{ fontSize: 12.5, color: '#B4432F', margin: '8px 0 0' }}>{note}</p>}
+        </>
+        )}
       </div>
     </StepShell>
   )

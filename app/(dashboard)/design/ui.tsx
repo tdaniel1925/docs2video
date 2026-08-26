@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { useRouter } from 'next/navigation'
 import type { Step } from './steps'
 
@@ -217,8 +218,78 @@ function DisplayTitle({ title }: { title: string }) {
  * where the button leads; when it's disabled, the hint says exactly what's
  * missing. Same prop contract as before, so no step page changes.
  */
+/**
+ * A "Need help?" chip that opens a friendly, plain-language pop-up. NOT a
+ * tooltip — a proper little card a non-designer can read: a lead line, a few
+ * short points, and an optional example. Each step passes its own, type-aware.
+ */
+export type HelpContent = {
+  /** Chip label. Default "Need help?". */
+  label?: string
+  /** Big line at the top of the card. */
+  title: string
+  /** A sentence or two under the title. */
+  intro?: string
+  /** Short bullet points (each a plain tip). */
+  points?: string[]
+  /** A small "for example" line at the bottom. */
+  example?: string
+}
+
+export function HelpHint({ help }: { help: HelpContent }) {
+  const [open, setOpen] = React.useState(false)
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 12, verticalAlign: 'middle',
+          background: `${MINT}44`, border: `1px solid ${MINT}`, color: INK, borderRadius: 999,
+          padding: '4px 11px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+        }}
+        aria-haspopup="dialog"
+      >
+        <span aria-hidden style={{ fontWeight: 800 }}>?</span>
+        {help.label ?? 'Need help?'}
+      </button>
+
+      {open && (
+        <div
+          role="dialog" aria-modal="true"
+          onClick={(e) => { if (e.target === e.currentTarget) setOpen(false) }}
+          style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(35,32,28,0.45)', backdropFilter: 'blur(4px)', padding: '24px 16px', overflowY: 'auto' }}
+        >
+          <div style={{ width: '100%', maxWidth: 440, marginInline: 'auto', background: 'white', border: `1px solid ${LINE}`, borderRadius: 12, padding: 24, boxShadow: '0 24px 60px rgba(35,32,28,0.22)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+              <div style={{ fontSize: 17, fontWeight: 800, color: INK, lineHeight: 1.25 }}>{help.title}</div>
+              <button onClick={() => setOpen(false)} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: SOFT, lineHeight: 1, marginTop: -2 }}>&times;</button>
+            </div>
+            {help.intro && <p style={{ fontSize: 14, color: SOFT, lineHeight: 1.6, margin: '0 0 12px' }}>{help.intro}</p>}
+            {help.points && help.points.length > 0 && (
+              <ul style={{ margin: '0 0 12px', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {help.points.map((p, i) => (
+                  <li key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13.5, color: INK, lineHeight: 1.5 }}>
+                    <span aria-hidden style={{ color: '#2E7D32', flexShrink: 0, fontWeight: 800 }}>✓</span>
+                    <span>{p}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {help.example && (
+              <div style={{ fontSize: 12.5, color: SOFT, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 8, padding: '9px 11px', lineHeight: 1.5 }}>
+                <strong style={{ color: INK }}>For example:</strong> {help.example}
+              </div>
+            )}
+            <button onClick={() => setOpen(false)} style={{ ...primaryBtn, marginTop: 16, padding: '9px 18px' }}>Got it</button>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 export function StepShell({
-  title, subtitle, children, back, next, nextLabel = 'Next', nextReady = true, nextHint, onNext, startMode,
+  title, subtitle, children, back, next, nextLabel = 'Next', nextReady = true, nextHint, onNext, startMode, help,
 }: {
   title: string
   subtitle?: string
@@ -230,6 +301,7 @@ export function StepShell({
   nextHint?: string
   onNext?: () => void
   startMode?: boolean
+  help?: HelpContent
 }) {
   const router = useRouter()
   const showBar = Boolean(back || next || onNext)
@@ -240,7 +312,10 @@ export function StepShell({
     // bottom of the content area (below it there is nothing).
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', flex: 1 }}>
       <div style={{ maxWidth: 1100, width: '100%', margin: '0 auto', padding: '32px 32px 24px', flex: 1 }}>
-        <DisplayTitle title={title} />
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+          <DisplayTitle title={title} />
+          {help && <HelpHint help={help} />}
+        </div>
         {subtitle && <p style={{ margin: '0 0 24px', fontSize: 14, color: SOFT, lineHeight: 1.55, maxWidth: 640 }}>{subtitle}</p>}
         {children}
       </div>

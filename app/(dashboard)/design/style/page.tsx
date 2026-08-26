@@ -139,12 +139,22 @@ export default function StyleStep() {
   return (
     <StepShell title="Choose your *look*"
       subtitle="Drop in a design you like and we’ll work in its style, or open our styles below. Add your logo and photos in the other box — we sort them out for you."
-      back="/design"
-      // A deck already has its words (from the upload), so skip the Content chat.
-      next={state.deckSlides ? '/design/sizes' : '/design/content'}
-      nextLabel={state.deckSlides ? 'Next: pick sizes' : 'Next: your words'}
+      back="/design/content"
+      next="/design/sizes"
+      nextLabel="Next: pick sizes"
       nextReady={ready2}
-      nextHint="Drop a reference or pick one of our styles">
+      nextHint="Drop a reference or pick one of our styles"
+      help={{
+        title: 'How do I choose a look?',
+        intro: 'The look is the style — colours, mood, lettering. Two easy ways:',
+        points: [
+          'Drop or paste a design you like, and I’ll work in its STYLE (never copy its words or photos).',
+          'Or open our styles and pick a thumbnail — 225 ready-made looks.',
+          'Add your logo and photos in the other box; I place a real logo as-is and never redraw it.',
+          'A logo or QR is placed exactly; a photo of a person becomes the featured subject.',
+        ],
+        example: 'Found a flyer you love on Freepik? Paste it here and your design comes out in that style.',
+      }}>
 
       {/* AI picked this look from your sentence — say so, and it's easy to change. */}
       {state.aiSuggested?.templateId && pickedName && (

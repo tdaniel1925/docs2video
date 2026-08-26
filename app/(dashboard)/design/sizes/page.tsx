@@ -93,7 +93,18 @@ export default function SizesStep() {
     <StepShell title="Where will you *use* it?"
       nextLabel="Next: review"
       subtitle="Tick as many sizes as you need — each one is designed from scratch. You’ll review everything next, then we make them."
-      back="/design/content" next="/design/summary"
+      help={{
+        title: 'Which sizes should I tick?',
+        intro: 'Pick where the design will actually be used — each ticked size is drawn from scratch and billed on its own.',
+        points: [
+          'Printing it? Choose a Print size (letter flyer, poster, postcard, yard sign…).',
+          'Posting it? Choose a Social size — each one is already the right shape for Instagram, Facebook or LinkedIn.',
+          'Want it in a few places? Tick several — you get one matching design in every size.',
+          'Bleed (print only): “Full bleed” lets colour run off the paper’s edge; “No bleed” keeps a safe white margin. Pick full bleed if your art reaches the edge.',
+        ],
+        example: 'A grand-opening flyer to print AND post: tick “Letter flyer” and “Instagram post”.',
+      }}
+      back="/design/style" next="/design/summary"
       nextReady={sizes.length > 0 && costState === 'ok'}
       nextHint={costState === 'failed' ? 'Couldn’t load the price — retry below' : costState === 'loading' ? 'Checking the price…' : 'Pick at least one size'}>
 

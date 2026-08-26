@@ -75,8 +75,9 @@ export default function WhatStep() {
         aiSuggested: { kind: true, templateId: true, sizes: true, fields: true },
       })
       sessionStorage.setItem('design:walking', '1')
-      // Land on Style so they can confirm/adjust the look first.
-      router.push('/design/style')
+      // Land on Content so they review the drafted words first (words drive the
+      // look choice that comes next).
+      router.push('/design/content')
     } catch {
       setDraftErr('Could not draft that just now — pick a tile below instead.')
     } finally {
@@ -93,7 +94,8 @@ export default function WhatStep() {
     patch({ kind: k })
     if (k !== 'deck') {
       sessionStorage.setItem('design:walking', '1')
-      setTimeout(() => router.push('/design/style'), 250)
+      // Go to Content first — say what it is, THEN pick a look that fits.
+      setTimeout(() => router.push('/design/content'), 250)
     }
   }
 
@@ -131,6 +133,17 @@ export default function WhatStep() {
       onNext={() => sessionStorage.setItem('design:walking', '1')}
       nextReady={nextReady}
       nextHint={state.kind === 'deck' ? 'Upload a deck to restyle first' : 'Pick what you’re making'}
+      help={{
+        title: 'Which one should I pick?',
+        intro: 'Pick by where it ends up — you can change everything later.',
+        points: [
+          'Something to print — a flyer, poster, postcard, sign or business card you’ll print or hand out.',
+          'A social graphic — a post or cover sized right for Instagram, Facebook or LinkedIn.',
+          'A slide deck — a whole presentation, every slide matching, from your notes or a document.',
+          'A set of sizes — the same design made in several sizes at once (flyer + post + banner).',
+        ],
+        example: 'Making a flyer AND an Instagram post from the same idea? Start with “A set of sizes”.',
+      }}
     >
       {/* THE PICK COMES FIRST — the visual choice of what to make. This is the
           primary action; the "describe it" shortcut sits below for anyone who'd
