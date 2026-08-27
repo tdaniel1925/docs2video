@@ -139,7 +139,7 @@ ${subtitle ? `- SUBTITLE: "${subtitle}"` : ''}
 - DATA / CONTENT TO VISUALIZE:
 ${content}
 ${brand?.name ? `- BRAND: "${brand.name}"` : ''}
-${hasLogo ? '- The brand logo is provided — integrate it prominently into the infographic design.' : ''}
+${hasLogo ? `- The brand logo is provided as an image. Design the whole layout AROUND it: place the logo in the TOP-RIGHT corner and let it feel like part of the design — matched palette, matched spacing. Reserve a clean, uncluttered rectangle in the top-right for it (about 16% of the width). Do NOT scatter the logo, do NOT repeat it, do NOT put it anywhere but the top-right.` : ''}
 
 STRICT RULES:
 - NO human faces, NO photos of people, NO realistic human figures
@@ -149,7 +149,7 @@ STRICT RULES:
 - Use icons, simple charts, numbered callouts, and visual separators
 - All text must be crisp, legible, and correctly spelled
 - Make it visually striking, professional, and informative
-${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
+${hasLogo ? '- Keep the top-right corner clean for the logo; put no title text, numbers or icons over it.' : ''}
 - Design dimensions: ${config.width}x${config.height} pixels (${config.label} format)`
 
   // Build content parts
@@ -187,6 +187,42 @@ ${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
 
   if (!imageBuffer) {
     return NextResponse.json({ error: 'Failed to generate infographic image' }, { status: 500 })
+  }
+
+  // PIN THE LOGO IN CODE — same trick that keeps the Text2Art deck logo steady.
+  //
+  // The model was shown the logo so it could DESIGN AROUND it (matched palette,
+  // a clean top-right corner) — that's what makes it look cohesive rather than
+  // bolted on. But the model's own copy of the logo drifts a few pixels from one
+  // render to the next. So we paste the REAL logo back over the top-right corner
+  // at a FIXED fraction of the image. Every infographic gets the logo in the
+  // exact same spot, pixel-for-pixel — it cannot wander. (14% width, 4% margin,
+  // matching the deck's corner-logo constants.)
+  if (logoBuffer) {
+    try {
+      const sharp = (await import('sharp')).default
+      // Normalise the true rendered size (the model may return 4K, not config).
+      const base = sharp(imageBuffer)
+      const meta = await base.metadata()
+      const W = meta.width ?? config.width
+      const H = meta.height ?? config.height
+      const margin = Math.round(W * 0.04)
+      const targetLogoW = Math.round(W * 0.14)
+      const logoPng = await sharp(logoBuffer)
+        .resize({ width: targetLogoW, withoutEnlargement: false })
+        .png()
+        .toBuffer()
+      const logoMeta = await sharp(logoPng).metadata()
+      const lw = logoMeta.width ?? targetLogoW
+      imageBuffer = await base
+        .composite([{ input: logoPng, top: margin, left: Math.max(0, W - lw - margin) }])
+        .png()
+        .toBuffer()
+    } catch (e) {
+      // A failed paste is never fatal — the model already placed a logo, so we
+      // ship the image rather than losing the whole render. Just record it.
+      console.warn('[generate-infographic] corner logo paste skipped:', e instanceof Error ? e.message : e)
+    }
   }
 
   // Upload to Supabase storage
