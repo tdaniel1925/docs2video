@@ -959,6 +959,15 @@ app.post('/process-logo', authCheck, async (req, res) => {
 const REMOTION_DIR = process.env.REMOTION_DIR || '/app/remotion'
 const V3_LOOK = 'High-end cinematic corporate photography with a RICH, MOODY, PREMIUM grade — like a polished Apple or Bloomberg commercial. Dramatic but expensive-looking lighting, deep controlled shadows, sophisticated color, shallow depth of field, strong sense of place. Confident and modern, NOT bright flat stock photography and NOT depressing. Specific, editorial, characterful real scenes — avoid generic stock-photo clichés. Stay strictly ON TOPIC for the described subject. AVOID: cheesy stock smiles, candlelit/antique/castle/vintage settings, lone sad figures, anything melancholy or off-story. Photoreal, NOT illustration. 16:9, fills 1920x1080. ABSOLUTELY NO text, words, letters, numbers, charts, or logos.'
 
+// The infographic BACKDROP look — precise and designed, matching the Text2Art
+// approach rather than the cinematic photo grade. This image is a deliberate
+// BRAND GROUND that code-drawn data (KPIs, charts, cards) and the pinned logo
+// sit on top of — so it must be calm, intentional, and clear where they land,
+// NOT a busy or random photograph. The top-right corner is kept clean for the
+// logo; the center-left stays uncluttered for the data. Palette is built from
+// the brand accent so the whole frame feels on-brand and cohesive.
+const INFOGRAPHIC_LOOK = 'A PRECISE, DESIGNED infographic background — a premium, modern brand surface, NOT a photograph and NOT a busy scene. Think a high-end data-report cover: a smooth deep gradient ground with subtle geometric structure (soft grid lines, faint concentric rings, gentle light gradients, delicate abstract shapes) that reads as intentional design, calm and uncluttered. Rich, sophisticated, cohesive. LEAVE THE TOP-RIGHT CORNER CLEAN AND UNCLUTTERED (a logo is placed there in code afterward). LEAVE THE CENTER AND LEFT CALM AND LOW-CONTRAST so charts, numbers and cards drawn on top stay perfectly legible. Elegant restraint over decoration. 16:9, fills 1920x1080. ABSOLUTELY NO text, words, letters, numbers, charts, icons, or logos — background only.'
+
 // Voice engine: ElevenLabs (Rachel) is PRIMARY; OpenAI TTS-HD is the FALLBACK.
 // Either provider being out of quota no longer kills a render — we try the other.
 const ELEVEN_API_KEY = process.env.ELEVENLABS_API_KEY
@@ -1124,14 +1133,17 @@ async function grabPoster(videoFile, outPath, seekSeconds = 3.2) {
   await run(['-y', '-i', videoFile, '-frames:v', '1', '-q:v', '2', outPath]) // last resort: frame 0
 }
 
-async function v3GeminiBg(prompt, outPath) {
+// look = the aesthetic suffix. Defaults to V3_LOOK (cinematic photography for
+// the per-scene cinematic images). The infographic backdrop passes INFOGRAPHIC_LOOK
+// instead — a precise, designed brand ground rather than moody photography.
+async function v3GeminiBg(prompt, outPath, look = V3_LOOK) {
   const { GoogleGenAI } = require('@google/genai')
   const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 120000 } })
   for (let a = 1; a <= 3; a++) {
     try {
       const r = await g.models.generateContent({
         model: 'gemini-3-pro-image-preview',
-        contents: [{ role: 'user', parts: [{ text: `${prompt}\n\n${V3_LOOK}` }] }],
+        contents: [{ role: 'user', parts: [{ text: `${prompt}\n\n${look}` }] }],
         config: { responseFormat: { image: { aspectRatio: '16:9', imageSize: '2K' } } },
       })
       const img = (r.candidates?.[0]?.content?.parts ?? []).find((p) => p.inlineData)
@@ -1225,7 +1237,17 @@ app.post('/render-v3', authCheck, async (req, res) => {
       try {
         const bgName = `r3-${videoId}-bg.png`
         const topic = (brandName || scenes[0]?.title || industry || 'professional business').toString().slice(0, 120)
-        await v3GeminiBg(`An abstract, premium, out-of-focus background suggesting ${topic} — soft dark tones, depth, subtle light. Atmospheric, NOT busy. Will sit DARKENED behind data and charts.`, join(pub, bgName))
+        // Build the palette AROUND the brand accent (Text2Art principle) so the
+        // ground feels like the customer's own material, not a stock template.
+        const accent = Array.isArray(brandAccents) ? brandAccents[0] : (brandAccents && brandAccents.primary) || null
+        const palette = accent
+          ? `Build the colour palette around ${accent} as the dominant brand colour — shade and tint it into a deep, rich ground (never a flat block of the raw hex).`
+          : 'Use a deep, sophisticated navy-to-charcoal palette.'
+        await v3GeminiBg(
+          `A precise designed infographic background for a report about ${topic}. ${palette}`,
+          join(pub, bgName),
+          INFOGRAPHIC_LOOK,
+        )
         await readFile(join(pub, bgName))
         bgImage = bgName
       } catch (e) { console.error(`[render-v3 ${videoId}] bg image failed: ${e.message}`) }

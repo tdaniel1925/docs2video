@@ -47,11 +47,9 @@ function isHeadlineFigure(m: { label?: string; value: string }): boolean {
  * leans cinematic.
  */
 export function pickTheme(scenes: Scene[], classification: { category?: string } | null): V3Theme {
-  // 2026-06-18: infographic theme disabled — cinematic only until we improve it.
-  // (Keep the heuristic below intact so we can re-enable by removing this line.)
-  return 'cinematic'
-
-  // eslint-disable-next-line no-unreachable
+  // 2026-08-27: infographic RE-ENABLED. It was disabled 2026-06-18 "until we
+  // improve it" — the fix (a precise designed backdrop + a code-pinned logo that
+  // can't wander) has now landed, so the heuristic below is live again.
   const cat = (classification?.category || '').toLowerCase()
   // Categories that are almost always number-driven.
   if (cat === 'insurance' || cat === 'finance' || cat === 'business') return 'infographic'
@@ -174,9 +172,16 @@ export function buildV3Payload(opts: {
     opts = { ...opts, scenes: [first, ...sampledMiddle, last] }
   }
 
-  // 'aurora' is an explicit user choice (the fluid, no-image look) — it overrides
-  // the automatic cinematic/infographic pick.
-  const theme: V3Theme = opts.videoStyle === 'aurora' ? 'aurora' : pickTheme(opts.scenes, opts.classification)
+  // An EXPLICIT user choice always wins over the automatic pick. 'aurora' (the
+  // fluid no-image look), 'infographic' (the designed data look) and 'cinematic'
+  // (the photographic look) are all direct choices; anything else falls back to
+  // the content-based heuristic (data-heavy → infographic, else cinematic).
+  const explicit = opts.videoStyle
+  const theme: V3Theme =
+    explicit === 'aurora' ? 'aurora' :
+    explicit === 'infographic' ? 'infographic' :
+    explicit === 'cinematic' ? 'cinematic' :
+    pickTheme(opts.scenes, opts.classification)
 
   // Pool of real document metrics we can distribute to metric-less scenes.
   const pool = (opts.keyMetrics ?? []).filter((m) => m.label && m.value && hasNumber(m.value))

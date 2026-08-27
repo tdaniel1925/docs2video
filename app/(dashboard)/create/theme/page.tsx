@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-type ThemeId = 'slides' | 'aurora' | 'cinematic' | 'editorial' | 'explainer'
+type ThemeId = 'slides' | 'aurora' | 'cinematic' | 'editorial' | 'explainer' | 'infographic'
 
 // Static sample images live in /public/style-samples/<id>-{cover,data,closing}.png
 // (rendered once — no live preview, so picking a style is instant + adds no
@@ -15,6 +15,7 @@ const THEMES: { id: ThemeId; name: string; tagline: string }[] = [
   { id: 'cinematic', name: 'Cinematic', tagline: 'Film-style imagery, kinetic text, motion. Best for story-led, emotive videos.' },
   { id: 'editorial', name: 'Editorial', tagline: 'Clean, warm magazine layout. Refined serif typography on your brand color.' },
   { id: 'explainer', name: 'Explainer', tagline: 'Friendly modern deck — navy + color accents, big rounded cards, charts. Great for how-it-works.' },
+  { id: 'infographic', name: 'Infographic', tagline: 'Animated data look — big hero numbers, KPI cards, timelines and charts on a clean branded ground, your logo pinned in the corner. Best for number-driven reports.' },
 ]
 const SAMPLE_KINDS = ['cover', 'data', 'closing']
 

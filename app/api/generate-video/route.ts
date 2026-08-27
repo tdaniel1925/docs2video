@@ -1053,9 +1053,13 @@ export async function POST(request: Request) {
     }
 
     // STAGE 3 (V3 / SLIDES): render with Remotion on the VPS instead of the
-    // classic /generate path. Entered when the V3 engine flag is on OR the style
-    // is 'slides' (the new default, its own engine — independent of the V3 flag).
-    if (useV3 || videoStyle === 'slides') {
+    // classic /generate path. Entered when the V3 engine flag is on, OR the style
+    // is 'slides' (the new default, its own engine — independent of the V3 flag),
+    // OR the user EXPLICITLY picked infographic/cinematic (a direct choice enters
+    // the Remotion path without needing the global V3 flag flipped on — so
+    // re-enabling infographic never depends on a system-wide toggle).
+    const explicitV3 = videoStyle === 'infographic' || videoStyle === 'cinematic'
+    if (useV3 || videoStyle === 'slides' || explicitV3) {
       // SLIDE-DECK style (the new default): the animated explainer deck
       // (DirectedVideo). The VPS reads the source, comprehends it, writes the
       // deck, generates VO, and renders — so we hand it the extracted document
