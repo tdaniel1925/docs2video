@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FLYER_SIZES } from '../../../_lib/flyer-engine'
 import { useWizard } from '../useWizard'
+import { generateDeck } from '../deckGenerate'
 import { INK, SOFT, LINE, MINT, card, plainBtn, primaryBtn, StepShell } from '../ui'
 
 type Design = { id: string; sizeId: string; label: string; w: number; h: number; url: string; src?: string }
@@ -42,6 +43,10 @@ export default function EditStep() {
   const [problem, setProblem] = useState('')
   const [shared, setShared] = useState('')
   const [pdfBusy, setPdfBusy] = useState(false)
+  // A deck round where SOME slides failed: which slide numbers are missing, so
+  // we can say so plainly and offer to make just those (not the whole deck).
+  const [deckMissing, setDeckMissing] = useState<number[] | null>(null)
+  const [retrying, setRetrying] = useState(false)
   // place-an-image (logo/QR) mode
   const [placing, setPlacing] = useState<null | 'logo' | 'qr'>(null)
   const [overlayUrl, setOverlayUrl] = useState('')
@@ -97,6 +102,19 @@ export default function EditStep() {
           sizes: sizes.length ? sizes : state.sizes,
         })
       } else if (ds.length) {
+        // Did some deck slides fail? The making screen leaves a marker naming
+        // them. If so we KEEP the wizard inputs (words, look, logo) — they're
+        // exactly what "make the missing slides" needs — and show the banner.
+        let missing: number[] | null = null
+        try {
+          const raw = sessionStorage.getItem('design:deckFailed')
+          if (raw) {
+            const mk = JSON.parse(raw) as { roundId?: string; slides?: number[] }
+            if (mk.roundId === state.roundId && Array.isArray(mk.slides) && mk.slides.length) missing = mk.slides
+            else sessionStorage.removeItem('design:deckFailed') // stale marker from an older round
+          }
+        } catch { /* no marker = nothing missing */ }
+        if (missing) { setDeckMissing(missing); return }
         // A just-made job: wipe the reusable inputs so the NEXT design starts
         // empty — no leftovers pretending to belong to it. Keeps the round
         // pointer so this page keeps working.
@@ -255,6 +273,54 @@ export default function EditStep() {
   // A deck's designs are the restyled slides — offer them stitched into one PDF.
   const isDeck = designs.length > 1 && designs.every((d) => /^slide-\d+$/.test(d.sizeId))
 
+  // MAKE THE MISSING SLIDES — a deck retry that redraws ONLY the slides that
+  // failed, into the SAME round, with the same look/logo/words (the wizard kept
+  // them because the failure marker was present). Nobody redoes a whole deck
+  // over one bad slide.
+  const retryMissing = async () => {
+    if (retrying || !deckMissing?.length) return
+    const slides = (state.deckSlides ?? []).filter((s) => deckMissing.includes(s.n))
+    if (!slides.length || !state.roundId || !state.chatId) {
+      setShared('The words for the missing slides are no longer here — go back to Content and press Make again.')
+      setTimeout(() => setShared(''), 6000)
+      return
+    }
+    setRetrying(true)
+    try {
+      const res = await generateDeck({
+        slides,
+        templateId: state.templateId,
+        brandId: state.brandId,
+        referenceDataUrl: state.reference?.dataUrl,
+        keepMotif: Boolean(state.reference && state.referenceOwned),
+        photos: state.photos.map((p) => ({ dataUrl: p.dataUrl, role: p.role })),
+        brandColors: state.brandColors,
+        roundId: state.roundId, chatId: state.chatId,
+      })
+      // Refresh the grid from the server so the new slides appear in place.
+      const url = state.chatId ? `/api/flyer-history?chat=${state.chatId}` : '/api/flyer-history'
+      const r = await fetch(url).then((x) => x.json()).catch(() => null)
+      const round = (r?.rounds ?? []).find((x: { id: string }) => x.id === state.roundId)
+      if (round?.designs?.length) { setDesigns(round.designs); setSelected(round.designs[0] ?? null) }
+      if (res.failedSlides.length) {
+        setDeckMissing(res.failedSlides)
+        try { sessionStorage.setItem('design:deckFailed', JSON.stringify({ roundId: state.roundId, slides: res.failedSlides })) } catch { /* shown anyway */ }
+        setShared(`Made ${res.made} — ${res.failedSlides.length} still wouldn’t come out. You can try again; failures are never charged.`)
+      } else {
+        setDeckMissing(null)
+        try { sessionStorage.removeItem('design:deckFailed') } catch { /* fine */ }
+        clearInputsKeepJob() // deck complete — now safe to clear inputs like a normal finish
+        setShared('All slides are in — the deck is complete.')
+      }
+      setTimeout(() => setShared(''), 6000)
+    } catch {
+      setShared('Could not reach the maker just now — try again in a moment.')
+      setTimeout(() => setShared(''), 6000)
+    } finally {
+      setRetrying(false)
+    }
+  }
+
   // Build a landscape PDF, one page per slide, in order — client-side (pdf-lib).
   const downloadPdf = async () => {
     if (pdfBusy) return
@@ -356,6 +422,22 @@ export default function EditStep() {
     <StepShell title="Your designs — download, share, or edit any part"
       subtitle="Click a design to open it. Download one or all, share it, or press “Edit a part” to change just one region.">
 
+      {/* MISSING SLIDES — say so up front, and offer to make JUST those. A deck
+          that half-failed must never quietly pass for finished. */}
+      {deckMissing && deckMissing.length > 0 && (
+        <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+          margin: '0 0 16px', padding: '12px 14px', borderRadius: 10,
+          border: '1px solid #e6b0b0', background: '#fdf3f3', color: '#8a3b3b', fontSize: 13.5 }}>
+          <span>
+            <strong>{deckMissing.length} slide{deckMissing.length === 1 ? '' : 's'} couldn’t be made</strong>
+            {' '}(slide{deckMissing.length === 1 ? '' : 's'} {deckMissing.join(', ')}). You weren’t charged for {deckMissing.length === 1 ? 'it' : 'them'}.
+          </span>
+          <button style={{ ...primaryBtn, padding: '8px 14px' }} onClick={retryMissing} disabled={retrying}>
+            {retrying ? 'Making them…' : 'Make the missing slides'}
+          </button>
+        </div>
+      )}
+
       {/* TOP ACTIONS — download all + share, always in reach */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <button style={primaryBtn} onClick={downloadAll}>
@@ -366,7 +448,8 @@ export default function EditStep() {
             {pdfBusy ? 'Building PDF…' : 'Download as PDF'}
           </button>
         )}
-        <button style={plainBtn} onClick={shareOne}>Share</button>
+        {/* Share needs a selected design — disabled (not silently dead) without one. */}
+        <button style={{ ...plainBtn, opacity: selected ? 1 : 0.45 }} onClick={shareOne} disabled={!selected}>Share</button>
         {shared && <span style={{ fontSize: 12.5, color: SOFT }}>{shared}</span>}
       </div>
 

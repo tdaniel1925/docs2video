@@ -73,7 +73,7 @@ export default function WhatStep() {
         ...(sitePhotos.length ? { photos: sitePhotos } : {}),
         aiSuggested: { kind: true, templateId: true, sizes: true, fields: true },
       })
-      sessionStorage.setItem('design:walking', '1')
+      sessionStorage.setItem('design:walking', String(Date.now()))
       // Land on Content so they review the drafted words first (words drive the
       // look choice that comes next).
       router.push('/design/content')
@@ -90,7 +90,7 @@ export default function WhatStep() {
   // ring register so the jump doesn't feel like a misclick.
   const pickKind = (k: Kind) => {
     patch({ kind: k })
-    sessionStorage.setItem('design:walking', '1')
+    sessionStorage.setItem('design:walking', String(Date.now()))
     // Go to Content first — say what it is, THEN pick a look that fits.
     setTimeout(() => router.push('/design/content'), 250)
   }
@@ -105,7 +105,13 @@ export default function WhatStep() {
   useEffect(() => {
     if (!ready) return
     const walking = sessionStorage.getItem('design:walking')
-    if (!walking) reset() // new session → clean slate
+    // The mark carries WHEN it was set. Browsers that restore tabs keep
+    // sessionStorage across a crash/restart, so a mark alone could shield a
+    // days-old half-job from the reset ("my old logo and words came back").
+    // A mark older than 12 hours is treated as no mark at all.
+    const at = walking ? Number(walking) : 0
+    const fresh = Number.isFinite(at) && at > 0 && Date.now() - at < 12 * 60 * 60 * 1000
+    if (!fresh) reset() // new session (or a stale mark) → clean slate
     // Landing here always means we are back at the start; the walk mark is set
     // again as soon as the user advances (see the WHAT-step Next handler).
     sessionStorage.removeItem('design:walking')
@@ -113,20 +119,20 @@ export default function WhatStep() {
 
   if (!ready) return null
 
-  // A deck is ready to go once its slides are parsed; other kinds just need the pick.
-  const nextReady = state.kind === 'deck'
-    ? Boolean(state.deckSlides && state.deckSlides.length)
-    : Boolean(state.kind)
+  // EVERY kind is ready once picked — a deck's slides are made later, on the
+  // Content step (described, pasted or uploaded there). Requiring deckSlides
+  // here blocked deck users on a step that has no way to create them.
+  const nextReady = Boolean(state.kind)
 
   return (
     <StepShell
       title="What do you want to *make*?"
       subtitle="Pick one to start — then you’ll add your words (type it, paste it, upload a document, or let AI write it), choose a look, and pick sizes. You can change any of it later."
-      next="/design/style"
-      nextLabel="Next: choose a look"
-      // Advancing off Step 1 begins the walk — mark it active so stepping BACK
-      // here doesn't wipe the in-progress job (only a fresh load does).
-      onNext={() => sessionStorage.setItem('design:walking', '1')}
+      next="/design/content"
+      nextLabel="Next: your words"
+      // Advancing off Step 1 begins the walk — mark it active (with WHEN, see
+      // the reset guard above) so stepping BACK here doesn't wipe the job.
+      onNext={() => sessionStorage.setItem('design:walking', String(Date.now()))}
       nextReady={nextReady}
       nextHint="Pick what you’re making"
       help={{

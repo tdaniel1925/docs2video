@@ -39,11 +39,14 @@ export async function generateDeck(opts: {
   chatId: string
   onProgress?: (p: DeckProgress) => void
   signal?: AbortSignal
-}): Promise<{ made: number; failed: number; skipped: number; firstError: string | null }> {
+}): Promise<{ made: number; failed: number; skipped: number; firstError: string | null; failedSlides: number[] }> {
   // Only slides with text can be restyled from their words.
   const drawable = opts.slides.filter((s) => !s.imageOnly)
   const skipped = opts.slides.length - drawable.length
   let done = 0, failed = 0, firstError: string | null = null
+  // WHICH slides failed (by their number), so the caller can offer "retry just
+  // the missing ones" instead of making the user redo the whole deck.
+  const failedSlides: number[] = []
 
   for (const slide of drawable) {
     if (opts.signal?.aborted) break
@@ -84,13 +87,13 @@ export async function generateDeck(opts: {
           chatId: opts.chatId,
         }),
       }).then((x) => x.json())
-      if (r?.error) { failed++; firstError ??= r.error } else { done++ }
+      if (r?.error) { failed++; failedSlides.push(slide.n); firstError ??= r.error } else { done++ }
     } catch (e) {
       if ((e as Error)?.name === 'AbortError') break
-      failed++; firstError ??= 'A slide could not be made.'
+      failed++; failedSlides.push(slide.n); firstError ??= 'A slide could not be made.'
     }
     opts.onProgress?.({ done, total: drawable.length, failed })
   }
 
-  return { made: done, failed, skipped, firstError }
+  return { made: done, failed, skipped, firstError, failedSlides }
 }

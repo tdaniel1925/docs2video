@@ -82,6 +82,15 @@ export default function MakingScreen() {
             onProgress: (p) => setDeckProg({ done: p.done, total: p.total }),
           })
           if (!res.made) { setErr(res.firstError || 'None of the slides could be made. You were not charged for anything that failed.'); return }
+          // SOME slides failed: don't sail to results pretending the deck is
+          // whole. Leave a marker so results shows WHICH slides are missing and
+          // offers to make just those (results also skips its input-wipe when it
+          // sees this marker, so the retry still has the deck's words + look).
+          if (res.failed > 0) {
+            try {
+              sessionStorage.setItem('design:deckFailed', JSON.stringify({ roundId, slides: res.failedSlides }))
+            } catch { /* worst case: no retry offer; slides are still visible */ }
+          }
           patch({ roundId, chatId })
           router.replace('/design/results')
           return

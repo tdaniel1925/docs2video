@@ -144,20 +144,53 @@ export default function ContentStep() {
       return { n: i + 1, heading, bullets, imageOnly: !heading && bullets.length === 0, role: s.role }
     })
     patch({ deckSlides, deckName: planPreview.title, sizes: ['slide-16x9'] })
-    setMsgs((m) => [...m, { role: 'assistant', text: `Locked in ${deckSlides.length} slides. Pick a look next and press Make — every slide comes out matching, at 16:9.` }])
+    setMsgs((m) => [...m, { role: 'assistant', text: `Locked in ${deckSlides.length} slides. Pick a look next and press Make — every slide comes out matching, at 16:9. Change your mind? Just tell me here (like “make slide 3 shorter”) and I’ll reopen the plan.` }])
     setPlanPreview(null); setDeckBrief(''); setDeckLength(null)
   }
 
-  // CHAT ADJUSTMENT while reviewing a plan. The user typed something like "add a
-  // slide about pricing" or "make it more formal" — fold that into the brief and
-  // re-plan at the SAME length. This is what stops the loop: a message during
-  // review REVISES the plan, it does NOT start a new brief.
+  // The CURRENT slides, written out for the planner — so a revision starts from
+  // what the user is LOOKING AT (including every hand-edit), never from the
+  // original brief alone. This is the fix for "my edits disappeared": before,
+  // a chat tweak re-planned from the brief and threw away edited headlines,
+  // added slides, everything.
+  const serializeSlides = (slides: { role: string; headline: string; lines: string[] }[]) =>
+    slides.map((s, i) => `${i + 1}. [${s.role}] ${s.headline}${s.lines.length ? `\n   - ${s.lines.join('\n   - ')}` : ''}`).join('\n')
+
+  // Reopen a CONFIRMED deck as an editable plan (chat used to go deaf here —
+  // after "Make it a deck" no message could touch the slides anymore).
+  const planFromConfirmed = (): NonNullable<typeof planPreview> | null => {
+    const slides = state.deckSlides
+    if (!slides || !slides.length) return null
+    return {
+      title: state.deckName || 'Your deck',
+      slides: slides.map((s) => ({ role: s.role || 'point', headline: s.heading || 'Untitled', lines: s.bullets ?? [] })),
+    }
+  }
+
+  // CHAT ADJUSTMENT of a deck — while reviewing a plan OR after it's confirmed.
+  // The instruction is applied ON TOP of the current slides (edits preserved),
+  // at a length inferred from the deck itself, so "make slide 3 punchier" never
+  // rebuilds a different deck from the old brief.
   const revisePlan = async (instruction: string) => {
-    if (!deckBrief || busy) return
+    if (busy) return
+    const base = planPreview ?? planFromConfirmed()
+    if (!base && !deckBrief) {
+      setMsgs((m) => [...m, { role: 'user', text: instruction },
+        { role: 'assistant', text: 'There’s no deck to change yet — describe what the deck should be about first.' }])
+      return
+    }
     setMsgs((m) => [...m, { role: 'user', text: instruction }])
     setMsgs((m) => [...m, { role: 'assistant', text: 'Reworking the deck with that change…' }])
-    const combined = `${deckBrief}\n\n---\nApply this change to the deck: ${instruction}`
-    await runPlan(deckLength ?? 'medium', combined)
+    // Keep the deck the SIZE it already is: infer length from the current slide
+    // count when the remembered choice is gone (it's cleared on confirm).
+    const n = base?.slides.length ?? 0
+    const inferred: 'short' | 'medium' | 'long' = n ? (n <= 6 ? 'short' : n <= 10 ? 'medium' : 'long') : 'medium'
+    const parts = [
+      deckBrief || `The deck is titled "${base?.title ?? 'Your deck'}".`,
+      base ? `The deck CURRENTLY has these slides — the user may have edited them by hand. Keep every slide and its wording EXACTLY as written except where the change below requires otherwise:\n${serializeSlides(base.slides)}` : '',
+      `Apply this change to the deck: ${instruction}`,
+    ].filter(Boolean)
+    await runPlan(deckLength ?? inferred, parts.join('\n\n---\n'))
   }
 
   // Send one message to the flyer-chat brain; it returns updated fields + a reply.
@@ -165,12 +198,15 @@ export default function ContentStep() {
     const clean = message.trim()
     if (!clean || busy) return
     // DECK CHAT — three phases, so a review message doesn't loop back to briefing:
-    //   1. No brief yet  → this message IS the brief (ask length next).
+    //   1. No brief yet, nothing confirmed → this message IS the brief.
     //   2. Reviewing a plan (planPreview set) → this message ADJUSTS the plan
-    //      (re-plan with the change), NOT a new brief. This is the loop fix.
-    //   3. After confirm (deckSlides set) → this branch doesn't run.
-    if (state.kind === 'deck' && !state.deckSlides) {
-      if (planPreview) { await revisePlan(clean); return }
+    //      (re-plan with the change, edits preserved), NOT a new brief.
+    //   3. After confirm (deckSlides set) → the message REOPENS the deck as an
+    //      editable plan and applies the change. (Chat used to go deaf here —
+    //      messages fell through to the flyer brain, which can't touch slides,
+    //      so "change slide 5" replied politely and changed nothing.)
+    if (state.kind === 'deck') {
+      if (planPreview || (state.deckSlides && state.deckSlides.length)) { await revisePlan(clean); return }
       takeDeckBrief(clean); return
     }
     setNote('')

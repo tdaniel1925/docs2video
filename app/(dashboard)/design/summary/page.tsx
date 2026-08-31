@@ -34,7 +34,10 @@ export default function SummaryStep() {
 
   const hasPrint = state.sizes.some((id) => { const s = FLYER_SIZES.find((x) => x.id === id); return s ? canBleed(s) : false })
 
-  const isDeck = Boolean(state.deckSlides)
+  // A deck is a deck because the user PICKED deck — not because its slides are
+  // confirmed yet. Keying off deckSlides showed a described-but-unconfirmed deck
+  // as a flyer review (wrong rows, wrong hint), then flipped it after confirm.
+  const isDeck = state.kind === 'deck'
   const drawableSlides = (state.deckSlides ?? []).filter((s) => !s.imageOnly).length
 
   // Everything Start needs, and — when something's missing — WHICH one, by name.
@@ -42,12 +45,14 @@ export default function SummaryStep() {
   // can be green while Style is empty, so the hint has to name the gap.
   const needStyle = !(state.templateId || state.reference)
   const needKind = !state.kind
-  const needContent = !(state.fields.headline || isDeck)
+  // A deck needs its CONFIRMED slides (press "Make it a deck" on Content);
+  // everything else needs a headline.
+  const needContent = isDeck ? drawableSlides === 0 : !state.fields.headline
   const needSizes = !state.sizes.length
   const ready_ = !needKind && !needStyle && !needContent && !needSizes
   const hint = needKind ? 'Pick what you’re making (step 1) first'
     : needStyle ? 'Pick a look on the Style step first'
-    : needContent ? 'Add your words on the Content step first'
+    : needContent ? (isDeck ? 'Finish your deck on the Content step — press “Make it a deck” there' : 'Add your words on the Content step first')
     : needSizes ? 'Choose at least one size first'
     : 'Finish the earlier steps first'
 

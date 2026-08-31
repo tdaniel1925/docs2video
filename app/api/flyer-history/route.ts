@@ -107,15 +107,44 @@ export async function GET(req: Request) {
       note: r.note ?? '',
       messages: r.messages ?? [],
       createdAt: r.created_at,
-      designs: (designs ?? [])
-        .filter((d) => d.round_id === r.id)
-        // A design whose file has vanished is worse than one left out: it
-        // renders as a broken image with a download button that does nothing.
-        .filter((d) => signed.has(d.id))
-        .map((d) => ({
-          id: d.id, sizeId: d.size_id, label: d.label,
-          w: d.width, h: d.height, url: signed.get(d.id)!,
-        })),
+      designs: dedupeNewest(
+        (designs ?? [])
+          .filter((d) => d.round_id === r.id)
+          // A design whose file has vanished is worse than one left out: it
+          // renders as a broken image with a download button that does nothing.
+          .filter((d) => signed.has(d.id)),
+      ).map((d) => ({
+        id: d.id, sizeId: d.size_id, label: d.label,
+        w: d.width, h: d.height, url: signed.get(d.id)!,
+      })),
     })),
+  })
+}
+
+/**
+ * ONE design per slot — the NEWEST version wins.
+ *
+ * A paint-edit saves the edited image as a NEW row in the same round + slot
+ * (never over the original, so nothing is ever lost). But returning both rows
+ * made an edited deck show the slide TWICE — old then new — in the grid, in
+ * "download all", and as two pages in the PDF. Here we keep only the latest row
+ * per slot for display; older versions stay safe in the database.
+ *
+ * Deck slots (slide-N) are then re-sorted by slide number, because an edit's
+ * newer created_at would otherwise push slide 3 to the end of the deck.
+ */
+function dedupeNewest<T extends { size_id: string; created_at: string }>(rows: T[]): T[] {
+  const bySlot = new Map<string, T>()
+  for (const d of rows) {
+    const prev = bySlot.get(d.size_id)
+    if (!prev || d.created_at >= prev.created_at) bySlot.set(d.size_id, d)
+  }
+  const out = [...bySlot.values()]
+  const slideNo = (s: string) => { const m = /^slide-(\d+)$/.exec(s); return m ? Number(m[1]) : null }
+  return out.sort((a, b) => {
+    const an = slideNo(a.size_id), bn = slideNo(b.size_id)
+    if (an != null && bn != null) return an - bn            // deck: slide order
+    if (an != null || bn != null) return an != null ? -1 : 1
+    return a.created_at < b.created_at ? -1 : 1              // others: made order
   })
 }
