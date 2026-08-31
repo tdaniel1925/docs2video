@@ -47,6 +47,12 @@ export default function EditStep() {
   // we can say so plainly and offer to make just those (not the whole deck).
   const [deckMissing, setDeckMissing] = useState<number[] | null>(null)
   const [retrying, setRetrying] = useState(false)
+  // Words the server's spelling check flagged — shown as a banner so a typo is
+  // caught HERE, not after 500 copies come back from the printer.
+  const [spellWords, setSpellWords] = useState<string[] | null>(null)
+  // Price of one change + current balance, so editing carries its cost up front.
+  const [unit, setUnit] = useState<number | null>(null)
+  const [balance, setBalance] = useState<number | null>(null)
   // place-an-image (logo/QR) mode
   const [placing, setPlacing] = useState<null | 'logo' | 'qr'>(null)
   const [overlayUrl, setOverlayUrl] = useState('')
@@ -80,7 +86,19 @@ export default function EditStep() {
     // roundId) still clears, as before.
     const fromLibrary = !state.roundId && !!state.chatId
     const url = state.chatId ? `/api/flyer-history?chat=${state.chatId}` : '/api/flyer-history'
+    // The spelling marker (left by the making screen) belongs to ONE round —
+    // show it only for that round, then let dismissal clear it.
+    try {
+      const raw = sessionStorage.getItem('design:spelling')
+      if (raw) {
+        const mk = JSON.parse(raw) as { roundId?: string; words?: string[] }
+        if (mk.roundId === state.roundId && Array.isArray(mk.words) && mk.words.length) setSpellWords(mk.words)
+        else sessionStorage.removeItem('design:spelling')
+      }
+    } catch { /* no banner */ }
     fetch(url).then((r) => r.json()).then((r) => {
+      if (typeof r.unit === 'number') setUnit(r.unit)
+      if (typeof r.balance === 'number') setBalance(r.balance)
       const rounds = (r.rounds ?? []) as { id: string; designs?: Design[]; fields?: Record<string, unknown>; templateId?: string }[]
       // Prefer the round we made; otherwise fall back to the newest round with
       // designs in this chat — that's what "reopen this job to edit" means when
@@ -438,6 +456,21 @@ export default function EditStep() {
         </div>
       )}
 
+      {/* SPELLING CHECK RESULT — the server verifies every word on every design;
+          hiding a caught typo would be unforgivable ("Tursday" × 500 flyers). */}
+      {spellWords && spellWords.length > 0 && (
+        <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+          margin: '0 0 16px', padding: '12px 14px', borderRadius: 10,
+          border: '1px solid #e3cf9a', background: '#fdf8ec', color: '#7a5c12', fontSize: 13.5 }}>
+          <span>
+            <strong>Double-check the spelling</strong> of: {spellWords.map((w) => `“${w}”`).join(', ')} — AI lettering sometimes slips.
+            Zoom in; if a word is wrong, paint over it with <strong>Edit a part</strong> and say what it should read.
+          </span>
+          <button onClick={() => { setSpellWords(null); try { sessionStorage.removeItem('design:spelling') } catch { /* fine */ } }}
+            style={{ ...plainBtn, padding: '6px 12px', fontSize: 12.5 }}>Looks right to me</button>
+        </div>
+      )}
+
       {/* TOP ACTIONS — download all + share, always in reach */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <button style={primaryBtn} onClick={downloadAll}>
@@ -488,7 +521,17 @@ export default function EditStep() {
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
             {!brushing && !placing ? (
-              <button style={plainBtn} onClick={() => setBrushing(true)}>Edit a part</button>
+              <>
+                {/* The COST rides on the button — an edit is a paid action and
+                    must say so BEFORE the user invests painting time. If the
+                    balance can't cover it, warn the moment they enter. */}
+                <button style={plainBtn} onClick={() => {
+                  setBrushing(true)
+                  if (unit !== null && balance !== null && balance < unit) {
+                    setProblem(`Heads up: a change costs ${unit.toLocaleString()} credits and you have ${balance.toLocaleString()} — top up first or this will fail at the end.`)
+                  }
+                }}>Edit a part{unit !== null ? ` · ${unit.toLocaleString()} cr` : ''}</button>
+              </>
             ) : brushing ? (
               <button style={plainBtn} onClick={() => { clearBrush(); setBrushing(false); setProblem('') }}>Cancel edit</button>
             ) : null}
@@ -530,10 +573,15 @@ export default function EditStep() {
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, color: INK }}>
                 {painted ? 'What should change there?' : 'Paint over the part you want changed'}
               </div>
-              <p style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px', lineHeight: 1.5 }}>
-                This is for pictures — swap an object, change a colour, tidy the background.
-                To change the <strong style={{ color: INK }}>words</strong>, use “Make more sizes → Words”.
-                Cover the whole thing, not just its outline. A change costs one design.
+              {/* Three short steps beat one dense paragraph — the audit's most
+                  common first-timer complaint about this panel. */}
+              <ol style={{ fontSize: 12.5, color: SOFT, margin: '0 0 10px', paddingLeft: 18, lineHeight: 1.6 }}>
+                <li>Paint over the WHOLE part you want changed (fill it in, not just the edge).</li>
+                <li>Type what it should become — swap an object, change a colour, tidy the background.</li>
+                <li>Press “Change it”.{unit !== null ? ` Costs ${unit.toLocaleString()} credits.` : ' Costs one design.'}</li>
+              </ol>
+              <p style={{ fontSize: 12, color: SOFT, margin: '0 0 10px' }}>
+                To change the <strong style={{ color: INK }}>words</strong>, use “Change the words” below instead — painting can’t redraw text cleanly.
               </p>
               {/* Brush size + per-stroke Undo — small edits and big ones both easy,
                   and a mistake is one tap back instead of starting over. */}

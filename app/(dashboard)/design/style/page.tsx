@@ -119,7 +119,7 @@ export default function StyleStep() {
     const prevStyle = state.templateId
     patch({ reference: { dataUrl, name: file.name }, referenceOwned: false, templateId: null })
     setOpenStyles(false)
-    if (prevStyle) flashEject('Using your reference — the chosen style was cleared.', () => patch({ templateId: prevStyle, reference: null }))
+    if (prevStyle) flashEject('A design follows ONE look. Using your reference — the picked style was set aside.', () => patch({ templateId: prevStyle, reference: null }))
   }
   const onReferencePaste = async (e: React.ClipboardEvent) => {
     const file = [...(e.clipboardData?.items ?? [])].find((it) => it.type.startsWith('image/'))?.getAsFile()
@@ -130,7 +130,7 @@ export default function StyleStep() {
     const prevRef = state.reference
     patch({ templateId: id, reference: null,
       aiSuggested: { ...state.aiSuggested, templateId: false } })
-    if (prevRef) flashEject('Using this style — your uploaded reference was cleared.', () => patch({ reference: prevRef, templateId: null }))
+    if (prevRef) flashEject('A design follows ONE look. Using this style — your reference was set aside.', () => patch({ reference: prevRef, templateId: null }))
   }
 
   const ready2 = Boolean(state.templateId) || Boolean(state.reference)
@@ -140,8 +140,11 @@ export default function StyleStep() {
     <StepShell title="Choose your *look*"
       subtitle="Drop in a design you like and we’ll work in its style, or open our styles below. Add your logo and photos in the other box — we sort them out for you."
       back="/design/content"
-      next="/design/sizes"
-      nextLabel="Next: pick sizes"
+      // A deck's size is fixed (16:9 slides) — sending deck users to a Sizes
+      // step that asks nothing was the audit's "dead step". Skip to review;
+      // the cost now shows there (and on the plan's confirm button).
+      next={state.kind === 'deck' ? '/design/summary' : '/design/sizes'}
+      nextLabel={state.kind === 'deck' ? 'Next: review' : 'Next: pick sizes'}
       nextReady={ready2}
       nextHint="Drop a reference or pick one of our styles"
       help={{

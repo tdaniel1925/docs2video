@@ -85,7 +85,12 @@ export function DeckRestyle({ deckSlides, deckName, patch }: {
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: INK }}>We found {slides.length} slide{slides.length === 1 ? '' : 's'}</span>
             {deckName && <span style={{ fontSize: 12, color: SOFT }}>from {deckName}</span>}
-            <button style={{ ...plainBtn, marginLeft: 'auto' }} onClick={() => patch({ deckSlides: null, deckName: null })}>Use a different deck</button>
+            {/* Parsing a big deck takes real time — one misclick must not throw
+                it away silently. */}
+            <button style={{ ...plainBtn, marginLeft: 'auto' }} onClick={() => {
+              if (!confirm('Remove these slides and upload a different deck? You’d need to upload and read it again.')) return
+              patch({ deckSlides: null, deckName: null })
+            }}>Use a different deck</button>
           </div>
 
           {truncated && (

@@ -202,7 +202,10 @@ export default function WhatStep() {
           </button>
         </div>
         {draftErr && <p role="alert" style={{ fontSize: 12.5, color: '#b91c1c', margin: '8px 2px 0' }}>{draftErr}</p>}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+        {/* Say what tapping DOES — these fire a full AI draft, they're not just
+            sample sentences to read. */}
+        <div style={{ fontSize: 12, color: SOFT, margin: '10px 2px 0' }}>Or tap an example and I’ll draft the whole thing for you:</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
           {STARTERS.map((s) => (
             <button key={s} onClick={() => { setPrompt(s); void draftFromPrompt(s) }} disabled={drafting}
               style={{ fontSize: 12.5, color: SOFT, background: 'white', border: `1px solid ${LINE}`,

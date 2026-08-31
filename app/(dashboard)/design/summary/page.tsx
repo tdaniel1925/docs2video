@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { VISIBLE_STYLES, FLYER_SIZES, canBleed } from '../../../_lib/flyer-engine'
 import { useWizard } from '../useWizard'
@@ -20,6 +20,17 @@ const KIND_LABEL: Record<string, string> = {
 export default function SummaryStep() {
   const { state, ready } = useWizard()
   const router = useRouter()
+  // THE PRICE ON THE LAST SCREEN BEFORE SPENDING. Review was the one step that
+  // never showed cost — the audit's plainest miss. Best-effort: a failed lookup
+  // doesn't block Start (Sizes already gated on a confirmed price for flyers).
+  const [unit, setUnit] = useState<number | null>(null)
+  const [balance, setBalance] = useState<number | null>(null)
+  useEffect(() => {
+    fetch('/api/flyer-history').then((r) => r.json()).then((r) => {
+      if (typeof r.unit === 'number') setUnit(r.unit)
+      if (typeof r.balance === 'number') setBalance(r.balance)
+    }).catch(() => { /* rows still show; price just absent */ })
+  }, [])
 
   const styleName = useMemo(
     () => VISIBLE_STYLES.find((t) => t.id === state.templateId)?.name ?? null,
@@ -71,10 +82,14 @@ export default function SummaryStep() {
     { k: 'Your images', v: state.photos.length ? `${state.photos.filter((p) => p.role === 'logo').length} logo, ${state.photos.filter((p) => p.role !== 'logo').length} photo` : 'none' },
   ]
 
+  // What this run will cost: one credit-unit per drawn design (deck = per slide).
+  const nDesigns = isDeck ? drawableSlides : state.sizes.length
+  const cost = unit !== null && nDesigns > 0 ? unit * nDesigns : null
+
   return (
     <StepShell title="Review and *start*"
       subtitle="Here’s what we’ll make. Press Start designing and we’ll get to work — you’ll see a progress screen, then your finished designs."
-      back="/design/sizes" nextLabel="Start designing" startMode
+      back={isDeck ? '/design/style' : '/design/sizes'} nextLabel="Start designing" startMode
       nextReady={ready_}
       nextHint={hint}
       onNext={() => router.push('/design/making')}>
@@ -90,6 +105,17 @@ export default function SummaryStep() {
             <div style={{ fontSize: 14, color: INK, minWidth: 0 }}>{r.v}</div>
           </div>
         ))}
+        {/* THE PRICE, on the screen where Start lives — never a surprise later. */}
+        {cost !== null && (
+          <div className="t2a-sum-row" style={{ display: 'flex', gap: 16, padding: '10px 0', borderTop: `1px solid ${LINE}` }}>
+            <div style={{ width: 120, flexShrink: 0, fontSize: 12, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: SOFT }}>Price</div>
+            <div style={{ fontSize: 14, color: INK, minWidth: 0 }}>
+              <strong>{cost.toLocaleString()} credits</strong>
+              {' '}({nDesigns} design{nDesigns === 1 ? '' : 's'} × {unit!.toLocaleString()})
+              {balance !== null && <span style={{ color: SOFT }}> · {Math.max(0, balance - cost).toLocaleString()} left after</span>}
+            </div>
+          </div>
+        )}
       </div>
       <style>{`@media (max-width: 560px) { .t2a-sum-row { flex-direction: column; gap: 2px !important; } }`}</style>
     </StepShell>

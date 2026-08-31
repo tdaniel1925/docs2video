@@ -45,6 +45,17 @@ export default function ContentStep() {
   const [planPreview, setPlanPreview] = useState<
     { title: string; purpose?: string; audience?: string; slides: { role: string; headline: string; lines: string[]; purpose?: string }[] } | null
   >(null)
+  // Price per design + credit balance — so "Make it a deck" can carry its cost
+  // ON the button (the commit moment), not two steps later.
+  const [unit, setUnit] = useState<number | null>(null)
+  const [balance, setBalance] = useState<number | null>(null)
+  useEffect(() => {
+    if (!planPreview || unit !== null) return
+    fetch('/api/flyer-history').then((r) => r.json()).then((r) => {
+      if (typeof r.unit === 'number') setUnit(r.unit)
+      if (typeof r.balance === 'number') setBalance(r.balance)
+    }).catch(() => { /* button falls back to slide count only */ })
+  }, [planPreview, unit])
 
   const dictation = useDictation((text) => setInput((v) => (v ? v + ' ' : '') + text),
     { onError: (m) => setNote(m) })
@@ -165,6 +176,21 @@ export default function ContentStep() {
       title: state.deckName || 'Your deck',
       slides: slides.map((s) => ({ role: s.role || 'point', headline: s.heading || 'Untitled', lines: s.bullets ?? [] })),
     }
+  }
+
+  // RE-PLAN AT A DIFFERENT LENGTH, keeping the user's edits. The old "Choose a
+  // different length" button did setPlanPreview(null) — one click destroyed
+  // every hand-edited headline and added slide. This re-fits the CURRENT slides
+  // to the new length instead.
+  const replanAtLength = async (length: 'short' | 'medium' | 'long') => {
+    if (busy || !planPreview) return
+    setDeckLength(length)
+    setMsgs((m) => [...m, { role: 'assistant', text: `Re-fitting the deck to ${length} — keeping your slides and edits…` }])
+    const parts = [
+      deckBrief || `The deck is titled "${planPreview.title}".`,
+      `The deck CURRENTLY has these slides — the user may have edited them by hand. Preserve their content and wording as much as the new length allows (merge or expand rather than rewrite):\n${serializeSlides(planPreview.slides)}`,
+    ].filter(Boolean)
+    await runPlan(length, parts.join('\n\n---\n'))
   }
 
   // CHAT ADJUSTMENT of a deck — while reviewing a plan OR after it's confirmed.
@@ -410,10 +436,26 @@ export default function ContentStep() {
               ))}
             </div>
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-              <button onClick={confirmPlan} disabled={busy} style={{ ...primaryBtn, padding: '10px 16px' }}>Make it a deck ({planPreview.slides.length} slides)</button>
-              <button onClick={() => setPlanPreview(null)} disabled={busy} style={plainBtn}>Choose a different length</button>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* THE COST LIVES ON THE COMMIT BUTTON. This is the moment the user
+                  decides — the price must be here, not two steps later. */}
+              <button onClick={confirmPlan} disabled={busy} style={{ ...primaryBtn, padding: '10px 16px' }}>
+                Make it a deck — {planPreview.slides.length} slides{unit !== null ? ` · ${(planPreview.slides.length * unit).toLocaleString()} credits` : ''}
+              </button>
+              {/* RESIZE WITHOUT LOSING WORK: these re-plan at the new length FROM
+                  the current (possibly hand-edited) slides. The old "Choose a
+                  different length" button wiped every edit with one click. */}
+              <span style={{ fontSize: 12, color: SOFT }}>Resize (keeps your edits):</span>
+              {(['short', 'medium', 'long'] as const).map((len) => (
+                <button key={len} disabled={busy} onClick={() => void replanAtLength(len)}
+                  style={{ ...plainBtn, padding: '6px 12px', fontSize: 12.5, textTransform: 'capitalize' }}>{len}</button>
+              ))}
             </div>
+            {unit !== null && balance !== null && (
+              <p style={{ fontSize: 12, color: SOFT, margin: '8px 0 0' }}>
+                You have {balance.toLocaleString()} credits · {Math.max(0, balance - planPreview.slides.length * unit).toLocaleString()} left after.
+              </p>
+            )}
           </div>
         )}
 

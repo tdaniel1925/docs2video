@@ -91,6 +91,11 @@ export default function MakingScreen() {
               sessionStorage.setItem('design:deckFailed', JSON.stringify({ roundId, slides: res.failedSlides }))
             } catch { /* worst case: no retry offer; slides are still visible */ }
           }
+          // The server spell-checks every slide — pass anything it flagged to
+          // results so the user hears about it BEFORE printing 500 copies.
+          if (res.misspelled.length) {
+            try { sessionStorage.setItem('design:spelling', JSON.stringify({ roundId, words: res.misspelled })) } catch { /* non-fatal */ }
+          }
           patch({ roundId, chatId })
           router.replace('/design/results')
           return
@@ -115,6 +120,12 @@ export default function MakingScreen() {
           }),
         }).then((x) => x.json())
         if (r?.error) { setErr(r.error); return }
+        // Surface the server's spelling check (it flags up to 3 dubious words
+        // per design) — results shows them so a typo never ships silently.
+        const flagged = [...new Set(((r?.images ?? []) as { misspelled?: string[] }[]).flatMap((i) => i.misspelled ?? []))]
+        if (flagged.length) {
+          try { sessionStorage.setItem('design:spelling', JSON.stringify({ roundId, words: flagged })) } catch { /* non-fatal */ }
+        }
         patch({ roundId, chatId })
         router.replace('/design/results')
       } catch {

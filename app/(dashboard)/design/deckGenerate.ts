@@ -39,7 +39,7 @@ export async function generateDeck(opts: {
   chatId: string
   onProgress?: (p: DeckProgress) => void
   signal?: AbortSignal
-}): Promise<{ made: number; failed: number; skipped: number; firstError: string | null; failedSlides: number[] }> {
+}): Promise<{ made: number; failed: number; skipped: number; firstError: string | null; failedSlides: number[]; misspelled: string[] }> {
   // Only slides with text can be restyled from their words.
   const drawable = opts.slides.filter((s) => !s.imageOnly)
   const skipped = opts.slides.length - drawable.length
@@ -47,6 +47,9 @@ export async function generateDeck(opts: {
   // WHICH slides failed (by their number), so the caller can offer "retry just
   // the missing ones" instead of making the user redo the whole deck.
   const failedSlides: number[] = []
+  // Words the server's spelling check flagged on ANY slide — the check already
+  // runs; collecting it here is what finally puts it in front of the user.
+  const misspelled = new Set<string>()
 
   for (const slide of drawable) {
     if (opts.signal?.aborted) break
@@ -87,7 +90,10 @@ export async function generateDeck(opts: {
           chatId: opts.chatId,
         }),
       }).then((x) => x.json())
-      if (r?.error) { failed++; failedSlides.push(slide.n); firstError ??= r.error } else { done++ }
+      if (r?.error) { failed++; failedSlides.push(slide.n); firstError ??= r.error } else {
+        done++
+        for (const img of (r?.images ?? [])) for (const w of (img?.misspelled ?? [])) misspelled.add(String(w))
+      }
     } catch (e) {
       if ((e as Error)?.name === 'AbortError') break
       failed++; failedSlides.push(slide.n); firstError ??= 'A slide could not be made.'
@@ -95,5 +101,5 @@ export async function generateDeck(opts: {
     opts.onProgress?.({ done, total: drawable.length, failed })
   }
 
-  return { made: done, failed, skipped, firstError, failedSlides }
+  return { made: done, failed, skipped, firstError, failedSlides, misspelled: [...misspelled] }
 }
