@@ -29,6 +29,8 @@ export async function generateDeck(opts: {
   /** Only true when the user confirmed they own the reference (allows close
    *  matching); otherwise the engine takes style inspiration only. */
   keepMotif?: boolean
+  /** RESTYLEZ: recreate the owned reference EXACTLY per slide (server re-gates). */
+  recreate?: boolean
   /** The user's logo and photos, placed on EVERY slide (a logo is placed as-is,
    *  never redrawn — the codebase rule). */
   photos?: { dataUrl: string; role: PhotoRole }[]
@@ -73,6 +75,7 @@ export async function generateDeck(opts: {
           templateId: opts.referenceDataUrl ? undefined : (opts.templateId ?? undefined),
           referenceDataUrl: opts.referenceDataUrl ?? undefined,
           keepMotif: Boolean(opts.referenceDataUrl && opts.keepMotif),
+          recreate: Boolean(opts.referenceDataUrl && opts.keepMotif && opts.recreate),
           sizeIds: ['slide-16x9'],
           fields,
           // The logo (and any photos) go on every slide so the deck is branded

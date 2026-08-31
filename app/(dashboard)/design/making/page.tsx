@@ -75,6 +75,8 @@ export default function MakingScreen() {
             // slide from it (own-it gate controls close matching).
             referenceDataUrl: state.reference?.dataUrl,
             keepMotif: Boolean(state.reference && state.referenceOwned),
+            // Restylez: exact remake of an OWNED reference (server re-checks the gate).
+            recreate: Boolean(state.recreate && state.reference && state.referenceOwned),
             // Logo + photos, placed on every slide.
             photos: state.photos.map((p) => ({ dataUrl: p.dataUrl, role: p.role })),
             brandColors: state.brandColors,
@@ -111,6 +113,8 @@ export default function MakingScreen() {
             fields: state.fields,
             referenceDataUrl: state.reference?.dataUrl,
             keepMotif: Boolean(state.reference && state.referenceOwned),
+            // Restylez: exact remake of an OWNED reference (gate re-checked server-side).
+            recreate: Boolean(state.recreate && state.reference && state.referenceOwned),
             photos: state.photos.map((p) => ({ dataUrl: p.dataUrl, role: p.role })),
             brandId: state.brandId ?? undefined,
             // Colours read off a website in the chat — used to tint only when no

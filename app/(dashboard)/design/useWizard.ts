@@ -82,6 +82,13 @@ export type WizardState = {
    * pass them along. Empty/undefined when no site was read.
    */
   brandColors?: string[]
+  /**
+   * RESTYLEZ FAITHFUL-RECREATE. The user came through the Restylez front door
+   * and asked for their owned design remade EXACTLY (same layout/artwork/type,
+   * only their content swapped in). The generator honors it only alongside a
+   * reference + referenceOwned — the own-it gate.
+   */
+  recreate?: boolean
 }
 
 const KEY = 'text2art:wizard'
