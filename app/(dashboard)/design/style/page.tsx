@@ -220,10 +220,17 @@ export default function StyleStep() {
             )}
             {state.brandColors && state.brandColors.length > 0 && (
               <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center' }}>
-                <span style={{ fontSize: 11.5, color: SOFT }}>Brand colours:</span>
+                <span style={{ fontSize: 11.5, color: SOFT }}>Brand colours (will tint the design):</span>
                 {state.brandColors.map((c, i) => (
                   <span key={i} title={c} style={{ width: 18, height: 18, borderRadius: 4, background: c, border: `1px solid ${LINE}` }} />
                 ))}
+                {/* Colours read off a site LINGER by design (they're the user's
+                    brand) — but they must be removable, or a colour from an old
+                    site read quietly tints every new style ("why is it green?"). */}
+                <button onClick={() => patch({ brandColors: [] })} aria-label="Remove brand colours"
+                  title="Stop tinting with these colours"
+                  style={{ width: 18, height: 18, borderRadius: 9, border: 'none', background: LINE, color: INK,
+                    fontSize: 12, lineHeight: 1, cursor: 'pointer', padding: 0 }}>×</button>
               </div>
             )}
           </div>

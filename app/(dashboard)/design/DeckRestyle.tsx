@@ -55,7 +55,11 @@ export function DeckRestyle({ deckSlides, deckName, patch }: {
   }
 
   const slides = deckSlides ?? []
-  const dropSlide = (n: number) => patch({ deckSlides: slides.filter((s) => s.n !== n) })
+  // Removing a slide RENUMBERS the rest (1..N). Without this, deleting slide 3
+  // left the list reading 1,2,4,5 — and the generated slides carried the same
+  // gaps ("Slide 4" with no Slide 3 anywhere in the deck).
+  const dropSlide = (n: number) =>
+    patch({ deckSlides: slides.filter((s) => s.n !== n).map((s, i) => ({ ...s, n: i + 1 })) })
   const imageOnly = slides.filter((s) => s.imageOnly).length
   const drawable = slides.length - imageOnly
 

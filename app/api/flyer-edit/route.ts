@@ -157,13 +157,23 @@ export async function POST(req: Request) {
   // One key per attempt, so a retry after a genuine failure is not swallowed
   // as a duplicate of the first refund.
   const started = Date.now()
+  // A refund is MONEY: one transient hiccup must not eat the user's credit.
+  // Try up to 3 times (the idempotency key makes double-landing impossible)
+  // before conceding to the loud log.
   const refund = async () => {
-    try {
-      await addTopupCredits(user.id, unit, `refund:flyer-edit:${designId}`, {
-        idempotencyKey: `refund:flyer-edit:${designId}:${started}`,
-      })
-    } catch (e) {
-      console.error(`[flyer-edit] REFUND FAILED user=${user.id} design=${designId}`, e)
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await addTopupCredits(user.id, unit, `refund:flyer-edit:${designId}`, {
+          idempotencyKey: `refund:flyer-edit:${designId}:${started}`,
+        })
+        return
+      } catch (e) {
+        if (attempt === 3) {
+          console.error(`[flyer-edit] REFUND FAILED after 3 tries user=${user.id} design=${designId} amount=${unit}`, e)
+          return
+        }
+        await new Promise((r) => setTimeout(r, 500 * attempt))
+      }
     }
   }
 
