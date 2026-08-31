@@ -2098,6 +2098,15 @@ export function flyerPrompt(
    * complaint that started all of this.
    */
   keepMotif = false,
+  /**
+   * RESTYLEZ FAITHFUL-RECREATE. The customer OWNS the reference (they bought
+   * the template, or it is their own design) and wants it reproduced EXACTLY —
+   * same layout, same artwork, same typography — with only THEIR content
+   * swapped in. This is the OPPOSITE of the style-guide reference block, which
+   * explicitly forbids reproduction. Callers must only set this behind the
+   * own-it gate; the API route enforces that as well.
+   */
+  recreate = false,
 ): string {
   // What ends up pictured, in priority order: what the customer asked for, or
   // the style's own motif if they chose to keep it, or nothing — in which case
@@ -2181,7 +2190,21 @@ export function flyerPrompt(
     reference && wants ? `SUBJECT — THIS IS WHAT THE DESIGN PICTURES: ${wants}\n` : '',
     // A REFERENCE REPLACES THE TEMPLATE. Both are an art direction, and giving
     // the model two at once produces a design that obeys neither.
-    reference
+    //
+    // RECREATE outranks the style-guide reading of the reference: the customer
+    // owns this design and asked for a faithful remake, not an homage.
+    reference && recreate
+      ? [
+          'RECREATE THE REFERENCE EXACTLY. The FIRST attached image is a design the customer OWNS (they bought this template or made it). Your job is to reproduce it as faithfully as a designer reopening the original file:',
+          '- the SAME layout: every element in the same position, same size, same alignment',
+          '- the SAME background, decorative artwork, shapes, borders and ornaments — reproduce them, do not reinterpret them',
+          '- the SAME colour palette, applied to the same elements',
+          '- the SAME typography: typeface feel, weights, sizes, letter spacing and placement for each text block',
+          'CHANGE ONLY THIS: replace the reference’s words with the TEXT TO RENDER below, each piece of text taking the place (and styling) of the equivalent text in the original. If the original has a text block with no replacement below, leave that area as elegant empty space in the same style — never keep the original’s words, names, dates, prices or contact details.',
+          'Replace any photographs of people or products with the customer’s attached photos when provided; otherwise reproduce the original imagery.',
+          'The finished piece should look like the ORIGINAL DESIGNER retyped the text — not like a new design in the same style.',
+        ].join('\n')
+      : reference
       ? [
           'DESIGN STYLE — TAKE DIRECTION FROM THE REFERENCE. The FIRST attached image is a reference design supplied by the customer. It is a style guide, NOT artwork to be reproduced. Match its look closely:',
           '- the same colour palette and how the colours are distributed',

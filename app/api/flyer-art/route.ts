@@ -47,6 +47,9 @@ export async function POST(req: Request) {
     subject?: string
     /** Keep the style's own props (the pumpkins, the disco ball) as well. */
     keepMotif?: boolean
+    /** RESTYLEZ: reproduce the reference EXACTLY with the customer's content
+     *  swapped in. Honored only with a reference + keepMotif (the own-it gate). */
+    recreate?: boolean
     /** The customer's own photographs, as data URLs, with what each one is. */
     photos?: { dataUrl: string; role: PhotoRole }[]
     /** A design to copy the LOOK of. Mutually exclusive with a template style —
@@ -351,7 +354,13 @@ export async function POST(req: Request) {
       // The customer's own words go in as THE SUBJECT, not as a footnote. See
       // the long note on flyerPrompt's `subject` — appending them at the end is
       // what made "change the burger to a radio ad" get quietly ignored.
-      const prompt = flyerPrompt(template, fields, size, roles, hasReference, bleed, subject, keepMotif)
+      //
+      // RESTYLEZ FAITHFUL-RECREATE — only with a reference AND the own-it flag
+      // (keepMotif is only ever sent after the customer confirms the design is
+      // theirs). Without both, a recreate request silently downgrades to the
+      // normal style-guide reference — never an unowned exact copy.
+      const recreate = Boolean(body?.recreate) && hasReference && keepMotif
+      const prompt = flyerPrompt(template, fields, size, roles, hasReference, bleed, subject, keepMotif, recreate)
         + brandDirection
 
     // Charge BEFORE generating, refund if it fails — the same order the video
