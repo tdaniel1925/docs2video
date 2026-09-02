@@ -10,6 +10,7 @@ import { ApexKinetic, APEX_KINETIC_FRAMES } from './ApexKinetic'
 import { ApexGrid, APEX_GRID_FRAMES } from './ApexGrid'
 import { ApexVox, APEX_VOX_FRAMES } from './ApexVox'
 import { ApexFlat, APEX_FLAT_FRAMES } from './ApexFlat'
+import { RestylezLaunch, RESTYLEZ_FRAMES, RESTYLEZ_FPS } from './RestylezLaunch'
 import { loadFont as loadArchivo } from '@remotion/google-fonts/Archivo'
 import { loadFont as loadInter } from '@remotion/google-fonts/Inter'
 import { AuroraExplainer, totalFrames } from './AuroraExplainer'
@@ -756,6 +757,8 @@ export const RemotionRoot: React.FC = () => {
       height={1080}
       durationInFrames={STEAM_FRAMES}
     />
+    {/* Restylez launch commercial — fast, yellow, real outputs. */}
+    <Composition id="RestylezLaunch" component={RestylezLaunch} fps={RESTYLEZ_FPS} width={1920} height={1080} durationInFrames={RESTYLEZ_FRAMES} />
     </>
   )
 }
