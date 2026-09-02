@@ -143,10 +143,10 @@ const SlamBeat: React.FC<{ hold: number }> = ({ hold }) => {
 // ---- BEAT 3 — premium work: four real pieces land like prints on a table ----
 const PremiumBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const pieces = [
-    { src: 'summit-after.jpg', w: 330, x: 120, y: 90, rot: -4, label: 'Gold invite' },
-    { src: 'jordyn-slide-1.jpg', w: 560, x: 470, y: 130, rot: 2, label: 'Investor deck' },
-    { src: 'club-after.jpg', w: 300, x: 1060, y: 80, rot: -2, label: 'Club flyer' },
-    { src: 'salsa-restyle.jpg', w: 300, x: 1400, y: 140, rot: 3, label: 'Gig poster' },
+    { src: 'gym-after.jpg', w: 330, x: 120, y: 90, rot: -4, label: 'Gym flyer' },
+    { src: 'jordyn-slide-2.jpg', w: 560, x: 470, y: 130, rot: 2, label: 'Investor deck' },
+    { src: 'supper-gold.jpg', w: 300, x: 1060, y: 80, rot: -2, label: 'Diner, restyled' },
+    { src: 'salsa-photo.jpg', w: 300, x: 1400, y: 140, rot: 3, label: 'Gig poster + photo' },
   ]
   return (
     <Ground bg={CREAM}>

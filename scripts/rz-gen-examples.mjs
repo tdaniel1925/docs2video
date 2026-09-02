@@ -73,5 +73,31 @@ try {
     const r = await post('/api/remake', { imageDataUrl: await toDataUrl(TPL + 'music-salsa-night.png'), owned: true, restyle: { lookDataUrl: await toDataUrl(TPL + 'business-awards-night.png') } })
     await save(r.png, 'salsa-restyle.jpg')
   }
+  // 7. GYM DECK — the remade gym flyer as the look for a 3-slide deck
+  if (want('gymdeck')) {
+    const look = await toDataUrl(OUT + 'gym-after.jpg')
+    const o = await post('/api/outline', { topic: 'Forge Fitness six-week challenge results. Members: 1,240 in Q1, 1,910 in Q2, 2,480 in Q3, 3,105 in Q4. 96% finished the programme. Average strength gain 38%. Next challenge starts 3 March.', owned: true })
+    const pick = [o.slides[0], o.slides.find((x) => x.chart) || o.slides[1], { title: 'Six weeks, by the numbers', layout: 'stat', bullets: ['3,105 members', '96% finished', '38% stronger'] }]
+    for (let i = 0; i < pick.length; i++) { const r = await post('/api/slide', { lookDataUrl: look, slide: pick[i], index: i, total: pick.length, owned: true }); await save(r.png, `gym-slide-${i + 1}.jpg`) }
+  }
+  // 8. BLOCK PARTY — a community flyer in other formats
+  if (want('party')) {
+    await sharp(TPL + 'community-block-party.png').resize(1100, 1100, { fit: 'inside' }).jpeg({ quality: 88 }).toFile(OUT + 'party-flyer.jpg')
+    const src = await toDataUrl(TPL + 'community-block-party.png')
+    const N = { 'biz-card': 'This is a BUSINESS CARD. Keep only the event name, the date and the one line of contact or website. Drop everything else. Big and readable.', 'ig-post': 'This is an INSTAGRAM POST. Keep the event name, date, place and one call to action. Drop small print.', 'postcard': 'FRONT OF A POSTCARD. Keep the event name, date, place and the main picture. Drop small print.' }
+    for (const [sizeId, name] of [['biz-card', 'party-card.jpg'], ['ig-post', 'party-social.jpg'], ['postcard', 'party-postcard.jpg']]) { const r = await post('/api/remake', { imageDataUrl: src, owned: true, resize: { sizeId }, changes: N[sizeId] }); await save(r.png, name) }
+  }
+  // 9. POOL PARTY — new words on the pool-party flyer
+  if (want('pool')) {
+    await sharp(TPL + 'nightlife-pool-party.png').resize(1100, 1100, { fit: 'inside' }).jpeg({ quality: 88 }).toFile(OUT + 'pool-before.jpg')
+    const r = await post('/api/remake', { imageDataUrl: await toDataUrl(TPL + 'nightlife-pool-party.png'), owned: true, changes: 'Change SATURDAY NIGHT to SUNDAY AFTERNOON. Change the date line to "SUN 6 JULY · FROM 2PM". Change THE FOUNDRY to THE ROOFTOP. Change $20 DOOR to $25 DOOR. Keep everything else exactly the same.' })
+    await save(r.png, 'pool-after.jpg')
+  }
+  // 10. GOSPEL NIGHT → watercolour look
+  if (want('gospel')) {
+    await sharp(TPL + 'gospel-night.png').resize(1100, 1100, { fit: 'inside' }).jpeg({ quality: 88 }).toFile(OUT + 'gospel-before.jpg')
+    const r = await post('/api/remake', { imageDataUrl: await toDataUrl(TPL + 'gospel-night.png'), owned: true, restyle: { lookDataUrl: await toDataUrl(OUT + 'ref3-slide-1.jpg') } })
+    await save(r.png, 'gospel-restyle.jpg')
+  }
 } catch (e) { console.error('FAILED:', e.message) }
 await browser.close()
