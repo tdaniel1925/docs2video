@@ -61,5 +61,17 @@ try {
     const SN = { 'biz-card': 'This is a BUSINESS CARD. Keep only: the neon "Supper Club" sign, "Every Friday · from 5pm", "The Corner Table", and "Book a table". Drop the food photo and the price. Big and readable.', 'ig-post': 'This is an INSTAGRAM POST. Keep the neon sign, the food photo as the hero, "Every Friday · from 5pm", "$28 per head" and "Book a table". Drop the rest. Big readable type.' }
     for (const [sizeId, name] of [['biz-card', 'supper-card.jpg'], ['ig-post', 'supper-social.jpg']]) { const r = await post('/api/remake', { imageDataUrl: src, owned: true, resize: { sizeId }, changes: SN[sizeId] }); await save(r.png, name) }
   }
+  // 5. GROWTH SUMMIT — gold invite, new words
+  if (want('summit')) {
+    await sharp(TPL + 'business-awards-night.png').resize(1100, 1100, { fit: 'inside' }).jpeg({ quality: 88 }).toFile(OUT + 'summit-before.jpg')
+    const r = await post('/api/remake', { imageDataUrl: await toDataUrl(TPL + 'business-awards-night.png'), owned: true, changes: 'Change GROWTH SUMMIT to FOUNDERS DINNER. Change the date line to "FRIDAY 7 NOVEMBER · 7PM". Change THE EXCHANGE to THE GRAND HALL. Keep the gold style, layout and everything else exactly the same.' })
+    await save(r.png, 'summit-after.jpg')
+  }
+  // 6. LONG WAY HOME — gig poster restyled into the gold invite look
+  if (want('salsa')) {
+    await sharp(TPL + 'music-salsa-night.png').resize(1100, 1100, { fit: 'inside' }).jpeg({ quality: 88 }).toFile(OUT + 'salsa-before.jpg')
+    const r = await post('/api/remake', { imageDataUrl: await toDataUrl(TPL + 'music-salsa-night.png'), owned: true, restyle: { lookDataUrl: await toDataUrl(TPL + 'business-awards-night.png') } })
+    await save(r.png, 'salsa-restyle.jpg')
+  }
 } catch (e) { console.error('FAILED:', e.message) }
 await browser.close()

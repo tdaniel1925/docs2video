@@ -100,7 +100,7 @@ const ProblemBeat: React.FC<{ hold: number }> = ({ hold }) => {
           <svg style={{ position: 'absolute', left: cx, top: cy, width: 44, height: 52, filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.3))' }} viewBox="0 0 24 28"><path d="M3 2 L3 22 L8.5 17 L12 26 L15.5 24.5 L12 16 L19 16 Z" fill={INK} stroke={WHITE} strokeWidth="1.5" /></svg>
         </AbsoluteFill>
       </Alive>
-      <Head pos="top" size={74} at={2} text={<>You bought the template.<br /><span style={{ color: BLUE }}>Now you have to design?</span></>} />
+      <Head pos="top" size={74} at={2} text={<>Still dragging boxes around<br /><span style={{ color: BLUE }}>at midnight?</span></>} />
       <SettleSweep color={WHITE} hold={hold} />
     </Ground>
   )
@@ -122,13 +122,44 @@ const SlamBeat: React.FC<{ hold: number }> = ({ hold }) => {
           </div>
         </AbsoluteFill>
       </Alive>
-      <Head pos="bottom" at={14} kicker="Nope." kColor={SUN} color={WHITE} size={66} text="Never open Canva again." />
+      {/* the three phrases land one at a time across the long hold */}
+      <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', padding: '0 0 96px' }}>
+        <div style={{ textAlign: 'center', maxWidth: 1500 }}>
+          <div style={{ fontWeight: 800, fontSize: 24, letterSpacing: '0.18em', textTransform: 'uppercase', color: SUN, marginBottom: 14, opacity: clamp(pop(frame, 14) * 1.5, 0, 1) }}>The first AI graphic designer in a box</div>
+          <div style={{ fontWeight: 900, fontSize: 62, color: WHITE, lineHeight: 1.06, letterSpacing: '-0.03em', paddingBottom: '0.06em' }}>
+            {['Agency quality.', 'Agency speed.', 'Not agency prices.'].map((w, i) => {
+              const at = sustained(i, 3, Math.round(hold * 0.75), 40)
+              const q = pop(frame, at, 11)
+              return <span key={w} style={{ display: 'inline-block', margin: '0 12px', color: i === 2 ? SUN : WHITE, opacity: clamp(q * 2, 0, 1), transform: `translateY(${(1 - clamp(q, 0, 1)) * 30}px) scale(${0.9 + 0.1 * clamp(q, 0, 1)})` }}>{w}</span>
+            })}
+          </div>
+        </div>
+      </AbsoluteFill>
       <SettleSweep color={SUN} hold={hold} />
     </Ground>
   )
 }
 
-// ---- BEAT 3 — one reference → every format --------------------------------
+// ---- BEAT 3 — premium work: four real pieces land like prints on a table ----
+const PremiumBeat: React.FC<{ hold: number }> = ({ hold }) => {
+  const pieces = [
+    { src: 'summit-after.jpg', w: 330, x: 120, y: 90, rot: -4, label: 'Gold invite' },
+    { src: 'jordyn-slide-1.jpg', w: 560, x: 470, y: 130, rot: 2, label: 'Investor deck' },
+    { src: 'club-after.jpg', w: 300, x: 1060, y: 80, rot: -2, label: 'Club flyer' },
+    { src: 'salsa-restyle.jpg', w: 300, x: 1400, y: 140, rot: 3, label: 'Gig poster' },
+  ]
+  return (
+    <Ground bg={CREAM}>
+      <Alive>
+        {pieces.map((o, i) => <Card key={o.src} {...o} at={sustained(i, pieces.length, Math.round(hold * 0.7), 4)} />)}
+      </Alive>
+      <Head pos="bottom" at={6} size={60} kicker="Premium work" text={<>For your business — <span style={{ color: BLUE }}>or your clients.</span></>} />
+      <SettleSweep color={WHITE} hold={hold} />
+    </Ground>
+  )
+}
+
+// ---- BEAT 4 — one design → every format --------------------------------------
 const FanBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const outs = [
     { src: 'jordyn-slide-1.jpg', w: 400, x: 700, y: 100, rot: -2, label: 'Slide' },
@@ -145,14 +176,14 @@ const FanBeat: React.FC<{ hold: number }> = ({ hold }) => {
         <div style={{ position: 'absolute', left: 560, top: 380, fontSize: 70, fontWeight: 900, color: BLUE, opacity: 0.9 }}>→</div>
         {outs.map((o, i) => <Card key={o.src} {...o} at={sustained(i, outs.length, hold, 14)} />)}
       </Alive>
-      <Head pos="bottom" at={6} size={56} text={<>Paste any design you own. <span style={{ color: BLUE }}>Get everything back</span> in that exact look.</>} />
+      <Head pos="bottom" at={6} size={56} text={<>Show it one design. <span style={{ color: BLUE }}>Get every format back</span> in that exact look.</>} />
       <SettleSweep color={WHITE} hold={hold} />
     </Ground>
   )
 }
 
 // ---- BEATS 4 + 5 — before → after (words change / look changes) -----------
-const BeforeAfter: React.FC<{ hold: number; after: string; bg: string; kicker: string; head: React.ReactNode; tint: string }> = ({ hold, after, bg, kicker, head, tint }) => {
+const BeforeAfter: React.FC<{ hold: number; after: string; before?: string; bg: string; kicker: string; head: React.ReactNode; tint: string }> = ({ hold, after, before = 'club-before.jpg', bg, kicker, head, tint }) => {
   const frame = useCurrentFrame()
   const at = Math.round(hold * 0.34)
   const wipe = clamp((frame - at) / 20, 0, 1)
@@ -161,12 +192,12 @@ const BeforeAfter: React.FC<{ hold: number; after: string; bg: string; kicker: s
   return (
     <Ground bg={bg}>
       <Alive>
-        <Card src="club-before.jpg" w={w} x={330} y={y} at={2} rot={-2} label="Before" labelColor={MUTE} />
+        <Card src={before} w={w} x={330} y={y} at={2} rot={-2} label="Before" labelColor={MUTE} />
         <div style={{ position: 'absolute', left: 880, top: 420, fontSize: 90, fontWeight: 900, color: tint, transform: `scale(${pop(frame, 10)})` }}>→</div>
         {/* after: the before flyer sits there, then the new one wipes over it top→bottom */}
         <div style={{ position: 'absolute', left: x, top: y + Math.sin(frame * 0.03) * 3, width: w, opacity: clamp(pop(frame, 6) * 2, 0, 1) }}>
           <div style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', boxShadow: '0 30px 60px rgba(20,22,26,0.28)' }}>
-            <Img src={R('club-before.jpg')} style={{ width: '100%', display: 'block' }} />
+            <Img src={R(before)} style={{ width: '100%', display: 'block' }} />
             <div style={{ position: 'absolute', inset: 0, clipPath: `inset(0 0 ${(1 - ease) * 100}% 0)` }}>
               <Img src={R(after)} style={{ width: '100%', display: 'block' }} />
             </div>
@@ -226,7 +257,7 @@ const DeckBeat: React.FC<{ hold: number }> = ({ hold }) => {
           </div>
         </div>
       </Alive>
-      <Head pos="bottom" at={4} size={54} color={WHITE} kicker="Decks are the headline act" kColor={SUN} text={<>Document, PowerPoint, or just a topic — every slide comes back <span style={{ color: SUN }}>the right kind.</span></>} />
+      <Head pos="bottom" at={4} size={54} color={WHITE} kicker="Whole decks" kColor={SUN} text={<>From a document or a topic — <span style={{ color: SUN }}>charts stay charts, numbers stay exact.</span></>} />
       <SettleSweep color={SUN} hold={hold} />
     </Ground>
   )
@@ -277,7 +308,7 @@ const PptxBeat: React.FC<{ hold: number }> = ({ hold }) => {
           </div>
         </div>
       </Alive>
-      <Head pos="bottom" at={4} size={54} kicker="PowerPoint Editor & Customizer" text={<>Still a real <span style={{ color: BLUE }}>.pptx</span>. Hand it a multi-slide pack — it picks the six you need.</>} />
+      <Head pos="bottom" at={4} size={54} kicker="PowerPoint Editor & Customizer" text={<>Real, editable <span style={{ color: BLUE }}>.pptx</span>. Hand it a template pack — it picks the slides you need.</>} />
       <SettleSweep color={WHITE} hold={hold} />
     </Ground>
   )
@@ -290,7 +321,7 @@ const SizesBeat: React.FC<{ hold: number }> = ({ hold }) => {
   return (
     <Ground bg={SUN}>
       <Alive>
-        <div style={{ position: 'absolute', left: 120, top: 120, width: 1680, height: 560, display: 'flex', flexWrap: 'wrap', gap: 40, alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'absolute', left: 120, top: 250, width: 1680, height: 420, display: 'flex', flexWrap: 'wrap', gap: 32, alignItems: 'center', justifyContent: 'center' }}>
           {sizes.map(([n, d, w, h], i) => {
             const at = sustained(i, sizes.length, Math.round(hold * 0.8), 2)
             const p = pop(frame, at, 10)
@@ -302,84 +333,73 @@ const SizesBeat: React.FC<{ hold: number }> = ({ hold }) => {
             )
           })}
         </div>
-        <Stamp text="300 DPI · full bleed" at={Math.round(hold * 0.55)} x={1180} y={560} rot={-7} color={INK} />
-      </Alive>
-      <Head pos="bottom" at={4} size={64} text={<>Every size. <span style={{ color: BLUE }}>Print-ready.</span> Straight to the printer.</>} />
-      <SettleSweep color={WHITE} hold={hold} />
-    </Ground>
-  )
-}
-
-// ---- BEAT 9 — brands: URL → logo + colours → on every slide ---------------
-const BrandBeat: React.FC<{ hold: number }> = ({ hold }) => {
-  const frame = useCurrentFrame()
-  const url = 'jordyn.app'
-  const typed = url.slice(0, Math.floor(clamp(frame / 26, 0, 1) * url.length))
-  const found = clamp((frame - 34) / 12, 0, 1)
-  const swatches = ['#c8553d', '#2b2b2b', '#4a5d4e', '#f6f1e8']
-  const slides = ['jordyn-slide-1.jpg', 'jordyn-slide-2.jpg', 'jordyn-slide-3.jpg']
-  return (
-    <Ground bg={CREAM}>
-      <Alive>
-        <div style={{ position: 'absolute', left: 120, top: 130, width: 640 }}>
-          <div style={{ background: WHITE, border: `3px solid ${BLUE}`, borderRadius: 10, padding: '18px 24px', fontSize: 30, fontWeight: 700, color: INK, boxShadow: '0 20px 40px rgba(20,22,26,0.15)' }}>
-            <span style={{ color: MUTE }}>https://</span>{typed}<span style={{ opacity: Math.floor(frame / 8) % 2 ? 1 : 0, color: BLUE }}>|</span>
-          </div>
-          <div style={{ marginTop: 36, opacity: found, transform: `translateY(${(1 - found) * 24}px)` }}>
-            <div style={{ fontWeight: 800, fontSize: 20, color: MUTE, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Found on your site</div>
-            <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginTop: 16 }}>
-              <div style={{ width: 200, height: 110, background: WHITE, borderRadius: 8, boxShadow: '0 10px 30px rgba(20,22,26,0.15)', overflow: 'hidden' }}><Img src={R('jordyn-logo.png')} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 6, boxSizing: 'border-box' }} /></div>
-              {swatches.map((c, i) => <div key={c} style={{ width: 64, height: 64, borderRadius: 8, background: c, border: '3px solid #fff', boxShadow: '0 8px 20px rgba(20,22,26,0.2)', transform: `scale(${pop(frame, 40 + i * 4)})` }} />)}
-            </div>
-          </div>
-        </div>
-        {slides.map((sl, i) => {
-          const at = 30 + i * 8
-          const land = clamp((frame - (56 + i * 6)) / 10, 0, 1)
+        <Stamp text="300 DPI · full bleed" at={Math.round(hold * 0.4)} x={1180} y={560} rot={-7} color={INK} />
+        {/* coming soon: the next formats slide up late in the beat */}
+        {['Tri-fold', 'Brochure', 'Booklet', 'Magazine'].map((n, i) => {
+          const at = Math.round(hold * 0.55) + i * 6
+          const p = pop(frame, at, 11)
           return (
-            <div key={sl} style={{ position: 'absolute', left: 860, top: 110 + i * 190, width: 900, height: 170, transform: `translateX(${(1 - pop(frame, at)) * 200}px)`, opacity: clamp(pop(frame, at) * 2, 0, 1) }}>
-              <div style={{ position: 'relative', width: 255, height: 170, borderRadius: 8, overflow: 'hidden', boxShadow: '0 16px 30px rgba(20,22,26,0.2)', marginLeft: i * 200 }}>
-                <Img src={R(sl)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                {/* logo mark lands bottom-right (pinned by code on every slide) */}
-                <div style={{ position: 'absolute', right: 8, bottom: 8, width: 60, height: 34, borderRadius: 4, background: WHITE, overflow: 'hidden', transform: `scale(${1 + (1 - land) * 3})`, opacity: land, boxShadow: `0 0 0 ${(1 - land) * 12}px ${SUN}88` }}>
-                  <Img src={R('jordyn-logo.png')} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 6, boxSizing: 'border-box' }} />
-                </div>
-              </div>
+            <div key={n} style={{ position: 'absolute', left: 150 + i * 420, top: 700 + (1 - clamp(p, 0, 1)) * 200, width: 380, background: INK, color: SUN, borderRadius: 10, padding: '16px 22px', boxShadow: '0 20px 40px rgba(20,22,26,0.3)', opacity: clamp(p * 2, 0, 1), display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontWeight: 900, fontSize: 30 }}>{n}</span><span style={{ fontWeight: 800, fontSize: 14, letterSpacing: '0.12em', textTransform: 'uppercase', color: CORAL }}>Coming soon</span>
             </div>
           )
         })}
       </Alive>
-      <Head pos="bottom" at={4} size={58} kicker="Brands" text={<>Type your website. <span style={{ color: BLUE }}>Your logo and colours</span> land on everything.</>} />
+      <Head pos="top" at={4} size={58} text={<>Every size, print-ready — <span style={{ color: BLUE }}>and more formats on the way.</span></>} />
       <SettleSweep color={WHITE} hold={hold} />
     </Ground>
   )
 }
 
-// ---- BEAT 10 — price -------------------------------------------------------
-const PriceBeat: React.FC<{ hold: number }> = ({ hold }) => {
+// ---- BEAT 9 — the money: agency / freelancer / Canva tags fall, $35 slams in ----
+const PriceTagBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const frame = useCurrentFrame()
-  const cards = [['Flyer', 10, 'supper-flyer.jpg'], ['Whole deck', 35, 'jordyn-slide-2.jpg'], ['Business card', 6, 'supper-card.jpg']] as const
+  const tags = [
+    { t: 'Design agency', p: '$700', per: 'a month', x: 200, at: 6, rot: -6 },
+    { t: 'Freelancer', p: '$1,500', per: 'one deck', x: 700, at: 18, rot: 4 },
+    { t: 'Canva', p: '$18', per: 'a month + your weekend', x: 1200, at: 30, rot: -3 },
+  ]
+  const slamAt = Math.round(hold * 0.52)
+  const slam = clamp(spring({ frame: frame - slamAt, fps: FPS, config: { damping: 10, stiffness: 260, mass: 1 } }), 0, 1)
+  const knock = clamp((frame - slamAt - 2) / 16, 0, 1)
+  const binAt = slamAt + 14
+  const drop = clamp((frame - binAt) / 18, 0, 1)
   return (
     <Ground bg={INK}>
       <Alive intensity={0.6}>
-        <div style={{ position: 'absolute', left: 0, right: 0, top: 110, display: 'flex', justifyContent: 'center', gap: 44 }}>
-          {cards.map(([n, price, img], i) => {
-            const at = sustained(i, 3, Math.round(hold * 0.6), 4)
-            const p = pop(frame, at, 12)
-            return (
-              <div key={n} style={{ width: 430, background: WHITE, borderRadius: 10, overflow: 'hidden', boxShadow: '0 30px 60px rgba(0,0,0,0.5)', transform: `translateY(${(1 - clamp(p, 0, 1)) * 80}px) scale(${0.85 + 0.15 * p})`, opacity: clamp(p * 2, 0, 1) }}>
-                <div style={{ height: 240, overflow: 'hidden' }}><Img src={R(img)} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: '50% 20%' }} /></div>
-                <div style={{ padding: '22px 28px 28px' }}>
-                  <div style={{ fontWeight: 800, fontSize: 24, color: MUTE }}>{n}</div>
-                  <div style={{ fontWeight: 900, fontSize: 84, color: INK, lineHeight: 1.05, letterSpacing: '-0.03em' }}><CountUp to={price} prefix="$" decimals={0} startAt={at + 4} dur={16} /></div>
-                </div>
-              </div>
-            )
-          })}
+        {tags.map((g, i) => {
+          const p = pop(frame, g.at, 9)
+          // the first two get knocked off-screen by the slam; Canva drops into the bin
+          const isCanva = i === 2
+          const fly = isCanva ? 0 : knock
+          const dy = isCanva ? drop * 520 : -fly * 900
+          const dx = isCanva ? drop * 190 : (i === 0 ? -1 : 1) * fly * 700
+          const rot = g.rot * (2 - clamp(p, 0, 1)) + (isCanva ? drop * 70 : fly * (i === 0 ? -160 : 160))
+          const sc = isCanva ? 1 - drop * 0.55 : 1
+          return (
+            <div key={g.t} style={{ position: 'absolute', left: g.x + dx, top: 120 - (1 - clamp(p, 0, 1)) * 400 + dy, width: 400, background: WHITE, borderRadius: 10, padding: '22px 26px', boxShadow: '0 30px 60px rgba(0,0,0,0.55)', transform: `rotate(${rot}deg) scale(${sc})`, opacity: clamp(p * 2, 0, 1) * (isCanva ? 1 - drop * 0.3 : 1) }}>
+              <div style={{ fontWeight: 800, fontSize: 22, color: MUTE }}>{g.t}</div>
+              <div style={{ fontWeight: 900, fontSize: 84, color: INK, lineHeight: 1, letterSpacing: '-0.03em', marginTop: 4 }}>{g.p}</div>
+              <div style={{ fontWeight: 700, fontSize: 20, color: CORAL, marginTop: 6 }}>{g.per}</div>
+            </div>
+          )
+        })}
+        {/* the bin — a plain drawn bin, no icon */}
+        <div style={{ position: 'absolute', left: 1440, top: 560, opacity: clamp((frame - binAt + 10) / 10, 0, 1) }}>
+          <div style={{ width: 240, height: 22, background: '#3a3f4b', borderRadius: 6, marginLeft: -10 }} />
+          <div style={{ width: 220, height: 200, background: 'linear-gradient(90deg, #4a5060, #2c3039)', borderRadius: '0 0 10px 10px', marginTop: 6 }} />
         </div>
-        <Stamp text="First piece free" at={Math.round(hold * 0.66)} x={1290} y={600} rot={-8} color={SUN} />
+        {/* the slam */}
+        <div style={{ position: 'absolute', left: 340, top: 110, width: 1240, background: SUN, borderRadius: 10, padding: '30px 40px', boxShadow: '0 50px 100px rgba(0,0,0,0.6)', transform: `scale(${3 - 2 * slam}) rotate(${(1 - slam) * -8 - 2}deg)`, opacity: clamp(slam * 3, 0, 1), transformOrigin: '50% 50%' }}>
+          <div style={{ fontWeight: 800, fontSize: 26, color: INK, opacity: 0.75 }}>Restylez</div>
+          <div style={{ display: 'flex', gap: 60, alignItems: 'flex-end', marginTop: 4 }}>
+            <div><div style={{ fontWeight: 900, fontSize: 150, color: INK, lineHeight: 1, letterSpacing: '-0.04em' }}>$35</div><div style={{ fontWeight: 800, fontSize: 30, color: INK }}>a whole deck</div></div>
+            <div><div style={{ fontWeight: 900, fontSize: 150, color: INK, lineHeight: 1, letterSpacing: '-0.04em' }}>$10</div><div style={{ fontWeight: 800, fontSize: 30, color: INK }}>a flyer</div></div>
+          </div>
+        </div>
+        <Stamp text="Canva → trash" at={binAt + 12} x={1180} y={470} rot={-10} color={CORAL} />
       </Alive>
-      <Head pos="bottom" at={4} size={56} color={WHITE} kicker="Pay per finished piece — no subscription" kColor={SUN} text={<>A flyer for <span style={{ color: SUN }}>$10</span>. A whole deck for <span style={{ color: SUN }}>$35</span>.</>} />
+      <Head pos="bottom" at={4} size={56} color={WHITE} kicker="Prices you can see" kColor={SUN} text={<>Agency quality. <span style={{ color: SUN }}>Not agency prices.</span></>} />
       <SettleSweep color={SUN} hold={hold} />
     </Ground>
   )
@@ -399,7 +419,7 @@ const CtaBeat: React.FC<{ hold: number }> = ({ hold }) => {
           </div>
         </AbsoluteFill>
         <div style={{ position: 'absolute', left: 0, right: 0, bottom: 96, textAlign: 'center', opacity: fade }}>
-          <div style={{ fontWeight: 900, fontSize: 70, color: INK, letterSpacing: '-0.03em', transform: `translateY(${(1 - pop(frame, 12)) * 30}px)`, opacity: clamp(pop(frame, 12) * 2, 0, 1) }}>Any design. Every format you need.</div>
+          <div style={{ fontWeight: 900, fontSize: 70, color: INK, letterSpacing: '-0.03em', transform: `translateY(${(1 - pop(frame, 12)) * 30}px)`, opacity: clamp(pop(frame, 12) * 2, 0, 1) }}>Everything graphic design. One place.</div>
           <div style={{ marginTop: 22, display: 'inline-block', background: INK, color: SUN, fontWeight: 800, fontSize: 34, padding: '14px 36px', borderRadius: 10, transform: `scale(${pop(frame, 22)})` }}>restylez.app</div>
         </div>
       </Alive>
@@ -411,15 +431,15 @@ const CtaBeat: React.FC<{ hold: number }> = ({ hold }) => {
 type Beat = { dur: number; el: (hold: number) => React.ReactNode; impact?: boolean }
 const BEATS: Beat[] = [
   { dur: s(D[0] + 0.35), el: (h) => <ProblemBeat hold={h} /> },
-  { dur: s(D[1] + 0.7), el: (h) => <SlamBeat hold={h} />, impact: true },
-  { dur: s(D[2] + 0.3), el: (h) => <FanBeat hold={h} /> },
-  { dur: s(D[3] + 0.3), el: (h) => <BeforeAfter hold={h} after="club-after.jpg" bg={SUN} tint={BLUE} kicker="Same style, different content" head={<>Your night, your words — <span style={{ color: BLUE }}>nothing else moves.</span></>} /> },
-  { dur: s(D[4] + 0.3), el: (h) => <BeforeAfter hold={h} after="club-restyle.jpg" bg={CREAM} tint={CORAL} kicker="Same content, different style" head={<>Keep every word, <span style={{ color: CORAL }}>borrow a whole new look.</span></>} /> },
-  { dur: s(D[5] + 0.3), el: (h) => <DeckBeat hold={h} /> },
-  { dur: s(D[6] + 0.3), el: (h) => <PptxBeat hold={h} /> },
-  { dur: s(D[7] + 0.3), el: (h) => <SizesBeat hold={h} /> },
-  { dur: s(D[8] + 0.3), el: (h) => <BrandBeat hold={h} /> },
-  { dur: s(D[9] + 0.3), el: (h) => <PriceBeat hold={h} /> },
+  { dur: s(D[1] + 0.6), el: (h) => <SlamBeat hold={h} />, impact: true },
+  { dur: s(D[2] + 0.4), el: (h) => <PremiumBeat hold={h} /> },
+  { dur: s(D[3] + 0.3), el: (h) => <FanBeat hold={h} /> },
+  { dur: s(D[4] + 0.4), el: (h) => <BeforeAfter hold={h} after="club-after.jpg" bg={SUN} tint={BLUE} kicker="Same style, different content" head={<>New night, new words — <span style={{ color: BLUE }}>nothing else moves.</span></>} /> },
+  { dur: s(D[5] + 0.4), el: (h) => <BeforeAfter hold={h} before="salsa-before.jpg" after="salsa-restyle.jpg" bg={CREAM} tint={CORAL} kicker="Same content, different style" head={<>Keep your words, <span style={{ color: CORAL }}>borrow a whole new look.</span></>} /> },
+  { dur: s(D[6] + 0.3), el: (h) => <DeckBeat hold={h} /> },
+  { dur: s(D[7] + 0.3), el: (h) => <PptxBeat hold={h} /> },
+  { dur: s(D[8] + 0.4), el: (h) => <PriceTagBeat hold={h} />, impact: true },
+  { dur: s(D[9] + 0.4), el: (h) => <SizesBeat hold={h} /> },
   { dur: s(D[10] + 1.6), el: (h) => <CtaBeat hold={h} />, impact: true },
 ]
 const rawStarts: number[] = []; { let t = 0; for (const b of BEATS) { rawStarts.push(t); t += b.dur } }
@@ -438,7 +458,7 @@ export const RestylezLaunch: React.FC = () => {
       {BEATS.map((b, i) => (
         <Sequence key={i} from={starts[i]} durationInFrames={durs[i] + 6}>
           {b.el(durs[i])}
-          {i > 1 && i < 10 && <LogoBug src="restylez/logo.png" width={170} opacity={0.95} />}
+          {i !== 1 && i !== 10 && <LogoBug src="restylez/logo.png" width={170} opacity={0.95} />}
           {i > 0 && <StreakWipe color={i % 2 ? WHITE : SUN} dir={i % 2 ? 1 : -1} dur={10} />}
         </Sequence>
       ))}

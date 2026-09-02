@@ -10,17 +10,17 @@ mkdirSync(OUT, { recursive: true })
 
 // No "..." (TTS choke). Canva named once. Numbers spoken as words.
 const LINES = [
-  `You bought the template. Now you have to design?`,
-  `Nope. Meet Restylez.`,
-  `Paste any design you own. Get everything back in that exact look. The deck, the flyer, the cards, the posts.`,
-  `Same style, different content. Your event, your words, nothing else moves.`,
-  `Same content, different style. Keep every word, borrow a whole new look.`,
-  `Decks are the headline act. Bring a document, a PowerPoint, or just a topic. Every slide comes back the right kind. Charts stay charts. Numbers stay exact.`,
-  `And the PowerPoint stays editable. Hand it a multi-slide template pack, and it picks the six you need.`,
-  `Every size. Print ready. Straight to the printer.`,
-  `Type your website. Your logo and colors land on everything.`,
-  `A flyer for ten bucks. A whole deck for thirty five. Your first piece is free.`,
-  `Restylez. Any design. Every format you need.`,
+  `Still dragging boxes around at midnight?`,
+  `Meet Restylez. The first AI graphic designer in a box. Agency quality. Agency speed. Not agency prices.`,
+  `Premium work, for your business, or for your clients.`,
+  `Show it one design. Get every format back in that exact look. The deck, the cards, the posts, the postcard.`,
+  `New night, new words. Nothing else moves.`,
+  `Or keep your words, and give them a whole new look.`,
+  `Whole decks from a document or a topic. Charts stay charts. Numbers stay exact.`,
+  `Real, editable PowerPoint. Hand it a template pack, and it picks the slides you need.`,
+  `Agencies charge hundreds a month. A freelancer, fifteen hundred a deck. Here, a deck is thirty five. A flyer, ten. And Canva? Trash.`,
+  `Every size, print ready. With brochures, booklets and magazines on the way.`,
+  `Restylez. The premium spot for everything graphic design.`,
 ]
 
 const durations = []
