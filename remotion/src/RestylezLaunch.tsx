@@ -355,9 +355,9 @@ const SizesBeat: React.FC<{ hold: number }> = ({ hold }) => {
 const PriceTagBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const frame = useCurrentFrame()
   const tags = [
-    { t: 'Design agency', p: '$700', per: 'a month', x: 200, at: 6, rot: -6 },
-    { t: 'Freelancer', p: '$1,500', per: 'one deck', x: 700, at: 18, rot: 4 },
-    { t: 'Canva', p: '$18', per: 'a month + your weekend', x: 1200, at: 30, rot: -3 },
+    { t: 'Design agency', p: '$700', per: 'a month', x: 260, at: 6, rot: -4 },
+    { t: 'Freelancer', p: '$1,500', per: 'one deck', x: 760, at: 18, rot: 0 },
+    { t: 'Canva', p: '$18', per: 'a month + your weekend', x: 1260, at: 30, rot: 4 },
   ]
   const slamAt = Math.round(hold * 0.52)
   const slam = clamp(spring({ frame: frame - slamAt, fps: FPS, config: { damping: 10, stiffness: 260, mass: 1 } }), 0, 1)
@@ -369,35 +369,30 @@ const PriceTagBeat: React.FC<{ hold: number }> = ({ hold }) => {
       <Alive intensity={0.6}>
         {tags.map((g, i) => {
           const p = pop(frame, g.at, 9)
-          // the first two get knocked off-screen by the slam; Canva drops into the bin
+          // all three get swept off-screen by the slam — Canva last, gently
           const isCanva = i === 2
           const fly = isCanva ? 0 : knock
-          const dy = isCanva ? drop * 520 : -fly * 900
-          const dx = isCanva ? drop * 190 : (i === 0 ? -1 : 1) * fly * 700
-          const rot = g.rot * (2 - clamp(p, 0, 1)) + (isCanva ? drop * 70 : fly * (i === 0 ? -160 : 160))
-          const sc = isCanva ? 1 - drop * 0.55 : 1
+          const dy = isCanva ? -drop * 900 : -fly * 900
+          const dx = isCanva ? drop * 700 : (i === 0 ? -1 : 1) * fly * 700
+          const rot = g.rot * (2 - clamp(p, 0, 1)) + (isCanva ? drop * 160 : fly * (i === 0 ? -160 : 160))
+          const sc = 1
           return (
-            <div key={g.t} style={{ position: 'absolute', left: g.x + dx, top: 120 - (1 - clamp(p, 0, 1)) * 400 + dy, width: 400, background: WHITE, borderRadius: 10, padding: '22px 26px', boxShadow: '0 30px 60px rgba(0,0,0,0.55)', transform: `rotate(${rot}deg) scale(${sc})`, opacity: clamp(p * 2, 0, 1) * (isCanva ? 1 - drop * 0.3 : 1) }}>
+            <div key={g.t} style={{ position: 'absolute', left: g.x + dx, top: 300 - (1 - clamp(p, 0, 1)) * 500 + dy, width: 400, background: WHITE, borderRadius: 10, padding: '22px 26px', boxShadow: '0 30px 60px rgba(0,0,0,0.55)', transform: `rotate(${rot}deg) scale(${sc})`, opacity: clamp(p * 2, 0, 1) * (isCanva ? 1 - drop * 0.3 : 1) }}>
               <div style={{ fontWeight: 800, fontSize: 22, color: MUTE }}>{g.t}</div>
               <div style={{ fontWeight: 900, fontSize: 84, color: INK, lineHeight: 1, letterSpacing: '-0.03em', marginTop: 4 }}>{g.p}</div>
               <div style={{ fontWeight: 700, fontSize: 20, color: CORAL, marginTop: 6 }}>{g.per}</div>
             </div>
           )
         })}
-        {/* the bin — a plain drawn bin, no icon */}
-        <div style={{ position: 'absolute', left: 1440, top: 560, opacity: clamp((frame - binAt + 10) / 10, 0, 1) }}>
-          <div style={{ width: 240, height: 22, background: '#3a3f4b', borderRadius: 6, marginLeft: -10 }} />
-          <div style={{ width: 220, height: 200, background: 'linear-gradient(90deg, #4a5060, #2c3039)', borderRadius: '0 0 10px 10px', marginTop: 6 }} />
-        </div>
         {/* the slam */}
-        <div style={{ position: 'absolute', left: 340, top: 110, width: 1240, background: SUN, borderRadius: 10, padding: '30px 40px', boxShadow: '0 50px 100px rgba(0,0,0,0.6)', transform: `scale(${3 - 2 * slam}) rotate(${(1 - slam) * -8 - 2}deg)`, opacity: clamp(slam * 3, 0, 1), transformOrigin: '50% 50%' }}>
+        <div style={{ position: 'absolute', left: 410, top: 250, width: 1100, background: SUN, borderRadius: 10, padding: '30px 40px', textAlign: 'center', boxShadow: '0 50px 100px rgba(0,0,0,0.6)', transform: `scale(${3 - 2 * slam}) rotate(${(1 - slam) * -8 - 2}deg)`, opacity: clamp(slam * 3, 0, 1), transformOrigin: '50% 50%' }}>
           <div style={{ fontWeight: 800, fontSize: 26, color: INK, opacity: 0.75 }}>Restylez</div>
-          <div style={{ display: 'flex', gap: 60, alignItems: 'flex-end', marginTop: 4 }}>
+          <div style={{ display: 'flex', gap: 90, alignItems: 'flex-end', justifyContent: 'center', marginTop: 4 }}>
             <div><div style={{ fontWeight: 900, fontSize: 150, color: INK, lineHeight: 1, letterSpacing: '-0.04em' }}>$35</div><div style={{ fontWeight: 800, fontSize: 30, color: INK }}>a whole deck</div></div>
             <div><div style={{ fontWeight: 900, fontSize: 150, color: INK, lineHeight: 1, letterSpacing: '-0.04em' }}>$10</div><div style={{ fontWeight: 800, fontSize: 30, color: INK }}>a flyer</div></div>
           </div>
         </div>
-        <Stamp text="Canva → trash" at={binAt + 12} x={1180} y={470} rot={-10} color={CORAL} />
+        <Stamp text="Bye, Canva" at={binAt + 12} x={1160} y={600} rot={-8} color={CORAL} />
       </Alive>
       <Head pos="bottom" at={4} size={56} color={WHITE} kicker="Prices you can see" kColor={SUN} text={<>Agency quality. <span style={{ color: SUN }}>Not agency prices.</span></>} />
       <SettleSweep color={SUN} hold={hold} />
@@ -430,12 +425,12 @@ const CtaBeat: React.FC<{ hold: number }> = ({ hold }) => {
 // ---- timeline --------------------------------------------------------------
 type Beat = { dur: number; el: (hold: number) => React.ReactNode; impact?: boolean }
 const BEATS: Beat[] = [
-  { dur: s(D[0] + 0.35), el: (h) => <ProblemBeat hold={h} /> },
+  { dur: s(D[0] + 0.9), el: (h) => <ProblemBeat hold={h} /> },
   { dur: s(D[1] + 0.6), el: (h) => <SlamBeat hold={h} />, impact: true },
   { dur: s(D[2] + 0.4), el: (h) => <PremiumBeat hold={h} /> },
   { dur: s(D[3] + 0.3), el: (h) => <FanBeat hold={h} /> },
-  { dur: s(D[4] + 0.4), el: (h) => <BeforeAfter hold={h} after="club-after.jpg" bg={SUN} tint={BLUE} kicker="Same style, different content" head={<>New night, new words — <span style={{ color: BLUE }}>nothing else moves.</span></>} /> },
-  { dur: s(D[5] + 0.4), el: (h) => <BeforeAfter hold={h} before="salsa-before.jpg" after="salsa-restyle.jpg" bg={CREAM} tint={CORAL} kicker="Same content, different style" head={<>Keep your words, <span style={{ color: CORAL }}>borrow a whole new look.</span></>} /> },
+  { dur: s(D[4] + 0.9), el: (h) => <BeforeAfter hold={h} after="club-after.jpg" bg={SUN} tint={BLUE} kicker="Same style, different content" head={<>New night, new words — <span style={{ color: BLUE }}>nothing else moves.</span></>} /> },
+  { dur: s(D[5] + 0.9), el: (h) => <BeforeAfter hold={h} before="salsa-before.jpg" after="salsa-restyle.jpg" bg={CREAM} tint={CORAL} kicker="Same content, different style" head={<>Keep your words, <span style={{ color: CORAL }}>borrow a whole new look.</span></>} /> },
   { dur: s(D[6] + 0.3), el: (h) => <DeckBeat hold={h} /> },
   { dur: s(D[7] + 0.3), el: (h) => <PptxBeat hold={h} /> },
   { dur: s(D[8] + 0.4), el: (h) => <PriceTagBeat hold={h} />, impact: true },
