@@ -1,5 +1,6 @@
 import React from 'react'
-import { AbsoluteFill, Audio, Sequence, staticFile, useCurrentFrame, useVideoConfig, interpolate, spring, Easing } from 'remotion'
+import { AbsoluteFill, Audio, Sequence, useCurrentFrame, useVideoConfig, interpolate, spring, Easing } from 'remotion'
+import { staticFile } from './asset'
 
 /* ============================================================================
  * INTRO LIBRARY — cinematic logo-reveal intros, one per "personality". The

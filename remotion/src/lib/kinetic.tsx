@@ -1,5 +1,6 @@
 import React from 'react'
-import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate, Easing } from 'remotion'
+import { AbsoluteFill, Img, useCurrentFrame, interpolate, Easing } from 'remotion'
+import { staticFile } from './asset'
 
 /* ============================================================================
  * KINETIC SLAM — the fast, beat-locked, black/white kinetic-typography style

@@ -1,5 +1,6 @@
 import React from 'react'
-import { AbsoluteFill, Img, Audio, Sequence, staticFile, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, continueRender, delayRender } from 'remotion'
+import { AbsoluteFill, Img, Audio, Sequence, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, continueRender, delayRender } from 'remotion'
+import { staticFile, setAssetBase } from '../lib/asset'
 import { z } from 'zod'
 import { loadFont as loadSpaceGrotesk } from '@remotion/google-fonts/SpaceGrotesk'
 import { loadFont as loadInter } from '@remotion/google-fonts/Inter'
@@ -25,6 +26,7 @@ const FPS = 30
 
 // ---- the props schema (also drives Remotion Studio + validates VPS payloads) ----
 export const fintechSchema = z.object({
+  assetBase: z.string().optional(),   // set by the Lambda render script; empty = local files
   brand: z.object({
     bg: z.string(), bg2: z.string(), panel: z.string(),
     accent: z.string(), accentHi: z.string(),
@@ -209,6 +211,7 @@ export function fintechDuration(p: FintechProps): number {
 }
 
 export const TemplateFintech: React.FC<FintechProps> = (p) => {
+  setAssetBase(p.assetBase)
   const b = p.brand
   const INTRO = p.introFrames
   const rawStarts: number[] = []; { let t = INTRO; for (const be of p.beats) { rawStarts.push(t); t += s(be.dur) } }

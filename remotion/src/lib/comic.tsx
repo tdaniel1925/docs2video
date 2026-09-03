@@ -1,5 +1,6 @@
 import React from 'react'
-import { AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig, interpolate, spring, Easing } from 'remotion'
+import { AbsoluteFill, Img, useCurrentFrame, useVideoConfig, interpolate, spring, Easing } from 'remotion'
+import { staticFile } from './asset'
 
 /* ============================================================================
  * COMIC ENGINE — turns still comic panels into a MOTION COMIC. Works for BOTH

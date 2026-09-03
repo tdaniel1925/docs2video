@@ -1,4 +1,5 @@
-import { Img, staticFile, useCurrentFrame, useVideoConfig, spring, interpolate } from 'remotion'
+import { Img, useCurrentFrame, useVideoConfig, spring, interpolate } from 'remotion'
+import { staticFile } from '../../lib/asset'
 import { FONTS, type Theme } from '../../tokens'
 
 /**

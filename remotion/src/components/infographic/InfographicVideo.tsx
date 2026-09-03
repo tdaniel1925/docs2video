@@ -1,4 +1,5 @@
-import { AbsoluteFill, Series, Audio, staticFile } from 'remotion'
+import { AbsoluteFill, Series, Audio } from 'remotion'
+import { staticFile, setAssetBase } from '../../lib/asset'
 import { z } from 'zod'
 import { type Theme, MODERN_FINTECH } from '../../tokens'
 import { themeSchema } from '../../schema'
@@ -31,6 +32,7 @@ const logoSchema = z.union([
 ])
 
 export const infographicSchema = z.object({
+  assetBase: z.string().optional(),   // set by the Lambda render script; empty = local files
   theme: themeSchema,
   brandName: z.string().optional(),
   logo: logoSchema.optional(),
@@ -46,7 +48,8 @@ export function infoTotal(props: InfographicProps): number {
   return props.scenes.reduce((a, s) => a + s.durationInFrames, 0)
 }
 
-export const InfographicVideo: React.FC<InfographicProps> = ({ theme, scenes, logo, logoChip, brandName, bgImage }) => {
+export const InfographicVideo: React.FC<InfographicProps> = ({ assetBase, theme, scenes, logo, logoChip, brandName, bgImage }) => {
+  setAssetBase(assetBase)
   const t = theme as Theme
   const lastIndex = scenes.length - 1
   return (

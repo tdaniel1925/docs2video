@@ -28,5 +28,12 @@ services:
       - CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID}
       - CLOUDFLARE_API_KEY=${CLOUDFLARE_API_KEY}
       - IMAGE_MODEL=gemini-3-pro-image-preview
+      # Remotion Lambda — renders happen on AWS when REMOTION_SERVE_URL is set
+      # (see remotion/scripts/lambda-render.mjs). Leave unset to render locally.
+      - REMOTION_AWS_ACCESS_KEY_ID=${REMOTION_AWS_ACCESS_KEY_ID}
+      - REMOTION_AWS_SECRET_ACCESS_KEY=${REMOTION_AWS_SECRET_ACCESS_KEY}
+      - REMOTION_AWS_REGION=${REMOTION_AWS_REGION:-us-east-1}
+      - REMOTION_SERVE_URL=${REMOTION_SERVE_URL}
+      - REMOTION_FUNCTION_NAME=${REMOTION_FUNCTION_NAME}
     tmpfs:
       - /tmp:size=2G

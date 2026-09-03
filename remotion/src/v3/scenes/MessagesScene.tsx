@@ -1,4 +1,5 @@
-import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate } from 'remotion'
+import { AbsoluteFill, Img, useCurrentFrame, interpolate } from 'remotion'
+import { staticFile } from '../../lib/asset'
 import { FONTS, TYPE, TEXT_SHADOW, type Theme } from '../../tokens'
 import { KineticText } from '../../KineticText'
 import { CinematicGrade } from '../CinematicGrade'

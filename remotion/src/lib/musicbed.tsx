@@ -1,5 +1,6 @@
 import React from 'react'
-import { Audio, Sequence, staticFile, useVideoConfig } from 'remotion'
+import { Audio, Sequence, useVideoConfig } from 'remotion'
+import { staticFile } from './asset'
 
 /* ============================================================================
  * MusicBed — GUARANTEES the music covers the ENTIRE video. Root-causes the

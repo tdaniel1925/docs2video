@@ -1,4 +1,5 @@
-import { AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig, interpolate, Easing } from 'remotion'
+import { AbsoluteFill, Img, useCurrentFrame, useVideoConfig, interpolate, Easing } from 'remotion'
+import { staticFile } from '../lib/asset'
 import { type EditorialTheme } from './theme'
 import { parseMetric, renderMetric } from '../components/infographic/format'
 import type { EditorialScene } from './archetype'

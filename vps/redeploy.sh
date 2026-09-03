@@ -44,6 +44,10 @@ cp "$TMP/vps/Dockerfile" "$DIR/Dockerfile"
 # only the compose file's structure/env-list is updated from git.
 cp "$TMP/vps/docker-compose.yml" "$DIR/docker-compose.yml"
 rm -rf "$DIR/remotion/src" && cp -r "$TMP/remotion/src" "$DIR/remotion/src"
+# Lambda render script + the package.json that pulls @remotion/lambda in.
+mkdir -p "$DIR/remotion/scripts" && cp -f "$TMP"/remotion/scripts/lambda-render.mjs "$DIR/remotion/scripts/"
+cp -f "$TMP/remotion/package.json" "$DIR/remotion/package.json"
+cp -f "$TMP/remotion/package-lock.json" "$DIR/remotion/package-lock.json" 2>/dev/null || true
 # STATIC ASSETS the renderer reads at render time (SFX — the Sfx components load
 # sfx/*.wav AND sfx/*.mp3; a missing file ENOENTs and cancels the render. The
 # TemplateCommercial 'luxury'/'aurora' styles use .mp3 SFX like shimmer.mp3 —

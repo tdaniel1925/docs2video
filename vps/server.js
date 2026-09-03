@@ -957,6 +957,13 @@ app.post('/process-logo', authCheck, async (req, res) => {
 // bundle + Dockerfile (needs the baked remotion/ project + Chrome).
 // ============================================================
 const REMOTION_DIR = process.env.REMOTION_DIR || '/app/remotion'
+
+// RENDER ON LAMBDA when a deployed site is configured (REMOTION_SERVE_URL), else
+// locally as before. Both return [command, args] for spawn(); the Lambda script
+// prints the same "Rendered frames N/TOTAL" lines, so progress parsing is unchanged.
+const renderCmd = (comp, outFile, propsPath) => process.env.REMOTION_SERVE_URL
+  ? ['node', ['scripts/lambda-render.mjs', '--comp', comp, '--props', propsPath, '--out', outFile]]
+  : ['npx', ['remotion', 'render', comp, outFile, `--props=${propsPath}`, '--log=info', '--concurrency=12', '--gl=swiftshader', '--image-format=jpeg']]
 const V3_LOOK = 'High-end cinematic corporate photography with a RICH, MOODY, PREMIUM grade — like a polished Apple or Bloomberg commercial. Dramatic but expensive-looking lighting, deep controlled shadows, sophisticated color, shallow depth of field, strong sense of place. Confident and modern, NOT bright flat stock photography and NOT depressing. Specific, editorial, characterful real scenes — avoid generic stock-photo clichés. Stay strictly ON TOPIC for the described subject. AVOID: cheesy stock smiles, candlelit/antique/castle/vintage settings, lone sad figures, anything melancholy or off-story. Photoreal, NOT illustration. 16:9, fills 1920x1080. ABSOLUTELY NO text, words, letters, numbers, charts, or logos.'
 
 // The infographic BACKDROP look — precise and designed, matching the Text2Art
@@ -1399,8 +1406,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
       // --gl=swiftshader is the reliable headless GL backend in Docker;
       // --image-format=jpeg speeds frame capture with no visible loss;
       // --disable-web-security avoids cross-origin asset stalls.
-      const child = spawn('npx', ['remotion', 'render', COMP, outFile, `--props=${PROPS}`,
-        '--log=info', '--concurrency=12', '--gl=swiftshader', '--image-format=jpeg'],
+      const child = spawn(...renderCmd(COMP, outFile, PROPS),
         { cwd: REMOTION_DIR, env: { ...process.env } })
       let stderrBuf = ''
       let lastPct = 72, lastWrite = 0
@@ -1573,8 +1579,7 @@ app.post('/render-commercial', authCheck, async (req, res) => {
 
     await withRenderSlot(() => new Promise((resolve, reject) => {
       const { spawn } = require('child_process')
-      const child = spawn('npx', ['remotion', 'render', template, outFile, `--props=${PROPS}`,
-        '--log=info', '--concurrency=12', '--gl=swiftshader', '--image-format=jpeg'],
+      const child = spawn(...renderCmd(template, outFile, PROPS),
         { cwd: REMOTION_DIR, env: { ...process.env } })
       let stderrBuf = '', lastPct = 60, lastWrite = 0
       const onChunk = (buf) => {
@@ -1692,7 +1697,7 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
       await setProgress(58, 'Rendering commercial...')
       await new Promise((resolve, reject) => {
         const { spawn } = require('child_process')
-        const child = spawn('npx', ['remotion', 'render', 'TemplateCommercial', outFile, `--props=${propsPath}`, '--log=info', '--concurrency=12', '--gl=swiftshader', '--image-format=jpeg'], { cwd: REMOTION_DIR, env: { ...process.env } })
+        const child = spawn(...renderCmd('TemplateCommercial', outFile, propsPath), { cwd: REMOTION_DIR, env: { ...process.env } })
         let stderrBuf = '', lastPct = 58, lastWrite = 0
         const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); const m = [...t.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const done = parseInt(m[1], 10), total = parseInt(m[2], 10); if (total > 0 && done <= total) { const pct = 58 + Math.round((done / total) * 32); const now = Date.now(); if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`) } } } }
         child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
@@ -1877,7 +1882,7 @@ app.post('/generate-slides', authCheck, async (req, res) => {
       await setProgress(55, 'Rendering slides...')
       await new Promise((resolve, reject) => {
         const { spawn } = require('child_process')
-        const child = spawn('npx', ['remotion', 'render', 'DirectedVideo', outFile, `--props=${PROPS}`, '--log=info', '--concurrency=8', '--gl=swiftshader', '--image-format=jpeg'], { cwd: REMOTION_DIR, env: { ...process.env } })
+        const child = spawn(...renderCmd('DirectedVideo', outFile, PROPS), { cwd: REMOTION_DIR, env: { ...process.env } })
         let stderrBuf = '', lastPct = 55, lastWrite = 0
         const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); const m = [...t.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const done = parseInt(m[1], 10), total = parseInt(m[2], 10); if (total > 0 && done <= total) { const pct = 55 + Math.round((done / total) * 34); const now = Date.now(); if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`) } } } }
         child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
@@ -2123,7 +2128,7 @@ RULES:
       const reOut = join(REMOTION_DIR, 'out', `${videoId}-reedit.mp4`)
       await withRenderSlot(() => new Promise((resolve, reject) => {
         const { spawn } = require('child_process')
-        const child = spawn('npx', ['remotion', 'render', 'DirectedVideo', reOut, `--props=${PROPS}`, '--log=info', '--concurrency=8', '--gl=swiftshader', '--image-format=jpeg'], { cwd: REMOTION_DIR, env: { ...process.env } })
+        const child = spawn(...renderCmd('DirectedVideo', reOut, PROPS), { cwd: REMOTION_DIR, env: { ...process.env } })
         let stderrBuf = '', lastPct = 45, lastWrite = 0
         const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); const m = [...t.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const done = parseInt(m[1], 10), tot = parseInt(m[2], 10); if (tot > 0 && done <= tot) { const pct = 45 + Math.round((done / tot) * 44); const now = Date.now(); if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Re-rendering — frame ${done} of ${tot}`) } } } }
         child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
@@ -2229,8 +2234,7 @@ app.post('/render-directed', authCheck, async (req, res) => {
         const { spawn } = require('child_process')
         // concurrency 8 = proven-safe on this 16-core box (higher crashed Chrome
         // via /dev/shm). --props isolation: never rely on staticFile fetch.
-        const child = spawn('npx', ['remotion', 'render', 'DirectedVideo', outFile, `--props=${PROPS}`,
-          '--log=info', '--concurrency=8', '--gl=swiftshader', '--image-format=jpeg'],
+        const child = spawn(...renderCmd('DirectedVideo', outFile, PROPS),
           { cwd: REMOTION_DIR, env: { ...process.env } })
         let stderrBuf = '', lastPct = 50, lastWrite = 0
         const onChunk = (buf) => {
@@ -2457,7 +2461,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       // staticFile fetch inside calculateMetadata. Without this the render can
       // fall back to composition defaultProps (the "Run the editorial generator
       // first" placeholder).
-      const child = spawn('npx', ['remotion', 'render', 'EditorialVideo', outFile, `--props=${edProps}`, '--log=info', '--concurrency=12', '--gl=swiftshader', '--image-format=jpeg'], { cwd: REMOTION_DIR, env: { ...process.env } })
+      const child = spawn(...renderCmd('EditorialVideo', outFile, edProps), { cwd: REMOTION_DIR, env: { ...process.env } })
       let err = '', lastPct = 72, lastW = 0
       const onChunk = (b) => { const x = b.toString(); err = (err + x).slice(-2000); const m = [...x.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const d = +m[1], tot = +m[2]; if (tot > 0 && d <= tot) { const p = 72 + Math.round((d / tot) * 17); const now = Date.now(); if (p > lastPct && now - lastW > 1500) { lastPct = p; lastW = now; setProgress(p, `Rendering — frame ${d.toLocaleString()} of ${tot.toLocaleString()}`) } } } }
       child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)

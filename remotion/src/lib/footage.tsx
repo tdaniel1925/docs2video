@@ -1,5 +1,6 @@
 import React from 'react'
-import { AbsoluteFill, OffthreadVideo, staticFile, useCurrentFrame, interpolate, Easing } from 'remotion'
+import { AbsoluteFill, OffthreadVideo, useCurrentFrame, interpolate, Easing } from 'remotion'
+import { staticFile } from './asset'
 
 /* ============================================================================
  * CINEMATIC FOOTAGE — makes free Pexels stock look like a filmed commercial.

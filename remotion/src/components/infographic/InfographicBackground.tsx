@@ -1,4 +1,5 @@
-import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate } from 'remotion'
+import { AbsoluteFill, Img, useCurrentFrame, interpolate } from 'remotion'
+import { staticFile } from '../../lib/asset'
 import { type Theme } from '../../tokens'
 import { Particles } from '../../v3/Particles'
 import { drift } from '../../helpers'

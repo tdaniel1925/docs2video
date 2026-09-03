@@ -1,5 +1,6 @@
 import React from 'react'
-import { AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig, interpolate, spring, Easing } from 'remotion'
+import { AbsoluteFill, Img, useCurrentFrame, useVideoConfig, interpolate, spring, Easing } from 'remotion'
+import { staticFile } from './asset'
 
 /* ============================================================================
  * CINEMATOGRAPHY — the "impressive movement" layer. Turns a series of polished

@@ -1,4 +1,5 @@
-import { AbsoluteFill, Series, Audio, staticFile, useCurrentFrame, interpolate } from 'remotion'
+import { AbsoluteFill, Series, Audio, useCurrentFrame, interpolate } from 'remotion'
+import { staticFile, setAssetBase } from '../lib/asset'
 import { z } from 'zod'
 import { editorialFromBrand, explainerPageTheme, type EditorialTheme, type EditorialVariant } from './theme'
 import { pickArchetype, type EditorialScene } from './archetype'
@@ -26,6 +27,7 @@ export const editorialSceneSchema = z.object({
 })
 
 export const editorialSchema = z.object({
+  assetBase: z.string().optional(),   // set by the Lambda render script; empty = local files
   /** Publication masthead — the brand name (e.g. "ACME" or "EPOCH"). */
   masthead: z.string().default('EPOCH'),
   /** Running title shown in the folio header. */
@@ -60,7 +62,8 @@ const PageTurn: React.FC<{ d: number; isLast?: boolean; children: React.ReactNod
   return <AbsoluteFill style={{ opacity: inP * (1 - outP) }}>{children}</AbsoluteFill>
 }
 
-export const EditorialVideo: React.FC<EditorialProps> = ({ masthead, runningTitle, brandColor, variant, music, scenes, contactLine, presenter, presenterOnCover, presenterOnClosing, recipient }) => {
+export const EditorialVideo: React.FC<EditorialProps> = ({ assetBase, masthead, runningTitle, brandColor, variant, music, scenes, contactLine, presenter, presenterOnCover, presenterOnClosing, recipient }) => {
+  setAssetBase(assetBase)
   const theme: EditorialTheme = editorialFromBrand(brandColor, (variant as EditorialVariant) || 'time')
   const running = (runningTitle || scenes[0]?.title || '').toUpperCase().slice(0, 32)
   const total = scenes.reduce((a, s) => a + s.durationInFrames, 0)

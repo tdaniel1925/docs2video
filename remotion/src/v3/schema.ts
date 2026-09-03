@@ -50,6 +50,7 @@ export const v3PresenterSchema = z.object({
 })
 
 export const v3Schema = z.object({
+  assetBase: z.string().optional(),   // set by the Lambda render script
   theme: themeSchema,
   brandName: z.string().optional(),
   music: z.string().optional(),

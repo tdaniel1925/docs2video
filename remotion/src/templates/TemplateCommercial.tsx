@@ -1,5 +1,6 @@
 import React from 'react'
-import { AbsoluteFill, Img, Audio, Sequence, staticFile, useCurrentFrame, useVideoConfig, interpolate, spring, Easing } from 'remotion'
+import { AbsoluteFill, Img, Audio, Sequence, useCurrentFrame, useVideoConfig, interpolate, spring, Easing } from 'remotion'
+import { staticFile, setAssetBase } from '../lib/asset'
 import { z } from 'zod'
 import { loadFont as loadSpaceGrotesk } from '@remotion/google-fonts/SpaceGrotesk'
 import { loadFont as loadInter } from '@remotion/google-fonts/Inter'
@@ -109,6 +110,7 @@ const STYLE_IDS = Object.keys(STYLES) as StyleId[]
 
 // ---- PROPS SCHEMA ----
 export const commercialSchema = z.object({
+  assetBase: z.string().optional(),   // set by the Lambda render script; empty = local files
   styleId: z.enum(['fintech', 'luxury', 'tech', 'upbeat', 'emerald', 'redblueprint', 'data', 'playful', 'casino', 'clean', 'glitchcore', 'cinematic', 'noir', 'retro', 'vibrant', 'editorial', 'brutalist', 'aurora', 'sport', 'corporate', 'neon', 'organic']),
   brand: z.object({
     bg: z.string(), bg2: z.string(), panel: z.string(),
@@ -610,6 +612,7 @@ const renderBeat = (be: CommercialProps['beats'][number], hold: number) => {
 }
 
 export const TemplateCommercial: React.FC<CommercialProps> = (p) => {
+  setAssetBase(p.assetBase)
   const st = STYLES[p.styleId as StyleId]
   const b = p.brand
   const INTRO = p.introFrames

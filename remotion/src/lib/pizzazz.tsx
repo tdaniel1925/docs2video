@@ -1,5 +1,6 @@
 import React from 'react'
-import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, Img, staticFile } from 'remotion'
+import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, Img } from 'remotion'
+import { staticFile } from './asset'
 
 /* ============================================================================
  * PIZZAZZ TOOLKIT — the A-grade motion + polish layer, reusable across videos.

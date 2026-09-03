@@ -1,4 +1,5 @@
-import { AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig, spring, interpolate, Easing } from 'remotion'
+import { AbsoluteFill, Img, useCurrentFrame, useVideoConfig, spring, interpolate, Easing } from 'remotion'
+import { staticFile } from '../lib/asset'
 import { FONTS, TYPE, type Theme } from '../tokens'
 import { settleProgress } from '../helpers'
 import { CinematicGrade } from './CinematicGrade'
