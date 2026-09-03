@@ -1,4 +1,5 @@
-import { AbsoluteFill, Audio, Img, Sequence, staticFile, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, type CalculateMetadataFunction } from 'remotion'
+import { AbsoluteFill, Audio, Img, Sequence, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, type CalculateMetadataFunction } from 'remotion'
+import { staticFile, setAssetBase } from './lib/asset'
 import React, { useMemo } from 'react'
 import { useAudioData, visualizeAudio, getAudioDurationInSeconds } from '@remotion/media-utils'
 import { fitText } from '@remotion/layout-utils'
@@ -81,7 +82,7 @@ export type DirPlan = {
   palette?: { bg: string; accent: string; accent2: string; text: string }   // legacy; look wins if present
   scenes: DirScene[]
 }
-export type DirectedProps = { plan: DirPlan; starts: number[]; total: number; intensity?: 'calm' | 'premium' | 'highenergy'; bpm?: number }
+export type DirectedProps = { assetBase?: string; plan: DirPlan; starts: number[]; total: number; intensity?: 'calm' | 'premium' | 'highenergy'; bpm?: number }
 
 // SFX pack (synthesized, royalty-free). One <Audio> per hit at a given frame.
 const Sfx: React.FC<{ name: string; at: number; total: number; volume?: number }> = ({ name, at, total, volume = 0.6 }) => {
@@ -368,7 +369,8 @@ const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan[
   )
 }
 
-export const DirectedVideo: React.FC<DirectedProps> = ({ plan, starts, total, intensity = 'premium', bpm = 128 }) => {
+export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts, total, intensity = 'premium', bpm = 128 }) => {
+  setAssetBase(assetBase)
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   // LOOK drives the background STYLE; a brand palette (plan.palette, extracted
   // from the real site) overrides its COLORS so the video matches the brand.
