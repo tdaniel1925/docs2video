@@ -5,6 +5,12 @@ const publicPaths = ['/', '/login', '/signup', '/forgot-password']
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+  // MAINTENANCE: with MAINTENANCE_MODE=1 every page shows the maintenance notice.
+  // Webhooks and other API calls keep working so payments and jobs are not lost.
+  if (process.env.MAINTENANCE_MODE === '1' && pathname !== '/maintenance' && !pathname.startsWith('/api/')) {
+    return NextResponse.rewrite(new URL('/maintenance', request.url))
+  }
+  if (pathname === '/maintenance') return NextResponse.next()
   let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
