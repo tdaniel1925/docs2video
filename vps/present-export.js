@@ -23,7 +23,13 @@ async function runExport({ videoId, htmlUrl, supabase, log }) {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'present-export-'))
   try {
     // ── 1. Read VO data from the page, then record ──
-    const browser = await chromium.launch({ args: ['--no-sandbox'] })
+    // --disable-dev-shm-usage makes Chrome write its shared memory to /tmp
+    // instead of /dev/shm. The old VPS solved the same problem by setting
+    // shm_size: 2gb in compose — Fargate REFUSES that setting outright
+    // ("Fargate compatible task definitions do not support sharedMemorySize"),
+    // so the flag is the only way to run this container there. Without it,
+    // Chrome crashes mid-capture on the 64MB default.
+    const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] })
     const probeCtx = await browser.newContext()
     const probe = await probeCtx.newPage()
     await probe.goto(`${htmlUrl}?record=1`, { waitUntil: 'networkidle', timeout: 60000 })

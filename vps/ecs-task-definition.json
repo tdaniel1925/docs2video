@@ -1,27 +1,94 @@
 {
   "family": "docs2video-service",
   "networkMode": "awsvpc",
-  "requiresCompatibilities": ["FARGATE"],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
   "cpu": "2048",
   "memory": "8192",
   "executionRoleArn": "arn:aws:iam::423401347103:role/ecsTaskExecutionRole",
-  "runtimePlatform": { "operatingSystemFamily": "LINUX", "cpuArchitecture": "X86_64" },
+  "runtimePlatform": {
+    "operatingSystemFamily": "LINUX",
+    "cpuArchitecture": "X86_64"
+  },
   "containerDefinitions": [
     {
       "name": "video-service",
       "image": "423401347103.dkr.ecr.us-east-1.amazonaws.com/docs2video-service:latest",
       "essential": true,
-      "portMappings": [{ "containerPort": 4000, "protocol": "tcp" }],
+      "portMappings": [
+        {
+          "containerPort": 4000,
+          "protocol": "tcp"
+        }
+      ],
       "linuxParameters": {
-        "initProcessEnabled": true,
-        "sharedMemorySize": 2048
+        "initProcessEnabled": true
       },
       "environment": [
-        { "name": "PORT", "value": "4000" },
-        { "name": "IMAGE_MODEL", "value": "gemini-3-pro-image-preview" },
-        { "name": "REMOTION_AWS_REGION", "value": "us-east-1" }
+        {
+          "name": "PORT",
+          "value": "4000"
+        },
+        {
+          "name": "IMAGE_MODEL",
+          "value": "gemini-3-pro-image-preview"
+        },
+        {
+          "name": "REMOTION_AWS_REGION",
+          "value": "us-east-1"
+        }
       ],
-      "secrets": [],
+      "secrets": [
+        {
+          "name": "API_SECRET",
+          "valueFrom": "arn:aws:ssm:us-east-1:423401347103:parameter/docs2video/API_SECRET"
+        },
+        {
+          "name": "SUPABASE_URL",
+          "valueFrom": "arn:aws:ssm:us-east-1:423401347103:parameter/docs2video/SUPABASE_URL"
+        },
+        {
+          "name": "SUPABASE_SERVICE_KEY",
+          "valueFrom": "arn:aws:ssm:us-east-1:423401347103:parameter/docs2video/SUPABASE_SERVICE_KEY"
+        },
+        {
+          "name": "GEMINI_API_KEY",
+          "valueFrom": "arn:aws:ssm:us-east-1:423401347103:parameter/docs2video/GEMINI_API_KEY"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "arn:aws:ssm:us-east-1:423401347103:parameter/docs2video/OPENAI_API_KEY"
+        },
+        {
+          "name": "ELEVENLABS_API_KEY",
+          "valueFrom": "arn:aws:ssm:us-east-1:423401347103:parameter/docs2video/ELEVENLABS_API_KEY"
+        },
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "valueFrom": "arn:aws:ssm:us-east-1:423401347103:parameter/docs2video/ANTHROPIC_API_KEY"
+        },
+        {
+          "name": "CLOUDFLARE_ACCOUNT_ID",
+          "valueFrom": "arn:aws:ssm:us-east-1:423401347103:parameter/docs2video/CLOUDFLARE_ACCOUNT_ID"
+        },
+        {
+          "name": "CLOUDFLARE_API_KEY",
+          "valueFrom": "arn:aws:ssm:us-east-1:423401347103:parameter/docs2video/CLOUDFLARE_API_KEY"
+        },
+        {
+          "name": "REMOTION_AWS_ACCESS_KEY_ID",
+          "valueFrom": "arn:aws:ssm:us-east-1:423401347103:parameter/docs2video/REMOTION_AWS_ACCESS_KEY_ID"
+        },
+        {
+          "name": "REMOTION_AWS_SECRET_ACCESS_KEY",
+          "valueFrom": "arn:aws:ssm:us-east-1:423401347103:parameter/docs2video/REMOTION_AWS_SECRET_ACCESS_KEY"
+        },
+        {
+          "name": "REMOTION_SERVE_URL",
+          "valueFrom": "arn:aws:ssm:us-east-1:423401347103:parameter/docs2video/REMOTION_SERVE_URL"
+        }
+      ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
@@ -31,7 +98,10 @@
         }
       },
       "healthCheck": {
-        "command": ["CMD-SHELL", "node -e \"fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""],
+        "command": [
+          "CMD-SHELL",
+          "node -e \"fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
+        ],
         "interval": 30,
         "timeout": 10,
         "retries": 3,
