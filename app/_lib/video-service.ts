@@ -1,22 +1,24 @@
 /**
- * Single source of truth for the video-assembly VPS URL (audit L4). Previously
- * the URL + a hardcoded plaintext-HTTP IP fallback were repeated literally in
- * 7+ routes; if VIDEO_ASSEMBLY_URL was unset, document content silently flowed
- * to a hardcoded box. Centralize here and log loudly when the env is missing so
- * a misconfigured deploy is obvious instead of silently wrong.
+ * Single source of truth for the video-service URL (audit L4). The URL and a
+ * hardcoded plaintext-HTTP IP fallback used to be repeated literally in 7+
+ * routes; if VIDEO_ASSEMBLY_URL was unset, document content silently flowed to
+ * a hardcoded box.
+ *
+ * THE FALLBACK IS NOW GONE, and that is deliberate. It pointed at the Hetzner
+ * VPS, which no longer exists — so the "safety net" would now send documents
+ * to a dead address and fail slowly, or worse, to whoever holds that IP next.
+ * A missing setting is a configuration bug: it should stop the request with a
+ * clear message, not quietly pick a destination nobody chose.
+ *
+ * The service now runs on ECS Fargate behind a load balancer; set
+ * VIDEO_ASSEMBLY_URL to its address.
  */
-const FALLBACK = 'http://5.161.215.156:4000'
-
-let _warned = false
-
 export function videoServiceUrl(): string {
   const url = (process.env.VIDEO_ASSEMBLY_URL || '').trim()
-  if (url) return url.replace(/\/+$/, '')
-  if (!_warned) {
-    console.error('[video-service] VIDEO_ASSEMBLY_URL is not set — using the hardcoded fallback. Set it in production.')
-    _warned = true
+  if (!url) {
+    throw new Error('VIDEO_ASSEMBLY_URL is not set — the video service address is missing. Set it to the load balancer address in the environment.')
   }
-  return FALLBACK
+  return url.replace(/\/+$/, '')
 }
 
 /** Convenience: build a full endpoint URL (e.g. videoServiceEndpoint('/render-v3')). */
