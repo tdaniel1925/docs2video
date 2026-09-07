@@ -1,122 +1,95 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
 # debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
+# Deck fit check output — regenerate with scripts/deck-fit-check.mjs
+# Demo/test media files
+# dependencies
+# engine (look, subject, mergedInto, mergedWhy), so these are the notebook and
 # env files
-.env.local
-.env*.local
-.env.production
-.env*
-
-# vercel
-.vercel
-
+# generated job payloads/bundles
+# Generated teaser assets
+# Head-to-head engine test images — regenerate with scripts/engine-bakeoff.mjs
 # large media files (generated, can be recreated)
+# Local design-template references (not app code)
+# local secrets (platform key + internal secret, never commit)
+# misc
+# next.js
+# not the record.
+# one-off verification screenshots from smoke/check scripts
+# One-off VPS patch scripts (canonical server lives in vps/server.js)
+# Playwright
+# production
+# quarantined customer correspondence / PII (never commit)
+# scratch: copy/brief text dumps, sample PDFs, ad-hoc render + screenshot dumps
+# Screenshots taken while checking layouts
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# temp files
+# testing
+# typescript
+# vercel
+# Video service secrets
+# Working data from the style split — the decisions themselves live in the
+*.pem
+*.tmp
+*.tsbuildinfo
+*-brief.pdf
+*-copy.txt
+*-text.txt
+.bakeoff/
+.build-context/
+.deckcheck/
+.DS_Store
+.env*
+.env*.local
+.env.local
+.env.production
+.logo-fix/
+.logo-lab/
+.pnp.*
+.pnpm-debug.log*
+.private/
+.shots/
+.styles/
+.vercel
+.yarn/*
+/.next/
+/.pnp
+/build
+/coverage
+/node_modules
+/out/
+_review/
+check-*.png
+comprehension.json
+demo-*.mp4
+demo-annuity.pdf
+logo-lab/results.json
+logo-lab/runs/
+motion-sample.mp4
+music/
+next-env.d.ts
+npm-debug.log*
+out-*.png
+pics/
+playwright-report/
 public/industry-demos/
 public/music/
 public/test-*.mp4
 public/test-*.png
-music/
-
-# temp files
 refs/
-
-# scratch: copy/brief text dumps, sample PDFs, ad-hoc render + screenshot dumps
-*-copy.txt
-*-text.txt
-*-brief.pdf
-comprehension.json
-motion-sample.mp4
-pics/
-demo-annuity.pdf
-
-# quarantined customer correspondence / PII (never commit)
-.private/
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-.vercel
-
-.vercel
-
-# Playwright
-test-results/
-playwright-report/
-video-service/start.sh
-
-# Video service secrets
-video-service/docker-compose.yml
-
-# Demo/test media files
-demo-*.mp4
+smoke-*.png
+teaser-output/
 test-overlay-*.png
-vps-start-container.sh
-
-# One-off VPS patch scripts (canonical server lives in vps/server.js)
+test-results/
+video-service/docker-compose.yml
+video-service/start.sh
 vps-*.js
 vps-*.py
 vps-*.sh
-
-# Generated teaser assets
-teaser-output/
-
-# Local design-template references (not app code)
-_review/
-
-# local secrets (platform key + internal secret, never commit)
-*.tmp
-
-# generated job payloads/bundles
 vps/.job/
-.logo-lab/
-logo-lab/runs/
-logo-lab/results.json
-.logo-fix/
-# one-off verification screenshots from smoke/check scripts
-check-*.png
-smoke-*.png
-out-*.png
-
-# Working data from the style split — the decisions themselves live in the
-# engine (look, subject, mergedInto, mergedWhy), so these are the notebook and
-# not the record.
-.styles/
-
-# Head-to-head engine test images — regenerate with scripts/engine-bakeoff.mjs
-.bakeoff/
-
-# Deck fit check output — regenerate with scripts/deck-fit-check.mjs
-.deckcheck/
-
-# Screenshots taken while checking layouts
-.shots/
+vps-start-container.sh
+yarn-debug.log*
+yarn-error.log*
