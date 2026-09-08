@@ -42,7 +42,7 @@ rm -rf "$OUT"
 mkdir -p "$OUT/remotion"
 
 # --- the service itself -------------------------------------------------
-for f in server.js slides.js commercial.js present-export.js Dockerfile package.json; do
+for f in server.js slides.js commercial.js present-export.js Dockerfile package.json buildspec.yml; do
   cp "$REPO/vps/$f" "$OUT/$f"
 done
 cp "$REPO/vps/package-lock.json" "$OUT/" 2>/dev/null || true
@@ -76,6 +76,7 @@ done
 echo "==> Checking the context is complete"
 fail=0
 need_file() { [ -f "$OUT/$1" ] && echo "   ok    $1" || { echo "   MISSING $1"; fail=1; }; }
+need_file buildspec.yml
 need_file server.js
 need_file slides.js
 need_file commercial.js

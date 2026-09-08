@@ -1,0 +1,32 @@
+version: 0.2
+
+# HOW THE VIDEO-SERVICE IMAGE IS BUILT.
+#
+# This file used to exist ONLY inside the zip uploaded to S3 — not in the repo.
+# That meant the one instruction for how to build the image lived in a bucket,
+# and the next person to deploy would have had to guess it. It lives here now.
+#
+# A FAILED PUSH CAN STILL LEAVE A GREEN BUILD — this project already lost a day
+# to exactly that, with 16 pushes reporting success while none of them landed.
+# So the push is verified against the registry rather than trusted.
+#
+# Every command is QUOTED. A line containing { } or starting with one is read by
+# YAML as a nested map, not a shell command, and the build then fails during
+# DOWNLOAD_SOURCE with a message that never mentions your shell script.
+
+phases:
+  pre_build:
+    commands:
+      - "aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_URI"
+
+  build:
+    commands:
+      - "docker build -t $ECR_URI/docs2video-service:latest ."
+
+  post_build:
+    commands:
+      - "docker push $ECR_URI/docs2video-service:latest"
+      # PROVE THE PUSH LANDED. A digest that matches what we just built is the
+      # only evidence that counts; anything else is a build that says 'ok' and
+      # quietly leaves yesterday's image serving traffic.
+      - "LOCAL=$(docker inspect --format='{{index .RepoDigests 0}}' $ECR_URI/docs2video-service:latest | cut -d@ -f2); echo \"built digest: $LOCAL\"; REMOTE=$(aws ecr describe-images --repository-name docs2video-service --image-ids imageTag=latest --query 'imageDetails[0].imageDigest' --output text); echo \"registry digest: $REMOTE\"; if [ \"$LOCAL\" != \"$REMOTE\" ]; then echo 'PUSH DID NOT LAND - registry has a different image'; exit 1; fi; echo 'push verified'"
