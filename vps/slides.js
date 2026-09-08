@@ -17,6 +17,10 @@ const CF_ACCOUNT = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_TOKEN = process.env.CLOUDFLARE_API_KEY   // Workers AI API token (named _API_KEY in env)
 const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM'
 const ELEVEN_MODEL = process.env.ELEVENLABS_MODEL || 'eleven_turbo_v2_5'
+// Narration fallback — used whenever ElevenLabs refuses (see ttsTimed).
+const OPENAI_KEY = process.env.OPENAI_API_KEY
+const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'tts-1-hd'
+const OPENAI_TTS_VOICE = process.env.OPENAI_TTS_VOICE || 'nova'
 const DOC_MODEL = process.env.DOC_MODEL || 'gemini-flash-latest'
 const IMAGE_MODEL = process.env.IMAGE_MODEL || 'gemini-3-pro-image-preview'
 
@@ -149,7 +153,59 @@ function charsToWords(chars, starts, ends) {
   for (let i = 0; i < chars.length; i++) { const c = chars[i]; if (/\s/.test(c)) { flush(); e = ends[i] ?? e; continue } if (s < 0) s = starts[i] ?? e; cur += c; e = ends[i] ?? e }
   flush(); return words
 }
-async function ttsTimed(text, outPath) {
+/**
+ * NARRATION, WITH A VOICE THAT ALWAYS ARRIVES.
+ *
+ * ElevenLabs is the good voice AND the only one that returns word-level
+ * timings, which is why it was the only one here. But "the only one" meant a
+ * failed invoice at ElevenLabs became a presentation delivered in SILENCE —
+ * every slide built, nothing to listen to. A missing voice is not a degraded
+ * feature, it is a broken product, and the customer was charged for it.
+ *
+ * So: ElevenLabs first, exactly as before. If it refuses for ANY reason —
+ * unpaid invoice, rate limit, outage, a key with the wrong permissions —
+ * OpenAI speaks instead.
+ *
+ * THE TIMINGS ARE THE HARD PART. OpenAI returns audio and nothing else, so the
+ * word times are ESTIMATED: measure the real duration of the mp3 with ffprobe
+ * (never guess it — a guessed duration desynchronises every slide after it),
+ * then spread the words across that duration weighted by length, since longer
+ * words genuinely take longer to say. Cues land close rather than exact, which
+ * is the right trade against no audio at all.
+ */
+function estimateWordTimings(text, durationSec) {
+  const raw = String(text || '').trim().split(/\s+/).filter(Boolean)
+  if (!raw.length || !(durationSec > 0)) return []
+  // Weight by length + a floor, so "a" does not get the same slot as
+  // "internationally". The +3 is the roughly fixed cost of any word.
+  const weights = raw.map((w) => w.replace(/[^a-zA-Z0-9$%]/g, '').length + 3)
+  const total = weights.reduce((a, b) => a + b, 0) || 1
+  let t = 0
+  return raw.map((w, k) => {
+    const dur = (weights[k] / total) * durationSec
+    const start = t
+    t += dur
+    return { w: w.replace(/^[^a-zA-Z0-9$%]+|[^a-zA-Z0-9$%]+$/g, '') || w, start, end: t }
+  })
+}
+
+/** Real length of an audio file. Guessing this desynchronises everything after it. */
+function audioDurationSec(path) {
+  return new Promise((resolve) => {
+    try {
+      require('child_process').execFile('ffprobe',
+        ['-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', path],
+        { timeout: 15000 },
+        (err, stdout) => {
+          const d = parseFloat(String(stdout || '').trim())
+          resolve(err || !isFinite(d) || d <= 0 ? 0 : d)
+        })
+    } catch { resolve(0) }
+  })
+}
+
+async function elevenTimed(text, outPath) {
+  if (!ELEVEN_KEY) throw new Error('ELEVENLABS_API_KEY not set')
   const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}/with-timestamps?output_format=mp3_44100_128`, {
     method: 'POST', headers: { 'xi-api-key': ELEVEN_KEY, 'content-type': 'application/json' },
     body: JSON.stringify({ text: speakable(text), model_id: ELEVEN_MODEL, voice_settings: { stability: 0.55, similarity_boost: 0.8, style: 0.25 } }),
@@ -159,7 +215,36 @@ async function ttsTimed(text, outPath) {
   await writeFile(outPath, Buffer.from(j.audio_base64, 'base64'))
   const a = j.alignment || j.normalized_alignment || {}
   const words = charsToWords(a.characters || [], a.character_start_times_seconds || [], a.character_end_times_seconds || [])
-  return { words, durationSec: words.length ? words[words.length - 1].end : 0 }
+  return { words, durationSec: words.length ? words[words.length - 1].end : 0, voice: 'elevenlabs' }
+}
+
+async function openaiTimed(text, outPath) {
+  if (!OPENAI_KEY) throw new Error('OPENAI_API_KEY not set')
+  const spoken = speakable(text)
+  const r = await fetch('https://api.openai.com/v1/audio/speech', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${OPENAI_KEY}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ model: OPENAI_TTS_MODEL, voice: OPENAI_TTS_VOICE, input: spoken, response_format: 'mp3', speed: 0.95 }),
+  })
+  if (!r.ok) throw new Error(`OpenAI TTS ${r.status}: ${(await r.text()).slice(0, 160)}`)
+  const buf = Buffer.from(await r.arrayBuffer())
+  if (buf.length < 100) throw new Error(`OpenAI TTS returned tiny audio: ${buf.length} bytes`)
+  await writeFile(outPath, buf)
+  const durationSec = await audioDurationSec(outPath)
+  if (!durationSec) throw new Error('OpenAI TTS: could not measure audio duration (ffprobe)')
+  return { words: estimateWordTimings(spoken, durationSec), durationSec, voice: 'openai' }
+}
+
+async function ttsTimed(text, outPath) {
+  try {
+    return await elevenTimed(text, outPath)
+  } catch (err) {
+    // Say WHICH provider failed and WHY, so an unpaid invoice is not
+    // investigated as an outage. This exact message is what turns a silent
+    // video into a five-minute fix.
+    console.warn(`[tts] ElevenLabs failed (${err && err.message}) — falling back to OpenAI`)
+    return await openaiTimed(text, outPath)
+  }
 }
 const norm = (s) => s.toLowerCase().replace(/[^a-z0-9$%]/g, '')
 function cueSec(words, phrase) {
@@ -657,4 +742,4 @@ async function generateSceneVO({ pub, text, outName, pronounce, tts }) {
   return tts ? await tts(run) : await run()
 }
 
-module.exports = { generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend, isRegulated, productTokens, scrubSlidePlan, smoothScrubbedSlides, complianceLeaks, CARRIER_BLOCKLIST }
+module.exports = { estimateWordTimings, audioDurationSec, generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend, isRegulated, productTokens, scrubSlidePlan, smoothScrubbedSlides, complianceLeaks, CARRIER_BLOCKLIST }
