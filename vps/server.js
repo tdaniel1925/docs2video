@@ -1143,6 +1143,29 @@ async function grabPoster(videoFile, outPath, seekSeconds = 3.2) {
 // look = the aesthetic suffix. Defaults to V3_LOOK (cinematic photography for
 // the per-scene cinematic images). The infographic backdrop passes INFOGRAPHIC_LOOK
 // instead — a precise, designed brand ground rather than moody photography.
+/**
+ * THE USEFUL PART OF A CRASH.
+ *
+ * crashReason(stderrBuf) keeps the END of the output — which is the tail of a
+ * stack trace: frame paths and no reason. A real failure was stored as
+ *
+ *   render exit 1: js:59:23
+ *       at async .../middleware-sdk-s3/dist-cjs/index.js:137:14
+ *
+ * ...and the line that actually said WHY — an S3 error, a missing file, a
+ * timeout — had already scrolled past. Diagnosing it meant reproducing the
+ * whole render by hand, and the customer was told nothing either way.
+ *
+ * Node prints the message FIRST and the frames after, so the head is worth
+ * more than the tail. This keeps the head, and enough of the tail to still
+ * see where it happened.
+ */
+function crashReason(stderr) {
+  const t = String(stderr || '').trim()
+  if (t.length <= 600) return t
+  return t.slice(0, 420) + '\n  ...\n' + t.slice(-180)
+}
+
 async function v3GeminiBg(prompt, outPath, look = V3_LOOK) {
   const { GoogleGenAI } = require('@google/genai')
   const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 120000 } })
@@ -1435,7 +1458,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
       child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`remotion render: ${e.message}`)) })
       child.on('close', (code) => {
         clearTimeout(killTimer)
-        code === 0 ? resolve() : reject(new Error(`remotion render exit ${code}: ${stderrBuf.slice(-300)}`))
+        code === 0 ? resolve() : reject(new Error(`remotion render exit ${code}: ${crashReason(stderrBuf)}`))
       })
     }))
 
@@ -1703,7 +1726,7 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
         child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
         const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout (>60min)')) }, 60 * 60 * 1000)
         child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`render: ${e.message}`)) })
-        child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`render exit ${code}: ${stderrBuf.slice(-300)}`)) })
+        child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`render exit ${code}: ${crashReason(stderrBuf)}`)) })
       })
 
       // ---- QA GATE: per-frame flash/flicker scan on the rendered mp4 (catches
@@ -1888,7 +1911,7 @@ app.post('/generate-slides', authCheck, async (req, res) => {
         child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
         const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout (>60min)')) }, 60 * 60 * 1000)
         child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`render: ${e.message}`)) })
-        child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`render exit ${code}: ${stderrBuf.slice(-300)}`)) })
+        child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`render exit ${code}: ${crashReason(stderrBuf)}`)) })
       })
 
       await setProgress(90, 'Uploading...')
@@ -2134,7 +2157,7 @@ RULES:
         child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
         const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('re-render timeout')) }, 60 * 60 * 1000)
         child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`re-render: ${e.message}`)) })
-        child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`re-render exit ${code}: ${stderrBuf.slice(-300)}`)) })
+        child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`re-render exit ${code}: ${crashReason(stderrBuf)}`)) })
       }))
       staged.push(reOut)
 
@@ -2252,7 +2275,7 @@ app.post('/render-directed', authCheck, async (req, res) => {
         child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
         const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {} ; reject(new Error('remotion render: timeout (>60min)')) }, 60 * 60 * 1000)
         child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`remotion render: ${e.message}`)) })
-        child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`remotion render exit ${code}: ${stderrBuf.slice(-300)}`)) })
+        child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`remotion render exit ${code}: ${crashReason(stderrBuf)}`)) })
       })
 
       await setProgress(90, 'Uploading...')
