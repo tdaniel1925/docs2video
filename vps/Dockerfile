@@ -1,4 +1,11 @@
-FROM node:20-slim
+# AWS PUBLIC MIRROR, NOT DOCKER HUB.
+#
+# Anonymous pulls from docker.io are rate limited, and CodeBuild runs from a
+# shared pool of AWS addresses that regularly sits over the limit — two builds
+# in a row failed with "429 Too Many Requests" on the base image alone, before
+# a single line of our own code was touched. The ECR public mirror is the same
+# image, unthrottled, and needs no credentials.
+FROM public.ecr.aws/docker/library/node:20-slim
 
 # Install FFmpeg, LibreOffice, poppler-utils (for PDF conversion)
 RUN apt-get update && apt-get install -y \
