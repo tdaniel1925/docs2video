@@ -25,6 +25,30 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(HERE, '..')
 const PUBLIC = join(ROOT, 'public')
 const region = process.env.REMOTION_AWS_REGION || process.env.AWS_REGION || 'us-east-1'
+
+/*
+ * THE KEYS ARE NAMED REMOTION_*, SO THEY HAVE TO BE HANDED OVER.
+ *
+ * The header of this file says credentials come from REMOTION_AWS_ACCESS_KEY_ID
+ * and REMOTION_AWS_SECRET_ACCESS_KEY — and they do, that is what the ECS task
+ * supplies. But `new S3Client({ region })` does not look at those: it walks the
+ * standard chain, finds no AWS_ACCESS_KEY_ID, and throws
+ *
+ *   CredentialsProviderError ... { tryNextLink: false }
+ *
+ * which surfaced as "render exit 1" with a stack full of SDK frames and no
+ * reason. Every commercial render died at the asset upload.
+ *
+ * Passed explicitly here, falling back to the standard chain so this still
+ * works anywhere the plain AWS_* variables are set (a laptop, a CI runner).
+ */
+const remotionCreds = process.env.REMOTION_AWS_ACCESS_KEY_ID && process.env.REMOTION_AWS_SECRET_ACCESS_KEY
+  ? {
+      accessKeyId: process.env.REMOTION_AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.REMOTION_AWS_SECRET_ACCESS_KEY,
+      ...(process.env.REMOTION_AWS_SESSION_TOKEN ? { sessionToken: process.env.REMOTION_AWS_SESSION_TOKEN } : {}),
+    }
+  : undefined
 const comp = args.comp; const out = args.out
 if (!comp || !out) { console.error('usage: --comp <id> --props <file> --out <mp4>'); process.exit(2) }
 const props = args.props && existsSync(args.props) ? JSON.parse(readFileSync(args.props, 'utf8')) : {}
@@ -48,7 +72,7 @@ if (!serveUrl) { console.error('No REMOTION_SERVE_URL and no deployed site found
 const bucket = new URL(serveUrl).hostname.split('.')[0]
 const functionName = process.env.REMOTION_FUNCTION_NAME || (await getFunctions({ region, compatibleOnly: true })).sort((a, b) => b.memorySizeInMb - a.memorySizeInMb)[0]?.functionName
 if (!functionName) { console.error('No compatible Lambda function deployed'); process.exit(2) }
-const s3 = new S3Client({ region })
+const s3 = new S3Client({ region, ...(remotionCreds ? { credentials: remotionCreds } : {}) })
 const jobId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 const prefix = `video-assets/${jobId}`
 let bytes = 0
@@ -65,7 +89,7 @@ const { renderId, bucketName } = await renderMediaOnLambda({
   inputProps: { ...props, assetBase },
   codec: 'h264', imageFormat: 'jpeg', jpegQuality: 90, crf: 20,
   privacy: 'public', downloadBehavior: { type: 'download', fileName: null },
-  framesPerLambda: 120, maxRetries: 2, timeoutInMilliseconds: 240000,
+  framesPerLambda: Number(process.env.REMOTION_FRAMES_PER_LAMBDA || 120), maxRetries: 2, timeoutInMilliseconds: Number(process.env.REMOTION_TIMEOUT_MS || 240000),
   chromiumOptions: { gl: 'swangle' },
 })
 console.log(`lambda: render ${renderId} on ${functionName}`)
