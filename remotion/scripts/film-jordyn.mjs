@@ -225,6 +225,56 @@ const SHOTS = {
     await page.waitForTimeout(6000)
   },
 
+  /** The populated chat screen — cases — with a slow push. */
+  mock_cases: async (page) => {
+    await page.goto(`${BASE}/screenshot-mock?scene=cases`, { waitUntil: 'networkidle' })
+    await page.waitForTimeout(900)
+    await page.addStyleTag({ content: '[class*="timezone" i],[id*="intercom" i],[class*="launcher" i]{display:none!important}' }).catch(() => {})
+    /* a slow drift down the conversation, so the take is alive */
+    for (let i = 0; i < 40; i++) { await page.mouse.wheel(0, 5); await page.waitForTimeout(55) }
+    await page.waitForTimeout(600)
+  },
+
+  /** The populated chat screen — call — with a slow push. */
+  mock_call: async (page) => {
+    await page.goto(`${BASE}/screenshot-mock?scene=call`, { waitUntil: 'networkidle' })
+    await page.waitForTimeout(900)
+    await page.addStyleTag({ content: '[class*="timezone" i],[id*="intercom" i],[class*="launcher" i]{display:none!important}' }).catch(() => {})
+    /* a slow drift down the conversation, so the take is alive */
+    for (let i = 0; i < 40; i++) { await page.mouse.wheel(0, 5); await page.waitForTimeout(55) }
+    await page.waitForTimeout(600)
+  },
+
+  /** The populated chat screen — letter — with a slow push. */
+  mock_letter: async (page) => {
+    await page.goto(`${BASE}/screenshot-mock?scene=letter`, { waitUntil: 'networkidle' })
+    await page.waitForTimeout(900)
+    await page.addStyleTag({ content: '[class*="timezone" i],[id*="intercom" i],[class*="launcher" i]{display:none!important}' }).catch(() => {})
+    /* a slow drift down the conversation, so the take is alive */
+    for (let i = 0; i < 40; i++) { await page.mouse.wheel(0, 5); await page.waitForTimeout(55) }
+    await page.waitForTimeout(600)
+  },
+
+  /** The populated chat screen — realestate — with a slow push. */
+  mock_realestate: async (page) => {
+    await page.goto(`${BASE}/screenshot-mock?scene=realestate`, { waitUntil: 'networkidle' })
+    await page.waitForTimeout(900)
+    await page.addStyleTag({ content: '[class*="timezone" i],[id*="intercom" i],[class*="launcher" i]{display:none!important}' }).catch(() => {})
+    /* a slow drift down the conversation, so the take is alive */
+    for (let i = 0; i < 40; i++) { await page.mouse.wheel(0, 5); await page.waitForTimeout(55) }
+    await page.waitForTimeout(600)
+  },
+
+  /** The populated chat screen — hvac — with a slow push. */
+  mock_hvac: async (page) => {
+    await page.goto(`${BASE}/screenshot-mock?scene=hvac`, { waitUntil: 'networkidle' })
+    await page.waitForTimeout(900)
+    await page.addStyleTag({ content: '[class*="timezone" i],[id*="intercom" i],[class*="launcher" i]{display:none!important}' }).catch(() => {})
+    /* a slow drift down the conversation, so the take is alive */
+    for (let i = 0; i < 40; i++) { await page.mouse.wheel(0, 5); await page.waitForTimeout(55) }
+    await page.waitForTimeout(600)
+  },
+
   /** A slow pan down the real inbox — the establishing shot. */
   inbox: async (page) => {
     await page.goto(`${BASE}/inbox`, { waitUntil: 'networkidle' })

@@ -11,6 +11,17 @@ import { ApexGrid, APEX_GRID_FRAMES } from './ApexGrid'
 import { ApexVox, APEX_VOX_FRAMES } from './ApexVox'
 import { ApexFlat, APEX_FLAT_FRAMES } from './ApexFlat'
 import { RestylezLaunch, RESTYLEZ_FRAMES, RESTYLEZ_FPS } from './RestylezLaunch'
+import { Harbor, HARBOR_FRAMES, HARBOR_FPS } from './showcase/Harbor'
+import { Northwind, NORTHWIND_FRAMES, NORTHWIND_FPS } from './showcase/Northwind'
+import { Forge, FORGE_FRAMES, FORGE_FPS } from './showcase/Forge'
+import { Jordyn, JORDYN_FRAMES as JORDYN_LAUNCH_FRAMES, JORDYN_FPS } from './showcase/Jordyn'
+import { JordynHire, JORDYN_HIRE_FRAMES, JORDYN_HIRE_FPS } from './showcase/JordynHire'
+ import { ProofScene, PROOF_FRAMES, PROOF_FPS } from './showcase/ProofScene'
+ import { TheMorning, MORNING_FRAMES, MORNING_FPS } from './showcase/TheMorning'
+import { ClubNight, CLUB_FRAMES, CLUB_FPS } from './showcase/ClubNight'
+import { MillionDollarBaby, MDB_FRAMES, MDB_FPS } from './showcase/MillionDollarBaby'
+import { RzRemake, RZMAKE_FRAMES, RZMAKE_FPS } from './showcase/RzRemake'
+import { RzSizes, RzDeck, RzPptx, RzEdit, RzLibrary, RzTour } from './showcase/RzTools'
 import { loadFont as loadArchivo } from '@remotion/google-fonts/Archivo'
 import { loadFont as loadInter } from '@remotion/google-fonts/Inter'
 import { AuroraExplainer, totalFrames } from './AuroraExplainer'
@@ -186,6 +197,30 @@ export const RemotionRoot: React.FC = () => {
       width={1920}
       height={1080}
       durationInFrames={D2V_PULSE_FRAMES}
+    />
+    <Composition
+      id="TheMorning"
+      component={TheMorning}
+      durationInFrames={MORNING_FRAMES}
+      fps={MORNING_FPS}
+      width={1920}
+      height={1080}
+    />
+    <Composition
+      id="ProofScene"
+      component={ProofScene}
+      durationInFrames={PROOF_FRAMES}
+      fps={PROOF_FPS}
+      width={1920}
+      height={1080}
+    />
+    <Composition
+      id="JordynHire"
+      component={JordynHire}
+      durationInFrames={JORDYN_HIRE_FRAMES}
+      fps={JORDYN_HIRE_FPS}
+      width={1920}
+      height={1080}
     />
     <Composition
       id="CommercialJordyn"
@@ -759,6 +794,20 @@ export const RemotionRoot: React.FC = () => {
     />
     {/* Restylez launch commercial — fast, yellow, real outputs. */}
     <Composition id="RestylezLaunch" component={RestylezLaunch} fps={RESTYLEZ_FPS} width={1920} height={1080} durationInFrames={RESTYLEZ_FRAMES} />
+    {/* Showcase pieces — three looks, three rhythms. */}
+    <Composition id="Harbor" component={Harbor} fps={HARBOR_FPS} width={1920} height={1080} durationInFrames={HARBOR_FRAMES} />
+    <Composition id="Northwind" component={Northwind} fps={NORTHWIND_FPS} width={1920} height={1080} durationInFrames={NORTHWIND_FRAMES} />
+    <Composition id="Forge" component={Forge} fps={FORGE_FPS} width={1920} height={1080} durationInFrames={FORGE_FRAMES} />
+    <Composition id="Jordyn" component={Jordyn} fps={JORDYN_FPS} width={1920} height={1080} durationInFrames={JORDYN_LAUNCH_FRAMES} />
+    <Composition id="ClubNight" component={ClubNight} fps={CLUB_FPS} width={1920} height={1080} durationInFrames={CLUB_FRAMES} />
+    <Composition id="MillionDollarBaby" component={MillionDollarBaby} fps={MDB_FPS} width={1920} height={1080} durationInFrames={MDB_FRAMES} />
+    <Composition id="RzRemake" component={RzRemake} fps={RZMAKE_FPS} width={1920} height={1080} durationInFrames={RZMAKE_FRAMES} />
+    <Composition id="RzSizes" component={RzSizes.Comp} fps={RzSizes.fps} width={1920} height={1080} durationInFrames={RzSizes.frames} />
+    <Composition id="RzDeck" component={RzDeck.Comp} fps={RzDeck.fps} width={1920} height={1080} durationInFrames={RzDeck.frames} />
+    <Composition id="RzPptx" component={RzPptx.Comp} fps={RzPptx.fps} width={1920} height={1080} durationInFrames={RzPptx.frames} />
+    <Composition id="RzEdit" component={RzEdit.Comp} fps={RzEdit.fps} width={1920} height={1080} durationInFrames={RzEdit.frames} />
+    <Composition id="RzLibrary" component={RzLibrary.Comp} fps={RzLibrary.fps} width={1920} height={1080} durationInFrames={RzLibrary.frames} />
+    <Composition id="RzTour" component={RzTour.Comp} fps={RzTour.fps} width={1920} height={1080} durationInFrames={RzTour.frames} />
     </>
   )
 }
