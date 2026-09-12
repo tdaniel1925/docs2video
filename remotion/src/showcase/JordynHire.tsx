@@ -53,17 +53,37 @@ const Ground: React.FC<{ bg: string; children: React.ReactNode }> = ({ bg, child
 const pop = (frame: number, at: number, damping = 13) =>
   clamp(spring({ frame: frame - at, fps: FPS, config: { damping, stiffness: 160, mass: 0.8 } }), 0, 1.2)
 
+/**
+ * THE SCENE FRAME — now with somewhere to put things other than the bottom.
+ *
+ * Every beat used to be: content in the middle, kicker and headline centred
+ * at the bottom. Fifteen times. That is why a film with 83 effects in it
+ * still read as one long slide deck — the EYE never had to move, so nothing
+ * felt like a cut.
+ *
+ * `place` moves the headline block: bottom (the old behaviour), top, or to
+ * either side with the content beside it. `grad` paints a real gradient
+ * ground instead of a flat colour. `bar` puts a full-bleed colour band
+ * behind the type. None of these are effects — they are composition, which
+ * is the thing that was actually missing.
+ */
 const Scene: React.FC<{
   bg: string
+  /** A second colour makes the ground a gradient rather than a flat fill. */
+  bg2?: string
   kicker?: string
   kColor?: string
   head: React.ReactNode
   headColor?: string
   headSize?: number
   headAt?: number
+  /** Where the words sit. 'bottom' is the original. */
+  place?: 'bottom' | 'top' | 'left' | 'right'
+  /** A full-bleed band behind the headline. */
+  bar?: string
   at?: number
   children: React.ReactNode
-}> = ({ bg, kicker, kColor = CLAY, head, headColor = INK, headSize = 62, headAt = 3, children }) => {
+}> = ({ bg, bg2, kicker, kColor = CLAY, head, headColor = INK, headSize = 62, headAt = 3, place = 'bottom', bar, children }) => {
   const frame = useCurrentFrame()
   /*
    * TWO STAGES, not one fade. The kicker arrives first and the headline
@@ -73,22 +93,89 @@ const Scene: React.FC<{
    */
   const kp = ease(frame, headAt)
   const hp = ease(frame, headAt + 4)
+  const side = place === 'left' || place === 'right'
+  const ground = bg2 ? `linear-gradient(150deg, ${bg} 0%, ${bg2} 100%)` : bg
+
+  const words = (
+    <div style={{
+      flex: side ? '0 0 720px' : '0 0 auto',
+      textAlign: side ? 'left' : 'center',
+      paddingTop: place === 'bottom' ? 28 : 0,
+      paddingBottom: place === 'top' ? 28 : 0,
+      alignSelf: side ? 'center' : undefined,
+      position: 'relative', zIndex: 2,
+    }}>
+      {kicker && (
+        <div style={{
+          fontWeight: 800, fontSize: 24, letterSpacing: '0.18em', textTransform: 'uppercase', color: kColor, marginBottom: 12,
+          opacity: clamp(kp * 1.8, 0, 1), transform: `translateY(${(1 - clamp(kp, 0, 1)) * 16}px)`,
+        }}>{kicker}</div>
+      )}
+      <div style={{
+        fontWeight: 900, fontSize: headSize, color: headColor, lineHeight: 1.06, letterSpacing: '-0.03em', paddingBottom: '0.06em',
+        opacity: clamp(hp * 1.6, 0, 1),
+        /* Side headlines slide in horizontally — a different direction from
+           the vertical rise, so a side beat reads as a different shot. */
+        transform: side
+          ? `translateX(${(1 - clamp(hp, 0, 1)) * (place === 'left' ? -40 : 40)}px)`
+          : `translateY(${(1 - clamp(hp, 0, 1)) * 26}px)`,
+      }}>{head}</div>
+    </div>
+  )
+
+  const body = side ? (
+    <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+      <div style={{
+        position: 'absolute', top: '50%', left: '50%',
+        width: 1700, height: 780,
+        transform: 'translate(-50%, -50%) scale(0.54)',
+      }}>{children}</div>
+    </div>
+  ) : (
+    /*
+     * A TOP-HEADLINE BEAT STILL CENTRES ITS CONTENT.
+     *
+     * Each beat positions its pieces from the TOP of the content box. With
+     * the words moved to the top the box starts lower, so the artwork bunched
+     * under the headline and left the bottom third of the frame empty. The
+     * stage keeps the height it was authored against and is centred in
+     * whatever space is left, so moving the type does not move the picture.
+     */
+    <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+      {place === 'top'
+        ? <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 700, transform: 'translateY(-50%)' }}>{children}</div>
+        : children}
+    </div>
+  )
+
   return (
-    <Ground bg={bg}>
-      <AbsoluteFill style={{ display: 'flex', flexDirection: 'column', padding: '96px 110px 84px' }}>
-        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>{children}</div>
-        <div style={{ flex: '0 0 auto', textAlign: 'center', paddingTop: 28 }}>
-          {kicker && (
-            <div style={{
-              fontWeight: 800, fontSize: 24, letterSpacing: '0.18em', textTransform: 'uppercase', color: kColor, marginBottom: 12,
-              opacity: clamp(kp * 1.8, 0, 1), transform: `translateY(${(1 - clamp(kp, 0, 1)) * 16}px)`,
-            }}>{kicker}</div>
-          )}
-          <div style={{
-            fontWeight: 900, fontSize: headSize, color: headColor, lineHeight: 1.06, letterSpacing: '-0.03em', paddingBottom: '0.06em',
-            opacity: clamp(hp * 1.6, 0, 1), transform: `translateY(${(1 - clamp(hp, 0, 1)) * 26}px)`,
-          }}>{head}</div>
-        </div>
+    <Ground bg={ground}>
+      {/* the band sits under everything, full bleed, ignoring the padding */}
+      {bar && (
+        <div style={{
+          position: 'absolute', left: 0, right: 0,
+          ...(place === 'top' ? { top: 0, height: 330 } : { bottom: 0, height: 330 }),
+          /*
+           * The band FADES OUT at its inner edge rather than stopping dead.
+           * A flat rectangle drew a hard horizontal line across the middle of
+           * the shot, which reads as a rendering seam — the band is meant to
+           * weight the type, not divide the frame in half.
+           */
+          background: place === 'top'
+            ? `linear-gradient(180deg, ${bar} 0%, ${bar} 55%, transparent 100%)`
+            : `linear-gradient(0deg, ${bar} 0%, ${bar} 55%, transparent 100%)`,
+          transform: `scaleY(${clamp(hp, 0, 1)})`,
+          transformOrigin: place === 'top' ? 'top' : 'bottom',
+        }} />
+      )}
+      <AbsoluteFill style={{
+        display: 'flex',
+        flexDirection: side ? (place === 'left' ? 'row' : 'row-reverse') : (place === 'top' ? 'column-reverse' : 'column'),
+        gap: side ? 70 : 0,
+        padding: '96px 110px 84px',
+      }}>
+        {body}
+        {words}
       </AbsoluteFill>
     </Ground>
   )
@@ -150,7 +237,7 @@ const WantBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const want = ['Answers before you ask', 'Never drops a ball', 'Never forgets a name', 'Never leaves at five']
   // The headline lands in two stages: the setup, then the turn.
   return (
-    <Scene bg={CREAM} kicker="The role" head={<>Every business owner wants<br /><span style={{ color: CLAY }}>the same person.</span></>} headSize={62} headAt={2}>
+    <Scene bg={CREAM} bg2="#EFE2D2" place="left" kicker="The role" head={<>Every business owner wants <span style={{ color: CLAY }}>the same person.</span></>} headSize={58} headAt={2}>
       <FocusIn dur={14} from={20}>
       <Camera hold={hold} dir="in" amount={0.035} origin="50% 30%">
         <Alive intensity={0.6}>
@@ -177,7 +264,6 @@ const WantBeat: React.FC<{ hold: number }> = ({ hold }) => {
         </Alive>
       </Camera>
       </FocusIn>
-      <SettleSweep color={WHITE} hold={hold} />
     </Scene>
   )
 }
@@ -192,7 +278,7 @@ const CostBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const ripAt = 22
   const m = clamp(Math.floor((frame - ripAt) / 4), 0, MONTHS.length - 1)
   return (
-    <Scene bg={CREAM} head={<>Nobody applies. <span style={{ color: CLAY }}>The near-misses cost a fortune.</span></>} headSize={56}>
+    <Scene bg="#2B2320" bg2="#3D302A" headColor={WHITE} place="top" bar="rgba(181,86,58,0.16)" head={<>Nobody applies. <span style={{ color: '#E8846A' }}>The near-misses cost a fortune.</span></>} headSize={56}>
       <Shake at={stampAt} amount={5} dur={13}>
         <Camera hold={hold} dir="in" amount={0.025} origin="40% 45%">
           <Alive intensity={0.5}>
@@ -322,7 +408,7 @@ const EmailBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const openAt = 30
   const opened = frame >= openAt
   return (
-    <Scene bg={CREAM} kicker="Every inbox, overnight" head={<>What needs you is waiting <span style={{ color: CLAY }}>before your coffee.</span></>} headSize={56}>
+    <Scene bg="#EDF0EA" bg2="#DCE4D6" place="right" kicker="Every inbox, overnight" kColor="#5E7355" head={<>What needs you is waiting <span style={{ color: CLAY }}>before your coffee.</span></>} headSize={52}>
       <Camera hold={hold} dir="in" amount={0.028} origin="55% 40%">
         <Alive intensity={0.5}>
           <Layer hold={hold} depth={0.3}>
@@ -363,7 +449,6 @@ const EmailBeat: React.FC<{ hold: number }> = ({ hold }) => {
           </div>
         </Alive>
       </Camera>
-      <SettleSweep color={CLAY} hold={hold} />
     </Scene>
   )
 }
@@ -380,7 +465,7 @@ const PhoneBeat: React.FC<{ hold: number }> = ({ hold }) => {
     return live ? 12 + Math.abs(Math.sin((frame * 0.32) + i * 0.7)) * 46 : 8
   })
   return (
-    <Scene bg={PAPER} kicker="Your own answered number" head={<>She answers the phone — <span style={{ color: SAGE }}>callers book, mid-call.</span></>} headSize={56}>
+    <Scene bg={PAPER} bg2="#F2EDE4" place="top" bar="rgba(143,169,139,0.20)" kicker="Your own answered number" head={<>She answers the phone — <span style={{ color: '#5E7355' }}>callers book, mid-call.</span></>} headSize={54}>
       <Camera hold={hold} dir="in" amount={0.026} origin="45% 45%">
         <Alive intensity={0.5}>
           <Layer hold={hold} depth={0.3}>
@@ -430,7 +515,7 @@ const InvoiceBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const paidAt = 50
   const paid = hit(frame, paidAt)
   return (
-    <Scene bg={CREAM} kicker="Stripe invoicing, built in" head={<>Writes, invoices, chases, files — <span style={{ color: TERRA }}>on your letterhead.</span></>} headSize={56}>
+    <Scene bg="#FBEDE6" bg2="#F3D9CC" place="left" kicker="Stripe invoicing, built in" head={<>Writes, invoices, chases, files — <span style={{ color: '#A34B2C' }}>on your letterhead.</span></>} headSize={50}>
       <Shake at={paidAt} amount={3} dur={10}>
         <Camera hold={hold} dir="in" amount={0.026} origin="50% 45%">
           <Alive intensity={0.5}>
@@ -466,7 +551,6 @@ const InvoiceBeat: React.FC<{ hold: number }> = ({ hold }) => {
           </Alive>
         </Camera>
       </Shake>
-      <SettleSweep color={TERRA} hold={hold} />
     </Scene>
   )
 }
@@ -486,7 +570,7 @@ const WhoBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const bubble = clamp(1 - (frame - killAt) / 12, 0, 1)
   const pieces = ['Your tone', 'Your prices', 'Your clients', 'Your calendar', 'Your files']
   return (
-    <Scene bg={CREAM} kicker="Not a chatbot" head={<>She learns your business <span style={{ color: CLAY }}>the way a great hire does.</span></>} headSize={56}>
+    <Scene bg={CREAM} bg2="#F0E6D8" place="top" kicker="Not a chatbot" head={<>She learns your business <span style={{ color: CLAY }}>the way a great hire does.</span></>} headSize={54}>
       <Camera hold={hold} dir="in" amount={0.03} origin="50% 45%">
         <Alive intensity={0.5}>
           {/* the thing she is NOT, collapsing */}
@@ -543,7 +627,7 @@ const BrainBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const pos = idx + glide - (raw >= words.length - 1 ? 0 : 0)
   const CARD_W = 430
   return (
-    <Scene bg={INK} kicker="The swappable brain" kColor={SAGE} headColor={WHITE} headSize={56}
+    <Scene bg={INK} bg2="#382C26" kicker="The swappable brain" kColor={SAGE} headColor={WHITE} headSize={56}
       head={<>Tell her your industry. <span style={{ color: SAGE }}>It installs in seconds.</span></>}>
       <Camera hold={hold} dir="in" amount={0.024} origin="50% 45%">
         <Alive intensity={0.5}>
@@ -596,7 +680,7 @@ const SpecBeat: React.FC<{ hold: number }> = ({ hold }) => {
     ['Never leaves at five', SAGE],
   ] as const
   return (
-    <Scene bg={PAPER} kicker="The job spec" head={<>Everyone has written it.<br /><span style={{ color: CLAY }}>Nobody has filled it.</span></>} headSize={58}>
+    <Scene bg="#FFFDF9" bg2="#F5EFE4" place="right" kicker="The job spec" head={<>Everyone has written it. <span style={{ color: CLAY }}>Nobody has filled it.</span></>} headSize={54}>
       {/* the camera pulls BACK to reveal all four — a review asked for exactly
           this, and it is what stops the grid reading as a slide */}
       <Camera hold={hold} dir="out" amount={0.06} origin="50% 40%">
@@ -623,7 +707,6 @@ const SpecBeat: React.FC<{ hold: number }> = ({ hold }) => {
           })}
         </Alive>
       </Camera>
-      <SettleSweep color={SAGE} hold={hold} />
     </Scene>
   )
 }
@@ -633,7 +716,7 @@ const StaysBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const frame = useCurrentFrame()
   const rows = [['Calls in sick', 'Never'], ['Hands in her notice', 'Never'], ['Asks for a raise', 'Never'], ['Works weekends', 'Always']] as const
   return (
-    <Scene bg={INK} kicker="No notice period" kColor={SAGE} headColor={WHITE} headSize={56}
+    <Scene bg="#1F1917" bg2="#332722" place="top" bar="rgba(143,169,139,0.14)" kicker="No notice period" kColor={SAGE} headColor={WHITE} headSize={56}
       head={<>The one hire who <span style={{ color: SAGE }}>never leaves.</span></>}>
       <Camera hold={hold} dir="in" amount={0.022}>
         <Alive intensity={0.5}>
@@ -691,7 +774,7 @@ const ConnectBeat: React.FC<{ hold: number }> = ({ hold }) => {
   ]
   const CX = 880, CY = 250, RX = 440, RY = 210
   return (
-    <Scene bg={CREAM} kicker="Already connected" head={<>She works inside <span style={{ color: CLAY }}>the tools you already use.</span></>} headSize={56}>
+    <Scene bg="#E7EDE3" bg2="#CFDBC8" kicker="Already connected" kColor="#4E6246" head={<>She works inside <span style={{ color: '#A34B2C' }}>the tools you already use.</span></>} headSize={54}>
       <Camera hold={hold} dir="out" amount={0.05} origin="50% 40%">
         <Alive intensity={0.5}>
           {/* THE GATHER, under everything: many separate things becoming one. */}
@@ -790,7 +873,7 @@ const VoiceBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const bars = Array.from({ length: 30 }, (_, i) =>
     talking ? 10 + Math.abs(Math.sin(frame * 0.34 + i * 0.6)) * 40 : 7)
   return (
-    <Scene bg={INK} kicker="Built by talking" kColor={SAGE} headColor={WHITE} headSize={56}
+    <Scene bg="#241D1A" bg2="#3A2D27" kicker="Built by talking" kColor={SAGE} headColor={WHITE} headSize={56}
       head={<>Tell her once. <span style={{ color: SAGE }}>The workflow builds itself.</span></>}>
       <Camera hold={hold} dir="in" amount={0.028}>
         <Alive intensity={0.5}>
@@ -992,6 +1075,30 @@ const BEATS: Beat[] = [
   { dur: s(D[13] + 2.4), el: (h) => <CtaBeat hold={h} /> },
 ]
 
+/**
+ * HOW EACH BEAT IS ENTERED. Indexed to BEATS above.
+ *
+ * 'none' on the hero reveal: the white blow-out on the mark IS the cut, and a
+ * wipe over the top of it would only soften the one moment meant to be hard.
+ */
+const TRANSITION: (('none' | 'snap' | 'wide' | 'sage' | 'ink'))[] = [
+  'none',  // 0  open
+  'wide',  // 1  want
+  'ink',   // 2  cost — into the dark
+  'wide',  // 3  spec
+  'none',  // 4  THE HERO REVEAL
+  'sage',  // 5  who
+  'snap',  // 6  email  ─┐
+  'snap',  // 7  phone   │ the proof run: fast, barely there
+  'snap',  // 8  invoice ─┘
+  'wide',  // 9  brain
+  'sage',  // 10 connect
+  'ink',   // 11 voice
+  'snap',  // 12 stays
+  'wide',  // 13 promise
+  'sage',  // 14 close
+]
+
 const rawStarts: number[] = []
 { let t = 0; for (const b of BEATS) { rawStarts.push(t); t += b.dur } }
 /*
@@ -1031,7 +1138,10 @@ export const JordynHire: React.FC = () => {
           {b.el(durs[i])}
           {/* no bug on the slam or the close — the logo IS the shot there */}
           {i !== 4 && i !== 10 && i !== 13 && i !== 14 && <LogoBug src="showcase/jordyn-hire/logo.png" width={160} opacity={0.92} />}
-          {i > 0 && <StreakWipe color={i % 2 ? WHITE : CLAY} dir={i % 2 ? 1 : -1} dur={10} />}
+          {i > 0 && TRANSITION[i] === 'snap' && <StreakWipe color={WHITE} dir={i % 2 ? 1 : -1} dur={4} />}
+          {i > 0 && TRANSITION[i] === 'wide' && <StreakWipe color={CLAY} dir={i % 2 ? 1 : -1} dur={14} />}
+          {i > 0 && TRANSITION[i] === 'sage' && <StreakWipe color={SAGE} dir={i % 2 ? 1 : -1} dur={9} />}
+          {i > 0 && TRANSITION[i] === 'ink' && <StreakWipe color={INK} dir={i % 2 ? 1 : -1} dur={11} />}
         </Sequence>
       ))}
       <MusicBed src="showcase/jordyn-hire/music.mp3" musicFrames={MUSIC_FRAMES} volume={musicDuck} />

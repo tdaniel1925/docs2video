@@ -52,7 +52,25 @@ export const sustained = (index: number, count: number, holdFrames: number, star
 // ---- SettleSweep: a soft light sweep that crosses the frame LATE in a beat —
 // use to add a fresh motion event during the tail of a long hold so it doesn't
 // die. Give it the beat's hold length; it fires around 65% through.
-export const SettleSweep: React.FC<{ color: string; hold: number }> = ({ color, hold }) => {
+export const SettleSweep: React.FC<{
+  color: string
+  hold: number
+  /**
+   * SET THIS WHEN THE SWEEP SITS INSIDE A SCALED OR TRANSFORMED PARENT.
+   *
+   * `mixBlendMode: screen` blends against the nearest stacking context. On a
+   * full-frame parent that is the shot, which is what it is for. But inside a
+   * transformed box — a two-column layout that scales its content stage to
+   * fit — the blend resolves against THAT box and its bounds show up as a
+   * pale rectangle sitting over the ground. It looked like a stray background
+   * behind the cards and took three wrong guesses to place.
+   *
+   * Plain alpha has no stacking context to leak, so it composites correctly
+   * anywhere. It is a touch softer on a dark ground, which is why screen
+   * stays the default for every existing caller.
+   */
+  flat?: boolean
+}> = ({ color, hold, flat = false }) => {
   const frame = useCurrentFrame()
   const at = Math.round(hold * 0.62)
   const p = clamp((frame - at) / 22, 0, 1)
@@ -60,7 +78,7 @@ export const SettleSweep: React.FC<{ color: string; hold: number }> = ({ color, 
   const o = interpolate(p, [0, 0.3, 1], [0, 0.28, 0])
   if (p <= 0 || p >= 1) return null
   return (
-    <AbsoluteFill style={{ pointerEvents: 'none', mixBlendMode: 'screen', overflow: 'hidden', opacity: o }}>
+    <AbsoluteFill style={{ pointerEvents: 'none', mixBlendMode: flat ? undefined : 'screen', overflow: 'hidden', opacity: flat ? o * 0.8 : o }}>
       <div style={{ position: 'absolute', top: '-20%', left: `${x}%`, width: '45%', height: '140%', background: `linear-gradient(100deg, transparent, ${color}, transparent)`, transform: 'skewX(-14deg)', filter: 'blur(30px)' }} />
     </AbsoluteFill>
   )
