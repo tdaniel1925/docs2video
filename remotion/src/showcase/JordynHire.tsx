@@ -6,6 +6,7 @@ import grid from '../../public/showcase/jordyn-hire/beatgrid.json'
 import { StreakWipe, Alive, SettleSweep, LogoBug, CountUp } from '../lib/pizzazz'
 import { Camera, Tick, Sheen, Shake, Layer, Typed, ease, hit } from './motion'
 import { Slam, Impact, Flash, WordsOnBeat, Parallax, FocusIn, LightRay, Vignette, Swarm, Dial } from './wow'
+import { Screen, Spot, Wall, PushTo } from './real'
 import { makeMusicDuck, beatLock, gridToFrames, durationsFromStarts, type VoWindow } from '../lib/audio'
 import { MusicBed } from '../lib/musicbed'
 
@@ -404,49 +405,12 @@ const SlamBeat: React.FC<{ hold: number }> = ({ hold }) => {
 /* ── EMAIL — the inbox fills, one opens, a reply types itself. ─────────── */
 const EmailBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const frame = useCurrentFrame()
-  const unread = clamp(Math.floor((frame - 4) / 1.1), 0, 84)
-  const openAt = 30
-  const opened = frame >= openAt
   return (
-    <Scene bg="#EDF0EA" bg2="#DCE4D6" place="right" kicker="Every inbox, overnight" kColor="#5E7355" head={<>What needs you is waiting <span style={{ color: CLAY }}>before your coffee.</span></>} headSize={52}>
-      <Camera hold={hold} dir="in" amount={0.028} origin="55% 40%">
-        <Alive intensity={0.5}>
-          <Layer hold={hold} depth={0.3}>
-            <Illo src={R('illo-email.png')} w={500} x={300} y={250} at={2} rot={-3} />
-          </Layer>
-          <div style={{ position: 'absolute', left: 690, top: 0, width: 800 }}>
-            {/* the counter runs while the messages stack up */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18, opacity: clamp(ease(frame, 3) * 2, 0, 1) }}>
-              <div style={{ fontWeight: 900, fontSize: 54, color: CLAY, letterSpacing: '-0.02em' }}>{unread}</div>
-              <div style={{ fontWeight: 700, fontSize: 28, color: '#6B5C52' }}>unread overnight</div>
-            </div>
-            {/* messages arrive, then the first opens and is answered */}
-            {['Quote for the Henderson job', 'Re: Tuesday site visit', 'Invoice question'].map((subj, i) => {
-              const at = 8 + i * 6
-              const q = ease(frame, at)
-              const isOpen = opened && i === 0
-              return (
-                <div key={subj} style={{
-                  background: WHITE, borderRadius: 14, padding: isOpen ? '22px 26px' : '18px 26px', marginBottom: 12,
-                  boxShadow: isOpen ? '0 20px 44px rgba(43,35,32,0.18)' : '0 10px 26px rgba(43,35,32,0.08)',
-                  borderLeft: `6px solid ${isOpen ? CLAY : '#E6DDD3'}`,
-                  opacity: clamp(q * 2, 0, 1),
-                  transform: `translateX(${(1 - clamp(q, 0, 1)) * 26}px) scale(${isOpen ? 1.02 : 1})`,
-                }}>
-                  <div style={{ fontWeight: 800, fontSize: 27, color: INK }}>{subj}</div>
-                  {isOpen && (
-                    <div style={{ marginTop: 12, fontWeight: 600, fontSize: 24, color: '#6B5C52', lineHeight: 1.4 }}>
-                      <Typed text="Thanks for reaching out — I can have that quote over to you by Thursday." at={openAt + 4} cps={30} />
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 22, opacity: clamp(ease(frame, openAt + 34) * 2, 0, 1) }}>
-              <Tick at={openAt + 36} size={30} color={SAGE} on={SAGE} />
-              <div style={{ fontWeight: 800, fontSize: 30, color: INK }}>Reply drafted in your voice</div>
-            </div>
-          </div>
+    <Scene bg="#EDF0EA" bg2="#DCE4D6" kicker="Every inbox, overnight" kColor="#5E7355" head={<>What needs you is waiting <span style={{ color: CLAY }}>before your coffee.</span></>} headSize={52}>
+      <Camera hold={hold} dir="in" amount={0.02} origin="52% 42%">
+        <Alive intensity={0.35}>
+          {/* the real screen, big — this is the evidence */}
+          <Screen src="chat-cases.png" at={1} width={1.02} x={960} y={252} crop={0.5} drift={4} />
         </Alive>
       </Camera>
     </Scene>
@@ -455,106 +419,29 @@ const EmailBeat: React.FC<{ hold: number }> = ({ hold }) => {
 
 /* ── PHONE — it rings, she answers, the appointment drops in. ──────────── */
 const PhoneBeat: React.FC<{ hold: number }> = ({ hold }) => {
-  const frame = useCurrentFrame()
-  const answerAt = 20
-  const bookAt = 46
-  const ringing = frame < answerAt
-  /* A live waveform, but only while they are actually talking. */
-  const bars = Array.from({ length: 26 }, (_, i) => {
-    const live = frame >= answerAt && frame < bookAt
-    return live ? 12 + Math.abs(Math.sin((frame * 0.32) + i * 0.7)) * 46 : 8
-  })
   return (
     <Scene bg={PAPER} bg2="#F2EDE4" place="top" bar="rgba(143,169,139,0.20)" kicker="Your own answered number" head={<>She answers the phone — <span style={{ color: '#5E7355' }}>callers book, mid-call.</span></>} headSize={54}>
-      <Camera hold={hold} dir="in" amount={0.026} origin="45% 45%">
-        <Alive intensity={0.5}>
-          <Layer hold={hold} depth={0.3}>
-            <Illo src={R('illo-phone.png')} w={480} x={290} y={250} at={2} rot={-3} />
-          </Layer>
-          <div style={{ position: 'absolute', left: 660, top: 20, width: 830 }}>
-            <div style={{ background: WHITE, borderRadius: 18, padding: '26px 30px', boxShadow: '0 20px 44px rgba(43,35,32,0.12)', marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{
-                  width: 16, height: 16, borderRadius: '50%',
-                  background: ringing ? TERRA : SAGE,
-                  opacity: ringing ? (Math.floor(frame / 6) % 2 ? 1 : 0.25) : 1,
-                }} />
-                <div style={{ fontWeight: 800, fontSize: 30, color: INK }}>
-                  {ringing ? 'Incoming call' : 'Answered in 2 rings'}
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, height: 64, marginTop: 18 }}>
-                {bars.map((h, i) => (
-                  <div key={i} style={{ width: 7, height: h, borderRadius: 4, background: frame >= answerAt ? SAGE : '#E6DDD3' }} />
-                ))}
-              </div>
-            </div>
-            {/* the appointment drops into the calendar */}
-            <div style={{
-              background: WHITE, borderRadius: 18, padding: '24px 30px', boxShadow: '0 20px 44px rgba(43,35,32,0.14)',
-              borderLeft: `8px solid ${SAGE}`,
-              opacity: clamp(ease(frame, bookAt) * 2, 0, 1),
-              transform: `translateY(${(1 - clamp(ease(frame, bookAt), 0, 1)) * -34}px)`,
-            }}>
-              <div style={{ fontWeight: 800, fontSize: 20, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#A99C91', marginBottom: 8 }}>Booked</div>
-              <div style={{ fontWeight: 900, fontSize: 34, color: INK }}>Thursday, 10:30am</div>
-              <div style={{ fontWeight: 600, fontSize: 24, color: '#6B5C52', marginTop: 4 }}>Added to your calendar</div>
-            </div>
-          </div>
+      <Camera hold={hold} dir="in" amount={0.022} origin="50% 45%">
+        <Alive intensity={0.3}>
+          {/* a real call, handled in the real app */}
+          <Screen src="chat-call.png" at={1} width={1.02} x={960} y={230} crop={0.5} drift={3} />
         </Alive>
       </Camera>
-      <SettleSweep color={SAGE} hold={hold} />
     </Scene>
   )
 }
-
 /* ── INVOICE — raised, sent, chased, paid. ─────────────────────────────── */
 const InvoiceBeat: React.FC<{ hold: number }> = ({ hold }) => {
-  const frame = useCurrentFrame()
-  const steps = [['Invoice raised', 6], ['Sent', 20], ['Chased on day 7', 34], ['Paid', 50]] as const
-  const paidAt = 50
-  const paid = hit(frame, paidAt)
   return (
-    <Scene bg="#FBEDE6" bg2="#F3D9CC" place="left" kicker="Stripe invoicing, built in" head={<>Writes, invoices, chases, files — <span style={{ color: '#A34B2C' }}>on your letterhead.</span></>} headSize={50}>
-      <Shake at={paidAt} amount={3} dur={10}>
-        <Camera hold={hold} dir="in" amount={0.026} origin="50% 45%">
-          <Alive intensity={0.5}>
-            <Layer hold={hold} depth={0.3}>
-              <Illo src={R('illo-invoice.png')} w={470} x={280} y={250} at={2} rot={-3} />
-            </Layer>
-            <div style={{ position: 'absolute', left: 640, top: 30, width: 860 }}>
-              {steps.map(([label, at], i) => {
-                const q = ease(frame, at as number)
-                const done = frame >= (at as number) + 8
-                const isPaid = i === steps.length - 1
-                return (
-                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 18, opacity: clamp(q * 2, 0, 1), transform: `translateX(${(1 - clamp(q, 0, 1)) * 24}px)` }}>
-                    <Tick at={(at as number) + 3} size={32} color={isPaid ? SAGE : '#D9CDC2'} on={isPaid ? SAGE : TERRA} />
-                    <div style={{
-                      flex: 1, background: WHITE, borderRadius: 14, padding: '20px 26px',
-                      boxShadow: '0 12px 30px rgba(43,35,32,0.10)',
-                      fontWeight: isPaid ? 900 : 700, fontSize: isPaid ? 36 : 30,
-                      color: isPaid && done ? SAGE : INK,
-                      borderLeft: isPaid ? `8px solid ${SAGE}` : '8px solid transparent',
-                    }}>{label}</div>
-                  </div>
-                )
-              })}
-              <div style={{
-                position: 'absolute', right: -10, bottom: 6,
-                transform: `rotate(-8deg) scale(${1.9 - clamp(paid, 0, 1) * 0.9})`,
-                opacity: clamp(paid * 2, 0, 1),
-                border: `6px solid ${SAGE}`, color: SAGE, borderRadius: 10, padding: '8px 22px',
-                fontWeight: 900, fontSize: 34, letterSpacing: '0.08em', background: '#ffffffee',
-              }}>PAID</div>
-            </div>
-          </Alive>
-        </Camera>
-      </Shake>
+    <Scene bg="#FBEDE6" bg2="#F3D9CC" kicker="Stripe invoicing, built in" head={<>Writes, invoices, chases, files — <span style={{ color: '#A34B2C' }}>on your letterhead.</span></>} headSize={50}>
+      <Camera hold={hold} dir="in" amount={0.022} origin="50% 42%">
+        <Alive intensity={0.3}>
+          <Screen src="chat-letter.png" at={1} width={1.02} x={960} y={250} crop={0.52} drift={3} />
+        </Alive>
+      </Camera>
     </Scene>
   )
 }
-
 /* ── WHO SHE IS — a chat bubble collapses, the business flows in. ──────── */
 const WhoBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const frame = useCurrentFrame()
@@ -617,59 +504,49 @@ const WhoBeat: React.FC<{ hold: number }> = ({ hold }) => {
 /* ── THE BRAIN — industries slide past like a carousel. ────────────────── */
 const BrainBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const frame = useCurrentFrame()
-  const words = ['Insurance', 'Real estate', 'Law', 'Whatever you are']
-  const step = Math.max(1, Math.round(hold / (words.length + 0.5)))
-  const idx = Math.min(words.length - 1, Math.floor(frame / step))
-  /* A smooth slide between cards rather than a cut — the carousel a review
-     asked for, eased so it settles rather than snapping. */
-  const raw = frame / step
-  const glide = interpolate(clamp(raw - idx, 0, 1), [0, 1], [0, 1], { easing: Easing.inOut(Easing.cubic) })
-  const pos = idx + glide - (raw >= words.length - 1 ? 0 : 0)
-  const CARD_W = 430
+  const trades = [
+    { shot: 'chat-cases.png', name: 'Insurance' },
+    { shot: 'chat-realestate.png', name: 'Real estate' },
+    { shot: 'chat-law.png', name: 'Law' },
+    { shot: 'chat-hvac.png', name: 'HVAC' },
+    { shot: 'chat-accounting.png', name: 'Accounting' },
+  ]
+  /* One per beat of the track — 14 frames at 127.8 BPM — so the industry
+     switches on the kick rather than near it. */
+  const STEP = 14
+  const START = 8
+  const idx = clamp(Math.floor((frame - START) / STEP), 0, trades.length - 1)
+  const t = trades[idx]
+  /* each arrival gets its own spring, keyed off the frame it landed */
+  const landed = START + idx * STEP
+  const k = clamp(ease(frame, landed), 0, 1)
   return (
     <Scene bg={INK} bg2="#382C26" kicker="The swappable brain" kColor={SAGE} headColor={WHITE} headSize={56}
-      head={<>Tell her your industry. <span style={{ color: SAGE }}>It installs in seconds.</span></>}>
-      <Camera hold={hold} dir="in" amount={0.024} origin="50% 45%">
-        <Alive intensity={0.5}>
-          {/* she sits left, tilting a little as each brain loads */}
-          <div style={{ position: 'absolute', left: 90, top: 40, transform: `rotate(${-2 + glide * 4}deg)` }}>
-            <Illo src={R('illo-brain.png')} w={470} x={235} y={230} at={2} />
+      head={<>Tell her your trade. <span style={{ color: SAGE }}>Her brain installs in seconds.</span></>}>
+      <Camera hold={hold} dir="in" amount={0.02} origin="50% 42%">
+        <Alive intensity={0.3}>
+          {/* the same app, a different business — cutting on the beat */}
+          <div key={t.shot} style={{
+            position: 'absolute', left: 960, top: 300, width: 1920 * 0.86,
+            transform: `translate(-50%, -50%) scale(${0.97 + 0.03 * k})`,
+            opacity: clamp(k * 3, 0, 1),
+            borderRadius: 14, overflow: 'hidden',
+            aspectRatio: '1920 / 640',
+            boxShadow: '0 40px 90px rgba(0,0,0,0.5)',
+          }}>
+            <Img src={R(`real/${t.shot}`)} style={{ width: '100%', display: 'block' }} />
           </div>
-          {/* the carousel runs right, with the live card centred in its window */}
-          <div style={{ position: 'absolute', left: 620, top: 120, width: 900, height: 230, overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', left: (900 - CARD_W) / 2, top: 0, display: 'flex', gap: 26, transform: `translateX(${-pos * (CARD_W + 26)}px)` }}>
-              {words.map((w, i) => {
-                const active = i === idx
-                return (
-                  <div key={w} style={{
-                    flex: `0 0 ${CARD_W}px`,
-                    background: active ? WHITE : 'rgba(255,255,255,0.07)',
-                    borderRadius: 20, padding: '34px 30px', textAlign: 'center',
-                    boxShadow: active ? '0 24px 60px rgba(0,0,0,0.5)' : 'none',
-                    border: active ? 'none' : '1px solid rgba(255,255,255,0.10)',
-                    transform: `scale(${active ? 1 : 0.9})`,
-                  }}>
-                    <div style={{ fontWeight: 800, fontSize: 18, letterSpacing: '0.16em', textTransform: 'uppercase', color: active ? '#A99C91' : 'rgba(255,255,255,0.35)', marginBottom: 10 }}>Industry</div>
-                    <div style={{ fontWeight: 900, fontSize: 46, color: active ? CLAY : 'rgba(255,255,255,0.45)', letterSpacing: '-0.02em' }}>{w}</div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-          {/* the install bar runs under it, so "in seconds" is shown not said */}
-          <div style={{ position: 'absolute', left: 620, top: 380, width: 880 }}>
-            <div style={{ height: 10, borderRadius: 8, background: 'rgba(255,255,255,0.12)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${clamp(glide * 100, 0, 100)}%`, background: SAGE, borderRadius: 8, boxShadow: `0 0 18px ${SAGE}` }} />
-            </div>
-            <div style={{ fontWeight: 700, fontSize: 22, color: 'rgba(255,255,255,0.55)', marginTop: 12 }}>Installing her brain…</div>
-          </div>
+          {/* the name of the trade, under the proof of it */}
+          <div style={{
+            position: 'absolute', left: 960, top: 610, transform: 'translateX(-50%)',
+            fontWeight: 900, fontSize: 64, color: SAGE, letterSpacing: '-0.02em',
+            opacity: clamp(k * 3, 0, 1),
+          }}>{t.name}</div>
         </Alive>
       </Camera>
-      <SettleSweep color={SAGE} hold={hold} />
     </Scene>
   )
 }
-
 /* ── THE SPEC — the four qualities, arriving one at a time. ────────────── */
 const SpecBeat: React.FC<{ hold: number }> = ({ hold }) => {
   const frame = useCurrentFrame()
@@ -840,10 +717,14 @@ const ConnectBeat: React.FC<{ hold: number }> = ({ hold }) => {
             textAlign: 'center',
             opacity: clamp(ease(frame, 42) * 2, 0, 1),
           }}>
+            {/* The count is the NATIVE one, because that is the impressive and
+                true number — the film previously credited all 500 to Zapier,
+                which understated the product. The wider reach goes underneath
+                where it belongs. */}
             <div style={{ fontWeight: 900, fontSize: 46, color: CLAY, letterSpacing: '-0.02em' }}>
-              <CountUp to={500} suffix="+" dur={26} startAt={42} /> more
+              <CountUp to={500} suffix="+" dur={26} startAt={42} /> connected natively
             </div>
-            <div style={{ fontWeight: 700, fontSize: 24, color: '#6B5C52', marginTop: 4 }}>through Zapier and Make</div>
+            <div style={{ fontWeight: 700, fontSize: 24, color: '#6B5C52', marginTop: 4 }}>and 5,000+ more through Zapier and Make</div>
           </div>
         </Alive>
       </Camera>
@@ -1024,7 +905,7 @@ const CtaBeat: React.FC<{ hold: number }> = ({ hold }) => {
             opacity: clamp(ease(frame, 10) * 1.8, 0, 1),
             transform: `translateY(${(1 - clamp(ease(frame, 10), 0, 1)) * 22}px)`,
           }}>
-            Start your <span style={{ color: CLAY }}>7-day free trial.</span>
+            Start your <span style={{ color: CLAY }}>14-day free trial.</span>
           </div>
           {/* a real button, because "go to the site" is the whole point of the film */}
           <div style={{
