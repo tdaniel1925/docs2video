@@ -22,6 +22,7 @@ import { JordynHire, JORDYN_HIRE_FRAMES, JORDYN_HIRE_FPS } from './showcase/Jord
  import { Commercial, COMMERCIAL_FRAMES, COMMERCIAL_FPS } from './showcase/Commercial'
 import { JordynFilm, JORDYN_FRAMES as JORDYN_STORY_FRAMES, JORDYN_FPS as JORDYN_STORY_FPS } from './showcase/JordynStory'
 import { JordynV2Long, JordynV2Short, JV2_LONG_FRAMES, JV2_SHORT_FRAMES, JV2_FPS } from './showcase/JordynV2'
+import { JordynDrawn, JD_FRAMES, JD_FPS } from './showcase/JordynDrawn'
 import { ClubNight, CLUB_FRAMES, CLUB_FPS } from './showcase/ClubNight'
 import { MillionDollarBaby, MDB_FRAMES, MDB_FPS } from './showcase/MillionDollarBaby'
 import { RzRemake, RZMAKE_FRAMES, RZMAKE_FPS } from './showcase/RzRemake'
@@ -214,6 +215,15 @@ export const RemotionRoot: React.FC = () => {
         renderer because the clips must win over the stills — see the
         note at the top of showcase/JordynFilm. */}
     {/* Jordyn v2 — fast-cut commercial, long and 45s cuts from one asset set. */}
+    {/* The drawn cut — every frame illustrated, no stock. */}
+    <Composition
+      id="JordynDrawn"
+      component={JordynDrawn}
+      durationInFrames={JD_FRAMES}
+      fps={JD_FPS}
+      width={1920}
+      height={1080}
+    />
     <Composition
       id="JordynV2"
       component={JordynV2Long}
