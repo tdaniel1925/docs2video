@@ -19,6 +19,7 @@ import { JordynHire, JORDYN_HIRE_FRAMES, JORDYN_HIRE_FPS } from './showcase/Jord
  import { ProofScene, PROOF_FRAMES, PROOF_FPS } from './showcase/ProofScene'
  import { TheMorning, MORNING_FRAMES, MORNING_FPS } from './showcase/TheMorning'
  import { RestylezBrand, BRAND_FRAMES, BRAND_FPS } from './showcase/RestylezBrand'
+ import { Commercial, COMMERCIAL_FRAMES, COMMERCIAL_FPS } from './showcase/Commercial'
 import { ClubNight, CLUB_FRAMES, CLUB_FPS } from './showcase/ClubNight'
 import { MillionDollarBaby, MDB_FRAMES, MDB_FPS } from './showcase/MillionDollarBaby'
 import { RzRemake, RZMAKE_FRAMES, RZMAKE_FPS } from './showcase/RzRemake'
@@ -198,6 +199,14 @@ export const RemotionRoot: React.FC = () => {
       width={1920}
       height={1080}
       durationInFrames={D2V_PULSE_FRAMES}
+    />
+    <Composition
+      id="Commercial"
+      component={Commercial}
+      durationInFrames={COMMERCIAL_FRAMES}
+      fps={COMMERCIAL_FPS}
+      width={1920}
+      height={1080}
     />
     <Composition
       id="RestylezBrand"
