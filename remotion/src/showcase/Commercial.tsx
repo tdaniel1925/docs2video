@@ -143,11 +143,15 @@ export const Commercial: React.FC = () => (
   <AbsoluteFill style={{ background: PAPER ? '#faf9f5' : INK, fontFamily: F }}>
     {PLAN.beats.map((b, i) => (
       <Sequence key={i} from={STARTS[i]} durationInFrames={HOLD[i]}>
-        {b.scene ? <PaperScene src={ASSET(b.scene)} hold={HOLD[i]} i={i} /> : b.clip ? <Shot src={ASSET(b.clip)} hold={HOLD[i]} i={i} /> : null}
+        {b.scene
+          ? <PaperWipe hold={HOLD[i]}><PaperScene src={ASSET(b.scene)} hold={HOLD[i]} i={i} /></PaperWipe>
+          : b.clip ? <Shot src={ASSET(b.clip)} hold={HOLD[i]} i={i} /> : null}
         <Foot full={i === PLAN.beats.length - 1} />
         <Line line={b.line} accent={b.accent} last={i === PLAN.beats.length - 1} />
       </Sequence>
     ))}
+
+    {PAPER && <Grain />}
 
     {PLAN.music && (
       <Sequence from={0}>
@@ -172,23 +176,80 @@ export const Commercial: React.FC = () => (
  * cheaper than a clip and holds a crisper torn edge than any video model
  * would render.
  */
-export const PaperScene: React.FC<{ src: string; hold: number; i: number }> = ({ src, hold, i }) => {
-  const frame = useCurrentFrame()
-  const t = interpolate(frame, [0, Math.max(1, hold)], [0, 1], {
-    extrapolateRight: 'clamp', easing: Easing.inOut(Easing.quad),
-  })
-  const dir = i % 2 ? -1 : 1
-  /* the breath: a fraction of a percent, below notice, never still */
-  const breathe = Math.sin(frame * 0.035) * 0.004
-  const inOut = Math.min(clamp(frame / 8, 0, 1), clamp((hold - frame) / 8, 0, 1))
+/**
+ * PAPER GRAIN — a faint fibre texture over everything.
+ *
+ * The cohesion trick: eight scenes generated separately still read as one
+ * material when the same grain drifts across all of them.
+ */
+const GRAIN = encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(#n)' opacity='0.5'/></svg>`
+)
+
+export const Grain: React.FC = () => {
+  const f = useCurrentFrame()
   return (
-    <AbsoluteFill style={{ overflow: 'hidden', background: '#faf9f5' }}>
-      <AbsoluteFill style={{
-        transform: `scale(${1.05 + 0.05 * t + breathe}) translateX(${dir * (t - 0.5) * 34}px)`,
-        opacity: inOut,
-      }}>
-        <Img src={src} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-      </AbsoluteFill>
+    <AbsoluteFill style={{
+      pointerEvents: 'none',
+      backgroundImage: `url("data:image/svg+xml,${GRAIN}")`,
+      backgroundPosition: `${(f * 5) % 180}px ${(f * 9) % 180}px`,
+      mixBlendMode: 'multiply', opacity: 0.06, zIndex: 40,
+    }} />
+  )
+}
+
+/**
+ * A PAPER SCENE — a still, made alive.
+ *
+ * Cut paper does not pan, so the motion is DESIGNED rather than filmed: a
+ * slow Ken-Burns, a gentle breathing float, and a quarter-degree rock. The
+ * rock is the part that sells it — flat art that tilts a fraction reads as a
+ * sheet resting on other sheets rather than as a picture.
+ *
+ * Ported from CommercialJordynPaper.tsx, which had already solved this.
+ */
+export const PaperScene: React.FC<{ src: string; hold: number; i: number }> = ({ src, hold, i }) => {
+  const f = useCurrentFrame()
+  const p = interpolate(f, [0, Math.max(1, hold)], [0, 1], {
+    extrapolateRight: 'clamp', easing: Easing.bezier(0.16, 1, 0.3, 1),
+  })
+  /* a different focus per scene so the push never repeats */
+  const focusX = [50, 38, 62, 45, 55, 40, 60, 50][i % 8]
+  const focusY = [50, 45, 55, 50, 42, 58, 48, 52][i % 8]
+  const scale = 1.04 + p * 0.08
+  const tx = (50 - focusX) * p * 0.12
+  const ty = (50 - focusY) * p * 0.12
+  const floatY = Math.sin(f * 0.05) * 5
+  const floatR = Math.sin(f * 0.035) * 0.25
+  return (
+    <AbsoluteFill style={{ background: '#faf9f5', overflow: 'hidden' }}>
+      <Img src={src} style={{
+        width: '100%', height: '100%', objectFit: 'cover',
+        transform: `scale(${scale}) translate(${tx}%, ${ty + floatY * 0.1}%) rotate(${floatR}deg)`,
+      }} />
+      {/* a soft warm vignette to seat the paper in the frame */}
+      <AbsoluteFill style={{ boxShadow: 'inset 0 0 220px rgba(150,120,80,0.18)' }} />
     </AbsoluteFill>
+  )
+}
+
+/**
+ * THE PAPER WIPE — a sheet pulled off the pile.
+ *
+ * The outgoing scene slides AND tilts away, revealing the next underneath.
+ * A cross-fade would work for film; this is the move that says paper.
+ */
+export const PaperWipe: React.FC<{ hold: number; children: React.ReactNode }> = ({ hold, children }) => {
+  const f = useCurrentFrame()
+  const xf = 12
+  const ease = Easing.bezier(0.16, 1, 0.3, 1)
+  const inP = interpolate(f, [0, xf], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: ease })
+  const outP = interpolate(f, [hold - xf, hold], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: ease })
+  return (
+    <AbsoluteFill style={{
+      transform: `translateX(${(1 - inP) * 8 - outP * 12}%) rotate(${(1 - inP) * 2.5 - outP * 4}deg)`,
+      opacity: Math.min(inP, 1 - outP),
+      transformOrigin: 'center',
+    }}>{children}</AbsoluteFill>
   )
 }
