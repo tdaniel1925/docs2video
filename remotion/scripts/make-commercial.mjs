@@ -34,7 +34,12 @@ const envVal = (k) => {
   return m[1].trim()
 }
 const FAL = envVal('FAL_KEY')
+const GEMINI = (() => { try { return envVal('GEMINI_API_KEY') } catch { return null } })()
 const ANTHROPIC = envVal('ANTHROPIC_API_KEY')
+
+const STYLE_ARG = (process.argv.find((a) => a.startsWith('--style=')) || '').split('=')[1]
+/** 'live' films the world; 'paper' builds it out of cut paper. */
+const STYLE = STYLE_ARG === 'paper' ? 'paper' : 'live'
 
 const SLUG = (process.argv[2] || '').trim()
 if (!SLUG) throw new Error('pass a website or a description')
@@ -78,6 +83,43 @@ const readBusiness = async () => {
  * hand before it: no text in frame, a named camera move on every shot, and
  * one thought per beat.
  */
+/**
+ * THE RULES THAT DIFFER BY STYLE.
+ *
+ * Both forbid readable surfaces, for the same reason and with the same force:
+ * neither a video model nor an image model can spell, and one invented word
+ * on screen undoes the film. Everything else about them is opposite — live
+ * action wants a camera move and real light, paper wants a flat composition
+ * and a recurring character.
+ */
+const LIVE_RULES = `RULES FOR "shot", and they are absolute:
+
+1. NEVER describe text, writing, letters, signage, screens with words, logos,
+   labels, documents you can read, or a phone or computer display showing an
+   interface. The video model cannot spell and invents nonsense words.
+2. Name a specific CAMERA MOVE every time: slow push in, tracking sideways,
+   crane down, arc around, handheld follow, rise straight up. Vary them.
+3. Film PEOPLE and PLACES and OBJECTS — a face, hands, a room, weather, light.
+4. Name the light and the mood.
+5. One thing happening. Not a montage inside a shot.`
+
+const PAPER_RULES = `This film is CUT-PAPER CRAFT ANIMATION. Every scene is a flat
+paper-collage illustration that will be animated afterwards.
+
+RULES FOR "shot", and they are absolute:
+
+1. NEVER describe text, writing, letters, numbers, signage, logos or labels.
+   The image model cannot spell. A paper card or tag may appear, but it is
+   BLANK.
+2. Describe everything as MADE OF PAPER: paper envelopes, a paper telephone,
+   paper folders, a paper sunburst, layered paper hills.
+3. The recurring character appears in most scenes, doing something — sitting,
+   reaching, watching, relaxing. Describe their POSTURE and EXPRESSION, never
+   their clothing or features (those are fixed elsewhere and must not drift).
+4. ONE clear idea per scene, composed flat and centred. No camera moves —
+   paper does not pan.
+5. The final scene leaves generous empty space in the lower centre for a logo.`
+
 const writeFilm = async (about, url) => {
   const sys = `You write 40-second commercials. You return JSON only.
 
@@ -92,22 +134,9 @@ EIGHT beats. For each:
           verbatim.
 "accent"— the 1-3 words inside "line" to colour differently. Must appear in
           "line" exactly.
-"shot"  — a prompt for a VIDEO model describing what is filmed.
+"shot"  — a prompt describing what is SEEN in this beat.
 
-RULES FOR "shot", and they are absolute:
-
-1. NEVER describe text, writing, letters, signage, screens with words, logos,
-   labels, documents you can read, or a phone or computer display showing an
-   interface. The video model cannot spell and invents nonsense words. Any
-   readable surface ruins the shot.
-2. Name a specific CAMERA MOVE every time: slow push in, tracking sideways,
-   crane down, arc around, handheld follow, rise straight up. Vary them —
-   eight shots that all push in reads as cheap.
-3. Film PEOPLE and PLACES and OBJECTS: a face, hands, a room, weather, light.
-   Human moments, not abstractions.
-4. Name the light and the mood: dawn light through a window, harsh overhead
-   fluorescent, warm lamp glow, overcast.
-5. One thing happening. Not a montage inside a shot.
+${STYLE === 'paper' ? PAPER_RULES : LIVE_RULES}
 
 STRUCTURE: beat 1 is the problem the viewer already feels. Beat 2 makes it
 worse. Beat 3 is the turn. Beats 4-6 are proof. Beat 7 is the strongest single
@@ -136,6 +165,51 @@ fact. Beat 8 is the close.`
   const m = raw.match(/\{[\s\S]*\}/)
   if (!m) throw new Error('no JSON in script response — stop_reason=' + j.stop_reason + ', got ' + raw.length + ' chars')
   return JSON.parse(m[0]).beats
+}
+
+/* ── the paper look ──────────────────────────────────────────────────────── */
+/**
+ * THE STYLE AND THE CHARACTER ARE FIXED HERE, NOT WRITTEN BY THE LLM.
+ *
+ * Consistency across eight separately-generated scenes comes from repeating
+ * these two blocks VERBATIM in every prompt. The model is never asked to
+ * remember the character between calls — it is told again each time. The LLM
+ * writes only what HAPPENS; what it looks like is not its decision.
+ *
+ * Taken from scripts/gen-jordyn-paper.mjs, which produced the paper set that
+ * already works.
+ */
+const PAPER_STYLE = 'Cut-paper craft illustration, handmade layered construction-paper collage, flat 2D characters with simple friendly features, visible torn and cut paper edges, soft realistic drop shadows between paper layers, subtle paper grain and fiber texture, warm color palette (cream #faf9f5 background, terracotta rust #c4623f, warm peach #e8b4a0, soft gold #e5d9a8, sage green #b6c4a2), gentle even lighting, charming and warm, editorial paper-craft advertising style, 16:9. NO text, NO letters, NO logos, NO words anywhere.'
+
+const PAPER_CHARACTER = "The recurring character: a simple flat cut-paper person, round friendly head, minimal dot eyes, wearing a rust-and-cream outfit, same character in every scene."
+
+const paperScene = async (i, what) => {
+  const file = path.join(OUT, `scene-${i + 1}.png`)
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent?key=${GEMINI}`
+  const prompt = `${PAPER_STYLE} ${PAPER_CHARACTER} Scene: ${what}`
+  /* three tries: image models refuse or return empty often enough that one
+     attempt would lose a scene to noise */
+  for (let a = 0; a < 3; a++) {
+    try {
+      const r = await fetch(url, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '16:9' } },
+        }),
+      })
+      if (!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0, 120)}`)
+      const j = await r.json()
+      const img = (j.candidates?.[0]?.content?.parts || []).find((q) => q.inlineData?.data)
+      if (!img) throw new Error('no image in response')
+      fs.writeFileSync(file, Buffer.from(img.inlineData.data, 'base64'))
+      return file
+    } catch (e) {
+      if (a === 2) { log(`  FAIL scene ${i + 1} — ${e.message.slice(0, 100)}`); return null }
+      await new Promise((res) => setTimeout(res, 2500))
+    }
+  }
+  return null
 }
 
 /* ── fal helpers ─────────────────────────────────────────────────────────── */
@@ -192,17 +266,35 @@ const run = async () => {
    */
   log('\n— generating footage, voice and music')
   const jobs = []
+  const got = { clips: [], scenes: [], vo: [], music: null }
 
-  for (const [i, b] of beats.entries()) {
-    jobs.push({
-      kind: 'clip', i,
-      model: 'minimax/h3-max/text-to-video',
-      id: await falQueue('minimax/h3-max/text-to-video', {
-        prompt: b.shot, duration: 6, resolution: '1080P',
-      }),
-    })
+  /*
+   * THE ONE STAGE THAT DIFFERS BY STYLE.
+   *
+   * Live action asks fal for moving footage; paper asks Gemini for stills
+   * that Remotion animates afterwards. Paper is 3-10x cheaper — eight scenes
+   * is roughly 30 cents against $3.20 — because a still costs a fraction of
+   * a clip, and for cut-paper it is also the BETTER answer: a video model
+   * renders a soft wobbly approximation of paper, where a still holds the
+   * crisp torn edge and the designed motion is added on top.
+   */
+  if (STYLE === 'paper') {
+    if (!GEMINI) throw new Error('paper style needs GEMINI_API_KEY')
+    const done = await Promise.all(beats.map((b, i) => paperScene(i, b.shot)))
+    done.forEach((file, i) => { if (file) got.scenes[i] = file })
+    log(`  ${done.filter(Boolean).length}/${beats.length} paper scenes drawn`)
+  } else {
+    for (const [i, b] of beats.entries()) {
+      jobs.push({
+        kind: 'clip', i,
+        model: 'minimax/h3-max/text-to-video',
+        id: await falQueue('minimax/h3-max/text-to-video', {
+          prompt: b.shot, duration: 6, resolution: '1080P',
+        }),
+      })
+    }
+    log(`  ${beats.length} clips queued`)
   }
-  log(`  ${beats.length} clips queued`)
 
   for (const [i, b] of beats.entries()) {
     jobs.push({
@@ -228,7 +320,6 @@ const run = async () => {
   log('  music queued')
 
   const t0 = Date.now()
-  const got = { clips: [], vo: [], music: null }
   for (const job of jobs) {
     try {
       const out = await falWait(job.model, job.id)
@@ -249,10 +340,12 @@ const run = async () => {
   /* the plan Remotion renders from — no hand editing between here and the film */
   const plan = {
     name: NAME,
+    style: STYLE,
     url,
     beats: beats.map((b, i) => ({
       line: b.line, accent: b.accent, vo: b.vo,
       clip: got.clips[i] ? path.basename(got.clips[i]) : null,
+      scene: got.scenes[i] ? path.basename(got.scenes[i]) : null,
       voFile: got.vo[i] ? path.basename(got.vo[i]) : null,
     })),
     music: got.music ? path.basename(got.music) : null,

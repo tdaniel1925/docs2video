@@ -1,10 +1,10 @@
 import React from 'react'
 import {
-  AbsoluteFill, Audio, Sequence, OffthreadVideo, staticFile,
+  AbsoluteFill, Audio, Img, Sequence, OffthreadVideo, staticFile,
   useCurrentFrame, interpolate, spring, Easing,
 } from 'remotion'
 import { loadFont as loadInter } from '@remotion/google-fonts/Inter'
-import plan from '../../public/commercials/jordyn-app/plan.json'
+import plan from '../../public/commercials/tupelo-family-dental-a-friendly-family-d/plan.json'
 
 /**
  * THE COMMERCIAL RENDERER — one plan in, one film out.
@@ -32,8 +32,8 @@ const INK = '#14161a'
 const ACCENT = '#ffc93c'
 const WHITE = '#ffffff'
 
-type Beat = { line: string; accent: string; vo: string; clip: string | null; voFile: string | null }
-const PLAN = plan as { name: string; url: string | null; beats: Beat[]; music: string | null }
+type Beat = { line: string; accent: string; vo: string; clip: string | null; scene?: string | null; voFile: string | null }
+const PLAN = plan as { name: string; style?: string; url: string | null; beats: Beat[]; music: string | null }
 const ASSET = (n: string) => staticFile(`commercials/${PLAN.name}/${n}`)
 
 const ease = (frame: number, at: number) =>
@@ -94,9 +94,9 @@ const Line: React.FC<{ line: string; accent: string; last?: boolean }> = ({ line
   const frame = useCurrentFrame()
   const p = ease(frame, 8)
   const k = clamp(p, 0, 1)
-  const at = accent ? line.indexOf(accent) : -1
+  const at = accent ? line.toLowerCase().indexOf(accent.toLowerCase()) : -1
   const parts = at >= 0
-    ? [line.slice(0, at), accent, line.slice(at + accent.length)]
+    ? [line.slice(0, at), line.slice(at, at + accent.length), line.slice(at + accent.length)]
     : [line, '', '']
   return (
     <div style={{
@@ -104,25 +104,31 @@ const Line: React.FC<{ line: string; accent: string; last?: boolean }> = ({ line
       ...(last ? { top: '50%', transform: 'translateY(-50%)' } : { bottom: 96 }),
       zIndex: 30, textAlign: 'center', padding: '0 140px',
       fontWeight: 900, fontSize: last ? 88 : 62, lineHeight: 1.08, letterSpacing: '-0.03em',
-      color: WHITE,
+      color: PAPER ? '#4a3f35' : WHITE,
       opacity: clamp(p * 1.8, 0, 1),
-      textShadow: '0 4px 34px rgba(0,0,0,0.7)',
+      textShadow: PAPER ? 'none' : '0 4px 34px rgba(0,0,0,0.7)',
     }}>
       <span style={{ display: 'inline-block', transform: `translateY(${(1 - k) * 22}px)` }}>
-        {parts[0]}<span style={{ color: ACCENT }}>{parts[1]}</span>{parts[2]}
+        {parts[0]}<span style={{ color: PAPER ? '#c4623f' : ACCENT }}>{parts[1]}</span>{parts[2]}
       </span>
     </div>
   )
 }
 
 /** A wash under the type. Readability, and it settles the lower frame. */
+const PAPER = PLAN.style === 'paper'
+
 const Foot: React.FC<{ full?: boolean }> = ({ full = false }) => (
   <div style={{
     position: 'absolute', left: 0, right: 0, bottom: 0,
     height: full ? '100%' : 470, zIndex: 20,
-    background: full
-      ? 'rgba(20,22,26,0.72)'
-      : 'linear-gradient(0deg, rgba(20,22,26,0.94) 0%, rgba(20,22,26,0.72) 46%, transparent 100%)',
+    background: PAPER
+      ? (full
+        ? 'rgba(250,249,245,0.88)'
+        : 'linear-gradient(0deg, rgba(250,249,245,0.97) 0%, rgba(250,249,245,0.80) 40%, transparent 100%)')
+      : (full
+        ? 'rgba(20,22,26,0.72)'
+        : 'linear-gradient(0deg, rgba(20,22,26,0.94) 0%, rgba(20,22,26,0.72) 46%, transparent 100%)'),
   }} />
 )
 
@@ -134,10 +140,10 @@ const STARTS: number[] = []
 export const COMMERCIAL_FRAMES = STARTS[STARTS.length - 1] + HOLD[HOLD.length - 1] + 12
 
 export const Commercial: React.FC = () => (
-  <AbsoluteFill style={{ background: INK, fontFamily: F }}>
+  <AbsoluteFill style={{ background: PAPER ? '#faf9f5' : INK, fontFamily: F }}>
     {PLAN.beats.map((b, i) => (
       <Sequence key={i} from={STARTS[i]} durationInFrames={HOLD[i]}>
-        {b.clip && <Shot src={ASSET(b.clip)} hold={HOLD[i]} i={i} />}
+        {b.scene ? <PaperScene src={ASSET(b.scene)} hold={HOLD[i]} i={i} /> : b.clip ? <Shot src={ASSET(b.clip)} hold={HOLD[i]} i={i} /> : null}
         <Foot full={i === PLAN.beats.length - 1} />
         <Line line={b.line} accent={b.accent} last={i === PLAN.beats.length - 1} />
       </Sequence>
@@ -156,3 +162,33 @@ export const Commercial: React.FC = () => (
     ) : null)}
   </AbsoluteFill>
 )
+
+/**
+ * A PAPER SCENE — a still, animated.
+ *
+ * Cut paper does not pan, so the motion is added rather than filmed: a slow
+ * Ken-Burns drift and a gentle breathing float, which is what gives a flat
+ * collage life without pretending the paper moves. The still is also 3-10x
+ * cheaper than a clip and holds a crisper torn edge than any video model
+ * would render.
+ */
+export const PaperScene: React.FC<{ src: string; hold: number; i: number }> = ({ src, hold, i }) => {
+  const frame = useCurrentFrame()
+  const t = interpolate(frame, [0, Math.max(1, hold)], [0, 1], {
+    extrapolateRight: 'clamp', easing: Easing.inOut(Easing.quad),
+  })
+  const dir = i % 2 ? -1 : 1
+  /* the breath: a fraction of a percent, below notice, never still */
+  const breathe = Math.sin(frame * 0.035) * 0.004
+  const inOut = Math.min(clamp(frame / 8, 0, 1), clamp((hold - frame) / 8, 0, 1))
+  return (
+    <AbsoluteFill style={{ overflow: 'hidden', background: '#faf9f5' }}>
+      <AbsoluteFill style={{
+        transform: `scale(${1.05 + 0.05 * t + breathe}) translateX(${dir * (t - 0.5) * 34}px)`,
+        opacity: inOut,
+      }}>
+        <Img src={src} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      </AbsoluteFill>
+    </AbsoluteFill>
+  )
+}
