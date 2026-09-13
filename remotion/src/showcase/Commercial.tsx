@@ -4,7 +4,7 @@ import {
   useCurrentFrame, interpolate, spring, Easing,
 } from 'remotion'
 import { loadFont as loadInter } from '@remotion/google-fonts/Inter'
-import plan from '../../public/commercials/tupelo-family-dental-a-friendly-family-d/plan.json'
+import plan from '../../public/commercials/illustration/plan.json'
 
 /**
  * THE COMMERCIAL RENDERER — one plan in, one film out.
@@ -32,8 +32,8 @@ const INK = '#14161a'
 const ACCENT = '#ffc93c'
 const WHITE = '#ffffff'
 
-type Beat = { line: string; accent: string; vo: string; clip: string | null; scene?: string | null; voFile: string | null }
-const PLAN = plan as { name: string; style?: string; url: string | null; beats: Beat[]; music: string | null }
+type Beat = { line: string; accent: string; vo: string; clip: string | null; scene?: string | null; voFile: string | null; figure?: string | null }
+const PLAN = plan as unknown as { name: string; style?: string; url?: string | null; beats: Beat[]; music: string | null }
 const ASSET = (n: string) => staticFile(`commercials/${PLAN.name}/${n}`)
 
 const ease = (frame: number, at: number) =>
@@ -90,7 +90,9 @@ const Shot: React.FC<{ src: string; hold: number; i: number }> = ({ src, hold, i
  * the line verbatim — so the split is a plain search rather than anything
  * clever, and a miss simply renders the line in one colour.
  */
-const Line: React.FC<{ line: string; accent: string; last?: boolean }> = ({ line, accent, last = false }) => {
+const Line: React.FC<{ line: string; accent: string; last?: boolean; figure?: string | null }> = ({ line, accent, last = false, figure }) => {
+  /* the figure is already set large above; saying it twice reads as an error */
+  if (figure && line.includes(figure)) line = line.replace(figure, '').replace(/s{2,}/g, ' ').replace(/[,s]+$/, '').replace(/^[,s]+/, '').trim()
   const frame = useCurrentFrame()
   const p = ease(frame, 8)
   const k = clamp(p, 0, 1)
@@ -112,6 +114,25 @@ const Line: React.FC<{ line: string; accent: string; last?: boolean }> = ({ line
         {parts[0]}<span style={{ color: PAPER ? '#c4623f' : ACCENT }}>{parts[1]}</span>{parts[2]}
       </span>
     </div>
+  )
+}
+
+
+const Figure: React.FC<{ text: string }> = ({ text }) => {
+  const frame = useCurrentFrame()
+  const p = clamp(spring({ frame: frame - 10, fps: FPS, config: { damping: 14, stiffness: 150, mass: 0.8 } }), 0, 1.12)
+  const k = clamp(p, 0, 1)
+  return (
+    <div style={{
+      position: 'absolute', left: 0, right: 0, bottom: 178, zIndex: 31,
+      textAlign: 'center',
+      fontWeight: 900, fontSize: 132, letterSpacing: '-0.04em',
+      /* deep teal, the trust colour of the palette these scenes are drawn in */
+      color: '#2f5d62',
+      lineHeight: 1.2, paddingBottom: 6,
+      opacity: clamp(p * 2, 0, 1),
+      transform: `scale(${0.82 + 0.18 * k})`,
+    }}>{text}</div>
   )
 }
 
@@ -147,7 +168,8 @@ export const Commercial: React.FC = () => (
           ? <PaperWipe hold={HOLD[i]}><PaperScene src={ASSET(b.scene)} hold={HOLD[i]} i={i} /></PaperWipe>
           : b.clip ? <Shot src={ASSET(b.clip)} hold={HOLD[i]} i={i} /> : null}
         <Foot full={i === PLAN.beats.length - 1} />
-        <Line line={b.line} accent={b.accent} last={i === PLAN.beats.length - 1} />
+        {b.figure && <Figure text={b.figure} />}
+        <Line line={b.line} accent={b.accent} figure={b.figure} last={i === PLAN.beats.length - 1} />
       </Sequence>
     ))}
 
