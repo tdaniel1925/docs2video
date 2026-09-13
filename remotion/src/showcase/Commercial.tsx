@@ -4,6 +4,7 @@ import {
   useCurrentFrame, interpolate, spring, Easing,
 } from 'remotion'
 import { loadFont as loadInter } from '@remotion/google-fonts/Inter'
+import { beatLock, gridToFrames } from '../lib/audio'
 import plan from '../../public/commercials/jordyn-edge/plan.json'
 
 /**
@@ -110,9 +111,9 @@ const Line: React.FC<{ line: string; accent: string; last?: boolean; figure?: st
       ...(last ? { top: '50%', transform: 'translateY(-50%)' } : { bottom: 96 }),
       zIndex: 30, textAlign: 'center', padding: '0 140px',
       fontWeight: 900, fontSize: last ? 88 : 62, lineHeight: 1.08, letterSpacing: '-0.03em',
-      color: EDGE ? '#f2ede3' : PAPER ? '#4a3f35' : WHITE,
+      color: EDGE ? '#2B2320' : PAPER ? '#4a3f35' : WHITE,
       opacity: clamp(p * 1.8, 0, 1),
-      textShadow: EDGE ? '0 6px 40px rgba(0,0,0,0.9)' : PAPER ? 'none' : '0 4px 34px rgba(0,0,0,0.7)',
+      textShadow: EDGE ? '0 2px 18px rgba(247,241,232,0.9)' : PAPER ? 'none' : '0 4px 34px rgba(0,0,0,0.7)',
     }}>
       <span style={{ display: 'inline-block', transform: EDGE ? `scale(${1.3 - 0.3 * k})` : `translateY(${(1 - k) * 22}px)` }}>
         {parts[0]}<span style={{ color: EDGE ? '#d1502f' : PAPER ? '#c4623f' : ACCENT }}>{parts[1]}</span>{parts[2]}
@@ -162,13 +163,38 @@ const Foot: React.FC<{ full?: boolean }> = ({ full = false }) => (
 
 /* ── the cut ─────────────────────────────────────────────────────────────── */
 
-const HOLD = VO_SECONDS.map((s) => Math.round((s + (EDGE ? 0.12 : 0.45)) * FPS))
-const STARTS: number[] = []
-{ let t = 0; for (const h of HOLD) { STARTS.push(t); t += h } }
+const RAW_HOLD = VO_SECONDS.map((s) => Math.round((s + (EDGE ? 0.12 : 0.45)) * FPS))
+
+/*
+ * THE CUTS, NUDGED ONTO THE MUSIC.
+ *
+ * The raw starts come from the voice; beatLock moves each one to the nearest
+ * real beat of the generated track, within a quarter-second so no line is
+ * pushed over its own scene. Without a grid it falls through unchanged — a
+ * plan generated before the grid existed still renders.
+ */
+const RAW_STARTS: number[] = []
+{ let t = 0; for (const h of RAW_HOLD) { RAW_STARTS.push(t); t += h } }
+
+const GRID: number[] = (() => {
+  try {
+    const g = (plan as unknown as { beatgrid?: { beats: number[] } }).beatgrid
+    return g?.beats ? gridToFrames(g.beats, FPS) : []
+  } catch { return [] }
+})()
+
+const STARTS = GRID.length
+  ? beatLock(RAW_STARTS, GRID, Math.round(0.25 * FPS))
+  : RAW_STARTS
+
+/* each beat runs until the next one starts, so a nudged cut moves BOTH the
+   shot that ends and the shot that begins — otherwise they overlap or gap */
+const HOLD = STARTS.map((st, i) =>
+  (i + 1 < STARTS.length ? STARTS[i + 1] : st + RAW_HOLD[i]) - st)
 export const COMMERCIAL_FRAMES = STARTS[STARTS.length - 1] + HOLD[HOLD.length - 1] + 12
 
 export const Commercial: React.FC = () => (
-  <AbsoluteFill style={{ background: EDGE ? '#1a1714' : PAPER ? '#faf9f5' : INK, fontFamily: F }}>
+  <AbsoluteFill style={{ background: EDGE ? '#F7F1E8' : PAPER ? '#faf9f5' : INK, fontFamily: F }}>
     {PLAN.beats.map((b, i) => (
       <Sequence key={i} from={STARTS[i]} durationInFrames={HOLD[i]}>
         {b.scene
@@ -256,13 +282,13 @@ export const PaperScene: React.FC<{ src: string; hold: number; i: number }> = ({
   const floatY = EDGE ? 0 : Math.sin(f * 0.05) * 5
   const floatR = EDGE ? 0 : Math.sin(f * 0.035) * 0.25
   return (
-    <AbsoluteFill style={{ background: EDGE ? '#1a1714' : '#faf9f5', overflow: 'hidden' }}>
+    <AbsoluteFill style={{ background: EDGE ? '#F7F1E8' : '#faf9f5', overflow: 'hidden' }}>
       <Img src={src} style={{
         width: '100%', height: '100%', objectFit: 'cover',
         transform: `scale(${scale}) translate(${tx}%, ${ty + floatY * 0.1}%) rotate(${floatR}deg)`,
       }} />
       {/* a soft warm vignette to seat the paper in the frame */}
-      <AbsoluteFill style={{ boxShadow: EDGE ? 'inset 0 0 260px rgba(0,0,0,0.55)' : 'inset 0 0 220px rgba(150,120,80,0.18)' }} />
+      <AbsoluteFill style={{ boxShadow: EDGE ? 'inset 0 0 200px rgba(43,35,32,0.16)' : 'inset 0 0 220px rgba(150,120,80,0.18)' }} />
     </AbsoluteFill>
   )
 }

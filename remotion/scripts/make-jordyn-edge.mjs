@@ -39,7 +39,7 @@ const log = (...a) => console.log(...a)
  * throws real shadows between the layers. Paper can be graphic; it has just
  * been asked to be cosy every time until now.
  */
-const STYLE = 'Cut-paper craft illustration, bold graphic construction-paper collage, HIGH CONTRAST, dramatic raking side light throwing hard shadows between paper layers, sharp clean-cut paper edges with occasional aggressive torn rips, deep ink charcoal #1a1714 background, bone white #f2ede3, ONE hot terracotta accent #d1502f, minimal cool slate #3f4a52, stark and confident, editorial poster style, strong diagonal composition, 16:9. NO text, NO letters, NO numbers, NO logos, NO words anywhere.'
+const STYLE = 'Cut-paper craft illustration, bold graphic construction-paper collage, warm editorial palette (cream #F7F1E8 and soft paper white #FDFAF5 grounds, deep clay #B5563A, terracotta #C9674A, sage green #8FA98B, warm ink #2B2320 for depth only), STRONG directional light throwing crisp defined shadows between paper layers, sharp clean-cut edges with occasional aggressive torn rips, bold diagonal composition, generous stark negative space, confident and modern, editorial poster style, 16:9. NO text, NO letters, NO numbers, NO logos, NO words anywhere.'
 
 /**
  * SHE IS A SHAPE, NOT A PERSON.
@@ -50,7 +50,7 @@ const STYLE = 'Cut-paper craft illustration, bold graphic construction-paper col
  * holds far better across eight separately-generated scenes than a face
  * would.
  */
-const HER = 'The recurring figure: a confident cut-paper silhouette in hot terracotta, no facial features, sharp angular posture, always mid-motion and always the ONLY warm-coloured thing in the frame. Everyone and everything else is ink, slate or bone.'
+const HER = 'The recurring figure: a confident cut-paper silhouette in deep clay #B5563A, no facial features, sharp angular posture, always mid-motion. She is the boldest shape in every frame; the world around her is cream, sage and soft paper white.'
 
 /**
  * THE SCRIPT IS WRITTEN HERE, NOT GENERATED.
@@ -65,49 +65,49 @@ const BEATS = [
     vo: 'Every business owner wants the same person.',
     line: 'Everyone wants',
     accent: 'the same person',
-    shot: 'A long queue of identical flat ink-coloured paper figures standing still in a stark bone-white space, all facing the same direction, rigid and waiting. Strong diagonal shadows across the floor.',
+    shot: 'A long queue of identical flat sage-grey paper figures standing still in a stark bone-white space, all facing the same direction, rigid and waiting. Strong diagonal shadows across the floor.',
   },
   {
     vo: 'Nobody applies. The ones who come close are gone by spring.',
     line: 'Nobody applies',
     accent: 'Nobody',
-    shot: 'A single empty ink paper chair in a stark empty room, a torn paper gap where a figure should be, harsh raking light, dramatic long shadow.',
+    shot: 'A single empty sage paper chair in a stark cream room, a torn paper gap where a figure should be, harsh raking light, dramatic long shadow.',
   },
   {
     vo: 'So we built her instead.',
     line: 'So we built her',
     accent: 'built her',
-    shot: 'A confident terracotta cut-paper silhouette assembling itself from sharp angular paper shards flying together in a dark ink space, mid-formation, explosive and precise.',
+    shot: 'A confident terracotta cut-paper silhouette assembling itself from sharp angular paper shards flying together in a bright cream space, mid-formation, explosive and precise.',
   },
   {
     vo: 'She reads every email overnight.',
     line: 'Every inbox. Overnight.',
     accent: 'Overnight',
-    shot: 'The terracotta paper silhouette moving fast through a dense wall of dark grey paper envelopes, the envelopes flying apart in her wake, motion and disruption, hard diagonal composition.',
+    shot: 'The terracotta paper silhouette moving fast through a dense wall of pale sage paper envelopes, the envelopes flying apart in her wake, motion and disruption, hard diagonal composition.',
   },
   {
     vo: 'She answers your phone. Callers book while they are still talking.',
     line: 'She picks up.',
     accent: 'picks up',
-    shot: 'A bold terracotta paper silhouette holding an angular ink-black paper telephone, sharp paper sound-wave shards radiating outward in strong diagonals, dark dramatic background.',
+    shot: 'A bold terracotta paper silhouette holding an angular sage paper telephone, sharp paper sound-wave shards radiating outward in strong diagonals, bright cream background with deep shadow.',
   },
   {
     vo: 'She writes, invoices, chases and files. In your voice.',
     line: 'In your voice.',
     accent: 'your voice',
-    shot: 'A terracotta paper silhouette at the centre of a fast spiral of angular ink and slate paper shapes orbiting her, everything in motion around a still centre, dark ground, graphic and kinetic.',
+    shot: 'A terracotta paper silhouette at the centre of a fast spiral of angular sage and cream paper shapes orbiting her, everything in motion around a still centre, cream ground, graphic and kinetic.',
   },
   {
     vo: 'She does not call in sick. She does not hand in her notice.',
     line: 'She never leaves.',
     accent: 'never leaves',
-    shot: 'A stark ink paper doorway with harsh light spilling through it, and a terracotta paper silhouette standing firm in front of it, facing inward, not leaving. Strong single light source, deep shadow.',
+    shot: 'A stark cream paper doorway with harsh light spilling through it, and a terracotta paper silhouette standing firm in front of it, facing inward, not leaving. Strong single light source, deep shadow.',
   },
   {
     vo: 'The perfect employee was always a fantasy. Now she starts tomorrow.',
     line: 'She starts tomorrow.',
     accent: 'tomorrow',
-    shot: 'A single bold terracotta paper silhouette standing confident and alone in a wide stark ink space, dramatic light from one side, generous empty space in the lower centre, poster-like and final.',
+    shot: 'A single bold terracotta paper silhouette standing confident and alone in a wide stark cream space, dramatic light from one side, generous empty space in the lower centre, poster-like and final.',
   },
 ]
 
@@ -172,11 +172,11 @@ const run = async () => {
   const voJobs = []
   for (const [i, b] of BEATS.entries()) {
     /* lower stability than the warm films: a flatter, harder read */
-    voJobs.push({ i, id: await falQueue('fal-ai/elevenlabs/tts/eleven-v3', { text: b.vo, voice: 'Rachel', stability: 0.35 }) })
+    voJobs.push({ i, id: await falQueue('fal-ai/elevenlabs/tts/eleven-v3', { text: b.vo, voice: 'Rachel', stability: 0.45 }) })
   }
   const musicId = await falQueue('fal-ai/elevenlabs/music', {
-    prompt: 'Dark driving electronic underscore, hard percussive pulse, tense and confident, building relentlessly, modern and edgy, no vocals. 40 seconds.',
-    music_length_ms: 40000,
+    prompt: 'Confident modern underscore at 120 BPM with a clear steady pulse and a strong downbeat, warm and optimistic but driving, light percussion, momentum building throughout, no vocals. 35 seconds.',
+    music_length_ms: 35000,
   })
 
   const vo = []
@@ -201,6 +201,15 @@ const run = async () => {
   } catch { log('  FAIL music') }
 
   const { execSync } = await import('child_process')
+  /* THE BEAT GRID, read off the music this run just generated.
+     The first cut ignored it entirely and the cuts landed on 2.71s, 6.69s,
+     8.85s — arbitrary numbers driven by voice length alone, which is exactly
+     why it felt thrown together. The tool already existed. */
+  try {
+    execSync(`node scripts/beatgrid.mjs "${path.join(OUT,"music.mp3")}" "${path.join(OUT,"beatgrid.json")}"`, { cwd: process.cwd() })
+    log("  beat grid written")
+  } catch (e) { log("  no beat grid: " + e.message.slice(0,80)) }
+
   const plan = {
     name: 'jordyn-edge',
     style: 'edge',
