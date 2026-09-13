@@ -4,7 +4,7 @@ import {
   useCurrentFrame, interpolate, spring, Easing,
 } from 'remotion'
 import { loadFont as loadInter } from '@remotion/google-fonts/Inter'
-import plan from '../../public/commercials/illustration/plan.json'
+import plan from '../../public/commercials/jordyn-edge/plan.json'
 
 /**
  * THE COMMERCIAL RENDERER — one plan in, one film out.
@@ -94,7 +94,11 @@ const Line: React.FC<{ line: string; accent: string; last?: boolean; figure?: st
   /* the figure is already set large above; saying it twice reads as an error */
   if (figure && line.includes(figure)) line = line.replace(figure, '').replace(/s{2,}/g, ' ').replace(/[,s]+$/, '').replace(/^[,s]+/, '').trim()
   const frame = useCurrentFrame()
-  const p = ease(frame, 8)
+  /* EDGE lands the line oversized and settles it in four frames; the warm
+     films drift it up over twelve. Same information, opposite attitude. */
+  const p = EDGE
+    ? clamp(spring({ frame: frame - 3, fps: FPS, config: { damping: 11, stiffness: 260, mass: 0.6 } }), 0, 1.14)
+    : ease(frame, 8)
   const k = clamp(p, 0, 1)
   const at = accent ? line.toLowerCase().indexOf(accent.toLowerCase()) : -1
   const parts = at >= 0
@@ -106,12 +110,12 @@ const Line: React.FC<{ line: string; accent: string; last?: boolean; figure?: st
       ...(last ? { top: '50%', transform: 'translateY(-50%)' } : { bottom: 96 }),
       zIndex: 30, textAlign: 'center', padding: '0 140px',
       fontWeight: 900, fontSize: last ? 88 : 62, lineHeight: 1.08, letterSpacing: '-0.03em',
-      color: PAPER ? '#4a3f35' : WHITE,
+      color: EDGE ? '#f2ede3' : PAPER ? '#4a3f35' : WHITE,
       opacity: clamp(p * 1.8, 0, 1),
-      textShadow: PAPER ? 'none' : '0 4px 34px rgba(0,0,0,0.7)',
+      textShadow: EDGE ? '0 6px 40px rgba(0,0,0,0.9)' : PAPER ? 'none' : '0 4px 34px rgba(0,0,0,0.7)',
     }}>
-      <span style={{ display: 'inline-block', transform: `translateY(${(1 - k) * 22}px)` }}>
-        {parts[0]}<span style={{ color: PAPER ? '#c4623f' : ACCENT }}>{parts[1]}</span>{parts[2]}
+      <span style={{ display: 'inline-block', transform: EDGE ? `scale(${1.3 - 0.3 * k})` : `translateY(${(1 - k) * 22}px)` }}>
+        {parts[0]}<span style={{ color: EDGE ? '#d1502f' : PAPER ? '#c4623f' : ACCENT }}>{parts[1]}</span>{parts[2]}
       </span>
     </div>
   )
@@ -138,11 +142,14 @@ const Figure: React.FC<{ text: string }> = ({ text }) => {
 
 /** A wash under the type. Readability, and it settles the lower frame. */
 const PAPER = PLAN.style === 'paper'
+/** The hard cut. Same craft, opposite temperature — see the note below. */
+const EDGE = PLAN.style === 'edge'
 
 const Foot: React.FC<{ full?: boolean }> = ({ full = false }) => (
   <div style={{
     position: 'absolute', left: 0, right: 0, bottom: 0,
     height: full ? '100%' : 470, zIndex: 20,
+    ...(EDGE ? { display: 'none' } : {}),
     background: PAPER
       ? (full
         ? 'rgba(250,249,245,0.88)'
@@ -155,17 +162,20 @@ const Foot: React.FC<{ full?: boolean }> = ({ full = false }) => (
 
 /* ── the cut ─────────────────────────────────────────────────────────────── */
 
-const HOLD = VO_SECONDS.map((s) => Math.round((s + 0.45) * FPS))
+const HOLD = VO_SECONDS.map((s) => Math.round((s + (EDGE ? 0.12 : 0.45)) * FPS))
 const STARTS: number[] = []
 { let t = 0; for (const h of HOLD) { STARTS.push(t); t += h } }
 export const COMMERCIAL_FRAMES = STARTS[STARTS.length - 1] + HOLD[HOLD.length - 1] + 12
 
 export const Commercial: React.FC = () => (
-  <AbsoluteFill style={{ background: PAPER ? '#faf9f5' : INK, fontFamily: F }}>
+  <AbsoluteFill style={{ background: EDGE ? '#1a1714' : PAPER ? '#faf9f5' : INK, fontFamily: F }}>
     {PLAN.beats.map((b, i) => (
       <Sequence key={i} from={STARTS[i]} durationInFrames={HOLD[i]}>
         {b.scene
-          ? <PaperWipe hold={HOLD[i]}><PaperScene src={ASSET(b.scene)} hold={HOLD[i]} i={i} /></PaperWipe>
+          ? (EDGE
+            /* no wipe: a hard cut is the whole point */
+            ? <PaperScene src={ASSET(b.scene)} hold={HOLD[i]} i={i} />
+            : <PaperWipe hold={HOLD[i]}><PaperScene src={ASSET(b.scene)} hold={HOLD[i]} i={i} /></PaperWipe>)
           : b.clip ? <Shot src={ASSET(b.clip)} hold={HOLD[i]} i={i} /> : null}
         <Foot full={i === PLAN.beats.length - 1} />
         {b.figure && <Figure text={b.figure} />}
@@ -173,7 +183,7 @@ export const Commercial: React.FC = () => (
       </Sequence>
     ))}
 
-    {PAPER && <Grain />}
+    {PAPER && !EDGE && <Grain />}
 
     {PLAN.music && (
       <Sequence from={0}>
@@ -238,19 +248,21 @@ export const PaperScene: React.FC<{ src: string; hold: number; i: number }> = ({
   /* a different focus per scene so the push never repeats */
   const focusX = [50, 38, 62, 45, 55, 40, 60, 50][i % 8]
   const focusY = [50, 45, 55, 50, 42, 58, 48, 52][i % 8]
-  const scale = 1.04 + p * 0.08
+  /* faster push, alternating direction, so two shots never move alike */
+  const scale = EDGE ? (i % 2 ? 1.16 - p * 0.12 : 1.02 + p * 0.14) : 1.04 + p * 0.08
   const tx = (50 - focusX) * p * 0.12
   const ty = (50 - focusY) * p * 0.12
-  const floatY = Math.sin(f * 0.05) * 5
-  const floatR = Math.sin(f * 0.035) * 0.25
+  /* the edge cut barely breathes — a float is a calm gesture */
+  const floatY = EDGE ? 0 : Math.sin(f * 0.05) * 5
+  const floatR = EDGE ? 0 : Math.sin(f * 0.035) * 0.25
   return (
-    <AbsoluteFill style={{ background: '#faf9f5', overflow: 'hidden' }}>
+    <AbsoluteFill style={{ background: EDGE ? '#1a1714' : '#faf9f5', overflow: 'hidden' }}>
       <Img src={src} style={{
         width: '100%', height: '100%', objectFit: 'cover',
         transform: `scale(${scale}) translate(${tx}%, ${ty + floatY * 0.1}%) rotate(${floatR}deg)`,
       }} />
       {/* a soft warm vignette to seat the paper in the frame */}
-      <AbsoluteFill style={{ boxShadow: 'inset 0 0 220px rgba(150,120,80,0.18)' }} />
+      <AbsoluteFill style={{ boxShadow: EDGE ? 'inset 0 0 260px rgba(0,0,0,0.55)' : 'inset 0 0 220px rgba(150,120,80,0.18)' }} />
     </AbsoluteFill>
   )
 }
