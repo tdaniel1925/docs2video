@@ -151,6 +151,58 @@ const Wash: React.FC = () => (
 )
 
 /**
+ * REAL PRODUCT FOOTAGE, IN A DRAWN FRAME.
+ *
+ * Dropping a screen recording into a hand-drawn film looks like two videos
+ * spliced together. Putting it inside a paper-cut laptop fixes that: the frame
+ * belongs to the illustration's world, the content is genuinely the product,
+ * and the whole thing drifts gently like every other shot.
+ *
+ * The capture is 2880x1800 — more than twice a 1080p frame — so it stays sharp
+ * inside the frame rather than softening. The old marketing screenshots were
+ * 1600px being scaled UP, which is exactly why they looked poor.
+ */
+const Screen: React.FC<{ src: string; hold: number }> = ({ src, hold }) => {
+  const frame = useCurrentFrame()
+  const k = clamp(spring({ frame, fps: FPS, config: { damping: 24, stiffness: 110, mass: 0.9 } }), 0, 1)
+  const fade = Math.min(clamp(frame / 5, 0, 1), clamp((hold - frame) / 5, 0, 1))
+  /* a slow drift, matching the push on the drawings around it */
+  const drift = interpolate(frame, [0, Math.max(1, hold)], [0, 1], { extrapolateRight: 'clamp', easing: Easing.inOut(Easing.quad) })
+
+  return (
+    <AbsoluteFill style={{ background: CREAM, alignItems: 'center', justifyContent: 'center', opacity: fade }}>
+      <div style={{
+        width: '78%',
+        transform: `scale(${(0.96 + k * 0.04) * (1 + drift * 0.03)}) translateY(${(1 - k) * 20}px)`,
+      }}>
+        {/* the paper laptop: a warm shell, a soft shadow, a cut-paper lip */}
+        <div style={{
+          background: CREAM_D,
+          borderRadius: 10,
+          padding: '14px 14px 0',
+          boxShadow: '0 26px 60px rgba(61,57,41,0.16), 0 3px 10px rgba(61,57,41,0.10)',
+        }}>
+          <div style={{ display: 'flex', gap: 6, padding: '0 2px 10px' }}>
+            {[CLAY, '#d9b56a', SAGE].map((c) => (
+              <span key={c} style={{ width: 9, height: 9, borderRadius: 5, background: c, opacity: 0.65 }} />
+            ))}
+          </div>
+          <div style={{ borderRadius: '6px 6px 0 0', overflow: 'hidden', border: `1px solid ${INK}14`, borderBottom: 0 }}>
+            <OffthreadVideo src={ASSET(src)} muted style={{ width: '100%', display: 'block' }} />
+          </div>
+        </div>
+        {/* the base, so it reads as a laptop rather than a floating rectangle */}
+        <div style={{
+          height: 13, borderRadius: '0 0 12px 12px', background: CREAM_D,
+          margin: '0 auto', width: '104%', transform: 'translateX(-2%)',
+          boxShadow: '0 10px 22px rgba(61,57,41,0.12)',
+        }} />
+      </div>
+    </AbsoluteFill>
+  )
+}
+
+/**
  * THE MONEY SHOT — the one frame that is typed rather than drawn.
  * $499 against five days ticking off. Exact, legible, brand-correct.
  */
@@ -246,7 +298,8 @@ export const JordynDrawn: React.FC = () => {
         <Sequence key={s.id} from={starts[i]} durationInFrames={frames[i]}>
           {s.kind === 'logo' ? <Logo hold={frames[i]} />
             : s.kind === 'cta' ? <CTA />
-              : s.kind === 'built' ? <Payback hold={frames[i]} />
+              : s.kind === 'ui' ? <Screen src={s.src ?? ''} hold={frames[i]} />
+                : s.kind === 'built' ? <Payback hold={frames[i]} />
                 : <Picture shot={s} hold={frames[i]} i={i} />}
           {s.line && <Wash />}
           {s.line && <Line line={s.line} accent={s.accent} hold={frames[i]} />}
