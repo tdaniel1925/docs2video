@@ -5,6 +5,28 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
+## 2026-09-16 (later) — Palette from the logo, footer art, dark closer
+
+Second pass on the home page, bringing it fully in line with restylez.app
+and restylez.app/decks.
+
+- **Palette re-sampled FROM the new logo** rather than the retired one. The
+  old tokens were a muted teal (#3BB5C8) taken from the previous mark;
+  measured off the new artwork the brand is navy #002B63, cyan #00A0E0 and
+  orange #F07000. Token NAMES are unchanged (--mint is now cyan) because they
+  appear in hundreds of call sites and renaming buys no behaviour.
+- **Kickers are large italic lines**, not small uppercase labels — the device
+  the sibling sites use to announce a section.
+- **Footer** gets the new logo and a giant faded wordmark under the links.
+- **The closer is the dark moment of the page**: navy ground, white type, cyan
+  on the italic. It had been navy on pale teal, and the palette change
+  destroyed that contrast.
+
+THREE CONTRAST BUGS the palette change caused, all fixed: the closing heading,
+its CTA button (.btn-primary is navy, so it vanished on navy), and its perks
+row, whose labels lost to a more specific existing rule. A whole-page contrast
+sweep now reports nothing below 3:1.
+
 ## 2026-09-16 — Home page overhaul + new logo
 
 The marketing page at / was rebuilt to match the scale of its sibling sites

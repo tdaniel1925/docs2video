@@ -774,7 +774,7 @@ export default async function HomePage() {
         <div className="container">
           <div className="footer-grid">
             <div className="footer-brand">
-              <div className="logo"><img src="/logo.png" alt="Docs2Video" style={{height:60}} /></div>
+              <div className="logo"><img src="/logo-big.png" alt="Docs2Video" style={{height:72}} /></div>
               <p>Turn any document into a branded, narrated explainer video your clients will actually watch. Powered by AI. Ready in minutes.</p>
               <div className="footer-contact">
                 <a href="mailto:support@docs2video.com">support@docs2video.com</a>
@@ -807,6 +807,7 @@ export default async function HomePage() {
               </ul>
             </div>
           </div>
+          <div className="footer-word" aria-hidden>Docs2Video</div>
           <div className="footer-bottom">
             <div>&copy; 2026 Docs2Video. All rights reserved.</div>
             <div className="footer-socials">

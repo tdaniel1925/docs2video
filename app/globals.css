@@ -5,23 +5,25 @@
   --bg: #F0F4F8;
   --bg-soft: #F7F9FB;
   --bg-card: #FFFFFF;
-  --mint: #3BB5C8;           /* Teal/cyan from logo circle */
-  --mint-deep: #2A9AAD;
-  --mint-darker: #1E7A8A;
-  --ink: #1B3A5C;            /* Dark navy from logo banner */
-  --ink-soft: #3D5A7A;
-  --ink-light: #7A8FA3;
+  /* Named "mint" for history; it is the logo's CYAN. Renaming it would touch
+     hundreds of call sites for no behaviour. */
+  --mint: #00A0E0;           /* Cyan — "Video" and the arrow */
+  --mint-deep: #0088C4;
+  --mint-darker: #0A6C99;
+  --ink: #002B63;            /* Navy — the ground the wordmark sits on */
+  --ink-soft: #2A4A77;
+  --ink-light: #6B84A3;
   --border: #D4DCE4;
   --border-light: #E8EDF2;
 
   /* Accents — complementary to logo */
   --peach: #FFEACC;          /* Light amber (from logo orange) */
-  --peach-deep: #F5A623;     /* Orange/amber — the "2" in logo */
+  --peach-deep: #F07000;     /* Orange — the "2" in the logo, measured */
   --lilac: #D8D0F0;          /* Soft purple — complement to teal */
   --sky: #D6EEF8;            /* Light cyan — lighter logo teal */
   --sun: #FFD966;            /* Warm gold — complement to navy */
   --rose: #F8C4C0;           /* Soft coral — warm complement */
-  --orange-cta: #F5A623;     /* Logo amber for CTAs */
+  --orange-cta: #F07000;     /* The logo's orange, for CTAs */
 
   /* Extended palette */
   --surface: #EDF1F5;
@@ -3379,5 +3381,45 @@ h1.hero-title--big {
 /* THE HEADINGS GO UP. 44px was quiet beside a 92px hero and beside the
    sibling sites, whose section headings run to 64. */
 .section-title { font-size: clamp(30px, 4.4vw, 60px); line-height: 1.04; text-wrap: balance; }
-.section-eyebrow { font-size: 12.5px; letter-spacing: .14em; }
+.section-eyebrow {
+  font-size: clamp(18px, 2.2vw, 27px);
+  font-weight: 700; font-style: italic;
+  letter-spacing: -.01em; text-transform: none;
+  color: var(--mint-darker);
+  margin-bottom: 8px;
+}
 .section-sub { font-size: clamp(16px, 1.6vw, 19px); line-height: 1.5; }
+
+/* The site's name at headline size under the footer links, faded into the
+   ground so it reads as texture rather than as another thing to read. The
+   sibling sites both end this way; this one ended on a bare link column. */
+.footer-word {
+  font-size: clamp(46px, 11vw, 150px);
+  font-weight: 800; letter-spacing: -.05em; line-height: .85;
+  margin: 34px 0 0 -0.04em;
+  color: #fff; opacity: .09;
+  user-select: none; white-space: nowrap; overflow: hidden;
+}
+@media (max-width: 900px) { .footer-word { font-size: clamp(38px, 13vw, 88px); } }
+
+/* ── THE CLOSER ───────────────────────────────────────────────────────────
+ *
+ * This panel was navy text on a PALE teal, and the palette change made that
+ * teal a saturated cyan — so the heading and the sub-line lost most of their
+ * contrast and the perks row went nearly invisible.
+ *
+ * It becomes the page's dark moment instead: navy ground, white type, the
+ * logo's cyan on the italic. That is also what the sibling sites do with
+ * their closing panel, and it gives the page an ending rather than a fade.
+ */
+.final-cta { background: var(--ink); }
+.final-cta h2 { color: #fff; }
+.final-cta h2 em { color: var(--mint); }
+.final-cta-sub { color: rgba(255,255,255,.76); }
+.final-cta-perks, .final-cta-perks span { color: rgba(255,255,255,.82); }
+.final-cta-perks svg { color: var(--mint); }
+/* The button has to invert here: cyan on navy, not navy on navy. */
+.final-cta .btn-primary {
+  background: var(--mint); color: var(--ink); border-color: var(--mint);
+}
+.final-cta .btn-primary:hover { background: #fff; border-color: #fff; }
