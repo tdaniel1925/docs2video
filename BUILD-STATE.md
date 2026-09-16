@@ -5,6 +5,38 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
+## 2026-09-16 — Infographic slides on fal, real logo pinned by code
+
+Explainer slides are drawn by `app/_lib/slide-engine.ts` now (fal
+gpt-image-2.5, Gemini as fallback), and the real logo is composited into a
+reserved corner by `app/_lib/logo-space.ts`.
+
+**The logo bug.** `generateSlide()` in `app/_lib/gemini.ts` accepts a
+`logoBuffer` and never uses it — declared, referenced nowhere. The logo was
+either absent or AI-drawn.
+
+**Measured, both engines, same hard slide** (proper nouns, "$4,280 to $4,715",
+"10.2%", a semicolon, a date):
+
+| | fal | Gemini |
+|---|---|---|
+| every character right | yes | yes |
+| reserved corner | 0.6 variation | 0.9 |
+| size returned | 1920x1088 | 2752x1536 |
+| cost/slide | 3.7c | ~4-6c |
+
+fal wins on LAYOUT (numbered badges, clearer hierarchy), not on text — the
+"cheap models treat text as decoration" note in this repo was measured on
+flyers, not slides. Gemini also needed `imageConfig` or it returns 1376x768,
+below a 1080p frame.
+
+**Env:** `FAL_KEY` added to `vps/ecs-task-definition.json` and
+`vps/docker-compose.yml`; `SLIDE_IMAGE_ENGINE` defaults to `fal`.
+
+**NOT YET DONE:** the SSM parameter `/docs2video/FAL_KEY` still has to be
+created — see vps/DEPLOY.md. Until it is, the renderer falls back to Gemini
+(loudly, in the container log).
+
 ## 2026-09-16 (later) — Palette from the logo, footer art, dark closer
 
 Second pass on the home page, bringing it fully in line with restylez.app

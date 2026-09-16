@@ -30,6 +30,39 @@ so a file copy alone does nothing until you rebuild the image.
 > `server.js.bak`, `server-backup-*.j`, `patch.js`, `vps-*.py`. They are stale.
 > Only `server.js` is built and run.
 
+## Secrets (SSM Parameter Store)
+
+The ECS task definition reads every key from SSM under `/docs2video/`. A key
+that is not there is not an error at deploy time — the container simply starts
+without it, and the code falls through to whatever its second choice is. That
+is how this project once ran for days on the wrong image provider with nothing
+in the logs.
+
+**FAL_KEY is required for explainer slides.** `app/_lib/slide-engine.ts` draws
+slides on fal and falls back to Gemini; without the key every slide silently
+comes from the fallback. It warns once per process, but the warning is in the
+container log, not in front of anyone.
+
+```bash
+# One time, per environment. Value is in .env.local as FAL_KEY.
+aws ssm put-parameter \
+  --name /docs2video/FAL_KEY \
+  --value "<the key>" \
+  --type SecureString \
+  --region us-east-1 \
+  --overwrite
+
+# Confirm it is readable (prints the name, not the secret)
+aws ssm get-parameter --name /docs2video/FAL_KEY --region us-east-1 \
+  --query 'Parameter.Name' --output text
+```
+
+Then redeploy the task so the new secret is picked up — a running task keeps
+the environment it started with.
+
+To check which engine a render actually used, look for `[slide-engine]` in the
+container log: a missing key says so by name.
+
 ## Deploy (run from your local machine)
 
 Keep each command on **one physical line** — PowerShell line-wraps (`>>`) will

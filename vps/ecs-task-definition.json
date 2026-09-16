@@ -57,6 +57,10 @@
           "valueFrom": "arn:aws:ssm:us-east-1:423401347103:parameter/docs2video/GEMINI_API_KEY"
         },
         {
+          "name": "FAL_KEY",
+          "valueFrom": "arn:aws:ssm:us-east-1:423401347103:parameter/docs2video/FAL_KEY"
+        },
+        {
           "name": "OPENAI_API_KEY",
           "valueFrom": "arn:aws:ssm:us-east-1:423401347103:parameter/docs2video/OPENAI_API_KEY"
         },

@@ -19,6 +19,11 @@ services:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      # The two slide engines — see app/_lib/slide-engine.ts. fal draws the
+      # slide, Gemini is the fallback; without FAL_KEY the renderer silently
+      # ran on the second choice, which is the failure this repo has had before.
+      - FAL_KEY=${FAL_KEY}
+      - SLIDE_IMAGE_ENGINE=${SLIDE_IMAGE_ENGINE:-fal}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}

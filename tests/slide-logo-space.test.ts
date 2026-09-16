@@ -115,3 +115,39 @@ describe('the engine', () => {
     expect(space).toMatch(/catch \(e\) \{[\s\S]*?return slidePng/)
   })
 })
+
+describe('the renderer can actually reach fal', () => {
+  const task = readFileSync(join(ROOT, 'vps/ecs-task-definition.json'), 'utf8')
+  const compose = readFileSync(join(ROOT, 'vps/docker-compose.yml'), 'utf8')
+
+  it('passes FAL_KEY to the container', () => {
+    /*
+     * THE FAILURE THIS GUARDS, which this project has already had: a key
+     * missing from the deploy config is not an error. The container starts
+     * without it, the code falls through to its second choice exactly as
+     * designed, and nothing surfaces — so every slide comes from the
+     * fallback engine and the first evidence is someone noticing the output
+     * changed.
+     */
+    expect(task, 'ECS task definition has no FAL_KEY').toContain('"name": "FAL_KEY"')
+    expect(task).toContain('parameter/docs2video/FAL_KEY')
+    expect(compose, 'docker-compose has no FAL_KEY').toContain('FAL_KEY=${FAL_KEY}')
+  })
+
+  it('carries every engine key the slide path reads', () => {
+    /* Whatever process.env the engine touches must be in both deploy files,
+       or it is only set on a laptop. */
+    for (const key of ['FAL_KEY', 'GEMINI_API_KEY']) {
+      expect(task, `${key} missing from the task definition`).toContain(`"name": "${key}"`)
+      expect(compose, `${key} missing from docker-compose`).toContain(key)
+    }
+  })
+
+  it('tells someone how to create the parameter', () => {
+    /* A config entry pointing at an SSM key nobody created reads as done and
+       behaves as missing. */
+    const doc = readFileSync(join(ROOT, 'vps/DEPLOY.md'), 'utf8')
+    expect(doc).toContain('/docs2video/FAL_KEY')
+    expect(doc).toContain('ssm put-parameter')
+  })
+})
