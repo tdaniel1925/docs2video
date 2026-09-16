@@ -35,7 +35,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
   return (
     <div className="auth-split">
       <div className="auth-side">
-        <Link href="/" className="logo"><img src="/logo.png" alt="Docs2Video" style={{height:72}} /></Link>
+        <Link href="/" className="logo"><img src="/logo-big.png" alt="Docs2Video" style={{height:72}} /></Link>
         <div className="auth-side-content">
           <h2>Turn documents into <em>polished</em> visual summaries.</h2>
           <p>Join thousands of professionals who&apos;ve replaced their slideware with Docs2Video.</p>

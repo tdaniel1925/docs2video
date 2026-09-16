@@ -5,6 +5,27 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
+## 2026-09-16 — Home page overhaul + new logo
+
+The marketing page at / was rebuilt to match the scale of its sibling sites
+(restylez.app, restylez.app/decks). Same cream + mint palette, same 10px
+control radius, same Plus Jakarta Sans + Instrument Serif — what changed is
+SCALE and RHYTHM:
+
+- **Hero is centred.** It was a left-hand text column beside the video, with
+  `.hero-split` capping the headline at 56px while the base rule already
+  allowed 84. The promise now runs full width at up to 92px and the video sits
+  beneath it as proof. A receipt line lists every input format.
+- **Sections are panels.** Every one ran on the same flat ground, so a long
+  page never arrived anywhere. They alternate white / soft now, each its own
+  rounded object. Section headings went 44px -> up to 60px.
+- **New logo** (`public/logo-new.png`, 2035x773). Served as `logo-nav.png`
+  (h180) and `logo-big.png` (h340) — the source is 1.8MB, far too heavy for a
+  62px nav mark. All 9 references across 7 files plus `app/_lib/brand.ts`
+  (which drives the signed-in header) now point at the resized copies.
+
+Nothing about routing, data or the Text2Art branch was touched.
+
 ## 2026-08-23 — Text2Art deck AI: tells a story, and the logo stays put
 
 The "make a deck from words/paste" path was rebuilt in three phases after the

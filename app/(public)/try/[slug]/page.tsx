@@ -60,7 +60,7 @@ export default function TryPage({ params, searchParams }: { params: Promise<{ sl
     <div style={{ minHeight: '100vh', background: 'var(--bg-warm, #F4F1EC)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       {/* Header */}
       <header style={{ padding: '24px 24px 0', maxWidth: 800, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Image src="/logo.png" alt="Docs2Video" width={40} height={40} style={{ borderRadius: 8 }} />
+        <Image src="/logo-big.png" alt="Docs2Video" width={40} height={40} style={{ borderRadius: 8 }} />
         <span style={{ fontWeight: 700, fontSize: 18, color: 'var(--ink, #1a1a1a)' }}>Docs2Video</span>
       </header>
 
@@ -193,7 +193,7 @@ export default function TryPage({ params, searchParams }: { params: Promise<{ sl
         {/* Footer */}
         <footer style={{ textAlign: 'center', padding: '24px 0', borderTop: '1px solid var(--border-light, #e5e2dc)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <Image src="/logo.png" alt="Docs2Video" width={24} height={24} style={{ borderRadius: 4 }} />
+            <Image src="/logo-big.png" alt="Docs2Video" width={24} height={24} style={{ borderRadius: 4 }} />
             <span style={{ fontSize: 13, color: 'var(--ink-soft, #666)' }}>Powered by Docs2Video</span>
           </div>
         </footer>

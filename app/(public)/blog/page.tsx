@@ -48,7 +48,7 @@ export default function BlogPage() {
 
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
           <Link href="/" style={{ textDecoration: 'none' }}>
-            <img src="/logo.png" alt="Docs2Video" style={{ height: 56, marginBottom: 24 }} />
+            <img src="/logo-big.png" alt="Docs2Video" style={{ height: 56, marginBottom: 24 }} />
           </Link>
           <h1 style={{ fontSize: 36, fontWeight: 800, color: 'var(--ink)', marginBottom: 8 }}>Blog</h1>
           <p style={{ fontSize: 16, color: 'var(--ink-soft)', lineHeight: 1.6 }}>

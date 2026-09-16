@@ -37,7 +37,7 @@ export default function ContactPage() {
 
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <Link href="/" style={{ textDecoration: 'none' }}>
-            <img src="/logo.png" alt="Docs2Video" style={{ height: 56, marginBottom: 24 }} />
+            <img src="/logo-big.png" alt="Docs2Video" style={{ height: 56, marginBottom: 24 }} />
           </Link>
           <h1 style={{ fontSize: 32, fontWeight: 800, color: 'var(--ink)', marginBottom: 8 }}>Get in touch</h1>
           <p style={{ fontSize: 16, color: 'var(--ink-soft)', lineHeight: 1.6 }}>

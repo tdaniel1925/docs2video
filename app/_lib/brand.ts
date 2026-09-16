@@ -66,7 +66,7 @@ export const DOCS2VIDEO: Brand = {
   title: 'Docs2Video — Turn Any Document Into a Professional Explainer Video',
   description:
     'Upload a PDF, paste text, or describe an idea. Get a branded narrated video with a shareable client page — in minutes, not hours.',
-  logoSrc: '/logo.png',
+  logoSrc: '/logo-big.png',
   iconSrc: '/favicon.png',
   home: '/dashboard',
   nav: [

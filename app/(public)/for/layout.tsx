@@ -7,7 +7,7 @@ export default function IndustryLayout({ children }: { children: React.ReactNode
       <div className="container">
         <nav className="top-nav">
           <div className="top-nav-inner">
-            <Link href="/" className="logo"><img src="/logo.png" alt="Docs2Video" style={{height:72}} /></Link>
+            <Link href="/" className="logo"><img src="/logo-big.png" alt="Docs2Video" style={{height:72}} /></Link>
             <div className="top-nav-links">
               <Link href="/">Home</Link>
               <Link href="/#features">Features</Link>
@@ -25,7 +25,7 @@ export default function IndustryLayout({ children }: { children: React.ReactNode
       {children}
       <footer className="footer">
         <div className="container" style={{textAlign:'center',padding:'40px 0'}}>
-          <Link href="/" className="logo" style={{justifyContent:'center'}}><img src="/logo.png" alt="Docs2Video" style={{height:60}} /></Link>
+          <Link href="/" className="logo" style={{justifyContent:'center'}}><img src="/logo-big.png" alt="Docs2Video" style={{height:60}} /></Link>
           <p style={{marginTop:16,fontSize:14,color:'rgba(255,255,255,0.5)'}}>Turn complex documents into stunning visuals.</p>
         </div>
       </footer>

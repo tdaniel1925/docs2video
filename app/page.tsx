@@ -54,7 +54,9 @@ export default async function HomePage() {
         {/* ───── Nav ───── */}
         <nav className="top-nav">
           <div className="top-nav-inner">
-            <Link href="/" className="logo"><img src="/logo.png" alt="Docs2Video" style={{height:72}} /></Link>
+            {/* The logo carries its own tagline inside the artwork, so it needs
+                real height to read — 72px was sized for the old mark. */}
+            <Link href="/" className="logo"><img src="/logo-nav.png" alt="Docs2Video" style={{height:62}} /></Link>
             <div className="top-nav-links">
               <a href="#how-it-works">How It Works</a>
               <a href="#features">Features</a>
@@ -71,28 +73,41 @@ export default async function HomePage() {
           </div>
         </nav>
 
-        {/* ───── Hero (side-by-side) ───── */}
-        <section className="hero hero-split">
-          <div className="hero-left">
-            <div className="hero-eyebrow"><span className="star">&#10022;</span>Built for professionals who explain complex things</div>
-            <h1 className="hero-title">Turn any document into a professional <em>explainer video</em></h1>
-            <p className="hero-sub">Upload a PDF, paste text, or describe an idea. Get a branded narrated video with a shareable client page &mdash; in minutes, not hours.</p>
-            <div style={{display:'flex',gap:12,alignItems:'center',marginTop:28,flexWrap:'wrap'}}>
-              <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 2,000 free credits &rarr;</Link>
-              <a href="#how-it-works" className="btn btn-outlined">Watch demo</a>
-            </div>
-            <div className="hero-trust" style={{marginTop:20,fontSize:13,color:'var(--ink-soft)'}}>Cancel anytime &middot; No commitment</div>
+        {/*
+          ───── Hero ─────
+
+          CENTRED, AND THE HEADLINE CARRIES THE PAGE.
+
+          This was a left-hand column of text beside the video, with the
+          headline at 56px — which is what made the page read as quieter than
+          it should. The promise now runs full width above the video, the way
+          it does on the sibling sites, so the first thing anyone sees is the
+          sentence rather than a column of it.
+
+          The video moves UNDER the words rather than beside them. It is the
+          proof, and proof reads better after a claim than next to one.
+        */}
+        <section className="hero hero-center">
+          <div className="hero-eyebrow"><span className="star">&#10022;</span>Built for professionals who explain complex things</div>
+          <h1 className="hero-title hero-title--big">Turn any document into a <em>professional explainer video</em></h1>
+          <p className="hero-sub hero-sub--center">Upload a PDF, paste text, or describe an idea. Get a branded narrated video with a shareable client page &mdash; in minutes, not hours.</p>
+          <div className="hero-cta">
+            <Link href="/signup" className="btn btn-primary btn-lg">Start free &mdash; 2,000 free credits &rarr;</Link>
+            <a href="#how-it-works" className="btn btn-outlined">Watch demo</a>
           </div>
-          <div className="hero-right">
+          <div className="hero-proof">
+            PDF · Word · PowerPoint · a website · or just the topic &nbsp;·&nbsp; narrated, branded, shareable &nbsp;·&nbsp; cancel anytime
+          </div>
+          <div className="hero-stage">
             <ClickToPlayVideo
               src={heroVideoUrl}
-              style={{ boxShadow: '0 20px 60px rgba(27,58,92,0.25)' }}
+              style={{ boxShadow: '0 30px 80px rgba(27,58,92,0.3)' }}
             />
           </div>
         </section>
 
         {/* ───── Problem / Solution Stats ───── */}
-        <section className="section">
+        <section className="section panel">
           <div style={{textAlign:'center',marginBottom:50}}>
             <div className="section-eyebrow">The problem</div>
             <h2 className="section-title">You send documents. <em>They don&apos;t read them.</em></h2>
@@ -115,7 +130,7 @@ export default async function HomePage() {
         </section>
 
         {/* ───── How It Works — 3 Steps ───── */}
-        <section className="section" id="how-it-works">
+        <section className="section panel panel--soft" id="how-it-works">
           <div style={{textAlign:'center',marginBottom:60}}>
             <div className="section-eyebrow">How it works</div>
             <h2 className="section-title">Upload. Pick a format. <em>Done.</em></h2>
@@ -152,7 +167,7 @@ export default async function HomePage() {
         </section>
 
         {/* ───── Services ───── */}
-        <section className="section" id="features">
+        <section className="section panel" id="features">
           <div style={{textAlign:'center',marginBottom:50}}>
             <div className="section-eyebrow">Two formats, one platform</div>
             <h2 className="section-title">One document. <em>Two ways to share it.</em></h2>
@@ -177,7 +192,7 @@ export default async function HomePage() {
         </div>
 
         {/* ───── Why Docs2Video ───── */}
-        <section className="section">
+        <section className="section panel panel--soft">
           <div style={{textAlign:'center',marginBottom:50}}>
             <div className="section-eyebrow">Why Docs2Video</div>
             <h2 className="section-title">The explainer video <em>workflow</em></h2>
@@ -262,7 +277,7 @@ export default async function HomePage() {
         </section>
 
         {/* ───── Industry Intelligence (Key Differentiator) ───── */}
-        <section className="section" id="industries">
+        <section className="section panel" id="industries">
           <div style={{textAlign:'center',marginBottom:48}}>
             <div className="section-eyebrow">Industry intelligence</div>
             <h2 className="section-title">The only explainer platform that <em>speaks your language</em></h2>
@@ -323,7 +338,7 @@ export default async function HomePage() {
         </section>
 
         {/* ───── Share Page Section ───── */}
-        <section className="section" id="share-page">
+        <section className="section panel panel--soft" id="share-page">
           <div style={{textAlign:'center',marginBottom:40}}>
             <div className="section-eyebrow">The share page</div>
             <h2 className="section-title">One link replaces <em>three tools</em></h2>
@@ -370,7 +385,7 @@ export default async function HomePage() {
         </section>
 
         {/* ───── Competitor Comparison ───── */}
-        <section className="section" id="compare">
+        <section className="section panel" id="compare">
           <div style={{textAlign:'center',marginBottom:40}}>
             <div className="section-eyebrow">See the difference</div>
             <h2 className="section-title">Docs2Video vs. <em>everyone else</em></h2>
@@ -444,7 +459,7 @@ export default async function HomePage() {
 
 
         {/* ───── Use Cases ───── */}
-        <section className="section">
+        <section className="section panel">
           <div style={{textAlign:'center',marginBottom:50}}>
             <div className="section-eyebrow" id="use-cases">Built for every industry</div>
             <h2 className="section-title">Complex documents, <em>simple</em> videos</h2>
@@ -523,7 +538,7 @@ export default async function HomePage() {
         </div>
 
         {/* ───── Before / After Comparison ───── */}
-        <section className="section">
+        <section className="section panel panel--soft">
           <div style={{textAlign:'center',marginBottom:40}}>
             <div className="section-eyebrow">Before &amp; after</div>
             <h2 className="section-title">The old way is <em>costing</em> you deals</h2>
@@ -563,7 +578,7 @@ export default async function HomePage() {
         </section>
 
         {/* ───── How Pricing Works ───── */}
-        <section className="section" id="how-pricing-works">
+        <section className="section panel" id="how-pricing-works">
           <div style={{textAlign:'center',marginBottom:40}}>
             <div className="section-eyebrow">Pricing that scales with you</div>
             <h2 className="section-title">Credits for videos, decks &amp; PDFs &mdash; <em>use them your way</em></h2>
@@ -612,7 +627,7 @@ export default async function HomePage() {
         </section>
 
         {/* ───── Pricing ───── */}
-        <section className="section" id="pricing">
+        <section className="section panel panel--soft" id="pricing">
           <div style={{textAlign:'center',marginBottom:50}}>
             <div className="section-eyebrow">Pricing</div>
             <h2 className="section-title">Simple, transparent <em>pricing</em></h2>
@@ -698,7 +713,7 @@ export default async function HomePage() {
         </section>
 
         {/* ───── Testimonials ───── */}
-        <section className="section" id="testimonials">
+        <section className="section panel" id="testimonials">
           <div style={{textAlign:'center',marginBottom:50}}>
             <div className="section-eyebrow">What professionals say</div>
             <h2 className="section-title">Trusted by professionals who <em>explain complex things</em></h2>
