@@ -93,3 +93,5 @@ vps/.job/
 vps-start-container.sh
 yarn-debug.log*
 yarn-error.log*
+scripts/.built/
+scripts/.bakeoff/
