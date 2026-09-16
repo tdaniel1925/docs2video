@@ -151,3 +151,32 @@ describe('the renderer can actually reach fal', () => {
     expect(doc).toContain('ssm put-parameter')
   })
 })
+
+describe('generateSlide actually uses the logo it is given', () => {
+  const gemini = readFileSync(join(ROOT, 'app/_lib/gemini.ts'), 'utf8')
+
+  it('pins the logo instead of accepting it and dropping it', () => {
+    /*
+     * THE BUG THIS CAUGHT. `logoBuffer` was declared as a parameter on
+     * generateSlide() and referenced NOWHERE in the function body. The
+     * prompt correctly forbade the model drawing a mark and said Sharp would
+     * handle branding — so nothing drew a logo and nothing pasted one, and
+     * middle slides shipped bare. A promise kept in one half only.
+     *
+     * TypeScript does not catch this: an unused parameter is legal.
+     */
+    expect(gemini).toContain('pinLogo(image, logoBuffer)')
+  })
+
+  it('reserves the corner in the prompt when a logo is coming', () => {
+    /* Otherwise the paste lands on whatever the model put there. */
+    expect(gemini).toContain('logoSpacePrompt()')
+    expect(gemini).toMatch(/logoBuffer\?\.length \?/)
+  })
+
+  it('still forbids the model drawing a mark of its own', () => {
+    /* The standing rule: real uploaded logos only, never AI-drawn. Pasting a
+       real one does not make an invented one acceptable. */
+    expect(gemini).toMatch(/DO NOT include ANY company name, brand name, logo/)
+  })
+})

@@ -6,6 +6,7 @@ import { buildStructuredPrompt } from './prompt-builder'
 import { INDUSTRIES, detectIndustry, type IndustryId } from './industries'
 import { withRetry } from './with-retry'
 import { figuresIn, missingFigures } from './slide-figures'
+import { logoSpacePrompt, pinLogo } from './logo-space'
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -371,7 +372,21 @@ This is slide ${slideIndex + 1} of ${totalSlides}. ALL slides must share identic
     )
   }
 
-  parts.push({ text: promptText })
+  /*
+   * HOLD THE CORNER OPEN FOR THE LOGO.
+   *
+   * Sharp pastes the real file into a fixed rectangle after the draw (see
+   * pinLogo below and lib/logo-space). Without this sentence the model fills
+   * that rectangle with a figure or a caption, and the logo lands on top of
+   * it — the slide is not wrong, it is unreadable in one corner.
+   *
+   * The percentages here are generated from LOGO_SPACE, the same constant the
+   * paste uses, so the space held open and the space filled cannot drift.
+   *
+   * Only when there IS a logo: a slide without one should use its whole frame
+   * rather than keep a corner empty for nothing.
+   */
+  parts.push({ text: logoBuffer?.length ? `${promptText}\n\n${logoSpacePrompt()}` : promptText })
 
   // Logo is NOT passed to Gemini — Sharp composites the actual logo afterward.
   // This prevents Gemini from redrawing/reinterpreting the logo.
@@ -466,7 +481,21 @@ This is slide ${slideIndex + 1} of ${totalSlides}. ALL slides must share identic
             if (attempt === 0) continue
           }
         }
-        return image
+        /*
+         * PIN THE REAL LOGO — the half that was missing.
+         *
+         * getStrictRules() already tells the model that all branding is
+         * handled by Sharp after generation, and forbids it drawing any mark
+         * itself. So the design was right and only the second half was
+         * absent: `logoBuffer` was accepted as a parameter and then never
+         * used anywhere in this function. Nothing drew a logo — correctly —
+         * and nothing pasted one either, so middle slides shipped bare.
+         *
+         * pinLogo returns the slide untouched if anything goes wrong. This
+         * runs at the end of work the customer has already paid for, and a
+         * slide without a logo beats a job that died placing one.
+         */
+        return await pinLogo(image, logoBuffer)
       }
     }
 
