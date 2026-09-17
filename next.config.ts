@@ -51,7 +51,27 @@ const nextConfig: NextConfig = {
             "style-src 'self' 'unsafe-inline' https:",
             "img-src 'self' https: data: blob:",
             "font-src 'self' https: data:",
-            "media-src 'self' https: blob:",
+            /*
+             * data: BELONGS HERE, AND LEAVING IT OUT BROKE EVERY NARRATED
+             * PRESENTATION.
+             *
+             * Reported by a customer as "the video is not playing" on two
+             * share links. Both decks were perfectly built — 13 slides, 13
+             * real narration clips, 80-216KB each — and both sat on slide 1
+             * forever.
+             *
+             * The clips are embedded as data: URLs, and the deck advances on
+             * the narration ENDING. This policy refused to load them
+             * ("Media load rejected by URL safety check"), so the audio never
+             * started, onended never fired, and nothing moved. Silent from
+             * the viewer's side: no error on the page, just a deck that did
+             * not play.
+             *
+             * Every other directive that carries embedded content already
+             * allowed data: — img-src, font-src, even default-src. media-src
+             * was simply missed.
+             */
+            "media-src 'self' https: data: blob:",
             "connect-src 'self' https: wss:",
             "frame-src 'self' https:",
             "frame-ancestors 'self'",

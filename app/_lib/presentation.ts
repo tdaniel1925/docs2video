@@ -774,16 +774,74 @@ let cur=-1;
 let voiceOn=VO.length>0,voAudio=null;
 // Narration is gated behind the Start button: browsers block autoplay until a
 // user gesture, so without it the first slide's voice silently failed.
-let started=VO.length===0,autoAdv=false;
+let started=VO.length===0,autoAdv=false,advTimer=0;
 window.startPres=()=>{started=true;autoAdv=true;document.body.classList.add('started');go(0);};
 const voiceBtn=document.getElementById('voice');
-function voStop(){if(voAudio){voAudio.pause();voAudio=null;}}
-function voPlay(){voStop();if(!voiceOn||!started)return;const b=VO[cur];if(!b)return;voAudio=new Audio('data:audio/mpeg;base64,'+b);voAudio.onended=()=>{if(autoAdv&&cur<secs.length-1)setTimeout(()=>{if(autoAdv&&!(voAudio&&!voAudio.paused))go(cur+1);},700);};voAudio.play().catch(()=>{});}
+function voStop(){if(voAudio){voAudio.pause();voAudio=null;}clearTimeout(advTimer);}
+/*
+ * PLAYBACK MUST NOT DEPEND ENTIRELY ON THE AUDIO.
+ *
+ * The deck advanced only when a narration clip ENDED, so anything that
+ * stopped a clip from playing stopped the whole presentation with it — no
+ * error on the page, no spinner, just a deck sitting on slide 1.
+ *
+ * That is exactly what a customer hit: the browser refused to load the
+ * clips at all (a Content-Security-Policy that allowed data: everywhere
+ * except media-src — fixed in next.config.ts), so nothing ever ended and
+ * nothing ever moved.
+ *
+ * The policy is fixed, but a single point of failure for the entire
+ * product is worth removing on its own account. Three ordinary situations
+ * had the same effect: no clip for a slide, the viewer muting the voice,
+ * or a browser declining to autoplay.
+ *
+ * So a timer advances the deck, and the audio merely gets to finish first
+ * when there is any. A silent slide waits a readable beat and moves on —
+ * which is what somebody watching expects a "video" to do.
+ */
+function slideMs(){
+  /* Long enough to read what is on the slide, short enough not to feel
+     broken. Scaled a little by how much text the slide carries. */
+  const sec=secs[cur];
+  const words=sec?(sec.innerText||'').trim().split(/\s+/).length:0;
+  return Math.min(14000,Math.max(5000,words*380));
+}
+function armFallback(ms){
+  clearTimeout(advTimer);
+  if(!autoAdv||cur>=secs.length-1)return;
+  advTimer=setTimeout(()=>{
+    /* Never cut a voice off: if audio is still playing, wait for it. */
+    if(voAudio&&!voAudio.paused&&!voAudio.ended){armFallback(1200);return;}
+    if(autoAdv)go(cur+1);
+  },ms);
+}
+function voPlay(){
+  voStop();
+  clearTimeout(advTimer);
+  if(!started)return;
+  const b=voiceOn?VO[cur]:null;
+  if(!b){
+    /* No clip, or muted. The slide still has to end. */
+    armFallback(slideMs());
+    return;
+  }
+  voAudio=new Audio('data:audio/mpeg;base64,'+b);
+  voAudio.onended=()=>{if(autoAdv&&cur<secs.length-1)setTimeout(()=>{if(autoAdv&&!(voAudio&&!voAudio.paused))go(cur+1);},700);};
+  /* If the browser refuses to play it, fall back to the timer rather than
+     stopping for good. */
+  voAudio.play().catch(()=>{armFallback(slideMs());});
+  /* And if the clip is broken or never loads, do not wait forever. */
+  voAudio.onerror=()=>{armFallback(slideMs());};
+}
 if(voiceBtn)voiceBtn.onclick=()=>{voiceOn=!voiceOn;voiceBtn.textContent=voiceOn?'🔊':'🔇';if(voiceOn)voPlay();else voStop();};
 const fsBtn=document.getElementById('fs');
 if(fsBtn)fsBtn.onclick=()=>{if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});}else{document.documentElement.requestFullscreen().catch(()=>{});}};
 const ppBtn=document.getElementById('pp');
-if(ppBtn)ppBtn.onclick=()=>{if(!voAudio)return;if(voAudio.paused){voAudio.play().catch(()=>{});ppBtn.textContent='⏸';}else{voAudio.pause();ppBtn.textContent='▶';}};
+/* PAUSE MUST PAUSE THE DECK, not just the voice. It returned early when
+   there was no audio — so on a silent slide the button did nothing at all,
+   and with the fallback timer it would have kept advancing under a paused
+   deck. */
+if(ppBtn)ppBtn.onclick=()=>{if(autoAdv){autoAdv=false;clearTimeout(advTimer);if(voAudio)voAudio.pause();ppBtn.textContent='▶';}else{autoAdv=true;ppBtn.textContent='⏸';if(voAudio&&voAudio.paused)voAudio.play().catch(()=>{});else voPlay();}};
 function countUps(sec){
   sec.querySelectorAll('.cnt').forEach(el=>{
     const n=+el.dataset.num,pre=el.dataset.pre||'',suf=el.dataset.suf||'';
