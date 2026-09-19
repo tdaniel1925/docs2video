@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { checkCredits, deductCredits, addTopupCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { SLIDE_STYLES } from '../../_lib/types'
 import type { Brand } from '../../_lib/types'
 
@@ -37,6 +37,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Credit deduction failed. Please try again.' }, { status: 402 })
   }
 
+  // CHARGED UP FRONT, SO EVERY FAILURE PATH MUST PUT IT BACK.
+  //
+  // The credits come off before the image exists. When Gemini returns no
+  // image the route used to return a plain 500, and the customer paid 300
+  // credits for an error message. Nothing in this file imported a refund.
+  //
+  // Refunded via top-up with a NULL videoId and a STRING idempotency key —
+  // this route has no video row, and the documented gotcha here is that a
+  // string job key passed into the uuid videoId param swallows the refund
+  // silently, with no error anywhere. The flag means a path that falls
+  // through more than one failure refunds once.
+  const chargedAt = Date.now()
+  let refunded = false
+  const refundInfographic = async () => {
+    if (refunded) return
+    refunded = true
+    try {
+      await addTopupCredits(user.id, COST, 'refund:infographic', {
+        idempotencyKey: `refund:infographic:${user.id}:${chargedAt}`,
+        action: 'refund_infographic',
+        videoId: null as any,
+      })
+    } catch (e) {
+      // Never let the refund itself turn a handled failure into a crash — the
+      // customer already has an error on screen; this is about the money.
+      console.error('[infographic] refund failed', e)
+    }
+  }
+
   const body = await request.json()
   const {
     brandId,
@@ -59,6 +88,7 @@ export async function POST(request: Request) {
   }
 
   if (!styleId || !title || !content || !size) {
+    await refundInfographic()
     return NextResponse.json({ error: 'Please provide a title, content, style, and size' }, { status: 400 })
   }
 
@@ -73,6 +103,7 @@ export async function POST(request: Request) {
   } else {
     const presetConfig = SIZE_CONFIG[size]
     if (!presetConfig) {
+      await refundInfographic()
       return NextResponse.json({ error: 'Invalid size selected' }, { status: 400 })
     }
     config = presetConfig
@@ -186,7 +217,8 @@ ${hasLogo ? '- Keep the top-right corner clean for the logo; put no title text, 
   }
 
   if (!imageBuffer) {
-    return NextResponse.json({ error: 'Failed to generate infographic image' }, { status: 500 })
+    await refundInfographic()
+    return NextResponse.json({ error: 'The picture didn’t come through this time. Your credits are back — try again.' }, { status: 500 })
   }
 
   // PIN THE LOGO IN CODE — same trick that keeps the Text2Art deck logo steady.

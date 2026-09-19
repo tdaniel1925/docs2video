@@ -358,6 +358,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'designBrief, direction, and conceptIndex required' }, { status: 400 })
     }
 
+    // A LOGO IS ONLY EVER STYLED FROM A PICTURE, NEVER DRAWN FROM A NAME.
+    //
+    // This is rule 4 in CLAUDE.md, and it was reachable from the live logo
+    // creator: referenceImages was optional, so with none supplied Gemini
+    // drew a mark from designBrief.name plus generated font and colour
+    // directions. That is exactly the thing the rule forbids — "NEVER
+    // generate logos from a brand name or text. If no logo image is
+    // uploaded, skip logo kit entirely."
+    //
+    // Refused here rather than further down, so nothing is spent and no
+    // partial result is written before we find out.
+    if (!Array.isArray(referenceImages) || referenceImages.length === 0) {
+      return NextResponse.json({
+        error: 'Upload your logo first — we restyle a logo you already have, we don’t invent one from your name.',
+        code: 'logo_image_required',
+      }, { status: 400 })
+    }
+
     const admin = createAdminClient()
     const name = designBrief.name || 'Brand'
     const variation = CONCEPT_VARIATIONS[conceptIndex] || CONCEPT_VARIATIONS[0]

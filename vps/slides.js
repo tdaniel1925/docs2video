@@ -260,7 +260,7 @@ function cueSec(words, phrase) {
 // ---------- brand palette (for URL sources) ----------
 function hexToRgb(h) { const n = h.replace('#', ''); return [parseInt(n.slice(0, 2), 16), parseInt(n.slice(2, 4), 16), parseInt(n.slice(4, 6), 16)] }
 function rgbToHex(r, g, b) { const c = (n) => ('0' + Math.max(0, Math.min(255, Math.round(n))).toString(16)).slice(-2); return '#' + c(r) + c(g) + c(b) }
-function relLum(h) { const [r, g, b] = hexToRgb(h).map((v) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4) }); return 0.2126 * r + 0.7152 * g + 0.4361 * b }
+function relLum(h) { const [r, g, b] = hexToRgb(h).map((v) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4) }); return 0.2126 * r + 0.7152 * g + 0.0722 * b }
 function buildBrandPalette(brand, forcedAccent) {
   const cands = [forcedAccent, brand && brand.themeColor, ...((brand && brand.colors) || [])].filter(Boolean)
   const sat = (hex) => { const [r, g, b] = hexToRgb(hex); const mx = Math.max(r, g, b), mn = Math.min(r, g, b); return mx === 0 ? 0 : (mx - mn) / mx }

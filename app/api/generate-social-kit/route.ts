@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { checkCredits, deductCredits, addTopupCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { GoogleGenAI } from '@google/genai'
 
 export const runtime = 'nodejs'
@@ -102,6 +102,34 @@ export async function POST(request: Request) {
   }
   if (!(await deductCredits(user.id, COST, 'social-kit'))) {
     return NextResponse.json({ error: 'Credit deduction failed. Please try again.' }, { status: 402 })
+  }
+
+  // CHARGED UP FRONT, SO EVERY FAILURE PATH MUST PUT IT BACK.
+  //
+  // 400 credits come off before any image exists. When Gemini returned no
+  // master image the route answered with a plain 500 and the customer had
+  // paid for an error message — nothing in this file imported a refund.
+  //
+  // Refunded via top-up with a NULL videoId and a STRING idempotency key:
+  // this route has no video row, and the documented gotcha here is that a
+  // string job key passed into the uuid videoId param swallows the refund
+  // silently, with no error anywhere.
+  const chargedAt = Date.now()
+  let refunded = false
+  const refundKit = async () => {
+    if (refunded) return
+    refunded = true
+    try {
+      await addTopupCredits(user.id, COST, 'refund:social-kit', {
+        idempotencyKey: `refund:social-kit:${user.id}:${chargedAt}`,
+        action: 'refund_social_kit',
+        videoId: null as any,
+      })
+    } catch (e) {
+      // The customer already has an error on screen; never let the refund
+      // itself turn a handled failure into a crash.
+      console.error('[social-kit] refund failed', e)
+    }
   }
 
   const admin = createAdminClient()
@@ -244,8 +272,9 @@ ${refImageBuffer ? '- Use the provided reference image as STYLE and AESTHETIC in
   // Check we got at least one master
   const hasMaster = Object.values(masterBuffers).some(b => b !== null)
   if (!hasMaster) {
+    await refundKit()
     return NextResponse.json(
-      { error: 'Failed to generate master images. Please try again.' },
+      { error: 'The pictures didn’t come through this time. Your credits are back — try again.' },
       { status: 500 }
     )
   }
