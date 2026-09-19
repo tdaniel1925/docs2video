@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
-import { isSceneEmpty, isSceneSuspiciouslyShort } from '../app/api/generate-video/route'
+import { readFileSync } from 'fs'
+import { join } from 'path'
+import { isSceneEmpty, isSceneSuspiciouslyShort, cleanScenes } from '../app/api/generate-video/route'
 
 describe('isSceneEmpty', () => {
   it('returns true for a truly empty scene (no narration, no slidePrompt)', () => {
@@ -60,9 +62,7 @@ describe('scene filtering pipeline', () => {
       { scene: 5, beat: 'action', narration: 'Call us today.', slidePrompt: 'Contact info' },
     ]
 
-    const cleaned = scenes
-      .filter((s) => !isSceneEmpty(s))
-      .map((s, idx) => ({ ...s, scene: idx + 1 }))
+    const cleaned = cleanScenes(scenes)
 
     expect(cleaned).toHaveLength(4)
     expect(cleaned[0].scene).toBe(1)
@@ -81,10 +81,59 @@ describe('scene filtering pipeline', () => {
       { scene: 2, beat: 'action', narration: 'Call now.', slidePrompt: '' },
     ]
 
-    const cleaned = scenes
-      .filter((s) => !isSceneEmpty(s))
-      .map((s, idx) => ({ ...s, scene: idx + 1 }))
+    const cleaned = cleanScenes(scenes)
 
     expect(cleaned).toHaveLength(2)
+  })
+})
+
+describe('the route uses the same pipeline this file tests', () => {
+  /*
+   * THE ASSERTION THAT WOULD HAVE CAUGHT THE ORIGINAL PROBLEM.
+   *
+   * The two tests above used to re-implement the filter-and-renumber chain in
+   * their own bodies — `scenes.filter(...).map(...)` written out again — so
+   * only the two predicates were ever real code. If the route stopped
+   * filtering, or renumbered wrongly, both passed regardless.
+   *
+   * They now call cleanScenes. This proves the route does too.
+   */
+  const route = readFileSync(join(__dirname, '..', 'app/api/generate-video/route.ts'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+
+  it('calls cleanScenes on the generated scenes', () => {
+    expect(route, 'the route no longer uses the shared pipeline')
+      .toMatch(/scenes = cleanScenes\(scenes/)
+  })
+
+  it('does not keep its own copy of the chain', () => {
+    expect(route, 'the filter-and-renumber has been re-inlined into the route')
+      .not.toMatch(/\.filter\(\(s: any\) => !isSceneEmpty\(s\)\)/)
+  })
+
+  it('renumbers from one, with no gaps', () => {
+    /* Scene numbers are how the renderer, the Fix-a-Scene editor and the
+       slide plan refer to one another — a gap points every later reference at
+       the wrong slide. */
+    const out = cleanScenes([
+      { scene: 7, narration: 'a', slidePrompt: '' },
+      { scene: 9, narration: '', slidePrompt: '' },
+      { scene: 11, narration: 'c', slidePrompt: '' },
+    ])
+    expect(out.map((s) => s.scene)).toEqual([1, 2])
+  })
+
+  it('leaves the input array alone', () => {
+    /* It returns a new list; a caller holding the original must not see it
+       mutated out from under them. */
+    const input = [{ scene: 1, narration: 'a', slidePrompt: '' }, { scene: 2, narration: '', slidePrompt: '' }]
+    cleanScenes(input)
+    expect(input).toHaveLength(2)
+    expect(input[0].scene).toBe(1)
+  })
+
+  it('handles an empty list without throwing', () => {
+    expect(cleanScenes([])).toEqual([])
   })
 })

@@ -14,7 +14,7 @@ import { buildEditorialPayload } from '../../_lib/editorial-render'
 import { buildPresenter, resolvePhotoPlacement, isPersonProfile } from '../../_lib/presenter'
 import { cleanRecipientName } from '../../_lib/text-format'
 import { resolveClientName, resolveAgentName, buildOpeningNarration } from '../../_lib/personalize'
-import { isRegulated, scrubComplianceText, productTokens, smoothScrubbed } from '../../_lib/compliance'
+import { isRegulated, scrubComplianceText, productTokens, smoothScrubbed, stripCarrierFromScenes } from '../../_lib/compliance'
 import { speakable } from '../../_lib/tts'
 import { waitUntil } from '@vercel/functions'
 import { logError } from '../../_lib/error-logger'
@@ -95,6 +95,25 @@ export function isSceneEmpty(scene: any): boolean {
   const hasNarration = narration.length > 0
   const hasSlideContent = slidePrompt.length > 0
   return !hasNarration && !hasSlideContent
+}
+
+/**
+ * DROP THE EMPTY SCENES AND RENUMBER WHAT IS LEFT.
+ *
+ * Exported because its test re-implemented this chain in its own body —
+ * `scenes.filter(...).map(...)` written out again — so only the two
+ * predicates were real. If the route stopped filtering, or renumbered
+ * wrongly, both tests passed anyway.
+ *
+ * THE RENUMBER IS NOT COSMETIC. Scene numbers are how the renderer, the
+ * Fix-a-Scene editor and the slide plan refer to one another; a gap in the
+ * sequence points every later reference at the wrong slide.
+ */
+export function cleanScenes<T extends Record<string, unknown>>(scenes: T[]): T[] {
+  if (!Array.isArray(scenes)) return scenes
+  return scenes
+    .filter((s) => !isSceneEmpty(s))
+    .map((s, idx) => ({ ...s, scene: idx + 1 }))
 }
 
 export function isSceneSuspiciouslyShort(scene: any): boolean {
@@ -488,36 +507,18 @@ export async function POST(request: Request) {
         } : s.slideData,
       }))
 
-      // Strip carrier name from slide data (F18 — compliance)
-      if (policyData && typeof policyData === 'object' && 'carrier' in (policyData as any)) {
-        const carrierName = (policyData as any).carrier
-        if (carrierName && typeof carrierName === 'string' && carrierName.length > 1) {
-          const carrierRegex = new RegExp(carrierName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
-          scenes.forEach((scene: any) => {
-            if (scene.slidePrompt) {
-              scene.slidePrompt = scene.slidePrompt.replace(carrierRegex, 'the carrier')
-            }
-            if (scene.slideData) {
-              if (scene.slideData.headline) {
-                scene.slideData.headline = scene.slideData.headline.replace(carrierRegex, 'the carrier')
-              }
-              if (scene.slideData.bullets) {
-                scene.slideData.bullets = scene.slideData.bullets.map((b: string) =>
-                  typeof b === 'string' ? b.replace(carrierRegex, 'the carrier') : b
-                )
-              }
-              if (scene.slideData.stats) {
-                scene.slideData.stats = scene.slideData.stats.map((st: any) => ({
-                  ...st,
-                  label: st.label ? st.label.replace(carrierRegex, 'the carrier') : st.label,
-                  value: st.value ? st.value.replace(carrierRegex, 'the carrier') : st.value,
-                }))
-              }
-            }
-          })
-          console.log(`[video ${videoId}] Stripped carrier name "${carrierName}" from slide data`)
-        }
-      }
+      /*
+       * STRIP THE CARRIER NAME (F18 — compliance).
+       *
+       * This was twenty lines inline here, and its test defined a private
+       * copy of the same twenty lines and tested that copy. Deleting this
+       * block left all five tests green while every carrier name shipped
+       * into slide headlines, bullets and stat labels.
+       *
+       * One implementation now, in the module that already owns
+       * compliance, so the test has something real to import.
+       */
+      stripCarrierFromScenes(scenes as any[], policyData)
 
       // Pull out user-edited cover/closing (flagged _role by the editor) so they
       // OVERRIDE the auto-built bookends below, and remove them from the content
@@ -529,9 +530,7 @@ export async function POST(request: Request) {
 
       // Remove truly empty scenes (no narration AND no slide content)
       const beforeCount = scenes.length
-      scenes = scenes
-        .filter((s: any) => !isSceneEmpty(s))
-        .map((s: any, idx: number) => ({ ...s, scene: idx + 1 }))
+      scenes = cleanScenes(scenes as any[])
       if (scenes.length < beforeCount) {
         console.log(`[video ${videoId}] Removed ${beforeCount - scenes.length} empty scenes`)
       }

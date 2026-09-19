@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Mock OpenAI before importing
 const mockCreate = vi.fn()
@@ -28,9 +28,31 @@ function makeFakeResponse(size: number = 500) {
 }
 
 describe('TTS failure handling', () => {
+  /*
+   * THIS FILE TESTS THE FALLBACK ENGINE, and it has to say so.
+   *
+   * OpenAI is the fallback; ElevenLabs is the primary, reached through a bare
+   * `fetch` that nothing here stubs. These tests only ever entered the OpenAI
+   * retry loop because a developer machine has no ElevenLabs key — which made
+   * the whole primary path untested, and meant that on CI, or on anyone's
+   * machine with the key set, this file called the real ElevenLabs API and
+   * billed for every run.
+   *
+   * The key is now cleared deliberately rather than by luck, so what these
+   * tests cover is a decision instead of an accident. The primary path has
+   * its own file: tts-primary-voice.test.ts.
+   */
+  const realKey = process.env.ELEVENLABS_API_KEY
+
   beforeEach(() => {
     vi.clearAllMocks()
     delete process.env.STRICT_MODE
+    delete process.env.ELEVENLABS_API_KEY
+  })
+
+  afterEach(() => {
+    if (realKey === undefined) delete process.env.ELEVENLABS_API_KEY
+    else process.env.ELEVENLABS_API_KEY = realKey
   })
 
   it('synthesizeSpeech throws after 3 failed retries instead of returning silence', async () => {

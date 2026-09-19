@@ -247,3 +247,62 @@ COMPLIANCE (regulated insurance/financial content detected) — STRICT, OVERRIDE
 - The headline/intro must NOT name the carrier or product — frame it around the benefit, not the brand.
 - NEVER promise or imply GUARANTEED returns. Numbers are illustrated/hypothetical — frame them as "illustrated" / "projected".
 - Attribute to the AGENT/ADVISOR and point the viewer to the ACTUAL illustration for specifics.`
+
+/**
+ * STRIP THE CARRIER'S NAME OUT OF THE SLIDES.
+ *
+ * WHY THIS LIVES HERE NOW. It was an inline block inside generate-video's
+ * POST handler, imported by nothing — and its test defined a private copy of
+ * the same twenty lines and tested THAT. Delete the production block and all
+ * five tests stayed green while every carrier name shipped into slide
+ * headlines, bullets and stat labels.
+ *
+ * That is this repo's documented false-green in its worst place: the
+ * regulated-compliance path, where the whole point is that a carrier name
+ * never reaches a customer-facing slide.
+ *
+ * Exported from the one module that already owns compliance, so the test has
+ * something real to import and any other generator can reuse it.
+ *
+ * WHAT IT DOES NOT DO. It does not touch narration — that goes through
+ * scrubComplianceText, which handles the wider blocklist and the grammar
+ * repair afterwards. This is the narrow case: the carrier named in the
+ * customer's OWN extracted policy data, which is not in any blocklist
+ * because it is whatever their carrier happens to be.
+ *
+ * MUTATES IN PLACE and returns the same array, which is what the caller
+ * expects. Called at the end of scene building, before anything renders.
+ */
+export function stripCarrierFromScenes<T extends { slidePrompt?: string; slideData?: Record<string, unknown> }>(
+  scenes: T[],
+  policyData: unknown,
+): T[] {
+  if (!Array.isArray(scenes) || scenes.length === 0) return scenes
+  if (!policyData || typeof policyData !== 'object' || !('carrier' in policyData)) return scenes
+
+  const carrierName = (policyData as { carrier?: unknown }).carrier
+  /* One character would match half the alphabet, so it is not worth the risk
+     of mangling ordinary words. */
+  if (typeof carrierName !== 'string' || carrierName.length <= 1) return scenes
+
+  /* Escaped, because a carrier name is customer data and can contain any
+     character — "A.M. Best" would otherwise be a wildcard. */
+  const carrierRegex = new RegExp(carrierName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+  const swap = (v: unknown) => (typeof v === 'string' ? v.replace(carrierRegex, 'the carrier') : v)
+
+  for (const scene of scenes) {
+    if (scene.slidePrompt) scene.slidePrompt = swap(scene.slidePrompt) as string
+    const d = scene.slideData
+    if (!d) continue
+    if (d.headline) d.headline = swap(d.headline)
+    if (Array.isArray(d.bullets)) d.bullets = d.bullets.map(swap)
+    if (Array.isArray(d.stats)) {
+      d.stats = d.stats.map((st: unknown) => {
+        if (!st || typeof st !== 'object') return st
+        const s = st as { label?: unknown; value?: unknown }
+        return { ...s, label: swap(s.label), value: swap(s.value) }
+      })
+    }
+  }
+  return scenes
+}

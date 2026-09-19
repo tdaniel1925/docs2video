@@ -58,6 +58,38 @@ function getFfmpegPath(): string {
   return fallback
 }
 
+/**
+ * HOW LONG A SLIDE STAYS ON SCREEN.
+ *
+ * Pulled out of assembleVideo so it can be tested. Its test used to assert on
+ * variables it declared itself — `const slideDuration = realDuration + 0.8;
+ * expect(slideDuration).toBe(11.3)` — importing nothing and calling nothing.
+ * Changing 0.8 to 0, or the 5-second default to 0, left all three tests green
+ * while every video in the product went out of sync.
+ *
+ * THE 0.8 SECONDS IS NOT ARBITRARY. It keeps the slide up after the narration
+ * finishes; without it a slide cuts on the last syllable, which reads as a
+ * glitch rather than an edit.
+ *
+ * THE FALLBACK IS A GUESS FROM THE BUFFER, used only when probing fails. The
+ * probe replaced buffer-size guessing precisely because it was unreliable, so
+ * this path is a floor, not a second opinion — hence the cruder +1 rather
+ * than the measured +0.8.
+ */
+export const SLIDE_PADDING_S = 0.8
+export const SLIDE_NO_AUDIO_S = 5
+/** Bytes per second the fallback assumes. Only ever a rough estimate. */
+export const FALLBACK_BYTES_PER_S = 16000
+
+export function slideDurationFor(probedDuration: number, audioByteLength?: number): number {
+  /* No audio at all: a fixed beat, long enough to read a headline. */
+  if (audioByteLength === undefined || audioByteLength === null) return SLIDE_NO_AUDIO_S
+  if (probedDuration > 0) return probedDuration + SLIDE_PADDING_S
+  /* The probe failed. Estimate from the buffer and round up by a second, so
+     the slide outlasts the audio rather than clipping it. */
+  return Math.round(audioByteLength / FALLBACK_BYTES_PER_S) + 1
+}
+
 // Probe real audio duration using FFmpeg (instead of buffer-size guessing)
 export function probeAudioDuration(audioPath: string): Promise<number> {
   return new Promise((resolve) => {
@@ -140,14 +172,14 @@ export async function assembleVideo(
         ? `${baseVf},drawtext=text='${watermarkText.replace(/'/g, "\\'")}':fontsize=32:fontcolor=white@0.4:x=w-tw-40:y=h-th-30`
         : baseVf
 
-      let slideDuration = 5 // default for slides without audio
+      // One rule, in slideDurationFor above, so the test has something real to
+      // call — it used to assert on variables it declared itself.
+      let slideDuration = slideDurationFor(0, undefined)
 
       if (audioBuffers[i]) {
         // Probe real audio duration instead of guessing from buffer size
         const realDuration = await probeAudioDuration(audioPath)
-        slideDuration = realDuration > 0
-          ? realDuration + 0.8   // Add 0.8s padding so slide stays visible after audio ends
-          : Math.round(audioBuffers[i].length / 16000) + 1  // Fallback: buffer estimate + 1s
+        slideDuration = slideDurationFor(realDuration, audioBuffers[i].length)
 
         // Create clip: slide shown for exact duration (no -shortest which can cut audio)
         await runFfmpegCmd([
