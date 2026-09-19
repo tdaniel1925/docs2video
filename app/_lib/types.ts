@@ -274,6 +274,16 @@ export interface WizardDraft {
   /** Optional short note the agent writes to the client (share-page banner). */
   agentNote?: string
   script?: VideoScene[]
+  /**
+   * The scenes as the customer has edited them on the script step.
+   *
+   * Read by the script page when resuming a draft, and written by the
+   * generator — but NOT by editing, which is how the wizard's autosave came
+   * to show a "saved" tick while writing nothing. Declared here so the field
+   * the editor depends on is part of the type rather than an undocumented
+   * extra riding along in draft_data.
+   */
+  scenes?: VideoScene[]
   // Personalization (presenter) — chosen on the profile/brand step.
   presenterIntro?: string
   introduceInOpening?: boolean

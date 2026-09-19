@@ -79,6 +79,9 @@ export default function ScriptPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedScene, setSavedScene] = useState<number | null>(null)
+  /* Said out loud when a save fails, because the alternative is what this
+     screen used to do: show a tick and drop the work. */
+  const [saveError, setSaveError] = useState<string | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [editMode, setEditMode] = useState(false)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
@@ -119,32 +122,96 @@ export default function ScriptPage() {
     else { setDeckAiError(r?.error || 'The AI edit failed — nothing was changed.'); deckAiUndo.current = null }
   }
 
-  // Auto-save scenes to localStorage — debounced for typing, instant for other actions
+  /**
+   * AUTO-SAVE — and the tick only appears when something was actually saved.
+   *
+   * THE BUG THIS FIXES. The write was wrapped in `if (!isWizard)`, and
+   * setSavedScene sat OUTSIDE that block. So in the wizard — the paid flow —
+   * nothing was written and the green tick appeared anyway, after every
+   * single edit. A customer could rewrite the narration on twelve scenes,
+   * see a tick confirm each one, refresh, and lose all of it. The interface
+   * was actively telling them their work was safe while discarding it.
+   *
+   * The wizard keeps its scenes in the draft row, not localStorage, and the
+   * mechanism already existed — the generator PATCHes `scenes` the same way
+   * a few hundred lines below. Editing simply never used it.
+   *
+   * The tick now waits for the save to come back, and a failure says so
+   * rather than lying in the other direction.
+   */
   const autoSave = useCallback((updatedScenes: any[], sceneIdx: number, instant?: boolean) => {
     if (saveTimer.current) clearTimeout(saveTimer.current)
-    const doSave = () => {
-      if (!isWizard) {
-        const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
-        state.scenes = updatedScenes
-        localStorage.setItem('d2v_create', JSON.stringify(state))
+    const doSave = async () => {
+      if (isWizard) {
+        /* The draft row is the wizard's storage. Await it, because claiming
+           "saved" before the round trip is the bug this replaces. */
+        try {
+          const res = await fetch('/api/videos/draft', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ videoId, updates: { scenes: updatedScenes } }),
+          })
+          if (!res.ok) throw new Error(`draft save failed (${res.status})`)
+          setSaveError(null)
+        } catch (err) {
+          console.error('[script] autosave failed:', err)
+          /* Say so. The customer is mid-edit and can still copy their work
+             out; a silent failure is how the twelve scenes were lost. */
+          setSaveError('Your changes aren’t saving right now. Keep this tab open — don’t reload.')
+          return
+        }
+      } else {
+        try {
+          const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+          state.scenes = updatedScenes
+          localStorage.setItem('d2v_create', JSON.stringify(state))
+          setSaveError(null)
+        } catch (err) {
+          /* Private mode, or the quota is full. Both are real and both used
+             to pass silently. */
+          console.error('[script] localStorage save failed:', err)
+          setSaveError('Your changes aren’t saving in this browser. Keep this tab open — don’t reload.')
+          return
+        }
       }
       setSavedScene(sceneIdx)
       setTimeout(() => setSavedScene(null), 1500)
     }
     if (instant) {
-      doSave()
+      void doSave()
     } else {
-      saveTimer.current = setTimeout(doSave, 800)
+      saveTimer.current = setTimeout(() => void doSave(), 800)
     }
-  }, [isWizard])
+  }, [isWizard, videoId])
 
-  // Safety net: save on page unload
+  /*
+   * SAFETY NET ON THE WAY OUT — for both flows, not just one.
+   *
+   * This was also guarded by `!isWizard`, so the paid flow had no net at
+   * all: the 800ms debounce could still be pending when the tab closed and
+   * that edit was simply gone.
+   *
+   * The wizard uses sendBeacon rather than fetch. A browser tearing the page
+   * down kills in-flight fetches; a beacon is queued by the browser and sent
+   * regardless, which is the entire reason it exists. It is fire-and-forget,
+   * so this is a net under the real save above, never a replacement for it.
+   */
   useEffect(() => {
     const handleUnload = () => {
-      if (scenes.length > 0 && !isWizard) {
-        const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
-        state.scenes = scenes
-        localStorage.setItem('d2v_create', JSON.stringify(state))
+      if (scenes.length === 0) return
+      if (isWizard) {
+        try {
+          navigator.sendBeacon?.(
+            '/api/videos/draft/beacon',
+            new Blob([JSON.stringify({ videoId, updates: { scenes } })], { type: 'application/json' }),
+          )
+        } catch { /* nothing more we can do as the page dies */ }
+      } else {
+        try {
+          const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
+          state.scenes = scenes
+          localStorage.setItem('d2v_create', JSON.stringify(state))
+        } catch { /* private mode, or the quota is full */ }
       }
     }
     window.addEventListener('beforeunload', handleUnload)
@@ -670,6 +737,30 @@ export default function ScriptPage() {
               )}
               {deckAiError && <span style={{ color: '#B4432F', fontSize: 13 }}>{deckAiError}</span>}
             </div>
+
+            {/*
+              * SAVING IS BROKEN — said out loud, directly above the scenes.
+              *
+              * This screen used to show a green tick after every edit in the
+              * paid flow while writing nothing at all. The opposite failure —
+              * a save that genuinely cannot complete — has to be louder than
+              * a tick is quiet, because the work is still on screen and can
+              * still be copied out. It sits here rather than at the foot of
+              * the page so it is beside the thing at risk, and it stays until
+              * a save succeeds.
+              */}
+            {saveError && (
+              <div
+                role="alert"
+                style={{
+                  padding: '12px 16px', borderRadius: 10, marginBottom: 16,
+                  background: '#fffbeb', border: '1px solid #fcd34d',
+                  color: '#92400e', fontSize: 14, fontWeight: 500,
+                }}
+              >
+                {saveError}
+              </div>
+            )}
 
             {/* Read-only summary view */}
             {!editMode && (
