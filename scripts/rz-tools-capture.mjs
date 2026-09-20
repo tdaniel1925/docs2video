@@ -179,6 +179,26 @@ if (which === 'logo' || which === 'all') {
 
 if (which === 'brands' || which === 'all') {
   start('rzbrands')
+  /*
+   * AN EMPTY PAGE FIRST.
+   *
+   * The profile is persistent, so brands from earlier runs were still sitting
+   * there — the film opened on "save your brand once" above somebody else's
+   * leftover card, and the saved-state shot had two brands in it when the
+   * story is about saving one. Delete what is there before filming.
+   */
+  await go('/brands')
+  /* aria-label="Delete", and it opens an in-app confirm that has to be
+     accepted — the first attempt guessed at a title attribute, matched
+     nothing, and the film opened on leftover brands from earlier runs. */
+  for (let i = 0; i < 8; i++) {
+    const bin = p.locator('button[aria-label="Delete"]').first()
+    if (!(await bin.count())) break
+    await bin.click().catch(() => {}); await p.waitForTimeout(500)
+    const yes = p.locator('button:has-text("Delete")').last()
+    if (await yes.count()) { await yes.click().catch(() => {}) }
+    await p.waitForTimeout(900)
+  }
   await go('/brands'); await shot('1-empty')
   const site = p.locator('[data-field="site"]').first()
   if (await site.count()) {
@@ -187,7 +207,14 @@ if (which === 'brands' || which === 'all') {
   const up = p.locator('[data-action="upload"]').first(); await box('upload', up)
   await p.locator('input[type=file]').first().setInputFiles(LOGO_FILE); await p.waitForTimeout(2000); await shot('3-logo')
   const nm = p.locator('[data-field="brandname"]').first()
-  if (await nm.count()) { await box('brandname', nm); await nm.fill('Botmakers'); await p.waitForTimeout(250) }
+  if (await nm.count()) {
+    await box('brandname', nm)
+    /* The upload sets this field to the FILENAME when it lands, and it lands
+       asynchronously — the first run shipped a brand called "logo-demo-1".
+       Fill it, wait, and fill again if the upload has overwritten it. */
+    await nm.fill('Botmakers'); await p.waitForTimeout(900)
+    if ((await nm.inputValue()) !== 'Botmakers') { await nm.fill('Botmakers'); await p.waitForTimeout(400) }
+  }
   /* The swatches only exist once a logo has been read, so this is measured
      here rather than up with the empty form. */
   const sw = p.locator('input[type=color]').first()
@@ -219,7 +246,8 @@ if (which === 'magic' || which === 'all') {
   /* The pictures you already own — the thing this tool is FOR. */
   await p.locator('input[type=file]').first().setInputFiles(PHOTO_FILE).catch(() => {})
   await p.waitForTimeout(3500)
-  await box('pictures', p.locator('text=/Your pictures/i').first().catch(() => null) || goal)
+  const pics = p.locator('text=/Your pictures/i').first()
+  await box('pictures', (await pics.count()) ? pics : goal)
   await own().catch(() => {})
   await shot('4-pictures')
 

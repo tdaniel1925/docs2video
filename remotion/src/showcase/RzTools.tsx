@@ -1,5 +1,5 @@
 import { makeTool, makeTour, type ToolData, type ToolSpec } from './RzTool'
-import { SIZES, DECK, PPTX, EDIT, LIBRARY } from './rzspecs'
+import { SIZES, DECK, PPTX, EDIT, LIBRARY, LOGO, MAGIC, BRANDS } from './rzspecs'
 import sizesVo from '../../public/showcase/rzsizes/vo.json'
 import sizesGrid from '../../public/showcase/rzsizes/beatgrid.json'
 import sizesBoxes from '../../public/showcase/rzsizes/boxes.json'
@@ -21,6 +21,25 @@ export const RzDeck = makeTool({ spec: DECK, vo: deckVo as any, grid: deckGrid a
 export const RzPptx = makeTool({ spec: PPTX, vo: pptxVo as any, grid: pptxGrid as any, boxes: pptxBoxes as any })
 export const RzEdit = makeTool({ spec: EDIT, vo: editVo as any, grid: editGrid as any, boxes: editBoxes as any })
 export const RzLibrary = makeTool({ spec: LIBRARY, vo: libVo as any, grid: libGrid as any, boxes: libBoxes as any })
+
+/*
+ * THE THREE THAT HAD NO FILM — Logo, Magic Design and Brands. Same factory,
+ * same music bed, same voice: a help section narrated by two different
+ * people reads as two different products.
+ */
+import logoVo from '../../public/showcase/rzlogo/vo.json'
+import logoGrid from '../../public/showcase/rzlogo/beatgrid.json'
+import logoBoxes from '../../public/showcase/rzlogo/boxes.json'
+import magicVo from '../../public/showcase/rzmagic/vo.json'
+import magicGrid from '../../public/showcase/rzmagic/beatgrid.json'
+import magicBoxes from '../../public/showcase/rzmagic/boxes.json'
+import brandsVo from '../../public/showcase/rzbrands/vo.json'
+import brandsGrid from '../../public/showcase/rzbrands/beatgrid.json'
+import brandsBoxes from '../../public/showcase/rzbrands/boxes.json'
+
+export const RzLogo = makeTool({ spec: LOGO, vo: logoVo as any, grid: logoGrid as any, boxes: logoBoxes as any })
+export const RzMagic = makeTool({ spec: MAGIC, vo: magicVo as any, grid: magicGrid as any, boxes: magicBoxes as any })
+export const RzBrands = makeTool({ spec: BRANDS, vo: brandsVo as any, grid: brandsGrid as any, boxes: brandsBoxes as any })
 
 import makeVo from '../../public/showcase/rzmake/vo.json'
 import makeGrid from '../../public/showcase/rzmake/beatgrid.json'

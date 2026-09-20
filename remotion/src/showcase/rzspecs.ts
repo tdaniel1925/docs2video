@@ -68,3 +68,55 @@ export const LIBRARY: ToolSpec = {
     { kind: 'cta', head: '' },
   ],
 }
+
+/*
+ * THE THREE THAT HAD NO FILM.
+ *
+ * Logo Studio, Magic Design and Brands were the help sections whose "How to
+ * Use" opened with steps and screenshots but no video. Shot names and box
+ * keys come from scripts/rz-tools-capture.mjs, same as the five above. Heads
+ * use *asterisks* for the blue accent.
+ */
+
+export const LOGO: ToolSpec = {
+  id: 'rzlogo', url: 'restylez.app/logo',
+  cta: { head: 'A logo, by talking.', url: 'restylez.app/logo' },
+  beats: [
+    { shot: '1-setup', focus: 'page_top', kicker: 'Create Logo', head: 'A real logo — *by describing it.*', stamp: 'No design skill', stampColor: '#14161a' },
+    { shot: '1-setup', focus: 'name', bias: -40, zoom: 1.15, cursor: 'start', cursorFrom: 'name', click: true, clickAt: 0.72, fade: '2-open', fadeAt: 0.8, kicker: 'Step 1', head: 'Give it *the name,* spelled exactly right.' },
+    { shot: '2-open', focus: 'say', bias: 0, zoom: 1.12, type: { box: 'say', text: 'A family bakery that only does wedding cakes. My grandmother started it in 1961 and we still use her recipes.', cps: 3.4 }, fade: '3-typed', fadeAt: 0.86, kicker: 'Step 2', head: 'Say what you do — *the way you would tell a person.*' },
+    { shot: '3-typed', focus: 'send', bias: -60, cursor: 'send', cursorFrom: 'say', click: true, clickAt: 0.35, fade: '4-drawing', fadeAt: 0.45, zoom: 1.1, kicker: 'Step 3', head: 'It reads the *feeling,* not just the facts.', stamp: 'About a minute', stampColor: '#14161a', stampAt: 0.72 },
+    { shot: '5-four', focus: 'four', bias: 40, zoom: 1.04, kicker: 'Step 4', head: 'Four ideas — *not one idea four times.*', stamp: 'Wordmark · crest · symbol · monogram', stampColor: '#2e6be6', stampAt: 0.55 },
+    { shot: '5-four', focus: 'fourth', bias: 0, zoom: 1.18, kicker: 'Step 5', head: 'Point at one *by number.*', stamp: '“Make the 4th one green”', stampColor: '#14161a', stampAt: 0.5 },
+    { shot: '7-refined', focus: 'refined', bias: 40, zoom: 1.04, kicker: 'Step 6', head: 'It changes *that one* — and keeps what you liked.', stamp: 'Changes are free', stampColor: '#2e6be6', stampAt: 0.6 },
+    { kind: 'cta', head: '' },
+  ],
+}
+
+export const MAGIC: ToolSpec = {
+  id: 'rzmagic', url: 'restylez.app/magic',
+  cta: { head: 'Your pictures. One finished piece.', url: 'restylez.app/magic' },
+  beats: [
+    { shot: '1-empty', focus: 'page_top', kicker: 'New Magic Design', head: 'Your words, your pictures — *one finished design.*', stamp: 'Free until you pick one', stampColor: '#2e6be6' },
+    { shot: '1-empty', focus: 'goal', bias: -20, zoom: 1.14, type: { box: 'goal', text: "A flyer for Sella's Bakery to put in the window, for our wedding cake tasting day.", cps: 3.2 }, fade: '2-goal', fadeAt: 0.84, kicker: 'Step 1', head: 'Say what you are making — *like you would to a designer.*' },
+    { shot: '3-words', focus: 'words', bias: 0, zoom: 1.12, kicker: 'Step 2', head: 'Then the exact words. *Every line is printed as you wrote it.*', stamp: 'No wrong prices', stampColor: '#14161a', stampAt: 0.6 },
+    { shot: '4-pictures', focus: 'pictures', bias: 40, zoom: 1.06, kicker: 'Step 3', head: 'Drop in the things *you already own.*', stamp: 'Logo · photos · headshot', stampColor: '#2e6be6', stampAt: 0.5 },
+    { shot: '5-ready', focus: 'three', bias: -40, cursor: 'three', click: true, clickAt: 0.4, fade: '6-drawing', fadeAt: 0.5, zoom: 1.1, kicker: 'Step 4', head: 'Three ways it could go — *free.*', stamp: 'Nothing charged', stampColor: '#14161a', stampAt: 0.72 },
+    { shot: '7-three', focus: 'previews', bias: 300, zoom: 1.02, kicker: 'Step 5', head: 'Bold, warm or clean. *Pick the one you like.*' },
+    { shot: '8-picked', focus: 'tweak', bias: 0, zoom: 1.1, kicker: 'Step 6', head: 'Change it *before* you pay for it.', stamp: 'Made once, correctly', stampColor: '#2e6be6', stampAt: 0.55 },
+    { kind: 'cta', head: '' },
+  ],
+}
+
+export const BRANDS: ToolSpec = {
+  id: 'rzbrands', url: 'restylez.app/brands',
+  cta: { head: 'Your logo. Your colors. Every time.', url: 'restylez.app/brands' },
+  beats: [
+    { shot: '1-empty', focus: 'page_top', kicker: 'Brands', head: 'Save your brand *once.*', stamp: 'Used on everything after', stampColor: '#2e6be6' },
+    { shot: '1-empty', focus: 'site', bias: -40, zoom: 1.14, type: { box: 'site', text: 'botmakers.com', cps: 2.2 }, fade: '2-site', fadeAt: 0.8, kicker: 'Step 1', head: 'Paste your website — *we pull the real logo and colors.*' },
+    { shot: '3-logo', focus: 'upload', bias: -40, zoom: 1.12, kicker: 'Step 2', head: 'Or upload the logo yourself. *We never invent one.*', stamp: 'Used as is', stampColor: '#14161a', stampAt: 0.55 },
+    { shot: '4-filled', focus: 'save', bias: -120, cursor: 'save', cursorFrom: 'brandname', click: true, clickAt: 0.55, fade: '5-saved', fadeAt: 0.65, zoom: 1.08, kicker: 'Step 3', head: 'Name it, tick *mine to use,* and save.' },
+    { shot: '5-saved', focus: 'card', bias: 60, zoom: 1.08, kicker: 'Step 4', head: 'Pick it on any deck — *your logo lands on every slide.*', stamp: 'One brand, every piece', stampColor: '#2e6be6', stampAt: 0.5 },
+    { kind: 'cta', head: '' },
+  ],
+}

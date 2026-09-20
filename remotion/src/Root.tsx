@@ -26,7 +26,7 @@ import { JordynDrawn, JD_FRAMES, JD_FPS } from './showcase/JordynDrawn'
 import { ClubNight, CLUB_FRAMES, CLUB_FPS } from './showcase/ClubNight'
 import { MillionDollarBaby, MDB_FRAMES, MDB_FPS } from './showcase/MillionDollarBaby'
 import { RzRemake, RZMAKE_FRAMES, RZMAKE_FPS } from './showcase/RzRemake'
-import { RzSizes, RzDeck, RzPptx, RzEdit, RzLibrary, RzTour } from './showcase/RzTools'
+import { RzSizes, RzDeck, RzPptx, RzEdit, RzLibrary, RzTour, RzLogo, RzMagic, RzBrands } from './showcase/RzTools'
 import { loadFont as loadArchivo } from '@remotion/google-fonts/Archivo'
 import { loadFont as loadInter } from '@remotion/google-fonts/Inter'
 import { AuroraExplainer, totalFrames } from './AuroraExplainer'
@@ -866,6 +866,9 @@ export const RemotionRoot: React.FC = () => {
     <Composition id="RzEdit" component={RzEdit.Comp} fps={RzEdit.fps} width={1920} height={1080} durationInFrames={RzEdit.frames} />
     <Composition id="RzLibrary" component={RzLibrary.Comp} fps={RzLibrary.fps} width={1920} height={1080} durationInFrames={RzLibrary.frames} />
     <Composition id="RzTour" component={RzTour.Comp} fps={RzTour.fps} width={1920} height={1080} durationInFrames={RzTour.frames} />
+    <Composition id="RzLogo" component={RzLogo.Comp} fps={RzLogo.fps} width={1920} height={1080} durationInFrames={RzLogo.frames} />
+    <Composition id="RzMagic" component={RzMagic.Comp} fps={RzMagic.fps} width={1920} height={1080} durationInFrames={RzMagic.frames} />
+    <Composition id="RzBrands" component={RzBrands.Comp} fps={RzBrands.fps} width={1920} height={1080} durationInFrames={RzBrands.frames} />
     </>
   )
 }
