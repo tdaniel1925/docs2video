@@ -18,7 +18,10 @@
 |---|---|
 | Platform | AWS ECS Fargate |
 | AWS account | `423401347103`, region `us-east-1` |
+| Cluster | `docs2video` |
+| Service | `video-service` (NOT `docs2video-service` — that is the TASK FAMILY) |
 | Task family | `docs2video-service` (`vps/ecs-task-definition.json`) |
+| Build project | CodeBuild `docs2video-service-image`, source = `s3://docs2video-build-423401347103/source.zip` |
 | Image | `423401347103.dkr.ecr.us-east-1.amazonaws.com/docs2video-service:latest` |
 | Container port | `4000` |
 | Reached by | `VIDEO_ASSEMBLY_URL` → the load balancer, not an IP |
@@ -35,41 +38,112 @@ rule is the same: git is the only source of truth.
 
 ## How a deploy works
 
-1. **Assemble the build context.** `vps/build-context.sh` gathers everything
-   the Dockerfile expects into a throwaway directory. This exists because the
-   Dockerfile does `COPY remotion /app/remotion` and there is no `vps/remotion`
-   in the repo — the old script copied it onto the server at deploy time, from
-   a clone made on that box. That worked for exactly as long as the box did.
+Four steps, run in this order. Every command below was executed on 2026-09-20
+to ship the `relLum` colour fix, so these are the real ones rather than a
+sketch.
 
-2. **Build and push.** `vps/buildspec.yml` builds the image and pushes it to
-   ECR. It then **verifies the push by digest** rather than trusting the exit
-   code — this project lost a day to sixteen pushes that all reported success
-   while none of them landed, leaving yesterday's image serving traffic.
+**`aws login` first.** An expired session makes every command below fail with
+one line about reauthenticating, and it is easy to read that as the deploy
+having run.
 
-3. **Roll the service.** Force a new deployment so ECS pulls `:latest`:
+### 1. Assemble the build context
 
-   ```sh
-   aws ecs update-service \
-     --cluster <cluster> \
-     --service docs2video-service \
-     --force-new-deployment \
-     --region us-east-1
-   ```
+```sh
+bash vps/build-context.sh
+```
 
-   Without `--force-new-deployment` the task definition is unchanged, so ECS
-   sees nothing to do and keeps running the old image. A green pipeline and an
-   unchanged service look identical from the outside.
+This exists because the Dockerfile does `COPY remotion /app/remotion` and there
+is no `vps/remotion` in the repo — the old script copied it onto the server at
+deploy time, from a clone made on that box. That worked for exactly as long as
+the box did.
 
-4. **Confirm the new code is live.** A deploy that reports success and changes
-   nothing is the failure mode this whole file exists to prevent:
+**Check your change is actually in it** before going further. Assembling from
+the wrong place, or forgetting a file, is silent:
 
-   ```sh
-   curl -s "$VIDEO_ASSEMBLY_URL/health"
-   ```
+```sh
+grep -n "0.0722" .build-context/slides.js   # the colour fix, as an example
+```
 
-   Then check something only the new build does. The `relLum` blue coefficient
-   fix (0.4361 → 0.0722) is invisible in `/health` — render a slide deck for a
-   blue-branded customer and look at the accent.
+### 2. Zip it and upload
+
+CodeBuild reads a zip from S3, not from git. **Nothing you commit reaches
+production until this upload happens** — a repo full of fixes and an old zip
+look identical from the AWS console.
+
+```sh
+cd .build-context
+powershell -NoProfile -Command "Compress-Archive -Path '.\*' -DestinationPath \
+  \"$env:TEMP\source.zip\" -Force"
+cd ..
+aws s3 cp "$TEMP/source.zip" \
+  s3://docs2video-build-423401347103/source.zip --region us-east-1
+```
+
+The zip must have `slides.js`, `server.js` and `Dockerfile` **at its top
+level**, not inside a folder. `Compress-Archive -Path '.\*'` does that;
+zipping the directory itself does not.
+
+### 3. Build and push the image
+
+```sh
+aws codebuild start-build --project-name docs2video-service-image \
+  --region us-east-1 --query 'build.id' --output text
+
+# poll until SUCCEEDED (about five minutes)
+aws codebuild batch-get-builds --ids "<id from above>" --region us-east-1 \
+  --query 'builds[0].[buildStatus,currentPhase]' --output text
+```
+
+`vps/buildspec.yml` **verifies the push by digest** rather than trusting the
+exit code — this project lost a day to sixteen pushes that all reported success
+while none of them landed, leaving yesterday's image serving traffic.
+
+Confirm the registry moved:
+
+```sh
+aws ecr describe-images --repository-name docs2video-service \
+  --region us-east-1 --image-ids imageTag=latest \
+  --query 'imageDetails[0].[imagePushedAt,imageDigest]' --output text
+```
+
+That timestamp should be minutes old. If it is days old, the build ran against
+a stale zip and step 2 did not happen.
+
+### 4. Roll the service
+
+```sh
+aws ecs update-service \
+  --cluster docs2video \
+  --service video-service \
+  --force-new-deployment \
+  --region us-east-1
+
+aws ecs wait services-stable \
+  --cluster docs2video --services video-service --region us-east-1
+```
+
+Without `--force-new-deployment` the task definition is unchanged, so ECS sees
+nothing to do and keeps running the old image. A green pipeline and an
+untouched service look identical from the outside.
+
+### Confirm it is really live
+
+`/health` returns `ok` whichever build is running, so it proves nothing on its
+own. **Compare the running container's digest to the one you just pushed** —
+that is the only check that cannot be fooled:
+
+```sh
+TASK=$(aws ecs list-tasks --cluster docs2video --service-name video-service \
+  --region us-east-1 --query 'taskArns[0]' --output text)
+
+aws ecs describe-tasks --cluster docs2video --tasks "$TASK" --region us-east-1 \
+  --query 'tasks[0].containers[0].[imageDigest,lastStatus,healthStatus]' \
+  --output text
+```
+
+The digest must equal the one from step 3. Then look at the thing that
+changed: the `relLum` fix (0.4361 → 0.0722) is invisible to `/health` — render
+a slide deck for a blue-branded customer and check the accent is readable.
 
 ## Secrets (SSM Parameter Store)
 
@@ -125,8 +199,8 @@ rebuilding:
 
 ```sh
 aws ecs update-service \
-  --cluster <cluster> \
-  --service docs2video-service \
+  --cluster docs2video \
+  --service video-service \
   --task-definition docs2video-service:<previous-revision> \
   --region us-east-1
 ```
