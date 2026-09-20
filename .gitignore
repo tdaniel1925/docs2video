@@ -95,3 +95,27 @@ yarn-debug.log*
 yarn-error.log*
 scripts/.built/
 scripts/.bakeoff/
+
+# ── Build output and scratch, never committed ────────────────────────────
+# Swept in once by a careless `git add -A` (2026-09-20): 103 files of
+# generated stills, voice-over mp3s, an MP4 and a build zip. Listed here so
+# the next broad add cannot repeat it.
+.build-src.zip
+.build-context/
+PrismGraphs/
+tmp-*.jpg
+tmp-*.png
+tmp-*.mp4
+remotion/.aimed-illos/
+remotion/.aimed-vo/
+remotion/.apex-jordyn.html
+remotion/.flyer-slides/
+remotion/.gem-slides/
+remotion/.illus-flyer/
+remotion/.illus-flyer-plate/
+remotion/.illus-flyer-plate2/
+remotion/.ins-illos/
+remotion/.momentum-vo-cache/
+remotion/.steampunk/
+scripts/rapidrater-out/
+supabase/.temp/
