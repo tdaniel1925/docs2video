@@ -1,4 +1,22 @@
 #!/usr/bin/env bash
+#
+# THIS SCRIPT IS FOR A MACHINE THAT NO LONGER EXISTS.
+#
+# It was written for the Hetzner box at root@5.161.215.156. That box is gone.
+# The video service runs on AWS ECS Fargate now — see vps/DEPLOY.md.
+#
+# It is kept for the notes in its comments, which record things learned the
+# hard way (copying server.js but forgetting remotion/src; why a cached build
+# is the right default). The COMMANDS below will not work.
+#
+# It refuses to run rather than half-deploying to nothing, because a deploy
+# script that fails halfway is worse than one that fails immediately.
+if [ "${I_KNOW_THE_VPS_IS_GONE:-}" != "yes" ]; then
+  echo "redeploy.sh: the VPS is gone — the service runs on AWS ECS now." >&2
+  echo "See vps/DEPLOY.md. Override with I_KNOW_THE_VPS_IS_GONE=yes." >&2
+  exit 1
+fi
+#
 # One-command VPS redeploy for the video-service.
 # Run ON THE VPS:  bash /root/video-service/redeploy.sh
 # (or: cd /root/video-service && ./redeploy.sh)
