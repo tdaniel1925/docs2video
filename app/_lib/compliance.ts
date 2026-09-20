@@ -1,7 +1,7 @@
 /* ============================================================================
  * COMPLIANCE — the SINGLE SOURCE OF TRUTH for regulated (insurance/financial)
  * content across EVERY generation path. Before this module, three pipelines
- * (Vercel /api/brief, VPS slides.js, VPS commercial.js) each had their own
+ * (Vercel /api/brief, render-service slides.js, render-service commercial.js) each had their own
  * divergent carrier blocklist and scrub logic — so a fix in one never fixed
  * the others, and the product name leaked in the brief preview even though the
  * final video was clean.
@@ -19,10 +19,11 @@
  * The client NAME, the AGENT's photo, and the AGENT's logo are the agent's own
  * identity and are NEVER scrubbed — only the carrier/product NAME is.
  *
- * ⚠ KEEP IN SYNC: the VPS services (vps/slides.js, vps/commercial.js) run in a
- * separate deploy and cannot import from app/_lib. They carry a byte-identical
- * copy of CARRIER_BLOCKLIST + the scrub logic. If you edit the blocklist here,
- * mirror it there (search "CARRIER_BLOCKLIST").
+ * ⚠ KEEP IN SYNC: the render service (render-service/slides.js and
+ * render-service/commercial.js) runs as its own deploy on ECS and cannot
+ * import from app/_lib. It carries a byte-identical copy of
+ * CARRIER_BLOCKLIST + the scrub logic. If you edit the blocklist here, mirror
+ * it there (search "CARRIER_BLOCKLIST").
  * ==========================================================================*/
 
 // The canonical carrier + branded-product blocklist (merged from all prior
@@ -158,7 +159,7 @@ export function scrubComplianceText(input: string, extraTokens: string[] = []): 
     .replace(/(^|\s)\+?\s*(?:iii|ii|iv|vi)\b/gi, '$1')
     .replace(/(^|\s)\+(?=\s|$)/g, '$1')
     // stranded possessive: removing "Mutual of Omaha" from "Mutual of Omaha's plan"
-    // leaves "'s plan" — drop the orphaned "'s" (mirror of vps/slides.js clean()).
+    // leaves "'s plan" — drop the orphaned "'s" (mirror of render-service/slides.js clean()).
     .replace(/(^|[\s([{])['’]s\b/gi, '$1')
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+([.,!?;:])/g, '$1')

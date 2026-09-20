@@ -1,6 +1,6 @@
 import { synthesizeSpeech } from './tts'
 
-// Same voice mapping the VPS uses (vps/server.js cartesiaTTS) so v2 narration
+// Same voice mapping the render service uses (render-service/server.js cartesiaTTS) so v2 narration
 // sounds identical to v1: Cartesia sonic-2 first, OpenAI TTS as fallback.
 const CARTESIA_VOICES: Record<string, string> = {
   nova: 'f9fc912e-52f0-448a-8bfa-47e9ca75f25a',     // Marilyn - smooth supportive female narrator
@@ -37,7 +37,7 @@ async function cartesiaTTS(text: string, voiceId: string): Promise<Buffer> {
   return buf
 }
 
-/** Cartesia first (matches VPS voices), OpenAI fallback. */
+/** Cartesia first (matches render service voices), OpenAI fallback. */
 export async function synthesizeNarration(text: string, voiceId: string): Promise<Buffer> {
   if (!text?.trim()) return synthesizeSpeech(text, voiceId) // brief-silence path
   try {

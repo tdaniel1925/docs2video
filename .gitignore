@@ -19,7 +19,7 @@
 # next.js
 # not the record.
 # one-off verification screenshots from smoke/check scripts
-# One-off VPS patch scripts (canonical server lives in vps/server.js)
+# One-off patch scripts from the old VPS era (canonical server: render-service/server.js)
 # Playwright
 # production
 # quarantined customer correspondence / PII (never commit)
@@ -89,7 +89,7 @@ video-service/start.sh
 vps-*.js
 vps-*.py
 vps-*.sh
-vps/.job/
+render-service/.job/
 vps-start-container.sh
 yarn-debug.log*
 yarn-error.log*

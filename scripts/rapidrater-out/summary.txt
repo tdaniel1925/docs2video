@@ -1,0 +1,26 @@
+✓  QoL Flex Term · Male  →  $135.23  $157.00  $214.13  $264.78
+✓  QoL Flex Term · Female  →  $100.56  $124.17  $163.97  $184.13
+✗  QoL Max Accumulator+ IUL III · Male  →  ERROR: page.fill: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('#FACE_AMOUNT')[22m
+[2m    - locator resolved to <input type="t
+✗  QoL Max Accumulator+ IUL III · Female  →  ERROR: page.fill: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('#FACE_AMOUNT')[22m
+[2m    - locator resolved to <input type="t
+✗  QoL Value+ Protector III · Male  →  ERROR: page.fill: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('#FACE_AMOUNT')[22m
+[2m    - locator resolved to <input type="t
+✗  QoL Value+ Protector III · Female  →  ERROR: page.fill: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('#FACE_AMOUNT')[22m
+[2m    - locator resolved to <input type="t
+✗  QoL Guaranteed Plus II · Male  →  ERROR: page.fill: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('#FACE_AMOUNT')[22m
+[2m    - locator resolved to <input type="t
+✗  QoL Guaranteed Plus II · Female  →  ERROR: page.fill: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('#FACE_AMOUNT')[22m
+[2m    - locator resolved to <input type="t

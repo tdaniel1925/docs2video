@@ -27,7 +27,7 @@ export interface RenderV2Event {
 /**
  * Pipeline v2: slides (Gemini) + TTS (OpenAI) generated here in parallel,
  * assembly by Creatomate. Completion is driven by the Creatomate webhook
- * (app/api/webhooks/creatomate). The VPS is not involved.
+ * (app/api/webhooks/creatomate). The render service is not involved.
  */
 export const renderVideoV2 = inngest.createFunction(
   {

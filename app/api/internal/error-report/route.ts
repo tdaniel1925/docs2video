@@ -9,10 +9,10 @@ const ALERT_TO = 'tdaniel@botmakers.ai'
 
 /**
  * POST /api/internal/error-report
- * Internal-only error alerting. The VPS render server (and app code) POST here
+ * Internal-only error alerting. The render service render server (and app code) POST here
  * when something fails; we email an alert to the ops address via Resend.
  *
- * Auth: the shared x-api-secret (same secret the VPS already uses for
+ * Auth: the shared x-api-secret (same secret the render service already uses for
  * /generate). Fails closed if VIDEO_ASSEMBLY_SECRET is unset.
  *
  * Body: { source, videoId?, userId?, stage?, message, detail? }

@@ -30,7 +30,7 @@ export interface BrandOverlays {
   title?: string
   contactLine?: string
   primaryColor?: string
-  /** Trial users get a diagonal watermark, matching the VPS FFmpeg one */
+  /** Trial users get a diagonal watermark, matching the render service's FFmpeg one */
   watermark?: boolean
 }
 
@@ -98,7 +98,7 @@ export function buildRenderSource(
   })
 
   // Brand text overlays on cover (first) and closing (last) slides —
-  // mirrors the VPS, which composites name/title as text over decorative art.
+  // mirrors the render service, which composites name/title as text over decorative art.
   if (overlays && scenes.length > 0) {
     const dark = 'rgba(10,22,40,0.55)'
     const coverDur = scenes[0].duration + (scenes.length === 1 ? CLOSING_HOLD_SEC : 0)

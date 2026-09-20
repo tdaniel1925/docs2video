@@ -1,0 +1,14 @@
+{
+  "id": "rztour", "provider": "openai", "openaiVoice": "nova", "openaiModel": "tts-1-hd", "speed": 1.02,
+  "music": "Bright friendly upbeat pop bed, 120 bpm, no vocals", "musicMs": 100000, "footage": [],
+  "lines": [
+    "Welcome to ReStyles. The first AI graphic designer in a box. Here's the whole thing in ninety seconds.",
+    "Remake: drop in a design you own, say what to change in plain words, and a minute later it's back. Nothing else moved.",
+    "Fix a detail: open any piece from your library, say what's wrong, and only that changes. Every version is saved.",
+    "Sizes: pick a design and get every size at once. Print, social, event. Small formats keep the headline.",
+    "Slide decks: say what it's about, drop in the look to copy, and every slide comes back in that look, with your numbers exact.",
+    "PowerPoint: drop in a deck, say what to change, and download a real, still editable file.",
+    "Your library holds everything. Your account shows the balance and what things cost, with deposits from twenty dollars.",
+    "One design in. Anything out. That's ReStyles."
+  ]
+}

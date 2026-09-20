@@ -4,12 +4,12 @@
  *
  * Before this module, the personalized opening (client-name cover + "thank you
  * [client] for letting [agent] share this summary" VO) lived ONLY in the slides
- * engine (vps/slides.js). Videos rendered by the aurora/V3 or editorial engines
+ * engine (render-service/slides.js). Videos rendered by the aurora/V3 or editorial engines
  * had a cold, generic "Hello {name}" opening — or nothing — because each engine
  * re-implemented its own cover/greeting. This is the single source of truth so
  * the same personalization appears no matter which style the user picks.
  *
- * KEEP IN SYNC with the greeting logic in vps/slides.js (the VPS can't import
+ * KEEP IN SYNC with the greeting logic in render-service/slides.js (the render service can't import
  * from app/_lib — it carries a mirrored copy). Search "PERSONALIZED OPENING".
  * ==========================================================================*/
 

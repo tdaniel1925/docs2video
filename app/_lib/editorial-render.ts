@@ -2,7 +2,7 @@
  * Editorial (EPOCH magazine) payload builder. Turns the already-generated,
  * GROUNDED scenes + the document's extracted data into editorial ARCHETYPE
  * scenes (cover / lede / grid / pullquote / stat / list / decision) via one
- * Claude call. The renderer (VPS or Lambda) then adds TTS narration + optional
+ * Claude call. The renderer (the render service or Lambda) then adds TTS narration + optional
  * framed images and renders the EditorialVideo composition.
  *
  * No fabrication: Claude restructures EXISTING grounded content into archetypes;

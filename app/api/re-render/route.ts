@@ -98,9 +98,9 @@ export async function POST(request: Request) {
 
     await admin.from('videos').update({ progress_detail: 'Assembling video...', progress_pct: 60 }).eq('id', videoId)
 
-    // 3. Assemble new video via VPS
+    // 3. Assemble new video via the render service
     const http = await import('http')
-    const vpsUrl = new URL(`${VIDEO_ASSEMBLY_URL}/assemble`)
+    const renderUrl = new URL(`${VIDEO_ASSEMBLY_URL}/assemble`)
     const bodyStr = JSON.stringify({
       slides: slideBuffers.map(b => b.toString('base64')),
       audios: audioBuffers.map(b => b.toString('base64')),
@@ -110,9 +110,9 @@ export async function POST(request: Request) {
 
     const vpsResult = await new Promise<{ ok: boolean; status: number; data: any }>((resolve, reject) => {
       const req = http.request({
-        hostname: vpsUrl.hostname,
-        port: parseInt(vpsUrl.port || '4000'),
-        path: vpsUrl.pathname,
+        hostname: renderUrl.hostname,
+        port: parseInt(renderUrl.port || '4000'),
+        path: renderUrl.pathname,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -132,13 +132,13 @@ export async function POST(request: Request) {
         })
       })
       req.on('error', reject)
-      req.on('timeout', () => { req.destroy(); reject(new Error('VPS request timed out')) })
+      req.on('timeout', () => { req.destroy(); reject(new Error('render service request timed out')) })
       req.write(bodyStr)
       req.end()
     })
 
     if (!vpsResult.ok) {
-      throw new Error(vpsResult.data?.error || `VPS returned ${vpsResult.status}`)
+      throw new Error(vpsResult.data?.error || `render service returned ${vpsResult.status}`)
     }
 
     const assemblyResult = vpsResult.data as { success: boolean; videoUrl: string; thumbnailUrl: string; durations: number[]; totalDuration: number }

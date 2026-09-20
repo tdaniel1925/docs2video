@@ -14,14 +14,14 @@ const VIDEO_ASSEMBLY_URL = videoServiceUrl()
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
 /**
- * Slide-deck video trigger (Vercel = thin orchestrator; the VPS does the heavy
+ * Slide-deck video trigger (Vercel = thin orchestrator; the render service does the heavy
  * work). Auth + create the videos row, then fire-and-forget POST the source to
- * the VPS /generate-slides, which reads the doc, comprehends + writes the deck,
+ * the render service /generate-slides, which reads the doc, comprehends + writes the deck,
  * generates VO + backdrops, renders DirectedVideo, and uploads the mp4 — writing
  * progress back to the same videos row the UI polls.
  *
  * Accepts one of: { fileBase64, fileName } (document), { text } (pasted), or
- * { url } (website — pending Playwright on the VPS). Plus optional preparer,
+ * { url } (website — pending Playwright in the render service). Plus optional preparer,
  * recipient, music, glass, footer, accent, logoUrl, musicUrl.
  */
 export async function POST(request: Request) {
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
 
   // CHARGE (audit P0). A normal user pays the slide-video price; an internal call
   // (v1 API) already metered upstream and skips this. Charge AFTER the row exists
-  // (so the refund can key on videoId) but BEFORE the VPS is fired — and refund on
+  // (so the refund can key on videoId) but BEFORE the render service is fired — and refund on
   // EVERY failure path below so a user is never charged for a video that didn't run.
   let deductedCost = 0
   if (!isInternalCall) {
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
   // refund helper — used on every early failure after the charge.
   const refundIfCharged = async () => { if (deductedCost > 0) await refundVideoCredits(user!.id, deductedCost, videoId).catch(() => {}) }
 
-  // pre-check the VPS is up (fast) so we fail early with a clear message.
+  // pre-check the render service is up (fast) so we fail early with a clear message.
   try {
     const health = await fetch(`${VIDEO_ASSEMBLY_URL}/health`, { signal: AbortSignal.timeout(6000) })
     if (!health.ok) throw new Error(`health ${health.status}`)
@@ -131,7 +131,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Video service unavailable', videoId }, { status: 503 })
   }
 
-  // fire the VPS job (async on the VPS — it 200s immediately and works in the
+  // fire the render service job (async on the render service — it 200s immediately and works in the
   // background, writing progress to the videos row). We don't await the render.
   try {
     const res = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-slides`, {
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({ videoId, userId: user.id, fileBase64, fileName, text, url, preparer: preparer || profilePreparer, recipient, music, glass, footer: contactFooter, accent, logoUrl, musicUrl }),
       signal: AbortSignal.timeout(30000),
     })
-    if (!res.ok) throw new Error(`VPS ${res.status}: ${(await res.text()).slice(0, 160)}`)
+    if (!res.ok) throw new Error(`render service ${res.status}: ${(await res.text()).slice(0, 160)}`)
   } catch (e: any) {
     await refundIfCharged()
     await admin.from('videos').update({ status: 'failed', error_message: 'Could not start video generation.', progress_detail: `[fail] trigger: ${e.message}`.slice(0, 500) }).eq('id', videoId)

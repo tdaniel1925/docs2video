@@ -13,7 +13,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 800
 
 const VIDEO_ASSEMBLY_URL = videoServiceUrl()
-// No committed fallback secret (review S1) — an unset env now fails the VPS
+// No committed fallback secret (review S1) — an unset env now fails the render
 // call loudly instead of silently using a publicly-known value.
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
@@ -158,9 +158,9 @@ async function generateAll(
 
       await admin.from('videos').update({ status: 'assembling', progress_pct: 75 }).eq('id', video.id)
 
-      // Assemble video via VPS
+      // Assemble video via the render service
       const http = await import('http')
-      const vpsUrl = new URL(`${VIDEO_ASSEMBLY_URL}/assemble`)
+      const renderUrl = new URL(`${VIDEO_ASSEMBLY_URL}/assemble`)
       const bodyStr = JSON.stringify({
         slides: slideBuffers.map(b => b.toString('base64')),
         audios: audioBuffers.map(b => b.toString('base64')),
@@ -170,9 +170,9 @@ async function generateAll(
 
       const vpsResult = await new Promise<{ ok: boolean; status: number; data: any }>((resolve, reject) => {
         const req = http.request({
-          hostname: vpsUrl.hostname,
-          port: parseInt(vpsUrl.port || '4000'),
-          path: vpsUrl.pathname,
+          hostname: renderUrl.hostname,
+          port: parseInt(renderUrl.port || '4000'),
+          path: renderUrl.pathname,
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -192,12 +192,12 @@ async function generateAll(
           })
         })
         req.on('error', reject)
-        req.on('timeout', () => { req.destroy(); reject(new Error('VPS timeout')) })
+        req.on('timeout', () => { req.destroy(); reject(new Error('render service timeout')) })
         req.write(bodyStr)
         req.end()
       })
 
-      if (!vpsResult.ok) throw new Error(vpsResult.data?.error || `VPS returned ${vpsResult.status}`)
+      if (!vpsResult.ok) throw new Error(vpsResult.data?.error || `render service returned ${vpsResult.status}`)
 
       const assemblyResult = vpsResult.data as { videoUrl: string; thumbnailUrl: string; totalDuration: number }
 

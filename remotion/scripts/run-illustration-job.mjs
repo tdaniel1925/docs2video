@@ -6,8 +6,8 @@
 // compliance scrubber (app/_lib/compliance.ts) so the carrier and product names
 // never reach the slides or the narration.
 //
-//   node vps/run-illustration-job.mjs          # dry run, prints the payload
-//   node vps/run-illustration-job.mjs --send   # creates the row + fires the job
+//   node render-service/run-illustration-job.mjs          # dry run, prints the payload
+//   node render-service/run-illustration-job.mjs --send   # creates the row + fires the job
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -131,7 +131,7 @@ console.log('\ncompliance leaks:', leaks.length ? leaks : 'none')
 if (leaks.length) { console.error('\nABORT — blocked terms survived the scrub.'); process.exit(1) }
 
 writeFileSync(join(tmp, 'payload-preview.json'), JSON.stringify({ scenes, slidePrompts }, null, 2))
-console.log('\npayload written to vps/.job/payload-preview.json')
+console.log('\npayload written to render-service/.job/payload-preview.json')
 if (!SEND) { console.log('\nDRY RUN. Re-run with --send to create the row and fire the job.'); process.exit(0) }
 
 // ── Create the videos row, then fire the job ───────────────────────────────
@@ -177,4 +177,4 @@ const res = await fetch(`${VPS}/generate`, {
   signal: AbortSignal.timeout(30000),
 })
 console.log('VPS response:', res.status, (await res.text()).slice(0, 200))
-console.log('\nPoll:  node vps/poll-job.mjs', row.id)
+console.log('\nPoll:  node render-service/poll-job.mjs', row.id)

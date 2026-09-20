@@ -176,7 +176,7 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
     const purposeField = formData.get('purpose') as string | null
 
     // PDFs: extract in-app with Claude (native PDF support, ~100 pages/32MB).
-    // Keeps documents off OpenAI's Files API (the VPS path uploads them there).
+    // Keeps documents off OpenAI's Files API (the render service path uploads them there).
     if (isPdf && arrayBuffer.byteLength <= 30 * 1024 * 1024) {
       try {
         const claude = getClaude()
@@ -196,13 +196,13 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
         const structured = JSON.parse(rawText.replace(/^```json?\n?/i, '').replace(/\n?```$/i, '').trim())
         return NextResponse.json(structured)
       } catch (claudeErr) {
-        // Too many pages, parse failure, etc. — fall through to the VPS path
-        console.warn('[extract] Claude PDF extraction failed, falling back to VPS:', claudeErr instanceof Error ? claudeErr.message : claudeErr)
+        // Too many pages, parse failure, etc. — fall through to the render service path
+        console.warn('[extract] Claude PDF extraction failed, falling back to the render service:', claudeErr instanceof Error ? claudeErr.message : claudeErr)
       }
     }
 
     // DOCX/PPTX: extract text in-app (jszip) and structure with Claude —
-    // keeps documents off OpenAI entirely (the VPS path uploaded them).
+    // keeps documents off OpenAI entirely (the render service path uploaded them).
     if (isDocx || isPptx) {
       try {
         const { extractDocxText, extractPptxText } = await import('../../_lib/office-text')
@@ -230,16 +230,16 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
         if (isTruncated) structured.truncated = true
         return NextResponse.json(structured)
       } catch (officeErr) {
-        // Parse failure / unusual file — fall through to the VPS path
-        console.warn('[extract] In-app Office extraction failed, falling back to VPS:', officeErr instanceof Error ? officeErr.message : officeErr)
+        // Parse failure / unusual file — fall through to the render service path
+        console.warn('[extract] In-app Office extraction failed, falling back to the render service:', officeErr instanceof Error ? officeErr.message : officeErr)
       }
     }
 
     const VIDEO_ASSEMBLY_URL = videoServiceUrl()
     const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
-    // Last-resort fallback (oversized PDF, odd Office file): VPS extraction —
-    // this uploads the document to OpenAI's Files API on the VPS side
+    // Last-resort fallback (oversized PDF, odd Office file): render service extraction —
+    // this uploads the document to OpenAI's Files API on the render service side
     const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/extract-document`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
@@ -252,7 +252,7 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
     })
 
     if (!vpsRes.ok) {
-      const err = await vpsRes.json().catch(() => ({ error: 'VPS extraction failed' }))
+      const err = await vpsRes.json().catch(() => ({ error: 'render service extraction failed' }))
       return NextResponse.json({ error: err.error || 'Document extraction failed' }, { status: vpsRes.status })
     }
 

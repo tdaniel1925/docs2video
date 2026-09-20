@@ -15,7 +15,7 @@ const ALLOWED = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']
 /**
  * Upload + process a brand logo for video rendering. Accepts multipart with a
  * single `file`. Pipeline: validate → Sharp knockout + light/dark variants →
- * if knockout is poor, try rembg (VPS) → re-process → if still poor, REJECT with
+ * if knockout is poor, try rembg (render service) → re-process → if still poor, REJECT with
  * guidance (caller may choose to continue without a logo). On success, stores
  * original + light + dark in storage and returns their public URLs + chip flag.
  *
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   try {
     let variants = await processLogo(input)
 
-    // Poor knockout → try the rembg enhancer (no-op if VPS endpoint absent),
+    // Poor knockout → try the rembg enhancer (no-op if render service endpoint absent),
     // then re-process the cleaned, now-transparent result.
     if (variants.needsEnhance) {
       const cleaned = await enhanceLogo(input).catch(() => null)

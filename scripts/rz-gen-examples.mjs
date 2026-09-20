@@ -99,5 +99,10 @@ try {
     const r = await post('/api/remake', { imageDataUrl: await toDataUrl(TPL + 'gospel-night.png'), owned: true, restyle: { lookDataUrl: await toDataUrl(OUT + 'ref3-slide-1.jpg') } })
     await save(r.png, 'gospel-restyle.jpg')
   }
+  // 11. GROWTH SUMMIT → neon club look
+  if (want('summitneon')) {
+    const r = await post('/api/remake', { imageDataUrl: await toDataUrl(TPL + 'business-awards-night.png'), owned: true, restyle: { lookDataUrl: await toDataUrl(OUT + 'club-after.jpg') } })
+    await save(r.png, 'summit-neon.jpg')
+  }
 } catch (e) { console.error('FAILED:', e.message) }
 await browser.close()

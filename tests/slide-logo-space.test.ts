@@ -117,8 +117,8 @@ describe('the engine', () => {
 })
 
 describe('the renderer can actually reach fal', () => {
-  const task = readFileSync(join(ROOT, 'vps/ecs-task-definition.json'), 'utf8')
-  const compose = readFileSync(join(ROOT, 'vps/docker-compose.yml'), 'utf8')
+  const task = readFileSync(join(ROOT, 'render-service/ecs-task-definition.json'), 'utf8')
+  const compose = readFileSync(join(ROOT, 'render-service/docker-compose.yml'), 'utf8')
 
   it('passes FAL_KEY to the container', () => {
     /*
@@ -146,7 +146,7 @@ describe('the renderer can actually reach fal', () => {
   it('tells someone how to create the parameter', () => {
     /* A config entry pointing at an SSM key nobody created reads as done and
        behaves as missing. */
-    const doc = readFileSync(join(ROOT, 'vps/DEPLOY.md'), 'utf8')
+    const doc = readFileSync(join(ROOT, 'render-service/DEPLOY.md'), 'utf8')
     expect(doc).toContain('/docs2video/FAL_KEY')
     expect(doc).toContain('ssm put-parameter')
   })

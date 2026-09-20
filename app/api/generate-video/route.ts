@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { generateScript } from '../../_lib/script-generator'
-// Cover/closing slides generated on VPS
+// Cover/closing slides generated in the render service
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
 import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
@@ -249,7 +249,7 @@ export async function POST(request: Request) {
   const effectiveNarrationStyle = 'solo' as const
 
   // Pipeline v2 (Inngest + Creatomate) — PARKED, NOT ACTIVE in prod.
-  // `USE_PIPELINE_V2` is unset in production, so this branch never runs; the VPS
+  // `USE_PIPELINE_V2` is unset in production, so this branch never runs; the render service
   // is the live renderer. It's kept (not deleted) because the fix-stuck-videos
   // cron still reconciles any legacy Creatomate render via `creatomate_render_id`,
   // and removing it safely means also retiring that cron path + the inngest/
@@ -259,7 +259,7 @@ export async function POST(request: Request) {
   // V3 (Remotion: cinematic / infographic) — toggled from admin back office,
   // DB-backed so it flips without a redeploy. Read once per request.
   const useV3 = await getFlag('video_engine_v3')
-  // (Render target setting removed 2026-07-01 — VPS is the only renderer now;
+  // (Render target setting removed 2026-07-01 — render service is the only renderer now;
   // the Remotion Lambda path was deleted. See git history for v3-lambda.ts.)
   // Visual style: a per-video choice from the wizard (body.videoStyle) WINS over
   // the global admin default. One of 'slides' | 'cinematic' | 'editorial' | 'time' | 'explainer'.
@@ -438,11 +438,11 @@ export async function POST(request: Request) {
   try {
     if (jobId) await updateJobProgress(admin, jobId, 5, 'running')
 
-    // --- GUARD: VPS health check before doing any work (v1 only) ---
+    // --- GUARD: render service health check before doing any work (v1 only) ---
     if (!useV2) {
       try {
         const healthRes = await fetch(`${VIDEO_ASSEMBLY_URL}/health`, { signal: AbortSignal.timeout(5000) })
-        if (!healthRes.ok) throw new Error('VPS not healthy')
+        if (!healthRes.ok) throw new Error('render service not healthy')
       } catch {
         throw new Error('Video server is temporarily offline. Please try again in a few minutes.')
       }
@@ -602,7 +602,7 @@ export async function POST(request: Request) {
         throw new Error('Script generation produced no scenes. Try providing more content or a clearer purpose.')
       }
 
-      // Narration stays original here — formatForTTS applied only when building VPS payload
+      // Narration stays original here — formatForTTS applied only when building render service payload
 
       // Same split as above (review B6): critical persist error-checked;
       // prompt_versions best-effort (its column may not exist in prod).
@@ -618,7 +618,7 @@ export async function POST(request: Request) {
     // this runs on BOTH pre-generated AND freshly script-generated scenes (the
     // latter previously relied on the prompt only → a carrier/product name could
     // slip through). Regulated content only; names scrubbed, figures kept — same
-    // rule as the VPS slides path (app/_lib/compliance.ts single source of truth).
+    // rule as the render service slides path (app/_lib/compliance.ts single source of truth).
     if (scenes && scenes.length && isRegulated(policyData, (policyData as any)?.classification?.documentType, industry)) {
       const tokens = productTokens(
         (policyData as any)?.title, (policyData as any)?.carrier, (policyData as any)?.policyType,
@@ -965,7 +965,7 @@ export async function POST(request: Request) {
     const closingNarration = formatForTTS(
       `Thank you for watching. ${contactParts.length > 0 ? `To learn more, ${contactParts.join(' ')}.` : `We appreciate your time.`} ${signoff}`.trim())
 
-    // Prepend cover + append closing to scenes for VPS.
+    // Prepend cover + append closing to scenes for the render service.
     // If the user edited them in the editor (editedCover/editedClosing), their
     // narration + on-slide text WIN — we don't regenerate or re-append contact.
     const coverScene = {
@@ -980,7 +980,7 @@ export async function POST(request: Request) {
       slidePrompt: 'closing',
       slideData: editedClosing?.slideData || undefined,
     }
-    // Apply formatForTTS only for VPS scenes (narration stays original in slidePrompts for image context)
+    // Apply formatForTTS only for render service scenes (narration stays original in slidePrompts for image context)
     const ttsScenes = scenes.map((s: any) => ({ ...s, narration: s.narration ? formatForTTS(s.narration) : s.narration }))
     const allScenes = [coverScene, ...ttsScenes, closingScene]
 
@@ -1022,7 +1022,7 @@ export async function POST(request: Request) {
         console.warn(`[video ${videoId}] Pipeline v2 does not support AI music yet — continuing without it`)
       }
       // Cover/closing in v2 are pure decorative backgrounds — brand name and
-      // title are overlaid as real text by Creatomate (mirrors VPS behavior,
+      // title are overlaid as real text by Creatomate (mirrors render service behavior,
       // where these prompts are ignored and text is composited with Sharp).
       const v2Prompts = [...allSlidePrompts]
       const v2ColorRule = `Use these EXACT brand colors as the dominant palette: primary ${brandColors.primary}, secondary ${brandColors.secondary}. If the style description mentions other colors, IGNORE them — the brand colors always win.`
@@ -1044,14 +1044,14 @@ export async function POST(request: Request) {
           videoTitle,
           contactLine: contactLine || undefined,
           primaryColor: brandColors.primary,
-          // Trial watermark for free users — same rule as the VPS
+          // Trial watermark for free users — same rule as the render service
           watermark: !isPaidUser && !isPrivileged,
         },
       })
       return NextResponse.json({ success: true, pipeline: 'v2' })
     }
 
-    // STAGE 3 (V3 / SLIDES): render with Remotion on the VPS instead of the
+    // STAGE 3 (V3 / SLIDES): render with Remotion on the render service instead of the
     // classic /generate path. Entered when the V3 engine flag is on, OR the style
     // is 'slides' (the new default, its own engine — independent of the V3 flag),
     // OR the user EXPLICITLY picked infographic/cinematic (a direct choice enters
@@ -1060,13 +1060,13 @@ export async function POST(request: Request) {
     const explicitV3 = videoStyle === 'infographic' || videoStyle === 'cinematic'
     if (useV3 || videoStyle === 'slides' || explicitV3) {
       // SLIDE-DECK style (the new default): the animated explainer deck
-      // (DirectedVideo). The VPS reads the source, comprehends it, writes the
+      // (DirectedVideo). The render service reads the source, comprehends it, writes the
       // deck, generates VO, and renders — so we hand it the extracted document
       // data as text plus brand/presenter/contact/recipient. On any failure to
       // start, we FALL THROUGH to the existing pipeline (no video is ever lost).
       const isSlides = videoStyle === 'slides'
       if (isSlides) {
-        // BRIEF PARITY: the VPS slides engine re-comprehends the doc, so without
+        // BRIEF PARITY: the render service slides engine re-comprehends the doc, so without
         // this it never sees the brief the user APPROVED on the Review step —
         // the rendered slides could diverge from the preview. Pass the approved
         // brief so slides.js steers its writer by it, exactly like generateScript
@@ -1076,10 +1076,10 @@ export async function POST(request: Request) {
         // Declared before the try so the retry-in-catch can reuse it.
         const slidesPayload = {
           videoId, userId: user.id, voiceId,
-          text: JSON.stringify(policyData),   // the extracted document data (structured); the VPS comprehends it
+          text: JSON.stringify(policyData),   // the extracted document data (structured); the render service comprehends it
           brief: slidesBrief || undefined,    // approved brief → writer steering (parity with preview)
           // NEVER 'docs2video' — this is the client-facing preparer on the closing
-          // slide. Empty string lets the VPS fall back to the AGENT'S own profile
+          // slide. Empty string lets the render service fall back to the AGENT'S own profile
           // contact (its own logic), never our platform name.
           preparer: effectiveBrandName || (body as any).companyName || '',
           recipient: recipientName || undefined,
@@ -1096,7 +1096,7 @@ export async function POST(request: Request) {
           photos: !!(body as any).slidePhotos,
         }
         try {
-          console.log(`[video ${videoId}] slide-deck style — handing to VPS /generate-slides`)
+          console.log(`[video ${videoId}] slide-deck style — handing to render service /generate-slides`)
           await admin.from('videos').update({ progress_detail: 'Building your slide deck...', progress_pct: 16 }).eq('id', videoId)
           const slRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-slides`, {
             method: 'POST',
@@ -1114,12 +1114,12 @@ export async function POST(request: Request) {
         } catch (slErr) {
           const isAbort = slErr instanceof Error && (slErr.name === 'TimeoutError' || slErr.name === 'AbortError')
           if (isAbort) {
-            // ACK timeout ≠ failure — the VPS likely accepted it and is working.
+            // ACK timeout ≠ failure — the render service likely accepted it and is working.
             console.log(`[video ${videoId}] slides ACK timed out — assuming accepted.`)
             inFlightVideos.delete(videoId)
             return NextResponse.json({ success: true, pipeline: 'slides' })
           }
-          // RETRY the chosen engine ONCE before giving up — a transient VPS blip
+          // RETRY the chosen engine ONCE before giving up — a transient render service blip
           // shouldn't silently change the user's chosen look.
           try {
             await new Promise((r) => setTimeout(r, 1500))
@@ -1151,7 +1151,7 @@ export async function POST(request: Request) {
       }
 
       // EDITORIAL style: build magazine-archetype scenes and render the
-      // EditorialVideo composition on the VPS (/render-editorial). Separate from
+      // EditorialVideo composition on the render service (/render-editorial). Separate from
       // the cinematic path so neither affects the other.
       if (isMagazine) {
         console.log(`[video ${videoId}] magazine style (${editorialVariant}) — structuring archetypes`)
@@ -1212,8 +1212,8 @@ export async function POST(request: Request) {
       })
       console.log(`[video ${videoId}] V3 theme=${v3Payload.theme}, logo=${v3Payload.logo ? 'yes' : 'no'}, presenter=${presenter ? 'yes' : 'no'}`)
 
-      // Remotion Lambda render path REMOVED 2026-07-01 (user decision: VPS
-      // only). It had drifted from the VPS look (hardcoded theme, no
+      // Remotion Lambda render path REMOVED 2026-07-01 (user decision: the render service
+      // only). It had drifted from the render service look (hardcoded theme, no
       // editorial/aurora/closing parity — review A1) and was unused. Restore
       // from git history (app/_lib/v3-lambda.ts) if ever needed.
 
@@ -1251,8 +1251,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, pipeline: 'v3' })
     }
 
-    // STAGE 3: Hand off to VPS — all slides have matching narration
-    console.log(`[video ${videoId}] Handing off to VPS: ${allScenes.length} total slides (cover + ${scenes.length} content + closing), voice=${voiceId}`)
+    // STAGE 3: Hand off to render service — all slides have matching narration
+    console.log(`[video ${videoId}] Handing off to the render service: ${allScenes.length} total slides (cover + ${scenes.length} content + closing), voice=${voiceId}`)
     await admin.from('videos').update({ progress_detail: 'Sending to video server...', progress_pct: 18 }).eq('id', videoId)
 
     const vpsBody = JSON.stringify({
@@ -1282,17 +1282,17 @@ export async function POST(request: Request) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
         body: vpsBody,
-        // 25s ACK window (audit M4) — a busy VPS can take >10s just to acknowledge.
+        // 25s ACK window (audit M4) — a busy render service can take >10s just to acknowledge.
         signal: AbortSignal.timeout(25000),
       })
     } catch (vpsErr) {
-      // ACK timeout / network abort: the VPS MAY have received and started the
+      // ACK timeout / network abort: the render service MAY have received and started the
       // job. Do NOT refund+fail (that produced free/confusing videos). Leave the
       // row in-progress with a fresh progress stamp so fix-stuck-videos
       // reconciles it via the MP4's appearance (audit M4).
       const isAbort = vpsErr instanceof Error && (vpsErr.name === 'TimeoutError' || vpsErr.name === 'AbortError')
       if (isAbort) {
-        console.warn(`[video ${videoId}] VPS ACK timed out — treating as maybe-queued; cron will reconcile.`)
+        console.warn(`[video ${videoId}] render service ACK timed out — treating as maybe-queued; cron will reconcile.`)
         await admin.from('videos').update({
           status: 'assembling',
           progress_detail: 'Sent to video server — finishing up...',
@@ -1308,11 +1308,11 @@ export async function POST(request: Request) {
     let vpsData: { success?: boolean; error?: string } | null = null
     try { vpsData = JSON.parse(vpsText) } catch { /* non-JSON (e.g. proxy error page) */ }
     if (!vpsRes.ok || !vpsData?.success) {
-      console.error(`[video ${videoId}] VPS error response (HTTP ${vpsRes.status}):`, vpsText.slice(0, 500))
+      console.error(`[video ${videoId}] render service error response (HTTP ${vpsRes.status}):`, vpsText.slice(0, 500))
       throw new Error(vpsData?.error || `Video server error (HTTP ${vpsRes.status})`)
     }
 
-    console.log(`[video ${videoId}] VPS accepted — generation running in background. Returning.`)
+    console.log(`[video ${videoId}] render service accepted — generation running in background. Returning.`)
     return NextResponse.json({ success: true })
 
   } catch (err) {

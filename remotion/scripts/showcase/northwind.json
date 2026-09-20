@@ -1,0 +1,17 @@
+{ "id": "northwind", "voice": "21m00Tcm4TlvDq8ikWAM", "speed": 1.0, "style": 0.3, "stability": 0.55,
+  "lines": [
+    "Most portfolios are built for the market you remember.",
+    "Northwind builds for the one that's coming.",
+    "Two point four billion under management. Fourteen years. One rule: no surprises.",
+    "Every position, every fee, every risk. On one screen, in plain English.",
+    "Twelve percent average annual return since twenty twelve. Eight straight years ahead of the index.",
+    "You don't get a quarterly letter. You get a live view.",
+    "Independent. Fee only. Fiduciary, in writing.",
+    "Northwind Capital. Built for what's next."
+  ],
+  "music": "Modern cinematic technology score: deep pulsing sub bass, clean synth arpeggios, restrained electronic percussion, confident and premium, 100 BPM, steady, builds to a strong final chord, no vocals.",
+  "musicMs": 66000,
+  "footage": [
+    { "q": "city skyline night timelapse financial district", "secs": 9 },
+    { "q": "modern office glass meeting confident", "secs": 8 }
+  ] }

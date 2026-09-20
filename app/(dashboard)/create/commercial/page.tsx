@@ -8,7 +8,7 @@ import Link from 'next/link'
  * Dedicated CUSTOMER flow for the AI Commercial pipeline (separate from the
  * Video/Slides create wizard). One page: URL + optional goal/brand/logo/music +
  * auto-pick style (with an Advanced style override). Posts to
- * /api/generate-commercial (auth + 600-credit gate + fires the VPS director),
+ * /api/generate-commercial (auth + 600-credit gate + fires the render service director),
  * then hands off to the shared /create/generating progress page which polls the
  * same videos row the director writes progress to.
  */
@@ -74,7 +74,7 @@ export default function CreateCommercialPage() {
   const canSubmit = sourceReady && sufficient && !submitting
 
   // Resolve the chosen source mode into the API's { url } or { text } payload.
-  // The VPS director accepts EITHER a url (it scrapes) or text (it uses directly).
+  // The render director accepts EITHER a url (it scrapes) or text (it uses directly).
   // pdf → extract to text; ai → a short brief the director expands from.
   async function resolveSource(): Promise<{ url?: string; text?: string } | null> {
     if (source === 'url') return { url: url.trim() }

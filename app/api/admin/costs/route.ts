@@ -16,7 +16,7 @@ const COST_PER_ACTION: Record<string, number> = {
   'tts_generation': 0.02,
   // Music (Lyria 3 Pro)
   'music_generation': 0.01,
-  // Extraction (gpt-4o-mini via VPS)
+  // Extraction (gpt-4o-mini via the render service)
   'extraction': 0.01,
   // Strategic analysis (Claude Sonnet)
   'strategic_analysis': 0.03,

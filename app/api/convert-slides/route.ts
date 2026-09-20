@@ -9,7 +9,7 @@ const VIDEO_ASSEMBLY_URL = videoServiceUrl()
 const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().replace(/[\r\n]/g, '')
 
 /**
- * Converts a PPTX/PPT file to slide images via the Hetzner VPS.
+ * Converts a PPTX/PPT file to slide images via the render service.
  * Returns an array of base64 PNG slide images (1920x1080).
  */
 export async function POST(request: Request) {
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const arrayBuffer = await file.arrayBuffer()
     const fileBase64 = Buffer.from(arrayBuffer).toString('base64')
 
-    // Send to VPS for conversion
+    // Send to render service for conversion
     const res = await fetch(`${VIDEO_ASSEMBLY_URL}/convert`, {
       method: 'POST',
       headers: {

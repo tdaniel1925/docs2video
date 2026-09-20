@@ -19,7 +19,7 @@ const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().r
  * Vercel function — eliminating the OOM + browser→Vercel TLS-corruption failures.
  *
  * This route receives only { path, purpose }, downloads the file server-to-server
- * (reliable), pre-checks the VPS is healthy, then forwards to /extract-document
+ * (reliable), pre-checks the render service is healthy, then forwards to /extract-document
  * with a retry. Always cleans up the temp upload. Backward-compatible: still
  * accepts a legacy multipart `file` if present.
  */
@@ -66,18 +66,18 @@ export async function POST(request: Request) {
       purpose = (formData.get('purpose') as string | null) || undefined
     }
 
-    // Pre-check the VPS is up — fail fast with a clear message if it's down.
+    // Pre-check the render service is up — fail fast with a clear message if it's down.
     try {
       const health = await fetch(`${VIDEO_ASSEMBLY_URL}/health`, { signal: AbortSignal.timeout(6000) })
       if (!health.ok) throw new Error(`health ${health.status}`)
     } catch {
-      logError('extract-doc', new Error('VPS health check failed before extraction'), { userId: user.id })
+      logError('extract-doc', new Error('render service health check failed before extraction'), { userId: user.id })
       return NextResponse.json({ error: 'The document service is temporarily unavailable. Please try again in a moment.' }, { status: 503 })
     }
 
     const base64 = buffer.toString('base64')
 
-    // Forward to VPS with one retry (the box may be momentarily busy).
+    // Forward to render service with one retry (the box may be momentarily busy).
     const forward = async () => fetch(`${VIDEO_ASSEMBLY_URL}/extract-document`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
 
     const result = await vpsRes.json().catch(() => ({ error: 'Extraction service returned an invalid response' }))
     if (!vpsRes.ok) {
-      logError('extract-doc', new Error(`VPS extraction ${vpsRes.status}: ${result.error}`), { userId: user.id })
+      logError('extract-doc', new Error(`render service extraction ${vpsRes.status}: ${result.error}`), { userId: user.id })
       return NextResponse.json({ error: result.error || 'We could not read this document. Try a different file or paste the text.' }, { status: vpsRes.status >= 500 ? 502 : vpsRes.status })
     }
 

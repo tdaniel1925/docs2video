@@ -10,7 +10,7 @@ export const runtime = 'nodejs'
  *
  * The former implementation (brand scrape → script → local FFmpeg assemble) was
  * deleted: it had no auth and its STATIC imports (ffmpeg-static + native deps)
- * bloated the Vercel bundle. If rebuilt, do it on the VPS assembly pipeline with
+ * bloated the Vercel bundle. If rebuilt, do it on the render service assembly pipeline with
  * auth — see git history for the old body.
  */
 export async function POST() {

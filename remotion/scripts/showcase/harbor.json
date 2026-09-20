@@ -1,0 +1,21 @@
+{ "id": "harbor", "voice": "EXAVITQu4vr4xnSDxMaL", "speed": 0.97, "style": 0.3, "stability": 0.5,
+  "lines": [
+    "Where the road ends, the table begins.",
+    "Harbor and Vine. A kitchen on the edge of the Atlantic.",
+    "Every morning, the boats decide the menu.",
+    "Twelve courses. One long table. The sun does the rest.",
+    "Wine from the hill behind us. Bread from the oven beside you.",
+    "Open Thursday to Sunday. Book the table, not a time. You'll want the whole evening.",
+    "Harbor and Vine. Come hungry. Leave slowly."
+  ],
+  "music": "Cinematic, warm and slow-building: fingerpicked acoustic guitar, soft strings and a gentle brushed-drum pulse, coastal and elegant, 84 BPM, steady tempo, swells at the end, no vocals.",
+  "musicMs": 52000,
+  "footage": [
+    { "q": "aerial ocean cliffs coastline golden hour", "secs": 9 },
+    { "q": "chef plating fine dining close up", "secs": 8 },
+    { "q": "fishing boat harbor morning", "secs": 8 },
+    { "q": "long dinner table outdoor sunset friends", "secs": 9 },
+    { "q": "pouring red wine glass slow motion", "secs": 7 },
+    { "q": "artisan bread wood oven bakery", "secs": 7 },
+    { "q": "ocean waves sunset slow motion", "secs": 9 }
+  ] }

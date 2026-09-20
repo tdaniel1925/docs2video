@@ -1,0 +1,18 @@
+{
+  "id": "rzdeck",
+  "provider": "openai",
+  "openaiVoice": "nova",
+  "openaiModel": "tts-1-hd",
+  "speed": 1.02,
+  "music": "Bright friendly upbeat pop bed, 120 bpm, no vocals",
+  "musicMs": 60000,
+  "footage": [],
+  "lines": [
+    "Here's how to build a whole slide deck in ReStyles.",
+    "Drop in the look you want the deck to copy. A slide, a flyer, anything with the right style.",
+    "Say what the deck is about, or paste a document. Then build the plan.",
+    "Check the plan. Add a slide, move one, or let AI write the points.",
+    "Build the deck. Every slide comes back in that look, with your charts and numbers exact.",
+    "Fix any slide by chat, then download. A whole deck, in minutes."
+  ]
+}

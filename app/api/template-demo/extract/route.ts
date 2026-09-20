@@ -7,7 +7,7 @@ export const maxDuration = 120
 
 /**
  * POST /api/template-demo/extract
- * Accepts a PPTX file, sends to VPS /convert to extract slides as images,
+ * Accepts a PPTX file, sends to render service /convert to extract slides as images,
  * then classifies each slide type.
  */
 export async function POST(request: Request) {
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     const arrayBuffer = await file.arrayBuffer()
     const base64 = Buffer.from(arrayBuffer).toString('base64')
 
-    // Send to VPS /convert endpoint to extract slides as images
+    // Send to render service /convert endpoint to extract slides as images
     const vpsRes = await fetch(`${VIDEO_ASSEMBLY_URL}/convert`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },

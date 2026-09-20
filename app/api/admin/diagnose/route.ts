@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const system = [
     'You are a senior engineer diagnosing a production error in the Docs2Video app',
-    '(Next.js on Vercel + a Node/FFmpeg video render service on a Hetzner VPS + Supabase + Gemini image gen + OpenAI TTS + Stripe + Resend).',
+    '(Next.js on Vercel + a Node/FFmpeg render service on AWS ECS + Supabase + Gemini image gen + OpenAI TTS + Stripe + Resend).',
     'Given an error, recommend a fix.',
     'CRITICAL RULE: Only recommend a fix you can directly justify from the provided error text and stack.',
     'Do NOT invent file names, env vars, or causes you cannot infer from the evidence.',

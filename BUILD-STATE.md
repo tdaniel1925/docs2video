@@ -30,11 +30,11 @@ fal wins on LAYOUT (numbered badges, clearer hierarchy), not on text — the
 flyers, not slides. Gemini also needed `imageConfig` or it returns 1376x768,
 below a 1080p frame.
 
-**Env:** `FAL_KEY` added to `vps/ecs-task-definition.json` and
-`vps/docker-compose.yml`; `SLIDE_IMAGE_ENGINE` defaults to `fal`.
+**Env:** `FAL_KEY` added to `render-service/ecs-task-definition.json` and
+`render-service/docker-compose.yml`; `SLIDE_IMAGE_ENGINE` defaults to `fal`.
 
 **NOT YET DONE:** the SSM parameter `/docs2video/FAL_KEY` still has to be
-created — see vps/DEPLOY.md. Until it is, the renderer falls back to Gemini
+created — see render-service/DEPLOY.md. Until it is, the renderer falls back to Gemini
 (loudly, in the container log).
 
 ## 2026-09-16 (later) — Palette from the logo, footer art, dark closer
@@ -202,7 +202,7 @@ Fix in `script-generator.ts` (solo mode; podcast unchanged; output shape unchang
 
 ## 2026-07-06 — Hero-number clipping fix (deployed to VPS)
 
-Dynamic stat values rendered at fixed sizes (`v3/HeroMetric.tsx` 320px, `scenes/StatScene.tsx` 260px) clipped long figures like "$176,204.18" at the frame edge. Both now measure with `@remotion/layout-utils` `fitText` and scale down to fit (≤1560/1600px width), capped at original size; `whiteSpace: nowrap`. Swept all other template families — only remaining large fixed text is a static decorative quote glyph (editorial). Deployed via `vps/redeploy.sh` (SSH key: `~/.ssh/apex_deploy`, now set in ~/.ssh/config as IdentityFile); verified `fitText` present in the RUNNING container. Existing videos need a re-render to pick up the fix.
+Dynamic stat values rendered at fixed sizes (`v3/HeroMetric.tsx` 320px, `scenes/StatScene.tsx` 260px) clipped long figures like "$176,204.18" at the frame edge. Both now measure with `@remotion/layout-utils` `fitText` and scale down to fit (≤1560/1600px width), capped at original size; `whiteSpace: nowrap`. Swept all other template families — only remaining large fixed text is a static decorative quote glyph (editorial). Deployed via `render-service/redeploy.sh` (SSH key: `~/.ssh/apex_deploy`, now set in ~/.ssh/config as IdentityFile); verified `fitText` present in the RUNNING container. Existing videos need a re-render to pick up the fix.
 
 ## 2026-07-05 — Apex (reachtheapex.net) integration, Path B (spec: DOCS2VIDEO-INTEGRATION-SPEC)
 
@@ -240,7 +240,7 @@ Full-codebase review in `CODE-REVIEW-2026-07-01.md`. Fixed in one pass:
 - **Correctness:** generate-video claim requires ownership; `prompt_versions` (column missing in prod) split out of the critical script persist, which is now error-checked.
 - **Tests:** +25 unit tests (webhook guards, tierFromPriceId, displayProgress, video cost/grandfathering).
 
-**2026-07-01 (second pass, commit 3944e69) — ALL deferred findings fixed:** B10 (Lambda parallel assets + maxDuration 800), B11 (forceNewCycle grants on checkout/trial-conversion), B13 (CAS-atomic tier/monthly grants), B14 (recharge-on-approve via retry-video chargeOwner), B15/B16 (change_plan allowlist + reset ledger), B18 (MPEG2-aware mp3 parser), B21 (banned-user gate), B22 (completed-after-refund re-deduct in cron), P3 (listAllStripe pagination in billing/revenue/stats), Q3 (requireAdmin across all 38 admin routes + debug-videos; isAdmin split to client-safe admin-emails.ts), S6 (durable rate_limit_hit RPC + try-demo/capture-lead/track-view wired — **run supabase/migrations/20260701_rate_limits.sql in prod**), A3 (stale video-service/ tree deleted; compose template at vps/docker-compose.yml).
+**2026-07-01 (second pass, commit 3944e69) — ALL deferred findings fixed:** B10 (Lambda parallel assets + maxDuration 800), B11 (forceNewCycle grants on checkout/trial-conversion), B13 (CAS-atomic tier/monthly grants), B14 (recharge-on-approve via retry-video chargeOwner), B15/B16 (change_plan allowlist + reset ledger), B18 (MPEG2-aware mp3 parser), B21 (banned-user gate), B22 (completed-after-refund re-deduct in cron), P3 (listAllStripe pagination in billing/revenue/stats), Q3 (requireAdmin across all 38 admin routes + debug-videos; isAdmin split to client-safe admin-emails.ts), S6 (durable rate_limit_hit RPC + try-demo/capture-lead/track-view wired — **run supabase/migrations/20260701_rate_limits.sql in prod**), A3 (stale video-service/ tree deleted; compose template at render-service/docker-compose.yml).
 
 **2026-07-01 (commit afbc37c) — A1 closed by REMOVAL:** the Remotion Lambda render path was deleted entirely (user no longer uses Lambda). `v3-lambda.ts`, the generate-video Lambda branch, the admin "V3 render target" selector, the `video_render_target` setting, `deploy-lambda.mjs`, and the `@remotion/lambda` dependency are gone — the VPS is the only renderer. Git history preserves it.
 
@@ -529,7 +529,7 @@ Full-codebase review applied:
 - `generate-video`: credits auto-refunded when generation fails before VPS handoff; VPS error responses logged with status + body
 - `send-email`: rate limit (30/hr), recipient email validation, video ownership check
 - Admin data endpoint: query limits added, error detail no longer leaked
-- Repo: 75+ `vps-*` one-off patch scripts removed; canonical VPS server tracked at `vps/server.js` (env-var secrets, exits if API_SECRET unset); `vps-*`/`teaser-output/` gitignored
+- Repo: 75+ `vps-*` one-off patch scripts removed; canonical VPS server tracked at `render-service/server.js` (env-var secrets, exits if API_SECRET unset); `vps-*`/`teaser-output/` gitignored
 - All inline border-radius values >10px clamped to 10px app-wide (circles via '50%' kept)
 - `generating` page surfaces persistent polling failures instead of spinning forever
 - Removed unauthenticated test scaffolding: `/api/test-{seedance,seedance-full,kenburns,flipbook}` + their public pages (they called paid AI APIs with no auth). `demo-video` is already disabled (503); `try-demo` has IP rate limiting; `demo-slide-gpt`/`template-demo` are authed.

@@ -23,7 +23,7 @@ const SECTIONS: AdminHelpSection[] = [
           '**MRR (Monthly Recurring Revenue)** — Total monthly revenue from active subscriptions. This is pulled from Stripe and updates in real time.',
           '**Total Users** — Number of registered accounts. Includes free and paid users.',
           '**Total Videos** — All videos ever created across all users.',
-          '**VPS Status** — Shows whether the Hetzner video assembly server is online and responding. Green means healthy, red means the server is down or unreachable.',
+          '**Render service** — Shows whether the video render service (AWS ECS) is online and responding. Green means healthy, red means it is down or unreachable.',
         ],
       },
       {
@@ -100,9 +100,9 @@ const SECTIONS: AdminHelpSection[] = [
       {
         heading: 'Retrying Failed Videos',
         body: [
-          'Videos can fail during generation due to AI service outages, VPS issues, or timeout errors.',
+          'Videos can fail during generation due to AI service outages, render service issues, or timeout errors.',
           'On the admin dashboard or in the user detail panel, failed videos show a red status badge. Click **Retry** to restart the generation process from scratch.',
-          'If a video fails repeatedly, check the VPS status indicator and the server logs for errors.',
+          'If a video fails repeatedly, check the render service status indicator and the server logs for errors.',
         ],
       },
       {

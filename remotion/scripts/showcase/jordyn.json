@@ -1,0 +1,24 @@
+{
+  "id": "jordyn",
+  "voice": "EXAVITQu4vr4xnSDxMaL",
+  "speed": 1.04,
+  "lines": [
+    "You start every day digging through sixty emails. Deals die because the updates live in your head.",
+    "Meet Jordyn. A custom-trained AI employee that works your email, phone, and paperwork from day one. Real digital staff, not another chatbot.",
+    "Tell her your industry. Her brain installs in seconds. The vocabulary, the workflows, the paperwork, the unwritten rules. She arrives speaking your language.",
+    "Every inbox swept overnight. What needs you is waiting before your coffee.",
+    "Replies drafted in your voice. Every one stays a draft until you hit send. Ever.",
+    "She answers your phone in your business's name, and callers book real appointments mid-call. Eighteen cents a minute. No plans, no seats.",
+    "Deals, decisions, and to-dos record themselves from your email. Your CRM builds itself.",
+    "Say invoice Chen twelve hundred. A branded invoice, a pay-online link, chased until it's paid.",
+    "Letters, PDFs, and presentations on your letterhead. Edit a sent deck. Same link, new version.",
+    "The tool stack, five eighty-five a month. A human assistant, three thousand plus. Jordyn, four ninety-nine. And she does the work.",
+    "Hire your first digital employee. Jordyn dot app."
+  ],
+  "music": "Upbeat, warm, modern pop-electronic commercial bed, 124 bpm, bright plucks, claps, punchy bass, optimistic, energetic, no vocals, clean loop",
+  "musicMs": 80000,
+  "footage": [],
+  "provider": "openai",
+  "openaiVoice": "nova",
+  "openaiModel": "tts-1-hd"
+}

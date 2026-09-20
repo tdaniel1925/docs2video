@@ -1,0 +1,15 @@
+{
+  "id": "club",
+  "provider": "openai",
+  "openaiVoice": "onyx",
+  "openaiModel": "tts-1-hd",
+  "speed": 1.0,
+  "lines": [
+    "Friday night. Midnight Society.",
+    "The Warehouse. Doors at ten.",
+    "Fifteen at the door. Don't be late."
+  ],
+  "music": "Dark, driving club house track, 128 bpm, deep bass, hi-hats, neon synth stabs, big build and drop, no vocals",
+  "musicMs": 45000,
+  "footage": []
+}

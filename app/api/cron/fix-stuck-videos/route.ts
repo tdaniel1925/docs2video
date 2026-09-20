@@ -17,7 +17,7 @@ const IN_PROGRESS_STATUSES = ['pending', 'starting', 'scripting', 'generating_sl
 
 /**
  * Cron: reconcile stuck videos. For V2 (Creatomate) jobs it re-queries the
- * render; for V1 (VPS) it checks storage for the MP4. Force-fails truly stale
+ * render; for V1 (the render service) it checks storage for the MP4. Force-fails truly stale
  * jobs AND refunds the deducted credits (audit H1), recovers V2 renders whose
  * webhook never landed (audit H4), and uses an activity-staleness window
  * (progress_updated_at) rather than absolute age (audit M1/M2).
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     }
   } catch { /* non-fatal — continue to video reconciliation */ }
 
-  // VPS-side failures (review B1): the VPS writes status='failed' ITSELF after
+  // Render-service failures (review B1): the render service writes status='failed' ITSELF after
   // its early ACK, so those rows never match the in-progress filter below — yet
   // the user was told "your credits were refunded" and nothing ever refunded.
   // refundVideoCredits zeroes deducted_cost after refunding, so a failed row
@@ -221,7 +221,7 @@ export async function GET(request: Request) {
         fixed++
       } else {
         // No MP4 yet — force-fail only if stale (no progress in 10 min) AND
-        // older than 30 min absolute, so a slow-but-live VPS render survives.
+        // older than 30 min absolute, so a slow-but-live render service render survives.
         const old = new Date(video.created_at).getTime() < thirtyMinAgo
         if (isStale(video) && old) { await forceFail(video, 'Video generation timed out. Your credits were refunded.'); failed++ }
       }

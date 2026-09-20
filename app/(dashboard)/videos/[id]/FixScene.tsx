@@ -88,7 +88,7 @@ export default function FixScene({ videoId, planUrl, slideUrls = [], script = []
       const d = await r.json()
       if (!r.ok) { setError(d.error || 'Something went wrong.'); setBusy(''); return }
       if (previewOnly) {
-        // poll the video row for scene_preview_url (VPS writes it when the clip is ready)
+        // poll the video row for scene_preview_url (the render service writes it when the clip is ready)
         setBusy('preview')
         for (let i = 0; i < 30; i++) {
           await new Promise((res) => setTimeout(res, 2000))

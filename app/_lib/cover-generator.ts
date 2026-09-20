@@ -23,7 +23,7 @@ interface CoverOptions {
  * 2. Sharp composites the real logo (large, centered, contrast-checked)
  * 3. Sharp adds title text and subtitle via SVG overlay
  *
- * Returns a PNG buffer ready to send to VPS as a pre-rendered slide.
+ * Returns a PNG buffer ready to send to the render service as a pre-rendered slide.
  */
 export async function generateCoverSlide(options: CoverOptions): Promise<Buffer> {
   const { title, companyName, logoUrl, brandColors, stylePrompt, type, contactInfo } = options

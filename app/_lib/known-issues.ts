@@ -19,33 +19,46 @@ export interface KnownIssue {
 }
 
 export const KNOWN_ISSUES: KnownIssue[] = [
+  /*
+   * THESE USED TO GIVE INSTRUCTIONS FOR A MACHINE THAT NO LONGER EXISTS.
+   *
+   * They told you to ssh to the Hetzner box, npm install inside a running
+   * container, or disable a systemd unit. The renderer runs on ECS Fargate
+   * now: a task is replaced, never edited, so anything installed by hand
+   * inside it vanishes the moment it restarts.
+   *
+   * These are shown to a human who is already looking at a failure, so a fix
+   * that cannot work is worse than no fix at all — it sends them down a path
+   * that ends in confusion rather than a working render.
+   */
   {
     match: /cannot find module ['"]?sharp/i,
-    title: "Sharp module missing on the VPS render container",
+    title: "Sharp is missing from the render image",
     fix: [
-      "The `sharp` image library isn't installed in the running container, so every slide fails Gemini→sharp processing and falls back to the blank navy card (blue slides).",
-      "Fix (permanent): on the VPS, `cd /root/video-service && npm install sharp --save && docker compose up -d --build`. This bakes sharp into package.json + the image so it survives rebuilds.",
-      "Verify: `docker exec docs2video-service node -e \"require('sharp');console.log('ok')\"`.",
+      "The `sharp` image library isn't in the running container, so every slide fails Gemini→sharp processing and falls back to the blank navy card (blue slides).",
+      "This is an IMAGE problem, not a running-container problem — installing it by hand inside an ECS task is lost the next time the task restarts.",
+      "Fix: add sharp to `render-service/package.json`, then rebuild and redeploy — render-service/DEPLOY.md has the four steps.",
     ].join("\n"),
-    docs: "vps/DEPLOY.md",
+    docs: "render-service/DEPLOY.md",
   },
   {
     match: /brandName is not defined|brandColors is not defined/i,
-    title: "Brand vars not destructured in VPS /generate",
+    title: "Brand vars not destructured in the render service /generate",
     fix: [
       "The slide compositing step references `brandName`/`brandColors` but they weren't destructured from req.body, so every branded slide throws and falls back to blue.",
-      "Fix: in `vps/server.js` /generate, ensure `const { ..., brandName, brandColors } = req.body` and use a `safeBrandColors` fallback. Redeploy server.js to the VPS.",
+      "Fix: in `render-service/server.js` /generate, ensure `const { ..., brandName, brandColors } = req.body` and use a `safeBrandColors` fallback, then rebuild and redeploy (render-service/DEPLOY.md).",
     ].join("\n"),
-    docs: "vps/DEPLOY.md",
+    docs: "render-service/DEPLOY.md",
   },
   {
     match: /EADDRINUSE.*:?4000|address already in use.*4000/i,
-    title: "Port 4000 already bound (VPS)",
+    title: "Port 4000 already bound",
     fix: [
-      "Something already holds port 4000 — normally the docs2video-service Docker container. The stale systemd unit `docs2video-assembler` will crash-loop trying to bind it.",
-      "Fix: the real server is the Docker container, not systemd. `systemctl disable --now docs2video-assembler`. Confirm the container owns 4000: `ss -ltnp | grep :4000` should show docker-proxy.",
+      "Two things are trying to hold port 4000 inside one task. On ECS this normally means the task definition starts more than one container, or the image's CMD runs the server twice.",
+      "Fix: check `render-service/ecs-task-definition.json` has a single container on port 4000, then `aws logs tail /ecs/docs2video-service --follow --region us-east-1` to see what else bound it.",
+      "Historical note: on the old Hetzner box this was a stale `docs2video-assembler` systemd unit fighting Docker. That box is gone; if you see that name anywhere it is a leftover.",
     ].join("\n"),
-    docs: "vps/DEPLOY.md",
+    docs: "render-service/DEPLOY.md",
   },
   {
     match: /column .*slide_durations.* does not exist|slide_durations/i,
@@ -75,7 +88,7 @@ export const KNOWN_ISSUES: KnownIssue[] = [
     match: /TTS (returned \d+ bytes|failed)|audio\.speech\.create/i,
     title: "OpenAI TTS narration failure",
     fix: [
-      "A narration TTS call failed or returned empty audio. The VPS now retries 3x with backoff and FAILS the job (refund + notify) rather than shipping a silent slide.",
+      "A narration TTS call failed or returned empty audio. The render service now retries 3x with backoff and FAILS the job (refund + notify) rather than shipping a silent slide.",
       "Check OPENAI_API_KEY validity/quota. If persistent, inspect the narration text for content that may be rejected.",
     ].join("\n"),
   },
@@ -83,8 +96,8 @@ export const KNOWN_ISSUES: KnownIssue[] = [
     match: /401|Unauthorized.*cron|verifyCronAuth/i,
     title: "Cron / internal auth 401",
     fix: [
-      "A cron or internal endpoint returned 401. CRON_SECRET (Vercel cron) or VIDEO_ASSEMBLY_SECRET (VPS↔app) is missing or mismatched.",
-      "Fix: confirm CRON_SECRET is set in Vercel env (it's 'sensitive' so `vercel env pull` redacts it — that's expected). Confirm the VPS API_SECRET matches the app's VIDEO_ASSEMBLY_SECRET.",
+      "A cron or internal endpoint returned 401. CRON_SECRET (Vercel cron) or VIDEO_ASSEMBLY_SECRET (render service ↔ app) is missing or mismatched.",
+      "Fix: confirm CRON_SECRET is set in Vercel env (it's 'sensitive' so `vercel env pull` redacts it — that's expected). Confirm the render service API_SECRET (SSM /docs2video/) matches the app's VIDEO_ASSEMBLY_SECRET.",
     ].join("\n"),
   },
   {

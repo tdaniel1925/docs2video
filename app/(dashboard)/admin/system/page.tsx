@@ -8,7 +8,7 @@ interface SystemCheckRow { id: string; run_at: string; trigger: string; overall_
 interface HistoryRow { id: string; run_at: string; overall_ok: boolean; duration_ms: number; trigger: string }
 
 const LABELS: Record<string, string> = {
-  render_path: 'Render path (VPS · Gemini · sharp · TTS · storage)',
+  render_path: 'Render path (render service · Gemini · sharp · TTS · storage)',
   supabase: 'Supabase (database)',
   stripe: 'Stripe (payments)',
   resend: 'Resend (email)',

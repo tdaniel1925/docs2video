@@ -1,0 +1,18 @@
+{
+  "id": "rzsizes",
+  "provider": "openai",
+  "openaiVoice": "nova",
+  "openaiModel": "tts-1-hd",
+  "speed": 1.02,
+  "music": "Bright friendly upbeat pop bed, 120 bpm, no vocals",
+  "musicMs": 60000,
+  "footage": [],
+  "lines": [
+    "Here's how to get every size of a design in ReStyles.",
+    "Pick a design from your library, or drop one in.",
+    "Choose the sizes you need, or grab a whole kit. Print, social, or event.",
+    "Hit Make sizes. Each one is rebuilt for its shape, so small formats keep the headline and drop the clutter.",
+    "Download them as PNG or print-ready PDF. They're saved to your library.",
+    "One design. Every size. Done."
+  ]
+}

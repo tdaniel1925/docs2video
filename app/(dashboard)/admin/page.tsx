@@ -1372,7 +1372,7 @@ function AdminPageInner() {
           </div>
 
           {/* (Render-target selector removed 2026-07-01 — the Remotion Lambda
-              path was deleted; the VPS is the only renderer.) */}
+              path was deleted; the render service is the only renderer.) */}
 
           {/* Visual style for V3 videos */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 16px', border: '1px solid var(--border)', borderRadius: 10, marginTop: 12 }}>
@@ -1416,7 +1416,7 @@ function VpsStatus() {
     }).catch(() => setStatus('offline'))
   }, [])
   const colors = { checking: 'var(--ink-light)', healthy: '#16a34a', degraded: '#f59e0b', offline: '#dc2626' }
-  const labels = { checking: 'Checking...', healthy: 'VPS Online', degraded: 'VPS Degraded', offline: 'VPS Offline' }
+  const labels = { checking: 'Checking...', healthy: 'Renderer online', degraded: 'Renderer degraded', offline: 'Renderer offline' }
   return (
     <div className="stat-card" style={status === 'offline' ? { background: 'var(--rose)' } : undefined}>
       <div className="stat-label">Video Server</div>

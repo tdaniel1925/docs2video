@@ -1,0 +1,18 @@
+{
+  "id": "rzmake",
+  "provider": "openai",
+  "openaiVoice": "nova",
+  "openaiModel": "tts-1-hd",
+  "speed": 1.02,
+  "lines": [
+    "Here's how to remake a design in ReStyles. It takes about a minute.",
+    "Drop in the design. A photo, a screenshot, a PDF. Anything.",
+    "Tell it what to change, in plain words. A new name, a new date, a new headline.",
+    "Hit Remake it. About a minute later your new version is back, and nothing else has moved.",
+    "Download it, open it in the editor to fix a detail, or make every size. It's already saved to your library.",
+    "That's it. One design in. A finished piece out."
+  ],
+  "music": "Bright, friendly, upbeat pop bed with claps and plucks, 120 bpm, light and clean, no vocals",
+  "musicMs": 60000,
+  "footage": []
+}

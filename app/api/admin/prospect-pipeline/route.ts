@@ -10,10 +10,10 @@ export const maxDuration = 60
  * Admin prospect pipeline — paste prospect website URLs, each becomes a directed
  * sales-demo commercial for outreach.
  *
- * Generation runs ON THE VPS (the same director as the customer commercial
+ * Generation runs ON THE render service (the same director as the customer commercial
  * pipeline), NOT in-process on Vercel. Vercel is a thin orchestrator: it creates
- * a prospect_demos row (the admin dashboard polls it) + a videos row (the VPS
- * writes to it), then fires the VPS /generate-commercial with prospectId. The VPS
+ * a prospect_demos row (the admin dashboard polls it) + a videos row (the render service
+ * writes to it), then fires the render service /generate-commercial with prospectId. The render service
  * MIRRORS its progress + final result (video_url, thumbnail, company_name,
  * duration → status ready_for_review) back into prospect_demos.
  *
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       await admin.from('prospect_demos').delete().eq('id', regenerateId)
     }
 
-    // Fail fast if the VPS is down (so the admin gets a clear error, not a row
+    // Fail fast if the render service is down (so the admin gets a clear error, not a row
     // that spins forever).
     try {
       const health = await fetch(`${VIDEO_ASSEMBLY_URL}/health`, { signal: AbortSignal.timeout(6000) })
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
         .single()
       if (insertErr || !prospect) { created.push({ url: parsedUrl.href, error: 'Insert failed' }); continue }
 
-      // 2) videos row the VPS writes progress to (owned by the admin's user).
+      // 2) videos row the render service writes progress to (owned by the admin's user).
       const { data: video, error: vErr } = await admin
         .from('videos')
         .insert({ user_id: user.id, status: 'pending', progress_pct: 5, progress_detail: 'Starting…', title: `Prospect: ${parsedUrl.hostname.replace(/^www\./, '')}`.slice(0, 120) })
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
         created.push({ url: parsedUrl.href, error: 'Video row insert failed' }); continue
       }
 
-      // 3) Fire the VPS director (async — it 200s immediately, works in the
+      // 3) Fire the render service director (async — it 200s immediately, works in the
       //    background, and mirrors progress/result into prospect_demos).
       try {
         const res = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-commercial`, {
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
           body: JSON.stringify({ videoId: video.id, userId: user.id, url: parsedUrl.href, music: true, prospectId: prospect.id }),
           signal: AbortSignal.timeout(30000),
         })
-        if (!res.ok) throw new Error(`VPS ${res.status}`)
+        if (!res.ok) throw new Error(`render service ${res.status}`)
       } catch (e: any) {
         await admin.from('prospect_demos').update({ status: 'failed', stage_detail: 'Could not start generation', error_message: e?.message?.slice(0, 300) ?? 'trigger failed' }).eq('id', prospect.id)
         created.push({ url: parsedUrl.href, error: 'Could not start generation' }); continue

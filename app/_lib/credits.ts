@@ -25,7 +25,7 @@ export const CREDIT_COSTS = {
   'template-refine': 100,
   // Interactive presentation (flagship — HTML-first, narrated, shareable)
   interactive: 700,
-  // MP4 export derived from a finished presentation (VPS capture+mux)
+  // MP4 export derived from a finished presentation (render-service capture+mux)
   videoExport: 400,
   // Deck builder (flagship product #2)
   deck: 600,

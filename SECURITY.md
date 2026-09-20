@@ -19,7 +19,7 @@ open public GitHub issues for security reports.
 
 - **Never commit secrets.** All secrets live in environment configuration:
   Vercel env vars for the web app, `/root/video-service/.env` on the VPS
-  (referenced via `${VAR}` in `vps/docker-compose.yml`), and the Supabase
+  (referenced via `${VAR}` in `render-service/docker-compose.yml`), and the Supabase
   dashboard. `.env.local` is gitignored.
 - **No `.env` backups in the repo or on shared drives.** Do not create
   `.env.bak`, `.env.old`, or copies of env files anywhere inside the working

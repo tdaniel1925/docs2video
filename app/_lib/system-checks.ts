@@ -7,7 +7,7 @@ import { createAdminClient } from './supabase/admin'
  * health cron. Each check makes a REAL call (not just an env-presence check)
  * where feasible, is isolated (one failure can't mask others), and is time-boxed.
  *
- * The single most important check is `render_path`, which calls the VPS
+ * The single most important check is `render_path`, which calls the render service
  * /selftest — that runs a real Gemini slide + sharp + TTS + storage probe, i.e.
  * the exact pipeline that produces blue-screen failures.
  */
@@ -30,7 +30,7 @@ async function timed(name: string, fn: () => Promise<Record<string, unknown> | v
   }
 }
 
-/** VPS render path — calls /selftest (real Gemini+sharp+TTS+storage probe). */
+/** render service render path — calls /selftest (real Gemini+sharp+TTS+storage probe). */
 async function checkRenderPath(): Promise<Record<string, unknown>> {
   const url = process.env.VIDEO_ASSEMBLY_URL
   const secret = process.env.VIDEO_ASSEMBLY_SECRET
@@ -43,7 +43,7 @@ async function checkRenderPath(): Promise<Record<string, unknown>> {
   const data = await res.json().catch(() => null)
   if (!res.ok || !data?.ok) {
     const failed = data?.errors?.length ? data.errors.join('; ') : `HTTP ${res.status}`
-    throw new Error(`VPS selftest failed: ${failed}`)
+    throw new Error(`render service selftest failed: ${failed}`)
   }
   return { checks: data.checks, ms: data.ms }
 }
@@ -73,7 +73,7 @@ async function checkResend(): Promise<void> {
   }
 }
 
-/** AI/key presence (the VPS selftest covers live Gemini/OpenAI calls already). */
+/** AI/key presence (the render service selftest covers live Gemini/OpenAI calls already). */
 async function checkAiKeys(): Promise<Record<string, unknown>> {
   const present = {
     gemini: !!process.env.GEMINI_API_KEY,

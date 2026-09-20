@@ -63,7 +63,7 @@ export const MAX_FILES = 5
 
 /**
  * Upload + extract SEVERAL documents (multi-file projects). Extracts each file
- * via uploadAndExtract (sequentially — keeps Supabase/VPS load sane and gives a
+ * via uploadAndExtract (sequentially — keeps Supabase and render-service load sane and gives a
  * clear per-file error). Returns one entry per file in upload order. An
  * onProgress callback lets the UI show "Reading file 2 of 3…".
  */

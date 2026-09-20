@@ -1,0 +1,18 @@
+{
+  "id": "rzedit",
+  "provider": "openai",
+  "openaiVoice": "nova",
+  "openaiModel": "tts-1-hd",
+  "speed": 1.02,
+  "music": "Bright friendly upbeat pop bed, 120 bpm, no vocals",
+  "musicMs": 60000,
+  "footage": [],
+  "lines": [
+    "Here's how to fix a detail in ReStyles.",
+    "Open any design from your library and press Edit.",
+    "Say what to fix, in plain words. Make the headline bigger. Change the time.",
+    "Hit Fix it. About a minute later, only that detail has changed.",
+    "Keep the version you like. Every round is saved, so you can always go back.",
+    "Small fixes, no redesign."
+  ]
+}

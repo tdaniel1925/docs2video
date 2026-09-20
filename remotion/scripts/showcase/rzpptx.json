@@ -1,0 +1,18 @@
+{
+  "id": "rzpptx",
+  "provider": "openai",
+  "openaiVoice": "nova",
+  "openaiModel": "tts-1-hd",
+  "speed": 1.02,
+  "music": "Bright friendly upbeat pop bed, 120 bpm, no vocals",
+  "musicMs": 60000,
+  "footage": [],
+  "lines": [
+    "Here's how to edit a PowerPoint in ReStyles.",
+    "Choose Edit a finished deck, or build from a template you bought.",
+    "Drop in the PowerPoint. ReStyles reads every slide and shows you the words.",
+    "Say what to change. Names, dates, numbers. Then apply.",
+    "Download your PowerPoint. It's still a real, editable file.",
+    "Your deck, your words, still yours to edit."
+  ]
+}

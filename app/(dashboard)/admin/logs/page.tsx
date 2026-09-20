@@ -78,7 +78,7 @@ export default function LogsPage() {
         <div style={s.header}>
           <div>
             <h1 style={s.title}>Logs &amp; Errors</h1>
-            <p style={s.subtitle}>Deduped errors from the app + VPS with recommended fixes.</p>
+            <p style={s.subtitle}>Deduped errors from the app + render service with recommended fixes.</p>
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <Link href="/admin/system" style={s.linkBtn}>System Status &rarr;</Link>
@@ -89,7 +89,7 @@ export default function LogsPage() {
         {error && <div style={s.errorBox}>{error}</div>}
 
         <div style={s.tabs}>
-          <button onClick={() => setTab('app')} style={{ ...s.tab, ...(tab === 'app' ? s.tabActive : {}) }}>App + VPS</button>
+          <button onClick={() => setTab('app')} style={{ ...s.tab, ...(tab === 'app' ? s.tabActive : {}) }}>App + renderer</button>
           {vercelConfigured && <button onClick={() => setTab('vercel')} style={{ ...s.tab, ...(tab === 'vercel' ? s.tabActive : {}) }}>Vercel (live)</button>}
           {tab === 'app' && (
             <label style={s.checkboxLabel}>

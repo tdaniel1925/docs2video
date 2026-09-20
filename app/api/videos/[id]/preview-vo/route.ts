@@ -5,7 +5,7 @@ import { createAdminClient } from '../../../../_lib/supabase/admin'
 export const runtime = 'nodejs'
 
 /**
- * Poll target for the Fix-a-Scene preview: returns the scene_preview_url the VPS
+ * Poll target for the Fix-a-Scene preview: returns the scene_preview_url the render service
  * writes when a preview voiceover clip is ready. Client polls this after asking
  * for a preview. Best-effort — returns { url: null } if not ready / column absent.
  */

@@ -36,7 +36,7 @@ interface Body {
 
 /**
  * POST /api/v1/commercials
- * Public, async commercial generation from a URL (or pasted text). The VPS runs
+ * Public, async commercial generation from a URL (or pasted text). The render service runs
  * the whole director (comprehend → direct → VO → images → ElevenLabs Music →
  * render). Auth: Authorization: Bearer <api_key>. Charges the metered API credit
  * pool. Returns { job_id, status: 'queued' }; poll GET /api/v1/videos/{job_id}.
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     .from('videos')
     .insert({
       // 'pending' (not 'processing') — the videos_status_check constraint rejects
-      // 'processing'/'rendering'; the VPS flips this to completed/failed at the end.
+      // 'processing'/'rendering'; the render service flips this to completed/failed at the end.
       user_id: caller.userId,
       status: 'pending',
       progress_pct: 5,
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
   if (insErr || !row) return fail(500, 'Failed to create job')
   const jobId = row.id as string
 
-  // --- VPS health pre-check (fast) ---
+  // --- render service health pre-check (fast) ---
   try {
     const h = await fetch(`${VIDEO_ASSEMBLY_URL}/health`, { signal: AbortSignal.timeout(6000) })
     if (!h.ok) throw new Error(`health ${h.status}`)
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     return fail(503, 'Video service temporarily unavailable.', jobId)
   }
 
-  // --- Kick off the VPS commercial pipeline (async on the VPS) ---
+  // --- Kick off the render service commercial pipeline (async, on ECS) ---
   try {
     const r = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-commercial`, {
       method: 'POST',
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({ videoId: jobId, userId: caller.userId, url, text, brandName, music, style, musicUrl, logoUrl: body.logoUrl, goal: body.goal }),
       signal: AbortSignal.timeout(30000),
     })
-    if (!r.ok) throw new Error(`VPS ${r.status}: ${(await r.text()).slice(0, 160)}`)
+    if (!r.ok) throw new Error(`render service ${r.status}: ${(await r.text()).slice(0, 160)}`)
   } catch (e: any) {
     await admin.from('videos').update({ status: 'failed', error_message: 'Could not start commercial generation.', progress_detail: `[fail] trigger: ${e.message}`.slice(0, 500) }).eq('id', jobId)
     return fail(502, 'Failed to start generation', jobId)

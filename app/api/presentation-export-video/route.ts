@@ -10,8 +10,8 @@ const VIDEO_ASSEMBLY_URL = process.env.VIDEO_ASSEMBLY_URL
 const VIDEO_ASSEMBLY_SECRET = process.env.VIDEO_ASSEMBLY_SECRET
 
 /** POST { videoId } → queue the MP4 export of an interactive presentation on
- *  the VPS (real-time page capture + narration mux). Charges videoExport
- *  credits; the VPS sets videos.export_video_url when done (run migration
+ *  the render service (real-time page capture + narration mux). Charges videoExport
+ *  credits; the render service sets videos.export_video_url when done (run migration
  *  20260724_export_video_url first). Already-exported rows return the URL
  *  free — re-export by design only happens after a regeneration. */
 export async function POST(request: Request) {

@@ -1,6 +1,6 @@
 /**
  * V3 render payload builder. Maps the app's generated scenes + brand + extracted
- * data into the contract the VPS /render-v3 endpoint (Remotion) expects.
+ * data into the contract the render service /render-v3 endpoint (Remotion) expects.
  *
  * Theme is auto-selected by CONTENT (the chosen direction): data-heavy content
  * → 'infographic' (animated counters/KPIs); narrative/qualitative → 'cinematic'
@@ -112,7 +112,7 @@ export type V3Payload = {
   closingValue?: { label: string; value: string }
   /** Presenter identity (Person profile): photo + name/role shown per style. */
   presenter?: Presenter
-  /** Resolved photo placement preference; 'auto' lets the style decide on the VPS. */
+  /** Resolved photo placement preference; 'auto' lets the style decide in the render service. */
   photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
   /** Client name — shown as "Prepared for {name}" on the cover. */
   recipient?: string
@@ -120,7 +120,7 @@ export type V3Payload = {
    *  a top-left eyebrow (brand), an optional top-right tag (date), and up to 3
    *  footer proof chips. Makes a video read as one authored product. */
   frame?: { eyebrow?: string; tag?: string; footer?: string[] }
-  /** Per-scene content; the VPS generates images (cinematic) + narration + render. */
+  /** Per-scene content; the render service generates images (cinematic) + narration + render. */
   scenes: {
     title: string
     narration: string

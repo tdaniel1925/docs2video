@@ -14,7 +14,7 @@ export type PhotoPlacementPref = 'auto' | 'cover' | 'closing' | 'both' | 'none'
 export type Presenter = {
   name?: string
   role?: string
-  /** Photo URL (resolved to a local filename on the VPS before rendering). */
+  /** Photo URL (resolved to a local filename on the render service before rendering). */
   photo?: string
   /** Spoken intro line for the opening, written by the user. */
   intro?: string

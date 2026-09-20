@@ -1,0 +1,19 @@
+{ "id": "forge", "voice": "pNInz6obpgDQGcFmaJgB", "speed": 1.06, "style": 0.5, "stability": 0.4,
+  "lines": [
+    "Six weeks.",
+    "No excuses. No shortcuts. No days off that you didn't earn.",
+    "Small groups. Real coaches. Every lift counted.",
+    "Three thousand members. Ninety six percent finished.",
+    "The next challenge starts March third.",
+    "Forge Fitness. Come in soft. Leave forged."
+  ],
+  "music": "Aggressive gym workout track: hard-hitting trap drums, distorted 808 bass, gritty rock guitar stabs, 150 BPM, relentless energy, big drop, no vocals.",
+  "musicMs": 38000,
+  "footage": [
+    { "q": "barbell deadlift gym dark dramatic", "secs": 6 },
+    { "q": "athlete sprint treadmill gym", "secs": 6 },
+    { "q": "boxing heavy bag punching gym", "secs": 6 },
+    { "q": "rowing machine gym intense", "secs": 6 },
+    { "q": "group fitness class high five", "secs": 6 },
+    { "q": "chalk hands weightlifting slow motion", "secs": 6 }
+  ] }

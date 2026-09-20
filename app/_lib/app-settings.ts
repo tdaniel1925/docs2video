@@ -8,7 +8,7 @@
  */
 import { createAdminClient } from './supabase/admin'
 
-// ('video_render_target' removed 2026-07-01 — Lambda path deleted, VPS only.)
+// ('video_render_target' removed 2026-07-01 — Lambda path deleted, render service only.)
 export type AppSettingKey = 'video_engine_v3' | 'video_style'
 
 const TTL_MS = 30_000

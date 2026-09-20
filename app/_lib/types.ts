@@ -358,7 +358,7 @@ export interface SentEmail {
   created_at: string
 }
 
-// OpenAI TTS voices — used by VPS for video narration
+// OpenAI TTS voices — used by render service for video narration
 export const VOICE_OPTIONS = [
   { id: 'nova', name: 'Sarah', gender: 'Female', description: 'Friendly and natural — most popular' },
   { id: 'shimmer', name: 'Emily', gender: 'Female', description: 'Warm and gentle' },

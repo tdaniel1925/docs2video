@@ -19,9 +19,9 @@ const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().r
 const COMMERCIAL_COST = CREDIT_COSTS.commercial
 
 /**
- * Commercial-video trigger (Vercel = thin orchestrator; the VPS runs the whole
+ * Commercial-video trigger (Vercel = thin orchestrator; the render service runs the whole
  * director + render). Auth + credit-gate + create the videos row, then fire the
- * VPS /generate-commercial, which comprehends the URL, DIRECTS the spec (styleId
+ * render service /generate-commercial, which comprehends the URL, DIRECTS the spec (styleId
  * + beats), generates per-beat VO + hero images, renders TemplateCommercial, and
  * uploads — writing progress back to the same videos row the UI polls.
  *
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message, videoId }, { status })
   }
 
-  // pre-check the VPS is up so we fail early with a clear message (and refund).
+  // pre-check the render service is up so we fail early with a clear message (and refund).
   try {
     const health = await fetch(`${VIDEO_ASSEMBLY_URL}/health`, { signal: AbortSignal.timeout(6000) })
     if (!health.ok) throw new Error(`health ${health.status}`)
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     return await failAndRefund(503, 'Video service is temporarily unavailable. Please try again shortly.')
   }
 
-  // fire the VPS job (async on the VPS — it 200s immediately and works in the
+  // fire the render service job (async on the render service — it 200s immediately and works in the
   // background, writing progress to the videos row). We don't await the render.
   try {
     const res = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-commercial`, {
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({ videoId, userId: user.id, url, text, brandName, music, style, musicUrl, logoUrl, goal }),
       signal: AbortSignal.timeout(30000),
     })
-    if (!res.ok) throw new Error(`VPS ${res.status}: ${(await res.text()).slice(0, 160)}`)
+    if (!res.ok) throw new Error(`render service ${res.status}: ${(await res.text()).slice(0, 160)}`)
   } catch (e: any) {
     logError('generate-commercial', e, { userId: user.id, videoId })
     return await failAndRefund(502, 'Could not start commercial generation.', `[fail] trigger: ${e.message}`)

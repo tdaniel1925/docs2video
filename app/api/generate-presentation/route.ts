@@ -13,7 +13,7 @@ export const maxDuration = 300
 
 /** POST { videoId, templateId, outputType: 'interactive' | 'deck' }
  *  The HTML-first generator: scenes (already written + edited in the wizard)
- *  → one self-contained presentation HTML in storage. No VPS, no ffmpeg.
+ *  → one self-contained presentation HTML in storage. No render service, no ffmpeg.
  *  'interactive' narrates every scene; 'deck' is silent (PDF/PPTX exports
  *  come later from the same artifact). */
 export async function POST(request: NextRequest) {

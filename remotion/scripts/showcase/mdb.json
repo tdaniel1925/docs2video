@@ -1,0 +1,23 @@
+{
+  "id": "mdb",
+  "provider": "openai",
+  "openaiVoice": "onyx",
+  "openaiModel": "tts-1-hd",
+  "speed": 1.0,
+  "lines": [
+    "Imagine giving your one-year-old a head start so powerful, it's still working when she's ninety.",
+    "At age zero she has the one thing money can't buy back. Time. Every year you wait costs her decades of compounding she never gets back.",
+    "From day one, a one million dollar death benefit. Fifty dollars a day, for sixteen years. Then you stop paying. The plan keeps working.",
+    "Her money follows the market up. When the market falls, she keeps what she built. Upside, with a floor underneath.",
+    "If she ever faces a serious illness, she can reach part of that benefit early. And after year five, a bonus lands on top.",
+    "At twenty-four, four years of college money. Seven hundred forty-four thousand dollars, on two hundred eighty thousand paid in.",
+    "From fifty-six, three hundred forty-one thousand a year, every year, to ninety-six.",
+    "By ninety: over ten million in illustrated cash value. Thirteen million in protection. From fifty dollars a day.",
+    "In force to age one hundred thirty-one. It never ages her out.",
+    "Illustrated values, not guarantees. Educational only, not legal, tax or financial advice. Benefits depend on the issuing carrier.",
+    "Ready to start something that outlives us all? Call Aziz Ali today."
+  ],
+  "music": "Warm, hopeful, cinematic corporate bed, 100 bpm, piano and strings, steady build, trustworthy, no vocals",
+  "musicMs": 100000,
+  "footage": []
+}

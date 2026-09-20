@@ -1,0 +1,18 @@
+{
+  "id": "rzlibrary",
+  "provider": "openai",
+  "openaiVoice": "nova",
+  "openaiModel": "tts-1-hd",
+  "speed": 1.02,
+  "music": "Bright friendly upbeat pop bed, 120 bpm, no vocals",
+  "musicMs": 60000,
+  "footage": [],
+  "lines": [
+    "Here's where your work lives in ReStyles.",
+    "Every remake, size and deck lands in your library. List or grid, with a preview on hover.",
+    "From any piece: edit it, make more sizes, download, or delete.",
+    "Your account shows your balance and what things cost. Add funds in one click, from twenty dollars up.",
+    "Every deposit and charge is listed, so there are never surprises.",
+    "Your work, your money, all in one place."
+  ]
+}

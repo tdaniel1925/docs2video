@@ -185,7 +185,7 @@ async function downloadImage(url: string): Promise<Buffer | null> {
 
 /**
  * Pipeline v2: render a slide from a fully-built prompt (same contract as the
- * VPS — the prompt already contains style, color, and content rules).
+ * the render service — the prompt already contains style, color, and content rules).
  * Returns null if Gemini produces no image after a retry.
  */
 export async function generateSlideFromPrompt(prompt: string, refImage?: Buffer): Promise<Buffer | null> {

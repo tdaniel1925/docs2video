@@ -99,11 +99,11 @@ export async function GET() {
     }
     const dailyActivity = Object.entries(dailyMap).map(([date, counts]) => ({ date, ...counts }))
 
-    // VPS health check
+    // render service health check
     let vpsStatus = 'unknown'
     try {
-      const vpsUrl = videoServiceUrl()
-      const vpsRes = await fetch(`${vpsUrl}/health`, { signal: AbortSignal.timeout(5000) })
+      const renderUrl = videoServiceUrl()
+      const vpsRes = await fetch(`${renderUrl}/health`, { signal: AbortSignal.timeout(5000) })
       vpsStatus = vpsRes.ok ? 'healthy' : 'degraded'
     } catch { vpsStatus = 'offline' }
 
