@@ -4,6 +4,9 @@ const { writeFile, mkdir, rm, readFile } = require('fs/promises')
 const { join, dirname } = require('path')
 const { randomUUID, timingSafeEqual } = require('crypto')
 const { tmpdir } = require('os')
+const { createWriteStream } = require('fs')
+const { Readable } = require('stream')
+const { pipeline } = require('stream/promises')
 const { createClient } = require('@supabase/supabase-js')
 const WebSocket = require('ws')
 
@@ -964,6 +967,10 @@ const REMOTION_DIR = process.env.REMOTION_DIR || '/app/remotion'
 const renderCmd = (comp, outFile, propsPath) => process.env.REMOTION_SERVE_URL
   ? ['node', ['scripts/lambda-render.mjs', '--comp', comp, '--props', propsPath, '--out', outFile]]
   : ['npx', ['remotion', 'render', comp, outFile, `--props=${propsPath}`, '--log=info', '--concurrency=12', '--gl=swiftshader', '--image-format=jpeg']]
+// VisualDirector is shipped in this service image and may be newer than the
+// shared Lambda bundle. Always render it from the baked composition so preview
+// and export cannot drift apart.
+const renderVisualDirectorCmd = (outFile, propsPath) => ['npx', ['remotion', 'render', 'src/visualdirector-index.ts', 'VisualDirectorVideo', outFile, `--props=${propsPath}`, '--log=info', '--concurrency=2', '--gl=swiftshader', '--image-format=jpeg', '--codec=h264', '--pixel-format=yuv420p']]
 const V3_LOOK = 'High-end cinematic corporate photography with a RICH, MOODY, PREMIUM grade — like a polished Apple or Bloomberg commercial. Dramatic but expensive-looking lighting, deep controlled shadows, sophisticated color, shallow depth of field, strong sense of place. Confident and modern, NOT bright flat stock photography and NOT depressing. Specific, editorial, characterful real scenes — avoid generic stock-photo clichés. Stay strictly ON TOPIC for the described subject. AVOID: cheesy stock smiles, candlelit/antique/castle/vintage settings, lone sad figures, anything melancholy or off-story. Photoreal, NOT illustration. 16:9, fills 1920x1080. ABSOLUTELY NO text, words, letters, numbers, charts, or logos.'
 
 // The infographic BACKDROP look — precise and designed, matching the Text2Art
@@ -2182,6 +2189,161 @@ RULES:
     }
   }
   run()
+})
+
+// ============================================================
+// VISUALDIRECTOR — overlays grounded visual moments and word-timed captions on
+// an existing talking-head source. This path is isolated to vd_* tables and the
+// private visual-director-exports bucket; it never touches Docs2Video records.
+// ============================================================
+app.post('/render-visual-director', authCheck, async (req, res) => {
+  const { renderJobId, projectId, userId, sourceUrl, durationSeconds, aspect = '16:9', captions = true, scenes = [], words = [], logo = null, exportUpload = null } = req.body || {}
+  if (!renderJobId || !projectId || !userId || !sourceUrl || !Array.isArray(scenes) || !Array.isArray(words)) {
+    return res.status(400).json({ error: 'Missing VisualDirector render payload' })
+  }
+  let parsedSource
+  try { parsedSource = new URL(sourceUrl) } catch { return res.status(400).json({ error: 'Invalid source URL' }) }
+  if (parsedSource.protocol !== 'https:') return res.status(400).json({ error: 'Source URL must use HTTPS' })
+  const seconds = Number(durationSeconds)
+  if (!Number.isFinite(seconds) || seconds <= 0 || seconds > 7200 || scenes.length > 100 || words.length > 100000) {
+    return res.status(400).json({ error: 'Invalid render duration or payload size' })
+  }
+  res.json({ success: true, renderJobId })
+
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+  const setJob = (values) => sb.from('vd_render_jobs').update(values).eq('id', renderJobId).eq('project_id', projectId).eq('user_id', userId)
+  const pub = join(REMOTION_DIR, 'public')
+  const outDir = join(REMOTION_DIR, 'out')
+  const safeId = String(renderJobId).replace(/[^a-zA-Z0-9-]/g, '')
+  let sourcePath = null
+  let logoPath = null
+  let optimizedPath = null
+  const propsPath = join(pub, `vd-${safeId}-props.json`)
+  const outFile = join(outDir, `vd-${safeId}.mp4`)
+
+  try {
+    await mkdir(pub, { recursive: true })
+    await mkdir(outDir, { recursive: true })
+    await setJob({ status: 'running', stage: 'Downloading source video', progress: 5, attempts: 1, started_at: new Date().toISOString(), lease_expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() })
+    await sb.from('vd_projects').update({ status: 'rendering' }).eq('id', projectId).eq('user_id', userId)
+
+    const sourceResponse = await fetch(sourceUrl, { redirect: 'follow', signal: AbortSignal.timeout(180000) })
+    if (!sourceResponse.ok || !sourceResponse.body) throw new Error(`source download failed: ${sourceResponse.status}`)
+    const mime = String(sourceResponse.headers.get('content-type') || '').split(';')[0]
+    const extension = mime === 'video/webm' ? 'webm' : mime === 'video/quicktime' ? 'mov' : 'mp4'
+    const sourceFile = `vd-${safeId}-source.${extension}`
+    sourcePath = join(pub, sourceFile)
+    await pipeline(Readable.fromWeb(sourceResponse.body), createWriteStream(sourcePath))
+
+    let normalizedLogo = null
+    if (logo?.sourceUrl) {
+      const parsedLogo = new URL(logo.sourceUrl)
+      if (parsedLogo.protocol !== 'https:') throw new Error('Logo URL must use HTTPS')
+      const logoResponse = await fetch(logo.sourceUrl, { redirect: 'follow', signal: AbortSignal.timeout(60000) })
+      if (!logoResponse.ok) throw new Error(`logo download failed: ${logoResponse.status}`)
+      const logoBytes = Buffer.from(await logoResponse.arrayBuffer())
+      if (logoBytes.length > 10 * 1024 * 1024) throw new Error('Logo exceeds the 10 MB export limit')
+      const logoMime = String(logoResponse.headers.get('content-type') || '').split(';')[0]
+      const logoExtension = logoMime === 'image/jpeg' ? 'jpg' : logoMime === 'image/webp' ? 'webp' : 'png'
+      const logoFile = `vd-${safeId}-logo.${logoExtension}`
+      logoPath = join(pub, logoFile)
+      await writeFile(logoPath, logoBytes)
+      normalizedLogo = {
+        sourceFile: logoFile,
+        placement: ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(logo.placement) ? logo.placement : 'top-right',
+        start: Math.max(0, Number(logo.start) || 0),
+        end: Math.min(seconds, Number(logo.end) || seconds),
+        size: Math.max(6, Math.min(24, Number(logo.size) || 14)),
+      }
+    }
+
+    const normalizedScenes = scenes.slice(0, 100).map((scene, index) => ({
+      id: String(scene.id || index), start: Number(scene.start) || 0, end: Number(scene.end) || 0,
+      label: String(scene.label || ''), type: String(scene.type || 'none'), title: String(scene.title || '').slice(0, 300),
+      subtitle: String(scene.subtitle || '').slice(0, 500), placement: ['left', 'right', 'full'].includes(scene.placement) ? scene.placement : 'left',
+      color: /^#[0-9a-f]{6}$/i.test(scene.color) ? scene.color : '#a58bff', enabled: scene.enabled !== false,
+      chartData: Array.isArray(scene.chartData) ? scene.chartData.slice(0, 8).map((item) => ({ label: String(item.label || '').slice(0, 60), value: Number(item.value) || 0 })) : [],
+      motionPlan: scene.motionPlan && typeof scene.motionPlan === 'object' ? {
+        purpose: String(scene.motionPlan.purpose || '').slice(0, 300),
+        visual_concept: String(scene.motionPlan.visual_concept || scene.motionPlan.visualConcept || '').slice(0, 300),
+        speaker_region: ['left', 'center', 'right', 'varies'].includes(scene.motionPlan.speaker_region) ? scene.motionPlan.speaker_region : 'center',
+        preferred_region: ['left', 'right', 'full'].includes(scene.motionPlan.preferred_region) ? scene.motionPlan.preferred_region : scene.placement,
+        primary_animation: String(scene.motionPlan.primary_animation || scene.motionPlan.primaryAnimation || 'springUp'),
+        elements: Array.isArray(scene.motionPlan.elements) ? scene.motionPlan.elements.slice(0, 8).map((element) => ({ type: String(element.type || 'card'), content: String(element.content || '').slice(0, 160), animation: String(element.animation || 'springUp'), start: Math.max(0, Number(element.start) || 0) })) : [],
+        exit: String(scene.motionPlan.exit || 'fadeSoft'),
+        intro_seconds: Math.max(.2, Math.min(1.5, Number(scene.motionPlan.intro_seconds ?? scene.motionPlan.introSeconds) || .55)),
+        outro_seconds: Math.max(.2, Math.min(1.2, Number(scene.motionPlan.outro_seconds ?? scene.motionPlan.outroSeconds) || .4)),
+      } : undefined,
+    }))
+    const normalizedWords = words.slice(0, 100000).map((word) => ({ word: String(word.word || '').slice(0, 80), start: Number(word.start) || 0, end: Number(word.end) || 0 }))
+    await writeFile(propsPath, JSON.stringify({ sourceFile, sourceUrl: '', durationSeconds: seconds, aspect, captions: Boolean(captions), scenes: normalizedScenes, words: normalizedWords, logo: normalizedLogo }))
+
+    await withRenderSlot(async () => {
+      await setJob({ stage: 'Rendering MP4', progress: 20, lease_expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() })
+      await new Promise((resolve, reject) => {
+        const { spawn } = require('child_process')
+        const child = spawn(...renderVisualDirectorCmd(outFile, propsPath), { cwd: REMOTION_DIR, env: { ...process.env } })
+        let stderrBuf = '', lastPct = 20, lastWrite = 0
+        const onChunk = (buf) => {
+          const text = buf.toString(); stderrBuf = (stderrBuf + text).slice(-3000)
+          const match = [...text.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop()
+          if (!match) return
+          const done = Number(match[1]), total = Number(match[2])
+          const pct = total > 0 ? 20 + Math.round((done / total) * 70) : 20
+          const now = Date.now()
+          if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setJob({ progress: Math.min(90, pct), stage: `Rendering frame ${done} of ${total}` }).then(() => {}, () => {}) }
+        }
+        child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
+        const timer = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('VisualDirector render timed out')) }, 2 * 60 * 60 * 1000)
+        child.on('error', (error) => { clearTimeout(timer); reject(error) })
+        child.on('close', (code) => { clearTimeout(timer); code === 0 ? resolve() : reject(new Error(`remotion render exit ${code}: ${crashReason(stderrBuf)}`)) })
+      })
+    })
+
+    await setJob({ stage: 'Optimizing MP4 for playback', progress: 92 })
+    optimizedPath = join(outDir, `vd-${safeId}-faststart.mp4`)
+    await runFfmpeg(['-i', outFile, '-c', 'copy', '-movflags', '+faststart', '-y', optimizedPath])
+    await setJob({ stage: 'Uploading MP4', progress: 94 })
+    const videoBuffer = await readFile(optimizedPath)
+    // Full-length exports exceed Supabase Storage's per-upload cap, so the
+    // VisualDirector worker hands us a presigned S3 PUT scoped to this one
+    // object. The Supabase bucket remains only for workers that do not send it.
+    let exportBucket = 'visual-director-exports'
+    let storagePath = `${userId}/${projectId}/${renderJobId}.mp4`
+    if (exportUpload?.url) {
+      const target = new URL(exportUpload.url)
+      if (target.protocol !== 'https:' || !target.hostname.endsWith('.amazonaws.com')) throw new Error('Export upload URL must be an HTTPS S3 URL')
+      if (!String(exportUpload.key || '').startsWith(`${userId}/${projectId}/`)) throw new Error('Export upload key does not belong to this project')
+      const headers = Object.fromEntries(Object.entries(exportUpload.headers || {}).filter(([name]) => /^(content-type|x-amz-[a-z0-9-]+)$/i.test(name)).map(([name, value]) => [name, String(value)]))
+      const put = await fetch(exportUpload.url, { method: 'PUT', headers: { ...headers, 'content-length': String(videoBuffer.length) }, body: videoBuffer, signal: AbortSignal.timeout(15 * 60 * 1000) })
+      if (!put.ok) throw new Error(`Export upload failed: ${put.status} ${(await put.text().catch(() => '')).slice(0, 200)}`)
+      exportBucket = String(exportUpload.bucket)
+      storagePath = String(exportUpload.key)
+    } else {
+      const { error: uploadError } = await sb.storage.from('visual-director-exports').upload(storagePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
+      if (uploadError) throw uploadError
+    }
+    const dimensions = aspect === '9:16' ? [1080, 1920] : aspect === '1:1' ? [1080, 1080] : [1920, 1080]
+    const { error: renderError } = await sb.from('vd_renders').upsert({
+      project_id: projectId, render_job_id: renderJobId, user_id: userId,
+      bucket: exportBucket, storage_path: storagePath, mime_type: 'video/mp4',
+      width: dimensions[0], height: dimensions[1], duration_seconds: seconds, size_bytes: videoBuffer.length,
+    }, { onConflict: 'bucket,storage_path' })
+    if (renderError) throw renderError
+    await setJob({ status: 'completed', stage: 'Export ready', progress: 100, completed_at: new Date().toISOString(), lease_expires_at: null })
+    await sb.from('vd_projects').update({ status: 'completed' }).eq('id', projectId).eq('user_id', userId)
+    console.log(`[render-visual-director ${renderJobId}] DONE -> ${storagePath}`)
+  } catch (error) {
+    console.error(`[render-visual-director ${renderJobId}]`, error.message)
+    await setJob({ status: 'failed', stage: 'Render failed', error_message: String(error.message || error).slice(0, 500), completed_at: new Date().toISOString(), lease_expires_at: null })
+    await sb.from('vd_projects').update({ status: 'failed' }).eq('id', projectId).eq('user_id', userId)
+  } finally {
+    if (sourcePath) await rm(sourcePath, { force: true }).catch(() => {})
+    if (logoPath) await rm(logoPath, { force: true }).catch(() => {})
+    await rm(propsPath, { force: true }).catch(() => {})
+    await rm(outFile, { force: true }).catch(() => {})
+    if (optimizedPath) await rm(optimizedPath, { force: true }).catch(() => {})
+  }
 })
 
 // ============================================================

@@ -58,6 +58,7 @@ import { AppCommercialV4, appV4Metadata } from './AppCommercialV4'
 import { ValorCommercial, valorMetadata, type ValorProps } from './ValorCommercial'
 import { ApexCommercial, apexMetadata, type ApexProps } from './ApexCommercial'
 import { DirectedVideo, directedMetadata, type DirectedProps } from './DirectedVideo'
+import { VisualDirectorVideo, visualDirectorMetadata, type VisualDirectorProps } from './VisualDirectorVideo'
 import { HeroReveal, KineticHype, CinematicOpen, SplitCompare, StatGrid, CTAClose } from './CommercialProto'
 import { CommercialFull, commercialDuration } from './CommercialFull'
 import { CommercialAthletic, athleticDuration } from './CommercialAthletic'
@@ -488,6 +489,16 @@ export const RemotionRoot: React.FC = () => {
       defaultProps={{ plan: { title: '', palette: { bg: '#0a1626', accent: '#cda234', accent2: '#2a4568', text: '#f4f6fb' }, scenes: [] }, starts: [], total: 300 } as DirectedProps}
       calculateMetadata={directedMetadata}
       fps={FPS}
+      width={1920}
+      height={1080}
+      durationInFrames={300}
+    />
+    <Composition
+      id="VisualDirectorVideo"
+      component={VisualDirectorVideo}
+      defaultProps={{ sourceFile: 'visual-director-source.mp4', sourceUrl: '', durationSeconds: 10, aspect: '16:9', captions: true, scenes: [], words: [] } as VisualDirectorProps}
+      calculateMetadata={visualDirectorMetadata}
+      fps={30}
       width={1920}
       height={1080}
       durationInFrames={300}
