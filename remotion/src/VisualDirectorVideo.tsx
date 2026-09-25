@@ -78,7 +78,7 @@ export type VisualDirectorProps = {
   captions: boolean
   scenes: VisualDirectorScene[]
   words: VisualDirectorWord[]
-  logo?: { sourceFile: string; placement: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'; start: number; end: number; size: number } | null
+  logo?: { sourceFile?: string; sourceUrl?: string; placement: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'; start: number; end: number; size: number } | null
 }
 
 const CAPTION_WORDS = 7
@@ -224,7 +224,7 @@ export const VisualDirectorVideo = (props: VisualDirectorProps) => {
       style={{ width, height, objectFit: 'cover' }}
     />
     {scene && <SceneGraphic scene={scene} time={time} captionsVisible={props.captions && props.words.length > 0} />}
-    {logoVisible && props.logo && logoStyle && <Img src={staticFile(props.logo.sourceFile)} style={logoStyle} />}
+    {logoVisible && props.logo && logoStyle && <Img src={props.logo.sourceUrl || staticFile(props.logo.sourceFile || '')} style={logoStyle} />}
     {props.captions && caption.words.length > 0 && <div style={{
       position: 'absolute', left: '12%', right: '12%', bottom: '6%',
       display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0 .3em',
