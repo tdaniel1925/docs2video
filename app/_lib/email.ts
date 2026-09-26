@@ -13,7 +13,14 @@ export function buildEmailTemplate(options: {
   brandColors: { primary: string; secondary: string; accent: string }
   trackingPixelUrl?: string
 }): string {
-  const { videoUrl, infographicUrl, thumbnailUrl, title, clientName, agentName, agentPhoto, logoUrl, brandColors, trackingPixelUrl } = options
+  // Names and titles are typed by people — escape them before they go into HTML.
+  const esc = (s: string) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  const { videoUrl, infographicUrl, thumbnailUrl, brandColors, trackingPixelUrl } = options
+  const title = esc(options.title)
+  const clientName = esc(options.clientName)
+  const agentName = esc(options.agentName)
+  const agentPhoto = options.agentPhoto ? esc(options.agentPhoto) : options.agentPhoto
+  const logoUrl = options.logoUrl ? esc(options.logoUrl) : options.logoUrl
   const shareUrl = videoUrl ?? infographicUrl ?? ''
 
   return `<!DOCTYPE html>
@@ -74,6 +81,25 @@ export function buildEmailTemplate(options: {
 ${trackingPixelUrl ? `<img src="${trackingPixelUrl}" width="1" height="1" style="display:none;" />` : ''}
 </body>
 </html>`
+}
+
+/**
+ * Send through whichever mailbox the agent connected (Gmail, Outlook, SMTP).
+ * Throws on failure, like the three senders it picks between — callers must
+ * catch and report, never assume it went.
+ */
+export async function sendViaConnection(
+  connection: EmailConnection,
+  to: string,
+  subject: string,
+  html: string
+): Promise<void> {
+  switch (connection.provider) {
+    case 'google': return sendViaGoogle(connection, to, subject, html)
+    case 'microsoft': return sendViaMicrosoft(connection, to, subject, html)
+    case 'smtp': return sendViaSMTP(connection, to, subject, html)
+    default: throw new Error(`Unknown email provider: ${String((connection as { provider?: string }).provider)}`)
+  }
 }
 
 // Send email via SMTP
@@ -166,15 +192,45 @@ export async function sendViaMicrosoft(
   }
 }
 
-function createMimeMessage(from: string, to: string, subject: string, html: string): string {
+/**
+ * Encode a header value per RFC 2047 when it has anything outside plain ASCII.
+ *
+ * A raw "Subject: Your quote 🎉" or "Re: Café plan" is not a legal email
+ * header — Gmail showed these as garbled characters. The encoded form
+ * (=?UTF-8?B?...?=) is what every mail client expects. Long values are split
+ * into several encoded words so no single one breaks the 75-character limit,
+ * and never in the middle of a character.
+ */
+export function encodeMimeHeader(value: string): string {
+  const v = String(value ?? '').replace(/[\r\n]+/g, ' ')
+  if (/^[\x20-\x7e]*$/.test(v)) return v
+  const words: string[] = []
+  let chunk = ''
+  for (const ch of Array.from(v)) {
+    // 45 raw bytes → 60 base64 chars, + the 12-char wrapper = 72 (< 75).
+    if (Buffer.byteLength(chunk + ch, 'utf8') > 45) {
+      words.push(chunk)
+      chunk = ''
+    }
+    chunk += ch
+  }
+  if (chunk) words.push(chunk)
+  return words.map(w => `=?UTF-8?B?${Buffer.from(w, 'utf8').toString('base64')}?=`).join('\r\n ')
+}
+
+export function createMimeMessage(from: string, to: string, subject: string, html: string): string {
+  // Base64 body so accents, emoji and long lines survive every mail server
+  // (a raw 8-bit body with no transfer encoding is not guaranteed to).
+  const body = Buffer.from(html, 'utf8').toString('base64').replace(/(.{76})/g, '$1\r\n')
   return [
     `From: ${from}`,
     `To: ${to}`,
-    `Subject: ${subject}`,
+    `Subject: ${encodeMimeHeader(subject)}`,
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=utf-8',
+    'Content-Transfer-Encoding: base64',
     '',
-    html,
+    body,
   ].join('\r\n')
 }
 
