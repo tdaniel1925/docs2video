@@ -289,7 +289,8 @@ export default function SocialMediaPage() {
             <li>Connect X, Instagram, Facebook, LinkedIn, YouTube + more</li>
             <li>AI writes captions; AI generates branded images</li>
             <li>Auto-post your videos (incl. YouTube) on a schedule</li>
-            <li>Content generation uses your normal credits</li>
+            <li>Captions and images use your normal credits</li>
+            <li>Each post costs 25 credits per platform (e.g. 3 platforms = 75 credits)</li>
           </ul>
         </div>
         <button onClick={subscribeToAddon} disabled={addonLoading} className="btn btn-primary btn-lg">
