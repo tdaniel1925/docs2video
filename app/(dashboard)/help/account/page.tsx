@@ -58,13 +58,16 @@ export default function AccountHelpPage() {
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Docs2Video sends notifications for key events like video completion and client engagement. You can manage notification preferences from your Settings page.
+            Docs2Video sends notifications for key events like video completion and client engagement.
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={{ color: 'var(--ink)' }}>Video Complete</strong> — Notified when your video finishes generating, especially useful if you navigate away during generation.
           </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={{ color: 'var(--ink)' }}>Share Page Views</strong> — Know when a client opens your share page. You get an email, and a text if your phone number is saved. Your own visits to your share link never count.
+          </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>Share Page Views</strong> — Know when a client opens your share page and watches your video.
+            <strong style={{ color: 'var(--ink)' }}>Choosing how many view alerts you get</strong> — Open <strong>Activity</strong> from the menu and pick the <strong>Notifications</strong> tab. Under <strong>View alerts</strong>, choose <em>Each new viewer</em> (one alert per person, then quiet for 12 hours if they come back), <em>First time only</em>, or <em>Off</em>. The choice saves as soon as you click it, and you&apos;ll see &ldquo;Saved.&rdquo; under the options.
           </p>
         </div>
       </div>

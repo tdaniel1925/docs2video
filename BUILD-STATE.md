@@ -5,6 +5,18 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
+## 2026-09-26 — Client emails, follow-ups, tracking (audit C5, H9, H10 + mediums)
+
+Branch `fix/audit-clients-emails`. **Needs migration `supabase/migrations/20260926_client_emails_followups.sql` run by hand** (adds `sent_emails.email_type/quote_id` + unique (quote_id, email_type), `quotes.auto_follow_up/accepted_at`, `email_suppressions`, `profiles.view_alerts`). Until it runs: automatic follow-ups send NOTHING, the view-alert setting can't be saved (alerts stay "each viewer, 12h cooldown"), share emails still send and track.
+
+- **Follow-up cron** (`/api/cron/follow-ups`): opt-in per quote (default off), only open quotes (sent/viewed), skips converted/unsubscribed clients, stages day 3 → day 7 (latest due only, ≥3 days apart, never an earlier stage after a later one), row written before sending (unique index = no doubles), sent from the agent's connected mailbox only, signed unsubscribe link in every email. Rules: `app/_lib/follow-up-schedule.ts` (tested).
+- **Quotes**: video page has Mark as paid / accepted / declined / Reopen + "Automatic follow-ups" switch (`PUT /api/quotes`, new `DELETE /api/quotes?quoteId=`). Paid/accepted → client `converted`. Edits no longer reset status to 'sent'.
+- **Unsubscribe**: `/api/email-prefs?t=<signed token>` for users, demo leads and agents' clients (`app/_lib/unsubscribe-token.ts`). Old `?uid=` / `?lead=` links still work.
+- **Share emails**: Resend results checked everywhere in these routes (`app/_lib/client-email.ts` `sendWithResend`); one greeting; escaped paragraphs; `sent_emails` written with `to_email` (the real column); sent from the agent's connected mailbox when present, Docs2Video fallback; white-label plans unbranded; rate limited. Gmail subjects RFC 2047 encoded.
+- **View alerts**: owner's own views ignored; per-viewer 12h cooldown; max 6/video/hour; setting on Activity → Notifications (`/api/analytics/alert-prefs`). `question_asked` is its own event.
+- **Share page**: slide decks (`output_type='deck'`) render in the HTML frame; presentation links keep serving the last good build during/after a re-edit (failed rebuild restores the previous version); public watch API no longer returns payment intent id, plan, owner id, brand guide or policy data; any https booking link gets the big button.
+- **Follow-up plan** emails are labeled as drafts (manual send) — nothing sends them on a schedule.
+
 ## 2026-09-16 — Infographic slides on fal, real logo pinned by code
 
 Explainer slides are drawn by `app/_lib/slide-engine.ts` now (fal
@@ -316,6 +328,7 @@ Full-codebase review in `CODE-REVIEW-2026-07-01.md`. Fixed in one pass:
 | Video VPS | `VIDEO_ASSEMBLY_URL`, `VIDEO_ASSEMBLY_SECRET` | External FFmpeg server |
 | Public API | `INTERNAL_API_SECRET` | Trusted header for v1 API → internal route calls (required to enable `/api/v1`) |
 | App Config | `NEXT_PUBLIC_SITE_URL`, `ADMIN_EMAIL`, `IMAGE_MODEL` | App settings |
+| Unsubscribe links | `EMAIL_UNSUBSCRIBE_SECRET` (optional; falls back to `CRON_SECRET`, then the service key) | Signs unsubscribe links. Changing it breaks links already sent. |
 
 ---
 
