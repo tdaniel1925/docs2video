@@ -46,13 +46,12 @@ export async function POST() {
       payment_method_types: ['card'],
     })
 
-    return NextResponse.json({
-      clientSecret: setupIntent.client_secret,
-      customerId,
-    })
+    // No customer id in the reply: /api/confirm-card reads the customer from
+    // the user's own profile and must never trust one from the browser.
+    return NextResponse.json({ clientSecret: setupIntent.client_secret })
   } catch (err) {
+    // Raw Stripe detail stays in the log; the user gets a plain sentence.
     console.error('[create-setup-intent] Error:', err)
-    const message = err instanceof Error ? err.message : 'Failed to create setup intent'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'We could not open the secure card form just now. Please refresh and try again.' }, { status: 500 })
   }
 }

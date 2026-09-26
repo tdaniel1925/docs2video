@@ -254,6 +254,11 @@ export default function SettingsPage() {
       setTab('integrations')
       setTimeout(() => setStripeMessage(null), 5000)
     }
+    // Back from an in-place plan change (no second subscription is created).
+    // The new plan shows once Stripe confirms it, usually within seconds.
+    if (searchParams.get('plan_changed')) {
+      notify(`Your plan is changing to ${searchParams.get('plan_changed')}. It updates here within a few seconds.`, 'success')
+    }
   }, [searchParams])
 
   async function loadEmailConnections() {
@@ -1185,8 +1190,11 @@ export default function SettingsPage() {
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ tier: plan.tier }),
                         })
-                        const data = await res.json()
+                        const data = await res.json().catch(() => ({}))
+                        // url = Stripe Checkout, the billing portal, or back
+                        // here after an in-place plan change.
                         if (data.url) window.location.href = data.url
+                        else notify(data.error || 'Could not change your plan. Please try again.', 'error')
                       }} className="btn btn-primary" style={{ width: '100%', fontSize: 13 }}>
                         {currentTier !== 'free' ? `Switch to ${plan.label}` : `Subscribe to ${plan.label}`}
                       </button>

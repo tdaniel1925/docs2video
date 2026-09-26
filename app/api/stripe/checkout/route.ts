@@ -1,17 +1,20 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { createClient } from '../../../_lib/supabase/server'
-import { getStripe, SUBSCRIPTION_PRICES } from '../../../_lib/stripe'
-import type { PlanTier } from '../../../_lib/pricing'
-import { getAffiliateByCode } from '../../../_lib/affiliate'
+import { startSubscription } from '../../../_lib/subscription-checkout'
+import { safeReturnOrigin } from '../../../_lib/billing'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
 /**
  * POST /api/stripe/checkout
- * Creates a Stripe Checkout session for a subscription.
- * Accepts { planId: 'pro' | 'business' | 'enterprise' }. (Starter $29 retired.)
+ * Start a subscription, or change the plan of an existing one.
+ * Accepts { planId: 'pro' | 'business' | 'enterprise', promo? }. (Starter $29 retired.)
+ *
+ * An existing subscriber is NEVER given a second subscription (audit C3): an
+ * active plan is changed in place, payment trouble goes to the billing portal,
+ * and a card-on-file trial is replaced (the webhook cancels it). All of that
+ * lives in startSubscription, shared with /api/subscribe.
  */
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -20,119 +23,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  const { planId, promo } = (await request.json()) as { planId?: string; promo?: string }
-
-  // Marketing promo codes we will AUTO-APPLY when the upgrade email links in with
-  // ?promo=CODE (the user shouldn't have to retype it). Allowlisted so a guessed
-  // querystring can't apply an arbitrary code. Maps code -> Stripe promotion_code id.
-  const AUTO_PROMOS: Record<string, string> = {
-    WELCOME50: 'promo_1TmecCFnyKCNDapH0cD2Au8F', // 50% off first month
-  }
-
-  // Starter is retired — no new Starter subscriptions (existing ones grandfathered).
-  if (!planId || !['pro', 'business', 'enterprise'].includes(planId)) {
-    return NextResponse.json({ error: 'Invalid plan.' }, { status: 400 })
-  }
-
-  const priceId = SUBSCRIPTION_PRICES[planId as Exclude<PlanTier, 'free'>]
-  if (!priceId) {
-    return NextResponse.json({ error: 'Price not configured' }, { status: 500 })
-  }
-
-  // Look up existing customer
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('stripe_customer_id')
-    .eq('id', user.id)
-    .single()
-
-  const origin = request.headers.get('origin') ?? 'https://docs2video.com'
-
-  try {
-    const stripe = getStripe()
-
-    const sessionParams: Record<string, unknown> = {
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/dashboard?subscribed=${planId}`,
-      cancel_url: `${origin}/settings?tab=subscription`,
-      metadata: {
-        supabase_user_id: user.id,
-        type: 'subscription',
-        tier: planId,
-      },
-      subscription_data: {
-        metadata: {
-          supabase_user_id: user.id,
-          tier: planId,
-        },
-      },
-    }
-
-    // Affiliate attribution: if the buyer arrived via a referral link, the
-    // d2v_ref cookie holds the code. Auto-apply that affiliate's Stripe promo
-    // code (gives the 15% buyer discount + attributes the sale). Stripe forbids
-    // combining `discounts` with `allow_promotion_codes`, so we pick one:
-    // auto-apply when we have a valid referral, otherwise allow manual entry.
-    let appliedReferral = false
-    try {
-      const refCode = (await cookies()).get('d2v_ref')?.value
-      if (refCode) {
-        const affiliate = await getAffiliateByCode(refCode)
-        // Skip self-referral and inactive affiliates.
-        if (affiliate && affiliate.status === 'active' && affiliate.user_id !== user.id && affiliate.stripe_promo_code_id) {
-          sessionParams.discounts = [{ promotion_code: affiliate.stripe_promo_code_id }]
-          appliedReferral = true
-        }
-      }
-    } catch (e) {
-      console.warn('[checkout] referral cookie handling failed (non-fatal):', e)
-    }
-    if (!appliedReferral) {
-      // A marketing promo from the upgrade email (?promo=CODE) auto-applies if it's
-      // on the allowlist. Stripe forbids `discounts` + `allow_promotion_codes`
-      // together, so an auto-applied promo replaces the manual-entry box.
-      const autoPromoId = promo ? AUTO_PROMOS[promo.toUpperCase()] : undefined
-      if (autoPromoId) {
-        sessionParams.discounts = [{ promotion_code: autoPromoId }]
-      } else {
-        // Let any buyer still enter a promo code manually.
-        sessionParams.allow_promotion_codes = true
-      }
-    }
-
-    if (profile?.stripe_customer_id) {
-      sessionParams.customer = profile.stripe_customer_id
-    } else {
-      sessionParams.customer_email = user.email
-    }
-
-    let session
-    try {
-      session = await stripe.checkout.sessions.create(
-        sessionParams as Parameters<typeof stripe.checkout.sessions.create>[0]
-      )
-    } catch (err) {
-      // Self-heal stale customer IDs (e.g. test-mode leftovers): clear the
-      // dead reference and retry with email so the purchase still succeeds
-      if (err instanceof Error && err.message.includes('No such customer') && sessionParams.customer) {
-        console.warn(`[checkout] Stale stripe_customer_id for user ${user.id} — clearing and retrying`)
-        const { createAdminClient } = await import('../../../_lib/supabase/admin')
-        await createAdminClient().from('profiles').update({ stripe_customer_id: null }).eq('id', user.id)
-        delete sessionParams.customer
-        sessionParams.customer_email = user.email
-        session = await stripe.checkout.sessions.create(
-          sessionParams as Parameters<typeof stripe.checkout.sessions.create>[0]
-        )
-      } else {
-        throw err
-      }
-    }
-
-    return NextResponse.json({ url: session.url })
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
-  }
+  const { planId, promo } = (await request.json().catch(() => ({}))) as { planId?: string; promo?: string }
+  const result = await startSubscription({
+    userId: user.id,
+    email: user.email,
+    planId,
+    promo,
+    origin: safeReturnOrigin(request),
+  })
+  return NextResponse.json(result.body, { status: result.status })
 }
