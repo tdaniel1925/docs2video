@@ -68,7 +68,9 @@ export async function GET(request: Request) {
 
         // Send referral prompt email
         if (resend && profile.email) {
-          await resend.emails.send({
+          // Resend returns failures instead of throwing. Throw it ourselves so a
+          // failed send is logged and the user is NOT marked as already prompted.
+          const { error: sendError } = await resend.emails.send({
             from: 'Docs2Video <support@docs2video.com>',
             to: profile.email,
             subject: 'Love Docs2Video? Share it with a colleague',
@@ -108,6 +110,7 @@ export async function GET(request: Request) {
               </div>
             `,
           })
+          if (sendError) throw new Error(sendError.message)
         }
 
         // Mark user as prompted

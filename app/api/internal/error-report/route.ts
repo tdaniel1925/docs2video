@@ -81,12 +81,15 @@ export async function POST(request: Request) {
 
   try {
     const resend = new Resend(process.env.RESEND_API_KEY)
-    await resend.emails.send({
+    // Resend returns failures instead of throwing — surface it so the caller
+    // knows the alert never reached anyone.
+    const { error: sendError } = await resend.emails.send({
       from: 'Docs2Video Alerts <support@docs2video.com>',
       to: ALERT_TO,
       subject: `⚠️ Docs2Video error: ${source}${videoId ? ` (${videoId.slice(0, 8)})` : ''}`,
       html,
     })
+    if (sendError) throw new Error(sendError.message)
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('[error-report] Failed to send alert email:', err instanceof Error ? err.message : err)

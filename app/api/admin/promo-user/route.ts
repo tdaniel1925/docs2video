@@ -65,11 +65,14 @@ export async function POST(request: Request) {
   }).eq('id', newUser.user.id)
   await ensureCreditBalance(newUser.user.id, 'enterprise')
 
-  // Send welcome email
+  // Send welcome email. Resend returns failures instead of throwing, so check
+  // the result and tell the admin — they're waiting on this and would
+  // otherwise assume the person got their set-password instructions.
+  let emailSent = false
   try {
     const { Resend } = await import('resend')
     const resend = new Resend(process.env.RESEND_API_KEY)
-    await resend.emails.send({
+    const { error: sendError } = await resend.emails.send({
       from: 'Docs2Video <notifications@docs2video.com>',
       to: email,
       subject: 'Welcome to Docs2Video — Your Account is Ready',
@@ -85,11 +88,18 @@ export async function POST(request: Request) {
         </div>
       `,
     })
+    if (sendError) console.error('[promo-user] Email failed:', sendError.message)
+    else emailSent = true
   } catch (e) {
     console.error('[promo-user] Email failed:', e)
   }
 
-  return NextResponse.json({ ok: true, created: true })
+  return NextResponse.json({
+    ok: true,
+    created: true,
+    emailSent,
+    ...(emailSent ? {} : { warning: 'Account created, but the welcome email did not send. Tell them to use "Forgot password" on the login page.' }),
+  })
 }
 
 export async function DELETE(request: Request) {

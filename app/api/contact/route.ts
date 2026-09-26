@@ -22,15 +22,22 @@ export async function POST(request: Request) {
     const resend = new Resend(process.env.RESEND_API_KEY!)
     // Route to the support inbox (env-configurable), not a personal address
     const supportInbox = process.env.SUPPORT_EMAIL || 'support@docs2video.com'
-    await resend.emails.send({
+    // Resend returns failures instead of throwing. Without this check a failed
+    // send showed the visitor "Message sent" while nobody ever got it.
+    const { error: sendError } = await resend.emails.send({
       from: 'Docs2Video <noreply@docs2video.com>',
       to: supportInbox,
       replyTo: email,
       subject: `[Contact] ${cleanSubject || 'General'} — ${cleanName}`,
       text: `Name: ${cleanName}\nEmail: ${email}\nSubject: ${cleanSubject || 'General'}\n\nMessage:\n${cleanMessage}`,
     })
+    if (sendError) {
+      console.error('[contact] send failed:', sendError.message)
+      return NextResponse.json({ error: 'Failed to send' }, { status: 500 })
+    }
     return NextResponse.json({ ok: true })
   } catch (err) {
+    console.error('[contact] send failed:', err)
     return NextResponse.json({ error: 'Failed to send' }, { status: 500 })
   }
 }

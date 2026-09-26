@@ -118,12 +118,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         thumbnailUrl
       )
 
-      await resend.emails.send({
+      // Resend returns failures instead of throwing. Throw it ourselves so a
+      // failed send is reported as an error and the contact is NOT marked sent.
+      const { error: sendError } = await resend.emails.send({
         from: 'Docs2Video <notifications@docs2video.com>',
         to: contact.email,
         subject: `${contact.name}, we made a video just for you`,
         html,
       })
+      if (sendError) throw new Error(sendError.message)
 
       // Update contact
       await admin.from('campaign_contacts').update({

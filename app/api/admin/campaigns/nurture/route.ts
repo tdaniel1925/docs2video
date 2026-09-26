@@ -109,12 +109,15 @@ export async function POST() {
     try {
       const { subject, html } = buildNurtureEmail(stage, contact, campaign)
 
-      await resend.emails.send({
+      // Resend returns failures instead of throwing. Throw it ourselves so a
+      // failed send doesn't move the contact to the next nurture stage.
+      const { error: sendError } = await resend.emails.send({
         from: 'Docs2Video <notifications@docs2video.com>',
         to: contact.email,
         subject,
         html,
       })
+      if (sendError) throw new Error(sendError.message)
 
       const nextStage = stage + 1
       const nextNurture = nextStage < 3
