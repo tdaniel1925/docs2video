@@ -233,17 +233,25 @@ export interface WizardDraft {
   step: number
   outputType: 'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'
   purpose?: string
-  contentMethod?: 'url' | 'file' | 'text' | 'ai'
+  /** 'idea' = the user described the video in their own words (no file/link). */
+  contentMethod?: 'url' | 'file' | 'text' | 'ai' | 'idea'
   extractedData?: Record<string, unknown>
   /** Multi-file uploads: one extracted-data object per uploaded document, in
    *  upload order. When >1, the user's `purpose` instruction (e.g. "compare
    *  these three") drives a combine pass that produces a unified brief. The
-   *  single `extractedData` above mirrors the first/primary doc for back-compat. */
-  extractedDocs?: { fileName?: string; data: Record<string, unknown> }[]
+   *  single `extractedData` above mirrors the first/primary doc for back-compat.
+   *  null = back to a single source (the draft API drops the list). */
+  extractedDocs?: { fileName?: string; data: Record<string, unknown> }[] | null
   /** Free-text instruction for what to DO across multiple files ("compare these",
    *  "merge into one overview"). Mirrors/augments `purpose` for the multi-doc case. */
   combineInstruction?: string
-  brandId?: string
+  /** null is a deliberate "no brand" (Skip on the brand step) — different from
+   *  "not chosen yet" (undefined), which may fall back to a detected brand. */
+  brandId?: string | null
+  /** Contact details typed on the brand step when no saved profile is used. */
+  contactPhone?: string
+  contactEmail?: string
+  contactWebsite?: string
   inlineBrand?: {
     name: string
     logoUrl?: string
@@ -266,9 +274,10 @@ export interface WizardDraft {
   clientId?: string
   // Share-page client options (set on the Theme step):
   /** Storage path + name of the uploaded source PDF (only for pdf file uploads),
-   *  captured so the share page can offer it as a download. */
-  sourcePdfPath?: string
-  sourcePdfName?: string
+   *  captured so the share page can offer it as a download. null clears them
+   *  when the source is no longer a PDF. */
+  sourcePdfPath?: string | null
+  sourcePdfName?: string | null
   /** Agent opted to let the client download the original PDF (default off). */
   allowSourceDownload?: boolean
   /** Optional short note the agent writes to the client (share-page banner). */
@@ -295,6 +304,19 @@ export interface WizardDraft {
   // approves or redirects it; the approved brief steers the script generator.
   brief?: VideoBrief
   briefChat?: { role: 'user' | 'assistant'; text: string }[]
+  /** "Skip" on the Review step. true = the brief must NOT steer the script
+   *  (see usableBrief in wizard-draft.ts). */
+  briefSkipped?: boolean
+  // The background script job (generate-script) and its progress.
+  scriptStatus?: 'generating' | 'ready' | 'failed'
+  scriptError?: string | null
+  /** When THIS script job started (ISO time) — the stuck-script sweep measures
+   *  the job's age from here, not from when the draft was made. */
+  scriptStartedAt?: string
+  // Interactive presentation / slide deck choices.
+  presentationTemplate?: string
+  /** The accent color the presentation builder settled on, reused by exports. */
+  resolvedAccent?: string
 }
 
 /**
