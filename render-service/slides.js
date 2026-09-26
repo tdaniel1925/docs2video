@@ -218,13 +218,14 @@ async function elevenTimed(text, outPath) {
   return { words, durationSec: words.length ? words[words.length - 1].end : 0, voice: 'elevenlabs' }
 }
 
-async function openaiTimed(text, outPath) {
+const OPENAI_VOICES = ['nova', 'shimmer', 'onyx', 'echo', 'alloy', 'fable']
+async function openaiTimed(text, outPath, voice) {
   if (!OPENAI_KEY) throw new Error('OPENAI_API_KEY not set')
   const spoken = speakable(text)
   const r = await fetch('https://api.openai.com/v1/audio/speech', {
     method: 'POST',
     headers: { authorization: `Bearer ${OPENAI_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ model: OPENAI_TTS_MODEL, voice: OPENAI_TTS_VOICE, input: spoken, response_format: 'mp3', speed: 0.95 }),
+    body: JSON.stringify({ model: OPENAI_TTS_MODEL, voice: OPENAI_VOICES.includes(voice) ? voice : OPENAI_TTS_VOICE, input: spoken, response_format: 'mp3', speed: 0.95 }),
   })
   if (!r.ok) throw new Error(`OpenAI TTS ${r.status}: ${(await r.text()).slice(0, 160)}`)
   const buf = Buffer.from(await r.arrayBuffer())
@@ -235,7 +236,26 @@ async function openaiTimed(text, outPath) {
   return { words: estimateWordTimings(spoken, durationSec), durationSec, voice: 'openai' }
 }
 
-async function ttsTimed(text, outPath) {
+/**
+ * THE CHOSEN VOICE (audit H2). The wizard offers six voices (OpenAI ids:
+ * nova = Sarah, the female default, plus shimmer/onyx/echo/alloy/fable). The
+ * deck used to ignore the choice and always speak as ElevenLabs "Rachel".
+ *  - default (nova, or nothing sent): ElevenLabs first, exactly as before —
+ *    Rachel is the female default voice and gives exact word timings.
+ *  - any OTHER voice the user picked: that OpenAI voice speaks, so a user who
+ *    chose "James" hears James. Word timings are then estimated (close, not
+ *    exact); if OpenAI fails, ElevenLabs still speaks rather than silence.
+ */
+function wantsChosenVoice(voiceId) {
+  return typeof voiceId === 'string' && OPENAI_VOICES.includes(voiceId) && voiceId !== 'nova'
+}
+async function ttsTimed(text, outPath, voiceId) {
+  if (wantsChosenVoice(voiceId)) {
+    try { return await openaiTimed(text, outPath, voiceId) } catch (err) {
+      console.warn(`[tts] OpenAI voice "${voiceId}" failed (${err && err.message}) — falling back to ElevenLabs`)
+      return await elevenTimed(text, outPath)
+    }
+  }
   try {
     return await elevenTimed(text, outPath)
   } catch (err) {
@@ -243,7 +263,7 @@ async function ttsTimed(text, outPath) {
     // investigated as an outage. This exact message is what turns a silent
     // video into a five-minute fix.
     console.warn(`[tts] ElevenLabs failed (${err && err.message}) — falling back to OpenAI`)
-    return await openaiTimed(text, outPath)
+    return await openaiTimed(text, outPath, voiceId)
   }
 }
 const norm = (s) => s.toLowerCase().replace(/[^a-z0-9$%]/g, '')
@@ -283,7 +303,20 @@ RULES: Cover EVERY distinct audience and offering. Capture pricing ranges and fr
   return extractJson(await claude(sys, `SOURCE TYPE: ${kindHint}\n\nFULL SOURCE TEXT:\n${sourceText.slice(0, 48000)}`, 6000, { model: claude.MODELS.REASON, cache: true }))
 }
 
-async function writerFromUnderstanding(u, shotPaths, regulated, brief) {
+// THE LENGTH THE USER PAID FOR (audit H2). Quick / Standard / Detailed are
+// priced differently, but the writer always made 10-14 scenes, so the choice
+// changed only the price. The count now follows the choice. Standard keeps the
+// original 10-14 exactly. Lives in the dynamic suffix so the cached prompt
+// prefix never changes.
+const SCENE_RANGE = { quick: '6-8', standard: '10-14', detailed: '15-18' }
+function sceneCountRule(detailLevel) {
+  const range = SCENE_RANGE[detailLevel]
+  if (!range || detailLevel === 'standard') return ''
+  const secs = detailLevel === 'quick' ? '~60s' : '~3 minutes'
+  return `\n- LENGTH OVERRIDE (the user chose a ${detailLevel.toUpperCase()} video, ${secs}): write ${range} scenes, not 10-14. Scene 1 = intro, last = cta.`
+}
+
+async function writerFromUnderstanding(u, shotPaths, regulated, brief, detailLevel) {
   // BRIEF PARITY: if the user approved a brief on the Review step, it is the
   // authoritative steering — mirror the block generateScript uses so the slides
   // deck matches the preview (angle / must-cover / avoid / tone).
@@ -325,7 +358,7 @@ RULES:
   // same combined prompt as before.
   const dynamicSuffix = '\n' +
     (shotPaths.length ? `- SCREENSHOTS (REQUIRED): use "screenshot" blocks on 2-3 slides. Page paths (use EXACTLY): ${shotPaths.join(', ')}. 1-2 pins each (x,y % 0-100) with label+cue.` : `- NO screenshots available (document/text source) — do NOT emit screenshot blocks.`) +
-    briefBlock + (regulated ? SLIDE_COMPLIANCE_CLAUSE : '')
+    sceneCountRule(detailLevel) + briefBlock + (regulated ? SLIDE_COMPLIANCE_CLAUSE : '')
   // writer = creative/structured slide-plan generation → WRITE tier. The big static
   // director/schema prefix is prompt-cached; the small dynamic suffix rides plain.
   return extractJson(await claude({ staticPrefix, dynamicSuffix }, 'UNDERSTANDING:\n' + JSON.stringify(u, null, 2), 12000, { model: claude.MODELS.WRITE, cache: true }))
@@ -541,11 +574,93 @@ function complianceLeaks(w) {
  * render + upload. `deps` injects the VPS's existing helpers (gemini image, tts
  * limiter) so we don't duplicate them.
  */
-async function generateSlidePlan({ pub, source, preparer, recipient, music, glass, footer, forcedAccent, shots, presenter, photoPlacement, photos, brief, deps, log }) {
+/**
+ * THE USER'S OWN SCRIPT → a deck plan (audit H2).
+ *
+ * The wizard's script step lets the user edit every scene (by hand or with the
+ * AI), and the app sends those scenes here. They used to be thrown away: this
+ * pipeline re-read the document and wrote a brand-new script, so none of the
+ * user's edits reached the video. Now, when scenes are supplied, they ARE the
+ * deck: each becomes a slide with the user's heading, narration, bullets and
+ * figures. The writer model runs only when nothing was supplied.
+ *
+ * Scene shape from the app: { role: 'cover'|'content'|'closing', title,
+ * narration, beat?, slideData?: { headline, bullets[], stats[{label,value}], cta } }.
+ * Returns the same shape the writer returns ({ title, look, intro, cta, scenes }).
+ */
+function planFromSuppliedScenes(supplied) {
+  const clean = (supplied || []).filter((s) => s && typeof s.narration === 'string' && s.narration.trim())
+  const cover = clean.find((s) => s.role === 'cover')
+  const closing = clean.find((s) => s.role === 'closing')
+  const content = clean.filter((s) => s !== cover && s !== closing)
+  const words = (s, n) => String(s || '').trim().split(/\s+/).slice(0, n).join(' ')
+  // a cue is a short verbatim piece of the narration; when the bullet's words
+  // aren't spoken, leave it empty and the timing spreads the bullets evenly.
+  const cueFor = (narration, text) => {
+    const lead = words(text, 3)
+    return lead && narration.toLowerCase().includes(lead.toLowerCase()) ? lead : ''
+  }
+  const heading = (s, fallback) => words((s.slideData && s.slideData.headline) || s.title || fallback, 8)
+  const blocksFor = (s) => {
+    const sd = s.slideData || {}
+    const narration = s.narration || ''
+    const stats = Array.isArray(sd.stats) ? sd.stats.filter((x) => x && x.value) : []
+    const bullets = Array.isArray(sd.bullets) ? sd.bullets.map((b) => (typeof b === 'string' ? b : b && b.text)).filter(Boolean) : []
+    const blocks = []
+    if (stats.length === 1 && !bullets.length) {
+      const f = figFromKeyNumber({ label: stats[0].label, value: stats[0].value })
+      if (f) blocks.push({ type: 'figure', figure: f })
+    }
+    if (!blocks.length && stats.length) {
+      blocks.push({ type: 'cards', vs: stats.length === 2, cards: stats.slice(0, 4).map((st, i) => ({ label: words(st.label, 4) || `#${i + 1}`, value: String(st.value), accent: i === 0, cue: cueFor(narration, st.label) })) })
+    }
+    if (bullets.length) {
+      blocks.push({ type: 'bullets', items: bullets.slice(0, 4).map((t) => ({ text: words(t, 12), highlight: '', cue: cueFor(narration, t) })) })
+    }
+    if (!blocks.length) {
+      // No on-screen points were written — lift up to three short lines from
+      // the narration so the slide is never a bare heading.
+      const lines = narration.split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter((x) => x.length > 12).slice(0, 3)
+      if (lines.length) blocks.push({ type: 'bullets', items: lines.map((t) => ({ text: words(t, 12), highlight: '', cue: words(t, 3) })) })
+    }
+    return blocks
+  }
+  const scenes = []
+  let id = 1
+  const title = heading(cover || content[0] || {}, 'Your presentation')
+  if (cover) scenes.push({ id: id++, beat: 'intro', kind: 'intro', narration: cover.narration.trim(), layout: { heading: title, align: 'center', media: 'full' }, blocks: [] })
+  for (const s of content) {
+    const blocks = blocksFor(s)
+    const isFigure = blocks.length === 1 && blocks[0].type === 'figure'
+    scenes.push({ id: id++, beat: 'benefit', kind: isFigure ? 'figure' : 'slide', narration: s.narration.trim(), layout: { heading: heading(s, `Part ${id - 1}`), align: 'left', media: 'right' }, blocks, backdrop_prompt: `abstract dark cinematic backdrop evoking "${heading(s, 'the topic')}"` })
+  }
+  const ctaLine = closing && closing.slideData && closing.slideData.cta ? words(closing.slideData.cta, 10) : ''
+  if (closing) scenes.push({ id: id++, beat: 'cta', kind: 'cta', narration: closing.narration.trim(), layout: { heading: heading(closing, 'Thank you'), align: 'center', media: 'full' }, blocks: [] })
+  // No cover supplied → the first content scene opens the deck.
+  if (!cover && scenes.length) scenes[0].beat = 'intro'
+  return {
+    title,
+    look: 'noir',
+    intro: { line1: title, line2: '' },
+    cta: { line: ctaLine || 'Get in touch to take the next step', contact: null },
+    scenes,
+  }
+}
+
+async function generateSlidePlan({ pub, source, preparer, recipient, music, glass, footer, forcedAccent, shots, presenter, photoPlacement, photos, brief, deps, log, suppliedScenes, voiceId, detailLevel }) {
   const say = log || (() => {})
   const kind = source.kind // 'website' | 'pdf' | 'text'
-  say(`comprehending ${kind} (${source.text.length} chars)...`)
-  const u = await comprehend(source.text, kind)
+  const useSupplied = Array.isArray(suppliedScenes) && suppliedScenes.length > 0
+  // With the user's own script there is nothing to comprehend — their scenes
+  // are the content. Regulated detection still reads the source text.
+  let u
+  if (useSupplied) {
+    say(`using your script (${suppliedScenes.length} scenes)...`)
+    u = { what_it_is: String(source.text || '').slice(0, 20000), audiences: [], key_numbers: [] }
+  } else {
+    say(`comprehending ${kind} (${source.text.length} chars)...`)
+    u = await comprehend(source.text, kind)
+  }
 
   const shotByPath = new Map(); const shotPaths = []
   ;(shots || []).forEach((sh) => { const p = (sh.path || '/').replace(/\/$/, '') || '/'; shotByPath.set(p, sh); shotPaths.push(p) })
@@ -555,15 +670,27 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   const regulated = isRegulated(u)
   if (regulated) say('⚖ regulated content detected — compliance mode ON')
 
-  say('writing slide deck...')
-  if (brief && (brief.angle || (brief.keyPoints && brief.keyPoints.length))) say('honoring approved brief')
-  let w = await writerFromUnderstanding(u, shotPaths, regulated, brief)
+  let w
+  if (useSupplied) {
+    // The app already ran its compliance scrub on these scenes (the same one
+    // every other style gets); the scrub below runs again as a safety net.
+    // The length is already in the script — the user chose it on the script step.
+    w = planFromSuppliedScenes(suppliedScenes)
+    if (!w.scenes.length) throw new Error('The supplied script had no scenes with narration.')
+  } else {
+    say('writing slide deck...')
+    if (brief && (brief.angle || (brief.keyPoints && brief.keyPoints.length))) say('honoring approved brief')
+    w = await writerFromUnderstanding(u, shotPaths, regulated, brief, detailLevel)
+  }
 
   // CODE-LEVEL SCRUB (belt-and-suspenders): strip carrier/product names + specific
   // dollar figures + rate % from EVERY on-screen + spoken string, BEFORE VO is
   // generated (so the voice never speaks them either). Then assert nothing leaked.
   if (regulated) {
-    w = scrubSlidePlan(w, u)
+    // For the user's own script, scrub with the fixed carrier/product list
+    // only: harvesting "product names" from the whole raw document would pick
+    // up ordinary capitalized words and cut them out of the user's sentences.
+    w = scrubSlidePlan(w, useSupplied ? {} : u)
     // name removal is word-level, so a scrubbed sentence can lose a word and read
     // broken ("an strategy", "so let's it up"). Re-smooth ONLY the changed lines
     // with a cheap model pass BEFORE VO, so the voice never speaks a stumble.
@@ -602,7 +729,9 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
     // this guards the case where they diverge).
     const agentName = preparer || (presenter && presenter.name)
     const introScene = scenes.find((s) => s.beat === 'intro') || scenes[0]
-    if (clientFirst && agentName && introScene) {
+    // The user's own script already carries the app's personal opening (or the
+    // words the user chose instead) — never add a second greeting on top.
+    if (!useSupplied && clientFirst && agentName && introScene) {
       const doc = regulated ? 'illustration summary' : 'summary'
       const greet = `${clientFirst}, thank you for letting ${agentName} share this ${doc} with you.`
       let body = introScene.narration || ''
@@ -632,7 +761,7 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   // fire VO + backdrops for every scene at once; await all.
   await Promise.all(scenes.map(async (s) => {
     // VO (pooled) — capture duration + resolve this scene's cues
-    const voP = deps.tts(() => ttsTimed(s.narration, join(pub, `dir-vo-${s.id}.mp3`))).then((timed) => {
+    const voP = deps.tts(() => ttsTimed(s.narration, join(pub, `dir-vo-${s.id}.mp3`), voiceId)).then((timed) => {
       const durF = Math.round(timed.durationSec * FPS)
       s._voFrames = durF
       const toFrame = (cue) => { const sec = cueSec(timed.words, cue); return sec == null ? null : Math.round(sec * FPS) }
@@ -705,6 +834,8 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
       onCover: pl === 'cover' || pl === 'both' || pl === 'auto', onClosing: pl === 'closing' || pl === 'both' || pl === 'auto' }
   }
   if (palette) doc.palette = palette
+  // Remember the voice so Fix-a-Scene re-records a scene in the SAME voice.
+  if (voiceId) doc.voiceId = voiceId
   // SFX safety: the renderer's Sfx component loads sfx/*.wav and a missing file
   // cancels the render. If the wavs aren't present, disable SFX in the plan so
   // the render never crashes on them (deploy should provide them, this is a net).
@@ -732,14 +863,14 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
  * by injecting it into the speakable pass for this clip only. Returns the timed
  * result ({words, durationSec}) so cues can be re-resolved.
  */
-async function generateSceneVO({ pub, text, outName, pronounce, tts }) {
+async function generateSceneVO({ pub, text, outName, pronounce, tts, voiceId }) {
   // apply an ad-hoc pronunciation override on top of the standard normalization
   let spoken = text
   if (pronounce && pronounce.word && pronounce.say) {
     try { spoken = spoken.replace(new RegExp(pronounce.word.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), pronounce.say) } catch {}
   }
-  const run = () => ttsTimed(spoken, join(pub, outName))
+  const run = () => ttsTimed(spoken, join(pub, outName), voiceId)
   return tts ? await tts(run) : await run()
 }
 
-module.exports = { estimateWordTimings, audioDurationSec, generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend, isRegulated, productTokens, scrubSlidePlan, smoothScrubbedSlides, complianceLeaks, CARRIER_BLOCKLIST }
+module.exports = { planFromSuppliedScenes, sceneCountRule, wantsChosenVoice, estimateWordTimings, audioDurationSec, generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend, isRegulated, productTokens, scrubSlidePlan, smoothScrubbedSlides, complianceLeaks, CARRIER_BLOCKLIST }

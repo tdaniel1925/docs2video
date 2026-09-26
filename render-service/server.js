@@ -1088,10 +1088,37 @@ const ttsLimit = makeLimiter(3)
 // crashed at 16. Jobs are already async-ACKed, so queueing is invisible to the
 // app — the second job just starts when the first's Chrome fleet exits.
 let renderQueueTail = Promise.resolve()
-function withRenderSlot(fn) {
-  const result = renderQueueTail.then(fn)
+// While a job WAITS for its turn, nothing else writes to its row — so to the
+// app's stuck-video cron it looked dead: after 10 quiet minutes the cron failed
+// it, refunded it and told the user it failed... and then it rendered anyway
+// and was charged again (audit H3). A queued job now stamps its row every two
+// minutes ("still here, waiting in line") until its turn comes. Only rows that
+// are still running are touched, so a finished video is never disturbed.
+const QUEUE_BEAT_MS = 2 * 60 * 1000
+const RUNNING_STATUSES = ['pending', 'starting', 'scripting', 'generating_slides', 'generating_audio', 'assembling', 'queued', 'processing', 'rendering']
+function queueHeartbeat(videoId) {
+  if (!videoId || !SUPABASE_URL || !SUPABASE_KEY) return () => {}
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+  const stamp = () => sb.from('videos').update({
+    progress_updated_at: new Date().toISOString(),
+    progress_detail: 'Waiting in line for the video server — it will start automatically.',
+  }).eq('id', videoId).in('status', RUNNING_STATUSES).then(() => {}, () => {})
+  // First stamp after a few seconds, so a job that starts right away never
+  // flashes a "waiting" message; then every two minutes until its turn.
+  const first = setTimeout(stamp, 5000)
+  const every = setInterval(stamp, QUEUE_BEAT_MS)
+  return () => { clearTimeout(first); clearInterval(every) }
+}
+function withRenderSlot(fn, videoId) {
+  const stopBeat = queueHeartbeat(videoId)
+  const result = renderQueueTail.then(() => { stopBeat(); return fn() })
   renderQueueTail = result.then(() => {}, () => {}) // keep the chain unbroken on failure
+  result.then(stopBeat, stopBeat)
   return result
+}
+/** withRenderSlot for a job that has a videos row to keep alive while queued. */
+function withRenderSlotFor(videoId) {
+  return (fn) => withRenderSlot(fn, videoId)
 }
 
 // Minimum on-screen hold so a SHORT narration can't produce a flash-by slide
@@ -1424,7 +1451,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
     // Stream Remotion's frame progress so the bar moves during the long render
     // (otherwise it parks at 72% for minutes). Map rendered-frames -> 72..89%.
     // withRenderSlot: ONE render's Chrome fleet at a time (review B9).
-    await withRenderSlot(() => new Promise((resolve, reject) => {
+    await withRenderSlotFor(videoId)(() => new Promise((resolve, reject) => {
       const { spawn } = require('child_process')
       // --concurrency=12: ONE Chrome tab per worker. --concurrency=100% on the
       // 16-core box opened 16 tabs and crashed Chrome mid-render (WebSocket died /
@@ -1607,7 +1634,7 @@ app.post('/render-commercial', authCheck, async (req, res) => {
     await writeFile(PROPS, JSON.stringify(props))
     await setProgress(60, 'Rendering commercial...')
 
-    await withRenderSlot(() => new Promise((resolve, reject) => {
+    await withRenderSlotFor(videoId)(() => new Promise((resolve, reject) => {
       const { spawn } = require('child_process')
       const child = spawn(...renderCmd(template, outFile, PROPS),
         { cwd: REMOTION_DIR, env: { ...process.env } })
@@ -1688,7 +1715,7 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
   const staged = []
   let assetDirAbs = null, propsPath = null
 
-  await withRenderSlot(async () => {
+  await withRenderSlotFor(videoId)(async () => {
     try {
       await mkdir(pub, { recursive: true }); await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
       await setProgress(8, 'Studying the brand...')
@@ -1840,10 +1867,32 @@ async function readDocText(fileBase64, fileName) {
   return (await readFile(txtPath, 'utf-8')).slice(0, 120000)
 }
 
+// AI background music for the slide deck — same Lyria model + call shape as
+// /render-v3. Written as a real mp3 (ffmpeg re-encodes whatever Lyria returns),
+// because the deck renderer reads dir-music.mp3 by name. Throws on no audio so
+// the caller can fall back to the silent track.
+async function lyriaMusicToMp3(prompt, outPath) {
+  const { GoogleGenAI } = require('@google/genai')
+  const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 120000 } })
+  const mr = await g.models.generateContent({ model: 'lyria-3-pro-preview', contents: prompt })
+  const parts = mr?.candidates?.[0]?.content?.parts ?? []
+  const part = parts.find((p) => p.inlineData && (p.inlineData.mimeType?.includes('audio') || p.inlineData.mimeType?.includes('mpeg')))
+  if (!part) throw new Error(`lyria returned no audio (${parts.length} parts)`)
+  const rawPath = `${outPath}.raw`
+  await writeFile(rawPath, Buffer.from(part.inlineData.data, 'base64'))
+  try {
+    await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-i', rawPath, '-vn', '-c:a', 'libmp3lame', '-q:a', '4', outPath], { timeout: 60000 }, (e) => e ? reject(e) : resolve()))
+  } finally { await rm(rawPath, { force: true }).catch(() => {}) }
+}
+
 app.post('/generate-slides', authCheck, async (req, res) => {
-  const { videoId, userId, fileBase64, fileName, text, url, preparer, recipient, music, glass, footer, accent, logoUrl, musicUrl, presenter, photoPlacement, photos, brief } = req.body || {}
+  // scenes / voiceId / aiMusic / musicPrompt / detailLevel (audit H2): the user's
+  // own script, chosen voice, music choice and paid-for length. They used to be
+  // dropped here, so the deck ignored every edit and always used one voice.
+  const { videoId, userId, fileBase64, fileName, text, url, preparer, recipient, music, glass, footer, accent, logoUrl, musicUrl, presenter, photoPlacement, photos, brief, scenes, voiceId, aiMusic, musicPrompt, detailLevel } = req.body || {}
+  const suppliedScenes = Array.isArray(scenes) && scenes.some((s) => s && typeof s.narration === 'string' && s.narration.trim()) ? scenes : null
   if (!videoId) return res.status(400).json({ error: 'Missing videoId' })
-  if (!fileBase64 && !text && !url) return res.status(400).json({ error: 'Provide fileBase64, text, or url' })
+  if (!fileBase64 && !text && !url && !suppliedScenes) return res.status(400).json({ error: 'Provide fileBase64, text, url, or scenes' })
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured on VPS' })
   res.json({ success: true })
 
@@ -1854,13 +1903,17 @@ app.post('/generate-slides', authCheck, async (req, res) => {
   const PROPS = join(pub, `dv-${videoId}-props.json`)
   const staged = []
 
-  await withRenderSlot(async () => {
+  await withRenderSlotFor(videoId)(async () => {
     try {
       await mkdir(pub, { recursive: true }); await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
       await setProgress(10, 'Reading source...')
       // 1) get source text
       let source
-      if (url) {
+      if (suppliedScenes) {
+        // The user's own script IS the content. The source text (when sent)
+        // still rides along for regulated-content detection + brand palette.
+        source = { kind: 'text', text: String(text || suppliedScenes.map((s) => `${s.title || ''}\n${s.narration || ''}`).join('\n\n')).slice(0, 120000) }
+      } else if (url) {
         // URL crawl needs Playwright/Chrome-navigation — not wired yet on the VPS.
         throw new Error('URL sources not yet supported on the VPS (Playwright pending); use a document or pasted text.')
       } else if (fileBase64) {
@@ -1868,7 +1921,7 @@ app.post('/generate-slides', authCheck, async (req, res) => {
       } else {
         source = { kind: 'text', text: String(text).slice(0, 120000) }
       }
-      if (!source.text || source.text.trim().length < 60) throw new Error('Not enough readable text in the source.')
+      if (!suppliedScenes && (!source.text || source.text.trim().length < 60)) throw new Error('Not enough readable text in the source.')
 
       // stage logo if provided (so the plan can reference brand-logo.png)
       if (logoUrl) { try { const r = await fetch(logoUrl, { signal: AbortSignal.timeout(30000) }); if (r.ok) { const p = join(pub, 'brand-logo.png'); await writeFile(p, Buffer.from(await r.arrayBuffer())); staged.push(p) } } catch {} }
@@ -1898,6 +1951,14 @@ app.post('/generate-slides', authCheck, async (req, res) => {
           if (musicUrl) {
             try { const r = await fetch(musicUrl, { signal: AbortSignal.timeout(45000) }); if (r.ok) { await writeFile(outPath, Buffer.from(await r.arrayBuffer())); return } } catch {}
           }
+          // The user turned music ON in the wizard → generate it (the setting
+          // used to be dropped, so the deck was always silent).
+          if (aiMusic || musicPrompt) {
+            try {
+              await lyriaMusicToMp3(musicPrompt || 'Create background music. Instrumental only, no vocals. Calm, polished, modern presentation music — soft piano, light synth pads, gentle percussion. Fade out at the end.', outPath)
+              return
+            } catch (e) { console.warn(`[generate-slides ${videoId}] music skipped: ${e.message}`) }
+          }
           // silent fallback (ffmpeg is on the box): 5s of quiet, looped by the renderer.
           await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-t', '5', '-q:a', '9', outPath], { timeout: 30000 }, (e) => e ? reject(e) : resolve()))
         },
@@ -1905,6 +1966,7 @@ app.post('/generate-slides', authCheck, async (req, res) => {
       const { plan, assetNames, sceneMeta } = await generateSlidePlan({
         pub, source, preparer: preparer || 'docs2video', recipient, music, glass, footer, forcedAccent: accent,
         shots: [], presenter: presenterForPlan, photoPlacement, photos: !!photos, brief, deps, log: (m) => setProgress(40, m),
+        suppliedScenes, voiceId, detailLevel,
       })
       staged.push(...assetNames.map((n) => join(pub, n)))
       await writeFile(PROPS, JSON.stringify({ plan })); staged.push(PROPS)
@@ -2105,7 +2167,9 @@ RULES:
       // optional pronunciation override.
       if (!previewOnly) await setProgress(15, 'Re-recording the scene...')
       const voName = `dir-vo-${scene.id}.mp3`
-      const timed = await generateSceneVO({ pub, text: narration, outName: voName, pronounce, tts: (fn) => ttsLimit(fn) })
+      // Same voice the deck was made with (stored on the plan), so a fixed
+      // scene never switches narrator mid-video.
+      const timed = await generateSceneVO({ pub, text: narration, outName: voName, pronounce, tts: (fn) => ttsLimit(fn), voiceId: plan && plan.voiceId })
       staged.push(join(pub, voName))
       // re-resolve this scene's block cues against the NEW timings
       const FPS = 30, durF = Math.round(timed.durationSec * FPS)
@@ -2156,7 +2220,7 @@ RULES:
       await writeFile(PROPS, JSON.stringify({ plan })); staged.push(PROPS)
       await setProgress(45, 'Re-rendering...')
       const reOut = join(REMOTION_DIR, 'out', `${videoId}-reedit.mp4`)
-      await withRenderSlot(() => new Promise((resolve, reject) => {
+      await withRenderSlotFor(videoId)(() => new Promise((resolve, reject) => {
         const { spawn } = require('child_process')
         const child = spawn(...renderCmd('DirectedVideo', reOut, PROPS), { cwd: REMOTION_DIR, env: { ...process.env } })
         let stderrBuf = '', lastPct = 45, lastWrite = 0
@@ -2379,7 +2443,7 @@ app.post('/render-directed', authCheck, async (req, res) => {
 
   // Everything from staging through cleanup runs INSIDE the render slot so no
   // other DirectedVideo render can touch the fixed dir-* filenames concurrently.
-  await withRenderSlot(async () => {
+  await withRenderSlotFor(videoId)(async () => {
     try {
       await mkdir(pub, { recursive: true })
       await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
@@ -2640,7 +2704,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     }))
     await setProgress(72, 'Rendering...')
     // withRenderSlot: ONE render's Chrome fleet at a time (review B9).
-    await withRenderSlot(() => new Promise((resolve, reject) => {
+    await withRenderSlotFor(videoId)(() => new Promise((resolve, reject) => {
       const { spawn } = require('child_process')
       // Pass the real props explicitly so the render NEVER depends on a fragile
       // staticFile fetch inside calculateMetadata. Without this the render can
