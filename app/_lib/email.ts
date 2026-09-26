@@ -1,4 +1,6 @@
 import type { EmailConnection } from './types'
+import { decryptSecret } from './secret-box'
+import { checkSmtpTarget } from './net-guard'
 
 // Build branded HTML email template
 export function buildEmailTemplate(options: {
@@ -83,15 +85,21 @@ export async function sendViaSMTP(
   subject: string,
   html: string
 ): Promise<void> {
+  // Saved hosts are re-checked at send time (rows saved before the SSRF check
+  // existed could point at internal addresses) and we connect to the checked
+  // address. The password may be encrypted at rest (secret-box.ts).
+  const target = await checkSmtpTarget(connection.smtp_host, connection.smtp_port ?? 587)
+  if (!target.ok) throw new Error(`Mail server not allowed: ${target.error}`)
   const nodemailer = require('nodemailer')
   const transport = nodemailer.createTransport({
-    host: connection.smtp_host,
+    host: target.address,
     port: connection.smtp_port ?? 587,
     secure: (connection.smtp_port ?? 587) === 465,
     auth: {
       user: connection.smtp_user,
-      pass: connection.smtp_pass,
+      pass: decryptSecret(connection.smtp_pass),
     },
+    tls: { servername: target.hostname },
   })
 
   await transport.sendMail({
@@ -109,10 +117,10 @@ export async function sendViaGoogle(
   subject: string,
   html: string
 ): Promise<void> {
-  // Refresh token if expired
-  let accessToken = connection.access_token
+  // Refresh token if expired (tokens may be encrypted at rest — secret-box.ts)
+  let accessToken = decryptSecret(connection.access_token)
   if (connection.token_expires_at && new Date(connection.token_expires_at) < new Date()) {
-    accessToken = await refreshGoogleToken(connection.refresh_token!)
+    accessToken = await refreshGoogleToken(decryptSecret(connection.refresh_token)!)
   }
 
   const rawMessage = createMimeMessage(connection.email_address, to, subject, html)
@@ -140,9 +148,9 @@ export async function sendViaMicrosoft(
   subject: string,
   html: string
 ): Promise<void> {
-  let accessToken = connection.access_token
+  let accessToken = decryptSecret(connection.access_token)
   if (connection.token_expires_at && new Date(connection.token_expires_at) < new Date()) {
-    accessToken = await refreshMicrosoftToken(connection.refresh_token!)
+    accessToken = await refreshMicrosoftToken(decryptSecret(connection.refresh_token)!)
   }
 
   const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {

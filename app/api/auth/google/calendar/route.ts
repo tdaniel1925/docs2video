@@ -1,22 +1,11 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../../_lib/supabase/server'
 export const maxDuration = 30
 
+// Google Calendar booking was never finished: this flow sent the user through
+// Google and then saved nothing (the old callback treated "<id>:calendar" as a
+// user id). Until it exists, send the user back to paste a booking-page link,
+// which the share page already supports.
 export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3001'
-  if (!user) return NextResponse.redirect(new URL('/login', siteUrl))
-
-  const params = new URLSearchParams({
-    client_id: process.env.GOOGLE_CLIENT_ID!,
-    response_type: 'code',
-    redirect_uri: `${siteUrl}/api/auth/google/callback`,
-    scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email',
-    access_type: 'offline',
-    prompt: 'consent',
-    state: `${user.id}:calendar`,
-  })
-
-  return NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`)
+  return NextResponse.redirect(`${siteUrl}/settings?tab=integrations&email_error=calendar_link_only`)
 }

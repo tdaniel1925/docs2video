@@ -1,18 +1,45 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { createAdminClient } from '../../../../_lib/supabase/admin'
+import { createClient } from '../../../../_lib/supabase/server'
+import { verifyOAuthState, OAUTH_NONCE_COOKIE, nonceCookieOptions } from '../../../../_lib/oauth-state'
+import { saveOAuthConnection } from '../../../../_lib/email-connections'
 export const maxDuration = 30
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
-  const state = searchParams.get('state') // user ID
+  const state = searchParams.get('state')
   const error = searchParams.get('error')
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3001'
 
-  if (error || !code || !state) {
-    return NextResponse.redirect(`${siteUrl}/settings?email_error=${error ?? 'no_code'}`)
+  // Every exit clears the one-time nonce cookie, so a state value can never be
+  // replayed from this browser.
+  const done = (qs: string) => {
+    const res = NextResponse.redirect(`${siteUrl}/settings?tab=integrations&${qs}`)
+    res.cookies.set(OAUTH_NONCE_COOKIE, '', nonceCookieOptions(0))
+    return res
   }
+
+  if (error || !code || !state) {
+    return done(`email_error=${encodeURIComponent(error ?? 'no_code')}`)
+  }
+
+  // The state must be ours (signed), fresh, started in THIS browser, and the
+  // signed-in user must be the one who started it. Nothing is changed in the
+  // database unless all of that holds.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const check = verifyOAuthState(state, {
+    provider: 'google',
+    cookieNonce: request.cookies.get(OAUTH_NONCE_COOKIE)?.value,
+    sessionUserId: user?.id ?? null,
+  })
+  if (!check.ok) {
+    console.warn('[google-oauth] rejected state:', check.reason)
+    return done(`email_error=${check.reason === 'expired' ? 'link_expired' : 'invalid_state'}`)
+  }
+  const userId = check.payload.u
 
   try {
     // Exchange code for tokens
@@ -29,8 +56,8 @@ export async function GET(request: Request) {
     })
 
     const tokens = await tokenRes.json()
-    if (tokens.error) {
-      return NextResponse.redirect(`${siteUrl}/settings?email_error=${tokens.error}`)
+    if (tokens.error || !tokens.access_token) {
+      return done(`email_error=${encodeURIComponent(tokens.error ?? 'token_exchange_failed')}`)
     }
 
     // Get user's email from Google userinfo API
@@ -40,28 +67,21 @@ export async function GET(request: Request) {
     const userInfo = await userInfoRes.json()
     const emailAddress = userInfo.email ?? 'unknown'
 
-    // Save to database
-    const admin = createAdminClient()
-    const userId = state
-
-    // Remove existing Google connection for this user
-    await admin.from('email_connections').delete().eq('user_id', userId).eq('provider', 'google')
-
-    // Insert new connection
-    const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString()
-    await admin.from('email_connections').insert({
-      user_id: userId,
+    // Save first, then remove the old Google connection (inside the helper), so
+    // a failed save never leaves the user with no connection. Tokens are
+    // encrypted at rest.
+    await saveOAuthConnection(createAdminClient(), {
+      userId,
       provider: 'google',
-      email_address: emailAddress,
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
-      token_expires_at: expiresAt,
-      is_default: true,
+      emailAddress,
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token ?? null,
+      expiresInSeconds: tokens.expires_in,
     })
 
-    return NextResponse.redirect(`${siteUrl}/settings?tab=integrations&email_connected=google`)
+    return done('email_connected=google')
   } catch (err) {
-    console.error('[google-oauth] Error:', err)
-    return NextResponse.redirect(`${siteUrl}/settings?email_error=token_exchange_failed`)
+    console.error('[google-oauth] Error:', err instanceof Error ? err.message : err)
+    return done('email_error=token_exchange_failed')
   }
 }
