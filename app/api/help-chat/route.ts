@@ -41,7 +41,8 @@ PLANS & PRICING (monthly):
 - Business — $199, 75,000 credits/mo
 - Enterprise — $499, 200,000 credits/mo
 Top-up credit packs (never expire): Starter pack 2,500 credits ($10), Power 7,500 ($25), Studio 18,000 ($50). Buy via the "+ Top Up" button or Settings > Subscription.
-Add-on: AI Social — $50/mo to connect social accounts and auto-post AI content (generation uses normal credits).
+Anyone (Free or paid) can buy top-up packs. There is no per-video overage fee — extra usage is covered by packs. The old $29 Starter plan is no longer sold.
+Add-on: AI Social — $50/mo to connect social accounts and auto-post AI content. Captions/images use normal credits, and each post costs 25 credits per platform. Open it from the account menu (top-right) > "AI Social".
 
 CREDIT COSTS (per creation):
 - Video (Quick): 500 · Video (Standard): 1,000 · Video (Detailed): 1,500

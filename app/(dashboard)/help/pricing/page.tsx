@@ -39,7 +39,7 @@ export default function PricingHelpPage() {
             Your credit balance is shown in the top menu bar. Before any action that uses credits, you&apos;ll see the cost and can confirm before proceeding.
           </p>
           <p>
-            Monthly credits reset on your billing date. Need more? Buy credit packs anytime on any paid plan — purchased credits never expire.
+            Monthly plan credits reset on your billing date. Need more? Anyone — free or paid — can buy a credit pack anytime from the <strong style={{ color: 'var(--ink)' }}>+ Top Up</strong> button next to your balance. Purchased credits never expire.
           </p>
         </div>
       </div>
@@ -71,8 +71,8 @@ export default function PricingHelpPage() {
                 ['PDF document', '600'],
                 ['Infographic', '300'],
                 ['Each extra uploaded file', '+150'],
-                ['Style preview (first free)', '100'],
-                ['Script regeneration (first free)', '50'],
+                ['Custom style preview', '50'],
+                ['AI Social post (per platform)', '25'],
               ].map(([action, cost]) => (
                 <tr key={action} style={{ borderBottom: '1px solid var(--border-light)' }}>
                   <td style={{ padding: '8px 0' }}>{action}</td>
@@ -90,11 +90,11 @@ export default function PricingHelpPage() {
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Free — 2 Short Videos
+          Free — 2,000 Credits to Start
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Every new account starts with <strong style={{ color: 'var(--ink)' }}>2,000 credits</strong> (enough for <strong style={{ color: 'var(--ink)' }}>about 2 standard explainer videos</strong>). Cancel anytime.
+            Every new account starts with <strong style={{ color: 'var(--ink)' }}>2,000 credits</strong> (enough for <strong style={{ color: 'var(--ink)' }}>about 2 standard explainer videos</strong>). These are a one-time welcome gift, not a monthly refill. You add a card to unlock them; nothing is charged until they run out.
           </p>
           <p>
             All features included: AI content extraction, script editing, voice narration, background music, and downloads in MP4, PPTX, and PDF formats.
@@ -120,10 +120,10 @@ export default function PricingHelpPage() {
           <p style={{ marginBottom: 10 }}>
             Approximately <strong style={{ color: 'var(--ink)' }}>25 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>50 quick videos</strong> per month.
           </p>
-          <p style={{ marginBottom: 6 }}>{BULLET} Priority video generation</p>
-          <p style={{ marginBottom: 6 }}>{BULLET} Unlimited brands</p>
-          <p style={{ marginBottom: 6 }}>{BULLET} Style previews included</p>
-          <p>{BULLET} Buy extra credits: $5 per 1,000</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} Unlimited brand profiles</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} Share pages with AI chat</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} API and AI-assistant access</p>
+          <p>{BULLET} Need more? Credit packs from $10 (see below)</p>
         </div>
       </div>
 
@@ -139,10 +139,10 @@ export default function PricingHelpPage() {
           <p style={{ marginBottom: 10 }}>
             Approximately <strong style={{ color: 'var(--ink)' }}>75 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>150 quick videos</strong> per month.
           </p>
-          <p style={{ marginBottom: 6 }}>{BULLET} White-label share pages</p>
-          <p style={{ marginBottom: 6 }}>{BULLET} Unlimited style previews</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} White-label share pages (no Docs2Video branding)</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} Unlimited brand profiles</p>
           <p style={{ marginBottom: 6 }}>{BULLET} Priority support</p>
-          <p>{BULLET} Buy extra credits: $4 per 1,000</p>
+          <p>{BULLET} Need more? Credit packs from $10 (see below)</p>
         </div>
       </div>
 
@@ -158,10 +158,10 @@ export default function PricingHelpPage() {
           <p style={{ marginBottom: 10 }}>
             Approximately <strong style={{ color: 'var(--ink)' }}>200 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>400 quick videos</strong> per month.
           </p>
-          <p style={{ marginBottom: 6 }}>{BULLET} API access and bulk creation</p>
-          <p style={{ marginBottom: 6 }}>{BULLET} White-label share pages</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} White-label share pages (no Docs2Video branding)</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} API and AI-assistant access</p>
           <p style={{ marginBottom: 6 }}>{BULLET} Dedicated support</p>
-          <p>{BULLET} Buy extra credits: $3 per 1,000</p>
+          <p>{BULLET} Need more? Credit packs from $10 (see below)</p>
         </div>
       </div>
 
@@ -175,7 +175,7 @@ export default function PricingHelpPage() {
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 16 }}>
-            Need more credits? Buy a pack anytime. Purchased credits <strong style={{ color: 'var(--ink)' }}>never expire</strong> — they stay in your account until used.
+            Need more credits? Buy a pack anytime, on any plan (including Free): click <strong style={{ color: 'var(--ink)' }}>+ Top Up</strong> next to your credit balance at the top of the screen. Purchased credits <strong style={{ color: 'var(--ink)' }}>never expire</strong> — they stay in your account until used, and are spent after your monthly plan credits.
           </p>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
