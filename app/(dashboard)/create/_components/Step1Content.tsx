@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { SLIDE_STYLES } from '../../../_lib/types'
 import { uploadAndExtract, uploadAndExtractMany } from './uploadAndExtract'
+import ClientPicker, { type PickedClient } from './ClientPicker'
 type OutputType = 'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'
 type InputMethod = 'url' | 'upload' | 'text' | 'idea' | null
 type Stage = 'idle' | 'extracting' | 'error' | 'generating-preview' | 'style-suggest'
@@ -39,8 +40,11 @@ export default function Step1Content() {
   // this for?" and lose their earlier choice.
   const [restoredClientId, setRestoredClientId] = useState<string | undefined>(undefined)
   const [restoredGeneral, setRestoredGeneral] = useState(false)
-  const clientId = clientIdParam || restoredClientId
-  const forGeneral = forGeneralParam || restoredGeneral
+  /* WHO IT'S FOR, chosen on this screen (the separate /create/client page is
+     gone). undefined = not touched here, so the URL / restored draft wins. */
+  const [picked, setPicked] = useState<PickedClient | null | undefined>(undefined)
+  const clientId = picked !== undefined ? (picked?.clientId ?? undefined) : (clientIdParam || restoredClientId)
+  const forGeneral = picked !== undefined ? picked?.clientId === null : (forGeneralParam || restoredGeneral)
   // If we arrived back here from a later step, a draft already exists — reuse it
   // instead of creating a second orphaned row.
   const existingDraftId = searchParams.get('id') || undefined
@@ -531,50 +535,31 @@ export default function Step1Content() {
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 20px' }}>
-      {/* Output type is chosen in Step 1 — show it as a small confirmation header. */}
-      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>
-          {outputType === 'video' ? '🎬 New video explainer' : outputType === 'interactive' ? '🖱️ New interactive presentation' : outputType === 'deck' ? '📑 New slide deck' : '📊 New slide presentation'}
-        </div>
-        <a href="/create/start" style={{ fontSize: 13, color: 'var(--primary, #2563eb)', textDecoration: 'none', fontWeight: 600 }}>Change</a>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 30, fontWeight: 800, color: 'var(--ink)', margin: 0, letterSpacing: '-0.02em' }}>What&rsquo;s this about?</h1>
+        <p style={{ fontSize: 15, color: 'var(--ink-light)', margin: '6px 0 0' }}>Three questions. Nothing is made or charged until step 3.</p>
       </div>
 
-      {/* Recipient — VIDEO ONLY. Slides are general collateral, no recipient.
-          Reflects the Step-1 "Who's this for?" decision; never re-asks. */}
-      {outputType === 'video' && (
-      <div style={{ marginBottom: 16 }}>
+      {/* WHO IT'S FOR — asked once, for every kind of output, and reused on
+          the cover, the send email and the share page. */}
+      <div style={{ marginBottom: 20 }}>
         <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 8 }}>
-          Who is this for?
+          Who is it for?
         </label>
-        {clientId ? (
-          // A client was chosen in Step 1 — show a read-only confirmation chip.
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-soft, #f7f6f2)', fontSize: 15 }}>
-            <span><strong>{clientName || recipientName || 'Selected client'}</strong></span>
-            <a href="/create/client" style={{ fontSize: 13, color: 'var(--primary, #2563eb)', textDecoration: 'none', fontWeight: 600 }}>Change</a>
-          </div>
-        ) : forGeneral ? (
-          // Skip → general video; don't re-ask for a name.
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-soft, #f7f6f2)', fontSize: 15, color: 'var(--ink-light)' }}>
-            <span>General — not for a specific person</span>
-            <a href="/create/client" style={{ fontSize: 13, color: 'var(--primary, #2563eb)', textDecoration: 'none', fontWeight: 600 }}>Change</a>
-          </div>
-        ) : (
-          // Direct entry (no Step-1 signal) — let them type a name.
-          <input
-            type="text"
-            value={recipientName}
-            onChange={(e) => setRecipientName(e.target.value)}
-            placeholder="e.g. John Smith (optional)"
-            style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--border)', fontSize: 15, fontFamily: 'inherit', background: 'var(--bg)' }}
-          />
-        )}
+        <ClientPicker
+          value={clientId ? { clientId, name: clientName || recipientName || 'Selected client' } : forGeneral ? { clientId: null, name: '' } : null}
+          onPick={(c) => {
+            setPicked(c)
+            setClientName(c?.clientId ? c.name : null)
+            setRecipientName(c?.clientId ? c.name : '')
+          }}
+        />
       </div>
-      )}
 
       {/* Purpose input */}
       <div style={{ marginBottom: 24 }}>
         <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 8 }}>
-          What should this {outputType === 'video' ? 'video' : outputType === 'pptx' ? 'deck' : 'document'} do?
+          What should it get them to do?
         </label>
         <textarea
           value={purpose}
@@ -600,7 +585,7 @@ export default function Step1Content() {
           Where should the content come from?
         </div>
         <div style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 12 }}>
-          Pick one — we&rsquo;ll use it to write your {outputType === 'video' ? 'video' : outputType === 'pptx' ? 'deck' : 'document'}.
+          Pick one — we&rsquo;ll read it and plan the story from it.
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
           {CONTENT_METHODS.map((m) => (
@@ -1110,7 +1095,7 @@ export default function Step1Content() {
         <>
         <div style={{ display: 'flex', gap: 10 }}>
           <button
-            onClick={() => router.push(clientId ? `/create/client?clientId=${clientId}` : '/create/client')}
+            onClick={() => router.push('/dashboard')}
             disabled={stage === 'extracting'}
             style={{
               padding: '14px 20px',
@@ -1125,7 +1110,7 @@ export default function Step1Content() {
               whiteSpace: 'nowrap',
             }}
           >
-            &larr; Back
+            Cancel
           </button>
           <button
             onClick={handleNext}
@@ -1142,33 +1127,15 @@ export default function Step1Content() {
               cursor: stage === 'extracting' ? 'not-allowed' : 'pointer',
             }}
           >
-            {stage === 'extracting' ? 'Processing...' : 'Next'}
+            {stage === 'extracting' ? 'Reading…' : 'Read it and plan the story →'}
           </button>
-          {stage === 'idle' && method && (
-            <button
-              onClick={handleQuickMode}
-              style={{
-                padding: '14px 20px',
-                borderRadius: 10,
-                border: '1.5px solid var(--border)',
-                background: 'white',
-                color: 'var(--ink-soft)',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Quick mode
-            </button>
-          )}
         </div>
-        {stage === 'idle' && method && (
-          <div style={{ fontSize: 12, color: 'var(--ink-light)', textAlign: 'right', marginTop: 6 }}>
-            Quick mode skips styling &amp; voice — uses defaults and jumps to script review.
-          </div>
-        )}
+        {/* Other things this account can make — they used to be cards on a
+            separate chooser page before this one. */}
+        <div style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 14, textAlign: 'center' }}>
+          Making something else? <a href="/design" style={{ color: 'var(--primary, #2563eb)', fontWeight: 600 }}>Custom graphics</a>
+          {' · '}<a href="/create/commercial" style={{ color: 'var(--primary, #2563eb)', fontWeight: 600 }}>A commercial</a>
+        </div>
         </>
       )}
     </div>
