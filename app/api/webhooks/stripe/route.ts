@@ -9,6 +9,8 @@ import {
 } from '../../../_lib/credits'
 import { recordCommission, clawbackByInvoice } from '../../../_lib/affiliate'
 import { sendApexSaleEvent } from '../../../_lib/apex'
+import { findAuthUserByEmail, isEmailConfirmed } from '../../../_lib/auth-user-lookup'
+import { siteUrl } from '../../../_lib/site-url'
 import { subscriptionIdFromInvoice, priceIdFromInvoice, isSocialAddonSubscription } from '../../../_lib/stripe-invoice'
 import { getPlan, getUserTier } from '../../../_lib/pricing'
 import {
@@ -127,6 +129,9 @@ export async function POST(request: Request) {
           const apexName = session.metadata?.apex_name ?? null
           const referralSource = session.metadata?.referral_source ?? null
           const hadAccountAtCheckout = !!userId
+          // Send the "choose a password" email when this purchase made the
+          // account, or matched one whose owner never confirmed the address.
+          let needsPasswordSetup = false
 
           if (!userId) {
             const created = await supabase.auth.admin.createUser({
@@ -136,10 +141,20 @@ export async function POST(request: Request) {
             })
             if (created.data?.user) {
               userId = created.data.user.id
+              needsPasswordSetup = true
             } else {
-              const { data: existing } = await supabase
-                .from('profiles').select('id').eq('email', apexEmail).maybeSingle()
-              userId = existing?.id ?? undefined
+              // The address is already taken. Match on the SIGN-IN email Supabase
+              // holds, not profiles.email: anyone can type any address into their
+              // own profile, which would let a stranger's account receive this
+              // buyer's paid plan.
+              const existing = await findAuthUserByEmail(supabase, apexEmail)
+              if (existing) {
+                userId = existing.id
+                // Unconfirmed = whoever signed up never proved they own this
+                // inbox. The set-password email goes to that inbox, so the real
+                // owner (the buyer) can still take the account over.
+                if (!isEmailConfirmed(existing)) needsPasswordSetup = true
+              }
             }
             if (!userId) {
               // They PAID and we have no account for them. This used to be
@@ -173,17 +188,27 @@ export async function POST(request: Request) {
             })
           }
 
-          // Welcome / password-setup email — only for accounts made by this purchase.
-          if (!hadAccountAtCheckout) {
+          // Welcome / password-setup email — only for accounts made by this
+          // purchase (or matched but never confirmed, see above).
+          if (!hadAccountAtCheckout && needsPasswordSetup) {
             try {
-              const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://docs2video.com'
               const link = await supabase.auth.admin.generateLink({
                 type: 'recovery',
                 email: apexEmail,
-                // Same landing as "Forgot password" — /reset-password never existed.
-                options: { redirectTo: `${appUrl}/auth/callback?next=/settings` },
+                options: { redirectTo: `${siteUrl()}/reset-password` },
               })
-              const actionLink = link.data?.properties?.action_link
+              if (link.error) console.error('[webhook] apex set-password link failed:', link.error.message)
+              // Prefer our own /auth/confirm link: it checks the one-time token
+              // on the server and opens the new-password page on ANY device.
+              // (The old link went through /auth/callback, which needs a code
+              // these server-made links never carry, so buyers landed on the
+              // login page with no password.) The raw Supabase link — which
+              // drops the buyer on /reset-password with the session in the
+              // address — is only a fallback.
+              const hashed = link.data?.properties?.hashed_token
+              const actionLink = hashed
+                ? `${siteUrl()}/auth/confirm?token_hash=${encodeURIComponent(hashed)}&type=recovery&next=/reset-password`
+                : link.data?.properties?.action_link
               if (actionLink) {
                 const { sendApexWelcomeEmail } = await import('../../../_lib/apex')
                 await sendApexWelcomeEmail({ to: apexEmail, actionLink })

@@ -244,7 +244,9 @@ export async function sendApexWelcomeEmail(opts: {
 }): Promise<void> {
   const { Resend } = await import('resend')
   const resend = new Resend(process.env.RESEND_API_KEY!)
-  await resend.emails.send({
+  // Resend returns failures instead of throwing. Throw it so the caller logs
+  // it — otherwise a buyer silently never gets their set-password link.
+  const { error } = await resend.emails.send({
     from: 'Docs2Video <support@docs2video.com>',
     to: opts.to,
     subject: 'Welcome to Docs2Video — set up your account',
@@ -267,4 +269,5 @@ export async function sendApexWelcomeEmail(opts: {
       </div>
     `,
   })
+  if (error) throw new Error(`apex welcome email failed: ${error.message}`)
 }
