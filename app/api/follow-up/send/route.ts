@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { sendViaConnection } from '../../../_lib/email'
 import { messageToHtml } from '../../../_lib/client-email'
+import { siteUrl } from '../../../_lib/site-url'
 import { checkRateLimit, rateLimit } from '../../../_lib/rate-limit'
 import type { EmailConnection } from '../../../_lib/types'
 
@@ -67,10 +68,11 @@ export async function POST(request: Request) {
 
   if (!connection) return NextResponse.json({ error: 'No email connection configured' }, { status: 400 })
 
-  // Build the share link
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL
-    ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
-  const shareLink = `${baseUrl}/watch/${plan.video_id}`
+  // Build the share link from the configured public site address. It used to
+  // fall back to VERCEL_URL — the per-deploy address ("xyz.vercel.app") —
+  // so a client could get a link that isn't docs2video.com and that stops
+  // working once that deploy is gone.
+  const shareLink = `${siteUrl()}/watch/${plan.video_id}`
   const agentName = profile?.full_name ?? 'Your Agent'
   const clientName = plan.client_name ?? ''
 

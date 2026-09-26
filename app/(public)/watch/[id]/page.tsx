@@ -1034,9 +1034,11 @@ export default function PublicWatchPage() {
   const hasCalendly = calendlyUrl.length > 0
   // Can the recipient pay? True when the agent has a payment link (Stripe
   // Payment Link / Square / PayPal) or a per-quote link. No Stripe Connect.
+  // Only a real https link counts — otherwise a Pay button appeared that
+  // could only ever show "no payment link is set up".
   const hasStripe = !!(
-    (agent as any)?.payment_link_url?.trim()
-    || (video?.script as any)?._pipeline_input?.paymentLink
+    safeLink(agent?.payment_link_url)
+    || safeLink((video?.script as any)?._pipeline_input?.paymentLink)
   )
   const hasQuote = !!(quote && quote.status !== 'paid')
   const hasPaidQuote = !!(quote && quote.status === 'paid')

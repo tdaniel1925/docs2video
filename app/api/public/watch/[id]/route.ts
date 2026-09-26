@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../../_lib/supabase/admin'
+import { safeHttpsUrl } from '../../../../_lib/client-email'
 
 export const runtime = 'nodejs'
 
@@ -68,13 +69,22 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   // document text that the generator stashed there (audit H3).
   const script = (video as any).script
   if (script && typeof script === 'object' && script._pipeline_input) {
-    const pd = script._pipeline_input.policyData || {}
+    const pi = script._pipeline_input
+    const pd = pi.policyData || {}
+    // The per-video booking / payment links ARE shown on the share page, so
+    // they pass through — but only when they are real https links. The agent
+    // types them, and a "javascript:" link in a button would run code in the
+    // client's browser. The page checks again before drawing any button.
+    const bookingUrl = safeHttpsUrl(pi.bookingUrl)
+    const paymentLink = safeHttpsUrl(pi.paymentLink)
     script._pipeline_input = {
       policyData: {
         deathBenefit: pd.deathBenefit,
         industry: pd.industry,
         disclaimers: pd.disclaimers,
       },
+      ...(bookingUrl ? { bookingUrl } : {}),
+      ...(paymentLink ? { paymentLink } : {}),
     }
   }
 
@@ -105,8 +115,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     photo_url: profile.photo_url,
     email: profile.email,
     phone: profile.phone,
-    calendly_url: profile.calendly_url,
-    payment_link_url: profile.payment_link_url,
+    // Same rule for the agent's saved links: https only, or nothing.
+    calendly_url: safeHttpsUrl(profile.calendly_url) || null,
+    payment_link_url: safeHttpsUrl(profile.payment_link_url) || null,
     white_label: WHITELABEL_PLANS.includes(plan),
     free_tier: !PAID_PLANS.includes(plan),
   } : null
