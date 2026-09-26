@@ -5,6 +5,19 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
+## 2026-09-26 — Sign-in, route protection, settings, onboarding, storage, security (audit fixes)
+
+From `AUDIT-2026-09-26.md` (C6, C7, H11, H13, H14 + related medium/low items):
+- **Public pages**: the logged-out allow-list lives in `app/_lib/public-paths.ts` (tested). Blog, contact, `/m/*`, `/unsubscribe/*`, the contact / lead-capture / health APIs are reachable; logged-out `/pricing` shows the new public `/plans` page (same PLANS data); `/industries/*` → `/for/*`; API calls without a session get 401 JSON; login keeps `?next=`.
+- **Gmail/Outlook connect**: signed, expiring `state` + one-time nonce cookie + session match (`app/_lib/oauth-state.ts`). Outlook button replaced by a note when `MICROSOFT_*` is unset. Google Calendar "connect" (never worked) now asks for a booking-page link.
+- **SMTP**: public mail servers on ports 25/465/587/2525 only (`app/_lib/net-guard.ts`), password never echoed, one default connection. Passwords/tokens encrypted when `DATA_ENCRYPTION_KEY` is set.
+- **Auth emails**: new `/reset-password` page (outside the dashboard), new `/auth/confirm` (token_hash, works across devices), `emailRedirectTo` on sign-up, link errors shown on login/forgot-password, welcome email only after confirmation.
+- **Profiles guard v2**: `supabase/migrations/20260926_profiles_guard_v2.sql` (NOT applied). Social add-on gates confirm with Stripe until then (`app/_lib/social-addon.ts`).
+- **Logos/assets**: processed logos → public `logos` bucket; `scripts/fix-private-logo-urls.mjs` repairs old rows; `/api/upload-asset` saves paths + returns signed links; photo uploads use unique paths + sniffed type.
+- **Other**: `/admin` gated server-side; impersonation uses the site URL; Apex checkout secret compared in constant time; sign-up referrals written as `affiliates.id` + `signed_up`; onboarding saves/finish/skip report failures and the plan picker uses PLANS.
+
+Owner to-do: run the migration; set `DATA_ENCRYPTION_KEY`; add `/auth/confirm` + `/reset-password` + `/auth/callback` to Supabase redirect URLs and switch the email templates to `/auth/confirm?token_hash=…`; run `node scripts/fix-private-logo-urls.mjs --apply`.
+
 ## 2026-09-16 — Infographic slides on fal, real logo pinned by code
 
 Explainer slides are drawn by `app/_lib/slide-engine.ts` now (fal
@@ -316,6 +329,8 @@ Full-codebase review in `CODE-REVIEW-2026-07-01.md`. Fixed in one pass:
 | Video VPS | `VIDEO_ASSEMBLY_URL`, `VIDEO_ASSEMBLY_SECRET` | External FFmpeg server |
 | Public API | `INTERNAL_API_SECRET` | Trusted header for v1 API → internal route calls (required to enable `/api/v1`) |
 | App Config | `NEXT_PUBLIC_SITE_URL`, `ADMIN_EMAIL`, `IMAGE_MODEL` | App settings |
+| Encryption at rest | `DATA_ENCRYPTION_KEY` | AES-256-GCM key for SMTP passwords + Gmail/Outlook tokens (`app/_lib/secret-box.ts`). Optional — unset = stored plaintext with a warning. Never change once set. |
+| OAuth state | `OAUTH_STATE_SECRET` | Optional HMAC key for Gmail/Outlook connect `state`; falls back to a key derived from the service-role key |
 
 ---
 
