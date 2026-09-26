@@ -18,13 +18,9 @@ import { addTopupCredits, refundVideoCredits } from './credits'
 // amount.
 // =============================================================================
 
-/** Every status that means "this job is still running". One list, used by the
- *  one-at-a-time limit in generate-video AND the stuck-video cron, so a job the
- *  cron watches always counts against the limit (and vice versa). */
-export const IN_PROGRESS_STATUSES = [
-  'pending', 'starting', 'scripting', 'generating_slides', 'generating_audio',
-  'assembling', 'queued', 'processing', 'rendering',
-] as const
+/** Every status that means "this job is still running" — defined in the pure
+ *  video-running module (so browser pages can import it) and re-exported here. */
+export { IN_PROGRESS_STATUSES } from './video-running'
 
 /** Ledger actions that TAKE credits for a video render. */
 export const VIDEO_CHARGE_ACTIONS = ['video_generation', 'recharge_video'] as const
