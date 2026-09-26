@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/client'
 import { SLIDE_STYLES, VOICE_OPTIONS } from '../../_lib/types'
 import type { Profile } from '../../_lib/types'
+import { PLANS } from '../../_lib/pricing'
 
 type SetupStep = 1 | 2 | 3 | 4 | 5
 
@@ -129,7 +130,7 @@ export default function SetupPage() {
     setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) { setLoading(false); router.push('/login'); return }
 
     const { error } = await supabase.from('profiles').update({
       full_name: fullName,
@@ -225,15 +226,19 @@ export default function SetupPage() {
     setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) { setLoading(false); router.push('/login'); return }
 
-    // Check for existing default brand
+    // Check for existing default brand. limit(1) + maybeSingle: with .single()
+    // a user who already had two defaults got null back, so every Back/Next
+    // inserted yet another brand.
     const { data: existing } = await supabase
       .from('brands')
       .select('id')
       .eq('user_id', user.id)
       .eq('is_default', true)
-      .single()
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
 
     const brandData = {
       user_id: user.id,
@@ -244,13 +249,12 @@ export default function SetupPage() {
       ...colors,
     }
 
-    if (existing) {
-      await supabase.from('brands').update(brandData).eq('id', existing.id)
-    } else {
-      await supabase.from('brands').insert(brandData)
-    }
+    const { error: saveErr } = existing
+      ? await supabase.from('brands').update(brandData).eq('id', existing.id)
+      : await supabase.from('brands').insert(brandData)
 
     setLoading(false)
+    if (saveErr) { setError('Could not save your brand. Please try again.'); return }
     setStep(4)
   }
 
@@ -304,26 +308,37 @@ export default function SetupPage() {
     setStep(5)
   }
 
+  // Finishing or skipping must actually record onboarding_completed before we
+  // leave: the dashboard sends anyone without it straight back to /setup, so a
+  // silently failed save used to loop the user here (or spin forever when the
+  // session had lapsed). On failure we stay put and say so.
   async function skipSetup() {
+    setLoading(true)
+    setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', user.id)
+    if (!user) { setLoading(false); router.push('/login'); return }
+    const { error } = await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', user.id)
+    if (error) { setLoading(false); setError('Could not save your progress. Please try again.'); return }
     router.push('/dashboard')
+    router.refresh()
   }
 
   async function finishSetup() {
     setLoading(true)
+    setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) { setLoading(false); router.push('/login'); return }
 
-    await supabase.from('profiles').update({
+    const { error } = await supabase.from('profiles').update({
       default_style: selectedStyle,
       onboarding_completed: true,
     }).eq('id', user.id)
+    if (error) { setLoading(false); setError('Could not finish setup. Please try again.'); return }
 
     router.push('/dashboard')
+    router.refresh()
   }
 
   function scrollCarousel(dir: 'left' | 'right') {
@@ -787,75 +802,43 @@ export default function SetupPage() {
               </button>
             </div>
 
-            {/* Comparison table */}
-            <div style={{ border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
-              {/* Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', background: 'var(--bg-soft)', borderBottom: '1px solid var(--border-light)' }}>
-                <div style={{ padding: '12px 16px', fontSize: 12, fontWeight: 700, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em' }}></div>
-                <div style={{ padding: '12px 16px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Starter</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>$29<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-soft)' }}>/mo</span></div>
-                </div>
-                <div style={{ padding: '12px 16px', textAlign: 'center', background: 'var(--mint, #d4edda)', position: 'relative' }}>
-                  <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--ink)', color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>BEST VALUE</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Pro</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>$49<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-soft)' }}>/mo</span></div>
-                </div>
-                <div style={{ padding: '12px 16px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Agency</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>$149<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-soft)' }}>/mo</span></div>
-                </div>
-              </div>
-              {/* Rows */}
-              {[
-                { label: 'Videos / month', values: ['20', '60', '150'] },
-                { label: 'Cost per video', values: ['$1.45', '$0.82', '$0.99'] },
-                { label: 'vs. pay-per-video ($10)', values: ['Save 85%', 'Save 92%', 'Save 90%'], highlight: true },
-                { label: 'Custom templates', values: ['3', 'Unlimited', 'Unlimited'] },
-                { label: 'Brand profiles', values: ['3', 'Unlimited', 'Unlimited'] },
-                { label: 'Team seats', values: ['1', '3', '10'] },
-                { label: 'Priority support', values: ['\u2713', '\u2713', '\u2713'] },
-              ].map((row, i) => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', borderBottom: '1px solid var(--border-light)' }}>
-                  <div style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{row.label}</div>
-                  {row.values.map((val, j) => (
-                    <div key={j} style={{ padding: '10px 16px', fontSize: 13, textAlign: 'center', color: row.highlight ? 'var(--mint-darker, #2d7a4f)' : 'var(--ink-soft)', fontWeight: row.highlight ? 700 : 400, background: j === 1 ? 'rgba(199,232,168,0.08)' : 'transparent' }}>
-                      {val}
-                    </div>
-                  ))}
+            {/* Plan cards \u2014 built from PLANS (pricing.ts), the same list the
+                pricing page and checkout use. The old hand-written table
+                offered Starter/Agency at stale prices, which checkout rejects
+                ("Invalid plan."). */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
+              {PLANS.filter(p => p.tier !== 'free' && p.tier !== 'starter').map((plan) => (
+                <div key={plan.tier} style={{ border: plan.tier === 'pro' ? '2px solid var(--ink)' : '1px solid var(--border-light)', borderRadius: 10, padding: 16, textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{plan.label}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>${plan.monthlyPrice / 100}<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-soft)' }}>/mo</span></div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--mint-darker)', margin: '6px 0 2px' }}>{plan.monthlyCredits.toLocaleString()} credits / mo</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 12, flex: 1 }}>~{plan.approxStandardVideos} standard videos</div>
+                  <button
+                    disabled={subscribing}
+                    onClick={async () => {
+                      setSubscribing(true)
+                      setError(null)
+                      try {
+                        const res = await fetch('/api/stripe/checkout', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ planId: plan.tier }),
+                        })
+                        const data = await res.json().catch(() => ({}))
+                        if (data.url) { window.location.href = data.url; return }
+                        throw new Error(data.error || 'Could not start checkout. Please try again.')
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : 'Failed to start checkout')
+                      }
+                      setSubscribing(false)
+                    }}
+                    className={plan.tier === 'pro' ? 'btn btn-primary btn-sm' : 'btn btn-soft btn-sm'}
+                    style={{ width: '100%', fontSize: 12 }}
+                  >
+                    {subscribing ? '...' : 'Subscribe'}
+                  </button>
                 </div>
               ))}
-              {/* CTA row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', padding: '12px 0' }}>
-                <div></div>
-                {['starter', 'pro', 'agency'].map((plan) => (
-                  <div key={plan} style={{ padding: '4px 16px', textAlign: 'center' }}>
-                    <button
-                      disabled={subscribing}
-                      onClick={async () => {
-                        setSubscribing(true)
-                        try {
-                          const res = await fetch('/api/stripe/checkout', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ planId: plan }),
-                          })
-                          const data = await res.json()
-                          if (data.url) window.location.href = data.url
-                          else throw new Error(data.error || 'Failed')
-                        } catch (err) {
-                          setError(err instanceof Error ? err.message : 'Failed to start checkout')
-                        }
-                        setSubscribing(false)
-                      }}
-                      className={plan === 'pro' ? 'btn btn-primary btn-sm' : 'btn btn-soft btn-sm'}
-                      style={{ width: '100%', fontSize: 12 }}
-                    >
-                      {subscribing ? '...' : 'Subscribe'}
-                    </button>
-                  </div>
-                ))}
-              </div>
             </div>
 
             <div style={{ textAlign: 'center' }}>

@@ -1,19 +1,45 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { login } from '../../_actions/auth'
 import { useBrand } from '../../_components/BrandProvider'
 
+// Messages for ?error= codes sent here by the email-link routes. Before, a
+// failed confirmation or reset link dropped the user on a plain login form
+// with no hint of what went wrong.
+function linkErrorText(code: string): string {
+  switch (code) {
+    case 'otp_expired':
+    case 'link_expired':
+      return 'That email link has expired or was already used. Sign in below, or use “Forgot password?” to get a new link.'
+    case 'auth_failed':
+    default:
+      return 'We couldn’t sign you in from that email link. It may have expired, or it was opened in a different browser than the one you signed up in. Sign in below, or use “Forgot password?” to get a new link.'
+  }
+}
+
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const brand = useBrand()
-  const [error, setError] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const linkError = searchParams.get('error')
+  const [formError, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const error = formError ?? (linkError ? linkErrorText(linkError) : null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
-    setError(null)
+    setError('') // '' (not null) also hides the ?error= link message
     const formData = new FormData(e.currentTarget)
     const result = await login(formData)
     if (result?.error) {
