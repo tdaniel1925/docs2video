@@ -67,8 +67,8 @@ describe('mergeExtractedDocs — every file is used', () => {
   it('includes the second file’s content, labelled by file', () => {
     const m = mergeExtractedDocs(docs)!
     expect(m.bulletPoints).toEqual(['a.pdf: cheap', 'b.pdf: fast'])
-    expect((m.keyMetrics as any[]).map((k) => k.label)).toEqual(['Premium (a.pdf)', 'Premium (b.pdf)'])
-    expect((m.sections as any[])[1].content).toBe('B text')
+    expect((m.keyMetrics as { label: string }[]).map((k) => k.label)).toEqual(['Premium (a.pdf)', 'Premium (b.pdf)'])
+    expect((m.sections as { content: string }[])[1].content).toBe('B text')
     expect(m.combinedFromDocs).toBe(2)
   })
   it('returns a single file unchanged', () => {

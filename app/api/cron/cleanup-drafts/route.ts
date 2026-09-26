@@ -91,11 +91,12 @@ export async function GET(request: Request) {
   // Remove their kept source PDFs — only files inside each owner's own folder.
   const pdfs = new Set<string>()
   for (const d of toDelete) {
-    const dd = (d.draft_data || {}) as Record<string, any>
+    type Doc = { data?: { _sourcePdfPath?: unknown } } | null
+    const dd = (d.draft_data || {}) as { sourcePdfPath?: unknown; extractedData?: { _sourcePdfPath?: unknown }; extractedDocs?: unknown }
     const candidates = [
       dd.sourcePdfPath,
       dd.extractedData?._sourcePdfPath,
-      ...(Array.isArray(dd.extractedDocs) ? dd.extractedDocs.map((x: any) => x?.data?._sourcePdfPath) : []),
+      ...(Array.isArray(dd.extractedDocs) ? (dd.extractedDocs as Doc[]).map((x) => x?.data?._sourcePdfPath) : []),
     ]
     for (const p of candidates) if (isOwnedStoragePath(p, d.user_id)) pdfs.add(p)
   }

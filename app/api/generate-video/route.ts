@@ -282,7 +282,7 @@ export async function POST(request: Request) {
   if (!videoRow) {
     return NextResponse.json({ error: 'We couldn’t find that video. Please start again from Create.' }, { status: 404 })
   }
-  const draft = ((videoRow.draft_data as Record<string, any> | null) || {}) as Record<string, any>
+  const draft = ((videoRow.draft_data as Record<string, unknown> | null) || {}) as Record<string, unknown>
   const CLAIMABLE_STATUSES = ['draft', 'failed', 'pending']
   const priorStatus = String(videoRow.status || '')
   if (!CLAIMABLE_STATUSES.includes(priorStatus)) {

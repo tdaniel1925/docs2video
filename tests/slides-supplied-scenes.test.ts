@@ -3,9 +3,16 @@ import { createRequire } from 'module'
 
 // The Slide Deck renderer used to throw away the user's edited script, chosen
 // voice and length (audit H2). These pin the three pieces that carry them.
+type Block = {
+  type: string
+  items?: { text: string }[]
+  figure?: { value: number; prefix: string }
+}
+type Scene = { beat: string; narration: string; blocks: Block[] }
+
 const require = createRequire(import.meta.url)
 const slides = require('../render-service/slides.js') as {
-  planFromSuppliedScenes: (s: unknown[]) => { title: string; scenes: any[]; cta: { line: string } }
+  planFromSuppliedScenes: (s: unknown[]) => { title: string; scenes: Scene[]; cta: { line: string } }
   sceneCountRule: (d?: string) => string
   wantsChosenVoice: (v?: string) => boolean
 }
@@ -32,11 +39,11 @@ describe('planFromSuppliedScenes', () => {
   })
 
   it('puts the user’s bullets and figures on the slides', () => {
-    const bullets = plan.scenes[1].blocks.find((b: any) => b.type === 'bullets')
-    expect(bullets.items.map((i: any) => i.text)).toEqual(['Coverage for the whole family', 'Low monthly cost'])
-    const fig = plan.scenes[2].blocks.find((b: any) => b.type === 'figure')
-    expect(fig.figure.value).toBe(500000)
-    expect(fig.figure.prefix).toBe('$')
+    const bullets = plan.scenes[1].blocks.find((b) => b.type === 'bullets')
+    expect(bullets?.items?.map((i) => i.text)).toEqual(['Coverage for the whole family', 'Low monthly cost'])
+    const fig = plan.scenes[2].blocks.find((b) => b.type === 'figure')
+    expect(fig?.figure?.value).toBe(500000)
+    expect(fig?.figure?.prefix).toBe('$')
   })
 
   it('never leaves a content slide as a bare heading', () => {
