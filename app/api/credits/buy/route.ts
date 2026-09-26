@@ -93,22 +93,23 @@ export async function POST(request: Request) {
 
     // Affiliate attribution: auto-apply the referrer's Stripe promo code if the
     // buyer arrived via a referral link (d2v_ref cookie). Mirrors the
-    // subscription checkout. Stripe forbids discounts + allow_promotion_codes
-    // together, so pick one.
-    let appliedReferral = false
+    // subscription checkout.
+    //
+    // NO manual promo-code box on credit packs (audit, Low): subscription
+    // codes like WELCOME50 ("50% off your first month") also worked on packs,
+    // so anyone could buy credits at half price. Packs are already discounted
+    // by size; marketing codes are for plans.
     try {
       const refCode = (await cookies()).get('d2v_ref')?.value
       if (refCode) {
         const affiliate = await getAffiliateByCode(refCode)
         if (affiliate && affiliate.status === 'active' && affiliate.user_id !== user.id && affiliate.stripe_promo_code_id) {
           (sessionParams as any).discounts = [{ promotion_code: affiliate.stripe_promo_code_id }]
-          appliedReferral = true
         }
       }
     } catch (e) {
       console.warn('[credits/buy] referral cookie handling failed (non-fatal):', e)
     }
-    if (!appliedReferral) (sessionParams as any).allow_promotion_codes = true
 
     let session
     try {
@@ -134,9 +135,10 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ url: session.url })
   } catch (err) {
+    // Raw Stripe detail stays in the log; the user gets a plain sentence.
     console.error('[credits/buy] Error:', err)
     return NextResponse.json({
-      error: err instanceof Error ? err.message : 'Failed to create checkout',
+      error: 'We could not start checkout just now. Please try again in a minute.',
     }, { status: 500 })
   }
 }

@@ -239,7 +239,7 @@ export async function POST(request: Request) {
   return handleAction(user, body, action)
 }
 
-async function handleAction(user: { id: string }, body: any, action: string): Promise<Response> {
+async function handleAction(user: { id: string }, body: Record<string, unknown>, action: string): Promise<Response> {
   // ═══════════════════════════════════════════════════════════════
   // ACTION: chat
   // ═══════════════════════════════════════════════════════════════
