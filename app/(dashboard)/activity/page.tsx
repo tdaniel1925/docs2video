@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import ViewAlertsSetting from './ViewAlertsSetting'
 
 interface Notification {
   id: string
@@ -43,6 +44,12 @@ export default function ActivityPage() {
   const [allJobs, setAllJobs] = useState<Job[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
+
+  // The "Change your view alerts" link in alert emails lands here — open the
+  // tab that holds that setting.
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#view-alerts') setTab('notifications')
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -216,6 +223,7 @@ export default function ActivityPage() {
       {/* Notifications Tab */}
       {tab === 'notifications' && (
         <div>
+          <ViewAlertsSetting />
           {notifications.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--ink-light)' }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}>🔔</div>
