@@ -92,7 +92,7 @@ export const TEXT2ART: Brand = {
   tagline: 'Describe it. Get the finished design.',
   title: 'Text2Art — Describe It, Get the Finished Design',
   description:
-    'Type what your flyer, ad, social post, banner or business card needs to say. Get a print-ready design back — artwork and lettering both — in about a minute.',
+    'Type what your flyer, ad, social post, banner or business card needs to say. Get a finished design back, sized for print or social — artwork and lettering both — in about a minute.',
   logoSrc: '/text2art-logo.png',
   iconSrc: '/text2art-favicon.png',
   ogImage: '/og-text2art.png',

@@ -296,6 +296,19 @@ export default function Header({ profile, brand = DOCS2VIDEO }: { profile: Profi
                   )}
                 </Link>
               )}
+              {/* Saved Person/Company profiles (logo, colours, contact). The
+                  /brands editor was only reachable from a hidden Settings tab
+                  on Docs2Video, while every help article sends people there.
+                  Text2Art already has Brands in its top nav. */}
+              {brand.showVideoFeatures && (
+                <Link
+                  href="/brands"
+                  onClick={() => setMenuOpen(false)}
+                  style={{ display: 'block', padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none' }}
+                >
+                  Brand profiles
+                </Link>
+              )}
               <Link
                 href="/settings"
                 onClick={() => setMenuOpen(false)}
@@ -384,7 +397,11 @@ export default function Header({ profile, brand = DOCS2VIDEO }: { profile: Profi
               AI Social{hasSocialAddon ? '' : ' (add-on)'}
             </Link>
           )}
+          {brand.showVideoFeatures && (
+            <Link href="/brands" className={pathname.startsWith('/brands') ? 'active' : ''}>Brand profiles</Link>
+          )}
           <Link href="/settings" className={pathname === '/settings' ? 'active' : ''}>Settings</Link>
+          <Link href="/affiliate" className={pathname.startsWith('/affiliate') ? 'active' : ''}>Affiliate Program</Link>
           <Link href="/help" className={pathname.startsWith('/help') ? 'active' : ''}>Help Center</Link>
           {showAdmin && (
             <Link href="/admin" className={pathname.startsWith('/admin') ? 'active' : ''}>Admin</Link>

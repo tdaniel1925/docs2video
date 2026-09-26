@@ -612,17 +612,13 @@ export default async function HomePage() {
                   <td style={{padding:'12px 16px',fontWeight:600}}>PowerPoint (PPTX)</td>
                   <td style={{textAlign:'center',padding:'12px 16px'}}>800</td>
                 </tr>
-                <tr style={{borderBottom:'1px solid var(--border)'}}>
+                <tr>
                   <td style={{padding:'12px 16px',fontWeight:600}}>PDF document</td>
                   <td style={{textAlign:'center',padding:'12px 16px'}}>600</td>
                 </tr>
-                <tr>
-                  <td style={{padding:'12px 16px',fontWeight:600}}>Infographic</td>
-                  <td style={{textAlign:'center',padding:'12px 16px'}}>300</td>
-                </tr>
               </tbody>
             </table>
-            <p style={{textAlign:'center',fontSize:13,color:'var(--ink-light)',marginTop:16}}>Podcast narration adds 400 credits. Custom style previews: 50 credits.</p>
+            <p style={{textAlign:'center',fontSize:13,color:'var(--ink-light)',marginTop:16}}>Custom graphics: 200 credits per design. Commercials: 600 credits.</p>
           </div>
         </section>
 

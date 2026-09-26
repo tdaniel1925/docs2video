@@ -62,14 +62,16 @@ export default function PricingHelpPage() {
             </thead>
             <tbody>
               {[
-                ['Quick video (under 60s)', '500'],
-                ['Standard video (2-3 min)', '1,000'],
-                ['Detailed video (5+ min)', '1,500'],
-                ['Podcast mode add-on', '+400'],
+                ['Short video (30–60 seconds)', '500'],
+                ['Medium video (2–3 min)', '1,000'],
+                ['Long video (5+ min)', '1,500'],
+                ['Interactive presentation', '700'],
+                ['MP4 export of a presentation', '400'],
+                ['Commercial', '600'],
+                ['Custom Graphics (per design)', '200'],
                 ['Slide deck', '600'],
                 ['PowerPoint (PPTX)', '800'],
                 ['PDF document', '600'],
-                ['Infographic', '300'],
                 ['Each extra uploaded file', '+150'],
                 ['Custom style preview', '50'],
                 ['AI Social post (per platform)', '25'],
