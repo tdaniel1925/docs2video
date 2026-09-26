@@ -176,7 +176,7 @@ export async function GET(request: Request) {
         subject = `You've made ${completedVideos.length} video${completedVideos.length > 1 ? 's' : ''} — 50% off your first month`
         heading = 'Ready for more? Here’s 50% off month one.'
         body = `<p>${greeting}</p>
-<p>You've created <strong>${completedVideos.length} video${completedVideos.length > 1 ? 's' : ''}</strong> on the free plan and used all your free credits. As a thank-you, take <strong>50% off your first month</strong> on any plan with code <strong>WELCOME50</strong> — it applies automatically when you upgrade from this email:</p>
+<p>You've created <strong>${completedVideos.length} video${completedVideos.length > 1 ? 's' : ''}</strong> on the free plan and used all your free credits. As a thank-you, take <strong>50% off your first month</strong> on any plan with code <strong>WELCOME50</strong>. Use the button below and pick a plan — if the discount doesn't show at checkout, type WELCOME50 into the promo code box:</p>
 <ul style="color:#444;line-height:2;">
   <li><strong>Pro</strong> &mdash; <s>$79</s> <strong>$39.50</strong> first month, then $79/mo &mdash; 25,000 credits</li>
   <li><strong>Business</strong> &mdash; <s>$199</s> <strong>$99.50</strong> first month, then $199/mo &mdash; 75,000 credits</li>
@@ -284,12 +284,12 @@ export async function GET(request: Request) {
       const heading = 'Liked your demo? Make it yours.'
       const body = `<p>Hi there,</p>
 <p>Thanks for trying Docs2Video${company ? ` for ${company}` : ''}! Create a free account and you can turn any document into a narrated video in minutes.</p>
-<p>As a welcome, take <strong>50% off your first month</strong> on any plan with code <strong>WELCOME50</strong> — it applies automatically from the button below.</p>
+<p>As a welcome, take <strong>50% off your first month</strong> on any plan with code <strong>WELCOME50</strong>. Once your account is set up, open <strong>Pricing</strong>, choose a plan, and enter WELCOME50 in the promo code box at checkout.</p>
 <ul style="color:#444;line-height:2;">
-  <li>Free account &mdash; 2,000 credits to start, no card needed</li>
+  <li>Free account &mdash; 2,000 credits to start. You add a card to unlock them; nothing is charged until they run out.</li>
   <li><strong>Pro</strong> &mdash; <s>$79</s> <strong>$39.50</strong> first month, 25,000 credits</li>
 </ul>`
-      const ctaText = 'Create your account — 50% off'
+      const ctaText = 'Create your account'
       const ctaUrl = 'https://docs2video.com/signup?promo=WELCOME50'
 
       try {
