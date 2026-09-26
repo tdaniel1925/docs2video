@@ -6,6 +6,7 @@ import { createAdminClient } from '../_lib/supabase/admin'
 import { siteUrl } from '../_lib/site-url'
 import { sendWelcomeEmailOnce } from '../_lib/welcome-email'
 import { getAffiliateByCode } from '../_lib/affiliate'
+import { safeNextPath } from '../_lib/safe-redirect'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
@@ -19,7 +20,9 @@ export async function login(formData: FormData) {
     return { error: error.message }
   }
 
-  redirect('/dashboard')
+  // Back to where they were headed (e.g. the MCP connect screen), but only an
+  // in-app path — never another site.
+  redirect(safeNextPath(formData.get('next') as string | null))
 }
 
 export async function signup(formData: FormData) {

@@ -54,6 +54,8 @@ function LoginForm() {
       <p className="auth-sub">Welcome back to {brand.name}.</p>
 
       <form onSubmit={handleSubmit}>
+        {/* Where to go after sign-in; the server only honors in-app paths. */}
+        <input type="hidden" name="next" value={searchParams.get('next') ?? ''} />
         <div className="form-group">
           <label className="input-label" htmlFor="email">Email Address*</label>
           <input

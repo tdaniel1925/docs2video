@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { isPublicPath, legacyRedirect } from './app/_lib/public-paths'
+import { safeNextPath } from './app/_lib/safe-redirect'
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -82,9 +83,12 @@ export async function proxy(request: NextRequest) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Not signed in' }, { status: 401 })
     }
+    // Come back to the page they asked for after signing in (the login action
+    // only honors plain in-app paths — see safe-redirect.ts).
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.search = ''
+    url.searchParams.set('next', pathname + request.nextUrl.search)
     return NextResponse.redirect(url)
   }
 
@@ -100,8 +104,13 @@ export async function proxy(request: NextRequest) {
 
   // Redirect authenticated users away from auth pages
   if (user && (pathname === '/login' || pathname === '/signup')) {
+    // Honor ?next= (in-app paths only) so an already-signed-in user sent to
+    // /login?next=… (e.g. from the MCP connect screen) still gets there.
+    const target = safeNextPath(request.nextUrl.searchParams.get('next'))
+    const q = target.indexOf('?')
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = q >= 0 ? target.slice(0, q) : target
+    url.search = q >= 0 ? target.slice(q) : ''
     return NextResponse.redirect(url)
   }
 
