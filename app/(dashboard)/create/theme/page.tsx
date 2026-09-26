@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import BuyCreditsModal from '../../../_components/BuyCreditsModal'
 
 type ThemeId = 'slides' | 'aurora' | 'cinematic' | 'editorial' | 'explainer' | 'infographic'
 
@@ -47,6 +48,9 @@ export default function ThemePage() {
   const [lightbox, setLightbox] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // "Not enough credits": the message stays on this page with a top-up button.
+  const [buyCredits, setBuyCredits] = useState<{ needed?: number; balance?: number } | null>(null)
+  const [showBuyCredits, setShowBuyCredits] = useState(false)
 
   useEffect(() => {
     if (!videoId) { setLoading(false); return }
@@ -79,7 +83,11 @@ export default function ThemePage() {
         })
         if (!res.ok) {
           const g = await res.json().catch(() => ({}))
-          if (res.status === 402) { setError(g.error || 'Not enough credits.'); setSubmitting(false); return }
+          if (res.status === 402) {
+            setError(g.error || 'Not enough credits.')
+            if (g.code === 'insufficient_credits') setBuyCredits({ needed: g.needed, balance: g.balance })
+            setSubmitting(false); return
+          }
           throw new Error(g.error || 'Failed to start generation')
         }
         router.push(`/create/generating?id=${videoId}&style=${presTemplate}`)
@@ -104,7 +112,9 @@ export default function ThemePage() {
           purpose: draft.purpose || 'Create a professional video',
           recipientName: draft.recipientName || undefined,
           preGeneratedScenes: draft.scenes || [],
-          brandId: draft.brandId || draft.selectedBrand || draft.autoBrandId || undefined,
+          // An explicit "no brand" (Skip on the brand step saves brandId: null)
+          // must stay no brand — never fall back to the auto-detected one.
+          brandId: (draft.brandId !== undefined ? draft.brandId : (draft.selectedBrand || draft.autoBrandId)) || undefined,
           voiceId: draft.voiceId || 'nova',
           narrationStyle: draft.narrationStyle || 'solo',
           detailLevel: draft.detailLevel,
@@ -129,8 +139,16 @@ export default function ThemePage() {
         const g = await genRes.json().catch(() => ({}))
         // Free/trial users must save a card before producing — route to the
         // card-capture page, returning here afterward to finish generation.
-        if (g.code === 'card_required' || genRes.status === 402) {
+        // ONLY for card_required: "not enough credits" used to send people to
+        // the card page too, which sent them straight back here, forever.
+        if (g.code === 'card_required') {
           router.push(`/setup-payment?next=${encodeURIComponent(`/create/theme?id=${videoId}`)}`)
+          return
+        }
+        if (g.code === 'insufficient_credits') {
+          setError(g.error || 'You don’t have enough credits for this video.')
+          setBuyCredits({ needed: g.needed, balance: g.balance })
+          setSubmitting(false)
           return
         }
         throw new Error(g.error || 'Failed to start generation')
@@ -294,7 +312,15 @@ export default function ThemePage() {
 
       )}
 
-      {error ? <div style={{ color: '#b91c1c', fontSize: 14, marginBottom: 16 }}>{error}</div> : null}
+      {error ? (
+        <div style={{ color: '#b91c1c', fontSize: 14, marginBottom: 16 }}>
+          {error}
+          {buyCredits ? (
+            <> <button type="button" onClick={() => setShowBuyCredits(true)} className="btn btn-soft btn-sm" style={{ marginLeft: 8 }}>Top up credits</button></>
+          ) : null}
+        </div>
+      ) : null}
+      <BuyCreditsModal open={showBuyCredits} onClose={() => setShowBuyCredits(false)} needed={buyCredits?.needed} balance={buyCredits?.balance} />
 
       <button onClick={handleGenerate} disabled={submitting} style={{
         width: '100%', maxWidth: 520, padding: '16px', borderRadius: 10, border: 'none',
