@@ -6,7 +6,7 @@ import { deductCredits } from '../../../_lib/credits'
 import { sendNotification } from '../../../_lib/notify'
 import {
   IN_PROGRESS_STATUSES, VIDEO_CHARGE_ACTIONS, VIDEO_REFUND_ACTIONS,
-  ledgerOutstanding, readVideoLedger, refundVerifiedCharge,
+  chargeCount, ledgerOutstanding, readVideoLedger, refundVerifiedCharge,
 } from '../../../_lib/video-billing'
 
 export const runtime = 'nodejs'
@@ -119,6 +119,10 @@ export async function GET(request: Request) {
       // finished after being failed from charging twice when the user had also
       // pressed Retry (charge #2 is still in force, so nothing more is taken).
       const txs = await readVideoLedger(admin, v.id, v.user_id)
+      // Only a VIDEO render can be re-charged here. Presentations used to be
+      // refunded with the video refund action too; without this check a
+      // presentation that failed once and then built fine was charged again.
+      if (chargeCount(txs, VIDEO_CHARGE_ACTIONS) === 0) continue
       if (ledgerOutstanding(txs, VIDEO_CHARGE_ACTIONS, VIDEO_REFUND_ACTIONS) > 0) continue
       const lastRefund = [...txs].reverse().find(t => t.action === 'refund_video' || t.action === 'refund_video_retry')
       if (!lastRefund) continue
