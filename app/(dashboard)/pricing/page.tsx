@@ -100,7 +100,7 @@ export default function PricingPage() {
           highlight={currentTier === 'free' ? 'current' : 'none'}
           creditLine="2,000 free credits"
           subLine="~2 standard videos to try · one time, not monthly"
-          features={['Top up anytime with credit packs from $10', 'Full quality, no watermark', 'Share pages with AI chat', 'Download MP4, PDF, PPTX']}
+          features={['Top up anytime with credit packs from $10', 'Full quality, no watermark', 'Branded client share pages', 'Download MP4, PDF, PPTX']}
           cta={currentTier === 'free' ? { label: 'Current plan', disabled: true } : null}
         />
 

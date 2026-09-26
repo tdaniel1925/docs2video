@@ -1087,7 +1087,7 @@ export default function SettingsPage() {
                   period: '',
                   highlight: storefront.showVideoFeatures ? '2,000 free credits (~2 videos), one time' : allowance('free'),
                   features: storefront.showVideoFeatures
-                    ? ['No monthly fee', 'Top up any time from $10', 'Share pages with AI chat']
+                    ? ['No monthly fee', 'Top up any time from $10', 'Branded client share pages']
                     : ['No monthly fee', 'Full print quality', 'Top up any time'],
                 },
                 {

@@ -43,7 +43,7 @@ export const PLANS: PlanInfo[] = [
       '2,000 free credits to start (about 2 standard videos)',
       'Top up anytime with credit packs from $10',
       'Full quality, no watermark',
-      'Share pages with AI chat',
+      'Branded client share pages',
       'Download MP4, PDF, PPTX',
     ],
     videosPerMonth: 2,
@@ -63,7 +63,7 @@ export const PLANS: PlanInfo[] = [
     features: [
       '5,000 credits every month (about 5 standard videos)',
       'Top up anytime with credit packs from $10',
-      'Share pages with AI chat',
+      'Branded client share pages',
       'Download MP4, PDF, PPTX',
     ],
     videosPerMonth: 5,
@@ -83,7 +83,7 @@ export const PLANS: PlanInfo[] = [
       '25,000 credits every month (about 25 standard videos)',
       'Top up anytime with credit packs from $10',
       'Unlimited brand profiles',
-      'Share pages with AI chat',
+      'Branded client share pages',
       'API and AI-assistant access',
     ],
     videosPerMonth: 25, // 25,000 credits / 1,000 per standard video

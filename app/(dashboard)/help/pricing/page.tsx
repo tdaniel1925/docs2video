@@ -123,7 +123,7 @@ export default function PricingHelpPage() {
             Approximately <strong style={{ color: 'var(--ink)' }}>25 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>50 quick videos</strong> per month.
           </p>
           <p style={{ marginBottom: 6 }}>{BULLET} Unlimited brand profiles</p>
-          <p style={{ marginBottom: 6 }}>{BULLET} Share pages with AI chat</p>
+          <p style={{ marginBottom: 6 }}>{BULLET} Branded client share pages</p>
           <p style={{ marginBottom: 6 }}>{BULLET} API and AI-assistant access</p>
           <p>{BULLET} Need more? Credit packs from $10 (see below)</p>
         </div>

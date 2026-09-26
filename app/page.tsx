@@ -654,7 +654,7 @@ export default async function HomePage() {
               <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~25 standard explainers</div>
               <ul className="pricing-features">
                 <li>Unlimited brand profiles</li>
-                <li>Share pages with AI chat</li>
+                <li>Branded client share pages</li>
                 <li>API &amp; AI-assistant access</li>
               </ul>
               <Link href="/signup" className="btn btn-primary btn-full">Subscribe</Link>
