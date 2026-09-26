@@ -93,6 +93,21 @@ DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
 CREATE POLICY "profiles_update_own" ON public.profiles
   FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
+-- Belt and braces: the original affiliates migration created
+-- "Service can manage affiliates" / "... referrals" as FOR ALL USING (true),
+-- which lets ANY signed-in user rewrite commission rates and payout emails.
+-- legacy/security-fixes.sql drops them but is only "assumed applied". The
+-- service role bypasses RLS, so nothing in the app needs these policies.
+DO $$
+BEGIN
+  IF to_regclass('public.affiliates') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Service can manage affiliates" ON public.affiliates';
+  END IF;
+  IF to_regclass('public.referrals') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Service can manage referrals" ON public.referrals';
+  END IF;
+END $$;
+
 -- Clear any booking/payment link already saved that isn't a web link (e.g.
 -- `javascript:`). Only runs for columns that exist here.
 DO $$
