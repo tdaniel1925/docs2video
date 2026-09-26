@@ -115,7 +115,11 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ error: 'Something went wrong reading the document. Please try again or paste the text.' }, { status: 500 })
   } finally {
-    // Clean up the temp upload so storage doesn't fill with one-shot files.
-    if (storagePath) admin.storage.from(BUCKET).remove([storagePath]).catch(() => {})
+    // Clean up the temp upload so storage doesn't fill with one-shot files —
+    // EXCEPT a PDF. A PDF upload is also the "original document" the agent can
+    // let their client download from the share page (H6). Deleting it here
+    // meant that button never worked. Kept PDFs of drafts that are never
+    // finished are removed by the cleanup-drafts cron with the draft.
+    if (storagePath && !/\.pdf$/i.test(storagePath)) admin.storage.from(BUCKET).remove([storagePath]).catch(() => {})
   }
 }
