@@ -148,7 +148,7 @@ export default function MedicalPage() {
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               </div>
               <h3>HIPAA-conscious design</h3>
-              <p>Videos are generated with patient privacy in mind. Shareable links can be password-protected, and no patient data is stored after video generation is complete.</p>
+              <p>Videos are generated with patient privacy in mind. Share links are long, unguessable addresses that only the people you send them to will have. Leave names and other personal details out of what you upload if you don&apos;t want them in the video.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon" style={{ background: 'var(--lilac)' }}>

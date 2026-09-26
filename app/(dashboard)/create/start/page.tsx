@@ -40,7 +40,7 @@ export default function CreateStartPage() {
         <button style={styles.card} onClick={() => router.push('/design')}>
           <div style={styles.cardIcon}>📄</div>
           <div style={styles.cardTitle}>Custom Graphics</div>
-          <div style={styles.cardDesc}>Flyers, ads, social posts, banners and business cards — describe the job and get finished, print-ready designs in every size you need.</div>
+          <div style={styles.cardDesc}>Flyers, ads, social posts, banners and business cards — describe the job and get finished designs in every size you need, ready to download.</div>
         </button>
 
         <button style={styles.card} onClick={() => router.push('/create/client')}>

@@ -34,7 +34,7 @@ const TIPS = [
   'Each slide is custom-designed with your brand colors and logo.',
   'You can share this video with a branded link when it\'s done.',
   'Videos can be downloaded as MP4, PDF slides, or PPTX presentations.',
-  'The AI chatbot on your share page will know everything about this video.',
+  'Your share page shows your contact details, and your booking link if you set one in Settings.',
 ]
 
 export default function GeneratingPage() {

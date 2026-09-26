@@ -10,6 +10,11 @@ import { SELLABLE_PLAN_TIERS, getPlan } from '../../_lib/pricing'
 
 // The plans a new subscriber can actually buy (Starter is retired).
 const MODAL_PLANS = SELLABLE_PLAN_TIERS.map(t => getPlan(t))
+// The plan text below reads these, so it can't drift from pricing.ts again
+// (it used to promise "5 free videos, $10 per video" and "$29/mo" — neither
+// is sold any more).
+const FREE_PLAN = getPlan('free')
+const CHEAPEST_PLAN = MODAL_PLANS.reduce((a, b) => (b.monthlyPrice < a.monthlyPrice ? b : a))
 
 type SetupStep = 1 | 2 | 3 | 4 | 5
 
@@ -779,10 +784,10 @@ export default function SetupPage() {
             <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Your plan</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--mint-darker, #2d7a4f)', background: 'var(--mint, #d4edda)', padding: '3px 8px', borderRadius: 6 }}>FREE</span>
-              <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>5 free videos included &middot; $10 per video after that</span>
+              <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{FREE_PLAN.monthlyCredits.toLocaleString()} free credits (about {FREE_PLAN.approxStandardVideos} standard videos) &middot; top up anytime from $10</span>
             </div>
             <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
-              <strong style={{ color: 'var(--ink)' }}>Save up to 60%</strong> with a subscription plan. Starting at just $29/mo for 20 videos.{' '}
+              <strong style={{ color: 'var(--ink)' }}>Need more?</strong> Subscription plans start at ${Math.round(CHEAPEST_PLAN.monthlyPrice / 100)}/mo for about {CHEAPEST_PLAN.approxStandardVideos} standard videos a month.{' '}
               <button onClick={() => setShowPlansModal(true)} style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600, cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', textDecoration: 'underline' }}>View plans &rarr;</button>
             </div>
           </div>
@@ -798,7 +803,7 @@ export default function SetupPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <div>
                 <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>Choose a plan</h2>
-                <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '4px 0 0' }}>Subscribe and save vs pay-per-video. Cancel anytime.</p>
+                <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '4px 0 0' }}>A fresh pool of credits every month for videos, slide decks and PDFs. Cancel anytime.</p>
               </div>
               <button onClick={() => setShowPlansModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--ink-light)' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -874,7 +879,7 @@ export default function SetupPage() {
 
             <div style={{ textAlign: 'center' }}>
               <button onClick={() => setShowPlansModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--ink-soft)', fontWeight: 600 }}>
-                No thanks, I&apos;ll stick with pay-per-video for now
+                No thanks, I&apos;ll pay as I go for now
               </button>
             </div>
           </div>
