@@ -39,17 +39,15 @@ const NOTIF_ICONS: Record<string, string> = {
 }
 
 export default function ActivityPage() {
-  const [tab, setTab] = useState<'jobs' | 'notifications'>('jobs')
+  // The "Change your view alerts" link in alert emails lands on #view-alerts —
+  // open the tab that holds that setting. (Read once at start; the first
+  // render is a spinner either way, so server and browser markup still match.)
+  const [tab, setTab] = useState<'jobs' | 'notifications'>(() =>
+    typeof window !== 'undefined' && window.location.hash === '#view-alerts' ? 'notifications' : 'jobs')
   const [jobs, setJobs] = useState<Job[]>([])
   const [allJobs, setAllJobs] = useState<Job[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
-
-  // The "Change your view alerts" link in alert emails lands here — open the
-  // tab that holds that setting.
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.hash === '#view-alerts') setTab('notifications')
-  }, [])
 
   useEffect(() => {
     async function load() {

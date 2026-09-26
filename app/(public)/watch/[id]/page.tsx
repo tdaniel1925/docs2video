@@ -30,6 +30,11 @@ function safeLink(url: unknown): string {
   try { new URL(s); return s } catch { return '' }
 }
 
+/** 'video' | 'interactive' | 'deck' … (the shared Video type predates decks). */
+function outputTypeOf(v: unknown): string {
+  return String((v as { output_type?: unknown } | null)?.output_type ?? '')
+}
+
 interface VideoWithRelations extends Video {
   brand?: Brand
   infographic?: {
@@ -782,7 +787,7 @@ export default function PublicWatchPage() {
   // Interactive presentations: the deck's closing slide posts action clicks
   // up (deck PDF / video download / source PDF). Handle them here.
   useEffect(() => {
-    const ot = (video as any)?.output_type
+    const ot = outputTypeOf(video)
     if (!video || (ot !== 'interactive' && ot !== 'deck')) return
     const onMsg = (e: MessageEvent) => {
       // Only our own deck (served from this site) may trigger these actions.
@@ -837,7 +842,7 @@ export default function PublicWatchPage() {
   // moves into the iframe, which the page sees as the window losing focus
   // while the iframe is the active element.
   useEffect(() => {
-    const ot = (video as any)?.output_type
+    const ot = outputTypeOf(video)
     if (!video || (ot !== 'interactive' && ot !== 'deck')) return
     const onBlur = () => {
       setTimeout(() => {
@@ -952,7 +957,7 @@ export default function PublicWatchPage() {
   // NOT process the client's payment ourselves (no Stripe Connect).
   const handlePay = useCallback(() => {
     if (!video) return
-    const link = safeLink((agent as any)?.payment_link_url)
+    const link = safeLink(agent?.payment_link_url)
       || safeLink((video.script as any)?._pipeline_input?.paymentLink)
     if (!link) {
       setPayError('No payment link is set up yet. Please contact us to pay.')
@@ -1036,7 +1041,7 @@ export default function PublicWatchPage() {
   const hasQuote = !!(quote && quote.status !== 'paid')
   const hasPaidQuote = !!(quote && quote.status === 'paid')
   // Interactive presentations AND slide decks are HTML, shown in a frame.
-  const isHtmlDeck = (video as any).output_type === 'interactive' || (video as any).output_type === 'deck'
+  const isHtmlDeck = outputTypeOf(video) === 'interactive' || outputTypeOf(video) === 'deck'
   const slideUrls = (video.slide_urls ?? []) as string[]
   const slideCount = slideUrls.length
   const hasPdf = !!video.infographic?.source_pdf_url
@@ -1353,7 +1358,7 @@ export default function PublicWatchPage() {
               // Prefer a quote/pipeline-specific link; fall back to the agent's
               // saved Calendly + Stripe Payment Link from Settings → Integrations.
               const bookingUrl = safeLink(pi?.bookingUrl) || calendlyUrl
-              const paymentLnk = safeLink(pi?.paymentLink) || safeLink((agent as any)?.payment_link_url)
+              const paymentLnk = safeLink(pi?.paymentLink) || safeLink(agent?.payment_link_url)
               if (!bookingUrl && !paymentLnk) return null
               return (
                 <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
@@ -1459,9 +1464,9 @@ export default function PublicWatchPage() {
                 <div style={{ flex: 1, textAlign: 'center', padding: '12px 0', fontSize: 14, fontWeight: 600, color: 'var(--ink-soft, #3D5A7A)' }}>
                   This is a complimentary service
                 </div>
-              ) : (safeLink(pipelineInput?.paymentLink) || safeLink((agent as any)?.payment_link_url)) ? (
+              ) : (safeLink(pipelineInput?.paymentLink) || safeLink(agent?.payment_link_url)) ? (
                 <a
-                  href={safeLink(pipelineInput?.paymentLink) || safeLink((agent as any)?.payment_link_url)}
+                  href={safeLink(pipelineInput?.paymentLink) || safeLink(agent?.payment_link_url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => video && trackEvent(video.id, 'payment_click')}

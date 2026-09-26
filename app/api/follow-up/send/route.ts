@@ -110,12 +110,12 @@ ${messageToHtml(body, 'margin:0 0 16px;')}
     const conn = connection as EmailConnection
     await sendViaConnection(conn, plan.client_email, subject, html)
     return NextResponse.json({ success: true })
-  } catch (err: any) {
+  } catch (err) {
     await supabase
       .from('follow_up_emails')
       .update({ status: email.status ?? 'pending', sent_at: null })
       .eq('id', emailId)
     console.error('[follow-up/send] Error:', err)
-    return NextResponse.json({ error: `The email did NOT send: ${err?.message ?? 'send failed'}` }, { status: 500 })
+    return NextResponse.json({ error: `The email did NOT send: ${err instanceof Error ? err.message : 'send failed'}` }, { status: 500 })
   }
 }
