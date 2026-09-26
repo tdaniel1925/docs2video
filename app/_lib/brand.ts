@@ -40,6 +40,8 @@ export type Brand = {
   logoSrc: string | null
   /** The browser-tab icon. One shared favicon meant Text2Art wore Docs2Video's. */
   iconSrc: string
+  /** Default 1200×630 link-preview image in public/ (pages can override). */
+  ogImage: string
   /** Where a signed-in visitor belongs. */
   home: string
   /** Dashboard navigation, in order. */
@@ -68,6 +70,7 @@ export const DOCS2VIDEO: Brand = {
     'Upload a PDF, paste text, or describe an idea. Get a branded narrated video with a shareable client page — in minutes, not hours.',
   logoSrc: '/logo-big.png',
   iconSrc: '/favicon.png',
+  ogImage: '/og-docs2video.png',
   home: '/dashboard',
   nav: [
     { href: '/dashboard', label: 'Dashboard' },
@@ -92,6 +95,7 @@ export const TEXT2ART: Brand = {
     'Type what your flyer, ad, social post, banner or business card needs to say. Get a print-ready design back — artwork and lettering both — in about a minute.',
   logoSrc: '/text2art-logo.png',
   iconSrc: '/text2art-favicon.png',
+  ogImage: '/og-text2art.png',
   home: '/design',
   // Brands were unreachable on Text2Art: the scraper, the multi-brand store and
   // the whole editor already existed, and nothing in this storefront linked to
