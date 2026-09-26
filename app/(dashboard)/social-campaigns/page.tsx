@@ -145,6 +145,10 @@ export default function SocialCampaignsPage() {
   }
 
   const totalPosts = posts.length
+  // Each post is one AI image. Literal, not an import: app/_lib/credits.ts
+  // pulls in the server-only Supabase admin client. Keep in sync with
+  // CREDIT_COSTS['social-post-image'].
+  const totalCredits = totalPosts * 100
   const daysLabel = duration === '1week' ? '1 week' : duration === '2weeks' ? '2 weeks' : '1 month'
 
   return (
@@ -264,7 +268,7 @@ export default function SocialCampaignsPage() {
               <span>{totalPosts} posts</span>
               <span>{daysLabel}</span>
               <span>{platforms.map(p => PLATFORM_OPTIONS.find(o => o.id === p)?.label).join(', ')}</span>
-              <span style={{ fontWeight: 700, color: 'var(--mint-darker, #2d7a4f)' }}>{totalPosts} credits required</span>
+              <span style={{ fontWeight: 700, color: 'var(--mint-darker, #2d7a4f)' }}>{totalCredits.toLocaleString()} credits required</span>
             </div>
           </div>
 
@@ -350,7 +354,7 @@ export default function SocialCampaignsPage() {
               {loading ? 'Regenerating...' : 'Regenerate Plan'}
             </button>
             <button onClick={handleStartCampaign} disabled={loading || !posts.length} className="btn btn-primary" style={{ flex: 2 }}>
-              {loading ? 'Starting...' : `Launch Campaign (${totalPosts} credits)`}
+              {loading ? 'Starting...' : `Launch Campaign (${totalCredits.toLocaleString()} credits)`}
             </button>
           </div>
         </div>

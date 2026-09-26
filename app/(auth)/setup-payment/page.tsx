@@ -6,6 +6,7 @@ import { loadStripe } from '@stripe/stripe-js'
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { useBrand } from '../../_components/BrandProvider'
 import { safeNextPath } from '../../_lib/safe-redirect'
+import { SELLABLE_PLAN_TIERS, getPlan, type SellablePlanTier } from '../../_lib/pricing'
 
 // Literals, not an import: app/_lib/credits.ts reaches for the Supabase service
 // role client, which must never be pulled into a client bundle. Keep in sync
@@ -28,10 +29,9 @@ function CardForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [clientSecret, setClientSecret] = useState<string | null>(null)
-  const [customerId, setCustomerId] = useState<string | null>(null)
   // Plan the trial converts to when the free credits run out (Stripe bills the
-  // saved card then). Defaults to Starter — the easiest first yes.
-  const [plan, setPlan] = useState<'starter' | 'pro' | 'business'>('starter')
+  // saved card then). Only plans checkout sells — Starter is retired.
+  const [plan, setPlan] = useState<SellablePlanTier>('pro')
 
   useEffect(() => {
     async function createIntent() {
@@ -40,7 +40,6 @@ function CardForm() {
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Failed to initialize payment setup')
         setClientSecret(data.clientSecret)
-        setCustomerId(data.customerId)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to initialize')
       }
@@ -58,7 +57,7 @@ function CardForm() {
     const cardElement = elements.getElement(CardElement)
     if (!cardElement) { setLoading(false); return }
 
-    const { error: stripeError } = await stripe.confirmCardSetup(clientSecret, {
+    const { error: stripeError, setupIntent } = await stripe.confirmCardSetup(clientSecret, {
       payment_method: { card: cardElement },
     })
 
@@ -68,12 +67,13 @@ function CardForm() {
       return
     }
 
-    // Confirm card saved on backend
+    // Confirm card saved on backend. The server re-checks this SetupIntent
+    // with Stripe against the user's OWN customer before granting the trial.
     try {
       const confirmRes = await fetch('/api/confirm-card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerId, plan }),
+        body: JSON.stringify({ setupIntentId: setupIntent?.id, plan }),
       })
       if (!confirmRes.ok) {
         const data = await confirmRes.json()
@@ -125,11 +125,15 @@ function CardForm() {
         <div className="form-group">
           <label className="input-label">Choose your plan (billed only after your free credits run out)</label>
           <div style={{ display: 'flex', gap: 8 }}>
-            {([
-              { id: 'starter', name: 'Starter', price: '$29/mo', sub: '5,000 credits' },
-              { id: 'pro', name: 'Pro', price: '$79/mo', sub: '25,000 credits' },
-              { id: 'business', name: 'Business', price: '$199/mo', sub: '75,000 credits' },
-            ] as const).map((p) => (
+            {SELLABLE_PLAN_TIERS.map((tier) => {
+              const info = getPlan(tier)
+              return {
+                id: tier,
+                name: info.label,
+                price: `$${Math.round(info.monthlyPrice / 100)}/mo`,
+                sub: `${info.monthlyCredits.toLocaleString()} credits`,
+              }
+            }).map((p) => (
               <button
                 key={p.id}
                 type="button"

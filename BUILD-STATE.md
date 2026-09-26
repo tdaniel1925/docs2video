@@ -28,6 +28,32 @@ Branch `fix/audit-clients-emails`. **Needs migration `supabase/migrations/202609
 - **View alerts**: owner's own views ignored; per-viewer 12h cooldown; max 6/video/hour; setting on Activity → Notifications (`/api/analytics/alert-prefs`). `question_asked` is its own event.
 - **Share page**: slide decks (`output_type='deck'`) render in the HTML frame; presentation links keep serving the last good build during/after a re-edit (failed rebuild restores the previous version); public watch API no longer returns payment intent id, plan, owner id, brand guide or policy data; any https booking link gets the big button.
 - **Follow-up plan** emails are labeled as drafts (manual send) — nothing sends them on a schedule.
+## 2026-09-26 — Money fixes from the user-impact audit (AUDIT-2026-09-26.md)
+
+- **Plan changes never create a second subscription.** `app/_lib/subscription-checkout.ts`
+  is the one door (used by `/api/stripe/checkout` and `/api/subscribe`): an active plan is
+  changed in place (upgrade billed now, downgrade from next renewal), past_due / several
+  plans → billing portal, a card-on-file trial goes to Checkout and the webhook cancels the
+  trial once the paid plan starts. Apex checkout refuses an email that already has a paid
+  plan. Webhook: only the subscription ON FILE can change or cancel a user's plan.
+- **`/api/confirm-card`** verifies the SetupIntent with Stripe against the user's own customer;
+  never resets paying users to trial; never lifts past_due/banned.
+- **Webhook**: every failure throws → claim released → Stripe retries (H1). Refunds/disputes
+  find the invoice via invoice payments (current API), claw back commission on full reversal,
+  and revoke credits per refund in proportion (packs AND plan payments). Incomplete
+  subscriptions/unpaid checkouts grant nothing. Trial→paid grants exactly once. Apex sales by
+  existing users are reported; a failed account creation after payment now retries.
+- **Credits**: one spend rule (`spendBlockReason`) in `checkCredits` + `deductCredits` — no card,
+  past_due or banned can't spend on ANY tool. Trial converts when credits can't cover the
+  cheapest action or the attempted one, from any product. New `runCharged`/`chargeCredits`
+  (`app/_lib/credit-charge.ts`) = charge before work, refund once on failure; applied to 13
+  one-off tools. Tools that charged 1 credit now charge real prices (`CREDIT_COSTS`).
+- Account delete cancels Stripe subscriptions first (aborts if it can't) and removes stored files.
+- Only Pro/Business/Enterprise are offered anywhere (`SELLABLE_PLAN_TIERS`); packs no longer
+  take typed promo codes; reconcile cron pages through all sessions; promo-user revoke clears
+  `is_beta` and new promo accounts get no emailed password.
+- New migration (run by hand): `supabase/migrations/20260926_revoke_credits_atomic.sql`
+  (code falls back safely until it is applied).
 
 ## 2026-09-16 — Infographic slides on fal, real logo pinned by code
 
@@ -339,6 +365,7 @@ AI Social add-on: $50/mo, plus 25 credits per caption set and 25 credits per pla
 | Supabase | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | DB, auth, storage |
 | Stripe | `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | Subscriptions, payments |
 | Stripe Prices | `STRIPE_PRICE_PRO`, `STRIPE_PRICE_BUSINESS`, `STRIPE_PRICE_AGENCY`, `STRIPE_PRICE_ENTERPRISE`, `STRIPE_PRICE_ENTERPRISE_PLUS` | Plan price IDs |
+| Stripe Promo | `STRIPE_PROMO_WELCOME50` | Promotion-code id auto-applied by `?promo=WELCOME50` (falls back to the old live id only on a live key) |
 | Stripe Projects | `STRIPE_PRICE_PROJECT`, `STRIPE_PRICE_PROJECT_PRO`, `STRIPE_PRICE_COURSE`, `STRIPE_PRICE_COURSE_PRO`, `STRIPE_PRICE_COURSE_BIZ` | Per-project prices |
 | Google OAuth | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Gmail, Google Calendar |
 | Microsoft OAuth | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_REDIRECT_URI`, `MICROSOFT_TENANT_ID` | Outlook/365 email |
@@ -551,6 +578,8 @@ Fixed:
 - `/api/demo-slide-gpt` and `/api/template-demo/generate` now require an admin.
 
 Handled by other agents on the same audit (see `AUDIT-2026-09-26.md` for detail): C1–C7 (free-credit refund exploit, card-check bypass, double subscriptions on "Switch plan", stuck refused videos, follow-up spam, public pages redirecting to login, email-connection takeover), H1–H15 (Stripe webhook retries, slide-deck choices ignored, double charges, charge-first-no-refund tools, source-PDF download, multi-file surcharge, commission claw-back, share emails, share-link breakage, profile protection, account deletion billing, logo URLs, card-required trial), plus the Medium/Low items for auth, settings "Saved" on failure, onboarding plan buttons, `/setup-payment` still listing Starter, and nurture unsubscribe.
+6. Customers may already be double-billed from the old "Switch plan" (two live main-plan subscriptions on one customer, or a leftover 365-day trial next to a paid plan). Check Stripe and cancel/refund by hand — new code only prevents new ones.
+7. The Apex welcome email's set-password link (`generateLink` recovery) has no page that accepts it (no `/reset-password`; `/auth/callback` only takes a `code`). It now lands on login instead of a 404; the auth flow needs a real landing page.
 
 ## Product Focus (2026-06-11)
 

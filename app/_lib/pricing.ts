@@ -136,6 +136,21 @@ export const PLANS: PlanInfo[] = [
   },
 ]
 
+/**
+ * The plans a NEW subscriber can buy today. Starter ($29) is retired: existing
+ * Starter subscribers are grandfathered, but no page may offer it and no
+ * checkout may create it. Every "Subscribe" button and every server route that
+ * starts a subscription reads this list, so they can't disagree (audit: the
+ * onboarding page offered Starter/"Agency", which checkout rejected with
+ * "Invalid plan.", and /setup-payment still sold Starter).
+ */
+export const SELLABLE_PLAN_TIERS = ['pro', 'business', 'enterprise'] as const
+export type SellablePlanTier = typeof SELLABLE_PLAN_TIERS[number]
+
+export function isSellablePlan(tier: string | null | undefined): tier is SellablePlanTier {
+  return !!tier && (SELLABLE_PLAN_TIERS as readonly string[]).includes(tier)
+}
+
 export interface ProjectPrice {
   type: string
   label: string

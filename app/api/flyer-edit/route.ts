@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import OpenAI, { toFile } from 'openai'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { checkCredits, deductCredits, addTopupCredits, costForUser } from '../../_lib/credits'
+import { checkCredits, deductCredits, addTopupCredits, costForUser, spendBlockMessage } from '../../_lib/credits'
 
 // =============================================================================
 // Change ONE PART of a finished design.
@@ -147,12 +147,19 @@ export async function POST(req: Request) {
   const unit = costForUser('flyer', user.id)
   const check = await checkCredits(user.id, unit)
   if (!check.allowed) {
+    if (check.blockedReason) {
+      return NextResponse.json({ error: spendBlockMessage(check.blockedReason), code: check.blockedReason }, { status: 402 })
+    }
     return NextResponse.json({
       error: `Not enough credits. A change costs ${unit.toLocaleString()} and you have ${check.remaining.toLocaleString()}.`,
       needed: unit, remaining: check.remaining,
     }, { status: 402 })
   }
-  await deductCredits(user.id, unit, 'flyer', undefined, 'Changed part of a design')
+  // The deduction can still lose a race with another charge. Its result used to
+  // be ignored — the edit then ran for free (audit H5).
+  if (!(await deductCredits(user.id, unit, 'flyer', undefined, 'Changed part of a design'))) {
+    return NextResponse.json({ error: 'We could not charge your credits just now. Please try again.' }, { status: 402 })
+  }
 
   // One key per attempt, so a retry after a genuine failure is not swallowed
   // as a duplicate of the first refund.
@@ -219,7 +226,8 @@ export async function POST(req: Request) {
         .toBuffer()
 
       const path = `${user.id}/flyer/${crypto.randomUUID()}.png`
-      await admin.storage.from('creation-assets').upload(path, placed, { contentType: 'image/png', upsert: true })
+      const { error: upErr } = await admin.storage.from('creation-assets').upload(path, placed, { contentType: 'image/png', upsert: true })
+      if (upErr) throw new Error(`save failed: ${upErr.message}`) // refunded in the catch below
       const { data: row } = await admin.from('flyer_designs').insert({
         round_id: design.round_id, user_id: user.id,
         size_id: design.size_id, label: design.label,
@@ -325,7 +333,8 @@ export async function POST(req: Request) {
     // be worse, and a customer who cannot go back to what they had would rather
     // we had not offered the button.
     const path = `${user.id}/flyer/${crypto.randomUUID()}.png`
-    await admin.storage.from('creation-assets').upload(path, edited, { contentType: 'image/png', upsert: true })
+    const { error: upErr } = await admin.storage.from('creation-assets').upload(path, edited, { contentType: 'image/png', upsert: true })
+    if (upErr) throw new Error(`save failed: ${upErr.message}`) // refunded in the catch below
 
     const { data: row } = await admin.from('flyer_designs').insert({
       round_id: design.round_id, user_id: user.id,

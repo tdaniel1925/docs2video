@@ -7,7 +7,8 @@ import { generateInfographicImage } from '../../_lib/gemini'
 import type { Brand, ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
-import { deductCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { CREDIT_COSTS } from '../../_lib/credits'
+import { runCharged } from '../../_lib/credit-charge'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -48,6 +49,10 @@ export async function POST(request: Request) {
     text: brand?.text_color ?? '#FFFFFF',
   }
 
+  // Charge BEFORE generating (this used to deduct AFTER the image was made
+  // and ignore a failed deduction — a free infographic) and refund on any
+  // failure (audit H5).
+  return runCharged({ userId: user.id, amount: CREDIT_COSTS.infographic, action: 'infographic' }, async () => {
   // Create infographic record
   const { data: infographic, error: insertError } = await supabase
     .from('infographics')
@@ -66,7 +71,8 @@ export async function POST(request: Request) {
     .single()
 
   if (insertError || !infographic) {
-    return NextResponse.json({ error: insertError?.message ?? 'Failed to create record' }, { status: 500 })
+    console.error('[generate] Could not create infographic record:', insertError?.message)
+    return NextResponse.json({ error: 'Could not start the infographic. Please try again.' }, { status: 500 })
   }
 
   try {
@@ -90,10 +96,6 @@ export async function POST(request: Request) {
       .update({ image_url: publicUrl.publicUrl, status: 'completed' })
       .eq('id', infographic.id)
 
-    // Deduct from the real wallet (credit_balances). deductCredits handles the
-    // admin/beta bypass internally.
-    await deductCredits(user.id, CREDIT_COSTS.infographic, 'infographic', infographic.id)
-
     return NextResponse.json({ id: infographic.id, image_url: publicUrl.publicUrl })
   } catch (err) {
     console.error('[generate] Error:', err)
@@ -104,6 +106,7 @@ export async function POST(request: Request) {
       .update({ status: 'failed', error_message: message })
       .eq('id', infographic.id)
 
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Generation failed. Your credits were returned — please try again.' }, { status: 500 })
   }
+  })
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { getStripe } from '../../../_lib/stripe'
+import { safeReturnOrigin } from '../../../_lib/billing'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -26,12 +27,13 @@ export async function POST(request: Request) {
     const stripe = getStripe()
     const session = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
-      return_url: `${request.headers.get('origin') ?? 'https://docs2video.com'}/settings?tab=subscription`,
+      return_url: `${safeReturnOrigin(request)}/settings?tab=subscription`,
     })
 
     return NextResponse.json({ url: session.url })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    // Raw Stripe detail stays in the log; the user gets a plain sentence.
+    console.error('[stripe/portal] could not open billing portal:', err instanceof Error ? err.message : err)
+    return NextResponse.json({ error: 'We could not open billing just now. Please try again in a minute.' }, { status: 500 })
   }
 }

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { generateSlide } from '../../_lib/gemini'
-import { deductCredits } from '../../_lib/credits'
+import { CREDIT_COSTS } from '../../_lib/credits'
+import { runCharged } from '../../_lib/credit-charge'
 import type { SlideStyleId } from '../../_lib/types'
 
 export const runtime = 'nodejs'
@@ -122,6 +123,10 @@ export async function POST(request: Request) {
     website: (brand.brand_guide_data as Record<string, string> | null)?.website ?? undefined,
   }
 
+  // Charge the real price for 4 AI slides BEFORE the work (this used to take
+  // 1 credit afterwards and ignore a failed deduction) and refund on any
+  // failure (audit H5).
+  return runCharged({ userId: user.id, amount: CREDIT_COSTS['brand-deck'], action: 'brand-deck' }, async () => {
   try {
     console.log(`[brand-deck] Generating 4 reference slides for brand "${brand.name}" with style "${styleId}"...`)
 
@@ -145,7 +150,8 @@ export async function POST(request: Request) {
 
       // Upload to storage
       const path = `${user.id}/brand-decks/${brandId}/${styleId}_slide_${i}.png`
-      await admin.storage.from('videos').upload(path, buf, { contentType: 'image/png', upsert: true })
+      const { error: upErr } = await admin.storage.from('videos').upload(path, buf, { contentType: 'image/png', upsert: true })
+      if (upErr) throw new Error(`upload failed: ${upErr.message}`)
       const { data: urlData } = admin.storage.from('videos').getPublicUrl(path)
       slideUrls.push(urlData.publicUrl)
     }
@@ -159,13 +165,6 @@ export async function POST(request: Request) {
 
     console.log(`[brand-deck] Done! 4 reference slides saved for brand "${brand.name}"`)
 
-    // Deduct 1 credit for brand deck generation
-    const deducted = await deductCredits(admin, user.id, 1)
-    if (!deducted) {
-      console.log(`[brand-deck] Warning: insufficient credits for user ${user.id}`)
-    }
-    console.log(`[brand-deck] Deducted 1 credit for brand deck generation`)
-
     return NextResponse.json({
       success: true,
       slides: slideUrls,
@@ -173,7 +172,7 @@ export async function POST(request: Request) {
     })
   } catch (err) {
     console.error(`[brand-deck] Error:`, err)
-    const message = err instanceof Error ? err.message : 'Failed to generate brand deck'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to generate the brand deck. Your credits were returned — please try again.' }, { status: 500 })
   }
+  })
 }

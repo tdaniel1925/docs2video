@@ -97,7 +97,8 @@ export async function POST(request: Request) {
     })
   } catch (err) {
     console.error('[pay-project] Error:', err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Payment failed' }, { status: 500 })
+    // Raw Stripe detail stays in the log (above); the user gets a plain sentence.
+    return NextResponse.json({ error: 'We could not start the payment just now. Please try again in a minute.' }, { status: 500 })
   }
 }
 

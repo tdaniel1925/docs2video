@@ -100,7 +100,7 @@ export default function ImageRemixPage() {
       setRemixResult(data.imageUrl)
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Here\'s your remixed design! Want to make more changes? Each remix costs 1 credit.',
+        content: 'Here\'s your remixed design! Want to make more changes? Each remix costs 200 credits.',
         image: data.imageUrl,
       }])
     } catch (err) {

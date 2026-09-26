@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { getStripe } from '../../../_lib/stripe'
+import { safeReturnOrigin } from '../../../_lib/billing'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'The Social add-on is already active.' }, { status: 400 })
   }
 
-  const origin = request.headers.get('origin') ?? 'https://docs2video.com'
+  const origin = safeReturnOrigin(request)
   try {
     const stripe = getStripe()
     const params: Record<string, unknown> = {
@@ -45,6 +46,8 @@ export async function POST(request: Request) {
     )
     return NextResponse.json({ url: session.url })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Checkout failed' }, { status: 500 })
+    // Raw Stripe detail stays in the log; the user gets a plain sentence.
+    console.error('[social-addon/checkout] could not start checkout:', err instanceof Error ? err.message : err)
+    return NextResponse.json({ error: 'We could not start checkout just now. Please try again in a minute.' }, { status: 500 })
   }
 }

@@ -6,7 +6,10 @@ import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/client'
 import { SLIDE_STYLES, VOICE_OPTIONS } from '../../_lib/types'
 import type { Profile } from '../../_lib/types'
-import { PLANS } from '../../_lib/pricing'
+import { SELLABLE_PLAN_TIERS, getPlan } from '../../_lib/pricing'
+
+// The plans a new subscriber can actually buy (Starter is retired).
+const MODAL_PLANS = SELLABLE_PLAN_TIERS.map(t => getPlan(t))
 
 type SetupStep = 1 | 2 | 3 | 4 | 5
 
@@ -802,43 +805,71 @@ export default function SetupPage() {
               </button>
             </div>
 
-            {/* Plan cards \u2014 built from PLANS (pricing.ts), the same list the
-                pricing page and checkout use. The old hand-written table
-                offered Starter/Agency at stale prices, which checkout rejects
-                ("Invalid plan."). */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
-              {PLANS.filter(p => p.tier !== 'free' && p.tier !== 'starter').map((plan) => (
-                <div key={plan.tier} style={{ border: plan.tier === 'pro' ? '2px solid var(--ink)' : '1px solid var(--border-light)', borderRadius: 10, padding: 16, textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{plan.label}</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>${plan.monthlyPrice / 100}<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-soft)' }}>/mo</span></div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--mint-darker)', margin: '6px 0 2px' }}>{plan.monthlyCredits.toLocaleString()} credits / mo</div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 12, flex: 1 }}>~{plan.approxStandardVideos} standard videos</div>
-                  <button
-                    disabled={subscribing}
-                    onClick={async () => {
-                      setSubscribing(true)
-                      setError(null)
-                      try {
-                        const res = await fetch('/api/stripe/checkout', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ planId: plan.tier }),
-                        })
-                        const data = await res.json().catch(() => ({}))
-                        if (data.url) { window.location.href = data.url; return }
-                        throw new Error(data.error || 'Could not start checkout. Please try again.')
-                      } catch (err) {
-                        setError(err instanceof Error ? err.message : 'Failed to start checkout')
-                      }
-                      setSubscribing(false)
-                    }}
-                    className={plan.tier === 'pro' ? 'btn btn-primary btn-sm' : 'btn btn-soft btn-sm'}
-                    style={{ width: '100%', fontSize: 12 }}
-                  >
-                    {subscribing ? '...' : 'Subscribe'}
-                  </button>
+            {/* Comparison table */}
+            <div style={{ border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
+              {/* Header */}
+              {/* Only plans checkout actually sells, priced from pricing.ts. This
+                  table used to offer Starter/"Agency" at made-up prices, and
+                  checkout rejected both with "Invalid plan." */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', background: 'var(--bg-soft)', borderBottom: '1px solid var(--border-light)' }}>
+                <div style={{ padding: '12px 16px', fontSize: 12, fontWeight: 700, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em' }}></div>
+                {MODAL_PLANS.map((p) => (
+                  <div key={p.tier} style={{ padding: '12px 16px', textAlign: 'center', position: 'relative', ...(p.tier === 'pro' ? { background: 'var(--mint, #d4edda)' } : {}) }}>
+                    {p.tier === 'pro' && (
+                      <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--ink)', color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>MOST POPULAR</div>
+                    )}
+                    <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{p.label}</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>${Math.round(p.monthlyPrice / 100)}<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-soft)' }}>/mo</span></div>
+                  </div>
+                ))}
+              </div>
+              {/* Rows */}
+              {[
+                { label: 'Credits / month', values: MODAL_PLANS.map(p => p.monthlyCredits.toLocaleString()) },
+                { label: 'Standard videos / month', values: MODAL_PLANS.map(p => `~${p.approxStandardVideos}`), highlight: true },
+                { label: 'Quick videos / month', values: MODAL_PLANS.map(p => `~${p.approxQuickVideos}`) },
+                { label: 'Cancel anytime', values: MODAL_PLANS.map(() => '\u2713') },
+              ].map((row, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', borderBottom: '1px solid var(--border-light)' }}>
+                  <div style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{row.label}</div>
+                  {row.values.map((val, j) => (
+                    <div key={j} style={{ padding: '10px 16px', fontSize: 13, textAlign: 'center', color: row.highlight ? 'var(--mint-darker, #2d7a4f)' : 'var(--ink-soft)', fontWeight: row.highlight ? 700 : 400, background: MODAL_PLANS[j]?.tier === 'pro' ? 'rgba(199,232,168,0.08)' : 'transparent' }}>
+                      {val}
+                    </div>
+                  ))}
                 </div>
               ))}
+              {/* CTA row */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', padding: '12px 0' }}>
+                <div></div>
+                {MODAL_PLANS.map(p => p.tier).map((plan) => (
+                  <div key={plan} style={{ padding: '4px 16px', textAlign: 'center' }}>
+                    <button
+                      disabled={subscribing}
+                      onClick={async () => {
+                        setSubscribing(true)
+                        try {
+                          const res = await fetch('/api/stripe/checkout', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ planId: plan }),
+                          })
+                          const data = await res.json()
+                          if (data.url) window.location.href = data.url
+                          else throw new Error(data.error || 'Failed')
+                        } catch (err) {
+                          setError(err instanceof Error ? err.message : 'Failed to start checkout')
+                        }
+                        setSubscribing(false)
+                      }}
+                      className={plan === 'pro' ? 'btn btn-primary btn-sm' : 'btn btn-soft btn-sm'}
+                      style={{ width: '100%', fontSize: 12 }}
+                    >
+                      {subscribing ? '...' : 'Subscribe'}
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div style={{ textAlign: 'center' }}>

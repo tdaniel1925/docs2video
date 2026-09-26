@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { deductCredits } from '../../../_lib/credits'
+import { runCharged } from '../../../_lib/credit-charge'
 import OpenAI from 'openai'
 
 export const runtime = 'nodejs'
@@ -57,12 +57,8 @@ Tone: ${profile?.social_voice || 'professional'}`
       return NextResponse.json({ error: 'Select at least one platform' }, { status: 400 })
     }
 
-    // Deduct credits
-    const deducted = await deductCredits(user.id, CREDITS_PER_GENERATION, 'social_caption_gen', undefined, `AI captions for ${platforms.join(', ')}`)
-    if (!deducted) {
-      return NextResponse.json({ error: `Insufficient credits. Need ${CREDITS_PER_GENERATION} credits.` }, { status: 402 })
-    }
-
+    // Charge, and refund if the AI call or its parse fails (audit H5).
+    return runCharged({ userId: user.id, amount: CREDITS_PER_GENERATION, action: 'social_caption_gen', description: `AI captions for ${platforms.join(', ')}` }, async () => {
     try {
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -103,6 +99,7 @@ Platform guidelines:
       console.error('[social-media/generate] captions error:', err)
       return NextResponse.json({ error: 'Failed to generate captions' }, { status: 500 })
     }
+    })
   }
 
   // Generate posts from existing content (video/infographic)
@@ -124,12 +121,8 @@ Platform guidelines:
       return NextResponse.json({ error: 'Content not found' }, { status: 404 })
     }
 
-    // Deduct credits
-    const deducted = await deductCredits(user.id, CREDITS_PER_GENERATION, 'social_from_content', videoId, `Social posts from video: ${video.title}`)
-    if (!deducted) {
-      return NextResponse.json({ error: `Insufficient credits. Need ${CREDITS_PER_GENERATION} credits.` }, { status: 402 })
-    }
-
+    // Charge, and refund if the AI call or its parse fails (audit H5).
+    return runCharged({ userId: user.id, amount: CREDITS_PER_GENERATION, action: 'social_from_content', videoId, description: `Social posts from video: ${video.title}` }, async () => {
     // Extract narration text
     let narrationText = ''
     const scriptData = video.script as any
@@ -200,6 +193,7 @@ Keep each post unique with a different hook/angle.`,
       console.error('[social-media/generate] from-content error:', err)
       return NextResponse.json({ error: 'Failed to generate posts' }, { status: 500 })
     }
+    })
   }
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
