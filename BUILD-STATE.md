@@ -1,6 +1,6 @@
 # Docs2Video — Build State
 
-**Last updated:** 2026-07-04 (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
+**Last updated:** 2026-09-26 (audit fixes; see Known Issues) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
 **Branch:** main
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
@@ -269,14 +269,22 @@ Full-codebase review in `CODE-REVIEW-2026-07-01.md`. Fixed in one pass:
 
 ## Pricing (from pricing.ts)
 
-| Tier | Monthly | Projects | Courses |
-|------|---------|----------|---------|
-| Free | $0 | $10/each | $249/each |
-| Pro | $25 | $6/each | $149/each |
-| Business | $99 | 50 included | $99/each |
-| Agency | $249 | 150 included | 5 included |
-| Enterprise | $499 | Unlimited | 20 included |
-| Enterprise+ | $799 | Unlimited | Unlimited |
+Updated 2026-09-26. Source of truth: `app/_lib/pricing.ts` (plans), `app/_lib/credits.ts`
+(`TIER_CREDITS`, `CREDIT_COSTS`), `app/api/credits/buy/route.ts` (packs),
+`app/api/stripe/checkout/route.ts` (what is sellable: pro/business/enterprise).
+
+| Tier | Monthly | Credits | ≈ standard videos (1,000 cr) | Sold? |
+|------|---------|---------|------------------------------|-------|
+| Free | $0 | 2,000 one-time (card required) | 2 | signup |
+| Starter | $29 | 5,000/mo | 5 | **retired** — existing subs only |
+| Pro | $79 | 25,000/mo | 25 | yes |
+| Business | $199 | 75,000/mo | 75 | yes (white-label share pages) |
+| Enterprise | $499 | 200,000/mo | 200 | yes (white-label share pages) |
+
+Extra usage = one-time credit packs for everyone (free included): $10 / 2,500 · $25 / 7,500 ·
+$50 / 18,000, never expire. There is NO per-video overage fee; the `extraVideoPrice` /
+`overageRatePer1000` fields in pricing.ts are legacy and must not be quoted to customers.
+AI Social add-on: $50/mo, plus 25 credits per caption set and 25 credits per platform per post.
 
 ---
 
@@ -497,11 +505,31 @@ These features are code-complete and build clean. Setup status:
 3. ⚠️ ACTION REQUIRED: Cartesia API key `sk_car_q3LX...` was committed to git history (commit ff100f4) — rotate it in the Cartesia dashboard and set `CARTESIA_API_KEY` env var on the VPS. Code no longer hardcodes it.
 4. `app/_lib/music-generator.ts` and `synthesizeAllScenes` in `app/_lib/tts.ts` are dead code — music/TTS for the main pipeline run on the VPS. Candidates for removal.
 5. Webhook idempotency unique index: run `supabase/legacy/supabase-webhook-idempotency-migration.sql` against the DB.
+6. `FAL_KEY` is not set in production → print sizes in Custom Graphics are resized, not AI-upscaled (lettering can look soft on posters/signs). `upscaleForPrint` logs "upscale skipped … no FAL_KEY configured". Fix: set `FAL_KEY` in Vercel. Copy in the help center and Text2Art meta no longer promises upscaling; the `/design` "Something to print" tile and the `/create/start` Custom Graphics card still say "print-ready" (not changed — those files belong to the create/design owners).
+7. Outlook connect (`/api/auth/microsoft`) sends `client_id=undefined` in production — Microsoft env vars unset (audit H14).
+8. `follow-up/send` builds share links from `VERCEL_URL` when `NEXT_PUBLIC_SITE_URL` is missing, so links can point at a preview deployment host.
+9. The Library (`/videos`) has no link to `/infographics` (legacy infographic gallery); it is reachable from the infographic email only.
+
+### Audit 2026-09-26 (`AUDIT-2026-09-26.md`) — content / pricing / help / nav / SEO (branch `fix/audit-2026-09-26`)
+
+Fixed:
+- **Pricing truth** — every customer-facing plan statement now matches pricing.ts + credits.ts: no "$5/$10 per additional video", Pro = 25,000 credits (~25 videos) not "20 videos", no retired $29 Starter (help center, Text2Art landing), top-up packs from $10 open to everyone, free credits are one-time. Removed claims the code never enforced (priority generation, free slide edits, bulk creation). Files: pricing.ts feature text, /pricing, landing, Text2Art landing, help/pricing, help index, settings plan cards, upgrade modal, help-chat prompt.
+- **Commercial "Buy more"** opened `/billing` (404) → now opens the top-up modal.
+- **AI Social** — "AI Social" in the account menu (desktop + mobile; "Add-on" tag if not subscribed), settings error no longer points to a non-existent "Social" menu, 25-credits-per-platform posting cost shown on /pricing and the add-on upsell, help index links `/help/social-sharing`.
+- **Help center** — Custom Graphics article rewritten for the `/design` wizard; index + articles audited against the live UI (create flow, styles, share page, library, voice, script editing, file types, account menu locations, payout terms); Templates and Translate entries removed (not reachable). "Brand profiles" added to the account menu so the Brands help is true.
+- **Nurture emails** — no more "no card needed"; the discount code is to be entered at checkout (signup drops `?promo=`).
+- **Branded 404 / error pages** — `app/not-found.tsx`, `app/error.tsx`, `app/global-error.tsx`.
+- **SEO** — root `metadataBase`, default OpenGraph/Twitter image per storefront (`public/og-docs2video.png`, `public/og-text2art.png`), metadata for /terms, /contact, /share-demo, /try/[slug] (noindex), /unsubscribe/[id] (noindex).
+- **Orphan tools retired** — /headshot, /logo-creator, /templates, /infographic-creator, /email-signature, /image-remix, /course-builder, /brand-kit → home; /ads, /business-cards → /design; /social-kit, /social-campaigns → /social-media. Each via a `layout.tsx` that redirects before the page renders (page code kept; delete the layout to restore). Their APIs still exist.
+- `/api/demo-slide-gpt` and `/api/template-demo/generate` now require an admin.
+
+Handled by other agents on the same audit (see `AUDIT-2026-09-26.md` for detail): C1–C7 (free-credit refund exploit, card-check bypass, double subscriptions on "Switch plan", stuck refused videos, follow-up spam, public pages redirecting to login, email-connection takeover), H1–H15 (Stripe webhook retries, slide-deck choices ignored, double charges, charge-first-no-refund tools, source-PDF download, multi-file surcharge, commission claw-back, share emails, share-link breakage, profile protection, account deletion billing, logo URLs, card-required trial), plus the Medium/Low items for auth, settings "Saved" on failure, onboarding plan buttons, `/setup-payment` still listing Starter, and nurture unsubscribe.
 
 ## Product Focus (2026-06-11)
 
 Owner decision: the product is **document-to-video + PPT deck maker** only.
 - Peripheral tools (social media, course builder, headshots, image remix, infographics, flyers, business cards, ads, email signatures, brand-kit, translations, affiliates) are HIDDEN from nav/dashboard/help but routes remain live at direct URLs. Restore by re-adding links in `Header.tsx`, dashboard `creations` queries, and the help index.
+- **2026-09-26:** the still-live peripheral pages now REDIRECT (a `layout.tsx` in each folder) so they can't spend credits — see Known Issues › Audit 2026-09-26. Since then, AI Social (/social-media), Affiliate Program and Brand profiles are back in the account menu, and Custom Graphics (/design) is on + Create.
 - Podcast (two-voice) mode SUNSET — wizard option removed, generate-video forces solo. Was the last VPS-only feature.
 - Deck builder: 300 credits per deck (`CREDIT_COSTS.deck`), Gemini engine.
 - All style previews now Gemini (`generateSlideFromPrompt`, optional reference image param).

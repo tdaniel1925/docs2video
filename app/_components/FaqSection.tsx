@@ -31,7 +31,7 @@ const FAQ_ITEMS = [
   {
     question: 'Do my clients need an account to view?',
     answer:
-      'No. Every video gets a clean, shareable link. Your clients can view it instantly on any device — no login, no app download, no signup required. You can also password-protect links for extra privacy.',
+      'No. Every video gets a clean, shareable link. Your clients can view it instantly on any device — no login, no app download, no signup required. Each link is a long private address that is not listed anywhere public — anyone you send it to can watch.',
   },
   {
     question: 'Can I collect payments through the share page?',

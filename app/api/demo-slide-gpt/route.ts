@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
+import { isAdminRequest } from '../../_lib/admin'
 import OpenAI from 'openai'
 import { GoogleGenAI } from '@google/genai'
 
@@ -12,6 +13,9 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  // Internal demo tool (/demo-slide is admin-only) — any signed-in user could
+  // previously call this and spend credits on it (audit 2026-09-26).
+  if (!(await isAdminRequest(user))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const rl = rateLimit(getRateLimitKey(user.id, 'demo-slide'), LIMITS.generation.limit, LIMITS.generation.windowMs)
   if (!rl.allowed) {

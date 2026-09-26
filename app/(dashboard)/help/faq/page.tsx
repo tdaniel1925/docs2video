@@ -8,77 +8,82 @@ interface FaqItem {
   answer: string[]
 }
 
+// Audited against the live UI on 2026-09-26.
 const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'How long does it take to generate a video?',
     answer: [
-      'Most videos are generated in 2-3 minutes. Detailed (longer) videos may take up to 5 minutes. You can leave the page while the video generates — it will continue in the background and appear in your Library when complete.',
+      'Most videos take 3–5 minutes. The **Slide Deck** style takes about 10 minutes. You can leave the page while the video generates — it keeps going in the background and appears in your Library when complete.',
     ],
   },
   {
     question: 'Can I edit a video after it has been generated?',
     answer: [
-      'Yes. Open the video from your Library and use the AI editor to make changes. You can update narration text, regenerate individual slides, or adjust specific scenes without recreating the entire video.',
+      'Yes. Open the video from your Library and click **Edit Video**. You can change the wording of each scene or remove scenes, then press **Save & Regenerate** to make a new version.',
+      'For **Slide Deck** videos there is also **Fix a scene** — use it to correct one scene (a glitch, the wording, or how a word is pronounced) without redoing the rest.',
     ],
   },
   {
     question: 'What file formats can I upload?',
     answer: [
-      'You can upload PDF documents. You can also paste text directly, enter a webpage URL for the AI to scrape, or use the AI Research and Start from Idea options that do not require any file upload.',
+      'You can upload up to 5 files at once: **PDF**, **Word (DOCX)**, **PowerPoint (PPTX)**, **text (TXT)**, **CSV** and **Excel (XLSX)**.',
+      'On the Content step you can also choose **Website URL**, **Paste text**, or **AI writes it** — none of those need a file.',
     ],
   },
   {
     question: 'Is there a limit on video length?',
     answer: [
-      'Standard videos are 2-3 minutes. Detailed videos are 5-7 minutes. The length is determined by the amount of content and the option you select during creation. There is no hard limit on the number of scenes.',
+      'On the **Voice & Length** step you pick **Short** (30–60 seconds), **Medium** (2–3 minutes) or **Long** (5+ minutes). The final length also depends on how much content you give it. Longer videos cost more credits (500 / 1,000 / 1,500).',
     ],
   },
   {
     question: 'Can I use my own voice for narration?',
     answer: [
-      'Currently, videos use AI-generated voices. You can choose from a variety of voices with different tones and styles. Custom voice cloning is not available at this time.',
+      'Not at the moment. Videos use AI voices. On the **Voice & Length** step you can press **▶ Listen** to hear each one and pick the tone you like.',
     ],
   },
   {
     question: 'Do my clients need an account to watch my videos?',
     answer: [
-      'No. The share page is fully public. Anyone with the link can watch the video, use the AI chat, book a meeting (if you have Calendly connected), and download files. No login or account is required.',
+      'No. The share page is public. Anyone with the link can watch the video, see your contact details, book a call or make a payment (if you set those up), and download your original PDF (only if you turned that on). No login is needed.',
     ],
   },
   {
-    question: 'Can I remove the Docs2Video branding from my videos?',
+    question: 'Can I remove the Docs2Video branding?',
     answer: [
-      'Videos are branded with your logo, colors, and contact information. Docs2Video branding is minimal and appears only on the share page footer. Your brand is the primary identity shown throughout the video and share page.',
+      'Your own logo, colors and contact details are shown throughout. A small "Powered by Docs2Video" line appears at the top and bottom of the share page unless you are on **Business** or **Enterprise**, which remove it completely (white-label).',
     ],
   },
   {
     question: 'What happens to my videos if I cancel my subscription?',
     answer: [
-      'All your videos remain accessible. You can still view, share, and download them. You simply cannot create new videos at the subscription rate. You can always create new videos at the pay-per-project price.',
+      'All your videos stay in your Library and their share links keep working. Your monthly credits stop, but any top-up credits you bought stay in your account, and you can buy more anytime with **+ Top Up** (packs start at $10 for 2,500 credits).',
     ],
   },
   {
     question: 'Can I create videos for multiple brands or clients?',
     answer: [
-      'Yes. Create a brand for each client in the Brands section. When making a video, select the appropriate brand and the output will use that brand\'s logo, colors, and contact info. There is no limit on the number of brands.',
+      'Yes. Open the account menu (top-right) and choose **Brand profiles** to create a profile for each company or person. You can also create one on the **Presenter** step while making a video.',
+      'When making a video, pick the right profile on the **Presenter** step and the video uses that logo, colors and contact info. There is no limit on the number of profiles.',
     ],
   },
   {
-    question: 'How do I connect Calendly for meeting booking on share pages?',
+    question: 'How do I add a booking link to my share pages?',
     answer: [
-      'Go to Settings and look for the Calendly section. Enter your Calendly URL (e.g., https://calendly.com/yourname). Once saved, a booking widget will appear on all your video share pages so clients can schedule a meeting with you.',
+      'Open the account menu (top-right), click **Settings**, then the **Integrations** tab. Choose Calendly, Cal.com or Google Calendar, paste your booking link, and press **Save**. A **Book a Call** button then appears on your share pages.',
     ],
   },
   {
     question: 'Can I download my video as a PowerPoint file?',
     answer: [
-      'Yes. Every video can be downloaded in three formats: MP4 (video), PDF (slides), and PPTX (editable PowerPoint). The PPTX file can be opened in Microsoft PowerPoint or Google Slides for further customization.',
+      'Yes. On the video page, the **MP4**, **PDF** and **PPTX** buttons download the video, the slides as a PDF, and an editable PowerPoint. The PPTX opens in Microsoft PowerPoint or Google Slides. (These downloads are for you — your client\'s share page only offers your original PDF, and only if you turned that on.)',
     ],
   },
   {
-    question: 'What is the AI chat on the share page?',
+    question: 'How much does it cost?',
     answer: [
-      'The AI chat assistant appears on every share page. It has full knowledge of the video content and your company information (from your website URL in brand settings). Clients can ask questions about anything in the video and get instant, relevant answers.',
+      'Everything uses credits. New accounts get **2,000 free credits** once (about 2 standard videos). Plans: **Pro** $79/mo (25,000 credits), **Business** $199/mo (75,000), **Enterprise** $499/mo (200,000).',
+      'Anyone can buy top-up packs that never expire: 2,500 credits for $10, 7,500 for $25, or 18,000 for $50. See **Pricing & Plans** for details.',
     ],
   },
 ]
@@ -87,47 +92,47 @@ const TROUBLESHOOTING: FaqItem[] = [
   {
     question: 'My video is stuck on "Generating" and has not completed.',
     answer: [
-      'Videos typically complete within 2-5 minutes. If your video has been generating for more than 10 minutes:',
-      '1. Refresh the page and check your Library — the video may have completed but the status did not update on screen.',
-      '2. If it still shows as generating, wait a few more minutes. Server load can occasionally cause delays.',
-      '3. If the video has not completed after 30 minutes, contact support at support@docs2video.com with the video title and approximate time you started generation.',
+      'Most videos finish in 3–5 minutes (Slide Deck about 10). If yours has been generating much longer than that:',
+      '1. Refresh the page and check your Library — the video may have finished but the screen did not update.',
+      '2. If it still shows as generating, wait a few more minutes. Busy times can cause delays.',
+      '3. If it has not finished after 30 minutes, email support@docs2video.com with the video title and roughly when you started it.',
     ],
   },
   {
     question: 'My video has no audio / narration is missing.',
     answer: [
-      'This can happen if voice generation encountered an error on one or more scenes. Try these steps:',
-      '1. Open the video and check if the narration text is present in each scene. If a scene has empty narration, the voice will be silent for that section.',
-      '2. Try regenerating the video. Open the AI editor, and re-generate the narration for the affected scenes.',
-      '3. Make sure your browser volume is not muted and that the video player volume slider is up.',
+      'This can happen if the voice failed on one or more scenes. Try these steps:',
+      '1. Make sure your device volume and the video player volume are turned up.',
+      '2. Open the video and click **Edit Video**. Check each scene has narration text, then press **Save & Regenerate**.',
+      '3. For a **Slide Deck** video, use **Fix a scene** on the silent scene instead — re-recording is free.',
     ],
   },
   {
-    question: 'The AI extracted the wrong data from my document.',
+    question: 'The AI misunderstood my document.',
     answer: [
-      'After uploading, always review the extracted data on Step 2 of the creation flow. You can edit any field before proceeding.',
-      'If the extraction is significantly off, try uploading a cleaner version of the document (higher resolution PDF, or text-based rather than scanned images). You can also paste the content directly instead of uploading.',
+      'After you add your content, the **Brief** step shows what the AI understood. If it is off, type what to change in the chat (for example "focus on the retirement income numbers") before you press **Looks good — continue**.',
+      'If it is badly wrong, try a cleaner file (a text-based PDF rather than a scan), or paste the text in directly with **Paste text**.',
     ],
   },
   {
     question: 'My brand colors look different in the video than on my website.',
     answer: [
-      'Go to Brands and edit the brand in question. Check that the hex color codes match your official brand guidelines. Auto-scraped colors from a website URL are a best guess — the system reads CSS, which may include hover states, gradients, or background colors that differ from your primary brand palette.',
-      'Click "Advanced" to manually set all 5 color slots to your exact brand hex codes.',
+      'Open the account menu (top-right), choose **Brand profiles**, and edit that profile. Set the brand color to your exact color code.',
+      'Colors picked up automatically from a website are a best guess and can grab a button or background color instead of your main brand color.',
     ],
   },
   {
     question: 'I cannot see the download buttons on my video.',
     answer: [
-      'Download buttons appear only after the video has fully completed generation. If the video is still processing, wait for it to finish.',
-      'On mobile devices, you may need to scroll down below the video player to see the download options.',
+      'The **MP4**, **PDF** and **PPTX** buttons appear only after the video has finished. If it is still processing, wait for it to complete.',
+      'On a phone, scroll down below the video player to see them.',
     ],
   },
   {
     question: 'The share page link is not working.',
     answer: [
-      'Check that the video has completed generation. Share pages are only active for fully generated videos.',
-      'If the video is complete but the link returns an error, try copying the link again from the video detail page. Make sure the full URL is included when pasting.',
+      'Check that the video has finished. Share pages only work for completed videos.',
+      'If it is complete but the link shows an error, copy it again with **Copy Link** on the video page, and make sure the whole address was pasted.',
     ],
   },
 ]

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import BuyCreditsModal from '../../../_components/BuyCreditsModal'
 
 /**
  * Dedicated CUSTOMER flow for the AI Commercial pipeline (separate from the
@@ -52,6 +53,9 @@ export default function CreateCommercialPage() {
   const [music, setMusic] = useState(true)
   const [style, setStyle] = useState('auto')
   const [showAdvanced, setShowAdvanced] = useState(false)
+  // "Buy more" opens the same top-up modal as the header's Top Up button. It
+  // used to link to /billing, which does not exist (a 404 mid-purchase).
+  const [showBuyCredits, setShowBuyCredits] = useState(false)
   const [balance, setBalance] = useState<number | null>(null)
   const [isAdminUser, setIsAdminUser] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -287,7 +291,7 @@ export default function CreateCommercialPage() {
         ) : (
           <span style={styles.costWarn}>
             You need <strong>{COMMERCIAL_COST}</strong> credits but have <strong>{balance?.toLocaleString() ?? 0}</strong>.{' '}
-            <Link href="/billing" style={styles.buyLink}>Buy more</Link>
+            <button type="button" onClick={() => setShowBuyCredits(true)} style={styles.buyLink}>Buy more</button>
           </span>
         )}
       </div>
@@ -299,6 +303,13 @@ export default function CreateCommercialPage() {
       >
         {submitting ? 'Starting…' : 'Generate Commercial'}
       </button>
+
+      <BuyCreditsModal
+        open={showBuyCredits}
+        onClose={() => setShowBuyCredits(false)}
+        needed={COMMERCIAL_COST}
+        balance={balance ?? undefined}
+      />
     </div>
   )
 }
@@ -333,7 +344,7 @@ const styles: Record<string, React.CSSProperties> = {
   costOk: { color: 'var(--ink-soft)' },
   bal: { color: 'var(--ink-light)' },
   costWarn: { color: '#92400E' },
-  buyLink: { color: 'var(--ink)', fontWeight: 700 },
+  buyLink: { color: 'var(--ink)', fontWeight: 700, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline', font: 'inherit' },
   cta: { width: '100%', padding: '15px 24px', fontSize: 16, fontWeight: 800, borderRadius: 10, border: 'none', background: 'var(--ink)', color: 'white', cursor: 'pointer', letterSpacing: '-0.01em' },
   ctaDisabled: { opacity: 0.45, cursor: 'not-allowed' },
 }

@@ -1,5 +1,10 @@
 import Link from 'next/link'
 
+export const metadata = {
+  title: 'Terms of Service | Docs2Video',
+  description: 'The terms that apply when you use Docs2Video.',
+}
+
 export default function TermsOfService() {
   return (
     <div style={{

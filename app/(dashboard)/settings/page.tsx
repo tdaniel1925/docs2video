@@ -285,7 +285,7 @@ export default function SettingsPage() {
       const data = await res.json()
       if (!res.ok) {
         setSocialError(data.code === 'addon_required'
-          ? 'Add the AI Social add-on first (in Social).'
+          ? 'Add the AI Social add-on first — open the account menu (top-right) and choose "AI Social", or see the Pricing page.'
           : (data.error || 'Failed to start connection'))
         setSocialLoading(false)
         return
@@ -1034,7 +1034,7 @@ export default function SettingsPage() {
                     if (['business', 'unlimited'].includes(s)) return 'Business'
                     if (['pro', 'professional'].includes(s)) return 'Pro'
                     if (['starter', 'active'].includes(s)) return 'Starter'
-                    return storefront.showVideoFeatures ? 'Pay Per Video' : 'Pay As You Go'
+                    return 'Pay As You Go'
                   })()}
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginTop: 4 }}>
@@ -1047,7 +1047,7 @@ export default function SettingsPage() {
                     if (['business', 'unlimited'].includes(s)) return allowance('business')
                     if (['pro', 'professional'].includes(s)) return allowance('pro')
                     if (['starter', 'active'].includes(s)) return allowance('starter')
-                    return storefront.showVideoFeatures ? '$10 per video' : 'Buy credits as you need them'
+                    return 'Free credits to start, then top up as you need them'
                   })()}
                 </div>
               </div>
@@ -1082,12 +1082,12 @@ export default function SettingsPage() {
               {([
                 {
                   tier: 'free',
-                  label: storefront.showVideoFeatures ? 'Pay Per Video' : 'Pay As You Go',
+                  label: 'Pay As You Go',
                   price: '$0',
                   period: '',
-                  highlight: storefront.showVideoFeatures ? '1 free video, then $10 each' : allowance('free'),
+                  highlight: storefront.showVideoFeatures ? '2,000 free credits (~2 videos), one time' : allowance('free'),
                   features: storefront.showVideoFeatures
-                    ? ['No monthly fee', 'Full quality output', 'Share pages with AI chat']
+                    ? ['No monthly fee', 'Top up any time from $10', 'Branded client share pages']
                     : ['No monthly fee', 'Full print quality', 'Top up any time'],
                 },
                 {
@@ -1097,8 +1097,8 @@ export default function SettingsPage() {
                   period: '/mo',
                   highlight: allowance('pro'),
                   features: storefront.showVideoFeatures
-                    ? ['$5 per additional video', 'Priority generation', 'Unlimited brands']
-                    : ['Top up any time', 'Priority generation', 'Unlimited brands'],
+                    ? ['Top up any time from $10', 'Unlimited brand profiles', 'API and AI-assistant access']
+                    : ['Top up any time', 'Unlimited brands', 'API access'],
                 },
                 {
                   tier: 'business',
@@ -1107,7 +1107,7 @@ export default function SettingsPage() {
                   period: '/mo',
                   highlight: allowance('business'),
                   features: storefront.showVideoFeatures
-                    ? ['$5 per additional video', 'White-label share pages', 'Priority support']
+                    ? ['Top up any time from $10', 'White-label share pages', 'Priority support']
                     : ['Top up any time', 'Every size and format', 'Priority support'],
                 },
                 {
@@ -1117,7 +1117,7 @@ export default function SettingsPage() {
                   period: '/mo',
                   highlight: allowance('enterprise'),
                   features: storefront.showVideoFeatures
-                    ? ['$5 per additional video', 'Unlimited slide edits', 'Dedicated support']
+                    ? ['Top up any time from $10', 'White-label share pages', 'Dedicated support']
                     : ['Top up any time', 'API access', 'Dedicated support'],
                 },
               ] as const).map(plan => {

@@ -12,8 +12,26 @@ import { getBrand } from './_lib/brand-server';
 export async function generateMetadata(): Promise<Metadata> {
   const brand = await getBrand();
   return {
+    // Absolute base for every relative metadata URL (OG images, canonicals).
+    // Without it, link previews had relative image paths that crawlers drop.
+    metadataBase: new URL(`https://${brand.domain}`),
+    // No title template on purpose: existing pages already carry
+    // "… | Docs2Video" in their own titles, and a template would double it.
     title: brand.title,
     description: brand.description,
+    openGraph: {
+      type: 'website',
+      siteName: brand.name,
+      title: brand.title,
+      description: brand.description,
+      images: [{ url: brand.ogImage, width: 1200, height: 630, alt: brand.title }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: brand.title,
+      description: brand.description,
+      images: [brand.ogImage],
+    },
     icons: {
       icon: brand.iconSrc,
       apple: brand.iconSrc,

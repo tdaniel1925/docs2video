@@ -67,13 +67,13 @@ export default function InsuranceHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>In the Video</strong> — A disclaimer slide appears near the beginning and/or end of the video. The narration includes spoken disclaimer language so viewers hear it as well as see it.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>On the Share Page</strong> — A clearly visible disclaimer banner appears above the video player. This ensures anyone who views the share page sees the compliance notice before watching.
+            <strong style={{ color: 'var(--ink)' }}>On the Share Page</strong> — A <strong style={{ color: 'var(--ink)' }}>View Legal Disclosures</strong> section on the page. Your client clicks it to read the full disclosure text.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>In Downloaded Files</strong> — PDF and PPTX exports include the disclaimer on a dedicated page/slide.
+            <strong style={{ color: 'var(--ink)' }}>In Downloaded Files</strong> — The PDF and PPTX downloads do <em>not</em> add a separate disclaimer page. If you send those files to a client, include your own required disclosures with them.
           </p>
           <p>
-            Disclaimers cannot be removed or edited. They are a fixed part of the output to protect both you and your clients.
+            The disclaimers in the video and on the share page cannot be removed or edited. They are a fixed part of the output to protect both you and your clients.
           </p>
         </div>
       </div>
@@ -118,13 +118,12 @@ export default function InsuranceHelpPage() {
             { num: 3, title: 'Guaranteed vs. Non-Guaranteed Clarity', desc: 'The script clearly distinguishes between guaranteed and non-guaranteed (illustrated) values so viewers are not misled.' },
             { num: 4, title: 'Visual Disclaimer Slides', desc: 'Dedicated disclaimer slides are inserted into the video with clear, readable compliance language.' },
             { num: 5, title: 'Spoken Disclaimers', desc: 'The voiceover narration includes spoken disclaimer language so the message is delivered both visually and audibly.' },
-            { num: 6, title: 'Share Page Banner', desc: 'A persistent disclaimer banner appears on the public share page above the video player.' },
-            { num: 7, title: 'Export Disclaimers', desc: 'PDF and PPTX downloads include the disclaimer on a dedicated page or slide that cannot be removed.' },
-            { num: 8, title: 'No Financial Advice Language', desc: 'The AI is instructed to never provide financial advice, make guarantees, or use language that could be construed as a recommendation to buy or sell a product.' },
+            { num: 6, title: 'Share Page Disclosures', desc: 'The public share page has a View Legal Disclosures section with the full disclosure text.' },
+            { num: 7, title: 'No Financial Advice Language', desc: 'The AI is instructed to never provide financial advice, make guarantees, or use language that could be construed as a recommendation to buy or sell a product.' },
           ].map(layer => (
             <div key={layer.num} style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
               <div style={{
-                width: 32, height: 32, borderRadius: '50%', background: 'var(--ink)', color: 'var(--mint)',
+                width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
               }}>{layer.num}</div>
               <div>

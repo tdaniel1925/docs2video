@@ -76,7 +76,7 @@ export default function PricingPage() {
       </h1>
       <p style={{ fontSize: 17, color: 'var(--ink-soft)', textAlign: 'center', marginBottom: 36, lineHeight: 1.6, maxWidth: 620, marginInline: 'auto' }}>
         One pool of credits for videos, slide decks, and PDFs. A standard video is 1,000 credits.
-        Cancel anytime; credits reset each cycle. Top up whenever you need more.
+        Cancel anytime; plan credits reset each month. Need more? Top-up packs start at $10.
       </p>
 
       {promo && (
@@ -99,8 +99,8 @@ export default function PricingPage() {
           price="$0"
           highlight={currentTier === 'free' ? 'current' : 'none'}
           creditLine="2,000 free credits"
-          subLine="~2 videos to try · then top up"
-          features={['Full quality, no watermark', 'Share pages with AI chat', 'Download MP4, PDF, PPTX', 'No subscription required']}
+          subLine="~2 standard videos to try · one time, not monthly"
+          features={['Top up anytime with credit packs from $10', 'Full quality, no watermark', 'Branded client share pages', 'Download MP4, PDF, PPTX']}
           cta={currentTier === 'free' ? { label: 'Current plan', disabled: true } : null}
         />
 
@@ -126,14 +126,15 @@ export default function PricingPage() {
       </div>
 
       {/* AI Social add-on band */}
-      <div style={{ marginTop: 40, padding: '28px 32px', borderRadius: 14, background: 'linear-gradient(135deg,#0b1220,#16233b)', color: 'white', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+      <div style={{ marginTop: 40, padding: '28px 32px', borderRadius: 10, background: 'linear-gradient(135deg,#0b1220,#16233b)', color: 'white', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
         <div style={{ maxWidth: 620 }}>
           <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: '#7dd3fc', marginBottom: 6 }}>Add-on</div>
           <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>AI Social — auto-post to your channels</div>
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.78)', margin: 0, lineHeight: 1.55 }}>
             Connect X, Instagram, Facebook, LinkedIn, YouTube + more. AI writes captions and creates
-            branded images, then posts your content (incl. videos) on a schedule. Content generation
-            uses your normal credits.
+            branded images, then posts your content (incl. videos) on a schedule. Writing captions and
+            making images uses your normal credits, and each post costs 25 credits per platform
+            (posting to 3 platforms = 75 credits).
           </p>
         </div>
         <div style={{ textAlign: 'center' }}>
@@ -149,7 +150,8 @@ export default function PricingPage() {
       </div>
 
       <p style={{ fontSize: 13, color: 'var(--ink-light)', textAlign: 'center', marginTop: 28, lineHeight: 1.6 }}>
-        All plans cancel anytime · billed monthly · credits reset each cycle · extra credits available on paid plans.
+        All plans cancel anytime · billed monthly · plan credits reset each cycle ·
+        top-up packs for everyone: 2,500 credits $10 · 7,500 $25 · 18,000 $50 (never expire).
       </p>
     </div>
   )
@@ -169,7 +171,7 @@ function PlanCard(props: {
   const btnColor = props.cta?.variant === 'soft' ? 'var(--ink-soft)' : 'white'
   const btnBorder = props.cta?.variant === 'soft' ? '1px solid var(--border)' : 'none'
   return (
-    <div style={{ position: 'relative', padding: '26px 22px', borderRadius: 12, background: bg, border, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'relative', padding: '26px 22px', borderRadius: 10, background: bg, border, display: 'flex', flexDirection: 'column' }}>
       {highlight === 'popular' && (
         <div style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', padding: '3px 14px', borderRadius: 6, background: 'var(--ink)', color: 'white', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
           Most Popular

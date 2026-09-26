@@ -1,7 +1,19 @@
 /**
- * Credit-based pricing: each plan includes monthly video credits.
- * Extra videos beyond the plan are $5 each across all tiers.
- * Slide regenerations cost 1/4 credit each.
+ * Credit-based pricing: each plan includes a monthly credit allowance
+ * (TIER_CREDITS in credits.ts). A standard video costs 1,000 credits.
+ *
+ * Extra usage is NOT billed per video. Anyone (free or paid) tops up with
+ * one-time credit packs — $10 / 2,500, $25 / 7,500, $50 / 18,000 (see
+ * app/api/credits/buy/route.ts + BuyCreditsModal). The `extraVideoPrice`,
+ * `overageRatePer1000` and `regenCreditsPerVideo` fields below are legacy
+ * numbers (only the unused pay-per-project route reads extraVideoPrice);
+ * nothing customer-facing may quote them.
+ *
+ * `features` / `description` ARE shown to customers (pricing page, settings).
+ * Keep them to things the code actually does — no per-tier promises that
+ * aren't enforced (e.g. "priority generation", "free slide edits").
+ *
+ * Starter ($29) is retired: checkout only sells pro/business/enterprise.
  */
 
 export type PlanTier = 'free' | 'starter' | 'pro' | 'business' | 'enterprise'
@@ -24,14 +36,14 @@ export interface PlanInfo {
 export const PLANS: PlanInfo[] = [
   {
     tier: 'free',
-    label: 'Pay Per Video',
+    label: 'Pay As You Go',
     monthlyPrice: 0,
     description: 'No subscription required',
     features: [
-      '2 free videos to try',
-      '$10 per additional video',
+      '2,000 free credits to start (about 2 standard videos)',
+      'Top up anytime with credit packs from $10',
       'Full quality, no watermark',
-      'Share pages with AI chat',
+      'Branded client share pages',
       'Download MP4, PDF, PPTX',
     ],
     videosPerMonth: 2,
@@ -40,19 +52,19 @@ export const PLANS: PlanInfo[] = [
     monthlyCredits: 2000, // matches TIER_CREDITS.free (a standard video = 1000)
     approxStandardVideos: 2,
     approxQuickVideos: 4,
-    overageRatePer1000: 0, // free users can't buy overages
+    overageRatePer1000: 0, // legacy/unused — free users top up with the same credit packs
   },
   {
     tier: 'starter',
     label: 'Starter',
     monthlyPrice: 2900, // $29
-    description: '5 videos per month',
+    // Retired — no longer sold; kept so existing Starter subscribers resolve.
+    description: '5,000 credits per month',
     features: [
-      '5 videos per month included',
-      '$5 per additional video',
-      'Multi-voice podcast narration',
-      '2 brand profiles',
-      'All slide templates',
+      '5,000 credits every month (about 5 standard videos)',
+      'Top up anytime with credit packs from $10',
+      'Branded client share pages',
+      'Download MP4, PDF, PPTX',
     ],
     videosPerMonth: 5,
     extraVideoPrice: 500, // $5
@@ -66,15 +78,15 @@ export const PLANS: PlanInfo[] = [
     tier: 'pro',
     label: 'Pro',
     monthlyPrice: 7900, // $79
-    description: '20 videos per month',
+    description: '25,000 credits per month',
     features: [
-      '20 videos per month included',
-      '$5 per additional video',
-      'Priority generation',
-      'Unlimited brands',
-      '5 free slide edits per video',
+      '25,000 credits every month (about 25 standard videos)',
+      'Top up anytime with credit packs from $10',
+      'Unlimited brand profiles',
+      'Branded client share pages',
+      'API and AI-assistant access',
     ],
-    videosPerMonth: 20,
+    videosPerMonth: 25, // 25,000 credits / 1,000 per standard video
     extraVideoPrice: 500, // $5
     regenCreditsPerVideo: 5,
     monthlyCredits: 25000,
@@ -86,12 +98,12 @@ export const PLANS: PlanInfo[] = [
     tier: 'business',
     label: 'Business',
     monthlyPrice: 19900, // $199
-    description: '75 videos per month',
+    description: '75,000 credits per month',
     features: [
-      '75 videos per month included',
-      '$5 per additional video',
-      '10 free slide edits per video',
-      'White-label share pages',
+      '75,000 credits every month (about 75 standard videos)',
+      'Top up anytime with credit packs from $10',
+      'White-label share pages (no Docs2Video branding)',
+      'Unlimited brand profiles',
       'Priority support',
     ],
     videosPerMonth: 75,
@@ -106,14 +118,12 @@ export const PLANS: PlanInfo[] = [
     tier: 'enterprise',
     label: 'Enterprise',
     monthlyPrice: 49900, // $499
-    description: '200 videos per month',
+    description: '200,000 credits per month',
     features: [
-      '200 videos per month included',
-      '$5 per additional video',
-      'Unlimited slide edits',
-      'White-label share pages',
-      'API access',
-      'Bulk creation',
+      '200,000 credits every month (about 200 standard videos)',
+      'Top up anytime with credit packs from $10',
+      'White-label share pages (no Docs2Video branding)',
+      'API and AI-assistant access',
       'Dedicated support',
     ],
     videosPerMonth: 200,
