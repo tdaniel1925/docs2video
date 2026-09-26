@@ -26,7 +26,7 @@ const FUN_FACTS = [
   'Each slide is custom-designed with your brand colors and logo.',
   'You can share this video with clients via a branded link when it\'s done.',
   'Videos can be downloaded as MP4, PDF slides, or PPTX presentations.',
-  'The AI chatbot on your share page will know everything about this video.',
+  'Your share page shows your contact details, and your booking link if you set one in Settings.',
   'Tip: You can leave this page — your video will continue generating in the background.',
 ]
 
@@ -215,9 +215,14 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
           </div>
           <button
             onClick={async () => {
-              const sb = createClient()
+              // The server stops the old run and refunds its charge before the
+              // new run starts — setting 'pending' from here charged twice.
               const vid = window.location.pathname.split('/').filter(Boolean).pop() || ''
-              await sb.from('videos').update({ status: 'pending', progress_pct: 0, progress_detail: 'Restarting...' }).eq('id', vid)
+              const res = await fetch(`/api/videos/${encodeURIComponent(vid)}/restart`, { method: 'POST' }).catch(() => null)
+              if (res && !res.ok) {
+                const d = await res.json().catch(() => ({} as { error?: string }))
+                window.alert(d.error || 'Could not restart this video. Please try again.')
+              }
               window.location.reload()
             }}
             className="btn btn-soft btn-sm"

@@ -25,7 +25,7 @@ import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 import { PHONE_REGEX, phoneToSpoken, isPhoneInSource, formatPhoneDisplay } from '../../_lib/phone-utils'
 import { estimateVideoCost, exceedsCeiling } from '../../_lib/cost-estimator'
-import { deductCredits, calculateVideoCost, checkCredits, refundVideoCredits, endTrialIfDepleted } from '../../_lib/credits'
+import { deductCredits, calculateVideoCost, checkCredits, refundVideoCredits, spendBlockMessage } from '../../_lib/credits'
 import { IN_PROGRESS_STATUSES } from '../../_lib/video-billing'
 import { usableBrief, isEditedBookend, buildShareColumns, normalizeDetailLevel, type DetailLevel } from '../../_lib/wizard-draft'
 import { isPaidTier, maxConcurrentForTier } from '../../_lib/subscription'
@@ -349,29 +349,13 @@ export async function POST(request: Request) {
   // --- ALL paywall checks run BEFORE the row is claimed (audit C4) ---
   let videoCost = 0
   if (!isPrivileged) {
-    // CARD-ON-FILE GATE: free/trial users must save a card before producing
-    // (collected via /setup-payment → Stripe SetupIntent → confirm-card). Paid
-    // subscribers and admins/beta (isPrivileged, handled above) are exempt.
-    // The client catches code:'card_required' and routes to /setup-payment.
-    const { data: gateProfile } = await createAdminClient()
-      .from('profiles')
-      .select('card_on_file, subscription_status')
-      .eq('id', user.id)
-      .single()
-    const gateStatus = gateProfile?.subscription_status || 'free'
-    const isPaid = ['starter', 'pro', 'business', 'enterprise', 'agency'].includes(gateStatus)
-    if (!isPaid && !gateProfile?.card_on_file) {
-      return refuse(402, { error: 'Add a card to start your free trial.', code: 'card_required' })
-    }
-    // A failed payment or a ban blocks generation outright — say so, instead
-    // of the old "Not enough credits. Need 1000, have 0." for a full wallet.
-    if (gateStatus === 'past_due') {
-      return refuse(402, { error: 'Your last payment didn’t go through. Please update your card in Settings to keep making videos.', code: 'payment_past_due' })
-    }
-    if (gateStatus === 'banned') {
-      return refuse(403, { error: 'This account can’t make videos right now. Please contact support.', code: 'account_blocked' })
-    }
-
+    // The card-on-file, failed-payment and banned rules live in the shared
+    // credit code (checkCredits → spendBlockReason), which every product uses —
+    // deductCredits enforces the same rule again at charge time. This route
+    // used to run its own copy first, with a slightly different list of paid
+    // plans, so the two could disagree. Now there is one rule; this route just
+    // turns its answer into the codes the pages act on (the theme page sends
+    // code:'card_required' to /setup-payment).
     videoCost = calculateVideoCost({
       outputType: priceOutputType,
       detailLevel,
@@ -381,6 +365,20 @@ export async function POST(request: Request) {
     })
 
     const creditCheck = await checkCredits(user.id, videoCost)
+    // Blocked for a reason that isn't the balance — say so, instead of the old
+    // "Not enough credits" for a full wallet.
+    if (creditCheck.blockedReason === 'card_required') {
+      return refuse(402, { error: spendBlockMessage('card_required'), code: 'card_required' })
+    }
+    if (creditCheck.blockedReason === 'past_due') {
+      return refuse(402, { error: 'Your last payment didn’t go through. Please update your card in Settings to keep making videos.', code: 'payment_past_due' })
+    }
+    if (creditCheck.blockedReason === 'banned') {
+      return refuse(403, { error: 'This account can’t make videos right now. Please contact support.', code: 'account_blocked' })
+    }
+    if (creditCheck.blockedReason === 'no_profile') {
+      return refuse(503, { error: spendBlockMessage('no_profile'), code: 'account_check_failed' })
+    }
     if (!creditCheck.allowed) {
       return refuse(402, {
         error: `You need ${videoCost.toLocaleString()} credits for this video and have ${creditCheck.remaining.toLocaleString()}. Top up to continue.`,
@@ -449,10 +447,9 @@ export async function POST(request: Request) {
     // Persist the charge on the row so the stuck-video cron can refund the
     // exact amount if this job is later force-failed (audit H1/M3).
     await createAdminClient().from('videos').update({ deducted_cost: videoCost }).eq('id', videoId)
-    // Free-trial-then-auto-bill: if that deduction emptied a trial user's free
-    // credits, end their Stripe trial now so the saved card is charged and their
-    // chosen plan begins. Best-effort, never blocks generation.
-    endTrialIfDepleted(user.id).catch(() => {})
+    // (Free-trial-then-auto-bill — ending the Stripe trial once the free
+    // credits run out — now happens inside deductCredits for every product,
+    // so this route no longer calls endTrialIfDepleted itself.)
   }
 
   // Guarded-exit helper (audit H2): any early return AFTER deduction must refund

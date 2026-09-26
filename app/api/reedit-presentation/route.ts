@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { VIDEO_WORKING } from '../../_lib/video-status'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { CREDIT_COSTS, deductCredits, getBalance, refundVideoCredits } from '../../_lib/credits'
+import { CREDIT_COSTS, deductCredits, getBalance } from '../../_lib/credits'
+import { PRESENTATION_EDIT_CHARGE_ACTION, refundPresentationEditCharge } from '../../_lib/video-billing'
 import type { PresentationScene } from '../../_lib/presentation'
 
 // =============================================================================
@@ -88,7 +89,7 @@ export async function POST(req: Request) {
     if ((bal?.total ?? 0) < cost) {
       return NextResponse.json({ error: `Not enough credits (needs ${cost})`, cost }, { status: 402 })
     }
-    const ok = await deductCredits(user.id, cost, 'presentation-edit', videoId,
+    const ok = await deductCredits(user.id, cost, PRESENTATION_EDIT_CHARGE_ACTION, videoId,
       `Edited narration on ${changed} slide(s)`)
     if (!ok) return NextResponse.json({ error: 'Could not charge credits' }, { status: 402 })
   }
@@ -143,7 +144,7 @@ export async function POST(req: Request) {
   } catch (e) {
     const reason = e instanceof Error ? e.message : 'network error'
     await restore(reason)
-    if (cost > 0) await refundVideoCredits(user.id, cost, videoId).catch(() => {})
+    if (cost > 0) await refundPresentationEditCharge(user.id, videoId, cost).catch(() => {})
     return NextResponse.json({ error: 'The rebuild didn’t finish. Your previous version is still live — please try again.' }, { status: 500 })
   }
   if (!r.ok) {
@@ -151,8 +152,9 @@ export async function POST(req: Request) {
     await restore(msg.error || `rebuild failed (${r.status})`)
     // The generator refunds its own charge on failure — but on the INTERNAL
     // path it charged nothing, so the edit fee taken above would just be kept
-    // for a rebuild that never happened. Give it back here.
-    if (cost > 0) await refundVideoCredits(user.id, cost, videoId).catch(() => {})
+    // for a rebuild that never happened. Give it back here — keyed per edit
+    // attempt, so it can't collide with any other refund on this row.
+    if (cost > 0) await refundPresentationEditCharge(user.id, videoId, cost).catch(() => {})
     return NextResponse.json({ error: `${msg.error || `Rebuild failed (${r.status})`}. Your previous version is still live.` }, { status: 500 })
   }
 

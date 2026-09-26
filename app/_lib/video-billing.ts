@@ -85,49 +85,81 @@ export async function readVideoLedger(admin: SupabaseClient, videoId: string, us
   return (data || []) as LedgerRow[]
 }
 
+/** Ledger actions for the fee charged when an owner edits a finished
+ *  presentation's narration (reedit-presentation). Its own pair, so its refund
+ *  never shares a key — or a running total — with the build, the MP4 export,
+ *  or a video render on the same row. */
+export const PRESENTATION_EDIT_CHARGE_ACTION = 'presentation-edit'
+export const PRESENTATION_EDIT_REFUND_ACTION = 'refund_presentation_edit'
+
 /**
- * Give back one presentation build charge. Keyed per attempt, so:
+ * Give back ONE charge of one kind on one video row, keyed per attempt:
  *  - two failure handlers for the SAME attempt → one refund (same key);
- *  - a second attempt that also fails → refunded too (new key).
- * The old path reused the video refund, whose once-per-video marker silently
- * dropped the second refund — and collided with the MP4 export's refund.
+ *  - a later attempt that also fails → refunded too (new key).
+ * Never refunds more than the ledger says is still owed for that kind of
+ * charge. Each kind has its own charge/refund actions and key prefix, so a
+ * refund of one kind can never block or eat into another kind's refund.
  */
-export async function refundPresentationCharge(userId: string, videoId: string, amount: number): Promise<boolean> {
+export async function refundLedgerCharge(
+  userId: string,
+  videoId: string,
+  amount: number,
+  kind: { chargeActions: readonly string[]; refundAction: string; keyPrefix: string },
+): Promise<boolean> {
   if (!amount || amount <= 0) return false
   const admin = createAdminClient()
   const rows = await readVideoLedger(admin, videoId, userId)
-  const owed = ledgerOutstanding(rows, PRESENTATION_CHARGE_ACTIONS, [PRESENTATION_REFUND_ACTION])
+  const owed = ledgerOutstanding(rows, kind.chargeActions, [kind.refundAction])
   const amt = refundableAmount(amount, owed)
-  if (amt <= 0) {
-    await admin.from('videos').update({ deducted_cost: 0 }).eq('id', videoId)
-    return false
-  }
-  const attempt = Math.max(1, chargeCount(rows, PRESENTATION_CHARGE_ACTIONS))
-  const applied = await addTopupCredits(userId, amt, `refund:presentation:${videoId}`, {
-    action: PRESENTATION_REFUND_ACTION,
+  if (amt <= 0) return false
+  const attempt = Math.max(1, chargeCount(rows, kind.chargeActions))
+  return addTopupCredits(userId, amt, `refund:${kind.keyPrefix}:${videoId}`, {
+    action: kind.refundAction,
     videoId,
-    idempotencyKey: `refund:presentation:${videoId}:${attempt}`,
+    idempotencyKey: `refund:${kind.keyPrefix}:${videoId}:${attempt}`,
   })
-  await admin.from('videos').update({ deducted_cost: 0 }).eq('id', videoId)
+}
+
+/**
+ * Give back one presentation build charge, keyed per attempt. The old path
+ * reused the video refund, whose once-per-video marker silently dropped the
+ * second refund — and collided with the MP4 export's refund.
+ */
+export async function refundPresentationCharge(userId: string, videoId: string, amount: number): Promise<boolean> {
+  if (!amount || amount <= 0) return false
+  const applied = await refundLedgerCharge(userId, videoId, amount, {
+    chargeActions: PRESENTATION_CHARGE_ACTIONS,
+    refundAction: PRESENTATION_REFUND_ACTION,
+    keyPrefix: 'presentation',
+  })
+  // Clear the "a refund may be owed" hint either way (see refundVerifiedCharge).
+  await createAdminClient().from('videos').update({ deducted_cost: 0 }).eq('id', videoId)
   return applied
 }
 
 /**
- * Give back one MP4-export charge, keyed per export attempt (same reasoning as
- * above). Kept apart from the build refund so the two never share a key.
+ * Give back one MP4-export charge, keyed per export attempt. Kept apart from
+ * the build refund so the two never share a key.
  */
 export async function refundExportCharge(userId: string, videoId: string, amount: number): Promise<boolean> {
-  if (!amount || amount <= 0) return false
-  const admin = createAdminClient()
-  const rows = await readVideoLedger(admin, videoId, userId)
-  const owed = ledgerOutstanding(rows, [EXPORT_CHARGE_ACTION], [EXPORT_REFUND_ACTION])
-  const amt = refundableAmount(amount, owed)
-  if (amt <= 0) return false
-  const attempt = Math.max(1, chargeCount(rows, [EXPORT_CHARGE_ACTION]))
-  return addTopupCredits(userId, amt, `refund:export:${videoId}`, {
-    action: EXPORT_REFUND_ACTION,
-    videoId,
-    idempotencyKey: `refund:export:${videoId}:${attempt}`,
+  return refundLedgerCharge(userId, videoId, amount, {
+    chargeActions: [EXPORT_CHARGE_ACTION],
+    refundAction: EXPORT_REFUND_ACTION,
+    keyPrefix: 'export',
+  })
+}
+
+/**
+ * Give back the fee for one narration edit whose rebuild failed. This used the
+ * video refund, which keys its first refund once per video — so it could be
+ * swallowed by (or swallow) another refund on the same row, and a second
+ * failed edit was never refunded at all. Keyed per edit attempt instead.
+ */
+export async function refundPresentationEditCharge(userId: string, videoId: string, amount: number): Promise<boolean> {
+  return refundLedgerCharge(userId, videoId, amount, {
+    chargeActions: [PRESENTATION_EDIT_CHARGE_ACTION],
+    refundAction: PRESENTATION_EDIT_REFUND_ACTION,
+    keyPrefix: 'presentation-edit',
   })
 }
 
