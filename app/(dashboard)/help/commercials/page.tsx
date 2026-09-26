@@ -3,7 +3,7 @@
 import Link from 'next/link'
 
 const STEP_CIRCLE = {
-  width: 36, height: 36, borderRadius: '50%', background: 'var(--ink)', color: 'var(--mint)',
+  width: 36, height: 36, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
   display: 'flex' as const, alignItems: 'center' as const, justifyContent: 'center' as const,
   fontWeight: 700, fontSize: 15, flexShrink: 0,
 }

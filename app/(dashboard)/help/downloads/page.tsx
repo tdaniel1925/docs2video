@@ -40,7 +40,7 @@ export default function DownloadsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>When to use:</strong> Upload to YouTube, Vimeo, or social media. Attach to emails. Play in presentations. Share offline with clients who may not have internet access.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> Open any completed video from your Library and click the <strong style={{ color: 'var(--ink)' }}>Download MP4</strong> button below the video player.
+            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> Open any completed video from your Library and click the <strong style={{ color: 'var(--ink)' }}>MP4</strong> button in the row of buttons on the video page.
           </p>
         </div>
       </div>
@@ -61,7 +61,7 @@ export default function DownloadsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>When to use:</strong> Print handouts for in-person meetings. Attach to follow-up emails as a leave-behind. Use as a reference document when the video itself is not needed.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> On the video detail page, click <strong style={{ color: 'var(--ink)' }}>Download PDF</strong>. The file downloads immediately.
+            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> On the video detail page, click the <strong style={{ color: 'var(--ink)' }}>PDF</strong> button. The file downloads immediately.
           </p>
         </div>
       </div>
@@ -82,7 +82,7 @@ export default function DownloadsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>When to use:</strong> When you need to present live and want to control the pace. When you want to add, remove, or modify slides before a meeting. When your company requires PowerPoint format for compliance or archival.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> On the video detail page, click <strong style={{ color: 'var(--ink)' }}>Download PPTX</strong>. Open the file in PowerPoint, Google Slides, or Keynote.
+            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> On the video detail page, click the <strong style={{ color: 'var(--ink)' }}>PPTX</strong> button. Open the file in PowerPoint, Google Slides, or Keynote.
           </p>
         </div>
       </div>
@@ -103,7 +103,7 @@ export default function DownloadsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>When to use:</strong> Review narration content for accuracy. Share the script with a colleague for feedback before creating the video. Use as a written summary or blog post. Archive for compliance records.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> On the video detail page, click <strong style={{ color: 'var(--ink)' }}>Download Script</strong> to save the narration text.
+            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> On the video detail page, click the <strong style={{ color: 'var(--ink)' }}>Script</strong> button to save the narration as a text file.
           </p>
         </div>
       </div>
@@ -118,7 +118,7 @@ export default function DownloadsHelpPage() {
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Sending to a client remotely?</strong> Use the share link (no download needed) or send the MP4 for offline viewing.
+            <strong style={{ color: 'var(--ink)' }}>Sending to a client remotely?</strong> Use <strong style={{ color: 'var(--ink)' }}>Send to Client</strong> or <strong style={{ color: 'var(--ink)' }}>Copy Link</strong> (no download needed), or send the MP4 for offline viewing. Your client can only download these files if you send them yourself — the share page does not offer them.
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={{ color: 'var(--ink)' }}>Presenting live in a meeting?</strong> Download the PPTX so you can control the pace and navigate to specific slides.

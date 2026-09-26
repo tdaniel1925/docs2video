@@ -2,6 +2,22 @@
 
 import Link from 'next/link'
 
+// Audited against the live share page (app/(public)/watch/[id]) on 2026-09-26.
+// The share page has no AI chat and no MP4/PDF/PPTX downloads for the client —
+// only the original PDF, and only when the agent turns it on.
+
+const CARD: React.CSSProperties = {
+  background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+  padding: '28px 32px', marginBottom: 20,
+}
+const H2: React.CSSProperties = { fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }
+const BODY: React.CSSProperties = { fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }
+const STEP_NUM: React.CSSProperties = {
+  width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
+}
+const INK: React.CSSProperties = { color: 'var(--ink)' }
+
 export default function SharingVideosPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
@@ -11,147 +27,107 @@ export default function SharingVideosPage() {
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>Sharing Videos with Clients</span>
+        <span>Sharing & the Client Page</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>Sharing Videos with Clients</h1>
-          <p>How to share your videos, what clients see, and all available download options.</p>
-        </div>
-      </div>
-
-      {/* Share Page Features */}
-      <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
-        padding: '28px 32px', marginBottom: 20,
-      }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          The Share Page
-        </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
-          <p style={{ marginBottom: 12 }}>
-            Every completed video gets its own public share page. This is a professionally branded landing page designed to impress your clients. The URL looks like <strong style={{ color: 'var(--ink)' }}>docs2video.com/watch/[video-id]</strong>. Here is what appears on the share page:
-          </p>
-          <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Video Player</strong> — A full-featured video player at the top of the page with play/pause, volume, fullscreen, and progress controls. Below the player, clickable slide thumbnails let the viewer jump to any section of the video.
-          </p>
-          <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>AI Chat Assistant</strong> — A chat widget that your client can use to ask questions about the video content. The AI knows everything in the video plus information from your company website (if you have set one up in your brand settings). Clients can ask things like "What are the key benefits?" or "How does the pricing work?" and get instant, accurate answers.
-          </p>
-          <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Calendar Booking</strong> — If you have connected Calendly in your Settings, a booking widget appears on the share page. Clients can schedule a meeting with you directly, without leaving the page. This is perfect for follow-up conversations after they watch the video.
-          </p>
-          <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Your Branding</strong> — The page uses your brand logo, colors, and contact information. Your name, title, photo, and company appear so the client knows exactly who sent them the video.
-          </p>
-          <p>
-            <strong style={{ color: 'var(--ink)' }}>Download Links</strong> — Clients can download the video as MP4, the slides as a PDF, or the presentation as a PPTX file from the share page.
-          </p>
+          <h1>Sharing & the Client Page</h1>
+          <p>How to send a video to a client, and exactly what they see when they open it.</p>
         </div>
       </div>
 
       {/* How to Share */}
-      <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
-        padding: '28px 32px', marginBottom: 20,
-      }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          How to Share Your Video
-        </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+      <div style={CARD}>
+        <h2 style={H2}>How to Share Your Video</h2>
+        <div style={BODY}>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: '50%', background: 'var(--ink)', color: 'var(--mint)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
-            }}>1</div>
+            <div style={STEP_NUM}>1</div>
             <div>
-              <strong style={{ color: 'var(--ink)' }}>Open the video.</strong> Go to your Library and click on the video you want to share. You will land on the video detail page with the player and all options.
+              <strong style={INK}>Open the video.</strong> Click <strong style={INK}>Library</strong> in the top bar, then click the video you want to share. You land on the video page with the player and a row of buttons.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: '50%', background: 'var(--ink)', color: 'var(--mint)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
-            }}>2</div>
+            <div style={STEP_NUM}>2</div>
             <div>
-              <strong style={{ color: 'var(--ink)' }}>Click "Share with Client."</strong> A dialog appears where you enter the client's email address. An email will be sent with your branding and a link to the share page.
+              <strong style={INK}>Click &ldquo;Send to Client.&rdquo;</strong> A window opens. Enter the <strong style={INK}>Client email</strong>, their name (optional) and your <strong style={INK}>Email message</strong>, then send. They get an email with your message and a <strong style={INK}>Watch Video</strong> button.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 14 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: '50%', background: 'var(--ink)', color: 'var(--mint)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
-            }}>3</div>
+            <div style={STEP_NUM}>3</div>
             <div>
-              <strong style={{ color: 'var(--ink)' }}>Or copy the link.</strong> Click "Copy Link" to copy the share page URL to your clipboard. Paste it into an email, text message, social media post, or anywhere else you want to share it.
+              <strong style={INK}>Or copy the link.</strong> Click <strong style={INK}>Copy Link</strong> to copy the share page address. Paste it into an email, a text message, or anywhere else.
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Share Page Features */}
+      <div style={CARD}>
+        <h2 style={H2}>What Your Client Sees</h2>
+        <div style={BODY}>
+          <p style={{ marginBottom: 12 }}>
+            Every completed video gets its own public page at <strong style={INK}>docs2video.com/watch/[video-id]</strong>. Your client does not need an account — they click the link and it opens in their browser, on a computer, tablet or phone.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>Welcome banner</strong> — If you named a client when you made the video, the page greets them: &ldquo;Hi [Client] — prepared for you by [You].&rdquo;
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>A note from you</strong> — If you wrote a <strong style={INK}>Note to your client</strong> on the Style step, it shows above the video as &ldquo;A note from [You].&rdquo;
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>The video</strong> — A player with play/pause, volume and full screen.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>Your details</strong> — Your name, photo, company and contact information, taken from the profile you picked on the Presenter step.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>Download Original PDF</strong> — Only if you turned on <strong style={INK}>Let the client download the original PDF</strong> on the Style step. This is the only download on the page; your client cannot download the video, slides or PowerPoint.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>Book a Call</strong> and <strong style={INK}>Make a Payment</strong> — These buttons appear when you have added a booking link (Calendly, Cal.com or Google Calendar) or a payment link. Set them up in <strong style={INK}>Settings &gt; Integrations</strong> (account menu, top-right).
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>Ask a question</strong> — On interactive presentations, your client can send you a question from the last slide. It arrives in your email.
+          </p>
+          <p>
+            <strong style={INK}>Branding</strong> — A small &ldquo;Powered by Docs2Video&rdquo; line appears at the top and bottom of the page. On the <strong style={INK}>Business</strong> and <strong style={INK}>Enterprise</strong> plans it is removed (white-label).
+          </p>
         </div>
       </div>
 
       {/* Insurance Disclaimers */}
-      <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
-        padding: '28px 32px', marginBottom: 20,
-      }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Insurance Disclaimer Handling
-        </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+      <div style={CARD}>
+        <h2 style={H2}>Insurance Disclosures</h2>
+        <div style={BODY}>
           <p style={{ marginBottom: 12 }}>
-            If your video was created from an insurance illustration or proposal, the share page automatically includes compliance disclaimers. These appear as a clearly visible notice before the video content, ensuring your clients understand that the video is for educational purposes and that specific guarantees depend on the policy terms.
+            If your video was made from an insurance illustration or proposal, the share page includes the legal disclosures automatically. They sit in a <strong style={INK}>View Legal Disclosures</strong> section that your client can click to open.
           </p>
           <p>
-            For more details on how insurance compliance works, see the <Link href="/help/insurance" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Insurance Illustrations</Link> guide.
+            For more on how insurance compliance works, see the <Link href="/help/insurance" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Insurance Illustrations</Link> guide.
           </p>
         </div>
       </div>
 
-      {/* Client Interaction */}
-      <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
-        padding: '28px 32px', marginBottom: 20,
-      }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          How Clients Interact with the Share Page
-        </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+      {/* Knowing when they watch */}
+      <div style={CARD}>
+        <h2 style={H2}>Knowing When They Watch</h2>
+        <div style={BODY}>
           <p style={{ marginBottom: 10 }}>
-            Your clients do not need a Docs2Video account to view the share page. They simply click the link and everything loads in their browser. Here is what they can do:
-          </p>
-          <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Watch the video</strong> — The player works on desktop, tablet, and mobile. It auto-adapts to the screen size.
-          </p>
-          <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Ask questions via AI chat</strong> — The chat assistant is always available on the page. Clients can ask follow-up questions about anything covered in the video.
-          </p>
-          <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Book a meeting</strong> — If Calendly is connected, clients can pick a time slot and schedule a call with you right from the share page.
+            When someone opens your share page you get an email (and a text, if you added a phone number) telling you which video they opened and on what device.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>Download materials</strong> — Clients can download the video file (MP4), a PDF of the slides, or an editable PowerPoint file (PPTX) if you have enabled those options.
+            To see how far people watched and who clicked your buttons, open the account menu (top-right) and choose <strong style={INK}>Analytics</strong>.
           </p>
         </div>
       </div>
 
-      {/* Download Options */}
-      <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
-        padding: '28px 32px', marginBottom: 20,
-      }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Download Options
-        </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
-          <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>MP4 Video</strong> — The full video with narration, music, and transitions. Ready to play on any device, upload to YouTube, or attach to an email.
-          </p>
-          <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>PDF Slides</strong> — Each video slide exported as a page in a PDF document. Great for printing, attaching to proposals, or sharing as a leave-behind document.
-          </p>
+      {/* Your own downloads */}
+      <div style={CARD}>
+        <h2 style={H2}>Downloading Files for Yourself</h2>
+        <div style={BODY}>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>PPTX Presentation</strong> — An editable PowerPoint file with each slide. You can open it in PowerPoint or Google Slides to customize further, add your own slides, or present it live in a meeting.
+            On the video page, the <strong style={INK}>MP4</strong>, <strong style={INK}>PDF</strong>, <strong style={INK}>PPTX</strong> and <strong style={INK}>Script</strong> buttons download the files for you — to attach to an email, present in a meeting, or post elsewhere. See <Link href="/help/downloads" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Downloads & Formats</Link>.
           </p>
         </div>
       </div>
