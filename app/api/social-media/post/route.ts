@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
+import { hasSocialAddon } from '../../../_lib/social-addon'
 import { deductCredits } from '../../../_lib/credits'
 import { createPost, listAccounts, isZernioConfigured, type ZernioPlatform } from '../../../_lib/zernio'
 
@@ -39,7 +40,8 @@ export async function POST(request: Request) {
     .select('zernio_profile_id, social_addon_active')
     .eq('id', user.id)
     .single()
-  if (!profile?.social_addon_active) {
+  // The flag alone isn't trusted — confirmed against Stripe (social-addon.ts).
+  if (!(await hasSocialAddon(user.id, profile?.social_addon_active))) {
     return NextResponse.json({ error: 'The Social add-on is not active on your account.', code: 'addon_required' }, { status: 402 })
   }
   if (!profile?.zernio_profile_id) {

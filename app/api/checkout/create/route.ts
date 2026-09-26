@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { getStripe, SUBSCRIPTION_PRICES } from '../../../_lib/stripe'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 
@@ -33,9 +34,12 @@ const APEX_TIER = 'pro' as const
 
 export async function POST(req: NextRequest) {
   // 1) Authorize the server-to-server call from Apex.
+  // Constant-time compare (a plain !== leaks how many leading characters match).
   const secret = process.env.D2V_CHECKOUT_SECRET
   const auth = req.headers.get('authorization') ?? ''
-  if (!secret || auth !== `Bearer ${secret}`) {
+  const want = Buffer.from(`Bearer ${secret ?? ''}`)
+  const got = Buffer.from(auth)
+  if (!secret || want.length !== got.length || !timingSafeEqual(want, got)) {
     return bad('Unauthorized', 401)
   }
 

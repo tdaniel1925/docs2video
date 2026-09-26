@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { useBrand } from '../../_components/BrandProvider'
+import { safeNextPath } from '../../_lib/safe-redirect'
 
 // Literals, not an import: app/_lib/credits.ts reaches for the Supabase service
 // role client, which must never be pulled into a client bundle. Keep in sync
@@ -18,7 +19,10 @@ function CardForm() {
   const brand = useBrand()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const next = searchParams.get('next')
+  // `next` comes from the URL — only a plain in-app path is honored, so a
+  // crafted link can't bounce the user to another site after card entry.
+  const rawNext = searchParams.get('next')
+  const next = rawNext ? (safeNextPath(rawNext, '') || null) : null
   const stripe = useStripe()
   const elements = useElements()
   const [loading, setLoading] = useState(false)
