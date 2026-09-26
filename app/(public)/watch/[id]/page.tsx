@@ -11,7 +11,6 @@ import { INDUSTRIES } from '../../../_lib/industries'
 /* ------------------------------------------------------------------ */
 
 interface AgentProfile {
-  id: string
   full_name: string | null
   company_name: string | null
   photo_url: string | null
@@ -19,7 +18,21 @@ interface AgentProfile {
   phone?: string | null
   calendly_url: string | null
   payment_link_url?: string | null
-  subscription_status: string | null
+  // Branding decisions made on the server; the agent's plan itself is private.
+  white_label?: boolean
+  free_tier?: boolean
+}
+
+/** Only real https links become buttons (never javascript: or plain http). */
+function safeLink(url: unknown): string {
+  const s = String(url ?? '').trim()
+  if (!/^https:\/\//i.test(s)) return ''
+  try { new URL(s); return s } catch { return '' }
+}
+
+/** 'video' | 'interactive' | 'deck' … (the shared Video type predates decks). */
+function outputTypeOf(v: unknown): string {
+  return String((v as { output_type?: unknown } | null)?.output_type ?? '')
 }
 
 interface VideoWithRelations extends Video {
@@ -755,6 +768,7 @@ export default function PublicWatchPage() {
   const musicRef = useRef<HTMLAudioElement>(null)
   const viewTracked = useRef(false)
   const playTracked = useRef(false)
+  const deckFrameRef = useRef<HTMLIFrameElement>(null)
   const milestonesTracked = useRef<Set<number>>(new Set())
 
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
@@ -773,8 +787,11 @@ export default function PublicWatchPage() {
   // Interactive presentations: the deck's closing slide posts action clicks
   // up (deck PDF / video download / source PDF). Handle them here.
   useEffect(() => {
-    if (!video || (video as any).output_type !== 'interactive') return
+    const ot = outputTypeOf(video)
+    if (!video || (ot !== 'interactive' && ot !== 'deck')) return
     const onMsg = (e: MessageEvent) => {
+      // Only our own deck (served from this site) may trigger these actions.
+      if (e.origin !== window.location.origin) return
       const d = e.data
       if (!d || d.type !== 'act') return
       if (d.kind === 'deck') window.open(`/api/public/deck-pdf/${video.id}`, '_blank')
@@ -817,6 +834,27 @@ export default function PublicWatchPage() {
       body: JSON.stringify({ videoId, event, metadata }),
     }).catch(() => {})
   }, [])
+
+  /* ---- Presentations: count a "play" on real interaction ---- */
+  // A deck has no play button. It used to count a play the moment the iframe
+  // LOADED — so every page load was a "play" and the numbers meant nothing.
+  // Now it counts when the viewer first clicks or taps into the deck: focus
+  // moves into the iframe, which the page sees as the window losing focus
+  // while the iframe is the active element.
+  useEffect(() => {
+    const ot = outputTypeOf(video)
+    if (!video || (ot !== 'interactive' && ot !== 'deck')) return
+    const onBlur = () => {
+      setTimeout(() => {
+        if (!playTracked.current && deckFrameRef.current && document.activeElement === deckFrameRef.current) {
+          playTracked.current = true
+          trackEvent(video.id, 'play')
+        }
+      }, 0)
+    }
+    window.addEventListener('blur', onBlur)
+    return () => window.removeEventListener('blur', onBlur)
+  }, [video, trackEvent])
 
   /* ---- Ask a question → real email to the presenter ---- */
   async function submitAsk() {
@@ -919,9 +957,8 @@ export default function PublicWatchPage() {
   // NOT process the client's payment ourselves (no Stripe Connect).
   const handlePay = useCallback(() => {
     if (!video) return
-    const link = (agent as any)?.payment_link_url?.trim()
-      || (video.script as any)?._pipeline_input?.paymentLink
-      || ''
+    const link = safeLink(agent?.payment_link_url)
+      || safeLink((video.script as any)?._pipeline_input?.paymentLink)
     if (!link) {
       setPayError('No payment link is set up yet. Please contact us to pay.')
       return
@@ -990,8 +1027,11 @@ export default function PublicWatchPage() {
   const agentEmail = agent?.email ?? ''
   const agentPhone = agent?.phone ?? ''
   const agentInitials = hasAgentIdentity ? getInitials(agentName) : ''
-  const calendlyUrl = agent?.calendly_url?.trim() ?? ''
-  const hasCalendly = calendlyUrl.length > 0 && calendlyUrl.startsWith('https://calendly.com/')
+  // Any https booking link gets the big button — Calendly, Cal.com, Acuity,
+  // Google Calendar, a website page. It used to show only for calendly.com,
+  // so everyone else's clients got just the small button.
+  const calendlyUrl = safeLink(agent?.calendly_url)
+  const hasCalendly = calendlyUrl.length > 0
   // Can the recipient pay? True when the agent has a payment link (Stripe
   // Payment Link / Square / PayPal) or a per-quote link. No Stripe Connect.
   const hasStripe = !!(
@@ -1000,16 +1040,17 @@ export default function PublicWatchPage() {
   )
   const hasQuote = !!(quote && quote.status !== 'paid')
   const hasPaidQuote = !!(quote && quote.status === 'paid')
+  // Interactive presentations AND slide decks are HTML, shown in a frame.
+  const isHtmlDeck = outputTypeOf(video) === 'interactive' || outputTypeOf(video) === 'deck'
   const slideUrls = (video.slide_urls ?? []) as string[]
   const slideCount = slideUrls.length
   const hasPdf = !!video.infographic?.source_pdf_url
 
-  // White-label: hide Docs2Video branding for business/enterprise subscribers
-  const WHITELABEL_PLANS = ['enterprise', 'business']
-  const isWhiteLabel = !!(agent?.subscription_status && WHITELABEL_PLANS.includes(agent.subscription_status.toLowerCase()))
-  // Show promo banner only for free tier (no subscription or inactive)
-  const PAID_PLANS = ['active', 'professional', 'pro', 'business', 'enterprise', 'starter']
-  const isFreeTier = !agent?.subscription_status || !PAID_PLANS.includes(agent.subscription_status.toLowerCase())
+  // White-label: hide Docs2Video branding for business/enterprise subscribers.
+  // Show promo banner only for free tier. (Worked out on the server — the
+  // agent's plan name is no longer sent to the public page.)
+  const isWhiteLabel = agent?.white_label === true
+  const isFreeTier = agent?.free_tier !== false
 
   // Insurance detection and disclaimers
   const pipelineInput = (video.script as any)?._pipeline_input
@@ -1101,14 +1142,19 @@ export default function PublicWatchPage() {
           <div className="wp-col-left">
             {/* Player: interactive presentations render the HTML deck in
                 share mode; everything else keeps the video element. */}
-            {(video as any).output_type === 'interactive' ? (
+            {/* Slide decks ('deck') are HTML too — they used to fall through to
+                the <video> element and show a broken player. The ?v= makes an
+                edited deck show up right away instead of a cached old copy.
+                A "play" is counted when the viewer actually clicks into the
+                deck (see the effect above), not when the page merely loads. */}
+            {isHtmlDeck ? (
               <div className="wp-video-wrap" style={{ aspectRatio: '16/9' }}>
                 <iframe
-                  src={`/api/public/presentation/${video.id}?share=1`}
+                  ref={deckFrameRef}
+                  src={`/api/public/presentation/${video.id}?share=1&v=${new Date(video.updated_at ?? video.created_at).getTime()}`}
                   title={video.title ?? 'Presentation'}
                   allowFullScreen
                   style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
-                  onLoad={() => { if (!playTracked.current && video) { playTracked.current = true; trackEvent(video.id, 'play') } }}
                 />
               </div>
             ) : (
@@ -1311,8 +1357,8 @@ export default function PublicWatchPage() {
               const pi = (video.script as any)?._pipeline_input
               // Prefer a quote/pipeline-specific link; fall back to the agent's
               // saved Calendly + Stripe Payment Link from Settings → Integrations.
-              const bookingUrl = pi?.bookingUrl || agent?.calendly_url?.trim() || ''
-              const paymentLnk = pi?.paymentLink || (agent as any)?.payment_link_url?.trim() || ''
+              const bookingUrl = safeLink(pi?.bookingUrl) || calendlyUrl
+              const paymentLnk = safeLink(pi?.paymentLink) || safeLink(agent?.payment_link_url)
               if (!bookingUrl && !paymentLnk) return null
               return (
                 <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
@@ -1418,9 +1464,9 @@ export default function PublicWatchPage() {
                 <div style={{ flex: 1, textAlign: 'center', padding: '12px 0', fontSize: 14, fontWeight: 600, color: 'var(--ink-soft, #3D5A7A)' }}>
                   This is a complimentary service
                 </div>
-              ) : pipelineInput?.paymentLink ? (
+              ) : (safeLink(pipelineInput?.paymentLink) || safeLink(agent?.payment_link_url)) ? (
                 <a
-                  href={pipelineInput.paymentLink}
+                  href={safeLink(pipelineInput?.paymentLink) || safeLink(agent?.payment_link_url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => video && trackEvent(video.id, 'payment_click')}

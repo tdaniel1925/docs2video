@@ -16,10 +16,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const admin = createAdminClient()
   const { data: video } = await admin
     .from('videos')
-    .select('id, title, status, output_type, draft_data')
+    .select('id, title, status, output_type, draft_data, video_url')
     .eq('id', id)
-    .single()
-  if (!video || video.status !== 'completed' || video.output_type !== 'interactive') {
+    .maybeSingle()
+  // Slide decks too, not only interactive presentations. And a deck that is
+  // being REBUILT after an edit still has a published version (video_url is
+  // only set by a successful build) — the client's download must keep working
+  // meanwhile, just as the share link does.
+  const published = video?.status === 'completed' || (video?.status === 'pending' && !!video?.video_url)
+  if (!video || !published || (video.output_type !== 'interactive' && video.output_type !== 'deck')) {
     return NextResponse.json({ error: 'Not available' }, { status: 404 })
   }
 

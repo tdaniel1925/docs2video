@@ -20,21 +20,24 @@ export async function GET(request: Request) {
   const admin = createAdminClient()
 
   try {
-    const { data, error } = await admin
+    // Count queries, not row fetches: a row fetch stops at 1,000, so a
+    // popular video's numbers used to freeze there.
+    const count = (type: string) => admin
       .from('video_analytics')
-      .select('event_type')
+      .select('id', { count: 'exact', head: true })
       .eq('video_id', videoId)
+      .eq('event_type', type)
+    const [v, p, c] = await Promise.all([count('view'), count('play'), count('chat_message')])
 
-    if (error) {
+    if (v.error) {
       // Table might not exist yet
       return NextResponse.json({ views: 0, plays: 0, chats: 0 })
     }
 
-    const rows = data ?? []
     return NextResponse.json({
-      views: rows.filter(r => r.event_type === 'view').length,
-      plays: rows.filter(r => r.event_type === 'play').length,
-      chats: rows.filter(r => r.event_type === 'chat_message').length,
+      views: v.count ?? 0,
+      plays: p.count ?? 0,
+      chats: c.count ?? 0,
     })
   } catch {
     return NextResponse.json({ views: 0, plays: 0, chats: 0 })

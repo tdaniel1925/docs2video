@@ -96,6 +96,30 @@ export default function SharingVideosPage() {
         </div>
       </div>
 
+      {/* Quotes, payment status and follow-ups */}
+      <div style={{
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        padding: '28px 32px', marginBottom: 20,
+      }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+          Quotes, Payments and Follow-Ups
+        </h2>
+        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={{ color: 'var(--ink)' }}>Add a quote.</strong> On the video page, scroll to <strong>Quote / Invoice</strong> and click <strong>Add Quote</strong>. Enter the client&apos;s name and email and your line items, then click <strong>Save Quote</strong>. You&apos;ll see &ldquo;Quote saved&rdquo; — if saving fails, the page says so and keeps your form open.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={{ color: 'var(--ink)' }}>Mark the deal.</strong> We can&apos;t tell when a client pays you (a click on your payment link isn&apos;t a payment). When it happens, open the video page and click <strong>Mark as paid</strong>, <strong>Mark as accepted</strong> or <strong>Mark as declined</strong> under the quote. The status label changes right away. Paid and accepted also mark the client as converted. Changed your mind? Click <strong>Reopen</strong>.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={{ color: 'var(--ink)' }}>Automatic follow-ups (off unless you turn them on).</strong> Tick <strong>Automatic follow-ups</strong> under the quote to send up to two short reminders — about 3 and 7 days after the quote — from your connected email account. Each reminder has an unsubscribe link, and they stop as soon as you mark the deal paid, accepted or declined, or the client unsubscribes. You need a connected email account and the client&apos;s email on the quote.
+          </p>
+          <p>
+            <strong style={{ color: 'var(--ink)' }}>Follow-up plan drafts.</strong> The <strong>Follow-Up Plan</strong> section writes draft emails for you, labeled with the day we suggest sending them. They are never sent by themselves — click <strong>Send now</strong> on each one when you&apos;re ready, or <strong>Skip</strong>.
+          </p>
+        </div>
+      </div>
+
       {/* Insurance Disclaimers */}
       <div style={CARD}>
         <h2 style={H2}>Insurance Disclosures</h2>

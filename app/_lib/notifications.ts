@@ -18,7 +18,9 @@ export async function sendDemoReadyEmail(
   signupUrl: string
 ) {
   try {
-    await getResend().emails.send({
+    // Resend v6 RETURNS failures instead of throwing — read the result, or a
+    // failed send gets logged as "sent".
+    const { error: sendErr } = await getResend().emails.send({
       from: 'Docs2Video <support@docs2video.com>',
       to,
       subject: `Your ${companyName} demo video is ready`,
@@ -59,6 +61,7 @@ export async function sendDemoReadyEmail(
         </div>
       `,
     })
+    if (sendErr) throw new Error(sendErr.message)
     console.log(`[notify] Demo ready email sent to ${to}`)
   } catch (err) {
     console.error(`[notify] Failed to send email to ${to}:`, err)
@@ -92,7 +95,9 @@ export async function sendVideoReadyEmail(
   videoUrl: string
 ) {
   try {
-    await getResend().emails.send({
+    // Resend v6 RETURNS failures instead of throwing — read the result, or a
+    // failed send gets logged as "sent".
+    const { error: sendErr } = await getResend().emails.send({
       from: 'Docs2Video <notifications@docs2video.com>',
       to,
       subject: `Your video "${videoTitle}" is ready`,
@@ -120,6 +125,7 @@ export async function sendVideoReadyEmail(
         </div>
       `,
     })
+    if (sendErr) throw new Error(sendErr.message)
     console.log(`[notify] Video ready email sent to ${to}`)
   } catch (err) {
     console.error(`[notify] Failed to send video ready email to ${to}:`, err)
@@ -156,16 +162,23 @@ function viewStatRows(d: ViewDetails): string {
   }
   if (d.referrer) rows.push(['Came from', d.referrer])
   if (d.viewerIp) rows.push(['IP', d.viewerIp])
+  // Every value here comes from outside (client names, the visitor's browser,
+  // location and referrer headers) — escape before it goes into HTML.
   return rows
     .map(([k, v]) =>
-      `<tr><td style="padding:4px 12px 4px 0;color:#8A968D;font-size:12px;white-space:nowrap;">${k}</td><td style="padding:4px 0;color:#3a3a3a;font-size:13px;font-weight:600;">${v}</td></tr>`
+      `<tr><td style="padding:4px 12px 4px 0;color:#8A968D;font-size:12px;white-space:nowrap;">${k}</td><td style="padding:4px 0;color:#3a3a3a;font-size:13px;font-weight:600;">${esc(v)}</td></tr>`
     )
     .join('')
 }
 
+function esc(s: string): string {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 /** Standalone HTML body so connected-provider sends match the Resend fallback. */
-export function buildVideoViewedHtml(videoTitle: string, d: ViewDetails = {}): string {
-  const who = d.viewerName ? `<strong>${d.viewerName}</strong>` : 'Someone'
+export function buildVideoViewedHtml(rawTitle: string, d: ViewDetails = {}): string {
+  const videoTitle = esc(rawTitle)
+  const who = d.viewerName ? `<strong>${esc(d.viewerName)}</strong>` : 'Someone'
   const link = d.videoId ? `https://docs2video.com/videos/${d.videoId}` : 'https://docs2video.com/dashboard'
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
@@ -183,6 +196,7 @@ export function buildVideoViewedHtml(videoTitle: string, d: ViewDetails = {}): s
       </p>
       <hr style="border:none;border-top:1px solid #eee;margin:0 0 16px;" />
       <p style="font-size:11px;color:#999;text-align:center;">
+        Too many of these? <a href="https://docs2video.com/activity#view-alerts" style="color:#999;">Change your view alerts</a>.<br/>
         Docs2Video &mdash; Turn any document into a professional video explainer.<br/>
         <a href="https://docs2video.com/privacy" style="color:#999;">Privacy Policy</a>
       </p>
@@ -198,15 +212,20 @@ export async function sendVideoViewedEmail(
   // Back-compat: old callers passed a bare IP string.
   const d: ViewDetails = typeof details === 'string' ? { viewerIp: details } : details
   try {
-    await getResend().emails.send({
+    // Resend v6 RETURNS failures instead of throwing — read the result, or a
+    // failed send gets logged as "sent".
+    const { error: sendErr } = await getResend().emails.send({
       from: 'Docs2Video <notifications@docs2video.com>',
       to,
       subject: `${d.viewerName ? d.viewerName + ' viewed' : 'Someone viewed'} your video "${videoTitle}"`,
       html: buildVideoViewedHtml(videoTitle, d),
     })
+    if (sendErr) throw new Error(sendErr.message)
     console.log(`[notify] Video viewed email sent to ${to}`)
+    return true
   } catch (err) {
     console.error(`[notify] Failed to send video viewed email to ${to}:`, err)
+    return false
   }
 }
 

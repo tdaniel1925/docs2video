@@ -91,8 +91,14 @@ export default function AccountHelpPage() {
           <p style={{ marginBottom: 10 }}>
             The bell at the top of the screen shows when a video is being made, when it&rsquo;s finished, and when one failed (failed creations are refunded automatically).
           </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={{ color: 'var(--ink)' }}>Share Page Views</strong> — Know when a client opens your share page. You get an email, and a text if your phone number is saved. Your own visits to your share link never count.
+          </p>
           <p>
             You are also emailed when a client opens one of your share pages — and texted, if you added a phone number.
+          </p>
+          <p style={{ marginTop: 10 }}>
+            <strong style={{ color: 'var(--ink)' }}>Choosing how many view alerts you get</strong> — Open <strong>Activity</strong> from the menu and pick the <strong>Notifications</strong> tab. Under <strong>View alerts</strong>, choose <em>Each new viewer</em> (one alert per person, then quiet for 12 hours if they come back), <em>First time only</em>, or <em>Off</em>. The choice saves as soon as you click it, and you&apos;ll see &ldquo;Saved.&rdquo; under the options.
           </p>
         </div>
       </div>

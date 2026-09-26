@@ -2,19 +2,57 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { verifyCronAuth } from '../../../_lib/cron-auth'
 import { GoogleGenAI } from '@google/genai'
+import { pickFollowUpStage, FOLLOW_UP_TYPES, OPEN_QUOTE_STATUSES, FOLLOW_UP_STAGES, type FollowUpType } from '../../../_lib/follow-up-schedule'
+import { escapeHtml, messageToHtml, appUrl } from '../../../_lib/client-email'
+import { unsubscribeUrl } from '../../../_lib/unsubscribe-token'
+import type { EmailConnection } from '../../../_lib/types'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
-const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
-
 /**
- * Cron endpoint: sends follow-up emails for viewed quotes that haven't been paid.
- * - 3 days after view with no follow-up: gentle reminder
- * - 7 days after view with no follow-up: "still interested?" email
+ * Cron: automatic follow-up emails on open quotes. Daily, 9 AM UTC (vercel.json).
  *
- * Called daily at 9 AM UTC via Vercel Cron.
+ * WHAT WAS WRONG (audit C5). The old job emailed every client whose quote was
+ * still "sent" — which was every quote, because nothing ever marked one paid.
+ * Clients were chased after paying. The agent never turned it on. There was no
+ * unsubscribe link. It read a video_views column that does not exist, and the
+ * duplicate check never saw the emails it had just sent, so depending on the
+ * database it either never ran or sent several copies a day, out of order.
+ *
+ * WHAT IT DOES NOW:
+ *   * Only quotes the agent switched "Automatic follow-ups" ON for.
+ *   * Only open quotes. Paid / accepted / declined (the agent marks these on
+ *     the video page) and converted clients are never emailed again.
+ *   * Every email has a signed unsubscribe link, and opt-outs are honored.
+ *   * One email per quote per stage — recorded BEFORE sending, so an overlap
+ *     or a retry can't double-send (the database refuses the second record).
+ *     Stage rules live in follow-up-schedule.ts.
+ *   * FAILS SAFE: if the database hasn't been updated for this yet (migration
+ *     20260926_client_emails_followups.sql), it sends nothing at all.
  */
+
+const MAX_SENDS_PER_RUN = 25
+const DAY_MS = 24 * 60 * 60 * 1000
+
+let _genai: GoogleGenAI | null = null
+function genai(): GoogleGenAI | null {
+  if (!process.env.GEMINI_API_KEY) return null
+  if (!_genai) _genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
+  return _genai
+}
+
+interface QuoteRow {
+  id: string
+  user_id: string
+  video_id: string | null
+  client_name: string | null
+  client_email: string | null
+  status: string | null
+  created_at: string
+  auto_follow_up: boolean
+}
+
 export async function GET(request: Request) {
   if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -22,241 +60,181 @@ export async function GET(request: Request) {
 
   const supabase = createAdminClient()
   const now = new Date()
-  const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString()
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const earliestStageDays = Math.min(...FOLLOW_UP_STAGES.map(s => s.day))
+  const dueBefore = new Date(now.getTime() - earliestStageDays * DAY_MS).toISOString()
 
   let sentCount = 0
   const errors: string[] = []
 
   try {
-    // Find views where:
-    // - The video has a quote with status 'sent' (not paid)
-    // - The view is older than 3 days
-    const { data: views } = await supabase
-      .from('video_views')
-      .select('id, video_id, created_at, viewer_ip')
-      .lt('created_at', threeDaysAgo)
-
-    if (!views || views.length === 0) {
-      return NextResponse.json({ message: 'No eligible views found', sent: 0 })
-    }
-
-    // Get unique video IDs
-    const videoIds = [...new Set(views.map(v => v.video_id))]
-
-    // Get quotes for these videos that are in 'sent' status (not paid)
-    const { data: quotes } = await supabase
+    // 1. Quotes the agent opted in, still open, old enough for a first stage.
+    //    An error here (most likely: the auto_follow_up column isn't there yet)
+    //    means we cannot tell who opted in — so nobody gets an email.
+    const { data: quotesData, error: quotesErr } = await supabase
       .from('quotes')
-      .select('id, video_id, client_name, client_email, total')
-      .in('video_id', videoIds)
-      .eq('status', 'sent')
-
-    if (!quotes || quotes.length === 0) {
-      return NextResponse.json({ message: 'No unpaid quotes found for viewed videos', sent: 0 })
+      .select('id, user_id, video_id, client_name, client_email, status, created_at, auto_follow_up')
+      .eq('auto_follow_up', true)
+      .in('status', [...OPEN_QUOTE_STATUSES])
+      .not('client_email', 'is', null)
+      .lte('created_at', dueBefore)
+      .order('created_at', { ascending: true })
+      .limit(500)
+    if (quotesErr) {
+      console.error('[cron/follow-ups] quotes query failed — sending nothing:', quotesErr.message)
+      return NextResponse.json({ message: 'Skipped: quotes not readable (migration pending?)', sent: 0 })
+    }
+    const quotes = (quotesData ?? []) as QuoteRow[]
+    if (quotes.length === 0) {
+      return NextResponse.json({ message: 'No quotes due for a follow-up', sent: 0 })
     }
 
-    const quotedVideoIds = new Set(quotes.map(q => q.video_id))
+    const quoteIds = quotes.map(q => q.id)
+    const ownerIds = [...new Set(quotes.map(q => q.user_id))]
 
-    // Get already-sent follow-ups to avoid duplicates
-    const { data: existingFollowUps } = await supabase
+    // 2. Follow-ups already sent, per quote. Same rule: can't read it → send nothing.
+    const { data: prior, error: priorErr } = await supabase
       .from('sent_emails')
-      .select('video_id, email_type')
-      .in('video_id', videoIds)
-      .in('email_type', ['follow_up_1day', 'follow_up_3day', 'follow_up_7day'])
+      .select('quote_id, email_type, created_at')
+      .in('quote_id', quoteIds)
+      .in('email_type', FOLLOW_UP_TYPES)
+    if (priorErr) {
+      console.error('[cron/follow-ups] sent_emails dedupe query failed — sending nothing:', priorErr.message)
+      return NextResponse.json({ message: 'Skipped: send history not readable (migration pending?)', sent: 0 })
+    }
+    const sentByQuote = new Map<string, { type: string; at: string }[]>()
+    for (const r of prior ?? []) {
+      if (!r.quote_id) continue
+      const list = sentByQuote.get(r.quote_id) ?? []
+      list.push({ type: r.email_type, at: r.created_at })
+      sentByQuote.set(r.quote_id, list)
+    }
 
-    const sentFollowUps = new Set(
-      (existingFollowUps ?? []).map(f => `${f.video_id}:${f.email_type}`)
-    )
+    // 3. Unsubscribes. Can't read them → can't honor them → send nothing.
+    const { data: supp, error: suppErr } = await supabase
+      .from('email_suppressions')
+      .select('user_id, email')
+      .in('user_id', ownerIds)
+    if (suppErr) {
+      console.error('[cron/follow-ups] suppressions query failed — sending nothing:', suppErr.message)
+      return NextResponse.json({ message: 'Skipped: unsubscribe list not readable (migration pending?)', sent: 0 })
+    }
+    const suppressed = new Set((supp ?? []).map(s => `${s.user_id}:${String(s.email).toLowerCase().trim()}`))
 
-    // Process each view
-    // Backlog protection — first run drains months of history gradually
-    const MAX_SENDS_PER_RUN = 25
-    for (const view of views) {
+    // 4. Clients the agent already won. A deal that's done is not chased.
+    const { data: converted, error: convErr } = await supabase
+      .from('clients')
+      .select('user_id, email')
+      .in('user_id', ownerIds)
+      .eq('status', 'converted')
+    if (convErr) {
+      console.error('[cron/follow-ups] clients query failed — sending nothing:', convErr.message)
+      return NextResponse.json({ message: 'Skipped: clients not readable', sent: 0 })
+    }
+    const convertedSet = new Set((converted ?? []).map(c => `${c.user_id}:${String(c.email ?? '').toLowerCase().trim()}`))
+
+    // Per-owner lookups, cached for the run.
+    const connCache = new Map<string, EmailConnection | null>()
+    const profileCache = new Map<string, { full_name: string | null; company_name: string | null } | null>()
+
+    for (const quote of quotes) {
       if (sentCount >= MAX_SENDS_PER_RUN) break
-      if (!quotedVideoIds.has(view.video_id)) continue
+      const clientEmail = String(quote.client_email ?? '').toLowerCase().trim()
+      const key = `${quote.user_id}:${clientEmail}`
+      const already = sentByQuote.get(quote.id) ?? []
 
-      const viewAge = now.getTime() - new Date(view.created_at).getTime()
-      const daysSinceView = viewAge / (24 * 60 * 60 * 1000)
+      const stage = pickFollowUpStage({
+        status: quote.status,
+        autoFollowUp: quote.auto_follow_up === true,
+        clientEmail,
+        sentAt: quote.created_at,
+        now,
+        alreadySent: already,
+        unsubscribed: suppressed.has(key),
+        clientConverted: convertedSet.has(key),
+      })
+      if (!stage) continue
+      if (!quote.video_id) continue
 
-      const quote = quotes.find(q => q.video_id === view.video_id)
-      if (!quote) continue
-
-      // Get video info
       const { data: video } = await supabase
         .from('videos')
-        .select('title, user_id')
-        .eq('id', view.video_id)
-        .single()
+        .select('id, title, status, user_id')
+        .eq('id', quote.video_id)
+        .maybeSingle()
+      // Only follow up on a presentation the client can actually open.
+      if (!video || video.user_id !== quote.user_id || video.status !== 'completed') continue
 
-      if (!video) continue
+      if (!connCache.has(quote.user_id)) {
+        const { data: c } = await supabase
+          .from('email_connections')
+          .select('*')
+          .eq('user_id', quote.user_id)
+          .eq('is_default', true)
+          .limit(1)
+          .maybeSingle()
+        connCache.set(quote.user_id, (c as EmailConnection | null) ?? null)
+      }
+      const connection = connCache.get(quote.user_id)
+      if (!connection) continue // follow-ups go from the agent's own mailbox only
 
-      // Get owner profile and email connection
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('email, full_name')
-        .eq('id', video.user_id)
-        .single()
+      if (!profileCache.has(quote.user_id)) {
+        const { data: p } = await supabase
+          .from('profiles')
+          .select('full_name, company_name')
+          .eq('id', quote.user_id)
+          .maybeSingle()
+        profileCache.set(quote.user_id, p ?? null)
+      }
+      const profile = profileCache.get(quote.user_id)
 
-      if (!profile?.email) continue
-
-      const { data: connection } = await supabase
-        .from('email_connections')
-        .select('*')
-        .eq('user_id', video.user_id)
-        .eq('is_default', true)
-        .single()
-
-      if (!connection) continue
-
-      const clientName = quote.client_name ?? 'there'
-      const clientEmail = quote.client_email
-      if (!clientEmail) continue
-
-      const videoTitle = video.title ?? 'your presentation'
-      const agentName = profile.full_name ?? 'Your advisor'
-
-      // Get client viewing behavior for personalization
-      const { data: clientAnalytics } = await supabase
-        .from('video_analytics')
-        .select('event_type, metadata, created_at')
-        .eq('video_id', view.video_id)
-        .order('created_at', { ascending: true })
-        .limit(20)
-
-      const { data: clientProfile } = await supabase
-        .from('client_profiles')
-        .select('preferred_device, preferred_time, total_views')
-        .eq('user_id', video.user_id)
-        .eq('client_email', clientEmail)
-        .single()
-
-      // Determine which follow-up to send
-      let emailType: string | null = null
-      let subject = ''
-      let html = ''
-
-      if (daysSinceView >= 7 && !sentFollowUps.has(`${view.video_id}:follow_up_7day`)) {
-        emailType = 'follow_up_7day'
-      } else if (daysSinceView >= 3 && !sentFollowUps.has(`${view.video_id}:follow_up_3day`)) {
-        emailType = 'follow_up_3day'
-      } else if (daysSinceView >= 1 && !sentFollowUps.has(`${view.video_id}:follow_up_1day`)) {
-        // Day 1: viewed but no action
-        const hasActions = clientAnalytics?.some(a =>
-          a.event_type === 'book_meeting' || a.event_type === 'download'
-        )
-        if (clientAnalytics && clientAnalytics.length > 0 && !hasActions) {
-          emailType = 'follow_up_1day'
-        }
+      // No working unsubscribe link → this automated email must not go out.
+      const unsub = unsubscribeUrl({ k: 'client', id: quote.user_id, e: clientEmail })
+      if (!unsub) {
+        errors.push(`${quote.id}: no unsubscribe signing secret configured`)
+        continue
       }
 
-      if (emailType) {
-        // Generate personalized message with Gemini
-        try {
-          const viewBehavior = clientAnalytics?.map(a => `${a.event_type} at ${a.created_at}`).join(', ') ?? 'viewed'
-          const dayLabel = emailType === 'follow_up_1day' ? 'Day 1' : emailType === 'follow_up_3day' ? 'Day 3' : 'Day 7'
-          const hasViewed = (clientAnalytics?.length ?? 0) > 0
+      const agentName = profile?.full_name || profile?.company_name || 'Your advisor'
+      const clientName = (quote.client_name || '').trim()
+      const videoTitle = video.title || 'your presentation'
+      const watchUrl = `${appUrl()}/watch/${video.id}`
+      const { subject, bodyText } = await writeFollowUp(stage, { agentName, clientName, videoTitle })
 
-          const prompt = `Write a short personalized follow-up email (${dayLabel} after sending a presentation).
+      const html = buildFollowUpHtml({ clientName, bodyText, agentName, watchUrl, unsubUrl: unsub })
 
-Context:
-- Agent name: ${agentName}
-- Client name: ${clientName}
-- Presentation title: "${videoTitle}"
-- Client has viewed: ${hasViewed ? 'Yes' : 'No'}
-- View behavior: ${viewBehavior}
-- Device: ${clientProfile?.preferred_device ?? 'unknown'}
-- Total views: ${clientProfile?.total_views ?? 0}
-- Days since sent: ${Math.round(daysSinceView)}
-
-Rules:
-${emailType === 'follow_up_1day' ? '- They viewed but took no action. Reference what they spent time on if visible.' : ''}
-${emailType === 'follow_up_3day' && !hasViewed ? '- They have NOT viewed yet. Gently resend the link.' : ''}
-${emailType === 'follow_up_7day' ? '- Final follow-up. Offer a quick call. Be warm, not pushy.' : ''}
-- Keep it 2-4 sentences max. Professional and warm.
-- Do NOT include a greeting line (no "Hi Name,") - that will be added separately.
-
-Return ONLY valid JSON (no markdown, no code fences):
-{"subject": "email subject", "body": "the email body text after greeting"}`
-
-          const response = await genai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-          })
-
-          const text = response.text?.trim() ?? ''
-          const cleaned = text.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim()
-          const result = JSON.parse(cleaned)
-
-          subject = result.subject
-          html = `
-            <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
-              <p style="color:#333;font-size:15px;line-height:1.6;">Hi ${clientName},</p>
-              <p style="color:#555;font-size:14px;line-height:1.6;">${result.body}</p>
-              <p style="color:#555;font-size:14px;line-height:1.6;">Best,<br/>${agentName}</p>
-            </div>
-          `
-        } catch (geminiErr) {
-          console.error('[cron/follow-ups] Gemini error, using fallback:', geminiErr)
-          // Fallback to generic messages
-          if (emailType === 'follow_up_7day') {
-            subject = `Still interested? Re: ${videoTitle}`
-            html = `
-              <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
-                <p style="color:#333;font-size:15px;line-height:1.6;">Hi ${clientName},</p>
-                <p style="color:#555;font-size:14px;line-height:1.6;">I wanted to follow up one more time regarding the presentation I shared: <strong>"${videoTitle}"</strong>. If you have any questions, I'm happy to hop on a quick call.</p>
-                <p style="color:#555;font-size:14px;line-height:1.6;">Best regards,<br/>${agentName}</p>
-              </div>
-            `
-          } else if (emailType === 'follow_up_3day') {
-            subject = `Quick follow-up: ${videoTitle}`
-            html = `
-              <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
-                <p style="color:#333;font-size:15px;line-height:1.6;">Hi ${clientName},</p>
-                <p style="color:#555;font-size:14px;line-height:1.6;">I wanted to make sure you received the presentation I prepared for you: <strong>"${videoTitle}"</strong>. Feel free to reach out with any questions.</p>
-                <p style="color:#555;font-size:14px;line-height:1.6;">Best,<br/>${agentName}</p>
-              </div>
-            `
-          } else {
-            subject = `Following up: ${videoTitle}`
-            html = `
-              <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
-                <p style="color:#333;font-size:15px;line-height:1.6;">Hi ${clientName},</p>
-                <p style="color:#555;font-size:14px;line-height:1.6;">Thanks for watching "${videoTitle}". I'd love to discuss any questions you might have.</p>
-                <p style="color:#555;font-size:14px;line-height:1.6;">Best,<br/>${agentName}</p>
-              </div>
-            `
-          }
-        }
+      // Record FIRST. The unique index on (quote_id, email_type) makes this the
+      // lock: if another run already recorded this stage, the insert fails and
+      // we skip — so a stage can never go out twice.
+      const { data: reserved, error: reserveErr } = await supabase
+        .from('sent_emails')
+        .insert({
+          user_id: quote.user_id,
+          video_id: video.id,
+          quote_id: quote.id,
+          connection_id: connection.id,
+          email_type: stage,
+          to_email: clientEmail,
+          to_name: clientName || null,
+          subject,
+        })
+        .select('id')
+        .single()
+      if (reserveErr || !reserved) {
+        if (reserveErr) console.warn(`[cron/follow-ups] could not record ${stage} for quote ${quote.id} — skipping:`, reserveErr.message)
+        continue
       }
-
-      if (!emailType) continue
 
       try {
-        const { sendViaSMTP, sendViaGoogle, sendViaMicrosoft } = await import('../../../_lib/email')
-
-        if (connection.provider === 'smtp') {
-          await sendViaSMTP(connection, clientEmail, subject, html)
-        } else if (connection.provider === 'google') {
-          await sendViaGoogle(connection, clientEmail, subject, html)
-        } else if (connection.provider === 'microsoft') {
-          await sendViaMicrosoft(connection, clientEmail, subject, html)
-        }
-
-        // Log the sent email
-        await supabase.from('sent_emails').insert({
-          user_id: video.user_id,
-          video_id: view.video_id,
-          email_type: emailType,
-          recipient: clientEmail,
-          subject,
-          sent_at: new Date().toISOString(),
-        })
-
+        const { sendViaConnection } = await import('../../../_lib/email')
+        await sendViaConnection(connection, clientEmail, subject, html)
         sentCount++
+        // Update the in-run history too, so nothing later in this loop repeats it.
+        sentByQuote.set(quote.id, [...already, { type: stage, at: now.toISOString() }])
       } catch (sendErr) {
+        // It didn't go — remove the record so tomorrow's run can try again.
+        await supabase.from('sent_emails').delete().eq('id', reserved.id)
         const msg = sendErr instanceof Error ? sendErr.message : 'Unknown send error'
-        errors.push(`${view.video_id}: ${msg}`)
-        console.error(`[cron/follow-ups] Send error for video ${view.video_id}:`, sendErr)
+        errors.push(`${quote.id}: ${msg}`)
+        console.error(`[cron/follow-ups] Send error for quote ${quote.id}:`, sendErr)
       }
     }
   } catch (err) {
@@ -265,8 +243,65 @@ Return ONLY valid JSON (no markdown, no code fences):
   }
 
   return NextResponse.json({
-    message: `Follow-up cron complete`,
+    message: 'Follow-up cron complete',
     sent: sentCount,
     errors: errors.length > 0 ? errors : undefined,
   })
+}
+
+/** Subject + plain-text body. AI-written when available, a fixed text otherwise. */
+async function writeFollowUp(
+  stage: FollowUpType,
+  ctx: { agentName: string; clientName: string; videoTitle: string },
+): Promise<{ subject: string; bodyText: string }> {
+  const fallback = stage === 'follow_up_7day'
+    ? {
+        subject: `Any questions about "${ctx.videoTitle}"?`,
+        bodyText: `I wanted to follow up one more time on the presentation I shared, "${ctx.videoTitle}". If you have any questions, I'm happy to set up a quick call.`,
+      }
+    : {
+        subject: `Quick follow-up: ${ctx.videoTitle}`,
+        bodyText: `I wanted to make sure you received the presentation I prepared for you, "${ctx.videoTitle}". Feel free to reach out with any questions.`,
+      }
+
+  const ai = genai()
+  if (!ai) return fallback
+  try {
+    const prompt = `Write a short follow-up email from a professional to their client about a presentation and quote they sent.
+
+Context:
+- From: ${ctx.agentName}
+- To: ${ctx.clientName || 'the client'}
+- Presentation: "${ctx.videoTitle}"
+- This is the ${stage === 'follow_up_7day' ? 'second and final' : 'first'} follow-up, ${stage === 'follow_up_7day' ? 'about a week' : 'a few days'} after it was sent.
+
+Rules:
+- 2-4 sentences. Warm, professional, not pushy.${stage === 'follow_up_7day' ? ' Offer a quick call.' : ''}
+- No greeting line and no sign-off — those are added separately.
+- Plain text only. No links (a button is added separately).
+
+Return ONLY valid JSON (no markdown, no code fences):
+{"subject": "email subject", "body": "the email body"}`
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt })
+    const text = (response.text ?? '').trim().replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim()
+    const parsed = JSON.parse(text) as { subject?: unknown; body?: unknown }
+    const subject = typeof parsed.subject === 'string' ? parsed.subject.trim().slice(0, 150) : ''
+    const bodyText = typeof parsed.body === 'string' ? parsed.body.trim().slice(0, 1500) : ''
+    if (!subject || !bodyText) return fallback
+    return { subject, bodyText }
+  } catch (e) {
+    console.error('[cron/follow-ups] AI draft failed, using fixed text:', e)
+    return fallback
+  }
+}
+
+function buildFollowUpHtml(o: { clientName: string; bodyText: string; agentName: string; watchUrl: string; unsubUrl: string }): string {
+  return `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#333;">
+  <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">Hi ${escapeHtml(o.clientName || 'there')},</p>
+  ${messageToHtml(o.bodyText, 'margin:0 0 16px;font-size:14px;line-height:1.6;color:#555;')}
+  <p style="margin:24px 0;"><a href="${escapeHtml(o.watchUrl)}" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 26px;border-radius:8px;">View the presentation</a></p>
+  <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#555;">Best,<br/>${escapeHtml(o.agentName)}</p>
+  <hr style="border:none;border-top:1px solid #eee;margin:28px 0 12px;" />
+  <p style="font-size:11px;color:#999;line-height:1.5;margin:0;">This is an automatic reminder from ${escapeHtml(o.agentName)}. <a href="${escapeHtml(o.unsubUrl)}" style="color:#999;">Unsubscribe from these reminders</a>.</p>
+</div>`
 }

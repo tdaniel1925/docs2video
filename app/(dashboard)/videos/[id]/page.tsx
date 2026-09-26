@@ -278,7 +278,8 @@ function statusClass(status: string): string {
 function statusLabel(status: string): string {
   if (status === 'sent') return 'Sent'
   if (status === 'skipped') return 'Skipped'
-  return 'Pending'
+  // Not "Pending" — that read like it was queued to send by itself. It isn't.
+  return 'Draft — not sent'
 }
 
 export default function VideoDetailPage() {
@@ -631,8 +632,14 @@ export default function VideoDetailPage() {
 
     load()
 
-    // Poll while processing
+    // Poll while processing. Stop on ANY ending — not just completed/failed.
+    // 'review_required' (and the other finished words older rows carry) used
+    // to keep this page hitting the database every 3 seconds forever. A hard
+    // stop after 3 hours covers any ending word we don't know about yet.
+    const TERMINAL = ['completed', 'complete', 'failed', 'review_required', 'ready', 'cancelled', 'canceled', 'error']
+    const startedAt = Date.now()
     const interval = setInterval(async () => {
+      if (Date.now() - startedAt > 3 * 60 * 60 * 1000) { clearInterval(interval); return }
       const { data } = await supabase
         .from('videos')
         .select('*, brand:brands(*)')
@@ -640,7 +647,7 @@ export default function VideoDetailPage() {
         .single()
       if (data) {
         setVideo(data as Video)
-        if (data.status === 'completed' || data.status === 'failed') {
+        if (TERMINAL.includes(String(data.status ?? '').toLowerCase())) {
           clearInterval(interval)
         }
         // Note: we do NOT auto-kill videos. The server-side pipeline handles
@@ -655,11 +662,14 @@ export default function VideoDetailPage() {
   useEffect(() => {
     async function loadPlan() {
       const supabase = createClient()
+      // Newest plan; .single() errored (and showed none) once a video had two.
       const { data: plan } = await supabase
         .from('follow_up_plans')
         .select('*, emails:follow_up_emails(*)')
         .eq('video_id', params.id as string)
-        .single()
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
       if (plan) setFollowUpPlan(plan as FollowUpPlan)
 
       const { data: quoteData } = await supabase
@@ -668,7 +678,7 @@ export default function VideoDetailPage() {
         .eq('video_id', params.id as string)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
       if (quoteData) setExistingQuote(quoteData)
 
       // Load analytics via API (bypasses RLS issues)
@@ -837,9 +847,17 @@ export default function VideoDetailPage() {
       message: 'Remove this quote?',
       onConfirm: async () => {
         setConfirmAction(null)
-        const supabase = createClient()
-        await supabase.from('quotes').delete().eq('id', existingQuote.id)
-        setExistingQuote(null)
+        // Check the answer — a failed remove used to vanish from the screen
+        // anyway, and come back on the next visit.
+        try {
+          const r = await fetch(`/api/quotes?quoteId=${encodeURIComponent(existingQuote.id)}`, { method: 'DELETE' })
+          const d = await r.json().catch(() => ({}))
+          if (!r.ok) { setInlineNotice({ type: 'error', message: d.error || 'The quote was NOT removed — try again.' }); return }
+          setExistingQuote(null)
+          setInlineNotice({ type: 'success', message: 'Quote removed.' })
+        } catch {
+          setInlineNotice({ type: 'error', message: 'The quote was NOT removed — check your connection and try again.' })
+        }
       }
     })
   }
@@ -850,62 +868,97 @@ export default function VideoDetailPage() {
     if (validItems.length === 0) { setInlineNotice({ type: 'error', message: 'Add at least one line item with a description and amount' }); return }
     if (quoteClientEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(quoteClientEmail)) { setInlineNotice({ type: 'error', message: 'Please enter a valid client email' }); return }
     setQuoteSaving(true)
-    const subtotal = validItems.reduce((sum, i) => sum + i.amount, 0)
 
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    const quotePayload = {
-      user_id: user!.id,
-      video_id: video.id,
-      client_name: quoteClientName || null,
-      client_email: quoteClientEmail || null,
-      line_items: validItems.map(i => ({ description: i.description, amount: Math.round(i.amount * 100) })),
-      subtotal: Math.round(subtotal * 100),
-      tax: 0,
-      total: Math.round(subtotal * 100),
-      status: 'sent',
-      notes: quoteNotes || null,
+    // Saved through /api/quotes. Editing never sends a status — it used to
+    // write status 'sent' on every save, which turned a PAID quote back into
+    // an unpaid one (and put the client back on the follow-up list). And the
+    // result is checked: "saved" only when it really saved.
+    const lineItems = validItems.map(i => ({ description: i.description, amount: Math.round(i.amount * 100) }))
+    try {
+      const r = await fetch('/api/quotes', {
+        method: existingQuote ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(existingQuote
+          ? { quoteId: existingQuote.id, clientName: quoteClientName, clientEmail: quoteClientEmail, lineItems, notes: quoteNotes || '' }
+          : { videoId: video.id, clientName: quoteClientName, clientEmail: quoteClientEmail, lineItems, notes: quoteNotes || null }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok || !d.quote) {
+        setInlineNotice({ type: 'error', message: d.error || 'The quote was NOT saved — try again.' })
+        return
+      }
+      setExistingQuote(d.quote)
+      setShowQuoteBuilder(false)
+      setInlineNotice({ type: 'success', message: 'Quote saved' })
+    } catch {
+      setInlineNotice({ type: 'error', message: 'The quote was NOT saved — check your connection and try again.' })
+    } finally {
+      setQuoteSaving(false)
     }
+  }
 
-    if (existingQuote) {
-      await supabase.from('quotes').update(quotePayload).eq('id', existingQuote.id)
-      setExistingQuote({ ...existingQuote, ...quotePayload })
-    } else {
-      const { data } = await supabase.from('quotes').insert(quotePayload).select().single()
-      if (data) setExistingQuote(data)
+  // Agent-side deal tracking. Nothing marks a quote paid by itself — a click on
+  // the payment link is not a payment — so the agent says when it happened.
+  // Paid / accepted / declined quotes are never followed up automatically.
+  const [quoteUpdating, setQuoteUpdating] = useState(false)
+  async function updateQuote(patch: { status?: string; autoFollowUp?: boolean }, successMessage: string) {
+    if (!existingQuote || quoteUpdating) return
+    setQuoteUpdating(true)
+    try {
+      const r = await fetch('/api/quotes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quoteId: existingQuote.id, ...patch }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (d.quote) setExistingQuote(d.quote)
+      if (!r.ok) { setInlineNotice({ type: 'error', message: d.error || 'That change was NOT saved — try again.' }); return }
+      setInlineNotice({ type: 'success', message: successMessage })
+    } catch {
+      setInlineNotice({ type: 'error', message: 'That change was NOT saved — check your connection and try again.' })
+    } finally {
+      setQuoteUpdating(false)
     }
-
-    setQuoteSaving(false)
-    setShowQuoteBuilder(false)
-    setInlineNotice({ type: 'success', message: 'Quote saved successfully' })
   }
 
   function quoteStatusBadge(status: string) {
-    const map: Record<string, string> = { draft: '', sent: 'peach', viewed: 'lilac', paid: 'mint' }
+    const map: Record<string, string> = { draft: '', sent: 'peach', viewed: 'lilac', accepted: 'mint', paid: 'mint', declined: 'rose' }
     return map[status] ?? ''
   }
 
   async function handleDelete() {
+    const doDelete = async () => {
+      setDeleting(true)
+      // Through the API, and the answer is CHECKED. The old direct delete
+      // ignored the result and jumped to the library either way — a video that
+      // couldn't be deleted (for example, one a campaign still links to) was
+      // reported as gone and then reappeared.
+      try {
+        const r = await fetch(`/api/videos/${params.id as string}`, { method: 'DELETE' })
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) {
+          setInlineNotice({ type: 'error', message: d.error || 'The video was NOT deleted — try again.' })
+          setDeleting(false)
+          return
+        }
+        router.push('/videos')
+      } catch {
+        setInlineNotice({ type: 'error', message: 'The video was NOT deleted — check your connection and try again.' })
+        setDeleting(false)
+      }
+    }
     // If video isn't completed, delete directly (no confirmation needed for stuck videos)
     if (video?.status !== 'completed') {
-      setDeleting(true)
-      const supabase = createClient()
-      await supabase.from('videos').delete().eq('id', params.id as string)
-      router.push('/videos')
+      await doDelete()
       return
     }
     setConfirmAction({
       message: 'Delete this video? This cannot be undone.',
       onConfirm: async () => {
         setConfirmAction(null)
-        setDeleting(true)
-        const supabase = createClient()
-        await supabase.from('videos').delete().eq('id', params.id as string)
-        router.push('/videos')
+        await doDelete()
       }
     })
-    return
   }
 
   async function handleDownload() {
@@ -1105,14 +1158,29 @@ export default function VideoDetailPage() {
   // Load the send/open trail whenever the share modal opens (and after a send).
   useEffect(() => {
     if (!showShareModal) return
+    // sent_emails stores the address in to_email and the time in created_at —
+    // the same columns every other writer and reader uses. (This used to ask for
+    // recipient/sent_at, which the table doesn't have, so the trail was empty.)
+    // email_type arrives with migration 20260926; until then, show every email
+    // sent about this video rather than nothing.
     const sb = createClient()
+    const show = (rows: { to_email: string; created_at: string; opened_at: string | null }[]) =>
+      setShareHistory(rows.map(r => ({ recipient: r.to_email, sent_at: r.created_at, opened_at: r.opened_at })))
     sb.from('sent_emails')
-      .select('recipient, sent_at, opened_at')
+      .select('to_email, created_at, opened_at')
       .eq('video_id', params.id)
       .eq('email_type', 'share')
-      .order('sent_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(5)
-      .then(({ data, error }) => { if (!error && data) setShareHistory(data) })
+      .then(({ data, error }) => {
+        if (!error && data) { show(data); return }
+        sb.from('sent_emails')
+          .select('to_email, created_at, opened_at')
+          .eq('video_id', params.id)
+          .order('created_at', { ascending: false })
+          .limit(5)
+          .then(({ data: all, error: e2 }) => { if (!e2 && all) show(all) })
+      })
   }, [showShareModal, shareSentTo, params.id])
 
   // ── ACTUALLY SEND the email, from the app. ──
@@ -2064,7 +2132,7 @@ export default function VideoDetailPage() {
               textAlign: 'center',
             }}>
               <p style={{ fontSize: 15, color: 'var(--ink-soft)', marginBottom: 14 }}>
-                Create an AI-drafted follow-up email sequence for this presentation.
+                Get AI-drafted follow-up emails for this presentation. You review each one and send it yourself.
               </p>
               <button onClick={() => setShowFollowUpForm(true)} className="btn btn-primary">
                 Create Follow-Up Plan
@@ -2114,8 +2182,14 @@ export default function VideoDetailPage() {
 
           {followUpPlan && (
             <div>
-              <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 14 }}>
+              <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 6 }}>
                 Follow-up plan for <strong>{followUpPlan.client_name}</strong> ({followUpPlan.client_email})
+              </p>
+              {/* These are DRAFTS. Nothing sends them on a schedule — the "Day N"
+                  labels used to read like a promise that they would go out by
+                  themselves. Say plainly that the agent sends each one. */}
+              <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 14 }}>
+                These are drafts — nothing here is sent automatically. Press <strong>Send now</strong> on each one when the day comes.
               </p>
               <div style={{
                 background: 'white',
@@ -2135,7 +2209,9 @@ export default function VideoDetailPage() {
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-soft)' }}>
-                        Day {email.day_offset} &mdash; {toneLabel(email.day_offset)}
+                        Suggested for day {email.day_offset}
+                        {email.scheduled_date ? ` (${new Date(email.scheduled_date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })})` : ''}
+                        {' '}&mdash; {toneLabel(email.day_offset)}
                       </span>
                       <span className={`tag ${statusClass(email.status)}`} style={{ fontSize: 11 }}>
                         {statusLabel(email.status)}
@@ -2159,7 +2235,7 @@ export default function VideoDetailPage() {
                             className="btn btn-mint btn-sm"
                             style={sendingEmail === email.id ? { opacity: 0.6 } : undefined}
                           >
-                            {sendingEmail === email.id ? 'Sending...' : 'Send Now'}
+                            {sendingEmail === email.id ? 'Sending...' : 'Send now'}
                           </button>
                           <button
                             onClick={() => handleSkipFollowUp(email.id)}
@@ -2262,6 +2338,57 @@ export default function VideoDetailPage() {
               {existingQuote.notes && (
                 <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 12 }}>{existingQuote.notes}</p>
               )}
+              {/* Deal status — the agent marks it; nothing else can know. */}
+              <div style={{ borderTop: '1px solid var(--border-light)', marginTop: 16, paddingTop: 14 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Where does this deal stand?</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {existingQuote.status !== 'paid' && (
+                    <button className="btn btn-mint btn-sm" disabled={quoteUpdating}
+                      onClick={() => updateQuote({ status: 'paid' }, 'Marked as paid. No more automatic reminders will go to this client.')}>
+                      Mark as paid
+                    </button>
+                  )}
+                  {existingQuote.status !== 'accepted' && existingQuote.status !== 'paid' && (
+                    <button className="btn btn-soft btn-sm" disabled={quoteUpdating}
+                      onClick={() => updateQuote({ status: 'accepted' }, 'Marked as accepted. No more automatic reminders will go to this client.')}>
+                      Mark as accepted
+                    </button>
+                  )}
+                  {existingQuote.status !== 'declined' && existingQuote.status !== 'paid' && (
+                    <button className="btn btn-soft btn-sm" disabled={quoteUpdating}
+                      onClick={() => updateQuote({ status: 'declined' }, 'Marked as declined. No more automatic reminders will go to this client.')}>
+                      Mark as declined
+                    </button>
+                  )}
+                  {['paid', 'accepted', 'declined'].includes(existingQuote.status) && (
+                    <button className="btn btn-soft btn-sm" disabled={quoteUpdating}
+                      onClick={() => updateQuote({ status: 'sent' }, 'Quote reopened.')}>
+                      Reopen
+                    </button>
+                  )}
+                </div>
+                <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 14, fontSize: 13, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={existingQuote.auto_follow_up === true}
+                    disabled={quoteUpdating || !existingQuote.client_email || !['sent', 'viewed'].includes(existingQuote.status)}
+                    onChange={e => updateQuote({ autoFollowUp: e.target.checked }, e.target.checked
+                      ? 'Automatic follow-ups on. Reminders go out about 3 and 7 days after the quote, from your connected email.'
+                      : 'Automatic follow-ups off.')}
+                    style={{ marginTop: 2 }}
+                  />
+                  <span>
+                    <strong>Automatic follow-ups</strong>
+                    <span style={{ display: 'block', color: 'var(--ink-soft)', fontSize: 12 }}>
+                      {!existingQuote.client_email
+                        ? 'Add the client’s email to the quote to use this.'
+                        : !['sent', 'viewed'].includes(existingQuote.status)
+                          ? 'Off — this deal is closed.'
+                          : 'Sends up to two short reminders (about day 3 and day 7) from your connected email, with an unsubscribe link. Stops as soon as you mark the deal paid, accepted or declined.'}
+                    </span>
+                  </span>
+                </label>
+              </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
                 <button onClick={editQuote} className="btn btn-soft">Edit</button>
                 <button onClick={removeQuote} className="btn btn-danger btn-sm">Remove</button>
