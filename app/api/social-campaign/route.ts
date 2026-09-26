@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { checkCredits, deductCredits } from '../../_lib/credits'
+import { CREDIT_COSTS, refundCredits } from '../../_lib/credits'
+import { chargeCredits } from '../../_lib/credit-charge'
 import { GoogleGenAI } from '@google/genai'
 import { createPost, listAccounts, isZernioConfigured, type ZernioPlatform } from '../../_lib/zernio'
 
@@ -127,17 +128,14 @@ RULES:
       return NextResponse.json({ error: 'No posts to schedule' }, { status: 400 })
     }
 
-    // Charge 1 credit per post before creating the campaign + generating images
-    // (admin/beta bypass handled inside deductCredits). Matches the UI's
-    // "Launch Campaign (N credits)".
-    const COST = posts.length
-    const credit = await checkCredits(user.id, COST)
-    if (!credit.allowed) {
-      return NextResponse.json({ error: `Not enough credits. Need ${COST}, have ${credit.remaining}.` }, { status: 402 })
-    }
-    if (!(await deductCredits(user.id, COST, 'social_campaign'))) {
-      return NextResponse.json({ error: 'Credit deduction failed. Please try again.' }, { status: 402 })
-    }
+    // Charge per post BEFORE creating the campaign + generating images. Each
+    // post is one full image generation, so it is priced like one (this used
+    // to be 1 credit per post). Admin/beta bypass is handled inside the
+    // credit helpers. Each post that later fails to generate is refunded in
+    // 'generate-images' below (audit H5).
+    const COST = posts.length * CREDIT_COSTS['social-post-image']
+    const charge = await chargeCredits({ userId: user.id, amount: COST, action: 'social_campaign', description: `Social campaign: ${posts.length} posts` })
+    if (!charge.ok) return charge.response
 
     // Save campaign
     const { data: campaign, error: campError } = await admin
@@ -153,7 +151,8 @@ RULES:
       .single()
 
     if (campError || !campaign) {
-      return NextResponse.json({ error: 'Failed to create campaign' }, { status: 500 })
+      await charge.refund()
+      return NextResponse.json({ error: 'Failed to create campaign. Your credits were returned.' }, { status: 500 })
     }
 
     // Save all posts as pending
@@ -170,7 +169,13 @@ RULES:
       status: 'pending',
     }))
 
-    await admin.from('social_campaign_posts').insert(postRecords)
+    const { error: postsErr } = await admin.from('social_campaign_posts').insert(postRecords)
+    if (postsErr) {
+      console.error('[social-campaign] Saving posts failed:', postsErr.message)
+      await admin.from('social_campaigns').update({ status: 'failed' }).eq('id', campaign.id)
+      await charge.refund()
+      return NextResponse.json({ error: 'Failed to save the campaign posts. Your credits were returned.' }, { status: 500 })
+    }
 
     // Start generating images for first 3 posts (fire-and-forget for the rest)
     const origin = request.headers.get('origin') ?? `https://${request.headers.get('x-forwarded-host') ?? 'docs2video.com'}`
@@ -192,7 +197,7 @@ RULES:
       success: true,
       campaignId: campaign.id,
       totalPosts: posts.length,
-      creditsRequired: posts.length,
+      creditsRequired: COST,
     })
   }
 
@@ -263,23 +268,30 @@ RULES:
         })
 
         const responseParts = response.candidates?.[0]?.content?.parts ?? []
+        let saved = false
         for (const rp of responseParts) {
           if (rp.inlineData) {
             const buffer = Buffer.from(rp.inlineData.data!, 'base64')
-            const path = `${(await admin.from('social_campaigns').select('user_id').eq('id', campaignId).single()).data?.user_id}/campaigns/${campaignId}/${post.id}.png`
-            await admin.storage.from('videos').upload(path, buffer, { contentType: 'image/png', upsert: true })
+            const path = `${user.id}/campaigns/${campaignId}/${post.id}.png`
+            const { error: upErr } = await admin.storage.from('videos').upload(path, buffer, { contentType: 'image/png', upsert: true })
+            if (upErr) throw new Error(`upload failed: ${upErr.message}`)
             const { data: urlData } = admin.storage.from('videos').getPublicUrl(path)
 
             await admin.from('social_campaign_posts').update({
               image_url: urlData.publicUrl,
               status: 'ready',
             }).eq('id', post.id)
+            saved = true
             break
           }
         }
+        // No image came back: previously the post stayed 'pending' forever.
+        if (!saved) throw new Error('no image returned')
       } catch (err) {
         console.error(`[social-campaign] Image gen failed for post ${post.id}:`, err)
         await admin.from('social_campaign_posts').update({ status: 'failed' }).eq('id', post.id)
+        // Give this post's credits back — once per post (the key is the post id).
+        await refundCredits(user.id, CREDIT_COSTS['social-post-image'], 'social_campaign', post.id)
       }
     }
 
@@ -298,6 +310,17 @@ RULES:
 
     if (pendingCount === 0) {
       await admin.from('social_campaigns').update({ status: 'ready' }).eq('id', campaignId)
+    } else {
+      // Only 5 posts are drawn per call. Without this hand-off the rest of a
+      // paid-for campaign stayed 'pending' forever (every post is charged up
+      // front). Each batch marks its posts ready or failed, so this always
+      // moves forward and stops when nothing is pending.
+      const origin = request.headers.get('origin') ?? `https://${request.headers.get('x-forwarded-host') ?? 'docs2video.com'}`
+      fetch(`${origin}/api/social-campaign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Cookie': request.headers.get('cookie') ?? '' },
+        body: JSON.stringify({ action: 'generate-images', campaignId, businessName, primaryColor, referenceImage }),
+      }).catch(err => console.error('[social-campaign] next image batch trigger failed:', err))
     }
 
     return NextResponse.json({ generated: readyCount, remaining: pendingCount })

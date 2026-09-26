@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { CREDIT_COSTS } from '../../_lib/credits'
+import { runCharged } from '../../_lib/credit-charge'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { GoogleGenAI } from '@google/genai'
 import { getTopGoogleFonts } from '../../_lib/google-fonts'
@@ -227,16 +228,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Rate limit exceeded. Please wait a bit before generating again.' }, { status: 429 })
     }
 
-    const COST = CREDIT_COSTS['logo-chat']
-    const credit = await checkCredits(user.id, COST)
-    if (!credit.allowed) {
-      return NextResponse.json({ error: `Not enough credits. Need ${COST}, have ${credit.remaining}.` }, { status: 402 })
-    }
-    if (!(await deductCredits(user.id, COST, 'logo-chat'))) {
-      return NextResponse.json({ error: 'Failed to deduct credits.' }, { status: 402 })
-    }
+    // Charge first, and give the credits back if the image generation fails
+    // or the request turns out to be bad (audit H5).
+    return runCharged(
+      { userId: user.id, amount: CREDIT_COSTS['logo-chat'], action: 'logo-chat' },
+      () => handleAction(user, body, action),
+    )
   }
 
+  return handleAction(user, body, action)
+}
+
+async function handleAction(user: { id: string }, body: any, action: string): Promise<Response> {
   // ═══════════════════════════════════════════════════════════════
   // ACTION: chat
   // ═══════════════════════════════════════════════════════════════

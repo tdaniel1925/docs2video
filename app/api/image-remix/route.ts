@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { GoogleGenAI } from '@google/genai'
-import { deductCredits } from '../../_lib/credits'
+import { CREDIT_COSTS } from '../../_lib/credits'
+import { runCharged } from '../../_lib/credit-charge'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -25,16 +26,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Reference image and instructions are required' }, { status: 400 })
   }
 
-  // Credit pre-check
-  const admin = createAdminClient()
-  const ok = await deductCredits(admin, user.id, 1)
-  if (!ok) return NextResponse.json({ error: 'Insufficient credits (need 1)' }, { status: 403 })
-
-  // Extract base64 data from data URL
+  // Extract base64 data from data URL (before charging — a bad upload is free)
   const base64Match = referenceImage.match(/^data:image\/(\w+);base64,(.+)$/)
   if (!base64Match) {
     return NextResponse.json({ error: 'Invalid image data URL' }, { status: 400 })
   }
+  const admin = createAdminClient()
+  const COST = CREDIT_COSTS['image-remix']
   const mimeType = `image/${base64Match[1]}`
   const base64Data = base64Match[2]
 
@@ -52,6 +50,9 @@ CRITICAL RULES:
 - All text must be crisp and correctly spelled
 - Generate the design as a complete, finished image ready for use`
 
+  // Charge the real price (this used to take 1 credit for a full image
+  // generation) BEFORE the work, and refund if it fails (audit H5).
+  return runCharged({ userId: user.id, amount: COST, action: 'image-remix' }, async () => {
   try {
     const response = await genai.models.generateContent({
       model: 'gemini-3-pro-image-preview',
@@ -113,7 +114,7 @@ CRITICAL RULES:
         user_id: user.id,
         type: 'remix',
         title: `Remix: ${instructions.slice(0, 80)}`,
-        credits_used: 1,
+        credits_used: COST,
       })
     } catch { /* ignore logging errors */ }
 
@@ -124,6 +125,7 @@ CRITICAL RULES:
     })
   } catch (err) {
     console.error('[image-remix] Generation failed:', err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Remix generation failed' }, { status: 500 })
+    return NextResponse.json({ error: 'Remix generation failed. Your credits were returned — please try again.' }, { status: 500 })
   }
+  })
 }

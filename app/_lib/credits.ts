@@ -55,6 +55,14 @@ export const CREDIT_COSTS = {
   // user CHANGES content (edit-text) — fixing our glitches (re-record, bad
   // pronunciation) is FREE (the app passes amount 0 for those).
   'slide-scene-fix': 50,
+  // Tools that used to charge a flat 1 credit — often AFTER the work, ignoring
+  // a failed deduction (audit 2026-09-26). Priced like the equivalent tools
+  // above by how many paid AI generations they make.
+  'image-remix': 200,        // one full design image (same model/work as a flyer)
+  ad: 200,                   // per ad size generated (one designed image each)
+  'brand-deck': 400,         // 4 AI reference slides
+  'social-post-image': 100,  // per campaign post graphic
+  'email-signature': 50,     // template HTML, no AI — the smallest charge
 } as const
 
 // Pre-existing paying customers locked at the OLD (pre-2x) rates. They keep the
@@ -84,6 +92,51 @@ export function costForUser(action: CreditAction, userId?: string | null): numbe
 }
 
 export type CreditAction = keyof typeof CREDIT_COSTS
+
+/**
+ * The cheapest thing a user can spend credits on. A trial user whose balance
+ * drops below this can't do ANYTHING, so that is when the trial should convert
+ * (audit H15: the old "balance must hit exactly 0" rule stranded trial users
+ * with a few leftover credits — they could never convert and never create).
+ */
+export const MIN_ACTION_COST = Math.min(...Object.values(CREDIT_COSTS))
+
+/** Why a user may not spend credits right now, or null when they may. */
+export type SpendBlockReason = 'past_due' | 'banned' | 'card_required' | 'no_profile'
+
+/**
+ * Pure rule for "may this user spend credits at all?" — shared by
+ * checkCredits and deductCredits so EVERY product enforces the same thing
+ * (audit H15: only video checked for a card, so the 2,000 free trial credits
+ * could be spent on every other tool without ever adding a card).
+ *  - admins / beta (promo) accounts: always allowed
+ *  - past_due / banned: never (payment failed or account blocked)
+ *  - free or trial tier without a saved card: must add a card first
+ *  - no profile row could be read: deny (money path — fail closed)
+ */
+export function spendBlockReason(profile: {
+  is_admin?: boolean | null
+  is_beta?: boolean | null
+  subscription_status?: string | null
+  card_on_file?: boolean | null
+} | null | undefined): SpendBlockReason | null {
+  if (!profile) return 'no_profile'
+  if (profile.is_admin || profile.is_beta) return null
+  if (profile.subscription_status === 'past_due') return 'past_due'
+  if (profile.subscription_status === 'banned') return 'banned'
+  if (getUserTier(profile.subscription_status ?? null) === 'free' && !profile.card_on_file) return 'card_required'
+  return null
+}
+
+/** A short, user-facing sentence for each block reason. */
+export function spendBlockMessage(reason: SpendBlockReason): string {
+  switch (reason) {
+    case 'card_required': return 'Add a card to start your free trial.'
+    case 'past_due': return 'Your last payment did not go through. Please update your card in Billing to keep creating.'
+    case 'banned': return 'This account cannot create new content. Please contact support.'
+    default: return 'We could not check your account just now. Please try again.'
+  }
+}
 
 // Monthly credit grants per tier
 export const TIER_CREDITS: Record<PlanTier, number> = {
@@ -137,6 +190,10 @@ export interface CreditCheckResult {
   allowed: boolean
   remaining: number
   shortfall: number
+  /** Set when the user is blocked for a reason other than balance (no card,
+   *  payment failed, banned). Callers should show spendBlockMessage(reason)
+   *  instead of "not enough credits". */
+  blockedReason?: SpendBlockReason
 }
 
 /**
@@ -200,7 +257,7 @@ export async function checkCredits(userId: string, needed: number): Promise<Cred
   const admin = createAdminClient()
   const { data: profile } = await admin
     .from('profiles')
-    .select('subscription_status, is_admin, is_beta')
+    .select('subscription_status, is_admin, is_beta, card_on_file')
     .eq('id', userId)
     .single()
 
@@ -209,16 +266,13 @@ export async function checkCredits(userId: string, needed: number): Promise<Cred
     return { allowed: true, remaining: 999999, shortfall: 0 }
   }
 
-  // Block past_due users — payment failed, must resolve before generating
-  if (profile?.subscription_status === 'past_due') {
-    return { allowed: false, remaining: 0, shortfall: needed }
-  }
-
-  // Block banned users outright (review B21): 'banned' previously fell through
-  // getUserTier → 'free', so a banned account could keep generating on the
-  // free allotment. Ban means NO generation, regardless of balance.
-  if (profile?.subscription_status === 'banned') {
-    return { allowed: false, remaining: 0, shortfall: needed }
+  // Blocked for a reason that has nothing to do with balance: payment failed
+  // (past_due), banned (review B21 — 'banned' used to fall through to the free
+  // allotment), or a free/trial account with no card on file (audit H15 — the
+  // card-required trial was only enforced for video).
+  const blocked = spendBlockReason(profile)
+  if (blocked) {
+    return { allowed: false, remaining: 0, shortfall: needed, blockedReason: blocked }
   }
 
   // getBalance() self-heals via ensureCreditBalance: a first-time user gets
@@ -228,6 +282,12 @@ export async function checkCredits(userId: string, needed: number): Promise<Cred
   const balance = await getBalance(userId)
 
   const allowed = balance.total >= needed
+  if (!allowed && profile?.subscription_status === 'trial') {
+    // A trial user just tried something their free credits can't cover — that
+    // IS "the free credits ran out", from whichever product they were in.
+    // Convert the trial now so the plan they picked starts (audit H15).
+    await endTrialIfDepleted(userId, { attemptedCost: needed })
+  }
   return {
     allowed,
     remaining: balance.total,
@@ -273,9 +333,20 @@ export async function deductCredits(
   // Check admin/beta bypass
   const { data: profile } = await admin
     .from('profiles')
-    .select('is_admin, is_beta')
+    .select('is_admin, is_beta, subscription_status, card_on_file')
     .eq('id', userId)
     .single()
+
+  // Same spend rule as checkCredits, enforced HERE too because several routes
+  // deduct without checking first (audit H15). Negative amounts are refunds
+  // (a few legacy routes refund by deducting -N) and must always go through.
+  if (amount > 0) {
+    const blocked = spendBlockReason(profile)
+    if (blocked) {
+      console.log(`[credits] Spend blocked (${blocked}) for user ${userId}: ${action} (${amount} credits)`)
+      return false
+    }
+  }
 
   if (profile?.is_admin || profile?.is_beta) {
     // Log admin bypass for audit trail
@@ -318,6 +389,11 @@ export async function deductCredits(
     const total = balanceRow.balance + balanceRow.topup_balance
     if (total < amount) {
       console.log(`[credits] Insufficient: need ${amount}, have ${total} (user ${userId})`)
+      // Trial user out of free credits for this action → start their plan
+      // (audit H15; works from every product, not only video).
+      if (profile?.subscription_status === 'trial') {
+        await endTrialIfDepleted(userId, { attemptedCost: amount })
+      }
       return false
     }
 
@@ -369,6 +445,13 @@ export async function deductCredits(
     })
 
     console.log(`[credits] Deducted ${amount} from user ${userId}: ${total} -> ${newTotal}`)
+    // Free-trial-then-auto-bill: once what's left can't pay for even the
+    // cheapest action, end the Stripe trial so the saved card is charged and
+    // the chosen plan begins. Done here so EVERY product triggers it, not just
+    // video (audit H15). Best-effort — endTrialIfDepleted never throws.
+    if (amount > 0 && newTotal < MIN_ACTION_COST && profile?.subscription_status === 'trial') {
+      await endTrialIfDepleted(userId)
+    }
     return true
   }
 
@@ -641,6 +724,125 @@ export async function refundVideoCredits(userId: string, amount: number, videoId
   await admin.from('videos').update({ deducted_cost: 0 }).eq('id', videoId)
 }
 
+/**
+ * Give back the credits for ONE charge of a one-off tool whose work failed
+ * (audit H5: many tools charged first and kept the credits when the AI call or
+ * upload failed). `chargeKey` must be unique per charge — the refund is
+ * idempotent on it, so a double-fired failure path can't refund twice. Never
+ * throws: a refund failure is logged loudly for manual follow-up.
+ */
+export async function refundCredits(
+  userId: string,
+  amount: number,
+  action: string,
+  chargeKey: string,
+): Promise<boolean> {
+  if (!amount || amount <= 0 || !chargeKey) return false
+  try {
+    return await addTopupCredits(userId, amount, `Refund — ${action} failed`, {
+      action: 'refund_action',
+      idempotencyKey: `refund:${action}:${chargeKey}`,
+    })
+  } catch (err) {
+    console.error(`[credits] REFUND FAILED for user ${userId} (${action}, ${amount} credits, key ${chargeKey}) — needs manual credit:`, err instanceof Error ? err.message : err)
+    return false
+  }
+}
+
+/**
+ * Take credits back after a Stripe refund or chargeback (audit H8). Takes from
+ * the monthly balance first, then the top-up balance, and never below zero —
+ * credits already spent can't be un-spent. Idempotent on `idempotencyKey`
+ * (one key per Stripe refund / dispute), so a re-delivered webhook is a no-op
+ * but each separate partial refund is still recorded.
+ *
+ * Uses the revoke_credits_atomic database function when it exists
+ * (migration 20260926_revoke_credits_atomic.sql). Production does not run
+ * migrations automatically, so if the function is missing we fall back to a
+ * claim-then-compare-and-set path that is still idempotent on the key.
+ * Throws on a hard failure so the Stripe webhook returns 500 and retries.
+ */
+export async function revokeCredits(
+  userId: string,
+  amount: number,
+  idempotencyKey: string,
+  description: string,
+): Promise<boolean> {
+  if (!amount || amount <= 0 || !idempotencyKey) return false
+  const admin = createAdminClient()
+
+  const { data, error } = await admin.rpc('revoke_credits_atomic', {
+    p_user_id: userId,
+    p_amount: Math.round(amount),
+    p_description: description,
+    p_idempotency_key: idempotencyKey,
+  })
+  if (!error) return data === true
+
+  const missingFn = error.code === 'PGRST202' || error.code === '42883'
+    || /could not find the function|does not exist/i.test(error.message || '')
+  if (!missingFn) throw new Error(`revokeCredits failed: ${error.message}`)
+
+  // Fallback (migration not applied yet). Claim the key first so a retry of
+  // the same refund can never revoke twice.
+  const { error: claimErr } = await admin
+    .from('processed_stripe_events')
+    .insert({ event_id: idempotencyKey, event_type: 'revoke' })
+  if (claimErr) {
+    if ((claimErr as { code?: string }).code === '23505') return false // already done
+    throw new Error(`revokeCredits claim failed: ${claimErr.message}`)
+  }
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data: row } = await admin
+      .from('credit_balances')
+      .select('balance, topup_balance')
+      .eq('user_id', userId)
+      .single()
+    if (!row) return false
+    const fromMonthly = Math.min(Math.round(amount), Math.max(0, row.balance))
+    const fromTopup = Math.min(Math.round(amount) - fromMonthly, Math.max(0, row.topup_balance))
+    const newMonthly = row.balance - fromMonthly
+    const newTopup = row.topup_balance - fromTopup
+    const { data: updated, error: updErr } = await admin
+      .from('credit_balances')
+      .update({ balance: newMonthly, topup_balance: newTopup, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('balance', row.balance)
+      .eq('topup_balance', row.topup_balance)
+      .select('user_id')
+    if (updErr) {
+      // Give the key back so Stripe's retry can try again.
+      await admin.from('processed_stripe_events').delete().eq('event_id', idempotencyKey)
+      throw new Error(`revokeCredits update failed: ${updErr.message}`)
+    }
+    if (updated && updated.length > 0) {
+      await admin.from('credit_transactions').insert({
+        user_id: userId,
+        amount: -(fromMonthly + fromTopup),
+        balance_after: newMonthly + newTopup,
+        action: 'refund_revoke',
+        description,
+      })
+      return true
+    }
+  }
+  await admin.from('processed_stripe_events').delete().eq('event_id', idempotencyKey)
+  throw new Error(`revokeCredits gave up after contended attempts for ${userId}`)
+}
+
+/**
+ * Pure: how many credits a refund of `refundedCents` out of `paidCents`
+ * should take back from a purchase that granted `credits`. Proportional, so a
+ * partial refund never revokes a whole pack (audit L). Rounded up so a refund
+ * of any size takes back at least a credit; capped at the full grant.
+ */
+export function proportionalCredits(credits: number, refundedCents: number, paidCents: number): number {
+  if (!(credits > 0) || !(refundedCents > 0)) return 0
+  if (!(paidCents > 0) || refundedCents >= paidCents) return credits
+  return Math.min(credits, Math.ceil((credits * refundedCents) / paidCents))
+}
+
 export async function getUsageHistory(userId: string, limit: number = 50) {
   const admin = createAdminClient()
   const { data } = await admin
@@ -721,26 +923,36 @@ export async function ensureCreditBalance(userId: string, subscriptionStatus: st
 /**
  * Pure decision: should we end the Stripe trial now? Extracted so the billing
  * logic is unit-testable without mocking Stripe/Supabase. End the trial ONLY
- * when ALL hold: the balance is depleted (≤0), the user is on the 'trial'
- * status, they have a subscription id, and Stripe still reports it 'trialing'.
+ * when ALL hold: the free credits have run out (what's left can't pay for the
+ * cheapest action, OR can't pay for the action the user just tried), the user
+ * is on the 'trial' status, they have a subscription id, and Stripe still
+ * reports it 'trialing'.
  */
 export function shouldEndTrial(input: {
   balanceTotal: number
   subscriptionStatus: string | null | undefined
   stripeSubscriptionId: string | null | undefined
   stripeSubStatus: string | null | undefined
+  /** Cost of the action the user just tried and could not afford, if any. */
+  attemptedCost?: number | null
 }): boolean {
-  if (input.balanceTotal > 0) return false
+  const cannotAffordAnything = input.balanceTotal < MIN_ACTION_COST
+  const cannotAffordAttempt = typeof input.attemptedCost === 'number'
+    && input.attemptedCost > 0
+    && input.balanceTotal < input.attemptedCost
+  if (!cannotAffordAnything && !cannotAffordAttempt) return false
   if (input.subscriptionStatus !== 'trial') return false
   if (!input.stripeSubscriptionId) return false
   if (input.stripeSubStatus !== 'trialing') return false
   return true
 }
 
-export async function endTrialIfDepleted(userId: string): Promise<void> {
+export async function endTrialIfDepleted(userId: string, opts?: { attemptedCost?: number }): Promise<void> {
   try {
     const balance = await getBalance(userId)
-    if (balance.total > 0) return // fast exit — still has credits
+    // Fast exit — they can still afford things (and did not just fail to).
+    const attempted = opts?.attemptedCost ?? 0
+    if (balance.total >= MIN_ACTION_COST && !(attempted > balance.total)) return
 
     const admin = createAdminClient()
     const { data: profile } = await admin
@@ -758,6 +970,7 @@ export async function endTrialIfDepleted(userId: string): Promise<void> {
       subscriptionStatus: profile?.subscription_status,
       stripeSubscriptionId: subId,
       stripeSubStatus: sub.status,
+      attemptedCost: opts?.attemptedCost,
     })) return // already converted/canceled or otherwise ineligible — no-op
 
     // End the trial immediately → Stripe charges the saved card now. The

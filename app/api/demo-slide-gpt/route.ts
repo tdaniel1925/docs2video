@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
-import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { CREDIT_COSTS } from '../../_lib/credits'
+import { runCharged } from '../../_lib/credit-charge'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import OpenAI from 'openai'
 import { GoogleGenAI } from '@google/genai'
@@ -18,15 +19,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Rate limit exceeded. Please wait a bit before generating again.' }, { status: 429 })
   }
 
-  const COST = CREDIT_COSTS['demo-slide']
-  const credit = await checkCredits(user.id, COST)
-  if (!credit.allowed) {
-    return NextResponse.json({ error: `Not enough credits. Need ${COST}, have ${credit.remaining}.` }, { status: 402 })
-  }
-  if (!(await deductCredits(user.id, COST, 'demo-slide'))) {
-    return NextResponse.json({ error: 'Failed to deduct credits.' }, { status: 402 })
-  }
-
   const { logoImage, prompt, companyName, provider = 'openai' } = await request.json() as {
     logoImage?: string
     prompt: string
@@ -35,7 +27,13 @@ export async function POST(request: Request) {
   }
 
   if (!prompt) return NextResponse.json({ error: 'Prompt required' }, { status: 400 })
+  if (provider !== 'openai' && provider !== 'gemini') {
+    return NextResponse.json({ error: 'Invalid provider' }, { status: 400 })
+  }
 
+  // Charge once the request is valid; an empty or failed generation gives the
+  // credits back (audit H5).
+  return runCharged({ userId: user.id, amount: CREDIT_COSTS['demo-slide'], action: 'demo-slide' }, async () => {
   try {
     // ── OPENAI (GPT-image-2) ──────────────────────────────
     if (provider === 'openai') {
@@ -129,4 +127,5 @@ export async function POST(request: Request) {
     console.error(`[demo] ${provider} error:`, err)
     return NextResponse.json({ error: 'Generation failed' }, { status: 500 })
   }
+  })
 }
