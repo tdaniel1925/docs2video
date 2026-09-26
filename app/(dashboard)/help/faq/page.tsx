@@ -71,12 +71,33 @@ const FAQ_ITEMS: FaqItem[] = [
     question: 'How do I add a booking link to my share pages?',
     answer: [
       'Open the account menu (top-right), click **Settings**, then the **Integrations** tab. Choose Calendly, Cal.com or Google Calendar, paste your booking link, and press **Save**. A **Book a Call** button then appears on your share pages.',
+      'For **Google Calendar**, there is no direct connection — paste a link instead. In Google Calendar, create a booking page (an "Appointment schedule"), copy its link (it starts with https://calendar.app.google/) and paste that. The link must start with https://, or the button will not show.',
     ],
   },
   {
     question: 'Can I download my video as a PowerPoint file?',
     answer: [
       'Yes. On the video page, the **MP4**, **PDF** and **PPTX** buttons download the video, the slides as a PDF, and an editable PowerPoint. The PPTX opens in Microsoft PowerPoint or Google Slides. (These downloads are for you — your client\'s share page only offers your original PDF, and only if you turned that on.)',
+    ],
+  },
+  {
+    question: 'I forgot my password. How do I reset it?',
+    answer: [
+      'On the sign-in page, click **Forgot password?**, type your email and click **Send Reset Link**. Open the email (on any device) and click the link. On the **Set a new password** page, type a new password of at least 8 characters twice and click **Save new password**.',
+      'If the page says the link has expired, click **Send a new reset link** and use the newest email. Bought through Apex? Use the **Set up my account** button in your welcome email — it opens the same page.',
+    ],
+  },
+  {
+    question: 'How long are unfinished drafts kept?',
+    answer: [
+      'A draft you have started but not generated is kept for **24 hours** after you last changed it. Once it has a script (you reached the **Script** step), it is kept for **14 days** after your last change, so a script you wrote is not lost over a weekend.',
+      'After that the draft and any file you uploaded for it are deleted. Finished videos are never deleted this way.',
+    ],
+  },
+  {
+    question: 'Will my client get automatic reminder emails?',
+    answer: [
+      'Only if you turn them on. Automatic follow-ups are **off** for every quote until you tick **Automatic follow-ups** under that quote on the video page. Then up to two short reminders go out (about day 3 and day 7) from your connected email, and they stop as soon as you mark the deal paid, accepted or declined, or the client unsubscribes.',
     ],
   },
   {
@@ -95,7 +116,8 @@ const TROUBLESHOOTING: FaqItem[] = [
       'Most videos finish in 3–5 minutes (Slide Deck about 10). If yours has been generating much longer than that:',
       '1. Refresh the page and check your Library — the video may have finished but the screen did not update.',
       '2. If it still shows as generating, wait a few more minutes. Busy times can cause delays.',
-      '3. If it has not finished after 30 minutes, email support@docs2video.com with the video title and roughly when you started it.',
+      '3. After about 5 minutes the progress screen shows **Restart Generation**. Clicking it stops the stuck run, gives back the credits it took, and starts again — so you are only charged once.',
+      '4. If it has not finished after 30 minutes, email support@docs2video.com with the video title and roughly when you started it.',
     ],
   },
   {

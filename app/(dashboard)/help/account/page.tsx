@@ -50,7 +50,7 @@ export default function AccountHelpPage() {
             <strong style={INK}>Personal Info</strong> — Your full name, company name, phone and role.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Security</strong> — Change your email address or password.
+            <strong style={INK}>Security</strong> — Change your email address or password. Forgot it? See <a href="#reset-password" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Forgot your password?</a> below.
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={INK}>Profile Photos</strong> — A <strong style={INK}>Headshot</strong> (required, used on covers), plus optional <strong style={INK}>Mid-level</strong> and <strong style={INK}>Standing</strong> photos.
@@ -76,7 +76,10 @@ export default function AccountHelpPage() {
             <strong style={INK}>Payment Link (Stripe)</strong> — Paste your Stripe Payment Link to show a <strong style={INK}>Make a Payment</strong> button on your share pages.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Calendar Booking</strong> — Choose Calendly, Cal.com or Google Calendar, paste your booking link and click <strong style={INK}>Save</strong> to show a <strong style={INK}>Book a Call</strong> button.
+            <strong style={INK}>Calendar Booking</strong> — Choose Calendly, Cal.com or Google Calendar, paste your booking link and click <strong style={INK}>Save</strong> to show a <strong style={INK}>Book a Call</strong> button. You&rsquo;ll see &ldquo;Saved!&rdquo; next to the button.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>Using Google Calendar?</strong> Google Calendar can&rsquo;t be connected directly, so it works the same way as the others: you paste a link. In Google Calendar, create a <strong style={INK}>booking page</strong> (Google calls it an &ldquo;Appointment schedule&rdquo;), copy that page&rsquo;s link — it starts with <em>https://calendar.app.google/</em> — and paste it here. Clients who click <strong style={INK}>Book a Call</strong> then pick a time on your Google booking page.
           </p>
           <p>
             <strong style={INK}>API &amp; MCP</strong> — Create an API key to make things from your own scripts or an AI assistant. It uses your normal credits.
@@ -147,6 +150,43 @@ export default function AccountHelpPage() {
               <strong style={INK}>Pay on the secure Stripe page.</strong> When you&rsquo;re done you come back to your dashboard with the new plan&rsquo;s credits.
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Forgot / set a password */}
+      <div style={CARD} id="reset-password">
+        <h2 style={H2}>Forgot your password? (or setting one for the first time)</h2>
+        <div style={BODY}>
+          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+            <div style={NUM}>1</div>
+            <div>
+              <strong style={INK}>Ask for a reset link.</strong> On the sign-in page, click <strong style={INK}>Forgot password?</strong>. Type your email address and click <strong style={INK}>Send Reset Link</strong>. You&rsquo;ll see &ldquo;Check Your Email&rdquo;.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+            <div style={NUM}>2</div>
+            <div>
+              <strong style={INK}>Open the email and click the link.</strong> It works on any device — your phone is fine. The link works once and expires after a while.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+            <div style={NUM}>3</div>
+            <div>
+              <strong style={INK}>Choose your new password.</strong> You land on a page called <strong style={INK}>Set a new password</strong>. Type a password of at least 8 characters, type it again to confirm, and click <strong style={INK}>Save new password</strong>.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+            <div style={NUM}>4</div>
+            <div>
+              <strong style={INK}>You&rsquo;re in.</strong> You&rsquo;ll see &ldquo;Password updated&rdquo;. Click <strong style={INK}>Continue</strong> to go to your dashboard.
+            </div>
+          </div>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>&ldquo;This link has expired&rdquo;?</strong> The link was already used or is too old. Click <strong style={INK}>Send a new reset link</strong> and use the newest email.
+          </p>
+          <p>
+            <strong style={INK}>Bought Docs2Video through Apex?</strong> Your account is made for you. Look for the email &ldquo;Welcome to Docs2Video — set up your account&rdquo; and click <strong style={INK}>Set up my account</strong>. It opens the same <strong style={INK}>Set a new password</strong> page. If that link has expired, use <strong style={INK}>Forgot password?</strong> with the email you bought with.
+          </p>
         </div>
       </div>
 

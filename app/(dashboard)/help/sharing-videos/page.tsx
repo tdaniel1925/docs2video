@@ -85,7 +85,7 @@ export default function SharingVideosPage() {
             <strong style={INK}>Download Original PDF</strong> — Only if you turned on <strong style={INK}>Let the client download the original PDF</strong> on the Style step. This is the only download on the page; your client cannot download the video, slides or PowerPoint.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Book a Call</strong> and <strong style={INK}>Make a Payment</strong> — These buttons appear when you have added a booking link (Calendly, Cal.com or Google Calendar) or a payment link. Set them up in <strong style={INK}>Settings &gt; Integrations</strong> (account menu, top-right).
+            <strong style={INK}>Book a Call</strong> and <strong style={INK}>Make a Payment</strong> — These buttons appear when you have added a booking link (Calendly, Cal.com or Google Calendar) or a payment link. Set them up in <strong style={INK}>Settings &gt; Integrations</strong> (account menu, top-right). The link must be a full web address starting with <em>https://</em>, or the button won&rsquo;t appear. For Google Calendar, paste the link of a Google <strong style={INK}>booking page</strong> (an &ldquo;Appointment schedule&rdquo;) — Google Calendar can&rsquo;t be connected directly.
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={INK}>Ask a question</strong> — On interactive presentations, your client can send you a question from the last slide. It arrives in your email.

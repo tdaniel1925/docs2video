@@ -127,12 +127,18 @@ export default function CreatingVideosPage() {
         <p>
           For bigger changes — like &ldquo;add a slide about pricing&rdquo; — type into the AI bar and click <strong style={INK}>Apply to whole script</strong>. You can <strong style={INK}>Undo</strong> it. Then continue to the Style step.
         </p>
+        <p style={{ marginTop: 10 }}>
+          <strong style={INK}>Your draft is saved as you go.</strong> Once your project has a script, the unfinished draft is kept for <strong style={INK}>14 days</strong> after your last change (a draft without a script is kept for 24 hours). Come back to it from your Library.
+        </p>
       </Step>
 
       <Step n={8} title="Pick a style and generate">
         <p style={{ marginBottom: 10 }}>
           Choose one of six looks: <strong style={INK}>Slide Deck</strong> (recommended), <strong style={INK}>Aurora</strong>, <strong style={INK}>Cinematic</strong>,{' '}
           <strong style={INK}>Editorial</strong>, <strong style={INK}>Explainer</strong> or <strong style={INK}>Infographic</strong>. Each shows sample pictures.
+        </p>
+        <p style={{ marginBottom: 10 }}>
+          Every look — <strong style={INK}>Slide Deck</strong> included — uses the voice and background music you chose on the Voice &amp; Length step, and the script exactly as you left it on the script step, edits and all.
         </p>
         <p style={{ marginBottom: 10 }}>
           Under <strong style={INK}>Client options</strong> you can write a <strong style={INK}>Note to your client</strong> (shown on the share page) and, if your source was a PDF, turn on <strong style={INK}>Let the client download the original PDF</strong>.

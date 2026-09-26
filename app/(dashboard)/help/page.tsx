@@ -97,7 +97,7 @@ const GUIDES: HelpGuide[] = [
   {
     href: '/help/account',
     title: 'Account & Settings',
-    description: 'Manage your profile, integrations, billing, and subscription settings.',
+    description: 'Manage your profile, integrations (booking and payment links), billing and subscription — and reset a forgotten password.',
     icon: '⚙️',
   },
 ]
@@ -140,6 +140,21 @@ const ARTICLES: HelpArticle[] = [
     ],
   },
 
+  {
+    id: 'reset-password',
+    title: 'Forgot your password? Setting a new one',
+    category: 'getting-started',
+    icon: '🔑',
+    content: [
+      '**1.** On the sign-in page, click **Forgot password?**, type your email and click **Send Reset Link**. You will see "Check Your Email".',
+      '**2.** Open the email — on any device, your phone is fine — and click the link. It works once and expires after a while.',
+      '**3.** You land on **Set a new password**. Type a password of at least 8 characters, type it again, and click **Save new password**.',
+      '**4.** You will see "Password updated". Click **Continue** to go to your dashboard.',
+      'If the page says **This link has expired**, click **Send a new reset link** and use the newest email.',
+      '**Bought through Apex?** Your account is made for you — click **Set up my account** in the welcome email to choose your password on the same page.',
+    ],
+  },
+
   // Creators
   {
     id: 'interactive-presentation',
@@ -179,8 +194,8 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '🎨',
     content: [
-      'On the Style step you choose how your explainer looks. All styles use the same narration and personalization — only the visuals differ:',
-      '• **Slide Deck** (recommended) — an animated explainer deck: topic headings with bullets, data cards, charts, and icons that reveal in sync with the voice. Reads the whole document. Takes about 10 minutes.',
+      'On the Style step you choose how your explainer looks. Every style — Slide Deck included — uses the voice and background music you picked and your script exactly as you edited it. Only the visuals differ:',
+      '• **Slide Deck** (recommended) — an animated explainer deck: topic headings with bullets, data cards, charts, and icons that reveal in sync with the voice. Speaks your edited script. Takes about 10 minutes.',
       '• **Aurora** — modern motion graphics: one flowing branded backdrop, kinetic type, no stock imagery.',
       '• **Cinematic** — film-style imagery with kinetic text and motion. Best for story-led, emotive videos.',
       '• **Editorial** — a clean, warm magazine layout with refined serif typography on your brand color.',
@@ -191,6 +206,18 @@ const ARTICLES: HelpArticle[] = [
   },
 
   // Management
+  {
+    id: 'drafts',
+    title: 'Unfinished drafts: how long they are kept',
+    category: 'management',
+    icon: '🗂️',
+    content: [
+      'Your project is saved as a draft while you go through the steps.',
+      '• A draft **without a script** is kept for **24 hours** after your last change.',
+      '• Once it **has a script** (you reached the Script step), it is kept for **14 days** after your last change.',
+      'After that the draft, and any file you uploaded for it, is deleted. Finished videos are never removed this way.',
+    ],
+  },
   {
     id: 'library',
     title: 'Your Library',
@@ -256,7 +283,7 @@ const ARTICLES: HelpArticle[] = [
       '• An optional **note from you**, shown above the video (you write it on the Style step or leave it blank).',
       '• The video player, plus your contact details.',
       '• **Download Original PDF** — only if you turned it on (the source document you used).',
-      '• **Book a Call** (your booking link) and **Make a Payment**, when set up in Settings > Integrations.',
+      '• **Book a Call** (your booking link) and **Make a Payment**, when set up in Settings > Integrations. Links must start with https://. For Google Calendar, paste the link of a Google booking page (an "Appointment schedule") — there is no direct connection.',
       '**How to share:**',
       '1. Open a completed video from your Library.',
       '2. Click **Send to Client** to email it, or **Copy Link** to paste the address anywhere.',
@@ -297,6 +324,19 @@ const ARTICLES: HelpArticle[] = [
       '1. On the **Style** step, under **Client options**, type your message in **"Note to your client."**',
       '2. Generate the video.',
       'The note shows as "A note from [You]" on the share page. Leave it blank to skip it.',
+    ],
+  },
+  {
+    id: 'auto-follow-ups',
+    title: 'Automatic follow-up emails (off until you turn them on)',
+    category: 'sharing',
+    icon: '📬',
+    content: [
+      'Nothing is emailed to your client automatically unless you ask for it, one quote at a time.',
+      '1. Open the video, scroll to **Quote / Invoice**, and add a quote with your client\'s email.',
+      '2. Tick **Automatic follow-ups** under the quote. You\'ll see a message confirming reminders are on.',
+      '3. Up to two short reminders go out — about 3 and 7 days after the quote — from your connected email, each with an unsubscribe link.',
+      'They stop as soon as you mark the deal **paid**, **accepted** or **declined**, or the client unsubscribes. Untick the box to turn them off. You need a connected email account (Settings > Integrations).',
     ],
   },
   {
