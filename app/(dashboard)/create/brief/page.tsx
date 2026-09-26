@@ -8,6 +8,8 @@ export default function BriefPage() {
   const router = useRouter()
   const params = useSearchParams()
   const videoId = params.get('id')
+  // Set by Step 1 when the multi-file comparison failed — shown, not hidden.
+  const combineFailed = params.get('combine') === 'failed'
 
   const [brief, setBrief] = useState<VideoBrief | null>(null)
   const [chat, setChat] = useState<{ role: 'user' | 'assistant'; text: string }[]>([])
@@ -71,13 +73,17 @@ export default function BriefPage() {
     if (!videoId) return
     setSubmitting(true)
     try {
-      // Mark approved (best-effort) then continue to the presenter step.
-      if (brief && !skip) {
-        await fetch('/api/videos/draft', {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId, updates: { brief: { ...brief, approved: true } } }),
-        }).catch(() => {})
-      }
+      // Approve → the brief steers the script. Skip → it must NOT: the brief
+      // built on page load used to stay on the draft and steer the script
+      // anyway, so "Skip" skipped nothing. briefSkipped tells every step to
+      // ignore it. Best-effort; continue to the presenter step either way.
+      const updates = skip
+        ? { briefSkipped: true }
+        : { briefSkipped: false, ...(brief ? { brief: { ...brief, approved: true } } : {}) }
+      await fetch('/api/videos/draft', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId, updates }),
+      }).catch(() => {})
       router.push(`/create/brand?id=${videoId}`)
     } finally { setSubmitting(false) }
   }
@@ -88,6 +94,11 @@ export default function BriefPage() {
       <p style={{ fontSize: 16, color: 'var(--ink-soft)', textAlign: 'center', marginBottom: 24, lineHeight: 1.6 }}>
         Review what your video will include. Looks right? Continue. Want changes? Just tell me below.
       </p>
+      {combineFailed ? (
+        <div style={{ width: '100%', color: '#92711a', background: '#fffdf5', border: '1.5px solid #f5e6a8', borderRadius: 10, padding: '12px 16px', fontSize: 14, marginBottom: 18 }}>
+          We couldn’t compare your files automatically this time. The summary below still uses all of them — tell me below what to compare or focus on.
+        </div>
+      ) : null}
 
       {building ? (
         <div style={{ textAlign: 'center', color: 'var(--ink-soft)', padding: '48px 0' }}>

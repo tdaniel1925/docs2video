@@ -7,6 +7,7 @@ import type { ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { logError } from '../../_lib/error-logger'
+import { usableBrief } from '../../_lib/wizard-draft'
 
 export const runtime = 'nodejs'
 // Script generation makes chained Claude calls that can run for minutes — longer
@@ -73,12 +74,18 @@ export async function POST(request: Request) {
   if (videoId) {
     const admin = createAdminClient()
     // Mark generating so the page shows progress and we can detect failure.
-    const { data: row } = await admin.from('videos').select('draft_data').eq('id', videoId).eq('user_id', user.id).single()
+    const { data: row } = await admin.from('videos').select('status, draft_data').eq('id', videoId).eq('user_id', user.id).single()
     if (!row) return NextResponse.json({ error: 'Draft not found' }, { status: 404 })
-    // The user-approved brief (from the Review step) steers what the script covers.
-    const approvedBrief = (row.draft_data as any)?.brief || null
+    if (row.status !== 'draft' && row.status !== 'failed') {
+      return NextResponse.json({ error: 'This video has already been made — its script can’t be rewritten here.' }, { status: 409 })
+    }
+    // The user-approved brief (from the Review step) steers what the script
+    // covers — unless the user pressed Skip on that step (usableBrief).
+    const approvedBrief = usableBrief<any>(row.draft_data as Record<string, unknown>)
     await admin.from('videos').update({
-      draft_data: { ...(row.draft_data || {}), scriptStatus: 'generating', scriptError: null },
+      // scriptStartedAt lets the stuck-script sweep measure THIS job's age,
+      // not the draft's.
+      draft_data: { ...(row.draft_data || {}), scriptStatus: 'generating', scriptError: null, scriptStartedAt: new Date().toISOString() },
     }).eq('id', videoId)
 
     waitUntil((async () => {
@@ -97,8 +104,14 @@ export async function POST(request: Request) {
           draft_data: { ...(cur?.draft_data || {}), scenes, detailLevel, narrationStyle, scriptStatus: 'ready', scriptError: null },
         }).eq('id', videoId)
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Script generation failed'
-        console.error(`[generate-script:bg ${videoId}] CRASH: ${message}`)
+        const raw = err instanceof Error ? err.message : 'Script generation failed'
+        console.error(`[generate-script:bg ${videoId}] CRASH: ${raw}`)
+        logError('generate-script', err, { videoId, userId: user.id })
+        // The script page shows scriptError to the customer — a sentence, not
+        // a raw model/database error.
+        const message = /timed out/i.test(raw)
+          ? 'Writing your script took too long. Please try again — a shorter length or less source text helps.'
+          : 'We couldn’t write your script just now. Please try again.'
         const { data: cur } = await admin.from('videos').select('draft_data').eq('id', videoId).single()
         await admin.from('videos').update({
           draft_data: { ...(cur?.draft_data || {}), scriptStatus: 'failed', scriptError: message },
@@ -120,6 +133,6 @@ export async function POST(request: Request) {
     const message = err instanceof Error ? err.message : 'Script generation failed'
     console.error(`[generate-script] CRASH: ${message}`)
     logError('generate-script', err, { userId: user?.id })
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'We couldn’t write your script just now. Please try again.' }, { status: 500 })
   }
 }

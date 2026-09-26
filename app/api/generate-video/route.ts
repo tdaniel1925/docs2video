@@ -25,7 +25,9 @@ import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 import { PHONE_REGEX, phoneToSpoken, isPhoneInSource, formatPhoneDisplay } from '../../_lib/phone-utils'
 import { estimateVideoCost, exceedsCeiling } from '../../_lib/cost-estimator'
-import { deductCredits, calculateVideoCost, checkCredits, addTopupCredits, refundVideoCredits, endTrialIfDepleted } from '../../_lib/credits'
+import { deductCredits, calculateVideoCost, checkCredits, refundVideoCredits, endTrialIfDepleted } from '../../_lib/credits'
+import { IN_PROGRESS_STATUSES } from '../../_lib/video-billing'
+import { usableBrief, isEditedBookend, buildShareColumns, normalizeDetailLevel, type DetailLevel } from '../../_lib/wizard-draft'
 import { isPaidTier, maxConcurrentForTier } from '../../_lib/subscription'
 import { safeEqual } from '../../_lib/api-auth'
 import { inngest } from '../../_lib/inngest/client'
@@ -87,6 +89,18 @@ function formatForTTS(text: string): string {
 
 // Track in-flight requests to prevent duplicates
 const inFlightVideos = new Set<string>()
+
+/**
+ * An error whose message was written FOR the customer. Anything else thrown
+ * inside the pipeline (a database message, "V3 render server error (HTTP
+ * 500)", a render-service stack line) is logged in full but shown to the user
+ * as a plain sentence — raw server text on a paid product reads as broken.
+ */
+class FriendlyError extends Error {}
+const GENERIC_FAILURE = 'Something went wrong while making your video. Your credits were refunded — please try again in a few minutes.'
+function customerMessage(err: unknown): string {
+  return err instanceof FriendlyError ? err.message : GENERIC_FAILURE
+}
 
 // Scene filter helpers — only truly empty scenes get removed
 export function isSceneEmpty(scene: any): boolean {
@@ -163,7 +177,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
   }
 
-  const body = await request.json()
+  const body = await request.json().catch(() => null)
+  if (!body || typeof body !== 'object' || typeof (body as any).videoId !== 'string' || !(body as any).videoId) {
+    return NextResponse.json({ error: 'Missing video id.' }, { status: 400 })
+  }
 
   // --- Credit check ---
   // Use the admin (service-role) client for profile/credit reads on internal
@@ -190,27 +207,6 @@ export async function POST(request: Request) {
   const isPrivileged = (isInternalCall && !internalChargeOwner) || isAdmin(user.email) || profile?.is_admin === true || profile?.is_beta === true
   const subStatus = (profile?.subscription_status ?? '').toLowerCase()
   const isPaidUser = isPaidTier(subStatus)
-
-  // Per-plan concurrent-generation cap (audit L1). Previously enforced ONLY on
-  // the legacy /api/videos path; the live wizard path was uncapped. Skip for
-  // privileged/internal callers.
-  if (!isPrivileged) {
-    const maxConcurrent = maxConcurrentForTier(subStatus, {
-      isAdmin: profile?.is_admin === true,
-      isBeta: profile?.is_beta === true,
-    })
-    const { count: inProgressCount } = await db
-      .from('videos')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .in('status', ['pending', 'scripting', 'generating_audio', 'generating_slides', 'assembling'])
-    if (inProgressCount && inProgressCount >= maxConcurrent) {
-      return NextResponse.json({
-        error: `You can generate up to ${maxConcurrent === 1 ? '1 video' : `${maxConcurrent} videos`} at a time. ${inProgressCount} currently in progress.`,
-        code: 'CONCURRENT_LIMIT',
-      }, { status: 409 })
-    }
-  }
 
   const { videoId, policyData, brandId, voiceId, styleId, customStylePrompt, styleReferenceUrl, approvedSlides, preGeneratedScenes, detailed, musicUrl, aiMusic, musicPrompt, narrationStyle, assetUrls, purpose, uploadMode, industry, barText, recipientName, presenterIntro, introduceInOpening, showContactClosing, photoPlacement, allowSourceDownload, agentNote, sourcePdfPath, sourcePdfName } = body as {
     videoId: string
@@ -271,41 +267,47 @@ export async function POST(request: Request) {
   const editorialVariant: 'editorial' | 'time' | 'explainer' =
     videoStyle === 'editorial' ? 'editorial' : videoStyle === 'explainer' ? 'explainer' : 'time'
 
+  // --- Load the row FIRST (owner-scoped) ---
+  // Everything below — price, brief, source file — is read from the DRAFT the
+  // server stored, never from values the browser chose to send.
+  const rowDb = createAdminClient()
+  const { data: videoRow } = await rowDb
+    .from('videos')
+    .select('id, status, output_type, detail_level, draft_data')
+    .eq('id', videoId)
+    // OWNERSHIP (review B5): a request naming someone ELSE's videoId must not
+    // touch their row (a later failure could refund one charge into two wallets).
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (!videoRow) {
+    return NextResponse.json({ error: 'We couldn’t find that video. Please start again from Create.' }, { status: 404 })
+  }
+  const draft = ((videoRow.draft_data as Record<string, unknown> | null) || {}) as Record<string, unknown>
+  const CLAIMABLE_STATUSES = ['draft', 'failed', 'pending']
+  const priorStatus = String(videoRow.status || '')
+  if (!CLAIMABLE_STATUSES.includes(priorStatus)) {
+    return NextResponse.json({ error: 'This video is already being generated.' }, { status: 409 })
+  }
+
   // --- GUARD: Duplicate submission prevention ---
-  // In-memory set = fast same-instance check. DB compare-and-set below is the
-  // real guard (serverless instances don't share memory) — audit H3.
+  // In-memory set = fast same-instance check. The DB compare-and-set below is
+  // the real guard (serverless instances don't share memory) — audit H3.
   if (inFlightVideos.has(videoId)) {
     return NextResponse.json({ error: 'This video is already being generated.' }, { status: 409 })
   }
   inFlightVideos.add(videoId)
-
-  // DB-backed claim: only ONE request can move this video out of a non-running
-  // state. If another instance already claimed it, rowCount is 0 → 409. This
-  // prevents the double-charge + racing-jobs bug across Lambdas/cold starts.
-  {
-    const claimDb = createAdminClient()
-    const { data: claimed } = await claimDb
-      .from('videos')
-      .update({ status: 'scripting', progress_updated_at: new Date().toISOString() })
-      .eq('id', videoId)
-      // OWNERSHIP (review B5): the claim must belong to the requesting user
-      // (or the internally-impersonated user). Without this, a request naming
-      // someone ELSE's videoId claimed their row — and a later failure could
-      // refund one charge into two different wallets (failAndRefund refunds the
-      // requester; the stuck-video cron refunds the row's user_id).
-      .eq('user_id', user.id)
-      .in('status', ['draft', 'failed', 'pending'])
-      .select('id')
-    if (!claimed || claimed.length === 0) {
-      inFlightVideos.delete(videoId)
-      return NextResponse.json({ error: 'This video is already being generated.' }, { status: 409 })
-    }
+  // Every refusal BEFORE the claim goes through here: nothing on the row has
+  // changed yet, so there is nothing to undo (audit C4 — refusals used to leave
+  // the row stuck at 'scripting', so every retry said "already being
+  // generated" and the stuck row counted against the one-at-a-time limit).
+  const refuse = (status: number, payload: Record<string, unknown>) => {
+    inFlightVideos.delete(videoId)
+    return NextResponse.json(payload, { status })
   }
 
   // --- GUARD: Server-side purpose validation ---
   if (!purpose?.trim() && !preGeneratedScenes?.length) {
-    inFlightVideos.delete(videoId)
-    return NextResponse.json({ error: 'Please describe what this video should accomplish.' }, { status: 400 })
+    return refuse(400, { error: 'Please describe what this video should accomplish.' })
   }
 
   // --- GUARD: Minimum content check ---
@@ -316,49 +318,63 @@ export async function POST(request: Request) {
     contentData?.policyType ||
     preGeneratedScenes?.length
   if (!hasContent) {
-    inFlightVideos.delete(videoId)
-    return NextResponse.json({
+    return refuse(400, {
       error: 'Not enough content extracted from your document. Try pasting the text directly or uploading a different file.'
-    }, { status: 400 })
+    })
   }
 
-  // --- Credit deduction ---
-  let deductedCost = 0
+  // --- PRICE, FROM THE DRAFT ---
+  // The length and output type used to come from the request body, so a user
+  // could send outputType:'pdf' / detailLevel:'quick' and pay the cheapest
+  // price for a full video. They now come from the draft the wizard saved —
+  // and the SAME length drives the script below, so what is charged is what
+  // is made. Internal (API) calls have no wizard draft; they may still say.
+  const detailLevel: DetailLevel =
+    normalizeDetailLevel(draft.detailLevel) ??
+    normalizeDetailLevel(videoRow.detail_level) ??
+    (isInternalCall ? normalizeDetailLevel((body as any).detailLevel) ?? (detailed ? 'detailed' : null) : null) ??
+    'standard'
+  const isDetailed = detailLevel === 'detailed'
+  const draftOutputType = String(videoRow.output_type || draft.outputType || 'video')
+  // This route only makes videos (the pptx/pdf "slides" flow also runs through
+  // it and is priced as such); anything else is priced as a video.
+  const priceOutputType: 'video' | 'pptx' | 'pdf' =
+    draftOutputType === 'pptx' || draftOutputType === 'pdf' ? draftOutputType : 'video'
+  // Multi-upload surcharge: +150 per extra uploaded file. Every file's content
+  // is now used (the draft merges them into extractedData — H7), so the
+  // surcharge pays for real work.
+  const draftDocs = draft.extractedDocs
+  const fileCount = Array.isArray(draftDocs) && draftDocs.length > 1 ? draftDocs.length : 1
+
+  // --- ALL paywall checks run BEFORE the row is claimed (audit C4) ---
+  let videoCost = 0
   if (!isPrivileged) {
     // CARD-ON-FILE GATE: free/trial users must save a card before producing
     // (collected via /setup-payment → Stripe SetupIntent → confirm-card). Paid
     // subscribers and admins/beta (isPrivileged, handled above) are exempt.
     // The client catches code:'card_required' and routes to /setup-payment.
-    {
-      const { data: gateProfile } = await createAdminClient()
-        .from('profiles')
-        .select('card_on_file, subscription_status')
-        .eq('id', user.id)
-        .single()
-      const status = gateProfile?.subscription_status || 'free'
-      const isPaid = ['starter', 'pro', 'business', 'enterprise', 'agency'].includes(status)
-      if (!isPaid && !gateProfile?.card_on_file) {
-        inFlightVideos.delete(videoId)
-        return NextResponse.json(
-          { error: 'Add a card to start your free trial.', code: 'card_required' },
-          { status: 402 }
-        )
-      }
+    const { data: gateProfile } = await createAdminClient()
+      .from('profiles')
+      .select('card_on_file, subscription_status')
+      .eq('id', user.id)
+      .single()
+    const gateStatus = gateProfile?.subscription_status || 'free'
+    const isPaid = ['starter', 'pro', 'business', 'enterprise', 'agency'].includes(gateStatus)
+    if (!isPaid && !gateProfile?.card_on_file) {
+      return refuse(402, { error: 'Add a card to start your free trial.', code: 'card_required' })
+    }
+    // A failed payment or a ban blocks generation outright — say so, instead
+    // of the old "Not enough credits. Need 1000, have 0." for a full wallet.
+    if (gateStatus === 'past_due') {
+      return refuse(402, { error: 'Your last payment didn’t go through. Please update your card in Settings to keep making videos.', code: 'payment_past_due' })
+    }
+    if (gateStatus === 'banned') {
+      return refuse(403, { error: 'This account can’t make videos right now. Please contact support.', code: 'account_blocked' })
     }
 
-    // Multi-upload surcharge: count the uploaded docs on the draft so a video
-    // built from several files is charged +150 per extra file (extractions +
-    // combine pass). Single-file/url/text/idea projects have fileCount 1 → no add.
-    let fileCount = 1
-    if (videoId) {
-      const { data: fcRow } = await createAdminClient().from('videos').select('draft_data').eq('id', videoId).single()
-      const docs = (fcRow?.draft_data as any)?.extractedDocs
-      if (Array.isArray(docs) && docs.length > 1) fileCount = docs.length
-    }
-
-    const videoCost = calculateVideoCost({
-      outputType: (body as any).outputType || 'video',
-      detailLevel: (body as any).detailLevel || (detailed ? 'detailed' : 'standard'),
+    videoCost = calculateVideoCost({
+      outputType: priceOutputType,
+      detailLevel,
       narrationStyle: effectiveNarrationStyle,
       userId: user.id, // honors grandfathered (old-rate) customers like Aziz
       fileCount,
@@ -366,20 +382,68 @@ export async function POST(request: Request) {
 
     const creditCheck = await checkCredits(user.id, videoCost)
     if (!creditCheck.allowed) {
-      inFlightVideos.delete(videoId)
-      return NextResponse.json(
-        { error: `Not enough credits. Need ${videoCost}, have ${creditCheck.remaining}.` },
-        { status: 402 }
-      )
+      return refuse(402, {
+        error: `You need ${videoCost.toLocaleString()} credits for this video and have ${creditCheck.remaining.toLocaleString()}. Top up to continue.`,
+        code: 'insufficient_credits',
+        needed: videoCost,
+        balance: creditCheck.remaining,
+      })
     }
 
+    // Per-plan concurrent-generation cap (audit L1). The status list is the
+    // SAME one the stuck-video cron watches, so a job the cron considers
+    // running always counts here too.
+    const maxConcurrent = maxConcurrentForTier(subStatus, {
+      isAdmin: profile?.is_admin === true,
+      isBeta: profile?.is_beta === true,
+    })
+    const { count: inProgressCount } = await rowDb
+      .from('videos')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .in('status', IN_PROGRESS_STATUSES as unknown as string[])
+    if (inProgressCount && inProgressCount >= maxConcurrent) {
+      return refuse(409, {
+        error: `You can generate up to ${maxConcurrent === 1 ? '1 video' : `${maxConcurrent} videos`} at a time. ${inProgressCount} currently in progress.`,
+        code: 'CONCURRENT_LIMIT',
+      })
+    }
+  }
+
+  // --- CLAIM the row: only ONE request can move it out of a non-running state ---
+  // If another instance already claimed it, zero rows → 409. This prevents the
+  // double-charge + racing-jobs bug across Lambdas/cold starts.
+  {
+    const { data: claimed } = await rowDb
+      .from('videos')
+      .update({ status: 'scripting', progress_updated_at: new Date().toISOString() })
+      .eq('id', videoId)
+      .eq('user_id', user.id)
+      .in('status', CLAIMABLE_STATUSES)
+      .select('id')
+    if (!claimed || claimed.length === 0) {
+      return refuse(409, { error: 'This video is already being generated.' })
+    }
+  }
+  // Put the row back exactly as it was — for a refusal that can only happen
+  // after the claim (the charge itself failing).
+  const releaseClaim = async () => {
+    await rowDb.from('videos').update({ status: priorStatus }).eq('id', videoId).eq('status', 'scripting')
+  }
+
+  // --- Credit deduction ---
+  let deductedCost = 0
+  if (!isPrivileged) {
     const deducted = await deductCredits(user.id, videoCost, 'video_generation', videoId)
     if (!deducted) {
-      inFlightVideos.delete(videoId)
-      return NextResponse.json(
-        { error: 'Credit deduction failed. Please try again.' },
-        { status: 402 }
-      )
+      // Nothing was taken (the wallet changed under us, or the ledger write
+      // failed) — undo the claim so the user can simply try again.
+      await releaseClaim()
+      return refuse(402, {
+        error: 'We couldn’t take the credits for this video — your balance may have just changed. Please try again, or top up.',
+        code: 'insufficient_credits',
+        needed: videoCost,
+      })
     }
     deductedCost = videoCost
     // Persist the charge on the row so the stuck-video cron can refund the
@@ -444,7 +508,7 @@ export async function POST(request: Request) {
         const healthRes = await fetch(`${VIDEO_ASSEMBLY_URL}/health`, { signal: AbortSignal.timeout(5000) })
         if (!healthRes.ok) throw new Error('render service not healthy')
       } catch {
-        throw new Error('Video server is temporarily offline. Please try again in a few minutes.')
+        throw new FriendlyError('Video server is temporarily offline. Please try again in a few minutes.')
       }
     }
 
@@ -585,21 +649,21 @@ export async function POST(request: Request) {
 
       // The user-approved brief (from the Review step) steers what the script
       // covers — honor it on this fallback path too, not just generate-script.
-      const { data: draftRow } = await admin.from('videos').select('draft_data').eq('id', videoId).single()
-      const approvedBrief = (draftRow?.draft_data as any)?.brief || null
+      // A brief the user SKIPPED is not used (usableBrief).
+      const approvedBrief = usableBrief<any>(draft)
 
       // Script generation with 60s timeout
       try {
         scenes = await Promise.race([
-          generateScript(policyData, brand?.name ?? null, colors, detailed ?? false, 0, voiceId, (brand as any)?.tone ?? undefined, contactInfoForScript, purpose, uploadMode, industry, (body as any).detailLevel || (detailed ? 'detailed' : 'standard'), effectiveNarrationStyle, (policyData as any)?.classification ?? null, approvedBrief),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Script generation timed out. This document may be too large — try pasting the key sections instead.')), 60000)),
+          generateScript(policyData, brand?.name ?? null, colors, isDetailed, 0, voiceId, (brand as any)?.tone ?? undefined, contactInfoForScript, purpose, uploadMode, industry, detailLevel, effectiveNarrationStyle, (policyData as any)?.classification ?? null, approvedBrief),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new FriendlyError('Script generation timed out. This document may be too large — try pasting the key sections instead.')), 60000)),
         ])
       } catch (scriptErr) {
         throw scriptErr
       }
 
       if (!scenes || scenes.length === 0) {
-        throw new Error('Script generation produced no scenes. Try providing more content or a clearer purpose.')
+        throw new FriendlyError('Script generation produced no scenes. Try providing more content or a clearer purpose.')
       }
 
       // Narration stays original here — formatForTTS applied only when building render service payload
@@ -755,7 +819,7 @@ export async function POST(request: Request) {
     const validation = validateScript(scenes, {
       industry: industry ?? (isInsurance ? 'insurance' : undefined),
       contactInfo: undefined,
-      detailLevel: detailed ? 'detailed' : 'standard',
+      detailLevel: isDetailed ? 'detailed' : 'standard',
       requireDisclaimer: isInsurance,
     })
 
@@ -930,14 +994,16 @@ export async function POST(request: Request) {
     const agentName = resolveAgentName({ preparer: effectiveBrandName, brandName: effectiveBrandName, presenter })
     // Persist share-page options onto the videos row so the public share page can
     // read them (welcome banner + agent note + optional source-PDF download).
-    // Only allow the PDF download when we actually have a stored path.
-    await admin.from('videos').update({
-      recipient_name: recipient || null,
-      agent_note: (agentNote || '').trim() || null,
-      source_pdf_path: sourcePdfPath || null,
-      source_pdf_name: sourcePdfName || null,
-      allow_source_download: !!(allowSourceDownload && sourcePdfPath),
-    }).eq('id', videoId).then(() => {}, () => {})
+    // Only allow the PDF download when we actually have a stored path — and only
+    // a path inside THIS user's own storage folder (H6): the share page hands the
+    // file to anyone with the link, so a path pointing elsewhere must never land.
+    // The draft (saved by the Theme step) is the source; the body is a fallback
+    // for API callers that have no wizard draft.
+    const shareColumns = buildShareColumns({
+      userId: user.id, draft, recipient,
+      body: { allowSourceDownload, agentNote, sourcePdfPath, sourcePdfName },
+    })
+    await admin.from('videos').update(shareColumns).eq('id', videoId).then(() => {}, () => {})
     const regulatedContent = isRegulated(policyData, (policyData as any)?.classification?.documentType, industry)
     // Base opening: the presenter's own intro line if they wrote one, else a lead
     // into the title. buildOpeningNarration prepends the client greeting.
@@ -966,20 +1032,33 @@ export async function POST(request: Request) {
       `Thank you for watching. ${contactParts.length > 0 ? `To learn more, ${contactParts.join(' ')}.` : `We appreciate your time.`} ${signoff}`.trim())
 
     // Prepend cover + append closing to scenes for the render service.
-    // If the user edited them in the editor (editedCover/editedClosing), their
-    // narration + on-slide text WIN — we don't regenerate or re-append contact.
+    // Only a cover/closing the user REALLY edited wins over the personalized
+    // versions built above. The script page adds default bookends to every
+    // script; their stock wording used to override the presenter's intro, the
+    // client greeting and the "show contact on closing" choice even when the
+    // user never touched them (isEditedBookend tells the two apart).
+    const coverEdited = isEditedBookend(editedCover)
+    const closingEdited = isEditedBookend(editedClosing)
     const coverScene = {
       title: editedCover?.title || videoTitle,
-      narration: formatForTTS(editedCover?.narration?.trim() || coverNarration),
+      narration: formatForTTS(coverEdited ? editedCover.narration.trim() : coverNarration),
       slidePrompt: 'cover',
       slideData: editedCover?.slideData || undefined,
     }
     const closingScene = {
       title: editedClosing?.title || 'Thank You',
-      narration: formatForTTS(editedClosing?.narration?.trim() || closingNarration),
+      narration: formatForTTS(closingEdited ? editedClosing.narration.trim() : closingNarration),
       slidePrompt: 'closing',
       slideData: editedClosing?.slideData || undefined,
     }
+    // V3 + editorial build their OWN cover/closing from the content scenes. When
+    // the user wrote their own cover/closing, hand those words to them as the
+    // first/last scene so every style says what the user wrote.
+    const scenesForStyledEngines = [
+      ...(coverEdited ? [{ title: editedCover.slideData?.headline || editedCover.title || videoTitle, narration: editedCover.narration.trim(), slideData: editedCover.slideData, beat: 'hook' }] : []),
+      ...scenes,
+      ...(closingEdited ? [{ title: editedClosing.slideData?.headline || editedClosing.title || 'Thank You', narration: editedClosing.narration.trim(), slideData: editedClosing.slideData, beat: 'action' }] : []),
+    ]
     // Apply formatForTTS only for render service scenes (narration stays original in slidePrompts for image context)
     const ttsScenes = scenes.map((s: any) => ({ ...s, narration: s.narration ? formatForTTS(s.narration) : s.narration }))
     const allScenes = [coverScene, ...ttsScenes, closingScene]
@@ -1057,7 +1136,11 @@ export async function POST(request: Request) {
     // OR the user EXPLICITLY picked infographic/cinematic (a direct choice enters
     // the Remotion path without needing the global V3 flag flipped on — so
     // re-enabling infographic never depends on a system-wide toggle).
-    const explicitV3 = videoStyle === 'infographic' || videoStyle === 'cinematic'
+    // Aurora and the magazine looks (editorial / explainer / time) are direct
+    // choices too. They used to be missing here, so with the global flag off a
+    // user who picked Aurora or Editorial silently got the OLD slideshow
+    // renderer instead — a different look with no note saying why.
+    const explicitV3 = videoStyle === 'infographic' || videoStyle === 'cinematic' || videoStyle === 'aurora' || isMagazine
     if (useV3 || videoStyle === 'slides' || explicitV3) {
       // SLIDE-DECK style (the new default): the animated explainer deck
       // (DirectedVideo). The render service reads the source, comprehends it, writes the
@@ -1071,11 +1154,30 @@ export async function POST(request: Request) {
         // the rendered slides could diverge from the preview. Pass the approved
         // brief so slides.js steers its writer by it, exactly like generateScript
         // (V3/editorial) already does.
-        const { data: sbDraft } = await admin.from('videos').select('draft_data').eq('id', videoId).single()
-        const slidesBrief = (sbDraft?.draft_data as any)?.brief || null
+        const slidesBrief = usableBrief<any>(draft)
+        // THE USER'S OWN SCRIPT (H2). When the user went through the script
+        // step, their scenes — edits, AI edits, cover and closing — are what the
+        // deck says; the render service only writes its own script when none is
+        // supplied (API/quick callers). Same processed scenes every other style
+        // gets (compliance-scrubbed, contact-cleaned, personalized bookends).
+        const suppliedScenes = preGeneratedScenes && preGeneratedScenes.length > 0
+          ? [
+              { role: 'cover', title: coverScene.title, narration: coverScene.narration, slideData: coverScene.slideData || { headline: coverTitleForSlide } },
+              ...ttsScenes.map((s: any) => ({ role: 'content', title: s.title, narration: s.narration, beat: s.beat, slideData: s.slideData })),
+              { role: 'closing', title: closingScene.title, narration: closingScene.narration, slideData: closingScene.slideData },
+            ]
+          : undefined
         // Declared before the try so the retry-in-catch can reuse it.
         const slidesPayload = {
-          videoId, userId: user.id, voiceId,
+          videoId, userId: user.id,
+          // The chosen voice and music now reach the slides renderer (H2).
+          voiceId,
+          aiMusic: !!(aiMusic || musicPrompt) || undefined,
+          musicPrompt: musicPrompt || undefined,
+          scenes: suppliedScenes,
+          // The length the user paid for. Only used when the render service
+          // writes the script itself (no supplied scenes).
+          detailLevel,
           text: JSON.stringify(policyData),   // the extracted document data (structured); the render service comprehends it
           brief: slidesBrief || undefined,    // approved brief → writer steering (parity with preview)
           // NEVER 'docs2video' — this is the client-facing preparer on the closing
@@ -1089,8 +1191,8 @@ export async function POST(request: Request) {
           logoUrl: (brand?.logo_light_url || brand?.logo_url) || undefined,   // white logo preferred for dark slide bg
           presenter: presenter ? { name: presenter.name, role: presenter.role, photoUrl: presenter.photo } : undefined,
           photoPlacement: photoPlacement || undefined,
-          allowSourceDownload, agentNote: (agentNote || '').trim() || undefined,
-          sourcePdfPath: sourcePdfPath || undefined, sourcePdfName: sourcePdfName || undefined,
+          allowSourceDownload: shareColumns.allow_source_download, agentNote: shareColumns.agent_note || undefined,
+          sourcePdfPath: shareColumns.source_pdf_path || undefined, sourcePdfName: shareColumns.source_pdf_name || undefined,
           // PHOTOS opt-in: default OFF (animated bg = instant + $0 + ~2-3 min
           // faster). On → photographic Gemini backdrops. From the wizard flag.
           photos: !!(body as any).slidePhotos,
@@ -1158,7 +1260,7 @@ export async function POST(request: Request) {
         await admin.from('videos').update({ progress_detail: 'Designing your report...', progress_pct: 16 }).eq('id', videoId)
         const edPayload = await buildEditorialPayload({
           videoId, userId: user.id, voiceId,
-          scenes, brand, brandName: effectiveBrandName,
+          scenes: scenesForStyledEngines, brand, brandName: effectiveBrandName,
           extracted: policyData,
           contactLine: wantContactClosing ? (contactLine || undefined) : undefined,
           musicUrl: musicUrl || undefined, musicPrompt: musicPrompt || undefined, aiMusic: aiMusic || undefined,
@@ -1197,7 +1299,7 @@ export async function POST(request: Request) {
 
       const v3Payload = buildV3Payload({
         videoId, userId: user.id, voiceId,
-        scenes, brand, brandName: effectiveBrandName,
+        scenes: scenesForStyledEngines, brand, brandName: effectiveBrandName,
         classification: (policyData as any)?.classification ?? null,
         industry,
         keyMetrics: (policyData as any)?.keyMetrics ?? [],
@@ -1326,7 +1428,8 @@ export async function POST(request: Request) {
         console.error(`[video ${videoId}] Credit refund failed:`, refundErr)
       }
     }
-    const message = err instanceof Error ? err.message : 'Video generation failed'
+    // The customer sees a plain sentence; the raw detail went to logError above.
+    const message = customerMessage(err)
     await admin.from('videos').update({ status: 'failed', error_message: message }).eq('id', videoId)
     if (jobId) await updateJobProgress(admin, jobId, 0, 'failed', { error_message: message })
     await sendNotification(admin, user.id, {

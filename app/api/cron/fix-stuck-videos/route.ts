@@ -2,18 +2,22 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { verifyCronAuth } from '../../../_lib/cron-auth'
 import { getRender } from '../../../_lib/creatomate'
-import { refundVideoCredits, deductCredits } from '../../../_lib/credits'
+import { deductCredits } from '../../../_lib/credits'
 import { sendNotification } from '../../../_lib/notify'
+import {
+  IN_PROGRESS_STATUSES, VIDEO_CHARGE_ACTIONS, VIDEO_REFUND_ACTIONS,
+  chargeCount, ledgerOutstanding, readVideoLedger, refundVerifiedCharge,
+} from '../../../_lib/video-billing'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-// Statuses that mean a video is mid-flight. Keep in sync with generate-video /
-// render-video. (audit M1: a single shared list — kept here as the canonical one.)
-// 'pending' added 2026-06-16: a video could be created 'pending' and never
-// transition, stranding the generating page forever ("0% / Restarting…") because
-// the cron didn't watch this status. Any non-terminal status must be here.
-const IN_PROGRESS_STATUSES = ['pending', 'starting', 'scripting', 'generating_slides', 'generating_audio', 'assembling', 'queued', 'processing', 'rendering']
+// The statuses that mean a video is mid-flight live in app/_lib/video-billing.ts
+// (IN_PROGRESS_STATUSES) — ONE list shared with generate-video's one-at-a-time
+// limit, so the two can never disagree about what "running" means. 'pending'
+// is in it: a video created 'pending' that never moved on used to strand the
+// generating page forever because the cron didn't watch it.
+const RUNNING = IN_PROGRESS_STATUSES as unknown as string[]
 
 /**
  * Cron: reconcile stuck videos. For V2 (Creatomate) jobs it re-queries the
@@ -38,7 +42,8 @@ export async function GET(request: Request) {
   // been generating > 10 min so the wizard stops polling indefinitely.
   let scriptsFailed = 0
   try {
-    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+    const tenMinAgoMs = Date.now() - 10 * 60 * 1000
+    const tenMinAgo = new Date(tenMinAgoMs).toISOString()
     const { data: stuckDrafts } = await admin
       .from('videos')
       .select('id, draft_data, updated_at, created_at')
@@ -47,7 +52,14 @@ export async function GET(request: Request) {
       .limit(50)
     for (const d of stuckDrafts || []) {
       const dd = (d.draft_data || {}) as Record<string, unknown>
-      if (dd.scriptStatus === 'generating') {
+      // Measure from when the script job STARTED (scriptStartedAt), not from
+      // when the draft was made: a draft created an hour ago whose script began
+      // a minute ago is working, not stuck. Older drafts without the stamp fall
+      // back to created_at, as before.
+      const startedMs = typeof dd.scriptStartedAt === 'string'
+        ? new Date(dd.scriptStartedAt).getTime()
+        : new Date(d.created_at).getTime()
+      if (dd.scriptStatus === 'generating' && startedMs < tenMinAgoMs) {
         await admin.from('videos').update({
           draft_data: { ...dd, scriptStatus: 'failed', scriptError: 'Script generation timed out. Please try again.' },
         }).eq('id', d.id)
@@ -59,8 +71,11 @@ export async function GET(request: Request) {
   // Render-service failures (review B1): the render service writes status='failed' ITSELF after
   // its early ACK, so those rows never match the in-progress filter below — yet
   // the user was told "your credits were refunded" and nothing ever refunded.
-  // refundVideoCredits zeroes deducted_cost after refunding, so a failed row
-  // with deducted_cost>0 always means charged-but-not-refunded. Sweep those.
+  // A failed row with deducted_cost>0 MAY be charged-but-not-refunded, so sweep
+  // those — but refund only what the LEDGER proves was charged for that video
+  // and not yet given back (audit C1). deducted_cost sits on a row the user can
+  // edit, so it is a hint, never the amount: a hand-made 'failed' row with no
+  // real charge behind it refunds nothing and just gets its number cleared.
   // (created_at buffer lets an in-flight failAndRefund finish first; the refund
   // itself is idempotent per-charge, so overlap is harmless.)
   let refundedFailed = 0
@@ -73,8 +88,11 @@ export async function GET(request: Request) {
       .lt('created_at', fiveMinAgo)
       .limit(25)
     for (const v of failedCharged || []) {
-      await refundVideoCredits(v.user_id, v.deducted_cost, v.id)
-      refundedFailed++
+      try {
+        if (await refundVerifiedCharge(admin, v) > 0) refundedFailed++
+      } catch (e) {
+        console.error(`[fix-stuck-videos] refund check failed for ${v.id}:`, e instanceof Error ? e.message : e)
+      }
     }
   } catch { /* non-fatal — next run retries */ }
 
@@ -95,15 +113,19 @@ export async function GET(request: Request) {
       .gt('updated_at', dayAgo)
       .limit(10)
     for (const v of recentCompleted || []) {
-      const { data: txs } = await admin
-        .from('credit_transactions')
-        .select('action, amount, created_at')
-        .eq('video_id', v.id)
-        .in('action', ['refund_video', 'refund_video_retry', 'recharge_video'])
-        .order('created_at', { ascending: false })
-      const lastRefund = (txs || []).find(t => t.action === 'refund_video' || t.action === 'refund_video_retry')
-      const alreadyRecharged = (txs || []).some(t => t.action === 'recharge_video')
-      if (!lastRefund || alreadyRecharged) continue
+      // Read the owner's WHOLE ledger for this video. Re-charge only when the
+      // video is, on balance, unpaid (every charge was given back) — never on
+      // top of a charge that still stands. That is what stops a video that
+      // finished after being failed from charging twice when the user had also
+      // pressed Retry (charge #2 is still in force, so nothing more is taken).
+      const txs = await readVideoLedger(admin, v.id, v.user_id)
+      // Only a VIDEO render can be re-charged here. Presentations used to be
+      // refunded with the video refund action too; without this check a
+      // presentation that failed once and then built fine was charged again.
+      if (chargeCount(txs, VIDEO_CHARGE_ACTIONS) === 0) continue
+      if (ledgerOutstanding(txs, VIDEO_CHARGE_ACTIONS, VIDEO_REFUND_ACTIONS) > 0) continue
+      const lastRefund = [...txs].reverse().find(t => t.action === 'refund_video' || t.action === 'refund_video_retry')
+      if (!lastRefund) continue
       const amount = Math.abs(lastRefund.amount || 0)
       if (amount <= 0) continue
       const ok = await deductCredits(v.user_id, amount, 'recharge_video', v.id,
@@ -126,7 +148,7 @@ export async function GET(request: Request) {
   const { data: stuckVideos } = await admin
     .from('videos')
     .select('id, user_id, title, status, created_at, progress_updated_at, deducted_cost, creatomate_render_id, slide_urls, thumbnail_url')
-    .in('status', IN_PROGRESS_STATUSES)
+    .in('status', RUNNING)
     .lt('created_at', fiveMinAgo)
     .limit(25)
 
@@ -136,20 +158,26 @@ export async function GET(request: Request) {
 
   let fixed = 0, failed = 0, recovered = 0
 
-  // Force-fail + refund a job and notify the user. Idempotent refund.
-  const forceFail = async (video: any, message: string) => {
-    await admin.from('videos').update({
+  // Force-fail + refund a job and notify the user. The refund is checked
+  // against the ledger (audit C1) and is idempotent per charge.
+  const forceFail = async (video: any, message: string): Promise<boolean> => {
+    // Only fail a row that is STILL running: if the renderer finished (or failed
+    // it itself) between our read and now, leave its result alone.
+    const { data: flipped } = await admin.from('videos').update({
       status: 'failed', error_message: message, progress_detail: null, progress_pct: 0,
-    }).eq('id', video.id)
-    if (video.deducted_cost && video.deducted_cost > 0) {
-      await refundVideoCredits(video.user_id, video.deducted_cost, video.id)
+    }).eq('id', video.id).in('status', RUNNING).select('id')
+    if (!flipped || flipped.length === 0) return false
+    let refunded = 0
+    try { refunded = await refundVerifiedCharge(admin, video) } catch (e) {
+      console.error(`[fix-stuck-videos] refund failed for ${video.id}:`, e instanceof Error ? e.message : e)
     }
     await sendNotification(admin, video.user_id, {
       type: 'video_failed',
       title: 'Video generation failed',
-      message: `${video.title?.slice(0, 40) || 'Your video'} could not be completed. Your credits were refunded.`,
+      message: `${video.title?.slice(0, 40) || 'Your video'} could not be completed.${refunded > 0 ? ' Your credits were refunded.' : ''}`,
       link: `/videos/${video.id}`,
     }).catch(() => {})
+    return true
   }
 
   // Staleness: no progress write in 10 min (fall back to created_at if the
@@ -189,12 +217,11 @@ export async function GET(request: Request) {
             }
           } catch { /* fall through to staleness check */ }
         } else if (render?.status === 'failed') {
-          await forceFail(video, 'Video rendering failed. Your credits were refunded.')
-          failed++
+          if (await forceFail(video, 'Video rendering failed.')) failed++
           continue
         }
         // render still planned/rendering, or recovery failed → only fail if stale.
-        if (isStale(video)) { await forceFail(video, 'Video generation timed out. Your credits were refunded.'); failed++ }
+        if (isStale(video) && await forceFail(video, 'Video generation timed out.')) failed++
         continue
       }
 
@@ -222,8 +249,12 @@ export async function GET(request: Request) {
       } else {
         // No MP4 yet — force-fail only if stale (no progress in 10 min) AND
         // older than 30 min absolute, so a slow-but-live render service render survives.
+        // A job WAITING IN LINE on the render service is alive too: the render
+        // service now stamps progress_updated_at every couple of minutes while it
+        // waits for its render slot (audit H3), so isStale() stays false for it
+        // and it is no longer failed + refunded and then charged again on finish.
         const old = new Date(video.created_at).getTime() < thirtyMinAgo
-        if (isStale(video) && old) { await forceFail(video, 'Video generation timed out. Your credits were refunded.'); failed++ }
+        if (isStale(video) && old && await forceFail(video, 'Video generation timed out.')) failed++
       }
     } catch {
       // Skip this video on error; next run retries.

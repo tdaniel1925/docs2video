@@ -316,6 +316,24 @@ export async function POST(request: Request) {
         logoUrl: brandAnalysis.logoUrl || null,
       }
 
+      // REUSE, don't duplicate. Going Back and scanning the same site again
+      // used to create a brand-new copy of the same brand every time. If this
+      // user already has a brand with this exact name, hand that one back.
+      const brandName = brandAnalysis.companyName || parsedUrl.hostname.replace('www.', '')
+      const { data: existingBrand } = await supabase.from('brands')
+        .select('id, logo_file_url')
+        .eq('user_id', user.id)
+        .ilike('name', brandName.replace(/[\\%_]/g, (c) => `\\${c}`))
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (existingBrand) {
+        autoBrandId = existingBrand.id
+        autoLogoUrl = existingBrand.logo_file_url || null
+        if (autoLogoUrl && autoBrandInfo) (autoBrandInfo as Record<string, unknown>).logoFileUrl = autoLogoUrl
+        console.log(`[extract-url] Reusing existing brand "${brandName}" (${autoBrandId})`)
+      } else {
+
       // Upload logo to Supabase storage (brand scraper already processed it)
       let logoFileUrl: string | null = null
       try {
@@ -403,6 +421,7 @@ export async function POST(request: Request) {
         }
         console.log(`[extract-url] Auto-created brand: ${brandAnalysis.companyName} (${autoBrandId}), logo: ${logoFileUrl ? 'yes' : 'no'}`)
       }
+      } // end: no existing brand with this name
     } catch (brandErr) {
       console.error('[extract-url] Brand scraping failed:', brandErr instanceof Error ? brandErr.message : 'unknown')
     }

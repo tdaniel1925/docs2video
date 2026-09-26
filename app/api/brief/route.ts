@@ -130,8 +130,8 @@ export async function POST(request: Request) {
     await supabase.from('videos').update({ draft_data: merged }).eq('id', videoId).eq('user_id', user.id)
     return NextResponse.json({ brief })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to build brief'
+    // Details go to the log; the customer gets a sentence, not a stack message.
     logError('brief', err, { videoId, userId: user?.id })
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'We couldn’t build the summary just now. Please try again, or press Skip to continue.' }, { status: 500 })
   }
 }
