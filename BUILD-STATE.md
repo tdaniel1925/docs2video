@@ -1,59 +1,78 @@
 # Docs2Video — Build State
 
-**Last updated:** 2026-09-26 (audit fixes; see Known Issues) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
+**Last updated:** 2026-09-26 (audit fixes; see "Audit 2026-09-26" below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
 **Branch:** main
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
-## 2026-09-26 — Sign-in, route protection, settings, onboarding, storage, security (audit fixes)
+## Audit 2026-09-26 — everything fixed, and what the owner must do (`AUDIT-2026-09-26.md`, branch `fix/audit-2026-09-26`)
 
-From `AUDIT-2026-09-26.md` (C6, C7, H11, H13, H14 + related medium/low items):
-- **Public pages**: the logged-out allow-list lives in `app/_lib/public-paths.ts` (tested). Blog, contact, `/m/*`, `/unsubscribe/*`, the contact / lead-capture / health APIs are reachable; logged-out `/pricing` shows the new public `/plans` page (same PLANS data); `/industries/*` → `/for/*`; API calls without a session get 401 JSON; login keeps `?next=`.
-- **Gmail/Outlook connect**: signed, expiring `state` + one-time nonce cookie + session match (`app/_lib/oauth-state.ts`). Outlook button replaced by a note when `MICROSOFT_*` is unset. Google Calendar "connect" (never worked) now asks for a booking-page link.
-- **SMTP**: public mail servers on ports 25/465/587/2525 only (`app/_lib/net-guard.ts`), password never echoed, one default connection. Passwords/tokens encrypted when `DATA_ENCRYPTION_KEY` is set.
-- **Auth emails**: new `/reset-password` page (outside the dashboard), new `/auth/confirm` (token_hash, works across devices), `emailRedirectTo` on sign-up, link errors shown on login/forgot-password, welcome email only after confirmation.
-- **Profiles guard v2**: `supabase/migrations/20260926_profiles_guard_v2.sql` (NOT applied). Social add-on gates confirm with Stripe until then (`app/_lib/social-addon.ts`).
-- **Logos/assets**: processed logos → public `logos` bucket; `scripts/fix-private-logo-urls.mjs` repairs old rows; `/api/upload-asset` saves paths + returns signed links; photo uploads use unique paths + sniffed type.
-- **Other**: `/admin` gated server-side; impersonation uses the site URL; Apex checkout secret compared in constant time; sign-up referrals written as `affiliates.id` + `signed_up`; onboarding saves/finish/skip report failures and the plan picker uses PLANS.
+One section for the whole audit (five fix branches plus the follow-up pass).
+Nothing below is live until the branch is deployed AND the owner checklist at
+the end is done.
 
-Owner to-do: run the migration; set `DATA_ENCRYPTION_KEY`; add `/auth/confirm` + `/reset-password` + `/auth/callback` to Supabase redirect URLs and switch the email templates to `/auth/confirm?token_hash=…`; run `node scripts/fix-private-logo-urls.mjs --apply`.
-## 2026-09-26 — Client emails, follow-ups, tracking (audit C5, H9, H10 + mediums)
+### What is fixed
 
-Branch `fix/audit-clients-emails`. **Needs migration `supabase/migrations/20260926_client_emails_followups.sql` run by hand** (adds `sent_emails.email_type/quote_id` + unique (quote_id, email_type), `quotes.auto_follow_up/accepted_at`, `email_suppressions`, `profiles.view_alerts`). Until it runs: automatic follow-ups send NOTHING, the view-alert setting can't be saved (alerts stay "each viewer, 12h cooldown"), share emails still send and track.
+**Money and credits**
+- One spend rule for every product (`spendBlockReason` in `checkCredits` + `deductCredits`): no card on free/trial, `past_due` or banned = can't spend. generate-video no longer has its own copy; it turns the shared answer into `card_required` / `payment_past_due` / `account_blocked` (the theme page still sends `card_required` to `/setup-payment`). Trial converts inside `deductCredits` / `checkCredits` from any product.
+- Charge-first + refund-once-on-failure for 13 one-off tools (`app/_lib/credit-charge.ts`); tools that charged 1 credit now charge real prices.
+- The stuck-video cron refunds only what the ledger proves was charged (`app/_lib/video-billing.ts`), never a number a user typed (C1).
+- Refunds are keyed per attempt: presentation builds, MP4 exports and narration-edit fees each have their own charge/refund pair (`refundLedgerCharge`), so they never collide with each other or with a video refund.
+- **Restart Generation** goes through `POST /api/videos/{id}/restart`: marks the stuck run failed, refunds its ledger-verified charge, then sets it back to pending — restarting no longer charges twice.
+- generate-video refuses before claiming the row and prices from the saved draft (C4).
 
-- **Follow-up cron** (`/api/cron/follow-ups`): opt-in per quote (default off), only open quotes (sent/viewed), skips converted/unsubscribed clients, stages day 3 → day 7 (latest due only, ≥3 days apart, never an earlier stage after a later one), row written before sending (unique index = no doubles), sent from the agent's connected mailbox only, signed unsubscribe link in every email. Rules: `app/_lib/follow-up-schedule.ts` (tested).
-- **Quotes**: video page has Mark as paid / accepted / declined / Reopen + "Automatic follow-ups" switch (`PUT /api/quotes`, new `DELETE /api/quotes?quoteId=`). Paid/accepted → client `converted`. Edits no longer reset status to 'sent'.
-- **Unsubscribe**: `/api/email-prefs?t=<signed token>` for users, demo leads and agents' clients (`app/_lib/unsubscribe-token.ts`). Old `?uid=` / `?lead=` links still work.
-- **Share emails**: Resend results checked everywhere in these routes (`app/_lib/client-email.ts` `sendWithResend`); one greeting; escaped paragraphs; `sent_emails` written with `to_email` (the real column); sent from the agent's connected mailbox when present, Docs2Video fallback; white-label plans unbranded; rate limited. Gmail subjects RFC 2047 encoded.
-- **View alerts**: owner's own views ignored; per-viewer 12h cooldown; max 6/video/hour; setting on Activity → Notifications (`/api/analytics/alert-prefs`). `question_asked` is its own event.
-- **Share page**: slide decks (`output_type='deck'`) render in the HTML frame; presentation links keep serving the last good build during/after a re-edit (failed rebuild restores the previous version); public watch API no longer returns payment intent id, plan, owner id, brand guide or policy data; any https booking link gets the big button.
-- **Follow-up plan** emails are labeled as drafts (manual send) — nothing sends them on a schedule.
-## 2026-09-26 — Money fixes from the user-impact audit (AUDIT-2026-09-26.md)
+**Stripe**
+- Plan changes never create a second subscription (`app/_lib/subscription-checkout.ts`); `/api/confirm-card` checks the SetupIntent with Stripe; the webhook throws on any failure so Stripe retries; refunds/disputes claw back commission and revoke credits in proportion; incomplete checkouts grant nothing; only the subscription on file can change a plan.
+- Apex buyers are matched to an existing account by their **sign-in (auth) email**, not the editable `profiles.email`; an unconfirmed match gets the set-password email so the real inbox owner can take it over.
+- Apex welcome email's button now opens `/auth/confirm?token_hash=…&type=recovery&next=/reset-password` — a real set-password page (it used to land on login). A failed send is logged.
+- Account delete cancels Stripe first; promo revoke is safe; only Pro/Business/Enterprise are sold anywhere (`SELLABLE_PLAN_TIERS`).
 
-- **Plan changes never create a second subscription.** `app/_lib/subscription-checkout.ts`
-  is the one door (used by `/api/stripe/checkout` and `/api/subscribe`): an active plan is
-  changed in place (upgrade billed now, downgrade from next renewal), past_due / several
-  plans → billing portal, a card-on-file trial goes to Checkout and the webhook cancels the
-  trial once the paid plan starts. Apex checkout refuses an email that already has a paid
-  plan. Webhook: only the subscription ON FILE can change or cancel a user's plan.
-- **`/api/confirm-card`** verifies the SetupIntent with Stripe against the user's own customer;
-  never resets paying users to trial; never lifts past_due/banned.
-- **Webhook**: every failure throws → claim released → Stripe retries (H1). Refunds/disputes
-  find the invoice via invoice payments (current API), claw back commission on full reversal,
-  and revoke credits per refund in proportion (packs AND plan payments). Incomplete
-  subscriptions/unpaid checkouts grant nothing. Trial→paid grants exactly once. Apex sales by
-  existing users are reported; a failed account creation after payment now retries.
-- **Credits**: one spend rule (`spendBlockReason`) in `checkCredits` + `deductCredits` — no card,
-  past_due or banned can't spend on ANY tool. Trial converts when credits can't cover the
-  cheapest action or the attempted one, from any product. New `runCharged`/`chargeCredits`
-  (`app/_lib/credit-charge.ts`) = charge before work, refund once on failure; applied to 13
-  one-off tools. Tools that charged 1 credit now charge real prices (`CREDIT_COSTS`).
-- Account delete cancels Stripe subscriptions first (aborts if it can't) and removes stored files.
-- Only Pro/Business/Enterprise are offered anywhere (`SELLABLE_PLAN_TIERS`); packs no longer
-  take typed promo codes; reconcile cron pages through all sessions; promo-user revoke clears
-  `is_beta` and new promo accounts get no emailed password.
-- New migration (run by hand): `supabase/migrations/20260926_revoke_credits_atomic.sql`
-  (code falls back safely until it is applied).
+**Sign-in and security**
+- New `/reset-password` page (outside the dashboard) and `/auth/confirm` (works on any device); welcome email only after confirmation; `?next=` honored after login.
+- Public pages reachable logged out (`app/_lib/public-paths.ts`); `/admin` gated on the server; Gmail/Outlook connect uses signed state (C7); SMTP limited to public mail servers; secrets encrypted when `DATA_ENCRYPTION_KEY` is set.
+- Profiles and videos column guards (migrations below) stop the browser writing paid, identity or billing columns.
+
+**Clients, emails and share page**
+- Automatic follow-ups are **off by default** and turned on per quote; opt-in, one email per stage, signed unsubscribe, stop on paid/accepted/declined.
+- Every Resend send is checked (Resend v6 returns errors instead of throwing): share emails, contact form, admin campaign/nurture/promo-user, daily digest, weekly report, referral prompt, error alerts, Apex welcome. Failures are logged; people waiting are told.
+- Share page: only `https://` booking/payment links become buttons (the public watch API filters them too, and now passes the per-video links through); slide decks render as decks; edits never take a live link down.
+- Follow-up share links always use the configured site address, never `VERCEL_URL`.
+- Client intelligence reads the real columns (`sent_emails.to_email/created_at`, `video_views.opened_at`).
+- View alerts: owner's own views ignored, per-viewer cooldown, agent setting.
+
+**Wizard and rendering**
+- Brief "Skip" really skips; scripts run in the background; drafts keep the source PDF and use every uploaded file; drafts **with a script are kept 14 days** (24 hours without).
+- Slide Deck videos use the user's voice, music, length and edited script (render service change — needs the redeploy below).
+- `WizardDraft` type now lists every field the wizard and server write.
+
+**Copy and help**
+- Pricing text matches `pricing.ts` everywhere (no $29 Starter, no "$10 per video", no "save 60%"). No share-page chatbot, no password-protected links, no "print-ready" promise (print upscaling needs `FAL_KEY`).
+- Help center: reset password, Google booking-page links, drafts, follow-ups, Slide Deck choices, Restart Generation; branded 404/error pages; SEO metadata; orphan tools redirect.
+
+### Owner checklist
+
+**1. Run these migrations by hand in the Supabase SQL editor, in this order** (production does not run `supabase db push`; each is safe to run twice):
+1. `20260926_revoke_credits_atomic.sql` — atomic "take credits back" after a Stripe refund/chargeback, from both balances. Without it: a slower fallback runs (works, but two refunds at once could race).
+2. `20260926_client_emails_followups.sql` — follow-up/email-type columns, per-quote follow-up switch, suppressions, view-alert setting. Without it: automatic follow-ups never send, the view-alert setting can't save, unsubscribes can't be recorded.
+3. `20260926_card_on_file_backfill.sql` — marks everyone who has paid through Stripe as having a card. **Run before (or right with) the deploy.** Without it: past subscribers who cancelled are told "Add a card" and can't spend credits they still have. (It marks its own transaction as the service role so the profile guard lets it through.)
+4. `20260926_videos_column_guard.sql` — the database refuses browser writes to video billing columns and most status changes. Without it: nothing breaks (the code already blocks the exploit); this is the second lock.
+5. `20260926_profiles_guard_v2.sql` — the database refuses browser writes to paid/identity/link columns on profiles (add-on flag, social workspace ids, email, referral, plan). Without it: a user could edit those from the browser; the add-on is still checked against Stripe.
+
+**2. Environment variables (Vercel)**
+- `NEXT_PUBLIC_SITE_URL=https://docs2video.com` (email links, share links, Apex set-password link).
+- `DATA_ENCRYPTION_KEY` — encrypts SMTP passwords and Gmail/Outlook tokens. Never change it once set.
+- Optional: `OAUTH_STATE_SECRET`, `EMAIL_UNSUBSCRIBE_SECRET` (changing it later breaks unsubscribe links already sent).
+- `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` / `MICROSOFT_REDIRECT_URI` if Outlook connect should work (the button hides without them).
+- `FAL_KEY` (Vercel and SSM `/docs2video/FAL_KEY` for the renderer) if print upscaling is wanted.
+
+**3. Render service redeploy** — `render-service/server.js` and `slides.js` changed (Slide Deck uses the user's script/voice/music/length; queued jobs stay alive). Deploy per `render-service/DEPLOY.md` (ECS Fargate, CodeBuild image, then force a new deployment of service `video-service`). Until then Slide Deck videos ignore the chosen voice/music/script.
+
+**4. Supabase dashboard**
+- Auth → URL configuration → Redirect URLs: add `https://docs2video.com/auth/confirm`, `https://docs2video.com/auth/callback` and `https://docs2video.com/reset-password`.
+- Auth → Email templates: "Reset password" → `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password`; "Confirm signup" → `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup&next=/setup-payment`.
+- Run `node scripts/fix-private-logo-urls.mjs --apply` once to repair old private logo links.
+
+**5. Stripe — check by hand for customers already double-billed.** The old "Switch plan" could leave two live main-plan subscriptions on one customer, or a leftover 365-day trial next to a paid plan. In the Stripe dashboard, look for customers with more than one active/trialing main-plan subscription; cancel the extra and refund what it charged. New code only prevents new ones.
 
 ## 2026-09-16 — Infographic slides on fal, real logo pinned by code
 
@@ -559,27 +578,20 @@ These features are code-complete and build clean. Setup status:
 3. ⚠️ ACTION REQUIRED: Cartesia API key `sk_car_q3LX...` was committed to git history (commit ff100f4) — rotate it in the Cartesia dashboard and set `CARTESIA_API_KEY` env var on the VPS. Code no longer hardcodes it.
 4. `app/_lib/music-generator.ts` and `synthesizeAllScenes` in `app/_lib/tts.ts` are dead code — music/TTS for the main pipeline run on the VPS. Candidates for removal.
 5. Webhook idempotency unique index: run `supabase/legacy/supabase-webhook-idempotency-migration.sql` against the DB.
-6. `FAL_KEY` is not set in production → print sizes in Custom Graphics are resized, not AI-upscaled (lettering can look soft on posters/signs). `upscaleForPrint` logs "upscale skipped … no FAL_KEY configured". Fix: set `FAL_KEY` in Vercel. Copy in the help center and Text2Art meta no longer promises upscaling; the `/design` "Something to print" tile and the `/create/start` Custom Graphics card still say "print-ready" (not changed — those files belong to the create/design owners).
-7. Outlook connect (`/api/auth/microsoft`) sends `client_id=undefined` in production — Microsoft env vars unset (audit H14).
-8. `follow-up/send` builds share links from `VERCEL_URL` when `NEXT_PUBLIC_SITE_URL` is missing, so links can point at a preview deployment host.
-9. The Library (`/videos`) has no link to `/infographics` (legacy infographic gallery); it is reachable from the infographic email only.
+6. `FAL_KEY` is not set in production → print sizes in Custom Graphics are resized, not AI-upscaled (lettering can look soft on posters/signs). `upscaleForPrint` logs "upscale skipped … no FAL_KEY configured". Fix: set `FAL_KEY` in Vercel. No page promises print-ready output or upscaling any more.
+7. Outlook connect needs the `MICROSOFT_*` env vars in production (the button is replaced by a note until they are set).
+8. The Library (`/videos`) has no link to `/infographics` (legacy infographic gallery); it is reachable from the infographic email only.
+9. A stuck run that is restarted keeps going on the render service if it was actually alive; if it later fails on its own it refunds by charge number, which can give back the NEW run's charge too. Rare (needs a stuck-looking run that then fails), and in the customer's favor.
+10. Audit 2026-09-26: see the consolidated section at the top — migrations, env vars, render-service redeploy, Supabase settings and the Stripe double-billing check are still owner to-dos.
 
-### Audit 2026-09-26 (`AUDIT-2026-09-26.md`) — content / pricing / help / nav / SEO (branch `fix/audit-2026-09-26`)
+### Audit 2026-09-26 — content / pricing / help / nav / SEO details
 
-Fixed:
-- **Pricing truth** — every customer-facing plan statement now matches pricing.ts + credits.ts: no "$5/$10 per additional video", Pro = 25,000 credits (~25 videos) not "20 videos", no retired $29 Starter (help center, Text2Art landing), top-up packs from $10 open to everyone, free credits are one-time. Removed claims the code never enforced (priority generation, free slide edits, bulk creation). Files: pricing.ts feature text, /pricing, landing, Text2Art landing, help/pricing, help index, settings plan cards, upgrade modal, help-chat prompt.
-- **Commercial "Buy more"** opened `/billing` (404) → now opens the top-up modal.
-- **AI Social** — "AI Social" in the account menu (desktop + mobile; "Add-on" tag if not subscribed), settings error no longer points to a non-existent "Social" menu, 25-credits-per-platform posting cost shown on /pricing and the add-on upsell, help index links `/help/social-sharing`.
-- **Help center** — Custom Graphics article rewritten for the `/design` wizard; index + articles audited against the live UI (create flow, styles, share page, library, voice, script editing, file types, account menu locations, payout terms); Templates and Translate entries removed (not reachable). "Brand profiles" added to the account menu so the Brands help is true.
-- **Nurture emails** — no more "no card needed"; the discount code is to be entered at checkout (signup drops `?promo=`).
-- **Branded 404 / error pages** — `app/not-found.tsx`, `app/error.tsx`, `app/global-error.tsx`.
-- **SEO** — root `metadataBase`, default OpenGraph/Twitter image per storefront (`public/og-docs2video.png`, `public/og-text2art.png`), metadata for /terms, /contact, /share-demo, /try/[slug] (noindex), /unsubscribe/[id] (noindex).
-- **Orphan tools retired** — /headshot, /logo-creator, /templates, /infographic-creator, /email-signature, /image-remix, /course-builder, /brand-kit → home; /ads, /business-cards → /design; /social-kit, /social-campaigns → /social-media. Each via a `layout.tsx` that redirects before the page renders (page code kept; delete the layout to restore). Their APIs still exist.
-- `/api/demo-slide-gpt` and `/api/template-demo/generate` now require an admin.
-
-Handled by other agents on the same audit (see `AUDIT-2026-09-26.md` for detail): C1–C7 (free-credit refund exploit, card-check bypass, double subscriptions on "Switch plan", stuck refused videos, follow-up spam, public pages redirecting to login, email-connection takeover), H1–H15 (Stripe webhook retries, slide-deck choices ignored, double charges, charge-first-no-refund tools, source-PDF download, multi-file surcharge, commission claw-back, share emails, share-link breakage, profile protection, account deletion billing, logo URLs, card-required trial), plus the Medium/Low items for auth, settings "Saved" on failure, onboarding plan buttons, `/setup-payment` still listing Starter, and nurture unsubscribe.
-6. Customers may already be double-billed from the old "Switch plan" (two live main-plan subscriptions on one customer, or a leftover 365-day trial next to a paid plan). Check Stripe and cancel/refund by hand — new code only prevents new ones.
-7. The Apex welcome email's set-password link (`generateLink` recovery) has no page that accepts it (no `/reset-password`; `/auth/callback` only takes a `code`). It now lands on login instead of a 404; the auth flow needs a real landing page.
+- **Pricing truth** — customer-facing plan statements match pricing.ts + credits.ts (help center, Text2Art landing, /pricing, /plans, setup page, settings plan cards, upgrade modal, help-chat prompt). Removed claims the code never enforced (priority generation, free slide edits, bulk creation).
+- **Commercial "Buy more"** opens the top-up modal (was a 404).
+- **AI Social** in the account menu (desktop + mobile; "Add-on" tag if not subscribed); posting cost disclosed.
+- **Nurture emails** — no more "no card needed"; the discount code is entered at checkout.
+- **Orphan tools retired** — /headshot, /logo-creator, /templates, /infographic-creator, /email-signature, /image-remix, /course-builder, /brand-kit → home; /ads, /business-cards → /design; /social-kit, /social-campaigns → /social-media. Each via a `layout.tsx` that redirects before the page renders (delete the layout to restore). Their APIs still exist.
+- `/api/demo-slide-gpt` and `/api/template-demo/generate` require an admin.
 
 ## Product Focus (2026-06-11)
 

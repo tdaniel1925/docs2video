@@ -12,7 +12,8 @@
 -- WHAT A USER MAY STILL DO (the app relies on these):
 --   * insert a row as 'draft' or 'pending' (never with a charge on it);
 --   * move their own not-yet-finished row back to 'pending' (the "Retry" and
---     "Restart Generation" buttons on the video page) or to 'draft';
+--     "Restart Generation" buttons on the video page — Restart now goes
+--     through the server, which refunds the stuck run first) or to 'draft';
 --   * edit any other column (title, script, draft_data, ...).
 -- WHAT THEY MAY NOT DO:
 --   * set or change deducted_cost / estimated_cost_cents (billing);
