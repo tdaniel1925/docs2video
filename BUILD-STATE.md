@@ -1,9 +1,23 @@
 # Docs2Video — Build State
 
-**Last updated:** 2026-09-27 (Playwright battery on `redesign/app-4-steps`; see below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
+**Last updated:** 2026-09-27 (new marketing home on `redesign/marketing-site`; see below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
 **Branch:** main
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
+
+## 2026-09-27 — New marketing home page (branch `redesign/marketing-site`, not deployed)
+
+Light cream + mint page from the approved "Combo" design ("B's opening + A's page").
+- `app/page.tsx` now only picks the storefront: text2art.app → `Text2ArtLanding`, everything else → `app/_components/marketing/Docs2VideoHome.tsx`.
+- Sections: hero (long document in → video frame), three outputs (video / interactive presentation / slide deck), how it works, industry switcher, share page, style gallery, pricing, compare table, FAQ, final CTA.
+- Shared header/footer: `app/_components/marketing/SiteHeader.tsx` (+ `MarketingMenu.tsx` phone menu) and `SiteFooter.tsx`, also used by `/for/*` (their old dark nav is gone). Header/footer links: `/#how`, `/#share`, `/#industries`, `/#pricing`, `/#compare`, `/blog`, `/pricing`, `/for/*`, `/contact`, legal pages.
+- Truth by construction: prices/credits/"about N videos" from `PLANS` + `SELLABLE_PLAN_TIERS` (Starter hidden), credits per video from `CREDIT_COSTS.video`, top-up line from the plan features text, industry words/disclaimers/closing asks from `INDUSTRIES`, look names/counts from the Make step's `looks.ts`.
+- Pictures: `/public/style-samples/*` frames that carry only fictional names (ACME, EPOCH). The `slides-*` samples (PubcoZone), `aurora-cover`/`aurora-closing` (Valor Financial / a real person) and `cinematic-cover` (a real policy name) are deliberately NOT used. The old hero video is no longer on the page — its frames claim "28 visual styles" and "50 explainers/mo (Pro)", which are not true.
+- CSS: "MARKETING SITE" section at the end of `app/globals.css`, all scoped under `.mk` with `--mk-*` tokens. JSON-LD (SoftwareApplication with offers + FAQPage) added on the home page.
+- `/for/*` pages: fixed 3- and 2-column inline grids that forced a sideways scroll on phones.
+- Tests: `e2e/landing.spec.ts` rewritten for the new page (12 checks, incl. every link opens without 404/500 or a login bounce, no sideways scroll at 1440/1024/768/375). Run: `E2E_BASE_URL=http://localhost:3100 npx playwright test e2e/landing.spec.ts --project=chromium --no-deps`.
+- Not done: dark mode toggle from the design (light only for now). `FaqSection`, `SharePagePreview`, `IndustryMegaMenu`, `ClickToPlayVideo` are no longer used by the home page (left in place).
+- Still open on `/for/*` bodies (not touched): claims like "Trusted by 1,200+ insurance professionals" and "73% of clients…" need checking.
 
 ## 2026-09-27 — Playwright battery for the 4-step app (branch `redesign/app-4-steps`)
 

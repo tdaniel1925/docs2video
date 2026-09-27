@@ -1,153 +1,147 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { NO_AUTH } from './helpers/auth'
+import { PLANS, SELLABLE_PLAN_TIERS } from '../app/_lib/pricing'
 
-// A public page: start signed out.
+// The marketing home page. Public: start signed out.
 test.use({ storageState: NO_AUTH })
 
-test.describe('Landing Page', () => {
-  test.beforeEach(async ({ page }) => {
+// Collect console errors and failed same-origin requests for a page.
+function watch(page: Page, base: string) {
+  const problems: string[] = []
+  page.on('console', (m) => { if (m.type() === 'error') problems.push(`console: ${m.text()}`) })
+  page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`))
+  page.on('response', (r) => {
+    if (r.url().startsWith(base) && r.status() >= 400) problems.push(`${r.status()} ${new URL(r.url()).pathname}`)
+  })
+  return problems
+}
+
+test.describe('Marketing home page', () => {
+  test('hero says what it does and has the two calls to action', async ({ page, baseURL }) => {
+    const problems = watch(page, baseURL!)
     await page.goto('/')
+    const h1 = page.locator('h1')
+    await expect(h1).toHaveCount(1)
+    await expect(h1).toContainText('Long document in')
+    await expect(h1).toContainText('Short video out')
+    await expect(page.locator('.mk-hero a[href="/signup"]')).toBeVisible()
+    await expect(page.locator('.mk-hero a[href="#share"]')).toBeVisible()
+    expect(problems).toEqual([])
   })
 
-  test('hero title is visible and mentions documents and video', async ({ page }) => {
-    const heroTitle = page.locator('h1.hero-title')
-    await expect(heroTitle).toBeVisible()
-    const text = await heroTitle.textContent()
-    expect(text?.toLowerCase()).toContain('document')
-    expect(text?.toLowerCase()).toContain('explainer video')
+  test('header links point at real sections and pages', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/')
+    const nav = page.locator('.mk-nav')
+    for (const id of ['how', 'share', 'industries', 'pricing', 'compare']) {
+      await expect(nav.locator(`a[href="/#${id}"]`)).toBeVisible()
+      await expect(page.locator(`#${id}`)).toHaveCount(1)
+    }
+    await expect(page.locator('.mk-header a[href="/login"]')).toBeVisible()
+    await expect(page.locator('.mk-header a[href="/signup"]')).toBeVisible()
+    await nav.locator('a[href="/#pricing"]').click()
+    await expect(page).toHaveURL(/#pricing$/)
   })
 
-  test('hero subtitle describes the product', async ({ page }) => {
-    const heroSub = page.locator('.hero-sub')
-    await expect(heroSub).toBeVisible()
-    const text = await heroSub.textContent()
-    expect(text?.toLowerCase()).toContain('pdf')
+  test('phone menu opens and lists the sections', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 })
+    await page.goto('/')
+    const btn = page.locator('.mk-menu-btn')
+    await expect(btn).toBeVisible()
+    await expect(btn).toHaveAttribute('aria-expanded', 'false')
+    await btn.click()
+    await expect(btn).toHaveAttribute('aria-expanded', 'true')
+    await expect(page.locator('#mk-menu-panel a[href="/#how"]')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.locator('#mk-menu-panel')).toHaveCount(0)
   })
 
-  test('nav anchor links exist and point to sections', async ({ page }) => {
-    await expect(page.locator('.top-nav a[href="#how-it-works"]')).toBeVisible()
-    await expect(page.locator('.top-nav a[href="#features"]')).toBeVisible()
-    await expect(page.locator('.top-nav a[href="#pricing"]')).toBeVisible()
-    await expect(page.locator('.top-nav a[href="#compare"]')).toBeVisible()
+  test('three steps and three outputs', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.locator('#how .mk-step')).toHaveCount(3)
+    await expect(page.locator('.mk-output')).toHaveCount(3)
   })
 
-  test('clicking nav anchor updates URL hash', async ({ page }) => {
-    await page.click('.top-nav a[href="#how-it-works"]')
-    await page.waitForTimeout(500)
-    expect(page.url()).toContain('#how-it-works')
+  test('industry switcher changes the example', async ({ page }) => {
+    await page.goto('/')
+    const tabs = page.locator('.mk-ind-tab')
+    await expect(tabs).toHaveCount(6)
+    await expect(tabs.first()).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.locator('.mk-ind-copy h3')).toHaveText('Insurance')
+    await tabs.filter({ hasText: 'Mortgage' }).click()
+    await expect(tabs.filter({ hasText: 'Mortgage' })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.locator('.mk-ind-copy h3')).toHaveText('Mortgage')
+    await expect(page.locator('.mk-ind-copy a[href="/for/mortgage"]')).toBeVisible()
   })
 
-  test('how it works section has 3 step cards', async ({ page }) => {
-    const section = page.locator('#how-it-works')
-    await expect(section).toBeVisible()
-    const stepCards = section.locator('.step-card')
-    await expect(stepCards).toHaveCount(3)
+  test('pricing shows the plans on sale at the prices in pricing.ts', async ({ page }) => {
+    await page.goto('/')
+    const cards = page.locator('#pricing .mk-tier')
+    const onSale = PLANS.filter((p) => (SELLABLE_PLAN_TIERS as readonly string[]).includes(p.tier))
+    await expect(cards).toHaveCount(1 + onSale.length)
+    await expect(cards.nth(0)).toContainText('$0')
+    for (const [i, p] of onSale.entries()) {
+      await expect(cards.nth(i + 1)).toContainText(p.label)
+      await expect(cards.nth(i + 1)).toContainText(`$${p.monthlyPrice / 100}`)
+      await expect(cards.nth(i + 1)).toContainText(p.monthlyCredits.toLocaleString('en-US'))
+    }
+    // Starter ($29) is retired and must not be offered.
+    await expect(page.locator('#pricing')).not.toContainText('$29')
+    await expect(page.locator('#pricing .mk-tier-pop')).toContainText('Pro')
   })
 
-  test('features section shows the two things it makes: video and slide deck', async ({ page }) => {
-    const section = page.locator('#features')
-    await expect(section).toBeVisible()
-    const featureCards = section.locator('.feature-card')
-    await expect(featureCards).toHaveCount(2)
-    await expect(featureCards.nth(0)).toContainText('Video Explainer')
-    await expect(featureCards.nth(1)).toContainText('Slide Deck')
-  })
-
-  test('pricing section shows the plans on sale at the prices in pricing.ts', async ({ page }) => {
-    const pricingSection = page.locator('#pricing')
-    await pricingSection.scrollIntoViewIfNeeded()
-    const pricingCards = pricingSection.locator('.pricing-card')
-    // Starter ($29) is retired from sale; Free, Pro, Business, Enterprise remain.
-    await expect(pricingCards).toHaveCount(4)
-    for (const [i, name, price] of [[0, 'Free', '$0'], [1, 'Pro', '$79'], [2, 'Business', '$199'], [3, 'Enterprise', '$499']] as const) {
-      await expect(pricingCards.nth(i)).toContainText(name)
-      await expect(pricingCards.nth(i)).toContainText(price)
+  test('claims removed in the audit stay removed', async ({ page }) => {
+    await page.goto('/')
+    const text = (await page.locator('main').textContent())?.toLowerCase() ?? ''
+    for (const banned of ['chatbot', 'password-protected', 'print-ready', 'soc 2', '$5 each', 'extra videos']) {
+      expect(text, banned).not.toContain(banned)
     }
   })
 
-  test('pricing section has a popular card with badge', async ({ page }) => {
-    const popularCard = page.locator('.pricing-card.popular')
-    await popularCard.scrollIntoViewIfNeeded()
-    await expect(popularCard).toBeVisible()
-    await expect(popularCard.locator('.pricing-badge')).toHaveText('MOST POPULAR')
+  test('compare table and FAQ are there', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.locator('#compare tbody tr')).toHaveCount(5)
+    await expect(page.locator('#faq .mk-faq-item')).toHaveCount(4)
   })
 
-  test('final CTA section exists with signup link', async ({ page }) => {
-    const finalCta = page.locator('section.final-cta')
-    await finalCta.scrollIntoViewIfNeeded()
-    await expect(finalCta).toBeVisible()
-    const ctaButton = finalCta.locator('a[href="/signup"]')
-    await expect(ctaButton).toBeVisible()
+  test('JSON-LD is valid JSON', async ({ page }) => {
+    await page.goto('/')
+    const blobs = await page.locator('script[type="application/ld+json"]').allTextContents()
+    expect(blobs.length).toBeGreaterThan(0)
+    for (const b of blobs) expect(() => JSON.parse(b)).not.toThrow()
   })
 
-  test('comparison table section has rows', async ({ page }) => {
-    const compareSection = page.locator('#compare')
-    await compareSection.scrollIntoViewIfNeeded()
-    await expect(compareSection).toBeVisible()
-    const compRows = compareSection.locator('.comp-row')
-    const count = await compRows.count()
-    expect(count).toBeGreaterThanOrEqual(6)
+  test('no horizontal scroll at 1440, 1024, 768 and 375', async ({ page }) => {
+    for (const width of [1440, 1024, 768, 375]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/')
+      const [sw, iw] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth])
+      expect(sw, `width ${width}`).toBeLessThanOrEqual(iw)
+    }
   })
 
-  test('use cases grid has industry cards', async ({ page }) => {
-    const useCasesGrid = page.locator('.use-cases-grid')
-    await useCasesGrid.scrollIntoViewIfNeeded()
-    await expect(useCasesGrid).toBeVisible()
-    const cards = useCasesGrid.locator('.use-case-card')
-    await expect(cards).toHaveCount(8)
+  test('every link on the page opens without a 404 or 500', async ({ page, request }) => {
+    await page.goto('/')
+    const hrefs = await page.locator('a[href]').evaluateAll((as) => as.map((a) => a.getAttribute('href') || ''))
+    const paths = [...new Set(hrefs.filter((h) => h.startsWith('/')).map((h) => h.split('#')[0] || '/'))]
+    expect(paths.length).toBeGreaterThan(10)
+    for (const p of paths) {
+      // No redirect following: a signed-out visitor bounced to /login would
+      // otherwise look like a 200 and hide a link to a private page.
+      const res = await request.get(p, { maxRedirects: 0 })
+      expect(res.status(), p).toBeLessThan(400)
+      if (res.status() >= 300) expect(res.headers()['location'] ?? '', `${p} redirects to login`).not.toContain('/login')
+    }
+    // In-page anchors land on real sections.
+    const anchors = [...new Set(hrefs.filter((h) => h.startsWith('#') || h.startsWith('/#')).map((h) => h.split('#')[1]))]
+    for (const id of anchors) await expect(page.locator(`[id="${id}"]`), `#${id}`).toHaveCount(1)
   })
 
-  test('template section is visible', async ({ page }) => {
-    const templateSection = page.locator('#templates')
-    await templateSection.scrollIntoViewIfNeeded()
-    await expect(templateSection).toBeVisible()
-  })
-
-  test('footer has company info and links', async ({ page }) => {
-    const footer = page.locator('footer.footer')
-    await footer.scrollIntoViewIfNeeded()
-    await expect(footer).toBeVisible()
-    await expect(footer.locator('.footer-grid')).toBeVisible()
-    const text = await footer.textContent()
-    expect(text).toContain('Docs2Video')
-    expect(text).toContain('2026')
-  })
-
-  test('nav has login and get started buttons', async ({ page }) => {
-    await expect(page.locator('.top-nav a[href="/login"]')).toBeVisible()
-    await expect(page.locator('.top-nav a[href="/signup"].btn-mint')).toBeVisible()
-  })
-
-  test('hero CTA buttons link to signup and how-it-works', async ({ page }) => {
-    const cta = page.locator('.hero-cta')
-    await expect(cta.locator('a[href="/signup"]')).toBeVisible()
-    await expect(cta.locator('a[href="#how-it-works"]')).toBeVisible()
-    await cta.locator('a[href="/signup"]').click()
-    await expect(page).toHaveURL(/\/signup/)
-  })
-
-  test('industry intelligence section shows 12 industries', async ({ page }) => {
-    const industrySection = page.locator('#industries')
-    await industrySection.scrollIntoViewIfNeeded()
-    await expect(industrySection).toBeVisible()
-    const text = await industrySection.textContent()
-    expect(text).toContain('Insurance')
-    expect(text).toContain('Real Estate')
-    expect(text).toContain('Financial')
-  })
-
-  test('trust strip shows security badges', async ({ page }) => {
-    const trustStrip = page.locator('.trust-strip')
-    await trustStrip.scrollIntoViewIfNeeded()
-    await expect(trustStrip).toBeVisible()
-    const text = await trustStrip.textContent()
-    expect(text).toContain('Bank-level encryption')
-    // Only claims the business can stand behind (SOC 2 was removed as untrue).
-    expect(text).not.toContain('SOC 2')
-  })
-
-  test('coming soon banner links to signup', async ({ page }) => {
-    const bannerLink = page.locator('div[style*="sticky"] a[href="/signup"]').first()
-    await expect(bannerLink).toBeVisible()
+  test('industry pages use the same header and link back home', async ({ page, baseURL }) => {
+    const problems = watch(page, baseURL!)
+    await page.goto('/for/insurance')
+    await expect(page.locator('.mk-header a[href="/"]').first()).toBeVisible()
+    await expect(page.locator('.mk-footer')).toBeVisible()
+    expect(problems).toEqual([])
   })
 })
