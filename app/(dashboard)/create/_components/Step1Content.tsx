@@ -267,8 +267,8 @@ export default function Step1Content() {
       if (overrides?.skipToStep) {
         router.push(`/create/${overrides.skipToStep}?id=${draftData.videoId}${combineFlag}`)
       } else {
-        // After extraction → the Brief step (review what the AI will cover).
-        router.push(`/create/brief?id=${draftData.videoId}${combineFlag}`)
+        // After extraction → step 2, the story (key points + scenes on one screen).
+        router.push(`/create/script?id=${draftData.videoId}${combineFlag}`)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')

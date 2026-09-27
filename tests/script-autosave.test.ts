@@ -40,8 +40,8 @@ describe('the paid flow actually saves', () => {
     /* The reported bug: this branch did not exist. The wizard keeps scenes in
        the draft row, and the mechanism was already there — the generator
        PATCHes scenes the same way. Editing never used it. */
-    expect(autoSave, 'the wizard branch is gone again')
-      .toMatch(/if \(isWizard\)/)
+    expect(autoSave, 'the draft write is skipped again')
+      .toMatch(/if \(!isWizard\) return/)
     expect(autoSave).toMatch(/method: 'PATCH'/)
     expect(autoSave).toMatch(/updates: \{ scenes: updatedScenes \}/)
   })
@@ -56,8 +56,9 @@ describe('the paid flow actually saves', () => {
     expect(tick, 'setSavedScene vanished').toBeGreaterThan(-1)
     expect(autoSave.indexOf("method: 'PATCH'"), 'the tick fires before the save')
       .toBeLessThan(tick)
-    expect(autoSave.indexOf('localStorage.setItem'), 'the tick fires before the local save')
-      .toBeLessThan(tick)
+    /* The story screen is draft-only now (the browser-copy mode it once had
+       read data nothing writes any more), so the draft write is the only save. */
+    expect(autoSave, 'a browser-only save came back').not.toMatch(/localStorage/)
   })
 
   it('waits for the save before claiming it', () => {
@@ -67,11 +68,13 @@ describe('the paid flow actually saves', () => {
   })
 
   it('stops at a failure instead of ticking anyway', () => {
-    /* Two returns — one per branch — so a failed save can never fall through
-       to setSavedScene. */
+    /* The failed save returns before setSavedScene, so it can never fall
+       through to the tick. */
     const returns = autoSave.match(/^\s+return$/gm) ?? []
     expect(returns.length, 'a failure path no longer returns early')
-      .toBeGreaterThanOrEqual(2)
+      .toBeGreaterThanOrEqual(1)
+    expect(autoSave.indexOf('setSaveError('), 'the failure path moved after the tick')
+      .toBeLessThan(autoSave.indexOf('setSavedScene(sceneIdx)'))
     expect(autoSave).toMatch(/if \(!res\.ok\) throw new Error/)
   })
 
@@ -106,7 +109,7 @@ describe('closing the tab does not lose the last edit', () => {
        net at all — an edit inside the 800ms debounce died with the tab. */
     expect(unload, 'the wizard is excluded from the safety net again')
       .not.toMatch(/&& !isWizard/)
-    expect(unload).toMatch(/if \(isWizard\)/)
+    expect(unload).toMatch(/videoId, updates: \{ scenes \}/)
   })
 
   it('uses a beacon, because a fetch dies with the page', () => {
