@@ -135,9 +135,17 @@ test('the PDF switch saves; a failed save leaves it off and shows the error', as
   const pdf = sw(page, 'Let them download the original PDF')
   s.patchStatus = 500
   s.patchError = 'Could not update the share page.'
+  // Watch the switch the whole time: it must never show "on" for a change
+  // that did not save — not even for a moment before the error comes back.
+  await pdf.evaluate((el) => {
+    const w = window as unknown as { __flips: string[] }
+    w.__flips = []
+    new MutationObserver(() => w.__flips.push(el.getAttribute('aria-checked') ?? '')).observe(el, { attributes: true, attributeFilter: ['aria-checked'] })
+  })
   await pdf.click()
   await expect(alertOf(page).filter({ hasText: 'Could not update' })).toHaveText('Could not update the share page.')
   await expect(pdf).toHaveAttribute('aria-checked', 'false')
+  expect(await page.evaluate(() => (window as unknown as { __flips: string[] }).__flips), 'the switch flipped on before the save came back').not.toContain('true')
   await expect(rts(page).getByText('Download the original PDF', { exact: true })).toHaveCount(0)
 
   s.patchStatus = 200

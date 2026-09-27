@@ -67,6 +67,8 @@ test.describe('Step 3 — the price is always the server’s', () => {
     const outputs = page.getByRole('radiogroup', { name: 'What do you want to send?' })
     await expect(outputs).not.toContainText(/\d+ credits?/)
     await expect(outputs).toContainText('…')
+    // No number anywhere on the price panel until the server answers.
+    expect(await panel(page).textContent(), 'no made-up price while loading').not.toMatch(/\d[\d,]*\s*credits?/)
 
     await expect(panel(page)).toContainText('Narrated video, standard length200 credits')
     await expect(panel(page)).toContainText('Extra document40 credits')

@@ -80,16 +80,25 @@ test.describe('Brand profiles', () => {
     // /api/generate-logo-kit is called.
     await page.goto('/brands')
     await page.locator('.brand-card').first().waitFor({ timeout: 15000 }).catch(() => {}) // list loads in the browser
-    const withLogo = await page.locator('a.brand-card, .brand-card a').evaluateAll((as) => as
-      .filter((a) => a.querySelector('.brand-avatar img'))
+    const hrefs = await page.locator('.brand-card a').evaluateAll((as) => as
       .map((a) => (a as HTMLAnchorElement).getAttribute('href'))
       .filter((h): h is string => !!h && /^\/brands\/[0-9a-f-]{36}$/.test(h)))
-    test.skip(withLogo.length === 0, 'no profile with a logo on this account')
-    for (const href of withLogo.slice(0, 5)) {
-      await page.goto(href)
-      await expect(page.locator('input[name="name"]')).toBeVisible()
-      await page.waitForTimeout(1500)
-    }
+    test.skip(hrefs.length === 0, 'no profiles on this account')
+    // Make the opened profile look exactly like the costly case: an uploaded
+    // logo file and no logo kit yet (the real row is read, then adjusted).
+    let served = 0
+    await page.route('**/rest/v1/brands?**', async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback()
+      const real = await route.fetch()
+      const body = await real.json()
+      const adjust = (b: Record<string, unknown>) => ({ ...b, logo_file_url: 'https://example.com/e2e-logo.png', logo_kit: null })
+      served++
+      await route.fulfill({ response: real, json: Array.isArray(body) ? body.map(adjust) : adjust(body) })
+    })
+    await page.goto(hrefs[0])
+    await expect(page.locator('input[name="name"]')).toBeVisible()
+    await page.waitForTimeout(2500)
+    expect(served, 'the profile was read through the adjusted answer').toBeGreaterThan(0)
     expect(guard.blocked.filter((b) => b.includes('generate-logo-kit'))).toEqual([])
   })
 

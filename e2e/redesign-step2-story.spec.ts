@@ -81,17 +81,36 @@ test.describe('Step 2 — the story, already written', () => {
     await expect(card(1)).toHaveAttribute('draggable', 'false') // opening
     await expect(card(5)).toHaveAttribute('draggable', 'false') // closing
 
-    await card(3).dragTo(card(2))
+    // Real drag events, dispatched straight at the two cards, so a drop that
+    // "does nothing" is known to have been delivered (Playwright's mouse drag
+    // could miss the target and pass for the wrong reason).
+    const drag = async (from: number, to: number) => {
+      const dt = await page.evaluateHandle(() => new DataTransfer())
+      await card(from).dispatchEvent('dragstart', { dataTransfer: dt })
+      await card(to).dispatchEvent('dragover', { dataTransfer: dt })
+      await card(to).dispatchEvent('drop', { dataTransfer: dt })
+      await card(from).dispatchEvent('dragend', { dataTransfer: dt }).catch(() => {})
+    }
+
+    await drag(3, 2)
     await expect.poll(() => draft.patches.length).toBe(1)
     expect(draft.patches[0].updates.scenes.map((s: { title: string }) => s.title))
       .toEqual(['Your Family Plan', 'What it pays', 'What it costs', 'How long it lasts', 'Thank You'])
     await expect(titleOf(page, 2)).toHaveValue('What it pays')
 
-    // Dropping onto the opening does nothing.
-    await card(4).dragTo(card(1))
+    // Dropping onto the opening (or the closing) does nothing.
+    await drag(4, 1)
+    await drag(2, 5)
     await page.waitForTimeout(400)
     expect(draft.patches).toHaveLength(1)
     await expect(titleOf(page, 1)).toHaveValue('Your Family Plan')
+    await expect(titleOf(page, 5)).toHaveValue('Thank You')
+
+    // …while a drop between content scenes in the same state still works.
+    await drag(4, 3)
+    await expect.poll(() => draft.patches.length).toBe(2)
+    expect(draft.patches[1].updates.scenes.map((s: { title: string }) => s.title))
+      .toEqual(['Your Family Plan', 'What it pays', 'How long it lasts', 'What it costs', 'Thank You'])
   })
 
   test('"More" opens the words on screen: numbers, points, AI helper and preview', async ({ page }) => {
