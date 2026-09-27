@@ -37,8 +37,8 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
       <div className="auth-side">
         <Link href="/" className="logo"><img src="/logo-big.png" alt="Docs2Video" style={{height:72}} /></Link>
         <div className="auth-side-content">
-          <h2>Turn documents into <em>polished</em> visual summaries.</h2>
-          <p>Join thousands of professionals who&apos;ve replaced their slideware with Docs2Video.</p>
+          <h2>Turn documents into <em>short</em> narrated videos.</h2>
+          <p>The thing your client should read, turned into something they will actually watch.</p>
         </div>
         <div className="auth-side-mock">
           <div style={{ background: 'var(--mint)', borderRadius: 10, padding: 18, color: 'var(--ink)' }}>

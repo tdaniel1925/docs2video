@@ -82,7 +82,7 @@ ${TEMPLATE_MAP}
 
 Available voices:
 - "onyx" (James) — Deep, authoritative. Best for formal, financial, legal, insurance content.
-- "Kore" (Sarah) — Friendly, warm. Best for educational, marketing, general content. Most popular.
+- "Kore" (Sarah) — Friendly, warm. Best for educational, marketing, general content.
 - "shimmer" (Emily) — Gentle, reassuring. Best for sensitive, wellness, personal topics.
 - "echo" (Michael) — Warm, conversational. Best for casual, friendly content.
 - "alloy" (Alex) — Professional, balanced. Best for neutral, corporate content.

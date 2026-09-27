@@ -9,16 +9,16 @@ export const metadata: Metadata = {
 const POSTS = [
   {
     slug: 'why-video-beats-pdf',
-    title: 'Why Video Beats PDF: The Data Behind Document Engagement',
-    excerpt: 'Studies show 73% of PDFs are never fully read. Here\'s why video explainers get 2.7x more engagement and how to make the switch.',
+    title: 'Why Video Beats PDF for Getting Documents Understood',
+    excerpt: 'Long PDFs often go unread. Here\'s why a short narrated video is easier to take in, and how to make the switch.',
     date: 'May 23, 2026',
     category: 'Insights',
     readTime: '5 min',
   },
   {
     slug: 'insurance-agents-video-explainers',
-    title: 'How Insurance Agents Are Using Video to Close 40% Faster',
-    excerpt: 'Life insurance illustrations are complex. Video explainers simplify them for clients and shorten the sales cycle dramatically.',
+    title: 'How Insurance Agents Are Using Video to Explain Policies',
+    excerpt: 'Life insurance illustrations are complex. A short video explainer helps clients understand what they are looking at.',
     date: 'May 21, 2026',
     category: 'Use Cases',
     readTime: '6 min',
@@ -26,7 +26,7 @@ const POSTS = [
   {
     slug: 'ai-narration-vs-recording-yourself',
     title: 'AI Narration vs. Recording Yourself: Which Is Better for Business Videos?',
-    excerpt: 'Professional AI voices have come a long way. We compare quality, cost, speed, and consistency to help you decide.',
+    excerpt: 'AI voices have come a long way. We compare quality, cost, speed, and consistency to help you decide.',
     date: 'May 19, 2026',
     category: 'Guides',
     readTime: '4 min',

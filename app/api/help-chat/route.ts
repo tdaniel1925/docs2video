@@ -58,7 +58,7 @@ HOW TO CREATE A VIDEO:
 4. Pick a voice.
 5. Review/edit the generated script.
 6. Pick a video style.
-7. Generate — it takes ~2 minutes.
+7. Generate — most videos take 3–5 minutes (the Slide Deck style about 10).
 8. Watch, share the link, or download (MP4/PDF/PPTX).
 
 SETTINGS TABS:

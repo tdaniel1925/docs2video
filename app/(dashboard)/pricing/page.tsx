@@ -68,6 +68,7 @@ export default function PricingPage() {
 
   // Starter ($29) is retired — keep its definition for back-compat but hide it.
   const paidPlans = PLANS.filter(p => p.tier !== 'free' && p.tier !== 'starter')
+  const freePlan = PLANS.find(p => p.tier === 'free')!
 
   return (
     <div style={{ flex: 1, padding: '48px 24px', width: '100%', maxWidth: 1100, margin: '0 auto' }}>
@@ -95,12 +96,12 @@ export default function PricingPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 16, alignItems: 'stretch' }}>
         {/* Free / Pay-Per-Video */}
         <PlanCard
-          name="Pay As You Go"
+          name={freePlan.label}
           price="$0"
           highlight={currentTier === 'free' ? 'current' : 'none'}
-          creditLine="2,000 free credits"
-          subLine="~2 standard videos to try · one time, not monthly"
-          features={['Top up anytime with credit packs from $10', 'Full quality, no watermark', 'Branded client share pages', 'Download MP4, PDF, PPTX']}
+          creditLine={`${freePlan.monthlyCredits.toLocaleString('en-US')} free credits`}
+          subLine={`~${freePlan.approxStandardVideos} standard videos to try · one time, not monthly`}
+          features={freePlan.features.filter(f => !f.includes('free credits'))}
           cta={currentTier === 'free' ? { label: 'Current plan', disabled: true } : null}
         />
 
@@ -174,7 +175,7 @@ function PlanCard(props: {
     <div style={{ position: 'relative', padding: '26px 22px', borderRadius: 10, background: bg, border, display: 'flex', flexDirection: 'column' }}>
       {highlight === 'popular' && (
         <div style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', padding: '3px 14px', borderRadius: 6, background: 'var(--ink)', color: 'white', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
-          Most Popular
+          Recommended
         </div>
       )}
       <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6, color: 'var(--ink)' }}>{props.name}</div>

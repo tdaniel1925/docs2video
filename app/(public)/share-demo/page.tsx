@@ -36,7 +36,7 @@ function ModernLayout() {
             </div>
           </div>
           <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 8 }}>Your Policy Explained</h1>
-          <p style={{ fontSize: 14, opacity: 0.5 }}>American General &middot; Index Universal Life</p>
+          <p style={{ fontSize: 14, opacity: 0.5 }}>Sample Policy &middot; Indexed Universal Life</p>
         </div>
       </div>
 

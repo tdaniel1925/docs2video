@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params
   const company = slug && slug !== 'demo' ? toTitleCase(decodeURIComponent(slug)) : ''
   const title = company ? `A free demo video for ${company} | Docs2Video` : 'Try a free demo video | Docs2Video'
-  const description = 'Paste a document or website and watch Docs2Video turn it into a narrated explainer video in minutes.'
+  const description = 'Paste a document or website and watch Docs2Video turn it into a narrated explainer video in a few minutes.'
   return {
     title,
     description,

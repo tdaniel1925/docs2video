@@ -109,7 +109,7 @@ export default function TurnProposalIntoVideoPage() {
 
           <h2 style={h2Style}>How Long Should It Be?</h2>
           <p style={pStyle}>
-            Two to four minutes is the sweet spot for proposal videos. Under two minutes feels rushed and insubstantial for a significant business decision. Over five minutes and you&apos;re losing viewers — Vidyard data shows completion rates drop sharply after the 4-minute mark for business content.
+            Two to four minutes is the sweet spot for proposal videos. Under two minutes feels rushed and insubstantial for a significant business decision. Go much past five minutes and you risk losing busy viewers before the part that matters most — the next step.
           </p>
           <p style={pStyle}>
             A good rule of thumb: one minute per major section. Problem (30-45 seconds), outcome and approach (60-90 seconds), investment (30-45 seconds), next step (15-30 seconds). That gets you to roughly 3 minutes — long enough to be substantive, short enough to hold attention.
@@ -117,16 +117,16 @@ export default function TurnProposalIntoVideoPage() {
 
           <h2 style={h2Style}>The Compound Effect</h2>
           <p style={pStyle}>
-            The real power of video proposals isn&apos;t any single deal — it&apos;s what happens when you make this your standard process. Every proposal you send becomes more engaging. Your close rate creeps up. Your sales cycle shortens. And you build a reputation as the company that&apos;s easier to work with than your competitors, because you make things simple to understand.
+            The real power of video proposals isn&apos;t any single deal — it&apos;s what happens when you make this your standard process. Every proposal you send becomes easier to take in. And you build a reputation as the company that&apos;s easier to work with than your competitors, because you make things simple to understand.
           </p>
           <p style={pStyle}>
-            That reputation compounds. And it starts with turning your next proposal into a video.
+            It starts with turning your next proposal into a video.
           </p>
         </div>
 
         <div style={{ marginTop: 48, padding: '28px 32px', borderRadius: 10, background: 'var(--surface)', border: '2px solid var(--mint)', textAlign: 'center' }}>
           <h3 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Ready to try it?</h3>
-          <p style={{ fontSize: 15, color: 'var(--ink-soft)', marginBottom: 16 }}>Turn your next document into a professional video in minutes.</p>
+          <p style={{ fontSize: 15, color: 'var(--ink-soft)', marginBottom: 16 }}>Turn your next document into a narrated video your client will actually watch.</p>
           <Link href="/signup" style={{ display: 'inline-block', padding: '12px 28px', borderRadius: 8, background: 'var(--ink)', color: 'white', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
             Start free &rarr;
           </Link>

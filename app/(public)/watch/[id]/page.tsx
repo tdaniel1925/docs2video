@@ -1689,10 +1689,10 @@ export default function PublicWatchPage() {
           textAlign: 'center', animation: 'fadeInUp 0.5s ease',
         }}>
           <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 8, letterSpacing: '-0.02em' }}>
-            Create videos like this in minutes
+            Make videos like this one
           </div>
           <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.75)', marginBottom: 20, lineHeight: 1.5 }}>
-            Turn any document, website, or idea into a professional narrated video. No editing skills needed.
+            Turn a document, website, or idea into a short narrated video. No editing skills needed.
           </div>
           <a
             href="https://docs2video.com/signup"

@@ -72,7 +72,7 @@ INSTRUCTIONS:
 
 - Scene 1 — THE HOOK: Start with their pain point. "${brandData.companyName}, imagine if every proposal, report, or document you sent to clients came with a video like this one — automatically." Reference what they actually do.
 
-- Scene 2 — THE DEMO: "This video was created in under 2 minutes from your website alone. No filming, no editing, no design skills. Docs2Video's AI read your website, extracted your brand, and built this presentation automatically." Mention their specific services to make it feel personalized.
+- Scene 2 — THE DEMO: "This video was made from your website alone. No filming, no editing, no design skills. Docs2Video's AI read your website, extracted your brand, and built this presentation automatically." Mention their specific services to make it feel personalized.
 
 - Scene 3 — THE VALUE: Show what they could use it for specifically. If they're insurance — "Turn policy illustrations into client-ready explainers." If consulting — "Transform audit reports into executive briefings." If real estate — "Convert listings into property showcase videos." Be specific to their industry. Mention: branded share pages, AI narration, client tracking, and payment collection.
 

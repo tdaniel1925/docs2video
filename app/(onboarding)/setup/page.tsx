@@ -821,7 +821,7 @@ export default function SetupPage() {
                 {MODAL_PLANS.map((p) => (
                   <div key={p.tier} style={{ padding: '12px 16px', textAlign: 'center', position: 'relative', ...(p.tier === 'pro' ? { background: 'var(--mint, #d4edda)' } : {}) }}>
                     {p.tier === 'pro' && (
-                      <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--ink)', color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>MOST POPULAR</div>
+                      <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--ink)', color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>RECOMMENDED</div>
                     )}
                     <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{p.label}</div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>${Math.round(p.monthlyPrice / 100)}<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-soft)' }}>/mo</span></div>

@@ -116,7 +116,7 @@ export default function PricingHelpPage() {
           <span style={{
             background: 'var(--ink)', color: 'white', fontSize: 11, fontWeight: 700,
             padding: '3px 10px', borderRadius: 6,
-          }}>POPULAR</span>
+          }}>RECOMMENDED</span>
         </div>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>

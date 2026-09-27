@@ -30,7 +30,7 @@ export async function sendDemoReadyEmail(
             <h1 style="font-size: 22px; font-weight: 800; color: #1a1a1a; margin: 0;">Your demo is ready</h1>
           </div>
           <p style="font-size: 15px; line-height: 1.6; color: #444;">
-            We just finished creating a branded explainer video for <strong>${companyName}</strong>. Take a look — it only takes 60 seconds to watch.
+            We just finished creating a branded explainer video for <strong>${companyName}</strong>. Take a look — it only takes a few minutes to watch.
           </p>
           <div style="text-align: center; margin: 32px 0;">
             <a href="${videoUrl}" style="display: inline-block; background: #1a1a1a; color: #fff; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px;">

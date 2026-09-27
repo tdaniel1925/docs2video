@@ -117,7 +117,7 @@ export default function CreatingPage({ params, searchParams }: { params: Promise
                 Creating your free video...
               </h1>
               <p style={{ fontSize: 15, color: 'var(--ink-soft, #666)' }}>
-                This usually takes 1-2 minutes.
+                This usually takes a few minutes.
               </p>
             </div>
             <div style={{

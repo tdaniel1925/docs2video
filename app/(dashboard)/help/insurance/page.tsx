@@ -94,22 +94,22 @@ export default function InsuranceHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>How it works:</strong> The AI identifies carrier names, product names, and proprietary terms in your content and replaces them with generic alternatives. For example, a specific product name might become "the policy" or "this illustration." The data and numbers remain accurate; only the identifying names are removed.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>What to tell your client:</strong> When sharing the video, you can verbally mention the carrier name in conversation. The video itself stays compliant by not displaying carrier branding, while you maintain the flexibility to discuss specifics in person or on a call.
+            <strong style={{ color: 'var(--ink)' }}>What to tell your client:</strong> When sharing the video, you can verbally mention the carrier name in conversation. The video itself leaves carrier branding out, while you maintain the flexibility to discuss specifics in person or on a call.
           </p>
         </div>
       </div>
 
-      {/* 8 Layers */}
+      {/* Layers */}
       <div style={{
         background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          The 8 Layers of Compliance Protection
+          How the Compliance Safeguards Work Together
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 16 }}>
-            Docs2Video uses a multi-layered approach to ensure insurance content stays compliant:
+            Docs2Video uses several safeguards together to help keep insurance content within common compliance rules. You are still responsible for reviewing the video before you send it:
           </p>
 
           {[

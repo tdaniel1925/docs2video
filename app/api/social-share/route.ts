@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   const canEarnMore = creditsEarnedThisMonth < MAX_SHARE_CREDITS_PER_MONTH
 
   // Default share message
-  const shareText = message || `Check out what I created with Docs2Video! Professional videos, infographics, and business cards in minutes. #Docs2Video #AI`
+  const shareText = message || `Check out what I made with Docs2Video. #Docs2Video #AI`
 
   const shareUrl = `https://${APP_DOMAIN}`
 

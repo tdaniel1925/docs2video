@@ -5,6 +5,16 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
+## 2026-09-27 — False claims removed from the public site (branch `redesign/marketing-site`)
+
+- Industry pages (/for/*) now share one template (`app/_components/IndustryPage.tsx`, copy in `app/_lib/industry-pages.ts`). Gone: fake user counts ("Trusted by 1,200+"), made-up stats (73%, 3.2 hrs…), fake quotes and the testimonial section, "SOC 2"/"HIPAA" features, "under 90 seconds" speeds, real carrier names. Free credits come from pricing.ts.
+- Blog: unsourced stats, named studies and "close 40% faster" removed (slugs unchanged).
+- Emails (welcome, nurture, referral, promo, outreach prompts): speed/"2 free videos"/"unlimited"/referral-credit claims fixed; outreach AI prompts told never to invent stats or testimonials.
+- Help center + in-app: "8 layers", "stays compliant", "28 themes", "unlimited videos", "Most popular" badges → "Recommended".
+- /try, signup, auth side panel, contact ("within 24 hours"), watch-page footer, brand meta description fixed. Dead FaqSection/IndustryMegaMenu (had "SOC 2 Type II") deleted.
+- Header logo sizing fixed (`.mk .mk-logo-img` beats `.mk img { height:auto }`).
+- Guard: `tests/no-false-claims.test.ts` scans public pages, components, help and email files for the removed claims.
+
 ## 2026-09-27 — New marketing home page (branch `redesign/marketing-site`, not deployed)
 
 Light cream + mint page from the approved "Combo" design ("B's opening + A's page").

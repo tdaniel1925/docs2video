@@ -3,6 +3,17 @@ import { createAdminClient } from '../../../_lib/supabase/admin'
 import { verifyCronAuth } from '../../../_lib/cron-auth'
 import { sendWithResend } from '../../../_lib/client-email'
 import { unsubscribeUrl } from '../../../_lib/unsubscribe-token'
+import { PLANS, SELLABLE_PLAN_TIERS } from '../../../_lib/pricing'
+
+// Prices and credits in these emails come from pricing.ts so they can't drift.
+// WELCOME50 is a live 50%-off-first-month code.
+const usd = (cents: number) => `$${(cents / 100).toFixed(2).replace(/\.00$/, '')}`
+const FREE_PLAN = PLANS.find((p) => p.tier === 'free')!
+const PRO_PLAN = PLANS.find((p) => p.tier === 'pro')!
+const UPGRADE_PLAN_LINES = PLANS
+  .filter((p) => (SELLABLE_PLAN_TIERS as readonly string[]).includes(p.tier))
+  .map((p) => `  <li><strong>${p.label}</strong> &mdash; <s>${usd(p.monthlyPrice)}</s> <strong>${usd(p.monthlyPrice / 2)}</strong> first month, then ${usd(p.monthlyPrice)}/mo &mdash; ${p.monthlyCredits.toLocaleString('en-US')} credits</li>`)
+  .join('\n')
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -125,13 +136,13 @@ export async function GET(request: Request) {
         subject = 'Your first video is just a click away'
         heading = 'Create your first video'
         body = `<p>${greeting}</p>
-<p>Welcome to Docs2Video! You signed up but haven't created a video yet. It only takes about 2 minutes:</p>
+<p>Welcome to Docs2Video! You signed up but haven't created a video yet. It takes just a few steps:</p>
 <ol style="color:#444;line-height:2;">
   <li>Paste a URL or upload a document</li>
   <li>Pick a visual style</li>
   <li>We generate your video automatically</li>
 </ol>
-<p>Your first project is free &mdash; no commitment needed.</p>`
+<p>Your free credits cover your first videos.</p>`
         ctaText = 'Create Your First Video'
         ctaUrl = 'https://docs2video.com/create'
       }
@@ -174,11 +185,9 @@ export async function GET(request: Request) {
         body = `<p>${greeting}</p>
 <p>You've created <strong>${completedVideos.length} video${completedVideos.length > 1 ? 's' : ''}</strong> on the free plan and used all your free credits. As a thank-you, take <strong>50% off your first month</strong> on any plan with code <strong>WELCOME50</strong>. Use the button below and pick a plan — if the discount doesn't show at checkout, type WELCOME50 into the promo code box:</p>
 <ul style="color:#444;line-height:2;">
-  <li><strong>Pro</strong> &mdash; <s>$79</s> <strong>$39.50</strong> first month, then $79/mo &mdash; 25,000 credits</li>
-  <li><strong>Business</strong> &mdash; <s>$199</s> <strong>$99.50</strong> first month, then $199/mo &mdash; 75,000 credits</li>
-  <li><strong>Enterprise</strong> &mdash; <s>$499</s> <strong>$249.50</strong> first month, then $499/mo &mdash; 200,000 credits</li>
+${UPGRADE_PLAN_LINES}
 </ul>
-<p>All plans include premium styles, HD exports, and client sharing tools. Cancel anytime.</p>`
+<p>Every plan includes branded client share pages. Cancel anytime.</p>`
         ctaText = 'Claim 50% off — upgrade now'
         ctaUrl = 'https://docs2video.com/pricing?promo=WELCOME50'
       }
@@ -291,11 +300,11 @@ export async function GET(request: Request) {
       const subject = 'Your demo + 50% off your first month'
       const heading = 'Liked your demo? Make it yours.'
       const body = `<p>Hi there,</p>
-<p>Thanks for trying Docs2Video${company ? ` for ${company}` : ''}! Create a free account and you can turn any document into a narrated video in minutes.</p>
+<p>Thanks for trying Docs2Video${company ? ` for ${company}` : ''}! Create a free account and you can turn any document into a narrated video in a few minutes.</p>
 <p>As a welcome, take <strong>50% off your first month</strong> on any plan with code <strong>WELCOME50</strong>. Once your account is set up, open <strong>Pricing</strong>, choose a plan, and enter WELCOME50 in the promo code box at checkout.</p>
 <ul style="color:#444;line-height:2;">
-  <li>Free account &mdash; 2,000 credits to start. You add a card to unlock them; nothing is charged until they run out.</li>
-  <li><strong>Pro</strong> &mdash; <s>$79</s> <strong>$39.50</strong> first month, 25,000 credits</li>
+  <li>Free account &mdash; ${FREE_PLAN.monthlyCredits.toLocaleString('en-US')} credits to start. You add a card to unlock them; nothing is charged until they run out.</li>
+  <li><strong>${PRO_PLAN.label}</strong> &mdash; <s>${usd(PRO_PLAN.monthlyPrice)}</s> <strong>${usd(PRO_PLAN.monthlyPrice / 2)}</strong> first month, ${PRO_PLAN.monthlyCredits.toLocaleString('en-US')} credits</li>
 </ul>`
       const ctaText = 'Create your account'
       const ctaUrl = 'https://docs2video.com/signup?promo=WELCOME50'

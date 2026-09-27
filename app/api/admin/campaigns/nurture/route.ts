@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createAdminClient } from '../../../../_lib/supabase/admin'
 import { requireAdmin } from '../../../../_lib/admin'
+import { PLANS } from '../../../../_lib/pricing'
+
+const FREE_PLAN = PLANS.find((p) => p.tier === 'free')!
 export const maxDuration = 300
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://docs2video.com'
@@ -21,7 +24,7 @@ function buildNurtureEmail(stage: number, contact: { id: string; name: string; e
             Hi ${contact.name}, just checking in -- we sent you a personalized video a few days ago showing how Docs2Video could help your business.
           </p>
           <p style="font-size: 15px; line-height: 1.6; color: #444;">
-            It's only 60 seconds long. Here's the link if you missed it:
+            It's short. Here's the link if you missed it:
           </p>
           <div style="text-align: center; margin: 28px 0;">
             <a href="${watchUrl}" style="display: inline-block; background: #1a1a1a; color: #fff; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px;">
@@ -58,7 +61,7 @@ function buildNurtureEmail(stage: number, contact: { id: string; name: string; e
           </div>
         </div>
         <p style="font-size: 15px; line-height: 1.6; color: #444;">
-          Your first 2 videos are completely free -- cancel anytime. See what Docs2Video can do for your business.
+          New accounts start with free credits -- about ${FREE_PLAN.approxStandardVideos} standard videos. Cancel anytime. See what Docs2Video can do for your business.
         </p>
         <div style="text-align: center; margin: 28px 0;">
           <a href="${signupUrl}" style="display: inline-block; background: #C7E8A8; color: #1a1a1a; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px;">

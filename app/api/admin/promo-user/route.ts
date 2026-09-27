@@ -80,9 +80,9 @@ export async function POST(request: Request) {
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
           <img src="https://docs2video.com/logo.png" alt="Docs2Video" style="height: 48px; margin-bottom: 24px;" />
           <h1 style="font-size: 24px; font-weight: 700; margin-bottom: 8px;">Welcome to Docs2Video${name ? `, ${escapeHtml(name)}` : ''}!</h1>
-          <p style="font-size: 15px; color: #4a5568; line-height: 1.6;">Your account has been set up with unlimited access. Your login email is <strong>${escapeHtml(email)}</strong>.</p>
+          <p style="font-size: 15px; color: #4a5568; line-height: 1.6;">Your account is set up and ready to use. Your login email is <strong>${escapeHtml(email)}</strong>.</p>
           <p style="font-size: 15px; color: #4a5568; line-height: 1.6;">To choose your password: click the button below, enter this email address, and we'll send you a secure link.</p>
-          <p style="font-size: 15px; color: #4a5568; line-height: 1.6;">You have unlimited video creation — no limits or charges.</p>
+          <p style="font-size: 15px; color: #4a5568; line-height: 1.6;">Your account comes with a full allowance of credits at no charge.</p>
           <a href="${appUrl}/forgot-password" style="display: inline-block; background: #1B365D; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">Set My Password</a>
           <p style="font-size: 13px; color: #a0aec0; margin-top: 32px;">— The Docs2Video Team</p>
         </div>

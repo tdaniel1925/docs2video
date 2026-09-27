@@ -58,11 +58,11 @@ async function sendWelcomeEmail(email: string, firstName: string): Promise<void>
       <li><strong>Add your content</strong> — paste a URL, upload a file, or describe it</li>
       <li><strong>Generate</strong> — we write the script, design the slides, and narrate it</li>
     </ol>
-    <p style="font-size:15px;line-height:1.7;color:#444;">Your first project is on us. Most people finish their first video in under five minutes.</p>
+    <p style="font-size:15px;line-height:1.7;color:#444;">Your free credits cover your first videos. Most videos are ready in a few minutes.</p>
     <div style="text-align:center;margin:28px 0;">
       <a href="https://docs2video.com/create/client" style="display:inline-block;background:#3BB5C8;color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;">Create your first video</a>
     </div>
-    <p style="font-size:13px;color:#888;line-height:1.6;">Questions? Just reply to this email — we read every one.</p>
+    <p style="font-size:13px;color:#888;line-height:1.6;">Questions? Just reply to this email.</p>
   </td></tr>
   <tr><td style="background:#fafafa;padding:16px 32px;text-align:center;"><p style="margin:0;font-size:11px;color:#aaa;">Docs2Video &mdash; Turn any document into a professional video.<br/><a href="https://docs2video.com/help" style="color:#aaa;">Help Center</a></p></td></tr>
 </table>

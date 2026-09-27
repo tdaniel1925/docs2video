@@ -525,7 +525,7 @@ const ARTICLES: HelpArticle[] = [
       '**Removed automatically:** the carrier name and the branded product name (anywhere on screen or in the voiceover).',
       '**Kept:** the dollar figures, values, and percentages from the illustration — your client needs the real numbers to understand their coverage.',
       '**Framing:** the video points the client to the actual illustration for specifics and is attributed to you, the agent — not the carrier.',
-      'This runs across every style, so an insurance video is compliant no matter which look you pick. See the **Insurance Illustrations** guide for the full picture.',
+      'This runs across every style, so the same safeguards apply no matter which look you pick. Always review the video before you send it. See the **Insurance Illustrations** guide for the full picture.',
     ],
   },
   {

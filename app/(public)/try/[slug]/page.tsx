@@ -71,7 +71,7 @@ export default function TryPage({ params, searchParams }: { params: Promise<{ sl
             {headline}
           </h1>
           <p style={{ fontSize: 16, color: 'var(--ink-soft, #666)', maxWidth: 500, margin: '0 auto' }}>
-            Turn any document or website into a professional branded video in minutes.
+            Turn a document or website into a short, branded, narrated video.
           </p>
         </section>
 
@@ -161,9 +161,9 @@ export default function TryPage({ params, searchParams }: { params: Promise<{ sl
         {/* Benefits */}
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 48 }}>
           {[
-            { icon: '📄', title: 'Upload any document', desc: 'Video in 2 minutes' },
-            { icon: '🎨', title: 'Branded with YOUR colors', desc: 'Logo, fonts, and palette' },
-            { icon: '📈', title: 'Clients watch 3x more', desc: 'Than PDFs or emails' },
+            { icon: '📄', title: 'Start from a document', desc: 'A PDF or your website' },
+            { icon: '🎨', title: 'Branded with YOUR colors', desc: 'Your logo and colors' },
+            { icon: '🔗', title: 'Share one link', desc: 'Plays on any phone or laptop' },
           ].map(b => (
             <div key={b.title} style={{
               background: 'white', borderRadius: 10, padding: '24px 20px',
@@ -174,20 +174,6 @@ export default function TryPage({ params, searchParams }: { params: Promise<{ sl
               <p style={{ fontSize: 13, color: 'var(--ink-soft, #666)', margin: 0 }}>{b.desc}</p>
             </div>
           ))}
-        </section>
-
-        {/* Testimonial */}
-        <section style={{
-          background: 'white', borderRadius: 10, padding: '28px 24px',
-          border: '1px solid var(--border-light, #e5e2dc)', textAlign: 'center', marginBottom: 48,
-        }}>
-          <p style={{ fontSize: 16, fontStyle: 'italic', color: 'var(--ink, #1a1a1a)', lineHeight: 1.6, marginBottom: 12 }}>
-            &ldquo;I sent a client a Docs2Video instead of a PDF and they called me back within an hour.
-            They said they actually understood the policy for the first time.&rdquo;
-          </p>
-          <p style={{ fontSize: 13, color: 'var(--ink-soft, #666)', fontWeight: 600 }}>
-            &mdash; Insurance Agent, Financial Services
-          </p>
         </section>
 
         {/* Footer */}

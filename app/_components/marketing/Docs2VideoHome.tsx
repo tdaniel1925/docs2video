@@ -336,7 +336,7 @@ export default function Docs2VideoHome() {
           <div className="mk-tiers">
             {tiers.map((t) => (
               <div key={t.key} className={`mk-card mk-tier${t.popular ? ' mk-tier-pop' : ''}`}>
-                {t.popular && <span className="mk-tier-badge">Most popular</span>}
+                {t.popular && <span className="mk-tier-badge">Recommended</span>}
                 <h3>{t.name}</h3>
                 <div className="mk-tier-price"><span>{t.price}</span>{t.per && <small>{t.per}</small>}</div>
                 <div className="mk-tier-videos">{t.videos}</div>

@@ -5,6 +5,10 @@ import { logAdminAction } from '@/app/_lib/audit'
 import { INDUSTRIES, type IndustryId } from '@/app/_lib/industries'
 import { Resend } from 'resend'
 import OpenAI from 'openai'
+import { PLANS } from '@/app/_lib/pricing'
+
+const FREE_PLAN = PLANS.find((p) => p.tier === 'free')!
+const FREE_CREDIT_LINE = `${FREE_PLAN.monthlyCredits.toLocaleString('en-US')} free credits (about ${FREE_PLAN.approxStandardVideos} standard videos)`
 
 export const maxDuration = 300
 
@@ -88,7 +92,7 @@ export async function POST(req: NextRequest) {
     const openai = getOpenAI()
     const verticalLabel = subIndustry || industryConfig.label
 
-    const prompt = `You are a B2B SaaS email copywriter. Write a cold outreach email for Docs2Video — a platform that turns documents (PDFs, illustrations, reports) into professional narrated video explainers in under 2 minutes.
+    const prompt = `You are a B2B SaaS email copywriter. Write a cold outreach email for Docs2Video — a platform that turns documents (PDFs, illustrations, reports) into narrated, branded video explainers.
 
 TARGET AUDIENCE: ${verticalLabel} professionals
 INDUSTRY CONTEXT: ${industryConfig.tone}
@@ -97,10 +101,11 @@ TERMINOLOGY THEY USE: ${industryConfig.terminology.use.join(', ')}
 The email should:
 1. Open with a pain point specific to ${verticalLabel} professionals (they spend too much time explaining complex documents to clients)
 2. Position Docs2Video as the solution (upload any document → AI creates a branded video explainer)
-3. Mention the free trial (2 free videos, 2 free short videos included)
+3. Mention that new accounts start with ${FREE_PLAN.monthlyCredits.toLocaleString('en-US')} free credits (about ${FREE_PLAN.approxStandardVideos} standard videos)
 4. Be concise (under 150 words for the body)
 5. Sound human, not salesy — like a founder reaching out personally
 6. Use {{name}} for their first name and {{company}} for their company name
+7. Never invent statistics, percentages, customer or user counts, speed or time claims, results, awards, certifications or testimonials. Only state what is written above.
 
 Return ONLY valid JSON (no markdown fences):
 {
@@ -121,13 +126,13 @@ Return ONLY valid JSON (no markdown fences):
       const generated = JSON.parse(cleaned)
       return NextResponse.json({
         subject: generated.subject || `Turn your ${verticalLabel} documents into videos`,
-        body: generated.body || `Hi {{name}},\n\nWe built Docs2Video to help ${verticalLabel} professionals turn complex documents into clear, branded video explainers — in under 2 minutes.\n\nWant to try it? 2 free videos, 2 free short videos included.\n\nBest,\nTrent`,
+        body: generated.body || `Hi {{name}},\n\nWe built Docs2Video to help ${verticalLabel} professionals turn complex documents into clear, branded video explainers.\n\nWant to try it? New accounts start with ${FREE_CREDIT_LINE}.\n\nBest,\nTrent`,
         ctaText: generated.ctaText || 'Try It Free',
       })
     } catch {
       return NextResponse.json({
         subject: `Turn your ${verticalLabel} documents into videos`,
-        body: `Hi {{name}},\n\nWe built Docs2Video to help ${verticalLabel} professionals turn complex documents into clear, branded video explainers — in under 2 minutes.\n\nWant to try it? 2 free videos, 2 free short videos included.\n\nBest,\nTrent`,
+        body: `Hi {{name}},\n\nWe built Docs2Video to help ${verticalLabel} professionals turn complex documents into clear, branded video explainers.\n\nWant to try it? New accounts start with ${FREE_CREDIT_LINE}.\n\nBest,\nTrent`,
         ctaText: 'Try It Free',
       })
     }

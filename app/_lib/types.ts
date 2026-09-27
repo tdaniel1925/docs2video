@@ -382,7 +382,7 @@ export interface SentEmail {
 
 // OpenAI TTS voices — used by render service for video narration
 export const VOICE_OPTIONS = [
-  { id: 'nova', name: 'Sarah', gender: 'Female', description: 'Friendly and natural — most popular' },
+  { id: 'nova', name: 'Sarah', gender: 'Female', description: 'Friendly and natural — the default voice' },
   { id: 'shimmer', name: 'Emily', gender: 'Female', description: 'Warm and gentle' },
   { id: 'onyx', name: 'James', gender: 'Male', description: 'Deep and authoritative' },
   { id: 'echo', name: 'Michael', gender: 'Male', description: 'Warm and conversational' },

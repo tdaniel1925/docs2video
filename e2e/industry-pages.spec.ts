@@ -69,6 +69,16 @@ for (const industry of INDUSTRIES) {
       await expect(featuresEyebrow).toBeVisible()
     })
 
+    test('no fake stats, user counts or testimonials', async ({ page }) => {
+      // innerText skips inline scripts, which contain '%' in framework code.
+      const text = (await page.evaluate(() => document.body.innerText)).toLowerCase()
+      for (const banned of ['trusted by', 'used by', 'soc 2', 'hipaa', '★']) {
+        expect(text, banned).not.toContain(banned)
+      }
+      expect(text).not.toMatch(/\d+%/)
+      await expect(page.locator('.testimonial-section')).toHaveCount(0)
+    })
+
     test('final CTA exists with signup link', async ({ page }) => {
       const finalCta = page.locator('section.final-cta')
       await finalCta.scrollIntoViewIfNeeded()

@@ -64,10 +64,10 @@ export const DOCS2VIDEO: Brand = {
   id: 'docs2video',
   name: 'Docs2Video',
   domain: 'docs2video.com',
-  tagline: 'Turn any document into a professional explainer video',
-  title: 'Docs2Video — Turn Any Document Into a Professional Explainer Video',
+  tagline: 'Turn a long document into a short narrated video',
+  title: 'Docs2Video — Turn Long Documents Into Short Narrated Videos',
   description:
-    'Upload a PDF, paste text, or describe an idea. Get a branded narrated video with a shareable client page — in minutes, not hours.',
+    'Upload a PDF, paste text, or describe an idea. Get a branded narrated video on a shareable client page where your client can book a call.',
   logoSrc: '/logo-big.png',
   iconSrc: '/favicon.png',
   ogImage: '/og-docs2video.png',

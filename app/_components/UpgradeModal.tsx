@@ -1,6 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { getPlan } from '../_lib/pricing'
+
+const PRO = getPlan('pro')
 
 interface UpgradeModalProps {
   open: boolean
@@ -52,12 +55,12 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
           fontSize: 22, fontWeight: 800, color: 'var(--ink)',
           marginBottom: 8, letterSpacing: '-0.02em',
         }}>
-          Upgrade to create longer videos
+          Upgrade for more credits
         </h2>
         <p style={{
           fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.6, marginBottom: 24,
         }}>
-          Free plan includes short videos only. Upgrade for medium and long explainers with more detail.
+          A paid plan gives you a fresh pool of credits every month for videos, slide decks and PDFs.
         </p>
 
         {/* Pro plan */}
@@ -68,10 +71,10 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>Pro</span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-soft)' }}>$79/mo</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-soft)' }}>${PRO.monthlyPrice / 100}/mo</span>
           </div>
           <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 12, lineHeight: 1.4 }}>
-            25,000 credits/mo (~25 standard videos), all lengths
+            {PRO.monthlyCredits.toLocaleString('en-US')} credits/mo (~{PRO.approxStandardVideos} standard videos)
           </p>
           <button
             onClick={() => handleUpgrade('pro')}

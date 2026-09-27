@@ -67,7 +67,7 @@ export default async function PublicPricingPage({ searchParams }: { searchParams
             <div key={c.key} style={{ position: 'relative', padding: '26px 22px', borderRadius: 10, background: 'white', border: c.popular ? '2px solid var(--ink)' : '1px solid var(--border-light)', display: 'flex', flexDirection: 'column' }}>
               {c.popular && (
                 <div style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', padding: '3px 14px', borderRadius: 6, background: 'var(--ink)', color: 'white', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
-                  Most Popular
+                  Recommended
                 </div>
               )}
               <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6, color: 'var(--ink)' }}>{c.name}</div>
