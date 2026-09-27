@@ -8,8 +8,8 @@ import { loginAsTestUser } from './helpers/auth'
  *
  *   RUN_VIDEO_E2E=1 npx playwright test video-playthrough
  *
- * Drives the full wizard the way a user does: client → content → brand →
- * voice → generate, then waits for the video row to reach 'completed' with a
+ * Drives the 4-step flow the way a user does: what it's about → check the
+ * story → make it yours → Make it, then waits for the video row to reach 'completed' with a
  * video_url. On local runs where Creatomate's webhook can't reach localhost,
  * finish it with: node scripts/finalize-creatomate-local.mjs <renderId>
  */
@@ -22,33 +22,28 @@ test.describe('Full video playthrough (gated, real AI spend)', () => {
   test('signup-state user creates a video end to end', async ({ page }) => {
     await loginAsTestUser(page)
 
-    // Step 0 — Who's this for? Skip (general video) to keep the test self-contained
-    await page.goto('/create/client')
-    await page.getByText('Skip', { exact: false }).click()
-    await page.waitForURL(/\/create(\?|$)/, { timeout: 15000 })
+    // Step 1 — What it's about: a general video, "AI writes it" (no upload).
+    await page.goto('/create')
+    await page.getByRole('button', { name: 'No client — general' }).click()
+    await page.getByPlaceholder(/Explain our services/).fill('A short explainer about the benefits of whole life insurance for a young family.')
+    await page.getByRole('button', { name: /^AI writes it/ }).click()
+    await page.getByRole('button', { name: 'Read it and plan the story →' }).click()
 
-    // Step 1 — Content: use the "AI writes it" path with a purpose so no upload is needed
-    await page.getByText(/AI writes it/i).click().catch(() => {})
-    const purpose = page.locator('textarea, input[type="text"]').first()
-    await purpose.fill('A short explainer about the benefits of whole life insurance for a young family.')
-    // Kick off the content step (button label may vary: Next / Continue / Generate)
-    await page.getByRole('button', { name: /next|continue|create|generate/i }).first().click()
-
-    // Wait until we land on a later wizard step that carries ?id=
-    await page.waitForURL(/\/create\/(brand|voice|script)\?id=/, { timeout: 120000 })
-    const url = new URL(page.url())
-    const videoId = url.searchParams.get('id')
+    // Step 2 — Check the story: wait for it to be written, then accept it.
+    await page.waitForURL(/\/create\/script\?id=/, { timeout: 180000 })
+    const videoId = new URL(page.url()).searchParams.get('id')
     expect(videoId).toBeTruthy()
+    const skip = page.getByRole('button', { name: 'Skip — just write it' })
+    const scene = page.getByLabel('Scene 2 title')
+    await expect(skip.or(scene)).toBeVisible({ timeout: 240000 })
+    if (await skip.isVisible()) await skip.click()
+    await expect(scene).toBeVisible({ timeout: 240000 })
+    await page.getByRole('button', { name: 'Looks right — pick the look →' }).click()
 
-    // Walk brand → voice → script using the primary CTA on each, accepting defaults
-    for (let i = 0; i < 4; i++) {
-      const next = page.getByRole('button', { name: /next|continue|generate|create video|looks good/i }).first()
-      if (await next.isVisible().catch(() => false)) {
-        await next.click().catch(() => {})
-        await page.waitForTimeout(1500)
-      }
-      if (/\/create\/generating/.test(page.url())) break
-    }
+    // Step 3 — Make it yours: defaults (Slide Deck, Sarah), then Make it (REAL spend).
+    await page.waitForURL(/\/create\/theme\?id=/)
+    await page.getByRole('button', { name: /^Make it — / }).click()
+    await page.waitForURL(/\/create\/generating\?id=/, { timeout: 60000 })
 
     // Poll the video row until completed (via the authenticated API)
     const deadline = Date.now() + 13 * 60 * 1000

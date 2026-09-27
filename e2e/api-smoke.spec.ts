@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { loginAsTestUser } from './helpers/auth'
+import { loginAsTestUser, NO_AUTH } from './helpers/auth'
 
 /**
  * API smoke suite — exercises every user-facing route and asserts correct
@@ -65,13 +65,17 @@ test.describe('API smoke — authenticated routes', () => {
     expect(res.status()).toBe(400)
   })
 
-  test('POST /api/videos/draft creates a draft row', async ({ page }) => {
+  test('POST /api/videos/draft creates a draft row (and DELETE discards it)', async ({ page }) => {
     const res = await page.request.post('/api/videos/draft', {
       data: { outputType: 'video', purpose: 'Smoke test draft', contentMethod: 'idea', extractedData: { sections: [{ title: 'x', content: 'y' }] } },
     })
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
     expect(body.videoId).toBeTruthy()
+    // cleanup — a smoke run must not leave drafts on Home
+    const del = await page.request.delete(`/api/videos/draft?videoId=${body.videoId}`)
+    expect(del.ok()).toBeTruthy()
+    expect((await page.request.get(`/api/videos/draft?videoId=${body.videoId}`)).status()).toBe(404)
   })
 
   test('POST /api/videos/draft rejects a bad outputType', async ({ page }) => {
@@ -79,16 +83,19 @@ test.describe('API smoke — authenticated routes', () => {
     expect(res.status()).toBe(400)
   })
 
-  test('POST /api/contact accepts a valid message', async ({ page }) => {
-    const res = await page.request.post('/api/contact', {
-      data: { name: 'Smoke', email: 'smoke@example.com', subject: 'Test', message: 'Automated smoke test — ignore.' },
-    })
-    // 200 if Resend configured; allow 500 only if the key is absent in test env
-    expect([200, 500]).toContain(res.status())
+  // A VALID contact message sends a real email to the team, so only the
+  // refusals are exercised here.
+  test('POST /api/contact refuses a missing message or a bad email (nothing is sent)', async ({ page }) => {
+    const missing = await page.request.post('/api/contact', { data: { name: 'Smoke', email: 'smoke@example.com', message: '  ' } })
+    expect(missing.status()).toBe(400)
+    const badEmail = await page.request.post('/api/contact', { data: { name: 'Smoke', email: 'not-an-email', message: 'hi' } })
+    expect(badEmail.status()).toBe(400)
+    expect((await badEmail.json()).error).toBe('Invalid email format')
   })
 })
 
 test.describe('API smoke — auth + webhook guards (no login)', () => {
+  test.use({ storageState: NO_AUTH })
   test('protected route rejects unauthenticated request', async ({ request }) => {
     // maxRedirects:0 so we assert the auth redirect/401 itself, not the followed
     // login page (which would be a 200 and mask the real guard).

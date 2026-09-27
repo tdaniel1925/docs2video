@@ -1,4 +1,8 @@
 import { test, expect } from '@playwright/test'
+import { NO_AUTH } from './helpers/auth'
+
+// A public page: start signed out.
+test.use({ storageState: NO_AUTH })
 
 const INDUSTRIES = [
   { slug: 'insurance', name: 'Insurance' },

@@ -105,19 +105,19 @@ test.describe('All four output types — feature battery', () => {
       await assertModalFits(page)
 
       // The send controls the complaint was about.
-      const emailInput = page.getByPlaceholder('e.g. sarah@example.com')
+      const emailInput = page.getByTestId('share-modal-card').getByPlaceholder('e.g. sarah@example.com')
       await expect(emailInput, 'the client-email field').toBeVisible()
-      await expect(page.getByRole('button', { name: 'Send Email Now' })).toBeVisible()
-      await expect(page.getByRole('button', { name: 'Copy link', exact: true })).toBeVisible()
-      await expect(page.getByText(/Copying does not send anything/i)).toBeVisible()
+      await expect(page.getByTestId('share-modal-card').getByRole('button', { name: 'Send Email Now' })).toBeVisible()
+      await expect(page.getByTestId('share-modal-card').getByRole('button', { name: 'Copy link', exact: true })).toBeVisible()
+      await expect(page.getByTestId('share-modal-card').getByText(/Copying does not send anything/i)).toBeVisible()
 
       // A bad address is refused OUT LOUD, before anything sends.
       await emailInput.fill('not-an-email')
-      await page.getByRole('button', { name: 'Send Email Now' }).click()
-      await expect(page.getByText(/Enter your client.?s email address first/i)).toBeVisible()
+      await page.getByTestId('share-modal-card').getByRole('button', { name: 'Send Email Now' }).click()
+      await expect(page.getByTestId('share-modal-card').getByText(/Enter your client.?s email address first/i)).toBeVisible()
 
       // Close the modal.
-      await page.getByRole('button', { name: 'Close' }).click().catch(async () => {
+      await page.getByTestId('share-modal-card').getByRole('button', { name: 'Close' }).click().catch(async () => {
         await page.getByRole('button', { name: '×' }).first().click()
       })
 

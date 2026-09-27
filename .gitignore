@@ -119,3 +119,6 @@ remotion/.momentum-vo-cache/
 remotion/.steampunk/
 scripts/rapidrater-out/
 supabase/.temp/
+
+# Playwright saved sign-in (e2e/auth.setup.ts)
+e2e/.auth/

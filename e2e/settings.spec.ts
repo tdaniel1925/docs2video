@@ -15,11 +15,10 @@ test.describe('Settings', () => {
     // Profile tab is the default active tab
     await expect(page.locator('input[name="full_name"]')).toBeVisible({ timeout: 10000 })
     // Email field is a readonly input[type="email"]
-    await expect(page.locator('input[type="email"]')).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('input[type="email"][readonly]')).toBeVisible({ timeout: 10000 })
   })
 
   test('profile tab has save changes button', async ({ page }) => {
-    await expect(page.locator('button[type="submit"]')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('button[type="submit"]')).toHaveText(/Save changes/, { timeout: 10000 })
+    await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible({ timeout: 10000 })
   })
 })

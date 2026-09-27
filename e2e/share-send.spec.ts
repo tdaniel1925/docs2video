@@ -30,27 +30,27 @@ test.describe('Send to Client modal', () => {
 
     // ── The modal is send-first and self-explaining. ──
     await expect(page.getByRole('heading', { name: 'Send to Your Client' })).toBeVisible()
-    const emailInput = page.getByPlaceholder('e.g. sarah@example.com')
+    const emailInput = page.getByTestId('share-modal-card').getByPlaceholder('e.g. sarah@example.com')
     await expect(emailInput, 'the client-email field the old modal never had').toBeVisible()
-    const sendBtn = page.getByRole('button', { name: 'Send Email Now' })
+    const sendBtn = page.getByTestId('share-modal-card').getByRole('button', { name: 'Send Email Now' })
     await expect(sendBtn).toBeVisible()
 
     // ── A bad address is refused OUT LOUD, before anything sends. ──
     // (Next.js's route announcer is also role=alert, so match the message text.)
     await emailInput.fill('not-an-email')
     await sendBtn.click()
-    await expect(page.getByText(/Enter your client.?s email address first/i)).toBeVisible()
+    await expect(page.getByTestId('share-modal-card').getByText(/Enter your client.?s email address first/i)).toBeVisible()
 
     // ── The manual path says plainly that copying does not send. ──
-    await expect(page.getByText(/Copying does not send anything/i)).toBeVisible()
+    await expect(page.getByTestId('share-modal-card').getByText(/Copying does not send anything/i)).toBeVisible()
     await expect(page.getByRole('button', { name: /Copy email for my own inbox/i })).toBeVisible()
 
     // ── The watch link has its own copy control (exact case: the page behind
     // the modal has an older "Copy Link" button too). ──
-    await expect(page.getByRole('button', { name: 'Copy link', exact: true })).toBeVisible()
+    await expect(page.getByTestId('share-modal-card').getByRole('button', { name: 'Copy link', exact: true })).toBeVisible()
 
     // Close cleanly.
-    await page.getByRole('button', { name: 'Close' }).click()
+    await page.getByTestId('share-modal-card').getByRole('button', { name: 'Close' }).click()
     await expect(page.getByRole('heading', { name: 'Send to Your Client' })).toBeHidden()
   })
 })

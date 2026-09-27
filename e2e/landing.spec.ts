@@ -1,4 +1,8 @@
 import { test, expect } from '@playwright/test'
+import { NO_AUTH } from './helpers/auth'
+
+// A public page: start signed out.
+test.use({ storageState: NO_AUTH })
 
 test.describe('Landing Page', () => {
   test.beforeEach(async ({ page }) => {
@@ -24,7 +28,6 @@ test.describe('Landing Page', () => {
     await expect(page.locator('.top-nav a[href="#how-it-works"]')).toBeVisible()
     await expect(page.locator('.top-nav a[href="#features"]')).toBeVisible()
     await expect(page.locator('.top-nav a[href="#pricing"]')).toBeVisible()
-    await expect(page.locator('.top-nav a[href="#templates"]')).toBeVisible()
     await expect(page.locator('.top-nav a[href="#compare"]')).toBeVisible()
   })
 
@@ -41,18 +44,25 @@ test.describe('Landing Page', () => {
     await expect(stepCards).toHaveCount(3)
   })
 
-  test('features section has 4 format cards', async ({ page }) => {
+  test('features section shows the two things it makes: video and slide deck', async ({ page }) => {
     const section = page.locator('#features')
     await expect(section).toBeVisible()
     const featureCards = section.locator('.feature-card')
-    await expect(featureCards).toHaveCount(4)
+    await expect(featureCards).toHaveCount(2)
+    await expect(featureCards.nth(0)).toContainText('Video Explainer')
+    await expect(featureCards.nth(1)).toContainText('Slide Deck')
   })
 
-  test('pricing section has 5 pricing cards', async ({ page }) => {
+  test('pricing section shows the plans on sale at the prices in pricing.ts', async ({ page }) => {
     const pricingSection = page.locator('#pricing')
     await pricingSection.scrollIntoViewIfNeeded()
     const pricingCards = pricingSection.locator('.pricing-card')
-    await expect(pricingCards).toHaveCount(5)
+    // Starter ($29) is retired from sale; Free, Pro, Business, Enterprise remain.
+    await expect(pricingCards).toHaveCount(4)
+    for (const [i, name, price] of [[0, 'Free', '$0'], [1, 'Pro', '$79'], [2, 'Business', '$199'], [3, 'Enterprise', '$499']] as const) {
+      await expect(pricingCards.nth(i)).toContainText(name)
+      await expect(pricingCards.nth(i)).toContainText(price)
+    }
   })
 
   test('pricing section has a popular card with badge', async ({ page }) => {
@@ -77,16 +87,6 @@ test.describe('Landing Page', () => {
     const compRows = compareSection.locator('.comp-row')
     const count = await compRows.count()
     expect(count).toBeGreaterThanOrEqual(6)
-  })
-
-  test('stats strip shows key metrics', async ({ page }) => {
-    const statsStrip = page.locator('.stats-strip')
-    await statsStrip.scrollIntoViewIfNeeded()
-    await expect(statsStrip).toBeVisible()
-    const statsText = await statsStrip.textContent()
-    expect(statsText).toContain('10K+')
-    expect(statsText).toContain('2,500+')
-    expect(statsText).toContain('4.9/5')
   })
 
   test('use cases grid has industry cards', async ({ page }) => {
@@ -119,9 +119,11 @@ test.describe('Landing Page', () => {
   })
 
   test('hero CTA buttons link to signup and how-it-works', async ({ page }) => {
-    const heroLeft = page.locator('.hero-left')
-    await expect(heroLeft.locator('a[href="/signup"]')).toBeVisible()
-    await expect(heroLeft.locator('a[href="#how-it-works"]')).toBeVisible()
+    const cta = page.locator('.hero-cta')
+    await expect(cta.locator('a[href="/signup"]')).toBeVisible()
+    await expect(cta.locator('a[href="#how-it-works"]')).toBeVisible()
+    await cta.locator('a[href="/signup"]').click()
+    await expect(page).toHaveURL(/\/signup/)
   })
 
   test('industry intelligence section shows 12 industries', async ({ page }) => {
@@ -140,7 +142,8 @@ test.describe('Landing Page', () => {
     await expect(trustStrip).toBeVisible()
     const text = await trustStrip.textContent()
     expect(text).toContain('Bank-level encryption')
-    expect(text).toContain('SOC 2 compliant')
+    // Only claims the business can stand behind (SOC 2 was removed as untrue).
+    expect(text).not.toContain('SOC 2')
   })
 
   test('coming soon banner links to signup', async ({ page }) => {

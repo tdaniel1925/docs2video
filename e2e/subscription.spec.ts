@@ -7,10 +7,16 @@ import { loginAsTestUser } from './helpers/auth'
  * payment, so they're safe to run repeatedly. If the test env points at live
  * Stripe keys, the URL assertions still hold (a session is created, not paid).
  */
+// Creating a real Checkout / portal session touches the live Stripe account.
+// Those run only with E2E_ALLOW_STRIPE_SESSIONS=1; the UI buttons are covered
+// with mocked Stripe answers in app-settings / app-pages / redesign-step3.
+const REAL_STRIPE = process.env.E2E_ALLOW_STRIPE_SESSIONS === '1'
+
 test.describe('Subscription — purchase', () => {
   test.beforeEach(async ({ page }) => { await loginAsTestUser(page) })
 
   test('POST /api/subscribe returns a Stripe Checkout URL for a valid tier', async ({ page }) => {
+    test.skip(!REAL_STRIPE, 'creates a real Stripe Checkout session — set E2E_ALLOW_STRIPE_SESSIONS=1')
     const res = await page.request.post('/api/subscribe', { data: { tier: 'pro' } })
     // 200 with a checkout URL, or 500 only if price IDs aren't configured in this env
     if (res.ok()) {
@@ -29,6 +35,7 @@ test.describe('Subscription — purchase', () => {
   })
 
   test('POST /api/credits/buy returns a checkout URL for a valid pack', async ({ page }) => {
+    test.skip(!REAL_STRIPE, 'creates a real Stripe Checkout session — set E2E_ALLOW_STRIPE_SESSIONS=1')
     const res = await page.request.post('/api/credits/buy', { data: { pack: 'starter' } })
     if (res.ok()) {
       const body = await res.json()
@@ -65,6 +72,7 @@ test.describe('Subscription — management (Settings UI)', () => {
   })
 
   test('POST /api/stripe/portal returns a URL or a clear "no subscription" error', async ({ page }) => {
+    test.skip(!REAL_STRIPE, 'may create a real Stripe billing-portal session — set E2E_ALLOW_STRIPE_SESSIONS=1')
     const res = await page.request.post('/api/stripe/portal')
     if (res.ok()) {
       const body = await res.json()

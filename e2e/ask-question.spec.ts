@@ -1,4 +1,8 @@
 import { test, expect } from '@playwright/test'
+import { NO_AUTH } from './helpers/auth'
+
+// A public page: start signed out.
+test.use({ storageState: NO_AUTH })
 
 /**
  * "Ask a question" on the public share page must be a REAL action, not a dead
