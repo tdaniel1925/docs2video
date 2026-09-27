@@ -174,10 +174,10 @@ export default function EditBrandPage() {
         setContactEmail(typeof guide.email === 'string' ? guide.email : '')
         setContactWebsite(typeof guide.website === 'string' ? guide.website : '')
 
-        // Auto-trigger logo kit if brand has logo but no kit
-        if (data.logo_file_url && (!data.logo_kit || Object.keys(data.logo_kit).length === 0)) {
-          triggerLogoKit(data.id)
-        }
+        // No logo kit is started just for OPENING this page. It used to start
+        // one (an AI picture per slide style, paid by us) on every visit to a
+        // profile with a logo and no kit — including every failed retry. The
+        // kit is still made when a new logo is uploaded (handleLogoUpload).
       }
     }
     load()
