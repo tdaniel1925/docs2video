@@ -262,7 +262,7 @@ export default function ProspectsPage() {
 
       {/* Send modal */}
       {sendModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(6px)' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(6px)' }}>
           <div style={{ width: '100%', maxWidth: 440, background: 'white', borderRadius: 10, padding: 28 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Send demo to {sendModal.company_name || 'prospect'}</h2>

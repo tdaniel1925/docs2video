@@ -243,7 +243,7 @@ export default function AnalyticsPage() {
 
       {/* Per-video detail modal */}
       {(detail || detailLoading) && (
-        <div onClick={() => { setDetail(null); setDetailLoading(false) }} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(8,12,16,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div onClick={() => { setDetail(null); setDetailLoading(false) }} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(8,12,16,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div onClick={(e) => e.stopPropagation()} className="settings-card" style={{ maxWidth: 640, width: '100%', maxHeight: '86vh', overflowY: 'auto' }}>
             {detailLoading ? <p className="ssub">Loading…</p> : detail ? (
               <>

@@ -1329,7 +1329,7 @@ export default function VideoDetailPage() {
 
       <div style={{ marginBottom: 24 }}>
         {editingTitle ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
             <input
               autoFocus
               value={titleDraft}
@@ -1338,7 +1338,7 @@ export default function VideoDetailPage() {
               maxLength={120}
               placeholder="Video title (shows on the share page)"
               disabled={savingTitle}
-              style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', padding: '2px 10px', border: '2px solid var(--accent, #C7E8A8)', borderRadius: 10, minWidth: 320, maxWidth: '100%', flex: 1, fontFamily: 'inherit', background: 'var(--card, #fff)', color: 'inherit' }}
+              style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', padding: '2px 10px', border: '2px solid var(--accent, #C7E8A8)', borderRadius: 10, minWidth: 'min(320px, 100%)', maxWidth: '100%', flex: 1, fontFamily: 'inherit', background: 'var(--card, #fff)', color: 'inherit' }}
             />
             <button onClick={saveTitle} disabled={savingTitle} className="btn-primary" style={{ padding: '8px 16px', borderRadius: 10, whiteSpace: 'nowrap' }}>{savingTitle ? 'Saving…' : 'Save'}</button>
             <button onClick={() => setEditingTitle(false)} disabled={savingTitle} className="btn-secondary" style={{ padding: '8px 14px', borderRadius: 10 }}>Cancel</button>
@@ -1348,9 +1348,11 @@ export default function VideoDetailPage() {
             className="page-title"
             onClick={startEditTitle}
             title="Click to edit — this title shows on the share page"
-            style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+            style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, maxWidth: '100%' }}
           >
-            {video.title ?? 'Untitled'}
+            {/* Its own box so a long title ends in "…" instead of pushing the
+                page wider than a phone screen. */}
+            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{video.title ?? 'Untitled'}</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.45, flexShrink: 0 }}>
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -2570,7 +2572,7 @@ export default function VideoDetailPage() {
       {lightboxIndex !== null && slideUrls[lightboxIndex] && (
         <div
           onClick={() => setLightboxIndex(null)}
-          style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(8,12,16,0.88)', backdropFilter: 'blur(6px)', padding: 24 }}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(8,12,16,0.88)', backdropFilter: 'blur(6px)', padding: 24 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90vw', maxHeight: '86vh', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
             <img
@@ -2611,7 +2613,7 @@ export default function VideoDetailPage() {
 
       {/* Share Modal */}
       {showShareModal && video && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(8px)', overflowY: 'auto', padding: '24px 16px' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(8px)', overflowY: 'auto', padding: '24px 16px' }}>
           {/* ONE scroll surface (the overlay). The card sizes to its content and
               never gets its own scrollbar, so there are never two bars at once.
               Wide + two-column so the whole thing fits the viewport without a
@@ -2745,7 +2747,7 @@ export default function VideoDetailPage() {
 
       {/* Translate Modal */}
       {showTranslateModal && video && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(8px)' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(8px)' }}>
           <div style={{ width: '100%', maxWidth: 420, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 32 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>Translate Presentation</h2>
@@ -2809,7 +2811,7 @@ export default function VideoDetailPage() {
 
       {/* Social Posts Modal */}
       {showSocialModal && video && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(8px)' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(8px)' }}>
           <div style={{ width: '100%', maxWidth: 520, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 32, maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>Social Posts</h2>
