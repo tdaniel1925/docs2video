@@ -13,24 +13,12 @@ export const MARKETING_NAV = [
   { href: '/blog', label: 'Blog' },
 ] as const
 
-export function BrandMark() {
-  return (
-    <span className="mk-mark" aria-hidden="true">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
-        <path d="M6 3h8l4 4v14H6z" />
-        <path d="M10 10.5v6l5-3z" fill="currentColor" />
-      </svg>
-    </span>
-  )
-}
-
 export default function SiteHeader() {
   return (
     <header className="mk-header">
       <div className="mk-header-inner">
         <Link href="/" className="mk-brand" aria-label="Docs2Video home">
-          <BrandMark />
-          <span className="mk-brand-word">Docs2Video</span>
+          <img src="/logo-big.png" alt="Docs2Video" width={895} height={340} className="mk-logo-img" />
         </Link>
         <nav className="mk-nav" aria-label="Main">
           {MARKETING_NAV.map((l) =>

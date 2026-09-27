@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { BrandMark } from './SiteHeader'
 
 // Industry landing pages (app/(public)/for/*). Linked here so search engines
 // and visitors can reach them from every marketing page.
@@ -21,8 +20,7 @@ export default function SiteFooter() {
       <div className="mk-footer-inner">
         <div className="mk-footer-brand">
           <Link href="/" className="mk-brand" aria-label="Docs2Video home">
-            <BrandMark />
-            <span className="mk-brand-word">Docs2Video</span>
+            <img src="/logo-big.png" alt="Docs2Video" width={895} height={340} className="mk-logo-img" />
           </Link>
           <p>Turn the document your client should read into a short narrated video they will actually watch.</p>
           <a href="mailto:support@docs2video.com">support@docs2video.com</a>

@@ -3756,3 +3756,7 @@ h1.hero-title--big {
   .mk-btn:hover { transform: none; }
   html:has(.mk) { scroll-behavior: auto; }
 }
+/* The cartoon logo image in the marketing header and footer. */
+.mk-logo-img { display: block; height: 52px; width: auto; }
+.mk-footer .mk-logo-img { height: 60px; }
+@media (max-width: 600px) { .mk-logo-img { height: 42px; } }
