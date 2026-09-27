@@ -7,6 +7,7 @@ import { createClient } from '../../../_lib/supabase/client'
 import { displayProgress } from '../../../_lib/video-progress'
 import ScriptEditor from '../../../_components/ScriptEditor'
 import FixScene from './FixScene'
+import ReadyToSend from './send/ReadyToSend'
 import type { Video, Brand } from '../../../_lib/types'
 // ONE definition of which scenes become slides — see the note on visibleScenes.
 import { visibleScenes } from '../../../_lib/presentation'
@@ -1381,6 +1382,29 @@ export default function VideoDetailPage() {
         </div>
       )}
 
+      {/* STEP 4 — "Ready to send": a picture of the client's share page plus
+          who it goes to, the note, the on/off pieces and Send. Only once it's
+          finished; while making or failed the states below stay as they were.
+          Everything else on this page is still here, underneath. */}
+      {video.status === 'completed' && (
+        <>
+          <ReadyToSend
+            video={video}
+            setVideo={setVideo}
+            quote={existingQuote}
+            setQuote={setExistingQuote}
+            canQuote={PRO_PLANS.includes(userPlan.toLowerCase())}
+            onAddQuote={() => {
+              setShowQuoteBuilder(true)
+              setTimeout(() => document.getElementById('quote-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+            }}
+          />
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', margin: '8px 0 14px', paddingTop: 20, borderTop: '1px solid var(--border-light)' }}>
+            More for this {((video as any).output_type === 'interactive' || (video as any).output_type === 'deck') ? 'presentation' : 'video'}
+          </h2>
+        </>
+      )}
+
       {/* Analytics Stats */}
       {video.status === 'completed' && (
         <div style={{
@@ -2276,7 +2300,7 @@ export default function VideoDetailPage() {
 
       {/* Quote / Invoice Section -- below columns, full width */}
       {PRO_PLANS.includes(userPlan.toLowerCase()) && video.status === 'completed' && (
-        <div style={{ marginTop: 24 }}>
+        <div id="quote-section" style={{ marginTop: 24, scrollMarginTop: 16 }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Quote / Invoice</h2>
 
           {!existingQuote && !showQuoteBuilder && (
@@ -2387,6 +2411,8 @@ export default function VideoDetailPage() {
                     <span style={{ display: 'block', color: 'var(--ink-soft)', fontSize: 12 }}>
                       {!existingQuote.client_email
                         ? 'Add the client’s email to the quote to use this.'
+                        : existingQuote.status === 'draft'
+                          ? 'Off — this quote is hidden from the share page. Show it with the switch at the top.'
                         : !['sent', 'viewed'].includes(existingQuote.status)
                           ? 'Off — this deal is closed.'
                           : 'Sends up to two short reminders (about day 3 and day 7) from your connected email, with an unsubscribe link. Stops as soon as you mark the deal paid, accepted or declined.'}

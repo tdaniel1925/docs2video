@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
+import { isOwnedStoragePath } from '../../../_lib/wizard-draft'
 export const maxDuration = 30
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -19,28 +20,81 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   return NextResponse.json(data)
 }
 
-/** Update the video's title (shown on the preview page AND the public share
- *  page). Owner-scoped. Body: { title: string }. */
+/**
+ * Update what the owner can change after a video is made. Owner-scoped.
+ * Body (any of):
+ *   title                  — shown on the preview page AND the share page
+ *   agent_note             — the short note on the share page (max 400
+ *                            characters, the wizard's limit; '' clears it)
+ *   allow_source_download  — the "Download the original PDF" button on the
+ *                            share page. It can only be switched ON when this
+ *                            video really has an uploaded PDF in the owner's
+ *                            own folder — the download route checks the same.
+ * Answers with the values really stored, so the page never claims more.
+ */
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-  const body = await request.json().catch(() => ({})) as { title?: string }
-  const title = typeof body.title === 'string' ? body.title.trim().slice(0, 120) : ''
-  if (!title) return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+  const body = await request.json().catch(() => ({})) as {
+    title?: unknown
+    agent_note?: unknown
+    allow_source_download?: unknown
+  }
+
+  const updates: Record<string, unknown> = {}
+  if ('title' in body) {
+    const title = typeof body.title === 'string' ? body.title.trim().slice(0, 120) : ''
+    if (!title) return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+    updates.title = title
+  }
+  if ('agent_note' in body) {
+    if (body.agent_note !== null && typeof body.agent_note !== 'string') {
+      return NextResponse.json({ error: 'The note must be text' }, { status: 400 })
+    }
+    const note = typeof body.agent_note === 'string' ? body.agent_note.trim().slice(0, 400) : ''
+    updates.agent_note = note || null
+  }
+  if ('allow_source_download' in body) {
+    if (typeof body.allow_source_download !== 'boolean') {
+      return NextResponse.json({ error: 'allow_source_download must be true or false' }, { status: 400 })
+    }
+    if (body.allow_source_download) {
+      const { data: v } = await supabase
+        .from('videos')
+        .select('source_pdf_path')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (!v) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      if (!isOwnedStoragePath(v.source_pdf_path, user.id)) {
+        return NextResponse.json({ error: 'No original PDF is saved for this one, so there is nothing to download.' }, { status: 400 })
+      }
+    }
+    updates.allow_source_download = body.allow_source_download
+  }
+  // Old callers send only { title }; an empty body still means "no title".
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+  }
 
   const { data, error } = await supabase
     .from('videos')
-    .update({ title })
+    .update(updates)
     .eq('id', id)
     .eq('user_id', user.id)
-    .select('id, title')
+    .select('id, title, agent_note, allow_source_download')
     .single()
 
   if (error || !data) return NextResponse.json({ error: error?.message || 'Not found' }, { status: error ? 500 : 404 })
-  return NextResponse.json({ success: true, title: data.title })
+  return NextResponse.json({
+    success: true,
+    title: data.title,
+    agent_note: data.agent_note ?? null,
+    allow_source_download: data.allow_source_download === true,
+  })
 }
 
 /**
