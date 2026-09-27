@@ -1,9 +1,44 @@
 # Docs2Video — Build State
 
-**Last updated:** 2026-09-26 (audit fixes; see "Audit 2026-09-26" below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
+**Last updated:** 2026-09-27 (Playwright battery on `redesign/app-4-steps`; see below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
 **Branch:** main
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
+
+## 2026-09-27 — Playwright battery for the 4-step app (branch `redesign/app-4-steps`)
+
+**How to run:** `npx next build`, `npx next start -p 3100`, then
+`E2E_BASE_URL=http://localhost:3100 npx playwright test`. The config loads
+`.env.local` (TEST_EMAIL / TEST_PASSWORD) and signs in once (`e2e/auth.setup.ts`).
+Screenshots go to `E2E_SHOTS_DIR` (default `test-results/shots`).
+
+**Safe on the live database:** `e2e/helpers/guard.ts` blocks every call that
+spends credits, charges a card, sends email/SMS, deletes the account or
+replaces real photos unless a test mocked it, and fails the test if one gets
+through. View tracking is answered quietly (test visits never count as views).
+Tests that create things (one draft, one profile, one client) remove them with
+the app's own Discard / Delete buttons. Opt-in only: `RUN_VIDEO_E2E=1` (real
+video), `E2E_ALLOW_STRIPE_SESSIONS=1` (real Stripe sessions), `E2E_SKIP_REAL_AI=1`
+turns off the one real story-writing run.
+
+**Specs:** `redesign-home`, `redesign-step1-about`, `redesign-step2-story`,
+`redesign-step3-make`, `redesign-step4-send`, `redesign-layout` (rail, 1440 +
+375, screenshots), `redesign-journey` (one real run), `app-settings`,
+`app-pages` (brands, clients, library, pricing, help), `share-and-crawl`
+(share page + every internal link signed in and out), plus the older specs
+updated to the new flow. Old `create`, `dashboard`, `integration` specs removed
+(old wizard; some spent real money).
+
+**Bugs found and fixed:**
+- Settings accepted `http://` booking/payment links and said "Saved"; the share page only shows `https://` → buttons never appeared. Now refused (bd70770).
+- Opening a brand profile with a logo but no logo kit started a full OpenAI logo kit every visit (the kit isn't shown anywhere) — ~90 calls in one crawl. Removed; upload still makes it (7362234).
+- Brand delete removed the card even when the delete failed (be158a7).
+- Library showed drafts as "Processing" and Open went to the finished-video page; file links were prefetched (404s, storage 429s) (6cd14c6).
+- "Send to Your Client" and other in-app pop-ups sat under the sticky top bar — close button unclickable on laptop-height screens; long video titles made the page scroll sideways on phones (bc4990e).
+
+**Proved the checks can fail:** 11 deliberate bugs were built into the app;
+all 11 turned tests red (4 checks were strengthened first because they
+passed for the wrong reason).
 
 ## Audit 2026-09-26 — everything fixed, and what the owner must do (`AUDIT-2026-09-26.md`, branch `fix/audit-2026-09-26`)
 
@@ -573,8 +608,8 @@ These features are code-complete and build clean. Setup status:
 
 ## Known Issues
 
-1. Some E2E test selectors may not match current UI (ongoing)
-2. Logo kit generation is async — may not complete before user navigates away
+1. E2E suite rewritten for the 4-step app on 2026-09-27 (see the section at the top). Action cards on Home, the first-visit screen and the billing-portal button can't be exercised with the current test account (it has none of them).
+2. Logo kit generation is async — may not complete before user navigates away. Also: after a logo upload on the brand page the kit is made from the logo SAVED on the profile (the new one isn't saved until "Save"), so the first kit is built from the old logo — or fails on a first upload. The kit isn't shown anywhere in the app; owner to decide whether to keep it.
 3. ⚠️ ACTION REQUIRED: Cartesia API key `sk_car_q3LX...` was committed to git history (commit ff100f4) — rotate it in the Cartesia dashboard and set `CARTESIA_API_KEY` env var on the VPS. Code no longer hardcodes it.
 4. `app/_lib/music-generator.ts` and `synthesizeAllScenes` in `app/_lib/tts.ts` are dead code — music/TTS for the main pipeline run on the VPS. Candidates for removal.
 5. Webhook idempotency unique index: run `supabase/legacy/supabase-webhook-idempotency-migration.sql` against the DB.
