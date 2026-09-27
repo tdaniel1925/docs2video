@@ -1,338 +1,446 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+// STEP 3 — MAKE IT YOURS. One screen: the look, what to send, the voice, and
+// the price with the one button that spends credits.
+//
+// The price is never worked out here. It comes from /api/price-quote, which
+// uses the same functions generate-video and generate-presentation charge
+// with, reading the same saved draft. Before starting the job this page saves
+// every choice to the draft, re-reads the price, and stops if it changed.
+
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import BuyCreditsModal from '../../../_components/BuyCreditsModal'
+import { createClient } from '../../../_lib/supabase/client'
+import { VOICE_OPTIONS } from '../../../_lib/types'
+// Types only — the price helper itself is server code and never runs here.
+import type { MakeOutput } from '../../../_lib/price-quote'
+import s from '../_components/make/make.module.css'
+import PricePanel from '../_components/make/PricePanel'
+import { OutputPicker, PresLookPicker, VideoLookPicker, VoicePicker } from '../_components/make/Pickers'
+import { usePriceQuote, formatCredits } from '../_components/make/usePriceQuote'
+import { isPresLook, isVideoLook, PRES_LOOKS, type VideoLookId } from '../_components/make/looks'
 
-type ThemeId = 'slides' | 'aurora' | 'cinematic' | 'editorial' | 'explainer' | 'infographic'
+type Draft = Record<string, any>
+type BrandInfo = { id: string; name: string; logo_url: string | null; primary_color: string | null; secondary_color: string | null; accent_color: string | null }
 
-// Static sample images live in /public/style-samples/<id>-{cover,data,closing}.png
-// (rendered once — no live preview, so picking a style is instant + adds no
-// production time). Newsmagazine ('time') exists in the engine but is no longer
-// offered (it overlapped Editorial too much).
-const THEMES: { id: ThemeId; name: string; tagline: string }[] = [
-  { id: 'slides', name: 'Slide Deck', tagline: 'Animated explainer deck — topic headings with bullets, data cards, charts, screenshots and icons that reveal in sync with the voice. Reads the whole document. (Recommended)' },
-  { id: 'aurora', name: 'Aurora', tagline: 'Modern motion-graphics — one flowing branded backdrop, kinetic type, no stock imagery. Clean, cohesive, premium.' },
-  { id: 'cinematic', name: 'Cinematic', tagline: 'Film-style imagery, kinetic text, motion. Best for story-led, emotive videos.' },
-  { id: 'editorial', name: 'Editorial', tagline: 'Clean, warm magazine layout. Refined serif typography on your brand color.' },
-  { id: 'explainer', name: 'Explainer', tagline: 'Friendly modern deck — navy + color accents, big rounded cards, charts. Great for how-it-works.' },
-  { id: 'infographic', name: 'Infographic', tagline: 'Animated data look — big hero numbers, KPI cards, timelines and charts on a clean branded ground, your logo pinned in the corner. Best for number-driven reports.' },
-]
-const SAMPLE_KINDS = ['cover', 'data', 'closing']
+// Same names and lengths the story step uses when you choose the length there.
+const LENGTHS = [
+  { id: 'quick', name: 'Highlights', sub: 'under 1 minute' },
+  { id: 'standard', name: 'Standard', sub: '2–5 minutes' },
+  { id: 'detailed', name: 'Detailed', sub: '5–15 minutes' },
+] as const
 
-// Interactive Presentation / Slide Deck templates — pure token sets in the
-// presentation director; swatches render live (no sample images needed).
-const PRES_TEMPLATES: { id: string; name: string; tagline: string; swatch: [string, string, string] }[] = [
-  { id: 'heritage', name: 'Heritage', tagline: 'Engraved certificate — cream, navy & gold. Gravitas for financial documents.', swatch: ['#f7f5ee', '#1c2a44', '#a8842c'] },
-  { id: 'warm', name: 'Warm Editorial', tagline: 'Cozy modern — cream & terracotta. Friendly, human, approachable.', swatch: ['#faf9f5', '#3d3929', '#c96442'] },
-  { id: 'bold', name: 'Corporate Bold', tagline: 'Clean & confident — navy and red. Sharp business energy.', swatch: ['#f4f6fa', '#1e3a70', '#c0272d'] },
-  { id: 'midnight', name: 'Midnight', tagline: 'Premium dark — deep navy & luminous gold. Evening-wealth polish.', swatch: ['#0f1729', '#eef2fb', '#d9b64c'] },
-  { id: 'mint', name: 'Fresh Mint', tagline: 'The house style — warm cream & mint green. Light and optimistic.', swatch: ['#f4f1ec', '#2b3427', '#6da33f'] },
-  { id: 'certificate', name: 'Certificate', tagline: 'Engraved stock certificate — parchment, guilloché patterns & formal navy serif.', swatch: ['#f5f0e0', '#1a1a3a', '#8a6d2f'] },
-]
+const DEFAULT_VOICE = VOICE_OPTIONS[0].id // Sarah (nova) — CLAUDE.md rule 5
+
+function normalizeOutput(v: unknown): MakeOutput | null {
+  return v === 'video' || v === 'pptx' || v === 'pdf' || v === 'interactive' || v === 'deck' ? v : null
+}
 
 export default function ThemePage() {
+  return (
+    <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}><div className="spinner" /></div>}>
+      <MakeItYours />
+    </Suspense>
+  )
+}
+
+function MakeItYours() {
   const router = useRouter()
   const params = useSearchParams()
   const videoId = params.get('id')
 
-  const [draft, setDraft] = useState<any>(null)
-  const [outputType, setOutputType] = useState<'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'>('video')
-  const [selected, setSelected] = useState<ThemeId>('slides')
-  const [presTemplate, setPresTemplate] = useState('heritage')
-  const [slidePhotos, setSlidePhotos] = useState(false)  // Slide Deck: photographic backdrops (opt-in; default off = ~2-3 min faster)
-  // Client options (share page): let the client download the source PDF + a note.
+  const { quote, error: quoteError, loading: quoteLoading, refresh } = usePriceQuote(videoId)
+
+  const [draft, setDraft] = useState<Draft | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [brand, setBrand] = useState<BrandInfo | null>(null)
+
+  const [output, setOutput] = useState<MakeOutput>('video')
+  const [videoLook, setVideoLook] = useState<VideoLookId>('slides')
+  const [presLook, setPresLook] = useState<string>(PRES_LOOKS[0].id)
+  const [voiceId, setVoiceId] = useState<string>(DEFAULT_VOICE)
+  const [aiMusic, setAiMusic] = useState(false)
+  const [slidePhotos, setSlidePhotos] = useState(false) // Slide Deck look: photo backgrounds (opt-in, slower)
   const [allowSourceDownload, setAllowSourceDownload] = useState(false)
   const [agentNote, setAgentNote] = useState('')
-  const [loading, setLoading] = useState(true)
+
   const [lightbox, setLightbox] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  // "Not enough credits": the message stays on this page with a top-up button.
+  const inFlight = useRef(false) // stops a double-click before React re-renders
+  const [error, setError] = useState<{ message: string; topUp?: boolean } | null>(null)
   const [buyCredits, setBuyCredits] = useState<{ needed?: number; balance?: number } | null>(null)
-  const [showBuyCredits, setShowBuyCredits] = useState(false)
 
+  // ── Load the draft (and restore every choice saved on it) ──
   useEffect(() => {
     if (!videoId) { setLoading(false); return }
-    fetch(`/api/videos/draft?videoId=${videoId}`).then(r => r.json()).then((v) => {
-      const d = v?.draft_data || v || {}
-      setDraft(d)
-      setOutputType(d.outputType || v?.output_type || 'video')
-      if (d.videoStyle && THEMES.some(t => t.id === d.videoStyle)) setSelected(d.videoStyle)
-      setAllowSourceDownload(!!d.allowSourceDownload)
-      setAgentNote(d.agentNote || '')
-      setLoading(false)
-    }).catch(() => { setError('Could not load your draft.'); setLoading(false) })
+    let alive = true
+    fetch(`/api/videos/draft?videoId=${encodeURIComponent(videoId)}`)
+      .then(async (r) => {
+        const v = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error(v?.error || 'Could not load your project.')
+        return v
+      })
+      .then(async (v) => {
+        if (!alive) return
+        const d: Draft = v?.draft_data || {}
+        setDraft(d)
+        setOutput(normalizeOutput(v?.output_type) ?? normalizeOutput(d.outputType) ?? 'video')
+        if (isVideoLook(d.videoStyle)) setVideoLook(d.videoStyle)
+        if (isPresLook(d.presentationTemplate)) setPresLook(d.presentationTemplate)
+        if (typeof d.voiceId === 'string' && VOICE_OPTIONS.some((o) => o.id === d.voiceId)) setVoiceId(d.voiceId)
+        if (typeof d.aiMusic === 'boolean') setAiMusic(d.aiMusic)
+        if (typeof d.slidePhotos === 'boolean') setSlidePhotos(d.slidePhotos)
+        setAllowSourceDownload(!!d.allowSourceDownload)
+        setAgentNote(typeof d.agentNote === 'string' ? d.agentNote : '')
+
+        // The brand this project will use. A brand picked on the brand page
+        // (or an explicit "no brand" — brandId: null) wins; otherwise it's the
+        // default brand on the person's profile. Whatever is shown here is
+        // saved to the draft and sent, so both make routes use the same one.
+        const supabase = createClient()
+        const cols = 'id, name, logo_url, primary_color, secondary_color, accent_color'
+        let found: BrandInfo | null = null
+        if (typeof d.brandId === 'string' && d.brandId) {
+          const { data } = await supabase.from('brands').select(cols).eq('id', d.brandId).maybeSingle()
+          found = (data as BrandInfo | null) ?? null
+        } else if (d.brandId === undefined) {
+          const { data: auth } = await supabase.auth.getUser()
+          if (auth.user) {
+            const { data } = await supabase.from('brands').select(cols)
+              .eq('user_id', auth.user.id)
+              .order('is_default', { ascending: false })
+              .order('created_at', { ascending: true })
+              .limit(1)
+            found = ((data as BrandInfo[] | null) ?? [])[0] ?? null
+          }
+        }
+        // Loading ends only now, so Make can never run before the brand is known.
+        if (alive) { setBrand(found); setLoading(false) }
+      })
+      .catch((e) => { if (alive) { setLoadError(e instanceof Error ? e.message : 'Could not load your project.'); setLoading(false) } })
+    return () => { alive = false }
   }, [videoId])
 
-  const isPres = outputType === 'interactive' || outputType === 'deck'
+  const isPres = output === 'interactive' || output === 'deck'
+  const isVideo = output === 'video'
+  const narrated = output === 'video' || output === 'interactive'
+  const shown = quote?.options?.[output] ?? null
 
-  async function handleGenerate() {
-    if (!videoId || !draft) return
-    setSubmitting(true); setError(null)
-    // ── Interactive Presentation / Slide Deck: the HTML-first path (Vercel-only) ──
-    if (isPres) {
-      try {
-        await fetch('/api/videos/draft', {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId, updates: { presentationTemplate: presTemplate, allowSourceDownload, agentNote: agentNote.trim() || undefined } }),
-        })
+  // Only estimates the app already gives on the progress screen.
+  const timeNote = isVideo
+    ? (videoLook === 'slides'
+        ? `Usually about 10 minutes${slidePhotos ? ', plus 2–3 for photo backgrounds' : ''}. You can leave while it works.`
+        : 'Usually about 3–5 minutes. You can leave while it works.')
+    : null
+
+  async function handleMake() {
+    if (!videoId || !draft || !shown || inFlight.current) return
+    inFlight.current = true
+    setSubmitting(true)
+    setError(null)
+    const stop = (e: { message: string; topUp?: boolean } | null) => { setError(e); setSubmitting(false); inFlight.current = false }
+
+    try {
+      // Presentations don't report "add a card" on their own — send people to
+      // the card page first, and back here afterwards (the same place the video
+      // route's card_required answer sends them).
+      if (isPres && quote?.blockedReason === 'card_required') {
+        router.push(`/setup-payment?next=${encodeURIComponent(`/create/theme?id=${videoId}`)}`)
+        return
+      }
+
+      // 1. Save every choice on the draft. The server prices from the draft,
+      //    so this is what makes the charge match what was chosen here.
+      const note = agentNote.trim()
+      const save = await fetch('/api/videos/draft', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoId,
+          updates: {
+            outputType: output,
+            voiceId,
+            aiMusic,
+            videoStyle: videoLook,
+            presentationTemplate: presLook,
+            slidePhotos,
+            // Make the brand shown on this screen the draft's explicit choice.
+            ...(brand && draft.brandId === undefined ? { brandId: brand.id } : {}),
+            allowSourceDownload,
+            agentNote: note || undefined,
+          },
+        }),
+      })
+      if (!save.ok) {
+        const g = await save.json().catch(() => ({}))
+        return stop({ message: g.error || 'We couldn’t save your choices. Please try again.' })
+      }
+
+      // 2. Re-read the price from the saved draft. If it moved, show the new
+      //    one and let the person press again — never charge a surprise.
+      const fresh = await refresh()
+      const freshTotal = fresh?.options?.[output]?.total
+      if (freshTotal === undefined) return stop({ message: 'We couldn’t check the price just now. Please try again.' })
+      if (freshTotal !== shown.total) {
+        return stop({ message: `The price changed to ${formatCredits(freshTotal)}. Check it, then press Make it again.` })
+      }
+
+      // 3. Start the job.
+      if (isPres) {
         const res = await fetch('/api/generate-presentation', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId, templateId: presTemplate, outputType }),
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId, templateId: presLook, outputType: output }),
         })
         if (!res.ok) {
           const g = await res.json().catch(() => ({}))
-          if (res.status === 402) {
-            setError(g.error || 'Not enough credits.')
-            if (g.code === 'insufficient_credits') setBuyCredits({ needed: g.needed, balance: g.balance })
-            setSubmitting(false); return
+          if (res.status === 402 && g.code === 'insufficient_credits') {
+            setBuyCredits({ needed: g.needed, balance: g.balance })
+            return stop({ message: g.error || 'Not enough credits.', topUp: true })
           }
-          throw new Error(g.error || 'Failed to start generation')
+          return stop({ message: g.error || 'We couldn’t start it. Please try again.' })
         }
-        router.push(`/create/generating?id=${videoId}&style=${presTemplate}`)
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to generate')
-        setSubmitting(false)
+        router.push(`/create/generating?id=${videoId}&style=${presLook}`)
+        return
       }
-      return
-    }
-    try {
-      await fetch('/api/videos/draft', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId, updates: { videoStyle: selected, allowSourceDownload, agentNote: agentNote.trim() || undefined } }),
-      })
+
       const genRes = await fetch('/api/generate-video', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           videoId,
-          outputType,
-          videoStyle: selected,
+          outputType: output,
+          videoStyle: videoLook,
           policyData: draft.extractedData || {},
           purpose: draft.purpose || 'Create a professional video',
           recipientName: draft.recipientName || undefined,
           preGeneratedScenes: draft.scenes || [],
-          // An explicit "no brand" (Skip on the brand step saves brandId: null)
-          // must stay no brand — never fall back to the auto-detected one.
-          brandId: (draft.brandId !== undefined ? draft.brandId : (draft.selectedBrand || draft.autoBrandId)) || undefined,
-          voiceId: draft.voiceId || 'nova',
-          narrationStyle: draft.narrationStyle || 'solo',
+          // The brand shown on this screen (null = none).
+          brandId: brand?.id || undefined,
+          voiceId,
+          narrationStyle: 'solo',
           detailLevel: draft.detailLevel,
-          industry: (draft.extractedData as any)?.industry || 'general',
-          aiMusic: draft.aiMusic ?? false,
-          musicPrompt: draft.aiMusic ? 'Professional ambient background music, subtle and warm' : undefined,
+          industry: draft.extractedData?.industry || 'general',
+          aiMusic,
+          musicPrompt: aiMusic ? 'Professional ambient background music, subtle and warm' : undefined,
           styleId: draft.styleId || undefined,
           customStylePrompt: draft.customStylePrompt || undefined,
           presenterIntro: draft.presenterIntro || undefined,
           introduceInOpening: draft.introduceInOpening,
           showContactClosing: draft.showContactClosing,
           photoPlacement: draft.photoPlacement || undefined,
-          slidePhotos,   // Slide Deck: photographic backdrops (opt-in; default off = faster)
-          // Share-page client options
+          slidePhotos,
           allowSourceDownload,
-          agentNote: agentNote.trim() || undefined,
+          agentNote: note || undefined,
           sourcePdfPath: draft.sourcePdfPath || undefined,
           sourcePdfName: draft.sourcePdfName || undefined,
         }),
       })
       if (!genRes.ok) {
         const g = await genRes.json().catch(() => ({}))
-        // Free/trial users must save a card before producing — route to the
-        // card-capture page, returning here afterward to finish generation.
-        // ONLY for card_required: "not enough credits" used to send people to
-        // the card page too, which sent them straight back here, forever.
+        // Free/trial accounts must save a card first. ONLY for card_required —
+        // "not enough credits" used to go to the card page too, which sent
+        // people straight back here, forever.
         if (g.code === 'card_required') {
           router.push(`/setup-payment?next=${encodeURIComponent(`/create/theme?id=${videoId}`)}`)
           return
         }
         if (g.code === 'insufficient_credits') {
-          setError(g.error || 'You don’t have enough credits for this video.')
           setBuyCredits({ needed: g.needed, balance: g.balance })
-          setSubmitting(false)
-          return
+          return stop({ message: g.error || 'You don’t have enough credits for this.', topUp: true })
         }
-        throw new Error(g.error || 'Failed to start generation')
+        // One-at-a-time limit, "already being made", failed payment… the
+        // server's own words are written for people.
+        return stop({ message: g.error || 'We couldn’t start it. Please try again.' })
       }
-      router.push(`/create/generating?id=${videoId}&style=${selected}`)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to generate')
-      setSubmitting(false)
+      router.push(`/create/generating?id=${videoId}&style=${videoLook}`)
+    } catch {
+      stop({ message: 'Connection lost. Please check your internet and try again.' })
     }
   }
 
   if (loading) {
     return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}><div className="spinner" /></div>
   }
+  if (!videoId || loadError) {
+    return (
+      <div className={s.page}>
+        <h1 className={s.title}>We couldn’t find this project.</h1>
+        <p className={s.lead}>{loadError || 'Start a new one and it will be saved as you go.'}</p>
+        <button type="button" className="btn btn-primary" onClick={() => router.push('/create')}>Start a project</button>
+      </div>
+    )
+  }
 
-  const sel = THEMES.find(t => t.id === selected)!
+  const started = quote && !quote.startable
+  const length = LENGTHS.find((l) => l.id === (quote?.detailLevel ?? draft?.detailLevel)) ?? null
+  const makeLabel = isPres ? (output === 'deck' ? 'Make the deck' : 'Make it') : 'Make it'
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 40px', maxWidth: 920, margin: '0 auto', width: '100%' }}>
+    <div className={s.page}>
+      <button type="button" className={s.back} onClick={() => router.push(`/create/script?id=${videoId}`)}>&larr; Back to the story</button>
 
-      <div style={{ width: '100%', marginTop: 8, marginBottom: 8 }}>
-        <button onClick={() => router.push(`/create/script?id=${videoId}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--ink-light)', fontFamily: 'inherit', padding: 0 }}>&larr; Back</button>
-      </div>
+      <div className={s.layout}>
+        <div>
+          <h1 className={s.title}>Make it <em>yours.</em></h1>
+          <p className={s.lead}>Pick the look, what to send and the voice. Your logo and colors come from your profile.</p>
 
-      <h1 style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.03em', textAlign: 'center', marginBottom: 8, color: 'var(--ink)' }}>
-        {isPres ? 'Choose a template' : 'Choose a style'}
-      </h1>
-      <p style={{ fontSize: 17, color: 'var(--ink-soft)', textAlign: 'center', marginBottom: 28, lineHeight: 1.6 }}>
-        {isPres
-          ? 'Pick the look for your presentation — you can switch templates any time after it’s generated, free.'
-          : 'Pick the look for your video. The samples below show how each style renders.'}
-      </p>
-
-      {/* Presentation template gallery (interactive / deck) */}
-      {isPres ? (
-        <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 28 }}>
-          {PRES_TEMPLATES.map((t) => {
-            const isSel = presTemplate === t.id
-            const [paper, ink, accent] = t.swatch
-            return (
-              <button key={t.id} onClick={() => setPresTemplate(t.id)} style={{
-                position: 'relative', padding: 0, borderRadius: 10, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', overflow: 'hidden',
-                border: isSel ? '2px solid var(--mint)' : '1.5px solid var(--border-light)', background: 'white', transition: 'all 0.15s',
-              }}>
-                {/* live swatch preview — a mini slide rendered from the template's tokens */}
-                <div style={{ background: paper, padding: '18px 16px 14px', borderBottom: '1px solid var(--border-light)' }}>
-                  <div style={{ width: 34, height: 3, background: accent, borderRadius: 2, marginBottom: 8 }} />
-                  <div style={{ fontSize: 15, fontWeight: 800, color: ink, lineHeight: 1.15 }}>Your Title<span style={{ color: accent }}>.</span></div>
-                  <div style={{ marginTop: 7, display: 'flex', gap: 4 }}>
-                    <span style={{ flex: 2, height: 5, background: ink, opacity: .25, borderRadius: 3 }} />
-                    <span style={{ flex: 1, height: 5, background: accent, opacity: .7, borderRadius: 3 }} />
-                  </div>
-                </div>
-                <div style={{ padding: '12px 16px 14px' }}>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', marginBottom: 4 }}>{t.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.4 }}>{t.tagline}</div>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      ) : null}
-
-      {/* Theme cards */}
-      {isPres ? null : (
-      <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 28 }}>
-        {THEMES.map((t) => {
-          const isSel = selected === t.id
-          const isNew = t.id === 'slides'
-          return (
-            <button key={t.id} onClick={() => setSelected(t.id)} style={{
-              position: 'relative', padding: '20px', borderRadius: 10, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
-              border: isSel ? '2px solid var(--mint)' : '1.5px solid var(--border-light)',
-              background: isSel ? 'rgba(199, 232, 168, 0.10)' : 'white', transition: 'all 0.15s',
-            }}>
-              {isNew ? (
-                <span style={{
-                  position: 'absolute', top: 12, right: 12, fontSize: 10, fontWeight: 800, letterSpacing: '0.08em',
-                  textTransform: 'uppercase', color: 'var(--ink)', background: 'var(--mint)',
-                  padding: '3px 8px', borderRadius: 6, lineHeight: 1,
-                }}>New · Recommended</span>
-              ) : null}
-              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--ink)', marginBottom: 6, paddingRight: isNew ? 8 : 0 }}>{t.name}</div>
-              <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.45 }}>{t.tagline}</div>
-              {isNew ? (
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', marginTop: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span aria-hidden>⏱</span> Takes ~10 min — but the extra depth is worth it
-                </div>
-              ) : null}
+          {/* Brand in use, with a way to change it */}
+          <div className={s.brand}>
+            {brand?.logo_url ? <img className={s.brandLogo} src={brand.logo_url} alt="" /> : null}
+            {brand ? (
+              <div className={s.brandDots} aria-hidden>
+                {[brand.primary_color, brand.secondary_color, brand.accent_color].filter(Boolean).map((c, i) => (
+                  <span key={i} className={s.brandDot} style={{ background: c as string }} />
+                ))}
+              </div>
+            ) : null}
+            <div className={s.brandText}>
+              {brand
+                ? <>Using <strong>{brand.name}</strong>’s logo and colors.</>
+                : <>No brand on this one yet — it will use plain colors.</>}
+            </div>
+            <button type="button" className={s.link} onClick={() => router.push(`/create/brand?id=${videoId}`)}>
+              {brand ? 'Change' : 'Add your brand'}
             </button>
-          )
-        })}
-      </div>
-      )}
+          </div>
 
-      {/* Static samples for the selected style */}
-      {isPres ? null : (
-      <div style={{ width: '100%', background: 'white', border: '1.5px solid var(--border-light)', borderRadius: 10, padding: 20, marginBottom: 24 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
-          {sel.name} — sample slides
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-          {SAMPLE_KINDS.map((kind) => {
-            const url = `/style-samples/${selected}-${kind}.png`
-            return (
-              <img
-                key={kind}
-                src={url}
-                alt={`${sel.name} ${kind}`}
-                onClick={() => setLightbox(url)}
-                style={{ width: '100%', borderRadius: 6, border: '1px solid var(--border-light)', cursor: 'zoom-in', display: 'block' }}
-              />
-            )
-          })}
-        </div>
-      </div>
-      )}
+          <section className={s.section}>
+            <div className={s.sectionHead}>
+              <h2 className={s.sectionTitle}>What do you want to send?</h2>
+              <span className={s.sectionHint}>pick one — each project makes one of these</span>
+            </div>
+            <OutputPicker
+              offered={quote?.offered ?? ['video', 'interactive', 'deck']}
+              value={output}
+              onChange={(o) => { setOutput(o); setError(null) }}
+              options={quote?.options ?? null}
+            />
+          </section>
 
-      {/* Slide Deck: optional photographic backgrounds (default off = ~2-3 min faster) */}
-      {selected === 'slides' && !isPres ? (
-        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, width: '100%', maxWidth: 640, marginBottom: 16, padding: '12px 16px', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white', cursor: 'pointer' }}>
-          <input type="checkbox" checked={slidePhotos} onChange={(e) => setSlidePhotos(e.target.checked)} style={{ marginTop: 3, width: 18, height: 18, cursor: 'pointer' }} />
-          <span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Add photographic backgrounds</span>
-            <span style={{ display: 'block', fontSize: 13, color: 'var(--ink-soft)', marginTop: 2, lineHeight: 1.4 }}>
-              Generates cinematic photo backdrops behind each slide. Looks richer, but adds ~2–3 minutes. Off = a clean animated background (faster, and free).
-            </span>
-          </span>
-        </label>
-      ) : null}
+          <section className={s.section}>
+            <div className={s.sectionHead}>
+              <h2 className={s.sectionTitle}>The look</h2>
+              <span className={s.sectionHint}>{isPres ? 'for the presentation' : 'for the video'}</span>
+            </div>
+            {isPres
+              ? <PresLookPicker value={presLook} onChange={setPresLook} />
+              : <VideoLookPicker value={videoLook} onChange={setVideoLook} onZoom={setLightbox} />}
+            {isVideo && videoLook === 'slides' ? (
+              <label className={s.toggleRow}>
+                <input type="checkbox" checked={slidePhotos} onChange={(e) => setSlidePhotos(e.target.checked)} />
+                <span>
+                  <span className={s.toggleTitle}>Add photo backgrounds</span>
+                  <span className={s.toggleDesc}>Photo backdrops behind each slide. Looks richer, but adds about 2–3 minutes. Same price.</span>
+                </span>
+              </label>
+            ) : null}
+          </section>
 
-      {/* Client options (share page): optional source-PDF download + a personal note.
-          Slide Deck is private (no share page) — hide entirely. */}
-      {outputType === 'deck' ? null : (
-      <div style={{ width: '100%', maxWidth: 640, marginBottom: 16, padding: '16px', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white' }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 10 }}>Client options</div>
-        {/* Only offer the source-PDF download when the source WAS a pdf we stored. */}
-        {draft?.sourcePdfPath ? (
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 12 }}>
-            <input type="checkbox" checked={allowSourceDownload} onChange={(e) => setAllowSourceDownload(e.target.checked)} style={{ marginTop: 3, width: 18, height: 18, cursor: 'pointer' }} />
-            <span>
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>Let the client download the original PDF</span>
-              <span style={{ display: 'block', fontSize: 13, color: 'var(--ink-soft)', marginTop: 2, lineHeight: 1.4 }}>
-                Adds a “Download original document” button on the share page{draft?.sourcePdfName ? ` (${draft.sourcePdfName})` : ''}.
-              </span>
-            </span>
-          </label>
-        ) : null}
-        <label style={{ display: 'block' }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>Note to your client <span style={{ fontWeight: 400, color: 'var(--ink-soft)' }}>(optional)</span></span>
-          <textarea
-            value={agentNote}
-            onChange={(e) => setAgentNote(e.target.value.slice(0, 400))}
-            placeholder="A short personal message shown above the video on the share page…"
-            rows={3}
-            style={{ display: 'block', width: '100%', marginTop: 6, padding: '10px 12px', borderRadius: 10, border: '1.5px solid var(--border-light)', fontSize: 14, fontFamily: 'inherit', color: 'var(--ink)', resize: 'vertical', boxSizing: 'border-box' }}
-          />
-          <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>{agentNote.length}/400</span>
-        </label>
-      </div>
+          {narrated ? (
+            <section className={s.section}>
+              <div className={s.sectionHead}>
+                <h2 className={s.sectionTitle}>The voice</h2>
+                <span className={s.sectionHint}>press ▶ to hear a sample</span>
+              </div>
+              <VoicePicker value={voiceId} onChange={setVoiceId} />
+              {isVideo ? (
+                <label className={s.toggleRow}>
+                  <input type="checkbox" checked={aiMusic} onChange={(e) => setAiMusic(e.target.checked)} />
+                  <span>
+                    <span className={s.toggleTitle}>Background music</span>
+                    <span className={s.toggleDesc}>Soft music under the voice that fades in and out. Same price.</span>
+                  </span>
+                </label>
+              ) : null}
+            </section>
+          ) : null}
 
-      )}
+          {isVideo ? (
+            <section className={s.section}>
+              <div className={s.sectionHead}>
+                <h2 className={s.sectionTitle}>Length</h2>
+                <span className={s.sectionHint}>set when your story was written</span>
+              </div>
+              <div className={s.chips}>
+                {LENGTHS.map((l) => (
+                  <span key={l.id} className={`${s.chip} ${length?.id === l.id ? s.chipOn : ''}`} style={{ cursor: 'default', opacity: length?.id === l.id ? 1 : 0.55 }}>
+                    {l.name} <span className={s.chipSub}>{l.sub}</span>
+                  </span>
+                ))}
+              </div>
+              <p className={s.note}>
+                The story is already written at this length, so changing it means rewriting the story.{' '}
+                <button type="button" className={s.link} onClick={() => router.push(`/create/script?id=${videoId}`)}>Change the length</button>
+              </p>
+            </section>
+          ) : null}
 
-      {error ? (
-        <div style={{ color: '#b91c1c', fontSize: 14, marginBottom: 16 }}>
-          {error}
-          {buyCredits ? (
-            <> <button type="button" onClick={() => setShowBuyCredits(true)} className="btn btn-soft btn-sm" style={{ marginLeft: 8 }}>Top up credits</button></>
+          {/* Share-page extras. The slide deck is private (no share page). */}
+          {output !== 'deck' ? (
+            <section className={s.section}>
+              <details className={s.details} open={!!agentNote || allowSourceDownload}>
+                <summary>For your client <span className={s.sectionHint}>(optional)</span></summary>
+                {draft?.sourcePdfPath ? (
+                  <label className={s.toggleRow}>
+                    <input type="checkbox" checked={allowSourceDownload} onChange={(e) => setAllowSourceDownload(e.target.checked)} />
+                    <span>
+                      <span className={s.toggleTitle}>Let them download the original PDF</span>
+                      <span className={s.toggleDesc}>Adds a “Download original document” button to the share page{draft?.sourcePdfName ? ` (${draft.sourcePdfName})` : ''}.</span>
+                    </span>
+                  </label>
+                ) : null}
+                <label style={{ display: 'block', marginTop: 12 }}>
+                  <span className={s.toggleTitle}>A note to your client</span>
+                  <textarea
+                    className={s.textarea}
+                    value={agentNote}
+                    onChange={(e) => setAgentNote(e.target.value.slice(0, 400))}
+                    placeholder="A short personal message shown above it on the share page…"
+                    rows={3}
+                  />
+                  <span className={s.sectionHint}>{agentNote.length}/400</span>
+                </label>
+              </details>
+            </section>
           ) : null}
         </div>
-      ) : null}
-      <BuyCreditsModal open={showBuyCredits} onClose={() => setShowBuyCredits(false)} needed={buyCredits?.needed} balance={buyCredits?.balance} />
 
-      <button onClick={handleGenerate} disabled={submitting} style={{
-        width: '100%', maxWidth: 520, padding: '16px', borderRadius: 10, border: 'none',
-        background: 'var(--ink)', color: 'white', fontSize: 16, fontWeight: 700, cursor: submitting ? 'default' : 'pointer',
-        fontFamily: 'inherit', opacity: submitting ? 0.6 : 1,
-      }}>
-        {submitting ? 'Starting…' : isPres ? `Generate ${outputType === 'interactive' ? 'presentation' : 'deck'} with ${PRES_TEMPLATES.find(t => t.id === presTemplate)!.name} →` : `Generate with ${sel.name} →`}
-      </button>
+        <PricePanel
+          quote={shown}
+          balance={quote?.balance ?? null}
+          quoteError={quoteError}
+          loading={quoteLoading || !!started}
+          blockedReason={quote?.blockedReason ?? null}
+          submitting={submitting}
+          submitLabel={makeLabel}
+          timeNote={timeNote}
+          error={started
+            ? { message: 'This one has already been started. Open it to see how it’s going.' }
+            : error}
+          onMake={handleMake}
+          onTopUp={() => setBuyCredits((b) => b ?? { balance: quote?.balance })}
+        />
+      </div>
+
+      {started ? (
+        <p className={s.note} style={{ textAlign: 'right' }}>
+          <button type="button" className={s.link} onClick={() => router.push(`/create/generating?id=${videoId}`)}>See its progress</button>
+        </p>
+      ) : null}
+
+      <BuyCreditsModal
+        open={!!buyCredits}
+        onClose={() => { setBuyCredits(null); void refresh() }}
+        needed={buyCredits?.needed}
+        balance={buyCredits?.balance}
+      />
 
       {lightbox ? (
-        <div onClick={() => setLightbox(null)} style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(8,12,16,0.88)', padding: 24, cursor: 'zoom-out' }}>
-          <img src={lightbox} alt="Sample" style={{ maxWidth: '92vw', maxHeight: '88vh', objectFit: 'contain', borderRadius: 8 }} />
+        <div className={s.lightbox} onClick={() => setLightbox(null)}>
+          <img src={lightbox} alt="Sample" />
         </div>
       ) : null}
     </div>

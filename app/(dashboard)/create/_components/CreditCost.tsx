@@ -1,104 +1,33 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
-import { calculateVideoCost } from '../../../_lib/credits'
+import React from 'react'
+import { usePriceQuote, formatCredits } from './make/usePriceQuote'
+import type { MakeOutput } from '../../../_lib/price-quote'
 
-interface CreditCostProps {
-  outputType: 'video' | 'pptx' | 'pdf'
-  detailLevel?: 'quick' | 'standard' | 'detailed'
-  narrationStyle?: 'solo' | 'podcast'
-  /** Total uploaded documents (multi-file projects cost +150 per extra file). */
-  fileCount?: number
-  showConfirm?: boolean
-  onConfirm?: () => void
-}
+/**
+ * "This will use N credits" for a saved project. The number is the SERVER's
+ * price (/api/price-quote — the same functions that charge). It used to be
+ * worked out here in the browser, which could drift from what was charged.
+ */
+export default function CreditCost({ videoId, output }: { videoId: string; output?: MakeOutput }) {
+  const { quote, error, loading } = usePriceQuote(videoId)
 
-interface BalanceData {
-  balance: number
-  monthly: number
-  topup: number
-  userId?: string
-}
+  if (loading && !quote) return <div style={styles.container}><span style={styles.muted}>Working out the price…</span></div>
+  if (!quote) return <div style={styles.container}><span style={styles.error}>{error || 'Could not load the price.'}</span></div>
 
-export default function CreditCost({
-  outputType,
-  detailLevel = 'standard',
-  narrationStyle = 'solo',
-  fileCount,
-  showConfirm = false,
-  onConfirm,
-}: CreditCostProps) {
-  const [balanceData, setBalanceData] = useState<BalanceData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const q = quote.options[output ?? (quote.current as MakeOutput)] ?? quote.options.video
+  if (!q) return null
+  if (q.free) return <div style={styles.container}><span>Your account isn’t charged for this.</span></div>
 
-  // Pass userId so grandfathered users see their ACTUAL (old-rate) cost — the
-  // displayed "this will use N credits" must match what generate-video charges.
-  const cost = calculateVideoCost({ outputType, detailLevel, narrationStyle, userId: balanceData?.userId, fileCount })
-
-  const [isAdminUser, setIsAdminUser] = useState(false)
-
-  useEffect(() => {
-    async function fetchBalance() {
-      try {
-        const res = await fetch('/api/credits/balance')
-        if (!res.ok) throw new Error('Failed to fetch balance')
-        const data = await res.json()
-        setBalanceData(data)
-        if (data.isAdmin) setIsAdminUser(true)
-      } catch (err) {
-        setError('Could not load credit balance')
-        console.error('[CreditCost]', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchBalance()
-  }, [])
-
-  if (loading) {
-    return <div style={styles.container}><span style={styles.loading}>Loading credits...</span></div>
-  }
-
-  if (error || !balanceData) {
-    return <div style={styles.container}><span style={styles.error}>{error || 'Unknown error'}</span></div>
-  }
-
-  const remaining = balanceData.balance
-  const sufficient = isAdminUser || remaining >= cost
-
+  const sufficient = quote.balance >= q.total
   return (
     <div style={styles.container}>
       {sufficient ? (
-        <div style={styles.info}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-            <circle cx="8" cy="8" r="7" stroke="var(--mint, #3BB5C8)" strokeWidth="1.5" />
-            <path d="M5 8L7 10L11 6" stroke="var(--mint, #3BB5C8)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span>
-            This will use <strong>{cost.toLocaleString()}</strong> credits ({remaining.toLocaleString()} remaining)
-          </span>
-        </div>
+        <span>This will use <strong>{formatCredits(q.total)}</strong> ({formatCredits(quote.balance)} now)</span>
       ) : (
-        <div style={styles.warning}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-            <path d="M8 1L15 14H1L8 1Z" stroke="#D97706" strokeWidth="1.5" strokeLinejoin="round" />
-            <path d="M8 6V9M8 11.5V12" stroke="#D97706" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          <span>
-            You need <strong>{cost.toLocaleString()}</strong> credits but have <strong>{remaining.toLocaleString()}</strong>. Buy more or upgrade your plan.
-          </span>
-        </div>
-      )}
-
-      {showConfirm && sufficient && onConfirm && (
-        <button
-          onClick={onConfirm}
-          className="btn btn-mint"
-          style={styles.confirmBtn}
-        >
-          Confirm &amp; Generate
-        </button>
+        <span style={styles.warning}>
+          This needs <strong>{formatCredits(q.total)}</strong> and you have <strong>{formatCredits(quote.balance)}</strong>. Top up to continue.
+        </span>
       )}
     </div>
   )
@@ -106,46 +35,14 @@ export default function CreditCost({
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    fontFamily: 'var(--font-sans, "Plus Jakarta Sans", sans-serif)',
     padding: '12px 16px',
     borderRadius: 10,
-    border: '1px solid var(--border-light, #e0e0e0)',
-    background: 'var(--bg-card, #FFFFFF)',
-  },
-  info: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
+    border: '1px solid var(--border-light)',
+    background: 'var(--bg-card)',
     fontSize: 14,
-    color: 'var(--ink, #1B3A5C)',
+    color: 'var(--ink)',
   },
-  warning: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    fontSize: 14,
-    color: '#92400E',
-    background: '#FFFBEB',
-    padding: '10px 12px',
-    borderRadius: 8,
-    border: '1px solid #FDE68A',
-  },
-  loading: {
-    fontSize: 13,
-    color: 'var(--ink-light, #8899AA)',
-  },
-  error: {
-    fontSize: 13,
-    color: '#DC2626',
-  },
-  confirmBtn: {
-    marginTop: 12,
-    width: '100%',
-    padding: '12px 24px',
-    fontSize: 14,
-    fontWeight: 700,
-    borderRadius: 10,
-    cursor: 'pointer',
-    border: 'none',
-  },
+  muted: { fontSize: 13, color: 'var(--ink-light)' },
+  error: { fontSize: 13, color: 'var(--error-text)' },
+  warning: { color: 'var(--ink)' },
 }
