@@ -38,7 +38,7 @@ export default function NonProfitPage() {
             <div className="section-eyebrow">The problem</div>
             <h2 className="section-title">The numbers don&apos;t lie</h2>
           </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
             <div className="feature-card" style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 48, fontWeight: 800, color: 'var(--rose)', lineHeight: 1, marginBottom: 12 }}>82%</div>
               <h3>of donors want to see impact visually</h3>
@@ -65,7 +65,7 @@ export default function NonProfitPage() {
             <div className="section-eyebrow">How it works</div>
             <h2 className="section-title">Three steps to <em>impact</em></h2>
           </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
             <div className="feature-card">
               <div className="feature-icon" style={{ background: 'var(--mint)' }}>
                 <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>1</span>
@@ -135,7 +135,7 @@ export default function NonProfitPage() {
             <div className="section-eyebrow">Features</div>
             <h2 className="section-title">Built for non-profit <em>workflows</em></h2>
           </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))' }}>
             <div className="feature-card">
               <div className="feature-icon" style={{ background: 'var(--mint)' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>

@@ -38,7 +38,7 @@ export default function EducationPage() {
             <div className="section-eyebrow">The problem</div>
             <h2 className="section-title">Brilliant work, limited <em>reach</em></h2>
           </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
             <div className="feature-card" style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 48, fontWeight: 800, color: 'var(--rose)', lineHeight: 1, marginBottom: 12 }}>82%</div>
               <h3>of assigned readings go unread</h3>
@@ -65,7 +65,7 @@ export default function EducationPage() {
             <div className="section-eyebrow">How it works</div>
             <h2 className="section-title">From paper to <em>impact</em></h2>
           </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
             <div className="feature-card">
               <div className="feature-icon" style={{ background: 'var(--mint)' }}>
                 <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>1</span>
@@ -135,7 +135,7 @@ export default function EducationPage() {
             <div className="section-eyebrow">Features</div>
             <h2 className="section-title">Built for the <em>academic</em> workflow</h2>
           </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))' }}>
             <div className="feature-card">
               <div className="feature-icon" style={{ background: 'var(--mint)' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>

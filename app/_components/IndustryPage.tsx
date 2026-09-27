@@ -52,7 +52,7 @@ export default function IndustryPage({
             <div className="section-eyebrow">The problem</div>
             <h2 className="section-title">Sound <em>familiar</em>?</h2>
           </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
             {painPoints.map((p, i) => (
               <div key={i} className="feature-card">
                 <div className="feature-icon" style={{ background: ['var(--rose)', 'var(--peach)', 'var(--sun)'][i % 3] }}>
@@ -74,7 +74,7 @@ export default function IndustryPage({
             <h2 className="section-title">How Docs2Video <em>helps</em></h2>
             <p className="section-sub" style={{ maxWidth: 600, margin: '0 auto' }}>{heroDescription}</p>
           </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
             {howItHelps.map((h, i) => (
               <div key={i} className="feature-card">
                 <div className="feature-icon" style={{ background: ['var(--mint)', 'var(--sky)', 'var(--lilac)'][i % 3] }}>

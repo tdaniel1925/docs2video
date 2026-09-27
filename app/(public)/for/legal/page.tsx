@@ -38,7 +38,7 @@ export default function LegalPage() {
             <div className="section-eyebrow">The problem</div>
             <h2 className="section-title">Legalese is a barrier to <em>justice</em></h2>
           </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
             <div className="feature-card" style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 48, fontWeight: 800, color: 'var(--rose)', lineHeight: 1, marginBottom: 12 }}>91%</div>
               <h3>of clients don&apos;t fully read contracts before signing</h3>
@@ -65,7 +65,7 @@ export default function LegalPage() {
             <div className="section-eyebrow">How it works</div>
             <h2 className="section-title">Clarity in <em>three steps</em></h2>
           </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
             <div className="feature-card">
               <div className="feature-icon" style={{ background: 'var(--mint)' }}>
                 <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>1</span>
@@ -135,7 +135,7 @@ export default function LegalPage() {
             <div className="section-eyebrow">Features</div>
             <h2 className="section-title">Built for legal <em>workflows</em></h2>
           </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))' }}>
             <div className="feature-card">
               <div className="feature-icon" style={{ background: 'var(--mint)' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>

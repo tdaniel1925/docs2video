@@ -38,7 +38,7 @@ export default function HealthcarePage() {
             <div className="section-eyebrow">The problem</div>
             <h2 className="section-title">Confusion costs everyone <em>more</em></h2>
           </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
             <div className="feature-card" style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 48, fontWeight: 800, color: 'var(--rose)', lineHeight: 1, marginBottom: 12 }}>68%</div>
               <h3>of employees choose the wrong benefits plan</h3>
@@ -65,7 +65,7 @@ export default function HealthcarePage() {
             <div className="section-eyebrow">How it works</div>
             <h2 className="section-title">From 40-page packet to <em>5-minute video</em></h2>
           </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
             <div className="feature-card">
               <div className="feature-icon" style={{ background: 'var(--mint)' }}>
                 <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>1</span>
@@ -135,7 +135,7 @@ export default function HealthcarePage() {
             <div className="section-eyebrow">Features</div>
             <h2 className="section-title">Designed for healthcare <em>communication</em></h2>
           </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))' }}>
             <div className="feature-card">
               <div className="feature-icon" style={{ background: 'var(--mint)' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
