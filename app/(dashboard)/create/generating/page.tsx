@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '../../../_lib/supabase/client'
 import { useToast } from '../../../_components/Toast'
 import { displayProgress } from '../../../_lib/video-progress'
+import { IN_PROGRESS_STATUSES } from '../../../_lib/video-running'
 
 const STAGES = [
   { key: 'pending', icon: '🚀', label: 'Starting up', desc: 'Preparing your video pipeline' },
@@ -15,12 +16,25 @@ const STAGES = [
   { key: 'assembling', icon: '🎬', label: 'Assembling video', desc: 'Stitching everything together' },
 ]
 
+// Every status that means "still working" — the same list the server's
+// stuck-video check watches. Anything else that isn't completed/failed gets a
+// clear message instead of an endless spinner.
+const KNOWN_WORKING = new Set<string>(IN_PROGRESS_STATUSES as unknown as string[])
+
+// Slide Deck: the render service writes the script itself and may first wait
+// in line for the video server — so its steps are named for what is really
+// happening, never "Writing script" while it waits.
+function slideDeckStage(detail: string) {
+  if (/waiting in line/i.test(detail)) return { key: 'queued', icon: '⏳', label: 'Waiting in line', desc: 'Your deck starts as soon as the video server is free' }
+  return { key: 'slides', icon: '🎬', label: 'Building your slide deck', desc: 'Writing slides, recording the voice and rendering' }
+}
+
 const TIPS = [
   'Your video will have professional narration with natural-sounding AI voices.',
   'Each slide is custom-designed with your brand colors and logo.',
   'You can share this video with a branded link when it\'s done.',
   'Videos can be downloaded as MP4, PDF slides, or PPTX presentations.',
-  'The AI chatbot on your share page will know everything about this video.',
+  'Your share page shows your contact details, and your booking link if you set one in Settings.',
 ]
 
 export default function GeneratingPage() {
@@ -93,6 +107,16 @@ export default function GeneratingPage() {
         if (data.status === 'failed') {
           clearInterval(interval)
           setError(data.error_message || 'Video generation failed')
+        } else if (data.status === 'review_required') {
+          // Held for a human check (unusual numbers in an insurance document).
+          // Nothing more will happen on this page — say so instead of spinning.
+          clearInterval(interval)
+          setError('This video needs a quick review before it can be made — some numbers in the document looked unusual. Your credits were refunded. Open the video to see what was flagged.')
+        } else if (data.status && data.status !== 'completed' && !KNOWN_WORKING.has(data.status)) {
+          // A status this page doesn't know: show it plainly rather than an
+          // endless "Starting up" spinner.
+          clearInterval(interval)
+          setError('This video stopped in an unexpected state. Open it from your library to check on it, or try again.')
         }
       }
     }, 2000)
@@ -132,7 +156,7 @@ export default function GeneratingPage() {
     return () => clearInterval(timer)
   }, [])
 
-  const currentStage = STAGES.find(s => s.key === status) || STAGES[0]
+  const currentStage = isSlides ? slideDeckStage(progressDetail) : (STAGES.find(s => s.key === status) || STAGES[0])
   const stageIdx = STAGES.findIndex(s => s.key === status)
   const minutes = Math.floor(elapsed / 60)
   const seconds = elapsed % 60

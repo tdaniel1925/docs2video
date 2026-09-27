@@ -14,6 +14,20 @@ import { PLANS, type PlanTier } from '../../_lib/pricing'
 import { TIER_CREDITS, TIER_APPROX_VIDEOS, CREDIT_COSTS } from '../../_lib/credits'
 import { updatePassword, updateEmail } from '../../_actions/auth'
 import { useToast } from '../../_components/Toast'
+import { cleanWebLink } from '../../_lib/url-validate'
+
+// Plain-language text for the ?email_error= codes the connect flows return.
+function emailErrorText(code: string): string {
+  switch (code) {
+    case 'outlook_not_configured': return 'Outlook connect is not available right now. Use Gmail or SMTP instead.'
+    case 'google_not_configured': return 'Gmail connect is not available right now. Use SMTP instead.'
+    case 'calendar_link_only': return 'Google Calendar can’t be connected directly yet. Paste your Google booking page link instead.'
+    case 'invalid_state': return 'That sign-in link wasn’t started from this account. Please click Connect again.'
+    case 'link_expired': return 'That sign-in took too long. Please click Connect again.'
+    case 'access_denied': return 'You cancelled the sign-in.'
+    default: return code.replace(/_/g, ' ')
+  }
+}
 
 type SettingsTab = 'profile' | 'brand' | 'integrations' | 'subscription'
 
@@ -161,6 +175,8 @@ export default function SettingsPage() {
   const [emailConnections, setEmailConnections] = useState<any[]>([])
   const [showSmtpModal, setShowSmtpModal] = useState(false)
   const [emailMessage, setEmailMessage] = useState<string | null>(null)
+  const [oauthProviders, setOauthProviders] = useState<{ google: boolean; microsoft: boolean }>({ google: true, microsoft: true })
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [securityMsg, setSecurityMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const [securityBusy, setSecurityBusy] = useState(false)
 
@@ -246,20 +262,33 @@ export default function SettingsPage() {
       setTimeout(() => setEmailMessage(null), 5000)
     }
     if (searchParams.get('email_error')) {
-      setEmailMessage(`Connection failed: ${searchParams.get('email_error')}`)
+      setEmailMessage(`Connection failed: ${emailErrorText(searchParams.get('email_error') || '')}`)
       setTab('integrations')
     }
+    if (searchParams.get('tab') === 'integrations') setTab('integrations')
     if (searchParams.get('stripe_connected')) {
       setStripeMessage('Stripe connected successfully!')
       setTab('integrations')
       setTimeout(() => setStripeMessage(null), 5000)
     }
+    // Back from an in-place plan change (no second subscription is created).
+    // The new plan shows once Stripe confirms it, usually within seconds.
+    if (searchParams.get('plan_changed')) {
+      notify(`Your plan is changing to ${searchParams.get('plan_changed')}. It updates here within a few seconds.`, 'success')
+    }
   }, [searchParams])
 
   async function loadEmailConnections() {
-    const res = await fetch('/api/email-connections')
-    const data = await res.json()
-    if (Array.isArray(data)) setEmailConnections(data)
+    try {
+      const res = await fetch('/api/email-connections')
+      const data = await res.json()
+      if (Array.isArray(data)) setEmailConnections(data)
+    } catch { /* list stays as it was */ }
+    // Which one-click providers the server is actually set up for.
+    fetch('/api/email-connections?providers=1')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && typeof d.microsoft === 'boolean') setOauthProviders({ google: !!d.google, microsoft: !!d.microsoft }) })
+      .catch(() => {})
   }
 
   async function loadSocialAccounts() {
@@ -285,7 +314,7 @@ export default function SettingsPage() {
       const data = await res.json()
       if (!res.ok) {
         setSocialError(data.code === 'addon_required'
-          ? 'Add the AI Social add-on first (in Social).'
+          ? 'Add the AI Social add-on first — open the account menu (top-right) and choose "AI Social", or see the Pricing page.'
           : (data.error || 'Failed to start connection'))
         setSocialLoading(false)
         return
@@ -312,18 +341,20 @@ export default function SettingsPage() {
     setSocialSaving(true)
     const supabase = createClient()
     const topics = socialTopics.split(',').map(t => t.trim()).filter(Boolean)
-    await supabase.from('profiles').update({
+    const { error } = await supabase.from('profiles').update({
       social_voice: socialVoice,
       social_topics: topics,
     }).eq('id', profile.id)
     setSocialSaving(false)
+    if (error) { notify('Could not save your social settings. Please try again.', 'error'); return }
     setSocialSaved(true)
     setTimeout(() => setSocialSaved(false), 3000)
   }
 
   async function disconnectEmail(id: string) {
     const supabase = createClient()
-    await supabase.from('email_connections').delete().eq('id', id)
+    const { error } = await supabase.from('email_connections').delete().eq('id', id)
+    if (error) notify('Could not disconnect that email account. Please try again.', 'error')
     loadEmailConnections()
   }
 
@@ -351,16 +382,18 @@ export default function SettingsPage() {
   async function handleProfileSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!profile) return
-    setLoading(true); setSuccess(false)
+    setLoading(true); setSuccess(false); setSaveError(null)
     const formData = new FormData(e.currentTarget)
     const supabase = createClient()
-    await supabase.from('profiles').update({
+    const { error } = await supabase.from('profiles').update({
       full_name: formData.get('full_name') as string,
       company_name: formData.get('company_name') as string,
       phone: formData.get('phone') as string || null,
       role: formData.get('role') as string || null,
     }).eq('id', profile.id)
-    setLoading(false); setSuccess(true)
+    setLoading(false)
+    if (error) { setSaveError('Could not save your profile. Please try again.'); return }
+    setSuccess(true)
     setTimeout(() => setSuccess(false), 3000)
   }
 
@@ -429,7 +462,8 @@ export default function SettingsPage() {
         const data = await res.json()
         if (brand) {
           const supabase = createClient()
-          await supabase.from('brands').update({ logo_file_url: data.url, logo_url: data.url }).eq('id', brand.id)
+          const { error } = await supabase.from('brands').update({ logo_file_url: data.url, logo_url: data.url }).eq('id', brand.id)
+          if (error) { setUploadError('Logo uploaded, but it could not be saved to your brand. Please try again.'); setLogoUploading(false); return }
           setBrand({ ...brand, logo_file_url: data.url, logo_url: data.url })
         }
         setUploadError(null)
@@ -442,30 +476,43 @@ export default function SettingsPage() {
 
   async function saveCalendly() {
     if (!profile) return
+    // Shown as a button on public share pages — plain web links only.
+    const clean = cleanWebLink(calendlyUrl)
+    if (clean === null) { notify('Enter a booking link that starts with https://', 'error'); return }
     setCalendarySaving(true)
     const supabase = createClient()
-    await supabase.from('profiles').update({ calendly_url: calendlyUrl || null }).eq('id', profile.id)
-    setCalendarySaving(false); setCalendarySaved(true)
+    const { error } = await supabase.from('profiles').update({ calendly_url: clean || null }).eq('id', profile.id)
+    setCalendarySaving(false)
+    if (error) { notify('Could not save your booking link. Please try again.', 'error'); return }
+    setCalendlyUrl(clean)
+    setCalendarySaved(true)
     setTimeout(() => setCalendarySaved(false), 3000)
   }
 
   async function savePaymentLink() {
     if (!profile) return
+    // Shown as a "Pay" button on public share pages — plain web links only.
+    const clean = cleanWebLink(paymentLink)
+    if (clean === null) { notify('Enter a payment link that starts with https://', 'error'); return }
     setPaymentLinkSaving(true)
     const supabase = createClient()
-    const clean = paymentLink.trim()
-    await supabase.from('profiles').update({ payment_link_url: clean || null }).eq('id', profile.id)
-    setPaymentLinkSaving(false); setPaymentLinkSaved(true)
+    const { error } = await supabase.from('profiles').update({ payment_link_url: clean || null }).eq('id', profile.id)
+    setPaymentLinkSaving(false)
+    if (error) { notify('Could not save your payment link. Please try again.', 'error'); return }
+    setPaymentLink(clean)
+    setPaymentLinkSaved(true)
     setTimeout(() => setPaymentLinkSaved(false), 3000)
   }
 
   async function saveDefaultStyle(styleId: string) {
     if (!profile) return
+    const previous = defaultStyle
     setDefaultStyle(styleId)
     setStyleSaving(true)
     const supabase = createClient()
-    await supabase.from('profiles').update({ default_style: styleId }).eq('id', profile.id)
+    const { error } = await supabase.from('profiles').update({ default_style: styleId }).eq('id', profile.id)
     setStyleSaving(false)
+    if (error) { setDefaultStyle(previous); notify('Could not save your default style. Please try again.', 'error') }
   }
 
   if (!profile) return <div style={{ color: 'var(--ink-light)', padding: 64, textAlign: 'center' }}>Loading...</div>
@@ -553,6 +600,7 @@ export default function SettingsPage() {
                   {loading ? 'Saving...' : 'Save changes'}
                 </button>
                 {success && <span style={{ fontSize: 13, color: 'var(--mint-darker)', fontWeight: 600 }}>Saved!</span>}
+                {saveError && <span style={{ fontSize: 13, color: '#c03a1f', fontWeight: 600 }}>{saveError}</span>}
               </div>
             </div>
           </form>
@@ -862,20 +910,32 @@ export default function SettingsPage() {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <a href="/api/auth/microsoft" style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 10, border: '1px solid var(--border-light)', padding: '14px 16px', textDecoration: 'none', color: 'var(--ink)' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(74,144,217,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#4A90D9' }}>M</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>Microsoft 365 / Outlook</div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>One-click OAuth setup</div>
+              {oauthProviders.microsoft ? (
+                <a href="/api/auth/microsoft" style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 10, border: '1px solid var(--border-light)', padding: '14px 16px', textDecoration: 'none', color: 'var(--ink)' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(74,144,217,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#4A90D9' }}>M</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>Microsoft 365 / Outlook</div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>One-click OAuth setup</div>
+                  </div>
+                </a>
+              ) : (
+                // The server has no Outlook app registration, so the one-click
+                // button would only reach a Microsoft error page.
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 10, border: '1px dashed var(--border-light)', padding: '14px 16px', color: 'var(--ink-light)' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>M</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>Microsoft 365 / Outlook</div>
+                    <div style={{ fontSize: 12 }}>One-click Outlook connect isn&apos;t available yet. Use SMTP below with smtp.office365.com.</div>
+                  </div>
                 </div>
-              </a>
-              <a href="/api/auth/google" style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 10, border: '1px solid var(--border-light)', padding: '14px 16px', textDecoration: 'none', color: 'var(--ink)' }}>
+              )}
+              {oauthProviders.google && <a href="/api/auth/google" style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 10, border: '1px solid var(--border-light)', padding: '14px 16px', textDecoration: 'none', color: 'var(--ink)' }}>
                 <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(234,67,53,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#EA4335' }}>G</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>Gmail / Google Workspace</div>
                   <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>Connect with OAuth — send from your Gmail</div>
                 </div>
-              </a>
+              </a>}
               <button onClick={() => setShowSmtpModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 10, border: '1px solid var(--border-light)', padding: '14px 16px', background: 'none', cursor: 'pointer', color: 'var(--ink)', textAlign: 'left', width: '100%' }}>
                 <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>SM</div>
                 <div style={{ flex: 1 }}>
@@ -942,23 +1002,17 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {calendarProvider === 'google' ? (
-              <div>
-                <a href="/api/auth/google/calendar" className="btn btn-primary">
-                  Connect Google Calendar &rarr;
-                </a>
-                <p style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 8 }}>
-                  OAuth connection lets clients book directly on your Google Calendar.
-                </p>
-              </div>
-            ) : (
+            {/* Google Calendar has no direct connection yet (the old button
+                went through Google and saved nothing) — it takes a booking
+                page link, like the others. */}
+            {(
               <div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                   <input
                     value={calendlyUrl}
                     onChange={e => setCalendlyUrl(e.target.value)}
                     className="input"
-                    placeholder={calendarProvider === 'calendly' ? 'https://calendly.com/your-name/30min' : 'https://cal.com/your-name'}
+                    placeholder={calendarProvider === 'calendly' ? 'https://calendly.com/your-name/30min' : calendarProvider === 'google' ? 'https://calendar.app.google/…' : 'https://cal.com/your-name'}
                     style={{ flex: 1 }}
                   />
                   <button onClick={saveCalendly} disabled={calendarySaving} className="btn btn-primary btn-sm">
@@ -967,7 +1021,9 @@ export default function SettingsPage() {
                   {calendarySaved && <span style={{ fontSize: 12, color: 'var(--mint-darker)', fontWeight: 600 }}>Saved!</span>}
                 </div>
                 <p style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 8 }}>
-                  Tip: Paste your booking link from Calendly, Cal.com, or any scheduling tool.
+                  {calendarProvider === 'google'
+                    ? 'In Google Calendar, create a booking page (Appointment schedule), copy its link, and paste it here.'
+                    : 'Tip: Paste your booking link from Calendly, Cal.com, or any scheduling tool.'}
                 </p>
               </div>
             )}
@@ -1034,7 +1090,7 @@ export default function SettingsPage() {
                     if (['business', 'unlimited'].includes(s)) return 'Business'
                     if (['pro', 'professional'].includes(s)) return 'Pro'
                     if (['starter', 'active'].includes(s)) return 'Starter'
-                    return storefront.showVideoFeatures ? 'Pay Per Video' : 'Pay As You Go'
+                    return 'Pay As You Go'
                   })()}
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginTop: 4 }}>
@@ -1047,7 +1103,7 @@ export default function SettingsPage() {
                     if (['business', 'unlimited'].includes(s)) return allowance('business')
                     if (['pro', 'professional'].includes(s)) return allowance('pro')
                     if (['starter', 'active'].includes(s)) return allowance('starter')
-                    return storefront.showVideoFeatures ? '$10 per video' : 'Buy credits as you need them'
+                    return 'Free credits to start, then top up as you need them'
                   })()}
                 </div>
               </div>
@@ -1082,12 +1138,12 @@ export default function SettingsPage() {
               {([
                 {
                   tier: 'free',
-                  label: storefront.showVideoFeatures ? 'Pay Per Video' : 'Pay As You Go',
+                  label: 'Pay As You Go',
                   price: '$0',
                   period: '',
-                  highlight: storefront.showVideoFeatures ? '1 free video, then $10 each' : allowance('free'),
+                  highlight: storefront.showVideoFeatures ? '2,000 free credits (~2 videos), one time' : allowance('free'),
                   features: storefront.showVideoFeatures
-                    ? ['No monthly fee', 'Full quality output', 'Share pages with AI chat']
+                    ? ['No monthly fee', 'Top up any time from $10', 'Branded client share pages']
                     : ['No monthly fee', 'Full print quality', 'Top up any time'],
                 },
                 {
@@ -1097,8 +1153,8 @@ export default function SettingsPage() {
                   period: '/mo',
                   highlight: allowance('pro'),
                   features: storefront.showVideoFeatures
-                    ? ['$5 per additional video', 'Priority generation', 'Unlimited brands']
-                    : ['Top up any time', 'Priority generation', 'Unlimited brands'],
+                    ? ['Top up any time from $10', 'Unlimited brand profiles', 'API and AI-assistant access']
+                    : ['Top up any time', 'Unlimited brands', 'API access'],
                 },
                 {
                   tier: 'business',
@@ -1107,7 +1163,7 @@ export default function SettingsPage() {
                   period: '/mo',
                   highlight: allowance('business'),
                   features: storefront.showVideoFeatures
-                    ? ['$5 per additional video', 'White-label share pages', 'Priority support']
+                    ? ['Top up any time from $10', 'White-label share pages', 'Priority support']
                     : ['Top up any time', 'Every size and format', 'Priority support'],
                 },
                 {
@@ -1117,7 +1173,7 @@ export default function SettingsPage() {
                   period: '/mo',
                   highlight: allowance('enterprise'),
                   features: storefront.showVideoFeatures
-                    ? ['$5 per additional video', 'Unlimited slide edits', 'Dedicated support']
+                    ? ['Top up any time from $10', 'White-label share pages', 'Dedicated support']
                     : ['Top up any time', 'API access', 'Dedicated support'],
                 },
               ] as const).map(plan => {
@@ -1185,8 +1241,11 @@ export default function SettingsPage() {
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ tier: plan.tier }),
                         })
-                        const data = await res.json()
+                        const data = await res.json().catch(() => ({}))
+                        // url = Stripe Checkout, the billing portal, or back
+                        // here after an in-place plan change.
                         if (data.url) window.location.href = data.url
+                        else notify(data.error || 'Could not change your plan. Please try again.', 'error')
                       }} className="btn btn-primary" style={{ width: '100%', fontSize: 13 }}>
                         {currentTier !== 'free' ? `Switch to ${plan.label}` : `Subscribe to ${plan.label}`}
                       </button>

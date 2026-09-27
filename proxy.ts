@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-
-const publicPaths = ['/', '/login', '/signup', '/forgot-password']
+import { isPublicPath, legacyRedirect } from './app/_lib/public-paths'
+import { safeNextPath } from './app/_lib/safe-redirect'
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -11,6 +11,14 @@ export async function proxy(request: NextRequest) {
     return NextResponse.rewrite(new URL('/maintenance', request.url))
   }
   if (pathname === '/maintenance') return NextResponse.next()
+
+  // Old campaign emails linked to /industries/{slug}; the pages live at /for.
+  const legacy = legacyRedirect(pathname)
+  if (legacy) {
+    const url = request.nextUrl.clone()
+    url.pathname = legacy
+    return NextResponse.redirect(url, 308)
+  }
   let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -40,6 +48,8 @@ export async function proxy(request: NextRequest) {
   // signatures, cron secrets, Inngest signing keys, Bearer API keys, the MCP
   // agency key) and must never be redirected to the login page.
   const machinePaths = ['/api/webhooks', '/api/cron', '/api/inngest', '/api/email-track', '/api/email-prefs', '/api/stripe/webhook', '/api/partner', '/api/v1', '/api/mcp', '/api/checkout/create',
+    // The render service reports errors here with its own x-api-secret.
+    '/api/internal',
     // MCP OAuth: discovery metadata + the token/register/approve endpoints are
     // machine-to-machine (an MCP client calls them, no browser session). The
     // /api/mcp/oauth/authorize route handles its OWN login redirect internally,
@@ -61,21 +71,46 @@ export async function proxy(request: NextRequest) {
     if (diff === 0) return response
   }
 
-  // Redirect unauthenticated users away from protected pages
-  // NOTE: '/r/' must stay public — affiliate referral links are clicked by
-  // anonymous visitors; redirecting them to /login drops the attribution.
-  // '/restylez' is the Restylez marketing landing — anonymous visitors must see
-  // it (the CTA inside leads to /remake, which correctly requires login).
-  if (!user && !publicPaths.includes(pathname) && !pathname.startsWith('/auth') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/public') && !pathname.startsWith('/api/watch') && !pathname.startsWith('/api/track-view') && !pathname.startsWith('/api/quotes/pay') && !pathname.startsWith('/api/demo') && !pathname.startsWith('/api/try-demo') && !pathname.startsWith('/watch') && !pathname.startsWith('/for') && !pathname.startsWith('/try') && !pathname.startsWith('/demo') && !pathname.startsWith('/share-demo') && !pathname.startsWith('/demo-prezi') && !pathname.startsWith('/terms') && !pathname.startsWith('/privacy') && !pathname.startsWith('/cookies') && !pathname.startsWith('/restylez') && !pathname.startsWith('/r/')) {
+  // Redirect unauthenticated users away from protected pages. The allow-list
+  // (marketing pages, email links, share pages, public forms) lives in
+  // app/_lib/public-paths.ts so it can be tested. Kept from before: '/r/' must
+  // stay public — affiliate referral links are clicked by anonymous visitors;
+  // redirecting them to /login drops the attribution. '/restylez' is the
+  // Restylez marketing landing (its CTA leads to /remake, which needs login).
+  if (!user && !isPublicPath(pathname)) {
+    // An API call gets a plain 401 — a redirect to the login page would hand
+    // fetch() an HTML page that then fails to parse as JSON.
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Not signed in' }, { status: 401 })
+    }
+    // Come back to the page they asked for after signing in (the login action
+    // only honors plain in-app paths — see safe-redirect.ts).
     const url = request.nextUrl.clone()
     url.pathname = '/login'
+    url.search = ''
+    url.searchParams.set('next', pathname + request.nextUrl.search)
     return NextResponse.redirect(url)
+  }
+
+  // /pricing lives in the signed-in app (it starts checkout for the current
+  // account). A logged-out visitor — from the sitemap, the homepage or a promo
+  // email — is shown the public pricing page instead, at the same address and
+  // with the same query string (?promo=… is carried through to signup).
+  if (!user && pathname === '/pricing') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/plans'
+    return NextResponse.rewrite(url)
   }
 
   // Redirect authenticated users away from auth pages
   if (user && (pathname === '/login' || pathname === '/signup')) {
+    // Honor ?next= (in-app paths only) so an already-signed-in user sent to
+    // /login?next=… (e.g. from the MCP connect screen) still gets there.
+    const target = safeNextPath(request.nextUrl.searchParams.get('next'))
+    const q = target.indexOf('?')
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = q >= 0 ? target.slice(0, q) : target
+    url.search = q >= 0 ? target.slice(q) : ''
     return NextResponse.redirect(url)
   }
 

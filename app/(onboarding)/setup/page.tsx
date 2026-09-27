@@ -6,6 +6,15 @@ import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/client'
 import { SLIDE_STYLES, VOICE_OPTIONS } from '../../_lib/types'
 import type { Profile } from '../../_lib/types'
+import { SELLABLE_PLAN_TIERS, getPlan } from '../../_lib/pricing'
+
+// The plans a new subscriber can actually buy (Starter is retired).
+const MODAL_PLANS = SELLABLE_PLAN_TIERS.map(t => getPlan(t))
+// The plan text below reads these, so it can't drift from pricing.ts again
+// (it used to promise "5 free videos, $10 per video" and "$29/mo" — neither
+// is sold any more).
+const FREE_PLAN = getPlan('free')
+const CHEAPEST_PLAN = MODAL_PLANS.reduce((a, b) => (b.monthlyPrice < a.monthlyPrice ? b : a))
 
 type SetupStep = 1 | 2 | 3 | 4 | 5
 
@@ -129,7 +138,7 @@ export default function SetupPage() {
     setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) { setLoading(false); router.push('/login'); return }
 
     const { error } = await supabase.from('profiles').update({
       full_name: fullName,
@@ -225,15 +234,19 @@ export default function SetupPage() {
     setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) { setLoading(false); router.push('/login'); return }
 
-    // Check for existing default brand
+    // Check for existing default brand. limit(1) + maybeSingle: with .single()
+    // a user who already had two defaults got null back, so every Back/Next
+    // inserted yet another brand.
     const { data: existing } = await supabase
       .from('brands')
       .select('id')
       .eq('user_id', user.id)
       .eq('is_default', true)
-      .single()
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
 
     const brandData = {
       user_id: user.id,
@@ -244,13 +257,12 @@ export default function SetupPage() {
       ...colors,
     }
 
-    if (existing) {
-      await supabase.from('brands').update(brandData).eq('id', existing.id)
-    } else {
-      await supabase.from('brands').insert(brandData)
-    }
+    const { error: saveErr } = existing
+      ? await supabase.from('brands').update(brandData).eq('id', existing.id)
+      : await supabase.from('brands').insert(brandData)
 
     setLoading(false)
+    if (saveErr) { setError('Could not save your brand. Please try again.'); return }
     setStep(4)
   }
 
@@ -304,26 +316,37 @@ export default function SetupPage() {
     setStep(5)
   }
 
+  // Finishing or skipping must actually record onboarding_completed before we
+  // leave: the dashboard sends anyone without it straight back to /setup, so a
+  // silently failed save used to loop the user here (or spin forever when the
+  // session had lapsed). On failure we stay put and say so.
   async function skipSetup() {
+    setLoading(true)
+    setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', user.id)
+    if (!user) { setLoading(false); router.push('/login'); return }
+    const { error } = await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', user.id)
+    if (error) { setLoading(false); setError('Could not save your progress. Please try again.'); return }
     router.push('/dashboard')
+    router.refresh()
   }
 
   async function finishSetup() {
     setLoading(true)
+    setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) { setLoading(false); router.push('/login'); return }
 
-    await supabase.from('profiles').update({
+    const { error } = await supabase.from('profiles').update({
       default_style: selectedStyle,
       onboarding_completed: true,
     }).eq('id', user.id)
+    if (error) { setLoading(false); setError('Could not finish setup. Please try again.'); return }
 
     router.push('/dashboard')
+    router.refresh()
   }
 
   function scrollCarousel(dir: 'left' | 'right') {
@@ -761,10 +784,10 @@ export default function SetupPage() {
             <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Your plan</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--mint-darker, #2d7a4f)', background: 'var(--mint, #d4edda)', padding: '3px 8px', borderRadius: 6 }}>FREE</span>
-              <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>5 free videos included &middot; $10 per video after that</span>
+              <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{FREE_PLAN.monthlyCredits.toLocaleString()} free credits (about {FREE_PLAN.approxStandardVideos} standard videos) &middot; top up anytime from $10</span>
             </div>
             <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
-              <strong style={{ color: 'var(--ink)' }}>Save up to 60%</strong> with a subscription plan. Starting at just $29/mo for 20 videos.{' '}
+              <strong style={{ color: 'var(--ink)' }}>Need more?</strong> Subscription plans start at ${Math.round(CHEAPEST_PLAN.monthlyPrice / 100)}/mo for about {CHEAPEST_PLAN.approxStandardVideos} standard videos a month.{' '}
               <button onClick={() => setShowPlansModal(true)} style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600, cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', textDecoration: 'underline' }}>View plans &rarr;</button>
             </div>
           </div>
@@ -780,7 +803,7 @@ export default function SetupPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <div>
                 <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>Choose a plan</h2>
-                <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '4px 0 0' }}>Subscribe and save vs pay-per-video. Cancel anytime.</p>
+                <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '4px 0 0' }}>A fresh pool of credits every month for videos, slide decks and PDFs. Cancel anytime.</p>
               </div>
               <button onClick={() => setShowPlansModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--ink-light)' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -790,36 +813,32 @@ export default function SetupPage() {
             {/* Comparison table */}
             <div style={{ border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
               {/* Header */}
+              {/* Only plans checkout actually sells, priced from pricing.ts. This
+                  table used to offer Starter/"Agency" at made-up prices, and
+                  checkout rejected both with "Invalid plan." */}
               <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', background: 'var(--bg-soft)', borderBottom: '1px solid var(--border-light)' }}>
                 <div style={{ padding: '12px 16px', fontSize: 12, fontWeight: 700, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em' }}></div>
-                <div style={{ padding: '12px 16px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Starter</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>$29<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-soft)' }}>/mo</span></div>
-                </div>
-                <div style={{ padding: '12px 16px', textAlign: 'center', background: 'var(--mint, #d4edda)', position: 'relative' }}>
-                  <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--ink)', color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>BEST VALUE</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Pro</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>$49<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-soft)' }}>/mo</span></div>
-                </div>
-                <div style={{ padding: '12px 16px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Agency</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>$149<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-soft)' }}>/mo</span></div>
-                </div>
+                {MODAL_PLANS.map((p) => (
+                  <div key={p.tier} style={{ padding: '12px 16px', textAlign: 'center', position: 'relative', ...(p.tier === 'pro' ? { background: 'var(--mint, #d4edda)' } : {}) }}>
+                    {p.tier === 'pro' && (
+                      <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--ink)', color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>MOST POPULAR</div>
+                    )}
+                    <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{p.label}</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>${Math.round(p.monthlyPrice / 100)}<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-soft)' }}>/mo</span></div>
+                  </div>
+                ))}
               </div>
               {/* Rows */}
               {[
-                { label: 'Videos / month', values: ['20', '60', '150'] },
-                { label: 'Cost per video', values: ['$1.45', '$0.82', '$0.99'] },
-                { label: 'vs. pay-per-video ($10)', values: ['Save 85%', 'Save 92%', 'Save 90%'], highlight: true },
-                { label: 'Custom templates', values: ['3', 'Unlimited', 'Unlimited'] },
-                { label: 'Brand profiles', values: ['3', 'Unlimited', 'Unlimited'] },
-                { label: 'Team seats', values: ['1', '3', '10'] },
-                { label: 'Priority support', values: ['\u2713', '\u2713', '\u2713'] },
+                { label: 'Credits / month', values: MODAL_PLANS.map(p => p.monthlyCredits.toLocaleString()) },
+                { label: 'Standard videos / month', values: MODAL_PLANS.map(p => `~${p.approxStandardVideos}`), highlight: true },
+                { label: 'Quick videos / month', values: MODAL_PLANS.map(p => `~${p.approxQuickVideos}`) },
+                { label: 'Cancel anytime', values: MODAL_PLANS.map(() => '\u2713') },
               ].map((row, i) => (
                 <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', borderBottom: '1px solid var(--border-light)' }}>
                   <div style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{row.label}</div>
                   {row.values.map((val, j) => (
-                    <div key={j} style={{ padding: '10px 16px', fontSize: 13, textAlign: 'center', color: row.highlight ? 'var(--mint-darker, #2d7a4f)' : 'var(--ink-soft)', fontWeight: row.highlight ? 700 : 400, background: j === 1 ? 'rgba(199,232,168,0.08)' : 'transparent' }}>
+                    <div key={j} style={{ padding: '10px 16px', fontSize: 13, textAlign: 'center', color: row.highlight ? 'var(--mint-darker, #2d7a4f)' : 'var(--ink-soft)', fontWeight: row.highlight ? 700 : 400, background: MODAL_PLANS[j]?.tier === 'pro' ? 'rgba(199,232,168,0.08)' : 'transparent' }}>
                       {val}
                     </div>
                   ))}
@@ -828,7 +847,7 @@ export default function SetupPage() {
               {/* CTA row */}
               <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', padding: '12px 0' }}>
                 <div></div>
-                {['starter', 'pro', 'agency'].map((plan) => (
+                {MODAL_PLANS.map(p => p.tier).map((plan) => (
                   <div key={plan} style={{ padding: '4px 16px', textAlign: 'center' }}>
                     <button
                       disabled={subscribing}
@@ -860,7 +879,7 @@ export default function SetupPage() {
 
             <div style={{ textAlign: 'center' }}>
               <button onClick={() => setShowPlansModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--ink-soft)', fontWeight: 600 }}>
-                No thanks, I&apos;ll stick with pay-per-video for now
+                No thanks, I&apos;ll pay as I go for now
               </button>
             </div>
           </div>

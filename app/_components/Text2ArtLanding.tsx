@@ -37,8 +37,8 @@ const SIZE_GROUPS: { id: 'print' | 'social' | 'banner' | 'card'; label: string }
 ]
 
 const PLAN_ROWS: { label: string; price: string; credits: number }[] = [
+  // Starter ($29) is retired — checkout only sells Pro / Business / Enterprise.
   { label: 'Free', price: '$0', credits: TIER_CREDITS.free },
-  { label: 'Starter', price: '$29/mo', credits: TIER_CREDITS.starter },
   { label: 'Pro', price: '$79/mo', credits: TIER_CREDITS.pro },
   { label: 'Business', price: '$199/mo', credits: TIER_CREDITS.business },
   { label: 'Enterprise', price: '$499/mo', credits: TIER_CREDITS.enterprise },
@@ -366,7 +366,7 @@ export default function Text2ArtLanding() {
             <p className="section-sub" style={{ maxWidth: 560, margin: '12px auto 0' }}>
               Credits are the only unit. Each finished design costs {COST}, whatever size or
               style it is, and every size you tick is its own design. Your plan tops your
-              credits up each month, and you can buy more at any time.
+              credits up each month, and top-up packs start at $10 for 2,500 credits.
             </p>
           </div>
           <div style={{ maxWidth: 620, margin: '0 auto' }}>

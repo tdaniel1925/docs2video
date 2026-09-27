@@ -166,8 +166,8 @@ const SECTIONS: AdminHelpSection[] = [
       {
         heading: 'Lead Capture from Share Pages',
         body: [
-          'When a non-user views a share page, they may interact with the AI chatbot or click contact buttons. These interactions are captured as leads.',
-          'Leads appear in the admin panel with the viewer\'s engagement data: which video they watched, how long they watched, and whether they interacted with the chatbot.',
+          'When a non-user views a share page, they may click the contact, booking or payment buttons. These interactions are captured as leads.',
+          'Leads appear in the admin panel with the viewer\'s engagement data: which video they watched, how long they watched, and which buttons they clicked.',
         ],
       },
     ],

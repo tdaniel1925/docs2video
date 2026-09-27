@@ -612,17 +612,13 @@ export default async function HomePage() {
                   <td style={{padding:'12px 16px',fontWeight:600}}>PowerPoint (PPTX)</td>
                   <td style={{textAlign:'center',padding:'12px 16px'}}>800</td>
                 </tr>
-                <tr style={{borderBottom:'1px solid var(--border)'}}>
+                <tr>
                   <td style={{padding:'12px 16px',fontWeight:600}}>PDF document</td>
                   <td style={{textAlign:'center',padding:'12px 16px'}}>600</td>
                 </tr>
-                <tr>
-                  <td style={{padding:'12px 16px',fontWeight:600}}>Infographic</td>
-                  <td style={{textAlign:'center',padding:'12px 16px'}}>300</td>
-                </tr>
               </tbody>
             </table>
-            <p style={{textAlign:'center',fontSize:13,color:'var(--ink-light)',marginTop:16}}>Podcast narration adds 400 credits. Style previews: 100 credits (first free).</p>
+            <p style={{textAlign:'center',fontSize:13,color:'var(--ink-light)',marginTop:16}}>Custom graphics: 200 credits per design. Commercials: 600 credits.</p>
           </div>
         </section>
 
@@ -631,20 +627,20 @@ export default async function HomePage() {
           <div style={{textAlign:'center',marginBottom:50}}>
             <div className="section-eyebrow">Pricing</div>
             <h2 className="section-title">Simple, transparent <em>pricing</em></h2>
-            <p className="section-sub" style={{maxWidth:600,margin:'0 auto'}}>Every plan includes credits for videos, slide decks, and PDFs. Need more? Buy extra credits anytime.</p>
+            <p className="section-sub" style={{maxWidth:600,margin:'0 auto'}}>Every plan includes credits for videos, slide decks, and PDFs. Need more? Top-up packs start at $10 for 2,500 credits and never expire.</p>
           </div>
           <div className="pricing-grid-5">
             {/* Free */}
             <div className="pricing-card" style={{padding:24}}>
               <div className="pricing-name">Free</div>
               <div className="pricing-price">$0</div>
-              <div className="pricing-period">per month</div>
+              <div className="pricing-period">to start</div>
               <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>2,000 credits</div>
-              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~2 standard explainers</div>
+              <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~2 standard explainers, one time</div>
               <ul className="pricing-features">
-                <li>All features included</li>
                 <li>Full quality, no watermark</li>
                 <li>Download MP4, PDF, PPTX</li>
+                <li>Top up from $10 when you need more</li>
               </ul>
               <Link href="/signup" className="btn btn-outlined btn-full">Start free</Link>
             </div>
@@ -657,9 +653,9 @@ export default async function HomePage() {
               <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>25,000 credits</div>
               <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~25 standard explainers</div>
               <ul className="pricing-features">
-                <li>Priority generation</li>
-                <li>Unlimited brands</li>
-                <li>Style previews</li>
+                <li>Unlimited brand profiles</li>
+                <li>Branded client share pages</li>
+                <li>API &amp; AI-assistant access</li>
               </ul>
               <Link href="/signup" className="btn btn-primary btn-full">Subscribe</Link>
             </div>
@@ -673,7 +669,7 @@ export default async function HomePage() {
               <ul className="pricing-features">
                 <li>White-label share pages</li>
                 <li>Priority support</li>
-                <li>Extra credits: $4/1,000</li>
+                <li>Unlimited brand profiles</li>
               </ul>
               <Link href="/signup" className="btn btn-mint btn-full">Subscribe</Link>
             </div>
@@ -685,9 +681,9 @@ export default async function HomePage() {
               <div style={{fontSize:16,fontWeight:700,color:'var(--mint-darker, #0d9488)',margin:'8px 0 4px'}}>200,000 credits</div>
               <div style={{fontSize:12,color:'var(--ink-soft)',marginBottom:12}}>~200 standard explainers</div>
               <ul className="pricing-features">
-                <li>API access + bulk creation</li>
+                <li>White-label share pages</li>
+                <li>API &amp; AI-assistant access</li>
                 <li>Dedicated support</li>
-                <li>Extra credits: $3/1,000</li>
               </ul>
               <a href="mailto:support@docs2video.com" className="btn btn-outlined btn-full">Contact Sales</a>
             </div>

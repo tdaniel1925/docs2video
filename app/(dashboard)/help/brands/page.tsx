@@ -11,13 +11,31 @@ export default function BrandsHelpPage() {
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>Setting Up Brands</span>
+        <span>Profiles &amp; Personalization</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
           <h1>Profiles &amp; Personalization</h1>
-          <p>A profile is who presents your video. It can be a <strong>Person</strong> (you, with your name, role, and photo) or a <strong>Company</strong> (your logo, colors, and contact info). Pick a saved profile when you create any video.</p>
+          <p>A profile is who presents your video. It can be a <strong>Person</strong> (you, with your name, role, and photo) or a <strong>Company</strong> (your logo, colors, and contact info). You pick a saved profile on the <strong>Presenter</strong> step whenever you make a video.</p>
+        </div>
+      </div>
+
+      {/* Where to find profiles */}
+      <div style={{
+        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        padding: '28px 32px', marginBottom: 20,
+      }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+          Where to Find Your Profiles
+        </h2>
+        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={{ color: 'var(--ink)' }}>From the menu</strong> — Click your name in the top-right corner to open the account menu, then choose <strong style={{ color: 'var(--ink)' }}>Brand profiles</strong>. You see all your saved profiles. Click <strong style={{ color: 'var(--ink)' }}>+ New profile</strong> to add one, or click a profile to edit it.
+          </p>
+          <p>
+            <strong style={{ color: 'var(--ink)' }}>While making a video</strong> — On the <strong style={{ color: 'var(--ink)' }}>Presenter</strong> step, pick a saved profile or click <strong style={{ color: 'var(--ink)' }}>+ Create a new profile</strong> to make one on the spot. You can also skip this step if you don&apos;t want a presenter or branding.
+          </p>
         </div>
       </div>
 
@@ -90,46 +108,46 @@ export default function BrandsHelpPage() {
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Creating a Brand from a Website URL
+          Creating a Company Profile from Your Website
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 12 }}>
-            The fastest way to set up a brand is by entering a website URL. Docs2Video will visit the site and extract your brand colors automatically.
+            The fastest way to set up a Company profile is to give it your website. Docs2Video visits the site and fills in your brand colors for you.
           </p>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: '50%', background: 'var(--ink)', color: 'var(--mint)',
+              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>1</div>
             <div>
-              <strong style={{ color: 'var(--ink)' }}>Go to Brands and click "New Brand."</strong> You will see the brand creation form with fields for name, logo, colors, and an optional website URL field.
+              <strong style={{ color: 'var(--ink)' }}>Open Brand profiles and click &ldquo;+ New profile.&rdquo;</strong> (Account menu, top-right &gt; Brand profiles.) At the top of the form is a box called <strong style={{ color: 'var(--ink)' }}>Import from website</strong>.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: '50%', background: 'var(--ink)', color: 'var(--mint)',
+              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>2</div>
             <div>
-              <strong style={{ color: 'var(--ink)' }}>Enter the website URL.</strong> Paste the full URL (e.g., https://yourcompany.com). Click the scrape button or press Enter.
+              <strong style={{ color: 'var(--ink)' }}>Enter your website.</strong> Type it in (for example, www.yourcompany.com) and click <strong style={{ color: 'var(--ink)' }}>Analyze brand</strong>, or press Enter.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: '50%', background: 'var(--ink)', color: 'var(--mint)',
+              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>3</div>
             <div>
-              <strong style={{ color: 'var(--ink)' }}>Review the extracted colors.</strong> The system reads the site's CSS and identifies the primary, secondary, and accent colors. These fill in automatically. You can adjust any color by clicking on its swatch.
+              <strong style={{ color: 'var(--ink)' }}>Check the colors.</strong> When it says <strong style={{ color: 'var(--ink)' }}>Brand guide generated!</strong>, the colors are filled in. Colors from a website are a best guess, so change any that look wrong.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 14 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: '50%', background: 'var(--ink)', color: 'var(--mint)',
+              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>4</div>
             <div>
-              <strong style={{ color: 'var(--ink)' }}>Upload your logo and save.</strong> Add your logo file, confirm the brand name, and click Save. Your brand is ready to use.
+              <strong style={{ color: 'var(--ink)' }}>Add your logo and save.</strong> Upload your logo, check the name, and click <strong style={{ color: 'var(--ink)' }}>Create profile</strong>. It is now ready to pick on the Presenter step.
             </div>
           </div>
         </div>
@@ -141,7 +159,7 @@ export default function BrandsHelpPage() {
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Manual Brand Setup
+          Setting Up a Company Profile by Hand
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 12 }}>
@@ -157,7 +175,7 @@ export default function BrandsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>Primary Color</strong> — Click the color swatch to open a color picker, or type in a hex code (e.g., #3BB5C8). This is the dominant color used throughout your videos.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Secondary and Accent Colors</strong> — These are auto-generated from your primary color to create a harmonious palette. Click "Advanced" to override them with your own choices. You can set up to 5 custom colors.
+            <strong style={{ color: 'var(--ink)' }}>Secondary and Accent Colors</strong> — These are created from your primary color so they go well together. To choose them yourself, open <strong style={{ color: 'var(--ink)' }}>Advanced color settings</strong> near the bottom of the form.
           </p>
           <p>
             <strong style={{ color: 'var(--ink)' }}>Contact Information</strong> — Optionally add a phone number, email, and website. These appear on your video closing slides and share pages.
@@ -171,11 +189,11 @@ export default function BrandsHelpPage() {
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          How Brands Affect Video Generation
+          How a Profile Shows Up in Your Video
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            When you select a brand during video creation, it influences every part of the output:
+            When you pick a profile on the Presenter step, it shapes every part of the result:
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={{ color: 'var(--ink)' }}>Title Slide</strong> — Displays your logo, brand name, and your headshot photo.
@@ -198,20 +216,20 @@ export default function BrandsHelpPage() {
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Managing Multiple Brands
+          Managing Several Profiles
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            You can create as many brands as you need. This is useful if you work with multiple clients, manage different product lines, or want separate branding for different audiences.
+            You can create as many profiles as you need. This is useful if you work with several clients, manage different product lines, or want separate branding for different audiences.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Default Brand</strong> — One brand can be set as your default. Check "Set as default" when creating or editing a brand. The default brand is automatically pre-selected every time you create a new video, flyer, or other item.
+            <strong style={{ color: 'var(--ink)' }}>Default Profile</strong> — Tick <strong style={{ color: 'var(--ink)' }}>Set as default profile</strong> when creating or editing a profile. That profile is picked for you first when you make something new.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Switching Brands</strong> — During the creation flow, you can switch brands at any time using the brand dropdown. Changing the brand updates the colors and logo used in the output.
+            <strong style={{ color: 'var(--ink)' }}>Choosing a Profile for a Video</strong> — On the <strong style={{ color: 'var(--ink)' }}>Presenter</strong> step, click the profile you want. The video uses that profile&apos;s logo, colors, photo and contact details.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>Editing a Brand</strong> — Go to Brands, click on any brand to edit it. Changes to a brand do not retroactively update previously created items, but all future items will use the updated settings.
+            <strong style={{ color: 'var(--ink)' }}>Editing a Profile</strong> — Open <strong style={{ color: 'var(--ink)' }}>Brand profiles</strong> from the account menu and click any profile to edit it. Changes don&apos;t alter videos you already made; everything you make afterwards uses the new settings.
           </p>
         </div>
       </div>

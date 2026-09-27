@@ -120,8 +120,7 @@ No markdown, no commentary — just the JSON.`
     await supabase.from('videos').update({ draft_data: merged }).eq('id', videoId).eq('user_id', user.id)
     return NextResponse.json({ brief })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to combine documents'
     logError('combine-docs', err, { videoId, userId: user?.id })
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'We couldn’t compare your files automatically.' }, { status: 500 })
   }
 }

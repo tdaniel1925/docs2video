@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
-import { sendViaSMTP, sendViaMicrosoft } from '../../../_lib/email'
+import { sendViaSMTP, sendViaMicrosoft, sendViaGoogle } from '../../../_lib/email'
 import type { EmailConnection } from '../../../_lib/types'
 
 export const runtime = 'nodejs'
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.6;">
       This is a test email from Docs2Video. Your email connection is working correctly!
     </p>
-    <p style="margin:0;font-size:12px;color:#aaa;">Sent via ${conn.provider === 'microsoft' ? 'Microsoft 365' : 'SMTP'}</p>
+    <p style="margin:0;font-size:12px;color:#aaa;">Sent via ${conn.provider === 'microsoft' ? 'Microsoft 365' : conn.provider === 'google' ? 'Gmail' : 'SMTP'}</p>
   </div>
 </body>
 </html>`
@@ -49,6 +49,8 @@ export async function POST(request: Request) {
       await sendViaSMTP(conn, user.email!, subject, html)
     } else if (conn.provider === 'microsoft') {
       await sendViaMicrosoft(conn, user.email!, subject, html)
+    } else if (conn.provider === 'google') {
+      await sendViaGoogle(conn, user.email!, subject, html)
     } else {
       return NextResponse.json({ error: `Unsupported provider: ${conn.provider}` }, { status: 400 })
     }

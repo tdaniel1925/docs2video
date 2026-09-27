@@ -19,9 +19,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .from('videos')
     .select('id, status, output_type')
     .eq('id', id)
-    .single()
-  if (!video || video.status !== 'completed'
-    || (video.output_type !== 'interactive' && video.output_type !== 'deck')) {
+    .maybeSingle()
+  // NO status check. The stored HTML only exists once a build has SUCCEEDED
+  // (the generator uploads it as its last step), so "the file is there" is the
+  // real test. Requiring status 'completed' took the client's link down the
+  // moment the agent started re-editing — and for good if that rebuild
+  // failed. Now the last good version keeps serving until a new one replaces it.
+  if (!video || (video.output_type !== 'interactive' && video.output_type !== 'deck')) {
     return NextResponse.json({ error: 'Not available' }, { status: 404 })
   }
 

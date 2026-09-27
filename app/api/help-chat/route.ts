@@ -24,12 +24,12 @@ Docs2Video turns documents into professional, narrated explainer videos and slid
 - Slide Deck — An editable PowerPoint (PPTX) with AI-generated slide backgrounds + real editable text. Download and edit in PowerPoint, Google Slides, or Keynote.
 
 KEY FEATURES:
-- Profiles & Presenter: A profile is either a Company (brand colors, logo, contact info) or a Person (a presenter — name, role, photo, intro line). Applied automatically to videos. Manage in Settings > Profile and under Brands.
-- Video Styles: Cinematic, Editorial, and Explainer looks. Pick a style in the create flow's Style step (static previews shown).
+- Profiles & Presenter: A profile is either a Company (brand colors, logo, contact info) or a Person (a presenter — name, role, photo, intro line). Applied automatically to videos. Manage them from the account menu (top-right) > Brand profiles, or create one on the create flow's Presenter step.
+- Video Styles: Slide Deck (recommended, ~10 min), Aurora, Cinematic, Editorial, Explainer and Infographic. Pick one on the create flow's Style step. Interactive presentations have six looks of their own.
 - The Brief step: After the document is read, the AI presents what it understood (doc type, key points, figures, angle). You approve it or chat to redirect ("focus on the death benefit, keep it reassuring") before scripting.
 - Library: All your creations in a table — filter by Videos/Decks, see recipient + status, delete, and paginate (25/50/100 per page).
-- Share Pages (/watch/[id]): A branded page with the video player, the agent's contact card, optional Calendly booking + Stripe payment button, an AI chat that knows the video content, and (for insurance) a full legal-disclosures accordion.
-- Downloads: Every finished video can be downloaded as MP4, PDF (slides), or PPTX.
+- Share Pages (/watch/[id]): A branded page with the video player, the agent's contact card, optional booking + payment buttons, an optional Download Original PDF button (if the agent enabled it), and (for insurance) a legal-disclosures section. There is no AI chat on the share page, and clients cannot download the video there.
+- Downloads: From the video page the agent can download MP4, PDF (slides), PPTX, or the Script.
 - Clients: A lightweight CRM — add clients, see videos sent to them, notes/activity, sent-email history, and quotes/payments.
 - Quotes & Payments: Attach a quote to a video; clients pay via your Stripe Payment Link on the share page.
 - Affiliate Program (/affiliate): Earn 20% recurring commission. Share your referral link; when someone subscribes through it the discount + your commission are applied automatically at checkout.
@@ -41,12 +41,13 @@ PLANS & PRICING (monthly):
 - Business — $199, 75,000 credits/mo
 - Enterprise — $499, 200,000 credits/mo
 Top-up credit packs (never expire): Starter pack 2,500 credits ($10), Power 7,500 ($25), Studio 18,000 ($50). Buy via the "+ Top Up" button or Settings > Subscription.
-Add-on: AI Social — $50/mo to connect social accounts and auto-post AI content (generation uses normal credits).
+Anyone (Free or paid) can buy top-up packs. There is no per-video overage fee — extra usage is covered by packs. The old $29 Starter plan is no longer sold.
+Add-on: AI Social — $50/mo to connect social accounts and auto-post AI content. Captions/images use normal credits, and each post costs 25 credits per platform. Open it from the account menu (top-right) > "AI Social".
 
 CREDIT COSTS (per creation):
 - Video (Quick): 500 · Video (Standard): 1,000 · Video (Detailed): 1,500
-- Podcast/2-voice narration add-on: +400
-- Slide Deck: 600 · PowerPoint (PPTX): 800 · PDF: 600 · Infographic: 300
+- Interactive presentation: 700 (MP4 export +400) · Commercial: 600 · Custom Graphics: 200 per design
+- Slide Deck: 600 · PowerPoint (PPTX): 800 · PDF: 600
 - Multiple uploaded files: +150 credits per extra file
 Failed generations are automatically refunded.
 

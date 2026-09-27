@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { VIDEO_WORKING } from '../../_lib/video-status'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { CREDIT_COSTS, deductCredits, getBalance, refundVideoCredits } from '../../_lib/credits'
+import { CREDIT_COSTS, deductCredits, getBalance } from '../../_lib/credits'
+import { PRESENTATION_EDIT_CHARGE_ACTION, refundPresentationEditCharge } from '../../_lib/video-billing'
 import type { PresentationScene } from '../../_lib/presentation'
 
 // =============================================================================
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient()
   const { data: row, error } = await admin
     .from('videos')
-    .select('id, user_id, output_type, status, draft_data')
+    .select('id, user_id, output_type, status, draft_data, script')
     .eq('id', videoId)
     .single()
   if (error || !row) return NextResponse.json({ error: 'Presentation not found' }, { status: 404 })
@@ -88,38 +89,73 @@ export async function POST(req: Request) {
     if ((bal?.total ?? 0) < cost) {
       return NextResponse.json({ error: `Not enough credits (needs ${cost})`, cost }, { status: 402 })
     }
-    const ok = await deductCredits(user.id, cost, 'presentation-edit', videoId,
+    const ok = await deductCredits(user.id, cost, PRESENTATION_EDIT_CHARGE_ACTION, videoId,
       `Edited narration on ${changed} slide(s)`)
     if (!ok) return NextResponse.json({ error: 'Could not charge credits' }, { status: 402 })
   }
 
   // Save the new scenes, mark the row as building again, then run the SAME
   // generator via the internal path (so it doesn't charge a second time).
+  //
+  // THE CLIENT'S LINK STAYS UP MEANWHILE. The published HTML is only replaced
+  // when the rebuild succeeds (the generator uploads it as its last step), and
+  // the public routes serve that file whatever the status says. If the rebuild
+  // FAILS, we put the row back exactly as it was — old scenes, 'completed' —
+  // so the share page and deck download keep showing the last good version
+  // instead of going dark for good.
+  const previous = {
+    draft_data: row.draft_data,
+    script: (row as { script?: unknown }).script ?? null,
+    status: row.status,
+  }
   const up = await admin.from('videos').update({
     draft_data: { ...draft, scenes },
     script: scenes,
     status: VIDEO_WORKING, progress_pct: 5, progress_detail: 'Rebuilding with your edits',
     progress_updated_at: new Date().toISOString(),
   }).eq('id', videoId)
-  if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 })
+  if (up.error) return NextResponse.json({ error: 'Could not start the rebuild. Nothing was changed.' }, { status: 500 })
+
+  const restore = async (reason: string) => {
+    const back = await admin.from('videos').update({
+      draft_data: previous.draft_data,
+      script: previous.script,
+      status: previous.status,
+      progress_pct: 100,
+      progress_detail: 'Your last version is still live',
+      error_message: `Edit not applied: ${reason}`.slice(0, 500),
+      progress_updated_at: new Date().toISOString(),
+    }).eq('id', videoId)
+    if (back.error) console.error('[reedit-presentation] could not restore previous version:', back.error.message)
+  }
 
   const templateId = (draft.presentationTemplate as string) || undefined
-  const r = await fetch(`${BASE_URL}/api/generate-presentation`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-internal-service': INTERNAL_SECRET,
-      'x-internal-user-id': user.id,
-    },
-    body: JSON.stringify({ videoId, templateId, outputType: row.output_type }),
-  })
+  let r: Response
+  try {
+    r = await fetch(`${BASE_URL}/api/generate-presentation`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-internal-service': INTERNAL_SECRET,
+        'x-internal-user-id': user.id,
+      },
+      body: JSON.stringify({ videoId, templateId, outputType: row.output_type }),
+    })
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : 'network error'
+    await restore(reason)
+    if (cost > 0) await refundPresentationEditCharge(user.id, videoId, cost).catch(() => {})
+    return NextResponse.json({ error: 'The rebuild didn’t finish. Your previous version is still live — please try again.' }, { status: 500 })
+  }
   if (!r.ok) {
     const msg = await r.json().catch(() => ({} as { error?: string }))
+    await restore(msg.error || `rebuild failed (${r.status})`)
     // The generator refunds its own charge on failure — but on the INTERNAL
     // path it charged nothing, so the edit fee taken above would just be kept
-    // for a rebuild that never happened. Give it back here.
-    if (cost > 0) await refundVideoCredits(user.id, cost, videoId).catch(() => {})
-    return NextResponse.json({ error: msg.error || `Rebuild failed (${r.status})` }, { status: 500 })
+    // for a rebuild that never happened. Give it back here — keyed per edit
+    // attempt, so it can't collide with any other refund on this row.
+    if (cost > 0) await refundPresentationEditCharge(user.id, videoId, cost).catch(() => {})
+    return NextResponse.json({ error: `${msg.error || `Rebuild failed (${r.status})`}. Your previous version is still live.` }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true, cost, narrationChanges: changed })

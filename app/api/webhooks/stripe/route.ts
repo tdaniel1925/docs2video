@@ -3,10 +3,20 @@ import { getStripe, tierFromPriceId } from '../../../_lib/stripe'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import type Stripe from 'stripe'
 import { logError } from '../../../_lib/error-logger'
-import { grantMonthlyCredits, addTopupCredits, applyTierChange } from '../../../_lib/credits'
+import {
+  grantMonthlyCredits, addTopupCredits, applyTierChange,
+  revokeCredits, proportionalCredits, TIER_CREDITS,
+} from '../../../_lib/credits'
 import { recordCommission, clawbackByInvoice } from '../../../_lib/affiliate'
 import { sendApexSaleEvent } from '../../../_lib/apex'
+import { findAuthUserByEmail, isEmailConfirmed } from '../../../_lib/auth-user-lookup'
+import { siteUrl } from '../../../_lib/site-url'
 import { subscriptionIdFromInvoice, priceIdFromInvoice, isSocialAddonSubscription } from '../../../_lib/stripe-invoice'
+import { getPlan, getUserTier } from '../../../_lib/pricing'
+import {
+  cancelSupersededSubscriptions, listLiveMainSubscriptions, subscriptionOnFile,
+  invoiceIdForPayment, stripeId,
+} from '../../../_lib/billing'
 
 /** Extract the Stripe promotion-code id from a session or invoice, if any. */
 function promoIdFromDiscounts(obj: { discounts?: unknown; discount?: unknown }): string | null {
@@ -55,6 +65,12 @@ export const maxDuration = 30
 /**
  * POST /api/webhooks/stripe
  * Handles all Stripe webhook events for subscriptions and one-time payments.
+ *
+ * ERROR RULE (audit H1): inside the handler, any failure that Stripe should
+ * retry is THROWN, never returned. The single catch at the bottom releases the
+ * "already processed" claim and answers 500, so Stripe's retry actually runs.
+ * Several paths used to `return 500` directly — the claim stayed, the retry was
+ * skipped as a duplicate, and a customer who paid got no plan or credits.
  */
 export async function POST(request: Request) {
   const body = await request.text()
@@ -104,16 +120,20 @@ export async function POST(request: Request) {
         const session = event.data.object as Stripe.Checkout.Session
         let userId = session.metadata?.supabase_user_id
 
-        // Apex Path-B on-site checkout: the buyer has NO Docs2Video account yet —
-        // it is provisioned HERE, after payment (never at checkout-init), so
-        // abandoned checkouts create nothing. Create/resolve the auth user from
-        // the metadata the checkout endpoint stashed (apex_email/apex_name), then
-        // report the sale to Apex directly and send the welcome email.
-        if (!userId && session.metadata?.source === 'apex' && session.metadata?.apex_email) {
-          const apexEmail = session.metadata.apex_email
-          const apexName = session.metadata.apex_name ?? null
-          const referralSource = session.metadata.referral_source ?? null
-          try {
+        // Apex Path-B on-site checkout. A buyer with NO Docs2Video account yet
+        // is provisioned HERE, after payment (never at checkout-init), so
+        // abandoned checkouts create nothing. A buyer who already has an
+        // account arrives with supabase_user_id set.
+        const apexEmail = session.metadata?.source === 'apex' ? session.metadata?.apex_email : undefined
+        if (apexEmail) {
+          const apexName = session.metadata?.apex_name ?? null
+          const referralSource = session.metadata?.referral_source ?? null
+          const hadAccountAtCheckout = !!userId
+          // Send the "choose a password" email when this purchase made the
+          // account, or matched one whose owner never confirmed the address.
+          let needsPasswordSetup = false
+
+          if (!userId) {
             const created = await supabase.auth.admin.createUser({
               email: apexEmail,
               email_confirm: true,
@@ -121,54 +141,81 @@ export async function POST(request: Request) {
             })
             if (created.data?.user) {
               userId = created.data.user.id
+              needsPasswordSetup = true
             } else {
-              const { data: existing } = await supabase
-                .from('profiles').select('id').eq('email', apexEmail).maybeSingle()
-              userId = existing?.id ?? undefined
+              // The address is already taken. Match on the SIGN-IN email Supabase
+              // holds, not profiles.email: anyone can type any address into their
+              // own profile, which would let a stranger's account receive this
+              // buyer's paid plan.
+              const existing = await findAuthUserByEmail(supabase, apexEmail)
+              if (existing) {
+                userId = existing.id
+                // Unconfirmed = whoever signed up never proved they own this
+                // inbox. The set-password email goes to that inbox, so the real
+                // owner (the buyer) can still take the account over.
+                if (!isEmailConfirmed(existing)) needsPasswordSetup = true
+              }
             }
-            if (userId) {
-              await supabase.from('profiles').update({
-                source: 'apex',
-                ...(apexName ? { full_name: apexName } : {}),
+            if (!userId) {
+              // They PAID and we have no account for them. This used to be
+              // logged and swallowed with a 200 — Stripe never retried and the
+              // customer was left with nothing. Throw so Stripe retries.
+              throw new Error(`apex account provisioning failed for session ${session.id}: ${created.error?.message ?? 'no user returned'}`)
+            }
+          }
+
+          await supabase.from('profiles').update({
+            source: 'apex',
+            ...(apexName ? { full_name: apexName } : {}),
+            email: apexEmail,
+          }).eq('id', userId)
+
+          // Report the base-subscription sale to Apex (Path B) — directly, not
+          // via the affiliate/promo path (Apex handles the rep comp on its side).
+          // Sent for NEW and EXISTING users alike (existing users' sales used to
+          // be skipped). orderId is the invoice id, and Apex dedupes on
+          // event+orderId, so a webhook retry can't double-report.
+          if (referralSource) {
+            const invoiceRef = stripeId(session.invoice) ?? `session:${session.id}`
+            await sendApexSaleEvent({
+              event: 'sale.created',
+              orderId: invoiceRef,
+              affiliateCode: referralSource,
+              amountCents: session.amount_total ?? 0,
+              tier: session.metadata?.tier ?? 'pro',
+              customerEmail: apexEmail,
+              customerName: apexName,
+            })
+          }
+
+          // Welcome / password-setup email — only for accounts made by this
+          // purchase (or matched but never confirmed, see above).
+          if (!hadAccountAtCheckout && needsPasswordSetup) {
+            try {
+              const link = await supabase.auth.admin.generateLink({
+                type: 'recovery',
                 email: apexEmail,
-              }).eq('id', userId)
-
-              // Report the base-subscription sale to Apex (Path B) — directly, not
-              // via the affiliate/promo path (Apex handles the rep comp on its side).
-              if (referralSource) {
-                const invoiceRef =
-                  (typeof session.invoice === 'string' ? session.invoice : session.invoice?.id) ??
-                  `session:${session.id}`
-                await sendApexSaleEvent({
-                  event: 'sale.created',
-                  orderId: invoiceRef,
-                  affiliateCode: referralSource,
-                  amountCents: session.amount_total ?? 0,
-                  tier: session.metadata.tier ?? 'pro',
-                  customerEmail: apexEmail,
-                  customerName: apexName,
-                })
+                options: { redirectTo: `${siteUrl()}/reset-password` },
+              })
+              if (link.error) console.error('[webhook] apex set-password link failed:', link.error.message)
+              // Prefer our own /auth/confirm link: it checks the one-time token
+              // on the server and opens the new-password page on ANY device.
+              // (The old link went through /auth/callback, which needs a code
+              // these server-made links never carry, so buyers landed on the
+              // login page with no password.) The raw Supabase link — which
+              // drops the buyer on /reset-password with the session in the
+              // address — is only a fallback.
+              const hashed = link.data?.properties?.hashed_token
+              const actionLink = hashed
+                ? `${siteUrl()}/auth/confirm?token_hash=${encodeURIComponent(hashed)}&type=recovery&next=/reset-password`
+                : link.data?.properties?.action_link
+              if (actionLink) {
+                const { sendApexWelcomeEmail } = await import('../../../_lib/apex')
+                await sendApexWelcomeEmail({ to: apexEmail, actionLink })
               }
-
-              // Welcome / password-setup email — only paid buyers reach here.
-              try {
-                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://docs2video.com'
-                const link = await supabase.auth.admin.generateLink({
-                  type: 'recovery',
-                  email: apexEmail,
-                  options: { redirectTo: `${appUrl}/reset-password` },
-                })
-                const actionLink = link.data?.properties?.action_link
-                if (actionLink) {
-                  const { sendApexWelcomeEmail } = await import('../../../_lib/apex')
-                  await sendApexWelcomeEmail({ to: apexEmail, actionLink })
-                }
-              } catch (mailErr) {
-                console.error('[webhook] apex welcome email failed (non-fatal):', mailErr)
-              }
+            } catch (mailErr) {
+              console.error('[webhook] apex welcome email failed (non-fatal):', mailErr)
             }
-          } catch (provErr) {
-            console.error('[webhook] apex account provisioning failed:', provErr)
           }
         }
 
@@ -220,22 +267,56 @@ export async function POST(request: Request) {
         }
 
         if (session.metadata?.type === 'subscription') {
+          // Only a PAID checkout starts a plan. An unpaid session must never
+          // grant paid features or credits.
+          if (session.payment_status !== 'paid' && session.payment_status !== 'no_payment_required') {
+            console.warn(`[webhook] Subscription checkout ${session.id} completed with payment_status=${session.payment_status} — not granting until paid`)
+            break
+          }
           const tier = session.metadata.tier ?? 'pro'
-          const subscriptionId = session.subscription as string
+          const subscriptionId = stripeId(session.subscription)
+          const { data: before } = await supabase
+            .from('profiles').select('stripe_customer_id').eq('id', userId).maybeSingle()
           const { error: subErr } = await supabase.from('profiles').update({
             subscription_status: tier,
             stripe_customer_id: session.customer as string,
             stripe_subscription_id: subscriptionId,
+            // They just paid with a card. Without this, a subscriber who later
+            // cancels drops to free with card_on_file=false and is blocked from
+            // spending their remaining credits by the card-required rule.
+            card_on_file: true,
           }).eq('id', userId)
           if (subErr) {
-            console.error(`[webhook] Failed to update subscription for user ${userId}:`, subErr.message)
-            return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
+            throw new Error(`Failed to update subscription for user ${userId}: ${subErr.message}`)
           }
           // forceNewCycle (review B11): a completed checkout = real money just
           // moved. Without it, cancel-then-resubscribe within ~25 days hit the
           // same-cycle guard and the paying customer received ZERO credits.
           await grantMonthlyCredits(userId, tier, { forceNewCycle: true })
           console.log(`[webhook] User ${userId} subscribed to ${tier}`)
+
+          // Never leave a second plan billing the card (audit C3): cancel the
+          // card-on-file trial this checkout replaced, and any other live
+          // main-plan subscription on this user's customers. Non-fatal — the
+          // new, paid subscription stands either way.
+          if (subscriptionId) {
+            try {
+              const cancelled = await cancelSupersededSubscriptions(
+                stripe,
+                [session.customer as string, before?.stripe_customer_id, session.metadata.previous_customer_id],
+                subscriptionId,
+              )
+              const replaces = session.metadata.replaces_subscription
+              if (replaces && replaces !== subscriptionId && !cancelled.includes(replaces)) {
+                await stripe.subscriptions.cancel(replaces).catch((e: unknown) => {
+                  // Already canceled is fine; anything else needs a human.
+                  console.warn(`[webhook] could not cancel replaced subscription ${replaces}:`, e instanceof Error ? e.message : e)
+                })
+              }
+            } catch (e) {
+              console.error('[webhook] superseded-subscription cleanup failed (non-fatal):', e)
+            }
+          }
 
           // Affiliate: record the first-payment commission (non-fatal).
           // The webhook's session object doesn't include discounts, so
@@ -252,9 +333,7 @@ export async function POST(request: Request) {
             // the invoice id — a `session:` key would never match, so the
             // clawback (and the Apex sale.refunded forward) would silently miss
             // first payments. `session:` remains the fallback for payment-mode.
-            const firstPaymentRef =
-              (typeof full.invoice === 'string' ? full.invoice : full.invoice?.id) ??
-              `session:${session.id}`
+            const firstPaymentRef = stripeId(full.invoice) ?? `session:${session.id}`
             if ((promoId || couponId) && amount) {
               const r = await recordCommission({
                 stripePromoCodeId: promoId,
@@ -308,6 +387,25 @@ export async function POST(request: Request) {
         }
         const userId = subscription.metadata?.supabase_user_id
         const customerId = subscription.customer as string
+
+        // Not paid yet (incomplete) or never paid (incomplete_expired): grant
+        // NOTHING. The plan starts when it turns active (subscription.updated)
+        // or the checkout completes paid.
+        if (subscription.status !== 'active' && subscription.status !== 'trialing') {
+          console.log(`[webhook] subscription.created ${subscription.id} is ${subscription.status} — no plan change until it is paid`)
+          break
+        }
+
+        const lookup = supabase.from('profiles').select('id, subscription_status')
+        const { data: prof, error: profErr } = userId
+          ? await lookup.eq('id', userId).maybeSingle()
+          : await lookup.eq('stripe_customer_id', customerId).maybeSingle()
+        if (profErr) throw new Error(`profile lookup failed for customer ${customerId}: ${profErr.message}`)
+        if (!prof) {
+          console.warn(`[webhook] subscription.created ${subscription.id}: no profile for customer ${customerId}`)
+          break
+        }
+
         const priceId = subscription.items.data[0]?.price?.id
         // Fail-loud on an unknown price id (audit M1): fall back to the metadata
         // tier, then 'pro' — never silently to 'free' (which would deny a paying
@@ -315,23 +413,27 @@ export async function POST(request: Request) {
         const tier = (priceId ? tierFromPriceId(priceId) : null)
           ?? (subscription.metadata?.tier ?? 'pro')
 
-        // Free-trial-then-auto-bill: a subscription created in 'trialing' state is
-        // our signup trial — the user must STAY on the trial allotment (free 2,000
-        // credits) and NOT be upgraded until the first charge actually succeeds.
-        // Only store the IDs; the tier flips when trialing → active (charge ok).
-        const updateData: Record<string, unknown> = subscription.status === 'trialing'
-          ? { subscription_status: 'trial', stripe_customer_id: customerId, stripe_subscription_id: subscription.id }
-          : { subscription_status: tier, stripe_customer_id: customerId, stripe_subscription_id: subscription.id }
-
-        const { error: createErr } = userId
-          ? await supabase.from('profiles').update(updateData).eq('id', userId)
-          : await supabase.from('profiles').update(updateData).eq('stripe_customer_id', customerId)
-        if (createErr) {
-          console.error(`[webhook] Failed to create subscription for customer ${customerId}:`, createErr.message)
-          return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
+        let updateData: Record<string, unknown>
+        if (subscription.status === 'trialing') {
+          // Free-trial-then-auto-bill: a subscription created in 'trialing'
+          // state is our signup trial — the user STAYS on the trial allotment
+          // until the first charge actually succeeds. But a trial must never
+          // downgrade someone who is already paying (audit C2).
+          if (getUserTier(prof.subscription_status) !== 'free') {
+            console.warn(`[webhook] trialing subscription ${subscription.id} created for PAYING user ${prof.id} (${prof.subscription_status}) — not changing their plan`)
+            break
+          }
+          updateData = { subscription_status: 'trial', stripe_customer_id: customerId, stripe_subscription_id: subscription.id }
+        } else {
+          updateData = { subscription_status: tier, stripe_customer_id: customerId, stripe_subscription_id: subscription.id }
         }
 
-        console.log(`[webhook] Subscription created: ${tier} for customer ${customerId}`)
+        const { error: createErr } = await supabase.from('profiles').update(updateData).eq('id', prof.id)
+        if (createErr) {
+          throw new Error(`Failed to record new subscription for customer ${customerId}: ${createErr.message}`)
+        }
+
+        console.log(`[webhook] Subscription created: ${subscription.status === 'trialing' ? 'trial' : tier} for customer ${customerId}`)
         break
       }
 
@@ -353,48 +455,78 @@ export async function POST(request: Request) {
           break
         }
 
+        const { data: prof, error: profErr } = await supabase
+          .from('profiles')
+          .select('id, subscription_status, stripe_subscription_id')
+          .eq('stripe_customer_id', customerId)
+          .maybeSingle()
+        if (profErr) throw new Error(`profile lookup failed for customer ${customerId}: ${profErr.message}`)
+        if (!prof) {
+          console.warn(`[webhook] subscription.updated ${subscription.id}: no profile for customer ${customerId}`)
+          break
+        }
+
+        // Only the subscription we have ON FILE may change the user's plan
+        // (audit C3). An update to an old, replaced or duplicate subscription
+        // (e.g. the trial that a paid plan just replaced) is ignored.
+        const onFile = subscriptionOnFile(prof.stripe_subscription_id, subscription.id)
+        if (onFile === 'other') {
+          console.log(`[webhook] subscription.updated for ${subscription.id} (${subscription.status}) ignored — ${prof.stripe_subscription_id} is on file for user ${prof.id}`)
+          break
+        }
+
         if (subscription.status === 'active') {
           // Unknown price id → keep metadata tier / 'pro', never silent 'free' (M1).
           const tier = (priceId ? tierFromPriceId(priceId) : null)
             ?? (subscription.metadata?.tier ?? 'pro')
-          // Was this the trial converting to paid (first successful charge)?
-          const { data: prevProfile } = await supabase.from('profiles')
-            .select('id, subscription_status').eq('stripe_customer_id', customerId).single()
-          const wasTrial = prevProfile?.subscription_status === 'trial'
 
-          const { data: updatedProfile, error: updErr } = await supabase.from('profiles').update({
+          // Trial → paid exactly ONCE (audit, Low): only the update that
+          // actually flips 'trial' → tier wins the conditional write, so two
+          // near-simultaneous events can't both hand out the full grant.
+          const { data: converted, error: convErr } = await supabase.from('profiles').update({
             subscription_status: tier,
             stripe_subscription_id: subscription.id,
-          }).eq('stripe_customer_id', customerId).select('id').single()
-          if (updErr) {
-            console.error(`[webhook] Failed to update subscription for customer ${customerId}:`, updErr.message)
-            return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
+          }).eq('id', prof.id).eq('subscription_status', 'trial').select('id')
+          if (convErr) throw new Error(`Failed to update subscription for customer ${customerId}: ${convErr.message}`)
+          const wasTrial = !!converted && converted.length > 0
+
+          if (!wasTrial) {
+            const { error: updErr } = await supabase.from('profiles').update({
+              subscription_status: tier,
+              stripe_subscription_id: subscription.id,
+            }).eq('id', prof.id)
+            if (updErr) throw new Error(`Failed to update subscription for customer ${customerId}: ${updErr.message}`)
           }
-          if (updatedProfile?.id) {
-            try {
-              if (wasTrial) {
-                // Trial → paid: the user just paid for a fresh cycle, so grant the
-                // FULL plan allotment (not a delta off their depleted trial
-                // balance). forceNewCycle: their first charge just succeeded
-                // (review B11 — the trial's cycle_start is <25 days old by
-                // definition, so the same-cycle guard would swallow this grant).
-                await grantMonthlyCredits(updatedProfile.id, tier, { forceNewCycle: true })
-                console.log(`[webhook] Trial converted to paid ${tier} for ${updatedProfile.id} — full grant`)
-              } else {
-                // Normal upgrade/downgrade: add only the positive tier delta (audit #1).
-                await applyTierChange(updatedProfile.id, tier)
-              }
-            } catch (e) {
-              console.error(`[webhook] credit grant failed for ${updatedProfile.id} (non-fatal):`, e)
+
+          try {
+            if (wasTrial) {
+              // Trial → paid: the user just paid for a fresh cycle, so grant the
+              // FULL plan allotment (not a delta off their depleted trial
+              // balance). forceNewCycle: their first charge just succeeded
+              // (review B11 — the trial's cycle_start is <25 days old by
+              // definition, so the same-cycle guard would swallow this grant).
+              await grantMonthlyCredits(prof.id, tier, { forceNewCycle: true })
+              console.log(`[webhook] Trial converted to paid ${tier} for ${prof.id} — full grant`)
+            } else {
+              // Normal upgrade/downgrade: add only the positive tier delta (audit #1).
+              await applyTierChange(prof.id, tier)
             }
+          } catch (e) {
+            console.error(`[webhook] credit grant failed for ${prof.id} (non-fatal):`, e)
           }
           console.log(`[webhook] Subscription updated to ${tier} for customer ${customerId}`)
         } else if (subscription.status === 'trialing') {
           // Still on the signup free trial — keep them on the trial allotment.
           // The tier + credits are applied only when it transitions to 'active'.
-          await supabase.from('profiles').update({
+          // Never downgrade a paying user to 'trial'.
+          if (getUserTier(prof.subscription_status) !== 'free') {
+            console.warn(`[webhook] trialing update for ${subscription.id} ignored — user ${prof.id} is on ${prof.subscription_status}`)
+            break
+          }
+          const { error: trErr } = await supabase.from('profiles').update({
             subscription_status: 'trial', stripe_subscription_id: subscription.id,
-          }).eq('stripe_customer_id', customerId)
+          }).eq('id', prof.id)
+          if (trErr) throw new Error(`Failed to record trialing for customer ${customerId}: ${trErr.message}`)
           console.log(`[webhook] Subscription trialing for customer ${customerId} (no charge yet)`)
         } else if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
           // Dunning (audit H2): keep the user BLOCKED. Setting status to null
@@ -402,23 +534,27 @@ export async function POST(request: Request) {
           // invoice.payment_failed set, so delinquents kept generating.
           const { error: pdErr } = await supabase.from('profiles').update({
             subscription_status: 'past_due',
-          }).eq('stripe_customer_id', customerId)
-          if (pdErr) {
-            console.error(`[webhook] Failed to set past_due for customer ${customerId}:`, pdErr.message)
-            return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
-          }
+          }).eq('id', prof.id)
+          if (pdErr) throw new Error(`Failed to set past_due for customer ${customerId}: ${pdErr.message}`)
           console.log(`[webhook] Subscription ${subscription.status} → past_due for customer ${customerId}`)
         } else if (subscription.status === 'canceled') {
+          // Nothing on file (older accounts): only drop to free if no OTHER
+          // live plan exists for this customer.
+          if (onFile === 'none_on_file' && (await listLiveMainSubscriptions(stripe, customerId)).length > 0) {
+            console.log(`[webhook] canceled ${subscription.id} ignored — customer ${customerId} has another live plan`)
+            break
+          }
           // Truly canceled → clear to free tier.
           const { error: statusErr } = await supabase.from('profiles').update({
             subscription_status: null,
             stripe_subscription_id: null,
-          }).eq('stripe_customer_id', customerId)
-          if (statusErr) {
-            console.error(`[webhook] Failed to clear canceled subscription for customer ${customerId}:`, statusErr.message)
-            return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
-          }
+          }).eq('id', prof.id)
+          if (statusErr) throw new Error(`Failed to clear canceled subscription for customer ${customerId}: ${statusErr.message}`)
           console.log(`[webhook] Subscription canceled for customer ${customerId}`)
+        } else {
+          // incomplete / incomplete_expired / paused: not paid — never grant
+          // paid features (audit, Medium). Leave the profile as it is.
+          console.log(`[webhook] subscription ${subscription.id} is ${subscription.status} — no plan change`)
         }
         break
       }
@@ -430,20 +566,42 @@ export async function POST(request: Request) {
 
         // The AI Social add-on is a SEPARATE subscription — cancelling it must
         // only flip the add-on flag, NOT wipe the user's main plan.
-        if (subscription.metadata?.type === 'social_addon') {
+        if (isSocialAddonSubscription(subscription)) {
           await supabase.from('profiles').update({ social_addon_active: false }).eq('stripe_customer_id', customerId)
           console.log(`[webhook] Social add-on cancelled for customer ${customerId}`)
+          break
+        }
+
+        const { data: prof, error: profErr } = await supabase
+          .from('profiles')
+          .select('id, stripe_subscription_id')
+          .eq('stripe_customer_id', customerId)
+          .maybeSingle()
+        if (profErr) throw new Error(`profile lookup failed for customer ${customerId}: ${profErr.message}`)
+        if (!prof) {
+          console.warn(`[webhook] subscription.deleted ${subscription.id}: no profile for customer ${customerId}`)
+          break
+        }
+
+        // Only the subscription ON FILE may drop the user to free (audit C3).
+        // Deleting an old/replaced/duplicate one — e.g. the trial a paid plan
+        // replaced, or the extra plan "Switch plan" used to create — used to
+        // wipe a paying customer's plan.
+        const onFile = subscriptionOnFile(prof.stripe_subscription_id, subscription.id)
+        if (onFile === 'other') {
+          console.log(`[webhook] subscription.deleted for ${subscription.id} ignored — ${prof.stripe_subscription_id} is on file for user ${prof.id}`)
+          break
+        }
+        if (onFile === 'none_on_file' && (await listLiveMainSubscriptions(stripe, customerId)).length > 0) {
+          console.log(`[webhook] subscription.deleted ${subscription.id} ignored — customer ${customerId} has another live plan`)
           break
         }
 
         const { error: delErr } = await supabase.from('profiles').update({
           subscription_status: null,
           stripe_subscription_id: null,
-        }).eq('stripe_customer_id', customerId)
-        if (delErr) {
-          console.error(`[webhook] Failed to delete subscription for customer ${customerId}:`, delErr.message)
-          return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
-        }
+        }).eq('id', prof.id)
+        if (delErr) throw new Error(`Failed to clear deleted subscription for customer ${customerId}: ${delErr.message}`)
 
         console.log(`[webhook] Subscription deleted for customer ${customerId}`)
         break
@@ -475,8 +633,7 @@ export async function POST(request: Request) {
             .single()
 
           if (fetchErr) {
-            console.error(`[webhook] Failed to fetch profile for credit grant, customer ${customerId}:`, fetchErr.message)
-            return NextResponse.json({ error: 'DB fetch failed' }, { status: 500 })
+            throw new Error(`Failed to fetch profile for credit grant, customer ${customerId}: ${fetchErr.message}`)
           }
 
           if (renewProfile?.id && renewProfile.subscription_status) {
@@ -566,16 +723,22 @@ export async function POST(request: Request) {
               break
             }
           } catch { /* unknown sub → treat as a main-plan failure below */ }
+
+          // A failure on an old/replaced subscription must not block a user
+          // whose plan on file is fine (audit C3).
+          const { data: pf } = await supabase
+            .from('profiles').select('stripe_subscription_id').eq('stripe_customer_id', customerId).maybeSingle()
+          if (subscriptionOnFile(pf?.stripe_subscription_id, failedSubId) === 'other') {
+            console.warn(`[webhook] payment failed on ${failedSubId}, which is not the plan on file (${pf?.stripe_subscription_id}) — not blocking the user`)
+            break
+          }
         }
 
         // Mark user as past_due to restrict access until payment resolves
         const { error: pastDueErr } = await supabase.from('profiles').update({
           subscription_status: 'past_due',
         }).eq('stripe_customer_id', customerId)
-        if (pastDueErr) {
-          console.error(`[webhook] Failed to set past_due for customer ${customerId}:`, pastDueErr.message)
-          return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
-        }
+        if (pastDueErr) throw new Error(`Failed to set past_due for customer ${customerId}: ${pastDueErr.message}`)
         console.log(`[webhook] Set subscription_status to past_due for customer ${customerId}`)
         break
       }
@@ -585,14 +748,45 @@ export async function POST(request: Request) {
       case 'charge.dispute.created':
       case 'charge.dispute.funds_withdrawn': {
         // For disputes the object is a Dispute (with .charge); for refunds it's
-        // a Charge. Normalize to a charge id + payment intent.
+        // a Charge. Normalize to the charge.
+        const isRefund = event.type === 'charge.refunded'
         const obj = event.data.object as any
-        const chargeId: string | null = event.type === 'charge.refunded' ? obj.id : (obj.charge as string | null)
-        const invoiceId: string | null = obj.invoice ?? null
+        const chargeId: string | null = isRefund ? obj.id : stripeId(obj.charge)
+        if (!chargeId) {
+          console.warn(`[webhook] ${event.type} ${obj?.id} has no charge — nothing to reverse`)
+          break
+        }
+        const charge: Stripe.Charge = isRefund ? (obj as Stripe.Charge) : await stripe.charges.retrieve(chargeId)
+        const paymentIntentId = stripeId(charge.payment_intent) ?? stripeId(obj.payment_intent)
 
-        if (invoiceId) {
+        // Current Stripe API versions no longer put `invoice` on the charge
+        // (audit H8) — resolve it through invoice payments.
+        const invoiceId = await invoiceIdForPayment(stripe, {
+          legacyInvoice: obj.invoice ?? (charge as unknown as { invoice?: unknown }).invoice,
+          paymentIntentId,
+        })
+
+        // One piece per refund / dispute. Each is revoked once (its own key),
+        // so a second partial refund is recorded too and a re-delivered event
+        // is a no-op.
+        const pieces: { key: string; amount: number }[] = []
+        if (isRefund) {
+          const refunds = await stripe.refunds.list({ charge: chargeId, limit: 100 })
+          for (const r of refunds.data) {
+            if (r.status !== 'failed' && r.status !== 'canceled' && r.amount > 0) {
+              pieces.push({ key: `refund:${r.id}`, amount: r.amount })
+            }
+          }
+        } else {
+          pieces.push({ key: `dispute:${obj.id}`, amount: obj.amount ?? charge.amount })
+        }
+        const fullyReversed = !isRefund || (charge.amount_refunded ?? 0) >= charge.amount
+
+        // 1) Commission clawback — only when the whole payment came back. A
+        //    partial refund keeps the commission (logged for review).
+        if (invoiceId && fullyReversed) {
           const clawed = await clawbackByInvoice(invoiceId)
-          console.log(`[webhook] Clawed back affiliate commission for ${invoiceId}`)
+          console.log(`[webhook] Clawed back ${clawed.length} affiliate commission(s) for ${invoiceId}`)
           // Apex rep sale refunded → reverse the order/PV/GV on the Apex side.
           for (const c of clawed) {
             if (c.payoutVia === 'apex' && c.affiliateCode) {
@@ -605,43 +799,69 @@ export async function POST(request: Request) {
               })
             }
           }
+        } else if (invoiceId) {
+          console.warn(`[webhook] partial refund on ${invoiceId} (${charge.amount_refunded}/${charge.amount}) — commission kept, review manually if needed`)
         }
 
-        // Revoke credits if the underlying purchase was a credit pack (audit H1).
-        try {
-          const paymentIntentId: string | null =
-            (event.type === 'charge.refunded' ? obj.payment_intent : null) ?? null
-          // Resolve the checkout session for this charge to read its metadata.
-          let session: Stripe.Checkout.Session | undefined
-          if (paymentIntentId) {
-            const list = await stripe.checkout.sessions.list({ payment_intent: paymentIntentId, limit: 1 })
-            session = list.data[0]
-          } else if (chargeId) {
-            const ch = await stripe.charges.retrieve(chargeId)
-            if (ch.payment_intent) {
-              const list = await stripe.checkout.sessions.list({ payment_intent: ch.payment_intent as string, limit: 1 })
-              session = list.data[0]
-            }
-          }
+        // 2) Credits. Charges fully revoked by the OLD handler used the key
+        //    revoke:{chargeId}; don't take those credits a second time.
+        const { data: legacyRevoke } = await supabase
+          .from('processed_stripe_events').select('event_id').eq('event_id', `revoke:${chargeId}`).maybeSingle()
+        if (legacyRevoke) {
+          console.log(`[webhook] credits for charge ${chargeId} were already revoked by the old handler`)
+          break
+        }
+
+        let handledAsPack = false
+        if (paymentIntentId) {
+          const list = await stripe.checkout.sessions.list({ payment_intent: paymentIntentId, limit: 1 })
+          const session = list.data[0]
           if (session?.metadata?.type === 'credit_pack') {
+            handledAsPack = true
             const userId = session.metadata.supabase_user_id
             const credits = parseInt(session.metadata.credits || '0', 10)
             if (userId && credits > 0) {
-              const { error: revErr } = await supabase.rpc('revoke_topup_atomic', {
-                p_user_id: userId,
-                p_amount: credits,
-                p_description: `refund/chargeback ${chargeId || ''}: -${credits} credits`,
-                p_idempotency_key: `revoke:${chargeId || event.id}`,
-              })
-              if (revErr) {
-                console.error(`[webhook] Credit revoke failed for ${chargeId}:`, revErr.message)
-                return NextResponse.json({ error: 'revoke failed' }, { status: 500 })
+              for (const p of pieces) {
+                // Partial refund → partial revoke, never the whole pack.
+                const n = proportionalCredits(credits, p.amount, charge.amount)
+                const applied = await revokeCredits(userId, n, `revoke:${p.key}`, `${event.type} ${p.key}: -${n} credits (credit pack)`)
+                if (applied) console.log(`[webhook] Revoked ${n} pack credits from user ${userId} (${p.key})`)
               }
-              console.log(`[webhook] Revoked ${credits} credits from user ${userId} (${event.type})`)
             }
           }
-        } catch (e) {
-          console.error(`[webhook] Credit revoke lookup failed for ${event.type} (non-fatal):`, e)
+        }
+
+        if (!handledAsPack && invoiceId) {
+          // A subscription payment came back: take back that payment's share
+          // of the plan's credits (what's left of them — spent credits can't
+          // be un-spent). The plan itself ends through the normal cancel
+          // events; a refund alone doesn't cancel a Stripe subscription.
+          const invoice = await stripe.invoices.retrieve(invoiceId)
+          const subId = subscriptionIdFromInvoice(invoice)
+          if (subId) {
+            const sub = await stripe.subscriptions.retrieve(subId).catch(() => null)
+            if (sub && isSocialAddonSubscription(sub)) break // the add-on grants no credits
+          }
+          const paidPriceId = priceIdFromInvoice(invoice)
+          const tier = paidPriceId ? tierFromPriceId(paidPriceId) : null
+          const invCustomer = stripeId(invoice.customer)
+          if (tier && invCustomer) {
+            const { data: prof } = await supabase
+              .from('profiles').select('id').eq('stripe_customer_id', invCustomer).maybeSingle()
+            if (prof) {
+              // A renewal/first invoice paid for a whole cycle; an upgrade
+              // invoice only for part of one — measure it against the plan price.
+              const wholeCycle = invoice.billing_reason === 'subscription_cycle' || invoice.billing_reason === 'subscription_create'
+              const denominator = wholeCycle ? charge.amount : getPlan(tier).monthlyPrice
+              for (const p of pieces) {
+                const n = proportionalCredits(TIER_CREDITS[tier], p.amount, denominator)
+                const applied = await revokeCredits(prof.id, n, `revoke:${p.key}`, `${event.type} ${p.key}: -${n} credits (${tier} plan payment)`)
+                if (applied) console.log(`[webhook] Revoked ${n} plan credits from user ${prof.id} (${p.key})`)
+              }
+            } else {
+              console.warn(`[webhook] ${event.type} on ${invoiceId}: no profile for customer ${invCustomer}`)
+            }
+          }
         }
         break
       }

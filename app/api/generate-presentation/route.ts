@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { checkCredits, deductCredits, refundVideoCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { refundPresentationCharge } from '../../_lib/video-billing'
+import { buildShareColumns } from '../../_lib/wizard-draft'
+import { logError } from '../../_lib/error-logger'
 import { synthesizeSpeech } from '../../_lib/tts'
 import { buildPresentationHtml, PRESENTATION_TEMPLATES, type PresentationScene } from '../../_lib/presentation'
 import { isRegulated, productTokens, scrubComplianceText, smoothScrubbed } from '../../_lib/compliance'
@@ -119,13 +122,45 @@ export async function POST(request: NextRequest) {
   // Internal (v1/partner) calls are already metered upstream — skip. ──
   const costKey = outputType === 'interactive' ? 'interactive' : 'deck'
   const cost = (CREDIT_COSTS as Record<string, number>)[costKey] ?? 700
+  let charged = 0
   if (!isInternalCall) {
     const check = await checkCredits(user.id, cost)
     if (!check.allowed) {
-      return NextResponse.json({ error: 'Not enough credits — you need ' + check.shortfall + ' more.', code: 'insufficient_credits' }, { status: 402 })
+      return NextResponse.json({ error: 'Not enough credits — you need ' + check.shortfall + ' more.', code: 'insufficient_credits', needed: cost, balance: check.remaining }, { status: 402 })
     }
-    await deductCredits(user.id, cost, `presentation_${outputType}`, videoId)
+
+    // CLAIM THE ROW FIRST (H4). Only one request can move it out of a
+    // not-running state, so a double-click, a second tab or a Back-and-
+    // Generate-again can no longer charge twice for one build. A finished
+    // presentation is changed with Edit (reedit-presentation), not rebuilt here.
+    const { data: claimed } = await admin.from('videos')
+      .update({ status: 'pending', progress_pct: 5, progress_detail: 'Starting…', progress_updated_at: new Date().toISOString() })
+      .eq('id', videoId).eq('user_id', user.id)
+      .in('status', ['draft', 'failed'])
+      .select('id')
+    if (!claimed || claimed.length === 0) {
+      return NextResponse.json({ error: row.status === 'completed' ? 'This presentation is already built — open it from your library to edit it.' : 'This presentation is already being built.' }, { status: 409 })
+    }
+
+    // CHECK the charge actually happened. It used to be ignored, so a failed
+    // deduction still built the deck — and a later failure then "refunded"
+    // credits that were never taken.
+    const ok = await deductCredits(user.id, cost, `presentation_${outputType}`, videoId)
+    if (!ok) {
+      await admin.from('videos').update({ status: row.status, progress_detail: null }).eq('id', videoId).eq('status', 'pending')
+      return NextResponse.json({ error: 'We couldn’t take the credits for this presentation — your balance may have just changed. Please try again, or top up.', code: 'insufficient_credits', needed: cost }, { status: 402 })
+    }
+    charged = cost
+    // Record the charge on the row so the stuck-video cron can refund it (via
+    // the ledger check) if this function is killed mid-build.
+    await admin.from('videos').update({ deducted_cost: cost }).eq('id', videoId)
   }
+
+  // Share-page options, same as a video (H4): welcome banner, the agent's note
+  // and the optional original-PDF download. Best-effort — the columns may be
+  // missing on an older database, which must never fail the build.
+  admin.from('videos').update(buildShareColumns({ userId: user.id, draft })).eq('id', videoId)
+    .then(({ error }) => { if (error) console.warn(`[generate-presentation ${videoId}] share columns skipped:`, error.message) }, () => {})
 
   const setStatus = (status: string, pct: number, detail: string) =>
     admin.from('videos').update({
@@ -164,7 +199,8 @@ export async function POST(request: NextRequest) {
 
     // Resolve brand + presenter identity from their real sources: the selected
     // brands row (company or person profile) and the user's own profile.
-    const brandId = (draft.brandId || draft.selectedBrand || draft.autoBrandId) as string | undefined
+    // An explicit "no brand" (brandId: null from Skip) stays no brand.
+    const brandId = (draft.brandId !== undefined ? draft.brandId : (draft.selectedBrand || draft.autoBrandId)) as string | undefined
     let brandRow: { name?: string; profile_type?: string; person_role?: string | null; photo_url?: string | null } | null = null
     let brandLogo: string | undefined
     let brandColor: string | undefined
@@ -310,11 +346,23 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     }).eq('id', videoId)
     if (fin.error) throw new Error(`Failed to finalize: ${fin.error.message}`)
+    // The build succeeded — the charge stands. Clear the "may need a refund" hint.
+    if (charged > 0) admin.from('videos').update({ deducted_cost: 0 }).eq('id', videoId).then(() => {}, () => {})
 
     return NextResponse.json({ ok: true, url: pub.publicUrl, outputType, templateId })
   } catch (err) {
-    if (!isInternalCall) await refundVideoCredits(user.id, cost, videoId).catch(() => {})
-    const message = err instanceof Error ? err.message : 'Generation failed'
+    // Refund THIS attempt (keyed per attempt, so a second failure is refunded
+    // too — the old shared video refund key silently dropped it).
+    if (charged > 0) {
+      await refundPresentationCharge(user.id, videoId, charged).catch((e) =>
+        console.error(`[generate-presentation ${videoId}] refund failed:`, e instanceof Error ? e.message : e))
+    }
+    const raw = err instanceof Error ? err.message : 'Generation failed'
+    console.error(`[generate-presentation ${videoId}] failed:`, raw)
+    logError('generate-presentation', err, { videoId, userId: user.id })
+    const message = charged > 0
+      ? 'Something went wrong while building your presentation. Your credits were refunded — please try again.'
+      : 'Something went wrong while building your presentation. Please try again.'
     await admin.from('videos').update({ status: 'failed', error_message: message }).eq('id', videoId)
     return NextResponse.json({ error: message }, { status: 500 })
   }

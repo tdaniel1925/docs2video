@@ -3,8 +3,10 @@ import { GoogleGenAI } from '@google/genai'
 import PptxGenJS from 'pptxgenjs'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
-import { checkCredits, deductCredits, CREDIT_COSTS } from '../../../_lib/credits'
+import { CREDIT_COSTS } from '../../../_lib/credits'
+import { runCharged } from '../../../_lib/credit-charge'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../../_lib/rate-limit'
+import { isAdminRequest } from '../../../_lib/admin'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -25,25 +27,27 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  // Internal demo tool (/template-demo is admin-only) — any signed-in user
+  // could previously call this and spend credits on it (audit 2026-09-26).
+  if (!(await isAdminRequest(user))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const rl = rateLimit(getRateLimitKey(user.id, 'template-demo'), LIMITS.generation.limit, LIMITS.generation.windowMs)
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Rate limit exceeded. Please wait a bit before generating again.' }, { status: 429 })
   }
 
-  const COST = CREDIT_COSTS['demo-slide']
-  const credit = await checkCredits(user.id, COST)
-  if (!credit.allowed) {
-    return NextResponse.json({ error: `Not enough credits. Need ${COST}, have ${credit.remaining}.` }, { status: 402 })
-  }
-  if (!(await deductCredits(user.id, COST, 'demo-slide'))) {
-    return NextResponse.json({ error: 'Failed to deduct credits.' }, { status: 402 })
-  }
+  const body = await request.json().catch(() => ({}))
+  const { slides } = body as { slides: SlideInput[] }
+  if (!slides?.length) return NextResponse.json({ error: 'No slides provided' }, { status: 400 })
 
+  // Priced per AI image actually requested (each is a full image generation);
+  // a deck with no new images still costs one slide's worth for the build.
+  const imageCount = slides.filter(s => s?.edit?.generateImage && s?.edit?.imagePrompt).length
+  const COST = CREDIT_COSTS['demo-slide'] * Math.max(1, imageCount)
+
+  // Charge before the work and refund if the build or upload fails (audit H5).
+  return runCharged({ userId: user.id, amount: COST, action: 'demo-slide', description: `Template demo: ${slides.length} slides, ${imageCount} AI images` }, async () => {
   try {
-    const body = await request.json()
-    const { slides } = body as { slides: SlideInput[] }
-    if (!slides?.length) return NextResponse.json({ error: 'No slides provided' }, { status: 400 })
 
     // Generate AI images where requested
     const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
@@ -159,6 +163,7 @@ export async function POST(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Generation failed'
     console.error('[template-demo/generate] Error:', message)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Could not build the deck. Your credits were returned — please try again.' }, { status: 500 })
   }
+  })
 }

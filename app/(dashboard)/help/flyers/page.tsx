@@ -2,16 +2,21 @@
 
 import Link from 'next/link'
 
+// Help article for the Custom Graphics maker at /design — the five-step
+// wizard (What → Content → Style → Sizes → Review). Rewritten 2026-09-26 to
+// match the wizard; the old text described the retired one-page chat maker.
+
 const STEP_CIRCLE = {
-  width: 36, height: 36, borderRadius: '50%', background: 'var(--ink)', color: 'var(--mint)',
+  width: 36, height: 36, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
   display: 'flex' as const, alignItems: 'center' as const, justifyContent: 'center' as const,
   fontWeight: 700, fontSize: 15, flexShrink: 0,
 }
 
 const step: React.CSSProperties = { display: 'flex', gap: 16, marginBottom: 28, alignItems: 'flex-start' }
 const body: React.CSSProperties = { fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.6 }
+const list: React.CSSProperties = { ...body, marginTop: 10, paddingLeft: 20 }
 const note: React.CSSProperties = {
-  background: 'var(--cream)', border: '1px solid var(--border-light)', borderRadius: 10,
+  background: 'var(--bg-soft)', border: '1px solid var(--border-light)', borderRadius: 10,
   padding: '14px 16px', margin: '16px 0', fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.6,
 }
 
@@ -29,7 +34,10 @@ export default function FlyersHelpPage() {
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
           <h1>Custom Graphics</h1>
-          <p>Describe what you need in plain English and get finished, print-ready designs — the artwork and the words together — in every size you tick.</p>
+          <p>
+            Flyers, posters, social posts, banners, business cards and slide decks. Tell it what you need,
+            pick a look and your sizes, and get finished designs — the artwork and the words together.
+          </p>
         </div>
       </div>
 
@@ -38,8 +46,15 @@ export default function FlyersHelpPage() {
         <div>
           <h3 style={{ margin: '4px 0 8px' }}>Open the maker</h3>
           <p style={body}>
-            Click <strong>Custom Graphics</strong> in the top menu.
-            The page looks like a chat: a conversation down the middle, and a typing bar at the bottom.
+            Click <strong>+ Create</strong> at the top of the screen, then the <strong>Custom Graphics</strong> card.
+            (On Text2Art it&rsquo;s <strong>Designs</strong> in the top menu.)
+          </p>
+          <p style={{ ...body, marginTop: 10 }}>
+            A list down the left called <strong>Your design</strong> shows the five steps: <strong>What</strong>,{' '}
+            <strong>Content</strong>, <strong>Style</strong>, <strong>Sizes</strong> and <strong>Review</strong>. The
+            bar at the bottom has <strong>&larr; Back</strong> and a button that names the next step. If that button is
+            greyed out, the hint beside it says what&rsquo;s missing. Every step has a <strong>? Need help?</strong>{' '}
+            link, and on a wide screen a live preview sits on the right.
           </p>
         </div>
       </div>
@@ -47,16 +62,20 @@ export default function FlyersHelpPage() {
       <div style={step}>
         <div style={STEP_CIRCLE}>2</div>
         <div>
-          <h3 style={{ margin: '4px 0 8px' }}>Say what it&rsquo;s for</h3>
-          <p style={body}>
-            Type it the way you&rsquo;d say it out loud. For example: <em>&ldquo;Saturday club night at The
-            Foundry, doors 9pm, $20 cover, DJ Sable headlining&rdquo;</em> — or <em>&ldquo;business card for
-            Dana Okafor, Managing Broker at Okafor Property Group, 555-0134&rdquo;</em>. Press <strong>Preview details</strong>.
-          </p>
+          <h3 style={{ margin: '4px 0 8px' }}>What — what do you want to make?</h3>
+          <p style={body}>Tap one of four pictures. Tapping moves you straight on to the next step.</p>
+          <ul style={list}>
+            <li><strong>Something to print</strong> — a flyer, poster, postcard, sign or card.</li>
+            <li><strong>A social graphic</strong> — a post, story, ad or banner.</li>
+            <li><strong>A slide deck</strong> — a whole presentation (see below).</li>
+            <li><strong>A set of sizes</strong> — the same design in several shapes.</li>
+          </ul>
           <p style={{ ...body, marginTop: 10 }}>
-            A card appears headed <strong>What goes on the design</strong>, listing everything it understood —
-            the headline, the date, the price, the phone number. Read it. If anything is wrong, just say so
-            (&ldquo;the price is $25&rdquo;) and it will correct that one thing without touching the rest.
+            <strong>Shortcut:</strong> under the pictures, type (or tap the 🎤 and say) what you need — for example{' '}
+            <em>&ldquo;Saturday club night at The Foundry, doors 9pm, $20 cover&rdquo;</em> — and press{' '}
+            <strong>Draft it &rarr;</strong>. It fills in the kind, a look, the words and the sizes for you, then takes
+            you to the Content step to check them. You can also name your website and it will pick up your colours,
+            logo and wording. Not sure what to write? Tap one of the examples.
           </p>
         </div>
       </div>
@@ -64,31 +83,48 @@ export default function FlyersHelpPage() {
       <div style={step}>
         <div style={STEP_CIRCLE}>3</div>
         <div>
-          <h3 style={{ margin: '4px 0 8px' }}>Check the look and the sizes</h3>
+          <h3 style={{ margin: '4px 0 8px' }}>Content — what should it say?</h3>
           <p style={body}>
-            Three buttons sit above where you type:
+            This step works like a chat. Type or paste in the box (or press <strong>🎤 Talk</strong>), then press{' '}
+            <strong>Send</strong>. Three buttons help you get started:
           </p>
-          <ul style={{ ...body, marginTop: 10, paddingLeft: 20 }}>
-            <li><strong>1. Pick Your Style</strong> — 225 looks: twenty-five each in Business, Sales &amp; offers, Food &amp; drink, Local services, Real estate, Fitness, Community, Live music and Nightlife. It picks one that suits your job automatically and tells you when it does. Click a different one any time; once you choose for yourself, your choice sticks. There is a search box above the pictures that looks through every group at once — type <em>taco</em>, <em>gold</em> or <em>wedding</em> rather than guessing which group we filed it under.</li>
-            <li><strong>2. Add Photos (Optional)</strong> — up to three of your own pictures. Say what each one is (a person, a place, a product, a logo), because a face and a building need opposite treatment.</li>
-            <li><strong>3. Choose Format</strong> — tick every size you need. Print, social posts, banners and business cards.</li>
+          <ul style={list}>
+            <li><strong>✍️ Write it for me</strong> — it drafts the words from what you&rsquo;ve told it.</li>
+            <li><strong>📎 Upload a document</strong> — PDF, Word, PowerPoint, text or CSV — and it pulls the words out.</li>
+            <li><strong>✏️ Type it in myself</strong> — three boxes: <strong>Headline</strong>, <strong>The details</strong>{' '}
+              (one per line) and an optional <strong>Call to action</strong>.</li>
           </ul>
+          <p style={{ ...body, marginTop: 10 }}>
+            The card called <strong>On your design so far</strong> shows the headline, details and call to action it
+            will use. If something is wrong, just say so in the chat (&ldquo;the price is $25&rdquo;) and it fixes that
+            one thing. Press <strong>Next: choose a look</strong> when it&rsquo;s right.
+          </p>
         </div>
       </div>
 
       <div style={step}>
         <div style={STEP_CIRCLE}>4</div>
         <div>
-          <h3 style={{ margin: '4px 0 8px' }}>Press Make</h3>
-          <p style={body}>
-            The button shows the price before you commit — <strong>Make 3 · 600 cr</strong>. Each design costs
-            200 credits, because each one is drawn from scratch rather than being a crop of the others: a
-            poster and a Facebook banner are laid out completely differently.
+          <h3 style={{ margin: '4px 0 8px' }}>Style — choose your look</h3>
+          <p style={body}>The <strong>The look</strong> box gives you three ways to set the style. Pick one:</p>
+          <ul style={list}>
+            <li><strong>Drop or paste a design you like</strong> — an image to take direction from (see
+              &ldquo;Working from a design you like&rdquo; below). Tick the box confirming you have the right to use it.</li>
+            <li><strong>Or match a website&rsquo;s brand</strong> — type a web address and press <strong>Read brand</strong>.
+              It picks up up to three colours, the logo and the fonts. Click the &times; on a colour to drop it.</li>
+            <li><strong>Or choose one of our styles</strong> — open the gallery and click a thumbnail. Press{' '}
+              <strong>See more</strong> to load more. If the app picked a style for you, it says{' '}
+              <strong>✨ Suggested look</strong>.</li>
+          </ul>
+          <p style={{ ...body, marginTop: 10 }}>
+            Choosing a style clears a reference image, and the other way round — a small message offers{' '}
+            <strong>Undo</strong> if you change your mind.
           </p>
           <p style={{ ...body, marginTop: 10 }}>
-            A block appears in the conversation with a progress bar and a rough countdown. Designs land one at
-            a time — about two minutes each, three at a time — so you don&rsquo;t wait for all of them to
-            start looking. If one fails you are not charged for it.
+            The second box, <strong>Your logo &amp; photos (optional)</strong>, takes up to six pictures. Each one is
+            labelled <strong>Logo</strong> or <strong>Photo</strong> automatically; if it guessed wrong, click{' '}
+            <strong>Not a logo? Mark it a photo</strong>. Use <strong>Add a QR code</strong> to put a scannable code on
+            the design. Press <strong>Next: pick sizes</strong>.
           </p>
         </div>
       </div>
@@ -96,113 +132,129 @@ export default function FlyersHelpPage() {
       <div style={step}>
         <div style={STEP_CIRCLE}>5</div>
         <div>
-          <h3 style={{ margin: '4px 0 8px' }}>Check it properly, then download</h3>
-          <p style={body}>
-            Click any design to fill the screen with it, then <strong>Download</strong>. Print sizes come out
-            at 300 dots per inch, which is what a printer asks for.
+          <h3 style={{ margin: '4px 0 8px' }}>Sizes — where will you use it?</h3>
+          <p style={body}>Tick every size you need, up to eight. Each shows its price (200 credits).</p>
+          <ul style={list}>
+            <li><strong>Print</strong> — letter flyer, square flyer, half page, 11&times;17 poster, postcards, rack card,
+              door hanger, table tent, A4, yard sign and vinyl banner.</li>
+            <li><strong>Social</strong> — Instagram post and story, Facebook post, Facebook/Instagram ad.</li>
+            <li><strong>Banners &amp; headers</strong> — Facebook cover, YouTube banner and thumbnail, X header, LinkedIn banner.</li>
+            <li><strong>Business cards</strong> — front and back.</li>
+            <li><strong>Slides</strong> — widescreen and 4:3.</li>
+          </ul>
+          <p style={{ ...body, marginTop: 10 }}>
+            If you tick a print size, it asks <strong>For printing — do you want a bleed?</strong> Choose{' '}
+            <strong>Full bleed</strong> if your print shop trims the edges (they&rsquo;ll tell you), otherwise leave it on{' '}
+            <strong>No bleed</strong>. The bottom of the page shows how many designs you&rsquo;re making, the total
+            credits, and what you&rsquo;ll have left.
           </p>
-          <div style={note}>
-            <strong>Please read the small print before you print.</strong> The dates, prices, phone numbers and
-            email addresses are drawn by the AI as part of the picture. It is very good at this now, but an
-            unusual venue name or a phone number is worth a second look at full size — which is exactly why
-            clicking a design opens it full screen.
-          </div>
         </div>
       </div>
 
       <div style={step}>
         <div style={STEP_CIRCLE}>6</div>
         <div>
-          <h3 style={{ margin: '4px 0 8px' }}>Change something and go again</h3>
+          <h3 style={{ margin: '4px 0 8px' }}>Review — check and start</h3>
           <p style={body}>
-            Say what you want different and press Make again. The new designs appear <em>underneath</em> the
-            old ones — nothing is overwritten, so you can compare and pick. Everything is saved: close the
-            tab, come back tomorrow, and the whole conversation and every design is still there. They also
-            appear in your Library under My Creations.
+            A summary lists what you&rsquo;re making, the look, the headline, the sizes, the print edge and your
+            pictures, plus the price — for example <strong>600 credits (3 designs &times; 200)</strong> and what
+            you&rsquo;ll have left. Press <strong>Start designing</strong>.
           </p>
+          <p style={{ ...body, marginTop: 10 }}>
+            A waiting screen shows one placeholder per size while it works. You can close the tab — finished designs
+            are saved to your Library either way. If it can&rsquo;t finish, you aren&rsquo;t charged.
+          </p>
+        </div>
+      </div>
+
+      <div style={step}>
+        <div style={STEP_CIRCLE}>7</div>
+        <div>
+          <h3 style={{ margin: '4px 0 8px' }}>Your designs — download, share, or change a part</h3>
+          <p style={body}>
+            Click any size in the list to see it large. From here you can:
+          </p>
+          <ul style={list}>
+            <li><strong>Download this one</strong>, <strong>Download all</strong>, or <strong>Share</strong> a link.</li>
+            <li><strong>Edit a part</strong> (200 credits) — paint over the area you want changed, describe the change,
+              and press <strong>Change it</strong>. To change wording, use <strong>Change the words</strong> instead.</li>
+            <li><strong>Add a QR code</strong> or <strong>Add a logo</strong> — pick the file, click where it should go,
+              then <strong>Place it</strong> (costs one design).</li>
+            <li><strong>&larr; Make more sizes</strong>, <strong>Change the words</strong>, or{' '}
+              <strong>Start another design</strong>.</li>
+          </ul>
+          <p style={{ ...body, marginTop: 10 }}>
+            Every design is also in your <strong>Library</strong>, under the <strong>Custom Graphics</strong> tab.
+          </p>
+          <div style={note}>
+            <strong>Read the small print before you print.</strong> Dates, prices, phone numbers and email addresses
+            are drawn by the AI as part of the picture. If it spots a word that may be misspelled it shows a warning,
+            but always check names and numbers at full size before sending anything to a printer.
+          </div>
         </div>
       </div>
 
       <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Slide decks (a whole presentation)</h2>
       <p style={body}>
-        On the first step, tap <strong>A slide deck</strong>. On the words step, just describe what the deck is
-        about and who it&rsquo;s for &mdash; or paste all your notes. You don&rsquo;t say how many slides; the app
-        asks whether you want it <strong>Short</strong>, <strong>Medium</strong> or <strong>Long</strong>, then
-        picks the exact number to fit what you gave it.
+        On the <strong>What</strong> step, tap <strong>A slide deck</strong>. On the Content step, describe what the
+        deck is about and who it&rsquo;s for — or paste your notes. It asks <strong>How long should this deck
+        run?</strong> — <strong>Short</strong> (5–7 slides), <strong>Medium</strong> (8–14) or <strong>Long</strong> (15–24).
       </p>
       <p style={body}>
-        It doesn&rsquo;t just list your points on slides &mdash; it builds a <strong>story</strong>. It works out
-        the deck&rsquo;s purpose (an investor pitch, a sales deck, training, a report&hellip;) and orders the
-        slides the way that kind of talk is meant to flow. Before anything is drawn, it shows you the{' '}
-        <strong>running order</strong> &mdash; each slide&rsquo;s title and one line on why it&rsquo;s there. You
-        can remove any slide or change the length, then press <strong>Make it a deck</strong>.
+        Before anything is drawn it shows <strong>Review every slide — edit anything</strong>: each slide&rsquo;s headline
+        and lines, which you can change. You can <strong>Delete</strong> a slide, <strong>+ Add a line</strong>, add{' '}
+        <strong>+ Slide below</strong>, or switch between short, medium and long without losing your edits. When
+        it&rsquo;s right, press <strong>Make it a deck</strong> (the button shows the slide count and credits). Decks
+        skip the Sizes step and are drawn at widescreen size; download the slides as images or as one PDF.
       </p>
       <div style={note}>
         <strong>It won&rsquo;t make things up.</strong> Real numbers from your notes are kept exactly; a slide it
-        can&rsquo;t back up with your material is left out rather than invented. Your <strong>logo</strong> sits in
-        the same corner on every inside slide, so the whole set looks designed together.
+        can&rsquo;t back up with your material is left out rather than invented. Already have a PowerPoint or PDF? Use{' '}
+        <Link href="/help/restyle-deck" style={{ color: 'var(--ink)', fontWeight: 700 }}>Restyle a Deck</Link> instead.
       </div>
-      <p style={body}>
-        Every slide is drawn to match your chosen look, at standard widescreen size. Download them as images or as
-        one PDF. (Already have a PowerPoint or PDF? Use <strong>restyle a deck</strong> instead &mdash; that keeps
-        your existing slides and just redraws them in a new look.)
-      </p>
 
       <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Business cards</h2>
       <p style={body}>
-        Tick <strong>Business card — front</strong> and <strong>back</strong> under the sizes button. A card is
-        treated as a card, not a shrunken poster: the person&rsquo;s name is the largest thing on it, the job
-        title sits underneath, the contact details group into one corner, and the back is kept deliberately
-        near-empty — which is what an expensive card looks like.
+        On the <strong>Sizes</strong> step, tick <strong>Business card — front</strong> and <strong>back</strong> in the
+        Business cards group. A card is treated as a card, not a shrunken poster: the name is the largest thing on it,
+        the job title sits underneath, the contact details group together, and the back is kept simple.
       </p>
 
       <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Working from a design you like</h2>
       <p style={body}>
-        Instead of picking one of our looks, you can give us a design to take direction from. Open{' '}
-        <strong>1. Pick Your Style</strong> and use <strong>Upload your own design to work from</strong>. You can
-        choose a file, drag one in, or simply copy an image and paste it straight onto the page.
-      </p>
-      <p style={body}>
-        If you have nothing to hand, browse <strong>Envato</strong>, <strong>Freepik</strong> or{' '}
-        <strong>Creative Market</strong>, find something you like the look of, and paste it in.
+        On the <strong>Style</strong> step, use <strong>Drop or paste a design you like</strong>. You can choose a file,
+        drag one in, or copy an image and paste it straight onto the page.
       </p>
       <div style={note}>
-        <strong>We don&rsquo;t copy the design itself.</strong> We read its style — the colours, the lettering,
-        the mood, the way it is laid out — and build you a new design from your own words. Its text, logos and
-        photographs are never reused. That matters: those designs belong to the people who made them, and a
-        close copy is theirs, not yours.
+        <strong>We don&rsquo;t copy the design itself.</strong> We read its style — the colours, the lettering, the
+        mood, the layout — and build a new design from your own words. Its text, logos and photographs are never
+        reused. Only use a design you own or have permission to use.
       </div>
-      <p style={body}>
-        A style and a reference cannot both be used at once. Each is a complete instruction for how the design
-        should look, and giving two means it follows neither — so choosing one clears the other, and the app
-        tells you when it does.
-      </p>
 
-      <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Using your own photos</h2>
+      <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Using your own photos and logo</h2>
       <p style={body}>
-        Add a headshot, the actual property, or your product and the design is built around it instead of an
-        invented stranger. One thing to know: your photo is <strong>redrawn</strong> into the artwork rather
-        than pasted in, so a person stays clearly recognisable but is not pixel-for-pixel the original
-        photograph. Look at the face before you send it anywhere.
-      </p>
-      <p style={body}>
-        A logo is the exception — mark it as <strong>A logo</strong> and it is placed as-is, never redrawn or
-        recoloured.
+        Add a headshot, the actual property, or your product and the design is built around it. A photo of a person
+        becomes the featured subject and is <strong>redrawn</strong> into the artwork, so it stays recognisable but is
+        not pixel-for-pixel the original — look at the face before you send it anywhere. A <strong>logo</strong> and a{' '}
+        <strong>QR code</strong> are the exceptions: they are placed exactly as you uploaded them, never redrawn.
       </p>
 
       <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Common questions</h2>
-      <p style={body}><strong>Why did my old Flyer Creator page disappear?</strong><br />
-        There used to be two flyer tools. They have been replaced by this one, which produces better designs,
-        handles more sizes, keeps a history and makes business cards. Anything you made before is untouched
-        and still in your Library.
+      <p style={body}><strong>What does it cost?</strong><br />
+        200 credits per design (each size is its own design), per deck slide, per <strong>Edit a part</strong>, and per
+        logo or QR placement. The price is shown on the Sizes and Review steps before you start.
       </p>
-      <p style={{ ...body, marginTop: 14 }}><strong>Can I get a really big poster?</strong><br />
-        Yes — 11&times;17 inches is offered. Very large print sizes are enlarged to reach their full
-        dimensions, so they suit handouts and posters rather than billboards.
+      <p style={{ ...body, marginTop: 14 }}><strong>Are the files good enough to print?</strong><br />
+        Print sizes are saved at the right size and resolution for their paper (300 dots per inch for most; less for
+        the yard sign and vinyl banner, which are seen from further away). Small lettering can look softer on the
+        largest sizes, so for posters and signs, zoom in and check before ordering a big print run.
       </p>
-      <p style={{ ...body, marginTop: 14 }}><strong>Why is one design different from another?</strong><br />
-        Because each is an original for its own shape. A tall poster and a wide banner cannot hold the same
-        layout, so they are siblings in one style rather than copies. Nothing is ever cropped to fit.
+      <p style={{ ...body, marginTop: 14 }}><strong>Why is one size different from another?</strong><br />
+        Each is an original for its own shape. A tall poster and a wide banner cannot hold the same layout, so they
+        are siblings in one style rather than copies. Nothing is cropped to fit.
+      </p>
+      <p style={{ ...body, marginTop: 14 }}><strong>Where did the old Flyer Creator go?</strong><br />
+        It was replaced by this maker. Anything you made before is untouched and still in your Library.
       </p>
 
       <div style={{ marginTop: 40, paddingTop: 24, borderTop: '1px solid var(--border-light)' }}>

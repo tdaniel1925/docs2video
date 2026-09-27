@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { getStripe, SUBSCRIPTION_PRICES } from '../../../_lib/stripe'
 import { createAdminClient } from '../../../_lib/supabase/admin'
+import { listLiveMainSubscriptions } from '../../../_lib/billing'
 
 export const runtime = 'nodejs'
 
@@ -33,9 +35,12 @@ const APEX_TIER = 'pro' as const
 
 export async function POST(req: NextRequest) {
   // 1) Authorize the server-to-server call from Apex.
+  // Constant-time compare (a plain !== leaks how many leading characters match).
   const secret = process.env.D2V_CHECKOUT_SECRET
   const auth = req.headers.get('authorization') ?? ''
-  if (!secret || auth !== `Bearer ${secret}`) {
+  const want = Buffer.from(`Bearer ${secret ?? ''}`)
+  const got = Buffer.from(auth)
+  if (!secret || want.length !== got.length || !timingSafeEqual(want, got)) {
     return bad('Unauthorized', 401)
   }
 
@@ -74,10 +79,30 @@ export async function POST(req: NextRequest) {
     //    webhook can update vs. create.
     const { data: existing } = await admin
       .from('profiles')
-      .select('id')
+      .select('id, stripe_customer_id, subscription_status')
       .eq('email', email)
       .maybeSingle()
     const existingUserId: string | undefined = existing?.id ?? undefined
+
+    // NEVER a second subscription (audit C3). An existing Docs2Video user who
+    // already has a live paid plan must change it inside Docs2Video, not buy a
+    // second one here. A card-on-file TRIAL is fine — the webhook cancels it
+    // the moment this paid subscription starts (previous_customer_id tells it
+    // where to look, since this checkout uses a new Stripe customer).
+    let previousCustomerId: string | null = null
+    if (existing?.stripe_customer_id) {
+      previousCustomerId = existing.stripe_customer_id
+      let live: Awaited<ReturnType<typeof listLiveMainSubscriptions>> = []
+      try {
+        live = await listLiveMainSubscriptions(stripe, existing.stripe_customer_id)
+      } catch (e) {
+        // Stale/test customer id — nothing live on it.
+        console.warn('[checkout/create] could not list existing subscriptions:', e instanceof Error ? e.message : e)
+      }
+      if (live.some(s => s.status !== 'trialing')) {
+        return bad('This email already has an active Docs2Video subscription. Please sign in to Docs2Video to change your plan.', 409)
+      }
+    }
 
     // 3) Stripe Customer on D2V's account (Path B — D2V = merchant). Cheap and
     //    account-less pre-payment.
@@ -96,6 +121,7 @@ export async function POST(req: NextRequest) {
       apex_email: email,
       ...(body.name ? { apex_name: body.name } : {}),
       ...(existingUserId ? { supabase_user_id: existingUserId } : {}),
+      ...(previousCustomerId ? { previous_customer_id: previousCustomerId } : {}),
       ...(referralSource ? { referral_source: referralSource } : {}),
     }
     const returnUrl =
@@ -130,8 +156,8 @@ export async function POST(req: NextRequest) {
       customer_id: customer.id,
     })
   } catch (err) {
+    // Raw Stripe detail stays in our log; Apex gets a plain sentence it can show.
     console.error('[checkout/create] failed:', err)
-    const message = err instanceof Error ? err.message : 'Checkout failed'
-    return bad(message, 500)
+    return bad('Checkout could not be started. Please try again in a minute.', 500)
   }
 }

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { deductCredits } from '../../_lib/credits'
+import { CREDIT_COSTS } from '../../_lib/credits'
+import { runCharged } from '../../_lib/credit-charge'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -322,7 +323,11 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient()
+  const COST = CREDIT_COSTS['email-signature']
 
+  // Charge BEFORE the work (this used to deduct 1 credit afterwards and
+  // ignore a failed deduction) and refund if anything fails (audit H5).
+  return runCharged({ userId: user.id, amount: COST, action: 'email-signature' }, async () => {
   try {
     const signatures: { style: string; html: string; previewUrl: string }[] = []
 
@@ -356,21 +361,19 @@ export async function POST(request: Request) {
       })
     }
 
-    // Deduct credits
-    await deductCredits(admin, user.id, 1)
-
     // Log to creations table
     await admin.from('creations').insert({
       user_id: user.id,
       type: 'email-signature',
       title: `Email Signature: ${fullName}`,
       file_url: signatures[0].previewUrl,
-      credits_used: 1,
+      credits_used: COST,
     })
 
     return NextResponse.json({ signatures })
   } catch (err: any) {
     console.error('[email-signature] Error:', err)
-    return NextResponse.json({ error: err.message || 'Failed to generate signatures' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to generate signatures. Your credits were returned — please try again.' }, { status: 500 })
   }
+  })
 }

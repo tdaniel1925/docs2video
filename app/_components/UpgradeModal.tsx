@@ -71,7 +71,7 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
             <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-soft)' }}>$79/mo</span>
           </div>
           <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 12, lineHeight: 1.4 }}>
-            25,000 credits/mo (~25 standard videos), all lengths, priority generation
+            25,000 credits/mo (~25 standard videos), all lengths
           </p>
           <button
             onClick={() => handleUpgrade('pro')}

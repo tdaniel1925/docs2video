@@ -149,7 +149,7 @@ export default function Step1Content() {
     setStage('extracting')
     // Carry the source PDF path/name (set by uploadAndExtract for pdf uploads)
     // into the draft so the Theme step can offer a client-download toggle.
-    const sourcePdf = (extractedData?._sourcePdfPath && extractedData?._sourcePdfName)
+    const sourcePdf: { sourcePdfPath?: string; sourcePdfName?: string } = (extractedData?._sourcePdfPath && extractedData?._sourcePdfName)
       ? { sourcePdfPath: extractedData._sourcePdfPath as string, sourcePdfName: extractedData._sourcePdfName as string }
       : {}
     try {
@@ -168,8 +168,13 @@ export default function Step1Content() {
               clientId,
               extractedData,
               contentMethod: method || 'idea',
-              ...sourcePdf,
-              ...(extractedDocsRef.current.length > 1 ? { extractedDocs: extractedDocsRef.current, combineInstruction: purpose.trim() } : {}),
+              // Coming back with a DIFFERENT source: clear what no longer
+              // applies — the old PDF (null = "no source PDF") and the old
+              // multi-file list (empty = single source, no extra-file charge).
+              ...(sourcePdf.sourcePdfPath ? sourcePdf : { sourcePdfPath: null }),
+              ...(extractedDocsRef.current.length > 1
+                ? { extractedDocs: extractedDocsRef.current, combineInstruction: purpose.trim() }
+                : { extractedDocs: [] }),
               ...(overrides?.styleId ? { styleId: overrides.styleId } : {}),
               ...(extractedData?.classification ? { classification: extractedData.classification } : {}),
             },
@@ -243,19 +248,27 @@ export default function Step1Content() {
 
       // Multi-file: run the AI combine pass (reasons across all docs + the
       // user's instruction) to produce one unified brief BEFORE the brief step.
+      // Every file's content is already in the draft either way; if the
+      // comparison itself fails, the Brief step SAYS so (it used to be ignored,
+      // and the user got a single-file brief with no explanation).
+      let combineFailed = false
       if (extractedDocsRef.current.length > 1) {
         setStageMsg('Comparing your documents…')
-        await fetch('/api/combine-docs', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId: draftData.videoId }),
-        }).catch(() => {}) // best-effort; the brief step still works if it fails
+        try {
+          const cr = await fetch('/api/combine-docs', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ videoId: draftData.videoId }),
+          })
+          combineFailed = !cr.ok
+        } catch { combineFailed = true }
       }
+      const combineFlag = combineFailed ? '&combine=failed' : ''
 
       if (overrides?.skipToStep) {
-        router.push(`/create/${overrides.skipToStep}?id=${draftData.videoId}`)
+        router.push(`/create/${overrides.skipToStep}?id=${draftData.videoId}${combineFlag}`)
       } else {
         // After extraction → the Brief step (review what the AI will cover).
-        router.push(`/create/brief?id=${draftData.videoId}`)
+        router.push(`/create/brief?id=${draftData.videoId}${combineFlag}`)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -405,8 +418,10 @@ export default function Step1Content() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ idea: purpose.trim(), purpose: purpose.trim() }),
         })
-        const result = await res.json()
-        if (!res.ok) throw new Error(result.error || 'Content generation failed')
+        // Parsed defensively like the other paths: a timeout page or an empty
+        // body used to crash here with "Unexpected token <".
+        const result = await parseApiResponse(res, 'Writing the content took too long. Please try again, or paste your own text instead.')
+        if (!res.ok) throw new Error((result.error as string) || 'Content generation failed')
         extractedData = result
       }
 
@@ -511,8 +526,9 @@ export default function Step1Content() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ idea: purpose.trim(), purpose: purpose.trim() }),
         })
-        const result = await res.json()
-        if (!res.ok) throw new Error(result.error || 'Content generation failed')
+        // Parsed defensively like the other paths (see Quick mode above).
+        const result = await parseApiResponse(res, 'Writing the content took too long. Please try again, or paste your own text instead.')
+        if (!res.ok) throw new Error((result.error as string) || 'Content generation failed')
         extractedData = result
       }
 

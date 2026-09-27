@@ -1,9 +1,49 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
+import { getStripe } from '../../../_lib/stripe'
+import { isLiveSubscription } from '../../../_lib/billing'
 
 export const runtime = 'nodejs'
-export const maxDuration = 30
+export const maxDuration = 60
+
+// Buckets that hold per-user uploads/outputs under a `{userId}/` folder.
+const USER_BUCKETS = ['videos', 'creation-assets', 'creations', 'infographics', 'brand-assets', 'logos', 'agent-photos', 'slides']
+
+/** Delete every file under `prefix` in `bucket` (walks sub-folders). Returns the count. */
+async function removeFolder(admin: ReturnType<typeof createAdminClient>, bucket: string, prefix: string, depth = 0): Promise<number> {
+  if (depth > 6) return 0
+  let removed = 0
+  try {
+    const files: string[] = []
+    for (let offset = 0; offset < 10000; offset += 1000) {
+      const { data, error } = await admin.storage.from(bucket).list(prefix, { limit: 1000, offset })
+      if (error || !data || data.length === 0) break
+      for (const item of data) {
+        const full = `${prefix}/${item.name}`
+        // Folders come back without an id.
+        if (item.id) files.push(full)
+        else removed += await removeFolder(admin, bucket, full, depth + 1)
+      }
+      if (data.length < 1000) break
+    }
+    for (let i = 0; i < files.length; i += 100) {
+      const { error } = await admin.storage.from(bucket).remove(files.slice(i, i + 100))
+      if (error) console.error(`[account/delete] storage remove failed in ${bucket}/${prefix}:`, error.message)
+      else removed += Math.min(100, files.length - i)
+    }
+  } catch (e) {
+    console.error(`[account/delete] storage cleanup error in ${bucket}/${prefix}:`, e instanceof Error ? e.message : e)
+  }
+  return removed
+}
+
+async function removeUserFiles(admin: ReturnType<typeof createAdminClient>, userId: string): Promise<number> {
+  let n = 0
+  for (const bucket of USER_BUCKETS) n += await removeFolder(admin, bucket, userId)
+  n += await removeFolder(admin, 'creations', `logos/${userId}`)
+  return n
+}
 
 /**
  * POST /api/account/delete
@@ -18,6 +58,38 @@ export async function POST() {
 
   const admin = createAdminClient()
   const userId = user.id
+
+  // 0. STOP BILLING FIRST (audit H12). Deleting the account used to leave the
+  //    Stripe subscription running — the person kept being charged for an
+  //    account that no longer existed. If any live subscription can't be
+  //    cancelled we stop here, so the account is never deleted while it can
+  //    still bill.
+  const { data: billingProfile } = await admin
+    .from('profiles')
+    .select('stripe_customer_id')
+    .eq('id', userId)
+    .single()
+  if (billingProfile?.stripe_customer_id) {
+    try {
+      const stripe = getStripe()
+      const subs = await stripe.subscriptions.list({ customer: billingProfile.stripe_customer_id, status: 'all', limit: 100 })
+      for (const sub of subs.data) {
+        // Main plan AND the AI Social add-on — anything that can still bill.
+        if (isLiveSubscription(sub)) {
+          await stripe.subscriptions.cancel(sub.id)
+          console.log(`[account/delete] cancelled subscription ${sub.id} (${sub.status}) for user ${userId}`)
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (!msg.includes('No such customer')) { // a dead test-mode customer can't bill anyone
+        console.error(`[account/delete] could not cancel subscriptions for user ${userId} — NOT deleting:`, msg)
+        return NextResponse.json({
+          error: 'We could not cancel your subscription, so your account was not deleted. Please try again, or cancel from Manage billing first.',
+        }, { status: 502 })
+      }
+    }
+  }
 
   try {
     // 1. Get all user videos to delete storage files
@@ -57,6 +129,13 @@ export async function POST() {
       // Delete all video records
       await admin.from('videos').delete().eq('user_id', userId)
     }
+
+    // 2b. Every other file the user owns. Uploads are stored under a folder
+    //     named after the user id in each bucket (logo-chat uses logos/{id}
+    //     in 'creations'). Best-effort: a storage hiccup must not leave a
+    //     half-deleted account, it is logged for manual cleanup instead.
+    const removed = await removeUserFiles(admin, userId)
+    console.log(`[account/delete] removed ${removed} stored file(s) for user ${userId}`)
 
     // 3. Delete brands
     await admin.from('brands').delete().eq('user_id', userId)

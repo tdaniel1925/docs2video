@@ -73,12 +73,18 @@ export async function GET(request: Request) {
     ...ADMIN_RECIPIENTS,
     ...(process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim()).filter(Boolean),
   ]
-  await resend.emails.send({
+  // Resend returns failures instead of throwing. Report them as a failed run
+  // so the cron log shows the digest never went out (it used to say "Sent").
+  const { error: sendError } = await resend.emails.send({
     from: 'Docs2Video <reports@docs2video.com>',
     to: recipients,
     subject: `[Docs2Video] ${failedList.length} failed, ${stuckList.length} stuck — daily digest`,
     html,
   })
+  if (sendError) {
+    console.error('[daily-digest] send failed:', sendError.message)
+    return NextResponse.json({ sent: false, error: sendError.message }, { status: 500 })
+  }
 
   console.log(`[daily-digest] Sent: ${failedList.length} failed, ${stuckList.length} stuck`)
   return NextResponse.json({ sent: true, failed: failedList.length, stuck: stuckList.length })

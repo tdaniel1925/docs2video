@@ -1,9 +1,78 @@
 # Docs2Video — Build State
 
-**Last updated:** 2026-07-04 (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
+**Last updated:** 2026-09-26 (audit fixes; see "Audit 2026-09-26" below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
 **Branch:** main
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
+
+## Audit 2026-09-26 — everything fixed, and what the owner must do (`AUDIT-2026-09-26.md`, branch `fix/audit-2026-09-26`)
+
+One section for the whole audit (five fix branches plus the follow-up pass).
+Nothing below is live until the branch is deployed AND the owner checklist at
+the end is done.
+
+### What is fixed
+
+**Money and credits**
+- One spend rule for every product (`spendBlockReason` in `checkCredits` + `deductCredits`): no card on free/trial, `past_due` or banned = can't spend. generate-video no longer has its own copy; it turns the shared answer into `card_required` / `payment_past_due` / `account_blocked` (the theme page still sends `card_required` to `/setup-payment`). Trial converts inside `deductCredits` / `checkCredits` from any product.
+- Charge-first + refund-once-on-failure for 13 one-off tools (`app/_lib/credit-charge.ts`); tools that charged 1 credit now charge real prices.
+- The stuck-video cron refunds only what the ledger proves was charged (`app/_lib/video-billing.ts`), never a number a user typed (C1).
+- Refunds are keyed per attempt: presentation builds, MP4 exports and narration-edit fees each have their own charge/refund pair (`refundLedgerCharge`), so they never collide with each other or with a video refund.
+- **Restart Generation** goes through `POST /api/videos/{id}/restart`: marks the stuck run failed, refunds its ledger-verified charge, then sets it back to pending — restarting no longer charges twice.
+- generate-video refuses before claiming the row and prices from the saved draft (C4).
+
+**Stripe**
+- Plan changes never create a second subscription (`app/_lib/subscription-checkout.ts`); `/api/confirm-card` checks the SetupIntent with Stripe; the webhook throws on any failure so Stripe retries; refunds/disputes claw back commission and revoke credits in proportion; incomplete checkouts grant nothing; only the subscription on file can change a plan.
+- Apex buyers are matched to an existing account by their **sign-in (auth) email**, not the editable `profiles.email`; an unconfirmed match gets the set-password email so the real inbox owner can take it over.
+- Apex welcome email's button now opens `/auth/confirm?token_hash=…&type=recovery&next=/reset-password` — a real set-password page (it used to land on login). A failed send is logged.
+- Account delete cancels Stripe first; promo revoke is safe; only Pro/Business/Enterprise are sold anywhere (`SELLABLE_PLAN_TIERS`).
+
+**Sign-in and security**
+- New `/reset-password` page (outside the dashboard) and `/auth/confirm` (works on any device); welcome email only after confirmation; `?next=` honored after login.
+- Public pages reachable logged out (`app/_lib/public-paths.ts`); `/admin` gated on the server; Gmail/Outlook connect uses signed state (C7); SMTP limited to public mail servers; secrets encrypted when `DATA_ENCRYPTION_KEY` is set.
+- Profiles and videos column guards (migrations below) stop the browser writing paid, identity or billing columns.
+
+**Clients, emails and share page**
+- Automatic follow-ups are **off by default** and turned on per quote; opt-in, one email per stage, signed unsubscribe, stop on paid/accepted/declined.
+- Every Resend send is checked (Resend v6 returns errors instead of throwing): share emails, contact form, admin campaign/nurture/promo-user, daily digest, weekly report, referral prompt, error alerts, Apex welcome. Failures are logged; people waiting are told.
+- Share page: only `https://` booking/payment links become buttons (the public watch API filters them too, and now passes the per-video links through); slide decks render as decks; edits never take a live link down.
+- Follow-up share links always use the configured site address, never `VERCEL_URL`.
+- Client intelligence reads the real columns (`sent_emails.to_email/created_at`, `video_views.opened_at`).
+- View alerts: owner's own views ignored, per-viewer cooldown, agent setting.
+
+**Wizard and rendering**
+- Brief "Skip" really skips; scripts run in the background; drafts keep the source PDF and use every uploaded file; drafts **with a script are kept 14 days** (24 hours without).
+- Slide Deck videos use the user's voice, music, length and edited script (render service change — needs the redeploy below).
+- `WizardDraft` type now lists every field the wizard and server write.
+
+**Copy and help**
+- Pricing text matches `pricing.ts` everywhere (no $29 Starter, no "$10 per video", no "save 60%"). No share-page chatbot, no password-protected links, no "print-ready" promise (print upscaling needs `FAL_KEY`).
+- Help center: reset password, Google booking-page links, drafts, follow-ups, Slide Deck choices, Restart Generation; branded 404/error pages; SEO metadata; orphan tools redirect.
+
+### Owner checklist
+
+**1. Run these migrations by hand in the Supabase SQL editor, in this order** (production does not run `supabase db push`; each is safe to run twice):
+1. `20260926_revoke_credits_atomic.sql` — atomic "take credits back" after a Stripe refund/chargeback, from both balances. Without it: a slower fallback runs (works, but two refunds at once could race).
+2. `20260926_client_emails_followups.sql` — follow-up/email-type columns, per-quote follow-up switch, suppressions, view-alert setting. Without it: automatic follow-ups never send, the view-alert setting can't save, unsubscribes can't be recorded.
+3. `20260926_card_on_file_backfill.sql` — marks everyone who has paid through Stripe as having a card. **Run before (or right with) the deploy.** Without it: past subscribers who cancelled are told "Add a card" and can't spend credits they still have. (It marks its own transaction as the service role so the profile guard lets it through.)
+4. `20260926_videos_column_guard.sql` — the database refuses browser writes to video billing columns and most status changes. Without it: nothing breaks (the code already blocks the exploit); this is the second lock.
+5. `20260926_profiles_guard_v2.sql` — the database refuses browser writes to paid/identity/link columns on profiles (add-on flag, social workspace ids, email, referral, plan). Without it: a user could edit those from the browser; the add-on is still checked against Stripe.
+
+**2. Environment variables (Vercel)**
+- `NEXT_PUBLIC_SITE_URL=https://docs2video.com` (email links, share links, Apex set-password link).
+- `DATA_ENCRYPTION_KEY` — encrypts SMTP passwords and Gmail/Outlook tokens. Never change it once set.
+- Optional: `OAUTH_STATE_SECRET`, `EMAIL_UNSUBSCRIBE_SECRET` (changing it later breaks unsubscribe links already sent).
+- `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` / `MICROSOFT_REDIRECT_URI` if Outlook connect should work (the button hides without them).
+- `FAL_KEY` (Vercel and SSM `/docs2video/FAL_KEY` for the renderer) if print upscaling is wanted.
+
+**3. Render service redeploy** — `render-service/server.js` and `slides.js` changed (Slide Deck uses the user's script/voice/music/length; queued jobs stay alive). Deploy per `render-service/DEPLOY.md` (ECS Fargate, CodeBuild image, then force a new deployment of service `video-service`). Until then Slide Deck videos ignore the chosen voice/music/script.
+
+**4. Supabase dashboard**
+- Auth → URL configuration → Redirect URLs: add `https://docs2video.com/auth/confirm`, `https://docs2video.com/auth/callback` and `https://docs2video.com/reset-password`.
+- Auth → Email templates: "Reset password" → `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password`; "Confirm signup" → `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup&next=/setup-payment`.
+- Run `node scripts/fix-private-logo-urls.mjs --apply` once to repair old private logo links.
+
+**5. Stripe — check by hand for customers already double-billed.** The old "Switch plan" could leave two live main-plan subscriptions on one customer, or a leftover 365-day trial next to a paid plan. In the Stripe dashboard, look for customers with more than one active/trialing main-plan subscription; cancel the extra and refund what it charged. New code only prevents new ones.
 
 ## 2026-09-16 — Infographic slides on fal, real logo pinned by code
 
@@ -269,14 +338,22 @@ Full-codebase review in `CODE-REVIEW-2026-07-01.md`. Fixed in one pass:
 
 ## Pricing (from pricing.ts)
 
-| Tier | Monthly | Projects | Courses |
-|------|---------|----------|---------|
-| Free | $0 | $10/each | $249/each |
-| Pro | $25 | $6/each | $149/each |
-| Business | $99 | 50 included | $99/each |
-| Agency | $249 | 150 included | 5 included |
-| Enterprise | $499 | Unlimited | 20 included |
-| Enterprise+ | $799 | Unlimited | Unlimited |
+Updated 2026-09-26. Source of truth: `app/_lib/pricing.ts` (plans), `app/_lib/credits.ts`
+(`TIER_CREDITS`, `CREDIT_COSTS`), `app/api/credits/buy/route.ts` (packs),
+`app/api/stripe/checkout/route.ts` (what is sellable: pro/business/enterprise).
+
+| Tier | Monthly | Credits | ≈ standard videos (1,000 cr) | Sold? |
+|------|---------|---------|------------------------------|-------|
+| Free | $0 | 2,000 one-time (card required) | 2 | signup |
+| Starter | $29 | 5,000/mo | 5 | **retired** — existing subs only |
+| Pro | $79 | 25,000/mo | 25 | yes |
+| Business | $199 | 75,000/mo | 75 | yes (white-label share pages) |
+| Enterprise | $499 | 200,000/mo | 200 | yes (white-label share pages) |
+
+Extra usage = one-time credit packs for everyone (free included): $10 / 2,500 · $25 / 7,500 ·
+$50 / 18,000, never expire. There is NO per-video overage fee; the `extraVideoPrice` /
+`overageRatePer1000` fields in pricing.ts are legacy and must not be quoted to customers.
+AI Social add-on: $50/mo, plus 25 credits per caption set and 25 credits per platform per post.
 
 ---
 
@@ -307,6 +384,7 @@ Full-codebase review in `CODE-REVIEW-2026-07-01.md`. Fixed in one pass:
 | Supabase | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | DB, auth, storage |
 | Stripe | `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | Subscriptions, payments |
 | Stripe Prices | `STRIPE_PRICE_PRO`, `STRIPE_PRICE_BUSINESS`, `STRIPE_PRICE_AGENCY`, `STRIPE_PRICE_ENTERPRISE`, `STRIPE_PRICE_ENTERPRISE_PLUS` | Plan price IDs |
+| Stripe Promo | `STRIPE_PROMO_WELCOME50` | Promotion-code id auto-applied by `?promo=WELCOME50` (falls back to the old live id only on a live key) |
 | Stripe Projects | `STRIPE_PRICE_PROJECT`, `STRIPE_PRICE_PROJECT_PRO`, `STRIPE_PRICE_COURSE`, `STRIPE_PRICE_COURSE_PRO`, `STRIPE_PRICE_COURSE_BIZ` | Per-project prices |
 | Google OAuth | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Gmail, Google Calendar |
 | Microsoft OAuth | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_REDIRECT_URI`, `MICROSOFT_TENANT_ID` | Outlook/365 email |
@@ -316,6 +394,9 @@ Full-codebase review in `CODE-REVIEW-2026-07-01.md`. Fixed in one pass:
 | Video VPS | `VIDEO_ASSEMBLY_URL`, `VIDEO_ASSEMBLY_SECRET` | External FFmpeg server |
 | Public API | `INTERNAL_API_SECRET` | Trusted header for v1 API → internal route calls (required to enable `/api/v1`) |
 | App Config | `NEXT_PUBLIC_SITE_URL`, `ADMIN_EMAIL`, `IMAGE_MODEL` | App settings |
+| Encryption at rest | `DATA_ENCRYPTION_KEY` | AES-256-GCM key for SMTP passwords + Gmail/Outlook tokens (`app/_lib/secret-box.ts`). Optional — unset = stored plaintext with a warning. Never change once set. |
+| OAuth state | `OAUTH_STATE_SECRET` | Optional HMAC key for Gmail/Outlook connect `state`; falls back to a key derived from the service-role key |
+| Unsubscribe links | `EMAIL_UNSUBSCRIBE_SECRET` (optional; falls back to `CRON_SECRET`, then the service key) | Signs unsubscribe links. Changing it breaks links already sent. |
 
 ---
 
@@ -497,11 +578,26 @@ These features are code-complete and build clean. Setup status:
 3. ⚠️ ACTION REQUIRED: Cartesia API key `sk_car_q3LX...` was committed to git history (commit ff100f4) — rotate it in the Cartesia dashboard and set `CARTESIA_API_KEY` env var on the VPS. Code no longer hardcodes it.
 4. `app/_lib/music-generator.ts` and `synthesizeAllScenes` in `app/_lib/tts.ts` are dead code — music/TTS for the main pipeline run on the VPS. Candidates for removal.
 5. Webhook idempotency unique index: run `supabase/legacy/supabase-webhook-idempotency-migration.sql` against the DB.
+6. `FAL_KEY` is not set in production → print sizes in Custom Graphics are resized, not AI-upscaled (lettering can look soft on posters/signs). `upscaleForPrint` logs "upscale skipped … no FAL_KEY configured". Fix: set `FAL_KEY` in Vercel. No page promises print-ready output or upscaling any more.
+7. Outlook connect needs the `MICROSOFT_*` env vars in production (the button is replaced by a note until they are set).
+8. The Library (`/videos`) has no link to `/infographics` (legacy infographic gallery); it is reachable from the infographic email only.
+9. A stuck run that is restarted keeps going on the render service if it was actually alive; if it later fails on its own it refunds by charge number, which can give back the NEW run's charge too. Rare (needs a stuck-looking run that then fails), and in the customer's favor.
+10. Audit 2026-09-26: see the consolidated section at the top — migrations, env vars, render-service redeploy, Supabase settings and the Stripe double-billing check are still owner to-dos.
+
+### Audit 2026-09-26 — content / pricing / help / nav / SEO details
+
+- **Pricing truth** — customer-facing plan statements match pricing.ts + credits.ts (help center, Text2Art landing, /pricing, /plans, setup page, settings plan cards, upgrade modal, help-chat prompt). Removed claims the code never enforced (priority generation, free slide edits, bulk creation).
+- **Commercial "Buy more"** opens the top-up modal (was a 404).
+- **AI Social** in the account menu (desktop + mobile; "Add-on" tag if not subscribed); posting cost disclosed.
+- **Nurture emails** — no more "no card needed"; the discount code is entered at checkout.
+- **Orphan tools retired** — /headshot, /logo-creator, /templates, /infographic-creator, /email-signature, /image-remix, /course-builder, /brand-kit → home; /ads, /business-cards → /design; /social-kit, /social-campaigns → /social-media. Each via a `layout.tsx` that redirects before the page renders (delete the layout to restore). Their APIs still exist.
+- `/api/demo-slide-gpt` and `/api/template-demo/generate` require an admin.
 
 ## Product Focus (2026-06-11)
 
 Owner decision: the product is **document-to-video + PPT deck maker** only.
 - Peripheral tools (social media, course builder, headshots, image remix, infographics, flyers, business cards, ads, email signatures, brand-kit, translations, affiliates) are HIDDEN from nav/dashboard/help but routes remain live at direct URLs. Restore by re-adding links in `Header.tsx`, dashboard `creations` queries, and the help index.
+- **2026-09-26:** the still-live peripheral pages now REDIRECT (a `layout.tsx` in each folder) so they can't spend credits — see Known Issues › Audit 2026-09-26. Since then, AI Social (/social-media), Affiliate Program and Brand profiles are back in the account menu, and Custom Graphics (/design) is on + Create.
 - Podcast (two-voice) mode SUNSET — wizard option removed, generate-video forces solo. Was the last VPS-only feature.
 - Deck builder: 300 credits per deck (`CREDIT_COSTS.deck`), Gemini engine.
 - All style previews now Gemini (`generateSlideFromPrompt`, optional reference image param).

@@ -11,9 +11,15 @@ import { isRegulated, productTokens, scrubComplianceText } from '../../../_lib/c
 // editable Cover (first) + Closing (last). Idempotent: if bookends already exist
 // (by _role), it leaves them. This makes the front/back slides editable like any
 // content scene; generate-video uses the edited versions (by _role) at submit.
+//
+// The defaults are marked `_auto` with the exact text written (`_autoNarration`).
+// generate-video only lets a bookend override the personalized opening/closing
+// (presenter intro, client greeting, "show contact on closing") when the user
+// actually CHANGED that text — untouched defaults no longer win by accident.
+// The defaults themselves follow the presenter intro and the contact choice.
 function addBookends(
   scenes: any[],
-  opts: { title?: string; brandName?: string; recipientName?: string; contactLine?: string }
+  opts: { title?: string; brandName?: string; recipientName?: string; contactLine?: string; presenterIntro?: string; showContactClosing?: boolean }
 ): any[] {
   if (!Array.isArray(scenes) || scenes.length === 0) return scenes
   const hasCover = scenes.some(s => s?._role === 'cover')
@@ -34,23 +40,36 @@ function addBookends(
       const S = (v?: string) => (typeof v === 'string' && v ? scrubComplianceText(v, toks) : v)
       let t = S(s.title) || ''
       if (t.replace(/[^a-zA-Z]/g, '').length < 6) t = title
-      return { ...s, title: t, narration: S(s.narration) || s.narration, slideData: s.slideData ? { ...s.slideData, headline: S(s.slideData.headline) || t } : s.slideData }
+      return {
+        ...s, title: t, narration: S(s.narration) || s.narration,
+        // scrub the remembered default the same way, so an untouched default
+        // still reads as untouched after cleaning
+        ...(s._auto ? { _autoNarration: S(s._autoNarration) || s._autoNarration } : {}),
+        slideData: s.slideData ? { ...s.slideData, headline: S(s.slideData.headline) || t } : s.slideData,
+      }
     })
   }
   const greeting = opts.recipientName
     ? `Hello ${opts.recipientName}, thank you for your time today.`
     : 'Thank you for your time today.'
+  const intro = opts.presenterIntro?.trim()
+  const coverNarration = intro ? `${greeting} ${intro}` : `${greeting} ${title}.`
   const cover = {
     _role: 'cover',
+    _auto: true,
+    _autoNarration: coverNarration,
     title,
-    narration: `${greeting} ${title}.`,
+    narration: coverNarration,
     slideData: { headline: title },
   }
-  const contactSentence = opts.contactLine ? ` To learn more, reach out: ${opts.contactLine}.` : ''
+  const contactSentence = opts.contactLine && opts.showContactClosing !== false ? ` To learn more, reach out: ${opts.contactLine}.` : ''
+  const closingNarration = `Thank you for watching.${contactSentence} ${opts.brandName ? `${opts.brandName} looks forward to serving you.` : 'We appreciate your time.'}`.replace(/\s+/g, ' ').trim()
   const closing = {
     _role: 'closing',
+    _auto: true,
+    _autoNarration: closingNarration,
     title: 'Thank You',
-    narration: `Thank you for watching.${contactSentence} ${opts.brandName ? `${opts.brandName} looks forward to serving you.` : 'We appreciate your time.'}`.replace(/\s+/g, ' ').trim(),
+    narration: closingNarration,
     slideData: { headline: 'Thank You', cta: 'Reach out to take the next step.' },
   }
   let out = scenes
@@ -243,6 +262,8 @@ export default function ScriptPage() {
             brandName: draft.inlineBrand?.name || undefined,
             recipientName: draft.recipientName || undefined,
             contactLine: contactLine || undefined,
+            presenterIntro: draft.presenterIntro || undefined,
+            showContactClosing: draft.showContactClosing,
           }))
         }
         // Build a createState-like object from draft data for script generation
@@ -303,10 +324,25 @@ export default function ScriptPage() {
     setError(null)
     try {
       const state = isWizard ? createState : JSON.parse(localStorage.getItem('d2v_create') || '{}')
+      const bookendOpts = {
+        title: state.title || (createState?.extractedData as any)?.title,
+        brandName: state.brandName || draftData?.inlineBrand?.name,
+        recipientName: state.recipientName || createState?.recipientName,
+        contactLine: [state.contactPhone, state.contactEmail, state.contactWebsite].filter(Boolean).join(' | ') || undefined,
+        presenterIntro: state.presenterIntro || createState?.presenterIntro,
+        showContactClosing: state.showContactClosing ?? createState?.showContactClosing,
+      }
       const res = await fetch('/api/generate-script', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          // Wizard: send the draft id so the server (a) uses the brief the user
+          // approved on the Review step, (b) runs in the BACKGROUND and saves
+          // the scenes to the draft the moment they're written (not only in
+          // this tab), and (c) never hits the ~60s response timeout — this page
+          // polls the draft below. Without it, the wizard took the old
+          // synchronous path and long scripts timed out.
+          ...(isWizard && videoId ? { videoId } : {}),
           policyData: {
             ...state.extractedData,
             intentType: state.intentType,
@@ -337,12 +373,6 @@ export default function ScriptPage() {
       // ── Wizard path: server runs generation in the BACKGROUND (202) and writes
       // scenes to the draft. Poll the draft until ready/failed so the browser
       // never hits the ~60s synchronous-response timeout. ──
-      const bookendOpts = {
-        title: state.title || (createState?.extractedData as any)?.title,
-        brandName: state.brandName || draftData?.inlineBrand?.name,
-        recipientName: state.recipientName || createState?.recipientName,
-        contactLine: [state.contactPhone, state.contactEmail, state.contactWebsite].filter(Boolean).join(' | ') || undefined,
-      }
       if (data.status === 'generating' && videoId) {
         const scenes = await pollForScenes(videoId)
         setScenes(addBookends(scenes, bookendOpts))

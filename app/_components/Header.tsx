@@ -47,6 +47,9 @@ export default function Header({ profile, brand = DOCS2VIDEO }: { profile: Profi
     : credits ? '#22c55e' : undefined
 
   const showAdmin = profile.is_admin === true
+  // The layout selects profiles.* so the add-on flag is present even though the
+  // shared Profile type doesn't declare it.
+  const hasSocialAddon = !!(profile as Profile & { social_addon_active?: boolean }).social_addon_active
 
   // Close the Tools dropdown on click outside
   useEffect(() => {
@@ -275,6 +278,37 @@ export default function Header({ profile, brand = DOCS2VIDEO }: { profile: Profi
                   Analytics
                 </Link>
               )}
+              {/* AI Social ($50/mo add-on) had no way in: paying customers
+                  could not find the tool. Shown to everyone on the video
+                  storefront — subscribers go straight to it, everyone else
+                  lands on its upsell screen (the page handles both). */}
+              {brand.showVideoFeatures && (
+                <Link
+                  href="/social-media"
+                  onClick={() => setMenuOpen(false)}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none' }}
+                >
+                  <span>AI Social</span>
+                  {!hasSocialAddon && (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-soft)', background: 'var(--bg-soft, #f7f6f2)', border: '1px solid var(--border-light)', borderRadius: 6, padding: '1px 6px' }}>
+                      Add-on
+                    </span>
+                  )}
+                </Link>
+              )}
+              {/* Saved Person/Company profiles (logo, colours, contact). The
+                  /brands editor was only reachable from a hidden Settings tab
+                  on Docs2Video, while every help article sends people there.
+                  Text2Art already has Brands in its top nav. */}
+              {brand.showVideoFeatures && (
+                <Link
+                  href="/brands"
+                  onClick={() => setMenuOpen(false)}
+                  style={{ display: 'block', padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none' }}
+                >
+                  Brand profiles
+                </Link>
+              )}
               <Link
                 href="/settings"
                 onClick={() => setMenuOpen(false)}
@@ -358,7 +392,16 @@ export default function Header({ profile, brand = DOCS2VIDEO }: { profile: Profi
           {brand.showVideoFeatures && (
             <Link href="/analytics" className={pathname === '/analytics' ? 'active' : ''}>Analytics</Link>
           )}
+          {brand.showVideoFeatures && (
+            <Link href="/social-media" className={pathname === '/social-media' ? 'active' : ''}>
+              AI Social{hasSocialAddon ? '' : ' (add-on)'}
+            </Link>
+          )}
+          {brand.showVideoFeatures && (
+            <Link href="/brands" className={pathname.startsWith('/brands') ? 'active' : ''}>Brand profiles</Link>
+          )}
           <Link href="/settings" className={pathname === '/settings' ? 'active' : ''}>Settings</Link>
+          <Link href="/affiliate" className={pathname.startsWith('/affiliate') ? 'active' : ''}>Affiliate Program</Link>
           <Link href="/help" className={pathname.startsWith('/help') ? 'active' : ''}>Help Center</Link>
           {showAdmin && (
             <Link href="/admin" className={pathname.startsWith('/admin') ? 'active' : ''}>Admin</Link>

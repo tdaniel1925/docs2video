@@ -115,7 +115,13 @@ export default function BrandPage() {
         // Auto-select the auto-detected brand if present. We DON'T collapse the
         // picker anymore — "who's presenting?" must stay visible so the presenter
         // options aren't hidden behind a one-brand auto-select.
-        if (draft._autoBrandId) {
+        // Coming BACK to this step: re-select the brand already chosen (or
+        // created here) for this draft. Without this the inline form showed
+        // again and pressing Next created a second copy of the same brand
+        // every time the user went Back and forward.
+        const chosen = typeof draft.brandId === 'string' ? loaded.find((b: Brand) => b.id === draft.brandId) : undefined
+        if (chosen) setSelectedBrandId(chosen.id)
+        else if (draft._autoBrandId) {
           const match = loaded.find((b: Brand) => b.id === draft._autoBrandId)
           if (match) setSelectedBrandId(match.id)
         }

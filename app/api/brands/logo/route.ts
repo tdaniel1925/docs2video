@@ -8,7 +8,15 @@ import { logError } from '../../../_lib/error-logger'
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-const BUCKET = 'creation-assets'
+// The PUBLIC 'logos' bucket (the one /api/upload-logo uses). These variants
+// used to go into the PRIVATE 'creation-assets' bucket with a *public* link,
+// which never loads — so every processed logo showed as broken, in the app,
+// on share pages and in renders. Logos are public brand material, and the
+// render service (VPS/Lambda) and share pages need a plain fetchable URL, so
+// a public bucket is the right home. Every variant is re-encoded to PNG by
+// processLogo, so nothing uploaded here can carry script (no raw SVG).
+// Rows saved before this fix: scripts/fix-private-logo-urls.mjs.
+const BUCKET = 'logos'
 const MAX_BYTES = 8 * 1024 * 1024 // 8MB — logos are small
 const ALLOWED = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']
 

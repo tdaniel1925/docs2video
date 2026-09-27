@@ -141,34 +141,8 @@ export default function SharePagePreview() {
               </button>
             </div>
 
-            {/* AI Chat preview */}
-            <div style={{ padding: '0 24px 24px' }}>
-              <div style={{
-                background: 'var(--surface)', borderRadius: 10,
-                border: '1px solid var(--border)', padding: 16,
-              }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--mint)" strokeWidth="2" style={{verticalAlign:'-2px',marginRight:6}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  AI Assistant
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ alignSelf: 'flex-end', background: 'var(--ink)', color: 'white', padding: '8px 12px', borderRadius: '10px 10px 2px 10px', fontSize: 13, maxWidth: '70%' }}>
-                    What does the guaranteed cash value look like at year 20?
-                  </div>
-                  <div style={{ alignSelf: 'flex-start', background: 'var(--mint)', color: 'var(--ink)', padding: '8px 12px', borderRadius: '10px 10px 10px 2px', fontSize: 13, maxWidth: '70%' }}>
-                    At year 20, your guaranteed cash value would be $42,800. The current illustrated value is projected at $68,500 based on today&apos;s rates.
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                  <div style={{ flex: 1, background: 'white', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--ink-light)' }}>
-                    Ask a question about this document...
-                  </div>
-                  <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* (An "AI Assistant" chat box used to be drawn here. The real share
+                page has no chatbot, so the preview no longer shows one.) */}
 
             {/* Footer */}
             <div style={{

@@ -3,7 +3,9 @@ import { GoogleGenAI } from '@google/genai'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { SLIDE_STYLES } from '../../_lib/types'
-import { deductCredits } from '../../_lib/credits'
+import { randomUUID } from 'crypto'
+import { CREDIT_COSTS, refundCredits } from '../../_lib/credits'
+import { chargeCredits } from '../../_lib/credit-charge'
 import type { Brand } from '../../_lib/types'
 import type { SlideStyleId } from '../../_lib/types'
 
@@ -45,6 +47,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Please fill in the headline, select a style, and at least one platform' }, { status: 400 })
   }
 
+  // Charge for every ad BEFORE generating (this used to charge 1 credit per
+  // ad AFTER the work and ignore a failed deduction — free ads). Ads that
+  // fail are refunded one by one below (audit H5).
+  const validPlatforms = [...new Set(platforms)].filter(p => PLATFORM_CONFIG[p])
+  if (validPlatforms.length === 0) {
+    return NextResponse.json({ error: 'Please select at least one supported platform' }, { status: 400 })
+  }
+  const COST_PER_AD = CREDIT_COSTS.ad
+  const charge = await chargeCredits({
+    userId: user.id,
+    amount: validPlatforms.length * COST_PER_AD,
+    action: 'ads',
+    description: `Ads: ${validPlatforms.join(', ')}`,
+  })
+  if (!charge.ok) return charge.response
+  const chargeKey = randomUUID()
+
   // Load brand (optional)
   let brand: Brand | null = null
   if (brandId) {
@@ -80,9 +99,9 @@ export async function POST(request: Request) {
   const results: { platform: string; imageUrl: string; width: number; height: number }[] = []
 
   // Generate ad for each platform
-  for (const platform of platforms) {
+  for (const platform of validPlatforms) {
     const config = PLATFORM_CONFIG[platform]
-    if (!config) continue
+    try {
 
     const hasLogo = !!(logoBuffer || logoUrl)
 
@@ -157,14 +176,12 @@ ${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
       }
     }
 
-    if (!adBuffer) {
-      console.log(`[generate-ads] Gemini did not return an image for ${platform}, skipping`)
-      continue
-    }
+    if (!adBuffer) throw new Error('Gemini did not return an image')
 
     // Upload to Supabase storage
     const storagePath = `${user.id}/ads/${timestamp}/${platform}.png`
-    await admin.storage.from('videos').upload(storagePath, adBuffer, { contentType: 'image/png', upsert: true })
+    const { error: upErr } = await admin.storage.from('videos').upload(storagePath, adBuffer, { contentType: 'image/png', upsert: true })
+    if (upErr) throw new Error(`upload failed: ${upErr.message}`)
     const { data: urlData } = admin.storage.from('videos').getPublicUrl(storagePath)
 
     results.push({
@@ -173,16 +190,15 @@ ${hasLogo ? '- Integrate the provided logo naturally into the design' : ''}
       width: config.width,
       height: config.height,
     })
-  }
-
-  // Deduct 1 credit per platform generated
-  if (results.length > 0) {
-    const deducted = await deductCredits(admin, user.id, results.length)
-    if (!deducted) {
-      console.log(`[generate-ads] Warning: insufficient credits for user ${user.id}`)
+    } catch (err) {
+      // This one ad failed: give its credits back and carry on with the rest.
+      console.error(`[generate-ads] ${platform} failed — refunding ${COST_PER_AD} credits:`, err instanceof Error ? err.message : err)
+      await refundCredits(user.id, COST_PER_AD, 'ads', `${chargeKey}:${platform}`)
     }
-    console.log(`[generate-ads] Deducted ${results.length} credits for ${results.length} ad(s)`)
   }
 
+  if (results.length === 0) {
+    return NextResponse.json({ error: 'No ads could be generated. Your credits were returned — please try again.' }, { status: 502 })
+  }
   return NextResponse.json({ ads: results })
 }

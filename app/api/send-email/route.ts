@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { buildEmailTemplate, sendViaGoogle, sendViaMicrosoft, sendViaSMTP } from '../../_lib/email'
-import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
+import { rateLimit, getRateLimitKey, LIMITS, checkRateLimit } from '../../_lib/rate-limit'
 import type { EmailConnection } from '../../_lib/types'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
@@ -14,8 +14,11 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
+  // In-memory limit (per server) + the shared one (across servers, when the
+  // rate_limit_hit function exists) — the in-memory map alone resets on
+  // every cold start.
   const rl = rateLimit(getRateLimitKey(user.id, 'email'), LIMITS.email.limit, LIMITS.email.windowMs)
-  if (!rl.allowed) {
+  if (!rl.allowed || !(await checkRateLimit(`client-email:user:${user.id}`, 30, 3600)).allowed) {
     return NextResponse.json({ error: 'Email rate limit exceeded. Please try again later.' }, { status: 429 })
   }
 
@@ -135,10 +138,10 @@ export async function POST(request: Request) {
 
       const { data: existingClient } = await admin
         .from('clients')
-        .select('id')
+        .select('id, status')
         .eq('user_id', user.id)
         .eq('email', normalizedEmail)
-        .single()
+        .maybeSingle()
 
       let cid = existingClient?.id
       if (!cid) {
@@ -158,9 +161,11 @@ export async function POST(request: Request) {
           .single()
         cid = newClient?.id
       } else {
+        // Never DOWNGRADE: an engaged or converted client stays that way.
+        const promote = ['lead', 'inactive', null, undefined].includes(existingClient?.status as string | null | undefined)
         await admin
           .from('clients')
-          .update({ last_activity_at: new Date().toISOString(), status: 'active' })
+          .update({ last_activity_at: new Date().toISOString(), ...(promote ? { status: 'active' } : {}) })
           .eq('id', cid)
       }
 
@@ -180,7 +185,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, sentEmailId: sentRecord?.id })
   } catch (err) {
+    // It didn't go — remove the tracking row so the history doesn't list an
+    // email the client never received.
+    // (Service role: the table has no delete policy for signed-in users.)
+    if (sentRecord?.id) {
+      const { createAdminClient } = await import('../../_lib/supabase/admin')
+      await createAdminClient().from('sent_emails').delete().eq('id', sentRecord.id).eq('user_id', user.id)
+    }
     const message = err instanceof Error ? err.message : 'Failed to send email'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: `The email did NOT send: ${message}` }, { status: 500 })
   }
 }

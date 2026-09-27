@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
+import { randomUUID } from 'crypto'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
+import { sniffImage } from '../../_lib/image-sniff'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
+const BUCKET = 'agent-photos'
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 // 4MB — must stay UNDER the host's ~4.5MB request-body cap, which would
 // otherwise reject the upload with a plaintext error before this handler runs.
@@ -37,31 +40,39 @@ export async function POST(request: Request) {
   const photoType = typeField as PhotoType
 
   try {
-    const ext = file.name.split('.').pop() ?? 'jpg'
-    const storagePath = `${user.id}/${photoType}.${ext}`
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
+    const buffer = Buffer.from(await file.arrayBuffer())
+    // The stored type and extension come from the file's actual bytes, not
+    // from the name or the type the browser claimed.
+    const kind = sniffImage(buffer)
+    if (!kind) return NextResponse.json({ error: 'File must be a real JPG, PNG, or WebP image.' }, { status: 400 })
+
+    // A NEW path every time. Re-using "<id>/headshot.jpg" meant browsers,
+    // the CDN and already-rendered pages kept showing the old photo.
+    const storagePath = `${user.id}/${photoType}-${randomUUID()}.${kind.ext}`
 
     const admin = createAdminClient()
-    // Delete old photo if exists
-    await admin.storage.from('agent-photos').remove([storagePath]).catch(() => {})
+    const column = PHOTO_COLUMN_MAP[photoType]
 
     const { error: uploadError } = await admin.storage
-      .from('agent-photos')
-      .upload(storagePath, buffer, { contentType: file.type, upsert: true })
-
+      .from(BUCKET)
+      .upload(storagePath, buffer, { contentType: kind.mime, upsert: false })
     if (uploadError) throw uploadError
 
-    const { data: urlData } = admin.storage.from('agent-photos').getPublicUrl(storagePath)
-    const photoUrl = urlData.publicUrl
+    const photoUrl = admin.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl
 
     // Update profile with the correct column
-    const column = PHOTO_COLUMN_MAP[photoType]
-    await admin.from('profiles').update({ [column]: photoUrl }).eq('id', user.id)
+    const { error: updErr } = await admin.from('profiles').update({ [column]: photoUrl }).eq('id', user.id)
+    if (updErr) {
+      await admin.storage.from(BUCKET).remove([storagePath]).catch(() => {})
+      throw new Error('Could not save the photo to your profile')
+    }
+
+    // The previous file is deliberately KEPT: videos and share pages made
+    // earlier may have saved its link, and deleting it would break them.
 
     return NextResponse.json({ url: photoUrl })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Upload failed'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('[upload-photo] failed:', err instanceof Error ? err.message : err)
+    return NextResponse.json({ error: 'Upload failed. Please try again.' }, { status: 500 })
   }
 }

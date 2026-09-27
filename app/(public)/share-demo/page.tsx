@@ -97,10 +97,6 @@ function ModernLayout() {
         <div style={{ textAlign: 'center', fontSize: 11, opacity: 0.3, paddingBottom: 40 }}>Powered by Docs2Video</div>
       </div>
 
-      {/* Chat widget */}
-      <div style={{ position: 'fixed', bottom: 24, right: 24, width: 56, height: 56, borderRadius: 10, background: '#C7E8A8', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0A1628" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      </div>
     </div>
   )
 }
@@ -244,8 +240,8 @@ function CorporateLayout() {
           </div>
           <div style={{ background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, padding: 20, textAlign: 'center', cursor: 'pointer' }}>
             <div style={{ fontSize: 24, marginBottom: 6 }}>&#128172;</div>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>Ask AI</div>
-            <div style={{ fontSize: 11, color: '#8A968D', marginTop: 2 }}>Get instant answers</div>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>Contact</div>
+            <div style={{ fontSize: 11, color: '#8A968D', marginTop: 2 }}>Email or call your agent</div>
           </div>
         </div>
 
@@ -306,7 +302,7 @@ function TwoColumnLayout() {
             </div>
           </div>
 
-          {/* RIGHT — Quote, payment, calendar, chat */}
+          {/* RIGHT — Quote, payment, calendar */}
           <div>
             {/* Quote */}
             <div style={{ background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, overflow: 'hidden', marginBottom: 14 }}>
@@ -340,20 +336,8 @@ function TwoColumnLayout() {
               <button style={{ width: '100%', padding: '12px', background: '#C7E8A8', color: '#0F1A12', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>View Available Times &rarr;</button>
             </div>
 
-            {/* AI Chat */}
-            <div style={{ background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, padding: 20, marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#DDD0F4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>&#128172;</div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>Ask AI Assistant</div>
-                  <div style={{ fontSize: 12, color: '#8A968D' }}>Get instant answers about this document</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input placeholder="Type your question..." style={{ flex: 1, padding: '10px 14px', border: '1px solid #E5DFD3', borderRadius: 10, fontSize: 13, outline: 'none' }} />
-                <button style={{ padding: '10px 16px', background: '#0F1A12', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Ask</button>
-              </div>
-            </div>
+            {/* (An "Ask AI Assistant" box used to be here. The real share page
+                has no chatbot, so the demo no longer shows one.) */}
 
             {/* Agent contact */}
             <div style={{ background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, padding: 18 }}>

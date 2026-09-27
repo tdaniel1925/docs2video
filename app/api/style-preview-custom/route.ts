@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { GoogleGenAI } from '@google/genai'
-import { checkCredits, deductCredits } from '../../_lib/credits'
+import { runCharged } from '../../_lib/credit-charge'
 import { isAdmin } from '../../_lib/admin'
 
 export const runtime = 'nodejs'
@@ -19,16 +19,6 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-  // Credit check (skip for admin)
-  if (!isAdmin(user.email)) {
-    const creditCheck = await checkCredits(user.id, PREVIEW_COST)
-    if (!creditCheck.allowed) {
-      return NextResponse.json({
-        error: `Style preview costs ${PREVIEW_COST} credits. You have ${creditCheck.remaining}.`,
-      }, { status: 402 })
-    }
-  }
-
   const body = await request.json()
   const { referenceImageBase64, companyName, videoTitle } = body as {
     referenceImageBase64: string
@@ -42,6 +32,10 @@ export async function POST(request: Request) {
 
   const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
+  // Charge BEFORE generating (this used to charge afterwards and ignore a
+  // failed deduction) and refund on any failure (audit H5). Admins are free.
+  const cost = isAdmin(user.email) ? 0 : PREVIEW_COST
+  return runCharged({ userId: user.id, amount: cost, action: 'style_preview' }, async () => {
   try {
     // Step 1: Analyze the reference image style
     const analysisRes = await genai.models.generateContent({
@@ -91,11 +85,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to generate preview images' }, { status: 500 })
     }
 
-    // Deduct credits (skip for admin)
-    if (!isAdmin(user.email)) {
-      await deductCredits(user.id, PREVIEW_COST, 'style_preview', undefined)
-    }
-
     return NextResponse.json({
       previews: [coverImage, contentImage].filter(Boolean),
       styleDescription,
@@ -104,7 +93,8 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error('[style-preview-custom] Error:', err)
     return NextResponse.json({
-      error: err instanceof Error ? err.message : 'Preview generation failed',
+      error: 'Preview generation failed. Your credits were returned — please try again.',
     }, { status: 500 })
   }
+  })
 }

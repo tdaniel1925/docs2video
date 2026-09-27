@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { checkRateLimit } from '../../_lib/rate-limit'
-import { Resend } from 'resend'
+import { sendWithResend } from '../../_lib/client-email'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -45,15 +45,19 @@ export async function POST(request: Request) {
     const viewerIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
     const userAgent = request.headers.get('user-agent') ?? 'unknown'
 
-    await supabase.from('video_analytics').insert({
+    const { error: storeErr } = await supabase.from('video_analytics').insert({
       video_id: videoId,
       event_type: 'lead_capture',
       viewer_ip: viewerIp,
       user_agent: userAgent,
       metadata: { email, name: name || null },
     })
+    if (storeErr) console.error('[capture-lead] could not store lead:', storeErr.message)
 
-    // Find video owner and send notification
+    // Find video owner and send notification. Resend v6 RETURNS failures
+    // instead of throwing, so the result is checked — if the lead was neither
+    // stored nor emailed, the visitor is told it didn't go through.
+    let notified = false
     try {
       const { data: video } = await supabase
         .from('videos')
@@ -68,16 +72,15 @@ export async function POST(request: Request) {
           .eq('id', video.user_id)
           .single()
 
-        if (profile?.email && process.env.RESEND_API_KEY) {
-          const resend = new Resend(process.env.RESEND_API_KEY)
+        if (profile?.email) {
           // Escape everything user-controlled before it enters the email HTML.
           const videoTitle = esc(video.title ?? 'Untitled')
           const safeEmail = esc(email.slice(0, 200))
           const safeName = name ? esc(name.slice(0, 120)) : ''
-          await resend.emails.send({
+          const res = await sendWithResend({
             from: 'Docs2Video <notifications@docs2video.com>',
             to: profile.email,
-            subject: `New lead on your video: ${videoTitle}`,
+            subject: `New lead on your video: ${String(video.title ?? 'Untitled').replace(/[\r\n]+/g, ' ')}`,
             html: `
               <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px 20px;">
                 <h2 style="color: #1B3A5C; margin: 0 0 16px; font-size: 20px;">Someone left their email on your video</h2>
@@ -98,13 +101,18 @@ export async function POST(request: Request) {
               </div>
             `,
           })
+          notified = res.ok
+          if (!res.ok) console.error('[capture-lead] owner email not accepted:', res.error)
         }
       }
     } catch (notifyErr) {
       console.error('[capture-lead] Notification error:', notifyErr)
     }
 
-    return NextResponse.json({ ok: true })
+    if (storeErr && !notified) {
+      return NextResponse.json({ error: 'We couldn’t save your details just now. Please try again.' }, { status: 502 })
+    }
+    return NextResponse.json({ ok: true, notified })
   } catch (err: unknown) {
     console.error('[capture-lead] Error:', err)
     const message = err instanceof Error ? err.message : 'Unknown error'

@@ -22,16 +22,22 @@ export async function GET() {
 
   const videoIds = videos.map(v => v.id)
 
-  // Get video views grouped by viewer info
+  // Get video views grouped by viewer info. The table's time column is
+  // opened_at (there is no created_at), so asking for created_at failed the
+  // whole query.
   const { data: views } = await admin
     .from('video_views')
-    .select('video_id, viewer_ip, viewer_device, created_at')
+    .select('video_id, viewer_ip, viewer_device, opened_at')
     .in('video_id', videoIds)
 
-  // Get sent emails for open rates
+  // Get sent emails for open rates. Every writer now uses to_email /
+  // created_at (see migration 20260926_client_emails_followups.sql); the old
+  // recipient / sent_at columns never existed, so this query always failed
+  // and emails never counted as client activity. email_type is left out: it
+  // arrives with that migration, and one missing column fails the whole query.
   const { data: sentEmails } = await admin
     .from('sent_emails')
-    .select('video_id, recipient, email_type, sent_at')
+    .select('video_id, to_email, created_at')
     .in('video_id', videoIds)
 
   // Get quotes for conversion data
@@ -86,10 +92,10 @@ export async function GET() {
 
   // Enrich from sent emails
   for (const e of sentEmails ?? []) {
-    if (!e.recipient) continue
-    const existing = clientMap.get(e.recipient)
-    if (existing && e.sent_at && (!existing.lastActivity || e.sent_at > existing.lastActivity)) {
-      existing.lastActivity = e.sent_at
+    if (!e.to_email) continue
+    const existing = clientMap.get(e.to_email)
+    if (existing && e.created_at && (!existing.lastActivity || e.created_at > existing.lastActivity)) {
+      existing.lastActivity = e.created_at
     }
   }
 

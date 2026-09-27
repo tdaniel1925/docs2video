@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { verifyCronAuth } from '../../../_lib/cron-auth'
-import { Resend } from 'resend'
+import { sendWithResend } from '../../../_lib/client-email'
+import { unsubscribeUrl } from '../../../_lib/unsubscribe-token'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
-
-function getResend() {
-  return new Resend(process.env.RESEND_API_KEY!)
-}
 
 function nurtureMail(subject: string, heading: string, body: string, ctaText: string, ctaUrl: string, unsubUrl: string): string {
   return `<!DOCTYPE html>
@@ -58,7 +55,6 @@ export async function GET(request: Request) {
   }
 
   const admin = createAdminClient()
-  const resend = getResend()
   const now = new Date()
   let sentCount = 0
   const errors: string[] = []
@@ -176,7 +172,7 @@ export async function GET(request: Request) {
         subject = `You've made ${completedVideos.length} video${completedVideos.length > 1 ? 's' : ''} — 50% off your first month`
         heading = 'Ready for more? Here’s 50% off month one.'
         body = `<p>${greeting}</p>
-<p>You've created <strong>${completedVideos.length} video${completedVideos.length > 1 ? 's' : ''}</strong> on the free plan and used all your free credits. As a thank-you, take <strong>50% off your first month</strong> on any plan with code <strong>WELCOME50</strong> — it applies automatically when you upgrade from this email:</p>
+<p>You've created <strong>${completedVideos.length} video${completedVideos.length > 1 ? 's' : ''}</strong> on the free plan and used all your free credits. As a thank-you, take <strong>50% off your first month</strong> on any plan with code <strong>WELCOME50</strong>. Use the button below and pick a plan — if the discount doesn't show at checkout, type WELCOME50 into the promo code box:</p>
 <ul style="color:#444;line-height:2;">
   <li><strong>Pro</strong> &mdash; <s>$79</s> <strong>$39.50</strong> first month, then $79/mo &mdash; 25,000 credits</li>
   <li><strong>Business</strong> &mdash; <s>$199</s> <strong>$99.50</strong> first month, then $199/mo &mdash; 75,000 credits</li>
@@ -216,13 +212,18 @@ export async function GET(request: Request) {
       // Send the email if one was selected
       if (emailKey) {
         try {
-          const html = nurtureMail(subject, heading, body, ctaText, ctaUrl, `https://docs2video.com/api/email-prefs?uid=${profile.id}`)
-          await resend.emails.send({
+          const unsub = unsubscribeUrl({ k: 'user', id: profile.id })
+          if (!unsub) throw new Error('No unsubscribe signing secret configured — not sending')
+          const html = nurtureMail(subject, heading, body, ctaText, ctaUrl, unsub)
+          // Resend reports failure as a returned value, not a throw — check it,
+          // or a failed send gets marked "sent" and never retried.
+          const res = await sendWithResend({
             from: 'Docs2Video <support@docs2video.com>',
             to: profile.email,
             subject,
             html,
           })
+          if (!res.ok) throw new Error(res.error)
 
           // Mark as sent
           const updatedNurture = { ...nurtureSent, [emailKey]: now.toISOString() }
@@ -263,8 +264,15 @@ export async function GET(request: Request) {
     const knownEmails = new Set(
       (allProfiles ?? []).map((p: { email: string | null }) => (p.email || '').toLowerCase()).filter(Boolean)
     )
-    // De-dupe leads by email (a person may have tried multiple demos).
+    // De-dupe leads by email (a person may have tried multiple demos). If ANY
+    // of a person's demo rows says unsubscribed or already-emailed, that
+    // person is done — not just the one row we happen to see first.
     const seenLead = new Set<string>()
+    const doneEmails = new Set<string>()
+    for (const l of (leads ?? [])) {
+      const s: Record<string, string> = l.nurture_sent ?? {}
+      if (s.unsubscribed || s.lead_signup) doneEmails.add((l.email || '').toLowerCase())
+    }
 
     for (const lead of (leads ?? [])) {
       if (leadsSent >= LEAD_MAX_SENDS_PER_RUN) break
@@ -272,8 +280,8 @@ export async function GET(request: Request) {
       if (!email || seenLead.has(email)) continue
       seenLead.add(email)
       if (knownEmails.has(email)) continue  // already has an account
+      if (doneEmails.has(email)) continue
       const sent: Record<string, string> = lead.nurture_sent ?? {}
-      if (sent.unsubscribed || sent.lead_signup) continue
 
       // Wait ~24h after the demo so it doesn't feel instant/spammy.
       const hoursSince = (now.getTime() - new Date(lead.created_at).getTime()) / 3.6e6
@@ -284,17 +292,20 @@ export async function GET(request: Request) {
       const heading = 'Liked your demo? Make it yours.'
       const body = `<p>Hi there,</p>
 <p>Thanks for trying Docs2Video${company ? ` for ${company}` : ''}! Create a free account and you can turn any document into a narrated video in minutes.</p>
-<p>As a welcome, take <strong>50% off your first month</strong> on any plan with code <strong>WELCOME50</strong> — it applies automatically from the button below.</p>
+<p>As a welcome, take <strong>50% off your first month</strong> on any plan with code <strong>WELCOME50</strong>. Once your account is set up, open <strong>Pricing</strong>, choose a plan, and enter WELCOME50 in the promo code box at checkout.</p>
 <ul style="color:#444;line-height:2;">
-  <li>Free account &mdash; 2,000 credits to start, no card needed</li>
+  <li>Free account &mdash; 2,000 credits to start. You add a card to unlock them; nothing is charged until they run out.</li>
   <li><strong>Pro</strong> &mdash; <s>$79</s> <strong>$39.50</strong> first month, 25,000 credits</li>
 </ul>`
-      const ctaText = 'Create your account — 50% off'
+      const ctaText = 'Create your account'
       const ctaUrl = 'https://docs2video.com/signup?promo=WELCOME50'
 
       try {
-        const html = nurtureMail(subject, heading, body, ctaText, ctaUrl, `https://docs2video.com/api/email-prefs?lead=${lead.id}`)
-        await resend.emails.send({ from: 'Docs2Video <support@docs2video.com>', to: email, subject, html })
+        const unsub = unsubscribeUrl({ k: 'lead', id: lead.id })
+        if (!unsub) throw new Error('No unsubscribe signing secret configured — not sending')
+        const html = nurtureMail(subject, heading, body, ctaText, ctaUrl, unsub)
+        const res = await sendWithResend({ from: 'Docs2Video <support@docs2video.com>', to: email, subject, html })
+        if (!res.ok) throw new Error(res.error)
         await admin.from('demo_videos').update({ nurture_sent: { ...sent, lead_signup: now.toISOString() } }).eq('id', lead.id)
         leadsSent++
         console.log(`[cron/nurture] Sent "lead_signup" to ${email}`)
