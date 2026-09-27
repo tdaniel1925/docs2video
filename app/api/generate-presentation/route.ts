@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { checkCredits, deductCredits } from '../../_lib/credits'
+import { presentationCreditCost } from '../../_lib/price-quote'
 import { refundPresentationCharge } from '../../_lib/video-billing'
 import { buildShareColumns } from '../../_lib/wizard-draft'
 import { logError } from '../../_lib/error-logger'
@@ -120,8 +121,8 @@ export async function POST(request: NextRequest) {
 
   // ── Credits: interactive 700 · deck reuses the existing deck price.
   // Internal (v1/partner) calls are already metered upstream — skip. ──
-  const costKey = outputType === 'interactive' ? 'interactive' : 'deck'
-  const cost = (CREDIT_COSTS as Record<string, number>)[costKey] ?? 700
+  // Same function the Make screen's /api/price-quote shows.
+  const cost = presentationCreditCost(outputType)
   let charged = 0
   if (!isInternalCall) {
     const check = await checkCredits(user.id, cost)

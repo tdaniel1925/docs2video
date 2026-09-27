@@ -25,9 +25,10 @@ import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 import { PHONE_REGEX, phoneToSpoken, isPhoneInSource, formatPhoneDisplay } from '../../_lib/phone-utils'
 import { estimateVideoCost, exceedsCeiling } from '../../_lib/cost-estimator'
-import { deductCredits, calculateVideoCost, checkCredits, refundVideoCredits, spendBlockMessage } from '../../_lib/credits'
+import { deductCredits, checkCredits, refundVideoCredits, spendBlockMessage } from '../../_lib/credits'
 import { IN_PROGRESS_STATUSES } from '../../_lib/video-billing'
-import { usableBrief, isEditedBookend, buildShareColumns, normalizeDetailLevel, type DetailLevel } from '../../_lib/wizard-draft'
+import { videoPriceInputs, videoCreditCost, videoIsFree } from '../../_lib/price-quote'
+import { usableBrief, isEditedBookend, buildShareColumns, type DetailLevel } from '../../_lib/wizard-draft'
 import { isPaidTier, maxConcurrentForTier } from '../../_lib/subscription'
 import { safeEqual } from '../../_lib/api-auth'
 import { inngest } from '../../_lib/inngest/client'
@@ -204,7 +205,8 @@ export async function POST(request: Request) {
   // must RE-charge on approval. Without this, every admin-approved held video
   // rendered free (internal calls skipped the deduction entirely).
   const internalChargeOwner = isInternalCall && (body as any).chargeOwner === true
-  const isPrivileged = (isInternalCall && !internalChargeOwner) || isAdmin(user.email) || profile?.is_admin === true || profile?.is_beta === true
+  const isPrivileged = (isInternalCall && !internalChargeOwner) ||
+    videoIsFree({ emailIsAdmin: isAdmin(user.email), isAdmin: profile?.is_admin, isBeta: profile?.is_beta })
   const subStatus = (profile?.subscription_status ?? '').toLowerCase()
   const isPaidUser = isPaidTier(subStatus)
 
@@ -329,22 +331,16 @@ export async function POST(request: Request) {
   // price for a full video. They now come from the draft the wizard saved —
   // and the SAME length drives the script below, so what is charged is what
   // is made. Internal (API) calls have no wizard draft; they may still say.
-  const detailLevel: DetailLevel =
-    normalizeDetailLevel(draft.detailLevel) ??
-    normalizeDetailLevel(videoRow.detail_level) ??
-    (isInternalCall ? normalizeDetailLevel((body as any).detailLevel) ?? (detailed ? 'detailed' : null) : null) ??
-    'standard'
+  // The inputs are read by ONE helper (app/_lib/price-quote.ts) that the Make
+  // screen's /api/price-quote also uses — so the price shown is the price
+  // charged. pptx/pdf have their own price; anything else is priced as a
+  // video; +150 per extra uploaded file (every file is used — H7).
+  const priceInputs = videoPriceInputs(
+    videoRow,
+    isInternalCall ? { detailLevel: (body as any).detailLevel, detailed } : undefined,
+  )
+  const detailLevel: DetailLevel = priceInputs.detailLevel
   const isDetailed = detailLevel === 'detailed'
-  const draftOutputType = String(videoRow.output_type || draft.outputType || 'video')
-  // This route only makes videos (the pptx/pdf "slides" flow also runs through
-  // it and is priced as such); anything else is priced as a video.
-  const priceOutputType: 'video' | 'pptx' | 'pdf' =
-    draftOutputType === 'pptx' || draftOutputType === 'pdf' ? draftOutputType : 'video'
-  // Multi-upload surcharge: +150 per extra uploaded file. Every file's content
-  // is now used (the draft merges them into extractedData — H7), so the
-  // surcharge pays for real work.
-  const draftDocs = draft.extractedDocs
-  const fileCount = Array.isArray(draftDocs) && draftDocs.length > 1 ? draftDocs.length : 1
 
   // --- ALL paywall checks run BEFORE the row is claimed (audit C4) ---
   let videoCost = 0
@@ -356,13 +352,8 @@ export async function POST(request: Request) {
     // plans, so the two could disagree. Now there is one rule; this route just
     // turns its answer into the codes the pages act on (the theme page sends
     // code:'card_required' to /setup-payment).
-    videoCost = calculateVideoCost({
-      outputType: priceOutputType,
-      detailLevel,
-      narrationStyle: effectiveNarrationStyle,
-      userId: user.id, // honors grandfathered (old-rate) customers like Aziz
-      fileCount,
-    })
+    // Same function /api/price-quote shows (honors grandfathered customers like Aziz).
+    videoCost = videoCreditCost(priceInputs, user.id)
 
     const creditCheck = await checkCredits(user.id, videoCost)
     // Blocked for a reason that isn't the balance — say so, instead of the old

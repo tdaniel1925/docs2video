@@ -7,6 +7,7 @@ import type { Brand } from '../../../_lib/types'
 import { downscaleImage } from '../../../_lib/image-resize'
 import { formatPhoneDisplay } from '../../../_lib/phone-utils'
 import { toTitleCase } from '../../../_lib/text-format'
+import { nextStepAfterBrand } from '../_components/make/nextStep'
 
 interface DraftData {
   autoBrandInfo?: {
@@ -77,7 +78,7 @@ export default function BrandPage() {
       if (!authUser) { setLoading(false); return }
       Promise.all([
         fetch(`/api/videos/draft?videoId=${videoId}`).then(r => r.json()),
-        supabase.from('brands').select('*').eq('user_id', authUser.id).order('is_default', { ascending: false }),
+        supabase.from('brands').select('*').eq('user_id', authUser.id).order('is_default', { ascending: false }).order('created_at', { ascending: true }),
       ]).then(([draftResult, brandsResult]) => {
       // Draft
       const draft = draftResult?.draft_data || draftResult || {}
@@ -124,6 +125,10 @@ export default function BrandPage() {
         else if (draft._autoBrandId) {
           const match = loaded.find((b: Brand) => b.id === draft._autoBrandId)
           if (match) setSelectedBrandId(match.id)
+        } else if (draft.brandId === undefined && loaded.length > 0) {
+          // Nothing chosen yet: start on the profile's default brand — the one
+          // step 3 ("Make it yours") shows and uses.
+          setSelectedBrandId(loaded[0].id)
         }
       }
 
@@ -324,17 +329,22 @@ export default function BrandPage() {
         return
       }
 
-      // Navigate to next step
-      if (outputType === 'video') {
-        router.push(`/create/voice?id=${videoId}`)
-      } else {
-        router.push(`/create/script?id=${videoId}`)
-      }
+      // Back to step 3 ("Make it yours"), or to the story first if it isn't
+      // written yet. (The separate voice step is gone — it's on step 3 now.)
+      router.push(nextStepAfterBrand(videoId, draftData))
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong'
       setError(msg === 'Failed to fetch' ? 'Connection lost. Please check your internet and try again.' : msg)
       setSubmitting(false)
     }
+  }
+
+  // Back: to step 3 when the story is written (that's where "change" brought
+  // you from), otherwise to step 1.
+  function goBack() {
+    if (!videoId) { router.push('/create'); return }
+    const next = nextStepAfterBrand(videoId, draftData)
+    router.push(next.startsWith('/create/theme') ? next : `/create?id=${videoId}`)
   }
 
   async function handleSkip() {
@@ -349,11 +359,7 @@ export default function BrandPage() {
         body: JSON.stringify({ videoId, updates: { brandId: null, step: 2 } }),
       })
 
-      if (outputType === 'video') {
-        router.push(`/create/voice?id=${videoId}`)
-      } else {
-        router.push(`/create/script?id=${videoId}`)
-      }
+      router.push(nextStepAfterBrand(videoId, draftData))
     } catch {
       setError('Failed to skip')
       setSubmitting(false)
@@ -379,7 +385,7 @@ export default function BrandPage() {
       }}>
         <p style={{ fontSize: 16, color: 'var(--ink-soft)' }}>No video ID provided.</p>
         <button
-          onClick={() => router.push(videoId ? `/create?id=${videoId}` : '/create')}
+          onClick={goBack}
           style={{
             marginTop: 16, padding: '10px 20px', borderRadius: 8,
             border: '1px solid var(--border)', background: 'white',
@@ -405,7 +411,7 @@ export default function BrandPage() {
       {/* Back link */}
       <div style={{ width: '100%', marginTop: 8, marginBottom: 8 }}>
         <button
-          onClick={() => router.push(videoId ? `/create?id=${videoId}` : '/create')}
+          onClick={goBack}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
             fontSize: 14, color: 'var(--ink-light)', fontFamily: 'inherit', padding: 0,
@@ -926,7 +932,7 @@ export default function BrandPage() {
         animation: 'fadeInUp 0.4s ease 0.25s both',
       }}>
         <button
-          onClick={() => router.push(videoId ? `/create?id=${videoId}` : '/create')}
+          onClick={goBack}
           style={{
             padding: '16px 24px', borderRadius: 10,
             border: '1.5px solid var(--border-light)', background: 'white',
