@@ -3423,3 +3423,40 @@ h1.hero-title--big {
   background: var(--mint); color: var(--ink); border-color: var(--mint);
 }
 .final-cta .btn-primary:hover { background: #fff; border-color: #fff; }
+
+/* ── Create flow: the 4-step rail (app/(dashboard)/create/layout.tsx) ── */
+.steps-shell { display: flex; align-items: flex-start; gap: 28px; }
+.steps-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.steps-rail {
+  width: 250px; flex-shrink: 0; box-sizing: border-box; padding: 22px 16px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+  display: flex; flex-direction: column; gap: 6px;
+  position: sticky; top: 20px; min-height: 420px;
+}
+.steps-rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.steps-rail-title { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-light); margin-bottom: 8px; }
+.steps-rail-item { display: flex; gap: 12px; padding: 10px; border-radius: 8px; }
+.steps-rail-item.is-now { background: var(--surface); }
+.steps-rail-dot {
+  width: 28px; height: 28px; flex-shrink: 0; box-sizing: border-box; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; border: 2px solid var(--border); color: var(--ink-light);
+}
+.steps-rail-item.is-now .steps-rail-dot { border-color: var(--ink); color: var(--ink); }
+.steps-rail-item.is-done .steps-rail-dot { border-color: var(--ink); background: var(--ink); color: #fff; }
+.steps-rail-label { display: block; font-size: 14.5px; font-weight: 700; color: var(--ink-light); }
+.steps-rail-item.is-now .steps-rail-label, .steps-rail-item.is-done .steps-rail-label { color: var(--ink); }
+.steps-rail-hint { display: block; font-size: 12.5px; color: var(--ink-light); margin-top: 2px; }
+.steps-rail-note {
+  margin-top: auto; border: 1px solid var(--border); border-radius: 10px; padding: 12px;
+  font-size: 12.5px; line-height: 1.5; color: var(--ink-soft);
+}
+.steps-rail-note strong { color: var(--ink); }
+@media (max-width: 900px) {
+  .steps-shell { flex-direction: column; align-items: stretch; gap: 16px; }
+  .steps-rail { width: 100%; min-height: 0; position: static; padding: 10px 12px; }
+  .steps-rail ol { flex-direction: row; gap: 4px; }
+  .steps-rail-item { flex: 1; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 6px 2px; }
+  .steps-rail-label { font-size: 11.5px; }
+  .steps-rail-hint, .steps-rail-title, .steps-rail-note { display: none; }
+}
