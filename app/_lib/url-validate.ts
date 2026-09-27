@@ -5,7 +5,7 @@
  *
  * Returns:
  *   ''      — the field was left empty (clear the saved link)
- *   string  — a cleaned https?:// URL
+ *   string  — a cleaned https:// URL
  *   null    — not an acceptable web link
  */
 export function cleanWebLink(input: string | null | undefined): string | null {
@@ -19,7 +19,9 @@ export function cleanWebLink(input: string | null | undefined): string | null {
   } catch {
     return null
   }
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') return null
+  // https only: the share page shows ONLY https links as buttons, so a saved
+  // http:// link used to say "Saved" here and then never appear there.
+  if (url.protocol !== 'https:') return null
   if (!url.hostname || !url.hostname.includes('.')) return null
   if (url.username || url.password) return null
   return url.toString()

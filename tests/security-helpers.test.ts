@@ -121,6 +121,8 @@ describe('booking / payment link check', () => {
   })
   it('rejects script and data links', () => {
     expect(cleanWebLink('javascript:alert(1)')).toBeNull()
+    // Plain http is refused: the share page never shows it as a button.
+    expect(cleanWebLink('http://buy.stripe.com/x')).toBeNull()
     expect(cleanWebLink('JavaScript:alert(1)')).toBeNull()
     expect(cleanWebLink('data:text/html,hi')).toBeNull()
     expect(cleanWebLink('https://user:pw@evil.com')).toBeNull()

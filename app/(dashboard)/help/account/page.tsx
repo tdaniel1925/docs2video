@@ -76,7 +76,7 @@ export default function AccountHelpPage() {
             <strong style={INK}>Payment Link (Stripe)</strong> — Paste your Stripe Payment Link to show a <strong style={INK}>Make a Payment</strong> button on your share pages.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Calendar Booking</strong> — Choose Calendly, Cal.com or Google Calendar, paste your booking link and click <strong style={INK}>Save</strong> to show a <strong style={INK}>Book a Call</strong> button. You&rsquo;ll see &ldquo;Saved!&rdquo; next to the button.
+            <strong style={INK}>Calendar Booking</strong> — Choose Calendly, Cal.com or Google Calendar, paste your booking link and click <strong style={INK}>Save</strong> to show a <strong style={INK}>Book a Call</strong> button. You&rsquo;ll see &ldquo;Saved!&rdquo; next to the button. The link must start with <em>https://</em> (the same goes for your payment link) — anything else is refused with a message, because it would never show as a button on your share pages.
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={INK}>Using Google Calendar?</strong> Google Calendar can&rsquo;t be connected directly, so it works the same way as the others: you paste a link. In Google Calendar, create a <strong style={INK}>booking page</strong> (Google calls it an &ldquo;Appointment schedule&rdquo;), copy that page&rsquo;s link — it starts with <em>https://calendar.app.google/</em> — and paste it here. Clients who click <strong style={INK}>Book a Call</strong> then pick a time on your Google booking page.
