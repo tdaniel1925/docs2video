@@ -6,6 +6,7 @@ import Link from 'next/link'
 import InlineConfirm from '../../_components/InlineConfirm'
 import { useToast } from '../../_components/Toast'
 import { displayProgress } from '../../_lib/video-progress'
+import { resumeUrl } from '../dashboard/_home/derive'
 
 export type LibraryItem = {
   id: string
@@ -16,6 +17,8 @@ export type LibraryItem = {
   fileUrl: string | null
   status: string | null
   progressPct: number | null
+  /** draft_data.step for an unfinished draft — where Open picks it up (same as Home). */
+  draftStep?: unknown
   creditsUsed: number | null
   createdAt: string
 }
@@ -67,6 +70,8 @@ export default function LibraryTable({ items }: { items: LibraryItem[] }) {
   }
 
   function openHref(item: LibraryItem): string {
+    // A draft isn't made yet: pick it up where it was left, like Home does.
+    if (item.type === 'video' && item.status === 'draft' && item.videoId) return resumeUrl(item.videoId, item.draftStep)
     if (item.type === 'video') return `/videos/${item.videoId ?? item.id}`
     return item.fileUrl ?? '#'
   }
@@ -106,7 +111,7 @@ export default function LibraryTable({ items }: { items: LibraryItem[] }) {
               return (
                 <tr key={item.id} style={{ transition: 'background 0.1s' }}>
                   <td style={{ ...td, maxWidth: 320 }}>
-                    <Link href={openHref(item)} {...(isVideo ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+                    <Link href={openHref(item)} {...(isVideo ? {} : { target: '_blank', rel: 'noopener noreferrer', prefetch: false })}
                       style={{ color: 'var(--ink)', textDecoration: 'none', fontWeight: 600, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.title ?? 'Untitled'}
                     </Link>
@@ -119,6 +124,7 @@ export default function LibraryTable({ items }: { items: LibraryItem[] }) {
                     {!isVideo ? <span style={{ color: 'var(--ink-light)' }}>—</span>
                       : done ? <span className="tag mint" style={{ fontSize: 11 }}>Ready</span>
                       : item.status === 'failed' ? <span className="tag rose" style={{ fontSize: 11 }}>Failed</span>
+                      : item.status === 'draft' ? <span className="tag" style={{ fontSize: 11 }}>Draft</span>
                       : <span className="tag peach" style={{ fontSize: 11 }}>{item.progressPct != null ? `${displayProgress(item.progressPct)}%` : 'Processing'}</span>}
                   </td>
                   <td style={{ ...td, textAlign: 'right', color: 'var(--ink-soft)', fontVariantNumeric: 'tabular-nums' }}>
@@ -126,7 +132,7 @@ export default function LibraryTable({ items }: { items: LibraryItem[] }) {
                   </td>
                   <td style={{ ...td, textAlign: 'right', color: 'var(--ink-light)', whiteSpace: 'nowrap' }}>{fmtDate(item.createdAt)}</td>
                   <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                    <Link href={openHref(item)} {...(isVideo ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+                    <Link href={openHref(item)} {...(isVideo ? {} : { target: '_blank', rel: 'noopener noreferrer', prefetch: false })}
                       className="btn btn-soft btn-sm" style={{ marginRight: 6 }}>Open</Link>
                     {isVideo && (
                       <InlineConfirm message="Delete?" confirmLabel="Delete" onConfirm={() => del(item)}>

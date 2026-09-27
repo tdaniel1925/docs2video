@@ -101,6 +101,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
       fileUrl: item.file_url ?? null,
       status: item._status ?? null,
       progressPct: item._progressPct ?? null,
+      draftStep: draft?.step,
       creditsUsed: item.credits_used ?? null,
       createdAt: item.created_at,
     }
