@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useBrand } from '../../_components/BrandProvider'
 import { createClient } from '../../_lib/supabase/client'
+import { useToast } from '../../_components/Toast'
 import type { Brand } from '../../_lib/types'
 
 export default function BrandsPage() {
   // Which storefront this is. A Text2Art customer has no presenter and no
   // video, so the copy explaining what a "profile" is has to say something true.
   const storefront = useBrand()
+  const notify = useToast()
   const [brands, setBrands] = useState<Brand[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -33,22 +35,28 @@ export default function BrandsPage() {
   async function handleDelete(id: string) {
     setDeleting(id)
     const supabase = createClient()
-    await supabase.from('brands').delete().eq('id', id)
-    setBrands(prev => prev.filter(b => b.id !== id))
-    setSelectedIds(prev => { const next = new Set(prev); next.delete(id); return next })
+    const { error } = await supabase.from('brands').delete().eq('id', id)
     setDeleting(null)
     setConfirmDelete(null)
+    // Only take it off the screen once it is really gone.
+    if (error) { notify('Couldn’t delete that profile. Please try again.', 'error'); return }
+    setBrands(prev => prev.filter(b => b.id !== id))
+    setSelectedIds(prev => { const next = new Set(prev); next.delete(id); return next })
   }
 
   async function handleBulkDelete() {
     if (selectedIds.size === 0) return
     setBulkDeleting(true)
     const supabase = createClient()
+    const gone = new Set<string>()
     for (const id of selectedIds) {
-      await supabase.from('brands').delete().eq('id', id)
+      const { error } = await supabase.from('brands').delete().eq('id', id)
+      if (!error) gone.add(id)
     }
-    setBrands(prev => prev.filter(b => !selectedIds.has(b.id)))
-    setSelectedIds(new Set())
+    setBrands(prev => prev.filter(b => !gone.has(b.id)))
+    setSelectedIds(prev => new Set([...prev].filter(id => !gone.has(id))))
+    const failed = selectedIds.size - gone.size
+    if (failed > 0) notify(`Couldn’t delete ${failed} profile${failed > 1 ? 's' : ''}. Please try again.`, 'error')
     setBulkDeleting(false)
     setConfirmDelete(null)
   }
