@@ -107,6 +107,7 @@ test('a document becomes a story, gets its look and price, and is discarded from
     const row = page.getByRole('table', { name: 'Your projects' }).getByRole('row').filter({ has: page.locator(`a[href*="${videoId}"]`) })
     await expect(row).toHaveCount(1)
     await expect(row.getByRole('cell').nth(3)).toHaveText(/^Draft · step [1-4] of 4$/)
+    page.once('dialog', (d) => d.accept())
     await row.getByRole('button', { name: 'Discard' }).click()
     await expect(row).toHaveCount(0)
     expect((await page.request.get(`/api/videos/draft?videoId=${videoId}`)).status()).toBe(404)

@@ -7,6 +7,7 @@ import Greeting from './_home/Greeting'
 import { loadHomeData, type ProjectRow } from './_home/load'
 import { discardDraft } from './_home/actions'
 import type { ActionCard } from './_home/derive'
+import { DiscardButton } from './_home/DiscardButton'
 import s from './_home/home.module.css'
 
 // Loom walkthrough — set NEXT_PUBLIC_GETTING_STARTED_VIDEO to a real Loom embed
@@ -186,7 +187,7 @@ function Projects({ rows }: { rows: ProjectRow[] }) {
               <>
                 <Link href={r.href} className="btn btn-sm btn-soft">Continue</Link>
                 <form action={discardDraft.bind(null, r.draftId)}>
-                  <button type="submit" className={s.discard}>Discard</button>
+                  <DiscardButton className={s.discard} />
                 </form>
               </>
             ) : r.external ? (

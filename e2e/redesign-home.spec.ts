@@ -147,6 +147,7 @@ test('a draft shows as "Draft · step 1 of 4"; Continue reopens it and Discard r
     await expect(page.getByPlaceholder(/Explain our services/)).toHaveValue(purpose)
 
     await page.goto('/dashboard')
+    page.once('dialog', (d) => d.accept())
     await table(page).getByRole('row').filter({ hasText: purpose }).getByRole('button', { name: 'Discard' }).click()
     await expect(table(page).getByRole('row').filter({ hasText: purpose })).toHaveCount(0)
     const gone = await page.request.get(`/api/videos/draft?videoId=${videoId}`)
