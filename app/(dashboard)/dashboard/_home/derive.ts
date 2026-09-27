@@ -87,8 +87,10 @@ function whenCap(iso: string, now: number): string {
  */
 export function resumeUrl(videoId: string, step: unknown): string {
   switch (Number(step)) {
-    case 2: return `/create/brand?id=${videoId}`
-    case 3: return `/create/voice?id=${videoId}`
+    // 2 and 3 were saved by the old brand/voice pages, which came after the
+    // brief; in the 4-step flow the story is the next thing to do.
+    case 2:
+    case 3:
     case 4:
     case 5: return `/create/script?id=${videoId}`
     default: return `/create?id=${videoId}`
