@@ -887,13 +887,27 @@ NARRATION ↔ SLIDE CORRESPONDENCE (every scene):
     messages: [{ role: 'user', content: prompt }],
   })
 
-  const text = parseClaudeText(response)
-  const cleaned = cleanJson(text)
+  let text = parseClaudeText(response)
   // If the model hit the token ceiling the JSON is truncated and unparseable —
   // make the failure explicit (clearer than a generic parse error).
   if ((response as any).stop_reason === 'max_tokens') {
     console.error('[script-generator] response truncated (max_tokens) — script too long for the cap')
   }
+  // Now and then the model writes almost-JSON (an unescaped quote inside a
+  // narration line, a trailing comma). One bad character used to fail the
+  // whole step for the customer, so ask once more, strictly, before giving up.
+  try {
+    JSON.parse(cleanJson(text))
+  } catch {
+    console.warn('[script-generator] script JSON did not parse — retrying once')
+    const retry = await claudeCreate({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 16000,
+      messages: [{ role: 'user', content: `${prompt}\n\nIMPORTANT: your output must be strictly valid JSON. Escape every double quote inside a string as \\", use no trailing commas, and write nothing before or after the array.` }],
+    })
+    text = parseClaudeText(retry)
+  }
+  const cleaned = cleanJson(text)
 
   try {
     let scenes = JSON.parse(cleaned) as VideoScene[]
