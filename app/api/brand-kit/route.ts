@@ -7,6 +7,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { GoogleGenAI } from '@google/genai'
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
 import { safeFetch } from '../../_lib/brand-scraper'
+import { brandKitSignatureHtml } from '../../_lib/email-signature'
 
 export const runtime = 'nodejs'
 export const maxDuration = 600
@@ -597,42 +598,8 @@ STRICT RULES:
     if (jobId) await updateJobProgress(admin, jobId, 65, 'running')
 
     // ─── 3. EMAIL SIGNATURE (HTML — no Gemini needed) ─────────
-    const domain = brandBrief.companyName.toLowerCase().replace(/\s+/g, '')
-    const emailSignatureHtml = `<table cellpadding="0" cellspacing="0" border="0" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: ${palette.text}; font-size: 14px; line-height: 1.5;">
-  <tr>
-    <td style="padding-right: 20px; vertical-align: top; border-right: 3px solid ${palette.primary};">
-      ${logoUrl ? `<img src="${logoUrl}" alt="${brandBrief.companyName}" width="80" height="80" style="border-radius: 8px; display: block;" />` : ''}
-    </td>
-    <td style="padding-left: 20px; vertical-align: top;">
-      <div style="font-size: 18px; font-weight: 700; color: ${palette.text}; margin-bottom: 2px;">Your Name</div>
-      <div style="font-size: 13px; color: ${palette.secondary}; margin-bottom: 10px;">Your Title</div>
-      <div style="font-size: 16px; font-weight: 600; color: ${palette.primary}; margin-bottom: 8px;">${brandBrief.companyName}</div>
-      <div style="font-size: 12px; color: #666;">
-        <span>hello@${domain}.com</span>
-        <span style="margin: 0 8px; color: #ccc;">|</span>
-        <span>(555) 000-0000</span>
-      </div>
-      <div style="font-size: 12px; color: #666; margin-top: 2px;">
-        <a href="https://www.${domain}.com" style="color: ${palette.primary}; text-decoration: none;">www.${domain}.com</a>
-      </div>
-      <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #eee;">
-        <table cellpadding="0" cellspacing="0" border="0">
-          <tr>
-            <td style="padding-right: 6px;">
-              <div style="width: 10px; height: 10px; border-radius: 50%; background: ${palette.primary}; display: inline-block;"></div>
-            </td>
-            <td style="padding-right: 6px;">
-              <div style="width: 10px; height: 10px; border-radius: 50%; background: ${palette.secondary}; display: inline-block;"></div>
-            </td>
-            <td style="padding-right: 6px;">
-              <div style="width: 10px; height: 10px; border-radius: 50%; background: ${palette.accent}; display: inline-block;"></div>
-            </td>
-          </tr>
-        </table>
-      </div>
-    </td>
-  </tr>
-</table>`
+    // Built in app/_lib/email-signature.ts so the overflow check can measure it.
+    const emailSignatureHtml = brandKitSignatureHtml({ companyName: brandBrief.companyName, logoUrl, palette })
 
     if (jobId) await updateJobProgress(admin, jobId, 75, 'running')
 

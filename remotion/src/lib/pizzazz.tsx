@@ -1,6 +1,7 @@
 import React from 'react'
 import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, Img } from 'remotion'
 import { staticFile } from './asset'
+import { Fit } from './fit'
 
 /* ============================================================================
  * PIZZAZZ TOOLKIT — the A-grade motion + polish layer, reusable across videos.
@@ -218,9 +219,14 @@ export const HeroFlash: React.FC<{ color: string; at?: number }> = ({ color, at 
 // EVERY video (system rule). Pass a logo image `src` (staticFile path). If there
 // is NO logo, pass `name` (company or presenter) and it renders as text instead.
 // Fades in, holds, always subtle (never competes with the content).
+//
+// Optional limits, for callers whose name/logo comes from a customer or a model:
+//   maxWidth   the name wraps to two lines, then shrinks, to stay in this width
+//   maxHeight  a tall logo is kept inside this height (a narrow one can't grow down the frame)
 export const LogoBug: React.FC<{
   src?: string; name?: string; color?: string; width?: number; fontFamily?: string; opacity?: number
-}> = ({ src, name, color = '#ffffff', width = 150, fontFamily, opacity = 0.85 }) => {
+  maxWidth?: number; maxHeight?: number
+}> = ({ src, name, color = '#ffffff', width = 150, fontFamily, opacity = 0.85, maxWidth, maxHeight }) => {
   const frame = useCurrentFrame()
   const o = interpolate(frame, [8, 22], [0, opacity], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
   // TOP-RIGHT corner: beat content (kickers, headlines, chat bubbles, the diagonal
@@ -229,10 +235,12 @@ export const LogoBug: React.FC<{
   // reliably empty across all beats, so parking the logo there eliminates the
   // whole collision class systemically instead of patching per beat.
   return (
-    <div style={{ position: 'absolute', top: 46, right: 58, opacity: o, zIndex: 50, textAlign: 'right' }}>
+    <div style={{ position: 'absolute', top: 46, right: 58, opacity: o, zIndex: 50, textAlign: 'right', maxWidth }}>
       {src
-        ? <Img src={staticFile(src)} style={{ width, height: 'auto', display: 'block', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.5))' }} />
-        : <div style={{ fontFamily, fontWeight: 700, fontSize: 30, color, letterSpacing: '0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>{name}</div>}
+        ? <Img src={staticFile(src)} style={{ width, height: 'auto', display: 'block', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.5))', ...(maxHeight ? { maxHeight, objectFit: 'contain', objectPosition: 'right top' } : {}) }} />
+        : maxWidth
+          ? <Fit max={30} min={16} lines={2} style={{ fontFamily, fontWeight: 700, color, letterSpacing: '0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>{name}</Fit>
+          : <div style={{ fontFamily, fontWeight: 700, fontSize: 30, color, letterSpacing: '0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>{name}</div>}
     </div>
   )
 }

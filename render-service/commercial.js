@@ -640,6 +640,7 @@ RULES:
   · Don't write on-screen text that describes something DIFFERENT from what the voice is saying at that moment.
 - VO: natural spoken sentences, one per beat, that TOGETHER tell the story. No "..." ever. Contractions. Speak to "you". Match the TONE to the intent (opportunity = exciting/aspirational; luxury = refined; product = confident).
 - Headlines SHORT (2-6 words). Labels SHORT. img_prompt only on "shot" beats, literal + identity-neutral.
+- ON-SCREEN LENGTH LIMITS (the renderer shrinks anything longer to fit, which reads smaller and weaker — so stay inside these): kicker ≤ 3 words; hot ≤ 3 words; sub ≤ 8 words; stat/big "label" ≤ 4 words and stat "value" is a plain NUMBER; grid item title ≤ 4 words, desc ≤ 8 words; split labels ≤ 3 words, split subs ≤ 6 words, "both" ≤ 6 words; chat q ≤ 15 words, chat a ≤ 25 words; step title 2-4 words, step desc ≤ 8 words; cta.headline ≤ 7 words; cta.button ≤ 4 words; cta.url = a bare domain (no https://, no path) or a phone number. Use 2-4 stats, 3-4 grid items, 3-4 steps.
 - Pick styleId + musicPrompt to match the INTENT, not a default. An opportunity/income video should feel energetic and aspirational, not like a SaaS demo.
 - "showcase" = shows a REAL screenshot of the actual website/product in a browser frame. Use AT MOST ONE showcase beat, and ONLY when the video is about a software PRODUCT/tool the viewer would want to SEE (intent product/service with a real UI). Its kicker/hot/sub should reference seeing it in action (e.g. hot "See it live." sub "Ask anything, instantly."). Do NOT use showcase for opportunity/recruiting/brand videos, or for businesses with no real product UI. If in doubt, don't use it.
 - "bignumber" = ONE giant animated number filling the screen — use when a SINGLE real stat is dramatic (a price, a %, a count). Only with a real figure from the source. Great for a punchy value moment.
@@ -1006,6 +1007,9 @@ async function generateCommercial({ pub, url, text, brandName, music, forceStyle
   // scraped source hostname is wrong — the CTA should be "contact your agent",
   // never a source domain — so leave cta.url empty when regulated.
   for (const b of props.beats) if (b.kind === 'cta' && b.cta && !b.cta.url && domain && !regulated) b.cta.url = domain
+  // The closing frame shows the address as the viewer would type it: no
+  // "https://" or trailing slash (the prompt asks for this; models forget).
+  for (const b of props.beats) if (b.cta && typeof b.cta.url === 'string') b.cta.url = b.cta.url.trim().replace(/^https?:\/\//i, '').replace(/\/$/, '')
 
   const propsPath = join(pub, `commercial-${videoId || assetDir}-props.json`)
   await writeFile(propsPath, JSON.stringify(props))

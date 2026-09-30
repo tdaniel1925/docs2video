@@ -364,10 +364,22 @@ RULES:
   return extractJson(await claude({ staticPrefix, dynamicSuffix }, 'UNDERSTANDING:\n' + JSON.stringify(u, null, 2), 12000, { model: claude.MODELS.WRITE, cache: true }))
 }
 
+// A big rolling-number FIGURE only when the value IS a number ("$448,627",
+// "6.35%", "$212/mo", "15k"). It used to pull the first number out of anything:
+// "100% High Cap Rate Acct (S&P 500 Index)" became "100%", "Oct 10, 2026 – Oct
+// 10, 2027" became "10", "$1.2M" became "$1.2" — the rest silently dropped.
+// Anything else returns null and is shown as written, on a card.
+// ⚠ Same rule as parseNum() in remotion/src/slides/Slides.tsx — keep in sync.
+const PURE_NUMBER = /^(~?\$?)\s?(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s?(%|\/mo|\/yr|\/year|\/month|k|K|M|s|x|\+)?$/
 function figFromKeyNumber(kn) {
   if (!kn) return null
-  const raw = String(kn.value); const m = raw.replace(/,/g, '').match(/-?\d+(\.\d+)?/); if (!m) return null
-  return { value: parseFloat(m[0]), prefix: /\$/.test(raw) ? '$' : '', suffix: /%/.test(raw) ? '%' : /\/mo|per month/i.test(raw) ? '/mo' : /sec/i.test(raw) ? 's' : '', label: kn.label }
+  const m = String(kn.value == null ? '' : kn.value).trim().match(PURE_NUMBER)
+  if (!m) return null
+  const value = parseFloat(m[2].replace(/,/g, ''))
+  if (!isFinite(value)) return null
+  // shown with the decimals it was written with ($1.2M stays $1.2M, not $1.20M)
+  const decimals = Math.min(2, (m[2].split('.')[1] || '').length)
+  return { value, prefix: m[1] || '', suffix: m[3] || '', label: kn.label, decimals }
 }
 
 // ---------- COMPLIANCE (regulated financial / insurance content) ----------
@@ -415,9 +427,12 @@ const CARRIER_BLOCKLIST = [
 ]
 // pull branded product tokens (CamelCase / Capitalized) from the understanding so
 // a novel product name (not in the blocklist) is still stripped.
+// Ordinary words that are never a product name — same list as
+// app/_lib/compliance.ts. "Term" was taken for one, then cut out of "terminal".
+const PRODUCT_STOP = /^(The|And|For|Your|With|Ask|Get|How|Why|You|Our|This|That|Plan|Life|Death|Cash|From|Into|When|What|Will|More|Less|Best|Policy|Value|Rate|Index|Living|Benefit|Benefits|Growth|Market|Retirement|Illustration|Insurance|Premium|Fixed|Interest|Flexible|Individual|Universal|Adjustable|Annual|Monthly|Daily|Income|Protection|Coverage|Client|Options|Summary|Overview|Guaranteed|Illustrated|Underwriting|Preferred|Tobacco|Term|Long|Whole|Short|Level|Final|Total|Family|Estate|Account|Rider|Riders|Critical|Chronic|Terminal|Illness|Care|Loan|Loans|Surrender|Accumulation)$/i
 function productTokens(u) {
   const names = new Set()
-  const add = (s) => { if (typeof s === 'string') for (const w of s.split(/[\s,.—:;()]+/)) { const t = w.trim(); if (t.length >= 4 && /^[A-Z]/.test(t) && !/^(The|And|For|Your|With|Ask|Get|How|Why|You|Our|This|That|Plan|Life|Death|Cash|From|Into|When|What|Will|More|Less|Best)$/i.test(t)) names.add(t) } }
+  const add = (s) => { if (typeof s === 'string') for (const w of s.split(/[\s,.—:;()]+/)) { const t = w.trim(); if (t.length >= 4 && /^[A-Z]/.test(t) && !PRODUCT_STOP.test(t)) names.add(t) } }
   const hay = [u && u.what_it_is, u && u.core_promise, ...(u && u.notable_features || []), ...((u && u.key_numbers || []).map(k => k && k.label)), ...((u && u.audiences || []).map(a => a && a.name))].filter(Boolean).join(' ')
   for (const m of String(hay).matchAll(/\b([A-Z][a-z]+[A-Z][A-Za-z]*|[A-Z][a-zA-Z]{3,})\b/g)) add(m[1])
   return [...names].slice(0, 8)
@@ -434,7 +449,13 @@ function scrubSlidePlan(w, u) {
   const strip = new Set(CARRIER_BLOCKLIST)
   for (const n of productTokens(u)) if (n && n.length >= 4) strip.add(n.toLowerCase())
   const terms = [...strip].filter(Boolean).sort((a, b) => b.length - a.length)
-  const res = terms.map((t) => new RegExp('\\b' + t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') + '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|iii|ii|iv|vi|v(?![a-z])|\\u2120|\\u00ae|\\u2122))*', 'ig'))
+  // Whole words only: stops "term" being cut out of "terminal". A token detected
+  // from the source also treats a hyphenated word as one ("Long-Term" stays);
+  // a blocklisted carrier doesn't ("AIG-backed" still loses "AIG"). Same rule
+  // as app/_lib/compliance.ts.
+  const blocked = new Set(CARRIER_BLOCKLIST)
+  const edge = (t) => (blocked.has(t) ? 'a-z0-9' : 'a-z0-9-')
+  const res = terms.map((t) => new RegExp(`(?<![${edge(t)}])` + t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') + `(?![${edge(t)}])` + '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|iii|ii|iv|vi|v(?![a-z])|\\u2120|\\u00ae|\\u2122))*', 'ig'))
   // guarantee language: soften/strip so nothing implies a guaranteed result.
   // "guaranteed minimum floor" → "minimum floor" (keeps the concept, drops the
   // promise word); bare "guaranteed"/"risk-free"/"no risk" removed outright.
@@ -593,14 +614,31 @@ function planFromSuppliedScenes(supplied) {
   const cover = clean.find((s) => s.role === 'cover')
   const closing = clean.find((s) => s.role === 'closing')
   const content = clean.filter((s) => s !== cover && s !== closing)
-  const words = (s, n) => String(s || '').trim().split(/\s+/).slice(0, n).join(' ')
+  // The first n words, verbatim (for cue matching only — never shown).
+  const lead = (s, n) => String(s || '').trim().split(/\s+/).slice(0, n).join(' ')
+  // ON-SCREEN text: shorten WITHOUT breaking a sentence. The renderer shrinks
+  // any length to fit its box (remotion lib/fit), so this is only a tidy-up:
+  // text within `n` words stays whole; longer text is cut at the last clause
+  // break (, ; : . — –) in the second half of the limit, and kept WHOLE if there
+  // is none. It used to chop at exactly n words, which put "Here's the one
+  // thing to take with you: your business is your" on a customer's slide.
+  const words = (s, n) => {
+    const all = String(s || '').trim().split(/\s+/).filter(Boolean)
+    if (all.length <= n) return all.join(' ')
+    for (let i = n - 1; i >= Math.ceil(n / 2); i--) {
+      const w = all[i]
+      if (/^[—–-]+$/.test(w)) return all.slice(0, i).join(' ')
+      if (/[,;:.!?]$/.test(w)) return all.slice(0, i + 1).join(' ').replace(/[,;:]$/, '')
+    }
+    return all.join(' ')
+  }
   // a cue is a short verbatim piece of the narration; when the bullet's words
   // aren't spoken, leave it empty and the timing spreads the bullets evenly.
   const cueFor = (narration, text) => {
-    const lead = words(text, 3)
-    return lead && narration.toLowerCase().includes(lead.toLowerCase()) ? lead : ''
+    const l = lead(text, 3)
+    return l && narration.toLowerCase().includes(l.toLowerCase()) ? l : ''
   }
-  const heading = (s, fallback) => words((s.slideData && s.slideData.headline) || s.title || fallback, 8)
+  const heading = (s, fallback) => words((s.slideData && s.slideData.headline) || s.title || fallback, 12)
   const blocksFor = (s) => {
     const sd = s.slideData || {}
     const narration = s.narration || ''
@@ -612,16 +650,16 @@ function planFromSuppliedScenes(supplied) {
       if (f) blocks.push({ type: 'figure', figure: f })
     }
     if (!blocks.length && stats.length) {
-      blocks.push({ type: 'cards', vs: stats.length === 2, cards: stats.slice(0, 4).map((st, i) => ({ label: words(st.label, 4) || `#${i + 1}`, value: String(st.value), accent: i === 0, cue: cueFor(narration, st.label) })) })
+      blocks.push({ type: 'cards', vs: stats.length === 2, cards: stats.slice(0, 4).map((st, i) => ({ label: words(st.label, 8) || `#${i + 1}`, value: String(st.value), accent: i === 0, cue: cueFor(narration, st.label) })) })
     }
     if (bullets.length) {
-      blocks.push({ type: 'bullets', items: bullets.slice(0, 4).map((t) => ({ text: words(t, 12), highlight: '', cue: cueFor(narration, t) })) })
+      blocks.push({ type: 'bullets', items: bullets.slice(0, 4).map((t) => ({ text: words(t, 20), highlight: '', cue: cueFor(narration, t) })) })
     }
     if (!blocks.length) {
       // No on-screen points were written — lift up to three short lines from
       // the narration so the slide is never a bare heading.
       const lines = narration.split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter((x) => x.length > 12).slice(0, 3)
-      if (lines.length) blocks.push({ type: 'bullets', items: lines.map((t) => ({ text: words(t, 12), highlight: '', cue: words(t, 3) })) })
+      if (lines.length) blocks.push({ type: 'bullets', items: lines.map((t) => ({ text: words(t, 20), highlight: '', cue: lead(t, 3) })) })
     }
     return blocks
   }
@@ -634,7 +672,7 @@ function planFromSuppliedScenes(supplied) {
     const isFigure = blocks.length === 1 && blocks[0].type === 'figure'
     scenes.push({ id: id++, beat: 'benefit', kind: isFigure ? 'figure' : 'slide', narration: s.narration.trim(), layout: { heading: heading(s, `Part ${id - 1}`), align: 'left', media: 'right' }, blocks, backdrop_prompt: `abstract dark cinematic backdrop evoking "${heading(s, 'the topic')}"` })
   }
-  const ctaLine = closing && closing.slideData && closing.slideData.cta ? words(closing.slideData.cta, 10) : ''
+  const ctaLine = closing && closing.slideData && closing.slideData.cta ? words(closing.slideData.cta, 16) : ''
   if (closing) scenes.push({ id: id++, beat: 'cta', kind: 'cta', narration: closing.narration.trim(), layout: { heading: heading(closing, 'Thank you'), align: 'center', media: 'full' }, blocks: [] })
   // No cover supplied → the first content scene opens the deck.
   if (!cover && scenes.length) scenes[0].beat = 'intro'

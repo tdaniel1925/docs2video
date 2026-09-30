@@ -35,8 +35,14 @@ function hasNumber(value: string): boolean {
 function isHeadlineFigure(m: { label?: string; value: string }): boolean {
   const BAD = /\bage\b|\byear|\bterm\b|\bduration\b|\bmonths?\b|\bdays?\b|\bquantity\b|\bcount\b|\bnumber of\b/i
   if (BAD.test(m.label || '')) return false
-  const v = m.value || ''
-  const isMoney = /[$£€]|,\d{3}|\b\d+(\.\d+)?\s?(k|m|b|thousand|million|billion)\b/i.test(v)
+  const v = (m.value || '').trim()
+  // The hero is ONE giant figure. "Help 1,000 people become millionaires" has a
+  // ",000" in it but is a sentence — promoted, it filled the screen as the
+  // "number". A figure is short and has at most one word that isn't a unit.
+  const UNIT = /^(k|m|b|thousand|million|billion|per|year|yr|month|mo|week|day|annually|monthly)$/i
+  const words = v.split(/[^A-Za-z]+/).filter((w) => w.length >= 3 && !UNIT.test(w))
+  if (v.length > 18 || words.length > 1) return false
+  const isMoney =/[$£€]|,\d{3}|\b\d+(\.\d+)?\s?(k|m|b|thousand|million|billion)\b/i.test(v)
   const n = parseFloat(v.replace(/[^\d.]/g, ''))
   return isMoney || (isFinite(n) && n >= 1000)
 }

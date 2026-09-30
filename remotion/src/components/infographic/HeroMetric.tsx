@@ -1,12 +1,19 @@
-import { AbsoluteFill, useCurrentFrame, spring, useVideoConfig } from 'remotion'
+import { useCurrentFrame, spring, useVideoConfig } from 'remotion'
 import { FONTS, TYPE, type Theme } from '../../tokens'
 import { settleProgress } from '../../helpers'
+import { Fit } from '../../lib/fit'
 import { StatCounter } from './StatCounter'
+import { Stage, type Reserve } from './Stage'
 
 /**
  * One dominant metric, hero-scale and centered. The number counts up; a glowing
  * ring/halo settles behind it; eyebrow above, supporting line below. Used when a
  * scene has a single headline figure (e.g. "$176,204 — Initial Death Benefit").
+ *
+ * The column is a fixed width, so the number (a <Fit> inside StatCounter) and
+ * the label/support lines shrink to it instead of running off the frame — the
+ * value comes from the document and can be "100% High Cap Rate Acct (S&P 500
+ * Index)" as easily as "$176,204".
  */
 export const HeroMetric: React.FC<{
   label: string            // eyebrow, e.g. "Initial Death Benefit"
@@ -14,7 +21,9 @@ export const HeroMetric: React.FC<{
   support?: string         // optional line under the number
   theme: Theme
   accentIndex?: number
-}> = ({ label, value, support, theme, accentIndex = 0 }) => {
+  /** Space to keep clear at the top/bottom of the frame (eyebrow, logo). */
+  reserve?: Reserve
+}> = ({ label, value, support, theme, accentIndex = 0, reserve }) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
   const accent = theme.accents[accentIndex] ?? theme.accents[0]
@@ -25,38 +34,45 @@ export const HeroMetric: React.FC<{
   const haloScale = 0.7 + pop * 0.5
 
   return (
-    <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center' }}>
-      {/* soft accent halo behind the number */}
-      <div style={{
-        position: 'absolute', width: 1100, height: 1100, borderRadius: '50%',
-        background: `radial-gradient(circle, ${hexA(accent, theme.mode === 'dark' ? 0.20 : 0.12)} 0%, transparent 62%)`,
-        transform: `scale(${haloScale})`, filter: 'blur(8px)',
-      }} />
-
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', zIndex: 1 }}>
+    <Stage
+      width={1500} padX={150} reserve={reserve}
+      backdrop={
+        /* soft accent halo behind the number */
         <div style={{
-          opacity: labelP, transform: `translateY(${(1 - labelP) * 14}px)`,
-          fontFamily: FONTS.body, fontWeight: 800, letterSpacing: 8, fontSize: TYPE.label,
-          color: accent, textTransform: 'uppercase', marginBottom: 28,
+          position: 'absolute', width: 1100, height: 1100, borderRadius: '50%',
+          background: `radial-gradient(circle, ${hexA(accent, theme.mode === 'dark' ? 0.20 : 0.12)} 0%, transparent 62%)`,
+          transform: `scale(${haloScale})`, filter: 'blur(8px)',
+        }} />
+      }
+    >
+      <div style={{
+        width: '100%', opacity: labelP, transform: `translateY(${(1 - labelP) * 14}px)`, marginBottom: 28,
+      }}>
+        <Fit max={TYPE.label} min={18} lines={2} style={{
+          fontFamily: FONTS.body, fontWeight: 800, letterSpacing: '0.285em', lineHeight: 1.25,
+          color: accent, textTransform: 'uppercase', textAlign: 'center',
         }}>
           {label}
-        </div>
+        </Fit>
+      </div>
 
-        <div style={{ transform: `scale(${0.92 + pop * 0.08})`, opacity: Math.min(1, pop * 1.4) }}>
-          <StatCounter value={value} theme={theme} color={theme.textPrimary} fontSize={TYPE.hero * 0.92} startFrame={8} durationFrames={Math.round(1.3 * fps)} />
-        </div>
+      <div style={{ width: '100%', textAlign: 'center', transform: `scale(${0.92 + pop * 0.08})`, opacity: Math.min(1, pop * 1.4) }}>
+        <StatCounter value={value} theme={theme} color={theme.textPrimary} fontSize={TYPE.hero * 0.92} startFrame={8} durationFrames={Math.round(1.3 * fps)} />
+      </div>
 
-        {support ? (
-          <div style={{
-            opacity: supportP, transform: `translateY(${(1 - supportP) * 14}px)`,
-            fontFamily: FONTS.body, fontWeight: 500, fontSize: TYPE.subhead,
-            color: theme.textMuted, marginTop: 34, maxWidth: 1100,
+      {support ? (
+        <div style={{
+          width: '100%', maxWidth: 1100, marginTop: 34,
+          opacity: supportP, transform: `translateY(${(1 - supportP) * 14}px)`,
+        }}>
+          <Fit max={TYPE.subhead} min={26} lines={3} style={{
+            fontFamily: FONTS.body, fontWeight: 500, color: theme.textMuted, textAlign: 'center',
           }}>
             {support}
-          </div>
-        ) : null}
-      </div>
-    </AbsoluteFill>
+          </Fit>
+        </div>
+      ) : null}
+    </Stage>
   )
 }
 

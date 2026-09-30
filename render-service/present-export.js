@@ -63,6 +63,12 @@ async function runExport({ videoId, htmlUrl, supabase, log }) {
     const page = await ctx.newPage()
     const tPage = Date.now()
     await page.goto(`${htmlUrl}?record=1`, { waitUntil: 'networkidle', timeout: 60000 })
+    // The deck fits every slide to the window by MEASURING its text, and a
+    // webfont that lands late changes those measurements — the slide would
+    // visibly re-fit mid-recording. Start the show only once fonts are in.
+    // (Recorded at 1920x1080, a size the deck's fit is checked at:
+    // scripts/deck-overflow-check.mjs, "mp4-record".)
+    await page.evaluate(() => (document.fonts ? document.fonts.ready.then(() => true) : true)).catch(() => {})
     await page.waitForTimeout(900)
     const leadMs = Date.now() - tPage
     await page.evaluate((d) => window.startShow(d), durs)

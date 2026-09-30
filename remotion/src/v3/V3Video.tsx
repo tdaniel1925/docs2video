@@ -9,6 +9,8 @@ import { ThemedBackground } from '../AuroraBackground'
 import { FilmOverlay } from '../FilmOverlay'
 import { DesignFrame } from './DesignFrame'
 import { FONTS, type Theme } from '../tokens'
+import { Fit } from '../lib/fit'
+import { TightFit } from './TightFit'
 
 /**
  * ONE continuous background for the whole video (sits behind the Series, driven
@@ -92,23 +94,32 @@ const ColdOpen: React.FC<{ text: string; theme: Theme & { logo?: LogoSource }; p
   const accent = theme.accents[1] ?? theme.accents[0]
   return (
     <AbsoluteFill style={{ background: '#05070C', alignItems: 'center', justifyContent: 'center', opacity: out }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 22, opacity: Math.min(1, rise * 1.4), transform: `translateY(${(1 - rise) * 28}px)` }}>
+      {/* Full width (160px clear of each edge) so every line below has a
+          bounded width; each line is capped at 1400px and centred as before.
+          Line limits (name 3, role 2, client 2) keep the whole stack on screen:
+          a longer one shrinks instead of adding lines. (lineHeight 1.1 is
+          Archivo's own "normal", written out so <Fit> can count lines.) */}
+      <div style={{ width: '100%', padding: '0 160px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 22, opacity: Math.min(1, rise * 1.4), transform: `translateY(${(1 - rise) * 28}px)` }}>
         {/* Presenter portrait on the cover (Person profile, cover placement). */}
         {photo ? (
           <Img src={staticFile(photo)} style={{ width: 150, height: 150, borderRadius: '50%', objectFit: 'cover', border: `5px solid #FFFFFF`, outline: `2px solid ${accent}`, boxShadow: `0 0 30px ${accent}77`, marginBottom: 6 }} />
         ) : null}
-        <div style={{ fontFamily: FONTS.display, fontWeight: 900, fontSize: 96, color: '#FFFFFF', letterSpacing: '-0.02em', textAlign: 'center', maxWidth: 1400, lineHeight: 1 }}>
-          {text}
+        <div style={{ width: '100%', maxWidth: 1400 }}>
+          <TightFit text={text} max={96} min={48} lines={3} lineHeight={1} style={{ fontFamily: FONTS.display, fontWeight: 900, color: '#FFFFFF', letterSpacing: '-0.02em', textAlign: 'center' }} />
         </div>
         {photo && role ? (
-          <div style={{ fontFamily: FONTS.display, fontWeight: 700, letterSpacing: 3, fontSize: 26, color: accent, textTransform: 'uppercase' }}>{role}</div>
+          <div style={{ width: '100%', maxWidth: 1400 }}>
+            <Fit max={26} min={16} lines={2} style={{ fontFamily: FONTS.display, fontWeight: 700, lineHeight: 1.1, letterSpacing: 3, color: accent, textTransform: 'uppercase', textAlign: 'center' }}>{role}</Fit>
+          </div>
         ) : null}
         <div style={{ height: 4, width: 220 * rule, borderRadius: 2, background: accent, boxShadow: `0 0 18px ${accent}` }} />
         {/* "Prepared for {client}" — the personalized cover line. */}
         {recipient ? (
-          <div style={{ marginTop: 10, textAlign: 'center', opacity: rcp }}>
+          <div style={{ width: '100%', maxWidth: 1400, marginTop: 10, textAlign: 'center', opacity: rcp }}>
             <div style={{ fontFamily: FONTS.display, fontWeight: 700, letterSpacing: 4, fontSize: 17, color: accent, textTransform: 'uppercase' }}>Prepared for</div>
-            <div style={{ fontFamily: FONTS.display, fontWeight: 800, fontSize: 34, color: '#FFFFFF', marginTop: 6 }}>{recipient}</div>
+            <div style={{ marginTop: 6 }}>
+              <Fit max={34} min={20} lines={2} style={{ fontFamily: FONTS.display, fontWeight: 800, lineHeight: 1.1, color: '#FFFFFF', textAlign: 'center' }}>{recipient}</Fit>
+            </div>
           </div>
         ) : null}
       </div>
@@ -140,7 +151,8 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean; assetBase?: strin
           let placement = sc.placement ?? PLACEMENT_CYCLE[i % PLACEMENT_CYCLE.length]
           // A lower-third lives bottom-left, so keep the title OUT of the bottom
           // zone on metric scenes (otherwise they collide).
-          if (sc.metric && (placement === 'bottom' || placement === 'left')) placement = 'top'
+          // (`metrics` too — the list form — which this check used to miss.)
+          if ((sc.metric || (sc.metrics && sc.metrics.length)) && (placement === 'bottom' || placement === 'left')) placement = 'top'
           const kenBurns = sc.kenBurns ?? KEN[i % KEN.length]
           // Scenes WITH bullets use the PowerPoint-style glass-panel layout;
           // a scene with a `closing` payload renders the branded contact card;
@@ -195,6 +207,7 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean; assetBase?: strin
                     metrics={sc.metrics}
                     heroMetric={sc.heroMetric}
                     transparentBg={fluid}
+                    clearOfLogo={!!logo}
                   />
                 )}
               </Transition>

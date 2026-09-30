@@ -44,16 +44,77 @@ async function readTextOffImage(image: Buffer): Promise<string | null> {
 // Image generation model — switch between models via env var without code changes
 const IMAGE_MODEL = process.env.IMAGE_MODEL || 'gemini-3-pro-image-preview'
 
+// Advance widths of Arial/Helvetica regular for characters 32-126, in 1/1000
+// of the font size. Characters outside that range count as a full 1000.
+const SANS_WIDTHS = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584]
+// The server may not have Arial at all: DejaVu Sans is ~12% wider, and some
+// machines answer "sans-serif" with a monospace face (0.6 of the size per
+// character, spaces included). So each character counts as the WIDER of
+// Arial + 18% and 0.62 — an estimate that can only err on the roomy side.
+const sansWidth = (text: string, size: number): number => {
+  let units = 0
+  for (const ch of text) { const c = ch.codePointAt(0) ?? 0; units += c >= 32 && c < 127 ? Math.max(SANS_WIDTHS[c - 32] * 1.18, 620) : 1000 }
+  return units * size / 1000
+}
+
+/**
+ * Wrap `text` into a box, at the biggest size from `max` down that fits the
+ * width and height. A word wider than the box is split only at the floor.
+ */
+export function fitTitleLines(text: string, box: { w: number; h: number; max: number; min: number; lineHeight: number }): { size: number; lines: string[] } {
+  const words = text.split(/\s+/).filter(Boolean)
+  const wrap = (size: number, breakWords: boolean): string[] => {
+    const lines: string[] = []
+    let current = ''
+    for (let word of words) {
+      while (breakWords && sansWidth(word, size) > box.w && word.length > 1) {
+        let n = word.length - 1
+        while (n > 1 && sansWidth(word.slice(0, n), size) > box.w) n--
+        if (current) { lines.push(current); current = '' }
+        lines.push(word.slice(0, n))
+        word = word.slice(n)
+      }
+      const next = current ? `${current} ${word}` : word
+      if (current && sansWidth(next, size) > box.w) { lines.push(current); current = word }
+      else current = next
+    }
+    if (current) lines.push(current)
+    return lines
+  }
+  const fits = (lines: string[], size: number) => lines.every((l) => sansWidth(l, size) <= box.w) && lines.length * size * box.lineHeight <= box.h
+  for (let size = box.max; size >= box.min; size--) {
+    const lines = wrap(size, false)
+    if (fits(lines, size)) return { size, lines }
+  }
+  for (let size = box.min; size >= 10; size--) {
+    const lines = wrap(size, true)
+    if (fits(lines, size)) return { size, lines }
+  }
+  // Thousands of characters: keep what fits rather than draw off the slide.
+  const lines = wrap(10, true)
+  return { size: 10, lines: lines.slice(0, Math.max(1, Math.floor(box.h / (10 * box.lineHeight)))) }
+}
+
+/** The SVG for a fallback slide: the title wrapped and fitted inside a 120px margin. */
+export function fallbackSlideSvg(title: string, primaryColor: string): string {
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  const LINE = 1.25
+  const { size, lines } = fitTitleLines(title || 'Slide', { w: 1920 - 240, h: 1080 - 240, max: 48, min: 24, lineHeight: LINE })
+  // One line sits where it always did (baseline 540); more lines centre on it.
+  const firstY = 540 - ((lines.length - 1) * size * LINE) / 2
+  const text = lines.map((line, i) =>
+    `<text x="960" y="${(firstY + i * size * LINE).toFixed(1)}" text-anchor="middle" font-size="${size}" fill="white" font-family="Arial, 'Liberation Sans', Helvetica, sans-serif">${esc(line)}</text>`,
+  ).join('\n    ')
+  return `<svg width="1920" height="1080" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1920" height="1080" fill="${primaryColor}"/>
+    ${text}
+  </svg>`
+}
+
 // Generate a simple fallback slide when Gemini fails to return an image
 async function generateFallbackSlide(title: string, primaryColor: string): Promise<Buffer> {
   const sharp = (await import('sharp')).default ?? (await import('sharp'))
-  // Escape XML special characters in title
-  const safeTitle = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-  const svg = `<svg width="1920" height="1080" xmlns="http://www.w3.org/2000/svg">
-    <rect width="1920" height="1080" fill="${primaryColor}"/>
-    <text x="960" y="540" text-anchor="middle" font-size="48" fill="white" font-family="sans-serif">${safeTitle}</text>
-  </svg>`
-  return sharp(Buffer.from(svg)).png().toBuffer()
+  return sharp(Buffer.from(fallbackSlideSvg(title, primaryColor))).png().toBuffer()
 }
 
 function formatCurrency(n: number): string {
@@ -337,6 +398,7 @@ ${structuredPrompt}
 - Use the FULL canvas — do not leave empty areas, reserved zones, or placeholder boxes
 - VERIFY: Every number, dollar amount, and percentage on the slide MUST exactly match the data provided. Do not round, estimate, or change any numbers.
 - TEXT LIMIT: Maximum 25 words of visible text per slide. Short headline (3-6 words), 2-4 bullet points (3-5 words each), and large numbers/icons. NEVER put paragraphs or full sentences on a slide.
+- SAFE MARGINS: Keep every word, number and icon at least 80 pixels inside the left, right and top edges (and out of the bottom zone above). If a headline, number or label is long, set it smaller or wrap it onto another line — NEVER crop it, cut it off, or let it run past an edge or out of its card.
 - VISUAL STYLE GUIDANCE: ${industryConfig.slideHints}
 ${previousSlideBuffer || templateRefBuffer ? '- VISUAL CONSISTENCY: Match the exact same color palette, font style, layout grid, and visual language as the reference image provided. The slides must look like they belong to the same deck.' : ''}
 ${isInsurance ? '- LEGAL: Do NOT display any insurance carrier or company name anywhere on the slide. This is a legal requirement.' : ''}
@@ -345,6 +407,7 @@ ${isInsurance ? '- LEGAL: Do NOT display any insurance carrier or company name a
 - Do NOT render raw field labels like "Headline:", "Subheadline:", "slidePrompt:", "narration:" etc.
 - Do NOT render any prompt instructions, JSON, or metadata as visible text
 - Do NOT generate or draw any company logos, lettermarks, or brand marks from scratch (a logo image may be provided separately — use it as-is if attached)
+- Do NOT write any company name or brand name anywhere on the slide — branding is added separately
 - Do NOT generate photographs of human faces
 - Do NOT leave empty reserved areas, placeholder boxes, or transparent zones on the slide
 - Do NOT render "300x100px" or any pixel dimension text on the slide

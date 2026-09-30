@@ -119,11 +119,13 @@ body.t-jordyn .an{font-weight:600;letter-spacing:-.01em}
       '--gold-f': '#d8c48c', '--line': '#d9d0b8', '--serif': "Georgia,'Times New Roman',serif",
     }, swatch: ['#f5f0e0', '#1a1a3a', '#8a6d2f'],
     css: `
-body.t-certificate::before{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;background-image:repeating-linear-gradient(45deg,rgba(26,26,58,.022) 0 1px,transparent 1px 7px),repeating-linear-gradient(-45deg,rgba(26,26,58,.022) 0 1px,transparent 1px 7px)}
+body.t-certificate #stage::before{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;background-image:repeating-linear-gradient(45deg,rgba(26,26,58,.022) 0 1px,transparent 1px 7px),repeating-linear-gradient(-45deg,rgba(26,26,58,.022) 0 1px,transparent 1px 7px)}
 body.t-certificate #frame{inset:10px;border:3px double color-mix(in srgb,var(--gold) 85%,transparent);border-radius:0;box-shadow:inset 0 0 0 5px #f5f0e0,inset 0 0 0 6px color-mix(in srgb,var(--gold) 50%,transparent)}
 body.t-certificate #frame::before,body.t-certificate #frame::after{content:'❦';position:absolute;font-size:20px;color:color-mix(in srgb,var(--gold) 75%,transparent);line-height:1}
 body.t-certificate #frame::before{top:8px;left:12px}
 body.t-certificate #frame::after{bottom:8px;right:12px;transform:rotate(180deg)}
+/* Clear of the corner ornament (it sat on the first letter of the title). */
+body.t-certificate .corner{left:48px}
 body.t-certificate #glow{background:radial-gradient(46% 42% at 22% 18%,color-mix(in srgb,var(--gold-l) 14%,transparent),transparent 60%),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='none' stroke='%231a1a3a' stroke-opacity='.10'%3E%3Ccircle cx='100' cy='100' r='96'/%3E%3Ccircle cx='100' cy='100' r='72'/%3E%3Ccircle cx='100' cy='100' r='34'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(30 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(60 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(90 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(120 100 100)'/%3E%3Cellipse cx='100' cy='100' rx='96' ry='32' transform='rotate(150 100 100)'/%3E%3C/g%3E%3C/svg%3E") no-repeat calc(100% + 120px) calc(100% + 120px)/440px 440px}
 body.t-certificate h1{letter-spacing:.01em}
 body.t-certificate h1.h2::after{background:none;width:auto;height:auto;content:'✦ ✦ ✦';color:var(--gold);font-size:10px;letter-spacing:9px;left:50%;transform:translateX(-50%)}
@@ -292,6 +294,27 @@ function pickJordynIllo(text: string, used: Set<string>): string | null {
 const esc = (s: string) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
+/** A summary line shortened at a WORD boundary, with "…" to say there is more.
+ *  The old `esc(x).slice(0, n)` cut mid-word — and, because it cut AFTER
+ *  escaping, could even cut "&amp;" in half and print "&am" on the slide. */
+function clip(text: string, max: number): string {
+  const s = String(text ?? '').replace(/\s+/g, ' ').trim()
+  if (s.length <= max) return s
+  const cut = s.slice(0, max)
+  const sp = cut.lastIndexOf(' ')
+  return (sp > max * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s,;:—–-]+$/, '') + '…'
+}
+
+/**
+ * The deck's stylesheet sizes everything against the WINDOW (vw/vh). It now
+ * sizes against the STAGE instead — the box every slide is drawn in, which is
+ * the window itself on anything bigger than a small tablet, and a larger
+ * canvas scaled down to fit on a phone or a small embedded player (see
+ * sizeStage in the page script). Container units (cqw/cqh) are the same idea
+ * as vw/vh, measured against that box instead of the window.
+ */
+const stageUnits = (css: string) => css.replace(/(\d)vw\b/g, '$1cqw').replace(/(\d)vh\b/g, '$1cqh')
+
 /** First strong money/percent figure in the narration → hero-stat layout. */
 function detectStat(text: string): { value: string; rest: string } | null {
   const m = text.match(/\$[\d,]+(?:\.\d+)?(?:\s*(?:per|\/)\s*(?:year|yr|month|mo))?|\b\d{1,3}(?:,\d{3})+\b|\b\d+(?:\.\d+)?%/)
@@ -432,7 +455,7 @@ export function buildPresentationHtml(opts: {
       const coverInner = `
         ${opts.recipientName ? `<div class="forwhom">Prepared for<b>${esc(opts.recipientName)}</b></div>` : ''}
         <h1>${words}<span class="g">.</span></h1>
-        ${opts.subtitle ? `<div class="lead">${esc(opts.subtitle).slice(0, 180)}</div>` : ''}
+        ${opts.subtitle ? `<div class="lead">${esc(clip(opts.subtitle, 180))}</div>` : ''}
         ${byline()}
         ${opts.voClips?.length ? `<div><button class="startbtn" onclick="startPres()">▶&nbsp;&nbsp;Start presentation</button></div>` : ''}
         ${opts.brandName ? `<div class="bymark">${esc(opts.brandName)}</div>` : ''}`
@@ -451,7 +474,7 @@ export function buildPresentationHtml(opts: {
       const closeHead = sd.headline || s.title || 'Let’s talk'
       const closeInner = `
         <div class="kick"><span class="rule"></span>THANK YOU<span class="rule r"></span></div>
-        <h1 style="font-size:clamp(21px,2.9vw,36px)">${esc(closeHead)}<span class="g">.</span></h1>
+        <h1 style="font-size:clamp(21px,2.9cqw,36px)">${esc(closeHead)}<span class="g">.</span></h1>
         <div class="lead">${esc(sd.cta || 'We appreciate your time.')}</div>
         ${byline(true)}
         ${opts.brandName ? `<div class="bymark">${esc(opts.brandName)}</div>` : ''}
@@ -478,8 +501,12 @@ export function buildPresentationHtml(opts: {
     // "Decision at 40" reads as a duplication bug, not a label.
     const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, '')
     const kickText = norm(s.title ?? '') && norm(s.title ?? '') !== norm(heading) ? esc(s.title ?? '').toUpperCase() : ''
-    const kick = `<div class="kick"><span class="num">${num}</span>${kickText}<span class="rule r"></span></div>`
-    const ghost = `<div class="ghost">${num}</div>`
+    // The label text sits in its own span so it can wrap (and shrink) inside
+    // the kicker instead of pushing the whole row wider than the slide.
+    const kick = `<div class="kick"><span class="num">${num}</span>${kickText ? `<span class="kt">${kickText}</span>` : ''}<span class="rule r"></span></div>`
+    // Bleeds past the slide edge ON PURPOSE (a faint design mark, not content),
+    // so the overflow check is told to leave it alone.
+    const ghost = `<div class="ghost" aria-hidden="true" data-overflow-ok="decorative ghost numeral, bleeds off the edge by design">${num}</div>`
     // Numbers COUNT UP on slide entry (cinematic data reveal). The static text
     // stays as fallback; JS replaces it with a ticker when the slide activates.
     const cnt = (v?: string) => {
@@ -487,8 +514,14 @@ export function buildPresentationHtml(opts: {
       const m = raw.match(/^([~≈]?\s*\$?)([\d,]+)((?:\.\d+)?.*)$/)
       if (!m) return esc(raw)
       const n = parseInt(m[2].replace(/,/g, ''), 10)
-      if (!isFinite(n) || n < 10) return esc(raw)
-      return `<span class="cnt" data-pre="${esc(m[1])}" data-num="${n}" data-suf="${esc(m[3])}">${esc(raw)}</span>`
+      // Past 2^53 the ticker would land on a DIFFERENT number than the page
+      // says; show those as written.
+      if (!Number.isSafeInteger(n) || n < 10) return esc(raw)
+      // The text written into the page is exactly what the ticker ends on, so
+      // the slide is measured (and fitted) at its final width — "1000000"
+      // would otherwise be fitted narrow and then grow into "1,000,000".
+      const final = `${m[1]}${n.toLocaleString('en-US')}${m[3]}`
+      return `<span class="cnt" data-pre="${esc(m[1])}" data-num="${n}" data-suf="${esc(m[3])}">${esc(final)}</span>`
     }
     // Text values ("Preferred Non-Tobacco") and phone numbers get their own
     // treatment — the numeric serif style breaks them across lines.
@@ -547,7 +580,7 @@ export function buildPresentationHtml(opts: {
       // Split: bullets on one side, figures on the other. A lone hero-worthy
       // number leads; anything else stacks as cards.
       const lead = heroSolo
-        ? `<div class="big grad" style="font-size:clamp(36px,5.6vw,64px)">${cnt(one)}</div>${stats[0].label ? `<div class="bl">${esc(stats[0].label)}</div>` : ''}`
+        ? `<div class="big grad" style="font-size:clamp(36px,5.6cqw,64px)">${cnt(one)}</div>${stats[0].label ? `<div class="bl">${esc(stats[0].label)}</div>` : ''}`
         : bulletsHtml(false)
       const side = heroSolo ? bulletsHtml(false) : statsHtml('slim')
       return `<div class="wrap wl">${ghost}${kick}<h1 class="h2">${esc(heading)}</h1>
@@ -570,21 +603,35 @@ export function buildPresentationHtml(opts: {
     const stat = detectStat(s.narration)
     const fallInner = `${kick}<h1 class="h2">${esc(heading)}</h1>
       ${stat && isHeroNumber(stat.value) ? `<div class="big grad">${cnt(stat.value)}</div>` : ''}
-      <div class="lead" style="max-width:720px">${esc(s.narration).slice(0, 300)}</div>`
+      <div class="lead" style="max-width:720px">${esc(clip(s.narration, 300))}</div>`
     if (illo) return `<div class="wrap wl willo">${ghost}<div>${fallInner}</div>${illoCard}</div>`
     return `<div class="wrap">${ghost}${fallInner}</div>`
   })
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(opts.title)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Montserrat:wght@400;600;700;800;900&family=Quicksand:wght@400;500;600;700&family=Pinyon+Script&display=swap" rel="stylesheet">
-<style>
+<style>${stageUnits(`
 :root{--paper:#f7f5ee;--card:#fffdf7;--ink:#1c2a44;--navy:#1c2a44;--soft:#4d5a74;--faint:#8b94a8;--gold:#a8842c;--gold-l:#c9a84c;--gold-f:#d9c07a;--line:#e5e0d0;--font:-apple-system,'Segoe UI',Roboto,sans-serif;--serif:Georgia,'Times New Roman',serif}
 body.themed{${themeVars}}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden;caret-color:transparent;-webkit-user-select:none;user-select:none}
 button:focus{outline:none}
 body{background:var(--paper);font-family:var(--font);color:var(--ink)}
+/* THE STAGE — everything a slide draws lives in here. On a window at least
+   600x400 it IS the window, pixel for pixel, so the deck looks exactly as it
+   always has. Below that (a phone, or the share page's small 16:9 player) the
+   stage stays 600x400-or-bigger and is scaled down to fit, the way a video
+   frame would be — so the layout never has to squeeze into a width it was
+   never designed for. The transform also makes the stage the frame of
+   reference for the fixed-position pieces inside it (border, corner block,
+   disclaimer). The nav pill stays OUTSIDE at real size: it must stay tappable. */
+#stage{position:fixed;left:0;top:0;width:100%;height:100%;overflow:hidden;container-type:size;transform-origin:0 0;transform:scale(1);z-index:1}
 #app{position:relative;width:100vw;height:100vh}
+/* Words longer than the line (a URL, "…-Indemnification") break rather than
+   run out of their card. The page script first SHRINKS such a line so the word
+   fits whole; this is only the last resort, and it never hides anything. */
+.sec{overflow-wrap:break-word}
+.fitting,.fitting *{overflow-wrap:normal!important}
 #glow{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(50% 45% at 24% 20%,color-mix(in srgb,var(--gold) 10%,transparent),transparent 60%);animation:drift 18s ease-in-out infinite alternate}
 @keyframes drift{from{transform:translate3d(-1.5%,-1%,0) scale(1.02)}to{transform:translate3d(1.8%,1.4%,0) scale(1.07)}}
 #frame{position:fixed;inset:14px;z-index:2;pointer-events:none;border:1px solid color-mix(in srgb,var(--gold) 45%,transparent);border-radius:4px}
@@ -594,11 +641,13 @@ body{background:var(--paper);font-family:var(--font);color:var(--ink)}
    pill and slide titles underneath the fixed corner block. margin:auto on the
    child centers identically when content fits, but respects the padding when it
    does not.
-   The paddings are the chrome lanes, measured: the corner block (logo plus two
-   text lines) reaches ~72px from the top, so the floor is 88px; the nav pill
-   occupies up to 56px from the bottom with the standing disclaimer beside it,
-   so the floor is 128px. */
-.sec{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding:clamp(88px,12vh,110px) 6vw 128px;opacity:0;transform:translateY(18px) scale(1.012);transition:opacity .55s ease,transform .55s cubic-bezier(.16,1,.3,1),filter .5s ease;pointer-events:none;overflow:hidden;z-index:3}
+   The paddings are the chrome lanes: the corner block at the top, the nav
+   pill and standing disclaimer at the bottom. These are the DESIGN values; the
+   page script (layoutChrome) measures the real chrome and sets --lane-t /
+   --lane-b, widening a lane when a long title or disclaimer needs more room
+   and narrowing it on a short window, so slide content can never sit under
+   the chrome. */
+.sec{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding:var(--lane-t,clamp(88px,12vh,110px)) 6vw var(--lane-b,128px);opacity:0;transform:translateY(18px) scale(1.012);transition:opacity .55s ease,transform .55s cubic-bezier(.16,1,.3,1),filter .5s ease;pointer-events:none;overflow:hidden;z-index:3}
 .sec.on{opacity:1;transform:none;pointer-events:auto}
 .sec.leaving{opacity:0;transform:scale(.985);filter:blur(6px)}
 .wrap{position:relative;width:100%;max-width:1020px;margin:auto;text-align:center}
@@ -610,7 +659,7 @@ body{background:var(--paper);font-family:var(--font);color:var(--ink)}
 .sec.on .ghost{opacity:1;animation:gfloat 11s ease-in-out 1.2s infinite alternate}
 @keyframes gfloat{from{transform:translateY(0)}to{transform:translateY(-1.4%) rotate(.6deg)}}
 .wrap>*:not(.ghost){position:relative;z-index:1}
-.wd{display:inline-block;opacity:0;transform:translateY(.45em);animation:wrise .6s cubic-bezier(.16,1,.3,1) forwards}
+.wd{display:inline-block;max-width:100%;opacity:0;transform:translateY(.45em);animation:wrise .6s cubic-bezier(.16,1,.3,1) forwards}
 @keyframes wrise{to{opacity:1;transform:none}}
 .wrap>*:not(.ghost){opacity:0;transform:translateY(14px)}
 .sec.on .wrap>*:not(.ghost){animation:rv .55s cubic-bezier(.16,1,.3,1) forwards}
@@ -631,24 +680,27 @@ h1.h2::after{transform:translateX(-50%) scaleX(0);transform-origin:center}
 @keyframes drawl{to{transform:scaleX(1)}}
 /* chart bars stagger */
 .sec.on .crow:nth-child(1) .cbar{animation-delay:.35s}.sec.on .crow:nth-child(2) .cbar{animation-delay:.47s}.sec.on .crow:nth-child(3) .cbar{animation-delay:.59s}.sec.on .crow:nth-child(4) .cbar{animation-delay:.71s}.sec.on .crow:nth-child(5) .cbar{animation-delay:.83s}
-.kick{display:inline-flex;align-items:center;gap:10px;font-weight:700;font-size:clamp(10px,1.1vw,13px);letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:clamp(10px,1.8vh,16px)}
+.kick{display:inline-flex;align-items:center;gap:10px;font-weight:700;font-size:clamp(10px,1.1vw,13px);letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:clamp(10px,1.8vh,16px);max-width:100%}
+.kick .kt{min-width:0}
 .kick .rule{width:30px;height:1px;background:linear-gradient(90deg,transparent,var(--gold))}
 .kick .rule.r{width:44px;background:linear-gradient(90deg,var(--gold),transparent)}
 .kick .num{background:var(--gold);color:var(--paper);border-radius:6px;padding:3px 9px;letter-spacing:.06em;font-size:.92em}
 h1{font-family:var(--serif);font-weight:700;font-size:clamp(26px,4.4vw,52px);line-height:1.08}
 h1 .g{color:var(--gold)}
 .lead{color:var(--soft);font-size:clamp(15px,1.8vw,21px);line-height:1.6;max-width:680px;margin:12px auto 0}
-.big{display:inline-block;font-family:var(--serif);font-weight:700;font-size:clamp(44px,8vw,96px);line-height:1.18;color:var(--navy);letter-spacing:-.02em;font-variant-numeric:tabular-nums;padding:0 .05em .08em}
+.big{display:inline-block;max-width:100%;font-family:var(--serif);font-weight:700;font-size:clamp(44px,8vw,96px);line-height:1.18;color:var(--navy);letter-spacing:-.02em;font-variant-numeric:tabular-nums;padding:0 .05em .08em}
 h1.h2{font-size:clamp(21px,3.1vw,38px);padding-bottom:clamp(12px,2.2vh,20px);margin-bottom:clamp(4px,1vh,10px);position:relative}
 h1.h2::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:56px;height:3px;border-radius:2px;background:linear-gradient(90deg,var(--gold),var(--gold-l))}
 .wl h1.h2::after{left:0;transform:none}
 .big.grad{background:linear-gradient(115deg,var(--navy) 25%,var(--gold) 60%,var(--navy) 95%);background-size:220% 220%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:gshift 7s ease-in-out infinite alternate}
 @keyframes gshift{from{background-position:0% 50%}to{background-position:100% 50%}}
-.cols{display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(18px,3vw,44px);align-items:start;margin-top:clamp(12px,2.4vh,22px);text-align:left}
+/* Bounded columns — minmax(0, …), not a plain fr. A plain 1fr column grows to
+   fit its longest word, which is how a long value pushed a card off the slide. */
+.cols{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(18px,3vw,44px);align-items:start;margin-top:clamp(12px,2.4vh,22px);text-align:left}
 .sidestats{display:flex;flex-direction:column;gap:clamp(8px,1.5vh,13px)}
 .stat.slim{max-width:none;width:100%;padding:clamp(9px,1.6vh,15px) clamp(14px,1.6vw,20px)}
 .cols .bullets{margin:0;max-width:none}
-.wrap.willo{display:grid;grid-template-columns:1.08fr .92fr;gap:clamp(20px,3.5vw,56px);align-items:center;text-align:left}
+.wrap.willo{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);gap:clamp(20px,3.5vw,56px);align-items:center;text-align:left}
 .wrap.willo .kick{margin-left:0}
 .wrap.willo .bullets{margin-left:0;margin-right:0;max-width:none}
 .wrap.willo .lead{margin-left:0}
@@ -662,13 +714,17 @@ h1.h2::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX
 .illocard.hero img{max-height:64vh}
 .wrap.cover .illocard.hero::after{content:'';position:absolute;inset:0;border-radius:28px;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 6%,transparent);pointer-events:none}
 .wrap.cover>*:last-child{position:relative}
-.wrap.cover>*:last-child::before{content:'';position:absolute;inset:6% -4% -7% 7%;border-radius:32px;background:color-mix(in srgb,var(--gold-f) 62%,transparent);transform:rotate(-2deg);z-index:-1}
+/* Only behind cover ART. On a cover without art the last child is the brand
+   name or the presenter card, and this slab drew a tilted bar straight through it. */
+.wrap.cover.willo>*:last-child::before{content:'';position:absolute;inset:6% -4% -7% 7%;border-radius:32px;background:color-mix(in srgb,var(--gold-f) 62%,transparent);transform:rotate(-2deg);z-index:-1}
 .bl{font-size:clamp(11px,1.2vw,14px);letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:4px}
 .statgrid{display:flex;gap:clamp(8px,1.4vw,16px);justify-content:center;flex-wrap:wrap;margin-top:clamp(10px,2.2vh,20px)}
 /* Figures sharing a column with bullets, alongside a slide's own artwork. */
 .statrow{display:flex;gap:clamp(8px,1.2vw,14px);flex-wrap:wrap;margin-top:clamp(10px,2vh,18px)}
-.statrow .stat{flex:1 1 0;min-width:0}
-.stat{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:12px;padding:clamp(10px,1.8vh,18px) clamp(14px,1.8vw,24px);min-width:130px;max-width:250px;text-align:left;box-shadow:0 10px 26px rgba(0,0,0,.08)}
+/* Side by side while there is room; a card narrower than 120px wraps to the
+   next row instead of squeezing its figure. */
+.statrow .stat{flex:1 1 0;min-width:min(120px,100%)}
+.stat{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:12px;padding:clamp(10px,1.8vh,18px) clamp(14px,1.8vw,24px);min-width:min(130px,100%);max-width:250px;text-align:left;box-shadow:0 10px 26px rgba(0,0,0,.08)}
 .stat .v{font-family:var(--serif);font-weight:700;font-size:clamp(20px,2.7vw,36px);line-height:1.18;padding-bottom:.06em;color:var(--navy);font-variant-numeric:tabular-nums}
 /* Text values ("Preferred Non-Tobacco") — sans, smaller, no hyphen breaks. */
 .stat .v.txt{font-family:var(--font);font-weight:700;font-size:clamp(16px,1.9vw,24px);line-height:1.35;letter-spacing:-.01em;hyphens:none;overflow-wrap:break-word}
@@ -677,14 +733,16 @@ h1.h2::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX
 .big-tel{font-size:clamp(30px,5vw,60px);line-height:1.2;padding-bottom:.06em;margin-top:2vh}
 .stat .v.tel{font-size:clamp(16px,2vw,26px)}
 .stat .l{font-size:clamp(11px,1.2vw,14px);letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-top:5px}
-.bullets{display:grid;grid-template-columns:1fr;gap:clamp(8px,1.5vh,13px);max-width:760px;margin:clamp(10px,2.2vh,20px) auto 0;padding:0;text-align:left}
+.bullets{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(8px,1.5vh,13px);max-width:760px;margin:clamp(10px,2.2vh,20px) auto 0;padding:0;text-align:left}
 .wl>.bullets{margin-left:0;margin-right:0}
-.bullets.two{grid-template-columns:1fr 1fr;max-width:940px}
+.bullets.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-width:940px}
+.bullets li>span:last-child{min-width:0}
 .bullets.tight{margin-top:clamp(8px,1.6vh,14px)}
 .bullets li{list-style:none;display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:clamp(10px,1.7vh,16px) clamp(14px,1.6vw,20px);font-size:clamp(14px,1.65vw,19px);line-height:1.55;color:var(--soft)}
 .bullets .mk{color:var(--gold);font-size:.72em;line-height:2;flex:none}
 .chart{max-width:780px;margin:clamp(12px,2.4vh,22px) auto 0;display:grid;gap:clamp(8px,1.4vh,12px);text-align:left;width:100%}
-.crow{display:grid;grid-template-columns:minmax(90px,190px) 1fr auto;gap:12px;align-items:center}
+.crow{display:grid;grid-template-columns:minmax(90px,190px) minmax(0,1fr) minmax(0,max-content);gap:12px;align-items:center}
+.crow .cl,.crow .cval{min-width:0}
 .crow .cl{font-size:clamp(12px,1.3vw,15px);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);text-align:right}
 .ctrack{background:color-mix(in srgb,var(--ink) 8%,transparent);border-radius:8px;overflow:hidden}
 .cbar{height:clamp(12px,2vh,18px);border-radius:8px;background:linear-gradient(90deg,var(--gold),var(--gold-l));transform-origin:left;transform:scaleX(0)}
@@ -694,12 +752,15 @@ h1.h2::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX
 /* Presenter block — photo (or initials monogram) + name + contact, on a
    baseline grid. Replaces the old pill, whose one-sided padding left the
    name visibly off-centre whenever no photo was supplied. */
-.byline{display:inline-flex;align-items:center;gap:clamp(11px,1.3vw,16px);margin-top:clamp(16px,3vh,26px);text-align:left}
+.byline{display:inline-flex;max-width:100%;align-items:center;gap:clamp(11px,1.3vw,16px);margin-top:clamp(16px,3vh,26px);text-align:left}
 .byline .av{flex:none;width:clamp(44px,5.4vh,56px);height:clamp(44px,5.4vh,56px);border-radius:50%;object-fit:cover;display:inline-flex;align-items:center;justify-content:center;background:var(--gold-f);color:var(--gold);border:2px solid var(--card);box-shadow:0 0 0 1.5px var(--gold-f),0 8px 20px color-mix(in srgb,var(--ink) 12%,transparent)}
 .byline .av.mono{font-family:var(--serif);font-weight:700;font-size:clamp(15px,1.7vw,19px);letter-spacing:.02em}
 .byline .bt{display:flex;flex-direction:column;gap:2px;min-width:0}
 .byline .an{font-family:var(--serif);font-weight:700;font-size:clamp(15px,1.65vw,19px);line-height:1.25;color:var(--navy)}
-.byline .ac{font-size:clamp(11.5px,1.15vw,13.5px);line-height:1.4;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* One line when it fits. A long email or URL is shrunk to fit by the page
+   script, and past that it wraps — it is never cut off with "…" (it was: the
+   address a client needed to write to ended in an ellipsis). */
+.byline .ac{font-size:clamp(11.5px,1.15vw,13.5px);line-height:1.4;color:var(--faint);white-space:nowrap}
 .byline.lg{margin-top:clamp(18px,3.4vh,30px);background:var(--card);border:1px solid var(--line);border-radius:18px;padding:clamp(12px,1.8vh,18px) clamp(20px,2.4vw,28px);box-shadow:0 16px 40px color-mix(in srgb,var(--ink) 10%,transparent)}
 .byline.lg .av{width:clamp(52px,6.6vh,68px);height:clamp(52px,6.6vh,68px)}
 .byline.lg .an{font-size:clamp(17px,2vw,23px)}
@@ -740,7 +801,8 @@ body.share .shareacts{display:flex}
 #nav .lab{flex:none;font-size:11px;font-weight:700;color:var(--faint);padding:0 4px;min-width:40px;text-align:center}
 .corner{position:fixed;top:20px;left:34px;z-index:40;display:flex;align-items:center;gap:12px;font-family:var(--serif);font-weight:700;font-size:14px;color:var(--navy);transition:opacity .4s;max-width:56vw}
 .corner .logo{height:clamp(26px,3.4vh,36px);width:auto;object-fit:contain;display:block}
-.corner .ct{display:block;line-height:1.25}
+.corner .ct{display:block;line-height:1.25;min-width:0}
+.corner .ctt{display:block}
 .corner .sm{color:var(--faint);font-family:var(--font);font-weight:400;font-size:11px;display:block}
 body.oncover .corner .ct{opacity:0;transition:opacity .4s}
 /* Standing disclosure — travels with every slide on regulated decks. */
@@ -755,11 +817,15 @@ body.oncover .corner .ct{opacity:0;transition:opacity .4s}
    did. The frame inset and this offset are related, so if one moves the other
    has to. */
 .disc{position:fixed;left:34px;bottom:26px;z-index:35;font-family:var(--font);font-size:10.5px;line-height:1.45;color:color-mix(in srgb,var(--soft) 78%,transparent);text-align:left;pointer-events:none;max-width:min(62ch,calc(50vw - 190px))}
+/* When the nav pill leaves too little room beside it (many slides, a narrow
+   window), the disclosure moves to its own full-width line ABOVE the pill
+   instead of running underneath it. layoutChrome decides, by measuring. */
+.disc.stack{right:34px;max-width:none;text-align:center}
 ${t.css ?? ''}
-</style></head><body class="themed t-${t.id}">
-<div id="glow"></div><div id="fx"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div id="frame"></div><div id="bar"></div>
-<div class="corner">${opts.logoUrl ? `<img class="logo" src="${esc(opts.logoUrl)}" alt="">` : ''}<span class="ct">${esc(opts.title)}${P.name ? `<span class="sm">Presented by ${esc(P.name)}</span>` : ''}</span></div>${disc}
-<div id="app"></div>
+`)}</style></head><body class="themed t-${t.id}">
+<div id="stage"><div id="glow"></div><div id="fx"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div id="frame"></div>
+<div class="corner">${opts.logoUrl ? `<img class="logo" src="${esc(opts.logoUrl)}" alt="">` : ''}<span class="ct"><span class="ctt">${esc(opts.title)}</span>${P.name ? `<span class="sm">Presented by ${esc(P.name)}</span>` : ''}</span></div>${disc}
+<div id="app"></div></div><div id="bar"></div>
 <div id="nav"><button id="prev" title="Previous">‹</button><span class="lab" id="lab"></span><button id="next" title="Next">›</button><div id="dots"></div>${opts.voClips?.length ? '<button id="pp" title="Pause / resume narration">⏸</button><button id="voice" title="Voice on/off">🔊</button>' : ''}<button id="fs" title="Fullscreen">⛶</button></div>
 <script>
 const SLIDES=${JSON.stringify(slides)};
@@ -858,45 +924,183 @@ function countUps(sec){
     requestAnimationFrame(tick);
   });
 }
-/**
- * SHRINK A SLIDE THAT DOES NOT FIT.
+/*
+ * NOTHING ON A SLIDE MAY RUN OFF THE SCREEN, OUT OF ITS CARD, OR GET CUT OFF.
  *
- * Every size here already uses clamp(), so the type scales with the WINDOW. It
- * does not scale with the CONTENT — and the content is written by a model out
- * of somebody's document, so one slide gets four bullets and the next gets nine
- * of two lines each. At the clamp minimum that still runs past the bottom of
- * the frame, and .sec hides its overflow: the last bullets are simply gone, and
- * the ones above collide with the nav pill.
+ * Every word here comes from a model reading somebody's document, so no line
+ * can assume a length: a value built for "$10,000" arrives as "100% High Cap
+ * Rate Acct (S&P 500 Index)", a slide gets nine bullets, an email address is
+ * sixty characters. Three layers, all MEASURED in the real browser with the
+ * real fonts — nothing is guessed from character counts:
  *
- * Centring was already handled — see the note on .sec. This is the other half,
- * how MUCH there is, which no amount of viewport maths can know in advance.
+ *  1. sizeStage — below 600x400 (a phone, the share page's small player) the
+ *     deck is drawn on a stage at least that big and scaled down to fit, the
+ *     way a video frame is, so no layout is squeezed narrower than it works.
+ *  2. layoutChrome — the corner title block, the nav pill and the disclaimer
+ *     are measured, and the slide area becomes whatever they leave. A long
+ *     title or disclaimer used to sit on top of the slide's own text.
+ *  3. fitSlide — a single line too long for its box (a URL, a long value, one
+ *     giant word) is shrunk until it fits its card; then the whole slide is
+ *     scaled down, as one piece, until it fits the slide area — so a slide at
+ *     0.82 still looks like the same slide. There is no floor that lets it
+ *     overflow: the old one (0.62) is exactly how bullets ended up under the
+ *     nav and cut off at the bottom. A slide shrunk below 0.62 is logged as
+ *     D2V_FIT_SMALL — it is carrying too much for one slide, but nothing is lost.
  *
- * Scales the whole block rather than restyling parts of it, so the proportions
- * survive: a slide at 0.82 looks like the same slide, whereas shrinking only
- * the bullets would wreck its balance. Measured against the real box in the
- * real browser, and re-run on resize, because a deck opened on a laptop gets
- * dragged onto a projector.
+ * Re-run on resize, because a deck opened on a laptop gets dragged onto a
+ * projector, and once webfonts land, because they change every measurement.
  */
+const STAGE=document.getElementById('stage');
+const MIN_W=600,MIN_H=400;
+let S=1;
+function sizeStage(){
+  const vw=document.documentElement.clientWidth||innerWidth,vh=document.documentElement.clientHeight||innerHeight;
+  S=Math.min(1,vw/MIN_W,vh/MIN_H);
+  STAGE.style.width=(vw/S)+'px';STAGE.style.height=(vh/S)+'px';
+  STAGE.style.transform='scale('+S+')';
+  // The nav pill stays outside the stage so its buttons stay big enough to
+  // tap; it only shrinks a little on the smallest players.
+  const nav=document.getElementById('nav');
+  if(nav){const k=Math.max(S,0.75);nav.style.transformOrigin='50% 100%';nav.style.transform=k<1?'translateX(-50%) scale('+k+')':'';}
+}
+/* One run of text — a title, a value, a label. If one of its words is wider
+   than its box (or it takes more than maxLines lines), shrink it, but never
+   below floor x its designed size. Still too big at the floor: let it wrap
+   and break inside the word, so it is smaller than ideal but never cut off. */
+function fitRun(el,floor,maxLines){
+  if(!el.clientWidth)return;
+  // Measured on the WORDS themselves (a range over the text), not scrollWidth:
+  // scrollWidth also counts decoration hung off the element (the cover's
+  // accent slab), which would shrink a line that already fits.
+  const over=()=>{
+    const c=getComputedStyle(el),b=el.getBoundingClientRect();
+    // Its on-screen scale (the stage and the slide's own entrance animation
+    // both scale it). From the exact width — offsetWidth is rounded to a whole
+    // pixel, which was enough to shrink a line that fits.
+    const w0=parseFloat(c.width);const k=w0?b.width/w0:(el.offsetWidth?b.width/el.offsetWidth:1);
+    // No slack: a line that pokes out by even half a pixel is broken mid-word
+    // by the browser once measuring is over ("…890.0" / "0").
+    const L=b.left+(parseFloat(c.paddingLeft)+parseFloat(c.borderLeftWidth))*k-0.05,R=b.right-(parseFloat(c.paddingRight)+parseFloat(c.borderRightWidth))*k+0.05;
+    const rg=document.createRange();rg.selectNodeContents(el);
+    const rs=rg.getClientRects();
+    for(let i=0;i<rs.length;i++){if(rs[i].width>0.5&&(rs[i].right>R||rs[i].left<L))return true;}
+    if(maxLines){const lh=parseFloat(c.lineHeight)||parseFloat(c.fontSize)*1.3;if(el.scrollHeight>lh*maxLines+2)return true;}
+    return false;
+  };
+  if(!over())return;
+  if(el.dataset.fs0===undefined)el.dataset.fs0=el.style.fontSize;
+  const base=parseFloat(getComputedStyle(el).fontSize);
+  // A figure is never broken across lines ("$1,234,567,890.0" over "0" reads
+  // as a different number) — it may shrink much further than words first.
+  const fig=/^[~≈<>]?[ ]*[$€£]?[0-9][0-9,.]*[ ]*%?$/.test((el.textContent||'').trim());
+  let lo=base*(fig?Math.min(floor,0.2):floor),hi=base;
+  el.style.fontSize=lo+'px';
+  if(over()){el.style.whiteSpace='normal';el.style.overflowWrap='anywhere';return;}
+  for(let k=0;k<7;k++){const mid=(lo+hi)/2;el.style.fontSize=mid+'px';if(over())hi=mid;else lo=mid;}
+  el.style.fontSize=lo+'px';
+}
+/* Fit every run in a box. All the resets first and all the first reads after,
+   so a slide with forty lines costs one layout, not forty. While .fitting is
+   on, words may not break — a word too wide for its box shows up as too wide. */
+function fitRuns(box,list){
+  const todo=[];
+  box.classList.add('fitting');
+  list.forEach(function(r){box.querySelectorAll(r[0]).forEach(function(el){
+    if(el.dataset.fs0!==undefined){el.style.fontSize=el.dataset.fs0;el.style.whiteSpace='';el.style.overflowWrap='';}
+    todo.push([el,r[1],r[2]]);
+  });});
+  todo.forEach(function(t){fitRun(t[0],t[1],t[2]);});
+  box.classList.remove('fitting');
+}
+/* Every run of text a slide can carry, with how far each may shrink before
+   it is allowed to wrap instead. A hero number can lose the most and still be
+   the biggest thing on the slide. */
+const RUNS=[['h1',.5],['.lead',.7],['.big',.35],['.tel',.45],['.stat .v',.5],['.stat .l',.7],['.bl',.7],['.crow .cl',.7],['.crow .cval',.6],['.kick',.75],['.bullets li>span:last-child',.75],['.byline .an',.65],['.byline .ac',.7],['.forwhom',.75],['.bymark',.75],['.sact',.8],['.startbtn',.8]];
+function layoutChrome(){
+  const H=STAGE.clientHeight,W=STAGE.clientWidth;
+  const corner=document.querySelector('.corner');
+  if(corner)fitRuns(corner,[['.ctt',.72,2],['.sm',.82,1]]);
+  const nav=document.getElementById('nav'),dots=document.getElementById('dots');
+  const navOn=!!nav&&getComputedStyle(nav).display!=='none';
+  // Too many slides for a dot each: drop the dots — "3 / 24" still says where you are.
+  if(navOn){dots.style.display='';if(nav.scrollWidth>nav.clientWidth+1)dots.style.display='none';}
+  const navR=navOn?nav.getBoundingClientRect():null;
+  const disc=document.querySelector('.disc');
+  if(disc){
+    disc.classList.remove('stack');disc.style.bottom='';disc.style.maxWidth='';
+    // Beside the pill when there is real room for it, otherwise on its own
+    // line above the pill — never underneath it.
+    const room=navR?navR.left/S-34-16:W-68;
+    if(room>=220)disc.style.maxWidth='min(62ch,'+room+'px)';
+    else{disc.classList.add('stack');if(navR)disc.style.bottom=(H-navR.top/S+8)+'px';}
+  }
+  // The design lanes, unchanged from 720px tall up; proportionally smaller on
+  // a short window. Widened to whatever the real chrome needs.
+  const k=Math.min(1,H/720);
+  const cssT=Math.min(110,Math.max(88,H*0.12))*k,cssB=128*k;
+  let needT=0,needB=0,floorY=H;
+  if(corner){const r=corner.getBoundingClientRect();if(r.height)needT=r.bottom/S+14;}
+  if(navR)floorY=Math.min(floorY,navR.top/S);
+  if(disc){const r=disc.getBoundingClientRect();if(r.height)floorY=Math.min(floorY,r.top/S);}
+  if(floorY<H)needB=H-floorY+14;
+  STAGE.style.setProperty('--lane-t',Math.max(cssT,needT)+'px');
+  STAGE.style.setProperty('--lane-b',Math.max(cssB,needB)+'px');
+}
 function fitSlide(sec){
   if(!sec)return;
   const w=sec.querySelector('.wrap');if(!w)return;
   // Measure unscaled every time. Measuring an already-scaled block and scaling
   // again compounds, and the slide creeps smaller on every visit.
-  w.style.transform='';w.style.transformOrigin='center center';
+  w.style.transform='';w.style.width='';w.style.maxWidth='';
+  fitRuns(w,RUNS);
   const cs=getComputedStyle(sec);
-  const room=sec.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
-  const need=w.scrollHeight;
-  if(!room||!need||need<=room+1)return;
-  // 0.62 floor: below that the type is too small to read on a phone, and a
-  // slide nobody can read is no better than one that is clipped. Hitting the
-  // floor means the deck is genuinely carrying too much for one slide.
-  w.style.transform='scale('+Math.max(0.62,room/need)+')';
+  const padL=parseFloat(cs.paddingLeft),padT=parseFloat(cs.paddingTop);
+  const room=sec.clientHeight-padT-parseFloat(cs.paddingBottom);
+  const roomW=sec.clientWidth-padL-parseFloat(cs.paddingRight);
+  const g=w.querySelector('.ghost');
+  // How much room the block needs at a given layout width. Layout height, not
+  // scrollHeight: the entrance animation slides cards up from 18px below, and
+  // scrollHeight counts that as content. The ghost numeral bleeds past the
+  // edge by design, so it is left out of the width.
+  const measure=function(){if(g)g.style.display='none';const r={h:w.offsetHeight,w:Math.max(w.scrollWidth,w.clientWidth)};if(g)g.style.display='';return r;};
+  const cw=w.clientWidth;
+  let m=measure();
+  if(!room||!m.h)return;
+  const fits=function(s,mm){return mm.h*s<=room+0.5&&mm.w*s<=roomW+0.5;};
+  let s=Math.min(1,room/m.h,roomW/m.w);
+  if(s<1){
+    // A slide that has to shrink is ALSO laid out wider, so its lines re-wrap
+    // into the room the shrink frees up (fewer, longer lines) — otherwise a
+    // tall slide shrinks into a narrow column with empty space either side.
+    // Find the biggest scale that fits with that wider layout.
+    let lo=s,hi=1;
+    w.style.maxWidth='none';
+    for(let k=0;k<8;k++){
+      const mid=(lo+hi)/2;
+      w.style.width=(cw/mid)+'px';
+      if(fits(mid,measure()))lo=mid;else hi=mid;
+    }
+    s=lo;
+    w.style.width=(cw/s)+'px';
+    m=measure();
+    if(!fits(s,m)){w.style.width='';w.style.maxWidth='';m=measure();s=Math.min(1,room/m.h,roomW/m.w);}
+  }
+  sec.toggleAttribute('data-fit-small',s<0.62);
+  if(s>=1)return;
+  if(s<0.62)console.warn('D2V_FIT_SMALL slide '+(secs.indexOf(sec)+1)+' scaled to '+s.toFixed(2));
+  // Scaled from its top-left corner, then moved so it sits centred in the
+  // slide area. (Scaling about the centre of a block TALLER than the area
+  // left it hanging past the bottom by half the difference.) offsetLeft/Top
+  // are layout positions, untouched by the slide's own entrance animation.
+  const tx=padL+(roomW-m.w*s)/2-w.offsetLeft,ty=padT+(room-m.h*s)/2-w.offsetTop;
+  w.style.transformOrigin='0 0';
+  w.style.transform='translate('+tx+'px,'+ty+'px) scale('+s+')';
 }
-function fitAll(){secs.forEach(fitSlide);}
-addEventListener('resize',function(){clearTimeout(window.__fitT);window.__fitT=setTimeout(fitAll,120);});
+function relayout(){sizeStage();layoutChrome();fitSlide(secs[cur]);}
+addEventListener('resize',function(){clearTimeout(window.__fitT);window.__fitT=setTimeout(relayout,120);});
 // Webfonts land after the first paint and change every measurement, so measure
 // again once they have.
-if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitAll);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(relayout);
 function go(i){
   if(i<0)i=0;if(i>=secs.length)i=secs.length-1;
   const prev=cur;cur=i;
@@ -934,6 +1138,9 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowRight'||e.key==='PageDown'){e.preventDefault();unlock();if(cur>=secs.length-1)go(0);else go(cur+1);}
   if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();unlock();go(cur-1);}
 });
+// After the record/share switches above: record mode hides the nav pill,
+// which changes the room the slides get.
+sizeStage();layoutChrome();
 go(0);
 </script></body></html>`
 }

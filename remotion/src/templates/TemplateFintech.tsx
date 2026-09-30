@@ -9,6 +9,9 @@ import { CountUp, StreakWipe, Bokeh, Alive, sustained, SettleSweep } from '../li
 import { makeMusicDuck, beatLock, gridToFrames, durationsFromStarts, type VoWindow } from '../lib/audio'
 import { MusicBed } from '../lib/musicbed'
 import { Intro } from '../lib/intros'
+// Every slot's words come from props (a director model or a person), so each
+// one shrinks to fit its room instead of trusting its length.
+import { Fit, FitBox } from '../lib/fit'
 
 const { fontFamily: DISPLAY } = loadSpaceGrotesk()
 const { fontFamily: BODY } = loadInter()
@@ -57,12 +60,35 @@ export type FintechProps = z.infer<typeof fintechSchema>
 const s = (sec: number) => Math.round(sec * FPS)
 
 // ---- pieces (all read colors from props.brand) ----
-const Wordmark: React.FC<{ p: FintechProps; size?: number }> = ({ p, size = 90 }) => {
+// The count-up's final value, formatted exactly as CountUp formats it; an
+// invisible copy keeps the number's box at its final width so the size <Fit>
+// picks doesn't change while it counts.
+type Figure = { value: number; prefix?: string; suffix?: string; decimals?: number }
+const finalFigure = (x: Figure) => {
+  const dec = x.decimals ?? (Number.isInteger(x.value) ? 0 : 2)
+  return `${x.prefix || ''}${x.value.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec })}${x.suffix || ''}`
+}
+const Counter: React.FC<{ x: Figure; startAt: number; dur: number }> = ({ x, startAt, dur }) => (
+  <span style={{ display: 'inline-grid', justifyItems: 'center', verticalAlign: 'top' }}>
+    <span aria-hidden style={{ gridArea: '1 / 1', visibility: 'hidden' }}>{finalFigure(x)}</span>
+    <span style={{ gridArea: '1 / 1' }}><CountUp to={x.value} prefix={x.prefix || ''} suffix={x.suffix || ''} decimals={x.decimals} startAt={startAt} dur={dur} /></span>
+  </span>
+)
+
+// Split a list into rows of at most `max`, as evenly as possible (5 → 3 + 2).
+const rowsOf = <T,>(xs: T[], max: number): T[][] => {
+  const n = Math.max(1, Math.ceil(xs.length / max)); const per = Math.ceil(xs.length / n)
+  return Array.from({ length: n }, (_, i) => xs.slice(i * per, (i + 1) * per)).filter((r) => r.length)
+}
+
+const Wordmark: React.FC<{ p: FintechProps; size?: number; maxWidth?: number }> = ({ p, size = 90, maxWidth = 1760 }) => {
   const b = p.brand
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-      <div style={{ width: size, height: size, borderRadius: size * 0.19, background: `linear-gradient(135deg, ${b.accentHi}, ${b.accent})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: DISPLAY, fontWeight: 700, fontSize: size * 0.6, color: b.bg, boxShadow: `0 0 30px ${b.accent}55` }}>{p.logoLetter}</div>
-      <div style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: size * 0.72, letterSpacing: '-0.01em', color: b.white }}>{p.wordmark.pre}<span style={{ color: b.accent }}>{p.wordmark.post}</span></div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 18, maxWidth }}>
+      <div style={{ width: size, height: size, flexShrink: 0, borderRadius: size * 0.19, background: `linear-gradient(135deg, ${b.accentHi}, ${b.accent})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: DISPLAY, fontWeight: 700, fontSize: size * 0.6, color: b.bg, boxShadow: `0 0 30px ${b.accent}55` }}>{p.logoLetter}</div>
+      <div style={{ flex: '0 1 auto', minWidth: 0 }}>
+        <Fit max={size * 0.72} min={Math.round(size * 0.35)} lines={2} style={{ fontFamily: DISPLAY, fontWeight: 700, letterSpacing: '-0.01em', color: b.white }}>{p.wordmark.pre}<span style={{ color: b.accent }}>{p.wordmark.post}</span></Fit>
+      </div>
     </div>
   )
 }
@@ -80,8 +106,10 @@ const Shot: React.FC<{ p: FintechProps; src: string; dur: number; dim?: number }
   )
 }
 
-const Head: React.FC<{ p: FintechProps; kicker?: string; pre?: string; hot?: string; post?: string; sub?: string; hold: number; size?: number }> =
-({ p, kicker, pre = '', hot = '', post = '', sub, hold, size = 62 }) => {
+// `lines`: most lines the headline may take before it shrinks (1 when it sits
+// under a row of numbers, so it can't climb into them).
+const Head: React.FC<{ p: FintechProps; kicker?: string; pre?: string; hot?: string; post?: string; sub?: string; hold: number; size?: number; lines?: number }> =
+({ p, kicker, pre = '', hot = '', post = '', sub, hold, size = 62, lines = 3 }) => {
   const frame = useCurrentFrame(); const b = p.brand
   const o = interpolate(frame, [0, 8, hold - 10, hold], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
   const y = interpolate(frame, [0, 14], [16, 0], { extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
@@ -89,11 +117,11 @@ const Head: React.FC<{ p: FintechProps; kicker?: string; pre?: string; hot?: str
   return (
     <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 150 }}>
       <div style={{ opacity: o, transform: `translateY(${y}px)`, textAlign: 'center', maxWidth: 1500 }}>
-        {kicker && <div style={{ fontFamily: MONO, fontWeight: 600, fontSize: 19, letterSpacing: '0.28em', textTransform: 'uppercase', color: b.accent, marginBottom: 18 }}>{kicker}</div>}
-        <div style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: size, color: b.cream, lineHeight: 1.14, paddingBottom: '0.04em', letterSpacing: '-0.01em', textShadow: '0 4px 30px rgba(0,0,0,0.9)' }}>
+        {kicker && <Fit max={19} min={14} lines={lines > 1 ? 2 : 1} style={{ fontFamily: MONO, fontWeight: 600, letterSpacing: '0.28em', textTransform: 'uppercase', color: b.accent, marginBottom: 18 }}>{kicker}</Fit>}
+        <Fit max={size} min={Math.round(size * 0.45)} lines={lines} style={{ fontFamily: DISPLAY, fontWeight: 700, color: b.cream, lineHeight: 1.14, paddingBottom: '0.04em', letterSpacing: '-0.01em', textShadow: '0 4px 30px rgba(0,0,0,0.9)' }}>
           {pre}{hot && <span style={{ color: b.accentHi, textShadow: `0 0 22px ${b.accent}55` }}>{hot}</span>}{post}
-        </div>
-        {sub && <div style={{ fontFamily: BODY, fontWeight: 500, fontSize: size * 0.42, color: b.mute, marginTop: 14 }}>{sub}</div>}
+        </Fit>
+        {sub && <Fit max={size * 0.42} min={16} lines={2} style={{ fontFamily: BODY, fontWeight: 500, color: b.mute, marginTop: 14 }}>{sub}</Fit>}
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 22 }}>
           <div style={{ width: 130 * rule, height: 2, background: `linear-gradient(90deg, transparent, ${b.accent}, transparent)`, boxShadow: `0 0 12px ${b.accent}` }} />
         </div>
@@ -108,23 +136,36 @@ const StatsBeat: React.FC<{ p: FintechProps; hold: number; stats: NonNullable<Fi
   return (
     <AbsoluteFill style={{ background: `radial-gradient(120% 120% at 50% 30%, ${b.bg2}, ${b.bg})` }}>
       <Bokeh color={b.accent} count={5} big />
-      <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 80 }}>
-          {stats.map((st, i) => {
-            const at = 6 + i * 8
-            const pop = spring({ frame: frame - at, fps: FPS, config: { damping: 12, stiffness: 190 } })
-            return (
-              <div key={i} style={{ textAlign: 'center', transform: `scale(${clamp(pop, 0, 1)})` }}>
-                <div style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 130, color: i % 2 ? (b.cyan || b.accentHi) : b.accentHi, lineHeight: 1.15, paddingBottom: '0.04em', textShadow: `0 0 30px ${b.accent}44` }}>
-                  <CountUp to={st.value} prefix={st.prefix || ''} suffix={st.suffix || ''} decimals={st.decimals} startAt={at} dur={22} />
+      {/* Figures in rows of up to 4 (split evenly, decided here). A number never
+          wraps and its box is always its FINAL width (nothing moves while it
+          counts); a label wraps past 520px. Plain text only: if the group is
+          wider than the frame or taller than the room above the headline, the
+          FitBox shrinks it as one. A normal row is untouched. */}
+      <div style={{ position: 'absolute', left: 80, right: 80, top: (kicker || pre || hot) ? 280 : 130, bottom: (kicker || pre || hot) ? 280 : 130 }}>
+        <FitBox valign="center" minScale={0.6}>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 40 }}>
+              {rowsOf(stats.map((st, i) => ({ st, i })), 4).map((row, r) => (
+                <div key={r} style={{ display: 'flex', gap: 80 }}>
+                  {row.map(({ st, i }) => {
+                    const at = 6 + i * 8
+                    const pop = spring({ frame: frame - at, fps: FPS, config: { damping: 12, stiffness: 190 } })
+                    return (
+                      <div key={i} style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', transform: `scale(${clamp(pop, 0, 1)})` }}>
+                        <div style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 130, color: i % 2 ? (b.cyan || b.accentHi) : b.accentHi, lineHeight: 1.15, paddingBottom: '0.04em', textShadow: `0 0 30px ${b.accent}44`, whiteSpace: 'nowrap' }}>
+                          <Counter x={st} startAt={at} dur={22} />
+                        </div>
+                        <div style={{ fontFamily: BODY, fontWeight: 600, fontSize: 24, color: b.mute, letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 6, maxWidth: 520, overflowWrap: 'anywhere' }}>{st.label}</div>
+                      </div>
+                    )
+                  })}
                 </div>
-                <div style={{ fontFamily: BODY, fontWeight: 600, fontSize: 24, color: b.mute, letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 6 }}>{st.label}</div>
-              </div>
-            )
-          })}
-        </div>
-      </AbsoluteFill>
-      <Head p={p} kicker={kicker} pre={pre} hot={hot} hold={hold} size={48} />
+              ))}
+            </div>
+          </div>
+        </FitBox>
+      </div>
+      <Head p={p} kicker={kicker} pre={pre} hot={hot} hold={hold} size={48} lines={1} />
       <SettleSweep color={b.accent} hold={hold} />
     </AbsoluteFill>
   )
@@ -139,13 +180,18 @@ const ChatBeat: React.FC<{ p: FintechProps; hold: number; chat: { q: string; a: 
       <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 16 }}>
         <div style={{ fontFamily: MONO, fontSize: 19, letterSpacing: '0.24em', textTransform: 'uppercase', color: b.accent, marginBottom: 12 }}>{'// Ask anything'}</div>
         <div style={{ background: b.panel, border: `1px solid ${b.mute}44`, borderRadius: 14, padding: 24, width: 1000, alignSelf: 'flex-end', marginRight: '18%' }}>
-          <div style={{ fontFamily: BODY, fontWeight: 500, fontSize: 30, color: b.cream }}>{chat.q.slice(0, qShown)}{qShown < chat.q.length && frame < 30 ? '▋' : ''}</div>
+          {/* bubbles are a fixed width: the text is sized for its FINAL words (so it
+              doesn't change size while typing) and capped in lines, so both
+              bubbles always fit the frame */}
+          <Fit max={30} min={18} lines={4} sizeFor={chat.q + '▋'} style={{ fontFamily: BODY, fontWeight: 500, color: b.cream }}>{chat.q.slice(0, qShown)}{qShown < chat.q.length && frame < 30 ? '▋' : ''}</Fit>
         </div>
         {frame > 32 && (
           <div style={{ background: b.panel, border: `1px solid ${b.accent}44`, borderRadius: 14, padding: 24, width: 1000, alignSelf: 'flex-start', marginLeft: '18%', boxShadow: `0 0 26px ${b.accent}18` }}>
             <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
               <div style={{ width: 40, height: 40, borderRadius: 9, background: `linear-gradient(135deg, ${b.accentHi}, ${b.accent})`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: DISPLAY, fontWeight: 700, color: b.bg, fontSize: 22 }}>{p.logoLetter}</div>
-              <div style={{ fontFamily: BODY, fontWeight: 500, fontSize: 30, color: b.cream, lineHeight: 1.35 }}>{chat.a.slice(0, aShown)}{aShown < chat.a.length ? '▋' : ''}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Fit max={30} min={18} lines={7} sizeFor={chat.a + '▋'} style={{ fontFamily: BODY, fontWeight: 500, color: b.cream, lineHeight: 1.35 }}>{chat.a.slice(0, aShown)}{aShown < chat.a.length ? '▋' : ''}</Fit>
+              </div>
             </div>
           </div>
         )}
@@ -162,7 +208,7 @@ const MeetBeat: React.FC<{ p: FintechProps; hold: number; sub?: string }> = ({ p
       <Bokeh color={b.accent} count={6} big />
       <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 18 }}>
         <div style={{ transform: `scale(${0.72 + clamp(pop, 0, 1) * 0.28})` }}><Wordmark p={p} size={100} /></div>
-        {sub && <div style={{ fontFamily: BODY, fontWeight: 500, fontSize: 34, color: b.mute, opacity: clamp((frame - 14) / 8, 0, 1) }}>{sub}</div>}
+        {sub && <div style={{ width: '100%', maxWidth: 1500, opacity: clamp((frame - 14) / 8, 0, 1) }}><Fit max={34} min={18} lines={2} style={{ fontFamily: BODY, fontWeight: 500, color: b.mute, textAlign: 'center' }}>{sub}</Fit></div>}
       </AbsoluteFill>
     </AbsoluteFill>
   )
@@ -181,11 +227,18 @@ const CTABeat: React.FC<{ p: FintechProps; hold: number; cta: { headline: string
       <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
         <div style={{ transform: `scale(${0.74 + clamp(up, 0, 1) * 0.26})` }}><Wordmark p={p} size={104} /></div>
         <div style={{ width: 380 * line, height: 2, background: `linear-gradient(90deg, transparent, ${b.accent}, transparent)`, marginTop: 28, boxShadow: `0 0 14px ${b.accent}` }} />
-        <div style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 52, color: b.cream, marginTop: 26, textAlign: 'center', opacity: clamp(line, 0, 1) }}>{cta.headline}</div>
-        <div style={{ marginTop: 34, opacity: clamp(btn, 0, 1), transform: `scale(${(0.7 + clamp(btn, 0, 1) * 0.3) * pulse})` }}>
-          <div style={{ background: `linear-gradient(180deg, ${b.accentHi}, ${b.accent})`, color: b.bg, fontFamily: DISPLAY, fontWeight: 700, fontSize: 32, padding: '20px 54px', borderRadius: 12, boxShadow: `0 0 30px ${b.accent}66` }}>{cta.button}</div>
+        {/* headline, button label and web address each shrink to fit their room */}
+        <div style={{ width: '100%', maxWidth: 1500, marginTop: 26, opacity: clamp(line, 0, 1) }}>
+          <Fit max={52} min={26} lines={2} style={{ fontFamily: DISPLAY, fontWeight: 700, color: b.cream, textAlign: 'center' }}>{cta.headline}</Fit>
         </div>
-        <div style={{ fontFamily: MONO, fontWeight: 500, fontSize: 26, color: b.mute, letterSpacing: '0.08em', marginTop: 24, opacity: url }}>{cta.url}</div>
+        <div style={{ marginTop: 34, opacity: clamp(btn, 0, 1), transform: `scale(${(0.7 + clamp(btn, 0, 1) * 0.3) * pulse})`, maxWidth: 1000 }}>
+          <div style={{ background: `linear-gradient(180deg, ${b.accentHi}, ${b.accent})`, color: b.bg, fontFamily: DISPLAY, fontWeight: 700, fontSize: 32, padding: '20px 54px', borderRadius: 12, boxShadow: `0 0 30px ${b.accent}66` }}>
+            <Fit max={32} min={18} lines={2} style={{ textAlign: 'center' }}>{cta.button}</Fit>
+          </div>
+        </div>
+        <div style={{ width: '100%', maxWidth: 1500, marginTop: 24, opacity: url }}>
+          <Fit max={26} min={16} lines={2} style={{ fontFamily: MONO, fontWeight: 500, color: b.mute, letterSpacing: '0.08em', textAlign: 'center' }}>{cta.url}</Fit>
+        </div>
       </AbsoluteFill>
     </AbsoluteFill>
   )

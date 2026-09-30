@@ -185,7 +185,8 @@ export const Cursor: React.FC<{ from: [number, number]; to: [number, number]; cl
 /* ===================== 4. PHYSICS TYPE =================================== */
 
 // PhysicsWord — a word DROPS in and bounces on landing (gravity + squash).
-export const PhysicsWord: React.FC<{ text: string; color?: string; size?: number; at?: number; font: string }> =
+// `size` may be '1em' to take its size from a parent <Fit> (lib/fit.tsx).
+export const PhysicsWord: React.FC<{ text: string; color?: string; size?: number | string; at?: number; font: string }> =
 ({ text, color = '#fff', size = 120, at = 0, font }) => {
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   const drop = spring({ frame: frame - at, fps, config: { damping: 9, stiffness: 140, mass: 1.1 } })
@@ -214,13 +215,16 @@ export const BeatWord: React.FC<{ words: string[]; beats: number[]; color?: stri
 }
 
 // ShatterWord — a word holds, then shatters into fragments that fly apart.
-export const ShatterWord: React.FC<{ text: string; color?: string; size?: number; shatterAt: number; font: string }> =
-({ text, color = '#fff', size = 130, shatterAt, font }) => {
+// It never wraps. `size` may be '1em' so a parent <Fit> (lib/fit.tsx, with
+// sizeFor={text}) can shrink it to fit its width; `center` centres the letters
+// in that width.
+export const ShatterWord: React.FC<{ text: string; color?: string; size?: number | string; shatterAt: number; font: string; center?: boolean }> =
+({ text, color = '#fff', size = 130, shatterAt, font, center = false }) => {
   const frame = useCurrentFrame()
   const chars = text.split('')
   const t = clamp((frame - shatterAt) / 20, 0, 1)
   return (
-    <div style={{ display: 'flex' }}>
+    <div style={{ display: 'flex', ...(center ? { justifyContent: 'center' } : {}) }}>
       {chars.map((ch, i) => {
         const ang = (rng(i, 13) - 0.5) * Math.PI
         const dist = t * (200 + rng(i, 17) * 300)

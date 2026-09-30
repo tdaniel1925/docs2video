@@ -156,11 +156,14 @@ export async function buildEditorialPayload(opts: {
 
   // Masthead respects a Person's show_name_on_slides toggle; falls back to the
   // doc title or REPORT so the magazine header is never empty.
+  // Neither is cut to a character count: that chopped real names mid-word
+  // ("VALOR FINANCIAL SP", "QOL VALUE+ PROTECTOR III INDEX U"). The video
+  // shrinks long ones to fit (remotion/src/editorial/EditorialScenes.tsx).
   const displayName = opts.brandName || resolveDisplayName(opts.brand)
   return {
     videoId: opts.videoId, userId: opts.userId, voiceId: opts.voiceId,
-    masthead: (displayName || opts.extracted?.title || 'REPORT').toUpperCase().slice(0, 18),
-    runningTitle: (opts.extracted?.title || displayName || '').slice(0, 40),
+    masthead: String(displayName || opts.extracted?.title || 'REPORT').trim().toUpperCase(),
+    runningTitle: String(opts.extracted?.title || displayName || '').trim(),
     brandColor: opts.brand?.primary_color || undefined,
     variant: opts.variant || 'time',
     musicUrl: opts.musicUrl, musicPrompt: opts.musicPrompt, aiMusic: opts.aiMusic,

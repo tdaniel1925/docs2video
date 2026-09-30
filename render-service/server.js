@@ -149,28 +149,95 @@ app.post('/selftest', authCheck, async (req, res) => {
   res.status(ok ? 200 : 500).json({ ok, checks, errors, ms: Date.now() - t0 })
 })
 
-// Generate a simple fallback slide when OpenAI fails
-// Returns an SVG buffer — FFmpeg handles SVG via lavfi or we convert during clip encoding
-async function generateFallbackSlide(title, slideNum, totalSlides) {
-  const safeTitle = (title || 'Slide').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-  const words = safeTitle.split(' ')
-  const lines = []
-  let current = ''
-  for (const word of words) {
-    if ((current + ' ' + word).length > 40 && current) { lines.push(current); current = word }
-    else { current = current ? current + ' ' + word : word }
+// Advance widths of Arial Bold for characters 32-126, in 1/1000 of the font
+// size. Liberation Sans (the render image's stand-in for Arial) has the same
+// widths. Each character counts as the WIDER of that (+4% for hinting) and
+// 620 — the width of a monospace face, in case a machine without Arial
+// answers with one — and anything outside 32-126 as a full 1000. So the
+// estimate can only be too big, never too small.
+const ARIAL_BOLD_WIDTHS = [278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584]
+const boldTextWidth = (text, size) => {
+  let units = 0
+  for (const ch of text) { const c = ch.codePointAt(0); units += c >= 32 && c < 127 ? Math.max(ARIAL_BOLD_WIDTHS[c - 32] * 1.04, 620) : 1000 }
+  return units * size / 1000
+}
+
+/**
+ * Wrap a title into a box and pick the biggest size (max → min) at which every
+ * line fits the width and all lines fit the height. The title can be anything
+ * a model or a user wrote, so nothing here assumes it is short. A single word
+ * wider than the box is broken inside only once the size is already at the
+ * floor. Returns the size and the lines (raw text, not yet XML-escaped).
+ */
+function fitTitleToBox(text, { boxW, boxH, max, min, lineHeight, maxChars = Infinity }) {
+  const words = String(text).split(/\s+/).filter(Boolean)
+  const wrap = (size, breakWords) => {
+    const lines = []
+    let current = ''
+    for (let word of words) {
+      if (breakWords) {
+        // Split an over-wide word into pieces that each fit on a line.
+        while (boldTextWidth(word, size) > boxW && word.length > 1) {
+          let n = word.length - 1
+          while (n > 1 && boldTextWidth(word.slice(0, n), size) > boxW) n--
+          if (current) { lines.push(current); current = '' }
+          lines.push(word.slice(0, n))
+          word = word.slice(n)
+        }
+      }
+      const next = current ? `${current} ${word}` : word
+      if (current && (next.length > maxChars || boldTextWidth(next, size) > boxW)) { lines.push(current); current = word }
+      else current = next
+    }
+    if (current) lines.push(current)
+    return lines
   }
-  if (current) lines.push(current)
+  const fits = (lines, size) => lines.every((l) => boldTextWidth(l, size) <= boxW) && lines.length * size * lineHeight <= boxH
+  for (let size = max; size >= min; size--) {
+    const lines = wrap(size, false)
+    if (fits(lines, size)) return { size, lines }
+  }
+  // At the floor: break long words, then keep shrinking if it is still too tall.
+  for (let size = min; size >= 10; size--) {
+    const lines = wrap(size, true)
+    if (fits(lines, size)) return { size, lines }
+  }
+  // Beyond thousands of characters: keep the lines that fit rather than draw off the slide.
+  const lines = wrap(10, true)
+  const keep = Math.max(1, Math.floor(boxH / (10 * lineHeight)))
+  console.warn(`[fallback-slide] title too long for the slide even at 10px — showing ${keep} of ${lines.length} lines`)
+  return { size: 10, lines: lines.slice(0, keep) }
+}
+
+// Generate a simple fallback slide when the slide image model fails.
+// The title is fitted into the frame (wrapped and, only if needed, shrunk) so it
+// can never run past the edges, however long it is.
+async function generateFallbackSlide(title, slideNum, totalSlides) {
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  // Title area: inside the 60px frame line with another 60px of padding. The
+  // "n / total" line sits 30px under the last title line and needs ~34px.
+  const W = 1536, H = 1024, LINE = 56 / 44, MAX = 44, BOX_TOP = 120, BOX_BOTTOM = 904, PAGE = 34
+  // Lines break at ~40 characters as they always have; the width and height
+  // limits only take over when that is not enough.
+  const { size, lines } = fitTitleToBox(title || 'Slide', { boxW: W - 240, boxH: BOX_BOTTOM - BOX_TOP - PAGE - MAX, max: MAX, min: 22, lineHeight: LINE, maxChars: 40 })
+  const lineH = size * LINE
+  // Same place as always for a short title (first line at y=460); a long one
+  // is centred in the frame instead, page number included, so it stays inside.
+  const blockH = size + lines.length * lineH + PAGE
+  const firstY = 460 + lines.length * lineH + PAGE <= BOX_BOTTOM
+    ? 460
+    : Math.max(BOX_TOP + size, (BOX_TOP + BOX_BOTTOM - blockH) / 2 + size)
+  const pageY = firstY + lines.length * lineH + 30
 
   const titleSvg = lines.map((line, i) =>
-    `<text x="768" y="${460 + i * 56}" text-anchor="middle" font-size="44" font-weight="bold" fill="white" font-family="Arial, sans-serif">${line}</text>`
+    `<text x="${W / 2}" y="${(firstY + i * lineH).toFixed(1)}" text-anchor="middle" font-size="${size}" font-weight="bold" fill="white" font-family="Arial, sans-serif">${esc(line)}</text>`
   ).join('\n')
 
-  const svg = `<svg width="1536" height="1024" xmlns="http://www.w3.org/2000/svg">
-    <rect width="1536" height="1024" fill="#1B365D"/>
-    <rect x="60" y="60" width="1416" height="904" rx="12" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+  const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${W}" height="${H}" fill="#1B365D"/>
+    <rect x="60" y="60" width="1416" height="904" rx="10" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
     ${titleSvg}
-    <text x="768" y="${460 + lines.length * 56 + 30}" text-anchor="middle" font-size="18" fill="rgba(255,255,255,0.5)" font-family="Arial, sans-serif">${slideNum} / ${totalSlides}</text>
+    <text x="${W / 2}" y="${pageY.toFixed(1)}" text-anchor="middle" font-size="18" fill="rgba(255,255,255,0.5)" font-family="Arial, sans-serif">${slideNum} / ${totalSlides}</text>
   </svg>`
 
   // Convert SVG to PNG using ffmpeg
@@ -2665,6 +2732,10 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       return {
         archetype: s.archetype, kicker: s.kicker, title: s.title || '', dek: s.dek, body: s.body,
         quote: s.quote, attribution: s.attribution, items: s.items, metrics: s.metrics,
+        // Timeline, chart and table pages carry their data here. They were
+        // dropped (only /preview-editorial passed them), so in the finished
+        // video those pages showed a title and nothing else.
+        timeline: s.timeline, chart: s.chart, matrix: s.matrix,
         ...(image ? { image } : {}), audio: audioName, durationInFrames,
       }
     }))
@@ -2963,8 +3034,11 @@ app.post('/generate', authCheck, async (req, res) => {
                 )
                 const bandComposites = [{ input: await sharp(bandSvg).png().toBuffer(), top: 0, left: 0 }]
                 if (logoBase64) {
+                  // Height sets the size; the width cap keeps a very wide wordmark
+                  // inside the band (48px margin each side) instead of failing
+                  // the composite and throwing the whole slide away.
                   const logoResized = await sharp(Buffer.from(logoBase64, 'base64'))
-                    .resize(null, BAND_H - 28, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                    .resize({ width: SLIDE_W - 96, height: BAND_H - 28, fit: 'inside' })
                     .png().toBuffer()
                   bandComposites.push({ input: logoResized, top: 14, left: 48 })
                 } else {

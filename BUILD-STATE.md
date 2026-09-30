@@ -1,9 +1,29 @@
 # Docs2Video — Build State
 
-**Last updated:** 2026-09-27 (new marketing home on `redesign/marketing-site`; see below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
+**Last updated:** 2026-09-30 (text can't leave the frame — overflow audit of every creation system; see below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
 **Branch:** main
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
+
+## 2026-09-30 — Text can never leave the frame: every creation system audited (branch `redesign/marketing-site`, NOT deployed)
+
+Trigger: customer video 590fe9f6 (infographic style) showed "100% High Cap Rate Ac" with the stat card half off the right edge — a model-written value in a card built for "$10,000", a `1fr` grid column that grew to its longest word, and `white-space: nowrap`.
+
+**The shared fix (videos):** `remotion/src/lib/fit.tsx` — `<Fit>` (one run of text: wraps at spaces, shrinks the font until it fits the width / `lines` / box height, measured on the real rendered text in the real font; `sizeFor` sizes count-ups by the FINAL value) and `<FitBox>` (a group scaled down together to fit a box of definite height; put plain text inside, never `<Fit>`). Never overflows: below `min` it keeps shrinking to 14px and logs `D2V_FIT_SMALL`. Parents must be bounded: `minmax(0, 1fr)` not `1fr`, `minWidth: 0` in flex rows.
+
+**The checker (videos):** `cd remotion && npm run qa:overflow [-- <filter>]` (`scripts/overflow-qa.mjs`). Renders the REAL compositions from `src/qa/cases/*.tsx` (real customer data + worst-case text + normal text per engine) with `src/qa/OverflowGuard.tsx` measuring every word: off-frame, clipped, out-of-box, box-off-frame. Release gate: `npm run qa:overflow:gate` (`scripts/overflow-gate.mjs`) — every case with `QA_OVERLAP=1 QA_SEQUENCE=4`, which also fails on text over text / text under a logo and renders 4 warm-up frames first in the same tab like a real render (caught a bar-label bug single stills missed). It runs in batches of 8 cases, one process each: a single ~700-frame run crashed Remotion's console source-map reader. A planted-broken self-test runs every time; if the guard misses any planted fault the run FAILS. `data-overflow-ok` / `data-overlap-ok` opt-outs need a reason in the attribute. Stills: `remotion/out/qa-overflow/`.
+
+**Engines fixed (before → after):** infographic (14 → 0; also: `heroMetric` was ignored, the headline figure vanished), V3 cinematic/aurora (169 → 0; body text now stays above the corner logo), editorial/explainer/time (212 → 0; also: step numbers were invisible, bars mis-scaled), commercial all 22 styles (1062 → 0), VisualDirector (699 → 0), slide deck / DirectedVideo, the default style (2818 → 0; also: a card value "100% High Cap Rate Acct (S&P 500 Index)" showed as "100%", a date range as "10", "6.35%" as "6.4%", and `slides.js` chopped on-screen text mid-sentence — a value is now a rolling number only if it is wholly a number, and text is shortened only at a clause break), classic `/generate` fallback slide + `gemini.ts` fallback (text now wraps/shrinks).
+
+**Presentations + decks:** `app/_lib/presentation.ts`, `presentation-exports.ts`, `pptx-generator.ts` — HTML deck 2492/4350 slide-views broken → 0 (37 decks × 10 window sizes incl. phone share player and the 1920×1080 MP4 capture); PPTX 38 → 0 boxes (sizes from real letter widths); PDF drops/encoding failures → 0. Checker: `node scripts/deck-overflow-check.mjs` (~13 min). Decks ALREADY SENT keep the old HTML until rebuilt (any edit rebuilds; a bulk rebuild needs owner OK — it writes live storage).
+
+**Other graphics tools:** `/design` live preview headline, email signatures, brand-kit signature (`app/_lib/email-signature.ts`). Checker: `node scripts/graphics-overflow-check.mjs`. AI-drawn lettering (flyers, social, cards) can only be steered by prompt — prompts demand safe margins.
+
+**Also fixed on the way:** `/render-editorial` dropped `timeline`/`chart`/`matrix`, so those magazine pages shipped with only a title (server.js); `isHeadlineFigure` (v3-render.ts) promoted sentences with ",000" to the giant hero number; the compliance name-scrub (both copies: `app/_lib/compliance.ts` + `render-service/slides.js`) cut detected tokens out of the middle of words — shipped videos said "or inal illness" and "The Long- Upside" — now whole words only, generic insurance words (Term, Long, Whole…) are never taken for product names, and blocklisted carriers are still stripped next to a hyphen ("AIG-backed"). Guard: `tests/compliance-word-boundary.test.ts`.
+
+**To go live:** redeploy the Remotion Lambda site (`cd remotion && npx remotion lambda sites create src/index.ts --site-name=docs2video --region=us-east-1`) AND rebuild the ECS image (server.js, slides.js, commercial.js, present-export.js, VisualDirector changed) — see render-service/DEPLOY.md. Vercel for the app-side files.
+
+**Known gaps (not overflow):** commercial `quote.sub` and `meet.kicker/pre/hot` are written by the director but never shown; infographic ignores recipient/contact/presenter; commercial props are deleted after render so real commercials can't be re-checked; phone share player is 341×192 (everything thumbnail-sized); retired design tools' API routes still charge credits if called directly.
 
 ## 2026-09-27 — False claims removed from the public site (branch `redesign/marketing-site`)
 

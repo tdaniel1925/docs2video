@@ -12,6 +12,14 @@
  */
 
 import PptxGenJS from 'pptxgenjs'
+import { fitFontSize } from './presentation-exports'
+
+// Every text box below is sized with fitFontSize: PowerPoint does not shrink a
+// box's text by itself (its "shrink on overflow" only runs when PowerPoint
+// recalculates), so text that is too long for its box runs out of the bottom
+// and over the next box. The sizes here are the MOST each box uses; long text
+// gets a smaller size, worked out from the real width of every letter.
+const BULLET_INDENT = 27 // pptxgenjs's default hanging indent for bullets (pt)
 
 export interface DeckSlide {
   headline: string
@@ -88,10 +96,11 @@ export async function generatePptx(
       if (options.contactInfo.phone) barParts.push(options.contactInfo.phone)
       if (options.contactInfo.website) barParts.push(options.contactInfo.website)
 
-      pptxSlide.addText(barParts.join('  |  '), {
-        x: 0, y: 6.9, w: '100%', h: 0.6,
+      const bar = barParts.join('  |  ')
+      pptxSlide.addText(bar, {
+        x: 0, y: 6.9, w: 13.33, h: 0.6,
         align: 'center',
-        fontSize: 11,
+        fontSize: fitFontSize(bar, { w: 13.33, h: 0.6 }, { face: 'Arial', max: 11, min: 8 }),
         color: 'FFFFFF',
         fontFace: 'Arial',
         fill: { color: options.primaryColor.replace('#', '') },
@@ -112,7 +121,7 @@ function addCoverText(
   // Headline — large, centered
   slide.addText(data.headline, {
     x: 1.5, y: 2.0, w: 10.3, h: 1.5,
-    fontSize: 36,
+    fontSize: fitFontSize(data.headline, { w: 10.3, h: 1.5 }, { face: 'Arial-Bold', max: 36, min: 20 }),
     fontFace: 'Arial',
     color: options.primaryColor.replace('#', ''),
     bold: true,
@@ -125,7 +134,7 @@ function addCoverText(
   if (data.subheadline) {
     slide.addText(data.subheadline, {
       x: 2.0, y: 3.5, w: 9.3, h: 0.8,
-      fontSize: 18,
+      fontSize: fitFontSize(data.subheadline, { w: 9.3, h: 0.8 }, { face: 'Arial', max: 18, min: 11 }),
       fontFace: 'Arial',
       color: '666666',
       align: 'center',
@@ -134,36 +143,41 @@ function addCoverText(
   }
 }
 
-function addContentText(
-  slide: PptxGenJS.Slide,
-  data: DeckSlide,
-  options: DeckOptions
-) {
-  // Headline
+/** Bullet list rows at one size that fits the whole box. */
+function bulletRows(points: string[], box: { w: number; h: number }, max: number, color: string, after: number) {
+  const fontSize = fitFontSize(points.map((text) => ({ text, indentPt: BULLET_INDENT })), box,
+    { face: 'Arial', max, min: 10, paraAfterPt: after })
+  return points.map((point) => ({
+    text: point,
+    options: { fontSize, fontFace: 'Arial', color, bullet: { type: 'bullet' as const }, paraSpaceAfter: after },
+  }))
+}
+
+/** The headline across the top of a content / data slide. */
+function addTopHeadline(slide: PptxGenJS.Slide, data: DeckSlide, options: DeckOptions) {
+  const box = { w: 11.7, h: 0.8 }
   slide.addText(data.headline, {
-    x: 0.8, y: 0.5, w: 11.7, h: 0.8,
-    fontSize: 28,
+    x: 0.8, y: 0.5, ...box,
+    fontSize: fitFontSize(data.headline, box, { face: 'Arial-Bold', max: 28, min: 16 }),
     fontFace: 'Arial',
     color: options.primaryColor.replace('#', ''),
     bold: true,
     valign: 'middle',
   })
+}
+
+function addContentText(
+  slide: PptxGenJS.Slide,
+  data: DeckSlide,
+  options: DeckOptions
+) {
+  addTopHeadline(slide, data, options)
 
   // Body points
   if (data.bodyPoints.length > 0) {
-    const textRows = data.bodyPoints.map(point => ({
-      text: point,
-      options: {
-        fontSize: 16,
-        fontFace: 'Arial',
-        color: '333333',
-        bullet: { type: 'bullet' as const },
-        paraSpaceAfter: 8,
-      },
-    }))
-
-    slide.addText(textRows, {
-      x: 0.8, y: 1.5, w: 11.7, h: 4.5,
+    const box = { w: 11.7, h: 4.5 }
+    slide.addText(bulletRows(data.bodyPoints, box, 16, '333333', 8), {
+      x: 0.8, y: 1.5, ...box,
       valign: 'top',
     })
   }
@@ -174,30 +188,31 @@ function addDataText(
   data: DeckSlide,
   options: DeckOptions
 ) {
-  // Headline
-  slide.addText(data.headline, {
-    x: 0.8, y: 0.5, w: 11.7, h: 0.8,
-    fontSize: 28,
-    fontFace: 'Arial',
-    color: options.primaryColor.replace('#', ''),
-    bold: true,
-    valign: 'middle',
-  })
+  addTopHeadline(slide, data, options)
 
-  // Stats grid
+  // Stats grid — four to a row. The rows share the band between the headline
+  // and the bullets (or the contact bar, when there are no bullets), so any
+  // number of figures stays on the slide. Four or fewer keep the original
+  // 2.2" row exactly.
   if (data.stats && data.stats.length > 0) {
     const statsPerRow = Math.min(data.stats.length, 4)
     const statWidth = 11.0 / statsPerRow
+    const rows = Math.ceil(data.stats.length / statsPerRow)
+    const bandBottom = data.bodyPoints.length > 0 ? 4.45 : 6.8
+    const rowH = Math.min(2.2, (bandBottom - 1.8) / rows)
+    const valueH = Math.min(1.0, rowH * 0.55)
+    const labelH = Math.min(0.6, rowH * 0.4)
     data.stats.forEach((stat, j) => {
       const col = j % statsPerRow
       const row = Math.floor(j / statsPerRow)
       const x = 1.0 + col * statWidth
-      const y = 1.8 + row * 2.2
+      const y = 1.8 + row * rowH
+      const w = statWidth - 0.3
 
       // Value
       slide.addText(stat.value, {
-        x, y, w: statWidth - 0.3, h: 1.0,
-        fontSize: 32,
+        x, y, w, h: valueH,
+        fontSize: fitFontSize(stat.value, { w, h: valueH }, { face: 'Arial-Bold', max: 32, min: 14 }),
         fontFace: 'Arial',
         color: options.accentColor.replace('#', ''),
         bold: true,
@@ -207,8 +222,8 @@ function addDataText(
 
       // Label
       slide.addText(stat.label, {
-        x, y: y + 1.0, w: statWidth - 0.3, h: 0.6,
-        fontSize: 14,
+        x, y: y + valueH, w, h: labelH,
+        fontSize: fitFontSize(stat.label, { w, h: labelH }, { face: 'Arial', max: 14, min: 9 }),
         fontFace: 'Arial',
         color: '666666',
         align: 'center',
@@ -219,19 +234,9 @@ function addDataText(
 
   // Body points below stats
   if (data.bodyPoints.length > 0) {
-    const textRows = data.bodyPoints.map(point => ({
-      text: point,
-      options: {
-        fontSize: 14,
-        fontFace: 'Arial',
-        color: '444444',
-        bullet: { type: 'bullet' as const },
-        paraSpaceAfter: 6,
-      },
-    }))
-
-    slide.addText(textRows, {
-      x: 0.8, y: 4.5, w: 11.7, h: 2.0,
+    const box = { w: 11.7, h: 2.0 }
+    slide.addText(bulletRows(data.bodyPoints, box, 14, '444444', 6), {
+      x: 0.8, y: 4.5, ...box,
       valign: 'top',
     })
   }
@@ -243,9 +248,10 @@ function addClosingText(
   options: DeckOptions
 ) {
   // Headline
+  const head = { w: 10.3, h: 1.2 }
   slide.addText(data.headline, {
-    x: 1.5, y: 1.5, w: 10.3, h: 1.2,
-    fontSize: 32,
+    x: 1.5, y: 1.5, ...head,
+    fontSize: fitFontSize(data.headline, head, { face: 'Arial-Bold', max: 32, min: 18 }),
     fontFace: 'Arial',
     color: options.primaryColor.replace('#', ''),
     bold: true,
@@ -255,19 +261,9 @@ function addClosingText(
 
   // Key points
   if (data.bodyPoints.length > 0) {
-    const textRows = data.bodyPoints.map(point => ({
-      text: point,
-      options: {
-        fontSize: 16,
-        fontFace: 'Arial',
-        color: '333333',
-        bullet: { type: 'bullet' as const },
-        paraSpaceAfter: 8,
-      },
-    }))
-
-    slide.addText(textRows, {
-      x: 2.5, y: 3.0, w: 8.3, h: 3.0,
+    const box = { w: 8.3, h: 3.0 }
+    slide.addText(bulletRows(data.bodyPoints, box, 16, '333333', 8), {
+      x: 2.5, y: 3.0, ...box,
       valign: 'top',
     })
   }

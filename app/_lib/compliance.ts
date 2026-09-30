@@ -77,7 +77,7 @@ export function isRegulated(...hays: unknown[]): boolean {
  *  novel product name not in the blocklist is still caught. */
 export function productTokens(...sources: (string | undefined | null)[]): string[] {
   const names = new Set<string>()
-  const STOP = /^(The|And|For|Your|With|Ask|Get|How|Why|You|Our|This|That|Plan|Life|Death|Cash|From|Into|When|What|Will|More|Less|Best|Policy|Value|Rate|Index|Living|Benefit|Benefits|Growth|Market|Retirement|Illustration|Insurance|Premium|Fixed|Interest|Flexible|Individual|Universal|Adjustable|Annual|Monthly|Daily|Income|Protection|Coverage|Client|Options|Summary|Overview|Guaranteed|Illustrated|Underwriting|Preferred|Tobacco)$/i
+  const STOP = /^(The|And|For|Your|With|Ask|Get|How|Why|You|Our|This|That|Plan|Life|Death|Cash|From|Into|When|What|Will|More|Less|Best|Policy|Value|Rate|Index|Living|Benefit|Benefits|Growth|Market|Retirement|Illustration|Insurance|Premium|Fixed|Interest|Flexible|Individual|Universal|Adjustable|Annual|Monthly|Daily|Income|Protection|Coverage|Client|Options|Summary|Overview|Guaranteed|Illustrated|Underwriting|Preferred|Tobacco|Term|Long|Whole|Short|Level|Final|Total|Family|Estate|Account|Rider|Riders|Critical|Chronic|Terminal|Illness|Care|Loan|Loans|Surrender|Accumulation)$/i
   const add = (s?: string | null) => {
     if (typeof s !== 'string') return
     for (const w of s.split(/[\s,.—:;()]+/)) {
@@ -97,16 +97,21 @@ function nameRegexes(extraTokens: string[] = []): RegExp[] {
   const strip = new Set(CARRIER_BLOCKLIST)
   for (const n of extraTokens) if (n && n.length >= 4) strip.add(n.toLowerCase())
   const terms = [...strip].filter(Boolean).sort((a, b) => b.length - a.length)
-  return terms.map((t) =>
-    new RegExp(
-      // \b prefix: short tokens (aig, iul, qol) must not mangle the inside of
-      // ordinary words ("straight"). Suffix group also eats version numerals
-      // so "Accumulator+ III" is removed whole.
-      '\\b' + t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') +
+  const blocked = new Set(CARRIER_BLOCKLIST)
+  return terms.map((t) => {
+    // Whole words only. In front: short tokens (aig, iul, qol) must not mangle
+    // the inside of ordinary words ("straight"). Behind: a detected "Term" cut
+    // "terminal" to "inal" in shipped videos. A token DETECTED from the source
+    // also treats a hyphenated word as one word ("Term" stays in "Long-Term");
+    // a BLOCKLISTED carrier doesn't, so "AIG-backed" still loses "AIG".
+    // Suffix group also eats version numerals so "Accumulator+ III" goes whole.
+    const edge = blocked.has(t) ? 'a-z0-9' : 'a-z0-9-'
+    return new RegExp(
+      `(?<![${edge}])` + t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') + `(?![${edge}])` +
         '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|iii|ii|iv|vi|v(?![a-z])|\\u2120|\\u00ae|\\u2122))*',
       'ig'
     )
-  )
+  })
 }
 
 /**

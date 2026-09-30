@@ -1,5 +1,6 @@
 import { useCurrentFrame, useVideoConfig, spring } from 'remotion'
 import { FONTS, TYPE, type Theme } from '../../tokens'
+import { Fit } from '../../lib/fit'
 import { Glyph, type GlyphName } from './Glyph'
 import { StatCounter } from './StatCounter'
 
@@ -7,6 +8,9 @@ import { StatCounter } from './StatCounter'
  * A glyph + counting value + label, in a column. The small unit that composes
  * into rows/grids (e.g. "shield · $176,204 · Death Benefit"). The glyph pops in
  * on a spring, the value counts up under it.
+ *
+ * Value and label shrink to the column's width, so the PARENT must give it a
+ * bounded width (a grid of minmax(0, 1fr) columns, not 1fr).
  */
 export const IconMetric: React.FC<{
   icon: GlyphName
@@ -27,13 +31,17 @@ export const IconMetric: React.FC<{
         transform: `scale(${0.6 + pop * 0.4})`, opacity: Math.min(1, pop * 1.5),
         width: 96, height: 96, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: hexA(a, theme.mode === 'dark' ? 0.12 : 0.08), border: `1px solid ${hexA(a, 0.4)}`,
+        flexShrink: 0,
       }}>
         <Glyph name={icon} size={52} color={a} />
       </div>
       <StatCounter value={value} theme={theme} color={theme.textPrimary} fontSize={valueSize} startFrame={startFrame + 4} />
-      <div style={{ fontFamily: FONTS.body, fontWeight: 700, letterSpacing: 3, fontSize: TYPE.label * 0.82, color: theme.textMuted, textTransform: 'uppercase' }}>
+      <Fit max={TYPE.label * 0.82} min={16} lines={3} style={{
+        fontFamily: FONTS.body, fontWeight: 700, letterSpacing: '0.13em', lineHeight: 1.25,
+        color: theme.textMuted, textTransform: 'uppercase', textAlign: 'center',
+      }}>
         {label}
-      </div>
+      </Fit>
     </div>
   )
 }

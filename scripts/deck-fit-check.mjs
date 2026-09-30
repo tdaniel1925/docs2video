@@ -11,6 +11,11 @@
 // several window sizes, and MEASURES every slide. Nothing is judged by eye.
 //
 //   node scripts/deck-fit-check.mjs
+//
+// The full check — every layout, every template, both output types, phone and
+// desktop sizes, sideways overflow, text out of its card, and the PowerPoint
+// and PDF exports — is scripts/deck-overflow-check.mjs. This one stays as the
+// quick vertical-fit check.
 // =============================================================================
 
 import { chromium } from 'playwright'
@@ -140,12 +145,14 @@ for (const size of SIZES) {
       const sec = document.querySelectorAll('.sec')[n]
       const wrap = sec.querySelector('.wrap')
       if (!wrap) return { clipped: false }
-      const was = wrap.style.transform
-      wrap.style.transform = ''
+      const was = [wrap.style.transform, wrap.style.width, wrap.style.maxWidth]
+      wrap.style.transform = ''; wrap.style.width = ''; wrap.style.maxWidth = ''
       const cs = getComputedStyle(sec)
       const room = sec.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
-      const clipped = wrap.scrollHeight > room + 2
-      wrap.style.transform = was
+      // Layout height: scrollHeight also counts the ghost numeral, which bleeds
+      // past the slide on purpose, and cards still sliding in from below.
+      const clipped = wrap.offsetHeight > room + 2
+      ;[wrap.style.transform, wrap.style.width, wrap.style.maxWidth] = was
       return { clipped }
     }, i)
 
@@ -171,7 +178,7 @@ for (const size of SIZES) {
       // the box excludes children that overflow it, so the comparison was
       // between two different questions and always looked like an improvement.
       return {
-        clipped: wrap.scrollHeight * scale > room + 2,
+        clipped: wrap.offsetHeight * scale > room + 2,
         scale: Math.round(scale * 100) / 100,
       }
     }, i)

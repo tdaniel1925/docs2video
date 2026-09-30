@@ -1,8 +1,11 @@
+import { Fragment, useLayoutEffect, useRef } from 'react'
 import type { CalculateMetadataFunction } from 'remotion'
 import {
   AbsoluteFill,
   Img,
   OffthreadVideo,
+  continueRender,
+  delayRender,
   interpolate,
   spring,
   staticFile,
@@ -10,6 +13,7 @@ import {
   useVideoConfig,
 } from 'remotion'
 import { loadFont as loadInter } from '@remotion/google-fonts/Inter'
+import { Fit } from './lib/fit'
 
 // Load Inter explicitly: the render image only has Liberation fonts, so an
 // unloaded 'Inter' silently exported in a different face from the editor.
@@ -82,6 +86,111 @@ export type VisualDirectorProps = {
 }
 
 const CAPTION_WORDS = 7
+// Most bars a chart shows. The render service already keeps only the first 8.
+const MAX_BARS = 8
+
+// ---------------------------------------------------------------------------
+// PANEL CAP — the panel is as tall as its words, up to a limit. Every word here
+// comes from a transcript or a model, so a panel built for "2.5×" gets handed a
+// 300-character title and a 500-character subtitle. The panel used to hide
+// whatever didn't fit (overflow: hidden) — a chart or a whole subtitle simply
+// vanished. Now, when the content is taller than the room, the whole group is
+// scaled down together; it is laid out wider as it shrinks, so the lines
+// re-wrap into the freed room rather than just getting smaller.
+//
+// Like FitBox (lib/fit), but for a box whose height comes from its content
+// rather than from its parent. The <Fit> runs inside are measured first, at
+// the panel's real width: ResetCap, the first child, puts the group back to
+// scale 1 before they measure, so every frame measures the same way no matter
+// what the previous frame left behind.
+// ---------------------------------------------------------------------------
+const capCache = new Map<string, number>()
+const fontsReady = () => typeof document === 'undefined' || !document.fonts || document.fonts.status === 'loaded'
+
+const ResetCap: React.FC<{ outer: React.RefObject<HTMLDivElement | null>; inner: React.RefObject<HTMLDivElement | null> }> = ({ outer, inner }) => {
+  useLayoutEffect(() => {
+    if (outer.current) outer.current.style.height = ''
+    if (inner.current) { inner.current.style.width = '100%'; inner.current.style.transform = '' }
+  })
+  return null
+}
+
+/**
+ * A network node (or the hub) that is centred on a point and may be at most
+ * `maxHeight` tall. The <Fit> inside shrinks the words first; only when even
+ * the smallest size is too tall is the whole node scaled down about its centre.
+ */
+const Node: React.FC<{ maxHeight: number; style: React.CSSProperties; children: React.ReactNode }> = ({ maxHeight, style, children }) => {
+  const ref = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const fit = () => {
+      const el = ref.current
+      if (!el) return
+      el.style.scale = ''
+      // scrollHeight, not offsetHeight: words that overflowed the Fit at its
+      // floor count too. Plus the borders, which scrollHeight leaves out.
+      const h = el.scrollHeight + (el.offsetHeight - el.clientHeight)
+      if (h > maxHeight + 1) {
+        el.style.scale = String(maxHeight / h)
+        console.log('D2V_FIT_SMALL ' + JSON.stringify({ what: 'VD network node', size: Math.round(maxHeight / h * 100), min: 100, text: (el.textContent || '').slice(0, 80) }))
+      }
+    }
+    fit()
+    if (!fontsReady()) {
+      const handle = delayRender('VisualDirector node: waiting for fonts before measuring')
+      document.fonts.ready.then(() => { fit(); continueRender(handle) })
+    }
+  })
+  return <div ref={ref} style={style}>{children}</div>
+}
+
+const Capped: React.FC<{ maxHeight: number; minScale?: number; children: React.ReactNode }> = ({ maxHeight, minScale = 0.55, children }) => {
+  const outer = useRef<HTMLDivElement>(null)
+  const inner = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const fit = () => {
+      const box = outer.current, el = inner.current
+      if (!box || !el) return
+      const W = box.clientWidth
+      if (!W) return
+      const apply = (s: number) => { el.style.width = `${W / s}px`; el.style.transform = s < 1 ? `scale(${s})` : '' }
+      // Fits at scale s: not taller than the cap. Widths are already safe: every
+      // <Fit> inside measured at the narrowest width (scale 1), and shrinking
+      // only ever lays the group out wider.
+      const fits = (s: number) => { apply(s); return el.offsetHeight * s <= maxHeight }
+      const key = [el.innerHTML.length, el.textContent, W, Math.round(maxHeight)].join('¦')
+      let s = capCache.get(key)
+      if (s == null) {
+        s = 1
+        if (!fits(1)) {
+          let lo = 0.1, hi = 1
+          for (let i = 0; i < 12; i++) {
+            const mid = (lo + hi) / 2
+            if (fits(mid)) lo = mid
+            else hi = mid
+          }
+          s = lo
+        }
+        if (fontsReady()) capCache.set(key, s)
+      }
+      apply(s)
+      box.style.height = `${el.offsetHeight * s}px`
+      // Picked up by scripts/overflow-qa.mjs, like Fit's own warning.
+      if (s < minScale) console.log('D2V_FIT_SMALL ' + JSON.stringify({ what: 'VD panel', size: Math.round(s * 100), min: Math.round(minScale * 100), text: (el.textContent || '').slice(0, 80) }))
+    }
+    fit()
+    if (!fontsReady()) {
+      const handle = delayRender('VisualDirector panel: waiting for fonts before measuring')
+      document.fonts.ready.then(() => { fit(); continueRender(handle) })
+    }
+  })
+  return <div ref={outer} style={{ position: 'relative', width: '100%', minWidth: 0 }}>
+    <div ref={inner} style={{ width: '100%', transformOrigin: '0 0' }}>
+      <ResetCap outer={outer} inner={inner} />
+      {children}
+    </div>
+  </div>
+}
 
 const captionGroup = (words: VisualDirectorWord[], time: number) => {
   let active = -1
@@ -110,7 +219,7 @@ const SceneGraphic = ({ scene, time, captionsVisible }: { scene: VisualDirectorS
   const itemSource = scene.subtitle.includes('|') ? scene.subtitle.split('|') : scene.subtitle.split(/,\s*(?:and\s+)?|\s+and\s+/i)
   const items = itemSource.map((item) => item.trim().replace(/[.]$/, '')).filter(Boolean)
   const animatedTitle = scene.type === 'stat' ? countUpTitle(scene.title, entrance) : scene.title
-  const chartData = (scene.chartData || []).filter((item) => Number.isFinite(item.value) && item.value >= 0)
+  const chartData = (scene.chartData || []).filter((item) => Number.isFinite(item.value) && item.value >= 0).slice(0, MAX_BARS)
   // Comparison labels come only from the spoken words ("Before: manual"),
   // never from invented BEFORE/AFTER captions.
   const comparisonItems = chartData.length >= 2
@@ -149,6 +258,33 @@ const SceneGraphic = ({ scene, time, captionsVisible }: { scene: VisualDirectorS
     exitFamily === 'maskClose' ? (1 - exit) * 100 : 0,
   )
 
+  // How tall the panel's content may get: the panel's own 82% limit of the room
+  // inside the outer padding (full: 9% of the WIDTH, as CSS reads '9% 12%'),
+  // less the panel's padding. Content taller than this is scaled down (Capped).
+  const outerPadBottom = lowerThird ? Math.round(height * (captionsVisible ? CAPTION_CLEARANCE : 0.055)) : full ? width * 0.09 : Math.round(height * 0.08)
+  const outerPadTop = lowerThird ? 0 : outerPadBottom
+  const panelPadY = lowerThird ? height * 0.017 : height * 0.034
+  const contentMax = Math.max(40, (height - outerPadTop - outerPadBottom) * 0.82 - 2 * panelPadY - 2)
+  const itemSize = Math.max(18, width * 0.015)
+  // Tallest bar: the old chart box (22% of the height) less its 30px label
+  // strip and 2px axis line, so bars are exactly as tall as they were.
+  const barArea = height * .22 - 32
+  const hubFont = Math.max(14, baseSize * .45)
+  const nodeFont = Math.max(14, width * .0105)
+  // At line-height 1.02 the glyphs hang below the last line box; the padding
+  // gives them room (so Fit doesn't read that as overflow) and the negative
+  // margin takes it back, so the layout is unchanged.
+  // A counting stat is sized against its FINAL value (sizeFor), measured on a
+  // hidden copy that inherits the Fit's line-height — so the Fit keeps a
+  // roomy 1.25 for that copy and the visible number sits in a 1.02 block.
+  const glyphRoom: React.CSSProperties = { paddingBottom: '0.1em', marginBottom: '-0.1em' }
+  const titleStyle: React.CSSProperties = { color: scene.type === 'quote' ? '#fff' : scene.color, fontWeight: 850, letterSpacing: '-0.045em' }
+  const title = scene.type === 'stat'
+    ? <Fit max={baseSize} min={Math.min(baseSize, 24)} sizeFor={scene.title} style={{ ...titleStyle, lineHeight: 1.25 }}><div style={{ lineHeight: 1.02 }}>{animatedTitle}</div></Fit>
+    : scene.type !== 'interface' && scene.type !== 'network'
+      ? <Fit max={baseSize} min={Math.min(baseSize, 24)} lines={lowerThird ? 2 : undefined} style={{ ...titleStyle, lineHeight: 1.02, ...glyphRoom }}>{animatedTitle}</Fit>
+      : null
+
   return <AbsoluteFill style={{
     justifyContent: lowerThird ? 'flex-end' : 'center',
     alignItems: lowerThird ? 'flex-start' : full ? 'center' : right ? 'flex-end' : 'flex-start',
@@ -178,18 +314,28 @@ const SceneGraphic = ({ scene, time, captionsVisible }: { scene: VisualDirectorS
       filter: family === 'zoomFocus' ? `blur(${(1 - entrance) * 7}px)` : undefined,
       fontFamily: FONT,
     }}>
+      <Capped maxHeight={contentMax}>
       {scene.type === 'quote' && <div style={{ color: scene.color, fontSize: baseSize * 0.8, lineHeight: 0.7, marginBottom: 16 }}>“</div>}
-      {lowerThird && <div style={{ marginBottom: 8, color: 'rgba(255,255,255,.68)', fontFamily: 'monospace', fontSize: Math.max(14, width * .009), fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase' }}>{scene.label}</div>}
-      {scene.type !== 'interface' && scene.type !== 'network' && <div style={{ color: scene.type === 'quote' ? '#fff' : scene.color, fontSize: baseSize, fontWeight: 850, lineHeight: 1.02, letterSpacing: '-0.045em', overflowWrap: 'anywhere' }}>{animatedTitle}</div>}
-      {scene.type === 'list' && items.length > 0 ? <div style={{ display: 'grid', gap: 10, marginTop: 22 }}>
-        {items.slice(0, 7).map((item, index) => <div key={`${item}-${index}`} style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '10px 14px', borderRadius: 9, background: 'rgba(255,255,255,.07)', opacity: reveal(index), transform: `translateX(${(1 - reveal(index)) * 26}px)`, fontSize: Math.max(18, width * 0.015), whiteSpace: 'nowrap', overflow: 'hidden' }}><b style={{ color: scene.color, fontFamily: 'monospace' }}>{String(index + 1).padStart(2, '0')}</b><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item}</span></div>)}
-      </div> : scene.type === 'chart' && chartData.length >= 2 ? <div style={{ height: height * .22, display: 'flex', alignItems: 'flex-end', gap: width * .014, marginTop: 34, paddingBottom: 30, borderBottom: '2px solid rgba(255,255,255,.35)' }}>
-        {chartData.map((item, index) => <div key={`${item.label}-${index}`} style={{ flex: 1, position: 'relative', height: `${Math.max(8, item.value / chartMax * 100)}%`, transform: `scaleY(${reveal(index, .1)})`, transformOrigin: 'bottom', borderRadius: '8px 8px 0 0', background: `linear-gradient(180deg, #fff3, ${scene.color})`, boxShadow: `0 0 30px ${scene.color}55` }}><b style={{ position: 'absolute', top: -30, width: '100%', textAlign: 'center', fontSize: Math.max(17, width * .014) }}>{item.value.toLocaleString()}</b><span style={{ position: 'absolute', top: '100%', width: '100%', paddingTop: 8, textAlign: 'center', fontSize: Math.max(14, width * .011), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span></div>)}
-      </div> : scene.type === 'workflow' ? <div style={{ display: 'grid', gap: 10, marginTop: 22 }}>{items.slice(0, 6).map((item, index) => <div key={`${item}-${index}`} style={{ position: 'relative', display: 'grid', gridTemplateColumns: '38px 1fr', gap: 12, alignItems: 'center', opacity: reveal(index, .13, item), transform: `translateY(${(1 - reveal(index, .13, item)) * 18}px)` }}><b style={{ width: 36, height: 36, border: `2px solid ${scene.color}`, borderRadius: 8, display: 'grid', placeItems: 'center', color: scene.color, fontFamily: 'monospace', zIndex: 1, background: 'rgba(8,9,13,.94)' }}>{index + 1}</b><span style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(255,255,255,.07)', fontSize: Math.max(17, width * .014) }}>{item}</span>{index < items.length - 1 && <i style={{ position: 'absolute', left: 17, top: 35, width: 3, height: 20, background: scene.color, transformOrigin: 'top', transform: `scaleY(${reveal(index + 1, .13, items[index + 1])})`, boxShadow: `0 0 10px ${scene.color}` }} />}</div>)}</div>
-      : scene.type === 'interface' ? <div><div style={{ color: '#8f8d94', fontFamily: 'monospace', fontSize: width * .009, letterSpacing: '.16em' }}>AI ASSISTANT</div><div style={{ marginTop: 18, color: '#fff', fontWeight: 850, fontSize: baseSize * .72 }}>{scene.title}</div><div style={{ display: 'grid', gap: 9, marginTop: 18 }}>{items.slice(0, 6).map((item, index) => <div key={`${item}-${index}`} style={{ padding: '11px 14px', borderRadius: 8, background: 'rgba(255,255,255,.07)', borderLeft: `3px solid ${scene.color}`, opacity: reveal(index), transform: `translateY(${(1 - reveal(index)) * 14}px)`, fontSize: Math.max(16, width * .013) }}>{item}</div>)}</div></div>
-      : scene.type === 'network' ? <div style={{ position: 'relative', height: height * .34 }}><svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}>{items.slice(0, 6).map((_, index) => { const angle = (Math.PI * 2 * index / Math.min(6, items.length)) - Math.PI / 2; const x = 50 + Math.cos(angle) * 39; const y = 50 + Math.sin(angle) * 38; return <line key={index} x1="50" y1="50" x2={x} y2={y} stroke={scene.color} strokeWidth="1.5" strokeDasharray="100" strokeDashoffset={100 - reveal(index) * 100} opacity="0.82" vectorEffect="non-scaling-stroke" style={{ filter: `drop-shadow(0 0 4px ${scene.color})` }} /> })}</svg><div style={{ position: 'absolute', left: '50%', top: '50%', width: '38%', minHeight: '28%', translate: '-50% -50%', display: 'grid', placeItems: 'center', padding: 14, border: `2px solid ${scene.color}`, borderRadius: 12, background: 'rgba(8,9,13,.94)', color: '#fff', fontWeight: 850, textAlign: 'center', fontSize: baseSize * .45 }}>{scene.title}</div>{items.slice(0, 6).map((item, index) => { const angle = (Math.PI * 2 * index / Math.min(6, items.length)) - Math.PI / 2; const x = 50 + Math.cos(angle) * 39; const y = 50 + Math.sin(angle) * 38; return <div key={`${item}-${index}`} style={{ position: 'absolute', left: `${x}%`, top: `${y}%`, translate: '-50% -50%', maxWidth: '29%', padding: '8px 11px', border: '1px solid rgba(255,255,255,.12)', borderRadius: 7, background: 'rgba(14,12,18,.94)', opacity: reveal(index), fontSize: Math.max(13, width * .0105), textAlign: 'center' }}>{item}</div> })}</div>
-      : scene.type === 'comparison' ? <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 24 }}>{comparisonItems.map((item, index) => <div key={`${item.value}-${index}`} style={{ minWidth: 0, minHeight: height * .13, padding: 18, borderRadius: 10, border: `2px solid ${index ? scene.color : 'rgba(255,255,255,.15)'}`, background: index ? `${scene.color}18` : 'rgba(255,255,255,.05)', opacity: reveal(index, .22), transform: `translateY(${(1 - reveal(index, .22)) * 20}px)` }}>{item.label && <i style={{ color: '#aaa7af', fontFamily: 'monospace', fontSize: width * .009 }}>{item.label}</i>}<b style={{ display: 'block', marginTop: 14, fontSize: Math.max(18, width * .016), overflowWrap: 'anywhere' }}>{item.value}</b></div>)}</div>
-      : scene.subtitle && <div style={{ marginTop: lowerThird ? 8 : 18, maxWidth: '100%', fontSize: lowerThird ? Math.max(24, width * .016) : Math.max(18, width * 0.017), lineHeight: 1.35, fontWeight: 550, overflowWrap: 'anywhere' }}>{scene.subtitle}</div>}
+      {lowerThird && <Fit max={Math.max(14, width * .009)} lines={2} style={{ marginBottom: 8, color: 'rgba(255,255,255,.68)', fontFamily: 'monospace', fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase' }}>{scene.label}</Fit>}
+      {title}
+      {scene.type === 'list' && items.length > 0 ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10, marginTop: 22 }}>
+        {items.slice(0, 7).map((item, index) => <div key={`${item}-${index}`} style={{ display: 'flex', gap: 14, alignItems: 'center', minWidth: 0, padding: '10px 14px', borderRadius: 9, background: 'rgba(255,255,255,.07)', opacity: reveal(index), transform: `translateX(${(1 - reveal(index)) * 26}px)`, fontSize: itemSize }}><b style={{ flex: 'none', color: scene.color, fontFamily: 'monospace' }}>{String(index + 1).padStart(2, '0')}</b><div style={{ flex: 1, minWidth: 0 }}><Fit max={itemSize} min={16} lines={2}>{item}</Fit></div></div>)}
+      </div> : scene.type === 'chart' && chartData.length >= 2 ? <div style={{ display: 'grid', gridTemplateColumns: `repeat(${chartData.length}, minmax(0, 1fr))`, columnGap: width * .014, alignItems: 'end', marginTop: 4, borderBottom: '2px solid rgba(255,255,255,.35)' }}>
+        {/* Row 1: each value sits just above its bar; bars share one baseline. Row 2: the labels. */}
+        {chartData.map((item, index) => <div key={`bar-${item.label}-${index}`} style={{ gridRow: 1, gridColumn: index + 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+          <Fit max={Math.max(17, width * .014)} lines={2} style={{ marginBottom: 0, textAlign: 'center', fontWeight: 700, opacity: reveal(index, .1) }}>{item.value.toLocaleString().replace(/,/g, ',​') /* a big number may wrap after a comma, never mid-group */}</Fit>
+          <div style={{ height: barArea * Math.max(8, item.value / chartMax * 100) / 100, transform: `scaleY(${reveal(index, .1)})`, transformOrigin: 'bottom', borderRadius: '8px 8px 0 0', background: `linear-gradient(180deg, #fff3, ${scene.color})`, boxShadow: `0 0 30px ${scene.color}55` }} />
+        </div>)}
+        {chartData.map((item, index) => <div key={`label-${item.label}-${index}`} style={{ gridRow: 2, gridColumn: index + 1, alignSelf: 'start', minWidth: 0, padding: '8px 0 6px' }}><Fit max={Math.max(14, width * .011)} lines={2} style={{ textAlign: 'center' }}>{item.label}</Fit></div>)}
+      </div> : scene.type === 'workflow' ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10, marginTop: 22 }}>{items.slice(0, 6).map((item, index) => <div key={`${item}-${index}`} style={{ position: 'relative', display: 'grid', gridTemplateColumns: '38px minmax(0, 1fr)', gap: 12, alignItems: 'center', opacity: reveal(index, .13, item), transform: `translateY(${(1 - reveal(index, .13, item)) * 18}px)` }}><b style={{ width: 36, height: 36, border: `2px solid ${scene.color}`, borderRadius: 8, display: 'grid', placeItems: 'center', color: scene.color, fontFamily: 'monospace', zIndex: 1, background: 'rgba(8,9,13,.94)' }}>{index + 1}</b><div style={{ minWidth: 0, padding: '10px 14px', borderRadius: 8, background: 'rgba(255,255,255,.07)', fontSize: Math.max(17, width * .014) }}><Fit max={Math.max(17, width * .014)} min={16} lines={3}>{item}</Fit></div>{index < items.length - 1 && <i style={{ position: 'absolute', left: 17, top: 35, width: 3, height: 20, background: scene.color, transformOrigin: 'top', transform: `scaleY(${reveal(index + 1, .13, items[index + 1])})`, boxShadow: `0 0 10px ${scene.color}` }} />}</div>)}</div>
+      : scene.type === 'interface' ? <div><div style={{ color: '#8f8d94', fontFamily: 'monospace', fontSize: width * .009, letterSpacing: '.16em' }}>AI ASSISTANT</div><Fit max={baseSize * .72} min={Math.min(baseSize * .72, 20)} style={{ marginTop: 18, color: '#fff', fontWeight: 850 }}>{scene.title}</Fit><div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 9, marginTop: 18 }}>{items.slice(0, 6).map((item, index) => <div key={`${item}-${index}`} style={{ minWidth: 0, padding: '11px 14px', borderRadius: 8, background: 'rgba(255,255,255,.07)', borderLeft: `3px solid ${scene.color}`, opacity: reveal(index), transform: `translateY(${(1 - reveal(index)) * 14}px)`, fontSize: Math.max(16, width * .013) }}><Fit max={Math.max(16, width * .013)} min={16} lines={3}>{item}</Fit></div>)}</div></div>
+      : scene.type === 'network' ? <div style={{ position: 'relative', height: height * .34 }}><svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}>{items.slice(0, 6).map((_, index) => { const angle = (Math.PI * 2 * index / Math.min(6, items.length)) - Math.PI / 2; const x = 50 + Math.cos(angle) * 39; const y = 50 + Math.sin(angle) * 38; return <line key={index} x1="50" y1="50" x2={x} y2={y} stroke={scene.color} strokeWidth="1.5" strokeDasharray="100" strokeDashoffset={100 - reveal(index) * 100} opacity="0.82" vectorEffect="non-scaling-stroke" style={{ filter: `drop-shadow(0 0 4px ${scene.color})` }} /> })}</svg>
+        {/* The hub may be at most 36% of the area tall; each node 24%, and never wider than twice its distance to the nearer side — so no node leaves the area or runs into another. */}
+        <Node maxHeight={height * .34 * .36} style={{ position: 'absolute', left: '50%', top: '50%', width: '38%', minHeight: '28%', translate: '-50% -50%', display: 'grid', placeItems: 'center', padding: 14, border: `2px solid ${scene.color}`, borderRadius: 10, background: 'rgba(8,9,13,.94)', color: '#fff', fontWeight: 850, textAlign: 'center', fontSize: hubFont }}><Fit max={hubFont} min={14} lines={Math.max(1, Math.floor((height * .34 * .36 - 32) / (hubFont * 1.2)))} style={{ lineHeight: 1.2 }}>{scene.title}</Fit></Node>
+        {items.slice(0, 6).map((item, index) => { const angle = (Math.PI * 2 * index / Math.min(6, items.length)) - Math.PI / 2; const x = 50 + Math.cos(angle) * 39; const y = 50 + Math.sin(angle) * 38; return <Node key={`${item}-${index}`} maxHeight={height * .34 * .24} style={{ position: 'absolute', left: `${x}%`, top: `${y}%`, translate: '-50% -50%', width: 'max-content', maxWidth: `${Math.min(29, 2 * Math.min(x, 100 - x))}%`, padding: '8px 11px', border: '1px solid rgba(255,255,255,.12)', borderRadius: 7, background: 'rgba(14,12,18,.94)', opacity: reveal(index), fontSize: nodeFont, textAlign: 'center' }}><Fit max={nodeFont} min={14} lines={Math.max(1, Math.floor((height * .34 * .24 - 18) / (nodeFont * 1.2)))} style={{ lineHeight: 1.2 }}>{item}</Fit></Node> })}</div>
+      : scene.type === 'comparison' ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 14, marginTop: 24 }}>{comparisonItems.map((item, index) => <div key={`${item.value}-${index}`} style={{ minWidth: 0, minHeight: height * .13, padding: 18, borderRadius: 10, border: `2px solid ${index ? scene.color : 'rgba(255,255,255,.15)'}`, background: index ? `${scene.color}18` : 'rgba(255,255,255,.05)', opacity: reveal(index, .22), transform: `translateY(${(1 - reveal(index, .22)) * 20}px)` }}>{item.label && <i style={{ display: 'block', color: '#aaa7af', fontFamily: 'monospace', fontSize: width * .009, overflowWrap: 'anywhere' }}>{item.label}</i>}<Fit max={Math.max(18, width * .016)} min={16} style={{ marginTop: 14, fontWeight: 700 }}>{item.value}</Fit></div>)}</div>
+      : scene.subtitle && <Fit max={lowerThird ? Math.max(24, width * .016) : Math.max(18, width * 0.017)} min={16} lines={lowerThird ? 3 : undefined} style={{ marginTop: lowerThird ? 8 : 18, lineHeight: 1.35, fontWeight: 550 }}>{scene.subtitle}</Fit>}
+      </Capped>
     </div>
   </AbsoluteFill>
 }
@@ -225,16 +371,20 @@ export const VisualDirectorVideo = (props: VisualDirectorProps) => {
     />
     {scene && <SceneGraphic scene={scene} time={time} captionsVisible={props.captions && props.words.length > 0} />}
     {logoVisible && props.logo && logoStyle && <Img src={props.logo.sourceUrl || staticFile(props.logo.sourceFile || '')} style={logoStyle} />}
+    {/* One line, always: CAPTION_CLEARANCE and the side panels' height both
+        assume the band is one line tall. A group too long for one line
+        shrinks instead of growing up over the lower third. */}
     {props.captions && caption.words.length > 0 && <div style={{
       position: 'absolute', left: '12%', right: '12%', bottom: '6%',
-      display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0 .3em',
       padding: `${height * 0.018}px ${width * 0.025}px`, borderRadius: 18,
       color: '#fff', background: 'rgba(0,0,0,.76)',
       fontFamily: FONT, fontWeight: 750,
       fontSize: Math.max(23, width * 0.023), lineHeight: 1.25, textAlign: 'center',
       textShadow: '0 2px 8px rgba(0,0,0,.8)',
     }}>
-      {caption.words.map((word, index) => <span key={`${word.start}-${index}`} style={{ color: index === caption.active ? '#d9ff6b' : '#fff' }}>{word.word}</span>)}
+      <Fit max={Math.max(23, width * 0.023)} min={Math.round(Math.max(23, width * 0.023) * 0.6)} lines={1} style={{ wordSpacing: '0.09em' /* a space + this = the old .3em gap between words */ }}>
+        {caption.words.map((word, index) => <Fragment key={`${word.start}-${index}`}>{index ? ' ' : ''}<span style={{ color: index === caption.active ? '#d9ff6b' : '#fff' }}>{word.word}</span></Fragment>)}
+      </Fit>
     </div>}
   </AbsoluteFill>
 }

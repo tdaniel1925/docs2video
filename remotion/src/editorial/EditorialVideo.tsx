@@ -65,7 +65,9 @@ const PageTurn: React.FC<{ d: number; isLast?: boolean; children: React.ReactNod
 export const EditorialVideo: React.FC<EditorialProps> = ({ assetBase, masthead, runningTitle, brandColor, variant, music, scenes, contactLine, presenter, presenterOnCover, presenterOnClosing, recipient }) => {
   setAssetBase(assetBase)
   const theme: EditorialTheme = editorialFromBrand(brandColor, (variant as EditorialVariant) || 'time')
-  const running = (runningTitle || scenes[0]?.title || '').toUpperCase().slice(0, 32)
+  // Not cut to a character count any more (that printed "QOL VALUE+ PROTECTOR
+  // III INDEX U" in the folio): the folio's <Fit> shrinks a long title instead.
+  const running = (runningTitle || scenes[0]?.title || '').toUpperCase()
   const total = scenes.reduce((a, s) => a + s.durationInFrames, 0)
 
   const render = (s: EditorialScene, i: number) => {
