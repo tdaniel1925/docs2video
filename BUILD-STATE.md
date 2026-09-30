@@ -5,7 +5,9 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
-## 2026-09-30 — Text can never leave the frame: every creation system audited (branch `redesign/marketing-site`, NOT deployed)
+## 2026-09-30 — Text can never leave the frame: every creation system audited (commit 27080db)
+
+**Deployed 2026-09-30:** Remotion Lambda site `docs2video` redeployed (production renders go through it — `REMOTION_SERVE_URL` IS set in SSM) and the ECS service rolled to image `sha256:69039e5b…` (digest verified on the running task, healthy). Proof: the customer's failing scenes rendered on the live Lambda show the card wrapped inside its box. **Vercel (app-side: decks/PPTX/PDF, /design preview, signatures, compliance scrub in the app, v3/editorial payload builders) goes live when 27080db is pushed to `docs2video/main`.**
 
 Trigger: customer video 590fe9f6 (infographic style) showed "100% High Cap Rate Ac" with the stat card half off the right edge — a model-written value in a card built for "$10,000", a `1fr` grid column that grew to its longest word, and `white-space: nowrap`.
 
@@ -21,7 +23,7 @@ Trigger: customer video 590fe9f6 (infographic style) showed "100% High Cap Rate 
 
 **Also fixed on the way:** `/render-editorial` dropped `timeline`/`chart`/`matrix`, so those magazine pages shipped with only a title (server.js); `isHeadlineFigure` (v3-render.ts) promoted sentences with ",000" to the giant hero number; the compliance name-scrub (both copies: `app/_lib/compliance.ts` + `render-service/slides.js`) cut detected tokens out of the middle of words — shipped videos said "or inal illness" and "The Long- Upside" — now whole words only, generic insurance words (Term, Long, Whole…) are never taken for product names, and blocklisted carriers are still stripped next to a hyphen ("AIG-backed"). Guard: `tests/compliance-word-boundary.test.ts`.
 
-**To go live:** redeploy the Remotion Lambda site (`cd remotion && npx remotion lambda sites create src/index.ts --site-name=docs2video --region=us-east-1`) AND rebuild the ECS image (server.js, slides.js, commercial.js, present-export.js, VisualDirector changed) — see render-service/DEPLOY.md. Vercel for the app-side files.
+**Any future change under `remotion/src`:** redeploy the Lambda site (`cd remotion && npx remotion lambda sites create src/index.ts --site-name=docs2video --region=us-east-1`, REMOTION_AWS_* keys from .env.local in the shell) AND rebuild the ECS image (VisualDirector renders from the image, and server/slides/commercial/present-export live there) — render-service/DEPLOY.md. In Git Bash, SSM paths like `/docs2video/X` get rewritten by MSYS (ParameterNotFound) — use PowerShell.
 
 **Known gaps (not overflow):** commercial `quote.sub` and `meet.kicker/pre/hot` are written by the director but never shown; infographic ignores recipient/contact/presenter; commercial props are deleted after render so real commercials can't be re-checked; phone share player is 341×192 (everything thumbnail-sized); retired design tools' API routes still charge credits if called directly.
 
