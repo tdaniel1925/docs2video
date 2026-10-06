@@ -186,3 +186,24 @@ describe('wiring', () => {
     expect(read('app/api/stripe/checkout/route.ts')).not.toMatch(/promo_1/)
   })
 })
+
+describe('shared Stripe account — other apps\' customers are ignored, not errors', () => {
+  /*
+   * Jordyn, PubCoZone and others bill through the same Stripe account, so
+   * every one of their invoices reaches this webhook too. A customer lookup
+   * with .single() turned "not a Docs2Video customer" into a 500 (error_logs
+   * 2026-10-03..06, a Jordyn renewal), and enough of those gets the endpoint
+   * disabled by Stripe — the vidwiz.app endpoint was, the same week.
+   */
+  const route = readFileSync(path.join(__dirname, '..', 'app', 'api', 'webhooks', 'stripe', 'route.ts'), 'utf8')
+
+  it('looks customers up with maybeSingle, never single', () => {
+    const lookups = route.match(/\.eq\('stripe_customer_id',\s*\w+\)\s*\.(maybeSingle|single)\(\)/g) || []
+    expect(lookups.length, 'no customer lookups found — the check would pass for the wrong reason').toBeGreaterThan(0)
+    for (const l of lookups) expect(l, 'a .single() lookup errors on another app\'s customer').toContain('maybeSingle')
+  })
+
+  it('skips a renewal for a customer it has never seen', () => {
+    expect(route).toMatch(/if \(!renewProfile\) \{[\s\S]{0,200}break/)
+  })
+})

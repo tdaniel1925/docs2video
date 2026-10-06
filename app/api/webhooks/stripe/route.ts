@@ -626,14 +626,24 @@ export async function POST(request: Request) {
             } catch { /* unknown sub → treat as a main-plan cycle below */ }
           }
 
+          // maybeSingle, not single: this Stripe account is shared with Jordyn,
+          // PubCoZone and others, so a renewal here can belong to a customer
+          // Docs2Video has never seen. single() turned "not ours" into an
+          // error and a 500, and Stripe kept retrying a payment that was never
+          // ours to grant. A renewal is months after checkout, so a real
+          // Docs2Video customer always has stripe_customer_id on file by now.
           const { data: renewProfile, error: fetchErr } = await supabase
             .from('profiles')
             .select('id, subscription_status')
             .eq('stripe_customer_id', customerId)
-            .single()
+            .maybeSingle()
 
           if (fetchErr) {
             throw new Error(`Failed to fetch profile for credit grant, customer ${customerId}: ${fetchErr.message}`)
+          }
+          if (!renewProfile) {
+            console.log(`[webhook] renewal for customer ${customerId} ignored — not a Docs2Video customer (shared Stripe account)`)
+            break
           }
 
           if (renewProfile?.id && renewProfile.subscription_status) {
