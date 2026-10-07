@@ -230,7 +230,7 @@ export default function EditPresentationPage() {
       ))}
 
       {/* ── Rebuild ────────────────────────────────────────────────────── */}
-      <div className="wizard-actions" style={{ position: 'sticky', bottom: 0, background: 'var(--cream, #F4F1EC)', padding: '12px 0' }}>
+      <div className="wizard-actions" style={{ position: 'sticky', bottom: 0, background: 'var(--bg)', padding: '12px 0' }}>
         <button className="btn btn-primary btn-lg btn-full" onClick={rebuild} disabled={building}>
           {building ? (buildDetail || 'Rebuilding…') : priceLabel}
         </button>

@@ -159,7 +159,7 @@ export default function LibraryBrowser() {
       )}
 
       {error && (
-        <div className="card" style={{ borderColor: '#e6b0b0', color: '#8a3b3b' }}>
+        <div className="card" style={{ borderColor: 'var(--error-border)', color: 'var(--error-text)' }}>
           {error} <button className="btn btn-sm btn-outlined" style={{ marginLeft: 10 }} onClick={() => load(0, false)}>Try again</button>
         </div>
       )}
@@ -240,7 +240,7 @@ export default function LibraryBrowser() {
                       {proj.totalDesigns > proj.designs.length && (
                         <p style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 10 }}>
                           Showing {proj.designs.length} of {proj.totalDesigns}.{' '}
-<button onClick={() => openInWizard(proj, 'edit')} style={{ color: 'var(--mint-deep, #4a7c2f)', fontWeight: 600, background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit' }}>Open the project</button> to see them all.
+<button onClick={() => openInWizard(proj, 'edit')} style={{ color: 'var(--link)', fontWeight: 600, background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit' }}>Open the project</button> to see them all.
                         </p>
                       )}
                     </>

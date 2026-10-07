@@ -208,7 +208,7 @@ export default function Header({ profile, brand = DOCS2VIDEO }: { profile: Profi
               <path d="M12 6v12M15 9.5c0-1.38-1.34-2.5-3-2.5s-3 1.12-3 2.5 1.34 2.5 3 2.5 3 1.12 3 2.5-1.34 2.5-3 2.5" />
             </svg>
             {credits.balance.toLocaleString()} credits
-            <span style={{ marginLeft: 4, fontSize: 12, fontWeight: 700, color: 'var(--mint-darker, #2d8a4e)' }}>+ Top Up</span>
+            <span style={{ marginLeft: 4, fontSize: 12, fontWeight: 700, color: 'var(--mint-darker)' }}>+ Top Up</span>
           </button>
         )}
 
@@ -265,7 +265,7 @@ export default function Header({ profile, brand = DOCS2VIDEO }: { profile: Profi
                 <button
                   onClick={() => { setMenuOpen(false); setShowBuyCredits(true) }}
                   className="btn btn-sm"
-                  style={{ background: 'var(--mint)', color: 'var(--ink)', fontWeight: 700, fontSize: 12, padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                  style={{ background: 'var(--accent)', color: 'var(--ink)', fontWeight: 700, fontSize: 12, padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
                 >
                   Top Up
                 </button>
@@ -294,7 +294,7 @@ export default function Header({ profile, brand = DOCS2VIDEO }: { profile: Profi
                 >
                   <span>AI Social</span>
                   {!hasSocialAddon && (
-                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-soft)', background: 'var(--bg-soft, #f7f6f2)', border: '1px solid var(--border-light)', borderRadius: 6, padding: '1px 6px' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-soft)', background: 'var(--bg-soft)', border: '1px solid var(--border-light)', borderRadius: 6, padding: '1px 6px' }}>
                       Add-on
                     </span>
                   )}

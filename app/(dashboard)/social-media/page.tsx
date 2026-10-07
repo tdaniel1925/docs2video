@@ -283,7 +283,7 @@ export default function SocialMediaPage() {
           Connect your social accounts and let AI create captions + branded images
           (and post your videos) straight to all your channels — scheduled automatically.
         </p>
-        <div style={{ background: 'var(--bg-soft, #f7f6f2)', border: '1px solid var(--border)', borderRadius: 10, padding: 20, marginBottom: 24, textAlign: 'left' }}>
+        <div style={{ background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: 10, padding: 20, marginBottom: 24, textAlign: 'left' }}>
           <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 6 }}>$50<span style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink-light)' }}>/month</span></div>
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.7 }}>
             <li>Connect X, Instagram, Facebook, LinkedIn, YouTube + more</li>
@@ -324,7 +324,7 @@ export default function SocialMediaPage() {
       </div>
 
       {statusMsg && (
-        <div style={{ borderRadius: 10, padding: '10px 16px', fontSize: 13, marginBottom: 12, fontWeight: 600, background: statusMsg.type === 'error' ? '#fde8e8' : 'rgba(199,232,168,0.2)', color: statusMsg.type === 'error' ? '#b91c1c' : '#2d8a4e', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ borderRadius: 10, padding: '10px 16px', fontSize: 13, marginBottom: 12, fontWeight: 600, background: statusMsg.type === 'error' ? 'var(--error-bg)' : 'rgba(199,232,168,0.2)', color: statusMsg.type === 'error' ? 'var(--error-text)' : 'var(--success)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {statusMsg.text}
           <button onClick={() => setStatusMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'inherit', lineHeight: 1 }}>&times;</button>
         </div>
@@ -572,8 +572,8 @@ export default function SocialMediaPage() {
           {postResult && (
             <div style={{
               marginTop: 16, padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-              background: postResult.includes('success') ? 'rgba(199,232,168,0.2)' : '#fde8e8',
-              color: postResult.includes('success') ? 'var(--mint-darker)' : '#c03a1f',
+              background: postResult.includes('success') ? 'rgba(199,232,168,0.2)' : 'var(--error-bg)',
+              color: postResult.includes('success') ? 'var(--mint-darker)' : 'var(--error)',
             }}>
               {postResult}
             </div>

@@ -117,7 +117,7 @@ export default function TemplateDemoPage() {
       </p>
 
       {error && (
-        <div style={{ padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 14, marginBottom: 20 }}>
+        <div style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)', fontSize: 14, marginBottom: 20 }}>
           {typeof error === 'string' ? error : 'Something went wrong'}
         </div>
       )}
@@ -154,7 +154,7 @@ export default function TemplateDemoPage() {
               disabled={uploading || !fileRef.current?.files?.[0]}
               style={{
                 padding: '14px 32px', borderRadius: 10, border: 'none',
-                background: uploading ? 'var(--border)' : '#C7E8A8',
+                background: uploading ? 'var(--border)' : 'var(--accent)',
                 color: 'var(--ink)', fontSize: 16, fontWeight: 700,
                 cursor: uploading ? 'wait' : 'pointer',
               }}
@@ -245,7 +245,7 @@ export default function TemplateDemoPage() {
                       type="checkbox"
                       checked={edits[i]?.generateImage || false}
                       onChange={e => updateEdit(i, 'generateImage', e.target.checked)}
-                      style={{ accentColor: 'var(--mint)' }}
+                      style={{ accentColor: 'var(--accent-ink)' }}
                     />
                     <span style={{ fontWeight: 600, color: 'var(--ink)' }}>Generate AI image for this slide</span>
                   </label>
@@ -300,7 +300,7 @@ export default function TemplateDemoPage() {
             download
             style={{
               display: 'inline-block', padding: '14px 32px', borderRadius: 10,
-              background: '#C7E8A8', color: 'var(--ink)', fontSize: 16, fontWeight: 700,
+              background: 'var(--accent)', color: 'var(--ink)', fontSize: 16, fontWeight: 700,
               textDecoration: 'none', marginRight: 12,
             }}
           >

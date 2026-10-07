@@ -1,9 +1,19 @@
 # Docs2Video — Build State
 
-**Last updated:** 2026-10-06 (overhaul phase 1: clean house — see below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
+**Last updated:** 2026-10-07 (overhaul phase 2 step 1: one colour set — see below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
 **Branch:** main
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
+
+## 2026-10-07 — Overhaul phase 2, step 1: one colour set
+
+- App, share page and marketing site share ONE colour set — the redesign's warm cream (#F4F1EC), navy (#0B2545) and mint (#C7E8A8) — defined once in `app/globals.css`; the marketing `--mk-*` names are aliases of the app names. Cyan is gone.
+- `--mint` (cyan, used for fills AND words) split by job: `--accent` fills, `--accent-ink` (#2F6B3A) words/edges/progress on light, `--link` (#1F5FA8) links, `--gold` money only (so far the share-page quote total). Primary buttons navy with white words; words on mint fills are navy. Progress bars, selected edges and spinners use `--accent-ink` (mint on the light track measured 1.1:1).
+- Hand-typed colours in dashboard + shared components + share page: 811 → 219 (the rest are Text2Art's wizard 70, logo creator 33, look swatches 18, and content colours: brand defaults, social logos, chart series, client emails).
+- Text2Art unchanged: a block in `globals.css` keeps its blue; 5 screens compared pixel-identical. `--mint-darker` stays (≈100 uses) because Text2Art overrides it.
+- Contrast: every text/background pair ≥ 4.5:1 (weakest 4.67); the three pairs that would fail are never combined (noted in `globals.css`).
+- Guard: `tests/one-colour-set.test.ts` fails if `--mint` comes back, typed colours rise above 219, a marketing colour gets its own value, a pair drops below 4.5:1, or Text2Art's overrides go missing.
+- Left for later steps: credit chip still bright green (step 4 makes it gold); cookie banner typed (shared with Text2Art); the `/design` wizard is Text2Art's system.
 
 ## 2026-10-06 — Overhaul phase 1: clean house (branch `redesign/marketing-site`)
 

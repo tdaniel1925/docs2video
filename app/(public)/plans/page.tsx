@@ -57,7 +57,7 @@ export default async function PublicPricingPage({ searchParams }: { searchParams
         </div>
 
         {promo && (
-          <div style={{ maxWidth: 520, margin: '0 auto 28px', padding: '12px 16px', borderRadius: 10, background: 'var(--mint)', color: 'var(--ink)', fontSize: 14, textAlign: 'center', fontWeight: 600 }}>
+          <div style={{ maxWidth: 520, margin: '0 auto 28px', padding: '12px 16px', borderRadius: 10, background: 'var(--accent)', color: 'var(--ink)', fontSize: 14, textAlign: 'center', fontWeight: 600 }}>
             Create your account, then choose a plan — use code <strong>{promo}</strong> at checkout.
           </div>
         )}

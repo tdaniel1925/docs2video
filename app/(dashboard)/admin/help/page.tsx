@@ -349,7 +349,7 @@ export default function AdminHelpPage() {
                     <div
                       key={i}
                       style={{
-                        background: 'var(--bg-soft, #FAFAF8)',
+                        background: 'var(--bg-soft)',
                         border: '1px solid var(--border-light)',
                         borderRadius: 10,
                         padding: '20px 24px',
@@ -364,7 +364,7 @@ export default function AdminHelpPage() {
                           <p key={j} style={{ margin: '6px 0' }} dangerouslySetInnerHTML={{
                             __html: paragraph
                               .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--ink)">$1</strong>')
-                              .replace(/^• /gm, '<span style="color:var(--mint-darker,#2d7a4f)">&#8226;</span> ')
+                              .replace(/^• /gm, '<span style="color:var(--mint-darker)">&#8226;</span> ')
                           }} />
                         ))}
                       </div>
@@ -380,7 +380,7 @@ export default function AdminHelpPage() {
       {/* Link to user help */}
       <div style={{
         marginTop: 32, padding: '24px 28px', borderRadius: 10,
-        background: 'rgba(168,240,212,0.1)', border: '1px solid var(--mint)',
+        background: 'var(--accent-soft)', border: '1px solid var(--accent)',
         textAlign: 'center',
       }}>
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Looking for user-facing help?</div>

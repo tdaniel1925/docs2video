@@ -123,7 +123,7 @@ export default function InsuranceHelpPage() {
           ].map(layer => (
             <div key={layer.num} style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
               <div style={{
-                width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
+                width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
               }}>{layer.num}</div>
               <div>

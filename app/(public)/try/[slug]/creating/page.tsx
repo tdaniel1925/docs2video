@@ -131,7 +131,7 @@ export default function CreatingPage({ params, searchParams }: { params: Promise
                 }}>
                   <div style={{
                     width: 24, height: 24, borderRadius: '50%',
-                    background: i < step ? 'var(--mint, #C7E8A8)' : i === step ? 'var(--primary, #1a1a1a)' : 'var(--border-light, #e5e2dc)',
+                    background: i < step ? 'var(--accent)' : i === step ? 'var(--primary, #1a1a1a)' : 'var(--border-light, #e5e2dc)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   }}>
                     {i < step ? (

@@ -14,7 +14,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
       <div className="auth-split">
         <div className="auth-side">
           <Link href="/" className="logo" style={{ textDecoration: 'none', color: '#fff', fontWeight: 800, fontSize: 28, letterSpacing: '-0.03em' }}>
-            Text<span style={{ color: 'var(--mint)' }}>2</span>Art
+            Text<span style={{ color: 'var(--accent)' }}>2</span>Art
           </Link>
           <div className="auth-side-content">
             <h2>Describe it. Get the <em>finished design</em>.</h2>
@@ -41,7 +41,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
           <p>The thing your client should read, turned into something they will actually watch.</p>
         </div>
         <div className="auth-side-mock">
-          <div style={{ background: 'var(--mint)', borderRadius: 10, padding: 18, color: 'var(--ink)' }}>
+          <div style={{ background: 'var(--accent)', borderRadius: 10, padding: 18, color: 'var(--ink)' }}>
             <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700, opacity: 0.7, marginBottom: 6 }}>Henderson Financial</div>
             <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: 14 }}>Q4 Report Summary</div>
             <div style={{ background: 'white', borderRadius: 10, padding: 12, marginBottom: 6 }}>

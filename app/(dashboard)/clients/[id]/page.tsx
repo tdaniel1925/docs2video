@@ -59,12 +59,14 @@ interface Quote {
   created_at: string
 }
 
+// Same chips as the client list. "Active" is a tint of the link blue so it
+// never reads the same as "engaged" (mint).
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  lead: { bg: '#f3f4f6', color: '#374151' },
-  active: { bg: '#dbeafe', color: '#1e40af' },
-  engaged: { bg: 'var(--mint, #d4f5e9)', color: '#166534' },
-  converted: { bg: '#fef3c7', color: '#92400e' },
-  inactive: { bg: '#fecaca', color: '#991b1b' },
+  lead: { bg: 'var(--surface)', color: 'var(--ink-soft)' },
+  active: { bg: 'color-mix(in srgb, var(--link) 12%, var(--bg-card))', color: 'var(--link)' },
+  engaged: { bg: 'var(--accent)', color: 'var(--accent-ink)' },
+  converted: { bg: 'var(--warning-bg)', color: 'var(--warning-text)' },
+  inactive: { bg: 'var(--error-bg)', color: 'var(--error-text)' },
 }
 
 const ACTIVITY_ICONS: Record<string, string> = {
@@ -296,11 +298,11 @@ export default function ClientDetailPage() {
       {msg && (
         <div style={{
           padding: '10px 16px',
-          background: msg.type === 'ok' ? 'var(--mint, #d4f5e9)' : '#fecaca',
+          background: msg.type === 'ok' ? 'var(--success-bg)' : 'var(--error-bg)',
           borderRadius: 8,
           marginBottom: 16,
           fontSize: 14,
-          color: msg.type === 'ok' ? '#166534' : '#991b1b',
+          color: msg.type === 'ok' ? 'var(--success)' : 'var(--error-text)',
         }}>
           {msg.text}
         </div>
@@ -327,10 +329,10 @@ export default function ClientDetailPage() {
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-soft btn-sm" onClick={startEdit}>Edit</button>
               {!confirmDelete ? (
-                <button className="btn btn-sm" style={{ background: '#fecaca', color: '#991b1b', border: '1px solid #fca5a5' }} onClick={() => setConfirmDelete(true)}>Delete</button>
+                <button className="btn btn-sm" style={{ background: 'var(--error-bg)', color: 'var(--error-text)', border: '1px solid var(--error-border)' }} onClick={() => setConfirmDelete(true)}>Delete</button>
               ) : (
                 <div style={{ display: 'flex', gap: 4 }}>
-                  <button className="btn btn-sm" style={{ background: '#dc2626', color: 'white', border: 'none' }} onClick={handleDelete}>Confirm Delete</button>
+                  <button className="btn btn-sm" style={{ background: 'var(--error)', color: 'var(--on-ink)', border: 'none' }} onClick={handleDelete}>Confirm Delete</button>
                   <button className="btn btn-soft btn-sm" onClick={() => setConfirmDelete(false)}>Cancel</button>
                 </div>
               )}
@@ -549,9 +551,9 @@ export default function ClientDetailPage() {
                     </div>
                   </div>
                   <span className="tag" style={{
-                    background: e.opened_at ? 'var(--mint, #d4f5e9)' : '#f3f4f6',
-                    color: e.opened_at ? '#166534' : '#374151',
-                    borderColor: e.opened_at ? 'var(--mint)' : '#f3f4f6',
+                    background: e.opened_at ? 'var(--accent-soft)' : 'var(--surface)',
+                    color: e.opened_at ? 'var(--accent-ink)' : 'var(--ink-soft)',
+                    borderColor: e.opened_at ? 'var(--accent)' : 'var(--surface)',
                   }}>
                     {e.opened_at ? 'Opened' : 'Sent'}
                   </span>
@@ -587,9 +589,9 @@ export default function ClientDetailPage() {
                     </div>
                   </div>
                   <span className="tag" style={{
-                    background: q.status === 'paid' ? 'var(--mint, #d4f5e9)' : q.status === 'accepted' ? '#dbeafe' : '#f3f4f6',
-                    color: q.status === 'paid' ? '#166534' : q.status === 'accepted' ? '#1e40af' : '#374151',
-                    borderColor: q.status === 'paid' ? 'var(--mint)' : '#f3f4f6',
+                    background: q.status === 'paid' ? 'var(--success-bg)' : q.status === 'accepted' ? 'color-mix(in srgb, var(--link) 12%, var(--bg-card))' : 'var(--surface)',
+                    color: q.status === 'paid' ? 'var(--success)' : q.status === 'accepted' ? 'var(--link)' : 'var(--ink-soft)',
+                    borderColor: q.status === 'paid' ? 'var(--accent)' : q.status === 'accepted' ? 'color-mix(in srgb, var(--link) 12%, var(--bg-card))' : 'var(--surface)',
                     textTransform: 'capitalize',
                   }}>
                     {q.status}

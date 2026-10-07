@@ -254,7 +254,7 @@ export default function CreateCommercialPage() {
 
       {/* Music toggle */}
       <button type="button" style={styles.toggleRow} onClick={() => setMusic((m) => !m)}>
-        <span style={{ ...styles.toggle, background: music ? 'var(--mint, #C7E8A8)' : 'var(--border, #ddd)' }}>
+        <span style={{ ...styles.toggle, background: music ? 'var(--accent-ink)' : 'var(--border)' }}>
           <span style={{ ...styles.knob, transform: music ? 'translateX(20px)' : 'translateX(0)' }} />
         </span>
         <span style={styles.toggleLabel}>Add a custom music track {music ? '(on)' : '(off)'}</span>
@@ -325,12 +325,12 @@ const styles: Record<string, React.CSSProperties> = {
   h1: { fontSize: 26, fontWeight: 800, color: 'var(--ink)', marginBottom: 6, letterSpacing: '-0.02em' },
   sub: { fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.5 },
   sourceTabs: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
-  sourceTab: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px', fontSize: 13, fontWeight: 700, borderRadius: 10, border: '1.5px solid var(--border-light, #e0e0e0)', background: 'white', color: 'var(--ink-soft)', cursor: 'pointer' },
+  sourceTab: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px', fontSize: 13, fontWeight: 700, borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white', color: 'var(--ink-soft)', cursor: 'pointer' },
   sourceTabActive: { border: '1.5px solid var(--ink)', background: 'var(--ink)', color: 'white' },
   label: { display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 18 },
-  req: { color: '#D97706', fontWeight: 700 },
+  req: { color: 'var(--warning-text)', fontWeight: 700 },
   opt: { color: 'var(--ink-light)', fontWeight: 500 },
-  input: { display: 'block', width: '100%', marginTop: 6, padding: '12px 14px', fontSize: 15, borderRadius: 10, border: '1.5px solid var(--border-light, #e0e0e0)', background: 'white', color: 'var(--ink)', boxSizing: 'border-box' },
+  input: { display: 'block', width: '100%', marginTop: 6, padding: '12px 14px', fontSize: 15, borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white', color: 'var(--ink)', boxSizing: 'border-box' },
   file: { display: 'block', width: '100%', marginTop: 6, fontSize: 13, color: 'var(--ink-soft)' },
   hint: { display: 'block', marginTop: 6, fontSize: 12, color: 'var(--ink-light)', fontWeight: 500 },
   row: { display: 'flex', gap: 16 },
@@ -340,13 +340,13 @@ const styles: Record<string, React.CSSProperties> = {
   toggleLabel: { fontSize: 14, fontWeight: 600, color: 'var(--ink)' },
   advToggle: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: 'var(--ink-soft)', padding: 0, marginBottom: 14, textAlign: 'left' },
   styleGrid: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
-  styleChip: { padding: '8px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: '1.5px solid var(--border-light, #e0e0e0)', background: 'white', color: 'var(--ink-soft)', cursor: 'pointer' },
-  styleChipActive: { border: '1.5px solid var(--mint, #C7E8A8)', background: 'rgba(199,232,168,0.18)', color: 'var(--ink)' },
-  error: { fontSize: 14, color: '#B91C1C', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', marginBottom: 16 },
+  styleChip: { padding: '8px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: '1.5px solid var(--border-light)', background: 'white', color: 'var(--ink-soft)', cursor: 'pointer' },
+  styleChipActive: { border: '1.5px solid var(--accent-ink)', background: 'var(--accent-soft)', color: 'var(--ink)' },
+  error: { fontSize: 14, color: 'var(--error-text)', background: 'var(--error-bg)', border: '1px solid var(--error-border)', borderRadius: 8, padding: '10px 14px', marginBottom: 16 },
   costBox: { marginBottom: 16, fontSize: 14 },
   costOk: { color: 'var(--ink-soft)' },
   bal: { color: 'var(--ink-light)' },
-  costWarn: { color: '#92400E' },
+  costWarn: { color: 'var(--warning-text)' },
   buyLink: { color: 'var(--ink)', fontWeight: 700, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline', font: 'inherit' },
   cta: { width: '100%', padding: '15px 24px', fontSize: 16, fontWeight: 800, borderRadius: 10, border: 'none', background: 'var(--ink)', color: 'white', cursor: 'pointer', letterSpacing: '-0.01em' },
   ctaDisabled: { opacity: 0.45, cursor: 'not-allowed' },

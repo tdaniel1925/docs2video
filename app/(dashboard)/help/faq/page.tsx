@@ -265,7 +265,7 @@ export default function FaqPage() {
       {/* Still need help */}
       <div style={{
         marginTop: 32, padding: '24px 28px', borderRadius: 10,
-        background: 'rgba(168,240,212,0.1)', border: '1px solid var(--mint)',
+        background: 'var(--accent-soft)', border: '1px solid var(--accent)',
         textAlign: 'center',
       }}>
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Still need help?</div>

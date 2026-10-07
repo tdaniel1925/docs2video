@@ -56,14 +56,14 @@ export default function ClientPicker({ value, onPick }: {
   const chip = (on: boolean): React.CSSProperties => ({
     padding: '10px 14px', borderRadius: 9, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
     border: on ? '2px solid var(--ink)' : '1px solid var(--border)',
-    background: on ? 'var(--mint-light, #f0fae4)' : 'var(--bg)', color: 'var(--ink)',
+    background: on ? 'var(--accent-soft)' : 'var(--bg)', color: 'var(--ink)',
   })
 
   if (value) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-soft, #f7f6f2)', fontSize: 15 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-soft)', fontSize: 15 }}>
         <span><strong>{value.clientId ? value.name : 'No client — general'}</strong></span>
-        <button type="button" onClick={() => onPick(null)} style={{ background: 'none', border: 'none', fontSize: 13, color: 'var(--primary, #2563eb)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Change</button>
+        <button type="button" onClick={() => onPick(null)} style={{ background: 'none', border: 'none', fontSize: 13, color: 'var(--link)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Change</button>
       </div>
     )
   }
@@ -94,7 +94,7 @@ export default function ClientPicker({ value, onPick }: {
           </button>
         </div>
       )}
-      {error && <div role="alert" style={{ fontSize: 13, color: '#c0392b' }}>{error}</div>}
+      {error && <div role="alert" style={{ fontSize: 13, color: 'var(--error)' }}>{error}</div>}
     </div>
   )
 }

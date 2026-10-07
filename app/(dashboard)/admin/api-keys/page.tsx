@@ -63,12 +63,12 @@ export default function AdminApiKeysPage() {
         <Link href="/admin" className="btn btn-sm btn-soft" style={{ textDecoration: 'none' }}>← Admin</Link>
       </div>
 
-      {msg && <div className="card" style={{ padding: 12, marginBottom: 16, color: 'var(--rose, #b00)' }}>{msg}</div>}
+      {msg && <div className="card" style={{ padding: 12, marginBottom: 16, color: 'var(--error-text)' }}>{msg}</div>}
 
       {newKey && (
-        <div className="card" style={{ padding: 16, marginBottom: 16, border: '2px solid var(--mint, #C7E8A8)' }}>
+        <div className="card" style={{ padding: 16, marginBottom: 16, border: '2px solid var(--accent-ink)' }}>
           <strong>New API key — copy it now, it will not be shown again:</strong>
-          <pre style={{ marginTop: 8, padding: 12, background: 'var(--cream, #F4F1EC)', borderRadius: 8, overflowX: 'auto', userSelect: 'all' }}>{newKey}</pre>
+          <pre style={{ marginTop: 8, padding: 12, background: 'var(--bg)', borderRadius: 8, overflowX: 'auto', userSelect: 'all' }}>{newKey}</pre>
           <button className="btn btn-sm btn-soft" onClick={() => setNewKey(null)}>Dismiss</button>
         </div>
       )}
@@ -100,7 +100,7 @@ export default function AdminApiKeysPage() {
       <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--line, #e5e0d8)' }}>
+            <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-light)' }}>
               <th style={{ padding: 10 }}>Owner</th>
               <th style={{ padding: 10 }}>Prefix</th>
               <th style={{ padding: 10 }}>Label</th>
@@ -113,7 +113,7 @@ export default function AdminApiKeysPage() {
           <tbody>
             {keys.length === 0 && <tr><td colSpan={7} style={{ padding: 16, color: 'var(--ink-light)' }}>No keys yet.</td></tr>}
             {keys.map(k => (
-              <tr key={k.id} style={{ borderBottom: '1px solid var(--line, #efe9e0)', opacity: k.is_active ? 1 : 0.5 }}>
+              <tr key={k.id} style={{ borderBottom: '1px solid var(--border-light)', opacity: k.is_active ? 1 : 0.5 }}>
                 <td style={{ padding: 10 }}>{k.email || k.user_id.slice(0, 8)}</td>
                 <td style={{ padding: 10, fontFamily: 'monospace' }}>{k.key_prefix}…</td>
                 <td style={{ padding: 10 }}>{k.name || '—'}</td>

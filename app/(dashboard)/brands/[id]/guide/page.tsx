@@ -38,7 +38,7 @@ export default function BrandGuidePage() {
       <div style={{
         width: 56, height: 56, borderRadius: 10, background: color,
         border: '1px solid var(--border)', marginBottom: 6,
-        ...(color.toLowerCase() === '#ffffff' ? { boxShadow: 'inset 0 0 0 2px #e5e7eb' } : {}),
+        ...(color.toLowerCase() === '#ffffff' ? { boxShadow: 'inset 0 0 0 2px var(--border-light)' } : {}),
       }} />
       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
       <div style={{ fontSize: 11, color: 'var(--ink-soft)', fontFamily: 'monospace' }}>{color.toUpperCase()}</div>
@@ -143,10 +143,10 @@ export default function BrandGuidePage() {
             ) : null}
             {toneGuide.dontSay?.length ? (
               <div style={{ padding: 14, borderRadius: 10, background: 'rgba(239,68,68,0.06)' }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#dc2626', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Don&apos;t Say</div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--error)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Don&apos;t Say</div>
                 {toneGuide.dontSay.map((s, i) => (
                   <div key={i} style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 5, paddingLeft: 14, position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: 0, color: '#dc2626', fontWeight: 700 }}>-</span> {s}
+                    <span style={{ position: 'absolute', left: 0, color: 'var(--error)', fontWeight: 700 }}>-</span> {s}
                   </div>
                 ))}
               </div>
@@ -243,7 +243,7 @@ export default function BrandGuidePage() {
             {Object.entries(brand.social_links).map(([platform, url]) => (
               <div key={platform} style={{ fontSize: 13.5, marginBottom: 6 }}>
                 <strong style={{ textTransform: 'capitalize' }}>{platform}:</strong>{' '}
-                <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{url}</a>
+                <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--link)' }}>{url}</a>
               </div>
             ))}
           </>

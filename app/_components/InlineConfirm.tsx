@@ -20,10 +20,10 @@ export default function InlineConfirm({ onConfirm, message, confirmLabel = 'Yes'
       <div style={{
         display: 'inline-flex', alignItems: 'center', gap: 8,
         padding: '6px 12px', borderRadius: 8,
-        background: '#fef2f2', border: '1px solid #fca5a5',
+        background: 'var(--error-bg)', border: '1px solid var(--error-border)',
         fontSize: 13, ...style,
       }}>
-        <span style={{ fontWeight: 600, color: '#b91c1c' }}>{message}</span>
+        <span style={{ fontWeight: 600, color: 'var(--error-text)' }}>{message}</span>
         <button
           onClick={async () => {
             setRunning(true)
@@ -32,7 +32,7 @@ export default function InlineConfirm({ onConfirm, message, confirmLabel = 'Yes'
           disabled={running}
           style={{
             padding: '4px 12px', borderRadius: 6, border: 'none',
-            background: '#b91c1c', color: 'white', fontSize: 12,
+            background: 'var(--error-text)', color: 'var(--on-ink)', fontSize: 12,
             fontWeight: 600, cursor: running ? 'wait' : 'pointer',
             fontFamily: 'inherit',
           }}
@@ -43,9 +43,9 @@ export default function InlineConfirm({ onConfirm, message, confirmLabel = 'Yes'
           onClick={() => setConfirming(false)}
           style={{
             padding: '4px 12px', borderRadius: 6,
-            border: '1px solid var(--border-light, #e2e8f0)',
-            background: 'white', fontSize: 12, fontWeight: 600,
-            cursor: 'pointer', color: 'var(--ink-soft, #64748b)',
+            border: '1px solid var(--border-light)',
+            background: 'var(--bg-card)', fontSize: 12, fontWeight: 600,
+            cursor: 'pointer', color: 'var(--ink-soft)',
             fontFamily: 'inherit',
           }}
         >

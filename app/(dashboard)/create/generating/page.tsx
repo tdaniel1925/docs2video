@@ -280,7 +280,7 @@ export default function GeneratingPage() {
         {/* Upsell for video version */}
         <div style={{
           maxWidth: 480, width: '100%', padding: '24px 28px', borderRadius: 10,
-          background: 'rgba(199, 232, 168, 0.12)', border: '1.5px solid var(--mint)',
+          background: 'var(--accent-soft)', border: '1.5px solid var(--accent)',
           textAlign: 'center', marginBottom: 24,
         }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
@@ -291,7 +291,7 @@ export default function GeneratingPage() {
           </div>
           <Link href="/create" style={{
             display: 'inline-block', padding: '10px 28px', borderRadius: 8,
-            border: '2px solid var(--mint)', background: 'white', color: 'var(--ink)',
+            border: '2px solid var(--accent-ink)', background: 'white', color: 'var(--ink)',
             fontSize: 14, fontWeight: 700, textDecoration: 'none',
           }}>
             Create video version
@@ -314,8 +314,8 @@ export default function GeneratingPage() {
     }}>
       <style>{`
         @keyframes pulseGlow {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(168,240,212,0.4); }
-          50% { box-shadow: 0 0 0 20px rgba(168,240,212,0); }
+          0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); }
+          50% { box-shadow: 0 0 0 20px transparent; }
         }
       `}</style>
 
@@ -344,7 +344,7 @@ export default function GeneratingPage() {
       {/* Slide Deck: show a sample of what a slide from THEIRS will look like, so
           the ~10 min wait feels purposeful (they can see the payoff coming). */}
       {isSlides && status !== 'completed' && (
-        <div style={{ width: '100%', maxWidth: 520, marginBottom: 28, padding: '16px 18px', borderRadius: 12, background: 'rgba(199, 232, 168, 0.10)', border: '1.5px solid var(--mint)' }}>
+        <div style={{ width: '100%', maxWidth: 520, marginBottom: 28, padding: '16px 18px', borderRadius: 12, background: 'var(--accent-soft)', border: '1.5px solid var(--accent)' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 10, textAlign: 'center' }}>
             While you wait — here’s the kind of slide you’re getting:
           </div>
@@ -368,7 +368,7 @@ export default function GeneratingPage() {
       }}>
         <div style={{
           height: '100%', borderRadius: 10,
-          background: 'linear-gradient(90deg, var(--mint), #4ade80)',
+          background: 'linear-gradient(90deg, var(--accent-ink), color-mix(in srgb, var(--accent-ink) 55%, var(--accent)))',
           backgroundSize: '200% 100%',
           animation: 'shimmer 2s infinite',
           transition: 'width 0.7s ease',
@@ -380,7 +380,7 @@ export default function GeneratingPage() {
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12,
         animation: 'pulseGlow 2s infinite',
-        padding: '12px 24px', borderRadius: 10, background: 'rgba(168,240,212,0.08)',
+        padding: '12px 24px', borderRadius: 10, background: 'var(--accent-soft)',
       }}>
         <span style={{ fontSize: 28 }}>{currentStage.icon}</span>
         <div>
@@ -394,7 +394,7 @@ export default function GeneratingPage() {
         {STAGES.map((s, i) => (
           <div key={s.key} style={{
             width: i <= stageIdx ? 24 : 8, height: 8, borderRadius: 8,
-            background: i < stageIdx ? 'var(--mint)' : i === stageIdx ? 'var(--ink)' : 'var(--border)',
+            background: i < stageIdx ? 'var(--accent-ink)' : i === stageIdx ? 'var(--ink)' : 'var(--border)',
             transition: 'all 0.4s ease',
           }} />
         ))}
@@ -412,7 +412,7 @@ export default function GeneratingPage() {
               return (
                 <div key={i} style={{
                   width: 92, height: 52, borderRadius: 8, overflow: 'hidden',
-                  border: url ? '1.5px solid var(--mint)' : '1px solid var(--border)',
+                  border: url ? '1.5px solid var(--accent-ink)' : '1px solid var(--border)',
                   background: url ? 'transparent' : 'var(--border)',
                   position: 'relative', flexShrink: 0,
                   animation: url ? 'fadeInUp 0.4s ease' : undefined,
@@ -431,7 +431,7 @@ export default function GeneratingPage() {
       {stalled && (
         <div style={{
           maxWidth: 480, width: '100%', padding: '12px 20px', borderRadius: 10,
-          background: 'rgba(168,240,212,0.12)', border: '1px solid var(--mint)',
+          background: 'var(--accent-soft)', border: '1px solid var(--accent)',
           textAlign: 'center', marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)',
         }}>
           Still working — this step (often the final render) can take a few minutes for longer videos. Nothing is stuck.
@@ -441,7 +441,7 @@ export default function GeneratingPage() {
       {/* You can leave card */}
       <div style={{
         maxWidth: 480, width: '100%', padding: '24px 28px', borderRadius: 10,
-        background: 'white', border: '2px solid var(--mint)',
+        background: 'var(--accent-soft)', border: '2px solid var(--accent)',
         textAlign: 'center', marginBottom: 32,
       }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>

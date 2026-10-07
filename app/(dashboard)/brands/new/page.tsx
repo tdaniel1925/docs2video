@@ -113,7 +113,8 @@ function BrandScrapingProgress() {
     <div style={{ marginTop: 16, padding: '20px 0' }}>
       <div style={{ maxWidth: 340, height: 5, background: 'var(--border)', borderRadius: 10, overflow: 'hidden', marginBottom: 14 }}>
         <div style={{
-          height: '100%', borderRadius: 10, background: 'var(--mint)',
+          // Dark green: pale mint vanishes on the light track.
+          height: '100%', borderRadius: 10, background: 'var(--accent-ink)',
           transition: 'width 1s ease',
           width: elapsed < 3 ? '10%' : elapsed < 8 ? '30%' : elapsed < 15 ? '55%' : elapsed < 25 ? '78%' : elapsed < 40 ? '90%' : '95%',
         }} />
@@ -388,10 +389,10 @@ export default function NewBrandPage() {
                         ) : null}
                         {brandGuide.toneGuide.dontSay?.length ? (
                           <div style={{ padding: 12, borderRadius: 10, background: 'rgba(239,68,68,0.06)' }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Don&apos;t Say</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--error)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Don&apos;t Say</div>
                             {brandGuide.toneGuide.dontSay.map((s, i) => (
                               <div key={i} style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 4, paddingLeft: 12, position: 'relative' }}>
-                                <span style={{ position: 'absolute', left: 0, color: '#dc2626' }}>-</span> {s}
+                                <span style={{ position: 'absolute', left: 0, color: 'var(--error)' }}>-</span> {s}
                               </div>
                             ))}
                           </div>
@@ -517,7 +518,7 @@ export default function NewBrandPage() {
                       {Object.entries(brandGuide.socialLinks).map(([platform, url]) => (
                         <div key={platform} style={{ fontSize: 13, marginBottom: 4 }}>
                           <strong style={{ textTransform: 'capitalize' }}>{platform}:</strong>{' '}
-                          <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{url}</a>
+                          <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--link)' }}>{url}</a>
                         </div>
                       ))}
                     </div>
@@ -568,7 +569,7 @@ export default function NewBrandPage() {
                   style={{
                     flex: 1, padding: '12px 16px', borderRadius: 10, cursor: 'pointer',
                     fontSize: 14, fontWeight: 700, fontFamily: 'inherit',
-                    border: profileType === t ? '2px solid var(--mint)' : '1px solid var(--border)',
+                    border: profileType === t ? '2px solid var(--accent-ink)' : '1px solid var(--border)',
                     background: profileType === t ? 'rgba(199, 232, 168, 0.12)' : 'white',
                     color: 'var(--ink)',
                   }}
@@ -582,7 +583,7 @@ export default function NewBrandPage() {
 
           {/* === Essential Fields === */}
           <div className="form-group">
-            <label className="input-label">{profileType === 'person' ? 'Your name' : 'Brand Name'} <span style={{ color: '#dc2626' }}>*</span></label>
+            <label className="input-label">{profileType === 'person' ? 'Your name' : 'Brand Name'} <span style={{ color: 'var(--error)' }}>*</span></label>
             <input
               name="name"
               required
@@ -644,7 +645,7 @@ export default function NewBrandPage() {
                     style={{ display: 'none' }}
                   />
                 </div>
-                {photoError && <div style={{ marginTop: 8, fontSize: 13, color: '#dc2626', fontWeight: 500 }}>{photoError}</div>}
+                {photoError && <div style={{ marginTop: 8, fontSize: 13, color: 'var(--error)', fontWeight: 500 }}>{photoError}</div>}
               </div>
 
               <div className="form-group">
@@ -959,7 +960,7 @@ export default function NewBrandPage() {
           )}
 
           {error && (
-            <div style={{ borderRadius: 10, background: '#fde8e8', padding: '10px 16px', fontSize: 13, marginBottom: 16, color: 'var(--ink)', fontWeight: 600 }}>
+            <div style={{ borderRadius: 10, background: 'var(--error-bg)', padding: '10px 16px', fontSize: 13, marginBottom: 16, color: 'var(--ink)', fontWeight: 600 }}>
               {error}
             </div>
           )}

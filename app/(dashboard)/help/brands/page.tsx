@@ -121,7 +121,7 @@ export default function BrandsHelpPage() {
           </p>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
+              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>1</div>
             <div>
@@ -130,7 +130,7 @@ export default function BrandsHelpPage() {
           </div>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
+              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>2</div>
             <div>
@@ -139,7 +139,7 @@ export default function BrandsHelpPage() {
           </div>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
+              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>3</div>
             <div>
@@ -148,7 +148,7 @@ export default function BrandsHelpPage() {
           </div>
           <div style={{ display: 'flex', gap: 14 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
+              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>4</div>
             <div>

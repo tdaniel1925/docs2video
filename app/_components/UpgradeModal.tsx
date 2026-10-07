@@ -66,7 +66,7 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
         {/* Pro plan */}
         <div style={{
           padding: '16px 20px', borderRadius: 10,
-          border: '2px solid var(--mint)', marginBottom: 20,
+          border: '2px solid var(--accent-ink)', marginBottom: 20,
           background: 'rgba(199, 232, 168, 0.06)',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -81,7 +81,7 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
             disabled={loading === 'pro'}
             style={{
               width: '100%', padding: '10px', borderRadius: 8, border: 'none',
-              background: 'var(--mint)', color: 'var(--ink)', fontSize: 14, fontWeight: 700,
+              background: 'var(--accent)', color: 'var(--ink)', fontSize: 14, fontWeight: 700,
               cursor: 'pointer', fontFamily: 'inherit',
               opacity: loading === 'pro' ? 0.6 : 1,
             }}

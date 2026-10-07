@@ -44,7 +44,7 @@ export default function ImpersonationBanner() {
     <div style={{
       position: 'sticky', top: 0, zIndex: 2000,
       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
-      background: '#7c2d12', color: '#fff', padding: '8px 16px',
+      background: 'var(--warning-text)', color: 'var(--on-ink)', padding: '8px 16px',
       fontSize: 13, fontWeight: 600,
     }}>
       <span>⚠ Impersonating <strong>{email}</strong> — actions affect their account.</span>
@@ -52,7 +52,7 @@ export default function ImpersonationBanner() {
         onClick={exit}
         disabled={exiting}
         style={{
-          background: '#fff', color: '#7c2d12', border: 'none', borderRadius: 8,
+          background: 'var(--bg-card)', color: 'var(--warning-text)', border: 'none', borderRadius: 8,
           padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
         }}
       >

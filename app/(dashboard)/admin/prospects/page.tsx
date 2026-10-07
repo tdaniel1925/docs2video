@@ -28,15 +28,15 @@ type Prospect = {
 // Coarse status → label + color. In-flight statuses drive live polling.
 const IN_FLIGHT = ['scraping', 'scripting', 'generating', 'assembling']
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  scraping: { label: 'Scanning site', color: '#b45309', bg: '#fef3c7' },
-  scripting: { label: 'Writing script', color: '#b45309', bg: '#fef3c7' },
-  generating: { label: 'Building slides', color: '#b45309', bg: '#fef3c7' },
-  assembling: { label: 'Assembling video', color: '#b45309', bg: '#fef3c7' },
-  ready_for_review: { label: 'Ready for review', color: '#047857', bg: '#d1fae5' },
-  sent: { label: 'Sent', color: '#1d4ed8', bg: '#dbeafe' },
-  failed: { label: 'Failed', color: '#b91c1c', bg: '#fee2e2' },
-  rejected: { label: 'Rejected', color: '#6b7280', bg: '#f3f4f6' },
-  cancelled: { label: 'Cancelled', color: '#6b7280', bg: '#f3f4f6' },
+  scraping: { label: 'Scanning site', color: 'var(--warning-text)', bg: 'var(--warning-bg)' },
+  scripting: { label: 'Writing script', color: 'var(--warning-text)', bg: 'var(--warning-bg)' },
+  generating: { label: 'Building slides', color: 'var(--warning-text)', bg: 'var(--warning-bg)' },
+  assembling: { label: 'Assembling video', color: 'var(--warning-text)', bg: 'var(--warning-bg)' },
+  ready_for_review: { label: 'Ready for review', color: 'var(--success)', bg: 'var(--success-bg)' },
+  sent: { label: 'Sent', color: 'var(--link)', bg: 'var(--surface)' },
+  failed: { label: 'Failed', color: 'var(--error-text)', bg: 'var(--error-bg)' },
+  rejected: { label: 'Rejected', color: 'var(--ink-light)', bg: 'var(--surface)' },
+  cancelled: { label: 'Cancelled', color: 'var(--ink-light)', bg: 'var(--surface)' },
 }
 
 function relTime(iso: string): string {
@@ -162,10 +162,10 @@ export default function ProspectsPage() {
       {/* Stat chips */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
         {[
-          ['Generating', counts.inFlight, '#b45309'],
-          ['Ready', counts.ready, '#047857'],
-          ['Sent', counts.sent, '#1d4ed8'],
-          ['Failed', counts.failed, '#b91c1c'],
+          ['Generating', counts.inFlight, 'var(--warning-text)'],
+          ['Ready', counts.ready, 'var(--success)'],
+          ['Sent', counts.sent, 'var(--link)'],
+          ['Failed', counts.failed, 'var(--error-text)'],
         ].map(([label, n, color]) => (
           <div key={label as string} style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: '10px 16px', minWidth: 92 }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: color as string, lineHeight: 1 }}>{n as number}</div>
@@ -196,17 +196,17 @@ export default function ProspectsPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {prospects.map(p => {
-            const meta = STATUS_META[p.status] ?? { label: p.status, color: '#6b7280', bg: '#f3f4f6' }
+            const meta = STATUS_META[p.status] ?? { label: p.status, color: 'var(--ink-light)', bg: 'var(--surface)' }
             const inFlight = IN_FLIGHT.includes(p.status)
             const pct = Math.max(0, Math.min(100, p.progress_pct ?? 0))
             const busy = busyId === p.id
             return (
               <div key={p.id} style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 16, display: 'flex', gap: 16, alignItems: 'flex-start' }}>
                 {/* Thumb */}
-                <div style={{ width: 120, height: 68, borderRadius: 8, background: '#f1f5f9', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 120, height: 68, borderRadius: 8, background: 'var(--surface)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {p.thumbnail_url
                     ? <img src={p.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <span style={{ fontSize: 11, color: '#94a3b8' }}>{inFlight ? 'Rendering…' : 'No preview'}</span>}
+                    : <span style={{ fontSize: 11, color: 'var(--ink-light)' }}>{inFlight ? 'Rendering…' : 'No preview'}</span>}
                 </div>
 
                 {/* Main */}
@@ -221,14 +221,14 @@ export default function ProspectsPage() {
                   {/* Progress bar (in-flight) */}
                   {inFlight && (
                     <div style={{ marginTop: 8 }}>
-                      <div style={{ height: 6, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden' }}>
-                        <div style={{ width: `${pct}%`, height: '100%', background: '#0d9488', transition: 'width 0.4s' }} />
+                      <div style={{ height: 6, background: 'var(--surface)', borderRadius: 4, overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent-ink)', transition: 'width 0.4s' }} />
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4 }}>{p.stage_detail || 'Working…'} · {pct}%</div>
                     </div>
                   )}
                   {p.status === 'failed' && p.error_message && (
-                    <div style={{ marginTop: 6, fontSize: 12, color: '#b91c1c' }}>Error: {p.error_message}</div>
+                    <div style={{ marginTop: 6, fontSize: 12, color: 'var(--error-text)' }}>Error: {p.error_message}</div>
                   )}
                 </div>
 
@@ -243,7 +243,7 @@ export default function ProspectsPage() {
                       <button className="btn btn-sm btn-primary" disabled={busy} onClick={() => { setSendModal(p); setSendEmail(p.contact_email || ''); setSendName(p.contact_name || '') }}>Approve &amp; Send</button>
                       <button className="btn btn-sm btn-soft" disabled={busy} onClick={() => action(p, { regenerateId: p.id, url: p.url }, 'Regenerating…')}>Regenerate</button>
                       <InlineConfirm message="Reject this demo?" confirmLabel="Reject" onConfirm={() => action(p, { action: 'reject', prospectId: p.id }, 'Rejected.')}>
-                        <button className="btn btn-sm btn-soft" disabled={busy} style={{ color: '#b91c1c' }}>Reject</button>
+                        <button className="btn btn-sm btn-soft" disabled={busy} style={{ color: 'var(--error-text)' }}>Reject</button>
                       </InlineConfirm>
                     </>
                   )}

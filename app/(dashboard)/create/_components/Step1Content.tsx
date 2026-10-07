@@ -438,8 +438,8 @@ export default function Step1Content() {
                 textAlign: 'left',
                 padding: '10px 14px',
                 borderRadius: 8,
-                border: method === m.id ? '2px solid var(--mint)' : '1px solid var(--border)',
-                background: method === m.id ? 'var(--mint-light, #f0fae4)' : 'var(--bg)',
+                border: method === m.id ? '2px solid var(--accent-ink)' : '1px solid var(--border)',
+                background: method === m.id ? 'var(--accent-soft)' : 'var(--bg)',
                 cursor: 'pointer',
                 color: 'var(--ink)',
               }}
@@ -558,9 +558,9 @@ export default function Step1Content() {
         <div style={{
           padding: '12px 16px',
           borderRadius: 8,
-          background: '#FEF2F2',
-          border: '1px solid #FECACA',
-          color: '#DC2626',
+          background: 'var(--error-bg)',
+          border: '1px solid var(--error-border)',
+          color: 'var(--error)',
           fontSize: 13,
           marginBottom: 16,
         }}>
@@ -588,7 +588,7 @@ export default function Step1Content() {
             overflow: 'hidden', marginBottom: 16,
           }}>
             <div style={{
-              width: `${progressPct}%`, height: '100%', background: '#C7E8A8',
+              width: `${progressPct}%`, height: '100%', background: 'var(--accent-ink)',
               borderRadius: 4, transition: 'width 0.5s ease',
             }} />
           </div>
@@ -625,7 +625,8 @@ export default function Step1Content() {
             borderRadius: 10,
             border: 'none',
             background: stage === 'extracting' ? 'var(--border)' : 'var(--ink)',
-            color: '#fff',
+            // White on the pale "Reading…" grey can't be read; dark words there.
+            color: stage === 'extracting' ? 'var(--ink-soft)' : 'var(--on-ink)',
             fontSize: 16,
             fontWeight: 700,
             cursor: stage === 'extracting' ? 'not-allowed' : 'pointer',
@@ -637,8 +638,8 @@ export default function Step1Content() {
       {/* Other things this account can make — they used to be cards on a
           separate chooser page before this one. */}
       <div style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 14, textAlign: 'center' }}>
-        Making something else? <a href="/design" style={{ color: 'var(--primary, #2563eb)', fontWeight: 600 }}>Custom graphics</a>
-        {' · '}<a href="/create/commercial" style={{ color: 'var(--primary, #2563eb)', fontWeight: 600 }}>A commercial</a>
+        Making something else? <a href="/design" style={{ color: 'var(--link)', fontWeight: 600 }}>Custom graphics</a>
+        {' · '}<a href="/create/commercial" style={{ color: 'var(--link)', fontWeight: 600 }}>A commercial</a>
       </div>
     </div>
   )

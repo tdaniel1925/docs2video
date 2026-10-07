@@ -89,7 +89,7 @@ export default function RevenuePage() {
             <h2 style={s.sectionTitle}>Subscribers by Tier</h2>
             {Object.entries(tierBreakdown).length > 0 ? (
               Object.entries(tierBreakdown).sort((a, b) => b[1] - a[1]).map(([tier, count]) => (
-                <div key={tier} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-light, #f3f4f6)' }}>
+                <div key={tier} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
                   <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', textTransform: 'capitalize' }}>{tier}</span>
                   <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{count}</span>
                 </div>
@@ -137,7 +137,7 @@ export default function RevenuePage() {
                   <td style={s.td}>{new Date(p.date).toLocaleDateString()}</td>
                   <td style={s.td}>{p.email || '—'}</td>
                   <td style={s.td}>{p.description}</td>
-                  <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: '#22c55e' }}>{fmtCents(p.amount)}</td>
+                  <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: 'var(--success)' }}>{fmtCents(p.amount)}</td>
                 </tr>
               ))}
               {recentPayments.length === 0 && (
@@ -158,14 +158,14 @@ const s: Record<string, React.CSSProperties> = {
   subtitle: { fontSize: 14, color: 'var(--ink-soft)', marginBottom: 0 },
   backLink: { fontSize: 13, color: 'var(--ink-light)', textDecoration: 'none' },
   loading: { textAlign: 'center', padding: 48, color: 'var(--ink-light)' },
-  error: { textAlign: 'center', padding: 48, color: '#DC2626' },
+  error: { textAlign: 'center', padding: 48, color: 'var(--error)' },
   grid4: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 },
-  card: { padding: 20, borderRadius: 10, background: 'white', border: '1px solid var(--border-light, #e5e7eb)' },
+  card: { padding: 20, borderRadius: 10, background: 'white', border: '1px solid var(--border-light)' },
   cardLabel: { fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 },
   cardValue: { fontSize: 28, fontWeight: 800, color: 'var(--ink)' },
   cardSub: { fontSize: 12, color: 'var(--ink-light)', marginTop: 2 },
   sectionTitle: { fontSize: 16, fontWeight: 700, color: 'var(--ink)', marginBottom: 16 },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
   th: { textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid var(--border-light)', fontWeight: 600, color: 'var(--ink-light)', fontSize: 11, textTransform: 'uppercase' },
-  td: { padding: '8px 12px', borderBottom: '1px solid var(--border-light, #f3f4f6)', color: 'var(--ink)' },
+  td: { padding: '8px 12px', borderBottom: '1px solid var(--border-light)', color: 'var(--ink)' },
 }

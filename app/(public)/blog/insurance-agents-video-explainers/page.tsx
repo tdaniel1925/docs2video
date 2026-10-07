@@ -18,7 +18,7 @@ export default function InsuranceAgentsVideoPage() {
         </Link>
 
         <div style={{ marginBottom: 12, display: 'flex', gap: 12, alignItems: 'center', fontSize: 13 }}>
-          <span style={{ padding: '2px 10px', borderRadius: 6, background: 'rgba(59,181,200,0.1)', color: 'var(--mint)', fontWeight: 600 }}>Use Cases</span>
+          <span style={{ padding: '2px 10px', borderRadius: 6, background: 'var(--accent-soft)', color: 'var(--accent-ink)', fontWeight: 600 }}>Use Cases</span>
           <span style={{ color: 'var(--ink-light)' }}>May 21, 2026</span>
           <span style={{ color: 'var(--ink-light)' }}>6 min read</span>
         </div>
@@ -101,7 +101,7 @@ export default function InsuranceAgentsVideoPage() {
           </p>
         </div>
 
-        <div style={{ marginTop: 48, padding: '28px 32px', borderRadius: 10, background: 'var(--surface)', border: '2px solid var(--mint)', textAlign: 'center' }}>
+        <div style={{ marginTop: 48, padding: '28px 32px', borderRadius: 10, background: 'var(--surface)', border: '2px solid var(--accent-ink)', textAlign: 'center' }}>
           <h3 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Ready to try it?</h3>
           <p style={{ fontSize: 15, color: 'var(--ink-soft)', marginBottom: 16 }}>Turn your next document into a narrated video your client will actually watch.</p>
           <Link href="/signup" style={{ display: 'inline-block', padding: '12px 28px', borderRadius: 8, background: 'var(--ink)', color: 'white', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>

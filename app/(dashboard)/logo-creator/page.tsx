@@ -120,7 +120,7 @@ function VoiceInputButton({ onResult, disabled }: { onResult: (text: string) => 
       disabled={disabled || listening}
       title={listening ? 'Listening...' : 'Voice input'}
       style={{
-        background: listening ? 'var(--mint)' : 'none',
+        background: listening ? 'var(--accent)' : 'none',
         border: listening ? 'none' : '1px solid var(--border)',
         borderRadius: 8,
         padding: '6px 10px',
@@ -467,7 +467,7 @@ export default function LogoCreatorPage() {
                   maxWidth: '80%',
                   padding: '12px 18px',
                   borderRadius: 10,
-                  background: msg.role === 'user' ? 'var(--mint, #A8F0D4)' : 'white',
+                  background: msg.role === 'user' ? 'var(--accent)' : 'white',
                   border: msg.role === 'user' ? 'none' : '1px solid var(--border-light, #e2e8f0)',
                   fontSize: 14,
                   lineHeight: 1.6,
@@ -490,7 +490,7 @@ export default function LogoCreatorPage() {
                             padding: '8px 16px',
                             borderRadius: 10,
                             border: selectedMoods.includes(mood) ? '2px solid var(--mint-darker, #4a7c59)' : '1px solid var(--border, #e2e8f0)',
-                            background: selectedMoods.includes(mood) ? 'var(--mint, #A8F0D4)' : 'white',
+                            background: selectedMoods.includes(mood) ? 'var(--accent)' : 'white',
                             fontSize: 13,
                             fontWeight: selectedMoods.includes(mood) ? 600 : 400,
                             cursor: 'pointer',
@@ -558,7 +558,7 @@ export default function LogoCreatorPage() {
             style={{
               display: 'flex', gap: 8, padding: '12px 0 20px',
               borderTop: '1px solid var(--border-light, #e2e8f0)',
-              ...(dragOver ? { background: 'rgba(168,240,212,0.1)', borderRadius: 10, outline: '2px dashed var(--mint)' } : {}),
+              ...(dragOver ? { background: 'rgba(168,240,212,0.1)', borderRadius: 10, outline: '2px dashed var(--accent-ink)' } : {}),
             }}
           >
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} style={{ display: 'none' }} />
@@ -731,7 +731,7 @@ export default function LogoCreatorPage() {
                   className="btn btn-sm"
                   style={{
                     fontSize: 12, padding: '5px 14px',
-                    background: showBefore ? 'var(--mint, #A8F0D4)' : 'var(--bg-soft, #f8fafc)',
+                    background: showBefore ? 'var(--accent)' : 'var(--bg-soft, #f8fafc)',
                     border: '1px solid var(--border, #e2e8f0)',
                   }}
                 >

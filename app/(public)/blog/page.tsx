@@ -69,8 +69,8 @@ export default function BlogPage() {
             >
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 10, fontSize: 13 }}>
                 <span style={{
-                  padding: '2px 10px', borderRadius: 6, background: 'rgba(59,181,200,0.1)',
-                  color: 'var(--mint)', fontWeight: 600,
+                  padding: '2px 10px', borderRadius: 6, background: 'var(--accent-soft)',
+                  color: 'var(--accent-ink)', fontWeight: 600,
                 }}>{post.category}</span>
                 <span style={{ color: 'var(--ink-light)' }}>{post.date}</span>
                 <span style={{ color: 'var(--ink-light)' }}>{post.readTime} read</span>

@@ -10,7 +10,7 @@ export const INK = 'var(--ink,#23201c)'
 export const SOFT = 'var(--ink-soft,#6b6459)'
 export const LINE = 'var(--border,#ddd6cc)'
 export const CREAM = 'var(--cream,#F4F1EC)'
-export const MINT = 'var(--mint,#C7E8A8)'
+export const MINT = 'var(--accent)'
 
 export const card = {
   background: 'white', border: `1px solid ${LINE}`, borderRadius: 10, padding: 20,

@@ -157,7 +157,7 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink);
-  background: var(--mint);
+  background: var(--accent);
   padding: 3px 7px;
   border-radius: 6px;
 }
@@ -195,7 +195,8 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
 }
-.outputOn { border: 2px solid var(--ink); background: var(--sky, var(--bg-soft)); }
+/* Selected = navy edge on the soft mint tint (the light cyan was left over from the old palette). */
+.outputOn { border: 2px solid var(--ink); background: var(--accent-soft); }
 .radio {
   width: 18px;
   height: 18px;
@@ -227,7 +228,7 @@
   color: var(--ink);
   cursor: pointer;
 }
-.chipOn { border: 2px solid var(--ink); background: var(--sky, var(--bg-soft)); font-weight: 700; }
+.chipOn { border: 2px solid var(--ink); background: var(--accent-soft); font-weight: 700; }
 .chipSub { font-size: 12px; color: var(--ink-light); font-weight: 500; }
 .play {
   width: 26px;

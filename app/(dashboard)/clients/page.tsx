@@ -21,12 +21,14 @@ interface Client {
 }
 
 const STATUS_OPTIONS = ['all', 'lead', 'active', 'engaged', 'converted', 'inactive'] as const
+// One chip colour per status, from the shared names. "Active" stays blue (a
+// tint of the link colour) so it never reads the same as "engaged" (mint).
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  lead: { bg: '#f3f4f6', color: '#374151' },
-  active: { bg: '#dbeafe', color: '#1e40af' },
-  engaged: { bg: 'var(--mint, #d4f5e9)', color: '#166534' },
-  converted: { bg: '#fef3c7', color: '#92400e' },
-  inactive: { bg: '#fecaca', color: '#991b1b' },
+  lead: { bg: 'var(--surface)', color: 'var(--ink-soft)' },
+  active: { bg: 'color-mix(in srgb, var(--link) 12%, var(--bg-card))', color: 'var(--link)' },
+  engaged: { bg: 'var(--accent)', color: 'var(--accent-ink)' },
+  converted: { bg: 'var(--warning-bg)', color: 'var(--warning-text)' },
+  inactive: { bg: 'var(--error-bg)', color: 'var(--error-text)' },
 }
 
 export default function ClientsPage() {
@@ -188,12 +190,12 @@ export default function ClientsPage() {
 
       {/* Success/Error messages */}
       {formSuccess && (
-        <div style={{ padding: '10px 16px', background: 'var(--mint, #d4f5e9)', borderRadius: 8, marginBottom: 16, fontSize: 14, color: '#166534' }}>
+        <div style={{ padding: '10px 16px', background: 'var(--success-bg)', borderRadius: 8, marginBottom: 16, fontSize: 14, color: 'var(--success)' }}>
           {formSuccess}
         </div>
       )}
       {formError && (
-        <div style={{ padding: '10px 16px', background: '#fecaca', borderRadius: 8, marginBottom: 16, fontSize: 14, color: '#991b1b' }}>
+        <div style={{ padding: '10px 16px', background: 'var(--error-bg)', borderRadius: 8, marginBottom: 16, fontSize: 14, color: 'var(--error-text)' }}>
           {formError}
         </div>
       )}
@@ -256,10 +258,10 @@ export default function ClientsPage() {
           </div>
           {importResult && (
             <div style={{ marginTop: 12, fontSize: 13 }}>
-              <p style={{ color: '#166534' }}>Imported: {importResult.imported}</p>
-              {importResult.skipped > 0 && <p style={{ color: '#92400e' }}>Skipped (duplicates): {importResult.skipped}</p>}
+              <p style={{ color: 'var(--success)' }}>Imported: {importResult.imported}</p>
+              {importResult.skipped > 0 && <p style={{ color: 'var(--warning-text)' }}>Skipped (duplicates): {importResult.skipped}</p>}
               {importResult.errors.length > 0 && (
-                <div style={{ color: '#991b1b', marginTop: 4 }}>
+                <div style={{ color: 'var(--error-text)', marginTop: 4 }}>
                   {importResult.errors.map((e, i) => <p key={i}>{e}</p>)}
                 </div>
               )}

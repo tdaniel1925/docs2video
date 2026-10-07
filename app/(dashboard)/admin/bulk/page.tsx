@@ -294,7 +294,7 @@ export default function BulkGeneratePage() {
                 <div style={{
                   height: '100%',
                   width: `${(completed / items.length) * 100}%`,
-                  background: 'var(--mint)',
+                  background: 'var(--accent-ink)',
                   borderRadius: 8,
                   transition: 'width 0.3s ease',
                 }} />
@@ -338,8 +338,8 @@ export default function BulkGeneratePage() {
                               borderRadius: 6,
                               fontSize: 12,
                               fontWeight: 600,
-                              background: result.status === 'started' || result.status === 'queued' ? 'var(--mint, #d4f5e9)' : '#fee2e2',
-                              color: result.status === 'started' || result.status === 'queued' ? '#166534' : '#991b1b',
+                              background: result.status === 'started' || result.status === 'queued' ? 'var(--success-bg)' : 'var(--error-bg)',
+                              color: result.status === 'started' || result.status === 'queued' ? 'var(--success)' : 'var(--error-text)',
                             }}>
                               {result.status === 'started' ? 'Started' : result.status === 'queued' ? 'Queued' : 'Failed'}
                             </span>

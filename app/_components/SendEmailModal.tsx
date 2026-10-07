@@ -119,7 +119,7 @@ export default function SendEmailModal({ videoId, infographicId, title, clientNa
             </div>
 
             {error && (
-              <div style={{ borderRadius: 10, background: '#fde8e8', padding: '10px 16px', fontSize: 13, marginBottom: 16, color: '#b91c1c', fontWeight: 600 }}>
+              <div style={{ borderRadius: 10, background: 'var(--error-bg)', padding: '10px 16px', fontSize: 13, marginBottom: 16, color: 'var(--error-text)', fontWeight: 600 }}>
                 {error}
               </div>
             )}

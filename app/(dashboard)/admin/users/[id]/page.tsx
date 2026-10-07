@@ -125,7 +125,7 @@ export default function AdminUserDetailPage() {
         <div style={s.statCard}>
           <div style={s.statLabel}>Videos</div>
           <div style={s.statValue}>{completedVideos.length}</div>
-          {failedVideos.length > 0 && <div style={{ fontSize: 11, color: '#DC2626' }}>{failedVideos.length} failed</div>}
+          {failedVideos.length > 0 && <div style={{ fontSize: 11, color: 'var(--error)' }}>{failedVideos.length} failed</div>}
         </div>
         <div style={s.statCard}>
           <div style={s.statLabel}>Joined</div>
@@ -174,13 +174,13 @@ export default function AdminUserDetailPage() {
       {/* Live Stripe status — the real billing truth, so the admin can spot when
           the subscription_status flag doesn't match a real paying Stripe sub. */}
       {stripe && (
-        <div style={{ ...s.card, marginBottom: 20, ...(stripe.mismatch ? { border: '2px solid #DC2626', background: '#fef2f2' } : {}) }}>
+        <div style={{ ...s.card, marginBottom: 20, ...(stripe.mismatch ? { border: '2px solid var(--error)', background: 'var(--error-bg)' } : {}) }}>
           <h3 style={{ ...s.cardTitle, display: 'flex', alignItems: 'center', gap: 8, marginBottom: stripe.mismatch ? 8 : 12 }}>
             Stripe Billing
             <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: '#635bff', color: 'white' }}>LIVE</span>
           </h3>
           {stripe.mismatch && (
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#DC2626', marginBottom: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--error)', marginBottom: 12 }}>
               ⚠ MISMATCH — the plan flag (<span style={{ textTransform: 'capitalize' }}>{profile.subscription_status || 'free'}</span>) does not match Stripe
               {stripe.subscription ? ` (Stripe sub: ${stripe.subscription})` : ' (no active Stripe subscription)'}. Fix the plan or refund accordingly.
             </div>
@@ -191,7 +191,7 @@ export default function AdminUserDetailPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, fontSize: 13 }}>
               <div>
                 <div style={s.label}>Subscription</div>
-                <div style={{ fontWeight: 700, textTransform: 'capitalize', color: stripe.subscription ? (stripe.subscription === 'active' || stripe.subscription === 'trialing' ? '#059669' : '#D97706') : 'var(--ink-light)' }}>
+                <div style={{ fontWeight: 700, textTransform: 'capitalize', color: stripe.subscription ? (stripe.subscription === 'active' || stripe.subscription === 'trialing' ? 'var(--success)' : 'var(--warning-text)') : 'var(--ink-light)' }}>
                   {stripe.subscription || 'None'}
                 </div>
               </div>
@@ -218,7 +218,7 @@ export default function AdminUserDetailPage() {
           <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
             padding: '10px 16px', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer',
             background: 'none', color: activeTab === t.id ? 'var(--ink)' : 'var(--ink-light)',
-            borderBottom: activeTab === t.id ? '2px solid var(--mint, #C7E8A8)' : '2px solid transparent',
+            borderBottom: activeTab === t.id ? '2px solid var(--accent-ink)' : '2px solid transparent',
           }}>{t.label}</button>
         ))}
       </div>
@@ -247,12 +247,12 @@ export default function AdminUserDetailPage() {
                       <span style={{ fontSize: 11, color: 'var(--ink-light)' }}>{fmt(v.created_at)}</span>
                       <span style={{
                         fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
-                        background: v.status === 'completed' ? '#ecfdf5' : v.status === 'failed' ? '#fef2f2' : '#fffbeb',
-                        color: v.status === 'completed' ? '#059669' : v.status === 'failed' ? '#DC2626' : '#D97706',
+                        background: v.status === 'completed' ? 'var(--success-bg)' : v.status === 'failed' ? 'var(--error-bg)' : 'var(--warning-bg)',
+                        color: v.status === 'completed' ? 'var(--success)' : v.status === 'failed' ? 'var(--error)' : 'var(--warning-text)',
                       }}>{v.status}</span>
                     </div>
                     {v.status === 'completed' && (
-                      <a href={`/watch/${v.id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2563EB', textDecoration: 'none', display: 'block', marginTop: 6 }}>
+                      <a href={`/watch/${v.id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--link)', textDecoration: 'none', display: 'block', marginTop: 6 }}>
                         View &rarr;
                       </a>
                     )}
@@ -284,7 +284,7 @@ export default function AdminUserDetailPage() {
                   <tr key={tx.id}>
                     <td style={s.td}>{fmt(tx.created_at)}</td>
                     <td style={s.td}>{tx.action.replace(/_/g, ' ')}</td>
-                    <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: tx.amount > 0 ? '#059669' : tx.amount < 0 ? '#DC2626' : 'var(--ink-light)' }}>
+                    <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: tx.amount > 0 ? 'var(--success)' : tx.amount < 0 ? 'var(--error)' : 'var(--ink-light)' }}>
                       {tx.amount > 0 ? '+' : ''}{tx.amount}
                     </td>
                     <td style={{ ...s.td, textAlign: 'right' }}>{tx.balance_after}</td>
@@ -349,13 +349,13 @@ export default function AdminUserDetailPage() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  statCard: { padding: '14px 16px', borderRadius: 10, background: 'white', border: '1px solid var(--border-light, #e5e7eb)', textAlign: 'center' },
+  statCard: { padding: '14px 16px', borderRadius: 10, background: 'white', border: '1px solid var(--border-light)', textAlign: 'center' },
   statLabel: { fontSize: 11, fontWeight: 600, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 },
   statValue: { fontSize: 22, fontWeight: 800, color: 'var(--ink)' },
-  card: { padding: 20, borderRadius: 10, background: 'white', border: '1px solid var(--border-light, #e5e7eb)' },
+  card: { padding: 20, borderRadius: 10, background: 'white', border: '1px solid var(--border-light)' },
   cardTitle: { fontSize: 15, fontWeight: 700, marginBottom: 12, color: 'var(--ink)' },
   label: { fontWeight: 600, color: 'var(--ink-light)' },
-  videoCard: { borderRadius: 10, background: 'white', border: '1px solid var(--border-light, #e5e7eb)', overflow: 'hidden' },
+  videoCard: { borderRadius: 10, background: 'white', border: '1px solid var(--border-light)', overflow: 'hidden' },
   th: { textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid var(--border-light)', fontWeight: 600, color: 'var(--ink-light)', fontSize: 11, textTransform: 'uppercase' },
-  td: { padding: '8px 12px', borderBottom: '1px solid var(--border-light, #f3f4f6)', color: 'var(--ink)' },
+  td: { padding: '8px 12px', borderBottom: '1px solid var(--border-light)', color: 'var(--ink)' },
 }

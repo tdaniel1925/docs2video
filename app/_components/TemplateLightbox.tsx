@@ -170,7 +170,7 @@ export default function TemplateLightbox({ initialIndex, onClose, showCTA = true
                 borderRadius: 6,
                 objectFit: 'cover',
                 cursor: 'pointer',
-                border: i === index ? '2px solid var(--mint)' : '2px solid transparent',
+                border: i === index ? '2px solid var(--accent)' : '2px solid transparent',
                 opacity: i === index ? 1 : 0.5,
                 transition: 'all 0.15s ease',
                 flexShrink: 0,

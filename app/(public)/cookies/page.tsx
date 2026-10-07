@@ -221,8 +221,8 @@ export default function CookiePolicyPage() {
             <strong style={{ color: 'var(--ink)' }}>Docs2Video.com</strong><br />
             27675 Nelson Way, 225<br />
             Katy, Texas 77494<br />
-            Email: <a href="mailto:support@docs2video.com" style={{ color: 'var(--mint)' }}>support@docs2video.com</a><br />
-            Website: <a href="https://docs2video.com" style={{ color: 'var(--mint)' }}>docs2video.com</a>
+            Email: <a href="mailto:support@docs2video.com" style={{ color: 'var(--link)' }}>support@docs2video.com</a><br />
+            Website: <a href="https://docs2video.com" style={{ color: 'var(--link)' }}>docs2video.com</a>
           </div>
         </div>
 

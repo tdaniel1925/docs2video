@@ -122,7 +122,7 @@ export default function BrandsPage() {
                   onClick={() => setConfirmDelete('bulk')}
                   style={{
                     padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                    background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5',
+                    background: 'var(--error-bg)', color: 'var(--error-text)', border: '1px solid var(--error-border)',
                     cursor: 'pointer',
                   }}
                 >
@@ -130,9 +130,9 @@ export default function BrandsPage() {
                 </button>
               )}
               {confirmDelete === 'bulk' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', borderRadius: 8, background: '#fee2e2', border: '1px solid #fca5a5' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#b91c1c' }}>Delete {selectedIds.size} brand{selectedIds.size > 1 ? 's' : ''}?</span>
-                  <button onClick={handleBulkDelete} disabled={bulkDeleting} style={{ padding: '4px 12px', borderRadius: 6, border: 'none', background: '#b91c1c', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', borderRadius: 8, background: 'var(--error-bg)', border: '1px solid var(--error-border)' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--error-text)' }}>Delete {selectedIds.size} brand{selectedIds.size > 1 ? 's' : ''}?</span>
+                  <button onClick={handleBulkDelete} disabled={bulkDeleting} style={{ padding: '4px 12px', borderRadius: 6, border: 'none', background: 'var(--error-text)', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                     {bulkDeleting ? 'Deleting...' : 'Yes, delete'}
                   </button>
                   <button onClick={() => setConfirmDelete(null)} style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--ink-soft)' }}>
@@ -150,7 +150,7 @@ export default function BrandsPage() {
                 className="brand-card"
                 style={{
                   position: 'relative',
-                  border: selectedIds.has(brand.id) ? '2px solid var(--mint)' : undefined,
+                  border: selectedIds.has(brand.id) ? '2px solid var(--accent-ink)' : undefined,
                 }}
               >
                 {/* Select checkbox */}
@@ -159,8 +159,9 @@ export default function BrandsPage() {
                     onClick={(e) => { e.stopPropagation(); toggleSelect(brand.id) }}
                     style={{
                       position: 'absolute', top: 8, left: 8, width: 22, height: 22,
-                      borderRadius: 6, border: selectedIds.has(brand.id) ? '2px solid var(--mint)' : '2px solid var(--border)',
-                      background: selectedIds.has(brand.id) ? 'var(--mint)' : 'white',
+                      // A ticked box is filled dark green so the white tick stays readable.
+                      borderRadius: 6, border: selectedIds.has(brand.id) ? '2px solid var(--accent-ink)' : '2px solid var(--border)',
+                      background: selectedIds.has(brand.id) ? 'var(--accent-ink)' : 'white',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       cursor: 'pointer', zIndex: 2, fontSize: 12, color: 'white', fontWeight: 700,
                     }}
@@ -176,15 +177,15 @@ export default function BrandsPage() {
                     style={{
                       position: 'absolute', top: 6, right: 6, zIndex: 3,
                       background: 'white', borderRadius: 8, padding: '6px 10px',
-                      border: '1px solid #fca5a5', boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      border: '1px solid var(--error-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                       display: 'flex', alignItems: 'center', gap: 6, fontSize: 12,
                     }}
                   >
-                    <span style={{ color: '#b91c1c', fontWeight: 600 }}>Delete?</span>
+                    <span style={{ color: 'var(--error-text)', fontWeight: 600 }}>Delete?</span>
                     <button
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(brand.id) }}
                       disabled={deleting === brand.id}
-                      style={{ padding: '3px 10px', borderRadius: 6, border: 'none', background: '#b91c1c', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                      style={{ padding: '3px 10px', borderRadius: 6, border: 'none', background: 'var(--error-text)', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                     >
                       {deleting === brand.id ? '...' : 'Yes'}
                     </button>
@@ -205,7 +206,7 @@ export default function BrandsPage() {
                       alignItems: 'center', justifyContent: 'center', zIndex: 2,
                       fontSize: 14, color: 'var(--ink-light)', transition: 'all 0.15s',
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#b91c1c'; e.currentTarget.style.borderColor = '#fca5a5' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--error-bg)'; e.currentTarget.style.color = 'var(--error-text)'; e.currentTarget.style.borderColor = 'var(--error-border)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = 'var(--ink-light)'; e.currentTarget.style.borderColor = 'var(--border-light)' }}
                     title="Delete brand"
                   >

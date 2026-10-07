@@ -605,7 +605,7 @@ export default function HelpPage() {
                 transition: 'all 0.2s ease',
               }}
               onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.borderColor = 'var(--mint)'
+                (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-ink)'
                 ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
                 ;(e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'
               }}
@@ -722,7 +722,7 @@ export default function HelpPage() {
                       <p key={i} style={{ margin: '8px 0' }} dangerouslySetInnerHTML={{
                         __html: paragraph
                           .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--ink)">$1</strong>')
-                          .replace(/^• /gm, '<span style="color:var(--mint-darker,#2d7a4f)">&#8226;</span> ')
+                          .replace(/^• /gm, '<span style="color:var(--mint-darker)">&#8226;</span> ')
                       }} />
                     ))}
                   </div>
@@ -736,7 +736,7 @@ export default function HelpPage() {
       {/* Still need help? */}
       <div style={{
         marginTop: 32, padding: '24px 28px', borderRadius: 10,
-        background: 'rgba(168,240,212,0.1)', border: '1px solid var(--mint)',
+        background: 'var(--accent-soft)', border: '1px solid var(--accent)',
         textAlign: 'center',
       }}>
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Still need help?</div>

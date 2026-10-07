@@ -70,7 +70,7 @@ export default function LogsPage() {
     } catch { /* ignore */ }
   }
 
-  const sevColor = (sev: string) => sev === 'critical' ? '#dc2626' : sev === 'warning' ? '#d97706' : '#b91c1c'
+  const sevColor = (sev: string) => sev === 'critical' ? 'var(--error)' : sev === 'warning' ? 'var(--warning)' : 'var(--error-text)'
 
   return (
     <div style={s.page}>
@@ -159,7 +159,7 @@ export default function LogsPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {vercel.map((v) => (
                 <div key={v.id} style={s.vercelRow}>
-                  <span style={{ ...s.badge, background: v.level.toLowerCase().includes('error') ? '#fee2e2' : '#fef3c7' }}>{v.level}</span>
+                  <span style={{ ...s.badge, background: v.level.toLowerCase().includes('error') ? 'var(--error-bg)' : 'var(--warning-bg)' }}>{v.level}</span>
                   <span style={s.vercelMsg}>{v.message}</span>
                   <span style={s.time}>{v.timestampMs ? new Date(v.timestampMs).toLocaleTimeString() : ''}</span>
                 </div>
@@ -188,16 +188,16 @@ const s: Record<string, React.CSSProperties> = {
   rowHead: { display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' },
   msg: { fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   subline: { display: 'flex', gap: 8, alignItems: 'center', marginTop: 4, flexWrap: 'wrap' },
-  badge: { fontSize: 11, fontWeight: 700, background: '#eef2ff', color: '#3730a3', padding: '2px 8px', borderRadius: 6 },
+  badge: { fontSize: 11, fontWeight: 700, background: 'var(--surface)', color: 'var(--ink-soft)', padding: '2px 8px', borderRadius: 6 },
   badgeMuted: { fontSize: 11, color: 'var(--ink-light)', fontFamily: 'monospace' },
-  count: { fontSize: 12, fontWeight: 700, color: '#b91c1c' },
+  count: { fontSize: 12, fontWeight: 700, color: 'var(--error-text)' },
   time: { fontSize: 12, color: 'var(--ink-light)' },
   chevron: { fontSize: 14, color: 'var(--ink-light)' },
   expand: { marginTop: 12, borderTop: '1px solid var(--border-light)', paddingTop: 12 },
-  pre: { background: '#f8f8f8', border: '1px solid #eee', borderRadius: 8, padding: 10, fontSize: 12, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 220, overflow: 'auto' },
+  pre: { background: 'var(--bg-soft)', border: '1px solid var(--border-light)', borderRadius: 8, padding: 10, fontSize: 12, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 220, overflow: 'auto' },
   fixHead: { fontWeight: 700, fontSize: 13, marginTop: 12 },
   fixSrc: { fontWeight: 400, color: 'var(--ink-soft)' },
-  fixBox: { background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, padding: 12, fontSize: 13, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginTop: 6, color: '#065f46' },
+  fixBox: { background: 'var(--success-bg)', border: '1px solid var(--accent)', borderRadius: 8, padding: 12, fontSize: 13, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginTop: 6, color: 'var(--success)' },
   diagBtn: { background: 'var(--ink)', color: 'white', border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   rediagBtn: { background: 'white', color: 'var(--ink)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '6px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   resolveBtn: { background: 'white', color: 'var(--ink)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '6px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
@@ -205,5 +205,5 @@ const s: Record<string, React.CSSProperties> = {
   vercelMsg: { flex: 1, fontSize: 13, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   loading: { color: 'var(--ink-soft)' },
   muted: { color: 'var(--ink-soft)' },
-  errorBox: { padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 14, marginBottom: 16 },
+  errorBox: { padding: '12px 16px', borderRadius: 10, background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)', fontSize: 14, marginBottom: 16 },
 }

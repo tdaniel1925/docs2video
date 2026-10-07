@@ -138,7 +138,7 @@ export default function PhotoFixerPage() {
       </div>
 
       {error && (
-        <div style={{ borderRadius: 10, background: 'var(--rose-light, #fde8e8)', padding: '10px 16px', fontSize: 13, color: 'var(--ink)', fontWeight: 600, marginBottom: 16 }}>
+        <div style={{ borderRadius: 10, background: 'var(--error-bg)', padding: '10px 16px', fontSize: 13, color: 'var(--error-text)', fontWeight: 600, marginBottom: 16 }}>
           {error}
         </div>
       )}
@@ -151,9 +151,9 @@ export default function PhotoFixerPage() {
             onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
             onDragLeave={() => setDragOver(false)}
             style={{
-              border: `2px dashed ${dragOver ? 'var(--mint)' : 'var(--border)'}`,
+              border: `2px dashed ${dragOver ? 'var(--accent-ink)' : 'var(--border)'}`,
               borderRadius: 10, padding: '48px 24px', cursor: 'pointer',
-              background: dragOver ? 'rgba(168,240,212,0.08)' : 'var(--bg-soft)',
+              background: dragOver ? 'var(--accent-soft)' : 'var(--bg-soft)',
               transition: 'all 0.2s',
             }}
           >
@@ -183,7 +183,7 @@ export default function PhotoFixerPage() {
               <button key={opt.id} onClick={() => setSelectedFix(opt.id)}
                 style={{
                   padding: '16px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'center',
-                  background: 'white', border: selectedFix === opt.id ? '2px solid var(--mint)' : '1px solid var(--border-light)',
+                  background: 'white', border: selectedFix === opt.id ? '2px solid var(--accent-ink)' : '1px solid var(--border-light)',
                   transition: 'all 0.15s',
                 }}>
                 <div style={{ fontSize: 24, marginBottom: 6 }}>{opt.icon}</div>
@@ -214,7 +214,7 @@ export default function PhotoFixerPage() {
       {/* Step 3: Processing */}
       {step === 'processing' && (
         <div className="settings-card" style={{ textAlign: 'center', padding: '64px 24px' }}>
-          <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid var(--mint)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+          <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid var(--accent-ink)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
           <p style={{ fontSize: 16, fontWeight: 700 }}>
             {selectedFix === 'headshot-pack' ? 'Generating 5 headshot styles...' : 'Fixing your photo...'}
           </p>
@@ -237,7 +237,7 @@ export default function PhotoFixerPage() {
               </div>
               <div style={{ width: 1, background: 'var(--border)', margin: '28px 16px 0' }} />
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, color: 'var(--mint-darker, #2d7a4f)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>After</div>
+                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, color: 'var(--mint-darker)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>After</div>
                 <div style={{ height: 300, background: 'var(--bg-soft)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <img src={resultImage} alt="After" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
                 </div>

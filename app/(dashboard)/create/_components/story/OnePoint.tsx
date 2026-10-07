@@ -110,7 +110,7 @@ export default function OnePoint({ brief, building, showQuestions, answers, setA
 }
 
 const box: React.CSSProperties = {
-  background: 'color-mix(in srgb, var(--mint) 12%, var(--bg-card))',
-  border: '1px solid color-mix(in srgb, var(--mint) 45%, var(--border-light))',
+  background: 'var(--accent-soft)',
+  border: '1px solid var(--accent)',
   borderRadius: 10, padding: '18px 20px', marginBottom: 18,
 }

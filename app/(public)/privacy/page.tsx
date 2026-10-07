@@ -189,7 +189,7 @@ export default function PrivacyPolicyPage() {
             <li><strong>Withdraw consent:</strong> Where processing is based on consent, you may withdraw it at any time.</li>
           </ul>
           <p style={pStyle}>
-            To exercise any of these rights, please contact us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--mint)' }}>support@docs2video.com</a>. We will respond to your request within 30 days.
+            To exercise any of these rights, please contact us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--link)' }}>support@docs2video.com</a>. We will respond to your request within 30 days.
           </p>
         </div>
 
@@ -197,7 +197,7 @@ export default function PrivacyPolicyPage() {
         <div style={sectionStyle}>
           <h2 style={h2Style}>7. Children&apos;s Privacy</h2>
           <p style={pStyle}>
-            Docs2Video is not intended for use by individuals under the age of 18. We do not knowingly collect personal information from children under 18. If we become aware that we have collected personal data from a child under 18, we will take steps to delete such information promptly. If you believe a child under 18 has provided us with personal information, please contact us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--mint)' }}>support@docs2video.com</a>.
+            Docs2Video is not intended for use by individuals under the age of 18. We do not knowingly collect personal information from children under 18. If we become aware that we have collected personal data from a child under 18, we will take steps to delete such information promptly. If you believe a child under 18 has provided us with personal information, please contact us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--link)' }}>support@docs2video.com</a>.
           </p>
         </div>
 
@@ -243,7 +243,7 @@ export default function PrivacyPolicyPage() {
             <li><strong>Right to Non-Discrimination:</strong> We will not discriminate against you for exercising your privacy rights.</li>
           </ul>
           <p style={pStyle}>
-            To exercise your CCPA rights, please contact us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--mint)' }}>support@docs2video.com</a>. We will verify your identity before processing your request.
+            To exercise your CCPA rights, please contact us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--link)' }}>support@docs2video.com</a>. We will verify your identity before processing your request.
           </p>
         </div>
 
@@ -265,7 +265,7 @@ export default function PrivacyPolicyPage() {
 
           <h3 style={h3Style}>Data Protection Officer</h3>
           <p style={pStyle}>
-            For GDPR-related inquiries, please contact us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--mint)' }}>support@docs2video.com</a>.
+            For GDPR-related inquiries, please contact us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--link)' }}>support@docs2video.com</a>.
           </p>
 
           <h3 style={h3Style}>Right to Lodge a Complaint</h3>
@@ -307,8 +307,8 @@ export default function PrivacyPolicyPage() {
             <strong style={{ color: 'var(--ink)' }}>Docs2Video.com</strong><br />
             27675 Nelson Way, 225<br />
             Katy, Texas 77494<br />
-            Email: <a href="mailto:support@docs2video.com" style={{ color: 'var(--mint)' }}>support@docs2video.com</a><br />
-            Website: <a href="https://docs2video.com" style={{ color: 'var(--mint)' }}>docs2video.com</a>
+            Email: <a href="mailto:support@docs2video.com" style={{ color: 'var(--link)' }}>support@docs2video.com</a><br />
+            Website: <a href="https://docs2video.com" style={{ color: 'var(--link)' }}>docs2video.com</a>
           </div>
         </div>
 

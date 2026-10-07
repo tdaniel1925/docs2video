@@ -379,7 +379,7 @@ export default function SetupPage() {
         {/* Progress */}
         <div style={{ display: 'flex', gap: 4, marginTop: 18 }}>
           {stepLabels.map((label, i) => (
-            <div key={label} style={{ flex: 1, height: 6, borderRadius: 100, background: i + 1 <= step ? 'var(--mint)' : 'var(--bg)', transition: 'background 0.3s' }} />
+            <div key={label} style={{ flex: 1, height: 6, borderRadius: 100, background: i + 1 <= step ? 'var(--accent-ink)' : 'var(--bg)', transition: 'background 0.3s' }} />
           ))}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
@@ -442,7 +442,7 @@ export default function SetupPage() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
               {photoUrl ? (
                 <div style={{ position: 'relative' }}>
-                  <img src={photoUrl} alt="Headshot" style={{ width: 110, height: 110, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--mint)' }} />
+                  <img src={photoUrl} alt="Headshot" style={{ width: 110, height: 110, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent)' }} />
                   <button onClick={() => setPhotoUrl(null)}
                     style={{ position: 'absolute', top: -4, right: -4, width: 22, height: 22, borderRadius: '50%', background: 'var(--rose)', color: 'white', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>x</button>
                 </div>
@@ -476,7 +476,7 @@ export default function SetupPage() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
               {photoMidlevelUrl ? (
                 <div style={{ position: 'relative' }}>
-                  <img src={photoMidlevelUrl} alt="Mid-level" style={{ width: 90, height: 110, borderRadius: 10, objectFit: 'cover', border: '3px solid var(--mint)' }} />
+                  <img src={photoMidlevelUrl} alt="Mid-level" style={{ width: 90, height: 110, borderRadius: 10, objectFit: 'cover', border: '3px solid var(--accent)' }} />
                   <button onClick={() => setPhotoMidlevelUrl(null)}
                     style={{ position: 'absolute', top: -4, right: -4, width: 22, height: 22, borderRadius: '50%', background: 'var(--rose)', color: 'white', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>x</button>
                 </div>
@@ -510,7 +510,7 @@ export default function SetupPage() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
               {photoStandingUrl ? (
                 <div style={{ position: 'relative' }}>
-                  <img src={photoStandingUrl} alt="Standing" style={{ width: 90, height: 110, borderRadius: 10, objectFit: 'cover', border: '3px solid var(--mint)' }} />
+                  <img src={photoStandingUrl} alt="Standing" style={{ width: 90, height: 110, borderRadius: 10, objectFit: 'cover', border: '3px solid var(--accent)' }} />
                   <button onClick={() => setPhotoStandingUrl(null)}
                     style={{ position: 'absolute', top: -4, right: -4, width: 22, height: 22, borderRadius: '50%', background: 'var(--rose)', color: 'white', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>x</button>
                 </div>
@@ -649,8 +649,8 @@ export default function SetupPage() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 14,
                   padding: '14px 18px', borderRadius: 10, cursor: 'pointer',
-                  background: selectedVoice === voice.id ? 'rgba(168,240,212,0.12)' : 'white',
-                  border: selectedVoice === voice.id ? '2px solid var(--mint)' : '1px solid var(--border-light)',
+                  background: selectedVoice === voice.id ? 'var(--accent-soft)' : 'white',
+                  border: selectedVoice === voice.id ? '2px solid var(--accent-ink)' : '1px solid var(--border-light)',
                   transition: 'all 0.15s',
                 }}
               >
@@ -691,8 +691,8 @@ export default function SetupPage() {
                 {/* Selected indicator */}
                 {selectedVoice === voice.id && (
                   <span style={{
-                    fontSize: 11, fontWeight: 700, color: 'var(--mint-darker, #2d7a4f)',
-                    background: 'var(--mint, #d4edda)', padding: '4px 10px', borderRadius: 6,
+                    fontSize: 11, fontWeight: 700, color: 'var(--mint-darker)',
+                    background: 'var(--accent)', padding: '4px 10px', borderRadius: 6,
                   }}>
                     Selected
                   </span>
@@ -737,7 +737,7 @@ export default function SetupPage() {
                   {SLIDE_STYLES.find(s => s.id === selectedStyle)?.description}
                 </p>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--mint-darker, #2d7a4f)', background: 'var(--mint, #d4edda)', padding: '4px 10px', borderRadius: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--mint-darker)', background: 'var(--accent)', padding: '4px 10px', borderRadius: 6 }}>
                 Selected
               </span>
             </div>
@@ -783,12 +783,12 @@ export default function SetupPage() {
           <div style={{ padding: '20px', background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border-light)' }}>
             <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Your plan</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--mint-darker, #2d7a4f)', background: 'var(--mint, #d4edda)', padding: '3px 8px', borderRadius: 6 }}>FREE</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--mint-darker)', background: 'var(--accent)', padding: '3px 8px', borderRadius: 6 }}>FREE</span>
               <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{FREE_PLAN.monthlyCredits.toLocaleString()} free credits (about {FREE_PLAN.approxStandardVideos} standard videos) &middot; top up anytime from $10</span>
             </div>
             <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
               <strong style={{ color: 'var(--ink)' }}>Need more?</strong> Subscription plans start at ${Math.round(CHEAPEST_PLAN.monthlyPrice / 100)}/mo for about {CHEAPEST_PLAN.approxStandardVideos} standard videos a month.{' '}
-              <button onClick={() => setShowPlansModal(true)} style={{ color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600, cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', textDecoration: 'underline' }}>View plans &rarr;</button>
+              <button onClick={() => setShowPlansModal(true)} style={{ color: 'var(--mint-darker)', fontWeight: 600, cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', textDecoration: 'underline' }}>View plans &rarr;</button>
             </div>
           </div>
         </div>
@@ -819,7 +819,7 @@ export default function SetupPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', background: 'var(--bg-soft)', borderBottom: '1px solid var(--border-light)' }}>
                 <div style={{ padding: '12px 16px', fontSize: 12, fontWeight: 700, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em' }}></div>
                 {MODAL_PLANS.map((p) => (
-                  <div key={p.tier} style={{ padding: '12px 16px', textAlign: 'center', position: 'relative', ...(p.tier === 'pro' ? { background: 'var(--mint, #d4edda)' } : {}) }}>
+                  <div key={p.tier} style={{ padding: '12px 16px', textAlign: 'center', position: 'relative', ...(p.tier === 'pro' ? { background: 'var(--accent)' } : {}) }}>
                     {p.tier === 'pro' && (
                       <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--ink)', color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>RECOMMENDED</div>
                     )}
@@ -838,7 +838,7 @@ export default function SetupPage() {
                 <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', borderBottom: '1px solid var(--border-light)' }}>
                   <div style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{row.label}</div>
                   {row.values.map((val, j) => (
-                    <div key={j} style={{ padding: '10px 16px', fontSize: 13, textAlign: 'center', color: row.highlight ? 'var(--mint-darker, #2d7a4f)' : 'var(--ink-soft)', fontWeight: row.highlight ? 700 : 400, background: MODAL_PLANS[j]?.tier === 'pro' ? 'rgba(199,232,168,0.08)' : 'transparent' }}>
+                    <div key={j} style={{ padding: '10px 16px', fontSize: 13, textAlign: 'center', color: row.highlight ? 'var(--mint-darker)' : 'var(--ink-soft)', fontWeight: row.highlight ? 700 : 400, background: MODAL_PLANS[j]?.tier === 'pro' ? 'var(--accent-soft)' : 'transparent' }}>
                       {val}
                     </div>
                   ))}
@@ -887,7 +887,7 @@ export default function SetupPage() {
       )}
 
       {error && (
-        <div style={{ marginTop: 16, borderRadius: 10, background: 'var(--rose-light, #fde8e8)', padding: '10px 16px', fontSize: 13, color: 'var(--ink)', fontWeight: 600 }}>
+        <div style={{ marginTop: 16, borderRadius: 10, background: 'var(--error-bg)', padding: '10px 16px', fontSize: 13, color: 'var(--ink)', fontWeight: 600 }}>
           {error}
         </div>
       )}

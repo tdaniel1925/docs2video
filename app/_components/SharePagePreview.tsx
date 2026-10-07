@@ -71,7 +71,7 @@ export default function SharePagePreview() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{
                   width: 40, height: 40, borderRadius: '50%',
-                  background: 'var(--mint)',
+                  background: 'var(--accent)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 14, fontWeight: 800, color: 'var(--ink)',
                 }}>HF</div>
@@ -117,7 +117,7 @@ export default function SharePagePreview() {
             <div style={{ padding: '0 24px 24px', display: 'flex', gap: 10 }}>
               <button style={{
                 flex: 1, padding: '14px 0', borderRadius: 10, border: 'none',
-                background: 'var(--mint)', color: 'var(--ink)',
+                background: 'var(--accent)', color: 'var(--ink)',
                 fontSize: 14, fontWeight: 700, cursor: 'pointer',
               }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{verticalAlign:'-2px',marginRight:6}}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -125,7 +125,7 @@ export default function SharePagePreview() {
               </button>
               <button style={{
                 flex: 1, padding: '14px 0', borderRadius: 10, border: 'none',
-                background: 'var(--ink)', color: 'white',
+                background: 'var(--ink)', color: 'var(--on-ink)',
                 fontSize: 14, fontWeight: 700, cursor: 'pointer',
               }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{verticalAlign:'-2px',marginRight:6}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -133,7 +133,7 @@ export default function SharePagePreview() {
               </button>
               <button style={{
                 flex: 1, padding: '14px 0', borderRadius: 10,
-                border: '2px solid var(--mint)', background: 'transparent',
+                border: '2px solid var(--accent-ink)', background: 'transparent',
                 color: 'var(--ink)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
               }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{verticalAlign:'-2px',marginRight:6}}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>

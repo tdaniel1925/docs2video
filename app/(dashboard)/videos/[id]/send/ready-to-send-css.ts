@@ -16,7 +16,7 @@ export const READY_TO_SEND_CSS = `
 .rts-open { font-size: 12px; font-weight: 700; color: var(--mint-darker); text-decoration: none; white-space: nowrap; flex-shrink: 0; }
 .rts-page { padding: 18px; background: var(--bg-soft); }
 .rts-page-title { font-size: 18px; font-weight: 800; color: var(--ink); margin-bottom: 12px; text-align: center; }
-.rts-greeting { padding: 10px 14px; border-radius: 10px; background: var(--sky); border: 1px solid var(--mint); color: var(--ink); font-weight: 600; font-size: 14px; text-align: center; }
+.rts-greeting { padding: 10px 14px; border-radius: 10px; background: var(--accent-soft); border: 1px solid var(--accent); color: var(--ink); font-weight: 600; font-size: 14px; text-align: center; }
 .rts-note { padding: 10px 14px; border-radius: 10px; background: var(--bg-card); border: 1px solid var(--border-light); color: var(--ink-soft); font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 .rts-page-main { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 14px; align-items: start; }
 .rts-page-main.single { grid-template-columns: minmax(0, 1fr); }
@@ -24,8 +24,9 @@ export const READY_TO_SEND_CSS = `
 .rts-media { aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: var(--ink); border: 1px solid var(--border-light); }
 .rts-side { display: flex; flex-direction: column; gap: 8px; }
 .rts-fake-btn { display: flex; align-items: center; justify-content: center; min-height: 38px; padding: 6px 10px; border-radius: 10px; font-size: 13px; font-weight: 700; text-align: center; cursor: default; user-select: none; }
-.rts-fake-btn.primary { background: var(--mint); color: #fff; }
-.rts-fake-btn.dark { background: var(--ink); color: #fff; }
+/* Words on the mint fill are navy: white on pale mint can't be read. */
+.rts-fake-btn.primary { background: var(--accent); color: var(--ink); }
+.rts-fake-btn.dark { background: var(--ink); color: var(--on-ink); }
 .rts-fake-btn.outline { background: var(--bg-card); color: var(--ink); border: 1px solid var(--border); }
 .rts-fake-btn.small { min-height: 32px; font-size: 12px; margin-top: 6px; }
 .rts-quote { padding: 10px 12px; border-radius: 10px; background: var(--bg-card); border: 1px solid var(--border-light); }
@@ -48,7 +49,7 @@ export const READY_TO_SEND_CSS = `
 .rts-switch { position: relative; flex-shrink: 0; width: 40px; height: 24px; padding: 0; border: none; border-radius: 12px; background: var(--border); cursor: pointer; transition: background 0.15s; }
 .rts-switch.on { background: var(--ink); }
 .rts-switch:disabled { opacity: 0.5; cursor: not-allowed; }
-.rts-switch:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
-.rts-knob { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: left 0.15s; }
+.rts-switch:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.rts-knob { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--bg-card); box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: left 0.15s; }
 .rts-switch.on .rts-knob { left: 19px; }
 `

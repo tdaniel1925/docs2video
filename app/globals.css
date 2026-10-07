@@ -1,42 +1,70 @@
 @import "tailwindcss";
 
 :root {
-  /* Core — derived from logo */
-  --bg: #F0F4F8;
-  --bg-soft: #F7F9FB;
-  --bg-card: #FFFFFF;
-  /* Named "mint" for history; it is the logo's CYAN. Renaming it would touch
-     hundreds of call sites for no behaviour. */
-  --mint: #00A0E0;           /* Cyan — "Video" and the arrow */
-  --mint-deep: #0088C4;
-  --mint-darker: #0A6C99;
-  --ink: #002B63;            /* Navy — the ground the wordmark sits on */
-  --ink-soft: #2A4A77;
-  --ink-light: #6B84A3;
-  --border: #D4DCE4;
-  --border-light: #E8EDF2;
+  /* ONE COLOUR SET for the app, the share page and the marketing site — the
+     redesign's warm cream, mint and navy (owner decision 2026-10-06). The
+     marketing site's --mk-* names further down are aliases of these, so the
+     two can never drift apart again. Every words-on-ground pair below
+     measures at least 4.5:1. */
+  --bg: #F4F1EC;             /* cream page */
+  --bg-soft: #FBF9F5;        /* soft panels */
+  --bg-card: #FFFFFF;        /* cards */
+  --ink: #0B2545;            /* navy — headings and the main button */
+  --ink-body: #1F2A37;       /* running text on the marketing pages */
+  --ink-soft: #4B5563;       /* body text */
+  --ink-light: #5B6270;      /* quiet text; still 4.5:1 on every ground */
+  --on-ink: #FFFFFF;         /* words on navy (main button, dark panels) */
+  --border: #D6CFC2;
+  --border-light: #E6E0D5;
 
-  /* Accents — complementary to logo */
+  /* Mint is too pale for words on cream (1.2:1), so it has two jobs with two
+     names: --accent FILLS (progress, selected, the mint button) and
+     --accent-ink is the same green dark enough to read. On navy, plain
+     --accent reads fine (11:1). */
+  --accent: #C7E8A8;
+  --accent-ink: #2F6B3A;
+  --accent-soft: #EEF7E4;    /* tints behind accent words */
+  --link: #1F5FA8;           /* links and the focus ring */
+  --gold: #9A6200;           /* money only — prices, credits. Sits on white,
+                                cream or --gold-soft (not on the grey wells). */
+  --gold-soft: #FFF6E0;
+
+  /* OLD NAMES, kept so nothing breaks. --mint was the logo's cyan and did two
+     jobs; every use has been re-pointed by job, and a test stops it coming
+     back. --mint-darker is still used for accent words (Text2Art re-colours
+     it in its own block below). */
+  --mint: var(--accent);
+  --mint-soft: var(--accent-soft);
+  --mint-light: var(--accent-soft);
+  --mint-deep: var(--accent-ink);
+  --mint-darker: var(--accent-ink);
+
+  /* Tag and icon tints (one per category). --sky was the old logo's light
+     cyan; it is now a soft blue that sits with --link on cream. */
   --peach: #FFEACC;          /* Light amber (from logo orange) */
   --peach-deep: #F07000;     /* Orange — the "2" in the logo, measured */
   --lilac: #D8D0F0;          /* Soft purple — complement to teal */
-  --sky: #D6EEF8;            /* Light cyan — lighter logo teal */
+  --sky: #E3ECF7;            /* soft blue */
   --sun: #FFD966;            /* Warm gold — complement to navy */
   --rose: #F8C4C0;           /* Soft coral — warm complement */
   --orange-cta: #F07000;     /* The logo's orange, for CTAs */
 
   /* Extended palette */
-  --surface: #EDF1F5;
-  --surface-raised: #E4EAF0;
+  --surface: #F1EDE6;        /* wells, inputs */
+  --surface-raised: #E9E3D8; /* hover, pressed */
 
-  /* Status / feedback colors (were hardcoded hex across pages) */
-  --success: #2A9AAD;
-  --success-bg: #E3F5F8;
+  /* Status / feedback colors (were hardcoded hex across pages). The orange
+     --warning is a fill; amber WORDS need the darker --warning-text. */
+  --success: #2F6B3A;
+  --success-bg: #EEF7E4;
   --warning: #F5A623;
   --warning-bg: #FFF3DD;
+  --warning-text: #8A4B00;
+  --warning-border: #F3D19A;
   --error: #C03A1F;
   --error-bg: #FCEAE6;
   --error-text: #B91C1C;
+  --error-border: #FFC7C2;
 
   /* Spacing scale — use these instead of magic numbers (8px rhythm) */
   --space-1: 4px;
@@ -74,9 +102,13 @@
   --color-bg: var(--bg);
   --color-bg-soft: var(--bg-soft);
   --color-bg-card: var(--bg-card);
-  --color-mint: var(--mint);
-  --color-mint-deep: var(--mint-deep);
-  --color-mint-darker: var(--mint-darker);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-link: var(--link);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-on-ink: var(--on-ink);
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
   --color-ink-light: var(--ink-light);
@@ -151,7 +183,7 @@ body {
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 400;
-  color: var(--mint);
+  color: var(--accent);
 }
 .auth-side-content p {
   font-size: 15px;
@@ -206,8 +238,8 @@ body {
   transition: border-color 0.15s;
 }
 .auth-form input:focus {
-  border-color: var(--mint);
-  box-shadow: 0 0 0 3px rgba(59, 181, 200, 0.12);
+  border-color: var(--link);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--link) 15%, transparent);
 }
 .auth-row {
   display: flex;
@@ -217,7 +249,7 @@ body {
   font-size: 13px;
 }
 .auth-row a {
-  color: var(--mint-darker, var(--mint));
+  color: var(--link);
   text-decoration: none;
   font-weight: 600;
 }
@@ -238,7 +270,7 @@ body {
   border-radius: 10px;
   padding: 12px 16px;
   font-size: 13px;
-  color: #C03A1F;
+  color: var(--error);
   margin-bottom: 16px;
 }
 @media (max-width: 768px) {
@@ -264,22 +296,25 @@ body {
   text-decoration: none;
   white-space: nowrap;
 }
+/* The main button: navy with white words (the marketing site's). Hover lifts
+   it rather than flipping it to mint. */
 .btn-primary {
   background: var(--ink);
-  color: var(--mint);
+  color: var(--on-ink);
 }
-.btn-primary:hover { background: var(--mint); color: var(--ink); transform: translateY(-2px); }
+.btn-primary:hover { box-shadow: 0 10px 24px rgba(11, 37, 69, .22); transform: translateY(-2px); }
 .btn-mint {
-  background: var(--mint);
+  background: var(--accent);
   color: var(--ink);
 }
-.btn-mint:hover { background: var(--mint-deep); transform: translateY(-2px); }
+/* A shade deeper on hover, still light enough for the navy words. */
+.btn-mint:hover { background: color-mix(in srgb, var(--accent) 80%, var(--accent-ink)); transform: translateY(-2px); }
 .btn-outlined {
   background: transparent;
   color: var(--ink);
   border-color: var(--ink);
 }
-.btn-outlined:hover { background: var(--ink); color: var(--mint); }
+.btn-outlined:hover { background: var(--ink); color: var(--on-ink); }
 .btn-soft {
   background: var(--bg-card);
   color: var(--ink);
@@ -288,8 +323,8 @@ body {
 .btn-soft:hover { border-color: var(--ink); }
 .btn-danger {
   background: transparent;
-  color: #C03A1F;
-  border-color: #FFC7C2;
+  color: var(--error);
+  border-color: var(--error-border);
 }
 .btn-danger:hover { background: var(--rose); }
 .btn-lg { padding: 16px 30px; font-size: 15px; }
@@ -328,7 +363,7 @@ body {
   width: 14px;
   height: 14px;
   border-radius: 4px;
-  background: var(--mint);
+  background: var(--accent);
   transform: rotate(45deg);
 }
 
@@ -408,7 +443,7 @@ body {
 .badge-warning { background: var(--warning-bg); color: var(--warning); }
 .badge-error   { background: var(--error-bg);   color: var(--error-text); }
 .badge-neutral { background: var(--surface);    color: var(--ink-soft); }
-.badge-mint    { background: var(--sky);        color: var(--mint-darker); }
+.badge-mint    { background: var(--accent-soft); color: var(--accent-ink); }
 
 /* ============= SECTION HEADERS ============= */
 .section-eyebrow {
@@ -441,7 +476,7 @@ body {
   position: relative;
   overflow: hidden;
 }
-.stat-card.mint { background: var(--mint); border-color: var(--mint); }
+.stat-card.mint { background: var(--accent); border-color: var(--accent); }
 .stat-card.peach { background: var(--peach); border-color: var(--peach); }
 .stat-label {
   font-size: 13px;
@@ -524,7 +559,7 @@ body {
   transition: all 0.15s ease;
 }
 .app-nav a:hover { color: var(--ink); background: var(--bg); }
-.app-nav a.active { color: var(--ink); background: var(--mint); font-weight: 600; }
+.app-nav a.active { color: var(--ink); background: var(--accent); font-weight: 600; }
 .app-user {
   display: flex;
   align-items: center;
@@ -535,7 +570,7 @@ body {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: var(--mint);
+  background: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -561,7 +596,7 @@ body {
   transition: all 0.15s ease;
 }
 .app-nav-btn:hover { color: var(--ink); background: var(--bg); }
-.app-nav-btn.active { color: var(--ink); background: var(--mint); font-weight: 600; }
+.app-nav-btn.active { color: var(--ink); background: var(--accent); font-weight: 600; }
 
 /* Create dropdown */
 .create-dropdown {
@@ -639,7 +674,7 @@ body {
   transition: background 0.1s;
 }
 .mobile-menu a:hover { background: var(--bg); color: var(--ink); }
-.mobile-menu a.active { background: var(--mint); color: var(--ink); font-weight: 600; }
+.mobile-menu a.active { background: var(--accent); color: var(--ink); font-weight: 600; }
 
 @media (max-width: 768px) {
   .app-nav { display: none !important; }
@@ -682,7 +717,7 @@ body {
   justify-content: center;
   font-size: 22px;
 }
-.quick-create-icon.mint { background: var(--mint); }
+.quick-create-icon.mint { background: var(--accent); }
 .quick-create-icon.peach { background: var(--peach); }
 .quick-create-icon.lilac { background: var(--lilac); }
 .quick-create-icon.sky { background: var(--sky); }
@@ -726,14 +761,14 @@ body {
 }
 .upload-zone:hover,
 .upload-zone.dragover {
-  border-color: var(--mint-deep);
+  border-color: var(--accent-ink);
   background: rgba(199, 232, 168, 0.08);
 }
 .upload-icon {
   width: 56px;
   height: 56px;
   border-radius: 10px;
-  background: var(--mint);
+  background: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -774,10 +809,11 @@ body {
   background: var(--border-light);
   overflow: hidden;
 }
+/* Dark green, not mint: mint on this light track is 1.1:1 and the bar vanishes. */
 .progress-fill {
   height: 100%;
   border-radius: 10px;
-  background: var(--mint-deep);
+  background: var(--accent-ink);
   transition: width 0.5s ease;
 }
 
@@ -794,9 +830,10 @@ body {
   color: var(--ink-soft);
   border: 1px solid var(--border-light);
 }
-.tag.mint { background: rgba(199, 232, 168, 0.2); color: var(--mint-darker); border-color: var(--mint); }
-.tag.peach { background: rgba(255, 217, 184, 0.3); color: #B86C2C; border-color: var(--peach); }
-.tag.rose { background: rgba(255, 199, 194, 0.3); color: #C03A1F; border-color: var(--rose); }
+.tag.mint { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent); }
+/* Amber words were 3.9:1 on the peach tint; --warning-text reads at 6:1+. */
+.tag.peach { background: rgba(255, 217, 184, 0.3); color: var(--warning-text); border-color: var(--peach); }
+.tag.rose { background: rgba(255, 199, 194, 0.3); color: var(--error); border-color: var(--rose); }
 
 /* ============= CONTAINER ============= */
 .container { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
@@ -827,7 +864,7 @@ body {
   gap: 24px;
 }
 .top-nav-inner .logo { color: white; }
-.top-nav-inner .logo .logo-mark::before { background: var(--mint); }
+.top-nav-inner .logo .logo-mark::before { background: var(--accent); }
 .top-nav-links {
   display: flex;
   gap: 28px;
@@ -839,7 +876,7 @@ body {
   font-weight: 500;
   transition: color 0.15s ease;
 }
-.top-nav-links a:hover { color: var(--mint); }
+.top-nav-links a:hover { color: var(--accent); }
 .top-nav-right { display: flex; align-items: center; gap: 12px; }
 .top-nav-right .btn { padding: 10px 22px; font-size: 13px; }
 
@@ -964,7 +1001,7 @@ h1.hero-title em {
 }
 .play-btn .pb-circle {
   width: 44px; height: 44px;
-  background: var(--mint);
+  background: var(--accent);
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
 }
@@ -1016,7 +1053,7 @@ h1.hero-title em {
   color: var(--ink-soft);
   font-weight: 500;
 }
-.hmm-side-item.active { background: var(--mint); color: var(--ink); font-weight: 600; }
+.hmm-side-item.active { background: var(--accent); color: var(--ink); font-weight: 600; }
 .hmm-side-icon { width: 14px; height: 14px; flex-shrink: 0; }
 .hmm-main {
   display: flex;
@@ -1032,7 +1069,7 @@ h1.hero-title em {
 }
 .hmm-stat .l { font-size: 10px; color: var(--ink-light); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 4px; }
 .hmm-stat .v { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
-.hmm-stat.mint { background: var(--mint); }
+.hmm-stat.mint { background: var(--accent); }
 .hmm-stat.peach { background: var(--peach); }
 .hmm-chart {
   background: white;
@@ -1045,7 +1082,7 @@ h1.hero-title em {
 }
 .hmm-chart-title { font-size: 11px; color: var(--ink-light); font-weight: 600; }
 .hmm-bars { flex: 1; display: flex; gap: 6px; align-items: flex-end; }
-.hmm-bar { flex: 1; background: var(--mint); border-radius: 4px 4px 0 0; }
+.hmm-bar { flex: 1; background: var(--accent); border-radius: 4px 4px 0 0; }
 
 /* Floating decorative elements around hero */
 .float-shape {
@@ -1124,7 +1161,7 @@ h1.hero-title em {
   display: flex; align-items: center; justify-content: center;
   margin-bottom: 20px;
 }
-.feature-icon.mint { background: var(--mint); color: var(--ink); }
+.feature-icon.mint { background: var(--accent); color: var(--ink); }
 .feature-icon.peach { background: var(--peach); color: var(--ink); }
 .feature-icon.lilac { background: var(--lilac); color: var(--ink); }
 .feature-icon.sky { background: var(--sky); color: var(--ink); }
@@ -1215,7 +1252,7 @@ h1.hero-title em {
 .content-checks li::before {
   content: '';
   width: 22px; height: 22px;
-  background: var(--mint);
+  background: var(--accent);
   border-radius: 50%;
   flex-shrink: 0;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%230F1A12' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
@@ -1258,7 +1295,7 @@ h1.hero-title em {
 .faq-toggle {
   width: 32px; height: 32px;
   border-radius: 50%;
-  background: var(--mint);
+  background: var(--accent);
   color: var(--ink);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
@@ -1266,7 +1303,7 @@ h1.hero-title em {
   font-size: 16px;
   transition: transform 0.2s ease;
 }
-.faq-item.open .faq-toggle { background: var(--ink); color: var(--mint); transform: rotate(45deg); }
+.faq-item.open .faq-toggle { background: var(--ink); color: var(--accent); transform: rotate(45deg); }
 .faq-a {
   color: var(--ink-soft);
   font-size: 14.5px;
@@ -1280,7 +1317,7 @@ h1.hero-title em {
 
 /* ============= FINAL CTA ============= */
 .final-cta {
-  background: var(--mint);
+  background: var(--accent);
   border-radius: 10px;
   padding: 60px;
   text-align: center;
@@ -1375,7 +1412,7 @@ h1.hero-title em {
   margin-bottom: 56px;
 }
 .footer-brand .logo { color: white; }
-.footer-brand .logo .logo-mark::before { background: var(--mint); }
+.footer-brand .logo .logo-mark::before { background: var(--accent); }
 .footer-brand p {
   margin-top: 18px;
   font-size: 14px;
@@ -1398,7 +1435,7 @@ h1.hero-title em {
   font-size: 14px;
   transition: color 0.15s ease;
 }
-.footer-col a:hover { color: var(--mint); }
+.footer-col a:hover { color: var(--accent); }
 .footer-bottom {
   border-top: 1px solid rgba(255,255,255,0.1);
   padding-top: 24px;
@@ -1417,7 +1454,7 @@ h1.hero-title em {
   color: white;
   text-decoration: none;
 }
-.footer-socials a:hover { background: var(--mint); color: var(--ink); }
+.footer-socials a:hover { background: var(--accent); color: var(--ink); }
 
 /* ============= RESPONSIVE ============= */
 @media (max-width: 980px) {
@@ -1489,13 +1526,13 @@ h1.hero-title em {
 }
 .pp-step.active .pp-dot {
   background: var(--ink);
-  color: var(--mint);
+  color: var(--accent);
   border-color: var(--ink);
 }
 .pp-step.done .pp-dot {
-  background: var(--mint);
+  background: var(--accent);
   color: var(--ink);
-  border-color: var(--mint);
+  border-color: var(--accent);
 }
 .pp-label {
   font-size: 12px;
@@ -1582,7 +1619,7 @@ h1.hero-title em {
   display: flex; align-items: center; justify-content: center;
   margin-bottom: 18px;
 }
-.output-icon.mint { background: var(--mint); color: var(--ink); }
+.output-icon.mint { background: var(--accent); color: var(--ink); }
 .output-icon.peach { background: var(--peach); color: var(--ink); }
 .output-card h4 {
   font-size: 18px;
@@ -1710,7 +1747,7 @@ h1.hero-title em {
 }
 .slide-thumb.error {
   background: var(--bg-soft);
-  color: #C03A1F;
+  color: var(--error);
 }
 .ctrl-row {
   padding: 14px 16px;
@@ -1767,7 +1804,7 @@ h1.hero-title em {
 .v-avatar {
   width: 40px; height: 40px;
   border-radius: 10px;
-  background: var(--mint);
+  background: var(--accent);
   display: flex; align-items: center; justify-content: center;
   font-weight: 800;
   font-size: 14px;
@@ -1816,7 +1853,7 @@ h1.hero-title em {
 .pulse-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
-  background: var(--mint-deep);
+  background: var(--accent-ink);
   animation: pulse-anim 1s ease infinite;
 }
 @keyframes pulse-anim {
@@ -1947,7 +1984,7 @@ h1.hero-title em {
   cursor: not-allowed;
 }
 .toast {
-  background: var(--mint);
+  background: var(--accent);
   color: var(--ink);
   padding: 9px 18px;
   border-radius: 10px;
@@ -1989,7 +2026,7 @@ h1.hero-title em {
   width: 56px;
   height: 56px;
   border-radius: 10px;
-  background: var(--mint);
+  background: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2009,7 +2046,7 @@ h1.hero-title em {
 }
 .default-badge {
   display: inline-block;
-  background: var(--mint);
+  background: var(--accent);
   color: var(--ink);
   font-size: 11px;
   font-weight: 700;
@@ -2211,7 +2248,7 @@ h1.hero-title em {
   width: 36px; height: 36px;
   border-radius: 50%;
   background: var(--ink);
-  color: var(--mint);
+  color: var(--accent);
   font-weight: 800;
   font-size: 15px;
   display: flex; align-items: center; justify-content: center;
@@ -2223,7 +2260,7 @@ h1.hero-title em {
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 18px;
 }
-.step-card .step-icon.mint { background: var(--mint); }
+.step-card .step-icon.mint { background: var(--accent); }
 .step-card .step-icon.peach { background: var(--peach); }
 .step-card .step-icon.lilac { background: var(--lilac); }
 .step-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
@@ -2250,7 +2287,7 @@ h1.hero-title em {
   height: 44px;
   border-radius: 50%;
   background: var(--ink);
-  color: var(--mint);
+  color: var(--accent);
   border: none;
   cursor: pointer;
   display: flex;
@@ -2259,7 +2296,7 @@ h1.hero-title em {
   box-shadow: 0 4px 16px rgba(0,0,0,0.15);
   transition: all 0.2s ease;
 }
-.carousel-arrow:hover { background: var(--mint); color: var(--ink); transform: translateY(-50%) scale(1.1); }
+.carousel-arrow:hover { background: var(--accent); color: var(--ink); transform: translateY(-50%) scale(1.1); }
 .carousel-arrow.left { left: 0; }
 .carousel-arrow.right { right: 0; }
 .carousel-track {
@@ -2293,7 +2330,7 @@ h1.hero-title em {
   border-color: var(--ink);
 }
 .carousel-card.active {
-  border-color: var(--mint-deep);
+  border-color: var(--accent-ink);
   box-shadow: 0 0 0 3px rgba(166,216,124,0.3);
 }
 .carousel-card img {
@@ -2435,7 +2472,7 @@ h1.hero-title em {
 .strip-num {
   font-size: 42px;
   font-weight: 800;
-  color: var(--mint);
+  color: var(--accent);
   letter-spacing: -0.03em;
   line-height: 1;
 }
@@ -2593,7 +2630,7 @@ h1.hero-title em {
   left: 50%;
   transform: translateX(-50%);
   background: var(--ink);
-  color: var(--mint);
+  color: var(--accent);
   padding: 4px 16px;
   border-radius: 10px;
   font-size: 12px;
@@ -2701,7 +2738,7 @@ h1.hero-title em {
   height: 44px;
   border-radius: 50%;
   background: var(--ink);
-  color: var(--mint);
+  color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2712,7 +2749,7 @@ h1.hero-title em {
 }
 .back-to-top:hover {
   transform: translateY(-3px);
-  background: var(--mint);
+  background: var(--accent);
   color: var(--ink);
 }
 
@@ -2772,7 +2809,7 @@ h1.hero-title em {
   border-bottom: 1px solid rgba(255,255,255,0.08);
   transition: color 0.15s ease;
 }
-.mobile-menu-links a:hover { color: var(--mint); }
+.mobile-menu-links a:hover { color: var(--accent); }
 .mobile-menu-cta {
   margin-top: auto;
   display: flex;
@@ -2833,7 +2870,7 @@ h1.hero-title em {
 }
 
 .demo-input:focus {
-  border-color: var(--mint);
+  border-color: var(--link);
   box-shadow: 0 0 0 3px rgba(109, 211, 161, 0.15);
 }
 
@@ -2870,7 +2907,7 @@ h1.hero-title em {
 
 .demo-progress-fill {
   height: 100%;
-  background: var(--mint);
+  background: var(--accent-ink);
   border-radius: 10px;
   transition: width 0.6s ease;
 }
@@ -2886,7 +2923,7 @@ h1.hero-title em {
 }
 
 .demo-brand-name {
-  color: var(--mint-darker, var(--mint));
+  color: var(--accent-ink);
   font-weight: 700;
 }
 
@@ -2894,7 +2931,7 @@ h1.hero-title em {
   width: 16px;
   height: 16px;
   border: 2px solid var(--border);
-  border-top-color: var(--mint);
+  border-top-color: var(--accent-ink);
   border-radius: 50%;
   animation: demo-spin 0.8s linear infinite;
 }
@@ -3089,7 +3126,7 @@ h1.hero-title em {
   color: var(--ink); text-decoration: none; margin-bottom: 1px;
 }
 .admin-nav-link:hover { background: var(--bg); }
-.admin-nav-link.active { background: var(--mint, #C7E8A8); font-weight: 600; }
+.admin-nav-link.active { background: var(--accent); font-weight: 600; }
 @media (max-width: 900px) {
   .admin-shell { flex-direction: column; }
   .admin-sidebar { width: 100%; position: static; max-height: none; display: flex; flex-wrap: wrap; gap: 10px; }
@@ -3165,6 +3202,39 @@ h1.hero-title em {
   --rose: #F9CBE8;
   --orange-cta: #FF9A1F;
 }
+
+/* TEXT2ART KEEPS ITS LOOK through Docs2Video's 2026-10 recolour.
+   Docs2Video moved to cream + mint and split --mint into --accent (fills),
+   --accent-ink (words) and --link. Text2Art never had that split — its blue
+   did all three jobs — so the new names point back at that blue here, and the
+   names whose :root values changed (wells, success) keep their old values. */
+[data-brand='text2art'] {
+  --accent: #2E7BF6;
+  --accent-ink: #2E7BF6;
+  --link: #2E7BF6;
+  --accent-soft: #D9F1FE;
+  --surface: #EDF1F5;
+  --surface-raised: #E4EAF0;
+  --success: #2A9AAD;
+  --success-bg: #E3F5F8;
+  --count-badge: #EF4444;    /* the notification count, as it was */
+}
+/* The few rules whose SHAPE changed for Docs2Video (white words on the main
+   button, dark-green progress, soft-green tags), put back for Text2Art. */
+[data-brand='text2art'] .btn-primary { color: var(--mint); }
+[data-brand='text2art'] .btn-primary:hover { background: var(--mint); color: var(--ink); box-shadow: none; }
+[data-brand='text2art'] .btn-mint:hover { background: var(--mint-deep); }
+[data-brand='text2art'] .btn-outlined:hover { color: var(--mint); }
+[data-brand='text2art'] .badge-mint { background: var(--sky); color: var(--mint-darker); }
+[data-brand='text2art'] .tag.peach { color: #B86C2C; }
+[data-brand='text2art'] .tag.mint { background: rgba(199, 232, 168, 0.2); color: var(--mint-darker); border-color: var(--mint); }
+[data-brand='text2art'] .auth-form input:focus { box-shadow: 0 0 0 3px rgba(59, 181, 200, 0.12); }
+[data-brand='text2art'] .auth-row a,
+[data-brand='text2art'] .demo-brand-name { color: var(--mint-darker); }
+[data-brand='text2art'] .progress-fill,
+[data-brand='text2art'] .pulse-dot { background: var(--mint-deep); }
+[data-brand='text2art'] .upload-zone.dragover,
+[data-brand='text2art'] .carousel-card.active { border-color: var(--mint-deep); }
 
 /* =============================================================================
    A SCROLLING LIST SHOULD LOOK LIKE ONE.
@@ -3284,7 +3354,7 @@ h1.hero-title--big {
 .panel--ink { background: var(--ink); color: #fff; }
 .panel--ink .section-title, .panel--ink h2 { color: #fff; }
 .panel--ink .section-sub, .panel--ink p { color: rgba(255,255,255,.75); }
-.panel--ink .section-eyebrow { color: var(--mint); }
+.panel--ink .section-eyebrow { color: var(--accent); }
 
 /* THE HEADINGS GO UP. 44px was quiet beside a 92px hero and beside the
    sibling sites, whose section headings run to 64. */
@@ -3316,19 +3386,19 @@ h1.hero-title--big {
  * teal a saturated cyan — so the heading and the sub-line lost most of their
  * contrast and the perks row went nearly invisible.
  *
- * It becomes the page's dark moment instead: navy ground, white type, the
- * logo's cyan on the italic. That is also what the sibling sites do with
+ * It becomes the page's dark moment instead: navy ground, white type, mint
+ * on the italic. That is also what the sibling sites do with
  * their closing panel, and it gives the page an ending rather than a fade.
  */
 .final-cta { background: var(--ink); }
 .final-cta h2 { color: #fff; }
-.final-cta h2 em { color: var(--mint); }
+.final-cta h2 em { color: var(--accent); }
 .final-cta-sub { color: rgba(255,255,255,.76); }
 .final-cta-perks, .final-cta-perks span { color: rgba(255,255,255,.82); }
-.final-cta-perks svg { color: var(--mint); }
-/* The button has to invert here: cyan on navy, not navy on navy. */
+.final-cta-perks svg { color: var(--accent); }
+/* The button has to invert here: mint on navy, not navy on navy. */
 .final-cta .btn-primary {
-  background: var(--mint); color: var(--ink); border-color: var(--mint);
+  background: var(--accent); color: var(--ink); border-color: var(--accent);
 }
 .final-cta .btn-primary:hover { background: #fff; border-color: #fff; }
 
@@ -3377,22 +3447,24 @@ h1.hero-title--big {
    app/_components/marketing/. Radius capped at 10px (circles excepted).
    =========================================================================== */
 .mk {
-  --mk-bg: #F4F1EC;
-  --mk-panel: #FFFFFF;
-  --mk-panel2: #FBF9F5;
-  --mk-line: #E6E0D5;
-  --mk-line2: #D6CFC2;
-  --mk-ink: #0B2545;
-  --mk-text: #1F2A37;
-  --mk-text2: #4B5563;
-  --mk-text3: #5B6270;
-  --mk-mint: #C7E8A8;
-  --mk-mint-deep: #2F6B3A;
-  --mk-mint-soft: #EEF7E4;
-  --mk-navy: #0B2545;
-  --mk-on-navy: #FFFFFF;
-  --mk-link: #1F5FA8;
-  --mk-focus: #1F5FA8;
+  /* Aliases of the app's names in :root — one set of values, so the
+     marketing site and the app can't drift apart. */
+  --mk-bg: var(--bg);
+  --mk-panel: var(--bg-card);
+  --mk-panel2: var(--bg-soft);
+  --mk-line: var(--border-light);
+  --mk-line2: var(--border);
+  --mk-ink: var(--ink);
+  --mk-text: var(--ink-body);
+  --mk-text2: var(--ink-soft);
+  --mk-text3: var(--ink-light);
+  --mk-mint: var(--accent);
+  --mk-mint-deep: var(--accent-ink);
+  --mk-mint-soft: var(--accent-soft);
+  --mk-navy: var(--ink);
+  --mk-on-navy: var(--on-ink);
+  --mk-link: var(--link);
+  --mk-focus: var(--link);
   --mk-shadow: 0 30px 70px rgba(11, 37, 69, .14);
   --mk-radius: 10px;
   --mk-gutter: clamp(16px, 5vw, 96px);
@@ -3482,7 +3554,7 @@ h1.hero-title--big {
 .mk-frame { margin: 0; position: relative; border-radius: var(--mk-radius); overflow: hidden; box-shadow: var(--mk-shadow); background: #0a1628; }
 .mk-frame img, .mk-sp-video img, .mk-output img, .mk-gallery img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
 .mk-frame-bar { position: absolute; left: 14px; right: 14px; bottom: 12px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.3); }
-.mk-frame-bar > * { display: block; height: 4px; border-radius: 2px; background: #C7E8A8; }
+.mk-frame-bar > * { display: block; height: 4px; border-radius: 2px; background: var(--accent); }
 
 /* Three outputs */
 .mk-outputs { margin-top: 24px; padding: clamp(24px, 3vw, 40px) clamp(20px, 3vw, 44px); border-radius: var(--mk-radius); background: var(--mk-panel); border: 1px solid var(--mk-line); display: grid; grid-template-columns: minmax(0, 260px) repeat(3, minmax(0, 1fr)); gap: 24px; align-items: start; }
@@ -3597,7 +3669,7 @@ h1.hero-title--big {
 
 /* Final CTA */
 .mk-final { margin: clamp(48px, 6vw, 80px) 0 64px; border-radius: var(--mk-radius); background: var(--mk-mint); padding: clamp(32px, 4.5vw, 60px) clamp(24px, 4.5vw, 64px); display: flex; justify-content: space-between; align-items: center; gap: 32px; flex-wrap: wrap; }
-.mk-final .mk-h2 { color: #0B2545; }
+.mk-final .mk-h2 { color: var(--ink); }
 .mk-final p { margin: 8px 0 0; font-size: 18px; color: #1F3A2A; }
 
 /* Footer */

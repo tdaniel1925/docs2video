@@ -86,15 +86,15 @@ export default function SystemStatusPage() {
           <div style={s.card}><p style={s.muted}>No checks have run yet. Click “Run spot test now”.</p></div>
         ) : (
           <>
-            <div style={{ ...s.banner, background: latest.overall_ok ? '#ecfdf5' : '#fef2f2', borderColor: latest.overall_ok ? '#a7f3d0' : '#fca5a5', color: latest.overall_ok ? '#065f46' : '#991b1b' }}>
+            <div style={{ ...s.banner, background: latest.overall_ok ? 'var(--success-bg)' : 'var(--error-bg)', borderColor: latest.overall_ok ? 'var(--accent)' : 'var(--error-border)', color: latest.overall_ok ? 'var(--success)' : 'var(--error-text)' }}>
               {latest.overall_ok ? '✓ All systems operational' : '✗ One or more systems are failing'}
             </div>
 
             <div style={s.grid}>
               {latest.results.map((r) => (
-                <div key={r.name} style={{ ...s.card, borderLeft: `4px solid ${r.ok ? '#10b981' : '#ef4444'}` }}>
+                <div key={r.name} style={{ ...s.card, borderLeft: `4px solid ${r.ok ? 'var(--success)' : 'var(--error)'}` }}>
                   <div style={s.cardHead}>
-                    <span style={{ ...s.dot, background: r.ok ? '#10b981' : '#ef4444' }} />
+                    <span style={{ ...s.dot, background: r.ok ? 'var(--success)' : 'var(--error)' }} />
                     <span style={s.cardTitle}>{LABELS[r.name] || r.name}</span>
                     <span style={s.ms}>{r.ms}ms</span>
                   </div>
@@ -115,7 +115,7 @@ export default function SystemStatusPage() {
                     <div
                       key={h.id}
                       title={`${new Date(h.run_at).toLocaleString()} · ${h.overall_ok ? 'OK' : 'FAIL'} · ${h.duration_ms}ms`}
-                      style={{ ...s.sparkBar, background: h.overall_ok ? '#10b981' : '#ef4444' }}
+                      style={{ ...s.sparkBar, background: h.overall_ok ? 'var(--success)' : 'var(--error)' }}
                     />
                   ))}
                 </div>
@@ -146,12 +146,12 @@ const s: Record<string, React.CSSProperties> = {
   dot: { width: 10, height: 10, borderRadius: '50%', flexShrink: 0 },
   cardTitle: { fontWeight: 700, fontSize: 14, flex: 1 },
   ms: { fontSize: 12, color: 'var(--ink-light)' },
-  okText: { fontSize: 13, color: '#059669', marginTop: 6 },
-  failText: { fontSize: 13, color: '#dc2626', marginTop: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' },
+  okText: { fontSize: 13, color: 'var(--success)', marginTop: 6 },
+  failText: { fontSize: 13, color: 'var(--error)', marginTop: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' },
   h2: { fontSize: 16, fontWeight: 700, marginBottom: 10 },
   sparkRow: { display: 'flex', gap: 3, alignItems: 'flex-end' },
   sparkBar: { width: 14, height: 28, borderRadius: 3 },
   loading: { color: 'var(--ink-soft)' },
   muted: { color: 'var(--ink-soft)' },
-  errorBox: { padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 14, marginBottom: 16 },
+  errorBox: { padding: '12px 16px', borderRadius: 10, background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)', fontSize: 14, marginBottom: 16 },
 }

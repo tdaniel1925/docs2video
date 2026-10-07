@@ -785,7 +785,7 @@ function AdminPageInner() {
             </div>
 
             {generating && (
-              <div style={{ marginTop: 16, padding: 20, background: 'var(--bg-soft, #f8f9fa)', borderRadius: 10, border: '1px solid var(--border-light)' }}>
+              <div style={{ marginTop: 16, padding: 20, background: 'var(--bg-soft)', borderRadius: 10, border: '1px solid var(--border-light)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                   <div className="spinner" />
                   <div>
@@ -794,7 +794,7 @@ function AdminPageInner() {
                   </div>
                 </div>
                 <div style={{ height: 4, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', background: 'var(--mint)', borderRadius: 4, animation: 'progressPulse 2s ease-in-out infinite', width: '60%' }} />
+                  <div style={{ height: '100%', background: 'var(--accent-ink)', borderRadius: 4, animation: 'progressPulse 2s ease-in-out infinite', width: '60%' }} />
                 </div>
                 <style>{`@keyframes progressPulse { 0%, 100% { width: 20%; opacity: 0.7; } 50% { width: 80%; opacity: 1; } }`}</style>
               </div>
@@ -845,7 +845,7 @@ function AdminPageInner() {
                     </button>
                     <button
                       className="btn btn-sm"
-                      style={{ fontSize: 11, color: '#dc2626', border: '1px solid #fecaca' }}
+                      style={{ fontSize: 11, color: 'var(--error)', border: '1px solid var(--error-border)' }}
                       onClick={async () => {
                         // Mark as rejected (simple inline update)
                         await fetch('/api/admin/prospect-pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: '__reject__', prospectId: p.id }) }).catch(() => {})
@@ -862,7 +862,7 @@ function AdminPageInner() {
 
           {/* Send Modal */}
           {sendModal && (
-            <div className="settings-card" style={{ marginBottom: 16, border: '2px solid var(--mint)' }}>
+            <div className="settings-card" style={{ marginBottom: 16, border: '2px solid var(--accent-ink)' }}>
               <h3>Send to {sendModal.companyName}</h3>
               <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
                 <div>
@@ -939,7 +939,7 @@ function AdminPageInner() {
                     <div style={{ width: 100 }}>
                       {p.status === 'sent' && <span className="tag peach" style={{ fontSize: 11 }}>Sent</span>}
                       {p.status === 'watched' && <span className="tag mint" style={{ fontSize: 11 }}>Watched</span>}
-                      {p.status === 'converted' && <span className="tag" style={{ fontSize: 11, background: '#fef3c7', color: '#92400e' }}>Converted</span>}
+                      {p.status === 'converted' && <span className="tag" style={{ fontSize: 11, background: 'var(--warning-bg)', color: 'var(--warning-text)' }}>Converted</span>}
                     </div>
                   </div>
                 ))}
@@ -956,7 +956,7 @@ function AdminPageInner() {
                   <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600 }}>{p.company_name ?? p.url}</div>
-                      {p.error_message && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 2 }}>{p.error_message}</div>}
+                      {p.error_message && <div style={{ fontSize: 11, color: 'var(--error)', marginTop: 2 }}>{p.error_message}</div>}
                       {p.review_notes && <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 2 }}>{p.review_notes}</div>}
                     </div>
                     <span className={`tag ${p.status === 'failed' ? 'rose' : ''}`} style={{ fontSize: 11, textTransform: 'capitalize' }}>{p.status}</span>
@@ -1096,7 +1096,7 @@ function AdminPageInner() {
                       }} />
                     </label>
                     {campaignCsvText.trim() && (
-                      <button className="btn btn-sm" style={{ fontSize: 11, color: '#dc2626', border: '1px solid #fecaca' }} onClick={() => setCampaignCsvText('')}>
+                      <button className="btn btn-sm" style={{ fontSize: 11, color: 'var(--error)', border: '1px solid var(--error-border)' }} onClick={() => setCampaignCsvText('')}>
                         Clear All
                       </button>
                     )}
@@ -1185,10 +1185,11 @@ function AdminPageInner() {
                   </div>
                 </div>
 
-                {/* Preview */}
-                <div style={{ background: '#F4F1EC', border: '1px solid var(--border-light)', borderRadius: 10, padding: 20, marginBottom: 16 }}>
+                {/* Preview. The near-black text and button inside stay typed on
+                    purpose: they copy the real campaign email's own colours. */}
+                <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 10, padding: 20, marginBottom: 16 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Preview (first contact)</div>
-                  <div style={{ background: 'white', borderRadius: 8, padding: 20, border: '1px solid #e5e2dc' }}>
+                  <div style={{ background: 'white', borderRadius: 8, padding: 20, border: '1px solid var(--border-light)' }}>
                     <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 4 }}>
                       <strong>To:</strong> {campaignContacts[0]?.email} &nbsp; <strong>Subject:</strong> {campaignSubject.replace(/\{\{name\}\}/g, campaignContacts[0]?.name || 'there').replace(/\{\{company\}\}/g, campaignContacts[0]?.company || 'your company')}
                     </div>
@@ -1261,7 +1262,7 @@ function AdminPageInner() {
 
             {campaignStep === 'done' && (
               <div style={{ padding: 20, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, textAlign: 'center' }}>
-                <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(199,232,168,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker)" strokeWidth="2.5" strokeLinecap="round"><path d="M5 13l4 4L19 7"/></svg>
                 </div>
                 <h4 style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Campaign Created & Sending!</h4>
@@ -1306,16 +1307,16 @@ function AdminPageInner() {
                         </div>
                         {c.status === 'sending' && (
                           <div style={{ marginTop: 4, height: 3, background: 'var(--border-light)', borderRadius: 3, overflow: 'hidden', width: '100%', maxWidth: 200 }}>
-                            <div style={{ height: '100%', background: 'var(--mint)', borderRadius: 3, width: `${pct}%`, transition: 'width 0.3s' }} />
+                            <div style={{ height: '100%', background: 'var(--accent-ink)', borderRadius: 3, width: `${pct}%`, transition: 'width 0.3s' }} />
                           </div>
                         )}
                       </div>
                       <div style={{ width: 100 }}>
                         <span className="tag" style={{ fontSize: 10, textTransform: 'capitalize' }}>{(c.industry || '').replace('_', ' ')}</span>
                       </div>
-                      <div style={{ width: 80, textAlign: 'center', fontWeight: 600, color: '#16a34a' }}>{c.stats?.sent ?? c.sent_count ?? 0}</div>
+                      <div style={{ width: 80, textAlign: 'center', fontWeight: 600, color: 'var(--success)' }}>{c.stats?.sent ?? c.sent_count ?? 0}</div>
                       <div style={{ width: 80, textAlign: 'center', color: 'var(--ink-light)' }}>{c.stats?.pending ?? 0}</div>
-                      <div style={{ width: 80, textAlign: 'center', color: (c.stats?.failed ?? 0) > 0 ? '#dc2626' : 'var(--ink-light)' }}>{c.stats?.failed ?? c.failed_count ?? 0}</div>
+                      <div style={{ width: 80, textAlign: 'center', color: (c.stats?.failed ?? 0) > 0 ? 'var(--error)' : 'var(--ink-light)' }}>{c.stats?.failed ?? c.failed_count ?? 0}</div>
                       <div style={{ width: 90 }}>
                         <span className={`tag ${statusColors[c.status] || ''}`} style={{ fontSize: 10, textTransform: 'capitalize' }}>{c.status}</span>
                       </div>
@@ -1333,7 +1334,7 @@ function AdminPageInner() {
                           </button>
                         )}
                         {['draft', 'sending', 'paused'].includes(c.status) && (
-                          <button className="btn btn-sm" style={{ fontSize: 10, color: '#dc2626', border: '1px solid #fecaca' }} disabled={campaignBusy === c.id}
+                          <button className="btn btn-sm" style={{ fontSize: 10, color: 'var(--error)', border: '1px solid var(--error-border)' }} disabled={campaignBusy === c.id}
                             onClick={() => { if (confirm('Cancel this campaign? Unsent contacts will be skipped.')) campaignAction(c.id, 'cancel') }}>
                             Cancel
                           </button>
@@ -1415,7 +1416,7 @@ function VpsStatus() {
       setStatus(d.vpsStatus === 'healthy' ? 'healthy' : d.vpsStatus === 'degraded' ? 'degraded' : 'offline')
     }).catch(() => setStatus('offline'))
   }, [])
-  const colors = { checking: 'var(--ink-light)', healthy: '#16a34a', degraded: '#f59e0b', offline: '#dc2626' }
+  const colors = { checking: 'var(--ink-light)', healthy: 'var(--success)', degraded: 'var(--warning)', offline: 'var(--error)' }
   const labels = { checking: 'Checking...', healthy: 'Renderer online', degraded: 'Renderer degraded', offline: 'Renderer offline' }
   return (
     <div className="stat-card" style={status === 'offline' ? { background: 'var(--rose)' } : undefined}>

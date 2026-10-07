@@ -103,7 +103,7 @@ export default function ActivityPage() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24 }}>
         <button onClick={() => setTab('jobs')} className={`btn btn-sm ${tab === 'jobs' ? 'btn-primary' : 'btn-soft'}`}>
-          Jobs {activeJobs.length > 0 && <span style={{ marginLeft: 4, background: 'var(--mint)', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 800 }}>{activeJobs.length}</span>}
+          Jobs {activeJobs.length > 0 && <span style={{ marginLeft: 4, background: 'var(--accent)', color: 'var(--ink)', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 800 }}>{activeJobs.length}</span>}
         </button>
         <button onClick={() => setTab('notifications')} className={`btn btn-sm ${tab === 'notifications' ? 'btn-primary' : 'btn-soft'}`}>
           Notifications
@@ -130,12 +130,12 @@ export default function ActivityPage() {
                       <div style={{ fontWeight: 700, fontSize: 15 }}>{job.title ?? job.type}</div>
                       <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>Started {timeAgo(job.created_at)}</div>
                     </div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--mint-darker, #2d7a4f)' }}>{job.progress}%</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--mint-darker)' }}>{job.progress}%</div>
                   </div>
                   <div style={{ height: 8, background: 'var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                     <div style={{
                       height: '100%', borderRadius: 10,
-                      background: 'linear-gradient(90deg, var(--mint), #34d399, var(--mint))',
+                      background: 'linear-gradient(90deg, var(--accent-ink), color-mix(in srgb, var(--accent-ink) 55%, var(--accent)), var(--accent-ink))',
                       backgroundSize: '200% 100%',
                       animation: 'progressShimmer 2s linear infinite',
                       width: `${job.progress}%`,
@@ -186,7 +186,7 @@ export default function ActivityPage() {
           {/* Failed jobs */}
           {failedJobs.length > 0 && (
             <div style={{ marginBottom: 32 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#C03A1F', marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--error)', marginBottom: 12 }}>
                 Failed
               </div>
               <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
@@ -199,7 +199,7 @@ export default function ActivityPage() {
                     <span style={{ fontSize: 18 }}>❌</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{job.title ?? job.type}</div>
-                      <div style={{ fontSize: 12, color: '#C03A1F' }}>{job.error_message ?? 'Generation failed'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--error)' }}>{job.error_message ?? 'Generation failed'}</div>
                     </div>
                     <span className="tag rose" style={{ fontSize: 11 }}>Failed</span>
                   </div>
@@ -237,7 +237,7 @@ export default function ActivityPage() {
                   style={{
                     display: 'flex', gap: 12, padding: '14px 18px',
                     borderBottom: i < notifications.length - 1 ? '1px solid var(--border-light)' : 'none',
-                    background: n.read ? 'white' : 'rgba(168,240,212,0.06)',
+                    background: n.read ? 'white' : 'var(--accent-soft)',
                     textDecoration: 'none', color: 'var(--ink)',
                   }}
                 >
@@ -247,7 +247,7 @@ export default function ActivityPage() {
                     {n.message && <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2 }}>{n.message}</div>}
                     <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 4 }}>{timeAgo(n.created_at)}</div>
                   </div>
-                  {!n.read && <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--mint)', flexShrink: 0, marginTop: 6 }} />}
+                  {!n.read && <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-ink)', flexShrink: 0, marginTop: 6 }} />}
                 </Link>
               ))}
             </div>

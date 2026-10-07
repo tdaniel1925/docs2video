@@ -84,7 +84,7 @@ export default function AdminAffiliatesPage() {
       <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--line, #e5e0d8)' }}>
+            <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-light)' }}>
               <th style={{ padding: 10 }}>Affiliate</th>
               <th style={{ padding: 10 }}>Code</th>
               <th style={{ padding: 10 }}>Payout</th>
@@ -99,7 +99,7 @@ export default function AdminAffiliatesPage() {
           <tbody>
             {rows.length === 0 && <tr><td colSpan={9} style={{ padding: 16, color: 'var(--ink-light)' }}>No affiliates yet.</td></tr>}
             {rows.map(a => (
-              <tr key={a.id} style={{ borderBottom: '1px solid var(--line, #efe9e0)' }}>
+              <tr key={a.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
                 <td style={{ padding: 10 }}>{a.email || a.user_id.slice(0, 8)}</td>
                 <td style={{ padding: 10, fontFamily: 'monospace' }}>{a.promo_code || a.referral_code}</td>
                 <td style={{ padding: 10 }}>

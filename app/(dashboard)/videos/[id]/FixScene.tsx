@@ -119,7 +119,7 @@ export default function FixScene({ videoId, planUrl, slideUrls = [], script = []
         {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--ink-light)' }}>Loading scenes…</div> : mode === 'pick' ? (
           <>
             {/* Describe-the-problem finder */}
-            <div style={{ marginBottom: 16, padding: 14, borderRadius: 10, background: 'rgba(199,232,168,0.12)', border: '1px solid var(--mint)' }}>
+            <div style={{ marginBottom: 16, padding: 14, borderRadius: 10, background: 'var(--accent-soft)', border: '1px solid var(--accent)' }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Describe the problem and we’ll find the scene:</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input value={describe} onChange={(e) => setDescribe(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && findByDescription()}
@@ -157,8 +157,8 @@ export default function FixScene({ videoId, planUrl, slideUrls = [], script = []
               {([['rerecord', 'Re-record (glitch)', 'Free'], ['edit-text', 'Edit the wording', `${sceneFixCost} cr`], ['fix-pronunciation', 'Fix a pronunciation', 'Free']] as const).map(([a, label, tag]) => (
                 <button key={a} onClick={() => setAction(a)} disabled={a === 'edit-text' && !selected.narration} style={{
                   padding: '10px 14px', borderRadius: 8, cursor: a === 'edit-text' && !selected.narration ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-                  border: action === a ? '2px solid var(--mint)' : '1.5px solid var(--border-light)', background: action === a ? 'rgba(199,232,168,0.12)' : 'white', opacity: a === 'edit-text' && !selected.narration ? 0.5 : 1,
-                }}>{label} <span style={{ color: tag === 'Free' ? '#16a34a' : 'var(--ink-light)', fontWeight: 600 }}>· {tag}</span></button>
+                  border: action === a ? '2px solid var(--accent-ink)' : '1.5px solid var(--border-light)', background: action === a ? 'var(--accent-soft)' : 'white', opacity: a === 'edit-text' && !selected.narration ? 0.5 : 1,
+                }}>{label} <span style={{ color: tag === 'Free' ? 'var(--success)' : 'var(--ink-light)', fontWeight: 600 }}>· {tag}</span></button>
               ))}
             </div>
 
@@ -181,12 +181,12 @@ export default function FixScene({ videoId, planUrl, slideUrls = [], script = []
             )}
 
             {previewUrl && (
-              <div style={{ marginBottom: 16, padding: 12, borderRadius: 10, background: 'rgba(199,232,168,0.12)', border: '1px solid var(--mint)' }}>
+              <div style={{ marginBottom: 16, padding: 12, borderRadius: 10, background: 'var(--accent-soft)', border: '1px solid var(--accent)' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Preview the new voiceover:</div>
                 <audio controls src={previewUrl} style={{ width: '100%' }} />
               </div>
             )}
-            {error && <div style={{ color: '#b91c1c', fontSize: 13, marginBottom: 12 }}>{error}</div>}
+            {error && <div style={{ color: 'var(--error-text)', fontSize: 13, marginBottom: 12 }}>{error}</div>}
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>

@@ -225,7 +225,7 @@ export default function ScriptEditor({
               }}>
                 <span style={{
                   width: 22, height: 22, borderRadius: '50%',
-                  background: 'var(--mint)', display: 'flex', alignItems: 'center',
+                  background: 'var(--accent)', color: 'var(--ink)', display: 'flex', alignItems: 'center',
                   justifyContent: 'center', fontWeight: 800, fontSize: 10, flexShrink: 0,
                 }}>{i + 1}</span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>
@@ -233,7 +233,7 @@ export default function ScriptEditor({
                 </span>
                 {modifiedScenes.has(i) && (
                   <span style={{
-                    fontSize: 10, fontWeight: 600, color: 'var(--mint-darker, #2d7a4f)',
+                    fontSize: 10, fontWeight: 600, color: 'var(--mint-darker)',
                     background: 'rgba(168,240,212,0.2)', padding: '2px 8px', borderRadius: 4,
                     marginLeft: 'auto',
                   }}>

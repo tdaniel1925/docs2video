@@ -13,7 +13,7 @@ const CARD: React.CSSProperties = {
 const H2: React.CSSProperties = { fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }
 const BODY: React.CSSProperties = { fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }
 const STEP_NUM: React.CSSProperties = {
-  width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
+  width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
 }
 const INK: React.CSSProperties = { color: 'var(--ink)' }

@@ -149,8 +149,10 @@ export default function NotificationBell() {
           <span style={{
             position: 'absolute', top: 2, right: 2,
             width: 16, height: 16, borderRadius: '50%',
-            background: hasActiveJobs ? 'var(--mint)' : '#ef4444',
-            color: hasActiveJobs ? 'var(--ink)' : 'white',
+            // The unread count sits on the stop red (white numbers 5.4:1). Text2Art
+            // keeps its brighter red through --count-badge (see globals.css).
+            background: hasActiveJobs ? 'var(--accent)' : 'var(--count-badge, var(--error))',
+            color: hasActiveJobs ? 'var(--ink)' : 'var(--on-ink)',
             fontSize: 9, fontWeight: 800,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             border: '2px solid white',
@@ -178,7 +180,7 @@ export default function NotificationBell() {
               {unreadCount > 0 && (
                 <button onClick={markAllRead} style={{
                   background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize: 12, color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600,
+                  fontSize: 12, color: 'var(--mint-darker)', fontWeight: 600,
                 }}>
                   Mark all read
                 </button>
@@ -186,7 +188,7 @@ export default function NotificationBell() {
               {notifications.length > 0 && (
                 <button onClick={clearAll} style={{
                   background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize: 12, color: '#b91c1c', fontWeight: 600,
+                  fontSize: 12, color: 'var(--error-text)', fontWeight: 600,
                 }}>
                   Clear all
                 </button>
@@ -221,7 +223,7 @@ export default function NotificationBell() {
                   <div style={{ height: 6, background: 'var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                     <div style={{
                       height: '100%', borderRadius: 10,
-                      background: 'linear-gradient(90deg, var(--mint), #34d399)',
+                      background: 'var(--accent-ink)',
                       width: `${job.progress}%`,
                       transition: 'width 1s ease',
                     }} />
@@ -274,7 +276,7 @@ export default function NotificationBell() {
                       </div>
                     </div>
                     {!n.read && (
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--mint)', flexShrink: 0, marginTop: 6 }} />
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-ink)', flexShrink: 0, marginTop: 6 }} />
                     )}
                   </Wrapper>
                   {/* Delete this notification (sits above the Link so it's clickable). */}

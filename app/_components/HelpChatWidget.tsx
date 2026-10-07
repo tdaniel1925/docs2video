@@ -72,7 +72,7 @@ export default function HelpChatWidget() {
         style={{
           position: 'fixed', bottom: 24, right: 24,
           width: 56, height: 56, borderRadius: '50%',
-          background: 'var(--ink, #1a1a2e)', color: 'white',
+          background: 'var(--ink)', color: 'var(--on-ink)',
           border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
@@ -95,7 +95,7 @@ export default function HelpChatWidget() {
           position: 'fixed', bottom: 88, right: 24,
           width: 380, maxWidth: 'calc(100vw - 48px)',
           height: 500, maxHeight: 'calc(100vh - 140px)',
-          background: 'white', border: '1px solid var(--border-light, #e2e8f0)',
+          background: 'white', border: '1px solid var(--border-light)',
           borderRadius: 10, display: 'flex', flexDirection: 'column',
           boxShadow: '0 12px 48px rgba(0,0,0,0.15)',
           zIndex: 99, overflow: 'hidden',
@@ -107,17 +107,17 @@ export default function HelpChatWidget() {
             .help-chat-html p:last-child { margin-bottom: 0; }
             .help-chat-html ul, .help-chat-html ol { margin: 4px 0 6px; padding-left: 18px; }
             .help-chat-html li { margin: 2px 0; }
-            .help-chat-html a { color: var(--mint-darker, #2d7a4f); font-weight: 600; }
+            .help-chat-html a { color: var(--mint-darker); font-weight: 600; }
             .help-chat-html strong { font-weight: 700; }`}</style>
           {/* Header */}
           <div style={{
-            padding: '14px 18px', borderBottom: '1px solid var(--border-light, #e2e8f0)',
+            padding: '14px 18px', borderBottom: '1px solid var(--border-light)',
             display: 'flex', alignItems: 'center', gap: 10,
           }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--mint, #A8F0D4)', boxShadow: '0 0 6px rgba(168,240,212,0.6)' }} />
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 0 6px color-mix(in srgb, var(--accent) 60%, transparent)' }} />
             <div>
               <div style={{ fontWeight: 700, fontSize: 14 }}>Help Assistant</div>
-              <div style={{ fontSize: 11, color: 'var(--ink-light, #94a3b8)' }}>Ask anything about {brand.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>Ask anything about {brand.name}</div>
             </div>
           </div>
 
@@ -145,12 +145,12 @@ export default function HelpChatWidget() {
                       onClick={() => { setInput(q); setTimeout(() => send(), 0) }}
                       style={{
                         padding: '8px 12px', borderRadius: 8,
-                        border: '1px solid var(--border-light, #e2e8f0)',
+                        border: '1px solid var(--border-light)',
                         background: 'white', cursor: 'pointer',
                         fontSize: 12, color: 'var(--ink)', textAlign: 'left',
                         transition: 'background 0.1s',
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-soft, #f8fafc)')}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-soft)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'white')}
                     >
                       {q}
@@ -165,9 +165,9 @@ export default function HelpChatWidget() {
                   className={msg.role === 'assistant' ? 'help-chat-html' : undefined}
                   style={{
                     padding: '10px 14px', borderRadius: 10, fontSize: 13, lineHeight: 1.55,
-                    background: msg.role === 'user' ? 'var(--mint, #A8F0D4)' : 'var(--bg-soft, #f8fafc)',
-                    color: msg.role === 'user' ? '#0a2e1a' : 'var(--ink, #1a1a2e)',
-                    border: msg.role === 'assistant' ? '1px solid var(--border-light, #e2e8f0)' : 'none',
+                    background: msg.role === 'user' ? 'var(--accent)' : 'var(--bg-soft)',
+                    color: msg.role === 'user' ? 'var(--ink)' : 'var(--ink)',
+                    border: msg.role === 'assistant' ? '1px solid var(--border-light)' : 'none',
                     ...(msg.role === 'user' ? { whiteSpace: 'pre-wrap' as const } : {}),
                   }}
                   // Assistant replies are HTML from our own constrained prompt
@@ -181,7 +181,7 @@ export default function HelpChatWidget() {
             ))}
             {loading && (
               <div style={{ alignSelf: 'flex-start' }}>
-                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-soft, #f8fafc)', border: '1px solid var(--border-light, #e2e8f0)', display: 'flex', gap: 4 }}>
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-soft)', border: '1px solid var(--border-light)', display: 'flex', gap: 4 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ink-light)', animation: 'helpPulse 1.2s ease-in-out infinite' }} />
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ink-light)', animation: 'helpPulse 1.2s ease-in-out 0.2s infinite' }} />
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ink-light)', animation: 'helpPulse 1.2s ease-in-out 0.4s infinite' }} />
@@ -193,8 +193,8 @@ export default function HelpChatWidget() {
           </div>
 
           {/* Input */}
-          <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border-light, #e2e8f0)' }}>
-            <div style={{ display: 'flex', gap: 8, border: '1px solid var(--border, #cbd5e1)', borderRadius: 8, padding: '4px 4px 4px 12px' }}>
+          <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border-light)' }}>
+            <div style={{ display: 'flex', gap: 8, border: '1px solid var(--border)', borderRadius: 8, padding: '4px 4px 4px 12px' }}>
               <input
                 type="text"
                 placeholder="Ask a question..."

@@ -195,7 +195,7 @@ export default function PricingHelpPage() {
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
+              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>1</div>
             <div>
@@ -204,7 +204,7 @@ export default function PricingHelpPage() {
           </div>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
+              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>2</div>
             <div>
@@ -213,7 +213,7 @@ export default function PricingHelpPage() {
           </div>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
+              width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>3</div>
             <div>

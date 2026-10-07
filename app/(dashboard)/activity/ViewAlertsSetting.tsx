@@ -77,7 +77,7 @@ export default function ViewAlertsSetting() {
         </div>
       )}
       {notice && (
-        <div role="status" style={{ fontSize: 12, marginTop: 10, color: notice.ok ? 'var(--mint-darker, #2d7a4f)' : '#C03A1F' }}>{notice.text}</div>
+        <div role="status" style={{ fontSize: 12, marginTop: 10, color: notice.ok ? 'var(--mint-darker)' : 'var(--error)' }}>{notice.text}</div>
       )}
     </div>
   )

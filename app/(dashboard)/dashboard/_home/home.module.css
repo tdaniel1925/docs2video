@@ -59,7 +59,7 @@
   padding: 18px 20px;
   background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-left: 4px solid var(--mint);
+  border-left: 4px solid var(--accent-ink);
   border-radius: 10px;
 }
 .cardQuiet { border-left-color: var(--warning); }
@@ -190,7 +190,7 @@
 .dropZone {
   display: block;
   padding: 14px;
-  border: 1.5px dashed var(--mint);
+  border: 1.5px dashed var(--accent);
   border-radius: 10px;
   text-align: center;
   font-size: 13.5px;

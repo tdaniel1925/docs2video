@@ -22,9 +22,9 @@ export function useToast() {
 let _nextId = 1
 
 const STYLES: Record<ToastKind, { bg: string; border: string; fg: string; icon: string }> = {
-  success: { bg: 'rgba(34,197,94,0.10)', border: 'rgba(34,197,94,0.35)', fg: '#15803d', icon: '✓' },
-  error: { bg: 'rgba(220,38,38,0.10)', border: 'rgba(220,38,38,0.35)', fg: '#b91c1c', icon: '!' },
-  info: { bg: 'rgba(59,130,246,0.10)', border: 'rgba(59,130,246,0.35)', fg: '#1d4ed8', icon: 'i' },
+  success: { bg: 'var(--success-bg)', border: 'var(--accent)', fg: 'var(--success)', icon: '✓' },
+  error: { bg: 'var(--error-bg)', border: 'var(--error-border)', fg: 'var(--error-text)', icon: '!' },
+  info: { bg: 'color-mix(in srgb, var(--link) 10%, transparent)', border: 'color-mix(in srgb, var(--link) 35%, transparent)', fg: 'var(--link)', icon: 'i' },
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -63,9 +63,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 pointerEvents: 'auto', cursor: 'pointer',
                 display: 'flex', alignItems: 'flex-start', gap: 10,
                 padding: '12px 16px', borderRadius: 10,
-                background: '#fff', border: `1.5px solid ${s.border}`,
+                background: 'var(--bg-card)', border: `1.5px solid ${s.border}`,
                 boxShadow: '0 8px 28px rgba(0,0,0,0.12)',
-                fontSize: 14, fontWeight: 600, lineHeight: 1.4, color: 'var(--ink, #1a1714)',
+                fontSize: 14, fontWeight: 600, lineHeight: 1.4, color: 'var(--ink)',
               }}
             >
               <span style={{

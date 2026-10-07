@@ -18,7 +18,7 @@ const PLAN_LIST = (() => {
 })()
 
 const NUM: React.CSSProperties = {
-  width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
+  width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
 }
 const CARD: React.CSSProperties = {

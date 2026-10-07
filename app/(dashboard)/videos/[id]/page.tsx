@@ -79,8 +79,8 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
           100% { background-position: 200% center; }
         }
         @keyframes pulseGlow {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(168,240,212,0.4); }
-          50% { box-shadow: 0 0 0 12px rgba(168,240,212,0); }
+          0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); }
+          50% { box-shadow: 0 0 0 12px transparent; }
         }
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(8px); }
@@ -111,7 +111,8 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
           <div style={{
             height: '100%', borderRadius: 10,
             width: `${pct}%`,
-            background: 'linear-gradient(90deg, var(--mint), #34d399, var(--mint), #34d399)',
+            // Dark green on the light track: pale mint here all but disappears.
+            background: 'linear-gradient(90deg, var(--accent-ink), color-mix(in srgb, var(--accent-ink) 55%, var(--accent)), var(--accent-ink), color-mix(in srgb, var(--accent-ink) 55%, var(--accent)))',
             backgroundSize: '200% 100%',
             animation: 'progressShimmer 2s linear infinite',
             transition: 'width 1s ease',
@@ -121,7 +122,7 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
         {/* Current stage highlight */}
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 12,
-          background: 'rgba(168,240,212,0.12)', border: '1px solid var(--mint)',
+          background: 'var(--accent-soft)', border: '1px solid var(--accent)',
           borderRadius: 10, padding: '12px 24px',
         }}>
           <span style={{ fontSize: 24 }}>{currentStep.icon}</span>
@@ -148,7 +149,7 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
                 {i > 0 && (
                   <div style={{
                     position: 'absolute', top: 16, right: '50%', width: '100%', height: 3,
-                    background: isDone ? 'var(--mint)' : 'var(--border)',
+                    background: isDone ? 'var(--accent-ink)' : 'var(--border)',
                     transition: 'background 0.5s ease',
                     zIndex: 0,
                   }} />
@@ -158,7 +159,7 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
                   width: 34, height: 34, borderRadius: '50%', zIndex: 1,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: isDone ? 14 : 13, fontWeight: 700,
-                  background: isDone ? 'var(--mint)' : isActive ? 'var(--ink)' : 'var(--border)',
+                  background: isDone ? 'var(--accent)' : isActive ? 'var(--ink)' : 'var(--border)',
                   color: isDone ? 'var(--ink)' : isActive ? 'white' : 'var(--ink-light)',
                   transition: 'all 0.5s ease',
                   ...(isActive ? { animation: 'pulseGlow 2s ease-in-out infinite' } : {}),
@@ -170,7 +171,7 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
                 {/* Label */}
                 <div style={{
                   fontSize: 11, fontWeight: isActive ? 700 : 500, marginTop: 8,
-                  color: isDone ? 'var(--mint-darker, #2d7a4f)' : isActive ? 'var(--ink)' : 'var(--ink-light)',
+                  color: isDone ? 'var(--mint-darker)' : isActive ? 'var(--ink)' : 'var(--ink-light)',
                   textAlign: 'center', lineHeight: 1.3, transition: 'all 0.3s ease',
                 }}>
                   {step.label}
@@ -189,7 +190,7 @@ function VideoProgress({ status, createdAt, progressDetail, progressPct, sceneCo
 
       {/* Fun facts / tips */}
       <div style={{
-        background: 'rgba(168,240,212,0.08)', border: '1px solid rgba(168,240,212,0.2)',
+        background: 'var(--accent-soft)', border: '1px solid var(--accent)',
         borderRadius: 10, padding: '14px 20px', marginBottom: 20,
         display: 'flex', alignItems: 'center', gap: 12,
       }}>
@@ -1141,8 +1142,8 @@ export default function VideoDetailPage() {
           transform: scale(1.05);
         }
         .slide-thumb.active {
-          border-color: var(--mint);
-          box-shadow: 0 0 0 2px rgba(0,200,150,0.25);
+          border-color: var(--accent-ink);
+          box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent);
         }
         .quick-action-btn {
           padding: 8px 12px;
@@ -1158,7 +1159,7 @@ export default function VideoDetailPage() {
         }
         .quick-action-btn:hover {
           background: var(--bg);
-          border-color: var(--mint);
+          border-color: var(--accent-ink);
         }
         .action-grid button {
           padding: 10px 8px;
@@ -1187,7 +1188,7 @@ export default function VideoDetailPage() {
               maxLength={120}
               placeholder="Video title (shows on the share page)"
               disabled={savingTitle}
-              style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', padding: '2px 10px', border: '2px solid var(--accent, #C7E8A8)', borderRadius: 10, minWidth: 'min(320px, 100%)', maxWidth: '100%', flex: 1, fontFamily: 'inherit', background: 'var(--card, #fff)', color: 'inherit' }}
+              style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', padding: '2px 10px', border: '2px solid var(--link)', borderRadius: 10, minWidth: 'min(320px, 100%)', maxWidth: '100%', flex: 1, fontFamily: 'inherit', background: 'var(--bg-card)', color: 'inherit' }}
             />
             <button onClick={saveTitle} disabled={savingTitle} className="btn-primary" style={{ padding: '8px 16px', borderRadius: 10, whiteSpace: 'nowrap' }}>{savingTitle ? 'Saving…' : 'Save'}</button>
             <button onClick={() => setEditingTitle(false)} disabled={savingTitle} className="btn-secondary" style={{ padding: '8px 14px', borderRadius: 10 }}>Cancel</button>
@@ -1227,7 +1228,7 @@ export default function VideoDetailPage() {
 
       {/* Fallback-style notice — the chosen look was unavailable at render time */}
       {video.status === 'completed' && (video as any).render_note && (
-        <div style={{ marginBottom: 20, padding: '12px 16px', borderRadius: 10, background: 'rgba(245, 200, 66, 0.12)', border: '1px solid rgba(245,200,66,0.5)', fontSize: 14, color: 'var(--ink, #1B3A5C)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        <div style={{ marginBottom: 20, padding: '12px 16px', borderRadius: 10, background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', fontSize: 14, color: 'var(--ink)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1, opacity: 0.7 }}><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
           <span>{(video as any).render_note}</span>
         </div>
@@ -1317,7 +1318,7 @@ export default function VideoDetailPage() {
           padding: '48px',
           textAlign: 'center',
         }}>
-          <p style={{ fontSize: '18px', fontWeight: 700, color: '#C03A1F', marginBottom: '8px' }}>
+          <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--error)', marginBottom: '8px' }}>
             Video Generation Failed
           </p>
           {video.error_message && (
@@ -1342,7 +1343,7 @@ export default function VideoDetailPage() {
               <summary style={{ fontSize: 13, color: 'var(--ink-soft)', cursor: 'pointer' }}>What went wrong</summary>
               <pre style={{
                 fontSize: 11.5, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                background: 'var(--bg-soft, #f6f4f0)', borderRadius: 8, padding: '10px 12px', marginTop: 8,
+                background: 'var(--bg-soft)', borderRadius: 8, padding: '10px 12px', marginTop: 8,
                 color: 'var(--ink-soft)', maxHeight: 220, overflow: 'auto',
               }}>{video.progress_detail.replace(/^\[fail\]\s*/, '')}</pre>
             </details>
@@ -1565,7 +1566,7 @@ export default function VideoDetailPage() {
                       musicRef.current.muted = v === 0
                     }
                   }}
-                  style={{ flex: 1, maxWidth: 140, accentColor: 'var(--mint)' }}
+                  style={{ flex: 1, maxWidth: 140, accentColor: 'var(--accent-ink)' }}
                 />
                 <span style={{ fontSize: 11, color: 'var(--ink-light)', minWidth: 30 }}>
                   {musicMuted ? 'Off' : `${Math.round(musicVolume * 100)}%`}
@@ -1620,7 +1621,7 @@ export default function VideoDetailPage() {
                       bottom: 2,
                       left: 2,
                       background: 'rgba(0,0,0,0.65)',
-                      color: '#fff',
+                      color: 'var(--on-ink)',
                       fontSize: 10,
                       fontWeight: 700,
                       padding: '1px 5px',
@@ -1635,7 +1636,7 @@ export default function VideoDetailPage() {
                       style={{
                         position: 'absolute', top: 2, right: 2,
                         width: 22, height: 22, borderRadius: 5, border: 'none',
-                        background: 'rgba(0,0,0,0.6)', color: '#fff', cursor: 'pointer',
+                        background: 'rgba(0,0,0,0.6)', color: 'var(--on-ink)', cursor: 'pointer',
                         fontSize: 12, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}
                     >
@@ -1671,8 +1672,8 @@ export default function VideoDetailPage() {
                       style={{
                         display: 'flex', alignItems: 'center', gap: 6,
                         padding: '6px 12px', borderRadius: 10,
-                        border: isActive ? '1.5px solid var(--mint)' : '1px solid var(--border-light)',
-                        background: isActive ? 'rgba(168,240,212,0.12)' : 'white',
+                        border: isActive ? '1.5px solid var(--accent-ink)' : '1px solid var(--border-light)',
+                        background: isActive ? 'var(--accent-soft)' : 'white',
                         cursor: 'pointer', fontSize: 12, fontWeight: isActive ? 700 : 500,
                         color: isActive ? 'var(--ink)' : 'var(--ink-soft)',
                         transition: 'all 0.15s',
@@ -1693,9 +1694,9 @@ export default function VideoDetailPage() {
               <div style={{
                 padding: '12px 16px', borderRadius: 10, marginBottom: 12,
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: inlineNotice.type === 'error' ? '#fef2f2' : '#f0fdf4',
-                border: `1px solid ${inlineNotice.type === 'error' ? '#fca5a5' : '#86efac'}`,
-                color: inlineNotice.type === 'error' ? '#991b1b' : '#166534',
+                background: inlineNotice.type === 'error' ? 'var(--error-bg)' : 'var(--success-bg)',
+                border: `1px solid ${inlineNotice.type === 'error' ? 'var(--error-border)' : 'var(--accent)'}`,
+                color: inlineNotice.type === 'error' ? 'var(--error-text)' : 'var(--success)',
                 fontSize: 13,
               }}>
                 <span>{inlineNotice.message}</span>
@@ -1708,13 +1709,13 @@ export default function VideoDetailPage() {
               <div style={{
                 padding: '14px 16px', borderRadius: 10, marginBottom: 12,
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: '#fffbeb', border: '1px solid #fcd34d',
+                background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
                 fontSize: 13,
               }}>
-                <span style={{ color: '#92400e', fontWeight: 500 }}>{confirmAction.message}</span>
+                <span style={{ color: 'var(--warning-text)', fontWeight: 500 }}>{confirmAction.message}</span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => setConfirmAction(null)} className="btn btn-soft btn-sm">Cancel</button>
-                  <button onClick={confirmAction.onConfirm} className="btn btn-sm" style={{ background: '#dc2626', color: 'white', border: 'none' }}>Confirm</button>
+                  <button onClick={confirmAction.onConfirm} className="btn btn-sm" style={{ background: 'var(--error)', color: 'var(--on-ink)', border: 'none' }}>Confirm</button>
                 </div>
               </div>
             )}
@@ -1875,7 +1876,7 @@ export default function VideoDetailPage() {
               {(video as any)?.slide_plan_url && video?.status === 'completed' && (
                 <button onClick={() => setShowFixScene(true)} style={{
                   marginTop: 8, width: '100%', padding: '8px 12px', borderRadius: 8, cursor: 'pointer',
-                  border: '1.5px solid var(--mint)', background: 'rgba(199,232,168,0.14)', color: 'var(--ink)',
+                  border: '1.5px solid var(--accent)', background: 'var(--accent-soft)', color: 'var(--ink)',
                   fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
                 }}>✏️ Fix a scene (glitch, wording, or pronunciation)</button>
               )}
@@ -1886,8 +1887,8 @@ export default function VideoDetailPage() {
                 <div key={i} style={{
                   display: 'flex', gap: 10, alignItems: 'center',
                   padding: '8px 10px', borderRadius: 8,
-                  background: currentSlideIndex === i ? 'rgba(168,240,212,0.15)' : 'transparent',
-                  border: currentSlideIndex === i ? '1px solid var(--mint)' : '1px solid transparent',
+                  background: currentSlideIndex === i ? 'var(--accent-soft)' : 'transparent',
+                  border: currentSlideIndex === i ? '1px solid var(--accent-ink)' : '1px solid transparent',
                   cursor: 'pointer',
                   transition: 'all 0.15s',
                 }} onClick={() => jumpToSlide(i)}>
@@ -2427,11 +2428,11 @@ export default function VideoDetailPage() {
               alt={`Slide ${lightboxIndex + 1}`}
               style={{ maxWidth: '90vw', maxHeight: '78vh', objectFit: 'contain', borderRadius: 8, boxShadow: '0 12px 48px rgba(0,0,0,0.5)' }}
             />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, color: '#fff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, color: 'var(--on-ink)' }}>
               <button
                 onClick={() => setLightboxIndex(Math.max(0, lightboxIndex - 1))}
                 disabled={lightboxIndex === 0}
-                style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', borderRadius: 8, padding: '8px 14px', cursor: lightboxIndex === 0 ? 'default' : 'pointer', opacity: lightboxIndex === 0 ? 0.4 : 1, fontSize: 14, fontFamily: 'inherit' }}
+                style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: 'var(--on-ink)', borderRadius: 8, padding: '8px 14px', cursor: lightboxIndex === 0 ? 'default' : 'pointer', opacity: lightboxIndex === 0 ? 0.4 : 1, fontSize: 14, fontFamily: 'inherit' }}
               >
                 ← Prev
               </button>
@@ -2442,7 +2443,7 @@ export default function VideoDetailPage() {
               <button
                 onClick={() => setLightboxIndex(Math.min(slideCount - 1, lightboxIndex + 1))}
                 disabled={lightboxIndex >= slideCount - 1}
-                style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', borderRadius: 8, padding: '8px 14px', cursor: lightboxIndex >= slideCount - 1 ? 'default' : 'pointer', opacity: lightboxIndex >= slideCount - 1 ? 0.4 : 1, fontSize: 14, fontFamily: 'inherit' }}
+                style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: 'var(--on-ink)', borderRadius: 8, padding: '8px 14px', cursor: lightboxIndex >= slideCount - 1 ? 'default' : 'pointer', opacity: lightboxIndex >= slideCount - 1 ? 0.4 : 1, fontSize: 14, fontFamily: 'inherit' }}
               >
                 Next →
               </button>
@@ -2451,7 +2452,7 @@ export default function VideoDetailPage() {
           <button
             onClick={() => setLightboxIndex(null)}
             title="Close"
-            style={{ position: 'absolute', top: 20, right: 24, width: 40, height: 40, borderRadius: 10, border: 'none', background: 'rgba(255,255,255,0.14)', color: '#fff', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}
+            style={{ position: 'absolute', top: 20, right: 24, width: 40, height: 40, borderRadius: 10, border: 'none', background: 'rgba(255,255,255,0.14)', color: 'var(--on-ink)', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}
           >
             ×
           </button>
@@ -2477,7 +2478,7 @@ export default function VideoDetailPage() {
             {shareSentTo ? (
               /* ── SENT — an unmistakable, persistent confirmation. ── */
               <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
-                <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#e6f6f2', color: '#0d9488', fontSize: 28, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>✓</div>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--success-bg)', color: 'var(--success)', fontSize: 28, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>✓</div>
                 <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>Email sent to {shareSentTo}</div>
                 <p style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.6, margin: '0 0 18px' }}>
                   Your client just received a branded email with a <strong>Watch Video</strong> button.
@@ -2539,7 +2540,7 @@ export default function VideoDetailPage() {
 
                 {/* THE FAILURE IS NEVER SILENT. */}
                 {shareSendError && (
-                  <div role="alert" style={{ background: '#fdf3f3', border: '1px solid #e6b0b0', color: '#8a3b3b', borderRadius: 8, padding: '10px 14px', fontSize: 13, lineHeight: 1.5, margin: '14px 0 0' }}>
+                  <div role="alert" style={{ background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)', borderRadius: 8, padding: '10px 14px', fontSize: 13, lineHeight: 1.5, margin: '14px 0 0' }}>
                     {shareSendError}
                   </div>
                 )}
@@ -2581,7 +2582,7 @@ export default function VideoDetailPage() {
                     <span style={{ flexShrink: 0 }}>
                       Sent {new Date(h.sent_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                       {h.opened_at
-                        ? <strong style={{ color: '#0d9488' }}> · Opened ✓</strong>
+                        ? <strong style={{ color: 'var(--success)' }}> · Opened ✓</strong>
                         : ' · Not opened yet'}
                     </span>
                   </div>

@@ -84,13 +84,13 @@ export default function PricingPage() {
       </p>
 
       {promo && (
-        <div style={{ maxWidth: 520, margin: '0 auto 28px', padding: '12px 16px', borderRadius: 10, background: 'var(--mint)', border: '1px solid #86efac', color: 'var(--ink)', fontSize: 14, textAlign: 'center', fontWeight: 600 }}>
+        <div style={{ maxWidth: 520, margin: '0 auto 28px', padding: '12px 16px', borderRadius: 10, background: 'var(--accent)', border: '1px solid var(--accent)', color: 'var(--ink)', fontSize: 14, textAlign: 'center', fontWeight: 600 }}>
           🎉 Your <strong>{promo}</strong> discount will be applied automatically at checkout.
         </div>
       )}
 
       {error && (
-        <div style={{ maxWidth: 520, margin: '0 auto 28px', padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 14, textAlign: 'center' }}>
+        <div style={{ maxWidth: 520, margin: '0 auto 28px', padding: '12px 16px', borderRadius: 10, background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)', fontSize: 14, textAlign: 'center' }}>
           {error}
         </div>
       )}
@@ -130,9 +130,9 @@ export default function PricingPage() {
       </div>
 
       {/* AI Social add-on band */}
-      <div style={{ marginTop: 40, padding: '28px 32px', borderRadius: 10, background: 'linear-gradient(135deg,#0b1220,#16233b)', color: 'white', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+      <div style={{ marginTop: 40, padding: '28px 32px', borderRadius: 10, background: 'var(--ink)', color: 'white', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
         <div style={{ maxWidth: 620 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: '#7dd3fc', marginBottom: 6 }}>Add-on</div>
+          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 6 }}>Add-on</div>
           <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>AI Social — auto-post to your channels</div>
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.78)', margin: 0, lineHeight: 1.55 }}>
             Connect X, Instagram, Facebook, LinkedIn, YouTube + more. AI writes captions and creates
@@ -144,9 +144,9 @@ export default function PricingPage() {
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 30, fontWeight: 800 }}>$50<span style={{ fontSize: 14, fontWeight: 500, opacity: 0.7 }}>/mo</span></div>
           {addonActive ? (
-            <div style={{ marginTop: 8, fontSize: 13, fontWeight: 700, color: '#86efac' }}>✓ Active</div>
+            <div style={{ marginTop: 8, fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>✓ Active</div>
           ) : (
-            <button onClick={handleAddon} disabled={loading === 'addon'} style={{ marginTop: 10, padding: '11px 22px', borderRadius: 8, border: 'none', background: '#C9F24E', color: '#0b1220', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            <button onClick={handleAddon} disabled={loading === 'addon'} style={{ marginTop: 10, padding: '11px 22px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--ink)', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
               {loading === 'addon' ? 'Starting…' : 'Add AI Social'}
             </button>
           )}
@@ -169,10 +169,11 @@ function PlanCard(props: {
   cta: { label: string; onClick?: () => void; disabled?: boolean; variant?: 'mint' | 'dark' | 'soft' } | null
 }) {
   const { highlight } = props
-  const border = highlight === 'current' ? '2px solid var(--mint)' : highlight === 'popular' ? '2px solid var(--ink)' : '1px solid var(--border-light)'
-  const bg = highlight === 'current' ? 'rgba(59,181,200,0.06)' : 'white'
-  const btnBg = props.cta?.variant === 'dark' ? 'var(--ink)' : props.cta?.variant === 'soft' ? 'white' : 'var(--mint)'
-  const btnColor = props.cta?.variant === 'soft' ? 'var(--ink-soft)' : 'white'
+  const border = highlight === 'current' ? '2px solid var(--accent-ink)' : highlight === 'popular' ? '2px solid var(--ink)' : '1px solid var(--border-light)'
+  const bg = highlight === 'current' ? 'var(--accent-soft)' : 'white'
+  const btnBg = props.cta?.variant === 'dark' ? 'var(--ink)' : props.cta?.variant === 'soft' ? 'white' : 'var(--accent)'
+  // Words on the mint button are navy — white on pale mint can't be read.
+  const btnColor = props.cta?.variant === 'soft' ? 'var(--ink-soft)' : props.cta?.variant === 'dark' ? 'var(--on-ink)' : 'var(--ink)'
   const btnBorder = props.cta?.variant === 'soft' ? '1px solid var(--border)' : 'none'
   return (
     <div style={{ position: 'relative', padding: '26px 22px', borderRadius: 10, background: bg, border, display: 'flex', flexDirection: 'column' }}>
@@ -185,12 +186,12 @@ function PlanCard(props: {
       <div style={{ fontSize: 30, fontWeight: 800, color: 'var(--ink)', marginBottom: 2 }}>
         {props.price}{props.perMonth && <span style={{ fontSize: 15, fontWeight: 500, color: 'var(--ink-light)' }}>/mo</span>}
       </div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--mint)', marginBottom: 2 }}>{props.creditLine}</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--accent-ink)', marginBottom: 2 }}>{props.creditLine}</div>
       <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 16 }}>{props.subLine}</div>
       <div style={{ flex: 1, marginBottom: 16 }}>
         {props.features.map((f, i) => (
           <div key={i} style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 7, lineHeight: 1.4, display: 'flex', gap: 8 }}>
-            <span style={{ color: 'var(--mint)', fontWeight: 800 }}>✓</span><span>{f}</span>
+            <span style={{ color: 'var(--accent-ink)', fontWeight: 800 }}>✓</span><span>{f}</span>
           </div>
         ))}
       </div>

@@ -40,7 +40,7 @@ export default function RotatingWords() {
         .rotating-word {
           display: inline-block;
           position: relative;
-          color: var(--mint-darker, #4a7c59);
+          color: var(--mint-darker);
           font-style: italic;
           font-family: 'Instrument Serif', serif;
         }
@@ -51,7 +51,7 @@ export default function RotatingWords() {
           bottom: 2px;
           left: -4px;
           width: calc(100% + 8px);
-          background: var(--mint);
+          background: var(--accent);
           transform: translateX(-110%);
           border-radius: 4px;
         }

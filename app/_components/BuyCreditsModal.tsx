@@ -75,8 +75,8 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
         {error && (
           <div role="alert" style={{
             padding: '10px 14px', borderRadius: 8, marginBottom: 16,
-            background: 'rgba(220, 38, 38, 0.08)', border: '1.5px solid rgba(220, 38, 38, 0.3)',
-            color: '#b91c1c', fontSize: 13, fontWeight: 600, lineHeight: 1.4,
+            background: 'var(--error-bg)', border: '1.5px solid var(--error-border)',
+            color: 'var(--error-text)', fontSize: 13, fontWeight: 600, lineHeight: 1.4,
           }}>
             {error}
           </div>
@@ -85,7 +85,7 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
         {PACKS.map(p => (
           <div key={p.key} style={{
             padding: '16px 20px', borderRadius: 10, marginBottom: 12,
-            border: p.highlight ? '2px solid var(--mint)' : '1.5px solid var(--border-light)',
+            border: p.highlight ? '2px solid var(--accent-ink)' : '1.5px solid var(--border-light)',
             background: p.highlight ? 'rgba(199, 232, 168, 0.06)' : 'var(--bg-soft)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -102,8 +102,8 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
               disabled={loading === p.key}
               style={{
                 width: '100%', padding: '10px', borderRadius: 8, border: 'none',
-                background: p.highlight ? 'var(--mint)' : 'var(--ink)',
-                color: p.highlight ? 'var(--ink)' : 'white',
+                background: p.highlight ? 'var(--accent)' : 'var(--ink)',
+                color: p.highlight ? 'var(--ink)' : 'var(--on-ink)',
                 fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                 opacity: loading === p.key ? 0.6 : 1,
               }}

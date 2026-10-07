@@ -107,7 +107,7 @@ Happy to answer any questions.
       </div>
 
       {!stats.affiliate!.payout_email && (
-        <div className="card" style={{ padding: 16, marginBottom: 20, borderLeft: '4px solid #E8A87C', background: 'var(--cream, #F4F1EC)' }}>
+        <div className="card" style={{ padding: 16, marginBottom: 20, borderLeft: '4px solid var(--warning)', background: 'var(--warning-bg)' }}>
           <strong>⚠ Add your payout details to get paid.</strong> You can earn commissions now, but we can&apos;t pay you until you tell us where to send the money. Scroll to <em>Payout details</em> below.
         </div>
       )}

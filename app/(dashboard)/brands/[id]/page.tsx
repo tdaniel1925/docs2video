@@ -393,7 +393,7 @@ export default function EditBrandPage() {
                   style={{
                     flex: 1, padding: '12px 16px', borderRadius: 10, cursor: 'pointer',
                     fontSize: 14, fontWeight: 700, fontFamily: 'inherit',
-                    border: profileType === t ? '2px solid var(--mint)' : '1px solid var(--border)',
+                    border: profileType === t ? '2px solid var(--accent-ink)' : '1px solid var(--border)',
                     background: profileType === t ? 'rgba(199, 232, 168, 0.12)' : 'white',
                     color: 'var(--ink)',
                   }}
@@ -463,7 +463,7 @@ export default function EditBrandPage() {
                     style={{ display: 'none' }}
                   />
                 </div>
-                {photoError && <div style={{ marginTop: 8, fontSize: 13, color: '#dc2626', fontWeight: 500 }}>{photoError}</div>}
+                {photoError && <div style={{ marginTop: 8, fontSize: 13, color: 'var(--error)', fontWeight: 500 }}>{photoError}</div>}
               </div>
 
               <div className="form-group">
@@ -585,7 +585,7 @@ export default function EditBrandPage() {
             <input type="hidden" name="logo_dark_url" value={logoDarkUrl ?? ''} />
             <input type="hidden" name="logo_chip" value={logoChip ? 'true' : 'false'} />
             {logoFileUrl && logoLightUrl && (
-              <div style={{ marginTop: 6, fontSize: 12, color: 'var(--accent, #16A34A)', fontWeight: 600 }}>
+              <div style={{ marginTop: 6, fontSize: 12, color: 'var(--success)', fontWeight: 600 }}>
                 ✓ {storefront.showVideoFeatures ? 'Ready for video' : 'Ready to place on designs'} {logoChip ? '(shown on a subtle panel)' : ''}
               </div>
             )}
@@ -615,13 +615,13 @@ export default function EditBrandPage() {
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
               style={{
-                border: `2px dashed ${dragOver ? 'var(--accent, #4A90D9)' : 'var(--border)'}`,
+                border: `2px dashed ${dragOver ? 'var(--accent-ink)' : 'var(--border)'}`,
                 borderRadius: 10,
                 padding: '24px 16px',
                 textAlign: 'center',
                 cursor: 'pointer',
                 transition: 'border-color 0.15s, background 0.15s',
-                background: dragOver ? 'rgba(74,144,217,0.05)' : 'transparent',
+                background: dragOver ? 'var(--accent-soft)' : 'transparent',
               }}
             >
               {uploading ? (
@@ -643,7 +643,7 @@ export default function EditBrandPage() {
               />
             </div>
             {uploadError && (
-              <div style={{ marginTop: 8, fontSize: 13, color: '#dc2626', fontWeight: 500 }}>{uploadError}</div>
+              <div style={{ marginTop: 8, fontSize: 13, color: 'var(--error)', fontWeight: 500 }}>{uploadError}</div>
             )}
             {generatingLogoKit && (
               <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -652,7 +652,7 @@ export default function EditBrandPage() {
               </div>
             )}
             {logoKitError && (
-              <div style={{ marginTop: 8, fontSize: 13, color: '#dc2626', fontWeight: 500 }}>{logoKitError}</div>
+              <div style={{ marginTop: 8, fontSize: 13, color: 'var(--error)', fontWeight: 500 }}>{logoKitError}</div>
             )}
             <div style={{ marginTop: 12 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
@@ -910,7 +910,7 @@ export default function EditBrandPage() {
           </div>
 
           {error && (
-            <div style={{ borderRadius: 10, background: 'var(--rose-light, #fde8e8)', padding: '10px 16px', fontSize: 13, marginBottom: 16, color: 'var(--ink)', fontWeight: 600 }}>
+            <div style={{ borderRadius: 10, background: 'var(--error-bg)', padding: '10px 16px', fontSize: 13, marginBottom: 16, color: 'var(--ink)', fontWeight: 600 }}>
               {error}
             </div>
           )}
@@ -939,8 +939,9 @@ export default function EditBrandPage() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                background: 'rgba(52, 211, 153, 0.15)',
-                color: '#34d399',
+                // Was bright green on a green tint (under 2:1) — now the readable success pair.
+                background: 'var(--success-bg)',
+                color: 'var(--success)',
                 fontSize: 12,
                 fontWeight: 600,
                 padding: '5px 12px',
@@ -948,7 +949,7 @@ export default function EditBrandPage() {
                 whiteSpace: 'nowrap',
               }}
             >
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34d399', display: 'inline-block' }} />
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />
               Brand deck active &mdash; {selectedStyle.name}
             </span>
           )}
@@ -970,15 +971,15 @@ export default function EditBrandPage() {
               type="button"
               onClick={() => setSelectedStyleId(style.id)}
               style={{
-                background: 'var(--surface, #111)',
-                border: selectedStyleId === style.id ? '2px solid var(--accent, #4A90D9)' : '1px solid var(--border)',
+                background: 'var(--surface)',
+                border: selectedStyleId === style.id ? '2px solid var(--accent-ink)' : '1px solid var(--border)',
                 borderRadius: 10,
                 padding: 0,
                 cursor: 'pointer',
                 textAlign: 'left',
                 overflow: 'hidden',
                 transition: 'border-color 0.15s, box-shadow 0.15s',
-                boxShadow: selectedStyleId === style.id ? '0 0 0 2px rgba(74,144,217,0.25)' : 'none',
+                boxShadow: selectedStyleId === style.id ? '0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent)' : 'none',
               }}
             >
               <img
@@ -1005,7 +1006,8 @@ export default function EditBrandPage() {
           <div style={{ marginBottom: 12 }}>
             <div style={{ height: 5, background: 'var(--border)', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
               <div style={{
-                height: '100%', borderRadius: 10, background: 'var(--mint)',
+                // Dark green: pale mint vanishes on the light track.
+                height: '100%', borderRadius: 10, background: 'var(--accent-ink)',
                 transition: 'width 0.5s ease',
                 width: `${Math.max(10, (generatingSlide / 4) * 100)}%`,
               }} />
@@ -1047,7 +1049,7 @@ export default function EditBrandPage() {
                     border: '1px solid var(--border)',
                     borderRadius: 10,
                     overflow: 'hidden',
-                    background: 'var(--surface, #111)',
+                    background: 'var(--surface)',
                   }}
                 >
                   <img

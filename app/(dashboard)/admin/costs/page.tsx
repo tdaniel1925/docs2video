@@ -108,7 +108,8 @@ export default function CostsPage() {
               <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div style={{
                   width: '100%', borderRadius: '4px 4px 0 0',
-                  background: 'var(--mint, #C7E8A8)',
+                  // Dark green: pale mint bars are 1.35:1 on the white card.
+                  background: 'var(--accent-ink)',
                   height: Math.max(2, (d.cost / maxDailyCost) * 100),
                 }} title={`${d.date}: ${fmt(d.cost)} (${d.count} videos)`} />
               </div>
@@ -148,7 +149,7 @@ export default function CostsPage() {
               <tbody>
                 {topUsers.map(u => (
                   <tr key={u.userId}>
-                    <td style={s.td}><Link href={`/admin/users/${u.userId}`} style={{ color: '#2563EB', textDecoration: 'none' }}>{u.userId.slice(0, 8)}...</Link></td>
+                    <td style={s.td}><Link href={`/admin/users/${u.userId}`} style={{ color: 'var(--link)', textDecoration: 'none' }}>{u.userId.slice(0, 8)}...</Link></td>
                     <td style={{ ...s.td, textAlign: 'right' }}>{u.count}</td>
                     <td style={{ ...s.td, textAlign: 'right', fontWeight: 700 }}>{fmt(u.cost)}</td>
                   </tr>
@@ -169,16 +170,16 @@ const s: Record<string, React.CSSProperties> = {
   subtitle: { fontSize: 14, color: 'var(--ink-soft)', marginBottom: 0 },
   backLink: { fontSize: 13, color: 'var(--ink-light)', textDecoration: 'none' },
   loading: { textAlign: 'center', padding: 48, color: 'var(--ink-light)' },
-  error: { textAlign: 'center', padding: 48, color: '#DC2626' },
+  error: { textAlign: 'center', padding: 48, color: 'var(--error)' },
   grid4: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 },
   grid3: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 },
-  card: { padding: 20, borderRadius: 10, background: 'white', border: '1px solid var(--border-light, #e5e7eb)' },
+  card: { padding: 20, borderRadius: 10, background: 'white', border: '1px solid var(--border-light)' },
   cardLabel: { fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 },
   cardValue: { fontSize: 28, fontWeight: 800, color: 'var(--ink)' },
   cardSub: { fontSize: 12, color: 'var(--ink-light)', marginTop: 2 },
-  providerCard: { padding: 16, borderRadius: 8, background: 'var(--bg-soft, #f8f9fa)', textAlign: 'center' },
+  providerCard: { padding: 16, borderRadius: 8, background: 'var(--bg-soft)', textAlign: 'center' },
   sectionTitle: { fontSize: 16, fontWeight: 700, color: 'var(--ink)', marginBottom: 16 },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
   th: { textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid var(--border-light)', fontWeight: 600, color: 'var(--ink-light)', fontSize: 11, textTransform: 'uppercase' },
-  td: { padding: '8px 12px', borderBottom: '1px solid var(--border-light, #f3f4f6)', color: 'var(--ink)' },
+  td: { padding: '8px 12px', borderBottom: '1px solid var(--border-light)', color: 'var(--ink)' },
 }

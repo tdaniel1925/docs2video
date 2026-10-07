@@ -133,8 +133,8 @@ const pageStyles = `
   /* Layout */
   .wp-root {
     min-height: 100vh;
-    background: var(--bg, #F0F4F8);
-    color: var(--ink, #1B3A5C);
+    background: var(--bg);
+    color: var(--ink);
     font-family: inherit;
   }
   .wp-center {
@@ -147,8 +147,8 @@ const pageStyles = `
   .wp-header {
     width: 100%;
     height: 64px;
-    background: #fff;
-    border-bottom: 1px solid var(--border-light, #E8EDF2);
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-light);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -171,29 +171,29 @@ const pageStyles = `
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: var(--mint, #3BB5C8);
+    background: var(--accent);
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 800;
     font-size: 14px;
-    color: #fff;
+    color: var(--ink);
     flex-shrink: 0;
   }
   .wp-agent-name {
     font-weight: 700;
     font-size: 14px;
-    color: var(--ink, #1B3A5C);
+    color: var(--ink);
     line-height: 1.3;
   }
   .wp-agent-company {
     font-size: 12px;
-    color: var(--ink-light, #7A8FA3);
+    color: var(--ink-light);
     line-height: 1.3;
   }
   .wp-powered-header {
     font-size: 11px;
-    color: var(--ink-light, #7A8FA3);
+    color: var(--ink-light);
     font-weight: 600;
     letter-spacing: 0.03em;
     white-space: nowrap;
@@ -208,18 +208,18 @@ const pageStyles = `
     font-weight: 800;
     letter-spacing: -0.02em;
     margin: 0 0 4px;
-    color: var(--ink, #1B3A5C);
+    color: var(--ink);
     line-height: 1.3;
   }
   .wp-date {
     font-size: 13px;
-    color: var(--ink-light, #7A8FA3);
+    color: var(--ink-light);
     margin: 0;
   }
 
   /* Paid banner */
   .wp-paid-banner {
-    background: var(--mint, #3BB5C8);
+    background: var(--accent);
     border-radius: 10px;
     padding: 12px 20px;
     margin-top: 16px;
@@ -228,7 +228,7 @@ const pageStyles = `
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #fff;
+    color: var(--ink);
   }
 
   /* Main layout */
@@ -253,7 +253,7 @@ const pageStyles = `
     background: #000;
     border-radius: 10px;
     overflow: hidden;
-    border: 1px solid var(--border-light, #E8EDF2);
+    border: 1px solid var(--border-light);
   }
   .wp-video-wrap video {
     width: 100%;
@@ -265,7 +265,7 @@ const pageStyles = `
   .wp-slide-indicator {
     font-size: 13px;
     font-weight: 600;
-    color: var(--ink-soft, #3D5A7A);
+    color: var(--ink-soft);
     padding: 0 4px;
   }
 
@@ -287,10 +287,10 @@ const pageStyles = `
     position: relative;
   }
   .wp-thumb.active {
-    border-color: var(--mint, #3BB5C8);
+    border-color: var(--accent-ink);
   }
   .wp-thumb:hover {
-    border-color: var(--ink-light, #7A8FA3);
+    border-color: var(--ink-light);
   }
   .wp-thumb img {
     width: 120px;
@@ -303,7 +303,7 @@ const pageStyles = `
     bottom: 2px;
     left: 2px;
     background: rgba(0,0,0,0.65);
-    color: #fff;
+    color: var(--on-ink);
     font-size: 10px;
     font-weight: 700;
     padding: 1px 5px;
@@ -325,24 +325,24 @@ const pageStyles = `
     gap: 8px;
     height: 42px;
     padding: 0 16px;
-    background: #fff;
-    border: 1px solid var(--border-light, #E8EDF2);
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
     border-radius: 8px;
     font-size: 13px;
     font-weight: 600;
-    color: var(--ink, #1B3A5C);
+    color: var(--ink);
     cursor: pointer;
     transition: all 0.15s;
     white-space: nowrap;
     font-family: inherit;
   }
   .wp-action-btn:hover {
-    border-color: var(--mint, #3BB5C8);
-    background: var(--bg, #F0F4F8);
+    border-color: var(--accent-ink);
+    background: var(--bg);
   }
   .wp-action-btn.copied {
-    border-color: var(--mint, #3BB5C8);
-    color: var(--mint-darker, #1E7A8A);
+    border-color: var(--accent-ink);
+    color: var(--accent-ink);
   }
 
 
@@ -351,8 +351,8 @@ const pageStyles = `
     padding: 0 0 32px;
   }
   .wp-card {
-    background: #fff;
-    border: 1px solid var(--border-light, #E8EDF2);
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
     border-radius: 10px;
     padding: 24px;
   }
@@ -361,7 +361,7 @@ const pageStyles = `
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--ink-light, #7A8FA3);
+    color: var(--ink-light);
     margin-bottom: 16px;
   }
 
@@ -370,7 +370,7 @@ const pageStyles = `
     display: flex;
     justify-content: space-between;
     padding: 10px 0;
-    border-bottom: 1px solid var(--border-light, #E8EDF2);
+    border-bottom: 1px solid var(--border-light);
     font-size: 14px;
   }
   .wp-quote-line:last-of-type {
@@ -382,7 +382,7 @@ const pageStyles = `
     align-items: center;
     margin-top: 16px;
     padding-top: 16px;
-    border-top: 2px solid var(--border-light, #E8EDF2);
+    border-top: 2px solid var(--border-light);
   }
   .wp-quote-total-label {
     font-weight: 700;
@@ -391,7 +391,7 @@ const pageStyles = `
   .wp-quote-total-value {
     font-size: 22px;
     font-weight: 800;
-    color: var(--mint-darker, #1E7A8A);
+    color: var(--gold);
   }
   .wp-quote-actions {
     display: flex;
@@ -403,8 +403,8 @@ const pageStyles = `
     height: 44px;
     border: none;
     border-radius: 8px;
-    background: var(--ink, #1B3A5C);
-    color: #fff;
+    background: var(--ink);
+    color: var(--on-ink);
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
@@ -416,12 +416,12 @@ const pageStyles = `
   .wp-pay-alt-btn {
     height: 44px;
     padding: 0 20px;
-    border: 1px solid var(--border-light, #E8EDF2);
+    border: 1px solid var(--border-light);
     border-radius: 8px;
-    background: #fff;
+    background: var(--bg-card);
     font-size: 13px;
     font-weight: 600;
-    color: var(--ink, #1B3A5C);
+    color: var(--ink);
     cursor: pointer;
     transition: all 0.15s;
     text-decoration: none;
@@ -430,37 +430,37 @@ const pageStyles = `
     justify-content: center;
     font-family: inherit;
   }
-  .wp-pay-alt-btn:hover { border-color: var(--mint, #3BB5C8); }
+  .wp-pay-alt-btn:hover { border-color: var(--accent-ink); }
   .wp-pay-error {
     margin-top: 8px;
     padding: 8px 12px;
     border-radius: 8px;
-    background: rgba(192,58,31,0.08);
+    background: var(--error-bg);
     font-size: 13px;
-    color: #C03A1F;
+    color: var(--error);
   }
   .wp-paid-card {
-    background: rgba(59,181,200,0.08);
-    border: 1px solid var(--mint, #3BB5C8);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
     border-radius: 10px;
     padding: 16px 20px;
     display: flex;
     align-items: center;
     gap: 12px;
   }
-  .wp-paid-card-title { font-weight: 700; font-size: 14px; color: var(--ink, #1B3A5C); }
-  .wp-paid-card-sub { font-size: 12px; color: var(--ink-soft, #3D5A7A); }
+  .wp-paid-card-title { font-weight: 700; font-size: 14px; color: var(--ink); }
+  .wp-paid-card-sub { font-size: 12px; color: var(--ink-soft); }
 
   /* Calendly embed (legacy — now uses simple link) */
   .wp-calendly {
-    background: #fff;
-    border: 1px solid var(--border-light, #E8EDF2);
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
     border-radius: 10px;
     overflow: hidden;
   }
   .wp-calendly-header {
     padding: 16px 24px;
-    border-bottom: 1px solid var(--border-light, #E8EDF2);
+    border-bottom: 1px solid var(--border-light);
     font-weight: 700;
     font-size: 15px;
     display: flex;
@@ -475,8 +475,8 @@ const pageStyles = `
 
   /* Contact card */
   .wp-contact-card {
-    background: #fff;
-    border: 1px solid var(--border-light, #E8EDF2);
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
     border-radius: 10px;
     padding: 24px;
     display: flex;
@@ -495,18 +495,18 @@ const pageStyles = `
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background: var(--mint, #3BB5C8);
+    background: var(--accent);
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 800;
     font-size: 18px;
-    color: #fff;
+    color: var(--ink);
   }
   .wp-contact-name {
     font-weight: 700;
     font-size: 16px;
-    color: var(--ink, #1B3A5C);
+    color: var(--ink);
   }
   .wp-contact-details {
     display: flex;
@@ -519,29 +519,29 @@ const pageStyles = `
     align-items: center;
     gap: 6px;
     font-size: 13px;
-    color: var(--ink-soft, #3D5A7A);
+    color: var(--ink-soft);
     text-decoration: none;
     transition: color 0.15s;
   }
   .wp-contact-link:hover {
-    color: var(--mint-darker, #1E7A8A);
+    color: var(--link);
   }
 
   /* Footer */
   .wp-footer {
     text-align: center;
     padding: 24px 0;
-    border-top: 1px solid var(--border-light, #E8EDF2);
+    border-top: 1px solid var(--border-light);
   }
   .wp-footer a {
     font-size: 11px;
-    color: var(--ink-light, #7A8FA3);
+    color: var(--ink-light);
     text-decoration: none;
     font-weight: 600;
     letter-spacing: 0.04em;
   }
   .wp-footer a:hover {
-    color: var(--ink-soft, #3D5A7A);
+    color: var(--ink-soft);
   }
 
   /* Loading / Not found */
@@ -562,7 +562,7 @@ const pageStyles = `
   }
   .wp-not-found p {
     font-size: 15px;
-    color: var(--ink-soft, #3D5A7A);
+    color: var(--ink-soft);
   }
 
   /* Legal Disclosures */
@@ -570,7 +570,7 @@ const pageStyles = `
     display: inline-block;
     font-size: 13px;
     font-weight: 600;
-    color: var(--ink-soft, #3D5A7A);
+    color: var(--ink-soft);
     cursor: pointer;
     padding: 8px 0;
     border: none;
@@ -580,11 +580,11 @@ const pageStyles = `
     transition: color 0.15s;
   }
   .wp-disclosures-toggle:hover {
-    color: var(--ink, #1B3A5C);
+    color: var(--ink);
   }
   .wp-disclosures-panel {
-    background: #F7F8FA;
-    border: 1px solid var(--border-light, #E8EDF2);
+    background: var(--bg-soft);
+    border: 1px solid var(--border-light);
     border-radius: 10px;
     padding: 24px 28px;
     margin-top: 8px;
@@ -595,7 +595,7 @@ const pageStyles = `
   .wp-disclosures-heading {
     font-size: 13px;
     font-weight: 700;
-    color: var(--ink, #1B3A5C);
+    color: var(--ink);
     margin: 0 0 8px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -603,12 +603,12 @@ const pageStyles = `
   .wp-disclosures-text {
     font-size: 12px;
     line-height: 1.7;
-    color: var(--ink-soft, #3D5A7A);
+    color: var(--ink-soft);
     margin: 0 0 6px;
   }
   .wp-disclosures-divider {
     border: none;
-    border-top: 1px solid var(--border-light, #E8EDF2);
+    border-top: 1px solid var(--border-light);
     margin: 16px 0;
   }
 
@@ -619,8 +619,8 @@ const pageStyles = `
     left: 0;
     right: 0;
     z-index: 200;
-    background: #fff;
-    border-top: 1px solid var(--border-light, #E8EDF2);
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-light);
     box-shadow: 0 -4px 24px rgba(0,0,0,0.08);
     padding: 20px 24px;
     animation: slideUp 0.4s ease-out;
@@ -638,18 +638,18 @@ const pageStyles = `
   .wp-lead-title {
     font-size: 15px;
     font-weight: 700;
-    color: var(--ink, #1B3A5C);
+    color: var(--ink);
   }
   .wp-lead-close {
     background: none;
     border: none;
     cursor: pointer;
     padding: 4px;
-    color: var(--ink-light, #7A8FA3);
+    color: var(--ink-light);
     transition: color 0.15s;
   }
   .wp-lead-close:hover {
-    color: var(--ink, #1B3A5C);
+    color: var(--ink);
   }
   .wp-lead-form {
     display: flex;
@@ -661,22 +661,22 @@ const pageStyles = `
     min-width: 140px;
     height: 40px;
     padding: 0 12px;
-    border: 1px solid var(--border-light, #E8EDF2);
+    border: 1px solid var(--border-light);
     border-radius: 8px;
     font-size: 14px;
     font-family: inherit;
-    color: var(--ink, #1B3A5C);
+    color: var(--ink);
     outline: none;
     transition: border-color 0.15s;
   }
   .wp-lead-input:focus {
-    border-color: var(--mint, #3BB5C8);
+    border-color: var(--link);
   }
   .wp-lead-submit {
     height: 40px;
     padding: 0 20px;
-    background: var(--ink, #1B3A5C);
-    color: #fff;
+    background: var(--ink);
+    color: var(--on-ink);
     border: none;
     border-radius: 8px;
     font-size: 14px;
@@ -695,7 +695,7 @@ const pageStyles = `
   }
   .wp-lead-success {
     font-size: 14px;
-    color: var(--mint-darker, #1E7A8A);
+    color: var(--success);
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -703,7 +703,7 @@ const pageStyles = `
   }
   .wp-lead-error {
     font-size: 12px;
-    color: #C03A1F;
+    color: var(--error);
     margin-top: 6px;
   }
   @keyframes slideUp {
@@ -986,7 +986,7 @@ export default function PublicWatchPage() {
           <div className="wp-not-found">
             <h1>This presentation is no longer available</h1>
             <p>It may have been removed by the creator.</p>
-            <a href="/" style={{ display: 'inline-block', marginTop: 20, padding: '10px 20px', background: 'var(--ink, #1B3A5C)', color: '#fff', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>
+            <a href="/" style={{ display: 'inline-block', marginTop: 20, padding: '10px 20px', background: 'var(--ink)', color: 'var(--on-ink)', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>
               Go to Homepage
             </a>
           </div>
@@ -1123,13 +1123,13 @@ export default function PublicWatchPage() {
         {(clientFirstName || video.agent_note) && (
           <div style={{ width: '100%', maxWidth: 760, margin: '0 auto 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             {clientFirstName && (
-              <div style={{ padding: '14px 18px', borderRadius: 10, background: 'var(--mint-soft, rgba(199,232,168,0.18))', border: '1px solid var(--mint, #C7E8A8)', fontSize: 16, color: 'var(--ink, #1B3A5C)', fontWeight: 600, textAlign: 'center' }}>
+              <div style={{ padding: '14px 18px', borderRadius: 10, background: 'var(--accent-soft)', border: '1px solid var(--accent)', fontSize: 16, color: 'var(--ink)', fontWeight: 600, textAlign: 'center' }}>
                 Hi {clientFirstName} — {hasAgentIdentity ? <>prepared for you by <strong>{agentName}</strong></> : 'prepared just for you'}.
               </div>
             )}
             {video.agent_note && (
-              <div style={{ padding: '14px 18px', borderRadius: 10, background: '#fff', border: '1px solid var(--border-light, #E8EDF2)', fontSize: 15, color: 'var(--ink-soft, #3D5A7A)', lineHeight: 1.5 }}>
-                {hasAgentIdentity && <div style={{ fontWeight: 700, color: 'var(--ink, #1B3A5C)', marginBottom: 4 }}>A note from {agentName}</div>}
+              <div style={{ padding: '14px 18px', borderRadius: 10, background: 'var(--bg-card)', border: '1px solid var(--border-light)', fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+                {hasAgentIdentity && <div style={{ fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>A note from {agentName}</div>}
                 {video.agent_note}
               </div>
             )}
@@ -1218,7 +1218,7 @@ export default function PublicWatchPage() {
                 gap: 8,
                 padding: '8px 4px 0',
                 fontSize: 12,
-                color: 'var(--ink-soft, #3D5A7A)',
+                color: 'var(--ink-soft)',
               }}>
                 <button
                   onClick={() => {
@@ -1235,7 +1235,7 @@ export default function PublicWatchPage() {
                     padding: 2,
                     display: 'flex',
                     alignItems: 'center',
-                    color: musicMuted ? 'var(--ink-light, #7A8FA3)' : 'var(--ink-soft, #3D5A7A)',
+                    color: musicMuted ? 'var(--ink-light)' : 'var(--ink-soft)',
                   }}
                   title={musicMuted ? 'Unmute music' : 'Mute music'}
                 >
@@ -1262,9 +1262,9 @@ export default function PublicWatchPage() {
                       musicRef.current.muted = v === 0
                     }
                   }}
-                  style={{ flex: 1, maxWidth: 140, accentColor: 'var(--mint, #3BB5C8)' }}
+                  style={{ flex: 1, maxWidth: 140, accentColor: 'var(--accent-ink)' }}
                 />
-                <span style={{ fontSize: 11, color: 'var(--ink-light, #7A8FA3)', minWidth: 30 }}>
+                <span style={{ fontSize: 11, color: 'var(--ink-light)', minWidth: 30 }}>
                   {musicMuted ? 'Off' : `${Math.round(musicVolume * 100)}%`}
                 </span>
               </div>
@@ -1313,14 +1313,14 @@ export default function PublicWatchPage() {
                         style={{
                           display: 'flex', alignItems: 'center', gap: 6,
                           padding: '6px 12px', borderRadius: 10,
-                          border: isActive ? '1.5px solid var(--mint, #3BB5C8)' : '1px solid var(--border-light, #E8EDF2)',
-                          background: isActive ? 'rgba(59,181,200,0.08)' : '#fff',
+                          border: isActive ? '1.5px solid var(--accent-ink)' : '1px solid var(--border-light)',
+                          background: isActive ? 'var(--accent-soft)' : 'var(--bg-card)',
                           cursor: 'pointer', fontSize: 12, fontWeight: isActive ? 700 : 500,
-                          color: isActive ? 'var(--ink, #1B3A5C)' : 'var(--ink-soft, #3D5A7A)',
+                          color: isActive ? 'var(--ink)' : 'var(--ink-soft)',
                           transition: 'all 0.15s', fontFamily: 'inherit',
                         }}
                       >
-                        <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--ink-light, #7A8FA3)' }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--ink-light)' }}>
                           {mins}:{secs.toString().padStart(2, '0')}
                         </span>
                         <span>{ch.title || `Scene ${i + 1}`}</span>
@@ -1372,7 +1372,7 @@ export default function PublicWatchPage() {
                       onClick={() => trackEvent(video.id, 'booking_click')}
                       style={{
                         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                        height: 48, borderRadius: 10, background: 'var(--mint, #3BB5C8)', color: '#fff',
+                        height: 48, borderRadius: 10, background: 'var(--accent)', color: 'var(--ink)',
                         fontSize: 15, fontWeight: 700, textDecoration: 'none', transition: 'opacity 0.15s',
                       }}
                     >
@@ -1387,7 +1387,7 @@ export default function PublicWatchPage() {
                       onClick={() => trackEvent(video.id, 'payment_click')}
                       style={{
                         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                        height: 48, borderRadius: 10, background: 'var(--ink, #1B3A5C)', color: '#fff',
+                        height: 48, borderRadius: 10, background: 'var(--ink)', color: 'var(--on-ink)',
                         fontSize: 15, fontWeight: 700, textDecoration: 'none', transition: 'opacity 0.15s',
                       }}
                     >
@@ -1463,7 +1463,7 @@ export default function PublicWatchPage() {
             </div>
             <div className="wp-quote-actions">
               {quote.total === 0 ? (
-                <div style={{ flex: 1, textAlign: 'center', padding: '12px 0', fontSize: 14, fontWeight: 600, color: 'var(--ink-soft, #3D5A7A)' }}>
+                <div style={{ flex: 1, textAlign: 'center', padding: '12px 0', fontSize: 14, fontWeight: 600, color: 'var(--ink-soft)' }}>
                   This is a complimentary service
                 </div>
               ) : (safeLink(pipelineInput?.paymentLink) || safeLink(agent?.payment_link_url)) ? (
@@ -1524,7 +1524,7 @@ export default function PublicWatchPage() {
             onClick={() => video && trackEvent(video.id, 'booking_click')}
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              width: '100%', height: 52, borderRadius: 10, background: 'var(--mint, #3BB5C8)', color: '#fff',
+              width: '100%', height: 52, borderRadius: 10, background: 'var(--accent)', color: 'var(--ink)',
               fontSize: 16, fontWeight: 700, textDecoration: 'none', transition: 'opacity 0.15s',
             }}
           >
@@ -1547,7 +1547,7 @@ export default function PublicWatchPage() {
             <div>
               <div className="wp-contact-name">{agentName}</div>
               {agent.company_name && agent.company_name !== agent.full_name && (
-                <div style={{ fontSize: 13, color: 'var(--ink-light, #7A8FA3)', marginTop: 2 }}>
+                <div style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 2 }}>
                   {agent.company_name}
                 </div>
               )}
@@ -1584,7 +1584,7 @@ export default function PublicWatchPage() {
               top: '50%',
               transform: 'translateY(-50%) rotate(-90deg)',
               transformOrigin: 'bottom right',
-              background: 'var(--ink, #1a2b3c)',
+              background: 'var(--ink)',
               color: 'white',
               border: 'none',
               borderRadius: '6px 6px 0 0',
@@ -1632,16 +1632,16 @@ export default function PublicWatchPage() {
                     onClick={() => setShowDisclosures(false)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
                   >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink, #1a2b3c)" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
 
                 {industryConfig?.disclaimerText && (
                   <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft, #5a6b7a)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       {industryConfig.label ?? 'Industry'} Disclosure
                     </div>
-                    <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink, #1a2b3c)', margin: 0 }}>
+                    <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink)', margin: 0 }}>
                       {industryConfig.disclaimerText}
                     </p>
                   </div>
@@ -1649,19 +1649,19 @@ export default function PublicWatchPage() {
 
                 {carrierDisclaimers.length > 0 && (
                   <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft, #5a6b7a)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Additional Disclosures
                     </div>
                     {carrierDisclaimers.map((d, i) => (
-                      <p key={i} style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink, #1a2b3c)', margin: '0 0 8px' }}>
+                      <p key={i} style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink)', margin: '0 0 8px' }}>
                         {d}
                       </p>
                     ))}
                   </div>
                 )}
 
-                <div style={{ borderTop: '1px solid var(--border-light, #e8ecf0)', paddingTop: 16, marginTop: 16 }}>
-                  <p style={{ fontSize: 11, lineHeight: 1.5, color: 'var(--ink-light, #7A8FA3)', margin: 0 }}>
+                <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 16, marginTop: 16 }}>
+                  <p style={{ fontSize: 11, lineHeight: 1.5, color: 'var(--ink-light)', margin: 0 }}>
                     This presentation was generated on {createdDate} and is intended for informational purposes only. Please consult with a qualified professional before making any decisions based on this content.
                   </p>
                 </div>
@@ -1685,10 +1685,10 @@ export default function PublicWatchPage() {
       {isFreeTier && videoEnded && (
         <div style={{
           maxWidth: 600, margin: '0 auto 32px', padding: '28px 32px', borderRadius: 10,
-          background: 'linear-gradient(135deg, #1B3A5C 0%, #2A5A8C 100%)',
+          background: 'linear-gradient(135deg, var(--ink) 0%, color-mix(in srgb, var(--ink) 80%, var(--link)) 100%)',
           textAlign: 'center', animation: 'fadeInUp 0.5s ease',
         }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 8, letterSpacing: '-0.02em' }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--on-ink)', marginBottom: 8, letterSpacing: '-0.02em' }}>
             Make videos like this one
           </div>
           <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.75)', marginBottom: 20, lineHeight: 1.5 }}>
@@ -1698,7 +1698,7 @@ export default function PublicWatchPage() {
             href="https://docs2video.com/signup"
             style={{
               display: 'inline-block', padding: '14px 36px', borderRadius: 8,
-              background: '#3BB5C8', color: '#fff', fontSize: 16, fontWeight: 700,
+              background: 'var(--accent)', color: 'var(--ink)', fontSize: 16, fontWeight: 700,
               textDecoration: 'none', transition: 'opacity 0.15s',
             }}
           >
@@ -1712,7 +1712,7 @@ export default function PublicWatchPage() {
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
           padding: '10px 20px',
-          background: 'rgba(27, 58, 92, 0.95)', backdropFilter: 'blur(8px)',
+          background: 'color-mix(in srgb, var(--ink) 95%, transparent)', backdropFilter: 'blur(8px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
         }}>
           <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
@@ -1722,7 +1722,7 @@ export default function PublicWatchPage() {
             href="https://docs2video.com/signup"
             style={{
               padding: '6px 16px', borderRadius: 6,
-              background: '#3BB5C8', color: '#fff', fontSize: 12, fontWeight: 700,
+              background: 'var(--accent)', color: 'var(--ink)', fontSize: 12, fontWeight: 700,
               textDecoration: 'none',
             }}
           >
@@ -1831,24 +1831,24 @@ export default function PublicWatchPage() {
           onClick={(e) => { if (e.target === e.currentTarget) setAskOpen(false) }}
           style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(6px)', padding: '24px 16px', overflowY: 'auto' }}
         >
-          <div style={{ width: '100%', maxWidth: 460, margin: 'auto', background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+          <div style={{ width: '100%', maxWidth: 460, margin: 'auto', background: 'var(--bg-card)', borderRadius: 10, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1a1a1a', margin: 0 }}>Ask a question</h2>
-              <button onClick={() => setAskOpen(false)} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888', lineHeight: 1 }}>&times;</button>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink)', margin: 0 }}>Ask a question</h2>
+              <button onClick={() => setAskOpen(false)} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-light)', lineHeight: 1 }}>&times;</button>
             </div>
 
             {askSent ? (
               <div style={{ textAlign: 'center', padding: '14px 0 6px' }}>
-                <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#e6f6f2', color: '#0d9488', fontSize: 26, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>✓</div>
+                <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--success-bg)', color: 'var(--success)', fontSize: 26, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>✓</div>
                 <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Question sent</div>
-                <p style={{ fontSize: 14, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>
+                <p style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.6, margin: '0 0 16px' }}>
                   We emailed it to the presenter{askEmail.trim() ? ' — they can reply to you directly' : ''}. Thanks!
                 </p>
-                <button onClick={() => setAskOpen(false)} style={{ background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Done</button>
+                <button onClick={() => setAskOpen(false)} style={{ background: 'var(--ink)', color: 'var(--on-ink)', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Done</button>
               </div>
             ) : (
               <>
-                <p style={{ fontSize: 13.5, color: '#555', margin: '0 0 14px', lineHeight: 1.5 }}>
+                <p style={{ fontSize: 13.5, color: 'var(--ink-soft)', margin: '0 0 14px', lineHeight: 1.5 }}>
                   Type your question and we&rsquo;ll email it straight to the person who made this. Add your email if you&rsquo;d like a reply.
                 </p>
                 <textarea
@@ -1856,29 +1856,29 @@ export default function PublicWatchPage() {
                   onChange={(e) => { setAskQuestion(e.target.value); setAskError('') }}
                   rows={4}
                   placeholder="What would you like to know?"
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid #d8dde3', font: 'inherit', fontSize: 14, resize: 'vertical', marginBottom: 10 }}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', font: 'inherit', fontSize: 14, resize: 'vertical', marginBottom: 10 }}
                 />
                 <input
                   type="email"
                   value={askEmail}
                   onChange={(e) => setAskEmail(e.target.value)}
                   placeholder="Your email (optional, for a reply)"
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid #d8dde3', font: 'inherit', fontSize: 14, marginBottom: 10 }}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', font: 'inherit', fontSize: 14, marginBottom: 10 }}
                 />
                 <input
                   type="text"
                   value={askName}
                   onChange={(e) => setAskName(e.target.value)}
                   placeholder="Your name (optional)"
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid #d8dde3', font: 'inherit', fontSize: 14, marginBottom: 12 }}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', font: 'inherit', fontSize: 14, marginBottom: 12 }}
                 />
                 {askError && (
-                  <div role="alert" style={{ background: '#fdf3f3', border: '1px solid #e6b0b0', color: '#8a3b3b', borderRadius: 8, padding: '9px 12px', fontSize: 13, marginBottom: 12 }}>{askError}</div>
+                  <div role="alert" style={{ background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)', borderRadius: 8, padding: '9px 12px', fontSize: 13, marginBottom: 12 }}>{askError}</div>
                 )}
                 <button
                   onClick={submitAsk}
                   disabled={askSending}
-                  style={{ width: '100%', background: '#0d9488', color: '#fff', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 700, cursor: askSending ? 'default' : 'pointer', fontSize: 15, opacity: askSending ? 0.6 : 1 }}
+                  style={{ width: '100%', background: 'var(--ink)', color: 'var(--on-ink)', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 700, cursor: askSending ? 'default' : 'pointer', fontSize: 15, opacity: askSending ? 0.6 : 1 }}
                 >
                   {askSending ? 'Sending…' : 'Send question'}
                 </button>
@@ -1893,7 +1893,7 @@ export default function PublicWatchPage() {
       {/* ============================================================ */}
       <footer className="wp-footer" style={isFreeTier ? { paddingBottom: 48 } : undefined}>
         {isWhiteLabel ? (
-          <span style={{ fontSize: 11, color: 'var(--ink-light, #7A8FA3)', fontWeight: 600, letterSpacing: '0.04em' }}>
+          <span style={{ fontSize: 11, color: 'var(--ink-light)', fontWeight: 600, letterSpacing: '0.04em' }}>
             {agent?.company_name ?? agentName}
           </span>
         ) : (

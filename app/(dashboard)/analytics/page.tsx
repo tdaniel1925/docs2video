@@ -24,7 +24,9 @@ interface VideoDetail {
   referrer: { label: string; count: number }[]
 }
 
-/** A simple horizontal funnel bar row (stage label + count + proportional bar). */
+/** A simple horizontal funnel bar row (stage label + count + proportional bar).
+ *  Bars are dark green (stages) or navy (outcomes): pale mint on the light
+ *  track all but disappears. */
 function FunnelRow({ label, count, max, color }: { label: string; count: number; max: number; color: string }) {
   const pct = max > 0 ? Math.round((count / max) * 100) : 0
   return (
@@ -66,7 +68,7 @@ function BenchmarkRow({ label, userVal, platformVal, unit, invert }: {
         <span style={{
           fontSize: 12,
           fontWeight: 700,
-          color: isAbove ? '#16a34a' : '#dc2626',
+          color: isAbove ? 'var(--success)' : 'var(--error)',
         }}>
           {isAbove ? '\u2191' : '\u2193'} {diff}
         </span>
@@ -123,19 +125,19 @@ export default function AnalyticsPage() {
       {/* Stats row */}
       <div className="stats-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
         <div className="settings-card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--mint)' }}>{data.totalViews}</div>
+          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent-ink)' }}>{data.totalViews}</div>
           <div className="ssub">Total Views</div>
         </div>
         <div className="settings-card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--mint)' }}>{data.quoteStats.total}</div>
+          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent-ink)' }}>{data.quoteStats.total}</div>
           <div className="ssub">Quotes Sent</div>
         </div>
         <div className="settings-card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--mint)' }}>{data.quoteStats.accepted}</div>
+          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent-ink)' }}>{data.quoteStats.accepted}</div>
           <div className="ssub">Conversions</div>
         </div>
         <div className="settings-card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--mint)' }}>{data.emailStats.openRate}%</div>
+          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent-ink)' }}>{data.emailStats.openRate}%</div>
           <div className="ssub">Email Open Rate</div>
         </div>
       </div>
@@ -154,7 +156,8 @@ export default function AnalyticsPage() {
                     width: '100%',
                     maxWidth: 24,
                     height: `${(d.count / maxDaily) * 100}px`,
-                    background: 'var(--mint)',
+                    // Dark green: pale mint bars are 1.35:1 on the white card.
+                    background: 'var(--accent-ink)',
                     borderRadius: 4,
                     minHeight: 4,
                   }}
@@ -172,20 +175,20 @@ export default function AnalyticsPage() {
           <div className="settings-card">
             <h3 style={{ marginBottom: 6 }}>Watch-through</h3>
             <p className="ssub" style={{ marginBottom: 14 }}>How far viewers get into your videos.</p>
-            <FunnelRow label="Opened" count={engagement.watchFunnel.view} max={engagement.watchFunnel.view} color="var(--mint)" />
-            <FunnelRow label="Watched 25%" count={engagement.watchFunnel.p25} max={engagement.watchFunnel.view} color="var(--mint)" />
-            <FunnelRow label="Watched 50%" count={engagement.watchFunnel.p50} max={engagement.watchFunnel.view} color="var(--mint)" />
-            <FunnelRow label="Watched 75%" count={engagement.watchFunnel.p75} max={engagement.watchFunnel.view} color="var(--mint)" />
-            <FunnelRow label="Finished" count={engagement.watchFunnel.p100} max={engagement.watchFunnel.view} color="#16a34a" />
+            <FunnelRow label="Opened" count={engagement.watchFunnel.view} max={engagement.watchFunnel.view} color="var(--accent-ink)" />
+            <FunnelRow label="Watched 25%" count={engagement.watchFunnel.p25} max={engagement.watchFunnel.view} color="var(--accent-ink)" />
+            <FunnelRow label="Watched 50%" count={engagement.watchFunnel.p50} max={engagement.watchFunnel.view} color="var(--accent-ink)" />
+            <FunnelRow label="Watched 75%" count={engagement.watchFunnel.p75} max={engagement.watchFunnel.view} color="var(--accent-ink)" />
+            <FunnelRow label="Finished" count={engagement.watchFunnel.p100} max={engagement.watchFunnel.view} color="var(--ink)" />
           </div>
           <div className="settings-card">
             <h3 style={{ marginBottom: 6 }}>Engagement funnel</h3>
             <p className="ssub" style={{ marginBottom: 14 }}>From viewing to taking action.</p>
-            <FunnelRow label="Viewed" count={engagement.engagementFunnel.view} max={engagement.engagementFunnel.view} color="var(--mint)" />
-            <FunnelRow label="Played" count={engagement.engagementFunnel.play} max={engagement.engagementFunnel.view} color="var(--mint)" />
-            <FunnelRow label="Downloaded" count={engagement.engagementFunnel.download} max={engagement.engagementFunnel.view} color="var(--mint)" />
-            <FunnelRow label="Booked" count={engagement.engagementFunnel.booking} max={engagement.engagementFunnel.view} color="#16a34a" />
-            <FunnelRow label="Paid" count={engagement.engagementFunnel.payment} max={engagement.engagementFunnel.view} color="#16a34a" />
+            <FunnelRow label="Viewed" count={engagement.engagementFunnel.view} max={engagement.engagementFunnel.view} color="var(--accent-ink)" />
+            <FunnelRow label="Played" count={engagement.engagementFunnel.play} max={engagement.engagementFunnel.view} color="var(--accent-ink)" />
+            <FunnelRow label="Downloaded" count={engagement.engagementFunnel.download} max={engagement.engagementFunnel.view} color="var(--accent-ink)" />
+            <FunnelRow label="Booked" count={engagement.engagementFunnel.booking} max={engagement.engagementFunnel.view} color="var(--ink)" />
+            <FunnelRow label="Paid" count={engagement.engagementFunnel.payment} max={engagement.engagementFunnel.view} color="var(--ink)" />
           </div>
         </div>
       )}
@@ -205,7 +208,7 @@ export default function AnalyticsPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
                   <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{c.totalViews} view{c.totalViews === 1 ? '' : 's'}</span>
                   {c.avgWatchPct != null && <span style={{ fontSize: 13, fontWeight: 700 }}>{Math.round(c.avgWatchPct)}% watched</span>}
-                  {c.converted && <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', background: 'rgba(22,163,74,0.1)', padding: '2px 8px', borderRadius: 6 }}>Converted</span>}
+                  {c.converted && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', background: 'var(--success-bg)', padding: '2px 8px', borderRadius: 6 }}>Converted</span>}
                   {c.lastViewedAt && <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>{new Date(c.lastViewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
                 </div>
               </div>
@@ -252,17 +255,17 @@ export default function AnalyticsPage() {
                   <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--ink-light)', lineHeight: 1 }}>&times;</button>
                 </div>
                 <h4 style={{ margin: '0 0 8px', fontSize: 14 }}>Watch-through</h4>
-                <FunnelRow label="Opened" count={detail.watchFunnel.view} max={detail.watchFunnel.view} color="var(--mint)" />
-                <FunnelRow label="Watched 25%" count={detail.watchFunnel.p25} max={detail.watchFunnel.view} color="var(--mint)" />
-                <FunnelRow label="Watched 50%" count={detail.watchFunnel.p50} max={detail.watchFunnel.view} color="var(--mint)" />
-                <FunnelRow label="Watched 75%" count={detail.watchFunnel.p75} max={detail.watchFunnel.view} color="var(--mint)" />
-                <FunnelRow label="Finished" count={detail.watchFunnel.p100} max={detail.watchFunnel.view} color="#16a34a" />
+                <FunnelRow label="Opened" count={detail.watchFunnel.view} max={detail.watchFunnel.view} color="var(--accent-ink)" />
+                <FunnelRow label="Watched 25%" count={detail.watchFunnel.p25} max={detail.watchFunnel.view} color="var(--accent-ink)" />
+                <FunnelRow label="Watched 50%" count={detail.watchFunnel.p50} max={detail.watchFunnel.view} color="var(--accent-ink)" />
+                <FunnelRow label="Watched 75%" count={detail.watchFunnel.p75} max={detail.watchFunnel.view} color="var(--accent-ink)" />
+                <FunnelRow label="Finished" count={detail.watchFunnel.p100} max={detail.watchFunnel.view} color="var(--ink)" />
                 <h4 style={{ margin: '18px 0 8px', fontSize: 14 }}>Engagement</h4>
-                <FunnelRow label="Viewed" count={detail.engagementFunnel.view} max={detail.engagementFunnel.view} color="var(--mint)" />
-                <FunnelRow label="Played" count={detail.engagementFunnel.play} max={detail.engagementFunnel.view} color="var(--mint)" />
-                <FunnelRow label="Downloaded" count={detail.engagementFunnel.download} max={detail.engagementFunnel.view} color="var(--mint)" />
-                <FunnelRow label="Booked" count={detail.engagementFunnel.booking} max={detail.engagementFunnel.view} color="#16a34a" />
-                <FunnelRow label="Paid" count={detail.engagementFunnel.payment} max={detail.engagementFunnel.view} color="#16a34a" />
+                <FunnelRow label="Viewed" count={detail.engagementFunnel.view} max={detail.engagementFunnel.view} color="var(--accent-ink)" />
+                <FunnelRow label="Played" count={detail.engagementFunnel.play} max={detail.engagementFunnel.view} color="var(--accent-ink)" />
+                <FunnelRow label="Downloaded" count={detail.engagementFunnel.download} max={detail.engagementFunnel.view} color="var(--accent-ink)" />
+                <FunnelRow label="Booked" count={detail.engagementFunnel.booking} max={detail.engagementFunnel.view} color="var(--ink)" />
+                <FunnelRow label="Paid" count={detail.engagementFunnel.payment} max={detail.engagementFunnel.view} color="var(--ink)" />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 18 }}>
                   <div>
                     <h4 style={{ margin: '0 0 8px', fontSize: 14 }}>Devices</h4>
@@ -342,7 +345,7 @@ export default function AnalyticsPage() {
               <div className="ssub">Views last month</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color: benchmarks.viewsThisMonth >= benchmarks.viewsLastMonth ? '#16a34a' : '#dc2626' }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: benchmarks.viewsThisMonth >= benchmarks.viewsLastMonth ? 'var(--success)' : 'var(--error)' }}>
                 {benchmarks.viewsLastMonth > 0
                   ? `${benchmarks.viewsThisMonth >= benchmarks.viewsLastMonth ? '+' : ''}${Math.round(((benchmarks.viewsThisMonth - benchmarks.viewsLastMonth) / benchmarks.viewsLastMonth) * 100)}%`
                   : '--'}

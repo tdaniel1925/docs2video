@@ -5,7 +5,7 @@ import { CREDIT_COSTS } from '../../../_lib/credits'
 import { NAMES } from '../../../_lib/names'
 
 const STEP_CIRCLE = {
-  width: 36, height: 36, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
+  width: 36, height: 36, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
   display: 'flex' as const, alignItems: 'center' as const, justifyContent: 'center' as const,
   fontWeight: 700, fontSize: 15, flexShrink: 0,
 }
@@ -105,7 +105,7 @@ export default function CommercialsHelpPage() {
       </div>
 
       {/* Note */}
-      <div style={{ marginTop: 8, padding: '16px 20px', borderRadius: 10, background: 'rgba(199, 232, 168, 0.14)', border: '1.5px solid var(--mint)' }}>
+      <div style={{ marginTop: 8, padding: '16px 20px', borderRadius: 10, background: 'var(--accent-soft)', border: '1.5px solid var(--accent)' }}>
         <p style={{ ...body, margin: 0 }}>
           <strong>Tip:</strong> For regulated industries (like insurance and financial services), the director automatically
           applies compliance safeguards — it avoids guarantees and keeps the messaging generic. See{' '}

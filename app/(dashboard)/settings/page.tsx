@@ -103,10 +103,10 @@ function ApiKeysSection() {
 
       {/* The freshly-created key — shown ONCE. */}
       {freshKey && (
-        <div style={{ padding: '14px 16px', borderRadius: 10, background: 'rgba(199,232,168,0.18)', border: '1px solid var(--mint, #C7E8A8)', marginBottom: 16 }}>
+        <div style={{ padding: '14px 16px', borderRadius: 10, background: 'rgba(199,232,168,0.18)', border: '1px solid var(--accent)', marginBottom: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Your new key — copy it now, it won&apos;t be shown again:</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <code style={{ flex: 1, fontSize: 13, padding: '8px 10px', borderRadius: 8, background: '#fff', border: '1px solid var(--border-light)', overflowX: 'auto', whiteSpace: 'nowrap' }}>{freshKey}</code>
+            <code style={{ flex: 1, fontSize: 13, padding: '8px 10px', borderRadius: 8, background: 'var(--bg-card)', border: '1px solid var(--border-light)', overflowX: 'auto', whiteSpace: 'nowrap' }}>{freshKey}</code>
             <button className="btn btn-sm btn-primary" onClick={() => { navigator.clipboard?.writeText(freshKey); setCopied(true); setTimeout(() => setCopied(false), 2000) }}>{copied ? 'Copied' : 'Copy'}</button>
             <button className="btn btn-sm btn-soft" onClick={() => setFreshKey(null)}>Done</button>
           </div>
@@ -125,7 +125,7 @@ function ApiKeysSection() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
           {activeKeys.map(k => (
-            <div key={k.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border-light)', background: '#fff' }}>
+            <div key={k.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border-light)', background: 'var(--bg-card)' }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{k.name || 'Untitled key'}</div>
                 <div style={{ fontSize: 12, color: 'var(--ink-light)' }}><code>{k.key_prefix}…</code> · created {new Date(k.created_at).toLocaleDateString()} {k.last_used_at ? `· last used ${new Date(k.last_used_at).toLocaleDateString()}` : '· never used'}</div>
@@ -141,7 +141,7 @@ function ApiKeysSection() {
         <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--ink)' }}>Use it with an AI assistant (MCP)</summary>
         <div style={{ marginTop: 8, lineHeight: 1.6 }}>
           <p style={{ margin: '0 0 8px' }}>Point the MCP server at your key to make {storefront.showVideoFeatures ? 'videos and commercials' : 'designs'} from chat. For Claude Code:</p>
-          <code style={{ display: 'block', padding: '10px 12px', borderRadius: 8, background: '#fff', border: '1px solid var(--border-light)', overflowX: 'auto', whiteSpace: 'pre', fontSize: 12 }}>{`claude mcp add docs2video \\
+          <code style={{ display: 'block', padding: '10px 12px', borderRadius: 8, background: 'var(--bg-card)', border: '1px solid var(--border-light)', overflowX: 'auto', whiteSpace: 'pre', fontSize: 12 }}>{`claude mcp add docs2video \\
   -e DOCS2VIDEO_API_KEY=YOUR_KEY \\
   -- node /path/to/mcp/server.mjs`}</code>
           <p style={{ margin: '8px 0 0' }}>Base URL: <code>{typeof window !== 'undefined' ? window.location.origin : `https://${storefront.domain}`}</code>. See the mcp/README for the full tool list.
@@ -613,7 +613,7 @@ export default function SettingsPage() {
                   {loading ? 'Saving...' : 'Save changes'}
                 </button>
                 {success && <span style={{ fontSize: 13, color: 'var(--mint-darker)', fontWeight: 600 }}>Saved!</span>}
-                {saveError && <span style={{ fontSize: 13, color: '#c03a1f', fontWeight: 600 }}>{saveError}</span>}
+                {saveError && <span style={{ fontSize: 13, color: 'var(--error)', fontWeight: 600 }}>{saveError}</span>}
               </div>
             </div>
           </form>
@@ -622,7 +622,7 @@ export default function SettingsPage() {
           <div className="settings-card">
             <h3>Security</h3>
             {securityMsg && (
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, color: securityMsg.kind === 'ok' ? 'var(--mint-darker)' : '#c03a1f' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, color: securityMsg.kind === 'ok' ? 'var(--mint-darker)' : 'var(--error)' }}>
                 {securityMsg.text}
               </div>
             )}
@@ -648,12 +648,12 @@ export default function SettingsPage() {
             <h3>Profile Photos</h3>
             <p className="ssub">These photos appear on your presentation slides and share pages.</p>
             {uploadError && (
-              <div style={{ borderRadius: 10, background: '#fde8e8', padding: '10px 16px', fontSize: 13, marginBottom: 12, color: '#b91c1c', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ borderRadius: 10, background: 'var(--error-bg)', padding: '10px 16px', fontSize: 13, marginBottom: 12, color: 'var(--error-text)', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 {uploadError}
-                <button onClick={() => setUploadError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#b91c1c', lineHeight: 1 }}>&times;</button>
+                <button onClick={() => setUploadError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--error-text)', lineHeight: 1 }}>&times;</button>
               </div>
             )}
-            <Link href="/fix" style={{ display: 'inline-block', fontSize: 13, fontWeight: 600, color: 'var(--mint-darker, #2d7a4f)', marginBottom: 8 }}>
+            <Link href="/fix" style={{ display: 'inline-block', fontSize: 13, fontWeight: 600, color: 'var(--mint-darker)', marginBottom: 8 }}>
               Need to fix a photo? Try AI Photo Fixer &rarr;
             </Link>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 16 }}>
@@ -771,7 +771,7 @@ export default function SettingsPage() {
             <p className="ssub">Connect your social media accounts to post directly from {storefront.name}.</p>
 
             {socialError && (
-              <div style={{ borderRadius: 10, background: '#fde8e8', padding: '10px 16px', fontSize: 13, marginBottom: 12, color: '#b91c1c', fontWeight: 600 }}>
+              <div style={{ borderRadius: 10, background: 'var(--error-bg)', padding: '10px 16px', fontSize: 13, marginBottom: 12, color: 'var(--error-text)', fontWeight: 600 }}>
                 {socialError}
               </div>
             )}
@@ -865,7 +865,7 @@ export default function SettingsPage() {
             <p className="ssub">Connect your email to send presentations directly to clients.</p>
 
             {emailMessage && (
-              <div style={{ borderRadius: 10, padding: '10px 16px', fontSize: 13, marginBottom: 14, fontWeight: 600, background: emailMessage.includes('failed') ? '#fde8e8' : 'rgba(199,232,168,0.2)', color: emailMessage.includes('failed') ? '#c03a1f' : 'var(--mint-darker)' }}>
+              <div style={{ borderRadius: 10, padding: '10px 16px', fontSize: 13, marginBottom: 14, fontWeight: 600, background: emailMessage.includes('failed') ? 'var(--error-bg)' : 'rgba(199,232,168,0.2)', color: emailMessage.includes('failed') ? 'var(--error)' : 'var(--mint-darker)' }}>
                 {emailMessage}
               </div>
             )}
@@ -891,8 +891,8 @@ export default function SettingsPage() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <span style={{ fontSize: 13, fontWeight: 600 }}>{conn.email_address}</span>
                               {statusOk !== null && (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: statusOk ? 'var(--mint-darker, #2d8a4e)' : '#c03a1f' }}>
-                                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusOk ? '#2d8a4e' : '#c03a1f', display: 'inline-block' }} />
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: statusOk ? 'var(--mint-darker)' : 'var(--error)' }}>
+                                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusOk ? '#2d8a4e' : 'var(--error)', display: 'inline-block' }} />
                                   {statusOk ? 'Connected' : 'Error'}
                                 </span>
                               )}
@@ -912,7 +912,7 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       {testResult && (
-                        <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: testResult.success ? 'var(--mint-darker, #2d8a4e)' : '#c03a1f' }}>
+                        <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: testResult.success ? 'var(--mint-darker)' : 'var(--error)' }}>
                           {testResult.message}
                         </div>
                       )}
@@ -1126,7 +1126,7 @@ export default function SettingsPage() {
                         const res = await fetch('/api/stripe/portal', { method: 'POST' })
                         const data = await res.json()
                         if (data.url) window.location.href = data.url
-                      }} className="btn btn-soft" style={{ color: '#c03a1f' }}>Cancel subscription</button>
+                      }} className="btn btn-soft" style={{ color: 'var(--error)' }}>Cancel subscription</button>
                     ) : null
                   })()}
                 </div>
@@ -1164,10 +1164,10 @@ export default function SettingsPage() {
                   <div key={plan.tier} style={{
                     padding: '20px 16px', borderRadius: 10, textAlign: 'center', position: 'relative',
                     background: isCurrent ? 'rgba(168,240,212,0.1)' : 'white',
-                    border: isCurrent ? '2px solid var(--mint)' : '1px solid var(--border-light)',
+                    border: isCurrent ? '2px solid var(--accent-ink)' : '1px solid var(--border-light)',
                   }}>
                     {isCurrent && (
-                      <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--mint)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 10px', borderRadius: 10 }}>
+                      <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--accent)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 10px', borderRadius: 10 }}>
                         CURRENT PLAN
                       </div>
                     )}
@@ -1178,7 +1178,7 @@ export default function SettingsPage() {
                       <span style={{ fontSize: 28, fontWeight: 800 }}>{`$${Math.round(p.monthlyPrice / 100)}`}</span>
                       {plan.period && <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>{plan.period}</span>}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--mint-darker, #2d7a4f)', marginBottom: 12 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--mint-darker)', marginBottom: 12 }}>
                       {plan.highlight}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 16, textAlign: 'left' }}>
@@ -1232,12 +1232,12 @@ export default function SettingsPage() {
       )}
 
       {/* ===== DANGER ZONE ===== */}
-      <div className="settings-card" style={{ marginTop: 40, border: '1px solid #e8c4c4' }}>
-        <h3 style={{ color: '#c03a1f' }}>Danger Zone</h3>
+      <div className="settings-card" style={{ marginTop: 40, border: '1px solid var(--error-border)' }}>
+        <h3 style={{ color: 'var(--error)' }}>Danger Zone</h3>
         <p className="ssub">Permanently delete your account and all associated data. This action cannot be undone.</p>
         <button
           className="btn"
-          style={{ background: '#c03a1f', color: '#fff', border: 'none', marginTop: 8 }}
+          style={{ background: 'var(--error)', color: 'var(--on-ink)', border: 'none', marginTop: 8 }}
           onClick={async () => {
             if (!window.confirm(`Are you sure you want to delete your account? All your ${storefront.showVideoFeatures ? 'videos' : 'designs'}, brands, and data will be permanently removed. This cannot be undone.`)) return
             if (!window.confirm('This is your final confirmation. Type OK in the next prompt to proceed.')) return

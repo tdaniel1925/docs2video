@@ -85,7 +85,7 @@ export default function SceneEditChat({ scene, outputType, sourceData, onApply }
     <div
       onClick={e => e.stopPropagation()}
       style={{
-        marginTop: 8, border: '1px solid var(--mint)', borderRadius: 8,
+        marginTop: 8, border: '1px solid var(--accent-ink)', borderRadius: 8,
         background: 'var(--bg-soft)', overflow: 'hidden', width: '100%',
       }}
     >
@@ -105,7 +105,7 @@ export default function SceneEditChat({ scene, outputType, sourceData, onApply }
             <div key={i} style={{
               alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
               maxWidth: '85%', padding: '6px 10px', borderRadius: 8, fontSize: 12, lineHeight: 1.45,
-              background: m.role === 'user' ? 'var(--mint)' : 'white',
+              background: m.role === 'user' ? 'var(--accent)' : 'white',
               border: m.role === 'user' ? 'none' : '1px solid var(--border-light)',
               color: 'var(--ink)',
             }}>{m.text}</div>
@@ -133,7 +133,7 @@ export default function SceneEditChat({ scene, outputType, sourceData, onApply }
           {busy ? '…' : 'Send'}
         </button>
       </div>
-      {err && <div style={{ fontSize: 11, color: '#b91c1c', padding: '0 10px 8px' }}>{err}</div>}
+      {err && <div style={{ fontSize: 11, color: 'var(--error-text)', padding: '0 10px 8px' }}>{err}</div>}
     </div>
   )
 }

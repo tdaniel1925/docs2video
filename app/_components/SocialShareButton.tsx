@@ -93,7 +93,7 @@ export default function SocialShareButton({ creationId, creationType, title, ima
                   disabled={posting !== null}
                   style={{
                     padding: '14px 16px', borderRadius: 10,
-                    border: '1px solid var(--border-light, #e2e8f0)',
+                    border: '1px solid var(--border-light)',
                     background: posting === p.id ? 'var(--bg-soft)' : 'white',
                     cursor: posting ? 'not-allowed' : 'pointer',
                     display: 'flex', alignItems: 'center', gap: 10,
@@ -103,7 +103,7 @@ export default function SocialShareButton({ creationId, creationType, title, ima
                 >
                   <div style={{
                     width: 32, height: 32, borderRadius: 8,
-                    background: 'var(--bg-soft, #f1f5f9)',
+                    background: 'var(--bg-soft)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 12, fontWeight: 800,
                   }}>
@@ -122,10 +122,10 @@ export default function SocialShareButton({ creationId, creationType, title, ima
             {result && (
               <div style={{
                 padding: '12px 16px', borderRadius: 10,
-                background: result.credits > 0 ? 'rgba(168,240,212,0.15)' : 'var(--bg-soft)',
-                border: result.credits > 0 ? '1px solid var(--mint)' : '1px solid var(--border-light)',
+                background: result.credits > 0 ? 'var(--success-bg)' : 'var(--bg-soft)',
+                border: result.credits > 0 ? '1px solid var(--accent)' : '1px solid var(--border-light)',
                 fontSize: 13, fontWeight: 600,
-                color: result.credits > 0 ? 'var(--mint-darker, #2d7a4f)' : 'var(--ink-soft)',
+                color: result.credits > 0 ? 'var(--mint-darker)' : 'var(--ink-soft)',
               }}>
                 {result.message}
               </div>

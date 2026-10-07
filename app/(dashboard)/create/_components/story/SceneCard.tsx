@@ -53,7 +53,7 @@ export default function SceneCard({
       onDragEnd={onDragEnd}
       style={{
         marginBottom: 10, borderRadius: 10, background: 'var(--bg-card)',
-        border: dragging ? '2px solid var(--mint)' : '1px solid var(--border-light)',
+        border: dragging ? '2px solid var(--accent-ink)' : '1px solid var(--border-light)',
         opacity: dragging ? 0.6 : 1, transition: 'opacity 0.2s, border-color 0.2s',
       }}
     >
@@ -177,7 +177,7 @@ export default function SceneCard({
 
                 {bullets.map((b: any, j: number) => (
                   <div key={j} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
-                    <span style={{ color: 'var(--mint)', fontSize: 10 }}>&#9679;</span>
+                    <span style={{ color: 'var(--accent-ink)', fontSize: 10 }}>&#9679;</span>
                     <input
                       type="text"
                       value={typeof b === 'string' ? b : b?.text || ''}

@@ -21,7 +21,7 @@ export default function TermsOfService() {
         {/* Back link */}
         <div style={{ marginBottom: 40 }}>
           <Link href="/" style={{
-            color: 'var(--mint)',
+            color: 'var(--link)',
             textDecoration: 'none',
             fontSize: 14,
             fontWeight: 500,
@@ -77,7 +77,7 @@ export default function TermsOfService() {
             <li>Maintain and promptly update your account information to keep it accurate.</li>
             <li>Maintain the security and confidentiality of your login credentials.</li>
             <li>Accept responsibility for all activities that occur under your account.</li>
-            <li>Notify us immediately at <a href="mailto:support@docs2video.com" style={{ color: 'var(--mint)' }}>support@docs2video.com</a> if you suspect unauthorized access to your account.</li>
+            <li>Notify us immediately at <a href="mailto:support@docs2video.com" style={{ color: 'var(--link)' }}>support@docs2video.com</a> if you suspect unauthorized access to your account.</li>
           </ol>
           <p>You must be at least 18 years of age to create an account and use the Service. We reserve the right to suspend or terminate accounts that violate these Terms or that we reasonably believe are being used fraudulently.</p>
         </Section>
@@ -98,7 +98,7 @@ export default function TermsOfService() {
           <p>The free (Demo) tier allows users to generate a limited number of watermarked video explainers for evaluation purposes. Watermarked demo videos are intended solely for evaluation and may not be used for commercial distribution or client-facing purposes. Upgrading to a paid plan removes watermarks.</p>
 
           <h3 style={h3Style}>4.5 Refund Policy</h3>
-          <p>Subscription fees are generally non-refundable. However, if you are dissatisfied with the Service, you may contact us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--mint)' }}>support@docs2video.com</a> within 14 days of your initial purchase to request a refund. Refund requests after 14 days will be evaluated on a case-by-case basis. Unused credits from credit packs may be refunded within 30 days of purchase if no credits from the pack have been used.</p>
+          <p>Subscription fees are generally non-refundable. However, if you are dissatisfied with the Service, you may contact us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--link)' }}>support@docs2video.com</a> within 14 days of your initial purchase to request a refund. Refund requests after 14 days will be evaluated on a case-by-case basis. Unused credits from credit packs may be refunded within 30 days of purchase if no credits from the pack have been used.</p>
 
           <h3 style={h3Style}>4.6 Cancellation</h3>
           <p>You may cancel your subscription at any time from your account settings. Upon cancellation, you will retain access to your paid plan features until the end of your current billing period. No partial refunds will be issued for unused portions of a billing cycle.</p>
@@ -204,7 +204,7 @@ export default function TermsOfService() {
             <li>Extended inactivity;</li>
             <li>Requests by law enforcement or government agencies.</li>
           </ol>
-          <p>Upon termination, your right to use the Service will immediately cease. We may, but are not obligated to, retain your data for a reasonable period following termination. You may request deletion of your data by contacting us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--mint)' }}>support@docs2video.com</a>.</p>
+          <p>Upon termination, your right to use the Service will immediately cease. We may, but are not obligated to, retain your data for a reasonable period following termination. You may request deletion of your data by contacting us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--link)' }}>support@docs2video.com</a>.</p>
           <p>All provisions of these Terms which by their nature should survive termination shall survive, including ownership provisions, warranty disclaimers, indemnification, and limitations of liability.</p>
         </Section>
 
@@ -240,7 +240,7 @@ export default function TermsOfService() {
             <li><strong>Data Transfers.</strong> Your data may be transferred to and processed in the United States and other countries where our service providers operate. We take appropriate safeguards to ensure your data is protected in accordance with applicable data protection laws.</li>
             <li><strong>Data Retention.</strong> We retain your personal data only for as long as necessary to provide the Service and fulfill the purposes described in our Privacy Policy.</li>
           </ol>
-          <p>To exercise any of your data protection rights, please contact us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--mint)' }}>support@docs2video.com</a>.</p>
+          <p>To exercise any of your data protection rights, please contact us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--link)' }}>support@docs2video.com</a>.</p>
         </Section>
 
         {/* 15 */}
@@ -261,7 +261,7 @@ export default function TermsOfService() {
         <Section>
           <p>These Terms shall be governed by and construed in accordance with the laws of the State of Texas, United States, without regard to its conflict of law provisions.</p>
           <p>Any dispute arising out of or relating to these Terms or the Service shall be resolved exclusively in the state or federal courts located in Harris County, Texas. You consent to the personal jurisdiction and venue of such courts.</p>
-          <p>Before initiating any formal legal proceedings, you agree to first attempt to resolve the dispute informally by contacting us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--mint)' }}>support@docs2video.com</a>. We will attempt to resolve the dispute through good-faith negotiations within 30 days.</p>
+          <p>Before initiating any formal legal proceedings, you agree to first attempt to resolve the dispute informally by contacting us at <a href="mailto:support@docs2video.com" style={{ color: 'var(--link)' }}>support@docs2video.com</a>. We will attempt to resolve the dispute through good-faith negotiations within 30 days.</p>
         </Section>
 
         {/* 17 */}
@@ -304,10 +304,10 @@ export default function TermsOfService() {
             <p style={{ margin: '0 0 4px' }}>Katy, Texas 77494</p>
             <p style={{ margin: '0 0 4px' }}>United States</p>
             <p style={{ margin: '12px 0 4px' }}>
-              Email: <a href="mailto:support@docs2video.com" style={{ color: 'var(--mint)' }}>support@docs2video.com</a>
+              Email: <a href="mailto:support@docs2video.com" style={{ color: 'var(--link)' }}>support@docs2video.com</a>
             </p>
             <p style={{ margin: '0' }}>
-              Website: <a href="https://docs2video.com" style={{ color: 'var(--mint)' }}>docs2video.com</a>
+              Website: <a href="https://docs2video.com" style={{ color: 'var(--link)' }}>docs2video.com</a>
             </p>
           </div>
         </Section>

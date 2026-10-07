@@ -595,7 +595,7 @@ export default function ScriptPage() {
       ) : null}
 
       {copied ? (
-        <div role="status" style={{ color: 'var(--ink)', background: 'var(--bg-card)', border: '1px solid var(--mint)', borderRadius: 10, padding: '12px 16px', fontSize: 14, marginBottom: 18, lineHeight: 1.5 }}>
+        <div role="status" style={{ color: 'var(--ink)', background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 10, padding: '12px 16px', fontSize: 14, marginBottom: 18, lineHeight: 1.5 }}>
           This is a copy of your earlier project — the story, look, voice and brand came with it. Change anything you like. Nothing is made or charged until you press Make it on the next step.
         </div>
       ) : null}

@@ -101,7 +101,7 @@ export default function IndustryPage({ slug }: { slug: string }) {
           </div>
           <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
             {[
-              { t: `Upload your ${p.doc}`, d: 'A PDF, Word file or PowerPoint. It reads the whole document and finds the points that matter.', c: 'var(--mint)' },
+              { t: `Upload your ${p.doc}`, d: 'A PDF, Word file or PowerPoint. It reads the whole document and finds the points that matter.', c: 'var(--accent)' },
               { t: 'Check the script, pick a style', d: `Read the narration and change anything before the video is made. Add your logo and your ${reader}’s name.`, c: 'var(--sky)' },
               { t: 'Send one link', d: `Your ${reader} watches on any phone or laptop — no app, no login. You get an alert when they open it.`, c: 'var(--lilac)' },
             ].map((s, i) => (
@@ -156,7 +156,7 @@ export default function IndustryPage({ slug }: { slug: string }) {
           <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
             {features(p).map((f, i) => (
               <div key={f.title} className="feature-card">
-                <div className="feature-icon" style={{ background: ['var(--mint)', 'var(--sky)', 'var(--lilac)', 'var(--peach)'][i % 4] }}>
+                <div className="feature-icon" style={{ background: ['var(--accent)', 'var(--sky)', 'var(--lilac)', 'var(--peach)'][i % 4] }}>
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
                 </div>
                 <h3>{f.title}</h3>

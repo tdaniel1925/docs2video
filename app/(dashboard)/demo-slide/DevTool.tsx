@@ -79,7 +79,7 @@ export default function DemoSlidePage() {
                 <img src={logo} alt="Logo" style={{ width: 48, height: 48, objectFit: 'contain', borderRadius: 6, background: 'white', padding: 2 }} />
                 <div style={{ flex: 1, fontSize: 12 }}>
                   <div style={{ fontWeight: 600 }}>{logoName}</div>
-                  <button onClick={() => { setLogo(null); setLogoName(null) }} style={{ background: 'none', border: 'none', color: '#c03a1f', fontSize: 11, cursor: 'pointer', padding: 0 }}>Remove</button>
+                  <button onClick={() => { setLogo(null); setLogoName(null) }} style={{ background: 'none', border: 'none', color: 'var(--error)', fontSize: 11, cursor: 'pointer', padding: 0 }}>Remove</button>
                 </div>
               </div>
             ) : (
@@ -88,7 +88,7 @@ export default function DemoSlidePage() {
                 onDragLeave={() => setDragOver(false)}
                 onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
                 onClick={() => { const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = e => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) handleFile(f) }; i.click() }}
-                style={{ border: dragOver ? '2px solid var(--mint)' : '2px dashed var(--border)', borderRadius: 8, padding: '20px 12px', textAlign: 'center', cursor: 'pointer', background: dragOver ? 'rgba(168,240,212,0.1)' : 'var(--bg-soft)', fontSize: 12, fontWeight: 600 }}
+                style={{ border: dragOver ? '2px solid var(--accent-ink)' : '2px dashed var(--border)', borderRadius: 8, padding: '20px 12px', textAlign: 'center', cursor: 'pointer', background: dragOver ? 'var(--accent-soft)' : 'var(--bg-soft)', fontSize: 12, fontWeight: 600 }}
               >
                 Drop logo here
               </div>
@@ -147,7 +147,7 @@ export default function DemoSlidePage() {
 
               {errors[p.id] && !loading[p.id] && (
                 <div style={{ padding: '40px 24px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 14, color: '#c03a1f', fontWeight: 600, marginBottom: 8 }}>Failed</div>
+                  <div style={{ fontSize: 14, color: 'var(--error)', fontWeight: 600, marginBottom: 8 }}>Failed</div>
                   <div style={{ fontSize: 12, color: 'var(--ink-light)', maxWidth: 300, margin: '0 auto' }}>{errors[p.id]}</div>
                   <button onClick={() => generateSingle(p.id)} className="btn btn-soft btn-sm" style={{ marginTop: 12 }}>Retry</button>
                 </div>

@@ -65,7 +65,7 @@ export default function Text2ArtLanding() {
       <div
         style={{
           position: 'sticky', top: 0, zIndex: 1000,
-          background: 'var(--mint)', textAlign: 'center',
+          background: 'var(--accent)', textAlign: 'center',
           padding: '10px 16px', fontSize: 14, fontWeight: 600, color: 'var(--ink)',
         }}
       >

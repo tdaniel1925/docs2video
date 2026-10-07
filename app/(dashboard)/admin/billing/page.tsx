@@ -91,14 +91,14 @@ export default function AdminBillingPage() {
         </div>
       </div>
 
-      {err && <div style={{ background: 'rgba(220,38,38,0.08)', border: '1.5px solid rgba(220,38,38,0.3)', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontWeight: 600 }}>{err}</div>}
+      {err && <div style={{ background: 'var(--error-bg)', border: '1.5px solid var(--error-border)', color: 'var(--error-text)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontWeight: 600 }}>{err}</div>}
 
       {/* Stat cards */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
         <div style={card}><div style={{ fontSize: 26, fontWeight: 800 }}>{data ? money(data.mrr) : '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>MRR</div></div>
         <div style={card}><div style={{ fontSize: 26, fontWeight: 800 }}>{data?.activeCount ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Active subscribers</div></div>
-        <div style={card}><div style={{ fontSize: 26, fontWeight: 800, color: '#b91c1c' }}>{data?.pastDueCount ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Past due</div></div>
-        <div style={card}><div style={{ fontSize: 26, fontWeight: 800, color: '#b45309' }}>{data?.pausedCount ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Paused</div></div>
+        <div style={card}><div style={{ fontSize: 26, fontWeight: 800, color: 'var(--error-text)' }}>{data?.pastDueCount ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Past due</div></div>
+        <div style={card}><div style={{ fontSize: 26, fontWeight: 800, color: 'var(--warning-text)' }}>{data?.pausedCount ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Paused</div></div>
       </div>
 
       <input

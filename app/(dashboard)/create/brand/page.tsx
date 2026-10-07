@@ -445,7 +445,7 @@ export default function BrandPage() {
         return (
           <div style={{
             width: '100%', marginBottom: 24, padding: '16px 20px', borderRadius: 10,
-            border: '1.5px solid var(--mint)', background: 'rgba(199, 232, 168, 0.08)',
+            border: '1.5px solid var(--accent)', background: 'var(--accent-soft)',
             display: 'flex', alignItems: 'center', gap: 12,
             animation: 'fadeInUp 0.4s ease 0.1s both',
           }}>
@@ -501,7 +501,7 @@ export default function BrandPage() {
             <div style={{
               marginTop: 12, display: 'flex', alignItems: 'center', gap: 12,
               padding: '12px 14px', borderRadius: 10,
-              border: '1.5px solid var(--mint)', background: 'rgba(199, 232, 168, 0.08)',
+              border: '1.5px solid var(--accent)', background: 'var(--accent-soft)',
             }}>
               {selectedBrand.profile_type === 'person' && selectedBrand.photo_url ? (
                 <img src={selectedBrand.photo_url} alt={selectedBrand.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', background: 'var(--bg-soft)' }} />
@@ -621,8 +621,8 @@ export default function BrandPage() {
                 style={{
                   flex: 1, padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
                   fontSize: 14, fontWeight: 700, fontFamily: 'inherit',
-                  border: profileType === t ? '2px solid var(--mint)' : '1.5px solid var(--border-light)',
-                  background: profileType === t ? 'rgba(199, 232, 168, 0.12)' : 'white',
+                  border: profileType === t ? '2px solid var(--accent-ink)' : '1.5px solid var(--border-light)',
+                  background: profileType === t ? 'var(--accent-soft)' : 'white',
                   color: 'var(--ink)',
                 }}
               >
@@ -635,7 +635,7 @@ export default function BrandPage() {
         {/* Company / person name */}
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
-            {profileType === 'person' ? 'Your name' : 'Company name'} <span style={{ color: '#b91c1c' }}>*</span>
+            {profileType === 'person' ? 'Your name' : 'Company name'} <span style={{ color: 'var(--error-text)' }}>*</span>
           </label>
           <input
             type="text"
@@ -647,7 +647,7 @@ export default function BrandPage() {
               border: '2px solid var(--border)', fontSize: 15, fontFamily: 'inherit',
               outline: 'none', transition: 'border-color 0.2s',
             }}
-            onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+            onFocus={e => e.currentTarget.style.borderColor = 'var(--link)'}
             onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; setCompanyName(toTitleCase(companyName)) }}
           />
         </div>
@@ -727,7 +727,7 @@ export default function BrandPage() {
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, color: 'var(--ink-soft)' }}>
-                <input type="checkbox" checked={showNameOnSlides} onChange={e => setShowNameOnSlides(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--mint)' }} />
+                <input type="checkbox" checked={showNameOnSlides} onChange={e => setShowNameOnSlides(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--accent-ink)' }} />
                 Show my name on slides
               </label>
               <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '6px 0 0 24px' }}>Off = the document title leads the cover; your name still appears in the intro and closing.</p>
@@ -830,7 +830,7 @@ export default function BrandPage() {
                 border: '1.5px solid var(--border-light)', fontSize: 14,
                 fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.2s',
               }}
-              onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+              onFocus={e => e.currentTarget.style.borderColor = 'var(--link)'}
               onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-light)'; setPhone(formatPhoneDisplay(phone)) }}
             />
             <input
@@ -843,7 +843,7 @@ export default function BrandPage() {
                 border: '1.5px solid var(--border-light)', fontSize: 14,
                 fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.2s',
               }}
-              onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+              onFocus={e => e.currentTarget.style.borderColor = 'var(--link)'}
               onBlur={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
             />
             <input
@@ -856,7 +856,7 @@ export default function BrandPage() {
                 border: '1.5px solid var(--border-light)', fontSize: 14,
                 fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.2s',
               }}
-              onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+              onFocus={e => e.currentTarget.style.borderColor = 'var(--link)'}
               onBlur={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
             />
           </div>
@@ -893,7 +893,7 @@ export default function BrandPage() {
             </div>
           )}
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--ink-soft)', marginTop: 10 }}>
-            <input type="checkbox" checked={showLogo} onChange={e => setShowLogo(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--mint)' }} />
+            <input type="checkbox" checked={showLogo} onChange={e => setShowLogo(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--accent-ink)' }} />
             Show logo in videos
           </label>
         </div>
@@ -908,7 +908,7 @@ export default function BrandPage() {
               type="checkbox"
               checked={saveAsDefault}
               onChange={e => setSaveAsDefault(e.target.checked)}
-              style={{ width: 16, height: 16, accentColor: 'var(--mint)' }}
+              style={{ width: 16, height: 16, accentColor: 'var(--accent-ink)' }}
             />
             Save as my default brand
           </label>
@@ -920,7 +920,7 @@ export default function BrandPage() {
       {error && (
         <div style={{
           width: '100%', padding: '12px 16px', borderRadius: 10,
-          background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c',
+          background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)',
           fontSize: 14, marginBottom: 16,
         }}>
           {error}

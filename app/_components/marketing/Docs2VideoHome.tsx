@@ -279,7 +279,7 @@ export default function Docs2VideoHome() {
                     </div>
                     <div className="mk-sp-video">
                       <Image src="/style-samples/editorial-cover.png" alt="" width={1920} height={1080} sizes="(max-width: 768px) 90vw, 600px" />
-                      <span className="mk-play"><svg width="22" height="22" viewBox="0 0 24 24" fill="#0B2545"><path d="M7 5l12 7-12 7z" /></svg></span>
+                      <span className="mk-play"><svg width="22" height="22" viewBox="0 0 24 24" fill="var(--ink)"><path d="M7 5l12 7-12 7z" /></svg></span>
                       <span className="mk-frame-bar"><span style={{ width: '38%' }} /></span>
                     </div>
                     <div className="mk-sp-actions">
