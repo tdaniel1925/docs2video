@@ -5,6 +5,14 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
+## 2026-10-07 — Look sample pictures remade with made-up content (not deployed)
+
+- The 18 look samples (`public/style-samples/{slides,aurora,cinematic,editorial,explainer,infographic}-{cover,data,closing}.png`, shown on step 3 and the marketing home) showed real names (PubcoZone, Valor Financial, a real IUL product, real people, ACME, "AI in Church"). Remade from a made-up story: "Your Coverage at a Glance" for "The Rivera Family", by "Your Agency", $500,000 / $142 a month / Age 65, 555-0142 + example.com. No logo, no photo.
+- Drawn by the real renderers through the free-preview path (`buildPreviewPlan` → render-service pure helpers → Remotion stills): `npx jiti scripts/look-samples/make-look-samples.ts [look…]`. Content lives only in `scripts/look-samples/sample-content.ts`.
+- No paid AI: Cinematic uses the licence-free Pexels bokeh photos already in `remotion/public/pexels-bg-{1,2,3}.jpg`; Infographic shows its code-drawn ground.
+- Guard: `tests/look-samples-content.test.ts` fails on the old names or any `CARRIER_BLOCKLIST` entry in the sample content.
+- Older unused files in the same folder (warm-story, scifi, steampunk, etc. `-cover/-content.png`) are referenced by nothing and were left alone.
+
 ## 2026-10-07 — Overhaul phase 3: the workspace, free preview, honest waiting, ready email
 
 - **Workspace:** every create step (incl. the making screen) = step rail left, work middle, "Your video so far" right (client, source, one point, output, look, voice, length, server price; "charged" on the making screen). Phones: "Step N of 4 · …" line, main button pinned bottom, summary folds under. Main buttons say what they do and cost; a held-back button says why + "Show me". Moved onto the kit.
