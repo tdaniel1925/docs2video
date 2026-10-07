@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import { CREDIT_COSTS } from '../../../_lib/credits'
+import { NAMES } from '../../../_lib/names'
 
 const STEP_CIRCLE = {
   width: 36, height: 36, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
@@ -44,7 +46,7 @@ export default function RestyleDeckHelpPage() {
       </div>
 
       <Step n={1} title="Choose “A slide deck”, then upload">
-        Open Custom Graphics (<strong>+ Create</strong> &gt; <strong>Custom Graphics</strong>) and tap <strong>A slide deck</strong>.
+        Open Custom Graphics (<strong>{NAMES.newButton}</strong>, then <strong>Custom graphics</strong> under <strong>Making something else?</strong>) and tap <strong>A slide deck</strong>.
         On the <strong>Content</strong> step, find the box called <strong>Already have a deck? Upload it instead</strong>.
         Drop in a <strong>.pptx</strong> or <strong>PDF</strong> (up to 40MB). While it reads, you’ll see “Reading your deck…”,
         then a list of the slides it found.
@@ -67,7 +69,7 @@ export default function RestyleDeckHelpPage() {
       </Step>
 
       <Step n={4} title="Review and start">
-        The Review step shows how many slides will be restyled and what it costs (200 credits per slide). Press{' '}
+        The Review step shows how many slides will be restyled and what it costs ({CREDIT_COSTS.flyer.toLocaleString('en-US')} credits per slide — each slide is one design). Press{' '}
         <strong>Start designing</strong> and watch the progress — for example “Restyling your deck — 3 of 12 slides”.
       </Step>
 

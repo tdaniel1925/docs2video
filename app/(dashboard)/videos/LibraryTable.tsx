@@ -7,11 +7,14 @@ import InlineConfirm from '../../_components/InlineConfirm'
 import { useToast } from '../../_components/Toast'
 import { displayProgress } from '../../_lib/video-progress'
 import { resumeUrl } from '../dashboard/_home/derive'
+import { NAMES } from '../../_lib/names'
 
 export type LibraryItem = {
   id: string
   videoId: string | null   // real videos.id for deletion / open
   type: string
+  /** What the Type column says (names.ts words — the page decides). */
+  label: string
   title: string | null
   recipient: string | null
   fileUrl: string | null
@@ -23,22 +26,14 @@ export type LibraryItem = {
   createdAt: string
 }
 
-// The stored type stays `flyer` — it is in the database, the credit ledger and
-// the API. Only what the customer READS changes: the tool makes posters,
-// social posts, banners and business cards, so calling all of it "Flyer" was
-// wrong on most rows.
-const TYPE_LABELS: Record<string, string> = {
-  video: 'Video', deck: 'Deck', logo: 'Logo', 'business-card': 'Card',
-  flyer: 'Graphic', infographic: 'Infographic', 'social-kit': 'Social', other: 'Other',
-}
-
 const PAGE_SIZES = [25, 50, 100]
 
 function fmtDate(s: string) {
   return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function LibraryTable({ items }: { items: LibraryItem[] }) {
+/** `emptyLabel` is the open tab's name ("presentations"), or null on All. */
+export default function LibraryTable({ items, emptyLabel = null }: { items: LibraryItem[]; emptyLabel?: string | null }) {
   const router = useRouter()
   const notify = useToast()
   const [pageSize, setPageSize] = useState(25)
@@ -79,9 +74,9 @@ export default function LibraryTable({ items }: { items: LibraryItem[] }) {
   if (total === 0) {
     return (
       <div style={{ background: 'white', border: '1px dashed var(--border)', borderRadius: 10, padding: '64px 32px', textAlign: 'center' }}>
-        <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>No creations yet</p>
-        <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 18 }}>Create content first — videos, decks, and more</p>
-        <Link href="/create/start" className="btn btn-primary">Create content →</Link>
+        <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>{emptyLabel ? `No ${emptyLabel} yet` : 'Nothing here yet'}</p>
+        <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 18 }}>Everything you make shows up here — videos, presentations, slide decks and more.</p>
+        <Link href="/create/start" className="btn btn-primary">{NAMES.newButton}</Link>
       </div>
     )
   }
@@ -116,7 +111,7 @@ export default function LibraryTable({ items }: { items: LibraryItem[] }) {
                       {item.title ?? 'Untitled'}
                     </Link>
                   </td>
-                  <td style={td}><span className="tag peach" style={{ fontSize: 11 }}>{TYPE_LABELS[item.type] ?? item.type}</span></td>
+                  <td style={td}><span className="tag peach" style={{ fontSize: 11 }}>{item.label}</span></td>
                   <td style={{ ...td, color: 'var(--ink-soft)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.recipient || '—'}
                   </td>

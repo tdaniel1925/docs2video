@@ -12,6 +12,10 @@
  * The script is written in the BACKGROUND on the server and saved to the
  * draft, so a reload (or closing the tab) mid-write picks the job back up
  * here instead of starting again or losing it.
+ *
+ * The LENGTH (Short / Standard / Detailed) is chosen here too. Step 3's
+ * "Change the length" link lands on it (#length). It used to have nowhere to
+ * land, so every video was Standard.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
@@ -21,6 +25,8 @@ import { addBookends, bookendOptsFrom, keepAutoMarks, sceneSeconds } from '../_c
 import OnePoint from '../_components/story/OnePoint'
 import AskPanel, { type AskMsg } from '../_components/story/AskPanel'
 import SceneCard from '../_components/story/SceneCard'
+import LengthPicker from '../_components/story/LengthPicker'
+import { LENGTH_ANCHOR, lengthChange, lengthName, lengthOf, type StoryLength } from '../_components/story/lengths'
 
 type OutputType = 'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'
 type StoryState = 'idle' | 'writing' | 'ready' | 'failed'
@@ -34,6 +40,8 @@ export default function ScriptPage() {
   const videoId = searchParams.get('id')
   // Set by step 1 when comparing several files failed — shown, not hidden.
   const combineFailed = searchParams.get('combine') === 'failed'
+  // Set when this draft was just made by "Duplicate" on a finished project.
+  const copied = searchParams.get('copied') === '1'
   /* This screen only exists for a saved draft. The old no-draft mode read a
      browser copy that nothing writes any more. */
   const isWizard = !!videoId
@@ -42,7 +50,13 @@ export default function ScriptPage() {
   const [draftData, setDraftData] = useState<any>(null)
   const draftRef = useRef<any>(null)
   const [outputType, setOutputType] = useState<OutputType>('video')
-  const [detailLevel, setDetailLevel] = useState<'quick' | 'standard' | 'detailed'>('standard')
+  // The length the story on screen was written at — what step 3 prices.
+  const [detailLevel, setDetailLevel] = useState<StoryLength>('standard')
+  // The length chip shown as chosen. It differs from detailLevel only while a
+  // free rewrite is on offer; the ref lets the writer read it from callbacks.
+  const [pickedLength, setPickedLength] = useState<StoryLength>('standard')
+  const pickedRef = useRef<StoryLength>('standard')
+  const [flashLength, setFlashLength] = useState(false)
   const [narrationStyle, setNarrationStyle] = useState<'solo' | 'podcast'>('solo')
 
   const [brief, setBrief] = useState<VideoBrief | null>(null)
@@ -130,9 +144,10 @@ export default function ScriptPage() {
     return () => window.removeEventListener('beforeunload', handleUnload)
   })
 
-  // Poll the draft for the background script job. Resolves with scenes when
-  // ready, throws on failure or timeout.
-  async function pollForScenes(vid: string): Promise<any[]> {
+  // Poll the draft for the background script job. Resolves with the scenes
+  // (and the length they were written at) when ready, throws on failure or
+  // timeout.
+  async function pollForScenes(vid: string): Promise<{ scenes: any[]; detailLevel: unknown }> {
     const start = Date.now()
     const TIMEOUT_MS = 8 * 60 * 1000
     while (Date.now() - start < TIMEOUT_MS) {
@@ -142,7 +157,7 @@ export default function ScriptPage() {
         if (!res.ok) continue
         const video = await res.json()
         const d = video?.draft_data || {}
-        if (d.scriptStatus === 'ready' && Array.isArray(d.scenes) && d.scenes.length > 0) return d.scenes
+        if (d.scriptStatus === 'ready' && Array.isArray(d.scenes) && d.scenes.length > 0) return { scenes: d.scenes, detailLevel: d.detailLevel }
         if (d.scriptStatus === 'failed') throw new Error(d.scriptError || 'We couldn’t write your story just now. Please try again.')
       } catch (e) {
         if (e instanceof Error && e.message !== 'Failed to fetch') throw e
@@ -152,26 +167,42 @@ export default function ScriptPage() {
     throw new Error('Your story is taking longer than usual. Come back to this project in a few minutes.')
   }
 
-  async function waitForStory() {
-    if (!videoId) return
+  /** The story on screen is now written at `len` — the length step 3 prices. */
+  function settleLength(len: StoryLength) {
+    draftRef.current = { ...(draftRef.current || {}), detailLevel: len }
+    setDetailLevel(len)
+    setPickedLength(len)
+    pickedRef.current = len
+  }
+
+  /** Wait for the background job. True when a story arrived. */
+  async function waitForStory(requested?: StoryLength): Promise<boolean> {
+    if (!videoId) return false
     setStory('writing'); setError(null)
     try {
       const written = await pollForScenes(videoId)
-      setScenes(addBookends(written, bookendOptsFrom(draftRef.current)))
+      // The writer saves the length it wrote at next to the scenes — trust
+      // that (it is right even when we only picked a running job back up).
+      settleLength(lengthOf(written.detailLevel ?? requested))
+      setScenes(addBookends(written.scenes, bookendOptsFrom(draftRef.current)))
       setStory('ready')
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'We couldn’t write your story just now. Please try again.')
       setStory('failed')
+      return false
     }
   }
 
-  /** Ask the server to write the story. It uses the brief saved on the draft. */
-  async function writeStory() {
+  /** Ask the server to write the story at a length (the chip shown as chosen
+   *  unless told otherwise). It uses the brief saved on the draft. True when
+   *  a story arrived. */
+  async function writeStory(len: StoryLength = pickedRef.current): Promise<boolean> {
     const draft = draftRef.current
-    if (!videoId || !draft) return
+    if (!videoId || !draft) return false
     setStory('writing'); setError(null)
     const extracted = draft.extractedData || draft.inlineBrand || {}
-    const dl = draft.detailLevel || 'standard'
+    const dl = len
     try {
       const res = await fetch('/api/generate-script', {
         method: 'POST',
@@ -211,9 +242,9 @@ export default function ScriptPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'We couldn’t write your story just now. Please try again.')
       setStory('failed')
-      return
+      return false
     }
-    await waitForStory()
+    return waitForStory(len)
   }
 
   /** Build the brief (the one point). Returns null if it couldn't. */
@@ -254,7 +285,7 @@ export default function ScriptPage() {
       draftRef.current = draft
       setDraftData(draft)
       setOutputType(draft.outputType || 'video')
-      if (draft.detailLevel) setDetailLevel(draft.detailLevel)
+      settleLength(lengthOf(draft.detailLevel))
       if (draft.narrationStyle) setNarrationStyle(draft.narrationStyle)
 
       const hasScenes = Array.isArray(draft.scenes) && draft.scenes.length > 0
@@ -323,9 +354,63 @@ export default function ScriptPage() {
   function startOver() {
     if (story === 'writing') return
     if (scenes.length > 0 && !window.confirm('Write the story again from the start? Your changes to the scenes will be replaced.')) return
+    // A save still waiting to go out would land on top of the new story.
+    if (saveTimer.current) clearTimeout(saveTimer.current)
     undoRef.current = null
     setScenes([])
     void writeStory()
+  }
+
+  /*
+   * THE LENGTH. With no story yet, a pick is just saved — the story will be
+   * written at it. With a story, the saved length never changes on its own:
+   * the pick shows a free "Rewrite at this length" offer, and the length only
+   * moves once the rewritten story arrives.
+   */
+  function pickLength(len: StoryLength) {
+    const change = lengthChange({ current: detailLevel, picked: len, hasStory: scenes.length > 0, writing: story === 'writing' })
+    if (story === 'writing') return
+    setPickedLength(len)
+    pickedRef.current = len
+    if (change !== 'save') return
+    settleLength(len)
+    void (async () => {
+      try {
+        const res = await fetch('/api/videos/draft', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId, updates: { detailLevel: len } }),
+        })
+        if (!res.ok) throw new Error(`length save failed (${res.status})`)
+      } catch (err) {
+        console.error('[story] length save failed:', err)
+        setError('We couldn’t save that length just now. Please pick it again.')
+      }
+    })()
+  }
+
+  function keepLength() {
+    setPickedLength(detailLevel)
+    pickedRef.current = detailLevel
+  }
+
+  async function rewriteAtLength() {
+    if (story === 'writing' || scenes.length === 0) return
+    const before = scenes
+    const target = pickedRef.current
+    // Any save still waiting would land on top of the new story.
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    undoRef.current = null
+    setScenes([])
+    const ok = await writeStory(target)
+    if (!ok) {
+      // Nothing is lost: put the story back exactly as it was (and save it,
+      // in case the last edit was still waiting to go out).
+      setScenes(before)
+      setStory('ready')
+      autoSave(before, -1, true)
+      setError(`We couldn’t rewrite the story as ${lengthName(target)} just now. Your story is unchanged — try again in a moment.`)
+    }
   }
 
   /*
@@ -424,9 +509,25 @@ export default function ScriptPage() {
     setPreviewLoading(false)
   }
 
+  // Arriving from step 3's "Change the length" (#length): bring the length
+  // choice into view and light it up briefly, so the link lands somewhere.
+  useEffect(() => {
+    if (draftLoading || window.location.hash !== `#${LENGTH_ANCHOR}`) return
+    const el = document.getElementById(LENGTH_ANCHOR)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setFlashLength(true)
+    const t = setTimeout(() => setFlashLength(false), 2400)
+    return () => clearTimeout(t)
+  }, [draftLoading])
+
+  // A different length is picked but the story hasn't been rewritten yet.
+  // Step 3 would price the old length, so decide first.
+  const lengthPending = scenes.length > 0 && pickedLength !== detailLevel
+
   // "Looks right" — save the story, mark the brief as approved, go to step 3.
   async function goToLook() {
-    if (!videoId || scenes.length === 0) return
+    if (!videoId || scenes.length === 0 || lengthPending) return
     if (saveTimer.current) clearTimeout(saveTimer.current)
     setSubmitting(true)
     setError(null)
@@ -493,8 +594,28 @@ export default function ScriptPage() {
         </div>
       ) : null}
 
+      {copied ? (
+        <div role="status" style={{ color: 'var(--ink)', background: 'var(--bg-card)', border: '1px solid var(--mint)', borderRadius: 10, padding: '12px 16px', fontSize: 14, marginBottom: 18, lineHeight: 1.5 }}>
+          This is a copy of your earlier project — the story, look, voice and brand came with it. Change anything you like. Nothing is made or charged until you press Make it on the next step.
+        </div>
+      ) : null}
+
       <div className="story-grid">
         <div style={{ minWidth: 0 }}>
+          {draftData ? (
+            <LengthPicker
+              picked={pickedLength}
+              storyLength={detailLevel}
+              hasStory={scenes.length > 0}
+              writing={story === 'writing'}
+              spoken={outputType !== 'deck' && outputType !== 'pdf'}
+              isVideo={outputType === 'video'}
+              flash={flashLength}
+              onPick={pickLength}
+              onRewrite={() => void rewriteAtLength()}
+              onKeep={keepLength}
+            />
+          ) : null}
           <OnePoint
             brief={brief}
             building={briefBuilding}
@@ -602,10 +723,15 @@ export default function ScriptPage() {
               type="button"
               className="btn btn-primary btn-lg btn-full"
               onClick={goToLook}
-              disabled={submitting || story !== 'ready' || scenes.length === 0 || asking}
+              disabled={submitting || story !== 'ready' || scenes.length === 0 || asking || lengthPending}
             >
               {submitting ? 'Saving…' : 'Looks right — pick the look →'}
             </button>
+            {lengthPending ? (
+              <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '8px 0 0', lineHeight: 1.5 }}>
+                First rewrite the story as {lengthName(pickedLength)}, or keep it {lengthName(detailLevel)} — see Length, above the story.
+              </p>
+            ) : null}
           </AskPanel>
         </aside>
       </div>

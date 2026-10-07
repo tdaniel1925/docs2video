@@ -82,7 +82,7 @@ export const PLANS: PlanInfo[] = [
     features: [
       '25,000 credits every month (about 25 standard videos)',
       'Top up anytime with credit packs from $10',
-      'Unlimited brand profiles',
+      'Unlimited brands',
       'Branded client share pages',
       'API and AI-assistant access',
     ],
@@ -103,7 +103,7 @@ export const PLANS: PlanInfo[] = [
       '75,000 credits every month (about 75 standard videos)',
       'Top up anytime with credit packs from $10',
       'White-label share pages (no Docs2Video branding)',
-      'Unlimited brand profiles',
+      'Unlimited brands',
       'Priority support',
     ],
     videosPerMonth: 75,

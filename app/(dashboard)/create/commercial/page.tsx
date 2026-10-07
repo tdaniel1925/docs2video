@@ -4,17 +4,20 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import BuyCreditsModal from '../../../_components/BuyCreditsModal'
+import { CREDIT_COSTS } from '../../../_lib/credits'
 
 /**
  * Dedicated CUSTOMER flow for the AI Commercial pipeline (separate from the
  * Video/Slides create wizard). One page: URL + optional goal/brand/logo/music +
  * auto-pick style (with an Advanced style override). Posts to
- * /api/generate-commercial (auth + 600-credit gate + fires the render service director),
+ * /api/generate-commercial (auth + credit gate + fires the render service director),
  * then hands off to the shared /create/generating progress page which polls the
  * same videos row the director writes progress to.
  */
 
-const COMMERCIAL_COST = 600
+// The same number /api/generate-commercial charges. It was typed here as 600,
+// so a price change in credits.ts would have shown the old price on this page.
+const COMMERCIAL_COST = CREDIT_COSTS.commercial
 
 // The 22 director styles (source of truth: app/api/v1/commercials STYLE_IDS).
 // Friendly labels for the Advanced picker; 'auto' lets the director choose.
@@ -285,12 +288,12 @@ export default function CreateCommercialPage() {
       <div style={styles.costBox}>
         {sufficient ? (
           <span style={styles.costOk}>
-            <strong>{COMMERCIAL_COST}</strong> credits · takes about 2–3 minutes
+            <strong>{COMMERCIAL_COST.toLocaleString()}</strong> credits · takes about 2–3 minutes
             {balance !== null && !isAdminUser && <span style={styles.bal}> · {balance.toLocaleString()} remaining</span>}
           </span>
         ) : (
           <span style={styles.costWarn}>
-            You need <strong>{COMMERCIAL_COST}</strong> credits but have <strong>{balance?.toLocaleString() ?? 0}</strong>.{' '}
+            You need <strong>{COMMERCIAL_COST.toLocaleString()}</strong> credits but have <strong>{balance?.toLocaleString() ?? 0}</strong>.{' '}
             <button type="button" onClick={() => setShowBuyCredits(true)} style={styles.buyLink}>Buy more</button>
           </span>
         )}

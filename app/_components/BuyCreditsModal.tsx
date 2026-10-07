@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { CREDIT_PACKS, packPrice } from '../_lib/credit-packs'
 
 interface BuyCreditsModalProps {
   open: boolean
@@ -11,12 +12,9 @@ interface BuyCreditsModalProps {
   balance?: number
 }
 
-// Pack keys MUST match app/api/credits/buy/route.ts CREDIT_PACKS.
-const PACKS = [
-  { key: 'starter', name: 'Starter', credits: 2500, price: '$10', highlight: false },
-  { key: 'power', name: 'Power', credits: 7500, price: '$25', highlight: true },
-  { key: 'studio', name: 'Studio', credits: 18000, price: '$50', highlight: false },
-]
+// The packs come from credit-packs.ts — one list for every screen that sells
+// or describes them (it was typed here, in Settings and on the pricing page).
+const PACKS = CREDIT_PACKS.map(p => ({ ...p, price: packPrice(p), highlight: p.bestValue }))
 
 export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyCreditsModalProps) {
   const [loading, setLoading] = useState<string | null>(null)
@@ -92,7 +90,7 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>
-                {p.name}{p.highlight ? ' · Best value' : ''}
+                {p.name} pack{p.highlight ? ' · Best value' : ''}
               </span>
               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-soft)' }}>{p.price}</span>
             </div>
@@ -110,7 +108,7 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
                 opacity: loading === p.key ? 0.6 : 1,
               }}
             >
-              {loading === p.key ? 'Redirecting…' : `Buy ${p.name}`}
+              {loading === p.key ? 'Redirecting…' : `Buy ${p.name} pack`}
             </button>
           </div>
         ))}

@@ -33,9 +33,11 @@ test('greeting follows the viewer’s own clock', async ({ page }) => {
   await expect(page.getByText(/^(Let’s make your first project\.|\d+ clients? needs? you today\.|Nobody is waiting on you right now\.)$/)).toBeVisible()
 })
 
-test('"+ New project" and the document card both open step 1', async ({ page }) => {
+test('"+ New" and the document card both open step 1', async ({ page }) => {
   await page.goto('/dashboard')
-  await page.getByRole('link', { name: '+ New project' }).click()
+  // The top bar has a "+ New" too (same words on purpose — names.ts); this is
+  // the one on the page.
+  await page.getByRole('main').getByRole('link', { name: '+ New', exact: true }).click()
   await expect(page).toHaveURL(/\/create$/)
   await expect(page.getByRole('heading', { name: 'What’s this about?' })).toBeVisible()
 

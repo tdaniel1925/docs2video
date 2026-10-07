@@ -20,16 +20,11 @@ import PricePanel from '../_components/make/PricePanel'
 import { OutputPicker, PresLookPicker, VideoLookPicker, VoicePicker } from '../_components/make/Pickers'
 import { usePriceQuote, formatCredits } from '../_components/make/usePriceQuote'
 import { isPresLook, isVideoLook, PRES_LOOKS, type VideoLookId } from '../_components/make/looks'
+// The same list the story step chooses from — one set of names for both.
+import { LENGTHS, LENGTH_ANCHOR } from '../_components/story/lengths'
 
 type Draft = Record<string, any>
 type BrandInfo = { id: string; name: string; logo_url: string | null; primary_color: string | null; secondary_color: string | null; accent_color: string | null }
-
-// Same names and lengths the story step uses when you choose the length there.
-const LENGTHS = [
-  { id: 'quick', name: 'Highlights', sub: 'under 1 minute' },
-  { id: 'standard', name: 'Standard', sub: '2–5 minutes' },
-  { id: 'detailed', name: 'Detailed', sub: '5–15 minutes' },
-] as const
 
 const DEFAULT_VOICE = VOICE_OPTIONS[0].id // Sarah (nova) — CLAUDE.md rule 5
 
@@ -285,7 +280,7 @@ function MakeItYours() {
       <div className={s.layout}>
         <div>
           <h1 className={s.title}>Make it <em>yours.</em></h1>
-          <p className={s.lead}>Pick the look, what to send and the voice. Your logo and colors come from your profile.</p>
+          <p className={s.lead}>Pick the look, what to send and the voice. Your logo and colors come from your brand.</p>
 
           {/* Brand in use, with a way to change it */}
           <div className={s.brand}>
@@ -362,18 +357,19 @@ function MakeItYours() {
             <section className={s.section}>
               <div className={s.sectionHead}>
                 <h2 className={s.sectionTitle}>Length</h2>
-                <span className={s.sectionHint}>set when your story was written</span>
+                <span className={s.sectionHint}>chosen with your story</span>
               </div>
               <div className={s.chips}>
                 {LENGTHS.map((l) => (
                   <span key={l.id} className={`${s.chip} ${length?.id === l.id ? s.chipOn : ''}`} style={{ cursor: 'default', opacity: length?.id === l.id ? 1 : 0.55 }}>
-                    {l.name} <span className={s.chipSub}>{l.sub}</span>
+                    {l.name} <span className={s.chipSub}>{l.minutes}</span>
                   </span>
                 ))}
               </div>
               <p className={s.note}>
-                The story is already written at this length, so changing it means rewriting the story.{' '}
-                <button type="button" className={s.link} onClick={() => router.push(`/create/script?id=${videoId}`)}>Change the length</button>
+                The story is written at this length, so changing it means rewriting the story — that&rsquo;s free.{' '}
+                {/* Lands on the length choice on the story step, not the top of the page. */}
+                <button type="button" className={s.link} onClick={() => router.push(`/create/script?id=${videoId}#${LENGTH_ANCHOR}`)}>Change the length</button>
               </p>
             </section>
           ) : null}

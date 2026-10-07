@@ -10,8 +10,10 @@ import { useBrand } from '../../_components/BrandProvider'
 import BuyCreditsModal from '../../_components/BuyCreditsModal'
 import { SLIDE_STYLES } from '../../_lib/types'
 import type { Profile, Brand } from '../../_lib/types'
-import { PLANS, type PlanTier } from '../../_lib/pricing'
+import { PLANS, getUserTier, isSellablePlan, type PlanTier } from '../../_lib/pricing'
 import { TIER_CREDITS, TIER_APPROX_VIDEOS, CREDIT_COSTS } from '../../_lib/credits'
+import { CREDIT_PACKS, packPrice } from '../../_lib/credit-packs'
+import { NAMES, planName } from '../../_lib/names'
 import { updatePassword, updateEmail } from '../../_actions/auth'
 import { useToast } from '../../_components/Toast'
 import { cleanWebLink } from '../../_lib/url-validate'
@@ -30,6 +32,17 @@ function emailErrorText(code: string): string {
 }
 
 type SettingsTab = 'profile' | 'brand' | 'integrations' | 'subscription'
+
+// Text2Art's plan cards talk about designs, not videos, so they can't use the
+// Docs2Video feature list in pricing.ts. No prices here — those come from
+// PLANS for both storefronts.
+const TEXT2ART_PLAN_FEATURES: Record<PlanTier, string[]> = {
+  free: ['No monthly fee', 'Full print quality', 'Top up any time'],
+  starter: ['Top up any time', 'Full print quality'],
+  pro: ['Top up any time', 'Unlimited brands', 'API access'],
+  business: ['Top up any time', 'Every size and format', 'Priority support'],
+  enterprise: ['Top up any time', 'API access', 'Dedicated support'],
+}
 
 // The real affiliate program lives at /affiliate (Stripe promo-code based with
 // real commission tracking). This card just points there — the previous inline
@@ -688,7 +701,7 @@ export default function SettingsPage() {
             <div className="settings-card">
               <h3>Your default brand</h3>
               <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 16px' }}>
-                This is applied automatically to everything you make. Manage additional brands on the <Link href="/brands" style={{ color: 'var(--mint-darker)', fontWeight: 600 }}>Brands</Link> page.
+                This is applied automatically to everything you make. Manage additional brands on the <Link href="/brands" style={{ color: 'var(--mint-darker)', fontWeight: 600 }}>{NAMES.brands}</Link> page.
               </p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 16 }}>
                 {brand.logo_file_url || brand.logo_url ? (
@@ -1062,17 +1075,14 @@ export default function SettingsPage() {
               </div>
               <button className="btn btn-primary" onClick={() => setShowBuyCredits(true)}>Buy credits</button>
             </div>
+            {/* Same packs, names and prices as the top-up window (credit-packs.ts). */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 16 }}>
-              {[
-                { name: 'Starter', credits: '2,500', price: '$10' },
-                { name: 'Power', credits: '7,500', price: '$25' },
-                { name: 'Studio', credits: '18,000', price: '$50' },
-              ].map(p => (
-                <button key={p.name} onClick={() => setShowBuyCredits(true)}
+              {CREDIT_PACKS.map(p => (
+                <button key={p.key} onClick={() => setShowBuyCredits(true)}
                   style={{ textAlign: 'left', padding: '12px 14px', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'var(--bg-soft)', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  <div style={{ fontWeight: 700 }}>{p.name}</div>
-                  <div style={{ fontSize: 13, color: 'var(--ink-light)' }}>{p.credits} credits</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, marginTop: 4 }}>{p.price}</div>
+                  <div style={{ fontWeight: 700 }}>{p.name} pack</div>
+                  <div style={{ fontSize: 13, color: 'var(--ink-light)' }}>{p.credits.toLocaleString()} credits</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginTop: 4 }}>{packPrice(p)}</div>
                 </button>
               ))}
             </div>
@@ -1083,27 +1093,21 @@ export default function SettingsPage() {
             <h3>Your Plan</h3>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div>
-                <div style={{ fontSize: 24, fontWeight: 800, textTransform: 'capitalize' }}>
-                  {(() => {
-                    const s = profile.subscription_status?.toLowerCase() ?? ''
-                    if (['enterprise', 'enterprise-plus', 'enterprise_plus'].includes(s)) return 'Enterprise'
-                    if (['business', 'unlimited'].includes(s)) return 'Business'
-                    if (['pro', 'professional'].includes(s)) return 'Pro'
-                    if (['starter', 'active'].includes(s)) return 'Starter'
-                    return 'Pay As You Go'
-                  })()}
+                {/* The plan's name from pricing.ts via names.ts — the same
+                    words as the avatar menu. A hand-typed list here missed
+                    'agency', which showed Enterprise customers "Pay As You Go". */}
+                <div style={{ fontSize: 24, fontWeight: 800 }}>
+                  {planName(profile.subscription_status)}
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginTop: 4 }}>
                   {(() => {
                     const s = profile.subscription_status?.toLowerCase() ?? ''
+                    if (s === 'past_due') return 'Your last payment did not go through. Update your card under Manage billing.'
                     // Described in whatever this storefront actually sells. A
                     // Text2Art customer cannot make videos, so "20 videos/mo"
                     // tells them nothing about what they are paying for.
-                    if (['enterprise', 'enterprise-plus', 'enterprise_plus'].includes(s)) return allowance('enterprise')
-                    if (['business', 'unlimited'].includes(s)) return allowance('business')
-                    if (['pro', 'professional'].includes(s)) return allowance('pro')
-                    if (['starter', 'active'].includes(s)) return allowance('starter')
-                    return 'Free credits to start, then top up as you need them'
+                    const tier = getUserTier(s)
+                    return tier === 'free' ? 'Free credits to start, then top up as you need them' : allowance(tier)
                   })()}
                 </div>
               </div>
@@ -1135,56 +1139,25 @@ export default function SettingsPage() {
             <h3>Plans</h3>
             <p className="ssub">Choose the plan that fits your needs. Upgrade or downgrade anytime.</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginTop: 16 }}>
-              {([
-                {
-                  tier: 'free',
-                  label: 'Pay As You Go',
-                  price: '$0',
-                  period: '',
-                  highlight: storefront.showVideoFeatures ? '2,000 free credits (~2 videos), one time' : allowance('free'),
+              {/* Every card is built from pricing.ts — name, price and (on
+                  Docs2Video) the feature list the pricing page shows. The
+                  prices used to be typed here by hand. Starter is retired,
+                  so only free + the plans checkout sells get a card. */}
+              {PLANS.filter(p => p.tier === 'free' || isSellablePlan(p.tier)).map(p => {
+                const plan = {
+                  tier: p.tier,
+                  label: p.label,
+                  period: p.monthlyPrice > 0 ? '/mo' : '',
+                  highlight: storefront.showVideoFeatures && p.tier === 'free'
+                    ? `${TIER_CREDITS.free.toLocaleString()} free credits (~${TIER_APPROX_VIDEOS.free.standard} videos), one time`
+                    : allowance(p.tier),
+                  // The allowance line is already the highlight above, so it
+                  // is not repeated in the list.
                   features: storefront.showVideoFeatures
-                    ? ['No monthly fee', 'Top up any time from $10', 'Branded client share pages']
-                    : ['No monthly fee', 'Full print quality', 'Top up any time'],
-                },
-                {
-                  tier: 'pro',
-                  label: 'Pro',
-                  price: '$79',
-                  period: '/mo',
-                  highlight: allowance('pro'),
-                  features: storefront.showVideoFeatures
-                    ? ['Top up any time from $10', 'Unlimited brand profiles', 'API and AI-assistant access']
-                    : ['Top up any time', 'Unlimited brands', 'API access'],
-                },
-                {
-                  tier: 'business',
-                  label: 'Business',
-                  price: '$199',
-                  period: '/mo',
-                  highlight: allowance('business'),
-                  features: storefront.showVideoFeatures
-                    ? ['Top up any time from $10', 'White-label share pages', 'Priority support']
-                    : ['Top up any time', 'Every size and format', 'Priority support'],
-                },
-                {
-                  tier: 'enterprise',
-                  label: 'Enterprise',
-                  price: '$499',
-                  period: '/mo',
-                  highlight: allowance('enterprise'),
-                  features: storefront.showVideoFeatures
-                    ? ['Top up any time from $10', 'White-label share pages', 'Dedicated support']
-                    : ['Top up any time', 'API access', 'Dedicated support'],
-                },
-              ] as const).map(plan => {
-                const s = profile.subscription_status?.toLowerCase() ?? ''
-                const currentTier = (() => {
-                  if (['enterprise', 'enterprise-plus', 'enterprise_plus'].includes(s)) return 'enterprise'
-                  if (['business', 'unlimited'].includes(s)) return 'business'
-                  if (['pro', 'professional'].includes(s)) return 'pro'
-                  if (['starter', 'active'].includes(s)) return 'starter'
-                  return 'free'
-                })()
+                    ? p.features.filter(f => !/^[\d,]+ (free )?credits/.test(f))
+                    : TEXT2ART_PLAN_FEATURES[p.tier],
+                }
+                const currentTier = getUserTier(profile.subscription_status ?? null)
                 const isCurrent = currentTier === plan.tier
 
                 return (
@@ -1202,10 +1175,7 @@ export default function SettingsPage() {
                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 2, marginBottom: 4 }}>
                       {/* Price driven from pricing.ts (audit L5) so the displayed
                           amount can't drift from the canonical source. */}
-                      <span style={{ fontSize: 28, fontWeight: 800 }}>{(() => {
-                        const cents = PLANS.find(p => p.tier === (plan.tier as PlanTier))?.monthlyPrice
-                        return typeof cents === 'number' ? `$${Math.round(cents / 100)}` : plan.price
-                      })()}</span>
+                      <span style={{ fontSize: 28, fontWeight: 800 }}>{`$${Math.round(p.monthlyPrice / 100)}`}</span>
                       {plan.period && <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>{plan.period}</span>}
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--mint-darker, #2d7a4f)', marginBottom: 12 }}>

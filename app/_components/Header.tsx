@@ -8,6 +8,7 @@ import BuyCreditsModal from './BuyCreditsModal'
 import { logout } from '../_actions/auth'
 import type { Profile } from '../_lib/types'
 import { DOCS2VIDEO, type Brand } from '../_lib/brand'
+import { NAMES, planLabel } from '../_lib/names'
 
 const TOOLS_ITEMS = [
   { href: '/create', icon: '\uD83C\uDFAC', title: 'Pro Mode', desc: 'Full control over every detail' },
@@ -245,8 +246,11 @@ export default function Header({ profile, brand = DOCS2VIDEO }: { profile: Profi
               <div style={{ padding: '8px 14px', fontSize: 13, color: 'var(--muted)' }}>
                 {profile.full_name || profile.email}
               </div>
+              {/* The real plan name from pricing.ts. This used to say "Pro
+                  Member" for only four statuses, so Business, Enterprise and
+                  trial customers were told they had a "Free Account". */}
               <div style={{ padding: '0 14px 6px', fontSize: 12, color: 'var(--ink-light)' }}>
-                {['pro', 'professional', 'active', 'agency'].includes(profile.subscription_status?.toLowerCase() ?? '') ? 'Pro Member' : 'Free Account'}
+                {planLabel(profile.subscription_status)}
               </div>
               <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: 0 }} />
 
@@ -296,7 +300,7 @@ export default function Header({ profile, brand = DOCS2VIDEO }: { profile: Profi
                   )}
                 </Link>
               )}
-              {/* Saved Person/Company profiles (logo, colours, contact). The
+              {/* Saved Person/Company brands (logo, colours, contact). The
                   /brands editor was only reachable from a hidden Settings tab
                   on Docs2Video, while every help article sends people there.
                   Text2Art already has Brands in its top nav. */}
@@ -306,7 +310,7 @@ export default function Header({ profile, brand = DOCS2VIDEO }: { profile: Profi
                   onClick={() => setMenuOpen(false)}
                   style={{ display: 'block', padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none' }}
                 >
-                  Brand profiles
+                  {NAMES.brands}
                 </Link>
               )}
               <Link
@@ -398,7 +402,7 @@ export default function Header({ profile, brand = DOCS2VIDEO }: { profile: Profi
             </Link>
           )}
           {brand.showVideoFeatures && (
-            <Link href="/brands" className={pathname.startsWith('/brands') ? 'active' : ''}>Brand profiles</Link>
+            <Link href="/brands" className={pathname.startsWith('/brands') ? 'active' : ''}>{NAMES.brands}</Link>
           )}
           <Link href="/settings" className={pathname === '/settings' ? 'active' : ''}>Settings</Link>
           <Link href="/affiliate" className={pathname.startsWith('/affiliate') ? 'active' : ''}>Affiliate Program</Link>

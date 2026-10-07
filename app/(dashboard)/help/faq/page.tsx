@@ -2,6 +2,17 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { PLANS, isSellablePlan } from '../../../_lib/pricing'
+import { CREDIT_COSTS, TIER_CREDITS, TIER_APPROX_VIDEOS } from '../../../_lib/credits'
+import { SMALLEST_PACK, packPrice, packsSentence } from '../../../_lib/credit-packs'
+import { NAMES } from '../../../_lib/names'
+
+// Prices, credit amounts and pack sizes below are read from pricing.ts,
+// credits.ts and credit-packs.ts, so an answer can't quote an old price.
+const n = (x: number) => x.toLocaleString('en-US')
+const PAID_PLANS = PLANS.filter(p => isSellablePlan(p.tier))
+  .map(p => `**${p.label}** $${Math.round(p.monthlyPrice / 100)}/mo (${n(p.monthlyCredits)} credits)`)
+  .join(', ')
 
 interface FaqItem {
   question: string
@@ -27,19 +38,20 @@ const FAQ_ITEMS: FaqItem[] = [
     question: 'What file formats can I upload?',
     answer: [
       'You can upload up to 5 files at once: **PDF**, **Word (DOCX)**, **PowerPoint (PPTX)**, **text (TXT)**, **CSV** and **Excel (XLSX)**.',
-      'On the Content step you can also choose **Website URL**, **Paste text**, or **AI writes it** — none of those need a file.',
+      'On step 1, under **Where should the content come from?**, you can also choose **Website URL**, **Paste text**, or **AI writes it** — none of those need a file.',
     ],
   },
   {
     question: 'Is there a limit on video length?',
     answer: [
-      'On the **Voice & Length** step you pick **Short** (30–60 seconds), **Medium** (2–3 minutes) or **Long** (5+ minutes). The final length also depends on how much content you give it. Longer videos cost more credits (500 / 1,000 / 1,500).',
+      `On step 2, **Check the story**, you pick the **Length**: **Short** (under 1 minute), **Standard** (2–5 minutes) or **Detailed** (5–15 minutes). The final length also depends on how much content you give it. Longer videos cost more credits (${n(CREDIT_COSTS.videoQuick)} / ${n(CREDIT_COSTS.videoStandard)} / ${n(CREDIT_COSTS.videoDetailed)}); step 3 shows the exact price.`,
+      'Changing the length after the story is written offers **Rewrite at this length** — free. **Change the length** on step 3 takes you straight back to it.',
     ],
   },
   {
     question: 'Can I use my own voice for narration?',
     answer: [
-      'Not at the moment. Videos use AI voices. On the **Voice & Length** step you can press **▶ Listen** to hear each one and pick the tone you like.',
+      'Not at the moment. Videos use AI voices. On step 3, **Make it yours**, press **▶** next to a voice to hear it and pick the tone you like.',
     ],
   },
   {
@@ -57,14 +69,14 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'What happens to my videos if I cancel my subscription?',
     answer: [
-      'All your videos stay in your Library and their share links keep working. Your monthly credits stop, but any top-up credits you bought stay in your account, and you can buy more anytime with **+ Top Up** (packs start at $10 for 2,500 credits).',
+      `All your videos stay in your Library and their share links keep working. Your monthly credits stop, but any top-up credits you bought stay in your account, and you can buy more anytime with **+ Top Up** (packs start at ${packPrice(SMALLEST_PACK)} for ${n(SMALLEST_PACK.credits)} credits).`,
     ],
   },
   {
     question: 'Can I create videos for multiple brands or clients?',
     answer: [
-      'Yes. Open the account menu (top-right) and choose **Brand profiles** to create a profile for each company or person. You can also create one on the **Presenter** step while making a video.',
-      'When making a video, pick the right profile on the **Presenter** step and the video uses that logo, colors and contact info. There is no limit on the number of profiles.',
+      `Yes. Open the account menu (top-right) and choose **${NAMES.brands}** to create a brand for each company or person. You can also set one up while making a video: on step 3, click **Change** next to the brand.`,
+      'When making a video, pick the right one on the brand step (**Your brand**) and the video uses that logo, colors and contact info. There is no limit on the number of brands.',
     ],
   },
   {
@@ -90,7 +102,7 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'How long are unfinished drafts kept?',
     answer: [
-      'A draft you have started but not generated is kept for **24 hours** after you last changed it. Once it has a script (you reached the **Script** step), it is kept for **14 days** after your last change, so a script you wrote is not lost over a weekend.',
+      'A draft you have started but not generated is kept for **24 hours** after you last changed it. Once it has a story (step 2, **Check the story**), it is kept for **14 days** after your last change, so a script you wrote is not lost over a weekend.',
       'After that the draft and any file you uploaded for it are deleted. Finished videos are never deleted this way.',
     ],
   },
@@ -103,8 +115,8 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'How much does it cost?',
     answer: [
-      'Everything uses credits. New accounts get **2,000 free credits** once (about 2 standard videos). Plans: **Pro** $79/mo (25,000 credits), **Business** $199/mo (75,000), **Enterprise** $499/mo (200,000).',
-      'Anyone can buy top-up packs that never expire: 2,500 credits for $10, 7,500 for $25, or 18,000 for $50. See **Pricing & Plans** for details.',
+      `Everything uses credits. New accounts get **${n(TIER_CREDITS.free)} free credits** once (about ${TIER_APPROX_VIDEOS.free.standard} standard videos). Plans: ${PAID_PLANS}.`,
+      `Anyone can buy top-up packs that never expire: ${packsSentence()}. See **Pricing & Plans** for details.`,
     ],
   },
 ]
@@ -132,14 +144,14 @@ const TROUBLESHOOTING: FaqItem[] = [
   {
     question: 'The AI misunderstood my document.',
     answer: [
-      'After you add your content, the **Brief** step shows what the AI understood. If it is off, type what to change in the chat (for example "focus on the retirement income numbers") before you press **Looks good — continue**.',
+      'On step 2, **The one point** at the top shows what the AI understood. If it is off, type what to change under **Change it by asking** (for example "focus on the retirement income numbers") — it rewrites the story — before you press **Looks right — pick the look**.',
       'If it is badly wrong, try a cleaner file (a text-based PDF rather than a scan), or paste the text in directly with **Paste text**.',
     ],
   },
   {
     question: 'My brand colors look different in the video than on my website.',
     answer: [
-      'Open the account menu (top-right), choose **Brand profiles**, and edit that profile. Set the brand color to your exact color code.',
+      `Open the account menu (top-right), choose **${NAMES.brands}**, and edit that brand. Set the brand color to your exact color code.`,
       'Colors picked up automatically from a website are a best guess and can grab a button or background color instead of your main brand color.',
     ],
   },

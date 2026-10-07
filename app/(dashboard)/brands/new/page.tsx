@@ -303,7 +303,7 @@ export default function NewBrandPage() {
 
   return (
     <div>
-      <Link href="/brands" className="back-link">&larr; Back to profiles</Link>
+      <Link href="/brands" className="back-link">&larr; Back to brands</Link>
 
       {/* Website Scraper — Company profiles only */}
       {profileType === 'company' && (
@@ -544,13 +544,13 @@ export default function NewBrandPage() {
 
       {/* Profile Form */}
       <div className="wizard-card brand-form">
-        <h2 style={{ marginBottom: 4 }}>Profile details</h2>
+        <h2 style={{ marginBottom: 4 }}>Brand details</h2>
         <p className="wizard-sub" style={{ marginBottom: 20 }}>
           {profileType === 'person'
-            ? 'Create a presenter profile — your name, photo, and how you want to be introduced.'
+            ? 'Create a brand for yourself — your name, photo, and how you want to be introduced.'
             : scraped
             ? 'We pre-filled everything -- review and adjust as needed.'
-            : 'Create a profile to apply your logo and colors across all your creations. Just a name and logo is enough to get started.'}
+            : 'Create a brand to apply your logo and colors across everything you make. Just a name and logo is enough to get started.'}
         </p>
 
         <form onSubmit={handleSubmit}>
@@ -558,7 +558,7 @@ export default function NewBrandPage() {
           <input type="hidden" name="profile_type" value={profileType} />
           {storefront.showVideoFeatures && (
           <div className="form-group">
-            <label className="input-label">Profile type</label>
+            <label className="input-label">Brand type</label>
             <div style={{ display: 'flex', gap: 8 }}>
               {(['company', 'person'] as const).map((t) => (
                 <button
@@ -913,7 +913,7 @@ export default function NewBrandPage() {
           <div className="check-row">
             <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
               <input type="checkbox" name="is_default" value="true" style={{ width: 18, height: 18, accentColor: 'var(--ink)' }} />
-              <span style={{ fontSize: 14.5, fontWeight: 500 }}>Set as default profile</span>
+              <span style={{ fontSize: 14.5, fontWeight: 500 }}>Set as default brand</span>
             </label>
           </div>
 
@@ -967,7 +967,7 @@ export default function NewBrandPage() {
           <div style={{ display: 'flex', gap: 10 }}>
             <Link href="/brands" className="btn btn-soft">Cancel</Link>
             <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={loading}>
-              {loading ? 'Creating...' : 'Create profile \u2192'}
+              {loading ? 'Creating...' : 'Create brand \u2192'}
             </button>
           </div>
         </form>

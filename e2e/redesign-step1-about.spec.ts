@@ -337,3 +337,31 @@ test('coming back to step 1 reopens the same draft and updates it instead of mak
   expect(posts).toBe(0)
   expect(draft.patches[0]).toMatchObject({ videoId: FAKE_ID, updates: { purpose: 'Explain the family plan', clientId: CLIENTS[0].id, recipientName: 'Jordan', contentMethod: 'idea', sourcePdfPath: null, extractedDocs: [] } })
 })
+
+test.describe('Duplicate (from a finished project’s page)', () => {
+  const SOURCE_ID = '00000000-e2e0-4000-8000-0000000000d1'
+
+  test('makes the copy on the server and opens it on the story step', async ({ page }) => {
+    await mockDraft(page, draftRow(storyDraft()))
+    const asked: any[] = []
+    // The copy itself is a database write — mocked here, checked by its body.
+    await page.route('**/api/videos/draft/duplicate', async (route) => {
+      asked.push(jsonBody(route.request()))
+      await route.fulfill({ json: { videoId: FAKE_ID, next: `/create/script?id=${FAKE_ID}&copied=1` } })
+    })
+    await page.goto(`/create?duplicate=${SOURCE_ID}`)
+    await expect(page).toHaveURL(new RegExp(`/create/script\\?id=${FAKE_ID}&copied=1$`))
+    expect(asked).toEqual([{ videoId: SOURCE_ID }])
+    await expect(page.getByText('This is a copy of your earlier project', { exact: false })).toBeVisible()
+    await expect(page.getByLabel('Scene 2 title')).toHaveValue('What it costs')
+  })
+
+  test('a project that can’t be copied says why and leaves a blank step 1 to start fresh', async ({ page }) => {
+    await mockClients(page)
+    await page.route('**/api/videos/draft/duplicate', (route) => route.fulfill({ status: 422, json: { error: 'This one wasn’t made from a document or a story, so there’s nothing to copy.' } }))
+    await page.goto(`/create?duplicate=${SOURCE_ID}`)
+    await expect(page.getByText('This one wasn’t made from a document or a story, so there’s nothing to copy. You can start a new one here.')).toBeVisible()
+    await expect(page).toHaveURL(/\/create$/)
+    await expect(page.getByRole('heading', { name: 'What’s this about?' })).toBeVisible()
+  })
+})

@@ -13,14 +13,14 @@
 //   box-off-frame  a card that holds words runs past the edge of the picture
 //
 // What is checked, with worst-case words (120+ character lines, one very long
-// unbroken word, huge numbers, long names / titles / emails / web addresses):
+// unbroken word, huge numbers):
 //
 //   design-preview   the live preview on /design — the customer's headline set
 //                    over the chosen look, in the exact shape of every size
 //                    (also checks the preview keeps the size's true shape)
-//   signature        the five email-signature styles, in a phone-width and a
-//                    desktop-width email pane
-//   brandkit-sig     the sample signature in a brand kit
+//
+// (The email-signature and brand-kit signature checks went with those retired
+// tools, 2026-10.)
 //
 // A planted broken case runs every time. If the checker does not catch it, the
 // run fails — a check nobody has watched fail proves nothing.
@@ -45,7 +45,6 @@ const only = process.argv[2] || ''
 
 // Node strips the types itself (same as the other checks).
 const { FLYER_SIZES, VISIBLE_STYLES } = await import('../app/_lib/flyer-engine/index.ts')
-const sig = await import('../app/_lib/email-signature.ts')
 
 // esbuild lives in the video engine's packages; the app does not need its own.
 const esbuild = createRequire(join(ROOT, 'remotion', 'package.json'))('esbuild')
@@ -58,36 +57,6 @@ const HEADLINES = {
   unbroken: 'Supercalifragilisticexpialidocious-Indemnification',
   number: '$1,234,567,890.00',
   extreme: 'Everything Must Go: Our Biggest Warehouse Clearance Event Ever With Up To Seventy Percent Off Every Sofa, Sectional, Recliner, Dining Set, Mattress And Outdoor Patio Collection In Stock This Weekend Only',
-}
-
-const SIG_INPUTS = {
-  normal: {
-    fullName: 'Jane Smith', title: 'Licensed Insurance Agent', company: 'Smith Family Insurance',
-    email: 'jane@smithinsurance.com', phone: '(555) 123-4567', website: 'https://smithinsurance.com',
-  },
-  long: {
-    fullName: 'Maximiliana Alexandrovna Konstantinopoulou-Worthington III',
-    title: 'Senior Vice President of Strategic Partnerships, Enterprise Insurance Solutions & Retirement Income Planning (North America)',
-    company: 'The Worthington Family Office for Generational Wealth Preservation and Legacy Planning, LLC',
-    email: 'maximiliana.konstantinopoulou-worthington@generationalwealthpreservationpartners.com',
-    phone: '+1 (555) 123-4567 ext. 89012 · Mobile +44 20 7946 0958 · Fax +1 (555) 765-4321',
-    website: 'https://www.generationalwealthpreservationandlegacyplanningpartners.com/advisors/maximiliana-konstantinopoulou',
-  },
-  unbroken: {
-    fullName: 'Supercalifragilisticexpialidocious-Indemnification',
-    title: 'Chief-Executive-Officer-and-Founding-Managing-Director-of-Everything',
-    company: 'WorthingtonKonstantinopoulouGenerationalWealthPartnersInternational',
-    email: 'maximiliana.konstantinopoulou-worthington@generationalwealthpreservationpartners.com',
-    phone: '+15551234567890123456789',
-    website: 'https://www.generationalwealthpreservationandlegacyplanningpartners.com/advisors/maximiliana-konstantinopoulou',
-  },
-  nameOnly: { fullName: 'Jo Li' },
-}
-
-const BRANDKIT_COMPANIES = {
-  normal: 'Smith Family Insurance',
-  long: 'The Worthington Family Office for Generational Wealth Preservation and Legacy Planning of North America',
-  unbroken: 'WorthingtonKonstantinopoulouGenerationalWealthPartnersInternational',
 }
 
 // ── A static server: the harness + the app's public folder (look thumbnails, fonts, images) ──
@@ -256,60 +225,6 @@ async function runPreview() {
   }
 }
 
-async function runSignatures() {
-  const photo = `${BASE}/demo-presenter-face.png`
-  const logo = `${BASE}/favicon.png`
-  const panes = [{ name: 'phone', width: 343 }, { name: 'desktop', width: 600 }]
-  const blocks = []
-  for (const pane of panes) {
-    for (const style of sig.ALL_SIGNATURE_STYLES) {
-      for (const [ik, input] of Object.entries(SIG_INPUTS)) {
-        const withImages = ik === 'long' || ik === 'unbroken'
-        const html = sig.SIGNATURE_GENERATORS[style]({
-          ...input, style, primaryColor: '#2c5282',
-          website: input.website ? sig.safeUrl(input.website) : undefined,
-          ...(withImages ? { photoUrl: photo, logoUrl: logo } : {}),
-        })
-        blocks.push({ id: `signature/${pane.name}/${style}/${ik}`, pane, html })
-      }
-    }
-    for (const [ck, companyName] of Object.entries(BRANDKIT_COMPANIES)) {
-      const html = sig.brandKitSignatureHtml({ companyName, logoUrl: logo, palette: { primary: '#1b4d89', secondary: '#5a6b7d', accent: '#e0a526', text: '#1f2937' } })
-      blocks.push({ id: `brandkit-sig/${pane.name}/${ck}`, pane, html })
-    }
-  }
-  // Each signature sits in its own email pane: the pane is the "picture". The
-  // real preview wraps it in a page with a 20px body margin — kept here.
-  const body = blocks.map((b) => `<div class="pane" data-case="${b.id}" style="width:${b.pane.width}px;background:#fff;margin:12px;outline:1px dashed #bbb;display:flow-root"><div style="margin:20px">${b.html}</div></div>`).join('\n')
-  files.set('/__h/signatures.html', { type: 'text/html', body: `<!doctype html><html><head><meta charset="utf-8"><script>${SCANNER}</script><style>body{margin:0;background:#eee}</style></head><body>${body}</body></html>` })
-  const page = await browser.newPage({ viewport: { width: 1400, height: 900 } })
-  await page.goto(`${BASE}/__h/signatures.html`)
-  await page.waitForLoadState('load')
-  await page.evaluate(() => document.fonts.ready)
-  const out = await page.evaluate(() => Array.from(document.querySelectorAll('.pane')).map((p) => ({ id: p.dataset.case, ...window.__scan(p) })))
-  for (const o of out) results.push({ group: o.id.split('/')[0], ...o })
-  // Contact sheets, one per pane width and input: only those panes shown, with
-  // room on the right so anything running past a pane's dashed edge is visible.
-  for (const pane of panes) {
-    await page.setViewportSize({ width: pane.width + 420, height: 900 })
-    for (const ik of [...Object.keys(SIG_INPUTS), 'brandkit']) {
-      const prefix = ik === 'brandkit' ? `brandkit-sig/${pane.name}/` : `signature/${pane.name}/`
-      const suffix = ik === 'brandkit' ? '' : `/${ik}`
-      const shown = await page.evaluate(([p, s]) => {
-        let n = 0
-        for (const el of document.querySelectorAll('.pane')) {
-          const on = el.dataset.case.startsWith(p) && el.dataset.case.endsWith(s)
-          el.style.display = on ? '' : 'none'
-          if (on) n++
-        }
-        return n
-      }, [prefix, suffix])
-      if (shown) await page.screenshot({ path: join(OUT, `signature-${pane.name}-${ik}.png`), fullPage: true })
-    }
-  }
-  await page.close()
-}
-
 // The planted failure: a line that runs out of its box, off its picture, and
 // is cut by a hidden-overflow box. All four kinds must be reported.
 async function runPlanted() {
@@ -331,7 +246,6 @@ async function runPlanted() {
 
 const planted = await runPlanted()
 if (!only || only === 'preview') await runPreview()
-if (!only || only === 'signature') await runSignatures()
 await browser.close()
 server.close()
 

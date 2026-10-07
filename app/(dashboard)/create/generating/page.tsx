@@ -7,6 +7,8 @@ import { createClient } from '../../../_lib/supabase/client'
 import { useToast } from '../../../_components/Toast'
 import { displayProgress } from '../../../_lib/video-progress'
 import { IN_PROGRESS_STATUSES } from '../../../_lib/video-running'
+import { madeNoun, tipsFor } from '../_components/generatingTips'
+import { NAMES } from '../../../_lib/names'
 
 const STAGES = [
   { key: 'pending', icon: '🚀', label: 'Starting up', desc: 'Preparing your video pipeline' },
@@ -29,13 +31,7 @@ function slideDeckStage(detail: string) {
   return { key: 'slides', icon: '🎬', label: 'Building your slide deck', desc: 'Writing slides, recording the voice and rendering' }
 }
 
-const TIPS = [
-  'Your video will have professional narration with natural-sounding AI voices.',
-  'Each slide is custom-designed with your brand colors and logo.',
-  'You can share this video with a branded link when it\'s done.',
-  'Videos can be downloaded as MP4, PDF slides, or PPTX presentations.',
-  'Your share page shows your contact details, and your booking link if you set one in Settings.',
-]
+// The rotating tips depend on what is being made — see generatingTips.ts.
 
 export default function GeneratingPage() {
   const router = useRouter()
@@ -50,6 +46,8 @@ export default function GeneratingPage() {
   const [tipIdx, setTipIdx] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [outputType, setOutputType] = useState<string>('video')
+  // Tips wait for the first answer, so a deck never flashes a video's tip.
+  const [typeKnown, setTypeKnown] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [previews, setPreviews] = useState<{ idx: number; url: string }[]>([])
   const [totalScenes, setTotalScenes] = useState<number | null>(null)
@@ -77,7 +75,7 @@ export default function GeneratingPage() {
         failedPolls++
         if (failedPolls >= 30) {
           clearInterval(interval)
-          setError('Lost connection while checking progress. Your video may still be generating — check My Videos in a minute.')
+          setError(`Lost connection while checking progress. It may still be in the works — check your ${NAMES.library} in a minute.`)
         }
         return
       }
@@ -91,6 +89,7 @@ export default function GeneratingPage() {
         })
         setProgressDetail(data.progress_detail ?? '')
         if (data.output_type) setOutputType(data.output_type)
+        setTypeKnown(true)
         if (data.video_url) setVideoUrl(data.video_url)
         if (Array.isArray(data.preview_thumbs)) {
           setPreviews(data.preview_thumbs)
@@ -150,11 +149,12 @@ export default function GeneratingPage() {
     return () => clearInterval(timer)
   }, [progressPct, status])
 
-  // Rotate tips
+  // Rotate tips — only the ones true for this output.
+  const tips = tipsFor(outputType)
   useEffect(() => {
-    const timer = setInterval(() => setTipIdx(i => (i + 1) % TIPS.length), 6000)
+    const timer = setInterval(() => setTipIdx(i => (i + 1) % tips.length), 6000)
     return () => clearInterval(timer)
-  }, [])
+  }, [tips.length])
 
   const currentStage = isSlides ? slideDeckStage(progressDetail) : (STAGES.find(s => s.key === status) || STAGES[0])
   const stageIdx = STAGES.findIndex(s => s.key === status)
@@ -448,7 +448,7 @@ export default function GeneratingPage() {
           You can safely leave this page
         </div>
         <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16, lineHeight: 1.5 }}>
-          Your video will continue building in the background. We&apos;ll notify you when it&apos;s ready.
+          Your {madeNoun(outputType)} will continue building in the background. We&apos;ll notify you when it&apos;s ready.
         </div>
         <Link href="/dashboard" style={{
           display: 'inline-block', padding: '12px 32px', borderRadius: 10,
@@ -460,12 +460,14 @@ export default function GeneratingPage() {
       </div>
 
       {/* Rotating tip */}
-      <div key={tipIdx} style={{
-        fontSize: 14, color: 'var(--ink-light)', textAlign: 'center', maxWidth: 400,
-        animation: 'fadeInUp 0.4s ease', lineHeight: 1.5,
-      }}>
-        {TIPS[tipIdx]}
-      </div>
+      {typeKnown ? (
+        <div key={`${outputType}-${tipIdx}`} style={{
+          fontSize: 14, color: 'var(--ink-light)', textAlign: 'center', maxWidth: 400,
+          animation: 'fadeInUp 0.4s ease', lineHeight: 1.5,
+        }}>
+          {tips[tipIdx % tips.length]}
+        </div>
+      ) : null}
     </div>
   )
 }

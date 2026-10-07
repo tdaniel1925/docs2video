@@ -1,8 +1,36 @@
 'use client'
 
 import Link from 'next/link'
+import { PLANS, isSellablePlan } from '../../../_lib/pricing'
+import { CREDIT_COSTS, TIER_CREDITS, TIER_APPROX_VIDEOS, MULTI_FILE_SURCHARGE } from '../../../_lib/credits'
+import { CREDIT_PACKS, packPrice } from '../../../_lib/credit-packs'
+
+// Every price, credit cost and pack on this page is read from pricing.ts,
+// credits.ts and credit-packs.ts. They used to be typed here, so a price
+// change left this article quoting the old one.
 
 const BULLET = <span style={{ color: 'var(--mint-darker)' }}>&#8226;</span>
+const n = (x: number) => x.toLocaleString('en-US')
+const PAID_PLANS = PLANS.filter(p => isSellablePlan(p.tier))
+
+// What each action costs. The video lengths use the names on step 2's length
+// picker (Short / Standard / Detailed).
+const COSTS: [string, string][] = [
+  ['Short video (under 1 minute)', n(CREDIT_COSTS.videoQuick)],
+  ['Standard video (2–5 minutes)', n(CREDIT_COSTS.videoStandard)],
+  ['Detailed video (5–15 minutes)', n(CREDIT_COSTS.videoDetailed)],
+  ['Interactive presentation', n(CREDIT_COSTS.interactive)],
+  ['MP4 export of a presentation', n(CREDIT_COSTS.videoExport)],
+  ['Commercial', n(CREDIT_COSTS.commercial)],
+  ['Custom Graphics (per design)', n(CREDIT_COSTS.flyer)],
+  ['Slide deck', n(CREDIT_COSTS.deck)],
+  ['PowerPoint (PPTX)', n(CREDIT_COSTS.pptx)],
+  ['PDF document', n(CREDIT_COSTS.pdf)],
+  ['Each extra uploaded file', '+' + n(MULTI_FILE_SURCHARGE)],
+  ['Custom style preview', n(CREDIT_COSTS.stylePreview)],
+  // AI Social posting is priced by the social posting route, not credits.ts.
+  ['AI Social post (per platform)', '25'],
+]
 
 export default function PricingHelpPage() {
   return (
@@ -61,21 +89,7 @@ export default function PricingHelpPage() {
               </tr>
             </thead>
             <tbody>
-              {[
-                ['Short video (30–60 seconds)', '500'],
-                ['Medium video (2–3 min)', '1,000'],
-                ['Long video (5+ min)', '1,500'],
-                ['Interactive presentation', '700'],
-                ['MP4 export of a presentation', '400'],
-                ['Commercial', '600'],
-                ['Custom Graphics (per design)', '200'],
-                ['Slide deck', '600'],
-                ['PowerPoint (PPTX)', '800'],
-                ['PDF document', '600'],
-                ['Each extra uploaded file', '+150'],
-                ['Custom style preview', '50'],
-                ['AI Social post (per platform)', '25'],
-              ].map(([action, cost]) => (
+              {COSTS.map(([action, cost]) => (
                 <tr key={action} style={{ borderBottom: '1px solid var(--border-light)' }}>
                   <td style={{ padding: '8px 0' }}>{action}</td>
                   <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 600, color: 'var(--ink)' }}>{cost}</td>
@@ -86,17 +100,19 @@ export default function PricingHelpPage() {
         </div>
       </div>
 
-      {/* Free Plan */}
+      {/* Free plan, then every plan checkout sells. Name, price, credits, the
+          approximate video counts and the feature list all come from
+          pricing.ts / credits.ts, so this page can't quote an old price. */}
       <div style={{
         background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Free — 2,000 Credits to Start
+          Free — {n(TIER_CREDITS.free)} Credits to Start
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Every new account starts with <strong style={{ color: 'var(--ink)' }}>2,000 credits</strong> (enough for <strong style={{ color: 'var(--ink)' }}>about 2 standard explainer videos</strong>). These are a one-time welcome gift, not a monthly refill. You add a card to unlock them; nothing is charged until they run out.
+            Every new account starts with <strong style={{ color: 'var(--ink)' }}>{n(TIER_CREDITS.free)} credits</strong> (enough for <strong style={{ color: 'var(--ink)' }}>about {TIER_APPROX_VIDEOS.free.standard} standard explainer videos</strong>). These are a one-time welcome gift, not a monthly refill. You add a card to unlock them; nothing is charged until they run out.
           </p>
           <p>
             All features included: AI content extraction, script editing, voice narration, background music, and downloads in MP4, PPTX, and PDF formats.
@@ -104,68 +120,36 @@ export default function PricingHelpPage() {
         </div>
       </div>
 
-      {/* Pro */}
-      <div style={{
-        background: 'white', border: '2px solid var(--ink)', borderRadius: 10,
-        padding: '28px 32px', marginBottom: 20,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)', margin: 0 }}>
-            Pro — $79/month — 25,000 Credits
-          </h2>
-          <span style={{
-            background: 'var(--ink)', color: 'white', fontSize: 11, fontWeight: 700,
-            padding: '3px 10px', borderRadius: 6,
-          }}>RECOMMENDED</span>
-        </div>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
-          <p style={{ marginBottom: 10 }}>
-            Approximately <strong style={{ color: 'var(--ink)' }}>25 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>50 quick videos</strong> per month.
-          </p>
-          <p style={{ marginBottom: 6 }}>{BULLET} Unlimited brand profiles</p>
-          <p style={{ marginBottom: 6 }}>{BULLET} Branded client share pages</p>
-          <p style={{ marginBottom: 6 }}>{BULLET} API and AI-assistant access</p>
-          <p>{BULLET} Need more? Credit packs from $10 (see below)</p>
-        </div>
-      </div>
-
-      {/* Business */}
-      <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
-        padding: '28px 32px', marginBottom: 20,
-      }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Business — $199/month — 75,000 Credits
-        </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
-          <p style={{ marginBottom: 10 }}>
-            Approximately <strong style={{ color: 'var(--ink)' }}>75 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>150 quick videos</strong> per month.
-          </p>
-          <p style={{ marginBottom: 6 }}>{BULLET} White-label share pages (no Docs2Video branding)</p>
-          <p style={{ marginBottom: 6 }}>{BULLET} Unlimited brand profiles</p>
-          <p style={{ marginBottom: 6 }}>{BULLET} Priority support</p>
-          <p>{BULLET} Need more? Credit packs from $10 (see below)</p>
-        </div>
-      </div>
-
-      {/* Enterprise */}
-      <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
-        padding: '28px 32px', marginBottom: 20,
-      }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Enterprise — $499/month — 200,000 Credits
-        </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
-          <p style={{ marginBottom: 10 }}>
-            Approximately <strong style={{ color: 'var(--ink)' }}>200 standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>400 quick videos</strong> per month.
-          </p>
-          <p style={{ marginBottom: 6 }}>{BULLET} White-label share pages (no Docs2Video branding)</p>
-          <p style={{ marginBottom: 6 }}>{BULLET} API and AI-assistant access</p>
-          <p style={{ marginBottom: 6 }}>{BULLET} Dedicated support</p>
-          <p>{BULLET} Need more? Credit packs from $10 (see below)</p>
-        </div>
-      </div>
+      {PAID_PLANS.map(plan => {
+        const recommended = plan.tier === 'pro'
+        return (
+          <div key={plan.tier} style={{
+            background: 'white', border: recommended ? '2px solid var(--ink)' : '1px solid var(--border-light)', borderRadius: 10,
+            padding: '28px 32px', marginBottom: 20,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)', margin: 0 }}>
+                {plan.label} — {`$${Math.round(plan.monthlyPrice / 100)}`}/month — {n(TIER_CREDITS[plan.tier])} Credits
+              </h2>
+              {recommended && (
+                <span style={{
+                  background: 'var(--ink)', color: 'white', fontSize: 11, fontWeight: 700,
+                  padding: '3px 10px', borderRadius: 6,
+                }}>RECOMMENDED</span>
+              )}
+            </div>
+            <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+              <p style={{ marginBottom: 10 }}>
+                Approximately <strong style={{ color: 'var(--ink)' }}>{TIER_APPROX_VIDEOS[plan.tier].standard} standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>{TIER_APPROX_VIDEOS[plan.tier].quick} quick videos</strong> per month.
+              </p>
+              {/* The credits line is already in the heading above. */}
+              {plan.features.filter(f => !/^[\d,]+ credits/.test(f)).map(f => (
+                <p key={f} style={{ marginBottom: 6 }}>{BULLET} {f}</p>
+              ))}
+            </div>
+          </div>
+        )
+      })}
 
       {/* Credit Packs */}
       <div style={{
@@ -188,15 +172,11 @@ export default function PricingHelpPage() {
               </tr>
             </thead>
             <tbody>
-              {[
-                ['Starter Pack', '2,500', '$10'],
-                ['Power Pack', '7,500', '$25'],
-                ['Studio Pack', '18,000', '$50'],
-              ].map(([name, credits, price]) => (
-                <tr key={name} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                  <td style={{ padding: '8px 0' }}>{name}</td>
-                  <td style={{ padding: '8px 0', textAlign: 'center', fontWeight: 600, color: 'var(--ink)' }}>{credits}</td>
-                  <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 600, color: 'var(--ink)' }}>{price}</td>
+              {CREDIT_PACKS.map(p => (
+                <tr key={p.key} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                  <td style={{ padding: '8px 0' }}>{p.name} pack</td>
+                  <td style={{ padding: '8px 0', textAlign: 'center', fontWeight: 600, color: 'var(--ink)' }}>{n(p.credits)}</td>
+                  <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 600, color: 'var(--ink)' }}>{packPrice(p)}</td>
                 </tr>
               ))}
             </tbody>

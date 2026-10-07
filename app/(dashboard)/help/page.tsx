@@ -3,6 +3,19 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useBrand } from '../../_components/BrandProvider'
+import { PLANS, type PlanTier } from '../../_lib/pricing'
+import { CREDIT_COSTS, TIER_CREDITS } from '../../_lib/credits'
+import { CREDIT_PACKS, packPrice, SMALLEST_PACK } from '../../_lib/credit-packs'
+import { NAMES, KIND_NAMES } from '../../_lib/names'
+
+// Prices and names are READ from the tables, never typed: this page typed its
+// own plan prices and pack names, and called the $10 pack "Starter" after the
+// Starter plan was retired. tests/screen-prices.test.ts keeps it that way.
+const n = (x: number) => x.toLocaleString('en-US')
+const planPrice = (tier: PlanTier) => `$${Math.round((PLANS.find(p => p.tier === tier)?.monthlyPrice ?? 0) / 100)}`
+const PACK_LIST = CREDIT_PACKS.map(p => `${p.name} ${n(p.credits)} (${packPrice(p)})`).join(', ')
+const LIBRARY_TABS = ['All', ...(['video', 'presentation', 'deck', 'graphic'] as const).map(k => KIND_NAMES[k].many)]
+  .map(t => `**${t}**`).join(', ')
 
 interface HelpArticle {
   id: string
@@ -84,8 +97,8 @@ const GUIDES: HelpGuide[] = [
   },
   {
     href: '/help/brands',
-    title: 'Profiles & Personalization',
-    description: 'Person or Company profiles — your name, role, photo, and intro line, or your logo, colors, and contact info — used across every video.',
+    title: 'Brands & Personalization',
+    description: 'Person or Company brands — your name, role, photo, and intro line, or your logo, colors, and contact info — used across every video.',
     icon: '🎨',
   },
   {
@@ -124,7 +137,7 @@ const ARTICLES: HelpArticle[] = [
       '**3 — Brand:** Your logo, brand colors, and contact info (phone/email/website) — used across every video and the share page.',
       '**4 — Voice:** Pick a default narration voice.',
       '**5 — Style:** Pick a default image style for your slides. You choose the video look for each project on the Style step.',
-      'You can re-run the wizard anytime with **Re-run Setup Wizard** at the top of **Settings**. To edit saved profiles later, open the account menu (top-right) and choose **Brand profiles**.',
+      `You can re-run the wizard anytime with **Re-run Setup Wizard** at the top of **Settings**. To edit saved brands later, open the account menu (top-right) and choose **${NAMES.brands}**.`,
     ],
   },
   {
@@ -133,10 +146,10 @@ const ARTICLES: HelpArticle[] = [
     category: 'getting-started',
     icon: '📊',
     content: [
-      'The top bar has **Dashboard**, **+ Create**, **Library** and **Clients**. Your name (top-right) opens the account menu: credits and **Top Up**, Analytics, AI Social, Brand profiles, Settings, Affiliate Program and Help Center.',
+      `The top bar has **Dashboard**, **${NAMES.newButton}**, **${NAMES.library}** and **Clients**. Your name (top-right) opens the account menu: credits and **Top Up**, Analytics, AI Social, ${NAMES.brands}, Settings, Affiliate Program and Help Center.`,
       '**Credits** — Your balance is in the top bar. Every creation spends credits (see Pricing). Click **+ Top Up** to buy more.',
-      '**Create** — Start any new project from **+ Create** — one place for interactive presentations, videos, commercials and custom graphics.',
-      '**Recent creations** — Your latest items. Click any item to open it, or go to **Library** for everything.',
+      `**${NAMES.newButton}** — Start any new project here: a narrated video, an interactive presentation or a slide deck. Commercials and custom graphics start from the links under the first step.`,
+      `**Projects** — Your latest work and where each one stands. Click any item to open it, or go to **${NAMES.library}** for everything.`,
     ],
   },
 
@@ -162,12 +175,12 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '🖱️',
     content: [
-      'An interactive presentation is a narrated, click-through presentation your client explores at their own pace, on its own share page. It\'s the recommended format on **+ Create**.',
-      '**1.** Click **+ Create**, then **Interactive Presentation**.',
-      '**2.** Say who it\'s for, add your content, and approve the brief — the same as a video.',
-      '**3.** Go through the remaining steps (there is no voice step to set up here), then on the Style step pick one of six presentation looks: Heritage, Warm Editorial, Corporate Bold, Midnight, Fresh Mint or Certificate.',
-      '**4.** Generate. When it\'s ready, open it from your Library to share the link or **Edit slides**.',
-      'It costs 700 credits. Want a video file too? Export an MP4 from the finished presentation\'s page (400 credits).',
+      'An interactive presentation is a narrated, click-through presentation your client explores at their own pace, on its own share page.',
+      `**1.** Click **${NAMES.newButton}**, say who it\'s for and what it should get them to do, and add your content.`,
+      '**2.** Check the story — the same as a video — then press **Looks right — pick the look**.',
+      '**3.** Under **What do you want to send?** choose **Interactive presentation**, then pick one of six looks: Heritage, Warm Editorial, Corporate Bold, Midnight, Fresh Mint or Certificate.',
+      `**4.** Press **Make it**. When it\'s ready, open it from your ${NAMES.library} to share the link or **Edit slides**.`,
+      `It costs ${n(CREDIT_COSTS.interactive)} credits. Want a video file too? Export an MP4 from the finished presentation\'s page (${n(CREDIT_COSTS.videoExport)} credits).`,
     ],
   },
   {
@@ -176,16 +189,11 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '🎬',
     content: [
-      'Start from **+ Create** (top bar). Everything runs through one guided flow, and the bar at the top shows which step you\'re on.',
-      '**1 — Pick a format.** Choose **Video Explainer**. (The other cards are Interactive Presentation, Custom Graphics and Commercial.)',
-      '**2 — Who\'s this for?** Pick an existing client, add a new one, or skip. When you name a client, their name appears on the video cover and share page ("Prepared for [Client]").',
-      '**3 — Content.** Choose **Website URL**, **Upload file** (up to 5 files: PDF, Word, PowerPoint, text, CSV or Excel), **Paste text**, or **AI writes it**.',
-      '**4 — Brief.** AI shows what it understood — the angle, key points and figures. Tell it what to change in the chat, then press **Looks good — continue**.',
-      '**5 — Presenter.** Pick a saved Person or Company profile, create one, or skip.',
-      '**6 — Voice & Length.** Pick a voice (press **▶ Listen** to hear it; the default is a warm female voice), a length (Short, Medium or Long) and whether to add background music.',
-      '**7 — Script.** Read the script. Press **✎ Edit script** to change it.',
-      '**8 — Style.** Pick the look (see "Video styles explained"). Optionally add a client note and let the client download your source PDF, then press **Generate with [Style]**.',
-      'It finishes in the background and lands in your Library. From there you can rename it, download it (MP4 / PDF / PPTX / Script), send it to a client, or change it with **Edit Video**.',
+      `Start from **${NAMES.newButton}** (top bar). There are four steps, and the bar on the left shows which one you\'re on. Nothing is charged until you press **Make it** on step 3.`,
+      '**1 — What\'s this about?** Pick a client (or **No client — general**), say what it should get them to do, and choose where the content comes from: **Website URL**, **Upload file** (up to 5: PDF, Word, PowerPoint, text, CSV or Excel), **Paste text**, or **AI writes it**. When you name a client, their name appears on the cover and share page ("Prepared for [Client]").',
+      '**2 — Check the story.** Read the one point and the scenes. Choose the **Length** (Short, Standard or Detailed), edit any scene, or type a change under **Change it by asking**. This step is free.',
+      `**3 — Make it yours.** Check **${NAMES.brand}**, choose **Narrated video**, pick the look (see "Video styles explained") and the voice (**Sarah** by default; press play to hear any voice), and add background music if you like. Optionally add a note to your client, then press **Make it**.`,
+      `**4 — Send it.** It finishes in the background and lands in your ${NAMES.library}. From there you can send it, copy the link, download it (MP4 / PDF / PPTX / Script) or make changes.`,
     ],
   },
   {
@@ -194,7 +202,7 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '🎨',
     content: [
-      'On the Style step you choose how your explainer looks. Every style — Slide Deck included — uses the voice and background music you picked and your script exactly as you edited it. Only the visuals differ:',
+      'On the **Make it yours** step you choose how your explainer looks. Every look — Slide Deck included — uses the voice and background music you picked and your story exactly as you edited it. Only the visuals differ:',
       '• **Slide Deck** (recommended) — an animated explainer deck: topic headings with bullets, data cards, charts, and icons that reveal in sync with the voice. Speaks your edited script. Takes about 10 minutes.',
       '• **Aurora** — modern motion graphics: one flowing branded backdrop, kinetic type, no stock imagery.',
       '• **Cinematic** — film-style imagery with kinetic text and motion. Best for story-led, emotive videos.',
@@ -214,7 +222,7 @@ const ARTICLES: HelpArticle[] = [
     content: [
       'Your project is saved as a draft while you go through the steps.',
       '• A draft **without a script** is kept for **24 hours** after your last change.',
-      '• Once it **has a script** (you reached the Script step), it is kept for **14 days** after your last change.',
+      '• Once it **has a story** (you reached the story step), it is kept for **14 days** after your last change.',
       'After that the draft, and any file you uploaded for it, is deleted. Finished videos are never removed this way.',
     ],
   },
@@ -224,8 +232,8 @@ const ARTICLES: HelpArticle[] = [
     category: 'management',
     icon: '📁',
     content: [
-      'The **Library** (top bar) lists everything you\'ve made in a table: title, type, recipient, status, credits and date.',
-      'Use the tabs to show **All**, **Videos**, or **Custom Graphics**.',
+      `The **${NAMES.library}** (top bar) lists everything you\'ve made in a table: title, type, recipient, status, credits and date.`,
+      `Use the tabs to show ${LIBRARY_TABS}. The tab you pick stays chosen when you refresh.`,
       '• **Videos and presentations** open their detail page, with the player, downloads and sharing.',
       '• **Graphics** open the image file in a new tab.',
       'It shows 25 items per page (you can switch to 50 or 100). Use **Previous** / **Next** to move between pages.',
@@ -239,9 +247,9 @@ const ARTICLES: HelpArticle[] = [
     icon: '🪙',
     content: [
       'Everything is paid for with credits:',
-      '• **Video Explainer** — Short 500 · Medium 1,000 · Long 1,500 credits',
-      '• **Interactive Presentation** — 700 credits (MP4 export 400) · **Commercial** — 600',
-      '• **Custom Graphics** — 200 credits per design',
+      `• **Narrated video** — Short ${n(CREDIT_COSTS.videoQuick)} · Standard ${n(CREDIT_COSTS.videoStandard)} · Detailed ${n(CREDIT_COSTS.videoDetailed)} credits`,
+      `• **Interactive presentation** — ${n(CREDIT_COSTS.interactive)} credits (MP4 export ${n(CREDIT_COSTS.videoExport)}) · **Slide deck** — ${n(CREDIT_COSTS.deck)} · **Commercial** — ${n(CREDIT_COSTS.commercial)}`,
+      `• **Custom Graphics** — ${n(CREDIT_COSTS.flyer)} credits per design`,
       'Plans include a monthly credit allowance (see Plans). You can buy more credits anytime with **+ Top Up** next to your balance.',
     ],
   },
@@ -251,12 +259,12 @@ const ARTICLES: HelpArticle[] = [
     category: 'billing',
     icon: '💰',
     content: [
-      'Plans give you a monthly credit allowance (credits are spent per creation — a standard video is 1,000 credits):',
-      '**Free** — 2,000 credits to try (one time, about 2 standard videos). Card required to start.',
-      '**Pro ($79/mo)** — 25,000 credits/mo, unlimited brand profiles.',
-      '**Business ($199/mo)** — 75,000 credits/mo, white-label share pages.',
-      '**Enterprise ($499/mo)** — 200,000 credits/mo, white-label share pages, dedicated support.',
-      'Need more mid-cycle? Buy top-up packs (never expire): Starter 2,500 ($10), Power 7,500 ($25), Studio 18,000 ($50). Anyone can buy them, including Free accounts.',
+      `Plans give you a monthly credit allowance (credits are spent per creation — a standard video is ${n(CREDIT_COSTS.videoStandard)} credits):`,
+      `**Free** — ${n(TIER_CREDITS.free)} credits to try (one time). Card required to start.`,
+      `**Pro (${planPrice('pro')}/mo)** — ${n(TIER_CREDITS.pro)} credits/mo, unlimited brands.`,
+      `**Business (${planPrice('business')}/mo)** — ${n(TIER_CREDITS.business)} credits/mo, white-label share pages.`,
+      `**Enterprise (${planPrice('enterprise')}/mo)** — ${n(TIER_CREDITS.enterprise)} credits/mo, white-label share pages, dedicated support.`,
+      `Need more mid-cycle? Buy top-up packs (never expire): ${PACK_LIST}. Anyone can buy them, including Free accounts.`,
       'Manage your plan from **Settings > Subscription**.',
     ],
   },
@@ -381,7 +389,7 @@ const ARTICLES: HelpArticle[] = [
     category: 'getting-started',
     icon: '📄',
     content: [
-      'Click **+ Create**, pick a format (for example **Video Explainer**), and say who it\'s for. On the Content step, choose **Upload file** and drag your files onto the upload area, or click to browse. You can add up to 5 files.',
+      `Click **${NAMES.newButton}**. On the first step, under **Where should the content come from?**, choose **Upload file** and drag your files onto the upload area, or click to browse. You can add up to 5 files.`,
       'You can also use **Website URL**, **Paste text**, or **AI writes it**.',
       '**Supported file types:** PDF, DOCX, PPTX, TXT, CSV and XLSX.',
     ],
@@ -393,7 +401,7 @@ const ARTICLES: HelpArticle[] = [
     icon: '⏱️',
     content: [
       'Most videos take **3–5 minutes**. The **Slide Deck** style takes about **10 minutes**.',
-      'You do not need to stay on the page. Video generation continues in the background. When it finishes, your video appears in your Library.',
+      `You do not need to stay on the page. Video generation continues in the background. When it finishes, your video appears in your ${NAMES.library}.`,
     ],
   },
   {
@@ -402,10 +410,10 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '✏️',
     content: [
-      'Yes. On the **Script** step, press **✎ Edit script**. For each scene you can change the title, the narration, the slide headline, the stats and the bullet points.',
-      'Drag scenes to reorder them (the cover and closing slides stay in place). Each scene has its own AI chat and a **Preview slide** button.',
-      'To make a big change — like "add a slide about pricing" — type it into the AI bar and press **Apply to whole script**. You can **Undo** it.',
-      'After the video is made, use **Edit Video** on the video page to change scenes and regenerate.',
+      'Yes. On step 2, **Check the story**, every scene is editable: change the words directly, or open **More — words on screen, ask AI, preview** for the slide headline, stats, an AI edit and **Preview slide**.',
+      'Drag scenes to reorder them (the opening and closing stay in place).',
+      'To make a big change — like "add a slide about pricing" — type it under **Change it by asking** on the right. You can **Undo that change**.',
+      'After the video is made, open it from the video page to change scenes and make it again.',
     ],
   },
   {
@@ -414,8 +422,8 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '🎙️',
     content: [
-      'On the **Voice & Length** step, press **▶ Listen** next to any voice to hear it, then click the voice to choose it.',
-      'The default is **Nova**, a warm female voice. Voices range from warm and conversational to professional and authoritative.',
+      'On step 3, **Make it yours**, press play next to any voice under **The voice** to hear it, then click the voice to choose it.',
+      'The default is **Sarah**, a warm female voice. Voices range from warm and conversational to professional and authoritative.',
       'Pick your voice before you generate. To change it afterwards, the video has to be made again.',
     ],
   },
@@ -425,9 +433,9 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '🏷️',
     content: [
-      'Your logo lives in a **Company profile**. Open the account menu (top-right) and choose **Brand profiles**, then create or edit a profile and upload a PNG or SVG logo.',
-      'You can also create a Company profile on the **Presenter** step while making a video, or add your logo during Setup.',
-      'When making a video, pick that profile on the **Presenter** step. The logo appears on the cover, the closing slide and the share page. See the **Profiles & Personalization** guide for details.',
+      `Your logo lives in a **Company brand**. Open the account menu (top-right) and choose **${NAMES.brands}**, then create or edit a brand and upload a PNG or SVG logo.`,
+      'You can also add your brand on the **Make it yours** step while making a video (**Add your brand**), or during Setup.',
+      'When making a video, the brand shows at the top of **Make it yours** — press **Change** to pick another. The logo appears on the cover, the closing slide and the share page. See the **Brands & Personalization** guide for details.',
     ],
   },
   {
@@ -501,7 +509,7 @@ const ARTICLES: HelpArticle[] = [
     content: [
       'Go to **Settings > Subscription**. Your current plan and credits are shown at the top, with the plans below.',
       'Click **Subscribe to [Plan]** (or **Switch to [Plan]** if you already have one). To see invoices, update your card, or cancel, click **Manage billing & invoices**.',
-      'Available plans (credits/month): **Free** (2,000 to start), **Pro** ($79 — 25,000), **Business** ($199 — 75,000), **Enterprise** ($499 — 200,000). Buy top-up packs anytime (from $10 for 2,500 credits); they never expire.',
+      `Available plans (credits/month): **Free** (${n(TIER_CREDITS.free)} to start), **Pro** (${planPrice('pro')} — ${n(TIER_CREDITS.pro)}), **Business** (${planPrice('business')} — ${n(TIER_CREDITS.business)}), **Enterprise** (${planPrice('enterprise')} — ${n(TIER_CREDITS.enterprise)}). Buy top-up packs anytime (from ${packPrice(SMALLEST_PACK)} for ${n(SMALLEST_PACK.credits)} credits); they never expire.`,
     ],
   },
   {

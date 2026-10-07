@@ -421,20 +421,21 @@ export default function BrandPage() {
         </button>
       </div>
 
-      {/* Heading */}
+      {/* Heading — the app calls this a "brand" everywhere. A brand can be a
+          person (name, photo, intro) or a company (logo, colors). */}
       <h1 style={{
         fontSize: 30, fontWeight: 800, letterSpacing: '-0.03em',
         textAlign: 'center', marginBottom: 8, color: 'var(--ink)',
         fontFamily: 'inherit',
         animation: 'fadeInUp 0.4s ease',
       }}>
-        Who&rsquo;s presenting this video?
+        Your brand
       </h1>
       <p style={{
         fontSize: 17, color: 'var(--ink-soft)', textAlign: 'center',
         marginBottom: 32, lineHeight: 1.6, animation: 'fadeInUp 0.4s ease 0.05s both',
       }}>
-        Introduce yourself with your name, photo, and a friendly intro &mdash; or pick a saved profile. Company branding is optional.
+        Who this comes from. A brand can be you &mdash; your name, photo and a friendly intro &mdash; or a company, with its logo and colors. Pick a saved one or set one up here.
       </p>
 
       {/* Compact confirm — single brand, auto-selected */}
@@ -466,11 +467,11 @@ export default function BrandPage() {
         )
       })()}
 
-      {/* Saved profiles — a dropdown (people + companies, badged in the label). */}
+      {/* Saved brands — a dropdown (people + companies, badged in the label). */}
       {showPicker && brands.length > 0 && (
         <div style={{ width: '100%', marginBottom: 20, animation: 'fadeInUp 0.4s ease 0.1s both' }}>
           <label htmlFor="profile-select" style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }}>
-            Use a saved profile
+            Use a saved brand
           </label>
           <select
             id="profile-select"
@@ -487,7 +488,7 @@ export default function BrandPage() {
               boxSizing: 'border-box', cursor: 'pointer',
             }}
           >
-            <option value="">+ Create a new profile</option>
+            <option value="">+ Set up a new brand</option>
             {brands.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name} — {b.profile_type === 'person' ? 'Person' : 'Company'}{b.is_default ? ' (default)' : ''}
@@ -515,8 +516,8 @@ export default function BrandPage() {
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{selectedBrand.name}</div>
                 <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>
                   {selectedBrand.profile_type === 'person'
-                    ? (selectedBrand.person_role || 'Presenter')
-                    : 'Company branding'}
+                    ? (selectedBrand.person_role || 'Person')
+                    : 'Company'}
                 </div>
               </div>
             </div>
@@ -604,7 +605,7 @@ export default function BrandPage() {
         animation: 'fadeInUp 0.4s ease 0.2s both',
       }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 14 }}>
-          {brands.length > 0 ? 'Or set up a new one' : "Set up who's presenting"}
+          {brands.length > 0 ? 'Or set up a new one' : 'Set up your brand'}
         </div>
         {/* Profile type toggle */}
         <div style={{ marginBottom: 16 }}>
@@ -673,7 +674,7 @@ export default function BrandPage() {
               </label>
               {photoUrl && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                  <img src={photoUrl} alt="Presenter" style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--border-light)' }} />
+                  <img src={photoUrl} alt="Your photo" style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--border-light)' }} />
                   <button type="button" onClick={() => { setPhotoUrl(''); if (photoInputRef.current) photoInputRef.current.value = '' }} style={{ background: 'none', border: 'none', color: 'var(--ink-light)', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>Remove photo</button>
                 </div>
               )}
@@ -909,7 +910,7 @@ export default function BrandPage() {
               onChange={e => setSaveAsDefault(e.target.checked)}
               style={{ width: 16, height: 16, accentColor: 'var(--mint)' }}
             />
-            Save as my default profile
+            Save as my default brand
           </label>
         </div>
       </div>
@@ -967,7 +968,7 @@ export default function BrandPage() {
           opacity: submitting ? 0.5 : 1,
         }}
       >
-        Skip &mdash; no presenter or branding
+        Skip &mdash; no brand on this one
       </button>
     </div>
   )

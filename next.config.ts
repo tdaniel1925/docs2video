@@ -16,6 +16,28 @@ const nextConfig: NextConfig = {
       { source: '/.well-known/oauth-authorization-server', destination: '/api/well-known/oauth-authorization-server' },
     ]
   },
+  // RETIRED TOOLS — their pages and API routes are deleted (Phase 1 clean-up,
+  // 2026-10). These keep old bookmarks, emails and notifications landing
+  // somewhere useful instead of a 404, and send them where the old redirect
+  // layouts did. ":path*" also catches anything under the old folder.
+  // "Home" is /dashboard: the dashboard itself forwards a Text2Art visitor to
+  // that storefront's home (/design), so one rule serves both storefronts.
+  async redirects() {
+    const to = (dest: string, tools: string[]) =>
+      tools.map((t) => ({ source: `/${t}/:path*`, destination: dest, permanent: true }))
+    return [
+      // Custom Graphics makes ads and business cards now (Sizes step).
+      ...to('/design', ['ads', 'business-cards']),
+      // Social content lives in the AI Social add-on.
+      ...to('/social-media', ['social-kit', 'social-campaigns']),
+      // No replacement — back to Home. /infographics was the old gallery the
+      // infographic email linked to.
+      ...to('/dashboard', [
+        'brand-kit', 'course-builder', 'email-signature', 'headshot', 'image-remix',
+        'infographic-creator', 'templates', 'infographics',
+      ]),
+    ]
+  },
   async headers() {
     return [
       {

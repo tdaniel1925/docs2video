@@ -96,7 +96,8 @@ export interface OutputQuote {
   free: boolean
 }
 
-const LENGTH_NAMES: Record<DetailLevel, string> = { quick: 'highlights', standard: 'standard length', detailed: 'detailed' }
+// The names the length choice uses on steps 2 and 3 (Short / Standard / Detailed).
+const LENGTH_NAMES: Record<DetailLevel, string> = { quick: 'short', standard: 'standard length', detailed: 'detailed' }
 const OUTPUT_NAMES: Record<MakeOutput, string> = {
   video: 'Narrated video',
   interactive: 'Interactive presentation',

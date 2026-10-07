@@ -11,6 +11,8 @@ import ReadyToSend from './send/ReadyToSend'
 import type { Video, Brand } from '../../../_lib/types'
 // ONE definition of which scenes become slides — see the note on visibleScenes.
 import { visibleScenes } from '../../../_lib/presentation'
+// The export price shown on the button is the one the export route charges.
+import { CREDIT_COSTS } from '../../../_lib/credits'
 
 // Feature flags — now driven by user's subscription plan
 
@@ -24,7 +26,8 @@ const PROGRESS_STEPS = [
 
 const FUN_FACTS = [
   'Your video will have professional narration with natural-sounding AI voice.',
-  'Each slide is custom-designed with your brand colors and logo.',
+  // Not every look paints slides in brand colors; this is what every look does.
+  'Your logo appears on the cover, the closing card and the share page.',
   'You can share this video with clients via a branded link when it\'s done.',
   'Videos can be downloaded as MP4, PDF slides, or PPTX presentations.',
   'Your share page shows your contact details, and your booking link if you set one in Settings.',
@@ -262,13 +265,6 @@ interface FollowUpPlan {
   emails: FollowUpEmail[]
 }
 
-interface ChatMsg {
-  role: 'user' | 'assistant'
-  text: string
-}
-
-const QUICK_ACTIONS: { label: string; message: string }[] = []
-
 function toneLabel(offset: number): string {
   if (offset <= 3) return 'Reminder'
   if (offset <= 7) return 'Educational'
@@ -334,11 +330,6 @@ export default function VideoDetailPage() {
   const [changedAudioIndexes, setChangedAudioIndexes] = useState<Set<number>>(new Set())
   const [showFixScene, setShowFixScene] = useState(false)  // Fix-a-Scene modal (slide-deck videos)
 
-  // Translate state
-  const [showTranslateModal, setShowTranslateModal] = useState(false)
-  const [translateLang, setTranslateLang] = useState('')
-  const [translating, setTranslating] = useState(false)
-
   // Social posts state
   const [showSocialModal, setShowSocialModal] = useState(false)
   const [socialPosts, setSocialPosts] = useState<{ linkedin: string; twitter: string; facebook: string } | null>(null)
@@ -375,15 +366,6 @@ export default function VideoDetailPage() {
     return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [video?.music_url])
 
-  // Chat state
-  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([
-    { role: 'assistant', text: "I can help you refine this video. Use the buttons above or tell me what you'd like to change." }
-  ])
-  const [chatInput, setChatInput] = useState('')
-  const [chatLoading, setChatLoading] = useState(false)
-  const chatListRef = useRef<HTMLDivElement>(null)
-  const chatInputRef = useRef<HTMLInputElement>(null)
-
   // Follow-up state
   const [followUpPlan, setFollowUpPlan] = useState<FollowUpPlan | null>(null)
   const [expandedEmail, setExpandedEmail] = useState<string | null>(null)
@@ -394,7 +376,7 @@ export default function VideoDetailPage() {
   const [generatingPlan, setGeneratingPlan] = useState(false)
 
   // Analytics state
-  const [analytics, setAnalytics] = useState<{ views: number; plays: number; chats: number } | null>(null)
+  const [analytics, setAnalytics] = useState<{ views: number; plays: number } | null>(null)
 
   // Quote state
   const [showQuoteBuilder, setShowQuoteBuilder] = useState(false)
@@ -491,93 +473,6 @@ export default function VideoDetailPage() {
     videoRef.current.currentTime = seekTime
     setCurrentSlideIndex(index)
     if (videoRef.current.paused) videoRef.current.play().catch(() => {})
-  }
-
-  // Scroll chat to bottom
-  useEffect(() => {
-    if (chatListRef.current) {
-      chatListRef.current.scrollTop = chatListRef.current.scrollHeight
-    }
-  }, [chatMessages, chatLoading])
-
-  // Send chat message
-  async function sendChatMessage(text: string) {
-    if (!text.trim() || chatLoading) return
-    const userMsg: ChatMsg = { role: 'user', text: text.trim() }
-    setChatMessages(prev => [...prev, userMsg])
-    setChatInput('')
-    setChatLoading(true)
-
-    try {
-      const slideContext = slideCount > 0 ? ` (currently viewing slide ${currentSlideIndex + 1} of ${slideCount})` : ''
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId: params.id, message: text.trim() + slideContext }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setChatMessages(prev => [...prev, { role: 'assistant', text: data.response ?? data.reply ?? data.message ?? 'I received your request. Let me work on that.' }])
-      } else {
-        setChatMessages(prev => [...prev, { role: 'assistant', text: 'Sorry, something went wrong. Please try again.' }])
-      }
-    } catch {
-      setChatMessages(prev => [...prev, { role: 'assistant', text: 'Sorry, something went wrong. Please try again.' }])
-    } finally {
-      setChatLoading(false)
-      chatInputRef.current?.focus()
-    }
-  }
-
-  function VoiceInputButton({ onResult, disabled }: { onResult: (text: string) => void, disabled?: boolean }) {
-    const [listening, setListening] = useState(false)
-
-    function startListening() {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-      if (!SpeechRecognition) return
-
-      const recognition = new SpeechRecognition()
-      recognition.continuous = false
-      recognition.interimResults = false
-      recognition.lang = 'en-US'
-
-      recognition.onstart = () => setListening(true)
-      recognition.onend = () => setListening(false)
-      recognition.onresult = (event: any) => {
-        const text = event.results[0][0].transcript
-        onResult(text)
-      }
-      recognition.onerror = () => setListening(false)
-
-      recognition.start()
-    }
-
-    return (
-      <button
-        type="button"
-        onClick={startListening}
-        disabled={disabled || listening}
-        title={listening ? 'Listening...' : 'Voice input'}
-        style={{
-          background: listening ? 'var(--mint)' : 'none',
-          border: listening ? 'none' : '1px solid var(--border)',
-          borderRadius: 8,
-          padding: '6px 10px',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'all 0.15s',
-        }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={listening ? 'white' : 'var(--ink-light)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-          <line x1="12" y1="19" x2="12" y2="23"/>
-          <line x1="8" y1="23" x2="16" y2="23"/>
-        </svg>
-      </button>
-    )
   }
 
   useEffect(() => {
@@ -695,10 +590,10 @@ export default function VideoDetailPage() {
           setAnalytics(analyticsData)
         } else {
           // Default to zeros if analytics table doesn't exist or query fails
-          setAnalytics({ views: 0, plays: 0, chats: 0 })
+          setAnalytics({ views: 0, plays: 0 })
         }
       } catch {
-        setAnalytics({ views: 0, plays: 0, chats: 0 })
+        setAnalytics({ views: 0, plays: 0 })
       }
     }
     loadPlan()
@@ -1023,34 +918,6 @@ export default function VideoDetailPage() {
     }
   }
 
-  async function handleTranslate() {
-    if (!video || !translateLang || translating) return
-    setTranslating(true)
-    try {
-      const res = await fetch('/api/translate-presentation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId: video.id, targetLanguage: translateLang }),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        setInlineNotice({ type: 'error', message: data.error ?? 'Translation failed' })
-        return
-      }
-      const { videoId: newVideoId } = await res.json()
-      setShowTranslateModal(false)
-      setTranslateLang('')
-      // Landing on a different page with no word of what happened reads as "did
-      // that work? where am I?" — say it before moving.
-      setInlineNotice({ type: 'success', message: 'Translation started — opening your new video…' })
-      router.push(`/videos/${newVideoId}`)
-    } catch {
-      setInlineNotice({ type: 'error', message: 'Translation failed. Please try again.' })
-    } finally {
-      setTranslating(false)
-    }
-  }
-
   const [copied, setCopied] = useState(false)
 
   function copyShareLink() {
@@ -1257,24 +1124,6 @@ export default function VideoDetailPage() {
             grid-template-columns: repeat(3, 1fr) !important;
           }
         }
-        .chat-input-wrap:focus-within {
-          border-color: var(--mint) !important;
-        }
-        .typing-dots span {
-          display: inline-block;
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: var(--ink-light);
-          margin: 0 2px;
-          animation: typingBounce 1.2s infinite;
-        }
-        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes typingBounce {
-          0%, 80%, 100% { transform: translateY(0); }
-          40% { transform: translateY(-6px); }
-        }
         /* Send-email modal: two columns on wide screens, one on narrow so it
            never forces a horizontal squeeze on a phone. */
         @media (max-width: 620px) {
@@ -1417,8 +1266,6 @@ export default function VideoDetailPage() {
           {[
             { label: 'Views', value: analytics?.views ?? 0 },
             { label: 'Plays', value: analytics?.plays ?? 0 },
-            // Only show the chat card if this video actually has chat activity.
-            ...((analytics?.chats ?? 0) > 0 ? [{ label: 'Chat Messages', value: analytics?.chats ?? 0 }] : []),
           ].map(stat => (
             <div key={stat.label} style={{
               flex: 1,
@@ -1615,7 +1462,7 @@ export default function VideoDetailPage() {
                         }}
                         style={{ padding: '10px 18px', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--ink)' }}
                       >
-                        🎬 Export video (400 credits)
+                        🎬 Export video ({CREDIT_COSTS.videoExport.toLocaleString()} credits)
                       </button>
                     )
                   ) : null}
@@ -2741,70 +2588,6 @@ export default function VideoDetailPage() {
                 ))}
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Translate Modal */}
-      {showTranslateModal && video && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(8px)' }}>
-          <div style={{ width: '100%', maxWidth: 420, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 32 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>Translate Presentation</h2>
-              <button onClick={() => { setShowTranslateModal(false); setTranslateLang('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-light)' }}>&times;</button>
-            </div>
-
-            <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 20, lineHeight: 1.5 }}>
-              Create a translated copy of this presentation. A new video will be generated with translated narration and slides.
-            </p>
-
-            <label className="input-label" style={{ marginBottom: 6, display: 'block' }}>Select language</label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 20 }}>
-              {[
-                'Spanish', 'French', 'Portuguese', 'German', 'Korean',
-                'Japanese', 'Chinese (Simplified)', 'Arabic', 'Hindi', 'Italian',
-              ].map(lang => (
-                <button
-                  key={lang}
-                  onClick={() => setTranslateLang(lang)}
-                  style={{
-                    padding: '10px 12px',
-                    fontSize: 13,
-                    fontWeight: translateLang === lang ? 700 : 500,
-                    borderRadius: 8,
-                    border: translateLang === lang ? '2px solid var(--mint)' : '1px solid var(--border)',
-                    background: translateLang === lang ? 'rgba(168,240,212,0.12)' : 'white',
-                    color: 'var(--ink)',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {lang}
-                </button>
-              ))}
-            </div>
-
-            <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 20, padding: '10px 12px', background: 'var(--bg)', borderRadius: 8 }}>
-              Translated presentations use 1 additional credit.
-            </div>
-
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={handleTranslate}
-                disabled={!translateLang || translating}
-                className="btn btn-primary"
-                style={{ flex: 1, opacity: !translateLang || translating ? 0.5 : 1 }}
-              >
-                {translating ? 'Translating...' : `Translate to ${translateLang || '...'}`}
-              </button>
-              <button
-                onClick={() => { setShowTranslateModal(false); setTranslateLang('') }}
-                className="btn btn-soft"
-              >
-                Cancel
-              </button>
-            </div>
           </div>
         </div>
       )}

@@ -1,9 +1,22 @@
 'use client'
 
 import Link from 'next/link'
+import { PLANS, isSellablePlan } from '../../../_lib/pricing'
+import { CREDIT_COSTS, TIER_CREDITS, TIER_APPROX_VIDEOS } from '../../../_lib/credits'
+import { packsSentence } from '../../../_lib/credit-packs'
+import { NAMES } from '../../../_lib/names'
 
 // Getting Started guide. Audited against the live UI 2026-09-26: sign-up →
-// card page (2,000 one-time credits) → 5-step Setup Wizard → dashboard.
+// card page (one-time free credits) → 5-step Setup Wizard → dashboard.
+// Every price and credit amount is read from pricing.ts / credits.ts /
+// credit-packs.ts, and button names from names.ts.
+
+const FREE_CREDITS = TIER_CREDITS.free.toLocaleString('en-US')
+/** "Pro ($79/mo), Business ($199/mo) or Enterprise ($499/mo)" */
+const PAID_PLANS = (() => {
+  const parts = PLANS.filter(p => isSellablePlan(p.tier)).map(p => `${p.label} ($${Math.round(p.monthlyPrice / 100)}/mo)`)
+  return `${parts.slice(0, -1).join(', ')} or ${parts[parts.length - 1]}`
+})()
 
 const NUM: React.CSSProperties = {
   width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
@@ -79,7 +92,7 @@ export default function GettingStartedPage() {
             <strong style={INK}>Enter your card details.</strong> A secure Stripe form asks for your card number, expiry date and CVC. Your card details are handled by Stripe and never stored on our servers.
           </Row>
           <Row n={3} last>
-            <strong style={INK}>Save your card.</strong> Click the button to save it and continue. Your 2,000 free credits are added right away.
+            <strong style={INK}>Save your card.</strong> Click the button to save it and continue. Your {FREE_CREDITS} free credits are added right away.
           </Row>
           <p style={{ marginTop: 16 }}>
             To change your card later, open <strong style={INK}>Settings</strong> from the account menu (click your name, top-right), go to the <strong style={INK}>Subscription</strong> tab, and click <strong style={INK}>Manage billing &amp; invoices</strong>.
@@ -89,16 +102,16 @@ export default function GettingStartedPage() {
 
       {/* Section 3: Free credits */}
       <div style={CARD}>
-        <h2 style={H2}>Your 2,000 Free Credits</h2>
+        <h2 style={H2}>Your {FREE_CREDITS} Free Credits</h2>
         <div style={BODY}>
           <p style={{ marginBottom: 12 }}>
-            Every new account gets <strong style={INK}>2,000 free credits</strong> — a one-time welcome gift, enough for about <strong style={INK}>2 standard videos</strong> (a standard video is 1,000 credits).
+            Every new account gets <strong style={INK}>{FREE_CREDITS} free credits</strong> — a one-time welcome gift, enough for about <strong style={INK}>{TIER_APPROX_VIDEOS.free.standard} standard videos</strong> (a standard video is {CREDIT_COSTS.videoStandard.toLocaleString('en-US')} credits).
           </p>
           <p style={{ marginBottom: 12 }}>
             <strong style={INK}>What is included:</strong> the full experience — AI reading your document, script editing, voice narration, background music, and downloads (MP4, PDF, PPTX).
           </p>
           <p>
-            <strong style={INK}>When they run out:</strong> buy a top-up pack anytime with <strong style={INK}>+ Top Up</strong> next to your balance (2,500 credits for $10, 7,500 for $25, or 18,000 for $50 — they never expire), or subscribe to Pro ($79/mo), Business ($199/mo) or Enterprise ($499/mo) for a monthly allowance. See{' '}
+            <strong style={INK}>When they run out:</strong> buy a top-up pack anytime with <strong style={INK}>+ Top Up</strong> next to your balance ({packsSentence()} — they never expire), or subscribe to {PAID_PLANS} for a monthly allowance. See{' '}
             <Link href="/help/pricing" style={LINK}>Pricing &amp; Plans</Link>.
           </p>
         </div>
@@ -112,16 +125,16 @@ export default function GettingStartedPage() {
             After logging in, you land on your Dashboard. Here is what you will see:
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Top bar</strong> — <strong style={INK}>Dashboard</strong>, <strong style={INK}>+ Create</strong> (start anything new), <strong style={INK}>Library</strong> (everything you&rsquo;ve made) and <strong style={INK}>Clients</strong>. Your credit balance, with a <strong style={INK}>+ Top Up</strong> button, is on the right.
+            <strong style={INK}>Top bar</strong> — <strong style={INK}>Dashboard</strong>, <strong style={INK}>{NAMES.newButton}</strong> (start anything new), <strong style={INK}>{NAMES.library}</strong> (everything you&rsquo;ve made) and <strong style={INK}>Clients</strong>. Your credit balance, with a <strong style={INK}>+ Top Up</strong> button, is on the right.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Account menu</strong> — Click your name (top-right) for your credits and <strong style={INK}>Top Up</strong>, <strong style={INK}>Analytics</strong>, <strong style={INK}>AI Social</strong>, <strong style={INK}>Brand profiles</strong>, <strong style={INK}>Settings</strong>, <strong style={INK}>Affiliate Program</strong>, <strong style={INK}>Help Center</strong> and <strong style={INK}>Sign Out</strong>.
+            <strong style={INK}>Account menu</strong> — Click your name (top-right) for your plan, your credits and <strong style={INK}>Top Up</strong>, <strong style={INK}>Analytics</strong>, <strong style={INK}>AI Social</strong>, <strong style={INK}>{NAMES.brands}</strong>, <strong style={INK}>Settings</strong>, <strong style={INK}>Affiliate Program</strong>, <strong style={INK}>Help Center</strong> and <strong style={INK}>Sign Out</strong>.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Your stats</strong> — A line near the top shows how many projects you&rsquo;ve created and your plan.
+            <strong style={INK}>Projects</strong> — Your latest work and where each one is at (draft, sent, watched). Click <strong style={INK}>Open</strong> on one, or <strong style={INK}>Continue</strong> on a draft. Go to <strong style={INK}>{NAMES.library}</strong> to see everything.
           </p>
           <p>
-            <strong style={INK}>Recent creations</strong> — Your latest items. Click one to open it, or go to <strong style={INK}>Library</strong> to see everything.
+            <strong style={INK}>This month</strong> — On the right: emails sent, projects watched, clicks to book a call, your credits left and your plan.
           </p>
         </div>
       </div>

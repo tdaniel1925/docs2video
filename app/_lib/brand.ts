@@ -11,10 +11,13 @@
 // instead — that is the whole point of this module. Scattered host checks are
 // how a second storefront quietly breaks the first one.
 //
-// This file imports NOTHING on purpose: it is read by client components AND by
-// server components, so it must not pull in next/headers. The server-side
-// "which brand is this request?" helper lives in ./brand-server.ts.
+// This file must stay safe for client components AND server components, so it
+// never pulls in next/headers. Its only import is ./names (the shared words for
+// the nav), which pulls in nothing server-side either. The server-side "which
+// brand is this request?" helper lives in ./brand-server.ts.
 // =============================================================================
+
+import { NAMES } from './names'
 
 export type BrandId = 'docs2video' | 'text2art'
 
@@ -49,7 +52,7 @@ export type Brand = {
   /**
    * The one big "make something" button in the app header, or null when the
    * brand doesn't need one. Text2Art has a single tool and the tool IS the
-   * page, so "Designs" and "+ Create" would be the same link twice.
+   * page, so "Designs" and "+ New" would be the same link twice.
    */
   create: BrandNavItem | null
   /**
@@ -76,12 +79,12 @@ export const DOCS2VIDEO: Brand = {
     { href: '/dashboard', label: 'Dashboard' },
     // Custom Graphics is NOT in this nav. It was added when the Tools dropdown
     // was switched off and the maker became unreachable — but it is reachable
-    // now from + Create and from the Library, and a video product should not
+    // now from + New and from the Library, and a video product should not
     // lead with a design tool. The route and the feature are untouched.
-    { href: '/videos', label: 'Library' },
+    { href: '/videos', label: NAMES.library },
     { href: '/clients', label: 'Clients' },
   ],
-  create: { href: '/create/start', label: '+ Create' },
+  create: { href: '/create/start', label: NAMES.newButton },
   showVideoFeatures: true,
 }
 
@@ -104,8 +107,9 @@ export const TEXT2ART: Brand = {
   // sizes → generate & spot-edit); the old one-page /flyer still works directly.
   nav: [
     { href: '/design', label: 'Designs' },
+    // "My Library" matches the heading on Text2Art's own library page.
     { href: '/library', label: 'My Library' },
-    { href: '/brands', label: 'Brands' },
+    { href: '/brands', label: NAMES.brands },
   ],
   create: null,
   showVideoFeatures: false,

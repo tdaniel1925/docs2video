@@ -27,19 +27,19 @@ async function stripeLands(page: Page) {
 
 /* ── Brand profiles ─────────────────────────────────────────────────────── */
 
-test.describe('Brand profiles', () => {
+test.describe('Brands', () => {
   test('create a profile, open it, and delete it (No keeps it, Yes removes it for good)', async ({ page }) => {
     // Deleting the profile THIS test made is allowed through to the database.
     await page.route('**/rest/v1/brands?**', (r) => r.fallback())
     await page.route('**/rest/v1/brands?**', (r) => r.continue())
     const name = `E2E Profile ${Date.now()}`
     await page.goto('/brands')
-    await expect(page.getByRole('heading', { name: 'Your profiles', level: 1 })).toBeVisible()
-    await page.getByRole('link', { name: '+ New profile' }).click()
+    await expect(page.getByRole('heading', { name: 'Your Brands', level: 1 })).toBeVisible()
+    await page.getByRole('link', { name: '+ New brand' }).click()
     await expect(page).toHaveURL(/\/brands\/new$/)
     await page.getByRole('button', { name: /^company$/i }).click().catch(() => {})
     await page.locator('input[name="name"]').fill(name)
-    await page.getByRole('button', { name: 'Create profile →' }).click()
+    await page.getByRole('button', { name: 'Create brand →' }).click()
     await expect(page).toHaveURL(/\/brands$/)
 
     const card = page.locator('.brand-card', { hasText: name })
@@ -228,12 +228,21 @@ test.describe('Clients', () => {
 /* ── Library ────────────────────────────────────────────────────────────── */
 
 test.describe('Library (/videos)', () => {
-  test('filter tabs, New Creation, paging and Open', async ({ page }) => {
+  test('filter tabs, + New, paging and Open', async ({ page }) => {
     await page.goto('/videos')
     await expect(page.getByRole('heading', { name: 'Your Library', level: 1 })).toBeVisible()
     await page.getByRole('link', { name: 'Videos', exact: true }).click()
     await expect(page).toHaveURL(/\/videos\?type=video$/)
     await expect(page.getByRole('heading', { name: 'Your Videos', level: 1 })).toBeVisible()
+    // Presentations and slide decks have their own tabs, and the tab is kept
+    // in the address, so a refresh stays on it.
+    await page.getByRole('link', { name: 'Presentations', exact: true }).click()
+    await expect(page).toHaveURL(/\/videos\?type=presentation$/)
+    await expect(page.getByRole('heading', { name: 'Your Presentations', level: 1 })).toBeVisible()
+    await page.getByRole('link', { name: 'Slide Decks', exact: true }).click()
+    await expect(page).toHaveURL(/\/videos\?type=deck$/)
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'Your Slide Decks', level: 1 })).toBeVisible()
     await page.getByRole('link', { name: 'Custom Graphics', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Your Custom Graphics', level: 1 })).toBeVisible()
     await page.getByRole('link', { name: 'All', exact: true }).click()
@@ -261,7 +270,8 @@ test.describe('Library (/videos)', () => {
       }
     }
     await page.goto('/videos')
-    await page.getByRole('link', { name: '+ New Creation' }).click()
+    // The top bar has a "+ New" too (same words on purpose — names.ts).
+    await page.getByRole('main').getByRole('link', { name: '+ New', exact: true }).first().click()
     await expect(page).toHaveURL(/\/create$/)
   })
 

@@ -1,10 +1,14 @@
 'use client'
 
 import Link from 'next/link'
+import { CREDIT_COSTS } from '../../../_lib/credits'
+import { NAMES } from '../../../_lib/names'
 
 // Help article for the Custom Graphics maker at /design — the five-step
 // wizard (What → Content → Style → Sizes → Review). Rewritten 2026-09-26 to
 // match the wizard; the old text described the retired one-page chat maker.
+// The per-design price is CREDIT_COSTS.flyer (what /api/flyer-art charges).
+const DESIGN = CREDIT_COSTS.flyer.toLocaleString('en-US')
 
 const STEP_CIRCLE = {
   width: 36, height: 36, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
@@ -46,7 +50,8 @@ export default function FlyersHelpPage() {
         <div>
           <h3 style={{ margin: '4px 0 8px' }}>Open the maker</h3>
           <p style={body}>
-            Click <strong>+ Create</strong> at the top of the screen, then the <strong>Custom Graphics</strong> card.
+            Click <strong>{NAMES.newButton}</strong> at the top of the screen. On the first screen, find{' '}
+            <strong>Making something else?</strong> and click <strong>Custom graphics</strong>.
             (On Text2Art it&rsquo;s <strong>Designs</strong> in the top menu.)
           </p>
           <p style={{ ...body, marginTop: 10 }}>
@@ -133,7 +138,7 @@ export default function FlyersHelpPage() {
         <div style={STEP_CIRCLE}>5</div>
         <div>
           <h3 style={{ margin: '4px 0 8px' }}>Sizes — where will you use it?</h3>
-          <p style={body}>Tick every size you need, up to eight. Each shows its price (200 credits).</p>
+          <p style={body}>Tick every size you need, up to eight. Each shows its price ({DESIGN} credits).</p>
           <ul style={list}>
             <li><strong>Print</strong> — letter flyer, square flyer, half page, 11&times;17 poster, postcards, rack card,
               door hanger, table tent, A4, yard sign and vinyl banner.</li>
@@ -157,7 +162,7 @@ export default function FlyersHelpPage() {
           <h3 style={{ margin: '4px 0 8px' }}>Review — check and start</h3>
           <p style={body}>
             A summary lists what you&rsquo;re making, the look, the headline, the sizes, the print edge and your
-            pictures, plus the price — for example <strong>600 credits (3 designs &times; 200)</strong> and what
+            pictures, plus the price — for example <strong>{(CREDIT_COSTS.flyer * 3).toLocaleString('en-US')} credits (3 designs &times; {DESIGN})</strong> and what
             you&rsquo;ll have left. Press <strong>Start designing</strong>.
           </p>
           <p style={{ ...body, marginTop: 10 }}>
@@ -176,7 +181,7 @@ export default function FlyersHelpPage() {
           </p>
           <ul style={list}>
             <li><strong>Download this one</strong>, <strong>Download all</strong>, or <strong>Share</strong> a link.</li>
-            <li><strong>Edit a part</strong> (200 credits) — paint over the area you want changed, describe the change,
+            <li><strong>Edit a part</strong> ({DESIGN} credits) — paint over the area you want changed, describe the change,
               and press <strong>Change it</strong>. To change wording, use <strong>Change the words</strong> instead.</li>
             <li><strong>Add a QR code</strong> or <strong>Add a logo</strong> — pick the file, click where it should go,
               then <strong>Place it</strong> (costs one design).</li>
@@ -241,7 +246,7 @@ export default function FlyersHelpPage() {
 
       <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Common questions</h2>
       <p style={body}><strong>What does it cost?</strong><br />
-        200 credits per design (each size is its own design), per deck slide, per <strong>Edit a part</strong>, and per
+        {DESIGN} credits per design (each size is its own design), per deck slide, per <strong>Edit a part</strong>, and per
         logo or QR placement. The price is shown on the Sizes and Review steps before you start.
       </p>
       <p style={{ ...body, marginTop: 14 }}><strong>Are the files good enough to print?</strong><br />

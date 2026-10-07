@@ -8,6 +8,7 @@
  * video_analytics.
  */
 import { displayProgress } from '../../../_lib/video-progress'
+import { KIND_NAMES, kindOfOutput } from '../../../_lib/names'
 
 export type VideoRow = {
   id: string
@@ -53,13 +54,13 @@ const DAY = 86_400_000
 
 // ── Labels ───────────────────────────────────────────────────────────────────
 
+/** What a videos row is called. Video / Presentation / Slide deck come from
+ *  names.ts so Home and the Library can't call the same thing two names. */
 export function madeLabel(outputType: string | null | undefined): string {
   switch (outputType) {
-    case 'interactive': return 'Presentation'
-    case 'deck': return 'Slide deck'
     case 'pptx': return 'PowerPoint slides'
     case 'pdf': return 'PDF slides'
-    default: return 'Video'
+    default: return KIND_NAMES[kindOfOutput(outputType)].one
   }
 }
 

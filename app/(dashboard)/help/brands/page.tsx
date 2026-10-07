@@ -1,6 +1,11 @@
 'use client'
 
 import Link from 'next/link'
+import { NAMES } from '../../../_lib/names'
+
+// A saved logo-and-colours (or name-and-photo) is a "brand" everywhere in the
+// app (names.ts). This article used to call it a "profile" and send people to
+// a "Presenter" step; it now uses the words the screens use.
 
 export default function BrandsHelpPage() {
   return (
@@ -11,30 +16,30 @@ export default function BrandsHelpPage() {
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>Profiles &amp; Personalization</span>
+        <span>Brands &amp; Personalization</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>Profiles &amp; Personalization</h1>
-          <p>A profile is who presents your video. It can be a <strong>Person</strong> (you, with your name, role, and photo) or a <strong>Company</strong> (your logo, colors, and contact info). You pick a saved profile on the <strong>Presenter</strong> step whenever you make a video.</p>
+          <h1>Brands &amp; Personalization</h1>
+          <p>A brand is who your video comes from. It can be a <strong>Person</strong> (you, with your name, role, and photo) or a <strong>Company</strong> (your logo, colors, and contact info). Your default brand is used automatically, and you can switch to another saved brand on the <strong>Make it yours</strong> step whenever you make a video.</p>
         </div>
       </div>
 
-      {/* Where to find profiles */}
+      {/* Where to find brands */}
       <div style={{
         background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Where to Find Your Profiles
+          Where to Find Your Brands
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>From the menu</strong> — Click your name in the top-right corner to open the account menu, then choose <strong style={{ color: 'var(--ink)' }}>Brand profiles</strong>. You see all your saved profiles. Click <strong style={{ color: 'var(--ink)' }}>+ New profile</strong> to add one, or click a profile to edit it.
+            <strong style={{ color: 'var(--ink)' }}>From the menu</strong> — Click your name in the top-right corner to open the account menu, then choose <strong style={{ color: 'var(--ink)' }}>{NAMES.brands}</strong>. You see all your saved brands. Click <strong style={{ color: 'var(--ink)' }}>{NAMES.newBrand}</strong> to add one, or click a brand to edit it.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>While making a video</strong> — On the <strong style={{ color: 'var(--ink)' }}>Presenter</strong> step, pick a saved profile or click <strong style={{ color: 'var(--ink)' }}>+ Create a new profile</strong> to make one on the spot. You can also skip this step if you don&apos;t want a presenter or branding.
+            <strong style={{ color: 'var(--ink)' }}>While making a video</strong> — On the <strong style={{ color: 'var(--ink)' }}>Make it yours</strong> step you see which brand is in use. Click <strong style={{ color: 'var(--ink)' }}>Change</strong> (or <strong style={{ color: 'var(--ink)' }}>Add your brand</strong> if there isn&apos;t one yet) to pick another saved brand or make a new one on the spot. No brand at all? The video uses plain colors.
           </p>
         </div>
       </div>
@@ -49,10 +54,10 @@ export default function BrandsHelpPage() {
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 12 }}>
-            When you create a profile, choose a type at the top of the form:
+            When you create a brand, choose a <strong>Brand type</strong> at the top of the form:
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Person</strong> — for a real presenter. You add your <strong>name</strong>, your <strong>role</strong> (e.g. "Registered Nurse"), a <strong>photo</strong> (headshot), your <strong>contact details</strong>, and an <strong>intro line</strong> the video speaks at the start. A person uses a photo, not a logo.
+            <strong style={{ color: 'var(--ink)' }}>Person</strong> — for you, or whoever the video comes from. You add your <strong>name</strong>, your <strong>role</strong> (e.g. "Registered Nurse"), a <strong>photo</strong> (headshot), your <strong>contact details</strong>, and an <strong>intro line</strong> the video speaks at the start. A person uses a photo, not a logo.
           </p>
           <p>
             <strong style={{ color: 'var(--ink)' }}>Company</strong> — the classic brand: a <strong>logo</strong>, <strong>brand colors</strong>, a tagline, and contact info. Use this when the video should represent an organization rather than an individual.
@@ -66,7 +71,7 @@ export default function BrandsHelpPage() {
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Personalizing a Video (Person profiles)
+          Personalizing a Video (Person brands)
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
@@ -79,7 +84,7 @@ export default function BrandsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>Where my photo appears</strong> — Choose Auto (the video style decides), Cover, Closing, Both, or None.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>Show my name on slides</strong> — On the profile, decide whether your name leads the cover, or the document title does (your name still appears in the intro and closing).
+            <strong style={{ color: 'var(--ink)' }}>Show my name on slides</strong> — On the brand, decide whether your name leads the cover, or the document title does (your name still appears in the intro and closing).
           </p>
         </div>
       </div>
@@ -90,7 +95,7 @@ export default function BrandsHelpPage() {
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Logo Controls (Company profiles)
+          Logo Controls (Company brands)
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
@@ -108,11 +113,11 @@ export default function BrandsHelpPage() {
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Creating a Company Profile from Your Website
+          Creating a Company Brand from Your Website
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 12 }}>
-            The fastest way to set up a Company profile is to give it your website. Docs2Video visits the site and fills in your brand colors for you.
+            The fastest way to set up a Company brand is to give it your website. Docs2Video visits the site and fills in your brand colors for you.
           </p>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
             <div style={{
@@ -120,7 +125,7 @@ export default function BrandsHelpPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>1</div>
             <div>
-              <strong style={{ color: 'var(--ink)' }}>Open Brand profiles and click &ldquo;+ New profile.&rdquo;</strong> (Account menu, top-right &gt; Brand profiles.) At the top of the form is a box called <strong style={{ color: 'var(--ink)' }}>Import from website</strong>.
+              <strong style={{ color: 'var(--ink)' }}>Open {NAMES.brands} and click &ldquo;{NAMES.newBrand}.&rdquo;</strong> (Account menu, top-right &gt; {NAMES.brands}.) At the top of the form is a box called <strong style={{ color: 'var(--ink)' }}>Import from website</strong>.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
@@ -147,7 +152,7 @@ export default function BrandsHelpPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>4</div>
             <div>
-              <strong style={{ color: 'var(--ink)' }}>Add your logo and save.</strong> Upload your logo, check the name, and click <strong style={{ color: 'var(--ink)' }}>Create profile</strong>. It is now ready to pick on the Presenter step.
+              <strong style={{ color: 'var(--ink)' }}>Add your logo and save.</strong> Upload your logo, check the name, and click <strong style={{ color: 'var(--ink)' }}>Create brand</strong>. It is now ready to pick on the Make it yours step.
             </div>
           </div>
         </div>
@@ -159,7 +164,7 @@ export default function BrandsHelpPage() {
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Setting Up a Company Profile by Hand
+          Setting Up a Company Brand by Hand
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 12 }}>
@@ -189,11 +194,11 @@ export default function BrandsHelpPage() {
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          How a Profile Shows Up in Your Video
+          How a Brand Shows Up in Your Video
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            When you pick a profile on the Presenter step, it shapes every part of the result:
+            The brand a video uses shapes every part of the result:
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={{ color: 'var(--ink)' }}>Title Slide</strong> — Displays your logo, brand name, and your headshot photo.
@@ -216,20 +221,20 @@ export default function BrandsHelpPage() {
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          Managing Several Profiles
+          Managing Several Brands
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            You can create as many profiles as you need. This is useful if you work with several clients, manage different product lines, or want separate branding for different audiences.
+            You can create as many brands as you need. This is useful if you work with several clients, manage different product lines, or want separate branding for different audiences.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Default Profile</strong> — Tick <strong style={{ color: 'var(--ink)' }}>Set as default profile</strong> when creating or editing a profile. That profile is picked for you first when you make something new.
+            <strong style={{ color: 'var(--ink)' }}>Default Brand</strong> — Tick <strong style={{ color: 'var(--ink)' }}>Set as default brand</strong> when creating or editing a brand. That brand is picked for you first when you make something new.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Choosing a Profile for a Video</strong> — On the <strong style={{ color: 'var(--ink)' }}>Presenter</strong> step, click the profile you want. The video uses that profile&apos;s logo, colors, photo and contact details.
+            <strong style={{ color: 'var(--ink)' }}>Choosing a Brand for a Video</strong> — On the <strong style={{ color: 'var(--ink)' }}>Make it yours</strong> step, click <strong style={{ color: 'var(--ink)' }}>Change</strong> next to the brand and pick the one you want. The video uses that brand&apos;s logo, colors, photo and contact details.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>Editing a Profile</strong> — Open <strong style={{ color: 'var(--ink)' }}>Brand profiles</strong> from the account menu and click any profile to edit it. Changes don&apos;t alter videos you already made; everything you make afterwards uses the new settings.
+            <strong style={{ color: 'var(--ink)' }}>Editing a Brand</strong> — Open <strong style={{ color: 'var(--ink)' }}>{NAMES.brands}</strong> from the account menu and click any brand to edit it. Changes don&apos;t alter videos you already made; everything you make afterwards uses the new settings.
           </p>
         </div>
       </div>

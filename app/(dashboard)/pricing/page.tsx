@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '../../_lib/supabase/client'
 import { PLANS, getUserTier, type PlanTier } from '../../_lib/pricing'
+// Every price and credit amount on this page comes from these three files.
+import { CREDIT_COSTS } from '../../_lib/credits'
+import { CREDIT_PACKS, SMALLEST_PACK, packPrice } from '../../_lib/credit-packs'
 
 export default function PricingPage() {
   const [currentTier, setCurrentTier] = useState<PlanTier>('free')
@@ -76,8 +79,8 @@ export default function PricingPage() {
         Simple, credit-based pricing
       </h1>
       <p style={{ fontSize: 17, color: 'var(--ink-soft)', textAlign: 'center', marginBottom: 36, lineHeight: 1.6, maxWidth: 620, marginInline: 'auto' }}>
-        One pool of credits for videos, slide decks, and PDFs. A standard video is 1,000 credits.
-        Cancel anytime; plan credits reset each month. Need more? Top-up packs start at $10.
+        One pool of credits for videos, slide decks, and PDFs. A standard video is {CREDIT_COSTS.videoStandard.toLocaleString('en-US')} credits.
+        Cancel anytime; plan credits reset each month. Need more? Top-up packs start at {packPrice(SMALLEST_PACK)}.
       </p>
 
       {promo && (
@@ -97,7 +100,7 @@ export default function PricingPage() {
         {/* Free / Pay-Per-Video */}
         <PlanCard
           name={freePlan.label}
-          price="$0"
+          price={`$${freePlan.monthlyPrice / 100}`}
           highlight={currentTier === 'free' ? 'current' : 'none'}
           creditLine={`${freePlan.monthlyCredits.toLocaleString('en-US')} free credits`}
           subLine={`~${freePlan.approxStandardVideos} standard videos to try · one time, not monthly`}
@@ -116,7 +119,7 @@ export default function PricingPage() {
               perMonth
               highlight={isCurrent ? 'current' : isPopular ? 'popular' : 'none'}
               creditLine={`${plan.monthlyCredits.toLocaleString()} credits / mo`}
-              subLine={`~${plan.approxStandardVideos} standard videos · ~${Math.floor(plan.monthlyCredits / 600)} slide decks`}
+              subLine={`~${plan.approxStandardVideos} standard videos · ~${Math.floor(plan.monthlyCredits / CREDIT_COSTS.deck)} slide decks`}
               features={plan.features}
               cta={isCurrent
                 ? { label: loading === 'manage' ? 'Loading…' : 'Manage plan', onClick: handleManage, disabled: loading === 'manage', variant: 'soft' }
@@ -152,7 +155,7 @@ export default function PricingPage() {
 
       <p style={{ fontSize: 13, color: 'var(--ink-light)', textAlign: 'center', marginTop: 28, lineHeight: 1.6 }}>
         All plans cancel anytime · billed monthly · plan credits reset each cycle ·
-        top-up packs for everyone: 2,500 credits $10 · 7,500 $25 · 18,000 $50 (never expire).
+        top-up packs for everyone: {CREDIT_PACKS.map(p => `${p.credits.toLocaleString('en-US')} credits ${packPrice(p)}`).join(' · ')} (never expire).
       </p>
     </div>
   )

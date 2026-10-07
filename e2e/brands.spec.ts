@@ -10,7 +10,7 @@ test.describe('Brand Management', () => {
 
   test('brands page loads with heading', async ({ page }) => {
     await page.goto('/brands')
-    await expect(page.locator('.page-head h1')).toHaveText('Your profiles', { timeout: 10000 })
+    await expect(page.locator('.page-head h1')).toHaveText('Your Brands', { timeout: 10000 })
   })
 
   test('new profile form has name input and color pickers', async ({ page }) => {

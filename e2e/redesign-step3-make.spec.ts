@@ -212,7 +212,10 @@ test.describe('Step 3 — choices', () => {
     await open(page, { detailLevel: 'detailed' }, quote({ detailLevel: 'detailed' }))
     await expect(page.getByText('Detailed', { exact: false }).first()).toBeVisible()
     await page.getByRole('button', { name: 'Change the length' }).click()
-    await expect(page).toHaveURL(new RegExp(`/create/script\\?id=${FAKE_ID}$`))
+    // Lands ON the length choice of the story step, not just the top of it.
+    await expect(page).toHaveURL(new RegExp(`/create/script\\?id=${FAKE_ID}#length$`))
+    await expect(page.getByRole('radiogroup', { name: 'Length' })).toBeInViewport()
+    await expect(page.getByRole('radio', { name: /Detailed/ })).toHaveAttribute('aria-checked', 'true')
     await page.goto(url)
     await page.getByRole('button', { name: '← Back to the story' }).click()
     await expect(page).toHaveURL(new RegExp(`/create/script\\?id=${FAKE_ID}$`))

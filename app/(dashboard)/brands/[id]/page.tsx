@@ -363,7 +363,7 @@ export default function EditBrandPage() {
 
   return (
     <div>
-      <Link href="/brands" className="back-link">&larr; Back to profiles</Link>
+      <Link href="/brands" className="back-link">&larr; Back to brands</Link>
 
       <div className="wizard-card brand-form">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
@@ -372,7 +372,7 @@ export default function EditBrandPage() {
             <Link href={`/brands/${params.id}/guide`} className="btn btn-soft" style={{ fontSize: 13 }}>
               View Brand Guide
             </Link>
-            <InlineConfirm message="Delete this profile?" confirmLabel="Delete" onConfirm={handleDelete}>
+            <InlineConfirm message="Delete this brand?" confirmLabel="Delete" onConfirm={handleDelete}>
               <button className="btn btn-danger" style={{ fontSize: 13 }}>Delete</button>
             </InlineConfirm>
           </div>
@@ -383,7 +383,7 @@ export default function EditBrandPage() {
           <input type="hidden" name="profile_type" value={profileType} />
           {(storefront.showVideoFeatures || profileType === 'person') && (
           <div className="form-group">
-            <label className="input-label">Profile type</label>
+            <label className="input-label">Brand type</label>
             <div style={{ display: 'flex', gap: 8 }}>
               {(['company', 'person'] as const).map((t) => (
                 <button
@@ -905,7 +905,7 @@ export default function EditBrandPage() {
           <div className="check-row" style={{ marginTop: 20 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
               <input type="checkbox" name="is_default" value="true" defaultChecked={brand.is_default} style={{ width: 18, height: 18, accentColor: 'var(--ink)' }} />
-              <span style={{ fontSize: 14.5, fontWeight: 500 }}>Set as default profile</span>
+              <span style={{ fontSize: 14.5, fontWeight: 500 }}>Set as default brand</span>
             </label>
           </div>
 

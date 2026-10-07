@@ -266,6 +266,95 @@ test.describe('Step 2 — the story, already written', () => {
   })
 })
 
+test.describe('Step 2 — the length', () => {
+  const radio = (page: Page, name: string) => page.getByRole('radiogroup', { name: 'Length' }).getByRole('radio', { name: new RegExp(`^${name}`) })
+  const looksRight = (page: Page) => page.getByRole('button', { name: 'Looks right — pick the look →' })
+
+  test('a written story offers a free rewrite at a new length; Keep changes nothing', async ({ page }) => {
+    const draft = await mockDraft(page, draftRow(storyDraft()))
+    let writes = 0
+    await page.route('**/api/generate-script', async (route) => { writes++; await route.fulfill({ json: { status: 'generating' } }) })
+    await page.goto(url)
+    await expect(radio(page, 'Standard')).toHaveAttribute('aria-checked', 'true')
+
+    await radio(page, 'Short').click()
+    await expect(page.getByText('Your story is written for Standard', { exact: false })).toBeVisible()
+    // Step 3 would price the old length — so decide first.
+    await expect(looksRight(page)).toBeDisabled()
+
+    await page.getByRole('button', { name: 'Keep Standard' }).click()
+    await expect(page.getByText('Your story is written for Standard', { exact: false })).toHaveCount(0)
+    await expect(radio(page, 'Standard')).toHaveAttribute('aria-checked', 'true')
+    await expect(looksRight(page)).toBeEnabled()
+    expect(draft.patches, 'the saved length never changes without a rewrite').toHaveLength(0)
+    expect(writes).toBe(0)
+  })
+
+  test('"Rewrite at this length" writes the story at it, and "Looks right" saves that length', async ({ page }) => {
+    const draft = await mockDraft(page, draftRow(storyDraft()))
+    const writes: any[] = []
+    await page.route('**/api/generate-script', async (route) => {
+      writes.push(jsonBody(route.request()))
+      // The writer saves the scenes and the length it wrote at.
+      draft.set(draftRow(storyDraft({ scriptStatus: 'ready', detailLevel: 'detailed', scenes: [{ title: 'The long version', narration: 'Every detail of the plan, one by one, explained in full.' }] })))
+      await route.fulfill({ json: { status: 'generating' } })
+    })
+    await page.goto(url)
+    await radio(page, 'Detailed').click()
+    await page.getByRole('button', { name: 'Rewrite at this length' }).click()
+    await expect(titleOf(page, 2)).toHaveValue('The long version', { timeout: 15000 })
+    expect(writes).toHaveLength(1)
+    expect(writes[0].detailLevel).toBe('detailed')
+    expect(writes[0].detailed).toBe(true)
+    await expect(radio(page, 'Detailed')).toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByRole('button', { name: 'Rewrite at this length' })).toHaveCount(0)
+
+    await looksRight(page).click()
+    await expect(page).toHaveURL(new RegExp(`/create/theme\\?id=${FAKE_ID}$`))
+    expect(draft.patches[draft.patches.length - 1].updates.detailLevel).toBe('detailed')
+  })
+
+  test('a rewrite that fails keeps the story as it was', async ({ page }) => {
+    await mockDraft(page, draftRow(storyDraft()))
+    await page.route('**/api/generate-script', (route) => route.fulfill({ status: 500, json: { error: 'x' } }))
+    await page.goto(url)
+    await radio(page, 'Short').click()
+    await page.getByRole('button', { name: 'Rewrite at this length' }).click()
+    await expect(alertOf(page)).toContainText('We couldn’t rewrite the story as Short just now. Your story is unchanged')
+    await expect(titleOf(page, 2)).toHaveValue('What it costs')
+    await expect(radio(page, 'Short')).toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByRole('button', { name: 'Rewrite at this length' })).toBeVisible()
+  })
+
+  test('before the story exists, a picked length is saved and the story is written at it', async ({ page }) => {
+    const questions = [{ id: 'audience', question: 'Who will watch this?', why: 'Changes the words we use.', options: ['Parents'] }]
+    const draft = await mockDraft(page, draftRow(storyDraft({ scenes: undefined, brief: { ...BRIEF, clarifyingQuestions: questions } })))
+    const writes: any[] = []
+    await page.route('**/api/generate-script', async (route) => {
+      writes.push(jsonBody(route.request()))
+      draft.set(draftRow(storyDraft({ scriptStatus: 'ready', detailLevel: 'quick' })))
+      await route.fulfill({ json: { status: 'generating' } })
+    })
+    await page.goto(url)
+    await radio(page, 'Short').click()
+    await expect.poll(() => draft.patches.length).toBe(1)
+    expect(draft.patches[0]).toEqual({ videoId: FAKE_ID, updates: { detailLevel: 'quick' } })
+    // No story yet, so nothing to rewrite — just remembered.
+    await expect(page.getByRole('button', { name: 'Rewrite at this length' })).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Skip — just write it' }).click()
+    await expect(titleOf(page, 2)).toHaveValue('What it costs', { timeout: 15000 })
+    expect(writes[0].detailLevel).toBe('quick')
+    await expect(radio(page, 'Short')).toHaveAttribute('aria-checked', 'true')
+  })
+
+  test('a copy made by Duplicate says so', async ({ page }) => {
+    await mockDraft(page, draftRow(storyDraft()))
+    await page.goto(`${url}&copied=1`)
+    await expect(page.getByText('This is a copy of your earlier project', { exact: false })).toBeVisible()
+  })
+})
+
 test.describe('Step 2 — before the story exists', () => {
   const questions = [
     { id: 'audience', question: 'Who will watch this?', why: 'Changes the words we use.', options: ['Parents', 'Retirees'] },

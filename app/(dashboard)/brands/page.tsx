@@ -6,10 +6,13 @@ import { useBrand } from '../../_components/BrandProvider'
 import { createClient } from '../../_lib/supabase/client'
 import { useToast } from '../../_components/Toast'
 import type { Brand } from '../../_lib/types'
+import { NAMES } from '../../_lib/names'
 
 export default function BrandsPage() {
   // Which storefront this is. A Text2Art customer has no presenter and no
-  // video, so the copy explaining what a "profile" is has to say something true.
+  // video, so the copy explaining what a brand is has to say something true.
+  // A saved logo-and-colours is a "brand" everywhere (names.ts) — this page
+  // used to call the same thing a "profile".
   const storefront = useBrand()
   const notify = useToast()
   const [brands, setBrands] = useState<Brand[]>([])
@@ -39,7 +42,7 @@ export default function BrandsPage() {
     setDeleting(null)
     setConfirmDelete(null)
     // Only take it off the screen once it is really gone.
-    if (error) { notify('Couldn’t delete that profile. Please try again.', 'error'); return }
+    if (error) { notify('Couldn’t delete that brand. Please try again.', 'error'); return }
     setBrands(prev => prev.filter(b => b.id !== id))
     setSelectedIds(prev => { const next = new Set(prev); next.delete(id); return next })
   }
@@ -56,7 +59,7 @@ export default function BrandsPage() {
     setBrands(prev => prev.filter(b => !gone.has(b.id)))
     setSelectedIds(prev => new Set([...prev].filter(id => !gone.has(id))))
     const failed = selectedIds.size - gone.size
-    if (failed > 0) notify(`Couldn’t delete ${failed} profile${failed > 1 ? 's' : ''}. Please try again.`, 'error')
+    if (failed > 0) notify(`Couldn’t delete ${failed} brand${failed > 1 ? 's' : ''}. Please try again.`, 'error')
     setBulkDeleting(false)
     setConfirmDelete(null)
   }
@@ -86,25 +89,25 @@ export default function BrandsPage() {
     <div>
       <div className="page-head">
         <div>
-          <h1>Your profiles</h1>
+          <h1>Your {NAMES.brands}</h1>
           <p>{storefront.showVideoFeatures
-            ? 'Manage all your profiles here — a Company (logo + colors) or a Person (presenter photo + intro). Your default profile is applied automatically to every video; add more if you work under multiple companies or present as different people.'
+            ? 'Each brand is a Company (logo + colors) or a Person (your photo + intro). Your default brand is used automatically on every video; add more if you work under several companies or present as different people.'
             : 'Your logo, your colours and your contact details, saved. The default one is applied to everything you make; add more if you design for more than one business.'}</p>
         </div>
-        <Link href="/brands/new" className="btn btn-primary btn-lg">+ New profile</Link>
+        <Link href="/brands/new" className="btn btn-primary btn-lg">{NAMES.newBrand}</Link>
       </div>
 
       {!brands.length ? (
         <div style={{ background: 'white', border: '1px dashed var(--border)', borderRadius: 10, padding: '64px 32px', textAlign: 'center' }}>
-          <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>No profiles yet</p>
-          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 18 }}>{storefront.showVideoFeatures ? 'Create a profile to customize your presentation colors, logo, or presenter' : 'Save a logo and a set of colours once, and every design comes back in them'}</p>
-          <Link href="/brands/new" className="btn btn-primary">Create your first profile</Link>
+          <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>No brands yet</p>
+          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 18 }}>{storefront.showVideoFeatures ? 'Save your logo and colors (or your photo and intro) once, and every video uses them' : 'Save a logo and a set of colours once, and every design comes back in them'}</p>
+          <Link href="/brands/new" className="btn btn-primary">Create your first brand</Link>
         </div>
       ) : (
         <>
           {/* Bulk actions bar */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div className="section-eyebrow" style={{ margin: 0 }}>Saved profiles ({brands.length})</div>
+            <div className="section-eyebrow" style={{ margin: 0 }}>Saved brands ({brands.length})</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {brands.length > 1 && (
                 <button

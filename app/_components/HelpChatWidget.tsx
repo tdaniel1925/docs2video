@@ -132,7 +132,7 @@ export default function HelpChatWidget() {
                 <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>How can I help?</div>
                 <div style={{ fontSize: 12, color: 'var(--ink-light)', lineHeight: 1.5, marginBottom: 16 }}>
                   {brand.showVideoFeatures
-                    ? 'Ask me anything about creating videos, infographics, logos, business cards, billing, or any feature.'
+                    ? 'Ask me anything about videos, presentations, slide decks, custom graphics, billing, or any feature.'
                     : 'Ask me anything about making flyers, ads, social posts, banners or business cards — or about credits and billing.'}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

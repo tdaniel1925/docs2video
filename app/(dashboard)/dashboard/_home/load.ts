@@ -206,7 +206,7 @@ export async function loadHomeData(userId: string): Promise<HomeData> {
     key: `deck-${c.id}`,
     name: c.title?.trim() || 'Untitled deck',
     client: null,
-    made: 'Slide deck',
+    made: madeLabel('deck'),
     status: { label: 'Ready', tone: 'ready' as const },
     href: c.file_url ?? '/videos',
     external: !!c.file_url,

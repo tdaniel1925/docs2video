@@ -74,14 +74,14 @@ test('a document becomes a story, gets its look and price, and is discarded from
     // ── Brand "Change" round trip (real) ──
     await page.getByRole('button', { name: /^(Change|Add your brand)$/ }).click()
     await page.waitForURL(new RegExp(`/create/brand\\?id=${videoId}$`))
-    await expect(page.getByRole('heading', { name: 'Who’s presenting this video?' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Your brand', exact: true })).toBeVisible()
     const using = page.getByText('Using your brand')
     let brandName: string | null = null
     if (await using.isVisible().catch(() => false)) {
       brandName = (await using.locator('xpath=following-sibling::div[1]').textContent())?.trim() ?? null
       await page.getByRole('button', { name: 'Next →' }).click()
     } else {
-      await page.getByRole('button', { name: 'Skip — no presenter or branding' }).click()
+      await page.getByRole('button', { name: 'Skip — no brand on this one' }).click()
     }
     await page.waitForURL(new RegExp(`/create/theme\\?id=${videoId}$`))
     await expect(makeBtn).toBeVisible({ timeout: 30000 })

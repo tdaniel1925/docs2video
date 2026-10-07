@@ -2,12 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { SLIDE_STYLES } from '../../../_lib/types'
 import { uploadAndExtract, uploadAndExtractMany } from './uploadAndExtract'
 import ClientPicker, { type PickedClient } from './ClientPicker'
 type OutputType = 'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'
 type InputMethod = 'url' | 'upload' | 'text' | 'idea' | null
-type Stage = 'idle' | 'extracting' | 'error' | 'generating-preview' | 'style-suggest'
+type Stage = 'idle' | 'extracting'
 
 
 // Parse an API response defensively. When a serverless function times out or
@@ -48,6 +47,12 @@ export default function Step1Content() {
   // If we arrived back here from a later step, a draft already exists — reuse it
   // instead of creating a second orphaned row.
   const existingDraftId = searchParams.get('id') || undefined
+  // "Duplicate" on a finished project links here as ?duplicate=<id>. Nothing
+  // used to read it, so the user got this screen blank. The copy is made on
+  // the server (owner only), then the copy opens on the story step.
+  const duplicateOf = searchParams.get('duplicate') || undefined
+  const [copying, setCopying] = useState(!!duplicateOf)
+  const copyStarted = useRef(false)
   // Output type is chosen in Step 1 (/create/start) and passed via ?type.
   // "slides" maps to the existing pptx pipeline; the result page offers both
   // PDF and PowerPoint downloads. Default to video.
@@ -124,26 +129,35 @@ export default function Step1Content() {
   // without re-threading every call site. Empty for single-file/url/text/idea.
   const extractedDocsRef = useRef<{ fileName?: string; data: Record<string, unknown> }[]>([])
 
-  // Style suggestion state (shown after URL scrape)
-  const [suggestedSiteName, setSuggestedSiteName] = useState<string>('')
-  const [previewImages, setPreviewImages] = useState<string[]>([])
-  const [previewStyleDesc, setPreviewStyleDesc] = useState<string>('')
-  const [pendingExtractedData, setPendingExtractedData] = useState<Record<string, unknown> | null>(null)
-  const [pendingAutoBrandInfo, setPendingAutoBrandInfo] = useState<Record<string, unknown> | null>(null)
-
-  // Branding toggle
-  const [useBranding, setUseBranding] = useState(true)
-
-  // New style option state
-  const refImageInputRef = useRef<HTMLInputElement>(null)
-  const [refImageLoading, setRefImageLoading] = useState(false)
-  const [refImageError, setRefImageError] = useState<string | null>(null)
-  const [showStylesGrid, setShowStylesGrid] = useState(false)
+  // DUPLICATE: ask the server for the copy, then open it. The ref stops a
+  // second copy when the effect runs twice; replace() keeps Back (and a
+  // reload) from making another one.
+  useEffect(() => {
+    if (!duplicateOf || copyStarted.current) return
+    copyStarted.current = true
+    ;(async () => {
+      try {
+        const res = await fetch('/api/videos/draft/duplicate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId: duplicateOf }),
+        })
+        const data = await parseApiResponse(res, 'We couldn’t copy that project just now.')
+        if (!res.ok || typeof data.next !== 'string') {
+          throw new Error(typeof data.error === 'string' ? data.error : 'We couldn’t copy that project just now.')
+        }
+        router.replace(data.next)
+      } catch (err) {
+        setError(`${err instanceof Error ? err.message : 'We couldn’t copy that project just now.'} You can start a new one here.`)
+        setCopying(false)
+        router.replace('/create')
+      }
+    })()
+  }, [duplicateOf, router])
 
   async function createDraftAndRedirect(
     extractedData: Record<string, unknown>,
     autoBrandInfo: Record<string, unknown> | null,
-    overrides?: { styleId?: string; customStylePrompt?: string; skipToStep?: string },
   ) {
     setStageMsg('Setting up your project...')
     setStage('extracting')
@@ -175,7 +189,6 @@ export default function Step1Content() {
               ...(extractedDocsRef.current.length > 1
                 ? { extractedDocs: extractedDocsRef.current, combineInstruction: purpose.trim() }
                 : { extractedDocs: [] }),
-              ...(overrides?.styleId ? { styleId: overrides.styleId } : {}),
               ...(extractedData?.classification ? { classification: extractedData.classification } : {}),
             },
           }),
@@ -201,7 +214,6 @@ export default function Step1Content() {
             autoBrandInfo,
             ...sourcePdf,
             ...(extractedDocsRef.current.length > 1 ? { extractedDocs: extractedDocsRef.current, combineInstruction: purpose.trim() } : {}),
-            ...(overrides?.styleId ? { styleId: overrides.styleId } : {}),
             ...(extractedData?.classification ? { classification: extractedData.classification } : {}),
           }),
         })
@@ -212,37 +224,6 @@ export default function Step1Content() {
           setError(draftData.error || (draftRes.status === 402 ? 'Not enough credits. Upgrade your plan or buy more credits.' : 'Failed to create project'))
           setStage('idle')
           return
-        }
-      }
-
-      // If style was pre-selected, save it to the draft and skip brand+style steps
-      if (overrides?.styleId) {
-        // Extract autoBrandId from extracted data (created by extract-url API)
-        const autoBrandId = extractedData['_autoBrandId'] as string | undefined
-        await fetch('/api/videos/draft', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            videoId: draftData.videoId,
-            updates: {
-              styleId: overrides.styleId,
-              customStylePrompt: overrides.customStylePrompt || undefined,
-              brandId: autoBrandId || undefined,
-              inlineBrand: autoBrandInfo,
-              step: (outputType === 'video' || outputType === 'interactive') ? 3 : 4,
-            },
-          }),
-        })
-        // Also update the video record's brand_id directly
-        if (autoBrandId) {
-          await fetch('/api/videos/draft', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              videoId: draftData.videoId,
-              updates: { brandId: autoBrandId },
-            }),
-          })
         }
       }
 
@@ -264,179 +245,9 @@ export default function Step1Content() {
       }
       const combineFlag = combineFailed ? '&combine=failed' : ''
 
-      if (overrides?.skipToStep) {
-        router.push(`/create/${overrides.skipToStep}?id=${draftData.videoId}${combineFlag}`)
-      } else {
-        // After extraction → step 2, the story (key points + scenes on one screen).
-        router.push(`/create/script?id=${draftData.videoId}${combineFlag}`)
-      }
+      // After extraction → step 2, the story (key points + scenes on one screen).
+      router.push(`/create/script?id=${draftData.videoId}${combineFlag}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
-      setStage('idle')
-    }
-  }
-
-  async function handleUseThisStyle() {
-    if (!pendingExtractedData) return
-    // Always pass THROUGH the presenter step ("who's presenting?") — don't skip
-    // to voice, or the presenter/photo controls are never seen.
-    const brandInfo = useBranding ? pendingAutoBrandInfo : null
-    const extractedData = { ...pendingExtractedData }
-    if (!useBranding) {
-      delete extractedData['_autoBrandId']
-    }
-    await createDraftAndRedirect(extractedData, brandInfo, {
-      styleId: 'custom-brand-preview',
-      customStylePrompt: previewStyleDesc,
-      skipToStep: 'brief',
-    })
-  }
-
-  async function handleChooseDifferentStyle() {
-    if (!pendingExtractedData) return
-    const brandInfo = useBranding ? pendingAutoBrandInfo : null
-    const extractedData = { ...pendingExtractedData }
-    if (!useBranding) {
-      delete extractedData['_autoBrandId']
-    }
-    await createDraftAndRedirect(extractedData, brandInfo)
-  }
-
-  async function handleReferenceImageUpload(file: File) {
-    if (!pendingExtractedData) return
-    setRefImageError(null)
-    setRefImageLoading(true)
-    try {
-      const reader = new FileReader()
-      const base64 = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = () => reject(new Error('Failed to read file'))
-        reader.readAsDataURL(file)
-      })
-      const res = await fetch('/api/style-preview-from-ref', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ referenceImageBase64: base64 }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to generate preview from reference')
-      if (data.previews?.length > 0) {
-        setPreviewImages(data.previews)
-        setPreviewStyleDesc(data.styleDescription || '')
-      } else {
-        throw new Error('No preview images returned')
-      }
-    } catch (err) {
-      setRefImageError(err instanceof Error ? err.message : 'Failed to generate preview')
-    } finally {
-      setRefImageLoading(false)
-    }
-  }
-
-  async function handleSelectPresetStyle(styleId: string) {
-    if (!pendingExtractedData) return
-    const style = SLIDE_STYLES.find(s => s.id === styleId)
-    // Pass THROUGH the presenter step rather than skipping to voice.
-    await createDraftAndRedirect(pendingExtractedData, pendingAutoBrandInfo, {
-      styleId,
-      customStylePrompt: style?.prompt || '',
-      skipToStep: 'brief',
-    })
-  }
-
-  async function handleCreateBrand() {
-    if (!pendingExtractedData) return
-    await createDraftAndRedirect(pendingExtractedData, pendingAutoBrandInfo)
-  }
-
-  async function handleQuickMode() {
-    setError(null)
-    if (!purpose.trim()) { setError('Describe what you want first'); return }
-    // Require an explicit content source — no silent fall-through to AI (audit #3).
-    if (!method) { setError('Pick where your content comes from (or choose "AI writes it")'); return }
-    if (method === 'url' && !urlInput.trim()) { setError('Paste a URL to continue'); return }
-    if (method === 'text' && textInput.trim().length < 50) { setError('Paste at least 50 characters'); return }
-    if (method === 'upload' && !fileRef.current?.files?.[0]) { setError('Select a file to continue'); return }
-
-    // Run extraction, then skip brand+voice and go straight to script
-    setStage('extracting')
-    setProgressPct(5)
-    setStageMsg('Quick mode — extracting content...')
-
-    const progressTimer = setInterval(() => {
-      setProgressPct(prev => prev < 85 ? prev + 2 : Math.min(prev + 0.5, 95))
-    }, 1000)
-
-    try {
-      let extractedData: Record<string, unknown> | null = null
-      let autoBrandInfo: Record<string, unknown> | null = null
-
-      if (method === 'url') {
-        setStageMsg('Reading website...')
-        let cleanUrl = urlInput.trim()
-        if (!/^https?:\/\//i.test(cleanUrl)) cleanUrl = `https://${cleanUrl}`
-        const res = await fetch('/api/extract-url', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: cleanUrl }),
-        })
-        const result = await parseApiResponse(res, 'That website took too long to read (it may be blocking automated access). Try again — or copy the page text and use "Paste text" instead.')
-        if (!res.ok) throw new Error((result.error as string) || 'Extraction failed')
-        const { autoBrandId, autoBrandInfo: abi, ...contentData } = result
-        extractedData = contentData as Record<string, unknown>
-        if (abi) autoBrandInfo = abi as Record<string, unknown>
-        if (autoBrandId) extractedData['_autoBrandId'] = autoBrandId
-      } else if (method === 'text') {
-        setStageMsg('Analyzing text...')
-        const res = await fetch('/api/extract', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: textInput.trim(), purpose: purpose.trim() }),
-        })
-        const result = await parseApiResponse(res, 'Analysis took too long. Try again, or shorten the pasted text.')
-        if (!res.ok) throw new Error((result.error as string) || 'Extraction failed')
-        extractedData = result
-      } else if (method === 'upload') {
-        const files = Array.from(fileRef.current?.files || [])
-        if (files.length === 0) throw new Error('No file selected')
-        if (files.length === 1) {
-          setStageMsg('Uploading file...')
-          extractedData = await uploadAndExtract(files[0], purpose.trim())
-          extractedDocsRef.current = []
-        } else {
-          // Multi-file: extract each, stash the array for the combine pass.
-          const docs = await uploadAndExtractMany(files, purpose.trim(), (done, total) => {
-            setStageMsg(done < total ? `Reading file ${done + 1} of ${total}…` : 'Analyzing all files…')
-          })
-          extractedDocsRef.current = docs
-          extractedData = docs[0]?.data || {}
-        }
-      } else {
-        setStageMsg('AI is writing content...')
-        const res = await fetch('/api/extract', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idea: purpose.trim(), purpose: purpose.trim() }),
-        })
-        // Parsed defensively like the other paths: a timeout page or an empty
-        // body used to crash here with "Unexpected token <".
-        const result = await parseApiResponse(res, 'Writing the content took too long. Please try again, or paste your own text instead.')
-        if (!res.ok) throw new Error((result.error as string) || 'Content generation failed')
-        extractedData = result
-      }
-
-      if (!extractedData) throw new Error('No content could be extracted')
-
-      clearInterval(progressTimer)
-      setProgressPct(90)
-      setStageMsg('Creating project with defaults...')
-
-      // Quick mode uses voice/length defaults, but still passes through the
-      // presenter step so the user can say who they are (the whole point).
-      await createDraftAndRedirect(extractedData, autoBrandInfo, { skipToStep: 'brief' })
-    } catch (err) {
-      clearInterval(progressTimer)
-      setProgressPct(0)
       setError(err instanceof Error ? err.message : 'Something went wrong')
       setStage('idle')
     }
@@ -547,6 +358,20 @@ export default function Step1Content() {
       setError(err instanceof Error ? err.message : 'Something went wrong')
       setStage('idle')
     }
+  }
+
+  if (copying) {
+    return (
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 20px' }}>
+        <div role="status" style={{ padding: '28px 24px', borderRadius: 10, border: '1px solid var(--border)', background: 'white', textAlign: 'center' }}>
+          <div className="spinner" style={{ margin: '0 auto 14px' }} />
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>Copying your project…</div>
+          <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginTop: 4, lineHeight: 1.5 }}>
+            The story, look, voice and brand come with it. Nothing is charged.
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -744,7 +569,7 @@ export default function Step1Content() {
       )}
 
       {/* Extracting state */}
-      {(stage === 'extracting' || stage === 'generating-preview') && (
+      {stage === 'extracting' && (
         <div style={{
           padding: '28px 24px',
           borderRadius: 10,
@@ -771,389 +596,50 @@ export default function Step1Content() {
         </div>
       )}
 
-      {/* Style preview after URL scrape — shows AI-generated slides */}
-      {stage === 'style-suggest' && previewImages.length > 0 && (
-        <div style={{
-          padding: '28px 24px',
-          borderRadius: 10,
-          border: '2px solid #C7E8A8',
-          background: 'white',
-          textAlign: 'center',
-          marginBottom: 16,
-        }}>
-          {/* Brand info card */}
-          {pendingAutoBrandInfo && (() => {
-            const bi = pendingAutoBrandInfo as Record<string, unknown>
-            const logoSrc = (bi.logoFileUrl as string) || (bi.logoUrl as string) || ''
-            const brandName = (bi.name as string) || suggestedSiteName || ''
-            const tagline = bi.tagline as string | undefined
-            const industry = bi.industry as string | undefined
-            const phone = bi.phone as string | undefined
-            const brandEmail = bi.email as string | undefined
-            const website = bi.website as string | undefined
-            const hasContact = phone || brandEmail || website
-            return (
-              <div style={{
-                padding: '16px 20px',
-                borderRadius: 10,
-                border: '1px solid var(--border)',
-                background: 'white',
-                textAlign: 'left',
-                marginBottom: 20,
-              }}>
-                <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                  {logoSrc && (
-                    <img
-                      src={logoSrc}
-                      alt={`${brandName} logo`}
-                      style={{
-                        width: 60,
-                        height: 60,
-                        borderRadius: 8,
-                        objectFit: 'contain',
-                        flexShrink: 0,
-                        background: '#f5f5f5',
-                      }}
-                    />
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.3 }}>
-                      {brandName}
-                    </div>
-                    {tagline && (
-                      <div style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 2, lineHeight: 1.4 }}>
-                        {tagline}
-                      </div>
-                    )}
-                    {industry && (
-                      <span style={{
-                        display: 'inline-block',
-                        marginTop: 6,
-                        padding: '2px 10px',
-                        borderRadius: 6,
-                        background: '#F0F9E8',
-                        color: '#3D7A3F',
-                        fontSize: 11,
-                        fontWeight: 600,
-                      }}>
-                        {industry}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {hasContact && (
-                  <div style={{
-                    display: 'flex',
-                    gap: 16,
-                    flexWrap: 'wrap',
-                    marginTop: 12,
-                    paddingTop: 10,
-                    borderTop: '1px solid var(--border-light, #eee)',
-                  }}>
-                    {phone && (
-                      <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>{phone}</span>
-                    )}
-                    {brandEmail && (
-                      <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>{brandEmail}</span>
-                    )}
-                    {website && (
-                      <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>{website}</span>
-                    )}
-                  </div>
-                )}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  marginTop: 14,
-                  paddingTop: 12,
-                  borderTop: '1px solid var(--border-light, #eee)',
-                }}>
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    cursor: 'pointer',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: 'var(--ink)',
-                  }}>
-                    <input
-                      type="checkbox"
-                      checked={useBranding}
-                      onChange={(e) => setUseBranding(e.target.checked)}
-                      style={{
-                        width: 18,
-                        height: 18,
-                        accentColor: '#C7E8A8',
-                        cursor: 'pointer',
-                      }}
-                    />
-                    Include branding in video
-                  </label>
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 8 }}>
-                  This info was found on the website. You can edit it in the Brand step.
-                </div>
-              </div>
-            )
-          })()}
-
-          <div style={{
-            display: 'inline-block',
-            padding: '4px 14px',
-            borderRadius: 8,
-            background: '#F0F9E8',
-            color: '#3D7A3F',
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.03em',
-            textTransform: 'uppercase',
-            marginBottom: 16,
-          }}>
-            Style preview
-          </div>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
-            {previewImages.map((img, idx) => (
-              <img
-                key={idx}
-                src={img}
-                alt={idx === 0 ? 'Opening scene preview' : 'Content scene preview'}
-                style={{
-                  width: 300,
-                  maxWidth: '48%',
-                  height: 'auto',
-                  borderRadius: 8,
-                  border: '1px solid rgba(0,0,0,0.1)',
-                }}
-              />
-            ))}
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
-            Here&apos;s how your video will look
-          </div>
-          <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 24 }}>
-            Illustrated scenes matched to <strong>{suggestedSiteName}</strong>&apos;s brand style
-          </p>
-            {error && (
-              <div style={{
-                padding: '10px 14px',
-                borderRadius: 8,
-                background: '#FEF2F2',
-                border: '1px solid #FECACA',
-                color: '#DC2626',
-                fontSize: 13,
-                marginBottom: 16,
-              }}>
-                {error}
-              </div>
-            )}
-            {refImageError && (
-              <div style={{
-                padding: '10px 14px',
-                borderRadius: 8,
-                background: '#FEF2F2',
-                border: '1px solid #FECACA',
-                color: '#DC2626',
-                fontSize: 13,
-                marginBottom: 16,
-              }}>
-                {refImageError}
-              </div>
-            )}
-
-            {refImageLoading ? (
-              <div style={{ padding: '20px', textAlign: 'center' }}>
-                <div style={{
-                  width: 24, height: 24,
-                  border: '3px solid var(--border)',
-                  borderTopColor: '#C7E8A8',
-                  borderRadius: '50%',
-                  animation: 'spin 0.8s linear infinite',
-                  margin: '0 auto 12px',
-                }} />
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>Generating new preview...</div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'stretch' }}>
-                {/* Option 1: Use this style */}
-                <button
-                  onClick={handleUseThisStyle}
-                  style={{
-                    width: '100%',
-                    padding: '12px 28px',
-                    borderRadius: 10,
-                    border: 'none',
-                    background: '#C7E8A8',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: 'var(--ink)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Use this style
-                </button>
-
-                {/* Option 2: Upload a reference image */}
-                <input
-                  ref={refImageInputRef}
-                  type="file"
-                  accept=".png,.jpg,.jpeg,.webp"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) handleReferenceImageUpload(file)
-                  }}
-                />
-                <button
-                  onClick={() => refImageInputRef.current?.click()}
-                  style={{
-                    width: '100%',
-                    padding: '12px 28px',
-                    borderRadius: 10,
-                    border: '1px solid var(--border)',
-                    background: 'white',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: 'var(--ink)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                    <path d="M14 10v3a1 1 0 01-1 1H3a1 1 0 01-1-1v-3M11 5L8 2M8 2L5 5M8 2v8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Upload a reference image
-                </button>
-
-                {/* Row: Browse styles + Create a brand */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                  <button
-                    onClick={() => setShowStylesGrid(!showStylesGrid)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: 'var(--ink-light)',
-                      cursor: 'pointer',
-                      textDecoration: 'underline',
-                      padding: 0,
-                    }}
-                  >
-                    Browse {SLIDE_STYLES.length} styles
-                  </button>
-                  <button
-                    onClick={handleCreateBrand}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      fontSize: 13,
-                      color: 'var(--ink-light)',
-                      cursor: 'pointer',
-                      textDecoration: 'underline',
-                      padding: 0,
-                    }}
-                  >
-                    Create a brand
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Styles grid */}
-            {showStylesGrid && (
-              <div style={{
-                marginTop: 16,
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                gap: 12,
-              }}>
-                {SLIDE_STYLES.map((style) => (
-                  <button
-                    key={style.id}
-                    onClick={() => handleSelectPresetStyle(style.id)}
-                    style={{
-                      padding: 0,
-                      border: '1px solid var(--border)',
-                      borderRadius: 8,
-                      background: 'white',
-                      cursor: 'pointer',
-                      overflow: 'hidden',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <img
-                      src={`/style-previews/${style.id}.png`}
-                      alt={style.name}
-                      style={{ width: '100%', height: 'auto', display: 'block' }}
-                    />
-                    <div style={{
-                      padding: '8px 6px',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: 'var(--ink)',
-                    }}>
-                      {style.name}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-      )}
-
       {/* Action buttons */}
-      {stage !== 'style-suggest' && stage !== 'generating-preview' && (
-        <>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            onClick={() => router.push('/dashboard')}
-            disabled={stage === 'extracting'}
-            style={{
-              padding: '14px 20px',
-              borderRadius: 10,
-              border: '1.5px solid var(--border)',
-              background: 'white',
-              color: 'var(--ink-soft)',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: stage === 'extracting' ? 'not-allowed' : 'pointer',
-              fontFamily: 'inherit',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleNext}
-            disabled={stage === 'extracting'}
-            style={{
-              flex: 1,
-              padding: '14px 24px',
-              borderRadius: 10,
-              border: 'none',
-              background: stage === 'extracting' ? 'var(--border)' : 'var(--ink)',
-              color: '#fff',
-              fontSize: 16,
-              fontWeight: 700,
-              cursor: stage === 'extracting' ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {stage === 'extracting' ? 'Reading…' : 'Read it and plan the story →'}
-          </button>
-        </div>
-        {/* Other things this account can make — they used to be cards on a
-            separate chooser page before this one. */}
-        <div style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 14, textAlign: 'center' }}>
-          Making something else? <a href="/design" style={{ color: 'var(--primary, #2563eb)', fontWeight: 600 }}>Custom graphics</a>
-          {' · '}<a href="/create/commercial" style={{ color: 'var(--primary, #2563eb)', fontWeight: 600 }}>A commercial</a>
-        </div>
-        </>
-      )}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button
+          onClick={() => router.push('/dashboard')}
+          disabled={stage === 'extracting'}
+          style={{
+            padding: '14px 20px',
+            borderRadius: 10,
+            border: '1.5px solid var(--border)',
+            background: 'white',
+            color: 'var(--ink-soft)',
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: stage === 'extracting' ? 'not-allowed' : 'pointer',
+            fontFamily: 'inherit',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleNext}
+          disabled={stage === 'extracting'}
+          style={{
+            flex: 1,
+            padding: '14px 24px',
+            borderRadius: 10,
+            border: 'none',
+            background: stage === 'extracting' ? 'var(--border)' : 'var(--ink)',
+            color: '#fff',
+            fontSize: 16,
+            fontWeight: 700,
+            cursor: stage === 'extracting' ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {stage === 'extracting' ? 'Reading…' : 'Read it and plan the story →'}
+        </button>
+      </div>
+      {/* Other things this account can make — they used to be cards on a
+          separate chooser page before this one. */}
+      <div style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 14, textAlign: 'center' }}>
+        Making something else? <a href="/design" style={{ color: 'var(--primary, #2563eb)', fontWeight: 600 }}>Custom graphics</a>
+        {' · '}<a href="/create/commercial" style={{ color: 'var(--primary, #2563eb)', fontWeight: 600 }}>A commercial</a>
+      </div>
     </div>
   )
 }

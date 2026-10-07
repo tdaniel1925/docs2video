@@ -23,7 +23,7 @@ const SCREENS: Screen[] = [
   { key: '1-what-its-about', path: '/create', step: 1, ready: async (p) => { await expect(p.getByRole('heading', { name: 'What’s this about?' })).toBeVisible() } },
   { key: '2-check-the-story', path: `/create/script?id=${FAKE_ID}`, step: 2, ready: async (p) => { await expect(p.getByLabel('Scene 2 title')).toBeVisible() } },
   { key: '3-make-it-yours', path: `/create/theme?id=${FAKE_ID}`, step: 3, ready: async (p) => { await expect(p.getByRole('button', { name: /Make it — / })).toBeVisible() } },
-  { key: '3b-brand', path: `/create/brand?id=${FAKE_ID}`, step: 3, ready: async (p) => { await expect(p.getByRole('heading', { name: 'Who’s presenting this video?' })).toBeVisible() } },
+  { key: '3b-brand', path: `/create/brand?id=${FAKE_ID}`, step: 3, ready: async (p) => { await expect(p.getByRole('heading', { name: 'Your brand', exact: true })).toBeVisible() } },
 ]
 
 let guard: Guard

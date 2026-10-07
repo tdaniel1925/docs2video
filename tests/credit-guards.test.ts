@@ -79,15 +79,12 @@ describe('one-off tools charge first and refund on failure (audit H5)', () => {
     'app/api/scene-edit/route.ts',
     'app/api/logo-chat/route.ts',
     'app/api/upscale-logo/route.ts',
-    'app/api/image-remix/route.ts',
     'app/api/social-media/generate/route.ts',
-    'app/api/social-campaign/route.ts',
-    'app/api/generate-ads/route.ts',
     'app/api/demo-slide-gpt/route.ts',
     'app/api/template-demo/generate/route.ts',
-    'app/api/generate-email-signature/route.ts',
     'app/api/generate-brand-deck/route.ts',
-    'app/api/generate/route.ts',
+    // app/api/generate (the first infographic maker) was deleted 2026-10-06;
+    // tests/retired-tools.test.ts keeps it from coming back.
     'app/api/style-preview-custom/route.ts',
   ]
   for (const r of ROUTES) {
@@ -116,9 +113,9 @@ describe('one-off tools charge first and refund on failure (audit H5)', () => {
     expect(hits).toEqual([])
   })
 
+  // The other re-priced tools (image remix, ads, campaign post images, email
+  // signatures) were deleted with the retired tools, 2026-10.
   it('the re-priced tools have real prices', () => {
-    for (const k of ['image-remix', 'ad', 'brand-deck', 'social-post-image', 'email-signature'] as const) {
-      expect(CREDIT_COSTS[k]).toBeGreaterThanOrEqual(50)
-    }
+    expect(CREDIT_COSTS['brand-deck']).toBeGreaterThanOrEqual(50)
   })
 })

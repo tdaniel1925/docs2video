@@ -1,9 +1,21 @@
 'use client'
 
 import Link from 'next/link'
+import { PLANS, isSellablePlan } from '../../../_lib/pricing'
+import { packsSentence } from '../../../_lib/credit-packs'
+import { NAMES } from '../../../_lib/names'
 
 // Account & Settings guide. Audited against the live Settings page 2026-09-26:
 // tabs Profile / Integrations / Subscription, plus Re-run Setup Wizard.
+// Prices and pack sizes are read from pricing.ts / credit-packs.ts so this page
+// can't quote an old price.
+
+/** "Pay As You Go (free), Pro ($79/mo), Business ($199/mo) and Enterprise ($499/mo)" */
+const PLAN_LIST = (() => {
+  const parts = PLANS.filter(p => p.tier === 'free' || isSellablePlan(p.tier))
+    .map(p => p.monthlyPrice > 0 ? `${p.label} ($${Math.round(p.monthlyPrice / 100)}/mo)` : `${p.label} (free)`)
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+})()
 
 const NUM: React.CSSProperties = {
   width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
@@ -56,8 +68,8 @@ export default function AccountHelpPage() {
             <strong style={INK}>Profile Photos</strong> — A <strong style={INK}>Headshot</strong> (required, used on covers), plus optional <strong style={INK}>Mid-level</strong> and <strong style={INK}>Standing</strong> photos.
           </p>
           <p>
-            Your logo, colors and company details live in <strong style={INK}>Brand profiles</strong> — open it from the account menu (top-right). See{' '}
-            <Link href="/help/brands" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Profiles &amp; Personalization</Link>.
+            Your logo, colors and company details live in <strong style={INK}>{NAMES.brands}</strong> — open it from the account menu (top-right). See{' '}
+            <Link href="/help/brands" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Brands &amp; Personalization</Link>.
           </p>
         </div>
       </div>
@@ -114,13 +126,13 @@ export default function AccountHelpPage() {
             All billing is handled securely by Stripe. The Subscription tab has three parts:
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Credits &amp; Top-Ups</strong> — Your balance, and packs you can buy anytime: 2,500 credits for $10, 7,500 for $25, or 18,000 for $50. Bought credits never expire.
+            <strong style={INK}>Credits &amp; Top-Ups</strong> — Your balance, and packs you can buy anytime: {packsSentence()}. Bought credits never expire.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Your Plan</strong> — Your current plan. Click <strong style={INK}>Manage billing &amp; invoices</strong> to update your card, see past invoices and download receipts. Paid plans also show <strong style={INK}>Cancel subscription</strong>.
+            <strong style={INK}>Your Plan</strong> — Your current plan (the same name shows under your name in the account menu). Click <strong style={INK}>Manage billing &amp; invoices</strong> to update your card, see past invoices and download receipts. Paid plans also show <strong style={INK}>Cancel subscription</strong>.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Plans</strong> — Pay As You Go (free), Pro ($79/mo), Business ($199/mo) and Enterprise ($499/mo).
+            <strong style={INK}>Plans</strong> — {PLAN_LIST}.
           </p>
           <p>
             <strong style={INK}>Cancelling</strong> — You can cancel anytime. Your plan stays active until the end of the period you paid for. Bought top-up credits stay in your account.

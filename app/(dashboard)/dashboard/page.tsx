@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/server'
 import { getBrand } from '../../_lib/brand-server'
 import { getBalance } from '../../_lib/credits'
+import { getUserTier } from '../../_lib/pricing'
+import { NAMES, planLabel } from '../../_lib/names'
 import Greeting from './_home/Greeting'
 import { loadHomeData, type ProjectRow } from './_home/load'
 import { discardDraft } from './_home/actions'
@@ -15,8 +17,6 @@ import s from './_home/home.module.css'
 // placeholder link for every new user).
 const GETTING_STARTED_VIDEO = process.env.NEXT_PUBLIC_GETTING_STARTED_VIDEO || ''
 const HAS_GETTING_STARTED_VIDEO = GETTING_STARTED_VIDEO.includes('loom.com/embed/') && !GETTING_STARTED_VIDEO.includes('YOUR_LOOM_ID')
-
-const PAID = ['starter', 'pro', 'professional', 'active', 'business', 'enterprise']
 
 export default async function HomePage() {
   // SINGLE CHOKE POINT for "where does a signed-in user land?". Login, signup,
@@ -41,10 +41,14 @@ export default async function HomePage() {
 
   const firstName = profile?.full_name?.trim().split(/\s+/)[0] || null
   const status = (profile?.subscription_status ?? '').toLowerCase()
-  const isPaid = PAID.includes(status)
+  // Paid = any status pricing.ts maps to a paid plan. A hand-typed list here
+  // left out 'agency' and 'unlimited', so those customers saw the trial banner.
+  const isPaid = getUserTier(status) !== 'free'
   const isPastDue = status === 'past_due'
   const isTrial = !isPaid && !isPastDue && !profile?.referred_by
-  const planName = status ? status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ') : 'Free'
+  // Same words as the avatar menu (names.ts). Capitalising the raw status
+  // showed things like "Agency plan" or "Past due plan".
+  const plan = planLabel(status)
   const credits = balance.total
 
   const need = home.peopleNeedingYou
@@ -61,7 +65,7 @@ export default async function HomePage() {
           <Greeting firstName={firstName} className={s.hello} />
           <p className={s.sub}>{subline}</p>
         </div>
-        <Link href="/create" className="btn btn-primary">+ New project</Link>
+        <Link href="/create" className="btn btn-primary">{NAMES.newButton}</Link>
       </div>
 
       {isPastDue && (
@@ -122,7 +126,7 @@ export default async function HomePage() {
             )}
             <Stat label="Credits left" value={credits} />
             <p className={s.boxNote}>
-              {planName} plan · <Link href="/pricing">Plans &amp; credits</Link>
+              {plan} · <Link href="/pricing">Plans &amp; credits</Link>
             </p>
           </div>
         </aside>

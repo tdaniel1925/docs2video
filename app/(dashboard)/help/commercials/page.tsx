@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import { CREDIT_COSTS } from '../../../_lib/credits'
+import { NAMES } from '../../../_lib/names'
 
 const STEP_CIRCLE = {
   width: 36, height: 36, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
@@ -36,8 +38,8 @@ export default function CommercialsHelpPage() {
         <div>
           <h3 style={{ margin: '4px 0 8px' }}>Start a commercial</h3>
           <p style={body}>
-            From your dashboard, click <strong>Create</strong>, then choose the <strong>🎥 Commercial</strong> card.
-            You&rsquo;ll land on a single page where you set everything up.
+            Click <strong>{NAMES.newButton}</strong> in the top bar. On the first screen, find <strong>Making something else?</strong>{' '}
+            and click <strong>A commercial</strong>. You&rsquo;ll land on a single page where you set everything up.
           </p>
         </div>
       </div>
@@ -83,7 +85,7 @@ export default function CommercialsHelpPage() {
         <div>
           <h3 style={{ margin: '4px 0 8px' }}>Generate</h3>
           <p style={body}>
-            Each commercial costs <strong>600 credits</strong> and takes about <strong>2&ndash;3 minutes</strong> to produce.
+            Each commercial costs <strong>{CREDIT_COSTS.commercial.toLocaleString('en-US')} credits</strong> and takes about <strong>2&ndash;3 minutes</strong> to produce.
             Click <strong>Generate Commercial</strong>. You&rsquo;ll see a live progress screen — you can safely leave the page and
             we&rsquo;ll notify you when it&rsquo;s ready. If anything goes wrong, your credits are automatically refunded.
           </p>

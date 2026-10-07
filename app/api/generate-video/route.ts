@@ -807,7 +807,7 @@ export async function POST(request: Request) {
     const validation = validateScript(scenes, {
       industry: industry ?? (isInsurance ? 'insurance' : undefined),
       contactInfo: undefined,
-      detailLevel: isDetailed ? 'detailed' : 'standard',
+      detailLevel, // the saved length as is — a Short video is checked as Short, not Standard
       requireDisclaimer: isInsurance,
     })
 

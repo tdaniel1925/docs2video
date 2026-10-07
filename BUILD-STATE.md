@@ -1,9 +1,22 @@
 # Docs2Video — Build State
 
-**Last updated:** 2026-09-30 (text can't leave the frame — overflow audit of every creation system; see below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
+**Last updated:** 2026-10-06 (overhaul phase 1: clean house — see below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
 **Branch:** main
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
+
+## 2026-10-06 — Overhaul phase 1: clean house (branch `redesign/marketing-site`)
+
+Phase 1 of the overhaul modelled on VidWiz, One Dollar Decks and Restylez (report: https://claude.ai/code/artifact/8a9fe3c5-63c4-4430-a14c-3f7593a730d6; phase 2 plan: `docs/overhaul-phase-2-one-look.md` — the app adopts the redesign's cream/mint/navy).
+
+- **Retired tools deleted for real:** ads, brand-kit, business-cards, course-builder, email-signature, headshot, image-remix, infographic-creator, social-campaigns, social-kit, templates, `/infographics`, and the first infographic maker `/api/generate` (still charged 300 credits to a direct POST). ~10,900 lines. Redirects in `next.config.ts`; guard `tests/retired-tools.test.ts`. `/logo-creator` and all logo code kept as-is.
+- **Create flow dead ends fixed:** Step 2 has Length (Short / Standard / Detailed → `detailLevel`, priced 500 / 1,000 / 1,500; changing it after the story exists offers a free "Rewrite at this length"); Step 3's "Change the length" lands on it. Duplicate (`/create?duplicate=<id>` → `app/api/videos/draft/duplicate`) copies the user's own project into a new draft at step 2. Waiting-screen tips true per output type. ~500 unreachable lines removed from Step 1. Guard `tests/create-flow-dead-ends.test.ts`.
+- **One name per thing:** shared words in `app/_lib/names.ts` — "+ New", "Library", "Brand(s)"; library kinds. The $10 pack is "Small" (packs in `app/_lib/credit-packs.ts`; the internal key stays `'starter'`). Avatar menu shows the real plan ("Business plan", "Free trial"…), no longer "Free Account" for Business/Enterprise/trial.
+- **Prices from one place:** Settings, pricing page, commercial page, top-up window, MP4-export button, help articles, the help index and the help assistant's prompt all read `pricing.ts` / `credits.ts` / `credit-packs.ts`. Guards `tests/screen-prices.test.ts`, `tests/help-chat-knowledge.test.ts`.
+- **Library tabs:** All · Videos · Presentations · Slide Decks · Custom Graphics, kept in the URL.
+- **Result page:** "Chat Messages" stat and the unreachable Translate window removed.
+- **Help:** index and the help assistant rewritten for the 4-step flow (they still described the old 8-step one).
+- **Owner to-do:** rename the live Stripe product "Starter Credit Pack" → "Small Credit Pack" (checkout and receipts still say Starter).
 
 ## 2026-09-30 — Text can never leave the frame: every creation system audited (commit 27080db)
 
@@ -19,13 +32,13 @@ Trigger: customer video 590fe9f6 (infographic style) showed "100% High Cap Rate 
 
 **Presentations + decks:** `app/_lib/presentation.ts`, `presentation-exports.ts`, `pptx-generator.ts` — HTML deck 2492/4350 slide-views broken → 0 (37 decks × 10 window sizes incl. phone share player and the 1920×1080 MP4 capture); PPTX 38 → 0 boxes (sizes from real letter widths); PDF drops/encoding failures → 0. Checker: `node scripts/deck-overflow-check.mjs` (~13 min). Decks ALREADY SENT keep the old HTML until rebuilt (any edit rebuilds; a bulk rebuild needs owner OK — it writes live storage).
 
-**Other graphics tools:** `/design` live preview headline, email signatures, brand-kit signature (`app/_lib/email-signature.ts`). Checker: `node scripts/graphics-overflow-check.mjs`. AI-drawn lettering (flyers, social, cards) can only be steered by prompt — prompts demand safe margins.
+**Other graphics tools:** `/design` live preview headline (the email-signature and brand-kit tools were deleted 2026-10-06). Checker: `node scripts/graphics-overflow-check.mjs`. AI-drawn lettering (flyers, social, cards) can only be steered by prompt — prompts demand safe margins.
 
 **Also fixed on the way:** `/render-editorial` dropped `timeline`/`chart`/`matrix`, so those magazine pages shipped with only a title (server.js); `isHeadlineFigure` (v3-render.ts) promoted sentences with ",000" to the giant hero number; the compliance name-scrub (both copies: `app/_lib/compliance.ts` + `render-service/slides.js`) cut detected tokens out of the middle of words — shipped videos said "or inal illness" and "The Long- Upside" — now whole words only, generic insurance words (Term, Long, Whole…) are never taken for product names, and blocklisted carriers are still stripped next to a hyphen ("AIG-backed"). Guard: `tests/compliance-word-boundary.test.ts`.
 
 **Any future change under `remotion/src`:** redeploy the Lambda site (`cd remotion && npx remotion lambda sites create src/index.ts --site-name=docs2video --region=us-east-1`, REMOTION_AWS_* keys from .env.local in the shell) AND rebuild the ECS image (VisualDirector renders from the image, and server/slides/commercial/present-export live there) — render-service/DEPLOY.md. In Git Bash, SSM paths like `/docs2video/X` get rewritten by MSYS (ParameterNotFound) — use PowerShell.
 
-**Known gaps (not overflow):** commercial `quote.sub` and `meet.kicker/pre/hot` are written by the director but never shown; infographic ignores recipient/contact/presenter; commercial props are deleted after render so real commercials can't be re-checked; phone share player is 341×192 (everything thumbnail-sized); retired design tools' API routes still charge credits if called directly.
+**Known gaps (not overflow):** commercial `quote.sub` and `meet.kicker/pre/hot` are written by the director but never shown; infographic ignores recipient/contact/presenter; commercial props are deleted after render so real commercials can't be re-checked; phone share player is 341×192 (everything thumbnail-sized).
 
 ## 2026-09-27 — False claims removed from the public site (branch `redesign/marketing-site`)
 
@@ -661,7 +674,7 @@ These features are code-complete and build clean. Setup status:
 5. Webhook idempotency unique index: run `supabase/legacy/supabase-webhook-idempotency-migration.sql` against the DB.
 6. `FAL_KEY` is not set in production → print sizes in Custom Graphics are resized, not AI-upscaled (lettering can look soft on posters/signs). `upscaleForPrint` logs "upscale skipped … no FAL_KEY configured". Fix: set `FAL_KEY` in Vercel. No page promises print-ready output or upscaling any more.
 7. Outlook connect needs the `MICROSOFT_*` env vars in production (the button is replaced by a note until they are set).
-8. The Library (`/videos`) has no link to `/infographics` (legacy infographic gallery); it is reachable from the infographic email only.
+8. ~~`/infographics` unlinked~~ — deleted 2026-10-06; old email links redirect to Home.
 9. A stuck run that is restarted keeps going on the render service if it was actually alive; if it later fails on its own it refunds by charge number, which can give back the NEW run's charge too. Rare (needs a stuck-looking run that then fails), and in the customer's favor.
 10. Audit 2026-09-26: see the consolidated section at the top — migrations, env vars, render-service redeploy, Supabase settings and the Stripe double-billing check are still owner to-dos.
 
@@ -671,7 +684,7 @@ These features are code-complete and build clean. Setup status:
 - **Commercial "Buy more"** opens the top-up modal (was a 404).
 - **AI Social** in the account menu (desktop + mobile; "Add-on" tag if not subscribed); posting cost disclosed.
 - **Nurture emails** — no more "no card needed"; the discount code is entered at checkout.
-- **Orphan tools retired** — /headshot, /logo-creator, /templates, /infographic-creator, /email-signature, /image-remix, /course-builder, /brand-kit → home; /ads, /business-cards → /design; /social-kit, /social-campaigns → /social-media. Each via a `layout.tsx` that redirects before the page renders (delete the layout to restore). Their APIs still exist.
+- **Orphan tools retired** — /headshot, /logo-creator, /templates, /infographic-creator, /email-signature, /image-remix, /course-builder, /brand-kit → home; /ads, /business-cards → /design; /social-kit, /social-campaigns → /social-media. 2026-10-06: pages and APIs DELETED (except /logo-creator, kept as-is); permanent redirects live in `next.config.ts`; `tests/retired-tools.test.ts` fails if any comes back.
 - `/api/demo-slide-gpt` and `/api/template-demo/generate` require an admin.
 
 ## Product Focus (2026-06-11)

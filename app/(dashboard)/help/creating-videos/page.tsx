@@ -1,10 +1,16 @@
 'use client'
 
 import Link from 'next/link'
+import { NAMES } from '../../../_lib/names'
+// Credit costs come from the table the charge uses, so this page can't quote an old price.
+import { CREDIT_COSTS } from '../../../_lib/credits'
 
-// Walks through the video create flow exactly as the screens show it:
-// format → Who's this for → Content → Brief → Presenter → Voice & Length →
-// Script → Style → generate. Audited against the live UI 2026-09-26.
+const n = (x: number) => x.toLocaleString('en-US')
+
+// Walks through the create flow exactly as the screens show it — the four
+// steps on the step bar: What it's about → Check the story → Make it yours →
+// Send it. Rewritten for the 4-step flow 2026-10-06 (the old 9-step guide
+// described screens that no longer exist).
 
 const STEP_CIRCLE = {
   width: 36, height: 36, borderRadius: 10, background: 'var(--ink)', color: 'var(--mint)',
@@ -18,6 +24,8 @@ const CARD: React.CSSProperties = {
 }
 const BODY: React.CSSProperties = { fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }
 const INK: React.CSSProperties = { color: 'var(--ink)' }
+const LINK: React.CSSProperties = { color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }
+const P: React.CSSProperties = { marginBottom: 10 }
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
@@ -36,7 +44,7 @@ export default function CreatingVideosPage() {
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Breadcrumb */}
       <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
-        <Link href="/help" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>
+        <Link href="/help" style={LINK}>
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
@@ -46,127 +54,136 @@ export default function CreatingVideosPage() {
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
           <h1>Creating Explainer Videos</h1>
-          <p>A step-by-step guide from adding your content to sharing the finished video. A bar at the top of each screen shows which step you are on.</p>
+          <p>
+            Four steps, from your document to a link you can send. The step bar (on the left, or at the top on a phone)
+            shows which step you are on. Your work is saved as you go, and nothing is charged until you press{' '}
+            <strong>Make it</strong> on step 3.
+          </p>
         </div>
       </div>
 
-      <Step n={1} title="Pick a format">
-        <p style={{ marginBottom: 10 }}>
-          Click <strong style={INK}>+ Create</strong> in the top bar. You will see four cards: <strong style={INK}>Interactive Presentation</strong>,{' '}
-          <strong style={INK}>Custom Graphics</strong>, <strong style={INK}>Video Explainer</strong> and <strong style={INK}>Commercial</strong>.
+      <Step n={1} title="What it’s about">
+        <p style={P}>
+          Click <strong style={INK}>{NAMES.newButton}</strong> in the top bar. The screen asks <strong style={INK}>What&rsquo;s this about?</strong> — three questions.
         </p>
-        <p>Click <strong style={INK}>Video Explainer</strong>.</p>
-      </Step>
-
-      <Step n={2} title="Who's this for?">
-        <p style={{ marginBottom: 10 }}>
-          Pick an <strong style={INK}>Existing client</strong>, add a <strong style={INK}>New client</strong>, or <strong style={INK}>Skip</strong> for a general video.
+        <p style={P}>
+          <strong style={INK}>Who is it for?</strong> — Search your clients and pick one, click <strong style={INK}>+ New client</strong> to add one,
+          or choose <strong style={INK}>No client — general</strong>. A client&rsquo;s name appears on the video cover and on the share page
+          (&ldquo;Prepared for [Client]&rdquo;).
         </p>
-        <p>When you name a client, their name appears on the video cover and on the share page (&ldquo;Prepared for [Client]&rdquo;).</p>
-      </Step>
-
-      <Step n={3} title="Add your content">
-        <p style={{ marginBottom: 12 }}>
-          Under <strong style={INK}>Where should the content come from?</strong> choose one of four options:
+        <p style={P}>
+          <strong style={INK}>What should it get them to do?</strong> — Type the goal in your own words, for example &ldquo;Explain our services to potential clients&rdquo;.
         </p>
-        <p style={{ marginBottom: 10 }}>
-          <strong style={INK}>Website URL</strong> — Type a web address. The AI reads the page and uses it as your source.
+        <p style={P}>
+          <strong style={INK}>Where should the content come from?</strong> — Pick one:
         </p>
-        <p style={{ marginBottom: 10 }}>
-          <strong style={INK}>Upload file</strong> — Drag files onto the upload area or click to browse. You can add up to 5 files: PDF, Word (DOCX), PowerPoint (PPTX), text (TXT), CSV or Excel (XLSX).
-        </p>
-        <p style={{ marginBottom: 10 }}>
-          <strong style={INK}>Paste text</strong> — Paste notes, an email or an article into the box (at least 50 characters).
-        </p>
-        <p style={{ marginBottom: 12 }}>
-          <strong style={INK}>AI writes it</strong> — Describe the topic and the AI writes the content for you.
-        </p>
-        <p>You can also say what the video should do in the <strong style={INK}>What should this video do?</strong> box. Then click <strong style={INK}>Next</strong>.</p>
-      </Step>
-
-      <Step n={4} title="Approve the brief">
-        <p style={{ marginBottom: 10 }}>
-          The AI shows what it understood: the kind of document, the angle it will take, the <strong style={INK}>Key points</strong> it will cover and the <strong style={INK}>Figures it will show</strong>.
-        </p>
-        <p style={{ marginBottom: 10 }}>
-          Want changes? Type them into the chat under <strong style={INK}>Want changes? Tell me</strong> — for example &ldquo;focus on the death benefit, keep it reassuring&rdquo;. If it asks a few questions, answer them and click <strong style={INK}>Update brief with my answers</strong>.
-        </p>
-        <p>When it looks right, click <strong style={INK}>Looks good — continue &rarr;</strong>.</p>
-      </Step>
-
-      <Step n={5} title="Choose the presenter">
-        <p style={{ marginBottom: 10 }}>
-          Pick a saved <strong style={INK}>Person</strong> profile (your name, role, photo) or <strong style={INK}>Company</strong> profile (logo, colors, contact details), or create a new one right here.
+        <p style={P}>
+          <strong style={INK}>Website URL</strong> — type a web address and the AI reads the page.{' '}
+          <strong style={INK}>Upload file</strong> — up to 5 files: PDF, Word (DOCX), PowerPoint (PPTX), text (TXT), CSV or Excel (XLSX).{' '}
+          <strong style={INK}>Paste text</strong> — notes, an email or an article (at least 50 characters).{' '}
+          <strong style={INK}>AI writes it</strong> — the AI writes the content from your goal.
         </p>
         <p>
-          The profile is used on the cover, the closing slide and the share page. Don&rsquo;t want any? Click <strong style={INK}>Skip — no presenter or branding</strong>. See{' '}
-          <Link href="/help/brands" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Profiles &amp; Personalization</Link>.
+          Click <strong style={INK}>Read it and plan the story &rarr;</strong>. A progress bar shows while it reads.
         </p>
       </Step>
 
-      <Step n={6} title="Voice & Length">
-        <p style={{ marginBottom: 10 }}>
-          <strong style={INK}>Voice</strong> — Click <strong style={INK}>▶ Listen</strong> next to any voice to hear it, then click the voice to choose it. The default is <strong style={INK}>Nova</strong>, a warm female voice.
+      <Step n={2} title="Check the story (free)">
+        <p style={P}>
+          The screen says <strong style={INK}>Here&rsquo;s the story.</strong> At the top is <strong style={INK}>The one point</strong> — the main
+          message the AI took from your source — with the numbers it will show. Click <strong style={INK}>What it covers</strong> to see the full list.
         </p>
-        <p style={{ marginBottom: 10 }}>
-          <strong style={INK}>Length</strong> — <strong style={INK}>Short</strong> (30–60 seconds), <strong style={INK}>Medium</strong> (2–3 minutes) or <strong style={INK}>Long</strong> (5+ minutes). A length you can&rsquo;t afford with your current credits is locked.
+        <p style={P}>
+          If the AI is unsure about something, it asks <strong style={INK}>A couple of quick questions first</strong>. Answer them and click{' '}
+          <strong style={INK}>Use my answers and write the story</strong>, or click <strong style={INK}>Skip — just write it</strong>.
+          Writing the story takes about a minute.
         </p>
-        <p style={{ marginBottom: 10 }}>
-          <strong style={INK}>Background music</strong> — Turn it on to add soft AI-made music under the voice. It is off unless you turn it on.
+        <p style={P}>
+          <strong style={INK}>Length</strong> — pick <strong style={INK}>Short</strong> (under 1 minute), <strong style={INK}>Standard</strong> (2–5 minutes)
+          or <strong style={INK}>Detailed</strong> (5–15 minutes). A longer video costs more credits ({n(CREDIT_COSTS.videoQuick)}, {n(CREDIT_COSTS.videoStandard)} or {n(CREDIT_COSTS.videoDetailed)}); you see the exact
+          price on step 3. Pick a length before the story is written and it is written at that length. If the story is already written,
+          picking a new length shows <strong style={INK}>Rewrite at this length</strong> (free — your story is rewritten as the new length)
+          and <strong style={INK}>Keep</strong> (nothing changes). You can&rsquo;t go on to step 3 until you choose one of the two.
         </p>
-        <p>The credit cost is shown before you click <strong style={INK}>Next</strong>.</p>
-      </Step>
-
-      <Step n={7} title="Check the script">
-        <p style={{ marginBottom: 10 }}>
-          The script appears scene by scene. Read it through. To change it, click <strong style={INK}>✎ Edit script</strong>.
+        <p style={P}>
+          The story appears as scenes: an <strong style={INK}>Opening</strong>, the main scenes and a <strong style={INK}>Closing</strong>. Change any
+          scene&rsquo;s title or the words the voice says, and drag scenes to reorder them (the opening and closing stay put). Click{' '}
+          <strong style={INK}>More — words on screen, ask AI, preview</strong> to change the numbers and points on the slide, use{' '}
+          <strong style={INK}>✨ Edit with AI</strong> on that one scene, or see a <strong style={INK}>Preview slide</strong>.
         </p>
-        <p style={{ marginBottom: 10 }}>
-          In edit mode you can change each scene&rsquo;s title, narration (the words the voice speaks), slide headline, stats and bullet points. Drag scenes to reorder them (the cover and closing slides stay put). Each scene has its own AI chat and a <strong style={INK}>Preview slide</strong> button.
+        <p style={P}>
+          For bigger changes, use <strong style={INK}>Change it by asking</strong> on the right: type what you want (for example
+          &ldquo;add a scene about pricing&rdquo;) or tap <strong style={INK}>Make it shorter</strong> or <strong style={INK}>Simpler words</strong>.
+          It rewrites the whole story; <strong style={INK}>Undo that change</strong> puts it back. <strong style={INK}>Write it again from the start</strong>{' '}
+          writes a brand-new story.
+        </p>
+        <p style={P}>
+          <strong style={INK}>Your draft is saved as you go.</strong> Once it has a story, an unfinished draft is kept for <strong style={INK}>14 days</strong>{' '}
+          after your last change (a draft without a story is kept for 24 hours). Pick it up again from Home.
         </p>
         <p>
-          For bigger changes — like &ldquo;add a slide about pricing&rdquo; — type into the AI bar and click <strong style={INK}>Apply to whole script</strong>. You can <strong style={INK}>Undo</strong> it. Then continue to the Style step.
-        </p>
-        <p style={{ marginTop: 10 }}>
-          <strong style={INK}>Your draft is saved as you go.</strong> Once your project has a script, the unfinished draft is kept for <strong style={INK}>14 days</strong> after your last change (a draft without a script is kept for 24 hours). Come back to it from your Library.
+          When it reads right, click <strong style={INK}>Looks right — pick the look &rarr;</strong>.
         </p>
       </Step>
 
-      <Step n={8} title="Pick a style and generate">
-        <p style={{ marginBottom: 10 }}>
-          Choose one of six looks: <strong style={INK}>Slide Deck</strong> (recommended), <strong style={INK}>Aurora</strong>, <strong style={INK}>Cinematic</strong>,{' '}
-          <strong style={INK}>Editorial</strong>, <strong style={INK}>Explainer</strong> or <strong style={INK}>Infographic</strong>. Each shows sample pictures.
+      <Step n={3} title="Make it yours">
+        <p style={P}>
+          <strong style={INK}>Your brand</strong> — the top line says which brand is used (&ldquo;Using [name]&rsquo;s logo and colors&rdquo;). Click{' '}
+          <strong style={INK}>Change</strong> (or <strong style={INK}>Add your brand</strong>) to open the brand step. A brand can be a person — your name,
+          photo and a friendly intro — or a company, with its logo and colors. Pick a saved brand, set up a new one there, or click{' '}
+          <strong style={INK}>Skip — no brand on this one</strong>. See the{' '}
+          <Link href="/help/brands" style={LINK}>Brands</Link> guide.
         </p>
-        <p style={{ marginBottom: 10 }}>
-          Every look — <strong style={INK}>Slide Deck</strong> included — uses the voice and background music you chose on the Voice &amp; Length step, and the script exactly as you left it on the script step, edits and all.
+        <p style={P}>
+          <strong style={INK}>What do you want to send?</strong> — a <strong style={INK}>Narrated video</strong>, an{' '}
+          <strong style={INK}>Interactive presentation</strong> (they click through at their own pace, with narration) or a{' '}
+          <strong style={INK}>Slide deck</strong> (silent slides, download as PDF or PowerPoint). Each shows its price.
         </p>
-        <p style={{ marginBottom: 10 }}>
-          Under <strong style={INK}>Client options</strong> you can write a <strong style={INK}>Note to your client</strong> (shown on the share page) and, if your source was a PDF, turn on <strong style={INK}>Let the client download the original PDF</strong>.
+        <p style={P}>
+          <strong style={INK}>The look</strong> — for a video: <strong style={INK}>Slide Deck</strong> (recommended), <strong style={INK}>Aurora</strong>,{' '}
+          <strong style={INK}>Cinematic</strong>, <strong style={INK}>Editorial</strong>, <strong style={INK}>Explainer</strong> or{' '}
+          <strong style={INK}>Infographic</strong>, each with sample pictures. Slide Deck can also <strong style={INK}>Add photo backgrounds</strong>{' '}
+          (same price, a few minutes longer). Presentations have their own color sets.
         </p>
-        <p style={{ marginBottom: 10 }}>
-          Click <strong style={INK}>Generate with [Style] &rarr;</strong>. A progress screen shows each stage: starting up, writing the script, recording voices, designing slides and assembling the video.
+        <p style={P}>
+          <strong style={INK}>The voice</strong> — press ▶ to hear a sample, then click a voice. The first one, <strong style={INK}>Sarah</strong>, a warm
+          female voice, is chosen for you. For a video you can turn on <strong style={INK}>Background music</strong> (same price).
+        </p>
+        <p style={P}>
+          <strong style={INK}>Length</strong> — shows the length your story was written at. To change it, click{' '}
+          <strong style={INK}>Change the length</strong>; it takes you straight to the length choice on step 2.
+        </p>
+        <p style={P}>
+          <strong style={INK}>For your client</strong> (optional) — write <strong style={INK}>A note to your client</strong> (shown on the share page,
+          up to 400 characters) and, if your source was a PDF, turn on <strong style={INK}>Let them download the original PDF</strong>.
         </p>
         <p>
-          Most videos take <strong style={INK}>3–5 minutes</strong>; the Slide Deck style takes about <strong style={INK}>10 minutes</strong>. <strong style={INK}>You can leave the page</strong> — it keeps going in the background and the finished video appears in your Library.
+          <strong style={INK}>The price</strong> panel shows the total and your credit balance. Click <strong style={INK}>Make it — [credits]</strong>.
+          If the price changed since the page loaded, it tells you and waits for you to press again.
         </p>
       </Step>
 
-      <Step n={9} title="View and share your video">
-        <p style={{ marginBottom: 12 }}>
-          Open the video from your Library. Below the player you will find these buttons:
+      <Step n={4} title="Send it">
+        <p style={P}>
+          A progress screen shows how it&rsquo;s going. Most videos take <strong style={INK}>3–5 minutes</strong>; the Slide Deck look takes about{' '}
+          <strong style={INK}>10 minutes</strong>. <strong style={INK}>You can leave the page</strong> — it keeps going, and the finished one appears in
+          your <strong style={INK}>{NAMES.library}</strong>.
         </p>
-        <p style={{ marginBottom: 10 }}>
-          <strong style={INK}>Send to Client</strong> and <strong style={INK}>Copy Link</strong> — email the share page to a client, or copy its address to send yourself. See the{' '}
-          <Link href="/help/sharing-videos" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Sharing Videos</Link> guide.
+        <p style={P}>
+          When it&rsquo;s done, its page opens with <strong style={INK}>Ready to send</strong>: a picture of what your client will see, who it goes to,
+          a short note and the Send button. See the{' '}
+          <Link href="/help/sharing-videos" style={LINK}>Sharing Videos</Link> guide.
         </p>
-        <p style={{ marginBottom: 10 }}>
-          <strong style={INK}>MP4</strong>, <strong style={INK}>PDF</strong>, <strong style={INK}>PPTX</strong> and <strong style={INK}>Script</strong> — download the video, the slides, an editable PowerPoint, or the script as text.
-        </p>
-        <p style={{ marginBottom: 10 }}>
-          <strong style={INK}>Duplicate</strong>, <strong style={INK}>Social Posts</strong> (ready-made captions for LinkedIn, X and Facebook) and <strong style={INK}>Delete</strong>.
+        <p style={P}>
+          Further down you can download it (<strong style={INK}>MP4</strong>, <strong style={INK}>PDF</strong>, <strong style={INK}>PPTX</strong>,{' '}
+          <strong style={INK}>Script</strong>), make <strong style={INK}>Social Posts</strong>, <strong style={INK}>Delete</strong> it, or use{' '}
+          <strong style={INK}>Edit Video</strong> to change or remove scenes and <strong style={INK}>Save &amp; Regenerate</strong>. For Slide Deck
+          videos, <strong style={INK}>Fix a scene</strong> redoes one scene without starting over. Click the title to rename it.
         </p>
         <p>
-          <strong style={INK}>Edit Video</strong> — change or remove scenes and click <strong style={INK}>Save &amp; Regenerate</strong>. For Slide Deck videos there is also <strong style={INK}>Fix a scene</strong>, to redo one scene (a glitch, wording or pronunciation) without starting over. Click the title to rename the video.
+          <strong style={INK}>Duplicate</strong> makes a new project from this one — the same client, goal, source, story, length, look, voice and
+          brand — and opens it on step 2 with a note saying it&rsquo;s a copy. Change what you like; nothing is charged until you press{' '}
+          <strong style={INK}>Make it</strong> again. The finished video, its share-page note and download setting, quotes and views are not copied.
         </p>
       </Step>
 
