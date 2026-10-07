@@ -22,10 +22,14 @@ export const NAMES = {
   newButton: '+ New',
   /** Where everything you've made lives. */
   library: 'Library',
+  /** The people you send things to. */
+  clients: 'Clients',
   /** A saved logo + colours (a company) or name + photo (a person). */
   brand: 'Brand',
   brands: 'Brands',
   newBrand: '+ New brand',
+  /** The top-bar button that explains the screen you're on. */
+  howToUse: 'How to use',
 } as const
 
 /**

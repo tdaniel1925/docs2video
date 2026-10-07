@@ -6,6 +6,7 @@ import HelpChatWidget from '../_components/HelpChatWidget'
 import ImpersonationBanner from '../_components/ImpersonationBanner'
 import type { Profile } from '../_lib/types'
 import { getBrand } from '../_lib/brand-server'
+import { CREDIT_COSTS } from '../_lib/credits'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -62,7 +63,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)' }}>
       <ImpersonationBanner />
-      <Header profile={profile as Profile} brand={brand} />
+      {/* The credit chip turns amber below one standard video's worth. */}
+      <Header profile={profile as Profile} brand={brand} lowCreditsAt={CREDIT_COSTS.videoStandard} />
       <main className="container" style={{ paddingTop: 40, paddingBottom: 40 }}>
         {children}
       </main>

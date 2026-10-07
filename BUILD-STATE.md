@@ -1,9 +1,19 @@
 # Docs2Video — Build State
 
-**Last updated:** 2026-10-07 (overhaul phase 2 step 1: one colour set — see below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
+**Last updated:** 2026-10-07 (overhaul phase 2 done: colours, kit, top bar, home, How to use — see below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
 **Branch:** main
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
+
+## 2026-10-07 — Overhaul phase 2, steps 3–4: kit, top bar, home, How to use
+
+- **Kit:** `app/kit.css` (loaded once in `app/layout.tsx`) + `app/_components/kit/` — Button (price slot, disabled reason), Card, Choices, Note, Tabs, Chip, EmptyState, Dialog. Colours from the token names only; corners ≤ 10px (`tests/kit.test.ts`). Later phases move screens onto it.
+- **Top bar** (`app/_lib/top-bar.ts`, `Header.tsx`): + New (navy button), Library, Clients, Brands; the logo goes Home ("Dashboard" link gone); How to use, a GOLD credit chip (amber below one standard video — the old green chip's "low" check never fired), bell, avatar. Avatar menu: plan, Analytics, AI Social, Affiliate, Settings, Help Center, Admin, Sign out; closes on Escape/outside click. Phone: the words + How to use sit in ☰. Text2Art uses a frozen copy of the old bar (`ClassicHeader.tsx`) so it is unchanged. Guard `tests/top-bar.test.ts`, `e2e/top-bar.spec.ts`.
+- **Home:** "Start something new" cards first — From a document / a website / an idea / A commercial (`_home/start-cards.ts`); each opens Step 1 with that source chosen via `/create?source=upload|url|ai` (`app/_lib/create-sources.ts`), commercial → `/create/commercial`; "Paste your text" link under them. Then Today's clients, then Projects with This month. The dark "Start from a document" box and the new-user 4-step list are gone. Guard `tests/home-start-cards.test.ts`.
+- **How to use:** top-bar button → in-app dialog with numbered steps for the current screen (Home, create steps 1–4, Library, result, Brands, Clients, Settings; others get "Getting around"), content in `app/_lib/how-to-use.ts`, a slot for a short video per screen (none recorded yet). Guard `tests/how-to-use.test.ts` checks every bold word in a guide appears on its screen.
+- Help articles, the help index and the help assistant prompt updated; the waiting screen's "Dashboard" buttons now say "Home".
+- **Open:** Text2Art's phone menu is still the old full-screen dark cover with unreadable links (frozen on purpose — owner's call). The floating help button overlaps a start card on phones.
+- Local note: deleting a throwaway build copy removed `node_modules/sharp`; restored with `npm install sharp@0.34.5 --no-save` (lockfile unchanged).
 
 ## 2026-10-07 — Overhaul phase 2, step 1: one colour set
 

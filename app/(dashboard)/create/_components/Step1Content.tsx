@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { uploadAndExtract, uploadAndExtractMany } from './uploadAndExtract'
 import ClientPicker, { type PickedClient } from './ClientPicker'
+import { methodFromSource } from '../../../_lib/create-sources'
 type OutputType = 'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'
 type InputMethod = 'url' | 'upload' | 'text' | 'idea' | null
 type Stage = 'idle' | 'extracting'
@@ -113,7 +114,9 @@ export default function Step1Content() {
     return () => { cancelled = true }
   }, [clientId, draftRestored])
   const [purpose, setPurpose] = useState('')
-  const [method, setMethod] = useState<InputMethod>(null)
+  // Home's start cards link here as ?source=upload|url|paste|ai — start with
+  // that answer already picked (app/_lib/create-sources.ts).
+  const [method, setMethod] = useState<InputMethod>(() => methodFromSource(searchParams.get('source')))
   const [urlInput, setUrlInput] = useState('')
   const [textInput, setTextInput] = useState('')
   const [fileName, setFileName] = useState<string | null>(null)

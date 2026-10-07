@@ -64,7 +64,7 @@ export default function CreatingVideosPage() {
 
       <Step n={1} title="What it’s about">
         <p style={P}>
-          Click <strong style={INK}>{NAMES.newButton}</strong> in the top bar. The screen asks <strong style={INK}>What&rsquo;s this about?</strong> — three questions.
+          Click <strong style={INK}>{NAMES.newButton}</strong> in the top bar — or one of the start cards on Home (<strong style={INK}>From a document</strong>, <strong style={INK}>From a website</strong> or <strong style={INK}>From an idea</strong>), which opens this screen with that choice already made. The screen asks <strong style={INK}>What&rsquo;s this about?</strong> — three questions.
         </p>
         <p style={P}>
           <strong style={INK}>Who is it for?</strong> — Search your clients and pick one, click <strong style={INK}>+ New client</strong> to add one,

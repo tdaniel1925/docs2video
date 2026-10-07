@@ -37,8 +37,12 @@ Docs2Video turns documents into three things a client can open from one branded 
 - Interactive presentation — a narrated, click-through presentation the client explores at their own pace (six looks of its own).
 - Slide deck — slides with real, editable text; download as PowerPoint (PPTX) or PDF.
 
+FINDING YOUR WAY AROUND:
+- Top bar: "${NAMES.newButton}", "${NAMES.library}", "${NAMES.clients}", "${NAMES.brands}". The logo goes Home. On the right: "${NAMES.howToUse}" (numbered steps for the screen you're on; on a phone it's in the ☰ menu as "${NAMES.howToUse} this screen"), the credit balance in gold with "+ Top Up" (amber when fewer than ${n(CREDIT_COSTS.videoStandard)} credits are left — one standard video), the notification bell, and the account menu behind your initial: plan, Analytics, AI Social, Affiliate Program, Settings, Help Center, Sign out.
+- Home: start cards first — "From a document", "From a website", "From an idea" (AI writes it) and "A commercial"; each opens step 1 with that choice already made ("Paste your text" under them does the same for pasted text). Then "Today’s clients" (who clicked to book, watched, or hasn't opened what you sent, each with the next step), then "Projects" with where each one is at, and "This month".
+
 KEY FEATURES:
-- ${NAMES.brands}: a brand is either a Company (logo, colors, contact info) or a Person (name, role, photo, intro line). Applied automatically. Manage them from the account menu (top-right) > ${NAMES.brands}, or add one on the "Make it yours" step.
+- ${NAMES.brands}: a brand is either a Company (logo, colors, contact info) or a Person (name, role, photo, intro line). Applied automatically. Manage them from "${NAMES.brands}" in the top bar, or add one on the "Make it yours" step.
 - Video looks: Slide Deck (recommended, ~10 min), Aurora, Cinematic, Editorial, Explainer and Infographic. Picked on the "Make it yours" step.
 - The story step: after the document is read, the AI shows the one point and the scenes. You edit any scene, pick the length (Short, Standard or Detailed — changing it offers a free "Rewrite at this length"), or type a change under "Change it by asking", with Undo. This step is free.
 - ${NAMES.library}: everything you've made in a table, with tabs ${['video', 'presentation', 'deck', 'graphic'].map(k => KIND_NAMES[k as 'video'].many).join(' / ')}; see recipient + status, Duplicate, delete, and paginate (25/50/100 per page).
@@ -66,7 +70,7 @@ CREDIT COSTS (per creation):
 Failed generations are automatically refunded.
 
 HOW TO MAKE ONE (four steps; nothing is charged until "Make it"):
-1. What's this about? Click "${NAMES.newButton}", pick a client (or "No client — general"), say what it should get them to do, and choose the content: Website URL, Upload file (up to 5), Paste text, or "AI writes it".
+1. What's this about? Click "${NAMES.newButton}" (or a start card on Home), pick a client (or "No client — general"), say what it should get them to do, and choose the content: Website URL, Upload file (up to 5), Paste text, or "AI writes it".
 2. Check the story. Edit the scenes, pick the length, or ask for changes. Free.
 3. Make it yours. Check the brand, choose Narrated video / Interactive presentation / Slide deck, the look, the voice (Sarah by default) and music, optionally a note to the client — the price is shown — then press "Make it".
 4. Send it. It finishes in the background (most videos 3–5 minutes, the Slide Deck look about 10) and lands in the ${NAMES.library}; send it, copy the link, or download (MP4/PDF/PPTX/Script).

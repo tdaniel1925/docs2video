@@ -1,14 +1,8 @@
-/* Home screen. Colours come only from the palette variables in globals.css,
-   so this page follows the rest of the app. Corners never exceed 10px. */
+/* Home screen — layout only. The parts (buttons, cards, notes, chips) come
+   from the kit (app/kit.css); colours only from the names in globals.css.
+   Corners never exceed 10px. */
 
-.head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 24px;
-}
+.head { margin-bottom: 22px; }
 .hello {
   font-size: 34px;
   font-weight: 800;
@@ -28,29 +22,43 @@
   color: var(--ink-soft);
 }
 
-.banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 12px 16px;
-  margin-bottom: 20px;
-  border-radius: 10px;
-  font-size: 14px;
-  border: 1px solid var(--border-light);
-  background: var(--bg-card);
-  color: var(--ink);
-}
-.banner p { flex: 1; min-width: 200px; margin: 0; }
-.bannerWarn { background: var(--error-bg); border-color: var(--error); color: var(--error-text); }
-.bannerInfo { background: var(--success-bg); border-color: var(--success); }
+.banner { margin-bottom: 20px; }
 
-/* ── Action cards ── */
+.section { margin-bottom: 32px; }
+.sectionTitle { font-size: 18px; font-weight: 800; margin: 0 0 12px; color: var(--ink); }
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sectionHead a { font-size: 14px; font-weight: 600; color: var(--link); }
+
+/* ── Start cards ── */
+.welcome { margin: -4px 0 14px; font-size: 15px; line-height: 1.55; color: var(--ink-soft); max-width: 720px; }
+.welcome strong { color: var(--ink); }
+.welcome a { color: var(--link); font-weight: 600; }
+.startGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.startGrid li { display: flex; }
+.startCard { width: 100%; display: flex; flex-direction: column; }
+.startCard > :last-child { margin-top: auto; padding-top: 12px; }
+@media (max-width: 1000px) { .startGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .startGrid { grid-template-columns: minmax(0, 1fr); } }
+.pasteLine { margin: 12px 0 0; font-size: 14px; color: var(--ink-soft); }
+.pasteLine a { color: var(--link); font-weight: 600; }
+
+/* ── Today's clients (action cards) ── */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 14px;
-  margin-bottom: 28px;
 }
 .card {
   display: flex;
@@ -72,10 +80,10 @@
 }
 .cardTitle { margin: 0; font-size: 16px; line-height: 1.35; font-weight: 500; color: var(--ink); }
 .cardTitle strong { font-weight: 800; }
-.cardDetail { margin: 0; font-size: 13.5px; color: var(--ink-soft); }
+.cardDetail { margin: 0; font-size: 14px; color: var(--ink-soft); }
 .cardActions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 
-/* ── Two columns: projects | right rail ── */
+/* ── Two columns: projects | this month ── */
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -85,16 +93,6 @@
 @media (max-width: 900px) {
   .grid { grid-template-columns: minmax(0, 1fr); }
 }
-
-.sectionHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-.sectionHead h2 { font-size: 18px; font-weight: 800; margin: 0; color: var(--ink); }
-.sectionHead a { font-size: 13px; font-weight: 600; color: var(--ink-soft); }
 
 /* ── Projects list ── */
 .table {
@@ -118,7 +116,8 @@
   text-transform: uppercase;
   color: var(--ink-light);
 }
-.row { border-top: 1px solid var(--border-light); font-size: 14px; }
+.row { border-top: 1px solid var(--border-light); font-size: 15px; }
+.nameCell { min-width: 0; display: flex; }
 .name {
   font-weight: 700;
   color: var(--ink);
@@ -134,7 +133,7 @@
   background: none;
   border: none;
   padding: 4px 6px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-light);
   text-decoration: underline;
   cursor: pointer;
@@ -147,65 +146,15 @@
     row-gap: 4px;
   }
   .row > :nth-child(1) { grid-area: name; }
-  .row > :nth-child(2) { grid-area: meta; font-size: 13px; }
-  .row > :nth-child(3) { grid-area: made; font-size: 13px; text-align: right; }
+  .row > :nth-child(2) { grid-area: meta; font-size: 14px; }
+  .row > :nth-child(3) { grid-area: made; font-size: 14px; text-align: right; }
   .row > :nth-child(4) { grid-area: status; }
   .row > :nth-child(5) { grid-area: act; }
 }
 
-.pill {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 6px;
-  font-size: 12.5px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.tone-draft { background: var(--surface); color: var(--ink-soft); }
-.tone-making { background: var(--warning-bg); color: var(--ink); }
-.tone-failed { background: var(--error-bg); color: var(--error-text); }
-.tone-ready { background: var(--bg-soft); color: var(--ink-soft); border: 1px solid var(--border-light); }
-.tone-sent { background: var(--sky); color: var(--ink); }
-.tone-watched { background: var(--success-bg); color: var(--success); }
-.tone-booked { background: var(--ink); color: var(--bg-card); }
-
-/* ── Right rail ── */
+/* ── This month ── */
 .rail { display: flex; flex-direction: column; gap: 16px; }
-.drop {
-  display: block;
-  padding: 22px 20px;
-  border-radius: 10px;
-  background: var(--ink);
-  color: var(--bg-card);
-  text-decoration: none;
-}
-.drop h3 {
-  margin: 0 0 6px;
-  font-family: var(--font-serif);
-  font-weight: 400;
-  font-size: 24px;
-  color: var(--bg-card);
-}
-.drop p { margin: 0 0 16px; font-size: 13.5px; line-height: 1.5; opacity: 0.85; }
-.dropZone {
-  display: block;
-  padding: 14px;
-  border: 1.5px dashed var(--accent);
-  border-radius: 10px;
-  text-align: center;
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--bg-card);
-}
-.drop:hover .dropZone { background: rgba(255, 255, 255, 0.06); }
-
-.box {
-  padding: 18px 20px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: 10px;
-}
-.box h3 { margin: 0 0 10px; font-size: 15px; font-weight: 800; color: var(--ink); }
+.boxTitle { margin: 0 0 10px; font-size: 15px; font-weight: 800; color: var(--ink); }
 .stat {
   display: flex;
   justify-content: space-between;
@@ -215,46 +164,11 @@
   font-size: 14px;
   color: var(--ink-soft);
 }
-.stat:first-of-type { border-top: none; }
+.boxTitle + .stat { border-top: none; }
 .stat b { font-size: 18px; color: var(--ink); font-variant-numeric: tabular-nums; }
-.boxNote { margin: 10px 0 0; font-size: 12px; color: var(--ink-light); }
-
-/* ── First visit ── */
-.start {
-  padding: 26px 28px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: 10px;
-}
-.start h2 { margin: 0 0 6px; font-size: 22px; font-weight: 800; color: var(--ink); }
-.start > p { margin: 0 0 18px; color: var(--ink-soft); font-size: 14.5px; }
-.steps { list-style: none; margin: 0 0 22px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.steps li { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; color: var(--ink-soft); }
-.steps b { color: var(--ink); }
-.num {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--ink);
-  color: var(--bg-card);
-  font-size: 12.5px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.startActions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.startActions a:last-child { font-size: 13px; color: var(--ink-soft); }
-
-.empty {
-  padding: 28px 20px;
-  text-align: center;
-  font-size: 14px;
-  color: var(--ink-soft);
-}
+.boxNote { margin: 10px 0 0; font-size: 13px; color: var(--ink-light); }
+.boxNote a { color: var(--link); }
 
 @media (max-width: 640px) {
   .hello { font-size: 28px; }
-  .start { padding: 20px 18px; }
 }

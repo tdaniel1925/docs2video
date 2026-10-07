@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+// The kit of parts (kit-* classes). After globals.css so its parts win ties.
+import "./kit.css";
 import CookieBanner from './_components/CookieBanner';
 import { ToastProvider } from './_components/Toast';
 import { BrandProvider } from './_components/BrandProvider';

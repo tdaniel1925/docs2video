@@ -68,7 +68,7 @@ export default function AccountHelpPage() {
             <strong style={INK}>Profile Photos</strong> — A <strong style={INK}>Headshot</strong> (required, used on covers), plus optional <strong style={INK}>Mid-level</strong> and <strong style={INK}>Standing</strong> photos.
           </p>
           <p>
-            Your logo, colors and company details live in <strong style={INK}>{NAMES.brands}</strong> — open it from the account menu (top-right). See{' '}
+            Your logo, colors and company details live in <strong style={INK}>{NAMES.brands}</strong> — click it in the top bar. See{' '}
             <Link href="/help/brands" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Brands &amp; Personalization</Link>.
           </p>
         </div>

@@ -2,8 +2,9 @@ import { test, expect, type Page } from '@playwright/test'
 import { collectConsoleErrors, expectNoBlockedCalls, guardRealWorld, type Guard } from './helpers/guard'
 
 /*
- * HOME (/dashboard) — greeting, action cards, projects table, the document
- * card and "This month". The page is drawn on the server from the test
+ * HOME (/dashboard) — greeting, start cards (each opens step 1 with its
+ * source chosen), today's clients, the projects table and "This month".
+ * The top bar's "+ New" is checked in top-bar.spec. The page is drawn on the server from the test
  * account's real data, so these tests read what is there and check that
  * every button does what it says. One draft is made through the app's own
  * API for the Continue/Discard checks, and removed by pressing Discard.
@@ -33,17 +34,50 @@ test('greeting follows the viewer’s own clock', async ({ page }) => {
   await expect(page.getByText(/^(Let’s make your first project\.|\d+ clients? needs? you today\.|Nobody is waiting on you right now\.)$/)).toBeVisible()
 })
 
-test('"+ New" and the document card both open step 1', async ({ page }) => {
+test('the start cards come first, and each opens step 1 with its source already chosen', async ({ page }) => {
   await page.goto('/dashboard')
-  // The top bar has a "+ New" too (same words on purpose — names.ts); this is
-  // the one on the page.
-  await page.getByRole('main').getByRole('link', { name: '+ New', exact: true }).click()
-  await expect(page).toHaveURL(/\/create$/)
-  await expect(page.getByRole('heading', { name: 'What’s this about?' })).toBeVisible()
+  const start = page.getByRole('region', { name: 'Start something new' })
+  await expect(start.getByRole('link')).toHaveCount(5) // four cards + "Paste your text"
+  // Order on the page: start cards, then today's clients (when any), then projects.
+  const y = async (name: string) => {
+    const h = page.getByRole('heading', { name, exact: true })
+    return (await h.count()) ? (await h.boundingBox())?.y ?? null : null
+  }
+  const [startY, todayY, projectsY] = [await y('Start something new'), await y('Today’s clients'), await y('Projects')]
+  if (todayY != null) expect(todayY).toBeGreaterThan(startY!)
+  if (projectsY != null) expect(projectsY).toBeGreaterThan(todayY ?? startY!)
+  // The old right-hand box is gone (the cards replace it).
+  await expect(page.getByText('Start from a document')).toHaveCount(0)
+
+  // What each source shows on step 1 once it is picked.
+  const cases: [RegExp, string, (p: Page) => ReturnType<Page['getByText']>][] = [
+    [/^From a document/, 'upload', (p) => p.getByText('Click to upload')],
+    [/^From a website/, 'url', (p) => p.getByPlaceholder('https://example.com')],
+    [/^From an idea/, 'ai', (p) => p.getByText('AI will generate content based on your description above.')],
+  ]
+  for (const [name, source, shown] of cases) {
+    await page.goto('/dashboard')
+    await start.getByRole('link', { name }).click()
+    await expect(page).toHaveURL(new RegExp(`/create\\?source=${source}$`))
+    await expect(page.getByRole('heading', { name: 'What’s this about?' })).toBeVisible()
+    await expect(shown(page)).toBeVisible()
+  }
+  await page.goto('/dashboard')
+  await start.getByRole('link', { name: 'Paste your text' }).click()
+  await expect(page).toHaveURL(/\/create\?source=paste$/)
+  await expect(page.getByPlaceholder('Paste your content here (at least 50 characters)')).toBeVisible()
 
   await page.goto('/dashboard')
-  await page.getByRole('link', { name: /Start from a document/ }).click()
-  await expect(page).toHaveURL(/\/create$/)
+  await start.getByRole('link', { name: /^A commercial/ }).click()
+  await expect(page).toHaveURL(/\/create\/commercial$/)
+  await expect(page.getByRole('heading', { name: 'Create a Commercial' })).toBeVisible()
+})
+
+test('step 1 without ?source starts with nothing picked', async ({ page }) => {
+  await page.goto('/create')
+  await expect(page.getByRole('heading', { name: 'What’s this about?' })).toBeVisible()
+  await expect(page.getByText('Click to upload')).toHaveCount(0)
+  await expect(page.getByPlaceholder('https://example.com')).toHaveCount(0)
 })
 
 test('This month shows the real credit balance and links to plans', async ({ page }) => {

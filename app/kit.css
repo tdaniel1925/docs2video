@@ -1,0 +1,436 @@
+/* =============================================================================
+   THE KIT — one calm set of parts (overhaul phase 2, step 3, 2026-10).
+
+   The sibling apps (VidWiz, One Dollar Decks, Restylez) each have ONE set of
+   parts: one button, one card, one note… Docs2Video had a different inline
+   style on every screen, so the same job looked different everywhere. These
+   classes are that set. Screens move onto them one at a time; the React
+   wrappers live in app/_components/kit/.
+
+   Rules every part here follows:
+   - Colours are ONLY the names in globals.css (:root). Never a typed colour,
+     so Docs2Video's palette (and Text2Art's override block) reaches every part.
+   - Corners are 10px at most (house rule).
+   - Body text is 15px. Smaller text is for hints and labels only.
+   - Light by default. Dark mode later re-points the same names.
+   - Gold is MONEY ONLY: prices and the credit chip (One Dollar Decks' rule).
+   - Words and their ground are ≥ 4.5:1 (pairs checked in one-colour-set test).
+
+   Imported once, in app/layout.tsx, right after globals.css.
+   ============================================================================= */
+
+/* Hidden from the eye, still read out by screen readers. */
+.kit-sr {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
+
+/* One focus ring for every part: the link blue, clear of the edge. */
+.kit-btn:focus-visible,
+.kit-card--link:focus-visible,
+.kit-tab:focus-visible,
+.kit-menu-item:focus-visible,
+.kit-credit:focus-visible,
+.kit-topbar-link:focus-visible,
+.kit-topbar-logo:focus-visible,
+.kit-icon-btn:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+
+/* ── Button ────────────────────────────────────────────────────────────────
+   primary   navy with white words — the one thing to do on a screen
+   secondary white with a line — everything else you can press
+   quiet     words only — "Cancel", "How to use"
+   A price can sit on the button ("Make it — 1,000 credits") so nobody has to
+   look elsewhere to know what pressing it costs. */
+.kit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+/* Icon + words on one line (Tailwind's base styles make every svg a block). */
+.kit-btn-label { display: inline-flex; align-items: center; gap: 6px; }
+.kit-btn--sm { min-height: 36px; padding: 7px 13px; font-size: 14px; }
+.kit-btn--full { width: 100%; }
+
+.kit-btn--primary { background: var(--ink); color: var(--on-ink); }
+.kit-btn--primary:hover { background: color-mix(in srgb, var(--ink) 86%, var(--on-ink)); }
+
+.kit-btn--secondary { background: var(--bg-card); color: var(--ink); border-color: var(--border); }
+.kit-btn--secondary:hover { border-color: var(--ink); }
+
+.kit-btn--quiet { background: transparent; color: var(--ink-soft); }
+.kit-btn--quiet:hover { background: var(--surface); color: var(--ink); }
+
+/* Disabled is a grey well with readable words — not a faded button, which
+   drops the words below 4.5:1. The reason sits underneath (see below). */
+.kit-btn:disabled,
+.kit-btn[aria-disabled='true'] {
+  background: var(--surface);
+  color: var(--ink-light);
+  border-color: var(--border-light);
+  cursor: not-allowed;
+}
+
+/* The price slot. Gold on light buttons (money); on the navy button it stays
+   white — gold on navy can't be read. */
+.kit-btn-price { font-weight: 600; }
+.kit-btn--secondary .kit-btn-price,
+.kit-btn--quiet .kit-btn-price { color: var(--gold); }
+.kit-btn:disabled .kit-btn-price { color: inherit; }
+
+/* A disabled button says WHY, in a line under it. */
+.kit-btn-wrap { display: inline-flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.kit-btn-wrap--full { display: flex; width: 100%; }
+.kit-btn-reason { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); }
+
+/* Square button holding only an icon (it carries a hidden label). */
+.kit-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.kit-icon-btn:hover { background: var(--surface); }
+
+/* ── Card ──────────────────────────────────────────────────────────────── */
+.kit-card {
+  display: block;
+  padding: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  color: var(--ink);
+}
+/* A whole card that is one link (start cards). The edge darkens on hover. */
+.kit-card--link {
+  text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.kit-card--link:hover { border-color: var(--ink); box-shadow: var(--shadow-sm); }
+.kit-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.kit-card-title { margin: 0 0 4px; font-size: 16px; font-weight: 800; line-height: 1.3; color: var(--ink); }
+.kit-card-text { margin: 0; font-size: 15px; line-height: 1.5; color: var(--ink-soft); }
+.kit-card-go { display: inline-block; margin-top: 12px; font-size: 14px; font-weight: 700; color: var(--link); }
+
+/* ── Choices — a list of cards, pick one (real radio buttons inside) ───── */
+.kit-choices { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
+.kit-choices-legend { margin-bottom: 8px; padding: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
+.kit-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.kit-choice:hover { border-color: var(--ink); }
+.kit-choice:has(input:checked) {
+  background: var(--accent-soft);
+  border-color: var(--accent-ink);
+  box-shadow: inset 0 0 0 1px var(--accent-ink);
+}
+.kit-choice:has(input:focus-visible) { outline: 2px solid var(--link); outline-offset: 2px; }
+.kit-choice:has(input:disabled) { cursor: not-allowed; background: var(--surface); }
+.kit-choice input { margin: 3px 0 0; accent-color: var(--accent-ink); flex-shrink: 0; }
+.kit-choice-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kit-choice-label { font-size: 15px; font-weight: 700; color: var(--ink); }
+.kit-choice-hint { font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); }
+.kit-choice-aside { margin-left: auto; padding-left: 8px; font-size: 14px; font-weight: 700; color: var(--gold); white-space: nowrap; }
+
+/* ── Note — info / ok / warn / stop ────────────────────────────────────── */
+.kit-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--border-light);
+  border-left-width: 4px;
+  border-radius: 10px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.kit-note-body { flex: 1 1 240px; min-width: 0; }
+.kit-note-body p { margin: 0; }
+.kit-note-title { font-weight: 800; }
+.kit-note-action { flex-shrink: 0; }
+.kit-note--info { background: var(--sky); border-left-color: var(--link); }
+.kit-note--ok { background: var(--success-bg); border-left-color: var(--success); }
+.kit-note--warn { background: var(--warning-bg); border-left-color: var(--warning); }
+.kit-note--stop { background: var(--error-bg); border-left-color: var(--error); }
+
+/* ── Tabs ──────────────────────────────────────────────────────────────── */
+.kit-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.kit-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.kit-tab:hover { border-color: var(--ink); }
+.kit-tab[aria-selected='true'],
+.kit-tab[aria-current='page'] { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+
+/* ── Chip — a short label: a status, a type, a price ──────────────────── */
+.kit-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.kit-chip--neutral { background: var(--surface); color: var(--ink-soft); }
+.kit-chip--info { background: var(--sky); color: var(--ink); }
+.kit-chip--ok { background: var(--success-bg); color: var(--success); }
+.kit-chip--warn { background: var(--warning-bg); color: var(--warning-text); }
+.kit-chip--stop { background: var(--error-bg); color: var(--error-text); }
+.kit-chip--money { background: var(--gold-soft); color: var(--gold); }
+.kit-chip--strong { background: var(--ink); color: var(--on-ink); }
+
+/* ── Empty state ───────────────────────────────────────────────────────── */
+.kit-empty {
+  padding: 32px 20px;
+  text-align: center;
+  background: var(--bg-card);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+.kit-empty-title { margin: 0 0 6px; font-size: 17px; font-weight: 800; color: var(--ink); }
+.kit-empty-text { margin: 0 auto; max-width: 460px; font-size: 15px; line-height: 1.5; color: var(--ink-soft); }
+.kit-empty-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+
+/* ── Dialog — an in-app pop-up (a real <dialog>, so the browser keeps focus
+   inside it and Escape closes it) ───────────────────────────────────────── */
+.kit-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  /* Centred. Tailwind's base styles zero every margin, which pinned the
+     browser's own centring to the top-left corner. */
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--ink);
+  box-shadow: var(--shadow-lg);
+}
+.kit-dialog[open] { display: flex; flex-direction: column; }
+/* ::backdrop doesn't reliably see the colour names, so a plain dimmer. */
+.kit-dialog::backdrop { background: rgb(0 0 0 / 0.45); }
+.kit-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 8px;
+}
+.kit-dialog-title { margin: 0; font-size: 19px; font-weight: 800; line-height: 1.3; color: var(--ink); }
+.kit-dialog-sub { margin: 4px 0 0; font-size: 14px; color: var(--ink-soft); }
+.kit-dialog-body { padding: 8px 20px 20px; overflow-y: auto; font-size: 15px; line-height: 1.55; color: var(--ink-soft); }
+.kit-dialog-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border-light);
+  font-size: 14px;
+}
+.kit-dialog-foot a { color: var(--link); font-weight: 700; }
+.kit-dialog-video { display: block; width: 100%; margin-bottom: 16px; border-radius: 8px; background: var(--ink); }
+
+/* Numbered steps (navy circles). */
+.kit-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; counter-reset: kit-step; }
+.kit-steps li { display: flex; gap: 12px; align-items: flex-start; font-size: 15px; line-height: 1.5; color: var(--ink-soft); counter-increment: kit-step; }
+.kit-steps li::before {
+  content: counter(kit-step);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-top: -1px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+.kit-steps strong { color: var(--ink); }
+
+/* ── Menu — a small panel that drops from a button (the avatar menu) ───── */
+.kit-menu-anchor { position: relative; }
+.kit-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 6px;
+  width: 230px;
+  padding: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  z-index: 200;
+}
+.kit-menu-head { padding: 8px 10px 10px; }
+.kit-menu-name { font-size: 14px; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kit-menu-plan { font-size: 13px; color: var(--ink-soft); }
+.kit-menu-sep { height: 1px; margin: 4px 0; border: 0; background: var(--border-light); }
+.kit-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 15px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.kit-menu-item:hover { background: var(--surface); }
+
+/* ── Credit chip — money, so gold. Amber when there isn't enough left for
+   one standard video. ──────────────────────────────────────────────────── */
+.kit-credit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--gold-soft));
+  border-radius: 8px;
+  background: var(--gold-soft);
+  color: var(--gold);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.kit-credit:hover { border-color: var(--gold); }
+.kit-credit[data-level='low'] {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+  color: var(--warning-text);
+}
+.kit-credit-top { padding-left: 8px; border-left: 1px solid currentColor; font-size: 13px; }
+.kit-credit-short { display: none; }
+
+/* ── Top bar (Docs2Video). Logo · four words · How to use · credits · bell ·
+   you. Text2Art wears ClassicHeader and none of this. ─────────────────── */
+.kit-topbar { padding: 0 32px; }
+.kit-topbar-inner {
+  max-width: 1240px;
+  height: 72px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.kit-topbar-logo { display: flex; align-items: center; flex-shrink: 0; border-radius: 8px; }
+.kit-topbar-logo img { height: 60px; width: auto; }
+.kit-topbar-nav { display: flex; align-items: center; gap: 4px; margin-left: 20px; }
+.kit-topbar-nav .kit-btn { margin-right: 8px; }
+.kit-topbar-link {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.kit-topbar-link:hover { background: var(--surface); color: var(--ink); }
+.kit-topbar-link[aria-current='page'] { background: var(--accent); color: var(--ink); }
+.kit-topbar-end { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.kit-topbar-menu-btn { display: none; }
+.kit-avatar-btn { padding: 0; border: 0; background: none; border-radius: 10px; }
+.kit-avatar-btn:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
+/* Phone menu: a plain list under the bar (not a full-screen cover). */
+.kit-phone-menu {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0 14px;
+  border-top: 1px solid var(--border-light);
+}
+.kit-phone-menu .kit-menu-item[aria-current='page'] { background: var(--accent); font-weight: 700; }
+
+@media (max-width: 900px) {
+  .kit-topbar { padding: 0 16px; }
+  .kit-topbar-inner { height: 64px; gap: 6px; }
+  .kit-topbar-logo img { height: 40px; }
+  .kit-topbar-end { gap: 4px; }
+  .kit-topbar-menu-btn { width: 36px; }
+  .kit-topbar-nav, .kit-topbar-howto { display: none; }
+  .kit-topbar-menu-btn { display: inline-flex; }
+  .kit-phone-menu { display: flex; }
+  .kit-credit { padding: 6px 10px; gap: 5px; }
+  .kit-credit-long { display: none; }
+  .kit-credit-short { display: inline; }
+}
+/* The smallest phones: the balance alone (the chip still opens Top Up). */
+@media (max-width: 360px) {
+  .kit-topbar-logo img { height: 34px; }
+  .kit-credit-top { display: none; }
+}

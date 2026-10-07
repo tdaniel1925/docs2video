@@ -122,19 +122,28 @@ export default function GettingStartedPage() {
         <h2 style={H2}>Finding Your Way Around</h2>
         <div style={BODY}>
           <p style={{ marginBottom: 16 }}>
-            After logging in, you land on your Dashboard. Here is what you will see:
+            After logging in, you land on Home. Here is what you will see:
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Top bar</strong> — <strong style={INK}>Dashboard</strong>, <strong style={INK}>{NAMES.newButton}</strong> (start anything new), <strong style={INK}>{NAMES.library}</strong> (everything you&rsquo;ve made) and <strong style={INK}>Clients</strong>. Your credit balance, with a <strong style={INK}>+ Top Up</strong> button, is on the right.
+            <strong style={INK}>Top bar</strong> — four words: <strong style={INK}>{NAMES.newButton}</strong> (start anything new), <strong style={INK}>{NAMES.library}</strong> (everything you&rsquo;ve made), <strong style={INK}>{NAMES.clients}</strong> (the people you send to) and <strong style={INK}>{NAMES.brands}</strong> (your logos and colors). The Docs2Video logo takes you back Home. On the right: <strong style={INK}>{NAMES.howToUse}</strong>, your credits in gold with <strong style={INK}>+ Top Up</strong> (they turn amber when fewer than {CREDIT_COSTS.videoStandard.toLocaleString('en-US')} are left — one standard video), the bell, and your initial.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Account menu</strong> — Click your name (top-right) for your plan, your credits and <strong style={INK}>Top Up</strong>, <strong style={INK}>Analytics</strong>, <strong style={INK}>AI Social</strong>, <strong style={INK}>{NAMES.brands}</strong>, <strong style={INK}>Settings</strong>, <strong style={INK}>Affiliate Program</strong>, <strong style={INK}>Help Center</strong> and <strong style={INK}>Sign Out</strong>.
+            <strong style={INK}>{NAMES.howToUse}</strong> — Opens the steps for the screen you&rsquo;re on, numbered and in plain words. Press Esc or the &times; to close it. On a phone, open the &#9776; menu and choose <strong style={INK}>{NAMES.howToUse} this screen</strong>.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>Account menu</strong> — Click your initial (top-right) for your plan, <strong style={INK}>Analytics</strong>, <strong style={INK}>AI Social</strong>, <strong style={INK}>Affiliate Program</strong>, <strong style={INK}>Settings</strong>, <strong style={INK}>Help Center</strong> and <strong style={INK}>Sign out</strong>.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>Start something new</strong> — Four cards: <strong style={INK}>From a document</strong>, <strong style={INK}>From a website</strong>, <strong style={INK}>From an idea</strong> (AI writes it) and <strong style={INK}>A commercial</strong>. Each one opens the first step with that choice already made. Already have the words? Press <strong style={INK}>Paste your text</strong> under the cards.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>Today&rsquo;s clients</strong> — Who clicked to book a call, who watched, and who hasn&rsquo;t opened what you sent — each with the next thing to do, like <strong style={INK}>Send the follow-up</strong>.
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={INK}>Projects</strong> — Your latest work and where each one is at (draft, sent, watched). Click <strong style={INK}>Open</strong> on one, or <strong style={INK}>Continue</strong> on a draft. Go to <strong style={INK}>{NAMES.library}</strong> to see everything.
           </p>
           <p>
-            <strong style={INK}>This month</strong> — On the right: emails sent, projects watched, clicks to book a call, your credits left and your plan.
+            <strong style={INK}>This month</strong> — Beside your projects: emails sent, projects watched, clicks to book a call, your credits left and your plan.
           </p>
         </div>
       </div>

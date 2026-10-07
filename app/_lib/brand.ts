@@ -47,7 +47,7 @@ export type Brand = {
   ogImage: string
   /** Where a signed-in visitor belongs. */
   home: string
-  /** Dashboard navigation, in order. */
+  /** Dashboard navigation, in order. The 'kit' bar shows it after `create`. */
   nav: BrandNavItem[]
   /**
    * The one big "make something" button in the app header, or null when the
@@ -61,6 +61,15 @@ export type Brand = {
    * exist and still work — they are simply not linked from a Text2Art nav.
    */
   showVideoFeatures: boolean
+  /**
+   * Which top bar this storefront wears.
+   *  - 'kit': the 2026-10 overhaul bar — four words, gold credit chip, a
+   *    "How to use" button that explains the screen you're on.
+   *  - 'classic': the bar as it was before the overhaul, kept frozen. Text2Art
+   *    has its own nav and its screens aren't in the How-to-use guide, so it
+   *    must not change when Docs2Video's bar does.
+   */
+  topBar: 'kit' | 'classic'
 }
 
 export const DOCS2VIDEO: Brand = {
@@ -75,17 +84,20 @@ export const DOCS2VIDEO: Brand = {
   iconSrc: '/favicon.png',
   ogImage: '/og-docs2video.png',
   home: '/dashboard',
+  // FOUR WORDS: + New, Library, Clients, Brands (the sibling apps' calm bar).
+  // "Dashboard" is gone — the logo goes Home. Brands moved here from the
+  // account menu: every help article sends people there, and a menu item
+  // behind your initial is hard to find.
+  // Custom Graphics is NOT in this nav. It is reachable from step 1 and from
+  // the Library, and a video product should not lead with a design tool.
   nav: [
-    { href: '/dashboard', label: 'Dashboard' },
-    // Custom Graphics is NOT in this nav. It was added when the Tools dropdown
-    // was switched off and the maker became unreachable — but it is reachable
-    // now from + New and from the Library, and a video product should not
-    // lead with a design tool. The route and the feature are untouched.
     { href: '/videos', label: NAMES.library },
-    { href: '/clients', label: 'Clients' },
+    { href: '/clients', label: NAMES.clients },
+    { href: '/brands', label: NAMES.brands },
   ],
-  create: { href: '/create/start', label: NAMES.newButton },
+  create: { href: '/create', label: NAMES.newButton },
   showVideoFeatures: true,
+  topBar: 'kit',
 }
 
 export const TEXT2ART: Brand = {
@@ -113,6 +125,7 @@ export const TEXT2ART: Brand = {
   ],
   create: null,
   showVideoFeatures: false,
+  topBar: 'classic',
 }
 
 export const BRANDS: Record<BrandId, Brand> = {

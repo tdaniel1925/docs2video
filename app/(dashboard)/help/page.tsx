@@ -32,7 +32,7 @@ interface HelpGuide {
   icon: string
 }
 
-// Audited against the live UI on 2026-09-26. When a screen changes, change the
+// Audited against the live UI on 2026-09-26 (top bar + Home: 2026-10, overhaul step 4). When a screen changes, change the
 // matching entry here (and the guide page it links to) in the same commit.
 const GUIDES: HelpGuide[] = [
   {
@@ -137,19 +137,32 @@ const ARTICLES: HelpArticle[] = [
       '**3 — Brand:** Your logo, brand colors, and contact info (phone/email/website) — used across every video and the share page.',
       '**4 — Voice:** Pick a default narration voice.',
       '**5 — Style:** Pick a default image style for your slides. You choose the video look for each project on the Style step.',
-      `You can re-run the wizard anytime with **Re-run Setup Wizard** at the top of **Settings**. To edit saved brands later, open the account menu (top-right) and choose **${NAMES.brands}**.`,
+      `You can re-run the wizard anytime with **Re-run Setup Wizard** at the top of **Settings**. To edit saved brands later, click **${NAMES.brands}** in the top bar.`,
     ],
   },
   {
     id: 'dashboard',
-    title: 'Understanding Your Dashboard',
+    title: 'Home and the top bar',
     category: 'getting-started',
     icon: '📊',
     content: [
-      `The top bar has **Dashboard**, **${NAMES.newButton}**, **${NAMES.library}** and **Clients**. Your name (top-right) opens the account menu: credits and **Top Up**, Analytics, AI Social, ${NAMES.brands}, Settings, Affiliate Program and Help Center.`,
-      '**Credits** — Your balance is in the top bar. Every creation spends credits (see Pricing). Click **+ Top Up** to buy more.',
-      `**${NAMES.newButton}** — Start any new project here: a narrated video, an interactive presentation or a slide deck. Commercials and custom graphics start from the links under the first step.`,
-      `**Projects** — Your latest work and where each one stands. Click any item to open it, or go to **${NAMES.library}** for everything.`,
+      `The top bar has four words: **${NAMES.newButton}**, **${NAMES.library}**, **${NAMES.clients}** and **${NAMES.brands}**. The logo takes you Home. On the right are **${NAMES.howToUse}**, your credits and your initial, which opens the account menu: your plan, Analytics, AI Social, Affiliate Program, Settings, Help Center and Sign out.`,
+      `**Credits** — Your balance is the gold box in the top bar. It turns amber when fewer than ${n(CREDIT_COSTS.videoStandard)} are left (one standard video). Every creation spends credits (see Pricing). Click it (**+ Top Up**) to buy more.`,
+      '**Start something new** — Home opens with four cards: **From a document**, **From a website**, **From an idea** and **A commercial**. Each one opens the first step with that choice already made. Already have the words? Click **Paste your text** under the cards.',
+      `**${NAMES.newButton}** — Starts any new project too: a narrated video, an interactive presentation or a slide deck. Commercials and custom graphics also start from the links under the first step.`,
+      '**Today’s clients** — Who clicked to book a call, who watched, and who hasn’t opened what you sent, each with the next thing to do.',
+      `**Projects** — Your latest work and where each one stands. Click **Continue** on a draft or **Open** on the rest, or go to **${NAMES.library}** for everything.`,
+    ],
+  },
+  {
+    id: 'how-to-use',
+    title: 'The "How to use" button',
+    category: 'getting-started',
+    icon: '🧭',
+    content: [
+      `Every screen has a **${NAMES.howToUse}** button in the top bar. On a phone, open the ☰ menu and choose **${NAMES.howToUse} this screen**.`,
+      'It opens a short, numbered list of steps for the screen you are on: Home, each step of making a project, your Library, a finished project, Brands, Clients and Settings. Other screens show how to get around.',
+      'Press **Esc**, the **×**, or click outside it to close it. **More in the Help Center** at the bottom opens the full guide for that screen.',
     ],
   },
 
@@ -433,7 +446,7 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '🏷️',
     content: [
-      `Your logo lives in a **Company brand**. Open the account menu (top-right) and choose **${NAMES.brands}**, then create or edit a brand and upload a PNG or SVG logo.`,
+      `Your logo lives in a **Company brand**. Click **${NAMES.brands}** in the top bar, then create or edit a brand and upload a PNG or SVG logo.`,
       'You can also add your brand on the **Make it yours** step while making a video (**Add your brand**), or during Setup.',
       'When making a video, the brand shows at the top of **Make it yours** — press **Change** to pick another. The logo appears on the cover, the closing slide and the share page. See the **Brands & Personalization** guide for details.',
     ],

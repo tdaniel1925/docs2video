@@ -188,7 +188,7 @@ export default function GeneratingPage() {
               padding: '12px 24px', borderRadius: 10, border: '1px solid var(--border)',
               background: 'white', color: 'var(--ink-soft)', fontSize: 14, fontWeight: 600, textDecoration: 'none',
             }}>
-              Dashboard
+              Home
             </Link>
           </div>
         </div>
@@ -222,7 +222,7 @@ export default function GeneratingPage() {
               padding: '12px 24px', borderRadius: 10, border: '1px solid var(--border)',
               background: 'white', color: 'var(--ink-soft)', fontSize: 14, fontWeight: 600, textDecoration: 'none',
             }}>
-              Dashboard
+              Home
             </Link>
           </div>
         </div>
@@ -301,7 +301,7 @@ export default function GeneratingPage() {
         <Link href="/dashboard" style={{
           fontSize: 14, color: 'var(--ink-light)', textDecoration: 'none',
         }}>
-          Back to Dashboard
+          Back to Home
         </Link>
       </div>
     )
@@ -455,7 +455,7 @@ export default function GeneratingPage() {
           background: 'var(--ink)', color: 'white', fontSize: 15, fontWeight: 700,
           textDecoration: 'none', transition: 'opacity 0.2s',
         }}>
-          Go to Dashboard
+          Go to Home
         </Link>
       </div>
 

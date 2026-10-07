@@ -75,7 +75,7 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'Can I create videos for multiple brands or clients?',
     answer: [
-      `Yes. Open the account menu (top-right) and choose **${NAMES.brands}** to create a brand for each company or person. You can also set one up while making a video: on step 3, click **Change** next to the brand.`,
+      `Yes. Click **${NAMES.brands}** in the top bar to create a brand for each company or person. You can also set one up while making a video: on step 3, click **Change** next to the brand.`,
       'When making a video, pick the right one on the brand step (**Your brand**) and the video uses that logo, colors and contact info. There is no limit on the number of brands.',
     ],
   },
@@ -151,7 +151,7 @@ const TROUBLESHOOTING: FaqItem[] = [
   {
     question: 'My brand colors look different in the video than on my website.',
     answer: [
-      `Open the account menu (top-right), choose **${NAMES.brands}**, and edit that brand. Set the brand color to your exact color code.`,
+      `Click **${NAMES.brands}** in the top bar and edit that brand. Set the brand color to your exact color code.`,
       'Colors picked up automatically from a website are a best guess and can grab a button or background color instead of your main brand color.',
     ],
   },

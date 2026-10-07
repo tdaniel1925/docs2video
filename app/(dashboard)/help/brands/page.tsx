@@ -36,7 +36,7 @@ export default function BrandsHelpPage() {
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>From the menu</strong> — Click your name in the top-right corner to open the account menu, then choose <strong style={{ color: 'var(--ink)' }}>{NAMES.brands}</strong>. You see all your saved brands. Click <strong style={{ color: 'var(--ink)' }}>{NAMES.newBrand}</strong> to add one, or click a brand to edit it.
+            <strong style={{ color: 'var(--ink)' }}>From the top bar</strong> — Click <strong style={{ color: 'var(--ink)' }}>{NAMES.brands}</strong> in the top bar. You see all your saved brands. Click <strong style={{ color: 'var(--ink)' }}>{NAMES.newBrand}</strong> to add one, or click a brand to edit it.
           </p>
           <p>
             <strong style={{ color: 'var(--ink)' }}>While making a video</strong> — On the <strong style={{ color: 'var(--ink)' }}>Make it yours</strong> step you see which brand is in use. Click <strong style={{ color: 'var(--ink)' }}>Change</strong> (or <strong style={{ color: 'var(--ink)' }}>Add your brand</strong> if there isn&apos;t one yet) to pick another saved brand or make a new one on the spot. No brand at all? The video uses plain colors.
@@ -125,7 +125,7 @@ export default function BrandsHelpPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>1</div>
             <div>
-              <strong style={{ color: 'var(--ink)' }}>Open {NAMES.brands} and click &ldquo;{NAMES.newBrand}.&rdquo;</strong> (Account menu, top-right &gt; {NAMES.brands}.) At the top of the form is a box called <strong style={{ color: 'var(--ink)' }}>Import from website</strong>.
+              <strong style={{ color: 'var(--ink)' }}>Open {NAMES.brands} and click &ldquo;{NAMES.newBrand}.&rdquo;</strong> ({NAMES.brands} is in the top bar.) At the top of the form is a box called <strong style={{ color: 'var(--ink)' }}>Import from website</strong>.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
@@ -234,7 +234,7 @@ export default function BrandsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>Choosing a Brand for a Video</strong> — On the <strong style={{ color: 'var(--ink)' }}>Make it yours</strong> step, click <strong style={{ color: 'var(--ink)' }}>Change</strong> next to the brand and pick the one you want. The video uses that brand&apos;s logo, colors, photo and contact details.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>Editing a Brand</strong> — Open <strong style={{ color: 'var(--ink)' }}>{NAMES.brands}</strong> from the account menu and click any brand to edit it. Changes don&apos;t alter videos you already made; everything you make afterwards uses the new settings.
+            <strong style={{ color: 'var(--ink)' }}>Editing a Brand</strong> — Click <strong style={{ color: 'var(--ink)' }}>{NAMES.brands}</strong> in the top bar and click any brand to edit it. Changes don&apos;t alter videos you already made; everything you make afterwards uses the new settings.
           </p>
         </div>
       </div>
